@@ -6,6 +6,9 @@
 	  (epoch with colon is stripped, but
 	   colons after that are allowed)
 
+	* Add tests/test.sh to test for basic
+	  things to work...
+
 2005-01-19  Bernhard R. Link <brlink@debian.org>
 	* now also include, includedeb, includedsc
 	and update will remove files which are no
