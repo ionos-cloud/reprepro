@@ -48,7 +48,7 @@ static retvalue gpgerror(GpgmeError err){
 		return RET_OK;
 }
 
-static retvalue signature_init(){
+static retvalue signature_init(void){
 	GpgmeError err;
 
 	if( context != NULL )

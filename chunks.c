@@ -444,7 +444,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	assert( chunk != NULL && beforethis != NULL );
 
 	if( toadd == NULL )
-		return RET_NOTHING;
+		return NULL;
 
 	c = chunk;
 

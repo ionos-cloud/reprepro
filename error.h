@@ -21,10 +21,10 @@ typedef int retvalue;
 
 /* update a return value, so that it contains the first error-code
  * and otherwise is RET_OK, if anything was RET_OK */
-#define RET_UPDATE(ret,update) { if( (update)!=0 && (ret)>=0 ) ret=update;}
+#define RET_UPDATE(ret,update) { if( (update)!=RET_NOTHING && RET_WAS_NO_ERROR(ret) ) ret=update;}
 
 /* like RET_UPDATE, but RET_ENDUPDATE(RET_NOTHING,RET_OK) keeps RET_NOTHING */
-#define RET_ENDUPDATE(ret,update) { if( (update)<0 && (ret)>=0 ) ret=update;}
+#define RET_ENDUPDATE(ret,update) {if(RET_WAS_ERROR(update)&&RET_WAS_NO_ERROR(ret)) ret=update;}
 
 /* code a errno in a error */
 #define RET_ERRNO(err) ((err>0)?(-err):RET_ERROR)
@@ -36,10 +36,10 @@ typedef int retvalue;
 // TODO: to be implemented...
 #define RET_DBERR(e) RET_ERROR
 
-#define EXIT_RET(ret) ((ret>=0)?((nothingiserror&&ret==0)?1:0):ret)
+#define EXIT_RET(ret) (RET_WAS_NO_ERROR(ret)?((nothingiserror&&ret==RET_NOTHING)?EXIT_FAILURE:EXIT_SUCCESS):ret)
 
 typedef int bool_t;
-#define TRUE 1
-#define FALSE 0
+#define TRUE (1==1)
+#define FALSE (0==42)
 
 #endif
