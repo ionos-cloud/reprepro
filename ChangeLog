@@ -1,4 +1,10 @@
 2004-12-18  Bernhard R. Link <brlink@debian.org>
 
+	* remove now tells which packages were removed (with -v)
+	  and which could not be deleted. Indicies will only
+	  be exported when something was deleted.
+
+2004-12-18  Bernhard R. Link <brlink@debian.org>
+
 	* Modify remove to allow -T to specify the
 	  type (deb,dsc,udeb) to delete from.

@@ -163,10 +163,10 @@ retvalue target_removepackage(struct target *target,DB *references,const char *n
 	if( RET_WAS_ERROR(r) )
 		return r;
 	else if( r == RET_NOTHING ) {
-		if( verbose >= 0 )
+		if( verbose >= 10 )
 			fprintf(stderr,"Could not find '%s' in '%s'...\n",
 					name,target->identifier);
-		return RET_ERROR_MISSING;
+		return RET_NOTHING;
 	}
 	r = target->getfilekeys(target,oldchunk,&files,NULL);
 	free(oldchunk);

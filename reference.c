@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -164,7 +164,7 @@ retvalue references_decrement(DB* refdb,const char *needed,const char *neededby)
 	int dbret;
 	retvalue r;
 
-	r = RET_NOTHING;
+	r = RET_OK;
 	cursor = NULL;
 	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
 		refdb->err(refdb, dbret, "references_decrement dberror:");

@@ -292,7 +292,7 @@ static int action_addreference(int argc,const char *argv[]) {
 }
 
 
-struct remove_args {DB *references; int count; const char **names; };
+struct remove_args {DB *references; int count; const char **names; int *gotremoved; int todo;};
 
 static retvalue remove_from_target(void *data, struct target *target) {
 	retvalue result,r;
@@ -307,8 +307,11 @@ static retvalue remove_from_target(void *data, struct target *target) {
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
 		r = target_removepackage(target,d->references,d->names[i]);
-		if( r == RET_ERROR_MISSING )
-			r = RET_NOTHING;
+		if( RET_IS_OK(r) ) {
+			if( d->gotremoved[i] == 0 )
+				d->todo--;
+			d->gotremoved[i] = 1;
+		}
 		RET_UPDATE(result,r);
 	}
 	r = target_closepackagesdb(target);
@@ -340,15 +343,34 @@ static int action_remove(int argc,const char *argv[]) {
 
 	d.count = argc-2;
 	d.names = argv+2;
+	d.todo = d.count;
+	d.gotremoved = calloc(d.count,sizeof(int));
+	if( d.gotremoved == NULL )
+		result = RET_ERROR_OOM;
+	else
+		result = distribution_foreach_part(distribution,component,architecture,suffix,remove_from_target,&d,force);
 
-	result = distribution_foreach_part(distribution,component,architecture,suffix,remove_from_target,&d,force);
-
-	r = distribution_export(distribution,dbdir,distdir,force,1);
-	RET_ENDUPDATE(result,r);
+	if( d.todo < d.count ) {
+		r = distribution_export(distribution,dbdir,distdir,force,1);
+		RET_ENDUPDATE(result,r);
+	}
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
 	r = references_done(d.references);
 	RET_ENDUPDATE(result,r);
+	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {
+		fputs("Not removed as not found: ",stderr);
+		while( d.count > 0 ) {
+			d.count--;
+			if( d.gotremoved[d.count] == 0 ) {
+				fputs(d.names[d.count],stderr);
+				d.todo--;
+				if( d.todo > 0 )
+					fputs(", ",stderr);
+			}
+		}
+		fputc('\n',stderr);
+	}
 	return EXIT_RET(result);
 }
 
