@@ -56,6 +56,7 @@ struct aptmethod {
 	struct aptmethod *next;
 	char *name;
 	char *baseuri;
+	char *config;
 	int stdin,stdout;
 	pid_t child;
 
@@ -129,7 +130,7 @@ retvalue aptmethod_initialize_run(struct aptmethodrun **run) {
 	}
 }
 
-retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct aptmethod **m) {
+retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *config,struct aptmethod **m) {
 	struct aptmethod *method;
 	const char *p;
 
@@ -172,6 +173,17 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct apt
 		free(method->name);
 		free(method);
 		return RET_ERROR_OOM;
+	}
+	if( config ) {
+		method->config = strdup(config);
+		if( method->config == NULL ) {
+			free(method->baseuri);
+			free(method->name);
+			free(method);
+			return RET_ERROR_OOM;
+		}
+	} else {
+		method->config = NULL;
 	}
 	method->next = run->methods;
 	run->methods = method;

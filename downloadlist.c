@@ -103,7 +103,7 @@ retvalue downloadlist_run(struct downloadlist *list,const char *methoddir,int fo
 		struct aptmethod *method;
 		struct downloaditem *item;
 
-		r = aptmethod_newmethod(run,upstream->method,&method);
+		r = aptmethod_newmethod(run,upstream->method,upstream->config,&method);
 		if( RET_WAS_ERROR(r) ) {
 			aptmethod_cancel(run);
 			return r;

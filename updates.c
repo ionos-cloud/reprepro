@@ -39,8 +39,6 @@
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
-
-
 extern int verbose;
 
 /* if found in a update-chunk, do no download or check release-files */
@@ -59,6 +57,8 @@ struct update_upstream {
 	char *name;
 	//e.g. "Method: ftp://ftp.uni-freiburg.de/pub/linux/debian"
 	char *method;
+	//e.g. "Config: Dir=/"
+	char *config;
 	//e.g. "Suite: woody" or "Suite: <asterix>/updates" (NULL means "*")
 	char *suite_from;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
@@ -79,6 +79,7 @@ void update_upstream_free(struct update_upstream *update) {
 	if( update == NULL )
 		return;
 	free(update->name);
+	free(update->config);
 	free(update->method);
 	free(update->suite_from);
 	free(update->verifyrelease);
@@ -174,6 +175,15 @@ inline static retvalue parse_pattern(const char *chunk, struct update_upstream *
 		return r;
 	}
 
+	/* * Is there config for the method? * */
+	r = chunk_getwholedata(chunk,"Config",&update->config);
+	if( RET_WAS_ERROR(r) ) {
+		update_upstream_free(update);
+		return r;
+	}
+	if( r == RET_NOTHING )
+		update->config = NULL;
+
 	/* * Check which suite to update from * */
 	r = chunk_getvalue(chunk,"Suite",&update->suite_from);
 	if( RET_WAS_ERROR(r) ) {
@@ -255,10 +265,14 @@ static retvalue instance_pattern(const struct update_upstream *pattern,
 		update_upstream_free(update);
 		return RET_ERROR_OOM;
 	}
-	update->method = strdup(pattern->method);
-	if( update->method == NULL ) {
-		update_upstream_free(update);
-		return RET_ERROR_OOM;
+	if( pattern->method == NULL )
+		update->method = NULL;
+	else {
+		update->method = strdup(pattern->method);
+		if( update->method == NULL ) {
+			update_upstream_free(update);
+			return RET_ERROR_OOM;
+		}
 	}
 	if( pattern->verifyrelease == NULL )
 		update->verifyrelease = NULL;
@@ -481,7 +495,7 @@ retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct up
 	struct aptmethod *method;
 	retvalue r;
 
-	r = aptmethod_newmethod(run,upstream->method,&method);
+	r = aptmethod_newmethod(run,upstream->method,upstream->config,&method);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}

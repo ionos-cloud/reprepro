@@ -5,7 +5,7 @@ struct aptmethodrun;
 struct aptmethod;
 
 retvalue aptmethod_initialize_run(struct aptmethodrun **run);
-retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct aptmethod **m);
+retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *config,struct aptmethod **m);
 /* md5sum can be NULL: */
 retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum);
 

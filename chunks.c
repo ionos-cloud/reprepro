@@ -283,6 +283,36 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	return RET_OK;
 }
 
+retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
+	const char *f,*p,*e;
+	int afternewline = 0;
+	char *v;
+
+	f = chunk_getfield(name,chunk);
+	if( !f )
+		return RET_NOTHING;
+	for ( e = p = f ; *p ; p++ ) {
+		if( afternewline ) {
+			if( *p == ' ' )
+				afternewline = 0;
+			else if( *p != '\r' )
+				break;
+		} else {
+			if(  *p == '\n' ) {
+				e = p;
+				afternewline = 1;
+			}
+		}
+	}
+	if( !afternewline && *p == '\0' )
+		e = p;
+	v = strndup(f,e-f);
+	if( v == NULL )
+		return RET_ERROR_OOM;
+	*value = v;
+	return RET_OK;
+}
+
 retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist) {
 	retvalue r;
 	const char *f,*b;
