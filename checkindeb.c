@@ -322,7 +322,7 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 
 	/* then looking if we already have this, or copy it in */
 
-	r = files_checkin(filesdb,mirrordir,filekeys.values[0],debfilename,&md5andsize);
+	r = files_checkin(mirrordir,filesdb,filekeys.values[0],debfilename,&md5andsize);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&filekeys);
 		deb_free(pkg);

@@ -457,7 +457,7 @@ static retvalue add(void *data,const char *chunk,const char *package,const char 
 
 	/* Add package to distribution's database */
 
-	result = files_insert(dist->files,mirrordir,filekeys,md5sums);
+	result = files_expectfiles(mirrordir,dist->files,filekeys,md5sums);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
@@ -519,7 +519,7 @@ static retvalue showmissing(void *data,const char *chunk,const char *package,con
 	r = dirs_make_parents(mirrordir,filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	ret = files_printmissing(dist->files,mirrordir,filekeys,md5sums,origfiles);
+	ret = files_printmissing(mirrordir,dist->files,filekeys,md5sums,origfiles);
 	return ret;
 }
 
@@ -1271,7 +1271,7 @@ static int includedsc(int argc,char *argv[]) {
 	if( !files )
 		return 1;
 
-	result =dsc_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],force);
+	result =dsc_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,force);
 	distribution_free(distribution);
 
 	r = files_done(files);

@@ -256,7 +256,7 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 }
 
 /* check for several files in the database and in the pool if missing */
-retvalue files_insert(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums) {
+retvalue files_expectfiles(const char *mirrordir,DB *filesdb,const struct strlist *filekeys,const struct strlist *md5sums) {
 	int i;
 	retvalue r;
 
@@ -278,7 +278,7 @@ retvalue files_insert(DB *filesdb,const char *mirrordir,const struct strlist *fi
 }
 
 /* print missing files */
-retvalue files_printmissing(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles) {
+retvalue files_printmissing(const char *mirrordir,DB *filesdb,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles) {
 	int i;
 	retvalue ret,r;
 
@@ -370,7 +370,7 @@ retvalue files_foreach(DB* filesdb,per_file_action action,void *privdata) {
  * or the database had an error. return RET_NOTHING, if already there
  * with correct md5sum. Return <md5andsize> with the data of this file,
  * if no error (that is if RET_OK or RET_NOTHING) */
-retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
+retvalue files_checkin(const char *mirrordir,DB *filesdb,const char *filekey,
 		const char *origfilename, char **md5andsize) {
 
 	int dbret;

@@ -30,9 +30,9 @@ retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey);
 retvalue files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const char *md5andsize);
 
 /* print missing files */
-retvalue files_printmissing(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles);
+retvalue files_printmissing(const char *mirrordir,DB *filesdb,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles);
 /* check for several files in the database and in the pool if missing */
-retvalue files_insert(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums);
+retvalue files_expectfiles(const char *mirrordir,DB *filesdb,const struct strlist *filekeys,const struct strlist *md5sums);
 
 /* Copy file <origfilename> to <mirrordir>/<filekey> and add it to
  * the database <filesdb>. Return RET_ERROR_WRONG_MD5 if already there 
@@ -40,13 +40,12 @@ retvalue files_insert(DB *filesdb,const char *mirrordir,const struct strlist *fi
  * or the database had an error. return RET_NOTHING, if already there
  * with correct md5sum. Return <md5andsize> with the data of this file,
  * if no error (that is if RET_OK or RET_NOTHING) */
-retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
+retvalue files_checkin(const char *mirrordir,DB *filesdb,const char *filekey,
 		const char *origfilename, char **md5andsize);
 
 /* Make sure filekeys with md5sums are in the pool. If not copy from
  * sourcedir/file where file is the entry from files */
-retvalue files_checkinfiles(const char *mirrordir,DB *filesdb,const char *sourcedir,
-const struct strlist *basefilenames,const struct strlist *filekeys,const struct strlist *md5sums);
+retvalue files_checkinfiles(const char *mirrordir,DB *filesdb,const char *sourcedir,const struct strlist *basefilenames,const struct strlist *filekeys,const struct strlist *md5sums);
 /* The same for a single file: */
 retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourcedir,const char *basename,const char *filekey,const char *md5sum);
 
