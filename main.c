@@ -288,6 +288,8 @@ int removepackage(int argc,char *argv[]) {
 			if( RET_IS_OK(r) ) {
 				r = references_decrement(refs,filekey,argv[1]);
 				free(filekey);
+			} else if( r == RET_NOTHING ) {
+				r = sources_dereference(refs,argv[1],chunk);
 			}
 		}
 		if( chunk )
@@ -452,7 +454,6 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
 	const char *nextfile;
-	char *oldfiles;
 	char *filename,*filekey,*md5andsize;
 
 
@@ -507,19 +508,8 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	 * the old and the new package use it.) */
 
 	if( oldchunk != NULL ) {
-		sources_parse_chunk(oldchunk,NULL,NULL,&oldfiles);
-		nextfile = oldfiles;
-		while( RET_IS_OK(r=sources_getfile(&nextfile,&filename,NULL)) ){
-			/* the directory was the same, as it is
-			 * calculated from the sourcename */
-			filekey = calc_srcfilekey(directory,filename);
-
-			r = references_decrement(dist->refs,filekey,dist->referee);
-			RET_UPDATE(result,r);
-
-			free(filename);free(filekey);
-		}
-		free(oldfiles);
+		r = sources_dereference(dist->refs,dist->referee,oldchunk);
+		RET_UPDATE(result,r);
 	}
 	return result;
 }

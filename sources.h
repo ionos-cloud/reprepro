@@ -34,4 +34,7 @@ typedef retvalue source_package_action(
  * <pkgs> and using <part> as subdir of pool (i.e. "main","contrib",...) for generated paths */
 retvalue sources_add(DB *pkgs,const char *part,const char *sources_file,source_package_action action,void *data);
 
+/* remove all references by the given chunk */
+retvalue sources_dereference(DB *refs,const char *referee,const char *chunk);
+
 #endif

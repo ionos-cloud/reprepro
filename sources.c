@@ -239,3 +239,30 @@ retvalue sources_add(DB *pkgs,const char *part,const char *sources_file, source_
 
 	return chunk_foreach(sources_file,addsource,&mydata,force);
 }
+
+/* remove all references by the given chunk */
+retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
+	char *directory,*files;
+	const char *nextfile;
+	char *filename,*filekey;
+	retvalue r,result;
+
+	r = sources_parse_chunk(chunk,NULL,&directory,&files);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	result = RET_NOTHING;
+	
+	nextfile = files;
+	while( RET_IS_OK(r=sources_getfile(&nextfile,&filename,NULL)) ){
+		filekey = calc_srcfilekey(directory,filename);
+
+		r = references_decrement(refs,filekey,referee);
+		RET_UPDATE(result,r);
+
+		free(filename);free(filekey);
+	}
+	free(directory);free(files);
+
+	return result;
+}
