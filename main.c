@@ -38,6 +38,7 @@
 #include "download.h"
 #include "updates.h"
 #include "signature.h"
+#include "extractcontrol.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "/var/spool/mirrorer"
@@ -65,6 +66,22 @@ static int printargs(int argc,char *argv[]) {
 	}
 	return 0;
 }
+static int extract_control(int argc,char *argv[]) {
+	retvalue result;
+	char *control;
+
+	if( argc != 2 ) {
+		fprintf(stderr,"mirrorer __extractcontrol <.deb-file>\n");
+		return 1;
+	}
+
+	result = extractcontrol(&control,argv[1]);
+	
+	if( RET_IS_OK(result) ) 
+		printf("%s\n",control);
+	return EXIT_RET(result);
+}
+
 
 static int addmd5sums(int argc,char *argv[]) {
 	char buffer[2000],*c,*m;
@@ -1351,6 +1368,7 @@ static struct action {
 	{"_removereferences", removereferences},
 	{"_addmd5sums",addmd5sums},
 	{"update",update},
+	{"__extractcontrol",extract_control},
 	{NULL,NULL}
 };
 
