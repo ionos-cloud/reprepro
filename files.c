@@ -409,15 +409,11 @@ retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
 	
 	/* copy file in and calculate it's md5sum */
 	
-	r = copyfile(mirrordir,filekey,origfilename);
+	r = copyfile_getmd5(mirrordir,filekey,origfilename,md5andsize);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Error copying file %s to %s/%s\n",origfilename,mirrordir,filekey);
 		return r;
 	}
-
-	r = files_calcmd5sum(md5andsize,mirrordir,filekey);
-	if( RET_WAS_ERROR(r) )
-		return r;
 
 	r = files_add(filesdb,filekey,*md5andsize);
 	if( RET_WAS_ERROR(r) ) {
@@ -451,14 +447,14 @@ retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourced
 		} else
 			return RET_OK;
 	} else {
-		char *origfilename,*md5andsize;
+		char *origfilename;
 		/* copy file in and calculate it's md5sum */
 		origfilename = calc_dirconcat(sourcedir,basename);
 		if( origfilename == NULL )
 			return RET_ERROR_OOM;
 
 		//TODO: replace thiswith a copyfile, that checks for the md5sum...
-		r = copyfile(mirrordir,filekey,origfilename);
+		r = copyfile_md5known(mirrordir,filekey,origfilename,md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			fprintf(stderr,"Error copying file %s to %s/%s\n",
 					origfilename,mirrordir,filekey);
@@ -466,22 +462,6 @@ retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourced
 			return r;
 		}
 		free(origfilename);
-		r = files_calcmd5sum(&md5andsize,mirrordir,filekey);
-		if( RET_WAS_ERROR(r) ) {
-			return r;
-		}
-
-		if( strcmp(md5andsize,md5sum) != 0 ) {
-			fprintf(stderr,"The file %s/%s has the wrong MD5Sum (has: '%s' "
-					"expected: '%s').\n Either there was a error "
-					"copying %s/%s or that was already wrong.\n",
-					mirrordir,filekey,md5andsize,md5sum,
-					sourcedir,basename);
-			// TODO: unlink wrong file? And if yes say so?
-			free(md5andsize);
-			return RET_ERROR_WRONG_MD5;
-		}
-		free(md5andsize);
 
 		r = files_add(filesdb,filekey,md5sum);
 		return r;

@@ -29,16 +29,13 @@
 #include "strlist.h"
 #include "names.h"
 #include "dirs.h"
+#include "md5sum.h"
 #include "copyfile.h"
 
+//TODO: think about, if calculating md5sum and copying could be done in
+//the same step. (the data is pulled once through the memory anyway...
 
-//TODO: split this in parts: one static part that copy directly,
-// one part doing the mirrordir-calculation and calculates the md5sum
-// and one part which gets a md5sum and checks for the generated file
-// to have this one.
-
-retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile) {
-	char *destfullfilename;
+static retvalue copyfile(const char *destfullfilename,const char *origfile) {
 	int ret,fd,fdw;
 	retvalue r;
 	struct stat stat;
@@ -68,16 +65,9 @@ retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile
 		return RET_ERRNO(ret);
 	}
 
-	destfullfilename = calc_fullfilename(mirrordir,filekey);
-	if( !destfullfilename ) {
-		close(fd);
-		return RET_ERROR_OOM;
-	}
-
 	r = dirs_make_parent(destfullfilename);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Error creating '%s': %m\n",destfullfilename);
-		free(destfullfilename);
 		close(fd);
 		return r;
 
@@ -86,10 +76,14 @@ retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile
 	fdw = open(destfullfilename,O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL,0777);
 	if( fdw < 0 ) {
 		ret = errno;
-		fprintf(stderr,"Error creating '%s': %m\n",destfullfilename);
-		free(destfullfilename);
-		close(fd);
-		return RET_ERRNO(ret);
+		if( ret == EEXIST ) {
+			close(fd);
+			return RET_NOTHING;
+		} else {
+			fprintf(stderr,"Error creating '%s': %m\n",destfullfilename);
+			close(fd);
+			return RET_ERRNO(ret);
+		}
 	}
 
 	written = write(fdw,content,stat.st_size);
@@ -99,7 +93,6 @@ retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile
 		close(fd);
 		close(fdw);
 		unlink(destfullfilename);
-		free(destfullfilename);
 		return RET_ERRNO(ret);
 	}
 
@@ -109,10 +102,8 @@ retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile
 		fprintf(stderr,"Error writing to '%s': %m\n",destfullfilename);
 		close(fd);
 		unlink(destfullfilename);
-		free(destfullfilename);
 		return RET_ERRNO(ret);
 	}
-	free(destfullfilename);
 
 	ret = munmap(content,stat.st_size);
 	if( ret < 0 ) {
@@ -125,4 +116,112 @@ retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile
 	return RET_OK;
 }
 
+/* Make sure <mirrordir>/<filekey> has <md5expected>, and we can get
+ * there by copying <origfile> there. */
+retvalue copyfile_md5known(const char *mirrordir,const char *filekey,const char *origfile,const char *md5expected) {
+	retvalue r;
+	char *fullfilename;
+	char *md5sum,*md5sum2;	
 
+	fullfilename = calc_dirconcat(mirrordir,filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+
+	r = copyfile(fullfilename,origfile);
+	if( r == RET_NOTHING ) {
+		/* The file already exists, check if it's md5sum fits */
+		r = md5sum_and_size(&md5sum,fullfilename,0);
+		if( RET_WAS_ERROR(r) ) {
+			free(fullfilename);
+			return r;
+		}
+		if( strcmp(md5sum,md5expected) == 0 ) {
+			free(md5sum);
+			free(fullfilename);
+			return RET_OK;
+		} else {
+			int ret;
+
+			/* There already is a file there, as
+			 * we should have queried the db, this
+			 * means this is a leftover file, we
+			 * just delete and try again... */
+			fprintf(stderr,"There already is a non-registered file '%s' with the wrong md5sum ('%s', but expect '%s'). Removing it...\n",fullfilename,md5sum,md5expected);
+			free(md5sum);
+			ret = unlink(fullfilename);
+			if( ret < 0 ) {
+				ret = errno;
+				fprintf(stderr,"Error trying to delete '%s': %m\n",fullfilename);
+				free(fullfilename);
+				return RET_ERRNO(ret);
+			}
+			/* try again: */
+			r = copyfile(fullfilename,origfile);
+			if( r == RET_NOTHING ) {
+				fprintf(stderr,"Cannot create file '%s'. create says is still exists, though it was deleted.\n",fullfilename);
+				r = RET_ERRNO(EEXIST);
+			}
+		}
+	} 
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		return r;
+	}
+	r = md5sum_and_size(&md5sum,fullfilename,0);
+	if( RET_WAS_ERROR(r) ) {
+		unlink(fullfilename);
+		free(fullfilename);
+		return r;
+	}
+	if( strcmp(md5sum,md5expected) == 0 ) {
+		free(md5sum);
+		free(fullfilename);
+		return RET_OK;
+	} else {
+		/* this is not what we expect, perhaps the origfile
+		 * is already bogus */
+		unlink(fullfilename);
+		r = md5sum_and_size(&md5sum2,origfile,0);
+		if( RET_WAS_ERROR(r) ) {
+			free(md5sum);
+			free(fullfilename);
+			return r;
+		}
+		if( strcmp(md5sum,md5expected) == 0 ) {
+			fprintf(stderr,"There seems to occoured an error while copying '%s' to '%s' (md5sums did not match).\n",origfile,fullfilename);
+		} else {
+			fprintf(stderr,"'%s' has md5sum '%s', while '%s' was expected.\n",origfile,md5sum2,md5expected);
+		}
+		free(md5sum2);free(md5sum);
+		free(fullfilename);
+		return RET_ERROR_WRONG_MD5;
+	}
+}
+
+retvalue copyfile_getmd5(const char *mirrordir,const char *filekey,const char *origfile,char **md5sum) {
+	retvalue r;
+	char *fullfilename;
+
+	fullfilename = calc_dirconcat(mirrordir,filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+
+	r = copyfile(fullfilename,origfile);
+	if( r == RET_NOTHING ) {
+		/* there is already a file of that name */
+		// TODO: compare their md5sums and perhaps
+		// delete and recopy...
+		fprintf(stderr,"Inimplementated case\n");
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		return r;
+	}
+	r = md5sum_and_size(md5sum,fullfilename,0);
+	free(fullfilename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	return RET_OK;
+}
