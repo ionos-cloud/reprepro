@@ -21,6 +21,8 @@ struct distribution {
 	char *signwith;
 	/* the override file to use by default */
 	char *override,*srcoverride;
+	/* if it contains support for udebs, != NULL, normaly "debian-installer" */
+	char *udeblistdir;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* list of all update_upstreams for this ditribution,

@@ -51,6 +51,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->signwith);
 		free(distribution->override);
 		free(distribution->srcoverride);
+		free(distribution->udeblistdir);
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
@@ -96,6 +97,20 @@ static retvalue createtargets(struct distribution *distribution) {
 				}
 				if( RET_WAS_ERROR(r) )
 					return r;
+				if( distribution->udeblistdir != NULL ) {
+					r = target_initialize_ubinary(distribution->codename,comp,arch,&t);
+					if( RET_IS_OK(r) ) {
+						if( last ) {
+							last->next = t;
+						} else {
+							distribution->targets = t;
+						}
+						last = t;
+					}
+					if( RET_WAS_ERROR(r) )
+						return r;
+
+				}
 			}
 			
 		}
@@ -165,6 +180,12 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 		return ret;
 	} else if( ret == RET_NOTHING )
 		r->srcoverride = NULL;
+	ret = chunk_getvalue(chunk,"UDebDir",&r->udeblistdir);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING )
+		r->udeblistdir = NULL;
 
 	ret = createtargets(r);
 	checkret;
@@ -205,6 +226,7 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t ; t = t->next ) {
+		// TODO: udebs here?
 		if( component != NULL && strcmp(component,t->component) != 0 )
 			continue;
 		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
@@ -218,6 +240,7 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 }
 
 struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture) {
+	// UDEBs?
 	struct target *t = distribution->targets;
 
 	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture)  )) {

@@ -42,6 +42,7 @@ struct target {
 	packagesdb packages;
 };
 
+retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target);
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target);
 retvalue target_initialize_source(const char *codename,const char *component,struct target **target);
 retvalue target_free(struct target *target);

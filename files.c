@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <malloc.h>
 #include <string.h>
 #include <db.h>
@@ -174,8 +175,9 @@ static retvalue files_calcmd5(char **md5sum,const char *filename) {
 	return ret;
 
 }
-static retvalue files_calcmd5sum(filesdb filesdb,const char *filekey,char **md5sum) {
+static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char *md5sum) {
 	char *filename;
+	char *realmd5sum;
 	retvalue ret;
 
 	filename = calc_fullfilename(filesdb->mirrordir,filekey);
@@ -183,7 +185,23 @@ static retvalue files_calcmd5sum(filesdb filesdb,const char *filekey,char **md5s
 	if( !filename )
 		return RET_ERROR_OOM;
 
-	ret = files_calcmd5(md5sum,filename);
+	ret = files_calcmd5(&realmd5sum,filename);
+	if( RET_IS_OK(ret) ) {
+		if( strcmp(md5sum,realmd5sum) == 0 ) {
+			free(realmd5sum);
+			free(filename);
+			return RET_OK;
+		}
+		fprintf(stderr,"Unknown file \"%s\" has other md5sum (%s) than expected(%s), deleting it!\n",filekey,realmd5sum,md5sum);
+		free(realmd5sum);
+		if( unlink(filename) == 0 ) {
+			free(filename);
+			return RET_NOTHING;
+		}
+		fprintf(stderr,"Could not delete '%s' out of the way!\n",filename);
+		free(filename);
+		return RET_ERROR_WRONG_MD5;
+	}
 	free(filename);
 	if( ret == RET_ERROR_MISSING )
 		ret = RET_NOTHING;
@@ -191,10 +209,10 @@ static retvalue files_calcmd5sum(filesdb filesdb,const char *filekey,char **md5s
 
 }
 
+
 /* check for file in the database and if not found there, if it can be detected */
 int files_expect(filesdb db,const char *filekey,const char *md5sum) {
 	retvalue ret;
-	char *realmd5sum;
 	int dbret;
 	DBT key,data;
 
@@ -213,16 +231,9 @@ int files_expect(filesdb db,const char *filekey,const char *md5sum) {
 	}
 	/* got DB_NOTFOUND, so have to look for the file itself: */
 	
-	ret = files_calcmd5sum(db,filekey,&realmd5sum);
+	ret = files_checkmd5sum(db,filekey,md5sum);
 	if( ret == RET_NOTHING || RET_WAS_ERROR(ret) )
 		return ret;
-
-	if( strcmp(md5sum,realmd5sum) != 0 ) {
-		fprintf(stderr,"File \"%s\" had other md5sum (%s) than expected(%s)!\n",filekey,realmd5sum,md5sum);
-		free(realmd5sum);
-		return RET_ERROR_WRONG_MD5;
-	}
-	free(realmd5sum);
 
 	/* add found file to database */
 	ret = files_add(db,filekey,md5sum);
