@@ -765,32 +765,15 @@ static int export(int argc,char *argv[]) {
 
 static retvalue fetchupstreamlists(void *data,const char *chunk,const struct distribution *distribution,struct update *update) {
 	retvalue result,r;
-	char *method;
 	struct aptmethodrun *run;
-	struct aptmethod *m;
-
-	/* * Get the data for the download backend * */
-	r = chunk_getvalue(chunk,"Method",&method);
-	if( !RET_IS_OK(r) ) {
-		// TODO: make NOTHING to error?
-		return r;
-	}
 
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) ) {
-		free(method);
 		return r;
 	}
-	r = aptmethod_newmethod(run,method,&m);
-	free(method);
-	if( RET_WAS_ERROR(r) ) {
-		aptmethod_cancel(run);
-		return r;
-	}
-
 	/* * Calculate what to download * */
 
-	r = updates_calcliststofetch(m,
+	r = updates_calcliststofetch(run,
 			listdir,distribution->codename,update->name,chunk,
 			update->suite_from,
 			&update->components_from,

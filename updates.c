@@ -259,7 +259,7 @@ retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction
 
 /******************* Fetch all Lists for an update **********************/
 
-retvalue updates_calcliststofetch(struct aptmethod *method,
+retvalue updates_calcliststofetch(struct aptmethodrun *run,
 		/* where to save to file */
 		const char *listdir, const char *codename,const char *update,const char *updatechunk,
 		/* where to get it from */
@@ -273,6 +273,23 @@ retvalue updates_calcliststofetch(struct aptmethod *method,
 	char *toget,*saveas;
 	retvalue r;
 	int i,j;
+	char *m;
+	struct aptmethod *method;
+
+	r = chunk_getvalue(updatechunk,"Method",&m);
+	if( !RET_IS_OK(r) ) {
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"No Method found in update-block!\n");
+			r = RET_ERROR_MISSING;
+		}
+		return r;
+	}
+
+	r = aptmethod_newmethod(run,m,&method);
+	free(m);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
 
 	r = chunk_gettruth(updatechunk,IGNORE_RELEASE);
 	if( RET_WAS_ERROR(r) )
