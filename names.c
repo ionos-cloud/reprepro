@@ -22,6 +22,10 @@
 #include "mprintf.h"
 #include "names.h"
 
+char *calc_identifier(const char *codename,const char *component,const char *architecture) {
+	return mprintf("%s-%s-%s",codename,component,architecture);
+}
+
 char *calc_addsuffix(const char *str1,const char *str2) {
 	return mprintf("%s.%s",str1,str2);
 }
