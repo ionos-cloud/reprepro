@@ -11,6 +11,7 @@
 retvalue sources_getfile(const char *fileline,
 		char **basename,
 		char **md5andsize);
+retvalue sources_getfilekeys(const char *directory,const struct strlist *files,struct strlist *filekeys);
 
 retvalue sources_parse_chunk(const char *chunk,
 		char **packagename,

@@ -405,17 +405,19 @@ struct distributionhandles {
 
 /***********************************addsources***************************/
 
-static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
+static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *origdirectory,const struct strlist *files,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
 	int i;
-	char *basefilename,*filekey,*md5andsize;
+	struct strlist filekeys,oldfiles,oldfilekeys;
+	char *olddirectory;
 
 	/* look for needed files */
 
-
 	for( i = 0 ; i < files->count ; i++ ) {
+		char *basefilename,*filekey,*md5andsize;
+
 		r = sources_getfile(files->values[i],&basefilename,&md5andsize);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -439,32 +441,39 @@ static retvalue add_source(void *data,const char *chunk,const char *package,cons
 		free(basefilename);free(md5andsize);free(filekey);
 	}
 
-	/* after all is there, reference it */
-	r = sources_reference(dist->refs,dist->referee,directory,files);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	/* Add package to distribution's database */
-
 	newchunk = chunk_replacefield(chunk,"Directory",directory);
 	if( !newchunk )
 		return RET_ERROR_OOM;
-	if( oldchunk != NULL ) {
-		result = packages_replace(dist->pkgs,package,newchunk);
-	} else {
-		result = packages_add(dist->pkgs,package,newchunk);
+
+	r = sources_getfilekeys(directory,files,&filekeys);
+	if( RET_WAS_ERROR(r) ) {
+		free(newchunk);
+		return r;
 	}
+
+	r = sources_parse_chunk(oldchunk,NULL,NULL,&olddirectory,&oldfiles);
+	if( !RET_IS_OK(r) ) {
+		free(newchunk);
+		strlist_done(&filekeys);
+		return r;
+	}
+
+	r = sources_getfilekeys(olddirectory,&oldfiles,&oldfilekeys);
+	free(olddirectory);strlist_done(&oldfiles);
+	if( RET_WAS_ERROR(r) ) {
+		free(newchunk);
+		strlist_done(&filekeys);
+		return r;
+	}
+
+	/* Add package to distribution's database */
+
+	result = packages_insert(dist->referee,dist->refs,dist->pkgs,
+			package,newchunk,&filekeys,&oldfilekeys);
+
 	free(newchunk);
-
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	/* remove no longer needed references */
-
-	if( oldchunk != NULL ) {
-		r = sources_dereference(dist->refs,dist->referee,oldchunk);
-		RET_UPDATE(result,r);
-	}
+	strlist_done(&filekeys);
+	strlist_done(&oldfilekeys);
 	return result;
 }
 
@@ -510,7 +519,7 @@ static int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
+static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *origdirectory,const struct strlist *files,const char *oldchunk) {
 	retvalue r,ret;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *dn;
@@ -539,7 +548,7 @@ static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *
 		}
 		if( r == RET_NOTHING ) {
 			/* File missing */
-			printf("%s/%s %s/%s\n",olddirectory,basefilename,mirrordir,filekey);
+			printf("%s/%s %s/%s\n",origdirectory,basefilename,mirrordir,filekey);
 			ret = RET_OK;
 		}
 
