@@ -1,3 +1,10 @@
+2005-03-02  Bernhard R. Link <brlink@debian.org>
+	* Change Override/SrcOverride to
+	DebOverride/UDebOverride/DscOverride
+
+	* add new command reoverride to reapply
+	overrides to all packages.
+	
 2005-02-20  Bernhard R. Link <brlink@debian.org>
 	* add docs/tiffany.example, which generates
 	apt-qupdate'able .diff directories.

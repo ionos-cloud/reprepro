@@ -30,6 +30,7 @@
 #include "binaries.h"
 #include "names.h"
 #include "dpkgversions.h"
+#include "override.h"
 
 extern int verbose;
 
@@ -240,4 +241,44 @@ char *binaries_getupstreamindex(UNUSED(struct target *target),const char *suite_
 char *ubinaries_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
 		const char *component_from,const char *architecture) {
 	return mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",suite_from,component_from,architecture);
+}
+
+retvalue binaries_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
+	const struct overrideinfo *o;
+	struct fieldtoadd *fields;
+	char *newchunk;
+
+	o = override_search(ao->deb, packagename);
+	if( o == NULL )
+		return RET_NOTHING;
+
+	fields = override_addreplacefields(o,NULL);
+	if( fields == NULL )
+		return RET_ERROR_OOM;
+	newchunk = chunk_replacefields(controlchunk,fields,"Description");
+	addfield_free(fields);
+	if( newchunk == NULL )
+		return RET_ERROR_OOM;
+	*newcontrolchunk = newchunk;
+	return RET_OK;
+}
+
+retvalue ubinaries_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
+	const struct overrideinfo *o;
+	struct fieldtoadd *fields;
+	char *newchunk;
+
+	o = override_search(ao->udeb, packagename);
+	if( o == NULL )
+		return RET_NOTHING;
+
+	fields = override_addreplacefields(o,NULL);
+	if( fields == NULL )
+		return RET_ERROR_OOM;
+	newchunk = chunk_replacefields(controlchunk,fields,"Description");
+	addfield_free(fields);
+	if( newchunk == NULL )
+		return RET_ERROR_OOM;
+	*newcontrolchunk = newchunk;
+	return RET_OK;
 }

@@ -37,8 +37,8 @@ DebIndices: Packages Release . .gz $SRCDIR/docs/bzip.example
 UDebIndices: Packages .gz
 DscIndices: Sources Release . .gz $SRCDIR/docs/bzip.example
 Description: test with all fields set
-Override: binoverride
-SourceOverride: srcoverride
+DebOverride: binoverride
+DscOverride: srcoverride
 CONFEND
 
 "$REPREPRO" -b . export

@@ -1007,7 +1007,8 @@ static retvalue updates_startup(struct aptmethodrun *run,struct update_distribut
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
-		if( d->distribution->override || d->distribution->srcoverride ) {
+		if( d->distribution->deb_override || d->distribution->dsc_override 
+				|| d->distribution->udeb_override) {
 			if( verbose >= 0 )
 				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
 		}

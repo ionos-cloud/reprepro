@@ -273,6 +273,61 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 	return ret;
 }
 
+/* action to be called by packages_processall */
+//typedef retvalue per_package_modifier(void *data,const char *package,const char *chunk, char **newchunk);
+
+/* call action once for each saved chunk and replace with a new one, if it returns RET_OK: */
+retvalue packages_modifyall(packagesdb db,per_package_modifier *action,void *privdata,bool_t *setifmodified) {
+	DBC *cursor;
+	DBT key,data;
+	int dbret;
+	retvalue result,r;
+
+	cursor = NULL;
+	if( (dbret = db->database->cursor(db->database,NULL,&cursor,0/*DB_WRITECURSOR*/)) != 0 ) {
+		db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
+		return RET_ERROR;
+	}
+	CLEARDBT(key);	
+	CLEARDBT(data);	
+
+	result = RET_NOTHING;
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		char *newdata = NULL;
+		r = action(privdata,(const char*)key.data,(const char*)data.data,&newdata);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) ) {
+			if( verbose > 0 )
+				fprintf(stderr,"packages_modifyall: Stopping procession of further packages due to privious errors\n");
+			break;
+		}
+		if( RET_IS_OK(r) ) {
+			SETDBT(data,newdata);
+			dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT);
+			free(newdata);
+			if( dbret != 0 ) {
+				db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
+				return RET_DBERR(dbret);
+			}
+			if( setifmodified != NULL )
+				*setifmodified = TRUE;
+		}
+		CLEARDBT(key);	
+		CLEARDBT(data);	
+	}
+
+	if( dbret != 0 && dbret != DB_NOTFOUND ) {
+		db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
+		return RET_DBERR(dbret);
+	}
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
+		return RET_DBERR(dbret);
+	}
+
+	return result;
+}
+
 retvalue packages_insert(references refs, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,

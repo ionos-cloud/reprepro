@@ -54,6 +54,12 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 typedef retvalue per_package_action(void *data,const char *package,/*@temp@*/const char *chunk);
 
 /* call action once for each saved chunk: */
-retvalue packages_foreach(packagesdb packagesdb,per_package_action action,/*@temp@*/ /*@null@*/void *data, int force);
+retvalue packages_foreach(packagesdb packagesdb,per_package_action *action,/*@temp@*/ /*@null@*/void *data, int force);
+
+/* action to be called by packages_modifyall */
+struct alloverrides;
+typedef retvalue per_package_modifier(const struct alloverrides *data,const char *package,const char *chunk, char **newchunk);
+/* call action once for each saved chunk and replace with a new one, if it returns RET_OK: */
+retvalue packages_modifyall(packagesdb db,per_package_modifier *action,void *privdata,bool_t *setifmodified);
 
 #endif
