@@ -255,20 +255,24 @@ Release files.
 This required field is simply copied into the
 Release files.
 .TP
+.B Architectures
+This requiered field lists the binary architectures within
+this distribution.
+.TP
 .B Components
 This required field lists the component of a
 distribution. See 
 .B GUESSING
 for rules which component packages are included into
 by default. This will also be copied into the Release files.
-.TP
-.B Architectures
-This requiered field lists the binary architectures within
-this distribution.
 .B source
 is always implicit implied and is not needed to be given. (May change
 in the future.)
 This will also be copied into the Release files.
+.TP
+.B UDebComponents
+Components with a debian-installer subhirachy containing .udebs.
+(E.g. simply "main")
 .TP
 .B Update
 When this field is present, it describes which update rules apply

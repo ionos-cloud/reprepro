@@ -15,6 +15,7 @@ Codename: woody
 Version: 3.0
 Architectures: i386 sparc mips
 Components: main non-free contrib
+UDebComponents: main
 Description: Debian woody + woody/non-US + woody/updates
 #Update: security woody swoody
 #SignWith: yes
