@@ -24,6 +24,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 #include <zlib.h>
 #include <db.h>
 #include "error.h"
@@ -299,6 +300,16 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 	retvalue result,r;
 	const char *arch,*comp;
 	char *a,*c;
+	char buffer[100];
+	time_t t;
+
+	time(&t);
+	// e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S %z",localtime(&t));
+	e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmtime(&t));
+	if( e == 0 || e == 99) {
+		fprintf(stderr,"strftime is doing strange things...\n");
+		return RET_ERROR;
+	}
 
 	asprintf(&filename,"%s/%s/Release",distdir,release->codename);
 	if( !filename ) {
@@ -320,12 +331,13 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 			"Suite: %s\n"
 			"Codename: %s\n"
 			"Version: %s\n"
+			"Date: %s\n"
 			"Architectures: %s\n"
 			"Components: %s\n"
 			"Description: %s\n"
 			"MD5Sums:\n",
 		release->origin, release->label, release->suite,
-		release->codename, release->version,
+		release->codename, release->version, buffer,
 		release->architectures, release->components,
 		release->description);
 
