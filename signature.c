@@ -66,6 +66,58 @@ static retvalue signature_init(){
 	return RET_OK;
 }
 
+static inline retvalue checksignatures(GpgmeCtx context,const char *key,const char *releasegpg) {
+	int idx;
+	GpgmeSigStat status;
+	retvalue result = RET_ERROR_BADSIG;
+
+	for( idx = 0 ; ; idx++){
+		const char *fingerprint;
+		fingerprint = gpgme_get_sig_status(context,idx,&status,NULL);
+		if( fingerprint == NULL )
+			break;
+		if( verbose > 3 ) {
+			fprintf(stderr,"gpgme '%s': ",fingerprint);
+			switch( status ) {
+				case GPGME_SIG_STAT_BAD:
+					fprintf(stderr,"BAD SIGNATURE!\n");
+					break;
+				case GPGME_SIG_STAT_NOKEY:
+					fprintf(stderr,"Unknown key!\n");
+					break;
+				case GPGME_SIG_STAT_GOOD:
+					fprintf(stderr,"Good signature!\n");
+					break;
+				default:
+					fprintf(stderr,"Error checking!\n");
+					break;
+			}
+		}
+		if( status == GPGME_SIG_STAT_GOOD ) {
+			size_t fl,kl;
+
+			if( key == NULL || (
+				(kl = strlen(key)) <= (fl = strlen(fingerprint))
+				&& strncmp(fingerprint+fl-kl,key,kl) == 0 )) {
+
+				if( verbose > 0 )
+				
+				result = RET_OK;
+				if( verbose <= 3 )
+					break;
+				continue;
+			}
+		}
+	}
+	if( result == RET_ERROR_BADSIG ) {
+		fprintf(stderr,"NO VALID SIGNATURE with key '%s' found!\n",key);
+	} else if( result == RET_OK ) {
+		if( verbose > 0 )
+			fprintf(stderr,"Valid Signature within '%s' found.\n",releasegpg);
+	}
+	return result;
+}
+
 retvalue signature_check(const char *options, const char *releasegpg, const char *release) {
 	retvalue r;
 	GpgmeError err;
@@ -103,20 +155,11 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		return gpgerror(err);
 
 	switch( stat ) {
-		case GPGME_SIG_STAT_GOOD:
-			if( verbose > 0 ) {
-				fprintf(stderr,"Good signature '%s' of '%s'!\n",releasegpg,release);
-			}
-			return RET_OK;
 		case GPGME_SIG_STAT_BAD:
-			fprintf(stderr,"BAD SIGNATURE!\n");
-			return RET_ERROR_BADSIG;
 		case GPGME_SIG_STAT_NOKEY:
-			fprintf(stderr,"Signature could not be checked due to missing key!\n");
-			return RET_ERROR_BADSIG;
 		case GPGME_SIG_STAT_DIFF:
-			fprintf(stderr,"Multiple differen signatures, not yet implemented!\n");
-			return RET_ERROR;
+		case GPGME_SIG_STAT_GOOD:
+			return checksignatures(context,options,releasegpg);
 		default:
 			fprintf(stderr,"Error checking signature!\n");
 			return RET_ERROR_GPGME;
