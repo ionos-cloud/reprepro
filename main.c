@@ -209,7 +209,8 @@ int deleteunreferenced(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		references_done(dist.refs);
 		return 1;
-deleteifunreferenced,&dist);
+	}
+	result = files_foreach(dist.files,deleteifunreferenced,&dist);
 	r = files_done(dist.files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dist.refs);
@@ -262,6 +263,7 @@ int removepackage(int argc,char *argv[]) {
 	retvalue result,r;
 	DB *pkgs,*refs;
 	int i;
+	char *filekey,*chunk;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"mirrorer removepackage <identifier> <package-name>\n");
@@ -278,11 +280,20 @@ int removepackage(int argc,char *argv[]) {
 	
 	result = RET_NOTHING;
 	for( i = 2 ; i< argc ; i++ ) {
-		/* TODO: use version with references handled. split in source/binary? */
-		r = packages_remove(pkgs,argv[2]);
+		chunk = packages_get(pkgs,argv[i]);
+		r = packages_remove(pkgs,argv[i]);
+		if( RET_IS_OK(r) ) {
+			// TODO: also check for source-packages...
+			r = binaries_getoldfilekey(chunk,ppooldir,&filekey);
+			if( RET_IS_OK(r) ) {
+				r = references_decrement(refs,filekey,argv[1]);
+				free(filekey);
+			}
+		}
+		if( chunk )
+			free(chunk);
 		RET_UPDATE(result,r);
 	}
-	fprintf(stderr,"Call to rereference needed, referenced are not yet removed\n");
 
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
@@ -692,7 +703,7 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	char *filewithdir;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
-	char *oldfilename,*oldsourcename,*oldfilekey;
+	char *oldfilekey;
 
 	/* look for needed files */
 	
@@ -731,17 +742,10 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	/* remove old references to files */
 
 	if( oldchunk ) {
-		// TODO: make this a function of binaries.c, perhaps using filename without
-		// ppooldir instead of generating on our own...
-		r = binaries_parse_chunk(oldchunk,NULL,NULL,&oldsourcename,&oldfilename,NULL);
+		r = binaries_getoldfilekey(oldchunk,ppooldir,&oldfilekey);
 		if( RET_IS_OK(r) ) {
-			oldfilekey = calc_filekey(dist->component,oldsourcename,oldfilename);
-			if( oldfilekey ) {
-				r = references_decrement(dist->refs,oldfilekey,dist->referee);
-				free(oldfilekey);
-			} else
-				r = RET_ERROR_OOM;
-			free(oldfilename);free(oldsourcename);
+			r = references_decrement(dist->refs,oldfilekey,dist->referee);
+			free(oldfilekey);
 		}
 		RET_UPDATE(result,r);
 	}
@@ -1218,9 +1222,9 @@ int main(int argc,char *argv[]) {
 " referencesources <identifer>:\n"
 "       Mark everything in dist <identifier> to be needed by <identifier>\n"
 " printreferences:    Print all saved references\n"
-" dumpunreferenced:  Print registered files withour reference\n"
-" deleteunreferenced:  Delete and forget all unreferenced files\n"
-" export              generate Packages.gz/Packages/Sources.gz/Release\n"
+" dumpunreferenced:   Print registered files withour reference\n"
+" deleteunreferenced: Delete and forget all unreferenced files\n"
+" export              Generate Packages.gz/Packages/Sources.gz/Release\n"
 " addpackages <identifier> <component> <files>:\n"
 "       Add the contents of Packages-files <files> to dist <identifier>\n"
 " prepareaddpackages <identifier> <component> <files>:\n"

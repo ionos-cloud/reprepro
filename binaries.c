@@ -245,3 +245,49 @@ retvalue binaries_add(DB *pkgs,const char *part,const char *packages_file, binar
 
 	return chunk_foreach(packages_file,addbinary,&mydata,force);
 }
+
+/* Retrieve the filekey from an older chunk */ 
+retvalue binaries_getoldfilekey(const char *oldchunk,const char *ppooldir, char **filekey) {
+	retvalue r;
+	char *oldfilename,*oldfilekey,*p;
+	const char *f;
+	size_t l;
+
+	assert(filekey != NULL);
+	/* Read the filename given there */
+	f = chunk_getfield("Filename",oldchunk);
+	if( ! f ) {
+		return RET_NOTHING;
+	}
+	oldfilename = chunk_dupvalue(f);
+	if( !*oldfilename ) {
+		return RET_ERROR_OOM;
+	}
+	r = RET_OK;
+	l = strlen(ppooldir);
+	if( strncmp(oldfilename,ppooldir,l) == 0 && 
+	    (oldfilename[l-1] == '/' || oldfilename[l] == '/')) {
+		/* first check the first after in case there are 2 */
+		if( oldfilename[l] == '/' )
+			oldfilekey = strdup(oldfilename+l+1);
+		else
+			oldfilekey = strdup(oldfilename+l);
+		if( !oldfilekey ) 
+			r = RET_ERROR_OOM;
+		else
+			*filekey = oldfilekey;
+	} else {
+		p = strchr(oldfilename,'/');
+		if( !p )
+			oldfilekey = strdup(oldfilename);
+		else
+			oldfilekey = strdup(p+1);
+		if( !oldfilekey ) 
+			r = RET_ERROR_OOM;
+		else
+			*filekey = oldfilekey;
+		fprintf(stderr,"Can not find '%s/' in '%s'! Guessing rest is '%s'\n",ppooldir,oldfilename,oldfilekey);
+	}
+	free(oldfilename);
+	return r;
+}

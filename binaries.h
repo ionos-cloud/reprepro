@@ -44,4 +44,7 @@ retvalue binaries_add(
 	/* some data to pass to the action */
 	void *data);
 
+/* Retrieve the filekey from an older chunk */ 
+retvalue binaries_getoldfilekey(const char *oldchunk,const char *ppooldir, char **filekey);
+
 #endif
