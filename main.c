@@ -296,6 +296,10 @@ static int removepackage(int argc,char *argv[]) {
 	if( ! refs )
 		return 1;
 	r = distribution_get(&distribution,confdir,argv[1]);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not find matching distributions!\n");
+		return EXIT_RET(RET_NOTHING);
+	}
 	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(refs);
 		return EXIT_RET(r);
@@ -315,6 +319,7 @@ static int removepackage(int argc,char *argv[]) {
 	}
 
 	target = distribution_getpart(distribution,component,architecture);
+	assert(target);
 
 	result = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(result) ) {
