@@ -550,7 +550,7 @@ static retvalue parsechunk(void *data,const char *chunk) {
 	return r;
 }
 
-retvalue updates_getpatterns(const char *confdir,struct update_pattern **patterns,int force) {
+retvalue updates_getpatterns(const char *confdir,struct update_pattern **patterns) {
 	char *updatesfile;
 	struct update_pattern *update = NULL;
 	struct getpatterns_data data;
@@ -561,7 +561,7 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 		return RET_ERROR_OOM;
 	data.patterns = &update;
 	data.confdir = confdir;
-	r = chunk_foreach(updatesfile,parsechunk,&data,force,FALSE);
+	r = chunk_foreach(updatesfile,parsechunk,&data,0,FALSE);
 	free(updatesfile);
 	if( RET_IS_OK(r) )
 		*patterns = update;

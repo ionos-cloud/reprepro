@@ -13,7 +13,7 @@ struct update_pattern;
 struct update_origin;
 struct update_target;
 
-retvalue updates_getpatterns(const char *confdir,/*@out@*/struct update_pattern **patterns,int force);
+retvalue updates_getpatterns(const char *confdir,/*@out@*/struct update_pattern **patterns);
 
 void updates_freepatterns(struct update_pattern *p);
 void updates_freeorigins(struct update_origin *o);

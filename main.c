@@ -721,7 +721,7 @@ static retvalue action_update(int argc,const char *argv[]) {
 		return RET_NOTHING;
 	}
 
-	result = updates_getpatterns(confdir,&patterns,0);
+	result = updates_getpatterns(confdir,&patterns);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
@@ -793,7 +793,7 @@ static retvalue action_checkupdate(int argc,const char *argv[]) {
 		return RET_NOTHING;
 	}
 
-	result = updates_getpatterns(confdir,&patterns,0);
+	result = updates_getpatterns(confdir,&patterns);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
