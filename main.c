@@ -1523,6 +1523,12 @@ int main(int argc,char *argv[]) {
 			free(packagetype);
 			free(section);
 			free(priority);
+			if( RET_WAS_ERROR(r) ) {
+				if( r == RET_ERROR_OOM )
+					fputs("Out of Memory!\n",stderr);
+				else if( verbose >= 0 )
+					fputs("There have been errors!\n",stderr);
+			}
 			exit(EXIT_RET(r));
 		} else
 			a++;

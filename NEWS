@@ -1,6 +1,7 @@
 Updates since 0.2:
 - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
 - new command reoverride to reapply override information.
+- sometimes be a bit more verbose
 
 Updates since 0.1.1:
 - _md5sums command got removed. New command to dump
