@@ -120,7 +120,7 @@ retvalue files_check(DB *filesdb,const char *filekey,const char *md5sum_and_size
 
 	if( (dbret = filesdb->get(filesdb, NULL, &key, &data, 0)) == 0){
 		if( strcmp(md5sum_and_size,data.data) != 0 ) {
-			fprintf(stderr,"File \"%s\" is already registered with other md5sum!\n",filekey);
+			fprintf(stderr,"File \"%s\" is already registered with other md5sum!\n(expect: '%s', database:'%s')!\n",filekey,md5sum_and_size,(char*)data.data);
 			return RET_ERROR_WRONG_MD5;
 		}
 		return RET_OK;

@@ -370,12 +370,11 @@ int referencebinaries(int argc,char *argv[]) {
 
 retvalue reference_source(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
-	char *dir,*filekey,*basefilename;
+	char *dir,*version;
 	struct strlist files;
-	retvalue ret,r;
-	int i;
+	retvalue r;
 
-	r = sources_parse_chunk(chunk,NULL,&dir,&files);
+	r = sources_parse_chunk(chunk,NULL,&version,&dir,&files);
 	if( verbose >= 0 && r == RET_NOTHING ) {
 		fprintf(stderr,"Package does not look like source: '%s'\n",chunk);
 	}
@@ -384,26 +383,11 @@ retvalue reference_source(void *data,const char *package,const char *chunk) {
 
 	if( verbose > 10 )
 		fprintf(stderr,"referencing source package: %s\n",package);
-	ret = RET_NOTHING;
-	for( i = 0 ; i < files.count ; i++ ) {
-		r = sources_getfile(files.values[i],&basefilename,NULL);
-		if( RET_WAS_ERROR(r) ) {
-			RET_UPDATE(ret,r);
-			break;
-		}
-		filekey = calc_srcfilekey(dir,basefilename);
-		if( !filekey) {
-			free(dir);strlist_done(&files);free(basefilename);
-			return RET_ERROR;
-		}
-		r = references_increment(dist->refs,filekey,dist->identifier);
-		free(filekey);free(basefilename);
-		RET_UPDATE(ret,r);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
-	free(dir);strlist_done(&files);
-	return ret;
+
+
+	r = sources_reference(dist->refs,dist->identifier,package,version,dir,&files);
+	free(version); free(dir);strlist_done(&files);
+	return r;
 }
 
 int referencesources(int argc,char *argv[]) {
@@ -442,7 +426,7 @@ struct distribution {
 
 /***********************************addsources***************************/
 
-retvalue add_source(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
+retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
@@ -450,6 +434,7 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	char *basefilename,*filekey,*md5andsize;
 
 	/* look for needed files */
+
 
 	for( i = 0 ; i < files->count ; i++ ) {
 		r = sources_getfile(files->values[i],&basefilename,&md5andsize);
@@ -472,10 +457,11 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 			return RET_ERROR;
 		}
 
-		references_increment(dist->refs,filekey,dist->referee);
-
 		free(basefilename);free(md5andsize);free(filekey);
 	}
+
+	/* after all is there, reference it */
+	sources_reference(dist->refs,dist->referee,package,version,directory,files);
 
 	/* Add package to distribution's database */
 
@@ -492,10 +478,7 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	/* remove no longer needed references
-	 * (note that this might decrement a reference to
-	 * a .orig.tar.gz, that is now double, because
-	 * the old and the new package use it.) */
+	/* remove no longer needed references */
 
 	if( oldchunk != NULL ) {
 		r = sources_dereference(dist->refs,dist->referee,oldchunk);
@@ -510,7 +493,7 @@ int addsources(int argc,char *argv[]) {
 	struct distribution dist;
 
 	if( argc <= 3 ) {
-		fprintf(stderr,"mirrorer prepareaddsources <identifier> <component> <Sources-files>\n");
+		fprintf(stderr,"mirrorer addsources <identifier> <component> <Sources-files>\n");
 		return 1;
 	}
 	dist.referee = argv[1];
@@ -546,7 +529,7 @@ int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
+retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	retvalue r,ret;
 	struct distribution *dist = (struct distribution*)data;
 	char *dn;
@@ -1313,6 +1296,194 @@ int rereference(int argc,char *argv[]) {
 
 	return EXIT_RET(result);
 }
+/***********************checking*************************/
+struct data_binsrccheck { const struct release *release; DB *references; DB *files; const char *identifier;};
+
+
+retvalue check_binary(void *data,const char *package,const char *chunk) {
+	struct data_binsrccheck *d = data;
+	char *filekey;
+	retvalue r;
+
+	r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL);
+	if( verbose >= 0 && r == RET_NOTHING ) {
+		fprintf(stderr,"Package does not look binary: '%s'\n",chunk);
+	}
+	if( !RET_IS_OK(r) )
+		return r;
+	if( verbose > 10 )
+		fprintf(stderr,"checking for filekey: %s\n",filekey);
+	r = references_check(d->references,filekey,d->identifier);
+	free(filekey);
+	return r;
+}
+
+static retvalue checkbin(void *data,const char *component,const char *architecture) {
+	retvalue result,r;
+	struct data_binsrccheck *d = data;
+	char *dbname;
+	DB *pkgs;
+
+	dbname = mprintf("%s-%s-%s",d->release->codename,component,architecture);
+	if( !dbname ) {
+		return RET_ERROR_OOM;
+	}
+	if( verbose > 1 ) {
+		fprintf(stderr,"Checking %s...\n",dbname);
+	}
+
+	pkgs = packages_initialize(dbdir,dbname);
+	if( ! pkgs ) {
+		free(dbname);
+		return RET_ERROR;
+	}
+
+	d->identifier = dbname;
+	result = packages_foreach(pkgs,check_binary,d,force);
+	
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+
+	free(dbname);
+
+	return result;
+}
+
+retvalue check_source(void *data,const char *package,const char *chunk) {
+	struct data_binsrccheck *d = data;
+	char *dir,*filekey,*basefilename,*md5andsize;
+	char *version,*identifier;
+	struct strlist files;
+	retvalue ret,r;
+	int i;
+
+	r = sources_parse_chunk(chunk,NULL,&version,&dir,&files);
+	if( verbose >= 0 && r == RET_NOTHING ) {
+		fprintf(stderr,"Package does not look like source: '%s'\n",chunk);
+	}
+	if( !RET_IS_OK(r) )
+		return r;
+
+	identifier = mprintf("%s %s %s",d->identifier,package,version);
+	free(version);
+	if( !identifier ) {
+		free(dir);strlist_done(&files);
+		return RET_ERROR_OOM;
+	}
+
+	if( verbose > 10 )
+		fprintf(stderr,"referencing source package: %s\n",package);
+	ret = RET_NOTHING;
+	for( i = 0 ; i < files.count ; i++ ) {
+		r = sources_getfile(files.values[i],&basefilename,&md5andsize);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(ret,r);
+			break;
+		}
+		filekey = calc_srcfilekey(dir,basefilename);
+		if( !filekey) {
+			free(identifier);
+			free(dir);strlist_done(&files);free(basefilename);
+			return RET_ERROR;
+		}
+		r = references_check(d->references,filekey,identifier);
+		RET_UPDATE(ret,r);
+
+		r = files_check(d->files,filekey,md5andsize);
+		if( r == RET_NOTHING) {
+			fprintf(stderr,"Expected file '%s' not found in database!!\n",filekey);
+			r = RET_ERROR;
+		} else if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,"Error looking for file '%s' with '%s' in database!!\n",filekey,md5andsize);
+		}
+		RET_UPDATE(ret,r);
+
+		free(filekey);free(basefilename);free(md5andsize);
+		if( RET_WAS_ERROR(ret) )
+			break;
+	}
+	free(identifier);
+	free(dir);strlist_done(&files);
+	return ret;
+}
+
+static retvalue checksrc(void *data,const char *component) {
+	retvalue result,r;
+	struct data_binsrccheck *d = data;
+	char *dbname;
+	DB *pkgs;
+
+	dbname = mprintf("%s-%s-src",d->release->codename,component);
+	if( !dbname ) {
+		return RET_ERROR_OOM;
+	}
+	if( verbose > 1 ) {
+		fprintf(stderr,"Checking depencies of %s...\n",dbname);
+	}
+
+	pkgs = packages_initialize(dbdir,dbname);
+	if( ! pkgs ) {
+		free(dbname);
+		return RET_ERROR;
+	}
+
+	d->identifier = dbname;
+	result = packages_foreach(pkgs,check_source,d,force);
+	
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+
+	free(dbname);
+
+	return result;
+}
+
+
+static retvalue check_dist(void *data,const char *chunk,const struct release *release) {
+	struct data_binsrccheck *dat=data;
+	retvalue result;
+
+	if( verbose > 0 ) {
+		fprintf(stderr,"Checking %s...\n",release->codename);
+	}
+
+
+	dat->release = release;
+
+	result = release_foreach_part(release,checksrc,checkbin,dat);
+	
+	return result;
+}
+
+int check(int argc,char *argv[]) {
+	retvalue result,r;
+	struct data_binsrccheck dat;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"mirrorer check [<distributions>]\n");
+		return 1;
+	}
+
+	dat.references = references_initialize(dbdir);
+
+	if( ! dat.references )
+		return 1;
+
+	dat.files = files_initialize(dbdir);
+
+	if( ! dat.files ) {
+		references_done(dat.references);
+		return 1;
+	}
+	
+	result = release_foreach(confdir,argc-1,argv+1,check_dist,&dat,force);
+	r = references_done(dat.files);
+	RET_ENDUPDATE(result,r);
+	r = references_done(dat.references);
+	RET_ENDUPDATE(result,r);
+
+	return EXIT_RET(result);
+}
 
 /*********************/
 /* argument handling */
@@ -1335,6 +1506,7 @@ struct action {
 	{"genzpackages", zexportpackages},
         {"removepackage", removepackage},
 	{"export", export},
+	{"check", check},
 	{"rereference", rereference},
 	{"addreference", addreference},
 	{"printreferences", dumpreferences},

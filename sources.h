@@ -10,7 +10,7 @@
 /* get filename and md5andsize from a files: line" */
 retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize);
 
-retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,struct strlist *files);
+retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *files);
 
 /* action taken by sources_add for each sourcepacke missing */
 typedef retvalue source_package_action(
@@ -20,6 +20,8 @@ typedef retvalue source_package_action(
 	const char *chunk,
 	/* the name of the sourcepackage */
 	const char *package,
+	/* the version */
+	const char *version,
 	/* the calculated directory it shall be put in (relative to mirrordir) */
 	const char *directory,
 	/* the directory specified by the chunk. (relative to dists/) */
@@ -35,5 +37,7 @@ retvalue sources_add(DB *pkgs,const char *component,const char *sources_file,sou
 
 /* remove all references by the given chunk */
 retvalue sources_dereference(DB *refs,const char *referee,const char *chunk);
+/* add all references by the given data */
+retvalue sources_reference(DB *refs,const char *referee,const char *package,const char *version,const char *dir,const struct strlist *files);
 
 #endif

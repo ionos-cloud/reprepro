@@ -56,13 +56,20 @@ DB *references_initialize(const char *dbpath) {
 		free(filename);
 		return NULL;
 	}
-	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
+	if( (ret = db_create(&dbp, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
 		free(filename);
 		return NULL;
 	}
-	if ((ret = dbp->open(dbp, filename, "references", DB_BTREE, DB_CREATE, 0664)) != 0) {
-		dbp->err(dbp, ret, "%s", filename);
+	/* allow a file referenced by multiple dists: */
+	if( (ret = dbp->set_flags(dbp,DB_DUPSORT)) != 0 ) {
+		dbp->err(dbp, ret, "db_set_flags:%s", filename);
+		dbp->close(dbp,0);
+		free(filename);
+		return NULL;
+	}
+	if( (ret = dbp->open(dbp, filename, "references", DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp->err(dbp, ret, "db_open:%s", filename);
 		dbp->close(dbp,0);
 		free(filename);
 		return NULL;
@@ -87,6 +94,36 @@ retvalue references_isused(DB *refdb,const char *what) {
 	}
 }
 
+retvalue references_check(DB *refdb,const char *what,const char *by) {
+	int dbret;
+	retvalue r;
+	DBT key,data;
+	DBC *cursor;
+
+	cursor = NULL;
+	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
+		refdb->err(refdb, dbret, "references_check dberror:");
+		return RET_DBERR(dbret);
+	}
+	SETDBT(key,what);	
+	SETDBT(data,by);	
+	if( (dbret=cursor->c_get(cursor,&key,&data,DB_GET_BOTH)) == 0 ) {
+		r = RET_OK;
+	} else
+	if( dbret != DB_NOTFOUND ) {
+		refdb->err(refdb, dbret, "references_check dberror(get):");
+		return RET_DBERR(dbret);
+	} else {
+		fprintf(stderr,"Missing reference to '%s' by '%s'\n",what,by);
+		r = RET_ERROR;
+	}
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		refdb->err(refdb, dbret, "references_check dberror(cl):");
+		return RET_DBERR(dbret);
+	}
+	return r;
+}
+
 /* add an reference to a file for an identifier. multiple calls
  * will add multiple references to allow source packages to share
  * files over versions. (as first the new is added, then the old removed) */
@@ -98,7 +135,7 @@ retvalue references_increment(DB* refdb,const char *needed,const char *neededby)
 	SETDBT(data,neededby);
 	if ((dbret = refdb->put(refdb, NULL, &key, &data, 0)) == 0) {
 		if( verbose > 8 )
-			fprintf(stderr,"db: %s: reference by %s added.\n", needed,neededby);
+			fprintf(stderr,"Adding reference to '%s' by '%s'\n", needed,neededby);
 		return RET_OK;
 	} else {
 		refdb->err(refdb, dbret, "references_increment dberror:");
@@ -148,6 +185,7 @@ retvalue references_remove(DB* refdb,const char *neededby) {
 	DBT key,data;
 	int dbret;
 	retvalue r;
+	size_t l;
 
 	r = RET_NOTHING;
 	cursor = NULL;
@@ -155,13 +193,17 @@ retvalue references_remove(DB* refdb,const char *neededby) {
 		refdb->err(refdb, dbret, "references_remove dberror(cursor):");
 		return RET_DBERR(dbret);
 	}
+	l = strlen(neededby);
 	CLEARDBT(key);	
 	CLEARDBT(data);	
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		if( strcmp( (const char*)data.data,neededby) == 0 ) {
+		const char *found_to = key.data;
+		const char *found_by = data.data;
+		if( strncmp( found_by,neededby,l) == 0 && 
+		    (found_by[l] == 0 || found_by[l] == ' ')) {
 			if( verbose > 5 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
-					(const char *)key.data,neededby);
+					found_to,neededby);
 			dbret = cursor->c_del(cursor,0);
 			if( dbret != 0 ) {
 				refdb->err(refdb, dbret, "references_remove dberror(del):");
@@ -196,7 +238,11 @@ retvalue references_dump(DB *refdb) {
 	CLEARDBT(data);
 	result = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		printf("%s %s\n",(const char*)data.data,(const char*)key.data);
+		const char *found_to = (const char*)key.data;
+		const char *found_by = (const char*)data.data;
+		fputs(found_by,stdout);
+		putchar(' ');
+		puts(found_to);
 		result = RET_OK;
 	}
 	if( dbret != DB_NOTFOUND ) {

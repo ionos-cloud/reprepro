@@ -513,7 +513,7 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 		}
 
 		ret = unlink(sigfilename);
-		if( ret != 0 ) {
+		if( ret != 0 && errno != ENOENT ) {
 			fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",sigfilename);
 			free(signcommand);
 			free(dirofdist);

@@ -23,6 +23,9 @@ retvalue references_decrement(DB* refdb,const char *needed,const char *neededby)
 /* check if an item is needed, returns RET_NOTHING if not */
 retvalue references_isused(DB *refdb,const char *what);
 
+/* check if a reference is found as expected */
+retvalue references_check(DB *refdb,const char *what,const char *by);
+
 /* print out all referee-referenced-pairs. */
 retvalue references_dump(DB *refdb);
 

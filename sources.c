@@ -29,6 +29,7 @@
 #include "chunks.h"
 #include "sources.h"
 #include "names.h"
+#include "mprintf.h"
 #include "dpkgversions.h"
 
 extern int verbose;
@@ -105,7 +106,7 @@ retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize)
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,struct strlist *files) {
+retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *files) {
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
@@ -114,12 +115,21 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdir
 		if( !RET_IS_OK(r) )
 			return r;
 	}
+	
+	if( version ) {
+		r = chunk_getvalue(chunk,"Version",version);
+		if( !RET_IS_OK(r) ) {
+			IFREE(packagename);
+			return r;
+		}
+	}
 
 	if( origdirectory ) {
 		/* Read the directory given there */
 		r = chunk_getvalue(chunk,"Directory",origdirectory);
 		if( !RET_IS_OK(r) ) {
 			IFREE(packagename);
+			IFREE(version);
 			return r;
 		}
 		if( verbose > 13 ) 
@@ -134,6 +144,7 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdir
 		r = chunk_getextralinelist(chunk,"Files",files);
 		if( !RET_IS_OK(r) ) {
 			IFREE(packagename);
+			IFREE(version);
   			IFREE(origdirectory);
   			return r;
 		}
@@ -171,11 +182,11 @@ static retvalue addsource(void *data,const char *chunk) {
 	int isnewer;
 	struct sources_add *d = data;
 
-	char *package,*directory,*olddirectory;
+	char *package,*version,*directory,*olddirectory;
 	char *oldchunk;
 	struct strlist files;
 
-	r = sources_parse_chunk(chunk,&package,&olddirectory,&files);
+	r = sources_parse_chunk(chunk,&package,&version,&olddirectory,&files);
 	if( r == RET_NOTHING ) {
 		return RET_ERROR;
 	} else if( RET_WAS_ERROR(r) ) {
@@ -186,7 +197,7 @@ static retvalue addsource(void *data,const char *chunk) {
 		if( isnewer < 0 ) {
 			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
 			free(package);strlist_done(&files);
-			free(olddirectory);
+			free(olddirectory);free(version);
 			free(oldchunk);
 			return RET_ERROR;
 		}
@@ -197,7 +208,7 @@ static retvalue addsource(void *data,const char *chunk) {
 		if( !directory )
 			r = RET_ERROR_OOM;
 		else
-			r = (*d->action)(d->data,chunk,package,directory,olddirectory,&files,oldchunk);
+			r = (*d->action)(d->data,chunk,package,version,directory,olddirectory,&files,oldchunk);
 		free(directory);
 	} else {
 		r = RET_NOTHING;
@@ -205,7 +216,7 @@ static retvalue addsource(void *data,const char *chunk) {
 	free(oldchunk);
 	
 	free(package);strlist_done(&files);
-	free(olddirectory);
+	free(olddirectory);free(version);
 
 	return r;
 }
@@ -228,12 +239,20 @@ retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
 	char *directory;
 	struct strlist files;
 	char *filename,*filekey;
+	char *package,*version,*identifier;
 	retvalue r,result;
 	int i;
 
-	r = sources_parse_chunk(chunk,NULL,&directory,&files);
+	r = sources_parse_chunk(chunk,&package,&version,&directory,&files);
 	if( !RET_IS_OK(r) )
 		return r;
+
+	identifier = mprintf("%s %s %s",referee,package,version);
+	free(version);free(package);
+	if( !identifier ) {
+		free(directory);strlist_done(&files);
+		return RET_ERROR_OOM;
+	}
 
 	result = RET_NOTHING;
 	
@@ -248,12 +267,47 @@ retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
 			fprintf(stderr,"Decrementing reference for '%s' to '%s'...\n",referee,filekey);
 		}
 
-		r = references_decrement(refs,filekey,referee);
+		r = references_decrement(refs,filekey,identifier);
 		RET_UPDATE(result,r);
 
 		free(filename);free(filekey);
 	}
+	free(identifier);
 	free(directory);strlist_done(&files);
 
+	return result;
+}
+
+/* Add references for the given source */
+retvalue sources_reference(DB *refs,const char *referee,const char *package,const char *version,const char *dir,const struct strlist *files) {
+	char *basefilename,*filekey;
+	char *identifier;
+	retvalue r,result;
+	int i;
+
+	identifier = mprintf("%s %s %s",referee,package,version);
+	if( !identifier ) {
+		return RET_ERROR_OOM;
+	}
+
+	result = RET_NOTHING;
+	for( i = 0 ; i < files->count ; i++ ) {
+		r = sources_getfile(files->values[i],&basefilename,NULL);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			break;
+		}
+		filekey = calc_srcfilekey(dir,basefilename);
+		free(basefilename);
+		if( !filekey) {
+			return RET_ERROR_OOM;
+		}
+		r = references_increment(refs,filekey,identifier);
+		free(filekey);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	free(identifier);
 	return result;
 }
