@@ -34,7 +34,7 @@ extern int verbose;
 extern int force;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **filename,char **md5andsize) {
+retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **basename,char **md5andsize) {
 	const char *f,*f2;
 	char *pmd5,*psize,*ppackage;
 #define IFREE(p) if(p) free(*p);
@@ -114,9 +114,9 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 		}
 	}
 
-	/* generate a filename based on package,version and architecture */
+	/* generate a base filename based on package,version and architecture */
 
-	if( filename ) {
+	if( basename ) {
 		char *parch,*pversion,*v;
 
 		f  = chunk_getfield("Version",chunk);
@@ -143,8 +143,8 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 		else
 			v = pversion;
 		/* TODO check parts to contain out of save charakters */
-		*filename = calc_package_filename(ppackage,v,parch);
-		if( !*filename ) {
+		*basename = calc_package_basename(ppackage,v,parch);
+		if( !*basename ) {
 			free(pversion);free(parch);
 			free(ppackage);
 			IFREE(origfilename);
@@ -182,16 +182,16 @@ static int binaries_isnewer(const char *newchunk,const char *oldchunk) {
 }
 
 
-struct binaries_add {DB *pkgs; void *data; const char *part; binary_package_action *action; };
+struct binaries_add {DB *pkgs; void *data; const char *component; binary_package_action *action; };
 
 static retvalue addbinary(void *data,const char *chunk) {
 	struct binaries_add *d = data;
 	retvalue r;
 	int newer;
 	char *oldchunk;
-	char *package,*filename,*origfile,*sourcename,*filekey,*md5andsize;
+	char *package,*basename,*origfile,*sourcename,*filekey,*md5andsize;
 
-	r = binaries_parse_chunk(chunk,&package,&origfile,&sourcename,&filename,&md5andsize);
+	r = binaries_parse_chunk(chunk,&package,&origfile,&sourcename,&basename,&md5andsize);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
 		return r;
@@ -205,19 +205,19 @@ static retvalue addbinary(void *data,const char *chunk) {
 		if( newer < 0 ) {
 			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
 			free(md5andsize);free(origfile);free(package);
-			free(sourcename);free(filename);
+			free(sourcename);free(basename);
 			return RET_ERROR;
 		}
 	}
 	if( oldchunk==NULL || newer > 0 ) {
 		/* add package (or whatever action wants to do) */
 
-		filekey =  calc_filekey(d->part,sourcename,filename);
+		filekey =  calc_filekey(d->component,sourcename,basename);
 		if( !filekey )
 			r = RET_ERROR_OOM;
 		else {
 			r = (*d->action)(d->data,chunk,
-					package,sourcename,origfile,filename,
+					package,sourcename,origfile,basename,
 					filekey,md5andsize,oldchunk);
 			free(filekey);
 		}
@@ -228,66 +228,20 @@ static retvalue addbinary(void *data,const char *chunk) {
 	free(oldchunk);
 	
 	free(package);free(md5andsize);
-	free(origfile);free(filename);free(sourcename);
+	free(origfile);free(basename);free(sourcename);
 	return r;
 }
 
 
 
 /* call action for each package in packages_file */
-retvalue binaries_add(DB *pkgs,const char *part,const char *packages_file, binary_package_action action,void *data) {
+retvalue binaries_add(DB *pkgs,const char *component,const char *packages_file, binary_package_action action,void *data) {
 	struct binaries_add mydata;
 
 	mydata.data=data;
 	mydata.pkgs=pkgs;
-	mydata.part=part;
+	mydata.component=component;
 	mydata.action=action;
 
 	return chunk_foreach(packages_file,addbinary,&mydata,force);
-}
-
-/* Retrieve the filekey from an older chunk */ 
-retvalue binaries_getoldfilekey(const char *oldchunk,const char *ppooldir, char **filekey) {
-	retvalue r;
-	char *oldfilename,*oldfilekey,*p;
-	const char *f;
-	size_t l;
-
-	assert(filekey != NULL);
-	/* Read the filename given there */
-	f = chunk_getfield("Filename",oldchunk);
-	if( ! f ) {
-		return RET_NOTHING;
-	}
-	oldfilename = chunk_dupvalue(f);
-	if( !*oldfilename ) {
-		return RET_ERROR_OOM;
-	}
-	r = RET_OK;
-	l = strlen(ppooldir);
-	if( strncmp(oldfilename,ppooldir,l) == 0 && 
-	    (oldfilename[l-1] == '/' || oldfilename[l] == '/')) {
-		/* first check the first after in case there are 2 */
-		if( oldfilename[l] == '/' )
-			oldfilekey = strdup(oldfilename+l+1);
-		else
-			oldfilekey = strdup(oldfilename+l);
-		if( !oldfilekey ) 
-			r = RET_ERROR_OOM;
-		else
-			*filekey = oldfilekey;
-	} else {
-		p = strchr(oldfilename,'/');
-		if( !p )
-			oldfilekey = strdup(oldfilename);
-		else
-			oldfilekey = strdup(p+1);
-		if( !oldfilekey ) 
-			r = RET_ERROR_OOM;
-		else
-			*filekey = oldfilekey;
-		fprintf(stderr,"Can not find '%s/' in '%s'! Guessing rest is '%s'\n",ppooldir,oldfilename,oldfilekey);
-	}
-	free(oldfilename);
-	return r;
 }

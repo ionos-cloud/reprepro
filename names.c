@@ -38,30 +38,30 @@ char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const cha
 	return mprintf("%s/%s/%s",mirrordir,directory,filename);
 }
 
-char *calc_sourcedir(const char *part,const char *sourcename) {
+char *calc_sourcedir(const char *component,const char *sourcename) {
 
 	assert( *sourcename != '\0' );
 
 	if( sourcename[0] == 'l' && sourcename[1] == 'i' && sourcename[2] == 'b' && sourcename[3] != '\0' )
 
-		return mprintf("%s/lib%c/%s",part,sourcename[3],sourcename);
+		return mprintf("pool/%s/lib%c/%s",component,sourcename[3],sourcename);
 	else if( *sourcename != '\0' )
-		return mprintf("%s/%c/%s",part,sourcename[0],sourcename);
+		return mprintf("pool/%s/%c/%s",component,sourcename[0],sourcename);
 	else
 		return NULL;
 }
 
-char *calc_filekey(const char *part,const char *sourcename,const char *filename) {
+char *calc_filekey(const char *component,const char *sourcename,const char *filename) {
 	if( sourcename[0] == 'l' && sourcename[1] == 'i' && sourcename[2] == 'b' && sourcename[3] != '\0' )
 
-		return mprintf("%s/lib%c/%s/%s",part,sourcename[3],sourcename,filename);
+		return mprintf("pool/%s/lib%c/%s/%s",component,sourcename[3],sourcename,filename);
 	else if( *sourcename != '\0' )
-		return mprintf("%s/%c/%s/%s",part,sourcename[0],sourcename,filename);
+		return mprintf("pool/%s/%c/%s/%s",component,sourcename[0],sourcename,filename);
 	else
 		return NULL;
 }
 
 
-char *calc_package_filename(const char *name,const char *version,const char *arch) {
+char *calc_package_basename(const char *name,const char *version,const char *arch) {
 	return mprintf("%s_%s_%s.deb",name,version,arch);
 }

@@ -21,7 +21,7 @@ typedef retvalue source_package_action(
 	const char *chunk,
 	/* the name of the sourcepackage */
 	const char *package,
-	/* the calculated directory it shall be put in (relative to pool/) */
+	/* the calculated directory it shall be put in (relative to mirrordir) */
 	const char *directory,
 	/* the directory specified by the chunk. (relative to dists/) */
 	const char *olddirectory,
@@ -31,8 +31,8 @@ typedef retvalue source_package_action(
 	const char *oldchunk);
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
- * <pkgs> and using <part> as subdir of pool (i.e. "main","contrib",...) for generated paths */
-retvalue sources_add(DB *pkgs,const char *part,const char *sources_file,source_package_action action,void *data);
+ * <pkgs> and using <component> as subdir of pool (i.e. "main","contrib",...) for generated paths */
+retvalue sources_add(DB *pkgs,const char *component,const char *sources_file,source_package_action action,void *data);
 
 /* remove all references by the given chunk */
 retvalue sources_dereference(DB *refs,const char *referee,const char *chunk);

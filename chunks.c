@@ -140,7 +140,7 @@ char *chunk_dupvalue(const char *field) {
 	return strndup(field,h-field);
 }
 
-/* strdup without a leading "<prefix>/" */
+/* strdup without a leading "<prefix>/" 
 char *chunk_dupvaluecut(const char *field,const char *prefix) {
 	const char *h;
 	int l;
@@ -158,7 +158,7 @@ char *chunk_dupvaluecut(const char *field,const char *prefix) {
 	while( *h != '\n' && *h != '\0' )
 		h++;
 	return strndup(field,h-field);
-}
+} */
 
 /* strdup the following lines of a field */
 char *chunk_dupextralines(const char *field) {

@@ -7,7 +7,7 @@
 #endif
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **filename,char **md5andsize);
+retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **basename,char **md5andsize);
 
 /* the type of a action for binaries_add */
 typedef retvalue binary_package_action(
@@ -19,11 +19,11 @@ typedef retvalue binary_package_action(
 	const char *package,
 	/* the sourcename */
 	const char *sourcename,
-	/* the filename (and path relative to dists) found in the chunk */
+	/* the filename (including path) as found in the chunk */
 	const char *origfile,
-	/* the calculated filename it should have (without directory) */
-	const char *filename,
-	/* with directory relative to the pool/-dir */
+	/* the calculated base filename it should have (without directory) */
+	const char *basename,
+	/* with directory relative to the mirrordir */
 	const char *filekey,
 	/* the expected md5sum and size */
 	const char *md5andsize,
@@ -43,8 +43,5 @@ retvalue binaries_add(
 	binary_package_action action,
 	/* some data to pass to the action */
 	void *data);
-
-/* Retrieve the filekey from an older chunk */ 
-retvalue binaries_getoldfilekey(const char *oldchunk,const char *ppooldir, char **filekey);
 
 #endif

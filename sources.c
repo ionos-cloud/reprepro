@@ -35,7 +35,7 @@ extern int force;
 
 /* traverse through a '\n' sepeated lit of "<md5sum> <size> <filename>" 
  * > 0 while entires found, ==0 when not, <0 on error */
-retvalue sources_getfile(const char **files,char **filename,char **md5andsize) {
+retvalue sources_getfile(const char **files,char **basename,char **md5andsize) {
 	const char *md5,*md5end,*size,*sizeend,*fn,*fnend,*p;
 	char *md5as,*filen;
 
@@ -95,8 +95,8 @@ retvalue sources_getfile(const char **files,char **filename,char **md5andsize) {
 	
 		*md5andsize = md5as;
 	}
-	if( filename )
-		*filename = filen;
+	if( basename )
+		*basename = filen;
 	else
 		free(filen);
 
@@ -182,7 +182,7 @@ static int sources_isnewer(const char *newchunk,const char *oldchunk) {
 
 //typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk);
 
-struct sources_add {DB *pkgs; void *data; const char *part; source_package_action *action; };
+struct sources_add {DB *pkgs; void *data; const char *component; source_package_action *action; };
 
 static retvalue addsource(void *data,const char *chunk) {
 	retvalue r;
@@ -210,7 +210,7 @@ static retvalue addsource(void *data,const char *chunk) {
 	}
 	if( oldchunk == NULL || isnewer > 0 ) {
 		/* add source package */
-		directory =  calc_sourcedir(d->part,package);
+		directory =  calc_sourcedir(d->component,package);
 		if( !directory )
 			r = RET_ERROR_OOM;
 		else
@@ -228,13 +228,13 @@ static retvalue addsource(void *data,const char *chunk) {
 }
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
- * <pkgs> and using <part> as subdir of pool (i.e. "main","contrib",...) for generated paths */
-retvalue sources_add(DB *pkgs,const char *part,const char *sources_file, source_package_action action,void *data) {
+ * <pkgs> and using <component> as subdir of pool (i.e. "main","contrib",...) for generated paths */
+retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, source_package_action action,void *data) {
 	struct sources_add mydata;
 
 	mydata.data=data;
 	mydata.pkgs=pkgs;
-	mydata.part=part;
+	mydata.component=component;
 	mydata.action=action;
 
 	return chunk_foreach(sources_file,addsource,&mydata,force);
@@ -256,6 +256,9 @@ retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
 	nextfile = files;
 	while( RET_IS_OK(r=sources_getfile(&nextfile,&filename,NULL)) ){
 		filekey = calc_srcfilekey(directory,filename);
+		if( verbose > 4 ) {
+			fprintf(stderr,"Decrementing reference for '%s' to '%s'...\n",referee,filekey);
+		}
 
 		r = references_decrement(refs,filekey,referee);
 		RET_UPDATE(result,r);

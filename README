@@ -1,1 +1,13 @@
 TODO: write this file
+
+First if all, this is version 0.0. Thus many things I consider important are still
+not implemented. While I'm in 0.0 I'll also change semantics, names and commandline
+syntax and even structure of the database without any upgrade path. 
+
+Some naming conventions:
+	basename: the name of a file without any directory information.
+	filekey: the position relative to the mirrordir. (as found as "Filename:" in Packages.gz)
+	full filename: the position relative to /
+
+	architecture: The term like "sparc","i386","mips",...
+	component: Things like "main" "non-free" "contrib" ...

@@ -40,8 +40,7 @@
 
 /* global options */
 char 	*incommingdir = STD_BASE_DIR "/incomming",
-	*ppooldir = "pool",
-	*pooldir = STD_BASE_DIR "/pool",
+	*mirrordir = STD_BASE_DIR ,
 	*distdir = STD_BASE_DIR "/dists",
 	*dbdir = STD_BASE_DIR "/db",
 	*confdir = STD_BASE_DIR "/conf";
@@ -168,24 +167,24 @@ int dumpunreferenced(int argc,char *argv[]) {
 retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5andsize) {
 	struct fileref *dist = data;
 	retvalue r;
-	char *fullfilename;
+	char *filename;
 	int err;
 
 	r = references_isused(dist->refs,filekey);
 	if( r == RET_NOTHING ) {
 		if( verbose >= 0 )
 			printf("deleting and forgetting %s\n\n",filekey);
-		fullfilename = calc_dirconcat(pooldir,filekey);
-		if( !fullfilename )
+		filename = calc_fullfilename(mirrordir,filekey);
+		if( !filename )
 			r = RET_ERROR_OOM;
 		else {
-			err = unlink(fullfilename);
+			err = unlink(filename);
 			if( err != 0 ) {
 				r = RET_ERRNO(errno);
-				fprintf(stderr,"error while unlinking %s: %m\n",fullfilename);
+				fprintf(stderr,"error while unlinking %s: %m\n",filename);
 			} else 
 				r = files_remove(dist->files,filekey);
-			free(fullfilename);
+			free(filename);
 		}
 		return r;
 	} else if( RET_IS_OK(r) ) {
@@ -281,14 +280,20 @@ int removepackage(int argc,char *argv[]) {
 	result = RET_NOTHING;
 	for( i = 2 ; i< argc ; i++ ) {
 		chunk = packages_get(pkgs,argv[i]);
+		if( verbose > 0 )
+			fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
 		r = packages_remove(pkgs,argv[i]);
 		if( RET_IS_OK(r) ) {
 			// TODO: also check for source-packages...
-			r = binaries_getoldfilekey(chunk,ppooldir,&filekey);
+			r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL);
 			if( RET_IS_OK(r) ) {
+				if( verbose > 1 )
+					fprintf(stderr,"unreferencing '%s' to '%s' \n",argv[1],filekey);
 				r = references_decrement(refs,filekey,argv[1]);
 				free(filekey);
 			} else if( r == RET_NOTHING ) {
+				if( verbose > 1 )
+					fprintf(stderr,"unreferencing needed srcfiles in '%s' about  '%s' \n",argv[1],argv[i]);
 				r = sources_dereference(refs,argv[1],chunk);
 			}
 		}
@@ -313,20 +318,15 @@ struct referee {
 
 retvalue reference_binary(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
-	const char *f;
 	char *filekey;
 	retvalue r;
 
-	f = chunk_getfield("Filename",chunk);
-	if( !f ) {
-		fprintf(stderr,"No Filename-entry in package '%s'. Perhaps no binary entry?:\n%s\n",package,chunk);
-		return RET_NOTHING;
+	r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL);
+	if( verbose >= 0 && r == RET_NOTHING ) {
+		fprintf(stderr,"Package does not look binary: '%s'\n",chunk);
 	}
-	filekey = chunk_dupvaluecut(f,ppooldir);
-	if( !filekey ) {
-		fprintf(stderr,"Error extracing filename from chunk: %s\n",chunk);
-		return RET_ERROR;
-	}
+	if( !RET_IS_OK(r) )
+		return r;
 	if( verbose > 10 )
 		fprintf(stderr,"referencing filekey: %s\n",filekey);
 	r = references_increment(dist->refs,filekey,dist->identifier);
@@ -366,44 +366,29 @@ int referencebinaries(int argc,char *argv[]) {
 
 retvalue reference_source(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
-	const char *f,*nextfile;
-	char *dir,*files,*filekey,*filename;
+	const char *nextfile;
+	char *dir,*files,*filekey,*basefilename;
 	retvalue ret,r;
 
-	f = chunk_getfield("Directory",chunk);
-	if( !f ) {
-		fprintf(stderr,"No Directory-entry in package '%s'. Perhaps no source entry?:\n%s\n",package,chunk);
-		return RET_NOTHING;
+	r = sources_parse_chunk(chunk,NULL,&dir,&files);
+	if( verbose >= 0 && r == RET_NOTHING ) {
+		fprintf(stderr,"Package does not look like source: '%s'\n",chunk);
 	}
-	dir = chunk_dupvaluecut(f,ppooldir);
-	if( !dir ) {
-		fprintf(stderr,"Error extracing directory from chunk: %s\n",chunk);
-		return RET_ERROR;
-	}
-	f = chunk_getfield("Files",chunk);
-	if( !f ) {
-		free(dir);
-		fprintf(stderr,"No Files-entry in package '%s'. Perhaps no source entry?:\n%s\n",package,chunk);
-		return RET_NOTHING;
-	}
-	files = chunk_dupextralines(f);
-	if( !files ) {
-		free(dir);
-		fprintf(stderr,"Error extracing files from chunk: %s\n",chunk);
-		return RET_ERROR;
-	}
+	if( !RET_IS_OK(r) )
+		return r;
+
 	if( verbose > 10 )
 		fprintf(stderr,"referencing source package: %s\n",package);
 	nextfile = files;
 	ret = RET_NOTHING;
-	while( RET_IS_OK(r =sources_getfile(&nextfile,&filename,NULL)) ){
-		filekey = calc_srcfilekey(dir,filename);
+	while( RET_IS_OK(r =sources_getfile(&nextfile,&basefilename,NULL)) ){
+		filekey = calc_srcfilekey(dir,basefilename);
 		if( !filekey) {
-			free(dir);free(files);free(filename);
+			free(dir);free(files);free(basefilename);
 			return RET_ERROR;
 		}
 		r = references_increment(dist->refs,filekey,dist->identifier);
-		free(filekey);free(filename);
+		free(filekey);free(basefilename);
 		if( RET_WAS_ERROR(r) )
 			break;
 		RET_UPDATE(ret,r);
@@ -450,46 +435,41 @@ struct distribution {
 /***********************************addsources***************************/
 
 retvalue add_source(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk) {
-	char *newchunk,*fulldir;
+	char *newchunk;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
 	const char *nextfile;
-	char *filename,*filekey,*md5andsize;
+	char *basefilename,*filekey,*md5andsize;
 
 
 	/* look for needed files */
 
 	nextfile = files;
-	while( RET_IS_OK(r=sources_getfile(&nextfile,&filename,&md5andsize)) ){
-		filekey = calc_dirconcat(directory,filename);
+	while( RET_IS_OK(r=sources_getfile(&nextfile,&basefilename,&md5andsize)) ){
+		filekey = calc_dirconcat(directory,basefilename);
 		
-		r = files_expect(dist->files,pooldir,filekey,md5andsize);
+		r = files_expect(dist->files,mirrordir,filekey,md5andsize);
 		if( RET_WAS_ERROR(r) ) {
-			free(filename);free(md5andsize);free(filekey);
+			free(basefilename);free(md5andsize);free(filekey);
 			return r;
 		}
 		if( r == RET_NOTHING ) {
 			/* File missing */
 			printf("Missing file %s\n",filekey);
-			free(filename);free(md5andsize);free(filekey);
+			free(basefilename);free(md5andsize);free(filekey);
 			return RET_ERROR;
 		}
 
 		references_increment(dist->refs,filekey,dist->referee);
 
-		free(filename);free(md5andsize);free(filekey);
+		free(basefilename);free(md5andsize);free(filekey);
 	}
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	/* Add package to distribution's database */
 
-	fulldir = calc_fullfilename(ppooldir,directory);
-	if( !fulldir )
-		return -1;
-
-	newchunk = chunk_replaceentry(chunk,"Directory",fulldir);
-	free(fulldir);
+	newchunk = chunk_replaceentry(chunk,"Directory",directory);
 	if( !newchunk )
 		return RET_ERROR_OOM;
 	if( oldchunk != NULL ) {
@@ -561,10 +541,10 @@ retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package
 	struct distribution *dist = (struct distribution*)data;
 	char *dn;
 	const char *nextfile;
-	char *filename,*filekey,*md5andsize;
+	char *basefilename,*filekey,*md5andsize;
 
 	/* look for directory */
-	if( (dn = calc_fullfilename(pooldir,directory))) {
+	if( (dn = calc_fullfilename(mirrordir,directory))) {
 		r = make_dir_recursive(dn);
 		free(dn);
 		if( r < 0 )
@@ -573,21 +553,21 @@ retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package
 
 	nextfile = files;
 	ret = RET_NOTHING;
-	while( RET_IS_OK(r =sources_getfile(&nextfile,&filename,&md5andsize)) ){
-		filekey = calc_srcfilekey(directory,filename);
+	while( RET_IS_OK(r =sources_getfile(&nextfile,&basefilename,&md5andsize)) ){
+		filekey = calc_srcfilekey(directory,basefilename);
 		
-		r = files_expect(dist->files,pooldir,filekey,md5andsize);
+		r = files_expect(dist->files,mirrordir,filekey,md5andsize);
 		if( RET_WAS_ERROR(r) ) {
-			free(filename);free(md5andsize);free(filekey);
+			free(basefilename);free(md5andsize);free(filekey);
 			return r;
 		}
 		if( r == RET_NOTHING ) {
 			/* File missing */
-			printf("%s/%s %s/%s\n",olddirectory,filename,pooldir,filekey);
+			printf("%s/%s %s/%s\n",olddirectory,basefilename,mirrordir,filekey);
 			ret = RET_OK;
 		}
 
-		free(filename);free(md5andsize);free(filekey);
+		free(basefilename);free(md5andsize);free(filekey);
 	}
 	RET_UPDATE(ret,r);
 	return ret;
@@ -629,24 +609,24 @@ int prepareaddsources(int argc,char *argv[]) {
 
 /****************************prepareaddpackages*******************************************/
 
-retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *filename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	retvalue r;
 	struct distribution *dist = (struct distribution*)data;
 	char *fn;
 
 	/* look for needed files */
 
-	r = files_expect(dist->files,pooldir,filekey,md5andsize);
+	r = files_expect(dist->files,mirrordir,filekey,md5andsize);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
 		/* look for directory */
-		if( (fn = calc_fullfilename(pooldir,filekey))) {
+		if( (fn = calc_fullfilename(mirrordir,filekey))) {
 			make_parent_dirs(fn);
 			free(fn);
 		}
 		/* File missing */
-		printf("%s %s/%s\n",oldfile,pooldir,filekey);
+		printf("%s %s/%s\n",oldfile,mirrordir,filekey);
 		return RET_OK;
 	}
 	return RET_NOTHING;
@@ -688,16 +668,15 @@ int prepareaddpackages(int argc,char *argv[]) {
 
 /***********************************addpackages*******************************************/
 
-retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *filename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	char *newchunk;
-	char *filewithdir;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
 	char *oldfilekey;
 
 	/* look for needed files */
 	
-	r = files_expect(dist->files,pooldir,filekey,md5andsize);
+	r = files_expect(dist->files,mirrordir,filekey,md5andsize);
 	if( ! RET_IS_OK(r) ) {
 		printf("Missing file %s\n",filekey);
 		return r;
@@ -711,11 +690,7 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 
 	/* Add package to distribution's database */
 
-	filewithdir = calc_fullfilename(ppooldir,filekey);
-	if( !filewithdir )
-		return RET_ERROR_OOM;
-	newchunk = chunk_replaceentry(chunk,"Filename",filewithdir);
-	free(filewithdir);
+	newchunk = chunk_replaceentry(chunk,"Filename",filekey);
 	if( !newchunk )
 		return RET_ERROR;
 	if( oldchunk != NULL ) {
@@ -732,7 +707,7 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	/* remove old references to files */
 
 	if( oldchunk ) {
-		r = binaries_getoldfilekey(oldchunk,ppooldir,&oldfilekey);
+		r = binaries_parse_chunk(oldchunk,NULL,&oldfilekey,NULL,NULL,NULL);
 		if( RET_IS_OK(r) ) {
 			r = references_decrement(dist->refs,oldfilekey,dist->referee);
 			free(oldfilekey);
@@ -795,7 +770,7 @@ int detect(int argc,char *argv[]) {
 		return 1;
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
-			r = files_detect(files,pooldir,argv[i]);
+			r = files_detect(files,mirrordir,argv[i]);
 			RET_UPDATE(ret,r);
 		}
 
@@ -807,7 +782,7 @@ int detect(int argc,char *argv[]) {
 				return 1;
 			}
 			*nl = '\0';
-			r = files_detect(files,pooldir,buffer);
+			r = files_detect(files,mirrordir,buffer);
 			RET_UPDATE(ret,r);
 		} 
 	r = files_done(files);
@@ -1167,8 +1142,6 @@ int main(int argc,char *argv[]) {
 		{"local", 0, 0, 'l'},
 		{"basedir", 1, 0, 'b'},
 		{"incommingdir", 1, 0, 'i'},
-		{"ppooldir", 1, 0, 'P'},
-		{"pooldir", 1, 0, 'p'},
 		{"distdir", 1, 0, 'd'},
 		{"dbdir", 1, 0, 'D'},
 		{"confdir", 1, 0, 'c'},
@@ -1190,10 +1163,8 @@ int main(int argc,char *argv[]) {
 " -h, --help:             Show this help\n"
 " -l, --local:            Do only process the given file.\n"
 "                         (i.e. do not look at .tar.gz when getting .dsc)\n"
-" -b, --basedir <dir>:    Base-dir (will overwrite prior given -i, -p, -d, -D).\n"
+" -m, --mirrordir <dir>:    Base-dir (will overwrite prior given -i, -d, -D).\n"
 " -i, --incomming <dir>:  incomming-Directory.\n"
-" -p, --pooldir <dir>:    Directory to place the \"pool\" in.\n"
-" -P, --ppooldir <dir>:   Prefix to place in generated Packages-files for pool.\n"
 " -d, --distdir <dir>:    Directory to place the \"dists\" dir in.\n"
 " -D, --dbdir <dir>:      Directory to place the database in.\n"
 " -c, --confdir <dir>:    Directory to search configuration in.\n"
@@ -1203,6 +1174,7 @@ int main(int argc,char *argv[]) {
 " forget <file>:      Forget the given files (read stdin if none)\n"
 "                     (Only usefull to unregister files manually deleted)\n"
 " detect <file>:      Add given files to the database (read stdin if none)\n"
+"  the following lines are currently wrong...\n"
 "  ('find $pooldir -type f -printf \"%%P\\n\" | mirrorer -p $pooldir inventory'\n"
 "   will iventory an already existing pool-dir\n"
 "   WARNING: names relative to pool-dir in shortest possible form\n"
@@ -1243,20 +1215,14 @@ int main(int argc,char *argv[]) {
 				force++;
 				break;
 			case 'b':
+				mirrordir=strdup(optarg);
 				incommingdir=mprintf("%s/incomming",optarg);
-				pooldir=mprintf("%s/pool",optarg);
 				distdir=mprintf("%s/dists",optarg);
 				dbdir=mprintf("%s/db",optarg);
 				confdir=mprintf("%s/conf",optarg);
 				break;
 			case 'i':
 				incommingdir = strdup(optarg);
-				break;
-			case 'P':
-				ppooldir = strdup(optarg);
-				break;
-			case 'p':
-				pooldir = strdup(optarg);
 				break;
 			case 'd':
 				distdir = strdup(optarg);
