@@ -230,5 +230,5 @@ retvalue binaries_add(DB *pkgs,const char *component,const char *packages_file, 
 	mydata.component=component;
 	mydata.action=action;
 
-	return chunk_foreach(packages_file,addbinary,&mydata,force);
+	return chunk_foreach(packages_file,addbinary,&mydata,force,0);
 }

@@ -37,7 +37,7 @@
 #include "names.h"
 #include "distribution.h"
 
-static void distribution_free(struct distribution *distribution) {
+void distribution_free(struct distribution *distribution) {
 	if( distribution) {
 		free(distribution->codename);
 		free(distribution->suite);
@@ -86,12 +86,15 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 	return RET_OK;
 }
 
-struct distribution_filter {int count; char **dists; };
+struct distribution_filter {int count; const char **dists; };
 
 static retvalue distribution_parse_and_filter(struct distribution **distribution,const char *chunk,struct distribution_filter filter) {
 	retvalue result;
 	int i;
 	
+	// TODO: combine this with distribution_parse, so that
+	// there is no need to read anything in even when it
+	// is not the correct one...
 	result = distribution_parse(distribution,chunk);
 	if( RET_IS_OK(result) ) {
 		if( filter.count > 0 ) {
@@ -159,7 +162,7 @@ retvalue distribution_foreach(const char *conf,int argc,char *argv[],distributio
 	struct dist_mydata mydata;
 
 	mydata.filter.count = argc;
-	mydata.filter.dists = argv;
+	mydata.filter.dists = (const char**)argv;
 	mydata.data = data;
 	mydata.action = action;
 	
@@ -167,8 +170,41 @@ retvalue distribution_foreach(const char *conf,int argc,char *argv[],distributio
 	if( !fn ) 
 		return RET_ERROR_OOM;
 	
-	result = chunk_foreach(fn,processdistribution,&mydata,force);
+	result = chunk_foreach(fn,processdistribution,&mydata,force,0);
 
 	free(fn);
+	return result;
+}
+
+struct getdist_mydata {struct distribution_filter filter; struct distribution *distribution;};
+
+static retvalue processgetdistribution(void *d,const char *chunk) {
+	struct getdist_mydata *mydata = d;
+	retvalue result;
+
+	result = distribution_parse_and_filter(&mydata->distribution,chunk,mydata->filter);
+	return result;
+}
+
+retvalue distribution_get(struct distribution **distribution,const char *conf,const char *name) {
+	retvalue result;
+	char *fn;
+	struct getdist_mydata mydata;
+
+	mydata.filter.count = 1;
+	mydata.filter.dists = &name;
+	mydata.distribution = NULL;
+	
+	fn = calc_dirconcat(conf,"distributions");
+	if( !fn ) 
+		return RET_ERROR_OOM;
+	
+	result = chunk_foreach(fn,processgetdistribution,&mydata,0,1);
+
+	free(fn);
+
+	if( !RET_WAS_ERROR(result) )
+		*distribution = mydata.distribution;
+	
 	return result;
 }

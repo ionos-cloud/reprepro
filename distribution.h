@@ -13,7 +13,9 @@ struct distribution {
 	struct strlist architectures,components;
 };
 
-// void distribution_free(struct distribution *distribution);
+
+retvalue distribution_get(struct distribution **distribution,const char *conf,const char *name);
+void distribution_free(struct distribution *distribution);
 
 typedef retvalue distribution_each_source_action(void *data, const char *component);
 typedef retvalue distribution_each_binary_action(void *data, const char *component, const char *arch);

@@ -234,7 +234,7 @@ retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, so
 	mydata.component=component;
 	mydata.action=action;
 
-	return chunk_foreach(sources_file,addsource,&mydata,force);
+	return chunk_foreach(sources_file,addsource,&mydata,force,0);
 }
 
 /* remove all references by the given chunk */

@@ -229,7 +229,7 @@ static retvalue doupdate(void *data,const char *chunk,const struct distribution 
 
 	d->distribution = distribution;
 
-	r = chunk_foreach(d->updatesfile,processupdates,d,d->force);
+	r = chunk_foreach(d->updatesfile,processupdates,d,d->force,0);
 
 	strlist_done(&d->upstreams);
 

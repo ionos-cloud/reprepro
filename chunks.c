@@ -30,7 +30,7 @@
 extern int verbose;
 
 /* Call action for each chunk in <filename> */
-retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force){
+retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,int stopwhenok){
 	gzFile f;
 	retvalue result,ret;
 	char *chunk;
@@ -53,6 +53,8 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 				fprintf(stderr,"Stop reading further chunks from '%s' due to privious errors.\n",filename);
 			break;
 		}
+		if( stopwhenok && RET_IS_OK(ret) )
+			break;
 	}
 	//TODO: check result:
 	gzclose(f);
