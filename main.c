@@ -1122,13 +1122,13 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 
 	assert(action != NULL);
 	
-	deletederef = (action->needs & NEED_DEREF) && !keepunreferenced;
+	deletederef = ISSET(action->needs,NEED_DEREF) && !keepunreferenced;
 	
 	result = acquirelock(dbdir);
 	if( !RET_IS_OK(result) )
 		return result;
 
-	if( action->needs & NEED_REFERENCES )
+	if( ISSET(action->needs,NEED_REFERENCES) )
 		result = references_initialize(&references,dbdir);
 	else
 		references = NULL;
@@ -1136,7 +1136,7 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 	assert( result != RET_NOTHING );
 	if( RET_IS_OK(result) ) {
 
-		if( action->needs & NEED_FILESDB )
+		if( ISSET(action->needs,NEED_FILESDB) )
 			result = files_initialize(&filesdb,dbdir,mirrordir);
 		else
 			filesdb = NULL;
@@ -1145,8 +1145,8 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 		if( RET_IS_OK(result) ) {
 
 			if( deletederef ) {
-				assert( (action->needs & NEED_REFERENCES)!=0 );
-				assert( (action->needs & NEED_REFERENCES)!=0 );
+				assert( ISSET(action->needs,NEED_REFERENCES) );
+				assert( ISSET(action->needs,NEED_REFERENCES) );
 				result = strlist_init(&dereferencedfilekeys);
 			}
 
@@ -1181,13 +1181,13 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 					strlist_done(&dereferencedfilekeys);
 				}
 			}
-			if( action->needs & NEED_FILESDB ) {
+			if( ISSET(action->needs,NEED_FILESDB) ) {
 				retvalue r = files_done(filesdb);
 				RET_ENDUPDATE(result,r);
 			}
 		}
 
-		if( action->needs & NEED_REFERENCES ) {
+		if( ISSET(action->needs,NEED_REFERENCES) ) {
 			retvalue r = references_done(references);
 			RET_ENDUPDATE(result,r);
 		}
