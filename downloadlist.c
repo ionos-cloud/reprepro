@@ -15,10 +15,20 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <config.h>
+
+#include <assert.h>
+#include <malloc.h>
+#include <string.h>
+#include <stdio.h>
+#include "error.h"
+#include "strlist.h"
+#include "names.h"
+#include "files.h"
 #include "aptmethod.h"
 #include "downloadlist.h"
 
 struct downloaditem {
+	struct download_upstream *upstream;
 	struct downloaditem *nextinupstream;
 	// todo: what is best, some tree, balanced tree, linear?
 	struct downloaditem *next,*prev;
@@ -35,22 +45,56 @@ struct download_upstream {
 	struct downloaditem *items;
 };
 struct downloadlist {
-	char *pooldir;
 	struct download_upstream *upstreams;
+	filesdb filesdb;
+	struct downloaditem *items;
 };
 
 
 /* Initialize a new download session */
-retvalue downloadlist_initialize(struct downloadlist **download,const char *pooldir);
+retvalue downloadlist_initialize(struct downloadlist **download,filesdb files) {
+	struct downloadlist *list;
+
+	list = calloc(1,sizeof(struct downloadlist));
+	if( list == NULL )
+		return RET_ERROR_OOM;
+	// TODO: create it here and free in _free?
+	list->filesdb = files;
+
+	*download = list;
+	return RET_OK;
+}
 
 /* free all memory, cancel all queued downloads */
-retvalue downloadlist_done(struct downloadlist *downloadlist);
+retvalue downloadlist_free(struct downloadlist *list) {
+	struct download_upstream *upstream;
+	struct downloaditem *item;
+
+	while( list->upstreams ) {
+		upstream = list->upstreams;
+		list->upstreams = upstream->next;
+		free(upstream->method);
+		free(upstream->config);
+		while( upstream->items ) {
+			item = upstream->items;
+			upstream->items = item->nextinupstream;
+			free(item->filekey);
+			free(item->origfile);
+			free(item->md5sum);
+			free(item);
+		}
+		free(upstream);
+	}
+	//TODO: free filesdb here?
+	free(list);
+	return RET_OK;
+}
 
 /* try to fetch and register all queued files */
-retvalue downloadlist_run(struct downloadlist *list,const char *methodir,int force) {
+retvalue downloadlist_run(struct downloadlist *list,const char *methoddir,int force) {
 	struct aptmethodrun *run;
 	struct download_upstream *upstream;
-	retvalue r;
+	retvalue result,r;
 
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
@@ -65,37 +109,115 @@ retvalue downloadlist_run(struct downloadlist *list,const char *methodir,int for
 			return r;
 		}
 		for( item=upstream->items;item;item=item->nextinupstream) {
-			char *destination;
-
-			destination = calc_dirconcat(run->pooldir,item->filekey);
-			if( destination == NULL ) {
+			char *fullfilename;
+			fullfilename = calc_dirconcat(list->filesdb->mirrordir,item->filekey);
+			if( fullfilename == NULL ) {
 				aptmethod_cancel(run);
-				return RET_ERROR_OOM;
+				return r;
 			}
 			r = aptmethod_queuefile(method,item->origfile,
-					destination,item->md5sum);
-			free(destination);
+					fullfilename,item->md5sum);
+			free(fullfilename);
 			if( RET_WAS_ERROR(r) ) {
 				aptmethod_cancel(run);
 				return r;
 			}
 		}
-		
-		
 	}
 	r = aptmethod_download(run,methoddir);
 	if( RET_WAS_ERROR(r) && !force )
 		return r;
-	// TODO: add files to database. (perhaps even in !force-case?)
-	...
-	return RET_ERROR;
+
+	result = RET_NOTHING;
+	for( upstream = list->upstreams ;upstream; upstream = upstream->next) {
+		struct downloaditem *item;
+
+		for( item=upstream->items;item;item=item->nextinupstream) {
+			r = files_expect(list->filesdb,item->filekey,item->md5sum);
+			RET_UPDATE(result,r);
+		}
+	}
+
+	return result;
 }
 
-/* add a new upstream to download files from,
-retvalue downloadlist_newupstream(struct downloadlist *download,
-		const char *method,const char *config,struct upstream **upstream);
-		
+retvalue downloadlist_newupstream(struct downloadlist *list,
+		const char *method,const char *config,struct download_upstream **upstream) {
+	struct download_upstream *u;
+
+	assert(list && method && upstream);
+
+	u = calloc(1,sizeof(struct download_upstream));
+	if( u == NULL )
+		return RET_ERROR_OOM;
+	if( config != NULL ) {
+		u->config = strdup(config);
+		if( u->config == NULL ) {
+			free(u);
+			return RET_ERROR_OOM;
+		}
+	} else
+		u->config = NULL;
+	u->method = strdup(method);
+	if( u->config == NULL ) {
+		free(u->config);
+		free(u);
+		return RET_ERROR_OOM;
+	}
+	u->list = list;
+	u->next = list->upstreams;
+	list->upstreams = u;
+	*upstream = u;
+	return RET_OK;
+}
+
+const struct downloaditem *searchforitem(const struct downloadlist *list,
+					const char *filekey) {
+	const struct downloaditem *item;
+
+	//TODO: there is no doubt, so use better than brute force...
+	for( item=list->items ; item ; item = item->next ) {
+		if( strcmp(filekey,item->filekey) == 0 )
+			return item;
+	}
+	return NULL;
+}
+
 /* queue a new file to be downloaded: 
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
-retvalue downloadlist_add(struct download_upstream *upstream,const char *orig,const char *dest,const char *md5sum);
+retvalue downloadlist_add(struct download_upstream *upstream,const char *origfile,const char *filekey,const char *md5sum) {
+	const struct downloaditem *i;
+	struct downloaditem *item;
+	retvalue r;
+
+	r = files_check(upstream->list->filesdb,filekey,md5sum);
+	if( r != RET_NOTHING )
+		return r;
+
+	i = searchforitem(upstream->list,filekey);
+	if( i != NULL ) {
+		if( strcmp(md5sum,i->md5sum) == 0 )
+			return RET_NOTHING;
+		// TODO: print error;
+		return RET_ERROR_WRONG_MD5;
+	}
+	item = malloc(sizeof(struct downloaditem));
+	if( item == NULL )
+		return RET_ERROR_OOM;
+	item->filekey = strdup(filekey);
+	item->origfile = strdup(origfile);
+	item->md5sum = strdup(md5sum);
+	if( !item->filekey || !item->origfile || !item->md5sum ) {
+		free(item->filekey);
+		free(item->origfile);
+		free(item);
+		return RET_ERROR_OOM;
+	}
+	item->upstream = upstream;
+	item->nextinupstream = upstream->items;
+	upstream->items = item;
+	item->next = upstream->list->items;
+	upstream->list->items = item;
+	return RET_OK;
+}
