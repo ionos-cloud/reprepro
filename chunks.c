@@ -511,7 +511,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 		/* and proceed with the next */
 		c = ce;
 
-	} while( *c != '\0' );
+	} while( *c != '\0' && *c != '\n' );
 
 	*n = '\0';
 
