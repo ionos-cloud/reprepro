@@ -21,14 +21,14 @@ retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, s
 
 /* Look for an old version of the Package in the database.
  * return RET_NOTHING, if there is none at all. */
-retvalue sources_lookforold(DB *packages,const char *packagename,
+retvalue sources_lookforold(packagesdb packages,const char *packagename,
 					struct strlist *oldfiles);
 
 	
 /* call <action> for each package in the "Sources.gz"-style file <source_file> 
  * missing in <pkgs> and using <component> as subdir of pool 
  * (i.e. "main","contrib",...) for generated paths */
-retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file,new_package_action action,void *data,int force);
+retvalue sources_findnew(packagesdb pkgs,const char *component,const char *sources_file,new_package_action action,void *data,int force);
 
 /* Add a source package to a distribution, removing previous versions
  * of it, if necesary. */

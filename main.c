@@ -304,7 +304,8 @@ static int zexportpackages(int argc,char *argv[]) {
 
 static int removesource(int argc,char *argv[]) {
 	retvalue result,r;
-	DB *pkgs,*refs;
+	packagesdb pkgs;
+	DB *refs;
 	int i;
 	struct strlist files;
 
@@ -315,10 +316,10 @@ static int removesource(int argc,char *argv[]) {
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! pkgs ) {
+	r = packages_initialize(&pkgs,dbdir,argv[1]);
+	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(refs);
-		return 1;
+		return EXIT_RET(r);
 	}
 
 	result = RET_NOTHING;
@@ -349,7 +350,8 @@ static int removesource(int argc,char *argv[]) {
 
 static int removebinary(int argc,char *argv[]) {
 	retvalue result,r;
-	DB *pkgs,*refs;
+	packagesdb pkgs;
+	DB *refs;
 	int i;
 	struct strlist files;
 
@@ -360,10 +362,10 @@ static int removebinary(int argc,char *argv[]) {
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! pkgs ) {
+	r = packages_initialize(&pkgs,dbdir,argv[1]);
+	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(refs);
-		return 1;
+		return EXIT_RET(r);
 	}
 
 	result = RET_NOTHING;
@@ -445,7 +447,7 @@ static retvalue reference_source(void *data,const char *package,const char *chun
 /****** common for [prepare]add{sources,packages} *****/
 
 struct distributionhandles {
-	DB *files,*pkgs,*refs;
+	DB *files;packagesdb pkgs;DB *refs;
 	const char *referee,*component;
 };
 
@@ -461,7 +463,7 @@ static retvalue add(void *data,const char *chunk,const char *package,const char 
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = packages_insert(dist->referee,dist->refs,dist->pkgs,
+	result = packages_insert(dist->refs,dist->pkgs,
 			package,chunk,filekeys,oldfilekeys);
 
 	return result;
@@ -483,10 +485,10 @@ static int addsources(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = packages_initialize(dbdir,dist.referee);
-	if( ! dist.pkgs ) {
+	r = packages_initialize(&dist.pkgs,dbdir,dist.referee);
+	if( RET_WAS_ERROR(r) ) {
 		(void)files_done(dist.files);
-		return 1;
+		return EXIT_RET(r);
 	}
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs ) {
@@ -541,10 +543,10 @@ static int prepareaddsources(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = packages_initialize(dbdir,dist.referee);
-	if( ! dist.pkgs ) {
+	r = packages_initialize(&dist.pkgs,dbdir,dist.referee);
+	if( RET_WAS_ERROR(r) ) {
 		(void)files_done(dist.files);
-		return 1;
+		return EXIT_RET(r);
 	}
 
 	result = RET_NOTHING;
@@ -578,10 +580,10 @@ static int prepareaddpackages(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = packages_initialize(dbdir,dist.referee);
-	if( ! dist.pkgs ) {
+	r = packages_initialize(&dist.pkgs,dbdir,dist.referee);
+	if( RET_WAS_ERROR(r) ) {
 		(void)files_done(dist.files);
-		return 1;
+		return EXIT_RET(r);
 	}
 
 	dist.refs = NULL;
@@ -613,10 +615,10 @@ static int addpackages(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! dist.pkgs ) {
+	r = packages_initialize(&dist.pkgs,dbdir,argv[1]);
+	if( RET_WAS_ERROR(r) ) {
 		(void)files_done(dist.files);
-		return 1;
+		return EXIT_RET(r);
 	}
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs ) {
@@ -938,7 +940,7 @@ static retvalue rerefbin(void *data,const char *component,const char *architectu
 	struct data_binsrcreref *d = data;
 	char *dbname;
 	struct referee refdata;
-	DB *pkgs;
+	packagesdb pkgs;
 
 	dbname = calc_identifier(d->distribution->codename,component,architecture);
 	if( !dbname ) {
@@ -951,10 +953,10 @@ static retvalue rerefbin(void *data,const char *component,const char *architectu
 			fprintf(stderr,"Rereferencing %s...\n",dbname);
 	}
 
-	pkgs = packages_initialize(dbdir,dbname);
-	if( ! pkgs ) {
+	r = packages_initialize(&pkgs,dbdir,dbname);
+	if( RET_WAS_ERROR(r) ) {
 		free(dbname);
-		return RET_ERROR;
+		return r;
 	}
 
 	result = references_remove(d->references,dbname);
@@ -980,7 +982,7 @@ static retvalue rerefsrc(void *data,const char *component) {
 	struct data_binsrcreref *d = data;
 	char *dbname;
 	struct referee refdata;
-	DB *pkgs;
+	packagesdb pkgs;
 
 	dbname = calc_identifier(d->distribution->codename,component,"source");
 	if( !dbname ) {
@@ -993,10 +995,10 @@ static retvalue rerefsrc(void *data,const char *component) {
 			fprintf(stderr,"Rereferencing %s...\n",dbname);
 	}
 
-	pkgs = packages_initialize(dbdir,dbname);
-	if( ! pkgs ) {
+	r = packages_initialize(&pkgs,dbdir,dbname);
+	if( RET_WAS_ERROR(r) ) {
 		free(dbname);
-		return RET_ERROR;
+		return r;
 	}
 
 	result = references_remove(d->references,dbname);
@@ -1083,7 +1085,7 @@ static retvalue checkbin(void *data,const char *component,const char *architectu
 	retvalue result,r;
 	struct data_binsrccheck *d = data;
 	char *dbname;
-	DB *pkgs;
+	packagesdb pkgs;
 
 	dbname = calc_identifier(d->distribution->codename,component,architecture);
 	if( !dbname ) {
@@ -1093,10 +1095,10 @@ static retvalue checkbin(void *data,const char *component,const char *architectu
 		fprintf(stderr,"Checking %s...\n",dbname);
 	}
 
-	pkgs = packages_initialize(dbdir,dbname);
-	if( ! pkgs ) {
+	r = packages_initialize(&pkgs,dbdir,dbname);
+	if( RET_WAS_ERROR(r) ) {
 		free(dbname);
-		return RET_ERROR;
+		return r;
 	}
 
 	d->identifier = dbname;
@@ -1137,7 +1139,7 @@ static retvalue checksrc(void *data,const char *component) {
 	retvalue result,r;
 	struct data_binsrccheck *d = data;
 	char *dbname;
-	DB *pkgs;
+	packagesdb pkgs;
 
 	dbname = calc_identifier(d->distribution->codename,component,"source");
 	if( !dbname ) {
@@ -1147,10 +1149,10 @@ static retvalue checksrc(void *data,const char *component) {
 		fprintf(stderr,"Checking depencies of %s...\n",dbname);
 	}
 
-	pkgs = packages_initialize(dbdir,dbname);
-	if( ! pkgs ) {
+	r = packages_initialize(&pkgs,dbdir,dbname);
+	if( RET_WAS_ERROR(r) ) {
 		free(dbname);
-		return RET_ERROR;
+		return r;
 	}
 
 	d->identifier = dbname;

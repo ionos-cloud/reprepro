@@ -167,7 +167,7 @@ retvalue binaries_parse_getfiles(const char *chunk,struct strlist *files) {
 
 /* Look for an old version of the Package in the database,
  * returns RET_NOTHING, if there is none */
-retvalue binaries_lookforold( DB *pkgs,const char *name, struct strlist *files) {
+retvalue binaries_lookforold(packagesdb pkgs,const char *name, struct strlist *files) {
 	char *oldchunk;
 	retvalue r;
 
@@ -186,7 +186,7 @@ retvalue binaries_lookforold( DB *pkgs,const char *name, struct strlist *files) 
  * Set *oldversion, if there is already a newer (or equal) version to
  * <version>  */
 retvalue binaries_lookforolder(
-		DB *packages,const char *packagename,
+		packagesdb packages,const char *packagename,
 		const char *newversion,char **oldversion,
 		struct strlist *oldfilekeys) {
 	char *oldchunk,*ov;
@@ -276,7 +276,7 @@ static inline retvalue callaction(new_package_action *action,void *data,
 	return r;
 }
 
-struct binaries_add {DB *pkgs; void *data; const char *component; new_package_action *action; };
+struct binaries_add {packagesdb pkgs; void *data; const char *component; new_package_action *action; };
 
 static retvalue processbinary(void *data,const char *chunk) {
 	struct binaries_add *d = data;
@@ -327,7 +327,7 @@ static retvalue processbinary(void *data,const char *chunk) {
 }
 
 /* call action for each package in packages_file */
-retvalue binaries_findnew(DB *pkgs,const char *component,const char *packages_file, new_package_action action,void *data,int force) {
+retvalue binaries_findnew(packagesdb pkgs,const char *component,const char *packages_file, new_package_action action,void *data,int force) {
 	struct binaries_add mydata;
 
 	mydata.data=data;
@@ -342,24 +342,18 @@ retvalue binaries_findnew(DB *pkgs,const char *component,const char *packages_fi
  * of it, if necesary. */
 retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codename,const char *component,const char *architecture,const char *package,const char *version,const char *controlchunk,const struct strlist *filekeys) {
 	retvalue result,r;
-	char *identifier,*oldversion;
-	DB *packages;
+	char *oldversion;
+	packagesdb packages;
 	struct strlist oldfilekeys,*o;
 
-	identifier = calc_identifier(codename,component,architecture);
-	if( ! identifier )
-		return RET_ERROR_OOM;
-
-	packages = packages_initialize(dbpath,identifier);
-	if( ! packages ) {
-		free(identifier);
-		return RET_ERROR;
+	r = packages_init(&packages,dbpath,codename,component,architecture);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
 	}
 
 	r = binaries_lookforolder(packages,package,version,&oldversion,&oldfilekeys);
 	if( RET_WAS_ERROR(r) ) {
 		(void)packages_done(packages);
-		free(identifier);
 		return r;
 	}
 	if( RET_IS_OK(r) )
@@ -372,13 +366,12 @@ retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codena
 		free(oldversion);
 		result = RET_NOTHING;
 	} else
-		result = packages_insert(identifier,references,packages,
+		result = packages_insert(references,packages,
 			package, controlchunk, filekeys, o);
 
 	r = packages_done(packages);
 	RET_ENDUPDATE(result,r);
 
-	free(identifier);
 	if( o )
 		strlist_done(&oldfilekeys);
 	return result;

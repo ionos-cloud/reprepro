@@ -11,40 +11,47 @@
 #warning "What's hapening here?"
 #endif
 
+typedef struct s_packagesdb {
+	char *identifier;
+	DB *database;
+} *packagesdb;
+
 /* initialize the packages-database for <identifier> */
-DB *packages_initialize(const char *dbpath,const char *dbname);
+retvalue packages_initialize(packagesdb *pkgs,const char *dbpath,const char *identifier);
+
+/* The same but calculate the identifier */
+retvalue packages_init(packagesdb *pkgs,const char *dbpath,const char *codename,const char *component,const char *architecture);
 
 /* release the packages-database initialized got be packages_initialize */
-retvalue packages_done( DB *db);
+retvalue packages_done(packagesdb db);
 
 /* save a given chunk in the database */
-retvalue packages_add(DB *packagsdb,const char *package,const char *chunk);
+retvalue packages_add(packagesdb db,const char *package,const char *chunk);
 /* replace a save chunk with another */
-retvalue packages_replace(DB *packagsdb,const char *package,const char *chunk);
+retvalue packages_replace(packagesdb db,const char *package,const char *chunk);
 /* remove a given chunk from the database */
-retvalue packages_remove(DB *filesdb,const char *package);
+retvalue packages_remove(packagesdb db,const char *package);
 /* get the saved chunk from the database,
  * returns RET_NOTHING, if there is none*/
-retvalue packages_get(DB *packagesdb,const char *package,char **chunk);
+retvalue packages_get(packagesdb db,const char *package,char **chunk);
 
 /* check for existance of the given version of a package in the arch, 
  * > 0 found
  * = 0 not-found
  * < 0 error
  */
-retvalue packages_check(DB *packagesdb,const char *package);
+retvalue packages_check(packagesdb db,const char *package);
 
 /* insert a chunk in the packages database, adding and deleting
  * references and insert files while that. */
-retvalue packages_insert(const char *identifier,
-		DB *referencesdb, DB *packagesdb,
+retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
 		const struct strlist *oldfiles);
 
 /* print the database to a "Packages" or "Sources" file */
-// retvalue packages_printout(DB *packagesdb,const char *filename);
-// retvalue packages_zprintout(DB *packagesdb,const char *filename);
+// retvalue packages_printout(packagesdb packagesdb,const char *filename);
+// retvalue packages_zprintout(packagesdb packagesdb,const char *filename);
 /* like packages_printout, but open and close database yourself */
 retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *filename);
 retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *filename);
@@ -53,7 +60,7 @@ retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *
 typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
 
 /* call action once for each saved chunk: */
-retvalue packages_foreach(DB *packagesdb,per_package_action action,void *data, int force);
+retvalue packages_foreach(packagesdb packagesdb,per_package_action action,void *data, int force);
 
 /* The action-type supplied to binary.c and source.c when looking
  * for things to update: */
