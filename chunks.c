@@ -127,7 +127,7 @@ static const char *chunk_getfield(const char *name,const char *chunk) {
 		return NULL;
 	l = strlen(name);
 	while( *chunk != '\0' ) {
-		if(strncmp(name,chunk,l) == 0 && chunk[l] == ':' ) {
+		if(strncasecmp(name,chunk,l) == 0 && chunk[l] == ':' ) {
 			chunk += l+1;
 			return chunk;
 		}
