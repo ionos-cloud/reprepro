@@ -20,7 +20,9 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
 #include <db.h>
@@ -489,3 +491,90 @@ retvalue files_checkinfiles(filesdb db,const char *sourcedir,
 	}
 	return result;
 }
+
+struct checkfiledata { filesdb filesdb ; int fast ; };
+
+static retvalue getfilesize(off_t *s,const char *md5sum) {
+	const char *p;
+
+	p = md5sum;
+	while( *p && !isspace(*p) ) {
+		p++;
+	}
+	if( *p ) {
+		while( *p && isspace(*p) )
+			p++;
+		if( *p ) {
+			*s = (off_t)atoll(p);
+			return RET_OK;
+		}
+	} 
+	fprintf(stderr,"Strange md5sum as missing space: '%s'\n",md5sum);
+	return RET_ERROR;
+}
+
+static retvalue checkfile(void *data,const char *filekey,const char *md5sumexpected) {
+	struct checkfiledata *d = data;
+	char *fullfilename;
+	retvalue r;
+
+	fullfilename = calc_dirconcat(d->filesdb->mirrordir,filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+	if( d->fast ) {
+		struct stat s;
+		int i;
+		off_t expectedsize;
+
+		r = getfilesize(&expectedsize,md5sumexpected);
+
+		if( RET_IS_OK(r) ) {
+			i = stat(fullfilename,&s);
+			if( i < 0 ) {
+				fprintf(stderr,
+"Error checking status of '%s': %m\n",fullfilename);
+				r = RET_ERROR_MISSING;
+			} else {
+				if( !S_ISREG(s.st_mode)) {
+					fprintf(stderr,
+"Not a regular file: '%s'\n",fullfilename);
+					r = RET_ERROR;
+				} else if( s.st_size != expectedsize ) {
+					fprintf(stderr,
+"WRONG SIZE of '%s': expected %lld(from '%s') found %lld\n",
+						fullfilename,
+						(long long)expectedsize,
+						md5sumexpected,(long long)s.st_size);
+					r = RET_ERROR;
+				} else
+					r = RET_OK;
+			}
+		}
+	} else {
+		char *realmd5sum;
+
+		r = md5sum_read(fullfilename,&realmd5sum);
+		if( RET_WAS_ERROR(r) ) {
+		} else if( r == RET_NOTHING ) {
+			fprintf(stderr,"Missing file '%s'!\n",fullfilename);
+			r = RET_ERROR_MISSING;
+		} else {
+			if( strcmp(realmd5sum,md5sumexpected) != 0 ) {
+				fprintf(stderr,"WRONG MD5SUM of '%s': found '%s' expected '%s'\n",fullfilename,realmd5sum,md5sumexpected);
+				r = RET_ERROR_WRONG_MD5;
+			}
+			free(realmd5sum);
+		}
+	}
+
+	free(fullfilename);
+	return r;
+}
+
+retvalue files_checkpool(filesdb filesdb,int fast) {
+	struct checkfiledata d;
+	d.fast = fast;
+	d.filesdb = filesdb;
+	return files_foreach(filesdb,checkfile,&d);
+}
+

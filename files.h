@@ -59,6 +59,9 @@ typedef retvalue per_file_action(void *data,const char *filekey,const char *md5s
 /* callback for each registered file */
 retvalue files_foreach(filesdb filesdb,per_file_action action,void *data);
 
+/* check if all files are corect. (skip md5sum if fast is true) */
+retvalue files_checkpool(filesdb filesdb,int fast);
+
 /* dump out all information */
 retvalue files_printmd5sums(filesdb filesdb);
 

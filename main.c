@@ -619,12 +619,15 @@ struct data_check { const struct distribution *distribution; DB *references; fil
 
 static retvalue check_target(void *data,struct target *target) {
 	struct data_check *d = data;
-	retvalue r;
+	retvalue result,r;
 
 	r = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	return target_check(target,d->files,d->references,force);
+	result = target_check(target,d->files,d->references,force);
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result,r);
+	return result;
 }
 
 static retvalue check_dist(void *data,const char *chunk,struct distribution *distribution) {
@@ -668,6 +671,28 @@ static int check(int argc,char *argv[]) {
 	r = files_done(dat.files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dat.references);
+	RET_ENDUPDATE(result,r);
+
+	return EXIT_RET(result);
+}
+
+static int checkpool(int argc,char *argv[]) {
+	retvalue result,r;
+	filesdb files;
+
+	if( argc < 1 || argc > 2 || (argc == 2 && strcmp(argv[1],"fast") != 0)) {
+		fprintf(stderr,"mirrorer checkpool [fast] \n");
+		return 1;
+	}
+
+	r = files_initialize(&files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) ) {
+		return EXIT_RET(r);
+	}
+
+	result = files_checkpool(files,argc == 2);
+	
+	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 
 	return EXIT_RET(result);
@@ -814,6 +839,7 @@ static struct action {
         {"remove", removepackage},
 	{"export", export},
 	{"check", check},
+	{"checkpool", checkpool},
 	{"rereference", rereference},
 	{"_addreference", addreference},
 	{"dumpreferences", dumpreferences},
@@ -888,6 +914,9 @@ int main(int argc,char *argv[]) {
 " dumpreferences:    Print all saved references\n"
 " dumpunreferenced:   Print registered files withour reference\n"
 " deleteunreferenced: Delete and forget all unreferenced files\n"
+" checkpool:          Check if all files in the pool are still in proper shape.\n"
+" check [<distributions>]\n"
+"       Check for all needed files to be registered properly.\n"
 " export [<distributions>]\n"
 "	Force (re)generation of Packages.gz/Packages/Sources.gz/Release\n"
 " update [<distributions>]\n"
