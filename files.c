@@ -223,6 +223,7 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 
 	if( strcmp(md5andsize,realmd5andsize) != 0 ) {
 		fprintf(stderr,"File \"%s\" has other md5sum than expected!\n",filekey);
+		fprintf(stderr,"File \"%s\" had other md5sum (%s) than expected(%s)!\n",filekey,realmd5andsize,md5andsize);
 		free(realmd5andsize);
 		return RET_ERROR_WRONG_MD5;
 	}

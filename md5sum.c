@@ -103,7 +103,7 @@ retvalue md5sum_and_size(char **result,const char *filename,ssize_t bufsize){
 	}
 }
 
-retvalue md5sum(char *result,const char *filename,ssize_t bufsize){
+retvalue md5sum(char *result,off_t *size,const char *filename,ssize_t bufsize){
 
-	return md5sumAndSize(result,NULL,filename,bufsize);
+	return md5sumAndSize(result,size,filename,bufsize);
 }

@@ -16,6 +16,8 @@ char *chunk_read(gzFile f);
 /* create a new chunk with the context of field name replaced with new,
  * prints an error when not found and adds to the end */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
+/* create a new chunk with the given data added before another field */
+char *chunk_insertdata(const char *chunk,const char *before,const char *new);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
@@ -24,6 +26,8 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist);
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 
 retvalue chunk_gettruth(const char *chunk,const char *name);
+/* return RET_OK, if field is found, RET_NOTHING, if not */ 
+retvalue chunk_checkfield(const char *chunk,const char *name);
 
 
 typedef retvalue chunkaction(void *data,const char *chunk);

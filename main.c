@@ -39,6 +39,9 @@
 #include "updates.h"
 #include "signature.h"
 #include "extractcontrol.h"
+#include "checkindeb.h"
+#include "copyfile.h"
+
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "/var/spool/mirrorer"
@@ -645,52 +648,40 @@ static int prepareaddpackages(int argc,char *argv[]) {
 
 /***********************************addpackages*******************************************/
 
-static retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
-	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *oldfilekey;
+	struct distributionhandles *d = data;
 
 	/* look for needed files */
-	
-	r = files_expect(dist->files,mirrordir,filekey,md5andsize);
+
+	r = files_expect(d->files,mirrordir,filekey,md5andsize);
 	if( ! RET_IS_OK(r) ) {
 		printf("Missing file %s\n",filekey);
 		return r;
 	} 
 
-	/* mark it as needed by this distribution */
-
-	r = references_increment(dist->refs,filekey,dist->referee);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	/* Add package to distribution's database */
-
+	/* Calculate new chunk, file to replace and checking */
+	
 	newchunk = chunk_replaceentry(chunk,"Filename",filekey);
 	if( !newchunk )
 		return RET_ERROR;
-	if( oldchunk != NULL ) {
-		result = packages_replace(dist->pkgs,package,newchunk);
-
-	} else {
-		result = packages_add(dist->pkgs,package,newchunk);
-	}
-	free(newchunk);
-
-	if( RET_WAS_ERROR(result) )
-		return result;
-
 	/* remove old references to files */
 
 	if( oldchunk ) {
 		r = binaries_parse_chunk(oldchunk,NULL,&oldfilekey,NULL,NULL,NULL);
-		if( RET_IS_OK(r) ) {
-			r = references_decrement(dist->refs,oldfilekey,dist->referee);
-			free(oldfilekey);
+		if( RET_WAS_ERROR(r) ) {
+			free(newchunk);
+			return r;
 		}
-		RET_UPDATE(result,r);
-	}
+	} else 
+		oldfilekey = NULL;
+
+	result = checkindeb_insert(d->refs,d->referee,d->pkgs,package,newchunk,filekey,oldfilekey);
+
+	free(newchunk);
+	free(oldfilekey);
 	return result;
 }
 
@@ -1338,6 +1329,62 @@ static int check(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
+/***********************adddeb******************************************/
+
+static int adddeb(int argc,char *argv[]) {
+	retvalue r;
+	struct debpackage *pkg;
+	DB *files;
+
+	if( argc < 4 ) {
+		fprintf(stderr,"mirrorer _adddeb <distribution> <part> <package>\n");
+		return 1;
+	}
+
+	/* First taking a closer look to the file: */
+
+	r = deb_read(&pkg,argv[2],argv[3]);	
+	if( RET_WAS_ERROR(r) ) {
+		return EXIT_RET(r);
+	}
+
+	fprintf(stderr,"%s,%s,%s,%s\n%s",pkg->package,pkg->source,pkg->version,pkg->arch,pkg->control);
+
+	/* then looking if we already have this, or copy it in */
+
+	files = files_initialize(dbdir);
+	if( !files )
+		return 1;
+
+	r = files_expect(files,mirrordir,pkg->filekey,pkg->md5andsize);
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Error looking for file %s in archive\n",pkg->filekey);
+		deb_free(pkg);
+		return r;
+	} 
+	if( r == RET_NOTHING ) {
+		if( verbose > 1 ) {
+			fprintf(stderr,"Trying to add as '%s'\n",pkg->filekey);
+		}
+		r = copyfile(mirrordir,pkg->filekey,argv[3]);
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,"Error moving file %s to %s/%s\n",argv[3],mirrordir,pkg->filekey);
+			deb_free(pkg);
+			return r;
+		}
+		// TODO: add it to database here.
+		// (hm, how to handle md5sum?)
+	}
+
+	files_done(files);
+
+	/* Finaly add it to the database */
+
+	deb_free(pkg);
+
+	return 0;
+}
+
 /*********************/
 /* argument handling */
 /*********************/
@@ -1369,6 +1416,7 @@ static struct action {
 	{"_addmd5sums",addmd5sums},
 	{"update",update},
 	{"__extractcontrol",extract_control},
+	{"_adddeb",adddeb},
 	{NULL,NULL}
 };
 

@@ -159,6 +159,43 @@ char *chunk_dupnextline(const char **field) {
 }
 */
 
+/* create a new chunk with the given data added before another field */
+char *chunk_insertdata(const char *chunk,const char *before,const char *new) {
+	size_t l,ln;
+	const char *rest;
+	char *result;
+
+	if( !chunk || !new || !before ) 
+		return NULL;
+	/* first search for the field to add before */
+	l = strlen(before); 
+	rest = chunk;
+	do {
+		if(strncmp(before,rest,l) == 0 && rest[l] == ':' ) {
+
+			/* create a chunk with the data added */
+			ln = strlen(new);
+			result = malloc(2+strlen(chunk)+ln);
+			if( !result )
+				return NULL;
+			strncpy(result,chunk,rest-chunk);
+			strcpy(result+(rest-chunk),new);
+			result[ln+(rest-chunk)] = '\n';
+			strcpy(result+(ln+(rest-chunk))+1,rest);
+			return result;
+		}
+		while( *rest != '\n' && *rest != '\0' )
+			rest++;
+		if( *rest == '\0' )
+			break;
+		rest++;
+		/* Reading a chunk should have ended there: */
+		assert(*rest != '\n');
+	} while( *rest );
+	fprintf(stderr,"not finding '%s', so appending '%s'\n",before,new);
+	/* not found, so append */
+	return mprintf("%s\n%s",chunk,new);
+}
 /* create a new chunk with the context of field name replaced with new */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new) {
 	size_t l;
@@ -353,3 +390,14 @@ retvalue chunk_gettruth(const char *chunk,const char *name) {
 
 	return RET_OK;
 }
+/* return RET_OK, if field is found, RET_NOTHING, if not */ 
+retvalue chunk_checkfield(const char *chunk,const char *name){
+	const char *field;
+
+	field = chunk_getfield(name,chunk);
+	if( !field )
+		return RET_NOTHING;
+
+	return RET_OK;
+}
+
