@@ -18,8 +18,6 @@ See the file TODO for things I plan to do.
 	Package managment and database mostly works. Missing/To be Finished
 	is the direct inclusion of Packages and updating the packages from
 	some upstream repository(e.g. debian mirrors).
-	Both already works with some Makefile-magic, is meant to be supported
-	natively.
 
 	Downloading files happens through calling files within 
 	/usr/lib/apt/methods (or -M). One can give them Configuration
