@@ -135,7 +135,7 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 		overspace();
 		valueend = valuestart = f;
 		while( *f && *f != ')' ) {
-			valueend = f;
+			valueend = f+1;
 			f++;
 			while( *f && isspace(*f) )
 				f++;

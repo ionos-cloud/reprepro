@@ -37,6 +37,7 @@
 #include "updates.h"
 #include "upgradelist.h"
 #include "distribution.h"
+#include "terms.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
@@ -106,9 +107,8 @@ struct update_pattern {
 	// (empty means all)
 	struct strlist udebcomponents_from;
 	struct strlist udebcomponents_into;
-	// NULL is not allowed!:
-	upgrade_decide_function *decide;
-	void *decide_data;
+	// NULL means no condition
+	term *includecondition;
 };
 
 struct update_origin {
@@ -150,6 +150,7 @@ void update_pattern_free(struct update_pattern *update) {
 	strlist_done(&update->components_into);
 	strlist_done(&update->udebcomponents_from);
 	strlist_done(&update->udebcomponents_into);
+	term_free(update->includecondition);
 	free(update);
 }
 
@@ -262,6 +263,7 @@ static retvalue splitlist(struct strlist *from,
 inline static retvalue parse_pattern(const char *chunk, struct update_pattern **pattern) {
 	struct update_pattern *update;
 	struct strlist componentslist,architectureslist;
+	char *formula;
 	retvalue r;
 
 	update = calloc(1,sizeof(struct update_pattern));
@@ -385,8 +387,23 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 	if( r == RET_NOTHING )
 		update->verifyrelease = NULL;
 
-	update->decide = ud_always;
-	update->decide_data = NULL;
+	/* * Check if there is a Include condition * */
+	r = chunk_getvalue(chunk,"FilterFormula",&formula);
+	if( RET_WAS_ERROR(r) ) {
+		update_pattern_free(update);
+		return r;
+	}
+	if( r != RET_NOTHING ) {
+		r = term_compile(&update->includecondition,formula,
+			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+		free(formula);
+		if( RET_WAS_ERROR(r) ) {
+			update->includecondition = NULL;
+			update_pattern_free(update);
+			return r;
+		}
+		assert( r != RET_NOTHING );
+	}
 
 	*pattern = update;
 	return RET_OK;
@@ -814,6 +831,65 @@ static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution 
 	return RET_OK;;
 }
 
+
+upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk) {
+	struct update_pattern *pattern = privdata;
+
+	if( pattern->includecondition ) {
+		struct term_atom *atom = pattern->includecondition;
+		while( atom ) {
+			int correct;char *value;
+			enum term_comparison c = atom->comparison;
+			retvalue r;
+
+			r = chunk_getvalue(newcontrolchunk,atom->key,&value);
+			// gna..., why is there no way to report errors?
+			// TODO: fix this insanity...
+			if( RET_WAS_ERROR(r) )
+				r = RET_NOTHING;
+			if( r == RET_NOTHING ) {
+//				fprintf(stderr,"not found %s\n",atom->key);
+				correct = ( c != tc_notequal );
+			} else if( c == tc_none) {
+				correct = 1;
+				free(value);
+			} else {
+				int i;
+//				fprintf(stderr,"found %s as '%s' (will compare with '%s')\n",atom->key,value,atom->comparewith);
+				i = strcmp(value,atom->comparewith);
+				free(value);
+				if( i < 0 ) 
+					correct = c == tc_strictless
+					     || c == tc_lessorequal
+					     || c == tc_notequal;
+				else if( i > 0 ) 
+					correct = c == tc_strictmore
+					     || c == tc_moreorequal
+					     || c == tc_notequal;
+				else 
+					correct = c == tc_lessorequal
+					     || c == tc_moreorequal
+					     || c == tc_equal;
+			}
+			if( atom->negated )
+				correct = !correct;
+			if( correct ) {
+				atom = atom->nextiftrue;
+			} else {
+				atom = atom->nextiffalse;
+				if( atom == NULL) {
+					// fprintf(stderr,"Rejecting %s\n",package);
+					return UD_NO;
+				}
+			}
+
+		}
+	}
+	// fprintf(stderr,"Accepting %s\n",package);
+
+	return UD_UPGRADE;
+}
+
 static inline retvalue searchformissing(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct update_target *u,upgrade_decide_function *decide,void *decision_data,int force) {
 	struct update_index *index;
 	retvalue result,r;
@@ -833,8 +909,8 @@ static inline retvalue searchformissing(const char *dbdir,struct downloadcache *
 		assert(index->origin->download);
 		r = upgradelist_update(u->upgradelist,
 				index->origin->download,index->filename,
-				index->origin->pattern->decide,
-				index->origin->pattern->decide_data,
+				ud_decide_by_pattern,
+				(void*)index->origin->pattern,
 				force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force)
