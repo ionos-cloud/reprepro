@@ -118,3 +118,17 @@ syntax.
 "Method:" describes a apt-method, for which the programs
 from /usr/lib/apt/methods are used...
 
+To update everything possible do:
+
+reprepro -b . update
+
+To only update some distributions do:
+
+reprepro -b . update woody
+
+(There is no support for updating a distribution from only specific
+ upstreams yet. You will have to edit conf/distributions for that)
+
+The value for VerifyRelease can be get by 
+
+gpg --with-colons --list-keys <whatever>
