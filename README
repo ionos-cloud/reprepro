@@ -29,6 +29,18 @@ See the file TODO for things I plan to do.
 		   (somtimes also called sections)
 	section: Things like "base" "interpreters" "oldlibs"
 		   (sometimes also called subsections)
+	type: The kind of packages, currently supported:
+		"deb", "udeb" and "dsc".
+	target: The smallest unit packages are in. A target
+		is specified by the codename of the distribution
+		it is in, the architecture, component and type.
+		When architecture is "source" exactly when
+		the type is "dsc".
+	identifier: an internal string to specify a target,
+		it has the form "<codename>|<component>|source"
+		for type dsc, "<codename>|<component>|<architecture>"
+		for type deb and "u|<codename>|<component>|<architecture>"
+		for type udeb.
 
 	md5sum: The checksum of a file, beeing in the format
 		"<md5sum of file> <length of file>"
