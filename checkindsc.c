@@ -156,7 +156,7 @@ static void dsc_free(struct dscpackage *pkg) {
 	free(pkg);
 }
 
-static static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
+static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 	retvalue r;
 	struct dscpackage *dsc;
 

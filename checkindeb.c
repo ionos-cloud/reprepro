@@ -44,12 +44,11 @@
 
 extern int verbose;
 
-// This file shall include the code to include binaries, i.e.
-// create  the chunk of the Packages.gz-file and 
-// putting it in the various databases.
-
-
-/* things to do with .deb's checkin by hand: (by comparison with apt-ftparchive)
+/* This file includes the code to include binaries, i.e.
+   to create the chunk for the Packages.gz-file and 
+   to put it in the various databases.
+   
+Things to do with .deb's checkin by hand: (by comparison with apt-ftparchive)
 - extract the control file (that's the hard part -> extractcontrol.c )
 - check for Package, Version, Architecture, Maintainer, Description
 - apply overwrite if neccesary (section,priority and perhaps maintainer).
@@ -102,6 +101,18 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 	return r;
 }
 
+struct debpackage {
+	/* things to be set by deb_read: */
+	char *package,*version,*source,*architecture;
+	char *basename;
+	char *control;
+	/* things that might still be NULL then: */
+	char *section;
+	char *priority;
+	/* things that will still be NULL then: */
+	char *component; //This might be const, too and save some strdups, but...
+};
+
 void deb_free(struct debpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
@@ -113,6 +124,7 @@ void deb_free(struct debpackage *pkg) {
 	free(pkg);
 }
 
+/* read the data from a .deb, make some checks and extract some data */
 retvalue deb_read(struct debpackage **pkg, const char *filename) {
 	retvalue r;
 	struct debpackage *deb;
@@ -182,6 +194,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 	return RET_OK;
 }
 
+/* do overwrites, add Filename, Size and md5sum to the control-item */
 retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize) {
 	const char *size;
 	struct fieldtoadd *replace;
