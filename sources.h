@@ -29,4 +29,7 @@ retvalue sources_lookforold(DB *packages,const char *packagename,
  * (i.e. "main","contrib",...) for generated paths */
 retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file,new_package_action action,void *data,int force);
 
+/* Add a source package to a distribution, removing previous versions
+ * of it, if necesary. */
+retvalue sources_addtodist(const char *dbpath,DB *references,const char *codename,const char *component,const char *package,const char *version,const char *controlchunk,const struct strlist *filekeys);
 #endif

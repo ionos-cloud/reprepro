@@ -450,3 +450,49 @@ retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file
 
 	return chunk_foreach(sources_file,processsource,&mydata,force,0);
 }
+
+/* Add a source package to a distribution, removing previous versions
+ * of it, if necesary. */
+retvalue sources_addtodist(const char *dbpath,DB *references,const char *codename,const char *component,const char *package,const char *version,const char *controlchunk,const struct strlist *filekeys) {
+	retvalue result,r;
+	char *identifier,*oldversion;
+	DB *packages;
+	struct strlist oldfilekeys,*o;
+
+	identifier = calc_identifier(codename,component,"source");
+	if( ! identifier )
+		return RET_ERROR_OOM;
+
+	packages = packages_initialize(dbpath,identifier);
+	if( ! packages ) {
+		free(identifier);
+		return RET_ERROR;
+	}
+
+	r = sources_lookforolder(packages,package,version,&oldversion,&oldfilekeys);
+	if( RET_WAS_ERROR(r) ) {
+		(void)packages_done(packages);
+		free(identifier);
+		return r;
+	}
+	if( RET_IS_OK(r) )
+		o = &oldfilekeys;
+	else
+		o = NULL;
+
+	if( RET_IS_OK(r) && oldversion ) {
+		fprintf(stderr,"Version '%s' already in the archive, skipping '%s'\n",oldversion,version);
+		free(oldversion);
+		result = RET_NOTHING;
+	} else
+		result = packages_insert(identifier,references,packages,
+			package, controlchunk, filekeys, o);
+
+	r = packages_done(packages);
+	RET_ENDUPDATE(result,r);
+
+	free(identifier);
+	if( o )
+		strlist_done(&oldfilekeys);
+	return result;
+}
