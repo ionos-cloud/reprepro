@@ -100,6 +100,82 @@ inline static void aptmethod_free(struct aptmethod *method) {
 	}
 }
 
+void aptmethod_cancel(struct aptmethodrun *run) {
+	struct aptmethod *method,*next;
+
+	if( run == NULL )
+		return;
+	method = run->methods;
+	while( methods ) {
+		next = method->next;
+		aptmethod_free(method);
+		method = next;
+	}
+	free(run);
+}
+
+/******************Initialize the data structures***********************/
+
+retvalue aptmethod_initialize_run(struct aptmethodrun **run) {
+	struct aptmethodrund *r;
+
+	r = calloc(sizeof(struct aptmethodrun));
+	if( r == NULL )
+		return RET_ERROR_OOM;
+	else {
+		*run = r;
+		return RET_OK;
+	}
+}
+
+retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct method **m) {
+	struct aptmethod *method;
+	const char *p;
+
+	method = calloc(sizeof(struct aptmethod));
+	if( method == NULL )
+		return RET_ERROR_OOM;
+	method->stdin = -1;
+	method->stdout = -1;
+	method->child = -1;
+	method->status = ams_waitforcapabilities;
+	p = uri;
+	while( *p && ( *p == '_' || *p == '-' ||
+		(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
+		(*p>='0' && *p<='9') ) ) {
+		p++;
+	}
+	if( *p == '\0' ) {
+		fprintd(stderr,"Did not find colon in method-URI '%s'!\n",uri);
+		free(method);
+		return RET_ERROR;
+	}
+	if( *p != ':' ) {
+		fprintd(stderr,"Unexpected character '%c' in method-URI '%s'!\n",*p,uri);
+		free(method);
+		return RET_ERROR;
+	}
+	if( p == uri ) {
+		fprintd(stderr,"Zero-length name in method-URI '%s'!\n",uri);
+		free(method);
+		return RET_ERROR;
+	}
+
+	method->name = strndup(uri,p-uri);
+	if( method->name == NULL ) {
+		free(method);
+		return RET_ERROR_OOM;
+	}
+	method->baseuri = strdup(uri);
+	if( method->baseuri == NULL ) {
+		free(method->name);
+		free(method);
+		return RET_ERROR_OOM;
+	}
+	*m = method;
+	return RET_OK;
+}
+
 /**************************Fire up a method*****************************/
 
 inline static retvalue aptmethod_startup(struct aptmethod *method,const char *methoddir) {
@@ -213,7 +289,7 @@ static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,
 	return todo;
 }
 
-static retvalue uriacquire(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum) {
+retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum) {
 	struct tobedone *todo;
 	struct queuedjob *job;
 
