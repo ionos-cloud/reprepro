@@ -1,4 +1,4 @@
-reprepro (0.2) unstable; urgency=low
+reprepro (0.2-1) unstable; urgency=low
 
   * new version:
   - fix overflow in chunks_replacefield
