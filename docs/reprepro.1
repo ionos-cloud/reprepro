@@ -396,6 +396,12 @@ this source. The format is misusing the parser intended for
 Dependency lines. To get only architecture all packages use
 "architecture (== all)", to get only at least important
 packages use "priority (==required) | priority (==important)".
+.TP
+.B ListHook
+If this is given, it es executed for all downloaded index files
+with the downloaded list as first and a filename that will
+be used instead of this. (e.g. "ListHook: /bin/cp" works
+but does nothing.)
 .SH "OVERRIDE FILES"
 yet to be described
 .SH GUESSING

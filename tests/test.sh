@@ -193,6 +193,7 @@ Method: file:$WORKDIR
 Suite: test2
 Architectures: coal>abacus abacus source
 FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
+ListHook: /bin/cp
 END
 
 "$REPREPRO" -b . update test1
