@@ -22,6 +22,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
+#include "error.h"
 #include "dirs.h"
 
 extern int verbose;
@@ -29,42 +30,48 @@ extern int verbose;
 //TODO: rewrite with retvalue return values...
 
 /* create directory dirname. returns 0 on success or if already existing, -1 otherwise */
-static int check_dir(const char *dirname) {
+static retvalue dirs_check(const char *dirname) {
 	int ret;
 
 	ret = mkdir(dirname,0775);
 	if( ret == 0 ) {
 		if( verbose > 0)
-		fprintf(stderr,"Created directory \"%s\"\n",dirname);
-		return 0;
+			fprintf(stderr,"Created directory \"%s\"\n",dirname);
+		return RET_OK;
 	} else if( ret < 0 && errno != EEXIST ) {
 		fprintf(stderr,"Can not create directory \"%s\": %m\n",dirname);
-		return -1;
+		return RET_ERROR;
 	}
-	return 0;
+	return RET_NOTHING;
 }
 
 /* create recursively all parent directories before the last '/' */
-int make_parent_dirs(const char *filename) {
+retvalue dirs_make_parent(const char *filename) {
 	const char *p;
 	char *h;
 	int i;
+	retvalue r;
 
 	for( p = filename+1, i = 1 ; *p != '\0' ; p++,i++) {
 		if( *p == '/' ) {
 			h = strndup(filename,i);
-			if( check_dir(h) < 0 ) {
+			r = dirs_check(h);
+			if( RET_WAS_ERROR(r) ) {
 				free(h);
-				return -1;
+				return r;
 			}
 			free(h);
 		}
 	}
-	return 0;
+	return RET_OK;
 }
 
 /* create dirname and any '/'-seperated part of it */
-int make_dir_recursive(const char *dirname) {
-	make_parent_dirs(dirname);
-	return check_dir(dirname);
+retvalue dirs_make_recursive(const char *directory) {
+	retvalue r,result;
+	
+	r = dirs_make_parent(directory);
+	result = dirs_check(directory);
+	RET_UPDATE(result,r);
+	return result;
 }

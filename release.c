@@ -264,7 +264,7 @@ retvalue release_genbinary(const struct release *release,const char *arch,const 
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
-	(void)make_parent_dirs(filename);
+	(void)dirs_make_parent(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -303,7 +303,7 @@ retvalue release_gensource(const struct release *release,const char *component,c
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
-	(void)make_parent_dirs(filename);
+	(void)dirs_make_parent(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -462,7 +462,7 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 		free(dirofdist);
 		return RET_ERROR_OOM;
 	}
-	(void)make_parent_dirs(filename);
+	(void)dirs_make_parent(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;

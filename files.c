@@ -41,12 +41,14 @@ DB *files_initialize(const char *dbpath) {
 	DB *dbp;
 	int dbret;
 	char *filename;
+	retvalue r;
 
 	
 	filename = mprintf("%s/files.db",dbpath);
 	if( !filename )
 		return NULL;
-	if( make_parent_dirs(filename) < 0 ) {
+	r = dirs_make_parent(filename);
+	if( RET_WAS_ERROR(r) ) {
 		free(filename);
 		return NULL;
 	}

@@ -552,10 +552,10 @@ static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *
 
 	/* look for directory */
 	if( (dn = calc_fullfilename(mirrordir,directory))) {
-		r = make_dir_recursive(dn);
+		r = dirs_make_recursive(dn);
 		free(dn);
-		if( r < 0 )
-			return RET_ERROR;
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 
 	ret = r = RET_NOTHING;
@@ -633,10 +633,12 @@ static retvalue showmissing(void *data,const char *chunk,const char *package,con
 	if( r == RET_NOTHING ) {
 		/* look for directory */
 		if( (fn = calc_fullfilename(mirrordir,filekey))) {
-			//TODO: what to do if fails?
-			make_parent_dirs(fn);
+			r = dirs_make_parent(fn);
 			free(fn);
-		}
+			if( RET_WAS_ERROR(r) )
+				return r;
+		} else
+			return RET_ERROR_OOM;
 		/* File missing */
 		printf("%s %s/%s\n",oldfile,mirrordir,filekey);
 		return RET_OK;
@@ -1188,8 +1190,10 @@ static int update(int argc,char *argv[]) {
 		return 1;
 	}
 
-	// TODO: check for resturn-value
-	make_dir_recursive(listdir);	
+	result = dirs_make_recursive(listdir);	
+	if( RET_WAS_ERROR(result) ) {
+		return EXIT_RET(result);
+	}
 	result = updates_foreach(confdir,argc-1,argv+1,fetchupstreamlists,NULL,force);
 	return EXIT_RET(result);
 }

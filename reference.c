@@ -47,12 +47,14 @@ DB *references_initialize(const char *dbpath) {
 	DB *dbp;
 	int ret;
 	char *filename;
+	retvalue r;
 
 	
 	filename = mprintf("%s/references.db",dbpath);
 	if( !filename )
 		return NULL;
-	if( make_parent_dirs(filename) < 0 ) {
+	r = dirs_make_parent(filename);
+	if( RET_WAS_ERROR(r) ) {
 		free(filename);
 		return NULL;
 	}

@@ -1,11 +1,14 @@
 #ifndef __MIRRORER_DIRS_H
 #define __MIRRORER_DIRS_H
 
-/* everything here returns -1 on error, 0 on success. */
+#ifndef __MIRRORER_ERROR_H
+#warning "What is happening here?"
+#include "error.h"
+#endif
 
 /* create recursively all parent directories before the last '/' */
-int make_parent_dirs(const char *filename);
+retvalue dirs_make_parent(const char *filename);
 /* create dirname and any '/'-seperated part of it */
-int make_dir_recursive(const char *filename);
+retvalue dirs_make_recursive(const char *directory);
 
 #endif
