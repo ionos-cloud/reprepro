@@ -702,11 +702,11 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 	r = changes_read(changesfilename,&changes,forcearchitecture,force);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( changes->distributions.count != 1 ) {
-		fprintf(stderr,"There is not exactly one distribution given!\n");
-		changes_free(changes);
-		return RET_ERROR;
-	}
+//	if( changes->distributions.count != 1 ) {
+//		fprintf(stderr,"There is not exactly one distribution given!\n");
+//		changes_free(changes);
+//		return RET_ERROR;
+//	}
 	if( !strlist_in(&changes->distributions,distribution->suite) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
