@@ -1,3 +1,7 @@
+2005-02-14  Bernhard R. Link <brlink@debian.org>
+	* Some little changes to make splint
+	and valgrind happier.
+
 2005-02-13  Bernhard R. Link <brlink@debian.org>
 	* Remove some code duplication in main.c
 	  (and renamed _md5sums to _listmd5sums)

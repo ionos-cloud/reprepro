@@ -149,6 +149,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 			}
 		}
 	}
+	free(run);
 	return RET_OK;
 }
 

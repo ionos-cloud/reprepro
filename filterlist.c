@@ -101,6 +101,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		if( lineend == NULL ) {
 			fprintf(stderr,"Overlong line in '%s'!\n",filename);
 			free(fullfilename);
+			fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
@@ -121,6 +122,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		if( *what == '\0' ) {
 			fprintf(stderr,"Malformed line in '%s': %d!\n",filename,lineno);
 			free(fullfilename);
+			fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
@@ -137,6 +139,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		} else {
 			fprintf(stderr,"Unknown status in '%s':%d: '%s'!\n",filename,lineno,what);
 			free(fullfilename);
+			fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
@@ -148,6 +151,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		if( cmp == 0 ) {
 			fprintf(stderr,"Two lines describing '%s' in '%s'!\n",namestart,filename);
 			free(fullfilename);
+			fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
@@ -158,10 +162,13 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		h->packagename = strdup(namestart);
 		if( h->packagename == NULL ) {
 			free(fullfilename);
+			fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR_OOM;
 		}
 	}
+	free(fullfilename);
+	fclose(f);
 	list->root = root;
 	list->last = root;
 	list->defaulttype = defaulttype;

@@ -19,7 +19,7 @@ struct tobedone {
 	/*@null@*/char *filekey;
 };
 
-retvalue aptmethod_initialize_run(struct aptmethodrun **run);
+retvalue aptmethod_initialize_run(/*@out@*/struct aptmethodrun **run);
 retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *config,struct aptmethod **m);
 
 /* md5sum can be NULL(filekey then, too): if todo != NULL, then *todo will be set */
