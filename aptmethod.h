@@ -14,9 +14,9 @@ struct tobedone {
 	char *uri;
 	char *filename;
 	/* if non-NULL, what is expected...*/
-	char *md5sum;
+	/*@null@*/char *md5sum;
 	/* if non-NULL, add to the database after found (only if md5sum != NULL) */
-	char *filekey;
+	/*@null@*/char *filekey;
 };
 
 retvalue aptmethod_initialize_run(struct aptmethodrun **run);
@@ -27,6 +27,6 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,const char *destfile);
 
 retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb);
-retvalue aptmethod_shutdown(struct aptmethodrun *run);
+retvalue aptmethod_shutdown(/*only*/struct aptmethodrun *run);
 
 #endif

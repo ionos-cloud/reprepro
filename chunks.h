@@ -13,14 +13,14 @@
 retvalue chunk_read(gzFile f,/*@out@*/char **chunk);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
-retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
-retvalue chunk_getfirstword(const char *chunk,const char *name,char **value);
-retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist);
-retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist);
-retvalue chunk_getwholedata(const char *chunk,const char *name,char **value);
+retvalue chunk_getvalue(const char *chunk,const char *name,/*@out@*/char **value);
+retvalue chunk_getfirstword(const char *chunk,const char *name,/*@out@*/char **value);
+retvalue chunk_getextralinelist(const char *chunk,const char *name,/*@out@*/struct strlist *strlist);
+retvalue chunk_getwordlist(const char *chunk,const char *name,/*@out@*/struct strlist *strlist);
+retvalue chunk_getwholedata(const char *chunk,const char *name,/*@out@*/char **value);
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *' */
-retvalue chunk_getname(const char *chunk,const char *name,char **pkgname,bool_t allowversion);
+retvalue chunk_getname(const char *chunk,const char *name,/*@out@*/char **pkgname,bool_t allowversion);
 
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 
 retvalue chunk_gettruth(const char *chunk,const char *name);

@@ -789,7 +789,6 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	assert( method->status != ams_ok || method->tobedone );
 	if( method->status != ams_waitforcapabilities && method->status != ams_ok )
 		return RET_NOTHING;
-	assert( method->inputbuffer != NULL );
 
 	/* First look if we have enough room to read.. */
 	if( method->alreadyread + 1024 >= method->input_size ) {
@@ -808,6 +807,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 		method->inputbuffer = newptr;
 		method->input_size = method->alreadyread + 1024;
 	}
+	assert( method->inputbuffer != NULL );
 	/* then read as much as the pipe is able to fill of our buffer */
 
 	r = read(method->stdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
