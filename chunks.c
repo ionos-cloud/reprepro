@@ -511,7 +511,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 
 		/* copy it, if it is not to be ignored */
 
-		if( f == NULL ) {
+		if( f == NULL && ce-c > 0) {
 			memcpy(n,c,ce-c);
 			n += ce-c;
 		}
