@@ -950,7 +950,7 @@ static retvalue rerefbin(void *data,const char *component,const char *architectu
 	retvalue result;
 	struct data_binsrcreref *d = data;
 
-	result = packages_rereference(dbdir,d->references,binaries_parse_getfiles,d->distribution->codename,component,architecture,force);
+	result = packages_rereference(dbdir,d->references,binaries_parse_getfilekeys,d->distribution->codename,component,architecture,force);
 	return result;
 }
 
@@ -1006,7 +1006,7 @@ struct data_binsrccheck { const struct distribution *distribution; DB *reference
 static retvalue checkbin(void *data,const char *component,const char *architecture) {
 	struct data_binsrccheck *d = data;
 
-	return packages_check(dbdir,d->files,d->references,binaries_parse_getfiles,d->distribution->codename,component,architecture,force);
+	return packages_check(dbdir,d->files,d->references,binaries_parse_getfilekeys,d->distribution->codename,component,architecture,force);
 }
 
 static retvalue checksrc(void *data,const char *component) {

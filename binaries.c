@@ -145,7 +145,7 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 }
 
 /* get files out of a "Packages.gz"-chunk. */
-retvalue binaries_parse_getfiles(const char *chunk,struct strlist *files) {
+retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files) {
 	retvalue r;
 	char *filename;
 	
@@ -175,7 +175,7 @@ retvalue binaries_lookforold(packagesdb pkgs,const char *name, struct strlist *f
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}
-	r = binaries_parse_getfiles(oldchunk,files);
+	r = binaries_parse_getfilekeys(oldchunk,files);
 	free(oldchunk);
 
 	return r;
@@ -225,7 +225,7 @@ retvalue binaries_lookforolder(
 	} else
 		*oldversion = ov;
 
-	r = binaries_parse_getfiles(oldchunk,oldfilekeys);
+	r = binaries_parse_getfilekeys(oldchunk,oldfilekeys);
 	free(oldchunk);
 	if( !RET_IS_OK(r) && oldversion )
 		free(*oldversion);
@@ -303,7 +303,7 @@ static retvalue processbinary(void *data,const char *chunk) {
 	}
 	assert(RET_IS_OK(r));
 
-	r = binaries_parse_getfiles(chunk,&origfiles);
+	r = binaries_parse_getfilekeys(chunk,&origfiles);
 
 	if( RET_IS_OK(r) )
 		r = binaries_lookforolder(d->pkgs,package,version,
@@ -422,7 +422,7 @@ retvalue binaries_getinstalldata(target t,const char *packagename,const char *ve
 		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
 		return RET_ERROR;
 	}
-	r = binaries_parse_getfiles(chunk,origfiles);
+	r = binaries_parse_getfilekeys(chunk,origfiles);
 	if( RET_WAS_ERROR(r) ) {
 		free(sourcename);free(basename);
 		strlist_done(md5sums);
@@ -435,4 +435,8 @@ retvalue binaries_getinstalldata(target t,const char *packagename,const char *ve
 	}
 	free(sourcename);free(basename);
 	return r;
+}
+
+retvalue binaries_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys) {
+	return binaries_parse_getfilekeys(chunk,filekeys);
 }

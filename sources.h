@@ -44,5 +44,5 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 retvalue sources_getname(target t,const char *chunk,char **packagename);
 retvalue sources_getversion(target ,const char *chunk,char **version);
 retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-
+retvalue sources_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys);
 #endif

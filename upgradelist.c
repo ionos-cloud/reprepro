@@ -349,6 +349,26 @@ retvalue upgradelist_listmissing(upgradelist upgrade,filesdb files){
 	return RET_OK;
 }
 
+retvalue upgradelist_install(upgradelist upgrade,filesdb files,DB *references,int force){
+	package_data *pkg;
+	retvalue result,r;
+	pkg = upgrade->list;
+	result = RET_NOTHING;
+	while( pkg ) {
+		if( pkg->version == pkg->new_version ) {
+			r = target_addpackage(upgrade->target,
+				upgrade->packages,references,files,
+				pkg->name,pkg->new_version,pkg->new_control,
+				&pkg->new_filekeys,&pkg->new_md5sums,force);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && !force )
+				break;
+		}
+		pkg = pkg->next;
+	}
+	return result;
+}
+
 retvalue upgradelist_dump(upgradelist upgrade){
 	package_data *pkg;
 
@@ -375,7 +395,7 @@ retvalue upgradelist_dump(upgradelist upgrade){
 			       pkg->name,pkg->version_in_use,
 			       pkg->new_version);
 			else
-			printf("'%s': newly installed as '%s':\n " 
+			printf("'%s': newly installed as '%s':\n" 
 			       "files needed: ",
 			       pkg->name, pkg->new_version);
 			strlist_fprint(stdout,&pkg->new_filekeys);

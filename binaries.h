@@ -14,7 +14,7 @@
 #endif
 
 /* get files out of a "Packages.gz"-chunk. */
-retvalue binaries_parse_getfiles(const char *chunk,struct strlist *files);
+retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files);
 
 /* Look for an old version of the Package in the database,
  * returns RET_NOTHING, if there is none */
@@ -55,5 +55,6 @@ retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codena
 retvalue binaries_getname(target t,const char *chunk,char **packagename);
 retvalue binaries_getversion(target t,const char *chunk,char **version);
 retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
+retvalue binaries_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys);
 
 #endif

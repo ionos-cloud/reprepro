@@ -601,3 +601,6 @@ retvalue sources_getinstalldata(target t,const char *packagename,const char *ver
 	return r;
 }
 
+retvalue sources_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys) {
+	return sources_parse_getfilekeys(chunk,filekeys);
+}

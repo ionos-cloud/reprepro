@@ -37,7 +37,7 @@ extern int verbose;
 static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	target *d) {
+	get_filekeys getfilekeys, target *d) {
 
 	target t;
 
@@ -55,16 +55,17 @@ static retvalue target_initialize(
 	t->getname = getname;
 	t->getversion = getversion;
 	t->getinstalldata = getinstalldata;
+	t->getfilekeys = getfilekeys;
 	*d = t;
 	return RET_OK;
 }
 
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,target *target) {
-	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,target);
+	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,target *target) {
-	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,target);
+	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,target);
 }
 
 
@@ -78,3 +79,32 @@ void target_done(target target) {
 	free(target);
 }
 
+retvalue target_addpackage(target target,packagesdb packages,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force) {
+	struct strlist oldfilekeys,*ofk;
+	char *oldcontrol;
+	retvalue r;
+
+	r = files_expectfiles(files,filekeys,md5sums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = packages_get(packages,name,&oldcontrol);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING )
+		ofk = NULL;
+	else {
+		r = target->getfilekeys(target,name,oldcontrol,&oldfilekeys);
+		free(oldcontrol);
+		ofk = &oldfilekeys;
+		if( RET_WAS_ERROR(r) ) {
+			if( force )
+				ofk = NULL;
+			else
+				return r;
+		}
+	}
+	r = packages_insert(references,packages,name,control,filekeys,&oldfilekeys);
+	if( ofk )
+		strlist_done(ofk);
+	return r;
+}
