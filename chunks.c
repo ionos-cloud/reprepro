@@ -159,84 +159,6 @@ char *chunk_dupnextline(const char **field) {
 }
 */
 
-/* create a new chunk with the given data added before another field */
-char *chunk_insertdata(const char *chunk,const char *before,const char *new) {
-	size_t l,ln;
-	const char *rest;
-	char *result;
-
-	if( !chunk || !new || !before ) 
-		return NULL;
-	/* first search for the field to add before */
-	l = strlen(before); 
-	rest = chunk;
-	do {
-		if(strncmp(before,rest,l) == 0 && rest[l] == ':' ) {
-
-			/* create a chunk with the data added */
-			ln = strlen(new);
-			result = malloc(2+strlen(chunk)+ln);
-			if( !result )
-				return NULL;
-			strncpy(result,chunk,rest-chunk);
-			strcpy(result+(rest-chunk),new);
-			result[ln+(rest-chunk)] = '\n';
-			strcpy(result+(ln+(rest-chunk))+1,rest);
-			return result;
-		}
-		while( *rest != '\n' && *rest != '\0' )
-			rest++;
-		if( *rest == '\0' )
-			break;
-		rest++;
-		/* Reading a chunk should have ended there: */
-		assert(*rest != '\n');
-	} while( *rest );
-	fprintf(stderr,"not finding '%s', so appending '%s'\n",before,new);
-	/* not found, so append */
-	return mprintf("%s\n%s",chunk,new);
-}
-/* create a new chunk with the context of field name replaced with new */
-char *chunk_replaceentry(const char *chunk,const char *name,const char *new) {
-	size_t l;
-	const char *olddata,*rest;
-	char *result;
-
-	if( !chunk || !name || !new ) 
-		return NULL;
-	/* first search for the old field */
-	l = strlen(name);
-	olddata = chunk;
-	do {
-		if(strncmp(name,olddata,l) == 0 && olddata[l] == ':' ) {
-			olddata += l+1;
-			/* now search the end of the data to be replaced */
-			rest = olddata;
-			while( *rest != '\0' && *rest != '\n' )
-				rest++;
-			/* create a chunk with the appopiate line replaced */
-			result = malloc(2+strlen(rest)+strlen(new)+(olddata-chunk));
-			if( !result )
-				return NULL;
-			strncpy(result,chunk,olddata-chunk);
-			result[olddata-chunk] = ' ';
-			strcpy(result+(olddata-chunk)+1,new);
-			strcat(result,rest);
-			return result;
-		}
-		while( *olddata != '\n' && *olddata != '\0' )
-			olddata++;
-		if( *olddata == '\0' )
-			break;
-		olddata++;
-		/* Reading a chunk should have ended there: */
-		assert(*olddata != '\n');
-	} while( *olddata );
-	fprintf(stderr,"not finding '%s', so appending setting to '%s'\n",name,new);
-	/* not found, so append */
-	return mprintf("%s\n%s: %s",chunk,name,new);
-}
-
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	const char *field;
@@ -404,19 +326,19 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
 
-retvalue chunk_replacefields(char **chunk,const struct fieldtoadd *toadd,const char *beforethis) {
+char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis) {
 	const char *c,*ce;
 	char *newchunk,*n;
 	size_t size,len_beforethis;
 	const struct fieldtoadd *f;
 	retvalue result;
 
-	assert( chunk != NULL && *chunk != NULL && beforethis != NULL );
+	assert( chunk != NULL && beforethis != NULL );
 
 	if( toadd == NULL )
 		return RET_NOTHING;
 
-	c = *chunk;
+	c = chunk;
 
 	/* calculate the maximal size we might end up with */
 	size = 1+ strlen(c);
@@ -428,7 +350,7 @@ retvalue chunk_replacefields(char **chunk,const struct fieldtoadd *toadd,const c
 
 	newchunk = n = malloc(size);
 	if( n == NULL )
-		return RET_ERROR_OOM;
+		return NULL;
 
 	len_beforethis = strlen(beforethis);
 
@@ -484,13 +406,11 @@ retvalue chunk_replacefields(char **chunk,const struct fieldtoadd *toadd,const c
 	*n = '\0';
 
 	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,*chunk);
+		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,chunk);
 		assert(0);
 	}
 
-	free(*chunk);
-	*chunk = newchunk;
-	return RET_OK;
+	return newchunk;
 }
 
 struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next) {
@@ -529,4 +449,13 @@ void addfield_free(struct fieldtoadd *f) {
 	}
 }
 
+char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data) {
+	struct fieldtoadd toadd;
 
+	toadd.field = fieldname;
+	toadd.len_field = strlen(fieldname);
+	toadd.data = data;
+	toadd.len_data = strlen(data);
+	toadd.next = NULL;
+	return chunk_replacefields(chunk,&toadd,fieldname);
+}

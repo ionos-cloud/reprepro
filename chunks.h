@@ -11,13 +11,6 @@
 
 /* get the next chunk from file f */
 char *chunk_read(gzFile f);
-/* point to a specified field in a chunk */
-// const char *chunk_getfield(const char *name,const char *chunk);
-/* create a new chunk with the context of field name replaced with new,
- * prints an error when not found and adds to the end */
-char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
-/* create a new chunk with the given data added before another field */
-char *chunk_insertdata(const char *chunk,const char *before,const char *new);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
@@ -47,11 +40,15 @@ struct fieldtoadd {
 	size_t len_field,len_data;
 };
 
+
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
-retvalue chunk_replacefields(char **chunk,const struct fieldtoadd *toadd,const char *beforethis);
+char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis);
 struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next);
 struct fieldtoadd *addfield_newn(const char *field,const char *data,size_t len,struct fieldtoadd *next);
 void addfield_free(struct fieldtoadd *f);
+
+/* that is chunk_replacefields(chunk,{fieldname,strlen,data,strlen},fieldname); */
+char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data);
 
 #endif

@@ -441,7 +441,7 @@ static retvalue add_source(void *data,const char *chunk,const char *package,cons
 
 	/* Add package to distribution's database */
 
-	newchunk = chunk_replaceentry(chunk,"Directory",directory);
+	newchunk = chunk_replacefield(chunk,"Directory",directory);
 	if( !newchunk )
 		return RET_ERROR_OOM;
 	if( oldchunk != NULL ) {
@@ -663,7 +663,7 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 
 	/* Calculate new chunk, file to replace and checking */
 	
-	newchunk = chunk_replaceentry(chunk,"Filename",filekey);
+	newchunk = chunk_replacefield(chunk,"Filename",filekey);
 	if( !newchunk )
 		return RET_ERROR;
 	/* remove old references to files */

@@ -254,9 +254,9 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 }
 
 retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize) {
-	retvalue r;
 	const char *size;
 	struct fieldtoadd *file;
+	char *newchunk;
 
 	size = md5andsize;
 	while( !isblank(*size) && *size )
@@ -275,11 +275,14 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
 
 	// TODO: add overwriting of other fields here, (before the rest)
 	
-	r  = chunk_replacefields(&pkg->control,file,"Description");
+	newchunk  = chunk_replacefields(pkg->control,file,"Description");
 	addfield_free(file);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
+	if( newchunk == NULL ) {
+		return RET_ERROR_OOM;
 	}
+
+	free(pkg->control);
+	pkg->control = newchunk;
 
 	return RET_OK;
 }
