@@ -542,7 +542,7 @@ static int update(int argc,char *argv[]) {
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	
-	doexport = 0; // force || RET_IS_OK(result);
+	doexport = force || RET_IS_OK(result);
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	while( distributions ) {
