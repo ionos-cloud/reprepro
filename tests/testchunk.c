@@ -1,5 +1,7 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
+#include <malloc.h>
 #include <stdio.h>
 
 #include "../error.h"
@@ -33,6 +35,8 @@ retvalue action(UNUSED(void *data),const char *chunk) {
 	f = addfield_new("aaa","TEST",f);
 	f = deletefield_new("a a",f);
 	nc = chunk_replacefields(lc,f,"a");
+	addfield_free(f);
+
 	free(lc);
 	c = nc;
 	while( *c != '\0' ) {
