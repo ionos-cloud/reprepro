@@ -140,6 +140,10 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 	char *filekey;
 	retvalue r;
 
+	r = propername(sourcename);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
 	filekey =  calc_filekey(component,sourcename,basename);
 	if( !filekey )
 		return RET_ERROR_OOM;
@@ -157,6 +161,7 @@ static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,c
 	if( RET_WAS_ERROR(r) )
 		return r;
 
+	assert( filekeys->count == 1 );
 	*newchunk = chunk_replacefield(chunk,"Filename",filekeys->values[0]);
 	if( !*newchunk ) {
 		strlist_done(filekeys);

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -161,6 +161,20 @@ static inline retvalue calcnewcontrol(
 		struct strlist *filekeys,char **newchunk,struct strlist *origfiles) {
 	char *directory;
 	retvalue r;
+	int i;
+
+	r = properpackagename(package);
+	assert( r != RET_NOTHING );
+	i = 0;
+	while( RET_IS_OK(r) && i < basenames->count ) {
+		r = propername(basenames->values[i]);
+		assert( r != RET_NOTHING );
+		i++;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Forbidden characters in source package '%s'!\n",package);
+		return r;
+	}
 
 	directory =  calc_sourcedir(component,package);
 	if( !directory ) 
