@@ -28,10 +28,10 @@
 #include <db.h>
 #include "error.h"
 #include "mprintf.h"
+#include "strlist.h"
 #include "dirs.h"
 #include "names.h"
 #include "chunks.h"
-#include "strlist.h"
 #include "signature.h"
 #include "updates.h"
 

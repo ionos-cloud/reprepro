@@ -240,7 +240,7 @@ static inline retvalue callaction(new_package_action *action,void *data,
 		const struct strlist *origfiles,
 		const struct strlist *oldfiles) {
 	retvalue r;
-	char *filekey;
+	char *filekey,*newchunk;
 	struct strlist filekeys;
 
 	filekey =  calc_filekey(component,sourcename,basename);
@@ -251,8 +251,16 @@ static inline retvalue callaction(new_package_action *action,void *data,
 		free(filekey);
 		return r;
 	}
-	r = (*action)(data,chunk,packagename,version,
-			filekey,&filekeys,origfiles,md5sums,oldfiles);
+	// Calculating the following here will cause work done
+	// unnecesarrily, but it unifies handling afterwards:
+	newchunk = chunk_replacefield(chunk,"Filename",filekey);
+	if( !newchunk ) {
+		strlist_done(&filekeys);
+		return RET_ERROR_OOM;
+	}
+	r = (*action)(data,newchunk,packagename,version,
+			&filekeys,origfiles,md5sums,oldfiles);
+	free(newchunk);
 	strlist_done(&filekeys);
 	return r;
 }

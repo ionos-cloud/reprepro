@@ -23,7 +23,9 @@
 #include <malloc.h>
 #include <string.h>
 #include "error.h"
+#include "strlist.h"
 #include "dirs.h"
+#include "names.h"
 
 extern int verbose;
 
@@ -73,5 +75,29 @@ retvalue dirs_make_recursive(const char *directory) {
 	r = dirs_make_parent(directory);
 	result = dirs_check(directory);
 	RET_UPDATE(result,r);
+	return result;
+}
+
+/* create recursively all parent directories before the last '/' */
+retvalue dirs_make_parents(const char *mirrordir,const struct strlist *filekeys) {
+	char *filename;
+	int i;
+	retvalue result,r;
+
+	result = RET_NOTHING;
+
+	//TODO: this is a bit ineffective. But As I do not
+	//know, if it will be still needed in the future, no
+	//optimization yet...
+
+	for( i=0; i<filekeys->count ; i++ ) {
+		filename = calc_dirconcat(mirrordir,filekeys->values[i]);
+		if( filename == NULL )
+			return RET_ERROR_OOM;
+		r = dirs_make_parent(filename);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		RET_UPDATE(result,r);
+	}
 	return result;
 }

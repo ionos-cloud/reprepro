@@ -43,31 +43,8 @@
 extern int verbose;
 
 // This file shall include the code to include binaries, i.e.
-// create or adopt the chunk of the Packages.gz-file and 
+// create  the chunk of the Packages.gz-file and 
 // putting it in the various databases.
-
-retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename, const char *filekey,const struct strlist *filekeys, const struct strlist *md5sums,const struct strlist *oldfilekeys){
-	char *newchunk;
-	retvalue result,r;
-
-	/* look for needed files */
-
-	r = files_insert(filesdb,mirrordir,filekeys,md5sums);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	
-	/* write in its position and check it in */
-
-	newchunk = chunk_replacefield(chunk,"Filename",filekey);
-	if( !newchunk )
-		return RET_ERROR;
-
-	result = packages_insert(identifier,referencesdb,packagesdb,
-			packagename,newchunk,filekeys,oldfilekeys);
-
-	free(newchunk);
-	return result;
-}
 
 static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *architecture,struct debpackage *package,const struct strlist *filekeys) {
 	retvalue result,r;
@@ -422,6 +399,7 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 
 	/* then looking if we already have this, or copy it in */
 
+	//TODO ... rewrite this to do a list of files ...
 	r = files_checkin(filesdb,mirrordir,filekey,debfilename,&md5andsize);
 	if( RET_WAS_ERROR(r) ) {
 		free(filekey);

@@ -26,6 +26,7 @@
 #include <malloc.h>
 #include "error.h"
 #include "mprintf.h"
+#include "strlist.h"
 #include "dirs.h"
 #include "names.h"
 #include "md5sum.h"

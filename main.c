@@ -26,10 +26,10 @@
 #include <malloc.h>
 #include "error.h"
 #include "mprintf.h"
+#include "strlist.h"
 #include "dirs.h"
 #include "names.h"
 #include "md5sum.h"
-#include "strlist.h"
 #include "chunks.h"
 #include "files.h"
 #include "packages.h"
@@ -446,27 +446,19 @@ struct distributionhandles {
 
 /***********************************addsources***************************/
 
-static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
-	char *newchunk;
-	retvalue result,r;
+static retvalue add(void *data,const char *chunk,const char *package,const char *version,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
+	retvalue result;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
-
-	/* look for needed files */
-
-	r = files_insert(dist->files,mirrordir,filekeys,md5sums);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	newchunk = chunk_replacefield(chunk,"Directory",directory);
-	if( !newchunk )
-		return RET_ERROR_OOM;
 
 	/* Add package to distribution's database */
 
-	result = packages_insert(dist->referee,dist->refs,dist->pkgs,
-			package,newchunk,filekeys,oldfilekeys);
+	result = files_insert(dist->files,mirrordir,filekeys,md5sums);
+	if( RET_WAS_ERROR(result) )
+		return result;
 
-	free(newchunk);
+	result = packages_insert(dist->referee,dist->refs,dist->pkgs,
+			package,chunk,filekeys,oldfilekeys);
+
 	return result;
 }
 
@@ -499,7 +491,7 @@ static int addsources(int argc,char *argv[]) {
 	}
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = sources_findnew(dist.pkgs,dist.component,argv[i],add_source,&dist,force);
+		r = sources_findnew(dist.pkgs,dist.component,argv[i],add,&dist,force);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -512,19 +504,16 @@ static int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
+static retvalue showmissing(void *data,const char *chunk,const char *package,const char *version,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
 	retvalue r,ret;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
-	char *dn;
 
-	/* look for directory */
-	if( (dn = calc_fullfilename(mirrordir,directory))) {
-		r = dirs_make_recursive(dn);
-		free(dn);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-
+	// This is a bit stupid, first to generate the filekeys and
+	// then splitting the directory from it. But this should go
+	// away, when updating is solved a bit more reasoable...
+	r = dirs_make_parents(mirrordir,filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	ret = files_printmissing(dist->files,mirrordir,filekeys,md5sums,origfiles);
 	return ret;
 }
@@ -555,7 +544,7 @@ static int prepareaddsources(int argc,char *argv[]) {
 
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = sources_findnew(dist.pkgs,dist.component,argv[i],showmissingsourcefiles,&dist,force);
+		r = sources_findnew(dist.pkgs,dist.component,argv[i],showmissing,&dist,force);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -566,23 +555,6 @@ static int prepareaddsources(int argc,char *argv[]) {
 }
 
 /****************************prepareaddpackages*******************************************/
-
-static retvalue showmissing(void *data,const char *chunk,const char *package,const char *version,const char *filekey,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
-	retvalue r,ret;
-	struct distributionhandles *dist = (struct distributionhandles*)data;
-	char *dn;
-
-	/* look for directory */
-	if( (dn = calc_fullfilename(mirrordir,filekey))) {
-		r = dirs_make_parent(dn);
-		free(dn);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-
-	ret = files_printmissing(dist->files,mirrordir,filekeys,md5sums,origfiles);
-	return ret;
-}
 
 static int prepareaddpackages(int argc,char *argv[]) {
 	int i;
@@ -623,19 +595,6 @@ static int prepareaddpackages(int argc,char *argv[]) {
 
 /***********************************addpackages*******************************************/
 
-static retvalue add_package(void *data,const char *chunk,const char *package,const char *version,const char *filekey,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
-	retvalue result;
-	struct distributionhandles *d = data;
-
-	result = checkindeb_addChunk(d->pkgs,d->refs,d->files,
-			d->referee, mirrordir,
-			chunk, package, filekey,
-			filekeys,md5sums,oldfilekeys);
-
-	return result;
-}
-
-
 static int addpackages(int argc,char *argv[]) {
 	int i;
 	retvalue r,result;
@@ -664,7 +623,7 @@ static int addpackages(int argc,char *argv[]) {
 	dist.component = argv[2];
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = binaries_findnew(dist.pkgs,dist.component,argv[i],add_package,&dist,force);
+		r = binaries_findnew(dist.pkgs,dist.component,argv[i],add,&dist,force);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);

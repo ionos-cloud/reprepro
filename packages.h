@@ -35,7 +35,7 @@ retvalue packages_get(DB *packagesdb,const char *package,char **chunk);
 retvalue packages_check(DB *packagesdb,const char *package);
 
 /* insert a chunk in the packages database, adding and deleting
- * referenced while that. */
+ * references and insert files while that. */
 retvalue packages_insert(const char *identifier,
 		DB *referencesdb, DB *packagesdb,
 		const char *packagename, const char *controlchunk,
@@ -66,8 +66,6 @@ typedef retvalue new_package_action(
 	const char *packagename,
 	/* the version */
 	const char *version,
-	/* the calculated place for this package (dir with src,filename oth) */
-	const char *newplace,
 	/* the files (relative to mirrordir) it contains */
 	const struct strlist *filekeys,
 	/* the original files the chunk describes: */

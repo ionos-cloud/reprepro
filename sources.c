@@ -347,7 +347,7 @@ static inline retvalue callaction(new_package_action *action, void *data,
 		const char *chunk, const char *package, const char *version,
 		const char *origdirectory, const struct strlist *filelines,
 		const char *component, const struct strlist *oldfilekeys) {
-	char * directory;
+	char *directory,*newchunk;
 	struct strlist origfiles,filekeys,md5sums;
 	retvalue r;
 
@@ -368,9 +368,23 @@ static inline retvalue callaction(new_package_action *action, void *data,
 		free(directory);
 		return r;
 	}
-	r = (*action)(data,chunk,package,version,directory,
-			&filekeys,&origfiles,&md5sums,oldfilekeys);
+
+	newchunk = chunk_replacefield(chunk,"Directory",directory);
 	free(directory);
+	if( !newchunk ) {
+		strlist_done(&origfiles);
+		strlist_done(&filekeys);
+		strlist_done(&md5sums);
+		return RET_ERROR_OOM;
+	}
+// Calculating origfiles and newchunk will both not be needed in half of the
+// cases. This could be avoided by pushing flags to sources_findnew which
+// to generete. (doing replace_field here makes handling in main.c so
+// nicely type-independent.)
+
+	r = (*action)(data,newchunk,package,version,
+			&filekeys,&origfiles,&md5sums,oldfilekeys);
+	free(newchunk);
 	strlist_done(&filekeys);
 	strlist_done(&origfiles);
 	strlist_done(&md5sums);

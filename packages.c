@@ -31,6 +31,7 @@
 #include "dirs.h"
 #include "reference.h"
 #include "packages.h"
+#include "files.h"
 
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
 #define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
@@ -313,6 +314,7 @@ retvalue packages_insert(const char *identifier,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
 		const struct strlist *oldfiles) {
+		
 
 	retvalue result,r;
 
@@ -345,6 +347,4 @@ retvalue packages_insert(const char *identifier,
 
 	return result;
 }
-
-
 

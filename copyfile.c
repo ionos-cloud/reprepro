@@ -26,6 +26,7 @@
 #include <stdlib.h>
 
 #include "error.h"
+#include "strlist.h"
 #include "names.h"
 #include "dirs.h"
 #include "copyfile.h"
