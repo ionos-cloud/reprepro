@@ -18,14 +18,18 @@
 
 #include <errno.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <unistd.h>
 #include <malloc.h>
+#include <string.h>
+#include <ctype.h>
 #include <zlib.h>
 #include <db.h>
 #include "error.h"
 #include "chunks.h"
 #include "sources.h"
 #include "md5sum.h"
+#include "names.h"
 #include "release.h"
 
 extern int verbose;
@@ -98,4 +102,202 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 	free(realmd5andsize);
 	free(files);
 	return r;
+}
+
+struct release {
+	char *codename,*suite,*version;
+	char *origin,*label,*description;
+	char *architectures,*components;
+};
+
+
+/* Generate a "Release"-file for binary directory */
+retvalue release_genbinary(const struct release *release,const char *arch,const char *component,const char *distdir) {
+	FILE *f;
+	char *filename;
+	int e;
+
+
+	asprintf(&filename,"%s/%s/%s/binary-%s/Release",distdir,release->codename,component,arch);
+	if( !filename ) {
+		return RET_ERROR_OOM;
+	}
+	f = fopen(filename,"w");
+	if( !f ) {
+		e = errno;
+		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
+		free(filename);
+		return RET_ERRNO(e);
+	}
+	free(filename);
+
+	fprintf(f,	"Archive: %s\n"
+			"Version: %s\n"
+			"Component: %s\n"
+			"Origin: %s\n"
+			"Label: %s\n"
+			"Architecture: %s\n"
+			"Description: %s\n",
+		release->suite,release->version,component,
+		release->origin,release->label,arch,
+		release->description);
+
+	if( fclose(f) != 0 )
+		return RET_ERRNO(errno);
+
+	return RET_OK;
+	
+}
+
+/* Generate a "Release"-file for source directory */
+retvalue release_gensource(const struct release *release,const char *component,const char *distdir) {
+	FILE *f;
+	char *filename;
+	int e;
+
+
+	asprintf(&filename,"%s/%s/%s/source/Release",distdir,release->codename,component);
+	if( !filename ) {
+		return RET_ERROR_OOM;
+	}
+	f = fopen(filename,"w");
+	if( !f ) {
+		e = errno;
+		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
+		free(filename);
+		return RET_ERRNO(e);
+	}
+	free(filename);
+
+	fprintf(f,	"Archive: %s\n"
+			"Version: %s\n"
+			"Component: %s\n"
+			"Origin: %s\n"
+			"Label: %s\n"
+			"Architecture: source\n"
+			"Description: %s\n",
+		release->suite,release->version,component,
+		release->origin,release->label,
+		release->description);
+
+	if( fclose(f) != 0 )
+		return RET_ERRNO(errno);
+
+	return RET_OK;
+	
+}
+
+static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...) __attribute__ ((format (printf, 3, 4))); 
+static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...) {
+	va_list ap;
+	char *fn,*filename,*md;
+	retvalue r;
+
+	va_start(ap,fmt);
+	vasprintf(&fn,fmt,ap);
+	va_end(ap);
+	if( !fn )
+		return RET_ERROR_OOM;
+
+	filename = calc_dirconcat(distdir,fn);
+	if( !filename ) {
+		free(filename);
+		return RET_ERROR_OOM;
+	}
+	
+	r = md5sum_and_size(&md,filename,0);
+	free(filename);
+
+	if( !RET_IS_OK(r) ) {
+		free(fn);
+		return r;
+	}
+
+	fprintf(f," %s %s\n",md,fn);
+	free(md);free(fn);
+
+	return RET_OK;
+}
+
+static char *first_word(const char *c) {
+	const char *p;
+
+	p = c;
+	while( *p && !isspace(*p) ) {
+		p++;
+	}
+	return strndup(c,p-c);
+}
+
+static const char *next_word(const char *c) {
+
+	while( *c && !isspace(*c) )
+		c++;
+	while( *c && isspace(*c) )
+		c++;
+	return c;
+}
+
+/* Generate a main "Release" file for a distribution */
+retvalue release_gen(const struct release *release,const char *distdir) {
+	FILE *f;
+	char *filename;
+	int e;
+	retvalue result,r;
+	const char *arch,*comp;
+	char *a,*c;
+
+	asprintf(&filename,"%s/%s//Release",distdir,release->codename);
+	if( !filename ) {
+		return RET_ERROR_OOM;
+	}
+	f = fopen(filename,"w");
+	if( !f ) {
+		e = errno;
+		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
+		free(filename);
+		return RET_ERRNO(e);
+	}
+	free(filename);
+
+	fprintf(f,	
+			"Origin: %s\n"
+			"Label: %s\n"
+			"Suite: %s\n"
+			"Codename: %s\n"
+			"Version: %s\n"
+			"Architectures: %s\n"
+			"Components: %s\n"
+			"Description: %s\n"
+			"MD5Sums:\n",
+		release->origin, release->label, release->suite,
+		release->codename, release->version,
+		release->architectures, release->components,
+		release->description);
+
+	/* add md5sums */
+	result = RET_NOTHING;
+	for( comp=release->architectures ; *comp ; comp=next_word(comp) ) {
+		c = first_word(comp);
+		if( !c ) {return RET_ERROR_OOM;}
+		for( arch=release->architectures ; *arch ; arch=next_word(arch) ) {
+			a = first_word(arch);
+			if( !a ) {free(c);return RET_ERROR_OOM;}
+			r = printmd5andsize(f,distdir,
+					"%s/%s/binary-%s/Release",
+					release->codename,c,a);
+			free(a);
+			
+		}
+		r = printmd5andsize(f,distdir,
+				"%s/%s/source/Release",
+				release->codename,c);
+		free(c);
+	}
+	
+
+	if( fclose(f) != 0 )
+		return RET_ERRNO(errno);
+
+	return result;
 }
