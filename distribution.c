@@ -50,7 +50,7 @@ void distribution_free(struct distribution *distribution) {
 		strlist_done(&distribution->updates);
 
 		while( distribution->targets ) {
-			target next = distribution->targets->next;
+			struct target *next = distribution->targets->next;
 
 			target_free(distribution->targets);
 			distribution->targets = next;
@@ -64,8 +64,8 @@ static retvalue createtargets(struct distribution *distribution) {
 	retvalue r;
 	int i,j;
 	const char *arch,*comp;
-	target t;
-	target last = NULL;
+	struct target *t;
+	struct target *last = NULL;
 
 	for( i = 0 ; i < distribution->components.count ; i++ ) {
 		comp = distribution->components.values[i];
@@ -167,7 +167,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 /* call <action> for each part of <distribution>. */
 retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_action action,void *data,int force) {
 	retvalue result,r;
-	target t;
+	struct target *t;
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t ; t = t->next ) {
@@ -179,8 +179,8 @@ retvalue distribution_foreach_part(const struct distribution *distribution,distr
 	return result;
 }
 
-target distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture) {
-	target t = distribution->targets;
+struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture) {
+	struct target *t = distribution->targets;
 
 	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture)  )) {
 		t = t->next;

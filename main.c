@@ -688,7 +688,7 @@ static int checkrelease(int argc,char *argv[]) {
 
 struct data_export { const struct distribution *distribution;int force;};
 
-static retvalue exportbinsrc(void *data,const target target) {
+static retvalue exportbinsrc(void *data,struct target *target) {
 	retvalue result,r;
 	struct data_export *d = data;
 
@@ -795,7 +795,7 @@ static int upgrade(int argc,char *argv[]) {
 	retvalue result,r;
 	upgradelist upgrade;
 	filesdb files;
-	target target;
+	struct target *target;
 
 	if( argc <=1 ) {
 		fprintf(stderr,"mirrorer upgrade [<distributions>]\n");
@@ -837,7 +837,7 @@ static int upgrade(int argc,char *argv[]) {
 /***********************rereferencing*************************/
 struct data_binsrcreref { const struct distribution *distribution; DB *references;};
 
-static retvalue reref(void *data,const target target) {
+static retvalue reref(void *data,struct target *target) {
 	retvalue result;
 	struct data_binsrcreref *d = data;
 
@@ -887,7 +887,7 @@ static int rereference(int argc,char *argv[]) {
 /***********************checking*************************/
 struct data_check { const struct distribution *distribution; DB *references; filesdb files;};
 
-static retvalue check_target(void *data,const target target) {
+static retvalue check_target(void *data,struct target *target) {
 	struct data_check *d = data;
 	retvalue r;
 

@@ -346,7 +346,7 @@ retvalue binaries_findnew(packagesdb pkgs,const char *component,const char *pack
 	return chunk_foreach(packages_file,processbinary,&mydata,force,0);
 }
 
-retvalue binaries_getname(target t,const char *control,char **packagename){
+retvalue binaries_getname(struct target *t,const char *control,char **packagename){
 	retvalue r;
 
 	r = chunk_getvalue(control,"Package",packagename);
@@ -358,7 +358,7 @@ retvalue binaries_getname(target t,const char *control,char **packagename){
 	}
 	return r;
 }
-retvalue binaries_getversion(target t,const char *control,char **version) {
+retvalue binaries_getversion(struct target *t,const char *control,char **version) {
 	retvalue r;
 
 	r = chunk_getvalue(control,"Version",version);
@@ -371,7 +371,7 @@ retvalue binaries_getversion(target t,const char *control,char **version) {
 	return r;
 }
 	
-retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
+retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	char *sourcename,*basename;
 	retvalue r;
 
@@ -398,6 +398,6 @@ retvalue binaries_getinstalldata(target t,const char *packagename,const char *ve
 	return r;
 }
 
-retvalue binaries_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys) {
+retvalue binaries_getfilekeys(struct target *t,const char *name,const char *chunk,struct strlist *filekeys) {
 	return binaries_parse_getfilekeys(chunk,filekeys);
 }

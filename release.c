@@ -188,7 +188,7 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 }
 
 /* Generate a "Release"-file for arbitrary directory */
-retvalue release_genrelease(const struct distribution *distribution,const target target,const char *distdir) {
+retvalue release_genrelease(const struct distribution *distribution,const struct target *target,const char *distdir) {
 	FILE *f;
 	char *filename;
 	int e;
@@ -228,7 +228,7 @@ retvalue release_genrelease(const struct distribution *distribution,const target
 
 struct genrel { FILE *f; const char *distdir; int force; };
 
-static retvalue printmd5(void *data,const target target) {
+static retvalue printmd5(void *data,struct target *target) {
 	struct genrel *d = data;
 
 	return target_printmd5sums(target,d->distdir,d->f,d->force);

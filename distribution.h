@@ -18,19 +18,19 @@ struct distribution {
 	char *origin,*label,*description;
 	struct strlist architectures,components,updates;
 	/* A list of all targets contained in the distribution*/
-	target targets;
+	struct target *targets;
 };
 
 
 retvalue distribution_get(struct distribution **distribution,const char *conf,const char *name);
 void distribution_free(struct distribution *distribution);
 
-typedef retvalue distribution_each_action(void *data, const target t);
+typedef retvalue distribution_each_action(void *data, struct target *t);
 
 /* call <action> for each part of <distribution>. */
 retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_action action,void *data,int force);
 
-target distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture);
+struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture);
 
 typedef retvalue distributionaction(void *data,const char *chunk,const struct distribution *distribution);
 

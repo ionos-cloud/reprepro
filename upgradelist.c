@@ -58,7 +58,7 @@ typedef struct s_package_data {
 
 struct s_upgradelist {
 	upgrade_decide_function *decide;
-	target target;
+	struct target *target;
 	package_data *list;
 	/* NULL or the last/next thing to test in alphabetical order */
 	package_data *current,*last;
@@ -126,7 +126,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 }
 
 	
-retvalue upgradelist_initialize(upgradelist *ul,target t,const char *dbdir,upgrade_decide_function *decide) {
+retvalue upgradelist_initialize(upgradelist *ul,struct target *t,const char *dbdir,upgrade_decide_function *decide) {
 	upgradelist upgrade;
 	packagesdb packages;
 	retvalue r;

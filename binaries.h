@@ -48,9 +48,9 @@ retvalue binaries_findnew(
 	);
 
 /* Functions for the target.h-stuff: */
-retvalue binaries_getname(target t,const char *chunk,char **packagename);
-retvalue binaries_getversion(target t,const char *chunk,char **version);
-retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-retvalue binaries_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys);
+retvalue binaries_getname(struct target *t,const char *chunk,char **packagename);
+retvalue binaries_getversion(struct target *t,const char *chunk,char **version);
+retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
+retvalue binaries_getfilekeys(struct target *t,const char *name,const char *chunk,struct strlist *filekeys);
 
 #endif

@@ -41,15 +41,15 @@ extern int verbose;
 static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, char *directory, const char *indexfile, int unc ,  target *d) {
+	get_filekeys getfilekeys, char *directory, const char *indexfile, int unc ,struct target **d) {
 
-	target t;
+	struct target *t;
 
 	assert(indexfile);
 	if( directory == NULL )
 		return RET_ERROR_OOM;
 
-	t = calloc(1,sizeof(struct s_target));
+	t = calloc(1,sizeof(struct target));
 	if( t == NULL ) {
 		free(directory);
 		return RET_ERROR_OOM;
@@ -76,16 +76,16 @@ static retvalue target_initialize(
 	return RET_OK;
 }
 
-retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,target *target) {
+retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target) {
 	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,target);
 }
 
-retvalue target_initialize_source(const char *codename,const char *component,target *target) {
+retvalue target_initialize_source(const char *codename,const char *component,struct target **target) {
 	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,mprintf("%s/%s/source",codename,component),"Sources",0,target);
 }
 
 
-void target_free(target target) {
+void target_free(struct target *target) {
 	if( target == NULL )
 		return;
 	free(target->codename);
@@ -97,7 +97,7 @@ void target_free(target target) {
 }
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(target target, const char *dbdir, packagesdb *db) {
+retvalue target_initpackagesdb(struct target *target, const char *dbdir, packagesdb *db) {
 	retvalue r;
 
 	if( target->packages != NULL ) 
@@ -114,7 +114,7 @@ retvalue target_initpackagesdb(target target, const char *dbdir, packagesdb *db)
 	return r;
 }
 
-retvalue target_addpackage(target target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade) {
+retvalue target_addpackage(struct target *target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol;
 	retvalue r;
@@ -183,7 +183,7 @@ retvalue target_addpackage(target target,DB *references,filesdb files,const char
 /* rereference a full database */
 struct data_reref { 
 	DB *referencesdb;
-	target target;
+	struct target *target;
 };
 
 static retvalue rereferencepkg(void *data,const char *package,const char *chunk) {
@@ -204,7 +204,7 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 	return r;
 }
 
-retvalue target_rereference(target target,DB *referencesdb,int force) {
+retvalue target_rereference(struct target *target,DB *referencesdb,int force) {
 	retvalue result,r;
 	struct data_reref refdata;
 
@@ -234,7 +234,7 @@ retvalue target_rereference(target target,DB *referencesdb,int force) {
 struct data_check { 
 	DB *referencesdb;
 	filesdb filesdb;
-	target target;
+	struct target *target;
 };
 
 static retvalue checkpkg(void *data,const char *package,const char *chunk) {
@@ -256,7 +256,7 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	return r;
 }
 
-retvalue target_check(target target,filesdb filesdb,DB *referencesdb,int force) {
+retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force) {
 	struct data_check data;
 
 	assert(target->packages);
@@ -269,7 +269,7 @@ retvalue target_check(target target,filesdb filesdb,DB *referencesdb,int force) 
 	return packages_foreach(target->packages,checkpkg,&data,force);
 }
 /* export a database */
-retvalue target_export(target target,const char *distdir,int force) {
+retvalue target_export(struct target *target,const char *distdir,int force) {
 	indexcompression compression;
 	retvalue result,r;
 
@@ -294,7 +294,8 @@ retvalue target_export(target target,const char *distdir,int force) {
 	return result;
 }
 
-static inline retvalue printfilemd5(target target,const char *distdir,FILE *out,
+static inline retvalue printfilemd5(const struct target *target,
+		const char *distdir,FILE *out,
 		const char *filename,indexcompression compression) {
 	char *fn,*md;
 	const char *fn2;
@@ -320,7 +321,7 @@ static inline retvalue printfilemd5(target target,const char *distdir,FILE *out,
 	return r;
 }
 
-retvalue target_printmd5sums(target target,const char *distdir,FILE *out,int force) {
+retvalue target_printmd5sums(const struct target *target,const char *distdir,FILE *out,int force) {
 	indexcompression compression;
 	retvalue result,r;
 

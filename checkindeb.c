@@ -379,13 +379,13 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		target t = distribution_getpart(distribution,pkg->component,pkg->architecture);
+		struct target *t = distribution_getpart(distribution,pkg->component,pkg->architecture);
 		r = target_initpackagesdb(t,dbdir,NULL);
 		if( !RET_WAS_ERROR(r) )
 		r = target_addpackage(t,references,NULL,pkg->package,pkg->version,pkg->control,&pkg->filekeys,NULL,force,0);
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		target t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i]);
+		struct target *t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i]);
 		r = target_initpackagesdb(t,dbdir,NULL);
 		if( !RET_WAS_ERROR(r) )
 		r = target_addpackage(t,references,NULL,pkg->package,pkg->version,pkg->control,&pkg->filekeys,NULL,force,0);

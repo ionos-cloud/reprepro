@@ -502,7 +502,7 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 	return RET_OK;
 }
 
-retvalue sources_getname(target t,const char *control,char **packagename){
+retvalue sources_getname(struct target *t,const char *control,char **packagename){
 	retvalue r;
 
 	r = chunk_getvalue(control,"Package",packagename);
@@ -514,7 +514,7 @@ retvalue sources_getname(target t,const char *control,char **packagename){
 	}
 	return r;
 }
-retvalue sources_getversion(target t,const char *control,char **version) {
+retvalue sources_getversion(struct target *t,const char *control,char **version) {
 	retvalue r;
 
 	r = chunk_getvalue(control,"Version",version);
@@ -527,7 +527,7 @@ retvalue sources_getversion(target t,const char *control,char **version) {
 	return r;
 }
 	
-retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
+retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	retvalue r;
 	char *origdirectory;
 	struct strlist filelines,basenames;
@@ -562,6 +562,6 @@ retvalue sources_getinstalldata(target t,const char *packagename,const char *ver
 	return r;
 }
 
-retvalue sources_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys) {
+retvalue sources_getfilekeys(struct target *t,const char *name,const char *chunk,struct strlist *filekeys) {
 	return sources_parse_getfilekeys(chunk,filekeys);
 }

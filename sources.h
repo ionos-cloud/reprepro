@@ -37,8 +37,8 @@ retvalue sources_findnew(packagesdb pkgs,const char *component,const char *sourc
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item);
 
 /* Functions for the target.h-stuff: */
-retvalue sources_getname(target t,const char *chunk,char **packagename);
-retvalue sources_getversion(target ,const char *chunk,char **version);
-retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-retvalue sources_getfilekeys(target t,const char *name,const char *chunk,struct strlist *filekeys);
+retvalue sources_getname(struct target * t,const char *chunk,char **packagename);
+retvalue sources_getversion(struct target *t,const char *chunk,char **version);
+retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
+retvalue sources_getfilekeys(struct target *t,const char *name,const char *chunk,struct strlist *filekeys);
 #endif
