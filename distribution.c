@@ -48,8 +48,55 @@ void distribution_free(struct distribution *distribution) {
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
+
+		while( distribution->targets ) {
+			target next = distribution->targets->next;
+
+			target_free(distribution->targets);
+			distribution->targets = next;
+		}
 		free(distribution);
 	}
+}
+
+/* create all contained targets... */
+static retvalue createtargets(struct distribution *distribution) {
+	retvalue r;
+	int i,j;
+	const char *arch,*comp;
+	target t;
+	target last = NULL;
+
+	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		comp = distribution->components.values[i];
+		for( j = 0 ; j < distribution->architectures.count ; j++ ) {
+			arch = distribution->architectures.values[j];
+			if( strcmp(arch,"source") != 0 ) {
+				r = target_initialize_binary(distribution->codename,comp,arch,&t);
+				if( RET_IS_OK(r) ) {
+					if( last ) {
+						last->next = t;
+					} else {
+						distribution->targets = t;
+					}
+					last = t;
+				}
+				if( RET_WAS_ERROR(r) )
+					return r;
+			}
+			
+		}
+		r = target_initialize_source(distribution->codename,comp,&t);
+		if( last ) {
+			last->next = t;
+		} else {
+			distribution->targets = t;
+		}
+		last = t;
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
 }
 
 static retvalue distribution_parse(struct distribution **distribution,const char *chunk) {
@@ -85,6 +132,9 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 	ret = chunk_getwordlist(chunk,"Update",&r->updates);
 	checkret;
 
+	ret = createtargets(r);
+	checkret;
+
 	*distribution = r;
 	return RET_OK;
 }
@@ -117,38 +167,29 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 /* call <action> for each part of <distribution>. */
 retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_action action,void *data,int force) {
 	retvalue result,r;
-	int i,j;
-	const char *arch,*comp;
 	target t;
 
 	result = RET_NOTHING;
-	for( i = 0 ; i < distribution->components.count ; i++ ) {
-		comp = distribution->components.values[i];
-		for( j = 0 ; j < distribution->architectures.count ; j++ ) {
-			arch = distribution->architectures.values[j];
-			if( strcmp(arch,"source") != 0 ) {
-				r = target_initialize_binary(distribution->codename,comp,arch,&t);
-				if( RET_IS_OK(r) ) {
-					r = action(data,t);
-					target_done(t);
-				}
-				RET_UPDATE(result,r);
-				if( RET_WAS_ERROR(r) && force <= 0 )
-					return result;
-			}
-			
-		}
-		r = target_initialize_source(distribution->codename,comp,&t);
-		if( RET_IS_OK(r) ) {
-			r = action(data,t);
-			target_done(t);
-		}
+	for( t = distribution->targets ; t ; t = t->next ) {
+		r = action(data,t);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			return result;
 	}
 	return result;
 }
+
+target distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture) {
+	target t = distribution->targets;
+
+	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture)  )) {
+		t = t->next;
+	}
+	assert(t);
+	return t;
+}
+
+
 
 struct dist_mydata {struct distribution_filter filter; distributionaction *action; void *data;};
 

@@ -47,10 +47,6 @@ retvalue binaries_findnew(
 	int force
 	);
 
-/* Add a binary package to a distribution, removing previous versions
- * of it, if necesary. */
-retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codename,const char *component,const char *architecture,const char *package,const char *version,const char *controlchunk,const struct strlist *filekeys);
-
 /* Functions for the target.h-stuff: */
 retvalue binaries_getname(target t,const char *chunk,char **packagename);
 retvalue binaries_getversion(target t,const char *chunk,char **version);

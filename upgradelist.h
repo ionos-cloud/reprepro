@@ -20,7 +20,7 @@ upgrade_decision ud_always(const char *p,const char *ov,const char *nv);
 
 typedef struct s_upgradelist *upgradelist;
 
-retvalue upgradelist_initialize(upgradelist *ul,target target, packagesdb packages,upgrade_decide_function *decide);
+retvalue upgradelist_initialize(upgradelist *ul,target target,const char *dbdir,upgrade_decide_function *decide);
 retvalue upgradelist_done(upgradelist upgrade);
 
 retvalue upgradelist_dump(upgradelist upgrade);

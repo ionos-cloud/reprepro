@@ -58,7 +58,6 @@ typedef struct s_package_data {
 
 struct s_upgradelist {
 	upgrade_decide_function *decide;
-	packagesdb packages;
 	target target;
 	package_data *list;
 	/* NULL or the last/next thing to test in alphabetical order */
@@ -127,8 +126,9 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 }
 
 	
-retvalue upgradelist_initialize(upgradelist *ul,target t,packagesdb packages,upgrade_decide_function *decide) {
+retvalue upgradelist_initialize(upgradelist *ul,target t,const char *dbdir,upgrade_decide_function *decide) {
 	upgradelist upgrade;
+	packagesdb packages;
 	retvalue r;
 
 	upgrade = calloc(1,sizeof(struct s_upgradelist));
@@ -136,8 +136,13 @@ retvalue upgradelist_initialize(upgradelist *ul,target t,packagesdb packages,upg
 		return RET_ERROR_OOM;
 
 	upgrade->decide = decide;
-	upgrade->packages = packages;
 	upgrade->target = t;
+
+	r = target_initpackagesdb(t,dbdir,&packages);
+	if( RET_WAS_ERROR(r) ) {
+		upgradelist_done(upgrade);
+		return r;
+	}
 
 	r = packages_foreach(packages,save_package_version,upgrade,0);
 
@@ -356,10 +361,11 @@ retvalue upgradelist_install(upgradelist upgrade,filesdb files,DB *references,in
 	result = RET_NOTHING;
 	while( pkg ) {
 		if( pkg->version == pkg->new_version ) {
+			// TODO: decide what to give to the downgrade flag...
 			r = target_addpackage(upgrade->target,
-				upgrade->packages,references,files,
+				references,files,
 				pkg->name,pkg->new_version,pkg->new_control,
-				&pkg->new_filekeys,&pkg->new_md5sums,force);
+				&pkg->new_filekeys,&pkg->new_md5sums,force,0);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )
 				break;

@@ -445,11 +445,12 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = dsc_complete(pkg);
 
 	/* finaly put it into the source distribution */
-	if( !RET_WAS_ERROR(r) )
-		r = sources_addtodist(dbdir,references,distribution->codename,
-				pkg->component,pkg->package,pkg->version,
-				pkg->control,&pkg->filekeys);
-
+	if( !RET_WAS_ERROR(r) ) {
+		target t = distribution_getpart(distribution,pkg->component,"source");
+		r = target_initpackagesdb(t,dbdir,NULL);
+		if( !RET_WAS_ERROR(r) )
+		r = target_addpackage(t,references,NULL,pkg->package,pkg->version,pkg->control,&pkg->filekeys,NULL,force,0);
+	}
 	dsc_free(pkg);
 
 	return r;

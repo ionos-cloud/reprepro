@@ -697,7 +697,9 @@ static retvalue exportbinsrc(void *data,const target target) {
 	if( RET_WAS_ERROR(result) && !force )
 		return result;
 
-	r = target_doexport(target,dbdir,distdir,d->force);
+	r = target_initpackagesdb(target,dbdir,NULL);
+	if( !RET_WAS_ERROR(r) )
+		r = target_export(target,distdir,d->force);
 	RET_UPDATE(result,r);
 
 	return result;
@@ -792,7 +794,6 @@ static int update(int argc,char *argv[]) {
 static int upgrade(int argc,char *argv[]) {
 	retvalue result,r;
 	upgradelist upgrade;
-	packagesdb pkgs;
 	filesdb files;
 	target target;
 
@@ -811,15 +812,9 @@ static int upgrade(int argc,char *argv[]) {
 		return EXIT_RET(r);
 	}
 
-	r = packages_initialize(&pkgs,dbdir,target->identifier);
-	if( RET_WAS_ERROR(r) ) {
-		target_done(target);
-		return EXIT_RET(r);
-	}
-	result = upgradelist_initialize(&upgrade,target,pkgs,ud_always);
+	result = upgradelist_initialize(&upgrade,target,dbdir,ud_always);
 	if( RET_WAS_ERROR(result) ) {
-		target_done(target);
-		(void)packages_done(pkgs);
+		target_free(target);
 		return EXIT_RET(result);
 	}
 
@@ -835,8 +830,6 @@ static int upgrade(int argc,char *argv[]) {
 
 	r = upgradelist_done(upgrade);
 	RET_ENDUPDATE(result,r);
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
 	
 	return EXIT_RET(result);
 }
@@ -848,7 +841,9 @@ static retvalue reref(void *data,const target target) {
 	retvalue result;
 	struct data_binsrcreref *d = data;
 
-	result = target_rereference(dbdir,d->references,target,force);
+	result = target_initpackagesdb(target,dbdir,NULL);
+	if( !RET_WAS_ERROR(result) )
+		result = target_rereference(target,d->references,force);
 	return result;
 }
 
@@ -894,8 +889,12 @@ struct data_check { const struct distribution *distribution; DB *references; fil
 
 static retvalue check_target(void *data,const target target) {
 	struct data_check *d = data;
+	retvalue r;
 
-	return target_check(dbdir,d->files,d->references,target,force);
+	r = target_initpackagesdb(target,dbdir,NULL);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return target_check(target,d->files,d->references,force);
 }
 
 static retvalue check_dist(void *data,const char *chunk,const struct distribution *distribution) {

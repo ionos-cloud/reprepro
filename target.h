@@ -30,16 +30,27 @@ struct s_target {
 	get_version *getversion;
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
+	/* the next one in the list of targets of a distribution */
+	struct s_target *next;
+	/* is initialized as soon as needed: */
+	packagesdb packages;
 };
 
-retvalue target_initialize_binary(const char *distribution,const char *component,const char *architecture,target *target);
-retvalue target_initialize_source(const char *distribution,const char *component,target *target);
-void target_done(target target);
+retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,target *target);
+retvalue target_initialize_source(const char *codename,const char *component,target *target);
+void target_free(target target);
 
-retvalue target_addpackage(target target,packagesdb packages,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force);
-retvalue target_rereference(const char *dbdir,DB *referencesdb,target target,int force);
-retvalue target_check(const char *dbdir,filesdb filesdb,DB *referencesdb,target target,int force);
-retvalue target_export(target target,packagesdb packages,const char *distdir, int force);
-retvalue target_doexport(target target,const char *dbdir,const char *distdir, int force);
+
 retvalue target_printmd5sums(target target,const char *distdir,FILE *out,int force);
+
+/* This opens up the database, if db != NULL, *db will be set to it.. */
+retvalue target_initpackagesdb(target target, const char *dbdir, packagesdb *db);
+
+/* The following calls can only be called if target_initpackagesdb was called before: */
+
+retvalue target_addpackage(target target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade);
+retvalue target_export(target target,const char *distdir, int force);
+retvalue target_check(target target,filesdb filesdb,DB *referencesdb,int force);
+retvalue target_rereference(target target,DB *referencesdb,int force);
+
 #endif

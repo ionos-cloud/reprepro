@@ -33,6 +33,7 @@
 #include "sources.h"
 #include "names.h"
 #include "md5sum.h"
+#include "dpkgversions.h"
 #include "target.h"
 
 extern int verbose;
@@ -64,7 +65,7 @@ static retvalue target_initialize(
 	t->architecture = strdup(architecture);
 	t->identifier = calc_identifier(codename,component,architecture);
 	if( !t->codename|| !t->component|| !t->architecture|| !t->identifier) {
-		target_done(t);
+		target_free(t);
 		return RET_ERROR_OOM;
 	}
 	t->getname = getname;
@@ -84,7 +85,7 @@ retvalue target_initialize_source(const char *codename,const char *component,tar
 }
 
 
-void target_done(target target) {
+void target_free(target target) {
 	if( target == NULL )
 		return;
 	free(target->codename);
@@ -95,20 +96,74 @@ void target_done(target target) {
 	free(target);
 }
 
-retvalue target_addpackage(target target,packagesdb packages,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force) {
+/* This opens up the database, if db != NULL, *db will be set to it.. */
+retvalue target_initpackagesdb(target target, const char *dbdir, packagesdb *db) {
+	retvalue r;
+
+	if( target->packages != NULL ) 
+		r = RET_OK;
+	else {
+		r = packages_initialize(&target->packages,dbdir,target->identifier);
+		if( RET_WAS_ERROR(r) ) {
+			target->packages = NULL;
+			return r;
+		}
+	}
+	if( db )
+		*db = target->packages;
+	return r;
+}
+
+retvalue target_addpackage(target target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol;
 	retvalue r;
 
-	r = files_expectfiles(files,filekeys,md5sums);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = packages_get(packages,name,&oldcontrol);
+	assert(target->packages);
+
+	if( md5sums != NULL ) {
+		r = files_expectfiles(files,filekeys,md5sums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	r = packages_get(target->packages,name,&oldcontrol);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING )
 		ofk = NULL;
 	else {
+		char *oldversion;
+
+		r = target->getversion(target,oldcontrol,&oldversion);
+		if( RET_WAS_ERROR(r) && !force ) {
+			free(oldcontrol);
+			return r;
+		}
+		if( RET_IS_OK(r) ) {
+			r = dpkgversions_isNewer(version,oldversion);
+			if( RET_WAS_ERROR(r) ) {
+				fprintf(stderr,"Parse errors processing versions of %s.\n",name);
+				if( !force ) {
+					free(oldversion);
+					free(oldcontrol);
+					return r;
+				}
+			} else {
+				if( r == RET_NOTHING ) {
+					/* new Version is not newer than old version */
+					if( downgrade ) {
+						fprintf(stderr,"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n",name,oldversion,version,target->identifier);
+					} else {
+						fprintf(stderr,"Skipping inclusion of '%s' '%s' in '%s', as it has already '%s'.\n",name,version,target->identifier,oldversion);
+						free(oldversion);
+						free(oldcontrol);
+						return RET_NOTHING;
+					}
+				}
+			}
+			free(oldversion);
+		}
+
 		r = target->getfilekeys(target,name,oldcontrol,&oldfilekeys);
 		free(oldcontrol);
 		ofk = &oldfilekeys;
@@ -119,7 +174,7 @@ retvalue target_addpackage(target target,packagesdb packages,DB *references,file
 				return r;
 		}
 	}
-	r = packages_insert(references,packages,name,control,filekeys,&oldfilekeys);
+	r = packages_insert(references,target->packages,name,control,filekeys,&oldfilekeys);
 	if( ofk )
 		strlist_done(ofk);
 	return r;
@@ -127,7 +182,6 @@ retvalue target_addpackage(target target,packagesdb packages,DB *references,file
 
 /* rereference a full database */
 struct data_reref { 
-	packagesdb packagesdb;
 	DB *referencesdb;
 	target target;
 };
@@ -150,14 +204,12 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 	return r;
 }
 
-retvalue target_rereference(const char *dbdir,DB *referencesdb,target target,int force) {
+retvalue target_rereference(target target,DB *referencesdb,int force) {
 	retvalue result,r;
 	struct data_reref refdata;
-	packagesdb pkgs;
 
-	r = packages_initialize(&pkgs,dbdir,target->identifier);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	assert(target->packages);
+
 	if( verbose > 1 ) {
 		if( verbose > 2 )
 			fprintf(stderr,"Unlocking depencies of %s...\n",target->identifier);
@@ -171,20 +223,15 @@ retvalue target_rereference(const char *dbdir,DB *referencesdb,target target,int
 		fprintf(stderr,"Referencing %s...\n",target->identifier);
 
 	refdata.referencesdb = referencesdb;
-	refdata.packagesdb = pkgs;
 	refdata.target = target;
-	r = packages_foreach(pkgs,rereferencepkg,&refdata,force);
+	r = packages_foreach(target->packages,rereferencepkg,&refdata,force);
 	RET_UPDATE(result,r);
 	
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
 /* check a full database */
 struct data_check { 
-	packagesdb packagesdb;
 	DB *referencesdb;
 	filesdb filesdb;
 	target target;
@@ -209,34 +256,24 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	return r;
 }
 
-retvalue target_check(const char *dbdir,filesdb filesdb,DB *referencesdb,target target,int force) {
-	retvalue result,r;
+retvalue target_check(target target,filesdb filesdb,DB *referencesdb,int force) {
 	struct data_check data;
-	packagesdb pkgs;
 
-	r = packages_initialize(&pkgs,dbdir,target->identifier);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	assert(target->packages);
 	if( verbose > 1 ) {
-		fprintf(stderr,"Checking packages in '%s'...\n",pkgs->identifier);
+		fprintf(stderr,"Checking packages in '%s'...\n",target->identifier);
 	}
 	data.referencesdb = referencesdb;
 	data.filesdb = filesdb;
-	data.packagesdb = pkgs;
 	data.target = target;
-	result = packages_foreach(pkgs,checkpkg,&data,force);
-
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-
-	return result;
+	return packages_foreach(target->packages,checkpkg,&data,force);
 }
 /* export a database */
-retvalue target_export(target target,packagesdb packages,const char *distdir,int force) {
+retvalue target_export(target target,const char *distdir,int force) {
 	indexcompression compression;
 	retvalue result,r;
 
-	assert(target && packages);
+	assert(target && target->packages);
 	result = RET_NOTHING;
 
 	for( compression = 0 ; compression <= ic_max ; compression++) {
@@ -247,29 +284,13 @@ retvalue target_export(target target,packagesdb packages,const char *distdir,int
 					target->indexfile,compression);
 			if( filename == NULL )
 				return RET_ERROR_OOM;
-			r = packages_export(packages,filename,compression);
+			r = packages_export(target->packages,filename,compression);
 			free(filename);
 			RET_UPDATE(result,r);
 			if( !force && RET_WAS_ERROR(r) )
 				return r;
 		}
 	}
-	return result;
-}
-/* export a database, also open the file... */
-retvalue target_doexport(target target,const char *dbdir,const char *distdir, int force) {
-	retvalue result,r;
-	packagesdb pkgs;
-
-	r = packages_initialize(&pkgs,dbdir,target->identifier);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	result = target_export(target,pkgs,distdir,force);
-
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
