@@ -24,6 +24,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <malloc.h>
+#include <fcntl.h>
 #include "error.h"
 #define DEFINE_IGNORE_VARIABLES
 #include "ignore.h"
@@ -1179,6 +1180,62 @@ static retvalue action_include(int argc,const char *argv[]) {
 	return result;
 }
 
+retvalue acquirelock(const char *dbdir) {
+	char *lockfile;
+	int fd;
+	retvalue r;
+
+	// TODO: create directory 
+	r = dirs_make_recursive(dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	lockfile = calc_dirconcat(dbdir,"lockfile");
+	if( lockfile == NULL )
+		return RET_ERROR_OOM;
+	fd = open(lockfile,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_NOCTTY,S_IRUSR|S_IWUSR);
+	if( fd < 0 ) {
+		int e = errno;
+		fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+		free(lockfile);
+		if( e == EEXIST ) {
+			fprintf(stderr,
+"The lockfile already exists, there might be another instance with the\n"
+"same database dir running. To avoid locking overhead, only one process\n"
+"can access the database at the same time. Only delete the lockfile if\n"
+"you are sure no other version is still running!\n");
+
+		}
+		return RET_ERRNO(e);
+	}
+	// TODO: do some more locking of this file to avoid problems
+	// with the non-atomity of O_EXCL with nfs-filesystems...
+	if( close(fd) != 0 ) {
+		int e = errno;
+		fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+		unlink(lockfile);
+		free(lockfile);
+		return RET_ERRNO(e);
+	
+	}
+	free(lockfile);
+	return RET_OK;
+}
+
+void releaselock(const char *dbdir) {
+	char *lockfile;
+
+	lockfile = calc_dirconcat(dbdir,"lockfile");
+	if( lockfile == NULL )
+		return;
+	if( unlink(lockfile) != 0 ) {
+		int e = errno;
+		fprintf(stderr,"Error deleting lockfile '%s': %d=%m!\n",lockfile,e);
+		unlink(lockfile);
+	}
+	free(lockfile);
+}
+
 /*********************/
 /* argument handling */
 /*********************/
@@ -1398,10 +1455,16 @@ int main(int argc,char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 
+
 	a = actions;
 	while( a->name ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
-			retvalue r = a->start(argc-optind,(const char**)argv+optind);
+			retvalue r;
+			r = acquirelock(dbdir);
+			if( RET_IS_OK(r) )  {
+				 r = a->start(argc-optind,(const char**)argv+optind);
+				releaselock(dbdir);
+			}
 			return EXIT_RET(r);
 		} else
 			a++;

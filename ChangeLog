@@ -1,3 +1,6 @@
+2005-01-27(at least GMT)  Bernhard R. Link <brlink@debian.org>
+	* add a lockfile 
+
 2005-01-26  Bernhard R. Link <brlink@debian.org>
 	* change FilterList to need a defaultaction given
 
