@@ -869,7 +869,7 @@ static retvalue senddata(struct aptmethod *method) {
 
 		method->alreadywritten = 0;
 		// TODO: make sure this is already checked for earlier...
-		assert(index(method->nexttosend->uri,'\n')==NULL || index(method->nexttosend->filename,'\n') == 0);
+		assert(strchr(method->nexttosend->uri,'\n')==NULL || strchr(method->nexttosend->filename,'\n') == 0);
 		/* http-aptmethod seems to loose the last byte if the file is already 
 		 * in place, so we better unlink the target first... */
 		unlink(method->nexttosend->filename);

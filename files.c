@@ -98,8 +98,13 @@ retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir)
 /* release the files-database initialized got be files_initialize */
 retvalue files_done(filesdb db) {
 	int dberr;
+
+	assert( db != NULL);
+
+	free( db->mirrordir );
 	/* just in case we want something here later */
 	dberr = db->database->close(db->database,0);
+	free(db);
 	if( dberr != 0 )
 		return RET_DBERR(dberr);
 	else

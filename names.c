@@ -455,7 +455,7 @@ char *calc_downloadedlistpattern(const char *codename) {
 
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	// TODO: add checks to all data possibly given into here...
-	assert( index(codename,'|') == NULL && index(component,'|') == NULL && index(architecture,'|') == NULL );
+	assert( strchr(codename,'|') == NULL && strchr(component,'|') == NULL && strchr(architecture,'|') == NULL );
 	assert( codename && component && architecture && packagetype );
 	if( packagetype[0] == 'u' ) 
 		return mprintf("u|%s|%s|%s",codename,component,architecture);
@@ -528,7 +528,7 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 char *calc_binary_basename(const char *name,const char *version,const char *arch,const char *packagetype) {
 	const char *v;
 	assert( name && version && arch && packagetype );
-	v = index(version,':');
+	v = strchr(version,':');
 	if( v )
 		v++;
 	else
@@ -537,7 +537,7 @@ char *calc_binary_basename(const char *name,const char *version,const char *arch
 }
 
 char *calc_source_basename(const char *name,const char *version) {
-	const char *v = index(version,':');
+	const char *v = strchr(version,':');
 	if( v )
 		v++;
 	else

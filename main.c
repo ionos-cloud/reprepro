@@ -187,13 +187,13 @@ ACTION_U_F(addmd5sums) {
 	result = RET_NOTHING;
 	
 	while( fgets(buffer,1999,stdin) != NULL ) {
-		c = index(buffer,'\n');
+		c = strchr(buffer,'\n');
 		if( ! c ) {
 			fprintf(stderr,"Line too long\n");
 			return RET_ERROR;
 		}
 		*c = '\0';
-		m = index(buffer,' ');
+		m = strchr(buffer,' ');
 		if( ! m ) {
 			fprintf(stderr,"Malformed line\n");
 			return RET_ERROR;
@@ -507,7 +507,7 @@ ACTION_F(detect) {
 
 	} else
 		while( fgets(buffer,4999,stdin) ) {
-			nl = index(buffer,'\n');
+			nl = strchr(buffer,'\n');
 			if( !nl ) {
 				return RET_ERROR;
 			}
@@ -532,7 +532,7 @@ ACTION_F(forget) {
 
 	} else
 		while( fgets(buffer,4999,stdin) ) {
-			nl = index(buffer,'\n');
+			nl = strchr(buffer,'\n');
 			if( !nl ) {
 				return RET_ERROR;
 			}
@@ -1214,8 +1214,9 @@ int main(int argc,char *argv[]) {
 		{"force", 0, NULL, 'f'},
 		{NULL, 0, NULL, 0}
 	};
-	int c;struct action *a;
+	const struct action *a;
 	retvalue r;
+	int c;
 
 	init_ignores();
 
@@ -1399,24 +1400,41 @@ int main(int argc,char *argv[]) {
 	while( a->name ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
 			r = callaction(a,argc-optind,(const char**)argv+optind);
+			/* yeah, freeing all this stuff before exiting is
+			 * stupid, but it keeps valgrind logs easier 
+			 * readable */
+			signatures_done();
 			free(dbdir);
 			free(distdir);
 			free(listdir);
 			free(confdir);
 			free(overridedir);
 			free(mirrordir);
+			free(methoddir);
+			free(component);
+			free(architecture);
+			free(packagetype);
+			free(section);
+			free(priority);
 			exit(EXIT_RET(r));
 		} else
 			a++;
 	}
 
 	fprintf(stderr,"Unknown action '%s'. (see --help for available options and actions)\n",argv[optind]);
+	signatures_done();
 	free(dbdir);
 	free(distdir);
 	free(listdir);
 	free(confdir);
 	free(overridedir);
 	free(mirrordir);
+	free(methoddir);
+	free(component);
+	free(architecture);
+	free(packagetype);
+	free(section);
+	free(priority);
 	exit(EXIT_FAILURE);
 }
 

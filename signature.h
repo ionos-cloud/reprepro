@@ -12,4 +12,6 @@ retvalue signature_sign(const char *options, const char *filename);
 /* Read a single chunk from a file, that may be signed. */
 retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned);
 
+void signatures_done(void);
+
 #endif

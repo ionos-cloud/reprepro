@@ -67,6 +67,13 @@ static retvalue signature_init(void){
 	return RET_OK;
 }
 
+void signatures_done(void) {
+	if( context != NULL ) {
+		gpgme_release(context);
+		context = NULL;
+	}
+}
+
 static inline retvalue containskey(const char *key, const char *fingerprint) {
 
 	size_t fl,kl;
