@@ -171,7 +171,8 @@ retvalue release_parse_and_filter(struct release **release,const char *chunk,str
 				if( verbose > 2 ) {
 					fprintf(stderr,"skipping %s\n",(*release)->codename);
 				}
-				free(release);
+				release_free(*release);
+				*release = NULL;
 				return RET_NOTHING;
 			}
 		}
@@ -458,8 +459,8 @@ static retvalue processrelease(void *d,const char *chunk) {
 	result = release_parse_and_filter(&release,chunk,mydata->filter);
 	if( RET_IS_OK(result) ){
 
-		result = mydata->action(mydata->data,release);
-		free(release);
+		result = mydata->action(mydata->data,chunk,release);
+		release_free(release);
 	}
 
 	return result;
