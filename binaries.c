@@ -175,10 +175,9 @@ retvalue binaries_lookforold( DB *pkgs,const char *name, struct strlist *files) 
 	char *oldchunk;
 	retvalue r;
 
-	// TODO: why does packages_get return something else than a retvalue?
-	oldchunk = packages_get(pkgs,name);
-	if( oldchunk  == NULL ) {
-		return RET_NOTHING;
+	r = packages_get(pkgs,name,&oldchunk);
+	if( !RET_IS_OK(r) ) {
+		return r;
 	}
 	r = binaries_parse_getfiles(oldchunk,files);
 	free(oldchunk);
@@ -201,10 +200,9 @@ retvalue binaries_lookforolder(
 			&& newversion != NULL && oldversion != NULL
 			&& oldfilekeys != NULL );
 
-	// TODO: why does packages_get return something else than a retvalue?
-	oldchunk = packages_get(packages,packagename);
-	if( oldchunk  == NULL ) {
-		return RET_NOTHING;
+	r = packages_get(packages,packagename,&oldchunk);
+	if( !RET_IS_OK(r) ) {
+		return r;
 	}
 
 	r = binaries_parse_chunk(oldchunk,NULL,NULL,NULL,NULL,&ov);

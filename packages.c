@@ -123,7 +123,7 @@ retvalue packages_add(DB *packagesdb,const char *package,const char *chunk) {
 }
 
 /* get the saved chunk from the database */
-char *packages_get(DB *packagesdb,const char *package) {
+retvalue packages_get(DB *packagesdb,const char *package,char **chunk) {
 	int dbret;
 	DBT key,data;
 
@@ -131,12 +131,19 @@ char *packages_get(DB *packagesdb,const char *package) {
 	CLEARDBT(data);
 
 	if( (dbret = packagesdb->get(packagesdb, NULL, &key, &data, 0)) == 0){
-		return strdup(data.data);
+		char *c;
+		c = strdup(data.data);
+		if( c == NULL ) 
+			return RET_ERROR_OOM;
+		else {
+			*chunk = c;
+			return RET_OK;
+		}
 	} else if( dbret == DB_NOTFOUND ){
-		return NULL;
+		return RET_NOTHING;
 	} else {
 		 packagesdb->err(packagesdb, dbret, "packages.db:");
-		 return NULL;
+		 return RET_DBERR(dbret);
 	}
 }
 

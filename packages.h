@@ -23,8 +23,9 @@ retvalue packages_add(DB *packagsdb,const char *package,const char *chunk);
 retvalue packages_replace(DB *packagsdb,const char *package,const char *chunk);
 /* remove a given chunk from the database */
 retvalue packages_remove(DB *filesdb,const char *package);
-/* get the saved chunk from the database */
-char *packages_get(DB *packagesdb,const char *package);
+/* get the saved chunk from the database,
+ * returns RET_NOTHING, if there is none*/
+retvalue packages_get(DB *packagesdb,const char *package,char **chunk);
 
 /* check for existance of the given version of a package in the arch, 
  * > 0 found
