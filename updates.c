@@ -249,3 +249,77 @@ retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction
 	return result;
 }
 
+
+/******************* Fetch all Lists for an update **********************/
+
+inline static retvalue adddownload(struct strlist *d,char *remote,char *local) {
+	retvalue r;
+
+	// TODO: first check, if the specified file is already there,
+	// (hm, perhaps strlist is bad here and strtuplelist would be better)
+
+	if( !local || !remote ) {
+		free(remote);free(local);
+		return RET_ERROR_OOM;
+	} else {
+		r = strlist_add(d,remote);
+		if( RET_WAS_ERROR(r) ) {
+			free(local);
+			return r;
+		}
+		r = strlist_add(d,local);
+		return r;
+	}
+}
+
+retvalue updates_calcliststofetch(struct strlist *todownload,
+		/* where to save to file */
+		const char *listdir, const char *codename,const char *update, 
+		/* where to get it from */
+		const char *suite_from,
+		/* what parts to get */
+		const struct strlist *components_from,
+		const struct strlist *architectures
+		) {
+
+	const char *comp,*arch;
+	char *toget,*saveas;
+	retvalue r;
+	int i,j;
+
+	toget = mprintf("dists/%s/Release",suite_from);
+	saveas = mprintf("%s/%s_%s_Release",listdir,codename,update);
+	r = adddownload(todownload,toget,saveas);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	toget = mprintf("dists/%s/Release.gpg",suite_from);
+	saveas = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update);
+	r = adddownload(todownload,toget,saveas);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* * Iterate over components to update * */
+	for( i = 0 ; i < components_from->count ; i++ ) {
+		comp = components_from->values[i];
+
+		toget = mprintf("dists/%s/%s/source/Sources.gz",suite_from,comp);
+		saveas = mprintf("%s/%s_%s_%s_Sources.gz",listdir,codename,update,comp);
+		r = adddownload(todownload,toget,saveas);
+		if( RET_WAS_ERROR(r) )
+			return r;
+
+
+		for( j = 0 ; j < architectures->count ; j++ ) {
+			arch =architectures->values[j];
+
+			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,comp,arch);
+			saveas = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,codename,update,comp,arch);
+			r = adddownload(todownload,toget,saveas);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+
+	}
+	return RET_OK;
+}

@@ -39,6 +39,10 @@
 
 extern int verbose;
 
+// TODO: this file currently handles both, the checking of checksums in
+// existing Release file and the creation of release files and the handling
+// of what distributions to release. This should somehow be split apart.
+
 /* get a strlist with the md5sums of a Release-file */
 retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	gzFile fi;

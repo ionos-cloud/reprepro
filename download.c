@@ -16,6 +16,7 @@
  */
 #include <config.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <strings.h>
@@ -23,6 +24,7 @@
 #include <ctype.h>
 #include <malloc.h>
 #include "error.h"
+#include "strlist.h"
 #include "download.h"
 
 struct download {
@@ -98,4 +100,30 @@ retvalue download_cancel(struct download *download) {
 		return RET_ERROR;
 	}
 	return RET_NOTHING;
+}
+
+retvalue download_fetchfiles(const char *method,const char *config, 
+		             struct strlist *todownload) {
+	struct download *d;
+	retvalue result,r;
+	int i;
+
+	assert( method != NULL && config != NULL && todownload != NULL && 
+	 	todownload->count%2 == 0 );
+
+	result = download_initialize(&d,method,config);
+	if( RET_WAS_ERROR(result) )
+		return result;
+	for( i = 0 ; i+1 < todownload->count ; i+=2 ) {
+		r = download_add(d,todownload->values[i],todownload->values[i+1]);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	if( RET_WAS_ERROR(result) )
+		r = download_cancel(d);
+	else
+		r = download_run(d);
+	RET_UPDATE(result,r);
+	return result;
 }
