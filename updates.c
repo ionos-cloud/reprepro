@@ -298,7 +298,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 		return r;
 	if( r == RET_NOTHING ) {
 		toget = mprintf("dists/%s/Release",suite_from);
-		saveas = mprintf("%s/%s_%s_Release",listdir,codename,update);
+		saveas = calc_downloadedlistfile(listdir,codename,update,"Release","data");
 		r = adddownload(todownload,toget,saveas);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -306,7 +306,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 		// TODO: check if signatures are to be made...
 
 		toget = mprintf("dists/%s/Release.gpg",suite_from);
-		saveas = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update);
+		saveas = calc_downloadedlistfile(listdir,codename,update,"Release","gpg");
 		r = adddownload(todownload,toget,saveas);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -317,7 +317,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 		comp = components_from->values[i];
 
 		toget = mprintf("dists/%s/%s/source/Sources.gz",suite_from,comp);
-		saveas = mprintf("%s/%s_%s_%s_Sources.gz",listdir,codename,update,comp);
+		saveas = calc_downloadedlistfile(listdir,codename,update,comp,"source");
 		r = adddownload(todownload,toget,saveas);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -327,7 +327,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 			arch =architectures->values[j];
 
 			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,comp,arch);
-			saveas = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,codename,update,comp,arch);
+			saveas = calc_downloadedlistfile(listdir,codename,update,comp,arch);
 			r = adddownload(todownload,toget,saveas);
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -357,7 +357,7 @@ static retvalue checkpackagelists(struct strlist *checksums,
 		comp = components_from->values[i];
 
 		name = mprintf("%s/source/Sources.gz",comp);
-		totest = mprintf("%s/%s_%s_%s_Sources.gz",listdir,codename,update,comp);
+		totest = calc_downloadedlistfile(listdir,codename,update,comp,"source");
 		r = release_check(checksums,name,totest);
 		free(name); free(totest);
 		RET_UPDATE(result,r);
@@ -367,7 +367,7 @@ static retvalue checkpackagelists(struct strlist *checksums,
 			arch = architectures->values[j];
 
 			name = mprintf("%s/binary-%s/Packages.gz",comp,arch);
-			totest = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,codename,update,comp,arch);
+			totest = calc_downloadedlistfile(listdir,codename,update,comp,arch);
 			r = release_check(checksums,name,totest);
 			free(name); free(totest);
 			RET_UPDATE(result,r);
@@ -397,7 +397,7 @@ retvalue updates_checkfetchedlists(const struct update *update,const char *updat
 	if( r == RET_NOTHING )
 		checkoptions = NULL;
 
-	releasefile = mprintf("%s/%s_%s_Release",listdir,codename,update->name);
+	releasefile = calc_downloadedlistfile(listdir,codename,update->name,"Release","data");
 	if( releasefile == NULL ) {
 		free(checkoptions);
 		return RET_ERROR_OOM;
@@ -407,7 +407,7 @@ retvalue updates_checkfetchedlists(const struct update *update,const char *updat
 	if( checkoptions != NULL ) {
 		char *gpgfile;
 
-		gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update->name);
+		gpgfile = calc_downloadedlistfile(listdir,codename,update->name,"Release","gpg");
 		if( gpgfile == NULL ) {
 			free(releasefile);
 			free(checkoptions);

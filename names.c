@@ -26,6 +26,69 @@
 #include "strlist.h"
 #include "names.h"
 
+
+// This escaping is quite harsh, but so nothing bad can happen...
+static inline size_t escapedlen(const char *p) {
+	size_t l = 0;
+	if( *p == '-' ) {
+		l = 3;
+		p++;
+	}
+	while( *p ) {
+		if( (*p < 'A' || *p > 'Z' ) && (*p < 'a' || *p > 'z' ) && ( *p < '0' || *p > '9') && *p != '-' )
+			l +=3;
+		else
+			l++;
+		p++;
+	}
+	return l;
+}
+
+static inline char * escapecpy(char *dest,const char *orig) {
+	static char hex[16] = "0123456789ABCDEF";
+	if( *orig == '-' ) {
+		orig++;
+		*dest = '%'; dest++;
+		*dest = '2'; dest++;
+		*dest = 'D'; dest++;
+	}
+	while( *orig ) {
+		if( (*orig < 'A' || *orig > 'Z' ) && (*orig < 'a' || *orig > 'z' ) && ( *orig < '0' || *orig > '9') && *orig != '-' ) {
+			*dest = '%'; dest++;
+			*dest = hex[(*orig >> 4)& 0xF ]; dest++;
+			*dest = hex[*orig & 0xF ]; dest++;
+		} else {
+			*dest = *orig;
+			dest++;
+		}
+		orig++;
+	}
+	return dest;
+}
+
+char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture) {
+	size_t l_listdir,len;
+	char *result,*p;
+	
+	l_listdir = strlen(listdir),
+	len = escapedlen(codename) + escapedlen(origin) + escapedlen(component) + escapedlen(architecture);
+	p = result = malloc(l_listdir + len + 5);
+	if( result == NULL )
+		return result;
+	memcpy(p,listdir,l_listdir);
+	p += l_listdir; 
+	*p = '/'; p++;
+	p = escapecpy(p,codename);
+	*p = '_'; p++;
+	p = escapecpy(p,origin);
+	*p = '_'; p++;
+	p = escapecpy(p,component);
+	*p = '_'; p++;
+	p = escapecpy(p,architecture);
+	*p = '\0';
+	return result;
+}
+
 char *calc_identifier(const char *codename,const char *component,const char *architecture) {
 	return mprintf("%s-%s-%s",codename,component,architecture);
 }
