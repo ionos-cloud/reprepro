@@ -1,3 +1,7 @@
+2005-01-28  Bernhard R. Link <brlink@debian.org>
+	* readd _detect command
+	* write recovery HOWTO how to deal with database corruptions
+
 2005-01-27(at least GMT)  Bernhard R. Link <brlink@debian.org>
 	* add a lockfile 
 

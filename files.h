@@ -80,4 +80,7 @@ retvalue files_printmd5sums(filesdb filesdb);
 /* concat mirrordir. return NULL if OutOfMemory */
 char *files_calcfullfilename(const filesdb filesdb,const char *filekey);
 
+/* look for the given filekey and add it into the filesdatabase */
+retvalue files_detect(filesdb db,const char *filekey);
+
 #endif

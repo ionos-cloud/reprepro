@@ -540,7 +540,6 @@ static retvalue action_listfilter(int argc,const char *argv[]) {
 	return result;
 }
 
-/* to be readded later....
 static retvalue action_detect(int argc,const char *argv[]) {
 	filesdb files;
 	char buffer[5000],*nl;
@@ -572,7 +571,6 @@ static retvalue action_detect(int argc,const char *argv[]) {
 	RET_ENDUPDATE(ret,r);
 	return ret;
 }
-*/
 
 static retvalue action_forget(int argc,const char *argv[]) {
 	filesdb files;
@@ -1246,7 +1244,7 @@ static struct action {
 } actions[] = {
 	{"__d", 		action_printargs},
 	{"__extractcontrol",	action_extractcontrol},
-//	{"_detect", 		action_detect},
+	{"_detect", 		action_detect},
 	{"_forget", 		action_forget},
 	{"_md5sums", 		action_md5sums},
 	{"_dumpcontents", 	action_dumpcontents},

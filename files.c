@@ -448,6 +448,34 @@ retvalue files_checkpool(filesdb filesdb,bool_t fast) {
 	return files_foreach(filesdb,checkfile,&d);
 }
 
+retvalue files_detect(filesdb db,const char *filekey) {
+	char *md5sum;
+	char *fullfilename;
+	retvalue r;
+	
+	fullfilename = calc_fullfilename(db->mirrordir,filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+	r = md5sum_read(fullfilename,&md5sum);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Error opening '%s'!\n",fullfilename);
+		r = RET_ERROR_MISSING;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		return r;
+	}
+	if( verbose > 20 ) {
+		fprintf(stderr,"Md5sum of '%s' is '%s'.\n",fullfilename,md5sum);
+	}
+	free(fullfilename);
+	r = files_add(db,filekey,md5sum);
+	free(md5sum);
+	return r;
+
+
+}
+
 /* Include a given file into the pool. */
 retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete) {
 	retvalue r;
