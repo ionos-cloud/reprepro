@@ -220,7 +220,7 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	strlist_fprint(f,&distribution->components);
 	fprintf(f,"\n");
 	if( distribution->description != NULL )
-		fprintf(f,Description: %s\n", distribution->description);
+		fprintf(f,"Description: %s\n", distribution->description);
 	fprintf(f,"MD5Sum:\n");
 
 	/* generate bin/source-Release-files and add md5sums */
