@@ -49,3 +49,30 @@ mirrorer -Vb . includedeb pcpool /lhome/aptcache/zoggy_0.91-3_i386.deb
 to add a .changes file:
 
 mirrorer -Vb . include pcpool test.changes
+
+Hint: you can add -C component, -A architecture, -S section, -P priority
+to give additional hints where it should go. (Note -A will not overwrite
+something to go into another architecture, but simply ignore those not
+fitting, only "Architecture: all" packages are placed exactly in theese
+architecture. (Helps when it is not available for all architectures and
+each binary version needs a fitting version of the Arch:all package))
+
+3) to remove files:
+	
+mirrorer -Vb . remove pcpool zoggy
+
+to only delete in a specific component or architecture:
+
+mirrorer -Vb . -C main -A i386 remove pcpool zoggy
+
+Note: this only removes it out of the database for this distribution.
+To delete the physical files, try:
+
+mirrorer -Vb . deleteunrefereced
+
+4) getting informations:
+To see in which architectures/components a packages exists and which version it uses.
+
+mirrorer -b . list pcpool zoggy
+
+
