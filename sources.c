@@ -16,6 +16,7 @@
  */
 #include <config.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <string.h>
 #include <strings.h>
@@ -34,16 +35,19 @@ extern int verbose;
 
 /* traverse through a '\n' sepeated lit of "<md5sum> <size> <filename>" 
  * > 0 while entires found, ==0 when not, <0 on error */
-retvalue sources_getfile(const char **files,char **basename,char **md5andsize) {
-	const char *md5,*md5end,*size,*sizeend,*fn,*fnend,*p;
+retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize) {
+	const char *md5,*md5end,*size,*sizeend,*fn,*fnend;
 	char *md5as,*filen;
 
-	if( !files || !*files || !**files )
+	assert( fileline != NULL );
+	if( !*fileline )
 		return RET_NOTHING;
 
-	md5 = *files;
+	/* the md5sums begins after the (perhaps) heading spaces ...  */
+	md5 = fileline;
 	while( isspace(*md5) )
 		md5++;
+	/* ... and ends with the following spaces. */
 	md5end = md5;
 	while( *md5end && !isspace(*md5end) )
 		md5end++;
@@ -53,6 +57,7 @@ retvalue sources_getfile(const char **files,char **basename,char **md5andsize) {
 		}
 		return RET_ERROR;
 	}
+	/* Then the size of the file is expected: */
 	size = md5end;
 	while( isspace(*size) )
 		size++;
@@ -65,26 +70,21 @@ retvalue sources_getfile(const char **files,char **basename,char **md5andsize) {
 		}
 		return RET_ERROR;
 	}
+	/* Then the filename */
 	fn = sizeend;
 	while( isspace(*fn) )
 		fn++;
 	fnend = fn;
 	while( *fnend && !isspace(*fnend) )
 		fnend++;
-	if( *fnend && !isspace(*fnend) )
-		return RET_ERROR;
-	p = fnend;
-	while( *p && *p != '\n' )
-		p++;
-	if( *p )
-		p++;
-	*files = p;
 
 	filen = strndup(fn,fnend-fn);
+	if( !filen )
+		return RET_ERROR_OOM;
 	if( md5andsize ) {
 		md5as = malloc((md5end-md5)+2+(sizeend-size));
-		if( !filen || !md5as ) {
-			free(filen);free(md5as);
+		if( !md5as ) {
+			free(filen);
 			return RET_ERROR_OOM;
 		}
 		strncpy(md5as,md5,md5end-md5);
@@ -105,7 +105,7 @@ retvalue sources_getfile(const char **files,char **basename,char **md5andsize) {
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files) {
+retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,struct strlist *files) {
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
@@ -131,7 +131,7 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdir
 
   	if( files ) {
   
-		r = chunk_getextralines(chunk,"Files",files);
+		r = chunk_getextralinelist(chunk,"Files",files);
 		if( !RET_IS_OK(r) ) {
 			IFREE(packagename);
   			IFREE(origdirectory);
@@ -171,8 +171,9 @@ static retvalue addsource(void *data,const char *chunk) {
 	int isnewer;
 	struct sources_add *d = data;
 
-	char *package,*directory,*olddirectory,*files;
+	char *package,*directory,*olddirectory;
 	char *oldchunk;
+	struct strlist files;
 
 	r = sources_parse_chunk(chunk,&package,&olddirectory,&files);
 	if( r == RET_NOTHING ) {
@@ -184,7 +185,7 @@ static retvalue addsource(void *data,const char *chunk) {
 	if( oldchunk && (isnewer=sources_isnewer(chunk,oldchunk)) != 0 ) {
 		if( isnewer < 0 ) {
 			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
-			free(package);free(files);
+			free(package);strlist_free(&files);
 			free(olddirectory);
 			free(oldchunk);
 			return RET_ERROR;
@@ -196,14 +197,14 @@ static retvalue addsource(void *data,const char *chunk) {
 		if( !directory )
 			r = RET_ERROR_OOM;
 		else
-			r = (*d->action)(d->data,chunk,package,directory,olddirectory,files,oldchunk);
+			r = (*d->action)(d->data,chunk,package,directory,olddirectory,&files,oldchunk);
 		free(directory);
 	} else {
 		r = RET_NOTHING;
 	}
 	free(oldchunk);
 	
-	free(package);free(files);
+	free(package);strlist_free(&files);
 	free(olddirectory);
 
 	return r;
@@ -224,10 +225,11 @@ retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, so
 
 /* remove all references by the given chunk */
 retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
-	char *directory,*files;
-	const char *nextfile;
+	char *directory;
+	struct strlist files;
 	char *filename,*filekey;
 	retvalue r,result;
+	int i;
 
 	r = sources_parse_chunk(chunk,NULL,&directory,&files);
 	if( !RET_IS_OK(r) )
@@ -235,8 +237,12 @@ retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
 
 	result = RET_NOTHING;
 	
-	nextfile = files;
-	while( RET_IS_OK(r=sources_getfile(&nextfile,&filename,NULL)) ){
+	for( i = 0 ; i < files.count ; i++ ) {
+		r = sources_getfile(files.values[i],&filename,NULL);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
 		filekey = calc_srcfilekey(directory,filename);
 		if( verbose > 4 ) {
 			fprintf(stderr,"Decrementing reference for '%s' to '%s'...\n",referee,filekey);
@@ -247,7 +253,7 @@ retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
 
 		free(filename);free(filekey);
 	}
-	free(directory);free(files);
+	free(directory);strlist_free(&files);
 
 	return result;
 }

@@ -43,9 +43,10 @@ extern int verbose;
 retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
 	retvalue r;
 	gzFile fi;
-	const char *n;
-	char *c,*files;
+	struct strlist files;
+	char *c;
 	char *filename,*md5andsize,*realmd5andsize;
+	int i;
 
 	/* Get the md5sums from the Release-file */
 	
@@ -60,9 +61,7 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 		fprintf(stderr,"Error reading %s.\n",releasefile);
 		return RET_ERROR;
 	}
-	//TODO: use this one, once there is a sources_getfile-variant for lists...
-	// r = chunk_getextralinelist(c,"MD5Sum",&filelist);
-	r = chunk_getextralines(c,"MD5Sum",&files);
+	r = chunk_getextralinelist(c,"MD5Sum",&files);
 	free(c);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing MD5Sums-field.\n");
@@ -74,12 +73,15 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 	realmd5andsize = NULL;
 	if( ! RET_IS_OK(r=md5sum_and_size(&realmd5andsize,filetocheck,0))) {
 		fprintf(stderr,"Error checking %s: %m\n",filetocheck);
-		free(files);
+		strlist_free(&files);
 		return r;
 	}
 
-	n = files;
-	while( RET_IS_OK( r = sources_getfile(&n,&filename,&md5andsize) ) ) {
+	r = RET_NOTHING;
+	for( i = 0 ; i < files.count ; i++ ) {
+		r = sources_getfile(files.values[i],&filename,&md5andsize);
+		if( RET_WAS_ERROR(r) )
+			break;
 		if( verbose > 2 ) 
 			fprintf(stderr,"is it %s?\n",filename);
 		if( strcmp(filename,nametocheck) == 0 ) {
@@ -100,11 +102,12 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 			}
 		}
 		free(md5andsize);free(filename);
+		r = RET_NOTHING;
 	}
 	if( r==RET_NOTHING && verbose>=0 )
 		fprintf(stderr,"%s failed as missing\n",nametocheck);
 	free(realmd5andsize);
-	free(files);
+	strlist_free(&files);
 	return r;
 }
 

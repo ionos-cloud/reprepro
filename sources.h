@@ -7,11 +7,10 @@
 #warning "What's hapening here?"
 #endif
 
-/* traverse through a '\n' sepeated lit of "<md5sum> <size> <filename>" 
- * > 0 while entires found, ==0 when not, <0 on error */
-retvalue sources_getfile(const char **files,char **filename,char **md5andsize);
+/* get filename and md5andsize from a files: line" */
+retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize);
 
-retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files);
+retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,struct strlist *files);
 
 /* action taken by sources_add for each sourcepacke missing */
 typedef retvalue source_package_action(
@@ -26,7 +25,7 @@ typedef retvalue source_package_action(
 	/* the directory specified by the chunk. (relative to dists/) */
 	const char *olddirectory,
 	/* a \n seperated list of md5sums,sizes and filenames, as parseable by sources_getfile */
-	const char *files,
+	const struct strlist *files,
 	/* !=NULL if there was a older chunk in the pkgs-database to be replaced */
 	const char *oldchunk);
 

@@ -369,9 +369,10 @@ int referencebinaries(int argc,char *argv[]) {
 
 retvalue reference_source(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
-	const char *nextfile;
-	char *dir,*files,*filekey,*basefilename;
+	char *dir,*filekey,*basefilename;
+	struct strlist files;
 	retvalue ret,r;
+	int i;
 
 	r = sources_parse_chunk(chunk,NULL,&dir,&files);
 	if( verbose >= 0 && r == RET_NOTHING ) {
@@ -382,22 +383,25 @@ retvalue reference_source(void *data,const char *package,const char *chunk) {
 
 	if( verbose > 10 )
 		fprintf(stderr,"referencing source package: %s\n",package);
-	nextfile = files;
 	ret = RET_NOTHING;
-	while( RET_IS_OK(r =sources_getfile(&nextfile,&basefilename,NULL)) ){
+	for( i = 0 ; i < files.count ; i++ ) {
+		r = sources_getfile(files.values[i],&basefilename,NULL);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(ret,r);
+			break;
+		}
 		filekey = calc_srcfilekey(dir,basefilename);
 		if( !filekey) {
-			free(dir);free(files);free(basefilename);
+			free(dir);strlist_free(&files);free(basefilename);
 			return RET_ERROR;
 		}
 		r = references_increment(dist->refs,filekey,dist->identifier);
 		free(filekey);free(basefilename);
+		RET_UPDATE(ret,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		RET_UPDATE(ret,r);
 	}
-	RET_UPDATE(ret,r);
-	free(dir);free(files);
+	free(dir);strlist_free(&files);
 	return ret;
 }
 
@@ -437,20 +441,24 @@ struct distribution {
 
 /***********************************addsources***************************/
 
-retvalue add_source(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk) {
+retvalue add_source(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
-	const char *nextfile;
+	int i;
 	char *basefilename,*filekey,*md5andsize;
-
 
 	/* look for needed files */
 
-	nextfile = files;
-	while( RET_IS_OK(r=sources_getfile(&nextfile,&basefilename,&md5andsize)) ){
+	for( i = 0 ; i < files->count ; i++ ) {
+		r = sources_getfile(files->values[i],&basefilename,&md5andsize);
+		if( RET_WAS_ERROR(r) )
+			return r;
 		filekey = calc_dirconcat(directory,basefilename);
-		
+		if( !filekey ) {
+			free(basefilename);free(md5andsize);
+			return RET_ERROR_OOM;
+		}
 		r = files_expect(dist->files,mirrordir,filekey,md5andsize);
 		if( RET_WAS_ERROR(r) ) {
 			free(basefilename);free(md5andsize);free(filekey);
@@ -467,8 +475,6 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 
 		free(basefilename);free(md5andsize);free(filekey);
 	}
-	if( RET_WAS_ERROR(r) )
-		return r;
 
 	/* Add package to distribution's database */
 
@@ -539,12 +545,12 @@ int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk) {
+retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	retvalue r,ret;
 	struct distribution *dist = (struct distribution*)data;
 	char *dn;
-	const char *nextfile;
 	char *basefilename,*filekey,*md5andsize;
+	int i;
 
 	/* look for directory */
 	if( (dn = calc_fullfilename(mirrordir,directory))) {
@@ -554,9 +560,11 @@ retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package
 			return RET_ERROR;
 	}
 
-	nextfile = files;
-	ret = RET_NOTHING;
-	while( RET_IS_OK(r =sources_getfile(&nextfile,&basefilename,&md5andsize)) ){
+	ret = r = RET_NOTHING;
+	for( i = 0 ; i < files->count ; i++ ) {
+		r = sources_getfile(files->values[i],&basefilename,&md5andsize);
+		if( RET_WAS_ERROR(r) )
+			break;
 		filekey = calc_srcfilekey(directory,basefilename);
 		
 		r = files_expect(dist->files,mirrordir,filekey,md5andsize);

@@ -20,7 +20,6 @@ char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
 retvalue chunk_getfirstword(const char *chunk,const char *name,char **value);
-retvalue chunk_getextralines(const char *chunk,const char *name,char **value);
 retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist);
 retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist);
 

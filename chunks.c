@@ -252,35 +252,6 @@ retvalue chunk_getfirstword(const char *chunk,const char *name,char **value) {
 	return RET_OK;
 }
 
-retvalue chunk_getextralines(const char *chunk,const char *name,char **value) {
-	const char *field;
-	char *val;
-	const char *b,*e;
-
-	assert(value != NULL);
-	field = chunk_getfield(name,chunk);
-	if( !field )
-		return RET_NOTHING;
-
-	b = field;
-	while( *b && *b != '\n' )
-		b++;
-	if( *b != '\0' )
-		b++;
-	e = b;
-	while( isblank(*e) ) {
-		while( *e != '\n' && *e != '\0' )
-			e++;
-		if( *e )
-			e++;
-	}
-	val = strndup(b,e-b);
-	if( !val )
-		return RET_ERROR_OOM;
-	*value = val;
-	return RET_OK;
-}
-
 retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist) {
 	retvalue r;
 	const char *f,*b,*e;
