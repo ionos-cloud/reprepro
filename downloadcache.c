@@ -102,7 +102,7 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 	retvalue r;
 
 	assert(filesdb && cache && method);
-	r = files_check(filesdb,filekey,md5sum);
+	r = files_expect(filesdb,filekey,md5sum);
 	if( r != RET_NOTHING )
 		return r;
 
