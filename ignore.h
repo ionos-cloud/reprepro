@@ -14,6 +14,7 @@
 	IGN(overlongcomments) \
 	IGN(spaceonlyline) \
 	IGN(malformedchunk) \
+	IGN(shortkeyid) \
 	IGN(unknownfield)
 
 

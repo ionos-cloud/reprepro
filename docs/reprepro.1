@@ -382,7 +382,9 @@ file and check if it is a signature of the
 .B Releasefile 
 with the key given here. (In the Format as
 "gpg \-\-with\-colons \-\-list\-key" prints it, i.e. the last
-16 hexdigits of the fingerprint)
+16 hexdigits of the fingerprint) Multiple keys can be specified
+by seperating them with a "|" sign. Then finding a signature
+from one of the will suffice.
 .TP
 .B IgnoreRelease
 If this is present, no

@@ -11,6 +11,8 @@
 
 	* Some tidy up to reduce number of warnings with -W
 
+	* Allow multiple keys specified in update's ReleaseCheck
+
 2005-01-29  Bernhard R. Link <brlink@debian.org>
 	* Be more descriptive with missing signatures.
 

@@ -98,7 +98,7 @@ struct update_pattern {
 	char *suite_from;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
 	bool_t ignorerelease;
-	//e.g. "ReleaseCheck: B629A24C38C6029A" (NULL means not check)
+	//e.g. "VerifyRelease: B629A24C38C6029A" (NULL means not check)
 	char *verifyrelease;
 	//e.g. "Architectures: i386 sparc mips" (empty means all)
 	struct strlist architectures_from;

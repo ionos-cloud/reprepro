@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <gpgme.h>
 #include "error.h"
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "dirs.h"
@@ -64,6 +65,43 @@ static retvalue signature_init(void){
 		return gpgerror(err);
 	gpgme_set_armor(context,1);
 	return RET_OK;
+}
+
+static inline retvalue containskey(const char *key, const char *fingerprint) {
+
+	size_t fl,kl;
+	const char *keypart,*p;
+
+	fl = strlen(fingerprint);
+
+	keypart = key;
+	while( 1 ) {
+		while( *keypart != '\0' && isspace(*keypart) )
+			keypart++;
+		if( *keypart == '\0' )
+			/* nothing more to check, so nothing fullfilled */
+			return RET_NOTHING;
+		p = keypart;
+		while( *p != '\0' && !isspace(*p) && *p != '|' )
+			p++;
+		kl = p-keypart;
+		if( kl < 8 && !IGNORING("Ignoring","To ignore this",shortkeyid,"Too short keyid specified (less than 8 characters) in '%s'!\n",key)) {
+			return RET_ERROR;
+		}
+		if( kl < fl && strncmp(fingerprint+fl-kl,keypart,kl) == 0 )
+			return RET_OK;
+		keypart = p;
+		while( *keypart != '\0' && isspace(*keypart) )
+			keypart++;
+		if( *keypart == '\0' )
+			return RET_NOTHING;
+		if( *keypart == '|' )
+			keypart++;
+		else {
+			fprintf(stderr,"Space seperated values in keyid '%s'!\n(Use | symbols to seperate multiple possible keys!)\n",key);
+			return RET_ERROR;
+		}
+	}
 }
 
 static inline retvalue checksignatures(GpgmeCtx context,const char *key,const char *releasegpg) {
@@ -107,12 +145,8 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 #else
 		if( status == GPGME_SIG_STAT_GOOD ) {
 #endif
-			size_t fl,kl;
 
-			if( key == NULL || (
-				(kl = strlen(key)) <= (fl = strlen(fingerprint))
-				&& strncmp(fingerprint+fl-kl,key,kl) == 0 )) {
-
+			if( key == NULL || containskey(key,fingerprint) ) {
 				result = RET_OK;
 				if( verbose <= 3 )
 					break;
@@ -141,8 +175,6 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	r = signature_init();
 	if( RET_WAS_ERROR(r) )
 		return r;
-
-	//TODO: choose which key to check against?
 
 	/* Read the file and its signature into memory: */
 
