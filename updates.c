@@ -123,7 +123,6 @@ static retvalue splitcomponents(struct strlist *components_from,
 			strlist_done(components_into);
 			return RET_ERROR_OOM;
 		}
-		//TODO: check if in distribution.compoents 
 		r = strlist_add(components_from,origin);
 		if( RET_WAS_ERROR(r) ) {
 			free(destination);
@@ -302,8 +301,13 @@ static retvalue instance_pattern(const struct update_upstream *pattern,
 	}
 	if( pattern->components_from.count == 0 )
 		r = strlist_dup(&update->components_from,&distribution->components);
-	else
-		r = strlist_dup(&update->components_from,&pattern->components_from);
+	else {
+		if( !strlist_subset(&distribution->components,&pattern->components_from) ) {
+			fprintf(stderr,"Cannot add from '%s' to a component in '%s' not existing!\n",pattern->name,distribution->codename);
+			r = RET_ERROR;
+		} else
+			r = strlist_dup(&update->components_from,&pattern->components_from);
+	}
 	if( RET_WAS_ERROR(r) ) {
 		update_upstream_free(update);
 		return r;
@@ -387,6 +391,36 @@ static retvalue getupstreams(const struct update_upstream *patterns,const struct
 	return result;
 }
 
+static inline retvalue findmissingupdate(int count,const struct distribution *distribution,struct update_upstream *updates) {
+	retvalue result;
+
+	result = RET_OK;
+
+	if( count != distribution->updates.count ) {
+		int i;
+
+		for( i=0;i<distribution->updates.count;i++ ){
+			const char *update = distribution->updates.values[i];
+			struct update_upstream *u;
+
+			u = updates;
+			while( u && strcmp(u->name,update) != 0 ) 
+				u = u->next;
+			if( u == NULL ) {
+				fprintf(stderr,"Update '%s' is listed in distribution '%s', but was not found!\n",update,distribution->codename);
+				result = RET_ERROR_MISSING;
+				break;
+			}
+		}
+		if( RET_IS_OK(result) ) {
+			fprintf(stderr,"Did you write an update two times in the update-line of '%s'?\n",distribution->codename);
+			result = RET_NOTHING;
+		}
+	}
+
+	return result;
+}
+
 retvalue updates_getupstreams(const struct update_upstream *patterns,const struct distribution *distributions,struct update_upstream **upstreams) {
 	struct update_upstream *updates = NULL;
 	const struct distribution *distribution;
@@ -405,14 +439,23 @@ retvalue updates_getupstreams(const struct update_upstream *patterns,const struc
 			break;
 		if( RET_IS_OK(r) ) {
 			struct update_upstream *last;
+			int count;
 
-			//TODO: make sure count==count
-	
-			// TODO: ensure this:
 			assert(update);
 			last = update;
-			while( last->next )
+			count = 1;
+			while( last->next ) {
 				last = last->next;
+				count++;
+			}
+			/* Check if we got all: */
+			r = findmissingupdate(count,distribution,update);
+			if( RET_WAS_ERROR(r) ) {
+				result = r;
+				break;
+			}
+
+			/* add the new in front of the old: */
 			last->next = updates;
 			updates = update;
 		}
