@@ -154,7 +154,7 @@ struct update_target {
 
 struct update_distribution {
 	struct update_distribution *next;
-	const struct distribution *distribution;
+	struct distribution *distribution;
 	struct update_origin *origins;
 	struct update_target *targets;
 };
@@ -1743,7 +1743,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -1761,6 +1761,10 @@ retvalue updates_iteratedupdate(const char *dbdir,const char *methoddir,filesdb 
 		}
 		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,dereferencedfilekeys);
 		RET_UPDATE(result,r);
+		if( RET_IS_OK(r) ) {
+			r = distribution_export(d->distribution,confdir,dbdir,distdir,force,TRUE);
+			RET_UPDATE(result,r);
+		}
 	}
 	return result;
 }

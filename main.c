@@ -713,7 +713,7 @@ ACTION_D(iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(dbdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,dereferenced);
+		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,dereferenced);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 

@@ -1,3 +1,7 @@
+2005-03-29  Bernhard R. Link <brlink@debian.org>
+	* iteratedupdate directly exports indices instead
+	of all at the end...
+
 2005-03-28  Bernhard R. Link <brlink@debian.org>
 	* Implement "interatedupdate" command, which iterates the 
 	distributions and targets within them, instead of first 
