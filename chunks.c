@@ -171,13 +171,13 @@ char *chunk_dupextralines(const char *field) {
 
 	if( !field)
 		return NULL;
-	if( *field && *field != '\n' )
+	while( *field && *field != '\n' )
 		field++;
-	h = field;
-	if( *h == '\0' )
+	if( *field == '\0' )
 		return NULL;
-	h++;
-	while( *h == ' ' ) {
+	field++;
+	h = field;
+	while( isblank(*h) ) {
 		while( *h != '\n' && *h != '\0' )
 			h++;
 		if( *h )

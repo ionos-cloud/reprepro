@@ -17,6 +17,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <assert.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
@@ -33,6 +34,7 @@
 #include "binaries.h"
 #include "sources.h"
 #include "release.h"
+#include "download.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "/var/spool/mirrorer"
@@ -978,10 +980,97 @@ int export(int argc,char *argv[]) {
 
 /***********************update********************************/
 
+
+static retvalue fetchupstreamcomponentlists(
+		struct download *download,
+		const char *chunk,
+		const struct release *release,
+		const char *upstream,
+		const char *origin,
+		const char *destination) {
+
+	fprintf(stderr,"... '%s':'%s'>'%s'\n",upstream,origin,destination);
+	return RET_NOTHING;
+}
+
+static retvalue fetchupstreamlists(const char *chunk,const struct release *release,const char *upstream) {
+	retvalue result,r;
+	char *keyname,*component,*destination,*origin;
+	char *config;
+	struct worditerator components;
+	struct download *download;
+
+	/* * Check which components to update * */
+	
+	keyname = mprintf("Update-%s",upstream);
+	if( !keyname )
+		r = RET_ERROR_OOM;
+	else 
+		r = chunk_getworditerator(chunk,keyname,&components);
+	if( !RET_IS_OK(r) ) {
+		if( r== RET_NOTHING ) {
+			fprintf(stderr,"Cannot find '%s' line in '%s' specification.\n",keyname,release->codename);
+			return RET_ERROR;
+		} else
+			return r;
+	} 
+
+	/* * Prepare the download-backend * */
+	r = chunk_getextralines(chunk,keyname,&config);
+	/* it was already found, so should be found again */
+	assert( r != RET_NOTHING );
+	if( !RET_IS_OK(r) )
+		return r;
+
+	r = download_initialize(&download,config);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	/* * Iterator over components to update * */
+	result = RET_NOTHING;
+	while( RET_IS_OK(r = chunk_worditerator_get(&components,&component))){
+
+		if( !(destination = strchr(component,'>')) || !*(destination+1))
+			r = fetchupstreamcomponentlists(download,
+					chunk,release,upstream,
+					component,component);
+		else {
+			origin = strndup(component,destination-component);
+			destination++;
+			if( !origin )
+				r = RET_ERROR_OOM;
+			else
+				r = fetchupstreamcomponentlists(download,
+						chunk,release,upstream,
+						origin,destination);
+			free(origin);
+		}
+
+		RET_UPDATE(result,r);
+
+		free(component);
+		chunk_worditerator_next(&components);
+	}
+
+	/* * fire up downloading * */
+
+	if( RET_IS_OK(result) )
+		result = download_run(download);
+	else {
+		r = download_cancel(download);
+		RET_ENDUPDATE(result,r);
+	}
+
+	// TODO: check gpg of Release...
+	
+	return result;
+}
+
+
 static retvalue doupdate(void *dummy,const char *chunk,const struct release *release) {
 	retvalue result,r;
-	char *upstream,*keyname,*component;
-	struct worditerator upstreams,components;
+	char *upstream;
+	struct worditerator upstreams;
 
 	r = chunk_getworditerator(chunk,"Update",&upstreams);
 	if( r == RET_NOTHING && verbose > 1 ) {
@@ -998,31 +1087,11 @@ static retvalue doupdate(void *dummy,const char *chunk,const struct release *rel
 			fprintf(stderr,"Updating '%s':'%s'...\n",release->codename,upstream);
 		}
 
-		/* Check which components to update */
-		keyname = mprintf("Update-%s",upstream);
-		if( !keyname )
-			r = RET_ERROR_OOM;
-		else 
-			r = chunk_getworditerator(chunk,keyname,&components);
-		if( !RET_IS_OK(r) ) {
-			if( r== RET_NOTHING ) {
-				fprintf(stderr,"Cannot find '%s' line in '%s' specification.\n",keyname,release->codename);
-				RET_UPDATE(result,RET_ERROR);
-			} else
-				RET_UPDATE(result,r);
-			free(upstream);
-			break;
-		} 
-		/* Iterator over components to update */
-		while( RET_IS_OK( r = chunk_worditerator_get(&components,&component) ) ){
-			fprintf(stderr,"... '%s'\n",component);	
-			
-			free(component);
-			chunk_worditerator_next(&components);
-		}
-		RET_UPDATE(result,r);
-
+		r = fetchupstreamlists(chunk,release,upstream);
 		free(upstream);
+		if( RET_WAS_ERROR(r) )
+			break;
+		
 		chunk_worditerator_next(&upstreams);
 	}
 	RET_UPDATE(result,r);
