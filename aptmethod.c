@@ -179,7 +179,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 	method->child = -1;
 	method->status = ams_notstarted;
 	p = uri;
-	while( *p && ( *p == '_' || *p == '-' ||
+	while( *p != '\0' && ( *p == '_' || *p == '-' ||
 		(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
 		(*p>='0' && *p<='9') ) ) {
 		p++;
@@ -392,7 +392,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 
 /**************************how to add files*****************************/
 
-/*@null@*/static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
+/*@null@*/static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey) {
 	struct tobedone *todo;
 
 	todo = malloc(sizeof(struct tobedone));
@@ -422,7 +422,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey,struct tobedone **t) {
+retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey,/*@null@*/struct tobedone **t) {
 	struct tobedone *todo;
 
 	todo = newtodo(method->baseuri,origfile,destfile,md5sum,filekey);
@@ -473,7 +473,7 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	} else {
 		retvalue r;
 	/* if it should be in place, calculate its md5sum, if needed */
-		if( todo->md5sum && !md5sum ) {
+		if( todo->md5sum != NULL && md5sum == NULL) {
 			r = md5sum_read(filename,&calculatedmd5);
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
@@ -741,6 +741,9 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 						return logmessage(method,p,"102");
 					}
 					return RET_OK;
+				default:
+					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					return RET_ERROR;
 			}
 		case '2':
 			switch( *(input+2) ) {
@@ -757,6 +760,9 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					if( verbose >= 1 )
 						logmessage(method,p,"got");
 					return goturidone(method,p,filesdb);
+				default:
+					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					return RET_ERROR;
 			}
 
 		case '4':
@@ -822,7 +828,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	method->alreadyread += r;
 
 	result = RET_NOTHING;
-	while(1) {
+	while(TRUE) {
 		retvalue res;
 
 		r = method->alreadyread; 
