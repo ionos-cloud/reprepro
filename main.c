@@ -149,6 +149,12 @@ static inline retvalue removeunreferencedfiles(references refs,filesdb files,str
 			struct strlist* dereferenced, 	\
 			int argc,const char *argv[])
 
+#define ACTION_D_U(name) static retvalue action_d_ ## name ( \
+			references references, 		\
+			UNUSED(filesdb dummy2),		\
+			struct strlist* dereferenced, 	\
+			int argc,const char *argv[])
+
 ACTION_N(printargs) {
 	int i;
 
@@ -329,7 +335,7 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target) 
 	return result;
 }
 
-ACTION_D(remove) {
+ACTION_D_U(remove) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct remove_args d;
