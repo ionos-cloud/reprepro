@@ -60,6 +60,8 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 		fprintf(stderr,"Error reading %s.\n",releasefile);
 		return RET_ERROR;
 	}
+	//TODO: use this one, once there is a sources_getfile-variant for lists...
+	// r = chunk_getextralinelist(c,"MD5Sum",&filelist);
 	r = chunk_getextralines(c,"MD5Sum",&files);
 	free(c);
 	if( r == RET_NOTHING ) {

@@ -273,6 +273,54 @@ retvalue chunk_getextralines(const char *chunk,const char *name,char **value) {
 	return RET_OK;
 }
 
+retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist) {
+	retvalue r;
+	const char *f,*b,*e;
+	char *v;
+
+	f = chunk_getfield(name,chunk);
+	if( !f )
+		return RET_NOTHING;
+	r = strlist_new(strlist);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	/* walk over the first line */
+	while( *f && *f != '\n' )
+		f++;
+	/* nothing there is an emtpy list */
+	if( *f == '\0' )
+		return RET_OK;
+	f++;
+	/* while lines begin with ' ', add them */
+	while( *f == ' ' ) {
+		while( *f && isblank(*f) )
+			f++;
+		b = f;
+		while( *f && *f != '\n' )
+			f++;
+		e = f;
+		while( e > b && *e && isspace(*e) )
+			e--;
+		if( e != b )
+			v = strndup(b,e-b+1);
+		else 
+			v = strdup("");
+		if( !v ) {
+			strlist_free(strlist);
+			return RET_ERROR_OOM;
+		}
+		r = strlist_add(strlist,v);
+		if( !RET_IS_OK(r) ) {
+			strlist_free(strlist);
+			return r;
+		}
+		if( *f == '\0' )
+			return RET_OK;
+		f++;
+	}
+	return RET_OK;
+}
+
 
 retvalue chunk_worditerator_get(const struct worditerator *iterator,char **word) {
 	const char *p;

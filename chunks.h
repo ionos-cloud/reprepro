@@ -7,6 +7,7 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#include "strlist.h"
 
 /* get the next chunk from file f */
 char *chunk_read(gzFile f);
@@ -16,7 +17,7 @@ const char *chunk_getfield(const char *name,const char *chunk);
  * prints an error when not found and adds to the end */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
 
-/* worditerator */
+/* worditerator (DEPRECEATED, TODO: remove)*/
 struct worditerator { const char *c; };
 retvalue chunk_worditerator_get(const struct worditerator *iterator,char **word);
 retvalue chunk_worditerator_next(struct worditerator *iterator);
@@ -25,7 +26,9 @@ retvalue chunk_worditerator_next(struct worditerator *iterator);
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
 retvalue chunk_getfirstword(const char *chunk,const char *name,char **value);
 retvalue chunk_getextralines(const char *chunk,const char *name,char **value);
-/* get a word iterator for the given field */
+retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist);
+
+/* get a word iterator for the given field. DEPRECEATED */
 retvalue chunk_getworditerator(const char *chunk,const char *name,struct worditerator *iterator);
 
 
