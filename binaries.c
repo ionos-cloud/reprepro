@@ -34,7 +34,7 @@ extern int verbose;
 extern int force;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **filename,char **md5andsize) {
+retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **filename,char **md5andsize) {
 	const char *f,*f2;
 	char *pmd5,*psize,*ppackage;
 #define IFREE(p) if(p) free(*p);
@@ -189,9 +189,9 @@ static retvalue addbinary(void *data,const char *chunk) {
 	retvalue r;
 	int newer;
 	char *oldchunk;
-	char *package,*filename,*oldfile,*sourcename,*filekey,*md5andsize;
+	char *package,*filename,*origfile,*sourcename,*filekey,*md5andsize;
 
-	r = binaries_parse_chunk(chunk,&package,&oldfile,&sourcename,&filename,&md5andsize);
+	r = binaries_parse_chunk(chunk,&package,&origfile,&sourcename,&filename,&md5andsize);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
 		return r;
@@ -204,7 +204,7 @@ static retvalue addbinary(void *data,const char *chunk) {
 	if( oldchunk && (newer=binaries_isnewer(chunk,oldchunk)) != 0 ) {
 		if( newer < 0 ) {
 			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
-			free(md5andsize);free(oldfile);free(package);
+			free(md5andsize);free(origfile);free(package);
 			free(sourcename);free(filename);
 			return RET_ERROR;
 		}
@@ -217,7 +217,7 @@ static retvalue addbinary(void *data,const char *chunk) {
 			r = RET_ERROR_OOM;
 		else {
 			r = (*d->action)(d->data,chunk,
-					package,sourcename,oldfile,filename,
+					package,sourcename,origfile,filename,
 					filekey,md5andsize,oldchunk);
 			free(filekey);
 		}
@@ -228,7 +228,7 @@ static retvalue addbinary(void *data,const char *chunk) {
 	free(oldchunk);
 	
 	free(package);free(md5andsize);
-	free(oldfile);free(filename);free(sourcename);
+	free(origfile);free(filename);free(sourcename);
 	return r;
 }
 

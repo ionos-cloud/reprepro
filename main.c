@@ -16,6 +16,7 @@
  */
 #include <config.h>
 
+#include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <string.h>
@@ -164,6 +165,59 @@ int dumpunreferenced(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
+retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5andsize) {
+	struct fileref *dist = data;
+	retvalue r;
+	char *fullfilename;
+	int err;
+
+	r = references_isused(dist->refs,filekey);
+	if( r == RET_NOTHING ) {
+		if( verbose >= 0 )
+			printf("deleting and forgetting %s\n\n",filekey);
+		fullfilename = calc_dirconcat(pooldir,filekey);
+		if( !fullfilename )
+			r = RET_ERROR_OOM;
+		else {
+			err = unlink(fullfilename);
+			if( err != 0 ) {
+				r = RET_ERRNO(errno);
+				fprintf(stderr,"error while unlinking %s: %m\n",fullfilename);
+			} else 
+				r = files_remove(dist->files,filekey);
+			free(fullfilename);
+		}
+		return r;
+	} else if( RET_IS_OK(r) ) {
+		return RET_NOTHING;
+	} else
+		return r;
+}
+
+int deleteunreferenced(int argc,char *argv[]) {
+	retvalue result,r;
+	struct fileref dist;
+
+	if( argc != 1 ) {
+		fprintf(stderr,"mirrorer deleteunreferenced\n");
+		return 1;
+	}
+	dist.refs = references_initialize(dbdir);
+	if( ! dist.refs )
+		return 1;
+	dist.files = files_initialize(dbdir);
+	if( ! dist.files ) {
+		references_done(dist.refs);
+		return 1;
+	}
+	result = files_foreach(dist.files,deleteifunreferenced,&dist);
+	r = files_done(dist.files);
+	RET_ENDUPDATE(result,r);
+	r = references_done(dist.refs);
+	RET_ENDUPDATE(result,r);
+	return EXIT_RET(result);
+}
+
 int addreference(int argc,char *argv[]) {
 	DB *refs;
 	retvalue result,r;
@@ -205,6 +259,37 @@ int zexportpackages(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
+int removepackage(int argc,char *argv[]) {
+	retvalue result,r;
+	DB *pkgs,*refs;
+	int i;
+
+	if( argc < 3 ) {
+		fprintf(stderr,"mirrorer removepackage <identifier> <package-name>\n");
+		return 1;
+	}
+	refs = references_initialize(dbdir);
+	if( ! refs )
+		return 1;
+	pkgs = packages_initialize(dbdir,argv[1]);
+	if( ! pkgs ) {
+		references_done(refs);
+		return 1;
+	}
+	
+	result = RET_NOTHING;
+	for( i = 2 ; i< argc ; i++ ) {
+		r = packages_remove(pkgs,argv[2]);
+		RET_UPDATE(result,r);
+	}
+	fprintf(stderr,"Call to rereference needed, referenced are not yet removed\n");
+
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+	r = references_done(refs);
+	RET_ENDUPDATE(result,r);
+	return EXIT_RET(result);
+}
 /****** common for reference{binaries,sources} *****/
 struct referee {
 	DB *refs;
@@ -249,7 +334,7 @@ int referencebinaries(int argc,char *argv[]) {
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
 		return 1;
-	pkgs = packages_initialize(dbdir,argv[1]);
+	pkgs = packages_initialize(dbdir,dist.identifier);
 	if( ! pkgs ) {
 		references_done(dist.refs);
 		return 1;
@@ -346,7 +431,7 @@ int referencesources(int argc,char *argv[]) {
 
 struct distribution {
 	DB *files,*pkgs,*refs;
-	const char *referee,*part;
+	const char *referee,*component;
 };
 
 /***********************************addsources***************************/
@@ -434,11 +519,11 @@ int addsources(int argc,char *argv[]) {
 	struct distribution dist;
 
 	if( argc <= 3 ) {
-		fprintf(stderr,"mirrorer prepareaddsources <identifier> <part> <Sources-files>\n");
+		fprintf(stderr,"mirrorer prepareaddsources <identifier> <component> <Sources-files>\n");
 		return 1;
 	}
 	dist.referee = argv[1];
-	dist.part = argv[2];
+	dist.component = argv[2];
 
 	dist.files = files_initialize(dbdir);
 	if( ! dist.files ) {
@@ -457,7 +542,7 @@ int addsources(int argc,char *argv[]) {
 	}
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = sources_add(dist.pkgs,dist.part,argv[i],add_source,&dist);
+		r = sources_add(dist.pkgs,dist.component,argv[i],add_source,&dist);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -513,11 +598,11 @@ int prepareaddsources(int argc,char *argv[]) {
 	struct distribution dist;
 
 	if( argc <= 3 ) {
-		fprintf(stderr,"mirrorer prepareaddsources <identifier> <part> <Sources-files>\n");
+		fprintf(stderr,"mirrorer prepareaddsources <identifier> <component> <Sources-files>\n");
 		return 1;
 	}
 	dist.referee = argv[1];
-	dist.part = argv[2];
+	dist.component = argv[2];
 
 	dist.files = files_initialize(dbdir);
 	if( ! dist.files ) {
@@ -531,7 +616,7 @@ int prepareaddsources(int argc,char *argv[]) {
 	dist.refs = NULL;
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = sources_add(dist.pkgs,dist.part,argv[i],showmissingsourcefiles,&dist);
+		r = sources_add(dist.pkgs,dist.component,argv[i],showmissingsourcefiles,&dist);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -572,11 +657,11 @@ int prepareaddpackages(int argc,char *argv[]) {
 	struct distribution dist;
 
 	if( argc <= 3 ) {
-		fprintf(stderr,"mirrorer prepareaddpackages <identifier> <part> <Packages-files>\n");
+		fprintf(stderr,"mirrorer prepareaddpackages <identifier> <component> <Packages-files>\n");
 		return 1;
 	}
 	dist.referee = argv[1];
-	dist.part = argv[2];
+	dist.component = argv[2];
 
 	dist.files = files_initialize(dbdir);
 	if( ! dist.files ) {
@@ -590,7 +675,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 	dist.refs = NULL;
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = binaries_add(dist.pkgs,dist.part,argv[i],showmissing,&dist);
+		r = binaries_add(dist.pkgs,dist.component,argv[i],showmissing,&dist);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -607,6 +692,7 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	char *filewithdir;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
+	char *oldfilename,*oldsourcename,*oldfilekey;
 
 	/* look for needed files */
 	
@@ -645,7 +731,16 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	/* remove old references to files */
 
 	if( oldchunk ) {
-		r = references_decrement(dist->refs,filekey,dist->referee);
+		r = binaries_parse_chunk(oldchunk,NULL,NULL,&oldsourcename,&oldfilename,NULL);
+		if( RET_IS_OK(r) ) {
+			oldfilekey = calc_filekey(dist->component,oldsourcename,oldfilename);
+			if( oldfilekey ) {
+				r = references_decrement(dist->refs,oldfilekey,dist->referee);
+				free(oldfilekey);
+			} else
+				r = RET_ERROR_OOM;
+			free(oldfilename);free(oldsourcename);
+		}
 		RET_UPDATE(result,r);
 	}
 	return result;
@@ -658,7 +753,7 @@ int addpackages(int argc,char *argv[]) {
 	struct distribution dist;
 
 	if( argc <= 3 ) {
-		fprintf(stderr,"mirrorer addpackages <identifier> <part> <Packages-files>\n");
+		fprintf(stderr,"mirrorer addpackages <identifier> <component> <Packages-files>\n");
 		return 1;
 	}
 	dist.files = files_initialize(dbdir);
@@ -677,10 +772,10 @@ int addpackages(int argc,char *argv[]) {
 		return 1;
 	}
 	dist.referee = argv[1];
-	dist.part = argv[2];
+	dist.component = argv[2];
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = binaries_add(dist.pkgs,dist.part,argv[i],add_package,&dist);
+		r = binaries_add(dist.pkgs,dist.component,argv[i],add_package,&dist);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -1054,6 +1149,7 @@ struct action {
 	{"addpackages", addpackages},
 	{"genpackages", exportpackages},
 	{"genzpackages", zexportpackages},
+        {"removepackage", removepackage},
 	{"export", export},
 	{"rereference", rereference},
 	{"addreference", addreference},
@@ -1061,6 +1157,7 @@ struct action {
 	{"printunreferenced", dumpunreferenced},
 	{"dumpreferences", dumpreferences},
 	{"dumpunreferenced", dumpunreferenced},
+	{"deleteunreferenced", deleteunreferenced},
 	{"removereferences", removereferences},
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
@@ -1119,15 +1216,16 @@ int main(int argc,char *argv[]) {
 " referencesources <identifer>:\n"
 "       Mark everything in dist <identifier> to be needed by <identifier>\n"
 " printreferences:    Print all saved references\n"
-" printunreferenced:  Print registered files withour reference\n"
+" dumpunreferenced:  Print registered files withour reference\n"
+" deleteunreferenced:  Delete and forget all unreferenced files\n"
 " export              generate Packages.gz/Packages/Sources.gz/Release\n"
-" addpackages <identifier> <part> <files>:\n"
+" addpackages <identifier> <component> <files>:\n"
 "       Add the contents of Packages-files <files> to dist <identifier>\n"
-" prepareaddpackages <identifier> <part> <files>:\n"
+" prepareaddpackages <identifier> <component> <files>:\n"
 "       Search for missing files and print those not found\n"
-" addsources <identifier> <part> <files>:\n"
+" addsources <identifier> <component> <files>:\n"
 "       Add the contents of Sources-files <files> to dist <identifier>\n"
-" prepareaddsources <identifier> <part> <files>:\n"
+" prepareaddsources <identifier> <component> <files>:\n"
 "       Search for missing files and print those not found\n"
 "\n"
 						);

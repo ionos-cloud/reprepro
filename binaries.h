@@ -6,6 +6,9 @@
 #warning "What's hapening here?"
 #endif
 
+/* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
+retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **filename,char **md5andsize);
+
 /* the type of a action for binaries_add */
 typedef retvalue binary_package_action(
 	/* the data supplied to binaries_add */
@@ -17,7 +20,7 @@ typedef retvalue binary_package_action(
 	/* the sourcename */
 	const char *sourcename,
 	/* the filename (and path relative to dists) found in the chunk */
-	const char *oldfile,
+	const char *origfile,
 	/* the calculated filename it should have (without directory) */
 	const char *filename,
 	/* with directory relative to the pool/-dir */
