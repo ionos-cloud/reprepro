@@ -125,7 +125,7 @@ void release_free(struct release *release) {
 
 retvalue release_parse(struct release **release,const char *chunk) {
 	struct release *r;
-	const char *f;
+	retvalue ret;
 
 	assert( chunk && release );
 	
@@ -133,7 +133,12 @@ retvalue release_parse(struct release **release,const char *chunk) {
 	if( !r )
 		return RET_ERROR_OOM;
 
-#define parse(name,target) 	f = chunk_getfield(name,chunk); \
+#define parse(name,target)	ret = chunk_getvalue(chunk,name,&target); \
+				if(!RET_IS_OK(ret)) { \
+					release_free(r); \
+					return ret; \
+				}
+#define parseold(name,target) 	f = chunk_getfield(name,chunk); \
 				if( !f ) { \
 					*release = NULL; \
 					release_free(r); \

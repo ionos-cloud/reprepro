@@ -131,20 +131,6 @@ const char *chunk_getfield(const char *name,const char *chunk) {
 	return NULL;
 }
 
-/* strdup a field given by chunk_getfield */
-char *chunk_dupvalue(const char *field) {
-	const char *h;
-
-	if( !field)
-		return NULL;
-	if( isspace(*field) )
-		field++;
-	h = field;
-	while( *h != '\n' && *h != '\0' )
-		h++;
-	return strndup(field,h-field);
-}
-
 /* strdup without a leading "<prefix>/" 
 char *chunk_dupvaluecut(const char *field,const char *prefix) {
 	const char *h;
@@ -268,17 +254,27 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	//TODO: implement this natively instead of _dupvalue and get rid of the old...
 	const char *field;
 	char *val;
+	const char *b,*e;
 
 	assert(value != NULL);
 	field = chunk_getfield(name,chunk);
 	if( !field )
 		return RET_NOTHING;
+
 	val = chunk_dupvalue(field);
+	b = field;
+	if( isspace(*b) )
+		b++;
+	e = b;
+	while( *e != '\n' && *e != '\0' )
+		e++;
+	val = strndup(b,e-b);
 	if( !val )
 		return RET_ERROR_OOM;
 	*value = val;
 	return RET_OK;
 }
+
 retvalue chunk_getextralines(const char *chunk,const char *name,char **value) {
 	const char *field;
 	char *val;

@@ -34,15 +34,13 @@ extern int verbose;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
 retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **basename,char **md5andsize) {
-	const char *f,*f2;
 	char *pmd5,*psize,*ppackage;
+	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
-	f  = chunk_getfield("Package",chunk);
-	if( !f ) {
-		return RET_NOTHING;
-	}
-	ppackage = chunk_dupvalue(f);	
+	r  = chunk_getvalue(chunk,"Package", &ppackage);
+	if( !RET_IS_OK(r) )
+		return r;
 	if( !ppackage ) {
 		return RET_ERROR_OOM;
 	}
@@ -52,18 +50,11 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 
 	if( origfilename ) {
 		/* Read the filename given there */
-		f = chunk_getfield("Filename",chunk);
-		if( ! f ) {
+		r = chunk_getvalue(chunk,"Filename",origfilename);
+		if( !RET_IS_OK(r) ) {
 			free(ppackage);
-			return RET_NOTHING;
+			return r;
 		}
-		*origfilename = chunk_dupvalue(f);
-		if( !*origfilename ) {
-			free(ppackage);
-			return RET_ERROR_OOM;
-		}
-		if( verbose > 3 ) 
-			fprintf(stderr,"got: %s\n",*origfilename);
 	}
 
 
@@ -71,20 +62,18 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 
 	if( md5andsize ) {
 
-		f = chunk_getfield("MD5sum",chunk);
-		f2 = chunk_getfield("Size",chunk);
-		if( !f || !f2 ) {
+		r = chunk_getvalue(chunk,"MD5sum",&pmd5);
+		if( !RET_IS_OK(r) ) {
 			free(ppackage);
 			IFREE(origfilename);
-			return RET_NOTHING;
+			return r;
 		}
-		pmd5 = chunk_dupvalue(f);
-		psize = chunk_dupvalue(f2);
-		if( !pmd5 || !psize ) {
+		r = chunk_getvalue(chunk,"Size",&psize);
+		if( !RET_IS_OK(r) ) {
 			free(ppackage);
-			free(psize);free(pmd5);
 			IFREE(origfilename);
-			return RET_ERROR_OOM;
+			free(pmd5);
+			return r;
 		}
 		*md5andsize = mprintf("%s %s",pmd5,psize);
 		free(pmd5);free(psize);
@@ -98,18 +87,17 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 	/* get the sourcename */
 
 	if( sourcename ) {
-		f  = chunk_getfield("Source",chunk);
-		if( f )
-			/* do something with the version here? */
-			*sourcename = chunk_dupword(f);	
-		else {
+		r = chunk_getvalue(chunk,"Source",sourcename);
+		if( r == RET_NOTHING ) {
 			*sourcename = strdup(ppackage);
+			if( !*sourcename )
+				r = RET_ERROR_OOM;
 		}
-		if( !*sourcename ) {
+		if( RET_WAS_ERROR(r) ) {
 			free(ppackage);
 			IFREE(origfilename);
 			IFREE(md5andsize);
-			return RET_ERROR_OOM;
+			return r;
 		}
 	}
 
@@ -118,40 +106,38 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 	if( basename ) {
 		char *parch,*pversion,*v;
 
-		f  = chunk_getfield("Version",chunk);
-		f2 = chunk_getfield("Architecture",chunk);
-		if( !f || !f2 ) {
+		r = chunk_getvalue(chunk,"Version",&pversion);
+		if( !RET_IS_OK(r) ) {
 			free(ppackage);
 			IFREE(origfilename);
 			IFREE(md5andsize);
 			IFREE(sourcename);
-			return RET_NOTHING;
+			return r;
 		}
-		pversion = chunk_dupvalue(f);
-		parch = chunk_dupvalue(f2);
-		if( !parch || !pversion ) {
+		r = chunk_getvalue(chunk,"Architecture",&parch);
+		if( !RET_IS_OK(r) ) {
 			free(ppackage);
 			IFREE(origfilename);
 			IFREE(md5andsize);
 			IFREE(sourcename);
-			return RET_ERROR_OOM;
+			free(pversion);
+			return r;
 		}
 		v = index(pversion,':');
 		if( v )
 			v++;
 		else
 			v = pversion;
-		/* TODO check parts to contain out of save charakters */
+		/* TODO check parts to consist out of save charakters */
 		*basename = calc_package_basename(ppackage,v,parch);
+		free(pversion);free(parch);
 		if( !*basename ) {
-			free(pversion);free(parch);
 			free(ppackage);
 			IFREE(origfilename);
 			IFREE(md5andsize);
 			IFREE(sourcename);
 			return RET_ERROR_OOM;
 		}
-		free(pversion);free(parch);
 	}
 
 	if( packagename == NULL)
@@ -164,14 +150,15 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
  * return 1=new is better, 0=old is better, <0 error */
 static int binaries_isnewer(const char *newchunk,const char *oldchunk) {
 	char *nv,*ov;
+	retvalue ret;
 	int r;
 
 	/* if new broken, old is better, if old broken, new is better: */
-	nv = chunk_dupvalue(chunk_getfield("Version",newchunk));
-	if( !nv )
+	ret = chunk_getvalue(newchunk,"Version",&nv);
+	if( !RET_IS_OK(ret) )
 		return -1;
-	ov = chunk_dupvalue(chunk_getfield("Version",oldchunk));
-	if( !ov ) {
+	ret = chunk_getvalue(oldchunk,"Version",&ov);
+	if( !RET_IS_OK(ret) ) {
 		free(nv);
 		return 1;
 	}

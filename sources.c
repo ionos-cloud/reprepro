@@ -107,32 +107,21 @@ retvalue sources_getfile(const char **files,char **basename,char **md5andsize) {
 /* get the intresting information out of a "Sources.gz"-chunk */
 retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files) {
 	const char *f;
+	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
 	if( packagename ) {
-		f  = chunk_getfield("Package",chunk);
-		if( !f ) {
-			if( verbose > 3 )
-				fprintf(stderr,"Source-Chunk without Package-field!\n");
-			return RET_NOTHING;
-		}
-		*packagename = chunk_dupvalue(f);	
-		if( !*packagename ) {
-			return RET_ERROR;
-		}
+		r = chunk_getvalue(chunk,"Package",packagename);
+		if( !RET_IS_OK(r) )
+			return r;
 	}
 
 	if( origdirectory ) {
 		/* Read the directory given there */
-		f = chunk_getfield("Directory",chunk);
-		if( ! f ) {
+		r = chunk_getvalue(chunk,"Directory",origdirectory);
+		if( !RET_IS_OK(r) ) {
 			IFREE(packagename);
-			return RET_NOTHING;
-		}
-		*origdirectory = chunk_dupvalue(f);
-		if( !*origdirectory ) {
-			IFREE(packagename);
-			return RET_ERROR;
+			return r;
 		}
 		if( verbose > 13 ) 
 			fprintf(stderr,"got: %s\n",*origdirectory);
@@ -164,13 +153,14 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdir
 static int sources_isnewer(const char *newchunk,const char *oldchunk) {
 	char *nv,*ov;
 	int r;
+	retvalue ret;
 
 	/* if new broken, tell it, if old broken, new is better: */
-	nv = chunk_dupvalue(chunk_getfield("Version",newchunk));
-	if( !nv )
+	ret = chunk_getvalue(newchunk,"Version",&nv);
+	if( !RET_IS_OK(ret) )
 		return -1;
-	ov = chunk_dupvalue(chunk_getfield("Version",oldchunk));
-	if( !ov ) {
+	ret = chunk_getvalue(oldchunk,"Version",&ov);
+	if( !RET_IS_OK(ret) ) {
 		free(nv);
 		return 1;
 	}
