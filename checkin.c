@@ -207,7 +207,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		while( *p && *p != '.' )
 			p++;
 		if( *p != '.' ) {
-			fprintf(stderr,"Expect something of the vorm name_version_arch.[u]deb but got '%s'!\n",filestart);
+			fprintf(stderr,"Expect something of the form name_version_arch.[u]deb but got '%s'!\n",filestart);
 			return RET_ERROR;
 		}
 		archend = p;
@@ -628,8 +628,6 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 		fullfilename = calc_dirconcat(filesdb->mirrordir,e->filekey);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
-		// TODO: give directory and filekey, too, so that they
-		// do not have to be calculated again. (and the md5sums fit)
 		if( e->type == fe_DEB ) {
 			r = deb_add(dbdir,references,filesdb,
 				changes->component,e->architecture,
