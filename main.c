@@ -515,7 +515,7 @@ static retvalue action_listfilter(int argc,const char *argv[]) {
 	term *condition;
 
 	if( argc != 3  ) {
-		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] list <codename> <term to describe which packages to list>\n");
+		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>\n");
 		return RET_ERROR;
 	}
 	r = distribution_get(&distribution,confdir,argv[1]);
@@ -1281,7 +1281,7 @@ int main(int argc,char *argv[]) {
 " -A, --architecture <architecture>: Add,list or delete only to architecture.\n"
 " -T, --type <type>:                 Add,list or delete only type (dsc,deb,udeb).\n"
 "\n"
-"actions:\n"
+"actions (selection, for more see manpage):\n"
 " dumpreferences:    Print all saved references\n"
 " dumpunreferenced:   Print registered files withour reference\n"
 " deleteunreferenced: Delete and forget all unreferenced files\n"
@@ -1304,6 +1304,8 @@ int main(int argc,char *argv[]) {
 "       Inlcude the given source package.\n"
 " list <distribution> <package-name>\n"
 "       List all packages by the given name occuring in the given distribution.\n"
+" listfilter <distribution> <condition>\n"
+"       List all packages in the given distribution matching the condition.\n"
 "\n"
 						);
 				exit(EXIT_SUCCESS);
