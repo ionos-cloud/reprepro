@@ -19,6 +19,9 @@ struct release {
 void release_free(struct release *release);
 retvalue release_parse(struct release **release,const char *chunk);
 
+struct release_filter {int count; char **dists; };
+retvalue release_parse_and_filter(struct release **release,const char *chunk,struct release_filter filter);
+
 /* Generate a "Release"-file for binary directory */
 retvalue release_genbinary(const struct release *release,const char *arch,const char *component,const char *distdir);
 
@@ -33,5 +36,10 @@ typedef retvalue release_each_binary_action(void *data, const char *component, c
 
 /* call <sourceaction> for each source part of <release> and <binaction> for each binary part of it. */
 retvalue release_foreach_part(const struct release *release,release_each_source_action sourceaction,release_each_binary_action binaction,void *data);
+
+
+typedef retvalue releaseaction(void *data,const struct release *release);
+
+retvalue release_foreach(const char *conf,int argc,char *argv[],releaseaction action,void *data,int force);
 
 #endif

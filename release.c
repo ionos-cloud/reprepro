@@ -157,6 +157,29 @@ retvalue release_parse(struct release **release,const char *chunk) {
 	return RET_OK;
 }
 
+retvalue release_parse_and_filter(struct release **release,const char *chunk,struct release_filter filter) {
+	retvalue result;
+	int i;
+	
+	result = release_parse(release,chunk);
+	if( RET_IS_OK(result) ) {
+		if( filter.count > 0 ) {
+			i = filter.count;
+			while( i-- > 0 && strcmp((filter.dists)[i],(*release)->codename) != 0 ) {
+			}
+			if( i < 0 ) {
+				if( verbose > 2 ) {
+					fprintf(stderr,"skipping %s\n",(*release)->codename);
+				}
+				free(release);
+				return RET_NOTHING;
+			}
+		}
+	}
+	return result;
+}
+	
+
 
 /* Generate a "Release"-file for binary directory */
 retvalue release_genbinary(const struct release *release,const char *arch,const char *component,const char *distdir) {
@@ -422,5 +445,42 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);
 
+	return result;
+}
+
+struct mydata {struct release_filter filter; releaseaction *action; void *data;};
+
+static retvalue processrelease(void *d,const char *chunk) {
+	struct mydata *mydata = d;
+	retvalue result;
+	struct release *release;
+
+	result = release_parse_and_filter(&release,chunk,mydata->filter);
+	if( RET_IS_OK(result) ){
+
+		result = mydata->action(mydata->data,release);
+		free(release);
+	}
+
+	return result;
+}
+
+retvalue release_foreach(const char *conf,int argc,char *argv[],releaseaction action,void *data,int force) {
+	retvalue result;
+	char *fn;
+	struct mydata mydata;
+
+	mydata.filter.count = argc;
+	mydata.filter.dists = argv;
+	mydata.data = data;
+	mydata.action = action;
+	
+	fn = calc_dirconcat(conf,"distributions");
+	if( !fn ) 
+		return RET_ERROR_OOM;
+	
+	result = chunk_foreach(fn,processrelease,&mydata,force);
+
+	free(fn);
 	return result;
 }

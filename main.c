@@ -89,7 +89,7 @@ int addmd5sums(int argc,char *argv[]) {
 }
 
 
-int release(int argc,char *argv[]) {
+int removedependency(int argc,char *argv[]) {
 	DB *refs;
 	retvalue ret,r;
 
@@ -102,7 +102,7 @@ int release(int argc,char *argv[]) {
 		return 1;
 	ret = references_removedependency(refs,argv[1]);
 	r = references_done(refs);
-	RET_UPDATE(ret,r);
+	RET_ENDUPDATE(ret,r);
 	return EXIT_RET(ret);
 }
 
@@ -207,7 +207,7 @@ int zexportpackages(int argc,char *argv[]) {
 
 /****** common for reference{binaries,sources} *****/
 struct referee {
-	DB *pkgs,*refs;
+	DB *refs;
 	const char *identifier;
 };
 
@@ -239,6 +239,7 @@ retvalue reference_binary(void *data,const char *package,const char *chunk) {
 int referencebinaries(int argc,char *argv[]) {
 	retvalue result,r;
 	struct referee dist;
+	DB *pkgs;
 
 	if( argc != 2 ) {
 		fprintf(stderr,"mirrorer referencebinaries <identifier>\n");
@@ -248,14 +249,14 @@ int referencebinaries(int argc,char *argv[]) {
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
 		return 1;
-	dist.pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! dist.pkgs ) {
+	pkgs = packages_initialize(dbdir,argv[1]);
+	if( ! pkgs ) {
 		references_done(dist.refs);
 		return 1;
 	}
-	result = packages_foreach(dist.pkgs,reference_binary,&dist);
+	result = packages_foreach(pkgs,reference_binary,&dist);
 
-	r = packages_done(dist.pkgs);
+	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dist.refs);
 	RET_ENDUPDATE(result,r);
@@ -317,6 +318,7 @@ retvalue reference_source(void *data,const char *package,const char *chunk) {
 int referencesources(int argc,char *argv[]) {
 	retvalue result,r;
 	struct referee dist;
+	DB *pkgs;
 
 	if( argc != 2 ) {
 		fprintf(stderr,"mirrorer referencesources <identifier>\n");
@@ -326,14 +328,14 @@ int referencesources(int argc,char *argv[]) {
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
 		return 1;
-	dist.pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! dist.pkgs ) {
+	pkgs = packages_initialize(dbdir,argv[1]);
+	if( ! pkgs ) {
 		references_done(dist.refs);
 		return 1;
 	}
-	result = packages_foreach(dist.pkgs,reference_source,&dist);
+	result = packages_foreach(pkgs,reference_source,&dist);
 
-	r = packages_done(dist.pkgs);
+	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dist.refs);
 	RET_ENDUPDATE(result,r);
@@ -812,72 +814,165 @@ static retvalue exportsource(void *data,const char *component) {
 }
 
 
-struct data_export {int count; char **dists; };
-
-static retvalue doexport(void *data,const char *chunk) {
-	struct data_export *d = data;
+static retvalue doexport(void *dummy,const struct release *release) {
 	struct data_binsrcexport dat;
 	retvalue result,r;
-	struct release *release;
 	char *dirofdist;
-	int i;
 
-	result = release_parse(&release,chunk);
-	if( RET_IS_OK(result) ) {
-		if( d->count > 0 ) {
-			i = d->count;
-			while( i-- > 0 && strcmp((d->dists)[i],release->codename) != 0 ) {
-			}
-			if( i < 0 ) {
-				if( verbose > 1 ) {
-					fprintf(stderr,"skipping %s\n",release->codename);
-				}
-				free(release);
-				return RET_NOTHING;
-			}
-		}
-		if( verbose > 0 ) {
-			fprintf(stderr,"Exporting %s...\n",release->codename);
-		}
-		dirofdist = calc_dirconcat(distdir,release->codename);
-		if( !dirofdist ) {
-			free(release);
-			return RET_ERROR_OOM;
-		}
-
-		dat.release = release;
-		dat.dirofdist = dirofdist;
-
-		result = release_foreach_part(release,exportsource,exportbin,&dat);
-		
-		r = release_gen(release,distdir);
-		RET_UPDATE(result,r);
-
-		free(dirofdist);
-		free(release);
+	if( verbose > 0 ) {
+		fprintf(stderr,"Exporting %s...\n",release->codename);
 	}
+	dirofdist = calc_dirconcat(distdir,release->codename);
+	if( !dirofdist ) {
+		return RET_ERROR_OOM;
+	}
+
+	dat.release = release;
+	dat.dirofdist = dirofdist;
+
+	result = release_foreach_part(release,exportsource,exportbin,&dat);
+	
+	r = release_gen(release,distdir);
+	RET_UPDATE(result,r);
+
+	free(dirofdist);
 	return result;
 }
 
 int export(int argc,char *argv[]) {
 	retvalue result;
-	char *fn;
-	struct data_export data;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"mirrorer export [<distributions>]\n");
 		return 1;
 	}
-	data.count = argc-1;
-	data.dists = argv+1;
 	
-	fn = calc_dirconcat(confdir,"distributions");
-	if( !fn ) 
-		return EXIT_RET(RET_ERROR_OOM);
-	
-	result = chunk_foreach(fn,doexport,&data,force);
+	result = release_foreach(confdir,argc-1,argv+1,doexport,NULL,force);
+	return EXIT_RET(result);
+}
 
-	free(fn);
+/***********************rereferencing*************************/
+struct data_binsrcreref { const struct release *release; DB *references;};
+
+static retvalue rerefbin(void *data,const char *component,const char *architecture) {
+	retvalue result,r;
+	struct data_binsrcreref *d = data;
+	char *dbname;
+	struct referee refdata;
+	DB *pkgs;
+
+	dbname = mprintf("%s-%s-%s",d->release->codename,component,architecture);
+	if( !dbname ) {
+		return RET_ERROR_OOM;
+	}
+	if( verbose > 1 ) {
+		if( verbose > 2 )
+			fprintf(stderr,"Unlocking depencies of %s...\n",dbname);
+		else
+			fprintf(stderr,"Rereferencing %s...\n",dbname);
+	}
+
+	pkgs = packages_initialize(dbdir,dbname);
+	if( ! pkgs ) {
+		free(dbname);
+		return RET_ERROR;
+	}
+
+	result = references_removedependency(d->references,dbname);
+
+	if( verbose > 2 )
+		fprintf(stderr,"Referencing %s...\n",dbname);
+
+	refdata.refs = d->references;
+	refdata.identifier = dbname;
+	r = packages_foreach(pkgs,reference_binary,&refdata);
+	RET_UPDATE(result,r);
+	
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+
+	free(dbname);
+
+	return result;
+}
+
+static retvalue rerefsrc(void *data,const char *component) {
+	retvalue result,r;
+	struct data_binsrcreref *d = data;
+	char *dbname;
+	struct referee refdata;
+	DB *pkgs;
+
+	dbname = mprintf("%s-%s-src",d->release->codename,component);
+	if( !dbname ) {
+		return RET_ERROR_OOM;
+	}
+	if( verbose > 1 ) {
+		if( verbose > 2 )
+			fprintf(stderr,"Unlocking depencies of %s...\n",dbname);
+		else
+			fprintf(stderr,"Rereferencing %s...\n",dbname);
+	}
+
+	pkgs = packages_initialize(dbdir,dbname);
+	if( ! pkgs ) {
+		free(dbname);
+		return RET_ERROR;
+	}
+
+	result = references_removedependency(d->references,dbname);
+
+	if( verbose > 2 )
+		fprintf(stderr,"Referencing %s...\n",dbname);
+
+	refdata.refs = d->references;
+	refdata.identifier = dbname;
+	r = packages_foreach(pkgs,reference_source,&refdata);
+	RET_UPDATE(result,r);
+	
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+
+	free(dbname);
+
+	return result;
+}
+
+
+static retvalue rereference_dist(void *data,const struct release *release) {
+	struct data_binsrcreref dat;
+	retvalue result;
+
+	if( verbose > 0 ) {
+		fprintf(stderr,"Referencing %s...\n",release->codename);
+	}
+
+	dat.release = release;
+	dat.references = data;
+
+	result = release_foreach_part(release,rerefsrc,rerefbin,&dat);
+	
+	return result;
+}
+
+int rereference(int argc,char *argv[]) {
+	retvalue result,r;
+	DB *refs;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"mirrorer rereference [<distributions>]\n");
+		return 1;
+	}
+
+	refs = references_initialize(dbdir);
+
+	if( ! refs )
+		return 1;
+	
+	result = release_foreach(confdir,argc-1,argv+1,rereference_dist,refs,force);
+	r = references_done(refs);
+	RET_ENDUPDATE(result,r);
+
 	return EXIT_RET(result);
 }
 
@@ -901,12 +996,13 @@ struct action {
 	{"genpackages", exportpackages},
 	{"genzpackages", zexportpackages},
 	{"export", export},
+	{"rereference", rereference},
 	{"addreference", addreference},
 	{"printreferences", dumpreferences},
 	{"printunreferenced", dumpunreferenced},
 	{"dumpreferences", dumpreferences},
 	{"dumpunreferenced", dumpunreferenced},
-	{"release", release},
+	{"removedependency", removedependency},
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
 	{"addmd5sums",addmd5sums },
@@ -933,7 +1029,7 @@ int main(int argc,char *argv[]) {
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+fevhlb:P:p:d:c:D:i:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:i:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
@@ -958,7 +1054,7 @@ int main(int argc,char *argv[]) {
 "  ('find $pooldir -type f -printf \"%%P\\n\" | mirrorer -p $pooldir inventory'\n"
 "   will iventory an already existing pool-dir\n"
 "   WARNING: names relative to pool-dir in shortest possible form\n"
-" release <type>:     Remove all marks \"Needed by <type>\"\n"
+" removedependency <type>:     Remove all marks \"Needed by <type>\"\n"
 " referencebinaries <identifer>:\n"
 "       Mark everything in dist <identifier> to be needed by <identifier>\n"
 " referencesources <identifer>:\n"
@@ -983,6 +1079,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'v':
 				verbose++;
+				break;
+			case 'V':
+				verbose+=5;
 				break;
 			case 'e':
 				nothingiserror=1;

@@ -94,7 +94,7 @@ retvalue references_adddependency(DB* refdb,const char *needed,const char *neede
 	SETDBT(key,needed);
 	SETDBT(data,neededby);
 	if ((dbret = refdb->put(refdb, NULL, &key, &data, 0)) == 0) {
-		if( verbose > 2 )
+		if( verbose > 8 )
 			fprintf(stderr,"db: %s: reference by %s added.\n", needed,neededby);
 		return RET_OK;
 	} else {
@@ -119,7 +119,7 @@ retvalue references_removedependency(DB* refdb,const char *neededby) {
 	CLEARDBT(data);	
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		if( strcmp( (const char*)data.data,neededby) == 0 ) {
-			if( verbose > 0 )
+			if( verbose > 5 )
 				fprintf(stderr,"Removing mark from file '%s' to be needed by '%s'\n",
 					(const char *)key.data,neededby);
 			dbret = cursor->c_del(cursor,0);
@@ -169,3 +169,4 @@ retvalue references_dump(DB *refdb) {
 	}
 	return result;
 }
+
