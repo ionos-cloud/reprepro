@@ -33,10 +33,6 @@ struct distribution {
 	struct strlist udebcomponents;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
-	/* list of all update_upstreams for this ditribution,
-	 * only set when update_getupstreams was called for this*/
-	struct update_origin *updateorigins;
-	struct update_target *updatetargets;
 };
 
 

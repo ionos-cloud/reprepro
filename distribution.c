@@ -34,7 +34,6 @@
 #include "dirs.h"
 #include "names.h"
 #include "release.h"
-#include "updates.h"
 #include "copyfile.h"
 #include "distribution.h"
 
@@ -65,8 +64,6 @@ retvalue distribution_free(struct distribution *distribution) {
 			RET_UPDATE(result,r);
 			distribution->targets = next;
 		}
-		updates_freetargets(distribution->updatetargets);
-		updates_freeorigins(distribution->updateorigins);
 		free(distribution);
 		return result;
 	} else

@@ -613,6 +613,7 @@ ACTION_D(update) {
 	bool_t doexport;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
+	struct update_distribution *u_distributions;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro update [<distributions>]\n");
@@ -630,20 +631,27 @@ ACTION_D(update) {
 		return result;
 
 	result = updates_getpatterns(confdir,&patterns);
-	if( RET_WAS_ERROR(result) )
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
 		return result;
-
-	result = updates_calcindices(listdir,patterns,distributions);
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	if( !keepunneededlists ) {
-		result = updates_clearlists(listdir,distributions);
-		if( RET_WAS_ERROR(result) )
-			return result;
 	}
 
-	result = updates_update(dbdir,methoddir,filesdb,references,distributions,force,nolistsdownload,dereferenced);
+	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	if( RET_WAS_ERROR(result) ) {
+		updates_freepatterns(patterns);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+
+	if( !keepunneededlists ) {
+		result = updates_clearlists(listdir,u_distributions);
+	}
+	if( !RET_WAS_ERROR(result) )
+		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,dereferenced);
+	updates_freeupdatedistributions(u_distributions);
+	updates_freepatterns(patterns);
 
 	doexport = force>0 || RET_IS_OK(result);
 	if( doexport && verbose >= 0 )
@@ -661,6 +669,7 @@ ACTION_N(checkupdate) {
 	retvalue result,r;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
+	struct update_distribution *u_distributions;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro checkupdate [<distributions>]\n");
@@ -678,15 +687,24 @@ ACTION_N(checkupdate) {
 		return result;
 
 	result = updates_getpatterns(confdir,&patterns);
-	if( RET_WAS_ERROR(result) )
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
 		return result;
+	}
 
-	result = updates_calcindices(listdir,patterns,distributions);
-	if( RET_WAS_ERROR(result) )
+	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	if( RET_WAS_ERROR(result) ) {
+		updates_freepatterns(patterns);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
 		return result;
+	}
 
-	result = updates_checkupdate(dbdir,methoddir,distributions,force,nolistsdownload);
+	result = updates_checkupdate(dbdir,methoddir,u_distributions,force,nolistsdownload);
 
+	updates_freeupdatedistributions(u_distributions);
+	updates_freepatterns(patterns);
 	r = distribution_freelist(distributions);
 	RET_ENDUPDATE(result,r);
 
