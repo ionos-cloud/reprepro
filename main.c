@@ -701,20 +701,20 @@ static int update(int argc,char *argv[]) {
 
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) ) {
-		return r;
+		return EXIT_RET(r);
 	}
 
 	r = updates_queuelists(run,listdir,upstreams);
 
 	if( RET_WAS_ERROR(r) ) {
 		aptmethod_cancel(run);
-		return r;
+		return EXIT_RET(r);
 	}
 
 	result = aptmethod_download(run,"/usr/lib/apt/methods");
 	
 	if( RET_WAS_ERROR(result) )
-		return result;
+		return EXIT_RET(result);
 
 	r = updates_checklists(listdir,upstreams,force);
 
