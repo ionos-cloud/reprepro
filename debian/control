@@ -7,7 +7,7 @@ Standards-Version: 3.6.1
 
 Package: reprepro
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: binutils, ${shlibs:Depends}
 Description: debian package repository producer.
  reprepro is a tool to manage a repository of Debian packages
  (.deb, .udeb, .dsc, ...). It stores files either beeing
