@@ -381,6 +381,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 "(Have you forgotten to specify a basedir by -b?\n"
 "To only set the conf/ dir use --confdir)\n",fn);
 		free(mydata.filter.found);
+		free(fn);
 		return RET_ERROR_MISSING;
 	}
 	
