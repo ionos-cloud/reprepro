@@ -22,6 +22,10 @@
 #include "mprintf.h"
 #include "names.h"
 
+char *calc_addsuffix(const char *str1,const char *str2) {
+	return mprintf("%s.%s",str1,str2);
+}
+
 char *calc_dirconcat(const char *str1,const char *str2) {
 	return mprintf("%s/%s",str1,str2);
 }

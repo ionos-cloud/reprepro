@@ -18,7 +18,7 @@ struct update {
 	struct strlist components_into;
 };
 
-typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,struct update *update);
+typedef retvalue updatesaction(void *data,const char *chunk,const struct distribution *distribution,struct update *update);
 
 retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction action,void *data,int force);
 

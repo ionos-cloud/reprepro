@@ -374,7 +374,7 @@ static retvalue reference_source(void *data,const char *package,const char *chun
 
 /****** common for [prepare]add{sources,packages} *****/
 
-struct distribution {
+struct distributionhandles {
 	DB *files,*pkgs,*refs;
 	const char *referee,*component;
 };
@@ -384,7 +384,7 @@ struct distribution {
 static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
-	struct distribution *dist = (struct distribution*)data;
+	struct distributionhandles *dist = (struct distributionhandles*)data;
 	int i;
 	char *basefilename,*filekey,*md5andsize;
 
@@ -447,7 +447,7 @@ static retvalue add_source(void *data,const char *chunk,const char *package,cons
 static int addsources(int argc,char *argv[]) {
 	int i;
 	retvalue result,r;
-	struct distribution dist;
+	struct distributionhandles dist;
 
 	if( argc <= 3 ) {
 		fprintf(stderr,"mirrorer addsources <identifier> <component> <Sources-files>\n");
@@ -488,7 +488,7 @@ static int addsources(int argc,char *argv[]) {
 
 static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	retvalue r,ret;
-	struct distribution *dist = (struct distribution*)data;
+	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *dn;
 	char *basefilename,*filekey,*md5andsize;
 	int i;
@@ -528,7 +528,7 @@ static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *
 static int prepareaddsources(int argc,char *argv[]) {
 	int i;
 	retvalue r,result;
-	struct distribution dist;
+	struct distributionhandles dist;
 
 	if( argc <= 3 ) {
 		fprintf(stderr,"mirrorer prepareaddsources <identifier> <component> <Sources-files>\n");
@@ -565,7 +565,7 @@ static int prepareaddsources(int argc,char *argv[]) {
 
 static retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	retvalue r;
-	struct distribution *dist = (struct distribution*)data;
+	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *fn;
 
 	/* look for needed files */
@@ -592,7 +592,7 @@ static retvalue showmissing(void *data,const char *chunk,const char *package,con
 static int prepareaddpackages(int argc,char *argv[]) {
 	int i;
 	retvalue r,result;
-	struct distribution dist;
+	struct distributionhandles dist;
 
 	if( argc <= 3 ) {
 		fprintf(stderr,"mirrorer prepareaddpackages <identifier> <component> <Packages-files>\n");
@@ -631,7 +631,7 @@ static int prepareaddpackages(int argc,char *argv[]) {
 static retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
-	struct distribution *dist = (struct distribution*)data;
+	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *oldfilekey;
 
 	/* look for needed files */
@@ -681,7 +681,7 @@ static retvalue add_package(void *data,const char *chunk,const char *package,con
 static int addpackages(int argc,char *argv[]) {
 	int i;
 	retvalue r,result;
-	struct distribution dist;
+	struct distributionhandles dist;
 
 	if( argc <= 3 ) {
 		fprintf(stderr,"mirrorer addpackages <identifier> <component> <Packages-files>\n");
@@ -828,15 +828,15 @@ static int checkrelease(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-struct data_binsrcexport { const struct release *release; const char *dirofdist;};
+struct data_binsrcexport { const struct distribution *distribution; const char *dirofdist;};
 
 static retvalue exportbin(void *data,const char *component,const char *architecture) {
 	retvalue result,r;
 	struct data_binsrcexport *d = data;
 	char *dbname,*filename;
 
-	result = release_genbinary(d->release,architecture,component,distdir);
-	dbname = mprintf("%s-%s-%s",d->release->codename,component,architecture);
+	result = release_genbinary(d->distribution,architecture,component,distdir);
+	dbname = mprintf("%s-%s-%s",d->distribution->codename,component,architecture);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -874,9 +874,9 @@ static retvalue exportsource(void *data,const char *component) {
 	char *dbname;
 	char *filename;
 
-	result = release_gensource(d->release,component,distdir);
+	result = release_gensource(d->distribution,component,distdir);
 
-	dbname = mprintf("%s-%s-src",d->release->codename,component);
+	dbname = mprintf("%s-%s-src",d->distribution->codename,component);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -899,25 +899,25 @@ static retvalue exportsource(void *data,const char *component) {
 }
 
 
-static retvalue doexport(void *dummy,const char *chunk,const struct release *release) {
+static retvalue doexport(void *dummy,const char *chunk,const struct distribution *distribution) {
 	struct data_binsrcexport dat;
 	retvalue result,r;
 	char *dirofdist;
 
 	if( verbose > 0 ) {
-		fprintf(stderr,"Exporting %s...\n",release->codename);
+		fprintf(stderr,"Exporting %s...\n",distribution->codename);
 	}
-	dirofdist = calc_dirconcat(distdir,release->codename);
+	dirofdist = calc_dirconcat(distdir,distribution->codename);
 	if( !dirofdist ) {
 		return RET_ERROR_OOM;
 	}
 
-	dat.release = release;
+	dat.distribution = distribution;
 	dat.dirofdist = dirofdist;
 
-	result = release_foreach_part(release,exportsource,exportbin,&dat);
+	result = distribution_foreach_part(distribution,exportsource,exportbin,&dat);
 	
-	r = release_gen(release,distdir,chunk);
+	r = release_gen(distribution,distdir,chunk);
 	RET_UPDATE(result,r);
 
 	free(dirofdist);
@@ -932,7 +932,7 @@ static int export(int argc,char *argv[]) {
 		return 1;
 	}
 	
-	result = release_foreach(confdir,argc-1,argv+1,doexport,NULL,force);
+	result = distribution_foreach(confdir,argc-1,argv+1,doexport,NULL,force);
 	return EXIT_RET(result);
 }
 
@@ -977,7 +977,7 @@ static retvalue checkpackagelists(struct strlist *checksums,
 }
 
 
-static retvalue fetchupstreamlists(void *data,const char *chunk,const struct release *release,struct update *update) {
+static retvalue fetchupstreamlists(void *data,const char *chunk,const struct distribution *distribution,struct update *update) {
 	retvalue result,r;
 	char *from,*method;
 	char *releasefile,*gpgfile;
@@ -1005,7 +1005,7 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 	}
 
 	r = updates_calcliststofetch(&todownload,
-			listdir,release->codename,update->name,
+			listdir,distribution->codename,update->name,
 			update->suite_from,
 			&update->components_from,
 			&update->architectures);
@@ -1027,8 +1027,8 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 
 	/* check the given .gpg of Release and the md5sums therein*/
 
-	releasefile = mprintf("%s/%s_%s_Release",listdir,release->codename,update->name);
-	gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,release->codename,update->name);
+	releasefile = mprintf("%s/%s_%s_Release",listdir,distribution->codename,update->name);
+	gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,distribution->codename,update->name);
 	r = signature_check(chunk,gpgfile,releasefile);
 	free(gpgfile);
 
@@ -1042,7 +1042,7 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = checkpackagelists(&checksums,listdir,release->codename,update->name,update->suite_from,&update->components_from,&update->architectures);
+	result = checkpackagelists(&checksums,listdir,distribution->codename,update->name,update->suite_from,&update->components_from,&update->architectures);
 
 
 	strlist_done(&checksums);
@@ -1067,7 +1067,7 @@ static int update(int argc,char *argv[]) {
 }
 
 /***********************rereferencing*************************/
-struct data_binsrcreref { const struct release *release; DB *references;};
+struct data_binsrcreref { const struct distribution *distribution; DB *references;};
 
 static retvalue rerefbin(void *data,const char *component,const char *architecture) {
 	retvalue result,r;
@@ -1076,7 +1076,7 @@ static retvalue rerefbin(void *data,const char *component,const char *architectu
 	struct referee refdata;
 	DB *pkgs;
 
-	dbname = mprintf("%s-%s-%s",d->release->codename,component,architecture);
+	dbname = mprintf("%s-%s-%s",d->distribution->codename,component,architecture);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -1118,7 +1118,7 @@ static retvalue rerefsrc(void *data,const char *component) {
 	struct referee refdata;
 	DB *pkgs;
 
-	dbname = mprintf("%s-%s-src",d->release->codename,component);
+	dbname = mprintf("%s-%s-src",d->distribution->codename,component);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -1154,18 +1154,18 @@ static retvalue rerefsrc(void *data,const char *component) {
 }
 
 
-static retvalue rereference_dist(void *data,const char *chunk,const struct release *release) {
+static retvalue rereference_dist(void *data,const char *chunk,const struct distribution *distribution) {
 	struct data_binsrcreref dat;
 	retvalue result;
 
 	if( verbose > 0 ) {
-		fprintf(stderr,"Referencing %s...\n",release->codename);
+		fprintf(stderr,"Referencing %s...\n",distribution->codename);
 	}
 
-	dat.release = release;
+	dat.distribution = distribution;
 	dat.references = data;
 
-	result = release_foreach_part(release,rerefsrc,rerefbin,&dat);
+	result = distribution_foreach_part(distribution,rerefsrc,rerefbin,&dat);
 
 	return result;
 }
@@ -1184,14 +1184,14 @@ static int rereference(int argc,char *argv[]) {
 	if( ! refs )
 		return 1;
 	
-	result = release_foreach(confdir,argc-1,argv+1,rereference_dist,refs,force);
+	result = distribution_foreach(confdir,argc-1,argv+1,rereference_dist,refs,force);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 
 	return EXIT_RET(result);
 }
 /***********************checking*************************/
-struct data_binsrccheck { const struct release *release; DB *references; DB *files; const char *identifier;};
+struct data_binsrccheck { const struct distribution *distribution; DB *references; DB *files; const char *identifier;};
 
 
 static retvalue check_binary(void *data,const char *package,const char *chunk) {
@@ -1218,7 +1218,7 @@ static retvalue checkbin(void *data,const char *component,const char *architectu
 	char *dbname;
 	DB *pkgs;
 
-	dbname = mprintf("%s-%s-%s",d->release->codename,component,architecture);
+	dbname = mprintf("%s-%s-%s",d->distribution->codename,component,architecture);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -1307,7 +1307,7 @@ static retvalue checksrc(void *data,const char *component) {
 	char *dbname;
 	DB *pkgs;
 
-	dbname = mprintf("%s-%s-src",d->release->codename,component);
+	dbname = mprintf("%s-%s-src",d->distribution->codename,component);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -1333,18 +1333,18 @@ static retvalue checksrc(void *data,const char *component) {
 }
 
 
-static retvalue check_dist(void *data,const char *chunk,const struct release *release) {
+static retvalue check_dist(void *data,const char *chunk,const struct distribution *distribution) {
 	struct data_binsrccheck *dat=data;
 	retvalue result;
 
 	if( verbose > 0 ) {
-		fprintf(stderr,"Checking %s...\n",release->codename);
+		fprintf(stderr,"Checking %s...\n",distribution->codename);
 	}
 
 
-	dat->release = release;
+	dat->distribution = distribution;
 
-	result = release_foreach_part(release,checksrc,checkbin,dat);
+	result = distribution_foreach_part(distribution,checksrc,checkbin,dat);
 	
 	return result;
 }
@@ -1370,7 +1370,7 @@ static int check(int argc,char *argv[]) {
 		return 1;
 	}
 	
-	result = release_foreach(confdir,argc-1,argv+1,check_dist,&dat,force);
+	result = distribution_foreach(confdir,argc-1,argv+1,check_dist,&dat,force);
 	r = references_done(dat.files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dat.references);

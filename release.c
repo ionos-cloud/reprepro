@@ -35,13 +35,15 @@
 #include "md5sum.h"
 #include "dirs.h"
 #include "names.h"
+#include "signature.h"
+#include "distribution.h"
 #include "release.h"
 
 extern int verbose;
 
 // TODO: this file currently handles both, the checking of checksums in
-// existing Release file and the creation of release files and the handling
-// of what distributions to release. This should somehow be split apart.
+// existing Release file and the creation of release files. Should this
+// be in the same file or be split?
 
 /* get a strlist with the md5sums of a Release-file */
 retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
@@ -182,89 +184,14 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 	return r;
 }
 
-
-void release_free(struct release *release) {
-	if( release) {
-		free(release->codename);
-		free(release->suite);
-		free(release->version);
-		free(release->origin);
-		free(release->label);
-		free(release->description);
-		strlist_done(&release->architectures);
-		strlist_done(&release->components);
-		free(release);
-	}
-}
-
-retvalue release_parse(struct release **release,const char *chunk) {
-	struct release *r;
-	retvalue ret;
-
-	assert( chunk !=NULL && release != NULL );
-	
-	r = calloc(1,sizeof(struct release));
-	if( !r )
-		return RET_ERROR_OOM;
-
-#define checkret		 if(!RET_IS_OK(ret)) { \
-					release_free(r); \
-					return ret; \
-				}
-	ret = chunk_getvalue(chunk,"Codename",&r->codename);
-	checkret;
-	ret = chunk_getvalue(chunk,"Suite",&r->suite);
-	checkret;
-	ret = chunk_getvalue(chunk,"Version",&r->version);
-	checkret;
-	ret = chunk_getvalue(chunk,"Origin",&r->origin);
-	checkret;
-	ret = chunk_getvalue(chunk,"Label",&r->label);
-	checkret;
-	ret = chunk_getvalue(chunk,"Description",&r->description);
-	checkret;
-	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
-	checkret;
-	ret = chunk_getwordlist(chunk,"Components",&r->components);
-	checkret;
-
-	*release = r;
-	return RET_OK;
-}
-
-retvalue release_parse_and_filter(struct release **release,const char *chunk,struct release_filter filter) {
-	retvalue result;
-	int i;
-	
-	result = release_parse(release,chunk);
-	if( RET_IS_OK(result) ) {
-		if( filter.count > 0 ) {
-			i = filter.count;
-			while( i-- > 0 && strcmp((filter.dists)[i],(*release)->codename) != 0 ) {
-			}
-			if( i < 0 ) {
-				if( verbose > 2 ) {
-					fprintf(stderr,"skipping %s\n",(*release)->codename);
-				}
-				release_free(*release);
-				*release = NULL;
-				return RET_NOTHING;
-			}
-		}
-	}
-	return result;
-}
-	
-
-
 /* Generate a "Release"-file for binary directory */
-retvalue release_genbinary(const struct release *release,const char *arch,const char *component,const char *distdir) {
+retvalue release_genbinary(const struct distribution *distribution,const char *arch,const char *component,const char *distdir) {
 	FILE *f;
 	char *filename;
 	int e;
 
 
-	filename = mprintf("%s/%s/%s/binary-%s/Release",distdir,release->codename,component,arch);
+	filename = mprintf("%s/%s/%s/binary-%s/Release",distdir,distribution->codename,component,arch);
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
@@ -285,9 +212,9 @@ retvalue release_genbinary(const struct release *release,const char *arch,const 
 			"Label: %s\n"
 			"Architecture: %s\n"
 			"Description: %s\n",
-		release->suite,release->version,component,
-		release->origin,release->label,arch,
-		release->description);
+		distribution->suite,distribution->version,component,
+		distribution->origin,distribution->label,arch,
+		distribution->description);
 
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);
@@ -297,13 +224,13 @@ retvalue release_genbinary(const struct release *release,const char *arch,const 
 }
 
 /* Generate a "Release"-file for source directory */
-retvalue release_gensource(const struct release *release,const char *component,const char *distdir) {
+retvalue release_gensource(const struct distribution *distribution,const char *component,const char *distdir) {
 	FILE *f;
 	char *filename;
 	int e;
 
 
-	filename = mprintf("%s/%s/%s/source/Release",distdir,release->codename,component);
+	filename = mprintf("%s/%s/%s/source/Release",distdir,distribution->codename,component);
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
@@ -324,9 +251,9 @@ retvalue release_gensource(const struct release *release,const char *component,c
 			"Label: %s\n"
 			"Architecture: source\n"
 			"Description: %s\n",
-		release->suite,release->version,component,
-		release->origin,release->label,
-		release->description);
+		distribution->suite,distribution->version,component,
+		distribution->origin,distribution->label,
+		distribution->description);
 
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);
@@ -368,31 +295,6 @@ static retvalue printmd5andsize(FILE *f,const char *dir,const char *fmt,...) {
 	return RET_OK;
 }
 
-/* call <sourceaction> for each source part of <release> and <binaction> for each binary part of it. */
-retvalue release_foreach_part(const struct release *release,release_each_source_action sourceaction,release_each_binary_action binaction,void *data) {
-	retvalue result,r;
-	int i,j;
-	const char *arch,*comp;
-
-	result = RET_NOTHING;
-	for( i = 0 ; i < release->components.count ; i++ ) {
-		comp = release->components.values[i];
-		for( j = 0 ; j < release->architectures.count ; j++ ) {
-			arch = release->architectures.values[j];
-			if( strcmp(arch,"source") != 0 ) {
-				r = binaction(data,comp,arch);
-				RET_UPDATE(result,r);
-				//TODO: decide if break on error/introduce a force-flag
-			}
-			
-		}
-		r = sourceaction(data,comp);
-		RET_UPDATE(result,r);
-		//TODO: dito
-	}
-	return result;
-}
-
 struct genrel { FILE *f; const char *dirofdist; };
 
 static retvalue printbin(void *data,const char *component,const char *architecture) {
@@ -431,13 +333,11 @@ static retvalue printsource(void *data,const char *component) {
 }
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct release *release,const char *distdir,const char *chunk) {
+retvalue release_gen(const struct distribution *distribution,const char *distdir,const char *chunk) {
 	FILE *f;
 	char *filename;
-	char *sigfilename,*signwith,*signcommand;
 	char *dirofdist;
 	size_t e;
-	int ret;
 	retvalue result,r;
 	char buffer[100];
 	time_t t;
@@ -456,7 +356,7 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 		return RET_ERROR;
 	}
 
-	dirofdist = calc_dirconcat(distdir,release->codename);
+	dirofdist = calc_dirconcat(distdir,distribution->codename);
 	if( !dirofdist ) {
 		return RET_ERROR_OOM;
 	}
@@ -484,20 +384,20 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 			"Version: %s\n"
 			"Date: %s\n"
 			"Architectures: ",
-		release->origin, release->label, release->suite,
-		release->codename, release->version, buffer);
-	strlist_fprint(f,&release->architectures);
+		distribution->origin, distribution->label, distribution->suite,
+		distribution->codename, distribution->version, buffer);
+	strlist_fprint(f,&distribution->architectures);
 	fprintf(f,    "\nComponents: ");
-	strlist_fprint(f,&release->components);
+	strlist_fprint(f,&distribution->components);
 	fprintf(f,    "\nDescription: %s\n"
 			"MD5Sum:\n",
-		release->description);
+		distribution->description);
 
 	/* generate bin/source-Release-files and add md5sums */
 
 	data.f = f;
 	data.dirofdist = dirofdist;
-	result = release_foreach_part(release,printsource,printbin,&data);
+	result = distribution_foreach_part(distribution,printsource,printbin,&data);
 
 	if( fclose(f) != 0 ) {
 		free(dirofdist);
@@ -505,51 +405,9 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 		return RET_ERRNO(errno);
 	}
 
-	r = chunk_getvalue(chunk,"SignWith",&signwith);
-	if( RET_WAS_ERROR(r) ) {
-		free(dirofdist);
-		free(filename);
-		return RET_ERRNO(errno);
-	}
+	r = signature_sign(chunk,filename);
+	RET_UPDATE(result,r);
 
-	if( r != RET_NOTHING ) {
-		sigfilename = calc_dirconcat(dirofdist,"Release.gpg");
-		if( !sigfilename ) {
-			free(dirofdist);
-			free(signwith);
-			free(filename);
-			return RET_ERROR_OOM;
-		}
-		signcommand = mprintf("%s %s %s",signwith,sigfilename,filename);
-		if( !signcommand ) {
-			free(dirofdist); free(filename);
-			free(signwith); free(signcommand);
-			free(sigfilename);
-			return RET_ERROR_OOM;
-		}
-
-		ret = unlink(sigfilename);
-		if( ret != 0 && errno != ENOENT ) {
-			fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",sigfilename);
-			free(signcommand);
-			free(dirofdist);
-			free(filename);
-			free(sigfilename);
-			return RET_ERROR;
-		}
-		
-		free(sigfilename);
-		free(signwith);
-
-		ret = system(signcommand);
-		if( ret != 0 ) {
-			fprintf(stderr,"Executing '%s' returned: %d\n",signcommand,ret);
-			result = RET_ERROR;
-		}
-
-		free(signcommand);
-	}
-	
 	free(dirofdist);
 	free(filename);
 	
@@ -557,39 +415,3 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 	return result;
 }
 
-struct mydata {struct release_filter filter; releaseaction *action; void *data;};
-
-static retvalue processrelease(void *d,const char *chunk) {
-	struct mydata *mydata = d;
-	retvalue result;
-	struct release *release;
-
-	result = release_parse_and_filter(&release,chunk,mydata->filter);
-	if( RET_IS_OK(result) ){
-
-		result = mydata->action(mydata->data,chunk,release);
-		release_free(release);
-	}
-
-	return result;
-}
-
-retvalue release_foreach(const char *conf,int argc,char *argv[],releaseaction action,void *data,int force) {
-	retvalue result;
-	char *fn;
-	struct mydata mydata;
-
-	mydata.filter.count = argc;
-	mydata.filter.dists = argv;
-	mydata.data = data;
-	mydata.action = action;
-	
-	fn = calc_dirconcat(conf,"distributions");
-	if( !fn ) 
-		return RET_ERROR_OOM;
-	
-	result = chunk_foreach(fn,processrelease,&mydata,force);
-
-	free(fn);
-	return result;
-}

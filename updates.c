@@ -37,13 +37,11 @@
 extern int verbose;
 
 
-// typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,struct update *update);
-
 struct updates_data {
 	const char *updatesfile;
 	int force;
 	struct strlist upstreams;
-	const struct release *release;
+	const struct distribution *distribution;
 	updatesaction *action;
 	void *data;
 };
@@ -72,7 +70,7 @@ static retvalue splitComponents(struct strlist *components_from,
 			free(origin);free(destination);
 			return RET_ERROR_OOM;
 		}
-		//TODO: check if in release.compoents 
+		//TODO: check if in distribution.compoents 
 		r = strlist_add(components_from,origin);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -165,13 +163,13 @@ static retvalue processupdates(void *data,const char *chunk) {
 
 	if( verbose > 2 ) {
 		fprintf(stderr,"processing '%s' for '%s'\n",
-				update.name,d->release->codename);
+				update.name,d->distribution->codename);
 	}
 	/* * Check which suite to update from * */
 	r = chunk_getvalue(chunk,"Suite",&update.suite_from);
 	if( r == RET_NOTHING ) {
 		/* if nothing given, try the one we know */
-		update.suite_from = strdup(d->release->codename);
+		update.suite_from = strdup(d->distribution->codename);
 		if( !update.suite_from )
 			r = RET_ERROR_OOM;
 	} 
@@ -183,7 +181,7 @@ static retvalue processupdates(void *data,const char *chunk) {
 		r = chunk_getwordlist(chunk,"Architectures",&update.architectures);
 		if( r == RET_NOTHING ) {
 			/* if nothing given, try to get all the distribution knows */
-			r = strlist_dup(&update.architectures,&d->release->architectures);
+			r = strlist_dup(&update.architectures,&d->distribution->architectures);
 		}
 		if( !RET_WAS_ERROR(r) ) {
 
@@ -192,10 +190,10 @@ static retvalue processupdates(void *data,const char *chunk) {
 			r = calcComponentsToUpdate(
 					&update.components_from,
 					&update.components_into,
-					chunk,&d->release->components);
+					chunk,&d->distribution->components);
 
 			if( RET_IS_OK(r) ) {
-				r = d->action(d->data,chunk,d->release,&update);
+				r = d->action(d->data,chunk,d->distribution,&update);
 
 				strlist_done(&update.components_into);
 				strlist_done(&update.components_from);
@@ -209,18 +207,18 @@ static retvalue processupdates(void *data,const char *chunk) {
 	return r;
 }
 
-static retvalue doupdate(void *data,const char *chunk,const struct release *release) {
+static retvalue doupdate(void *data,const char *chunk,const struct distribution *distribution) {
 	struct updates_data *d = data;
 	retvalue r;
 
 	r = chunk_getwordlist(chunk,"Update",&d->upstreams);
 	if( r == RET_NOTHING && verbose > 1 ) {
-		fprintf(stderr,"Ignoring release '%s', as it describes no update\n",release->codename);
+		fprintf(stderr,"Ignoring distribution '%s', as it describes no update\n",distribution->codename);
 	}
 	if( !RET_IS_OK(r) )
 		return r;
 
-	d->release = release;
+	d->distribution = distribution;
 
 	r = chunk_foreach(d->updatesfile,processupdates,d,d->force);
 
@@ -242,7 +240,7 @@ retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction
 	mydata.action=action;
 	mydata.data=data;
 	
-	result = release_foreach(confdir,argc,argv,doupdate,&mydata,force);
+	result = distribution_foreach(confdir,argc,argv,doupdate,&mydata,force);
 
 	free((char*)mydata.updatesfile);
 

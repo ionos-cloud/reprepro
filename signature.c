@@ -65,3 +65,56 @@ retvalue signature_check(const char *chunk, const char *releasegpg, const char *
 	free(releasecheck);free(command);
 	return r;
 }
+
+
+retvalue signature_sign(const char *chunk,const char *filename) {
+	retvalue r;
+	char *signwith,*sigfilename,*signcommand;
+	int ret;
+	
+	r = chunk_getvalue(chunk,"SignWith",&signwith);
+	/* in case of error or nothing to do there is nothing to do... */
+	if( !RET_IS_OK(r) ) { 
+		return r;
+	}
+
+	/* First calculate the filename of the signature */
+
+	sigfilename = calc_addsuffix(filename,"Release");
+	if( !sigfilename ) {
+		free(signwith);
+		return RET_ERROR_OOM;
+	}
+
+	/* Then make sure it does not already exists */
+	
+	ret = unlink(sigfilename);
+	if( ret != 0 && errno != ENOENT ) {
+		fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",sigfilename);
+		free(sigfilename);
+		return RET_ERROR;
+	}
+
+	/* calculate what to call to create it */
+	
+	signcommand = mprintf("%s %s %s",signwith,sigfilename,filename);
+	free(signwith);
+	free(sigfilename);
+
+	if( !signcommand ) {
+		return RET_ERROR_OOM;
+	}
+
+	//TODO: think about possible problems ...
+	ret = system(signcommand);
+	if( ret != 0 ) {
+		fprintf(stderr,"Executing '%s' returned: %d\n",signcommand,ret);
+		r = RET_ERROR;
+	} else { 
+		r = RET_OK;
+	}
+		
+	free(signcommand);
+	return r;
+}
+

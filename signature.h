@@ -7,5 +7,6 @@
 #endif
 
 retvalue signature_check(const char *chunk, const char *releasegpg, const char *release);
+retvalue signature_sign(const char *chunk,const char *filename);
 
 #endif
