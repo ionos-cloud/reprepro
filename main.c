@@ -408,7 +408,7 @@ struct distributionhandles {
 
 /***********************************addsources***************************/
 
-static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles,const struct strlist *oldfilekeys) {
+static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
 	char *newchunk;
 	retvalue result,r;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
@@ -474,7 +474,7 @@ static int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles,const struct strlist *oldfilekeys) {
+static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
 	retvalue r,ret;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *dn;
@@ -529,7 +529,7 @@ static int prepareaddsources(int argc,char *argv[]) {
 
 /****************************prepareaddpackages*******************************************/
 
-static retvalue showmissing(void *data,const char *chunk,const char *package,const char *version,const char *filekey,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles,const struct strlist *oldfilekeys) {
+static retvalue showmissing(void *data,const char *chunk,const char *package,const char *version,const char *filekey,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
 	retvalue r,ret;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *dn;
@@ -585,7 +585,7 @@ static int prepareaddpackages(int argc,char *argv[]) {
 
 /***********************************addpackages*******************************************/
 
-static retvalue add_package(void *data,const char *chunk,const char *package,const char *version,const char *filekey,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles,const struct strlist *oldfilekeys) {
+static retvalue add_package(void *data,const char *chunk,const char *package,const char *version,const char *filekey,const struct strlist *filekeys,const struct strlist *origfiles,const struct strlist *md5sums,const struct strlist *oldfilekeys) {
 	retvalue result;
 	struct distributionhandles *d = data;
 
@@ -796,7 +796,7 @@ static retvalue exportsource(void *data,const char *component) {
 
 	result = release_gensource(d->distribution,component,distdir);
 
-	dbname = mprintf("%s-%s-src",d->distribution->codename,component);
+	dbname = calc_identifier(d->distribution->codename,component,"source");
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -980,7 +980,7 @@ static retvalue rerefsrc(void *data,const char *component) {
 	struct referee refdata;
 	DB *pkgs;
 
-	dbname = mprintf("%s-%s-src",d->distribution->codename,component);
+	dbname = calc_identifier(d->distribution->codename,component,"source");
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}

@@ -252,7 +252,7 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version
 
 retvalue sources_parse_getfiles(const char *chunk, struct strlist *files) {
 	char *origdirectory;
-	struct strlist filelines,filekeys;
+	struct strlist filelines;
 	retvalue r;
 	
 	r = sources_parse_chunk(chunk,NULL,NULL,&origdirectory,&filelines);
@@ -264,7 +264,7 @@ retvalue sources_parse_getfiles(const char *chunk, struct strlist *files) {
 		return r;
 	assert( RET_IS_OK(r) );
 
-	r = getfilekeys(origdirectory,&filelines,&filekeys);
+	r = getfilekeys(origdirectory,&filelines,files);
 	free(origdirectory);
 	strlist_done(&filelines);
 	if( RET_WAS_ERROR(r) )
@@ -394,7 +394,7 @@ static retvalue addsource(void *data,const char *chunk) {
 
 	char *package,*version,*origdirectory;
 	char *oldversion;
-	struct strlist filelines,oldfilekeys,*o;
+	struct strlist filelines,oldfilekeys;
 
 	r = sources_parse_chunk(chunk,&package,&version,&origdirectory,&filelines);
 	if( r == RET_NOTHING ) {
@@ -422,7 +422,7 @@ static retvalue addsource(void *data,const char *chunk) {
 			r = callaction(d->action,d->data,
 					chunk,package,version,
 					origdirectory,&filelines,
-					d->component,o);
+					d->component,&oldfilekeys);
 		strlist_done(&oldfilekeys);
 	}
 	free(package);free(version);free(origdirectory);
