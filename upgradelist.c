@@ -35,8 +35,8 @@ struct package_data {
 	struct package_data *next;
 	/* the name of the package: */
 	char *name;
-	/* the version in out represitory: 
-	 * NULL means net yet in the archive */
+	/* the version in our repository: 
+	 * NULL means not yet in the archive */
 	char *version_in_use;
 	/* the most recent version we found 
 	 * (either is version_in_use or version_new)*/
@@ -218,7 +218,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 				upgrade->current = NULL;
 				break;
 			}
-			// I only hope noone creates indixes anti-sorted:
+			// I only hope noone creates indices anti-sorted:
 			if( strcmp(packagename,upgrade->last->name) <= 0 ) {
 				/* restart at the beginning: */
 				// == 0 has to be restarted, to calc ->last
