@@ -785,6 +785,10 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	char *p;
 	int consecutivenewlines;
 
+	assert( method->status != ams_ok || method->tobedone );
+	if( method->status != ams_waitforcapabilities && method->status != ams_ok )
+		return RET_NOTHING;
+
 	/* First look if we have enough room to read.. */
 	if( method->alreadyread + 1024 >= method->input_size ) {
 		char *newptr;
@@ -852,7 +856,6 @@ static retvalue senddata(struct aptmethod *method) {
 	size_t l;
 	ssize_t r;
 
-	assert(method->status == ams_ok);
 	if( method->status != ams_ok )
 		return RET_NOTHING;
 
@@ -970,7 +973,8 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 				fprintf(stderr,"want to write to '%s'\n",method->baseuri);
 		}
 		if( method->status == ams_waitforcapabilities ||
-				method->tobedone ) {
+				(method->status == ams_ok &&
+				method->tobedone) ) {
 			FD_SET(method->stdout,&readfds);
 			if( method->stdout > maxfd )
 				maxfd = method->stdout;
