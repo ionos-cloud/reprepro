@@ -11,7 +11,7 @@ See the file TODO for things I plan to do.
 	Emphasis is put on having all packages in the pool/-directory,
 	generation of signed Release file and maximal checking of all
 	sources.
-	Libraries needed are libdb3 and libz.
+	Libraries needed are libdb3 and libz and libgpgme.
 	
 * Current status:
 	
@@ -20,6 +20,10 @@ See the file TODO for things I plan to do.
 	some upstream repository(e.g. debian mirrors).
 	Both already works with some Makefile-magic, is meant to be supported
 	natively.
+
+	Downloading files currently happens through calling files
+	within /var/lib/apt/methods. Giving them their configuration
+	and beeing able to set the path to them will later be added...
 	
 * Some naming conventions:
 	basename: the name of a file without any directory information.
