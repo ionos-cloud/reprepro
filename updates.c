@@ -35,6 +35,7 @@
 #include "signature.h"
 #include "aptmethod.h"
 #include "updates.h"
+#include "upgradelist.h"
 #include "distribution.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
@@ -73,6 +74,8 @@ struct update_upstream {
 	struct strlist components_into;
 	// distribution to go into (NULL for pattern)
 	const struct distribution *distribution;
+	// is set for non-pattern when fetching packages..
+	struct download_upstream *download;
 };
 
 void update_upstream_free(struct update_upstream *update) {
@@ -87,6 +90,16 @@ void update_upstream_free(struct update_upstream *update) {
 	strlist_done(&update->components_from);
 	strlist_done(&update->components_into);
 	free(update);
+}
+
+void update_freeupstreams(struct update_upstream *u) {
+	while( u ) {
+		struct update_upstream *update;
+
+		update = u;
+		u = update->next;
+		update_upstream_free(update);
+	}
 }
 
 static retvalue splitcomponents(struct strlist *components_from,
@@ -392,13 +405,7 @@ static retvalue getupstreams(const struct update_upstream *patterns,const struct
 		}
 	}
 	if( RET_WAS_ERROR(result) ) {
-		while( updates ) {
-			struct update_upstream *update;
-
-			update = updates;
-			updates = updates->next;
-			update_upstream_free(update);
-		}
+		update_freeupstreams(updates);
 	} else {
 		*upstreams = updates;
 	}
@@ -435,9 +442,8 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 	return result;
 }
 
-retvalue updates_getupstreams(const struct update_upstream *patterns,const struct distribution *distributions,struct update_upstream **upstreams) {
-	struct update_upstream *updates = NULL;
-	const struct distribution *distribution;
+retvalue updates_getupstreams(const struct update_upstream *patterns,struct distribution *distributions) {
+	struct distribution *distribution;
 	retvalue result;
 
 	result = RET_NOTHING;
@@ -465,25 +471,13 @@ retvalue updates_getupstreams(const struct update_upstream *patterns,const struc
 			/* Check if we got all: */
 			r = findmissingupdate(count,distribution,update);
 			if( RET_WAS_ERROR(r) ) {
+				update_freeupstreams(update);
 				result = r;
-				break;
+				continue;
 			}
 
-			/* add the new in front of the old: */
-			last->next = updates;
-			updates = update;
+			distribution->upstreams = update;
 		}
-	}
-	if( RET_WAS_ERROR(result) ) {
-		while( updates ) {
-			struct update_upstream *update;
-
-			update = updates;
-			updates = updates->next;
-			update_upstream_free(update);
-		}
-	} else {
-		*upstreams = updates;
 	}
 	return result;
 }
@@ -647,6 +641,63 @@ retvalue updates_checklists(const char *listdir,const struct update_upstream *up
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
 			break;
+	}
+	return result;
+}
+
+static inline retvalue readlists(struct upgradelist *list,struct target *target,const char *listdir,const struct update_upstream *upstream,int force) {
+	int i;
+	retvalue result,r;
+	char *name;
+
+	result = RET_NOTHING;
+
+	if( !strlist_in(&upstream->architectures,target->architecture))
+		return result;
+
+	for( i = 0 ; i < upstream->components_into.count ; i++ ) {
+		if( strcmp(upstream->components_into.values[i],
+					target->component) == 0 ) { 
+			name = calc_downloadedlistfile(listdir,
+					target->codename,upstream->name,
+					upstream->components_from.values[i],
+					target->architecture);
+			if( name == NULL )
+				return RET_ERROR_OOM;
+			assert(upstream->download);
+			r = upgradelist_update(list,upstream->download,
+					name,force);
+			free(name);
+			RET_UPDATE(result,r);
+		}
+	}
+	return result;
+}
+
+retvalue updates_readlistsfortarget(struct upgradelist *list,struct target *target,const char *listdir,const struct update_upstream *upstreams,int force) {
+	retvalue result,r;
+	const struct update_upstream *upstream;
+
+	result = RET_NOTHING;
+	for( upstream=upstreams ; upstream ; upstream=upstream->next ) {
+		r = readlists(list,target,listdir,upstream,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && !force )
+			break;
+	}
+	return result;
+}
+
+retvalue updates_setdownloadupstreams(struct update_upstream *upstreams,struct downloadlist *download) {
+	retvalue result,r;
+	struct update_upstream *upstream;
+
+	result = RET_NOTHING;
+
+	for( upstream=upstreams ; upstream ; upstream=upstream->next ) {
+		r = downloadlist_newupstream(download,upstream->method,upstream->config,&upstream->download);
+		RET_UPDATE(result,r);
+
 	}
 	return result;
 }

@@ -23,6 +23,7 @@
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
+#include "dirs.h"
 #include "files.h"
 #include "aptmethod.h"
 #include "downloadlist.h"
@@ -50,16 +51,25 @@ struct downloadlist {
 	struct downloaditem *items;
 };
 
+filesdb downloadlist_filesdb(struct downloadlist *list) {
+	return list->filesdb;
+}
+
 
 /* Initialize a new download session */
-retvalue downloadlist_initialize(struct downloadlist **download,filesdb files) {
+retvalue downloadlist_initialize(struct downloadlist **download,const char *dbdir,const char *pooldir) {
 	struct downloadlist *list;
+	retvalue r;
 
 	list = calloc(1,sizeof(struct downloadlist));
 	if( list == NULL )
 		return RET_ERROR_OOM;
-	// TODO: create it here and free in _free?
-	list->filesdb = files;
+
+	r = files_initialize(&list->filesdb,dbdir,pooldir);
+	if( RET_WAS_ERROR(r) ) {
+		free(list);
+		return r;
+	}
 
 	*download = list;
 	return RET_OK;
@@ -69,6 +79,7 @@ retvalue downloadlist_initialize(struct downloadlist **download,filesdb files) {
 retvalue downloadlist_free(struct downloadlist *list) {
 	struct download_upstream *upstream;
 	struct downloaditem *item;
+	retvalue r;
 
 	while( list->upstreams ) {
 		upstream = list->upstreams;
@@ -85,9 +96,9 @@ retvalue downloadlist_free(struct downloadlist *list) {
 		}
 		free(upstream);
 	}
-	//TODO: free filesdb here?
+	r = files_done(list->filesdb);
 	free(list);
-	return RET_OK;
+	return r;
 }
 
 /* try to fetch and register all queued files */
@@ -115,6 +126,7 @@ retvalue downloadlist_run(struct downloadlist *list,const char *methoddir,int fo
 				aptmethod_cancel(run);
 				return r;
 			}
+			(void)dirs_make_parent(fullfilename);
 			r = aptmethod_queuefile(method,item->origfile,
 					fullfilename,item->md5sum);
 			free(fullfilename);
@@ -159,7 +171,7 @@ retvalue downloadlist_newupstream(struct downloadlist *list,
 	} else
 		u->config = NULL;
 	u->method = strdup(method);
-	if( u->config == NULL ) {
+	if( u->method == NULL ) {
 		free(u->config);
 		free(u);
 		return RET_ERROR_OOM;
@@ -220,4 +232,27 @@ retvalue downloadlist_add(struct download_upstream *upstream,const char *origfil
 	item->next = upstream->list->items;
 	upstream->list->items = item;
 	return RET_OK;
+}
+
+retvalue downloadlist_addfiles(struct download_upstream *upstream,
+		const struct strlist *origfiles,
+		const struct strlist *filekeys,
+		const struct strlist *md5sums) {
+	retvalue result,r;
+	int i;
+
+	assert(origfiles && filekeys && md5sums
+		&& origfiles->count == filekeys->count
+		&& md5sums->count == filekeys->count);
+
+	result = RET_NOTHING;
+	
+	for( i = 0 ; i < filekeys->count ; i++ ) {
+		r = downloadlist_add(upstream,
+			origfiles->values[i],
+			filekeys->values[i],
+			md5sums->values[i]);
+		RET_UPDATE(result,r);
+	}
+	return result;
 }

@@ -13,8 +13,16 @@ struct update_upstream;
 
 retvalue updates_getpatterns(const char *confdir,struct update_upstream **patterns,int force);
 
-retvalue updates_getupstreams(const struct update_upstream *patterns,const struct distribution *distributions,struct update_upstream **upstreams);
+void update_freeupstreams(struct update_upstream *u);
 
+retvalue updates_getupstreams(const struct update_upstream *patterns,struct distribution *distributions);
+
+struct aptmethodrun;
 retvalue updates_queuelists(struct aptmethodrun *run,const char *listdir,struct update_upstream *upstreams);
 retvalue updates_checklists(const char *listdir,const struct update_upstream *upstreams,int force);
+
+retvalue updates_readlistsfortarget(struct upgradelist *list,struct target *target,const char *listdir,const struct update_upstream *upstreams,int force);
+
+struct downloadlist;
+retvalue updates_setdownloadupstreams(struct update_upstream *upstreams,struct downloadlist *download);
 #endif

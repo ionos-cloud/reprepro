@@ -25,12 +25,14 @@
 #include "strlist.h"
 #include "chunks.h"
 #include "dpkgversions.h"
+#include "downloadlist.h"
+#include "target.h"
 #include "upgradelist.h"
 
 extern int verbose;
 
-typedef struct s_package_data {
-	struct s_package_data *next;
+struct package_data {
+	struct package_data *next;
 	/* the name of the package: */
 	char *name;
 	/* the version in out represitory: 
@@ -44,7 +46,7 @@ typedef struct s_package_data {
 	 * NULL means nothing found. */
 	char *new_version;
 	/* where the recent version comes from: */
-	//TODO: pointer to data?: char *new_from;
+	struct download_upstream *upstream;
 
 	/* the new control-chunk for the package to go in 
 	 * non-NULL if new_version && newversion > version_in_use */
@@ -54,17 +56,19 @@ typedef struct s_package_data {
 	struct strlist new_filekeys;
 	struct strlist new_md5sums;
 	struct strlist new_origfiles;
-} package_data;
-
-struct s_upgradelist {
-	upgrade_decide_function *decide;
-	struct target *target;
-	package_data *list;
-	/* NULL or the last/next thing to test in alphabetical order */
-	package_data *current,*last;
 };
 
-static void package_data_free(package_data *data){
+struct upgradelist {
+	upgrade_decide_function *decide;
+	struct target *target;
+	struct package_data *list;
+	/* NULL or the last/next thing to test in alphabetical order */
+	struct package_data *current,*last;
+	/* internal...*/
+	struct download_upstream *currentupstream;
+};
+
+static void package_data_free(struct package_data *data){
 	if( data == NULL )
 		return;
 	free(data->name);
@@ -78,23 +82,24 @@ static void package_data_free(package_data *data){
 	free(data);
 }
 
-
 static retvalue save_package_version(void *d,const char *packagename,const char *chunk) {
-	upgradelist upgrade = d;
+	struct upgradelist *upgrade = d;
 	char *version;
 	retvalue r;
-	package_data *package;
+	struct package_data *package;
 
 	r = upgrade->target->getversion(upgrade->target,chunk,&version);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	package = calloc(1,sizeof(package_data));
+	package = calloc(1,sizeof(struct package_data));
 	if( package == NULL ) {
 		free(version);
 		return RET_ERROR_OOM;
 	}
 
+	assert(upgrade->currentupstream);
+	package->upstream = upgrade->currentupstream;
 	package->name = strdup(packagename);
 	if( package->name == NULL ) {
 		free(package);
@@ -124,13 +129,12 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 
 	return RET_OK;
 }
-
 	
-retvalue upgradelist_initialize(upgradelist *ul,struct target *t,const char *dbdir,upgrade_decide_function *decide) {
-	upgradelist upgrade;
+retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const char *dbdir,upgrade_decide_function *decide) {
+	struct upgradelist *upgrade;
 	retvalue r;
 
-	upgrade = calloc(1,sizeof(struct s_upgradelist));
+	upgrade = calloc(1,sizeof(struct upgradelist));
 	if( upgrade == NULL )
 		return RET_ERROR_OOM;
 
@@ -139,14 +143,14 @@ retvalue upgradelist_initialize(upgradelist *ul,struct target *t,const char *dbd
 
 	r = target_initpackagesdb(t,dbdir);
 	if( RET_WAS_ERROR(r) ) {
-		upgradelist_done(upgrade);
+		upgradelist_free(upgrade);
 		return r;
 	}
 
 	r = packages_foreach(t->packages,save_package_version,upgrade,0);
 
 	if( RET_WAS_ERROR(r) ) {
-		upgradelist_done(upgrade);
+		upgradelist_free(upgrade);
 		return r;
 	}
 
@@ -157,15 +161,15 @@ retvalue upgradelist_initialize(upgradelist *ul,struct target *t,const char *dbd
 	return RET_OK;
 }
 
-retvalue upgradelist_done(upgradelist upgrade) {
-	package_data *l;
+retvalue upgradelist_free(struct upgradelist *upgrade) {
+	struct package_data *l;
 	
 	if( ! upgrade )
 		return RET_NOTHING;
 
 	l = upgrade->list;
 	while( l ) {
-		package_data *n = l->next;
+		struct package_data *n = l->next;
 		package_data_free(l);
 		l = n;
 	}
@@ -174,7 +178,7 @@ retvalue upgradelist_done(upgradelist upgrade) {
 	return RET_OK;
 }
 
-retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
+retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
 	char *packagename,*version;
 	retvalue r;
 	upgrade_decision decision;
@@ -239,7 +243,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 	}
 	if( upgrade->current == NULL ) {
 		/* adding a package not yet existing */
-		package_data *new;
+		struct package_data *new;
 
 		decision = (*upgrade->decide)(packagename,NULL,version);
 		if( decision != UD_UPGRADE ) {
@@ -248,12 +252,14 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 			return RET_NOTHING;
 		}
 
-		new = calloc(1,sizeof(package_data));
+		new = calloc(1,sizeof(struct package_data));
 		if( new == NULL ) {
 			free(packagename);
 			free(version);
 			return RET_ERROR_OOM;
 		}
+		assert(upgrade->currentupstream);
+		new->upstream = upgrade->currentupstream;
 		new->name = packagename;
 		packagename = NULL; //to be sure...
 		new->new_version = version;
@@ -274,7 +280,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		}
 	} else {
 		/* The package already exists: */
-		package_data *current = upgrade->current;
+		struct package_data *current = upgrade->current;
 		char *control;struct strlist files,md5sums,origfiles;
 
 
@@ -330,16 +336,17 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 	return RET_OK;
 }
 
-retvalue upgradelist_update(upgradelist upgrade,const char *filename,int force){
+retvalue upgradelist_update(struct upgradelist *upgrade,struct download_upstream *upstream,const char *filename,int force){
 
 	upgrade->current = upgrade->list;
 	upgrade->last = NULL;
+	upgrade->currentupstream = upstream;
 
 	return chunk_foreach(filename,(void*)upgradelist_trypackage,upgrade,force,0);
 }
 
-retvalue upgradelist_listmissing(upgradelist upgrade,filesdb files){
-	package_data *pkg;
+retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files){
+	struct package_data *pkg;
 
 	pkg = upgrade->list;
 	while( pkg ) {
@@ -353,8 +360,29 @@ retvalue upgradelist_listmissing(upgradelist upgrade,filesdb files){
 	return RET_OK;
 }
 
-retvalue upgradelist_install(upgradelist upgrade,filesdb files,DB *references,int force){
-	package_data *pkg;
+/* request all wanted files in the downloadlists given before */
+retvalue upgradelist_enqueue(struct upgradelist *upgrade,int force) {
+	struct package_data *pkg;
+	retvalue result,r;
+	pkg = upgrade->list;
+	result = RET_NOTHING;
+	while( pkg ) {
+		if( pkg->version == pkg->new_version ) {
+			r = downloadlist_addfiles(pkg->upstream,
+				&pkg->new_origfiles,
+				&pkg->new_filekeys,
+				&pkg->new_md5sums);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && !force )
+				break;
+		}
+		pkg = pkg->next;
+	}
+	return result;
+}
+
+retvalue upgradelist_install(struct upgradelist *upgrade,filesdb files,DB *references,int force){
+	struct package_data *pkg;
 	retvalue result,r;
 	pkg = upgrade->list;
 	result = RET_NOTHING;
@@ -377,8 +405,8 @@ retvalue upgradelist_install(upgradelist upgrade,filesdb files,DB *references,in
 	return result;
 }
 
-retvalue upgradelist_dump(upgradelist upgrade){
-	package_data *pkg;
+retvalue upgradelist_dump(struct upgradelist *upgrade){
+	struct package_data *pkg;
 
 	pkg = upgrade->list;
 	while( pkg ) {

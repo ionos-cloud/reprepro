@@ -547,6 +547,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 
 		case '4':
 			fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+			// TODO: when 404 remove todo...
 			return RET_ERROR;
 		default:
 			fprintf(stderr,"unexpected data from method: '%s'\n",input);
@@ -627,7 +628,8 @@ static retvalue senddata(struct aptmethod *method) {
 	if( method->status != ams_ok )
 		return RET_NOTHING;
 
-	while( method->jobs ) {
+	//while( method->jobs ) {
+	if( method->jobs ) {
 		struct queuedjob *job = method->jobs;
 		size_t r,l;
 
@@ -646,7 +648,8 @@ static retvalue senddata(struct aptmethod *method) {
 		if( r < l ) {
 			job->alreadywritten += r;
 			fprintf(stderr,"Written %d of %d bytes\n",r,job->len);
-			break;
+			//break;
+			return RET_OK;
 		}
 
 		method->jobs = job->next;

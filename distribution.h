@@ -21,6 +21,9 @@ struct distribution {
 	char *signwith;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
+	/* list of all update_upstreams for this ditribution,
+	 * only set when update_getupstreams was called for this*/
+	struct update_upstream *upstreams;
 };
 
 

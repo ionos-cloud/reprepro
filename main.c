@@ -673,9 +673,12 @@ static int export(int argc,char *argv[]) {
 
 static int update(int argc,char *argv[]) {
 	retvalue result,r;
-	struct update_upstream *patterns,*upstreams;
-	struct distribution *distributions;
+	DB *refs;
+	struct update_upstream *patterns;
+	struct distribution *distributions,*d;
 	struct aptmethodrun *run;
+	struct downloadlist *download;
+	struct target *t;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"mirrorer update [<distributions>]\n");
@@ -695,7 +698,7 @@ static int update(int argc,char *argv[]) {
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
 
-	result = updates_getupstreams(patterns,distributions,&upstreams);
+	result = updates_getupstreams(patterns,distributions);
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
 
@@ -704,65 +707,80 @@ static int update(int argc,char *argv[]) {
 		return EXIT_RET(r);
 	}
 
-	r = updates_queuelists(run,listdir,upstreams);
-
-	if( RET_WAS_ERROR(r) ) {
-		aptmethod_cancel(run);
-		return EXIT_RET(r);
+	for( d=distributions; d ; d = d->next ) {
+		r = updates_queuelists(run,listdir,d->upstreams);
+		if( RET_WAS_ERROR(r) ) {
+			aptmethod_cancel(run);
+			return EXIT_RET(r);
+		}
 	}
+
 
 	result = aptmethod_download(run,"/usr/lib/apt/methods");
 	
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
 
-	r = updates_checklists(listdir,upstreams,force);
-
-	return EXIT_RET(result);
-}
-
-static int upgrade(int argc,char *argv[]) {
-	retvalue result,r;
-	upgradelist upgrade;
-	filesdb files;
-	struct target *target;
-
-	if( argc <=1 ) {
-		fprintf(stderr,"mirrorer upgrade [<distributions>]\n");
-		return 1;
+	for( d=distributions; d ; d = d->next ) {
+		r = updates_checklists(listdir,d->upstreams,force);
+		if( RET_WAS_ERROR(r) ) {
+			aptmethod_cancel(run);
+			return EXIT_RET(r);
+		}
 	}
-
-	result = dirs_make_recursive(listdir);	
-	if( RET_WAS_ERROR(result) ) {
-		return EXIT_RET(result);
-	}
-
-	r = target_initialize_source("woody","main",&target);
-	if( RET_WAS_ERROR(r) ) {
-		return EXIT_RET(r);
-	}
-
-	result = upgradelist_initialize(&upgrade,target,dbdir,ud_always);
-	if( RET_WAS_ERROR(result) ) {
-		(void)target_free(target);
-		return EXIT_RET(result);
-	}
-
-	result = upgradelist_update(upgrade,argv[1],force);
-	upgradelist_dump(upgrade);
-
-	r = files_initialize(&files,dbdir,mirrordir);
-	if( RET_IS_OK(r) ) {
-		upgradelist_listmissing(upgrade,files);
-
-		files_done(files);
-	}
-
-	r = upgradelist_done(upgrade);
-	RET_ENDUPDATE(result,r);
 	
+	result = downloadlist_initialize(&download,dbdir,mirrordir);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+	
+	for( d=distributions; d ; d = d->next ) {
+
+		r = updates_setdownloadupstreams(d->upstreams,download);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			continue;
+		for( t = d->targets; t ; t = t->next ) {
+			r = upgradelist_initialize(&t->upgradelist,
+					t,dbdir,ud_always);
+			if( RET_WAS_ERROR(r) )
+				continue;
+			r = updates_readlistsfortarget(t->upgradelist,
+					t,listdir,d->upstreams,force);
+			if( RET_WAS_ERROR(r) ) {
+				upgradelist_free(t->upgradelist);
+				t->upgradelist = NULL;
+				continue;
+			}
+			r = upgradelist_enqueue(t->upgradelist,force);
+			if( RET_WAS_ERROR(r) ) {
+				upgradelist_free(t->upgradelist);
+				t->upgradelist = NULL;
+				continue;
+			}
+		}
+	}
+	result = downloadlist_run(download,"/usr/lib/apt/methods",force);
+
+	refs = references_initialize(dbdir);
+	if( ! refs )
+		return 1;
+
+	for( d=distributions; d ; d = d->next ) {
+		for( t = d->targets; t ; t = t->next ) {
+			if( t->upgradelist == NULL )
+				continue;
+			r = upgradelist_install(t->upgradelist,
+					downloadlist_filesdb(download),
+					refs,force);
+			RET_UPDATE(result,r);
+		}
+	}
+
+	references_done(refs);
+
 	return EXIT_RET(result);
 }
+
 
 /***********************rereferencing*************************/
 struct data_binsrcreref { const struct distribution *distribution; DB *references;};
@@ -1026,7 +1044,6 @@ static struct action {
 	{"_removereferences", removereferences},
 	{"_addmd5sums",addmd5sums},
 	{"update",update},
-	{"upgrade",upgrade},
 	{"__extractcontrol",extract_control},
 	{"includedeb",includedeb},
 	{"includedsc",includedsc},

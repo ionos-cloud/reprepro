@@ -37,6 +37,7 @@
 #include "names.h"
 #include "md5sum.h"
 #include "dpkgversions.h"
+#include "upgradelist.h"
 #include "target.h"
 
 extern int verbose;
@@ -100,6 +101,9 @@ retvalue target_free(struct target *target) {
 	free(target->directory);
 	if( target->packages ) {
 		result = packages_done(target->packages);
+	}
+	if( target->upgradelist) {
+		upgradelist_free(target->upgradelist);
 	}
 	free(target);
 	return result;
