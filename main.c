@@ -71,7 +71,7 @@ static int addmd5sums(int argc,char *argv[]) {
 	retvalue result,r;
 
 	if( argc != 1 ) {
-		fprintf(stderr,"mirrorer addmd5sums < <data>\n");
+		fprintf(stderr,"mirrorer _addmd5sums < <data>\n");
 		return 1;
 	}
 
@@ -111,7 +111,7 @@ static int removereferences(int argc,char *argv[]) {
 	retvalue ret,r;
 
 	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer removereferences <identifier>\n");
+		fprintf(stderr,"mirrorer _removereferences <identifier>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
@@ -239,7 +239,7 @@ static int addreference(int argc,char *argv[]) {
 	retvalue result,r;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer addreference <reference> <referee>\n");
+		fprintf(stderr,"mirrorer _addreference <reference> <referee>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
@@ -256,7 +256,7 @@ static int exportpackages(int argc,char *argv[]) {
 	retvalue result;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer genpackages <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer _genpackages <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	result = packages_doprintout(dbdir,argv[1],argv[2]);
@@ -268,7 +268,7 @@ static int zexportpackages(int argc,char *argv[]) {
 	retvalue result;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer genzpackages <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer _genzpackages <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	result = packages_dozprintout(dbdir,argv[1],argv[2]);
@@ -282,7 +282,7 @@ static int removepackage(int argc,char *argv[]) {
 	char *filekey,*chunk;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer removepackage <identifier> <package-name>\n");
+		fprintf(stderr,"mirrorer _removepackage <identifier> <package-name>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
@@ -324,13 +324,11 @@ static int removepackage(int argc,char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
 }
-/****** common for reference{binaries,sources} *****/
+/****** reference_{binary,source} *****/
 struct referee {
 	DB *refs;
 	const char *identifier;
 };
-
-/**********************************referencebinaries**********************/
 
 static retvalue reference_binary(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
@@ -349,36 +347,6 @@ static retvalue reference_binary(void *data,const char *package,const char *chun
 	free(filekey);
 	return r;
 }
-
-static int referencebinaries(int argc,char *argv[]) {
-	retvalue result,r;
-	struct referee dist;
-	DB *pkgs;
-
-	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer referencebinaries <identifier>\n");
-		return 1;
-	}
-	dist.refs = references_initialize(dbdir);
-	dist.identifier = argv[1];
-	if( ! dist.refs )
-		return 1;
-	pkgs = packages_initialize(dbdir,dist.identifier);
-	if( ! pkgs ) {
-		(void)references_done(dist.refs);
-		return 1;
-	}
-	result = packages_foreach(pkgs,reference_binary,&dist,force);
-
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-	r = references_done(dist.refs);
-	RET_ENDUPDATE(result,r);
-	return EXIT_RET(result);
-}
-
-/**********************************referencesources**********************/
-
 
 static retvalue reference_source(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
@@ -402,32 +370,6 @@ static retvalue reference_source(void *data,const char *package,const char *chun
 	return r;
 }
 
-static int referencesources(int argc,char *argv[]) {
-	retvalue result,r;
-	struct referee dist;
-	DB *pkgs;
-
-	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer referencesources <identifier>\n");
-		return 1;
-	}
-	dist.refs = references_initialize(dbdir);
-	if( ! dist.refs )
-		return 1;
-	pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! pkgs ) {
-		(void)references_done(dist.refs);
-		return 1;
-	}
-	dist.identifier = argv[1];
-	result = packages_foreach(pkgs,reference_source,&dist,force);
-
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-	r = references_done(dist.refs);
-	RET_ENDUPDATE(result,r);
-	return EXIT_RET(result);
-}
 
 /****** common for [prepare]add{sources,packages} *****/
 
@@ -1519,31 +1461,27 @@ static struct action {
 	char *name;
 	int (*start)(int argc,char *argv[]);
 } actions[] = {
-	{"d", printargs},
-	{"detect", detect},
-	{"forget", forget},
-	{"md5sums", md5sums},
+	{"__d", printargs},
+	{"_detect", detect},
+	{"_forget", forget},
+	{"_md5sums", md5sums},
 	{"checkrelease",checkrelease},
 	{"prepareaddsources", prepareaddsources},
 	{"addsources", addsources},
 	{"prepareaddpackages", prepareaddpackages},
 	{"addpackages", addpackages},
-	{"genpackages", exportpackages},
-	{"genzpackages", zexportpackages},
-        {"removepackage", removepackage},
+	{"_genpackages", exportpackages},
+	{"_genzpackages", zexportpackages},
+        {"_removepackage", removepackage},
 	{"export", export},
 	{"check", check},
 	{"rereference", rereference},
-	{"addreference", addreference},
-	{"printreferences", dumpreferences},
-	{"printunreferenced", dumpunreferenced},
+	{"_addreference", addreference},
 	{"dumpreferences", dumpreferences},
 	{"dumpunreferenced", dumpunreferenced},
 	{"deleteunreferenced", deleteunreferenced},
-	{"removereferences", removereferences},
-	{"referencebinaries",referencebinaries},
-	{"referencesources",referencesources},
-	{"addmd5sums",addmd5sums},
+	{"_removereferences", removereferences},
+	{"_addmd5sums",addmd5sums},
 	{"update",update},
 	{NULL,NULL}
 };
@@ -1585,19 +1523,15 @@ int main(int argc,char *argv[]) {
 "\n"
 "actions:\n"
 " add <filename>:     Not yet implemented.\n"
-" forget <file>:      Forget the given files (read stdin if none)\n"
+" _forget <file>:      Forget the given files (read stdin if none)\n"
 "                     (Only usefull to unregister files manually deleted)\n"
-" detect <file>:      Add given files to the database (read stdin if none)\n"
+" _detect <file>:      Add given files to the database (read stdin if none)\n"
 "  the following lines are currently wrong...\n"
 "  ('find $pooldir -type f -printf \"%%P\\n\" | mirrorer -p $pooldir inventory'\n"
 "   will iventory an already existing pool-dir\n"
 "   WARNING: names relative to pool-dir in shortest possible form\n"
-" removereferences <identifier>: Remove all marks \"Needed by <identifier>\"\n"
-" referencebinaries <identifer>:\n"
-"       Mark everything in dist <identifier> to be needed by <identifier>\n"
-" referencesources <identifer>:\n"
-"       Mark everything in dist <identifier> to be needed by <identifier>\n"
-" printreferences:    Print all saved references\n"
+" _removereferences <identifier>: Remove all marks \"Needed by <identifier>\"\n"
+" dumpreferences:    Print all saved references\n"
 " dumpunreferenced:   Print registered files withour reference\n"
 " deleteunreferenced: Delete and forget all unreferenced files\n"
 " export              Generate Packages.gz/Packages/Sources.gz/Release\n"

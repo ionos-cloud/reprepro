@@ -1,5 +1,4 @@
 TODO:
 	add adding uploads (via .changes, by .dsc and by .deb)
-	rename low-level commands to _*
 	add searching for packages
 	add easier removing of single packages
