@@ -2,7 +2,7 @@
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
-.B reprepro --help
+.B reprepro \-\-help
 
 .B reprepro
 [
@@ -20,31 +20,31 @@ libdb3 gpgme
 Global options can be specified before the command. They effect
 some subset of commands and are ignored otherwise.
 .TP
-.B -h --help
+.B \-h \-\-help
 Displays a short list of options and commands with description.
 .TP
-.B -v, -V, --verbose
+.B \-v, \-V, \-\-verbose
 Be more verbose. Can be applied multiple times. One upcase 
-.B -V 
+.B \-V 
 counts as five lowercase 
-.B -v.
+.B \-v.
 .TP
-.B -f, --force
+.B \-f, \-\-force
 Do things nevertheless. Might be dangerous and destructive.
 .TP
-.B -b, --basedir \fIbasedir\fP
-Sets the base-dir of the repository to manage, i.e. where the
+.B \-b, \-\-basedir \fIbasedir\fP
+Sets the base\-dir of the repository to manage, i.e. where the
 .B pool/
 subdirectory resides. Also sets
-.B --distdir \fIbasedir\fP/dists --dbdir \fIbasedir\fP/db 
-.B --listdir \fIbasedir\fP/lists --confdir \fIbasedir\fP/conf 
-.B --overridedir \fIbasedir\fP/override
+.B \-\-distdir \fIbasedir\fP/dists \-\-dbdir \fIbasedir\fP/db 
+.B \-\-listdir \fIbasedir\fP/lists \-\-confdir \fIbasedir\fP/conf 
+.B \-\-overridedir \fIbasedir\fP/override
 (that means especially: use those options afterwards if you want to use them).
 .TP
-.B -c, --confdir \fIconfdir\fP
+.B \-c, \-\-confdir \fIconfdir\fP
 Sets the directory where the configuration is searched in.
 .TP
-.B -d, --distdir \fIdistdir\fP
+.B \-d, \-\-distdir \fIdistdir\fP
 Sets the directory to generate index files relatively to. (i.e. things like
 Packages.gz Sources.gz and Release.gpg)
 
@@ -54,31 +54,31 @@ apt has
 hardcoded in it, so this is only useful for testing or when your webserver
 pretends another directory structure than your physical layout.
 .TP
-.B -D, --dbdir \fIdbdir\fP
+.B \-D, \-\-dbdir \fIdbdir\fP
 Sets the directory where reprepro keeps its databases.
 
 .B Note:
 This is permanent data, no cache. One has almost to regenerate the whole
 repository when this is lost.
 .TP
-.B -L, --listdir \fIlistdir\fP
+.B \-L, \-\-listdir \fIlistdir\fP
 Sets the directory where downloads it downloads indices to when importing
 from other repositories. This is temporary data and can be safely deleted
 when not in an update run.
 .TP
-.B -o, --overridedir \fIoverridedir\fP
-Sets the directory where specified override-files will be searched in if
+.B \-o, \-\-overridedir \fIoverridedir\fP
+Sets the directory where specified override\-files will be searched in if
 they do not start with a slash.
 .TP
-.B -M, --methoddir \fImethoddir\fP
+.B \-M, \-\-methoddir \fImethoddir\fP
 Look in \fImethoddir\fP instead of
 .B /usr/lib/apt/methods
 for methods to call when importing from other repositories.
 .TP
-.B -C, --component \fIcomponent\fP
+.B \-C, \-\-component \fIcomponent\fP
 Specify a component to force into, to remove from or to list only.
 .TP
-.B -A, --architecture \fIarchitecture\fP
+.B \-A, \-\-architecture \fIarchitecture\fP
 Specify an architecture to only include into, remove from or
 list.
 
@@ -88,27 +88,27 @@ versions of an
 .B Architecture: all
 \-package in different architectures of the same distribution.
 .TP
-.B -S, --section \fIsection\fP
+.B \-S, \-\-section \fIsection\fP
 Overrides the section of inclusions. (Also override possible override files)
 .TP
-.B -P, --priority \fIpriority\fP
+.B \-P, \-\-priority \fIpriority\fP
 Overrides the priority of inclusions. (Also override possible override files)
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
 Generate all index files for the specified distributions. (For all if none
 is specified). This will normaly be done automatically and more
-fine-tuned when including or removing packages, so seldom needed; but is nevertheless 
+fine\-tuned when including or removing packages, so seldom needed; but is nevertheless 
 a good way to see if
 a new 
 .B distributions
-config-file does the expected things.
+config\-file does the expected things.
 .TP
 .B list \fIcodename\fP \fIpackagename\fP
 List all packages (source and binary, except when
-.B -A
+.B \-A
 is given) with the given name in all components (except when
-.B -c
+.B \-c
 is given) of the specified distribution.
 .TP
 .B remove \fIcodename\fP \fIpackagename\fP
@@ -209,11 +209,11 @@ file of the specified .deb-file.
 .B reprepo 
 uses two config files, that are searched in
 the directory specified with 
-.B -c
+.B \-c
 or in the
 .B conf/
 subdirectory of the directory given by
-.B -b
+.B \-b
  . The file
 .B distributions
 is always needed and describes what distributions
@@ -273,7 +273,7 @@ in the future.)
 This will also be copied into the Release files.
 .TP
 .B UDebComponents
-Components with a debian-installer subhirachy containing .udebs.
+Components with a debian\-installer subhirachy containing .udebs.
 (E.g. simply "main")
 .TP
 .B Update
@@ -293,13 +293,25 @@ When this field is present, it describes the source override file.
 .SS conf/updates
 .TP
 .B Name
-The name of this update-upstream as it can be used in the 
+The name of this update\-upstream as it can be used in the 
 .B Update
 field in conf/distributions.
 .TP
 .B Method
 An URL as one could also give it apt, e.g.
 .I http://ftp.debian.de/debian
+which is simply given to the corresponding
+.B apt\-get
+method. (So either
+.B apt\-get has to be installed, or you have to point with
+.B \-M
+to a place where such methods are found.
+.TP
+.B Config
+This can contain any number of lines, each in the format
+.B apt\-get \-\-option
+would expect. (Multiple lines - as always - marked with
+leading spaces).
 .TP
 .B Suite
 The suite to update from. If this is not present, the codename
@@ -313,7 +325,7 @@ to update from.
 .B Components
 The components to update. Each item can be either the name
 of a component or a pair of a upstream component and a local
-component seperated with ">". (e.g. "main>all contrib>all non-free>notall")
+component seperated with ">". (e.g. "main>all contrib>all non\-free>notall")
 Items with a local part are ignored. If no items are there
 all from the updated distribution are taken. (Use some nonexisting
 like "none", if you want none).
@@ -328,7 +340,7 @@ Download the
 .B Release.gpg
 file and check if it is a signature of the
 .B Releasefile with the key given here. (In the Format as
-"gpg --with-colons --list-key" prints it, i.e. the last
+"gpg \-\-with-colons \-\-list-key" prints it, i.e. the last
 16 hexdigits of the fingerprint)
 .TP
 .B IgnoreRelease
@@ -341,25 +353,25 @@ yet to be described
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with
-.B -C
+.B \-C
 it will take the
 first component with the name of the section, beeing
 prefix to the section, beeing suffix to the section
 or having the section as prefix or any. (In this order)
 
 Thus having specifiend the components:
-"main non-free contrib non-US/main non-US/non-free non-US/contrib"
+"main non\-free contrib non\-US/main non\-US/non-free non\-US/contrib"
 should map e.g.
-"non-US" to "non-US/main" and "contrib/editors" to "contrib",
-while having only "main non-free and contrib" as components should
-map "non-US/contrib" to "contrib" and "non-US" to "main".
+"non\-US" to "non\-US/main" and "contrib/editors" to "contrib",
+while having only "main non\-free and contrib" as components should
+map "non\-US/contrib" to "contrib" and "non\-US" to "main".
 
 .B NOTE: 
 Always specify main as the first component, if you want things 
 to end up there.
 
 .B NOTE: 
-unlike in dak, non-US and non-us are different things...
+unlike in dak, non\-US and non\-us are different things...
 .SH NOMENCLATURE
 .B Codename 
 is the identifier ...
@@ -390,7 +402,7 @@ is sometimes also considered as architecture.
 Things like 
 .B main 
 .
-.B non-free 
+.B non\-free 
 and
 .B contrib
   (somtimes also called sections)
@@ -407,7 +419,7 @@ The checksum of a file, beeing in the format
 "\fI<md5sum of file>\fP \fI<length of file>\fP"
 .SH BUGS
 The
-.B --force
+.B \-\-force
 option needs to be replaced by something superior so that one can allow
 stupid things but not descructive things.
 

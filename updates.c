@@ -737,7 +737,7 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 
 
 
-retvalue updates_prepare(struct aptmethodrun *run,struct distribution *distribution) {
+static retvalue updates_prepare(struct aptmethodrun *run,struct distribution *distribution) {
 	retvalue result,r;
 	struct update_origin *origin;
 
@@ -751,7 +751,7 @@ retvalue updates_prepare(struct aptmethodrun *run,struct distribution *distribut
 	return result;
 }
 
-retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distribution,int force) {
+static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distribution,int force) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_target *target;
@@ -775,13 +775,13 @@ retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distri
 	return RET_OK;;
 }
 
-static inline retvalue searchformissing(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct update_target *u,int force) {
+static inline retvalue searchformissing(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct update_target *u,upgrade_decide_function *decide,int force) {
 	struct update_index *index;
 	retvalue result,r;
 
 	if( verbose > 2 )
 		fprintf(stderr,"  processing updates for '%s'\n",u->target->identifier);
-	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir,ud_always);
+	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir,decide);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -807,13 +807,13 @@ static inline retvalue searchformissing(const char *dbdir,struct downloadcache *
 	return result;
 }
 
-retvalue updates_readindices(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force) {
+static retvalue updates_readindices(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = searchformissing(dbdir,cache,filesdb,u,force);
+		r = searchformissing(dbdir,cache,filesdb,u,ud_always,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
 			break;
@@ -822,7 +822,7 @@ retvalue updates_readindices(const char *dbdir,struct downloadcache *cache,files
 }
 
 
-retvalue updates_install(const char *dbdir,filesdb filesdb,DB *refsdb,struct distribution *distribution,int force) {
+static retvalue updates_install(const char *dbdir,filesdb filesdb,DB *refsdb,struct distribution *distribution,int force) {
 	retvalue result,r;
 	struct update_target *u;
 

@@ -246,7 +246,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 		/* adding a package not yet existing */
 		struct package_data *new;
 
-		decision = (*upgrade->decide)(packagename,NULL,version);
+		decision = (*upgrade->decide)(packagename,NULL,version,chunk);
 		if( decision != UD_UPGRADE ) {
 			free(packagename);
 			free(version);
@@ -317,7 +317,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 			fprintf(stderr,"'%s' from '%s' is newer than '%s' currently\n",
 				version,packagename,current->version);
 		decision = upgrade->decide(current->name,
-					current->version,version);
+					current->version,version,chunk);
 		if( decision != UD_UPGRADE ) {
 			//TODO: perhaps set a flag if hold was applied...
 			free(version);
@@ -464,6 +464,6 @@ retvalue upgradelist_dump(struct upgradelist *upgrade){
 }
 
 /* standard answer function */
-upgrade_decision ud_always(const char *package,const char *old_version,const char *new_version) {
+upgrade_decision ud_always(const char *package,const char *old_version,const char *new_version,const char *new_controlchunk) {
 	return UD_UPGRADE;
 }

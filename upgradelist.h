@@ -15,9 +15,9 @@
 
 typedef enum { UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
 
-typedef upgrade_decision upgrade_decide_function(const char *package,const char *old_version,const char *new_version);
+typedef upgrade_decision upgrade_decide_function(const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk);
 
-upgrade_decision ud_always(const char *p,const char *ov,const char *nv);
+upgrade_decision ud_always(const char *p,const char *ov,const char *nv,const char *nc);
 
 /* The main part: */
 
