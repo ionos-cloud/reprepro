@@ -72,7 +72,7 @@ static int	force = 0;
 static int	nothingiserror = 0;
 int		verbose = 0;
 
-static int printargs(int argc,const char *argv[]) {
+static int action_printargs(int argc,const char *argv[]) {
 	int i;
 
 	fprintf(stderr,"argc: %d\n",argc);
@@ -81,7 +81,7 @@ static int printargs(int argc,const char *argv[]) {
 	}
 	return 0;
 }
-static int extract_control(int argc,const char *argv[]) {
+static int action_extractcontrol(int argc,const char *argv[]) {
 	retvalue result;
 	char *control;
 
@@ -98,7 +98,7 @@ static int extract_control(int argc,const char *argv[]) {
 }
 
 
-static int addmd5sums(int argc,const char *argv[]) {
+static int action_addmd5sums(int argc,const char *argv[]) {
 	char buffer[2000],*c,*m;
 	filesdb files;
 	retvalue result,r;
@@ -139,7 +139,7 @@ static int addmd5sums(int argc,const char *argv[]) {
 }
 
 
-static int removereferences(int argc,const char *argv[]) {
+static int action_removereferences(int argc,const char *argv[]) {
 	DB *refs;
 	retvalue ret,r;
 
@@ -157,7 +157,7 @@ static int removereferences(int argc,const char *argv[]) {
 }
 
 
-static int dumpreferences(int argc,const char *argv[]) {
+static int action_dumpreferences(int argc,const char *argv[]) {
 	DB *refs;
 	retvalue result,r;
 
@@ -190,7 +190,7 @@ static retvalue checkifreferenced(void *data,const char *filekey,const char *md5
 		return r;
 }
 
-static int dumpunreferenced(int argc,const char *argv[]) {
+static int action_dumpunreferenced(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -244,7 +244,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,const char *
 		return r;
 }
 
-static int deleteunreferenced(int argc,const char *argv[]) {
+static int action_deleteunreferenced(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -268,7 +268,7 @@ static int deleteunreferenced(int argc,const char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int addreference(int argc,const char *argv[]) {
+static int action_addreference(int argc,const char *argv[]) {
 	DB *refs;
 	retvalue result,r;
 
@@ -310,7 +310,7 @@ static retvalue remove_from_target(void *data, struct target *target) {
 	return result;
 }
 
-static int removepackage(int argc,const char *argv[]) {
+static int action_remove(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct remove_args d;
@@ -371,7 +371,7 @@ static retvalue list_in_target(void *data, struct target *target) {
 	return result;
 }
 
-static int listpackage(int argc,const char *argv[]) {
+static int action_list(int argc,const char *argv[]) {
 	retvalue r,result;
 	struct distribution *distribution;
 
@@ -394,7 +394,7 @@ static int listpackage(int argc,const char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int detect(int argc,const char *argv[]) {
+static int action_detect(int argc,const char *argv[]) {
 	filesdb files;
 	char buffer[5000],*nl;
 	int i;
@@ -426,7 +426,7 @@ static int detect(int argc,const char *argv[]) {
 	return EXIT_RET(ret);
 }
 
-static int forget(int argc,const char *argv[]) {
+static int action_forget(int argc,const char *argv[]) {
 	filesdb files;
 	char buffer[5000],*nl;
 	int i;
@@ -458,7 +458,7 @@ static int forget(int argc,const char *argv[]) {
 	return EXIT_RET(ret);
 }
 
-static int md5sums(int argc,const char *argv[]) {
+static int action_md5sums(int argc,const char *argv[]) {
 	filesdb files;
 	char *filename,*md5sum;
 	retvalue ret,r;
@@ -498,7 +498,7 @@ static retvalue printout(void *data,const char *package,const char *chunk){
 	return RET_OK;
 }
 
-static int dumpcontents(int argc,const char *argv[]) {
+static int action_dumpcontents(int argc,const char *argv[]) {
 	retvalue result,r;
 	packagesdb packages;
 
@@ -519,7 +519,7 @@ static int dumpcontents(int argc,const char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static retvalue doexport(void *dummy,const char *chunk,struct distribution *distribution) {
+static retvalue export(void *dummy,const char *chunk,struct distribution *distribution) {
 
 	if( verbose > 0 ) {
 		fprintf(stderr,"Exporting %s...\n",distribution->codename);
@@ -528,7 +528,7 @@ static retvalue doexport(void *dummy,const char *chunk,struct distribution *dist
 	return distribution_export(distribution,dbdir,distdir,force,0);
 }
 
-static int export(int argc,const char *argv[]) {
+static int action_export(int argc,const char *argv[]) {
 	retvalue result;
 
 	if( argc < 1 ) {
@@ -536,13 +536,13 @@ static int export(int argc,const char *argv[]) {
 		return 1;
 	}
 	
-	result = distribution_foreach(confdir,argc-1,argv+1,doexport,NULL,force);
+	result = distribution_foreach(confdir,argc-1,argv+1,export,NULL,force);
 	return EXIT_RET(result);
 }
 
 /***********************update********************************/
 
-static int update(int argc,const char *argv[]) {
+static int action_update(int argc,const char *argv[]) {
 	retvalue result,r;
 	int doexport;
 	DB *refs;
@@ -645,7 +645,7 @@ static retvalue rereference_dist(void *data,const char *chunk,struct distributio
 	return result;
 }
 
-static int rereference(int argc,const char *argv[]) {
+static int action_rereference(int argc,const char *argv[]) {
 	retvalue result,r;
 	DB *refs;
 
@@ -697,7 +697,7 @@ static retvalue check_dist(void *data,const char *chunk,struct distribution *dis
 	return result;
 }
 
-static int check(int argc,const char *argv[]) {
+static int action_check(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct data_check dat;
 
@@ -727,7 +727,7 @@ static int check(int argc,const char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int checkpool(int argc,const char *argv[]) {
+static int action_checkpool(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;
 
@@ -751,7 +751,7 @@ static int checkpool(int argc,const char *argv[]) {
 
 /***********************include******************************************/
 
-static int includedeb(int argc,const char *argv[]) {
+static int action_includedeb(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;DB *references;
 	struct distribution *distribution;
@@ -815,7 +815,7 @@ static int includedeb(int argc,const char *argv[]) {
 }
 
 
-static int includedsc(int argc,const char *argv[]) {
+static int action_includedsc(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files; DB *references;
 	struct distribution *distribution;
@@ -868,14 +868,14 @@ static int includedsc(int argc,const char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int includechanges(int argc,const char *argv[]) {
+static int action_include(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;DB *references;
 	struct distribution *distribution;
 	struct overrideinfo *override,*srcoverride;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"reprepro include <distribution> <package>\n");
+		fprintf(stderr,"reprepro include <distribution> <.changes-file>\n");
 		return 1;
 	}
 
@@ -934,28 +934,28 @@ static struct action {
 	char *name;
 	int (*start)(int argc,const char *argv[]);
 } actions[] = {
-	{"__d", printargs},
-	{"_detect", detect},
-	{"_forget", forget},
-	{"_md5sums", md5sums},
-	{"_dumpcontents", dumpcontents},
-        {"remove", removepackage},
-	{"list", listpackage},
-	{"export", export},
-	{"check", check},
-	{"checkpool", checkpool},
-	{"rereference", rereference},
-	{"_addreference", addreference},
-	{"dumpreferences", dumpreferences},
-	{"dumpunreferenced", dumpunreferenced},
-	{"deleteunreferenced", deleteunreferenced},
-	{"_removereferences", removereferences},
-	{"_addmd5sums",addmd5sums},
-	{"update",update},
-	{"__extractcontrol",extract_control},
-	{"includedeb",includedeb},
-	{"includedsc",includedsc},
-	{"include",includechanges},
+	{"__d", 		action_printargs},
+	{"__extractcontrol",	action_extractcontrol},
+	{"_detect", 		action_detect},
+	{"_forget", 		action_forget},
+	{"_md5sums", 		action_md5sums},
+	{"_dumpcontents", 	action_dumpcontents},
+	{"_removereferences", 	action_removereferences},
+	{"_addmd5sums",		action_addmd5sums},
+	{"_addreference", 	action_addreference},
+        {"remove", 		action_remove},
+	{"list", 		action_list},
+	{"export", 		action_export},
+	{"check", 		action_check},
+	{"checkpool", 		action_checkpool},
+	{"rereference", 	action_rereference},
+	{"dumpreferences", 	action_dumpreferences},
+	{"dumpunreferenced", 	action_dumpunreferenced},
+	{"deleteunreferenced", 	action_deleteunreferenced},
+	{"update",		action_update},
+	{"includedeb",		action_includedeb},
+	{"includedsc",		action_includedsc},
+	{"include",		action_include},
 	{NULL,NULL}
 };
 
