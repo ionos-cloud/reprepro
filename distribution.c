@@ -347,6 +347,13 @@ static retvalue adddistribution(void *d,const char *chunk) {
 
 	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter);
 	if( RET_IS_OK(result) ){
+		struct distribution *d;
+		for( d=mydata->distributions; d != NULL; d=d->next ) {
+			if( strcmp(d->codename,distribution->codename) == 0 ) {
+				fprintf(stderr,"Multiple distributions with the common codename: '%s'!\n",d->codename);
+				result = RET_ERROR;
+			}
+		}
 		distribution->next = *mydata->distributions;
 		*mydata->distributions = distribution;
 	}
