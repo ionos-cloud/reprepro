@@ -317,7 +317,7 @@ retvalue term_decidechunk(term *condition,const char *controlchunk) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( r == RET_NOTHING ) {
-			correct = ( c != tc_notequal );
+			correct = ( c == tc_notequal );
 		} else if( c == tc_none) {
 			correct = TRUE;
 			free(value);
