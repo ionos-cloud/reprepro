@@ -454,8 +454,8 @@ static inline retvalue todo_done(struct aptmethod *method,const struct tobedone 
 	/* if the file is somewhere else, copy it: */
 	if( strcmp(filename,todo->filename) != 0 ) {
 		retvalue r;
-		if( verbose > 0 ) {
-			fprintf(stderr,"Linking/Copying file '%s' to '%s'...\n",filename,todo->filename);
+		if( verbose > 1 ) {
+			fprintf(stderr,"Linking file '%s' to '%s'...\n",filename,todo->filename);
 		}
 		r = md5sum_place(filename,todo->filename,&calculatedmd5);
 		if( r == RET_NOTHING ) {
