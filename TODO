@@ -4,6 +4,7 @@ TODO:
 	moving files between distributions
 	- only those with source in given thing...
 	write more automated test-cases
+	look if some index files are already there and need no downloading...
 
 goals unlikely before the first release:
 	implement extractcontrol.c properly

@@ -18,6 +18,8 @@
 
 #include <errno.h>
 #include <assert.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
@@ -108,6 +110,8 @@ struct update_pattern {
 	struct strlist udebcomponents_into;
 	// NULL means no condition
 	term *includecondition;
+	// NULL means nothing to execute after lists are downloaded...
+	char *listhook;
 };
 
 struct update_origin {
@@ -275,7 +279,8 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 	retvalue r;
 	static const char * const allowedfields[] = {"Name", "Method", 
 "Config", "Suite", "Architectures", "Components", "UDebComponents", 
-"IgnoreRelease", "VerifyRelease", "FilterFormula", NULL};
+"IgnoreRelease", "VerifyRelease", "FilterFormula", "FilterList",
+"ListHook", NULL};
 
 	update = calloc(1,sizeof(struct update_pattern));
 	if( update == NULL )
@@ -422,6 +427,14 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 			return r;
 		}
 		assert( r != RET_NOTHING );
+	}
+	/* * Check if there is a script to call * */
+	r = chunk_getvalue(chunk,"ListHook",&update->listhook);
+	if( RET_WAS_ERROR(r) ) {
+		update_pattern_free(update);
+		return r;
+	} else if( r == RET_NOTHING ) {
+		update->listhook = NULL;
 	}
 
 	*pattern = update;
@@ -972,6 +985,91 @@ static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution 
 	return result;
 }
 
+retvalue calllisthook(const char *listhook,struct update_index *index) {
+	char *newfilename;
+	pid_t f,c;
+	int status; 
+
+	newfilename = mprintf("%s_changed",index->filename);
+	if( newfilename == NULL )
+		return RET_ERROR_OOM;
+	f = fork();
+	if( f < 0 ) {
+		int err = errno;
+		free(newfilename);
+		fprintf(stderr,"Error while forking for listhook: %d=%m\n",err);
+		return RET_ERRNO(err);
+	}
+	if( f == 0 ) {
+		long maxopen;
+		/* Try to close all open fd but 0,1,2 */
+		maxopen = sysconf(_SC_OPEN_MAX);
+		if( maxopen > 0 ) {
+			int fd;
+			for( fd = 3 ; fd < maxopen ; fd++ )
+				close(fd);
+		} // otherweise we have to hope...
+		execl(listhook,listhook,index->filename,newfilename,NULL);
+		fprintf(stderr,"Error while executing '%s': %d=%m\n",listhook,errno);
+		exit(255);
+	}
+	if( verbose > 5 )
+		fprintf(stderr,"Called %s '%s# '%s'\n",listhook,index->filename,newfilename);
+	free(index->filename);
+	index->filename=newfilename;
+	do {
+		c = waitpid(f,&status,WUNTRACED);
+		if( c < 0 ) {
+			int err = errno;
+			fprintf(stderr,"Error while waiting for hook '%s' to finish: %d=%m\n",listhook,err);
+			return RET_ERRNO(err);
+		}
+	} while( c != f );
+	if( WIFEXITED(status) ) {
+		if( WEXITSTATUS(status) == 0 ) {
+			if( verbose > 5 )
+				fprintf(stderr,"Listhook successfully returned!\n");
+			return RET_OK;
+		} else {
+			fprintf(stderr,"Listhook failed with exitcode %d!\n",(int)WEXITSTATUS(status));
+			return RET_ERROR;
+		}
+	} else {
+		fprintf(stderr,"Listhook terminated abnormaly. (status is %x)!\n",status);
+		return RET_ERROR;
+	}
+}
+
+static retvalue updates_calllisthooks(struct distribution *distributions,int force) {
+	retvalue result,r;
+	struct update_target *target;
+	struct update_index *index;
+	struct distribution *distribution;
+
+	result = RET_NOTHING;
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+
+		for( target=distribution->updatetargets;target; target=target->next ) {
+			for( index=target->indices ; index; index=index->next ) {
+				if( index->origin == NULL )
+					continue;
+				if( index->origin->pattern->listhook == NULL )
+					continue;
+				if( index->failed || index->origin->failed ) {
+					continue;
+				}
+				r = calllisthook(index->origin->pattern->listhook,index);
+				if( RET_WAS_ERROR(r) && ! force ) {
+					index->failed = TRUE;
+					return r;
+				}
+				RET_UPDATE(result,r);
+			}
+		}
+	}
+	return result;
+}
+
 
 upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
@@ -1124,6 +1222,14 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	if( RET_WAS_ERROR(r) && !force ) {
 		return result;
 	}
+
+	/* Call ListHooks (if given) on the downloaded index files */
+	r = updates_calllisthooks(distributions,force);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) && !force ) {
+		return result;
+	}
+
 	return result;
 }
 
@@ -1153,7 +1259,6 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 			aptmethod_shutdown(run);
 			return result;
 		}
-
 	}
 
 	/* Then get all packages */
