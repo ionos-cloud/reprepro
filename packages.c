@@ -382,15 +382,14 @@ retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
 
 /* rereference a full database */
 
-struct data_rerefpkg { 
+struct data_ref { 
 	packagesdb packagesdb;
 	DB *referencesdb;
 	extractfilekeys *extractfilekeys;
-
 };
 
 static retvalue rerefpkg(void *data,const char *package,const char *chunk) {
-	struct data_rerefpkg *d = data;
+	struct data_ref *d = data;
 	struct strlist filekeys;
 	retvalue r;
 
@@ -413,7 +412,7 @@ static retvalue rerefpkg(void *data,const char *package,const char *chunk) {
 
 retvalue packages_rereference(const char *dbdir,DB *referencesdb,extractfilekeys *extractfilekeys,const char *codename,const char *component,const char *architecture,int force) {
 	retvalue result,r;
-	struct data_rerefpkg refdata;
+	struct data_ref refdata;
 	packagesdb pkgs;
 
 	r = packages_init(&pkgs,dbdir,codename,component,architecture);
@@ -437,6 +436,60 @@ retvalue packages_rereference(const char *dbdir,DB *referencesdb,extractfilekeys
 	r = packages_foreach(pkgs,rerefpkg,&refdata,force);
 	RET_UPDATE(result,r);
 	
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+/* check a full database */
+struct data_check { 
+	packagesdb packagesdb;
+	DB *referencesdb;
+	DB *filesdb;
+	extractfilekeys *extractfilekeys;
+};
+
+static retvalue checkpkg(void *data,const char *package,const char *chunk) {
+	struct data_check *d = data;
+	struct strlist filekeys;
+	retvalue r;
+
+	r = (*d->extractfilekeys)(chunk,&filekeys);
+	if( verbose >= 0 && r == RET_NOTHING ) {
+		fprintf(stderr,"Package does not look like expected: '%s'\n",chunk);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( verbose > 10 ) {
+		fprintf(stderr,"checking references to '%s' for '%s': ",d->packagesdb->identifier,package);
+		strlist_fprint(stderr,&filekeys);
+		putc('\n',stderr);
+	}
+	r = references_check(d->referencesdb,d->packagesdb->identifier,&filekeys);
+	// TODO check md5sums in filesdb
+	strlist_done(&filekeys);
+	return r;
+}
+
+retvalue packages_check(const char *dbdir,DB *filesdb,DB *referencesdb,extractfilekeys *extractfilekeys,const char *codename,const char *component,const char *architecture,int force) {
+	retvalue result,r;
+	struct data_check data;
+	packagesdb pkgs;
+
+	r = packages_init(&pkgs,dbdir,codename,component,architecture);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( verbose > 1 ) {
+		fprintf(stderr,"Checking packages in '%s'...\n",pkgs->identifier);
+	}
+	data.referencesdb = referencesdb;
+	data.filesdb = filesdb;
+	data.packagesdb = pkgs;
+	data.extractfilekeys = extractfilekeys;
+	result = packages_foreach(pkgs,checkpkg,&data,force);
+
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
 

@@ -35,16 +35,10 @@ retvalue packages_remove(packagesdb db,const char *package);
  * returns RET_NOTHING, if there is none*/
 retvalue packages_get(packagesdb db,const char *package,char **chunk);
 
-/* check for existance of the given version of a package in the arch, 
- * > 0 found
- * = 0 not-found
- * < 0 error
- */
-retvalue packages_check(packagesdb db,const char *package);
-
 /* rereference a full database */
 typedef retvalue extractfilekeys(const char *,struct strlist *);
 retvalue packages_rereference(const char *dbdir,DB *referencesdb,extractfilekeys *extractfilekeys,const char *codename,const char *component,const char *architecture,int force);
+retvalue packages_check(const char *dbdir,DB *filesdb,DB *referencesdb,extractfilekeys *extractfilekeys,const char *codename,const char *component,const char *architecture,int force);
 
 /* insert a chunk in the packages database, adding and deleting
  * references and insert files while that. */

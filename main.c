@@ -945,113 +945,19 @@ static int rereference(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 /***********************checking*************************/
-struct data_binsrccheck { const struct distribution *distribution; DB *references; DB *files; const char *identifier;};
+struct data_binsrccheck { const struct distribution *distribution; DB *references; DB *files;};
 
-
-static retvalue check_binary(void *data,const char *package,const char *chunk) {
-	struct data_binsrccheck *d = data;
-	struct strlist filekeys;
-	retvalue r;
-
-	r = binaries_parse_getfiles(chunk,&filekeys);
-	if( verbose >= 0 && r == RET_NOTHING ) {
-		fprintf(stderr,"Package does not look binary: '%s'\n",chunk);
-	}
-	if( !RET_IS_OK(r) )
-		return r;
-	if( verbose > 10 ) {
-		fprintf(stderr,"checking for filekey: ");
-		strlist_fprint(stderr,&filekeys);
-		fputc('\n',stderr);
-	}
-	r = references_check(d->references,d->identifier,&filekeys);
-	strlist_done(&filekeys);
-	return r;
-}
 
 static retvalue checkbin(void *data,const char *component,const char *architecture) {
-	retvalue result,r;
 	struct data_binsrccheck *d = data;
-	char *dbname;
-	packagesdb pkgs;
 
-	dbname = calc_identifier(d->distribution->codename,component,architecture);
-	if( !dbname ) {
-		return RET_ERROR_OOM;
-	}
-	if( verbose > 1 ) {
-		fprintf(stderr,"Checking %s...\n",dbname);
-	}
-
-	r = packages_initialize(&pkgs,dbdir,dbname);
-	if( RET_WAS_ERROR(r) ) {
-		free(dbname);
-		return r;
-	}
-
-	d->identifier = dbname;
-	result = packages_foreach(pkgs,check_binary,d,force);
-	
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-
-	free(dbname);
-
-	return result;
-}
-
-static retvalue check_source(void *data,const char *package,const char *chunk) {
-	struct data_binsrccheck *d = data;
-	struct strlist filekeys;
-	retvalue ret,r;
-
-	r = sources_parse_getfilekeys(chunk,&filekeys);
-	if( verbose >= 0 && r == RET_NOTHING ) {
-		fprintf(stderr,"Package does not look like source: '%s'\n",chunk);
-	}
-	if( !RET_IS_OK(r) )
-		return r;
-
-	if( verbose > 10 )
-		fprintf(stderr,"referencing source package: %s\n",package);
-
-	ret = references_check(d->references,d->identifier,&filekeys);
-
-	// TODO: check for files, too.
-	//
-	strlist_done(&filekeys);
-	return ret;
+	return packages_check(dbdir,d->files,d->references,binaries_parse_getfiles,d->distribution->codename,component,architecture,force);
 }
 
 static retvalue checksrc(void *data,const char *component) {
-	retvalue result,r;
 	struct data_binsrccheck *d = data;
-	char *dbname;
-	packagesdb pkgs;
 
-	dbname = calc_identifier(d->distribution->codename,component,"source");
-	if( !dbname ) {
-		return RET_ERROR_OOM;
-	}
-	if( verbose > 1 ) {
-		fprintf(stderr,"Checking depencies of %s...\n",dbname);
-	}
-
-	r = packages_initialize(&pkgs,dbdir,dbname);
-	if( RET_WAS_ERROR(r) ) {
-		free(dbname);
-		return r;
-	}
-
-	d->identifier = dbname;
-	result = packages_foreach(pkgs,check_source,d,force);
-	
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-
-	free(dbname);
-
-	return result;
+	return packages_check(dbdir,d->files,d->references,sources_parse_getfilekeys,d->distribution->codename,component,"source",force);
 }
 
 
