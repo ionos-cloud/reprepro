@@ -22,7 +22,7 @@
 #include "error.h"
 #include "strlist.h"
 
-retvalue strlist_in(const struct strlist *strlist,const char *element) {
+int strlist_in(const struct strlist *strlist,const char *element) {
 	int c;
 	char **t;
 
@@ -32,9 +32,9 @@ retvalue strlist_in(const struct strlist *strlist,const char *element) {
 	t = strlist->values;
 	while( c-- ) {
 		if( strcmp(*(t++),element) == 0 )
-			return RET_OK;
+			return 1;
 	}
-	return RET_NOTHING;
+	return 0;
 }
 
 retvalue strlist_new(struct strlist *strlist) {

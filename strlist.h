@@ -17,6 +17,6 @@ void strlist_free(struct strlist *strlist);
 /* add a string, will get property of the strlist and free'd by it */
 retvalue strlist_add(struct strlist *strlist,char *element);
 
-retvalue strlist_in(const struct strlist *strlist,const char *element);
+int strlist_in(const struct strlist *strlist,const char *element);
 
 #endif
