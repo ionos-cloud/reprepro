@@ -601,7 +601,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,const
 	return r;
 }
 
-static retvalue changes_includefiles(filesdb filesdb,const char *component,const char *filename,struct changes *changes,int force) {
+static retvalue changes_includefiles(filesdb filesdb,const char *component,const char *filename,struct changes *changes,int force,int delete) {
 	struct fileentry *e;
 	retvalue r;
 	char *sourcedir; 
@@ -620,7 +620,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *component,const
 			free(sourcedir);
 			return RET_ERROR_OOM;
 		}
-		r = files_checkinfile(filesdb,sourcedir,e->basename,e->filekey,e->md5sum);
+		r = files_includefile(filesdb,sourcedir,e->basename,e->filekey,e->md5sum,NULL,delete);
 		if( RET_WAS_ERROR(r) )
 			break;
 		e = e->next;
@@ -633,6 +633,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *component,const
 static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force) {
 	struct fileentry *e;
 	retvalue r;
+	int somethingwasmissed = 0;
 
 	r = RET_NOTHING;
 
@@ -653,7 +654,9 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
 				binoverride,
-				force);
+				force,D_INPLACE);
+			if( r == RET_NOTHING )
+				somethingwasmissed = 1;
 		} else if( e->type == fe_DSC ) {
 			r = dsc_add(dbdir,references,filesdb,
 				changes->component,e->section,e->priority,
@@ -661,7 +664,9 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				e->filekey,e->basename,
 				changes->directory,e->md5sum,
 				srcoverride,
-				force);
+				force,D_INPLACE);
+			if( r == RET_NOTHING )
+				somethingwasmissed = 1;
 		}
 		
 		free(fullfilename);
@@ -670,13 +675,16 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 		e = e->next;
 	}
 
+	if( RET_IS_OK(r) && somethingwasmissed ) {
+		return RET_NOTHING;
+	}
 	return r;
 }
 
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force) {
+retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete) {
 	retvalue r;
 	struct changes *changes;
 
@@ -706,19 +714,35 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 	}
 	
 	/* add files in the pool */
-	r = changes_includefiles(filesdb,changes->component,changesfilename,changes,force);
+	//TODO: D_DELETE would fail here, what to do?
+	r = changes_includefiles(filesdb,changes->component,changesfilename,changes,force,delete);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
 	}
 
-	// TODO: make sure the name is transmitted, as if this differs override is wrong...
 	/* add the source and binary packages in the given distribution */
 	r = changes_includepkgs(dbdir,references,filesdb,
 		distribution,changes,srcoverride,binoverride,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
+	}
+
+	if( delete >= D_MOVE ) {
+		if( r == RET_NOTHING && delete < D_DELETE ) {
+			if( verbose >= 0 ) {
+				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use -d -d to delete anyway in such cases)\n",changesfilename);
+			}
+		} else {
+			assert(RET_IS_OK(r));
+			if( verbose >= 5 ) {
+				fprintf(stderr,"Deleting '%s'.",changesfilename);
+			}
+			if( unlink(changesfilename) != 0 ) {
+				fprintf(stderr,"Error deleting '%s': %m",changesfilename);
+			}
+		}
 	}
 
 	return RET_OK;

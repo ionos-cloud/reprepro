@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -32,6 +32,8 @@
 #include "dirs.h"
 #include "md5sum.h"
 #include "copyfile.h"
+
+extern int verbose;
 
 /* Copy a file and calculate the md5sum of the result,
  * return RET_NOTHING (and no md5sum), if it already exists*/
@@ -144,6 +146,85 @@ retvalue copyfile_getmd5(const char *mirrordir,const char *filekey,const char *o
 		}
 
 	} 
+	free(fullfilename);
+	return r;
+}
+void copyfile_delete(const char *fullfilename) {
+	int err;
+
+	err = unlink(fullfilename);
+	if( err != 0 ) {
+		fprintf(stderr,"error while unlinking %s: %m\n",fullfilename);
+	}
+
+}
+
+static retvalue copy(const char *fullfilename,const char *origfile,const char *md5expected,char **calculatedmd5sum) {
+	char *md5sum;
+	retvalue r;
+
+	r = md5sum_copy(origfile,fullfilename,&md5sum);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Could not open '%s'!\n",origfile);
+		return RET_ERROR_MISSING;
+	}
+	if( r == RET_ERROR_EXIST ) {
+		fprintf(stderr,"File '%s' does already exist!\n",fullfilename);
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( calculatedmd5sum != NULL )
+		*calculatedmd5sum = md5sum;
+
+	if( strcmp(md5sum,md5expected) == 0 ) {
+		r = RET_OK;
+	} else {
+		unlink(fullfilename);
+		fprintf(stderr,"WARNING: '%s' has md5sum '%s', while '%s' was expected.\n",origfile,md5sum,md5expected);
+		r = RET_ERROR_WRONG_MD5;
+	}
+
+	if( calculatedmd5sum == NULL )
+		free(md5sum);
+
+	return r;
+}
+
+static retvalue move(const char *fullfilename,const char *origfile,const char *md5expected,char **md5sum) {
+	retvalue r;
+	// TODO: try a rename first, if md5sum is know and correct??
+	
+	r = copy(fullfilename,origfile,md5expected,md5sum);
+	if( RET_IS_OK(r) ) {
+		if( verbose > 15 ) {
+			fprintf(stderr,"Deleting '%s'.",origfile);
+		}
+		if( unlink(origfile) != 0 ) {
+			fprintf(stderr,"Error deleting '%s': %m",origfile);
+		}
+	}
+	return r;
+}
+
+retvalue copyfile_move(const char *mirrordir,const char *filekey,const char *origfile,const char *md5expected,char **md5sum) {
+	retvalue r;
+	char *fullfilename;
+
+	fullfilename = calc_dirconcat(mirrordir,filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+	r = move(fullfilename,origfile,md5expected,md5sum);
+	free(fullfilename);
+	return r;
+}
+retvalue copyfile_copy(const char *mirrordir,const char *filekey,const char *origfile,const char *md5expected,char **md5sum) {
+	retvalue r;
+	char *fullfilename;
+
+	fullfilename = calc_dirconcat(mirrordir,filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+	r = copy(fullfilename,origfile,md5expected,md5sum);
 	free(fullfilename);
 	return r;
 }

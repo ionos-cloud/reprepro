@@ -327,11 +327,11 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 /* Get the files from the directory dscfilename is residing it, and copy
  * them into the pool, also setting pkg->dscmd5sum */
 static retvalue dsc_copyfiles(filesdb filesdb,
-			struct dscpackage *pkg,const char *dscfilename) {
+			struct dscpackage *pkg,const char *dscfilename,int delete) {
 	char *sourcedir;
 	retvalue r;
 
-	r = files_checkin(filesdb,pkg->dscfilekey,dscfilename,&pkg->dscmd5sum);
+	r = files_include(filesdb,dscfilename,pkg->dscfilekey,NULL,&pkg->dscmd5sum,delete);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -339,7 +339,7 @@ static retvalue dsc_copyfiles(filesdb filesdb,
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = files_checkinfiles(filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums);
+	r = files_includefiles(filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums,delete);
 
 	free(sourcedir);
 
@@ -368,7 +368,7 @@ static retvalue dsc_checkfiles(filesdb filesdb,
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
 
-retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force){
+retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -434,10 +434,11 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	/* then looking if we already have this, or copy it in */
 
 	if( !RET_WAS_ERROR(r) ) {
-		if( filekey && basename && directory && md5sum)
+		if( filekey && basename && directory && md5sum) {
+			assert( delete == D_INPLACE );
 			r = dsc_checkfiles(filesdb,pkg,md5sum);
-		else
-			r = dsc_copyfiles(filesdb,pkg,dscfilename);
+		} else
+			r = dsc_copyfiles(filesdb,pkg,dscfilename,delete);
 	}
 
 	/* Calculate the chunk to include: */

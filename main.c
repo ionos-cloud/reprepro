@@ -67,7 +67,7 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*priority = NULL,
 	*component = NULL,
 	*architecture = NULL;
-static int	local = 0;
+static int	delete = 0;
 static int	force = 0;
 static int	nothingiserror = 0;
 int		verbose = 0;
@@ -394,6 +394,7 @@ static int action_list(int argc,const char *argv[]) {
 	return EXIT_RET(result);
 }
 
+/* to be readded later....
 static int action_detect(int argc,const char *argv[]) {
 	filesdb files;
 	char buffer[5000],*nl;
@@ -425,6 +426,7 @@ static int action_detect(int argc,const char *argv[]) {
 	RET_ENDUPDATE(ret,r);
 	return EXIT_RET(ret);
 }
+*/
 
 static int action_forget(int argc,const char *argv[]) {
 	filesdb files;
@@ -758,7 +760,7 @@ static int action_includedeb(int argc,const char *argv[]) {
 	struct overrideinfo *override;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"reprepro includedeb <distribution> <package>\n");
+		fprintf(stderr,"reprepro [--delete] includedeb <distribution> <package>\n");
 		return 1;
 	}
 
@@ -796,7 +798,7 @@ static int action_includedeb(int argc,const char *argv[]) {
 	}
 
 	result = deb_add(dbdir,references,files,component,architecture,
-			section,priority,distribution,argv[2],NULL,NULL,override,force);
+			section,priority,distribution,argv[2],NULL,NULL,override,force,delete);
 
 	override_free(override);
 
@@ -822,7 +824,7 @@ static int action_includedsc(int argc,const char *argv[]) {
 	struct overrideinfo *srcoverride;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"reprepro includedsc <distribution> <package>\n");
+		fprintf(stderr,"reprepro [--delete] includedsc <distribution> <package>\n");
 		return 1;
 	}
 
@@ -853,7 +855,7 @@ static int action_includedsc(int argc,const char *argv[]) {
 	if( !files )
 		return 1;
 
-	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force);
+	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete);
 	
 	override_free(srcoverride);
 	r = distribution_export(distribution,dbdir,distdir,force,1);
@@ -875,7 +877,7 @@ static int action_include(int argc,const char *argv[]) {
 	struct overrideinfo *override,*srcoverride;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"reprepro include <distribution> <.changes-file>\n");
+		fprintf(stderr,"reprepro [--delete] include <distribution> <.changes-file>\n");
 		return 1;
 	}
 
@@ -910,7 +912,7 @@ static int action_include(int argc,const char *argv[]) {
 	if( !files )
 		return 1;
 
-	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force);
+	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete);
 
 	override_free(override);override_free(srcoverride);
 	
@@ -936,7 +938,7 @@ static struct action {
 } actions[] = {
 	{"__d", 		action_printargs},
 	{"__extractcontrol",	action_extractcontrol},
-	{"_detect", 		action_detect},
+//	{"_detect", 		action_detect},
 	{"_forget", 		action_forget},
 	{"_md5sums", 		action_md5sums},
 	{"_dumpcontents", 	action_dumpcontents},
@@ -962,7 +964,7 @@ static struct action {
 
 int main(int argc,char *argv[]) {
 	static struct option longopts[] = {
-		{"local", 0, 0, 'l'},
+		{"delete", 0, 0, 'r'},
 		{"basedir", 1, 0, 'b'},
 		{"incommingdir", 1, 0, 'i'},
 		{"methoddir", 1, 0, 'M'},
@@ -990,33 +992,24 @@ int main(int argc,char *argv[]) {
 				printf(
 "reprepro - Produce and Manage and Debian package repository\n\n"
 "options:\n"
-" -h, --help:             Show this help\n"
-//" -l, --local:            Do only process the given file.\n"
-//"                         (i.e. do not look at .tar.gz when getting .dsc)\n"
-" -b, --basedir <dir>:    Base-dir (will overwrite prior given\n"
-"                                   -d, -D, -L, -c).\n"
+" -h, --help:                        Show this help\n"
+" -r, --delete:                       Delete included files if reasonable.\n"
+" -b, --basedir <dir>:               Base-dir (will overwrite prior given\n"
+"                                                        -d, -D, -L, -c).\n"
 // TODO: is not yet used...
-// " -i, --incomming <dir>:  incomming-Directory.\n"
-" -d, --distdir <dir>:    Directory to place the \"dists\" dir in.\n"
-" -D, --dbdir <dir>:      Directory to place the database in.\n"
-" -L, --listdir <dir>:    Directory to place downloaded lists in.\n"
-" -c, --confdir <dir>:    Directory to search configuration in.\n"
-" -o, --overridedir <dir>:Directory to search override files in.\n"
-" -M, --methodir <dir>:   Use instead of /usr/lib/apt/methods/\n"
-" -S, --section <section>: Force include* to set section.\n"
-" -P, --priority <priority>: Force include* to set priority.\n"
-" -C, --component <component>: Add or delete only in component.\n"
+// " -i, --incomming <dir>:             incomming-Directory.\n"
+" -d, --distdir <dir>:               Directory to place the \"dists\" dir in.\n"
+" -D, --dbdir <dir>:                 Directory to place the database in.\n"
+" -L, --listdir <dir>:               Directory to place downloaded lists in.\n"
+" -c, --confdir <dir>:               Directory to search configuration in.\n"
+" -o, --overridedir <dir>:           Directory to search override files in.\n"
+" -M, --methodir <dir>:              Use instead of /usr/lib/apt/methods/\n"
+" -S, --section <section>:           Force include* to set section.\n"
+" -P, --priority <priority>:         Force include* to set priority.\n"
+" -C, --component <component>: 	     Add or delete only in component.\n"
 " -A, --architecture <architecture>: Add or delete only to architecture.\n"
 "\n"
 "actions:\n"
-" _forget <file>:      Forget the given files (read stdin if none)\n"
-"                     (Only usefull to unregister files manually deleted)\n"
-" _detect <file>:      Add given files to the database (read stdin if none)\n"
-"  the following lines are currently wrong...\n"
-"  ('find $pooldir -type f -printf \"%%P\\n\" | reprepro -p $pooldir inventory'\n"
-"   will iventory an already existing pool-dir\n"
-"   WARNING: names relative to pool-dir in shortest possible form\n"
-" _removereferences <identifier>: Remove all marks \"Needed by <identifier>\"\n"
 " dumpreferences:    Print all saved references\n"
 " dumpunreferenced:   Print registered files withour reference\n"
 " deleteunreferenced: Delete and forget all unreferenced files\n"
@@ -1040,8 +1033,8 @@ int main(int argc,char *argv[]) {
 "\n"
 						);
 				exit(0);
-			case 'l':
-				local = 1;
+			case 'r':
+				delete++;
 				break;
 			case 'v':
 				verbose++;

@@ -24,35 +24,48 @@ retvalue files_add(filesdb filesdb,const char *filekey,const char *md5sum);
 /* remove file's md5sum from database */
 retvalue files_remove(filesdb filesdb,const char *filekey);
 
-/* look for file in database 
- * returns: -2 wrong md5sum, -1: error, 0 not existant, 1 exists*/
-retvalue files_check(filesdb filesdb,const char *filekey,const char *md5sum);
-
-/* look for file, calculate its md5sum and add it */
-retvalue files_detect(filesdb filesdb,const char *filekey);
-
-/* check for file in the database and if not found there, if it can be detected */
+/* check for file in the database and if not found there in the pool */
 retvalue files_expect(filesdb filesdb,const char *filekey,const char *md5sum);
+/* same for multiple files */
+retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const struct strlist *md5sums);
 
 /* print missing files */
 retvalue files_printmissing(filesdb filesdb,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles);
-/* check for several files in the database and in the pool if missing */
-retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const struct strlist *md5sums);
 
-/* Copy file <origfilename> to <mirrordir>/<filekey> and add it to
- * the database <filesdb>. Return RET_ERROR_WRONG_MD5 if already there 
- * with other md5sum, return other error when the file does not exists
- * or the database had an error. return RET_NOTHING, if already there
- * with correct md5sum. Return <md5andsize> with the data of this file,
- * if no error (that is if RET_OK or RET_NOTHING) */
-retvalue files_checkin(filesdb filesdb,const char *filekey,
-		const char *origfilename, char **md5sum);
+/* what to do with files */
+/* file should already be there, just make sure it is in the database */
+#define D_INPLACE      -1
+/* copy the file to the given location, return RET_NOTHING, if already in place */
+#define D_COPY 		0
+/* move the file in place: */
+#define D_MOVE 		1
+/* move needed and delete unneeded files: */
+#define D_DELETE	2
 
-/* Make sure filekeys with md5sums are in the pool. If not copy from
- * sourcedir/file where file is the entry from files */
-retvalue files_checkinfiles(filesdb filesdb,const char *sourcedir,const struct strlist *basefilenames,const struct strlist *filekeys,const struct strlist *md5sums);
-/* The same for a single file: */
-retvalue files_checkinfile(filesdb filesdb,const char *sourcedir,const char *basename,const char *filekey,const char *md5sum);
+/* Include a given file into the pool. i.e.:
+ * 1) if <md5dum> != NULL
+ *    check if <filekey> with <md5sum> is already there, 
+ *    return RET_NOTHING if it is.
+ *    return n RET_ERROR_WRONG_MD5 if wrong md5sum.
+ * 2) Look if there is already a file in the pool with correct md5sum.
+ * and add it to the database if yes.
+ * return RET_NOTHING, if done,
+ * 3) copy or move file (depending on delete) file to destination,
+ * making sure it has the correct <md5sum> if given, 
+ * or computing it, if <claculatemd5sum> is given.
+ * return RET_OK, if done,
+ * return RET_ERROR_MISSING, if there is no file to copy.
+ * return RET_ERROR_WRONG_MD5 if wrong md5sum.
+ *  (the original file is not deleted in that case, even if delete is positive)
+ * 4) add it to the database
+ */
+retvalue files_include(filesdb filesdb,const char *sourcefilename,const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete);
+
+/* same as above, but use sourcedir/basename instead of sourcefilename */
+retvalue files_includefile(filesdb filesdb,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete);
+
+/* the same, but with multiple files */
+retvalue files_includefiles(filesdb filesdb,const char *sourcedir,const struct strlist *basenames, const struct strlist *filekeys, const struct strlist *md5sums, int delete);
 
 typedef retvalue per_file_action(void *data,const char *filekey,const char *md5sum);
 

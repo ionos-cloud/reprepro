@@ -259,10 +259,10 @@ static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfileke
 	return r;
 }
 
-static retvalue deb_copyfiles(filesdb filesdb,struct debpackage *pkg,const char *debfilename) {
+static retvalue deb_copyfiles(filesdb filesdb,struct debpackage *pkg,const char *debfilename, int delete) {
 	retvalue r;
 
-	r = files_checkin(filesdb,pkg->filekey,debfilename,&pkg->md5sum);
+	r = files_include(filesdb,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
 	return r;
 }
 
@@ -280,11 +280,14 @@ static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force){
+retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete){
 	retvalue r,result;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
 	int i;
+
+	assert( (givenmd5sum && givenfilekey) ||
+		(givenmd5sum==NULL && givenfilekey==NULL ) );
 
 	/* First taking a closer look to the file: */
 
@@ -352,6 +355,13 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		fprintf(stderr,"Cannot checking in '%s' into architecture '%s', as it is '%s'!",
 				debfilename,forcearchitecture,pkg->architecture);
 		deb_free(pkg);
+		if( delete >= D_DELETE ) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Deleting '%s' as requested!\n",debfilename);
+			if( unlink(debfilename) != 0 ) {
+				fprintf(stderr,"Error deleting '%s': %m\n",debfilename);
+			}
+		}
 		return RET_ERROR;
 	} else if( strcmp(pkg->architecture,"all") != 0 &&
 	    !strlist_in( &distribution->architectures, pkg->architecture )) {
@@ -373,10 +383,11 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 
 	/* then looking if we already have this, or copy it in */
 
-	if( givenfilekey && givenmd5sum )
+	if( givenfilekey && givenmd5sum ) {
+		assert( delete == D_INPLACE );
 		r = deb_checkfiles(filesdb,pkg,givenmd5sum);
-	else
-		r = deb_copyfiles(filesdb,pkg,debfilename);
+	} else
+		r = deb_copyfiles(filesdb,pkg,debfilename,delete);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;

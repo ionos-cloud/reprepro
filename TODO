@@ -6,7 +6,6 @@ TODO:
 		(allow it needing a passphrase)
 	add support for removing packages automatically
 		when removed upstream. (downgrade too?)
-	switch to delete files after having included them.
 	implement filters for including only specific packages
 	add support for removal of files when vanishing from where we update...
 
