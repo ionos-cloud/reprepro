@@ -30,8 +30,6 @@
 
 extern int verbose;
 
-//TODO: rewrite with retvalue return values...
-
 /* create directory dirname. returns 0 on success or if already existing, -1 otherwise */
 static retvalue dirs_check(const char *dirname) {
 	int ret;
