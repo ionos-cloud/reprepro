@@ -1,6 +1,6 @@
 Build-Dependencies:
 	libgpgme 3.x (In Debian libgpgme-dev, NOT libgpgme11-dev)
-	ligdb3
+	libdb3
 	libz
 When Building from cvs:
 	autoconf2.50 (autoconf 2.13 will not work)
