@@ -3,12 +3,9 @@
 
 char *calc_addsuffix(const char *str1,const char *str2);
 char *calc_dirconcat(const char *str1,const char *str2);
+char *calc_dirconcatn(const char *str1,const char *str2,size_t len2);
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3);
 
-typedef enum {ic_uncompressed=0, ic_gzip } indexcompression;
-#define ic_max ic_gzip
-
-char *calc_comprconcat(const char *str1,const char *str2,const char *str3,indexcompression compr);
 
 char *calc_binary_basename(const char *package,const char *version,const char *architecture,const char *packagetype);
 char *calc_source_basename(const char *name,const char *version);

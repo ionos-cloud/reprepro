@@ -470,23 +470,27 @@ char *calc_addsuffix(const char *str1,const char *str2) {
 char *calc_dirconcat(const char *str1,const char *str2) {
 	return mprintf("%s/%s",str1,str2);
 }
+char *calc_dirconcatn(const char *str1,const char *str2,size_t len2) {
+	size_t len1;
+	char *r;
+	
+	assert(str1 != NULL);
+	assert(str2 != NULL);
+	len1 = strlen(str1);
+	if( (size_t)(len1+len2+2) < len1 || (size_t)(len1+len2+2) < len2 )
+		return NULL;
+	r = malloc(len1+len2+2);
+	if( r == NULL )
+		return NULL;
+	strcpy(r,str1);
+	r[len1] = '/';
+	memcpy(r+len1+1,str2,len2);
+	r[len1+1+len2] = '\0';
+	return r;
+}
 
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3) {
 	return mprintf("%s/%s/%s",str1,str2,str3);
-}
-
-char *calc_comprconcat(const char *str1,const char *str2,const char *str3,indexcompression compr) {
-	assert(compr >= 0 && compr <= ic_max );
-
-	switch( compr ) {
-		case ic_uncompressed:
-			return mprintf("%s/%s/%s",str1,str2,str3);
-		case ic_gzip:
-			return mprintf("%s/%s/%s.gz",str1,str2,str3);
-		default:
-			assert(0);
-			return NULL;
-	}
 }
 
 char *calc_srcfilekey(const char *sourcedir,const char *filename){

@@ -241,3 +241,11 @@ retvalue regularfileexists(const char *fullfilename) {
 	else
 		return RET_ERROR_MISSING;
 }
+
+bool_t isregularfile(const char *fullfilename) {
+	struct stat s;
+	int i;
+
+	i = stat(fullfilename,&s);
+	return i == 0 && S_ISREG(s.st_mode);
+}

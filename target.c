@@ -46,11 +46,11 @@ static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	const char *packagetype,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, bool_t uncompressed, bool_t hasrelease, struct target **d) {
+	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const struct exportmode *exportmode, struct target **d) {
 
 	struct target *t;
 
-	assert(indexfile);
+	assert(exportmode != NULL);
 	if( directory == NULL )
 		return RET_ERROR_OOM;
 
@@ -59,12 +59,8 @@ static retvalue target_initialize(
 		free(directory);
 		return RET_ERROR_OOM;
 	}
-	t->directory = directory;
-	t->indexfile = indexfile;
-	if( uncompressed ) {
-		t->compressions[ic_uncompressed] = TRUE;
-	}
-	t->compressions[ic_gzip] = TRUE;
+	t->relativedirectory = directory;
+	t->exportmode = exportmode;
 	t->codename = strdup(codename);
 	t->component = strdup(component);
 	t->architecture = strdup(architecture);
@@ -79,20 +75,19 @@ static retvalue target_initialize(
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
 	t->getupstreamindex = getupstreamindex;
-	t->hasrelease = hasrelease;
 	*d = t;
 	return RET_OK;
 }
 
-retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",TRUE,FALSE,target);
+retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
+	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,mprintf("%s/debian-installer/binary-%s",component,architecture),exportmode,target);
 }
-retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",TRUE,TRUE,target);
+retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
+	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/binary-%s",component,architecture),exportmode,target);
 }
 
-retvalue target_initialize_source(const char *codename,const char *component,struct target **target) {
-	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",FALSE,TRUE,target);
+retvalue target_initialize_source(const char *codename,const char *component,const struct exportmode *exportmode,struct target **target) {
+	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/source",component),exportmode,target);
 }
 
 
@@ -113,7 +108,7 @@ retvalue target_free(struct target *target) {
 	free(target->component);
 	free(target->architecture);
 	free(target->identifier);
-	free(target->directory);
+	free(target->relativedirectory);
 	free(target);
 	return result;
 }
@@ -375,11 +370,12 @@ retvalue target_check(struct target *target,filesdb filesdb,references refs,int 
 	data.target = target;
 	return packages_foreach(target->packages,checkpkg,&data,force);
 }
+
 /* export a database */
 
-retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,bool_t onlyneeded) {
-	indexcompression compression;
-	retvalue result,r,r2;
+retvalue target_export(struct target *target,const char *dbdir,const char *dirofdist,int force,bool_t onlyneeded, struct strlist *releasedfiles ) {
+	retvalue result,r;
+	bool_t onlymissing;
 
 	if( verbose > 5 ) {
 		if( onlyneeded )
@@ -388,100 +384,31 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 			fprintf(stderr," exporting '%s'...\n",target->identifier);
 	}
 
-	result = RET_NOTHING;
+	r = target_initpackagesdb(target,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
-	for( compression = 0 ; compression <= ic_max ; compression++) {
-		if( target->compressions[compression] ) {
-			char * filename;
+	/* not exporting if file is already there? */
+	onlymissing = onlyneeded && !target->wasmodified;
 
-			filename = calc_comprconcat(distdir,target->directory,
-					target->indexfile,compression);
-			if( filename == NULL )
-				return RET_ERROR_OOM;
-			if( onlyneeded && !target->wasmodified ) {
-				struct stat s;
-				int i;
+	result = export_target(dirofdist,target->relativedirectory,
+				target->packages,
+				target->exportmode,
+				releasedfiles,
+				onlymissing, force);
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result,r);
 
-				i = stat(filename,&s);
-				if( i == 0 && S_ISREG(s.st_mode) ) {
-					free(filename);
-					continue;
-				}
-			}
-			r = target_initpackagesdb(target,dbdir);
-			if( !RET_WAS_ERROR(r) ) {
-				r = packages_export(target->packages,
-						filename,compression);
-				r2 = target_closepackagesdb(target);
-				RET_ENDUPDATE(r,r2);
-			}
-			free(filename);
-			RET_UPDATE(result,r);
-			if( !force && RET_WAS_ERROR(r) )
-				return r;
-		}
-	}
 	if( !RET_WAS_ERROR(result) ) {
 		target->wasmodified = FALSE;
 	}
 	return result;
 }
 
-
-
-static inline retvalue printfilemd5(const struct target *target,
-		const char *distdir,FILE *out,
-		const char *filename,indexcompression compression) {
-	char *fn,*md;
-	const char *fn2;
-	retvalue r;
-
-	fn = calc_comprconcat(distdir,target->directory,filename,compression);
-	if( fn == NULL )
-		return RET_ERROR_OOM;
-	// well, a crude hack, but not too bad:
-	fn2 = fn + strlen(distdir) + strlen(target->codename) + 2; 
-
-	r = md5sum_read(fn,&md);
-
-	if( RET_IS_OK(r) ) {
-		fprintf(out," %s %s\n",md,fn2);
-		free(md);
-	} else {
-		fprintf(stderr,"Error processing %s\n",fn);
-		if( r == RET_NOTHING ) 
-			r = RET_ERROR_MISSING;
-	}
-	free(fn);
-	return r;
-}
-
-retvalue target_printmd5sums(const struct target *target,const char *distdir,FILE *out,int force) {
-	indexcompression compression;
-	retvalue result,r;
-
-	if( target->hasrelease ) {
-		result = printfilemd5(target,distdir,out,"Release",ic_uncompressed);
-		if( RET_WAS_ERROR(result) && !force)
-			return result;
-	} else
-		result = RET_NOTHING;
-
-	for( compression = 0 ; compression <= ic_max ; compression++) {
-		if( target->compressions[compression] ) {
-			r = printfilemd5(target,distdir,out,target->indexfile,compression);
-
-			RET_UPDATE(result,r);
-			if( !force && RET_WAS_ERROR(r) )
-				return r;
-		}
-	}
-	return result;
-}
 retvalue target_mkdistdir(struct target *target,const char *distdir) {
 	char *dirname;retvalue r;
 
-	dirname = calc_dirconcat(distdir,target->directory);
+	dirname = calc_dirconcat3(distdir,target->codename,target->relativedirectory);
 	if( dirname == NULL )
 		return RET_ERROR_OOM;
 	r = dirs_make_recursive(dirname);

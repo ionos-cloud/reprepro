@@ -233,9 +233,8 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 }
 
 
-retvalue signature_sign(const char *options,const char *filename) {
+retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
 	retvalue r;
-	char *sigfilename;
 	GpgmeError err;
 	GpgmeData dh,dh_gpg;
 	int ret;
@@ -244,34 +243,24 @@ retvalue signature_sign(const char *options,const char *filename) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	//TODO: speifiy which key to use...
+	//TODO: specify which key to use...
 
-	/* First calculate the filename of the signature */
-
-	sigfilename = calc_addsuffix(filename,"gpg");
-	if( !sigfilename ) {
-		return RET_ERROR_OOM;
-	}
-
-	/* Then make sure it does not already exists */
+	/* make sure it does not already exists */
 	
-	ret = unlink(sigfilename);
+	ret = unlink(signaturename);
 	if( ret != 0 && errno != ENOENT ) {
-		fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",sigfilename);
-		free(sigfilename);
+		fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",signaturename);
 		return RET_ERROR;
 	}
 
 	// TODO: Supply our own read functions to get sensible error messages.
 	err = gpgme_data_new(&dh_gpg);
 	if( err ) {
-		free(sigfilename);
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_file(&dh,filename,1);
 	if( err ) {
 		gpgme_data_release(dh_gpg);
-		free(sigfilename);
 		return gpgerror(err);
 	}
 
@@ -279,7 +268,6 @@ retvalue signature_sign(const char *options,const char *filename) {
 	gpgme_data_release(dh);
 	if( err ) {
 		gpgme_data_release(dh_gpg);
-		free(sigfilename);
 		return gpgerror(err);
 	} else {
 		char *signature_data;
@@ -290,10 +278,9 @@ retvalue signature_sign(const char *options,const char *filename) {
 		if( signature_data == NULL ) {
 			return RET_ERROR_OOM;
 		}
-		fd = creat(sigfilename,0777);
+		fd = creat(signaturename,0777);
 		if( fd < 0 ) {
 			free(signature_data);
-			free(sigfilename);
 			return RET_ERRNO(errno);
 		}
 		ret = write(fd,signature_data,signature_len);
@@ -302,9 +289,8 @@ retvalue signature_sign(const char *options,const char *filename) {
 		//TODO check return values...
 	}
 	if( verbose > 1 ) {
-		fprintf(stderr,"Successfully created '%s'\n",sigfilename);
+		fprintf(stderr,"Successfully created '%s'\n",signaturename);
 	}
-	free(sigfilename);
 
 	return r;
 }

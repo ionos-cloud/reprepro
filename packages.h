@@ -49,8 +49,6 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 		struct strlist *oldfiles,
 		struct strlist *dereferencedfilekeys);
 
-retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompression compression);
-
 /* action to be called by packages_forall */
 typedef retvalue per_package_action(void *data,const char *package,/*@temp@*/const char *chunk);
 

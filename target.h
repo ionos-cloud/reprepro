@@ -10,7 +10,9 @@
 #ifndef REPREPRO_PACKAGES_H
 #include "packages.h"
 #endif
-
+#ifndef REPREPRO_EXPORTS_H
+#include "exports.h"
+#endif
 
 struct target;
 
@@ -29,10 +31,11 @@ struct target {
 	char *identifier;
 	/* "deb" "udeb" or "dsc" */
 	const char *packagetype;
-	char *directory;
-	bool_t compressions[ic_max+1];
-	bool_t hasrelease;
-	const char *indexfile;
+	/* links into the correct description in distribution */
+	const struct exportmode *exportmode;
+	/* the directory relative to <distdir>/<codename>/ to use */
+	char *relativedirectory;
+	/* functions to use on the packages included */
 	get_name *getname;
 	get_version *getversion;
 	get_installdata *getinstalldata;
@@ -45,15 +48,15 @@ struct target {
 	packagesdb packages;
 };
 
-retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target);
-retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target);
-retvalue target_initialize_source(const char *codename,const char *component,struct target **target);
+retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target);
+retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target);
+retvalue target_initialize_source(const char *codename,const char *component,const struct exportmode *exportmode,struct target **target);
 retvalue target_free(struct target *target);
 
 retvalue target_mkdistdir(struct target *target,const char *distdir);
-retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,bool_t onlyneeded);
+retvalue target_export(struct target *target,const char *dbdir,const char *dirofdist,int force,bool_t onlyneeded, struct strlist *releasedfiles );
 
-retvalue target_printmd5sums(const struct target *target,const char *distdir,FILE *out,int force);
+retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
 retvalue target_initpackagesdb(struct target *target, const char *dbdir);
@@ -64,7 +67,7 @@ retvalue target_closepackagesdb(struct target *target);
 
 retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade,struct strlist *dereferencedfilekeys);
 retvalue target_removepackage(struct target *target,references refs,const char *name, /*@null@*/struct strlist *dereferencedfilekeys);
-retvalue target_writeindices(struct target *target,const char *distdir, int force,bool_t onlyneeded);
+retvalue target_writeindices(const char *dirofdist,struct target *target,int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
 retvalue target_rereference(struct target *target,references refs,int force);
 

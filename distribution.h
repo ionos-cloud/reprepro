@@ -31,6 +31,8 @@ struct distribution {
 	/*@null@*/char *override,*srcoverride;
 	/* the list of components containing a debian-installer dir, normaly only "main" */
 	struct strlist udebcomponents;
+	/* what kind of index files to generate */
+	struct exportmode dsc,deb,udeb;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 };

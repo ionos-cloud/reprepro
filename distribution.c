@@ -54,7 +54,9 @@ retvalue distribution_free(struct distribution *distribution) {
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
-
+		exportmode_done(&distribution->dsc);
+		exportmode_done(&distribution->deb);
+		exportmode_done(&distribution->udeb);
 		result = RET_OK;
 
 		while( distribution->targets ) {
@@ -83,7 +85,7 @@ static retvalue createtargets(struct distribution *distribution) {
 		for( j = 0 ; j < distribution->architectures.count ; j++ ) {
 			arch = distribution->architectures.values[j];
 			if( strcmp(arch,"source") != 0 ) {
-				r = target_initialize_binary(distribution->codename,comp,arch,&t);
+				r = target_initialize_binary(distribution->codename,comp,arch,&distribution->deb,&t);
 				if( RET_IS_OK(r) ) {
 					if( last ) {
 						last->next = t;
@@ -95,7 +97,7 @@ static retvalue createtargets(struct distribution *distribution) {
 				if( RET_WAS_ERROR(r) )
 					return r;
 				if( strlist_in(&distribution->udebcomponents,comp) ) {
-					r = target_initialize_ubinary(distribution->codename,comp,arch,&t);
+					r = target_initialize_ubinary(distribution->codename,comp,arch,&distribution->udeb,&t);
 					if( RET_IS_OK(r) ) {
 						if( last ) {
 							last->next = t;
@@ -115,7 +117,7 @@ static retvalue createtargets(struct distribution *distribution) {
 		 * (yes, yes, source is not really an architecture, but
 		 *  the .changes files started with this...) */
 		if( strlist_in(&distribution->architectures,"source") ) {
-			r = target_initialize_source(distribution->codename,comp,&t);
+			r = target_initialize_source(distribution->codename,comp,&distribution->dsc,&t);
 			if( last ) {
 				last->next = t;
 			} else {
@@ -156,10 +158,12 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 	struct distribution *r;
 	retvalue ret;
 	const char *missing;
+	char *option;
 static const char * const allowedfields[] = {
 "Codename", "Suite", "Version", "Origin", "Label", "Description", 
 "Architectures", "Components", "Update", "SignWith", "Override", 
-"SourceOverride", "UDebComponents", NULL};
+"SourceOverride", "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
+NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
 	
@@ -245,6 +249,42 @@ static const char * const allowedfields[] = {
 		fprintf(stderr,"In distribution description of '%s':\n"
 				"UDebComponent contains '%s' not found in Components!\n",
 				r->codename,missing);
+		(void)distribution_free(r);
+		return ret;
+	}
+
+	ret = chunk_getvalue(chunk,"UDebIndices",&option);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING)
+		option = NULL;
+	ret = exportmode_init(&r->udeb,TRUE,FALSE,"Packages",option);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
+	ret = chunk_getvalue(chunk,"DebIndices",&option);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING)
+		option = NULL;
+	ret = exportmode_init(&r->deb,TRUE,TRUE,"Packages",option);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
+	ret = chunk_getvalue(chunk,"DscIndices",&option);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING)
+		option = NULL;
+	ret = exportmode_init(&r->dsc,FALSE,TRUE,"Sources",option);
+	if(RET_WAS_ERROR(ret)) {
 		(void)distribution_free(r);
 		return ret;
 	}
@@ -404,6 +444,19 @@ retvalue distribution_export(struct distribution *distribution,
 		int force, bool_t onlyneeded) {
 	struct target *target;
 	retvalue result,r;
+	char *dirofdist;
+	struct strlist releasedfiles;
+
+	assert( distribution != NULL );
+
+	r = strlist_init(&releasedfiles);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	dirofdist = calc_dirconcat(distdir,distribution->codename);
+	if( dirofdist == NULL ) {
+		strlist_done(&releasedfiles);
+		return RET_ERROR_OOM;
+	}
 
 	result = RET_NOTHING;
 	for( target=distribution->targets; target ; target = target->next ) {
@@ -411,12 +464,12 @@ retvalue distribution_export(struct distribution *distribution,
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
-		r = target_export(target,dbdir,distdir, force, onlyneeded);
+		r = target_export(target,dbdir,dirofdist,force,onlyneeded,&releasedfiles);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
-		if( target->hasrelease ) {
-			r = release_genrelease(distribution,target,distdir,onlyneeded);
+		if( target->exportmode->hasrelease ) {
+			r = release_genrelease(dirofdist,distribution,target,onlyneeded,&releasedfiles);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;
@@ -426,9 +479,13 @@ retvalue distribution_export(struct distribution *distribution,
 			!(onlyneeded && result == RET_NOTHING)  ) {
 		retvalue r;
 
-		r = release_gen(distribution,distdir,force);
+		//TODO: move onlyneeded in and emit warnings about things with .new?
+
+		r = release_gen(dirofdist,distribution,&releasedfiles,force);
 		RET_UPDATE(result,r);
 	}
+	strlist_done(&releasedfiles);
+	free(dirofdist);
 	return result;
 }
 

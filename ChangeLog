@@ -1,3 +1,11 @@
+2005-02-19  Bernhard R. Link <brlink@debian.org>
+	* Refactor Index Exporting and Release generation 
+	to reduce the time Release files and Package indices
+	are out of sync (Everything is written to files
+	ending in .new now, only when everything is ready
+	all are moved to their final place) and to prepare
+	DebIndices UDebIndices and DscIndices Options.
+
 2005-02-14  Bernhard R. Link <brlink@debian.org>
 	* Some little changes to make splint
 	and valgrind happier.
