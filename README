@@ -15,14 +15,8 @@ See the file TODO for things I plan to do.
 	
 * Current status:
 	
-	Package managment and database mostly works. Missing/To be Finished
-	is the direct inclusion of Packages and updating the packages from
-	some upstream repository(e.g. debian mirrors).
-
-	Downloading files happens through calling files within 
-	/usr/lib/apt/methods (or -M). One can give them Configuration
-	by means of a "Config: " multiline.
-	(every line beeing in the format as apt-get --option)
+	It mostly works. Cases I do not use are not very well tested
+	and some small things are not yet implemented.
 	
 * Some naming conventions:
 	basename: the name of a file without any directory information.
