@@ -1,3 +1,7 @@
+2005-01-05  Bernhard R. Link <brlink@debian.org>
+	* Only generate Release (and Release.gpg) files when
+	  something changed.
+
 2005-01-04  Bernhard R. Link <brlink@debian.org>
 	* Several code clean-ups, should not change anything....
 

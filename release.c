@@ -20,6 +20,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <malloc.h>
@@ -112,7 +114,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 }
 
 /* Generate a "Release"-file for arbitrary directory */
-retvalue release_genrelease(const struct distribution *distribution,const struct target *target,const char *distdir) {
+retvalue release_genrelease(const struct distribution *distribution,const struct target *target,const char *distdir, bool_t onlyifneeded) {
 	FILE *f;
 	char *filename;
 	int e;
@@ -121,6 +123,16 @@ retvalue release_genrelease(const struct distribution *distribution,const struct
 	filename = calc_dirconcat3(distdir,target->directory,"Release");
 	if( !filename ) {
 		return RET_ERROR_OOM;
+	}
+	if( onlyifneeded ) {
+		struct stat s;
+		int i;
+
+		i = stat(filename,&s);
+		if( i == 0 && S_ISREG(s.st_mode) ) {
+			free(filename);
+			return RET_NOTHING;
+		}
 	}
 
 	f = fopen(filename,"w");

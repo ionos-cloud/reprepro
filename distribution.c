@@ -386,21 +386,22 @@ retvalue distribution_export(struct distribution *distribution,
 	result = RET_NOTHING;
 	for( target=distribution->targets; target ; target = target->next ) {
 		r = target_mkdistdir(target,distdir);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force)
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
-		if( target->hasrelease ) {
-			r = release_genrelease(distribution,target,distdir);
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && ! force)
-				break;
-		}
 		r = target_export(target,dbdir,distdir, force, onlyneeded);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force)
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
+		if( target->hasrelease ) {
+			r = release_genrelease(distribution,target,distdir,onlyneeded);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 0 )
+				break;
+		}
 	}
-	if( !RET_WAS_ERROR(result) || force ) {
+	if( (!RET_WAS_ERROR(result) || force > 0 ) && 
+			!(onlyneeded && result == RET_NOTHING)  ) {
 		retvalue r;
 
 		r = release_gen(distribution,distdir,force);
