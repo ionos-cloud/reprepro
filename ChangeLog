@@ -9,6 +9,9 @@
 	* Add tests/test.sh to test for basic
 	  things to work...
 
+	* fix bug that prevented Release regeneration
+	when a index-file is changed to zero entries.
+
 2005-01-19  Bernhard R. Link <brlink@debian.org>
 	* now also include, includedeb, includedsc
 	and update will remove files which are no

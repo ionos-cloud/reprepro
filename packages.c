@@ -319,6 +319,9 @@ static retvalue packages_printout(packagesdb packagesdb,const char *filename) {
 	r = fclose(pf);
 	if( r != 0 )
 		RET_ENDUPDATE(ret,RET_ERRNO(errno));
+	/* Writing an empty file is also something done */
+	if( ret == RET_NOTHING )
+		return RET_OK;
 	return ret;
 }
 
@@ -338,6 +341,9 @@ static retvalue packages_zprintout(packagesdb packagesdb,const char *filename) {
 	r = gzclose(pf);
 	if( r < 0 )
 		RET_ENDUPDATE(ret,RET_ZERRNO(r));
+	/* Writing an empty file is also something done */
+	if( ret == RET_NOTHING )
+		return RET_OK;
 	return ret;
 }
 

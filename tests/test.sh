@@ -82,8 +82,8 @@ MD5Sum:
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
  7029066c27ac6f5ef18d660d5741979a 20 ugly/source/Sources.gz
 END
-diff dists/test1/Release dists/test1/Release.expected || exit 1
-diff dists/test2/Release dists/test2/Release.expected || exit 1
+diff dists/test1/Release.expected dists/test1/Release || exit 1
+diff dists/test2/Release.expected dists/test2/Release || exit 1
 
 PACKAGE=bloat+-0a9z.app
 VERSION=99:0.9-A:Z+a:z-0+aA.9zZ
@@ -121,9 +121,12 @@ echo returned: $?
 "$REPREPRO" -b . -A abacus remove test1 simple
 "$REPREPRO" -b . -C ugly remove test1 bloat+-0a9z.app-addons
 "$REPREPRO" -b . -C stupid remove test1 simple-addons
+CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
+echo -e '%g/^Date:/s/Date: .*/Date: '"$CURDATE"'/\nw\nq' | ed -s dists/test1/Release.expected
 
-diff dists/test1/Release dists/test1/Release.expected || exit 1
+diff dists/test1/Release.expected dists/test1/Release || exit 1
 
+echo
 echo "If the script is still running to show this,"
 echo "all tested cases seem to work. (Though writing some tests more can never harm)."
 exit 0
