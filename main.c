@@ -43,6 +43,7 @@
 #include "extractcontrol.h"
 #include "checkindeb.h"
 #include "checkindsc.h"
+#include "checkin.h"
 
 
 #ifndef STD_BASE_DIR
@@ -1210,7 +1211,7 @@ static int check(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-/***********************adddeb******************************************/
+/***********************include******************************************/
 
 static int includedeb(int argc,char *argv[]) {
 	retvalue result,r;
@@ -1281,6 +1282,40 @@ static int includedsc(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
+static int includechanges(int argc,char *argv[]) {
+	retvalue result,r;
+	DB *files,*references;
+	struct distribution *distribution;
+
+	if( argc < 3 ) {
+		fprintf(stderr,"mirrorer include <distribution> <package>\n");
+		return 1;
+	}
+
+	result = distribution_get(&distribution,confdir,argv[1]);
+	if( result == RET_NOTHING ) {
+		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
+		return 2;
+	}
+
+	files = files_initialize(dbdir);
+	if( !files )
+		return 1;
+	references = references_initialize(dbdir);
+	if( !files )
+		return 1;
+
+	result =changes_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],force);
+	distribution_free(distribution);
+
+	r = files_done(files);
+	RET_ENDUPDATE(result,r);
+	r = references_done(references);
+	RET_ENDUPDATE(result,r);
+
+	return EXIT_RET(result);
+}
+
 /*********************/
 /* argument handling */
 /*********************/
@@ -1315,6 +1350,7 @@ static struct action {
 	{"__extractcontrol",extract_control},
 	{"includedeb",includedeb},
 	{"includedsc",includedsc},
+	{"include",includechanges},
 	{NULL,NULL}
 };
 

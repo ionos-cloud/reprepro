@@ -115,15 +115,15 @@ static retvalue changes_read(const char *filename,struct changes **changes,int f
 	if( c == NULL )
 		return RET_ERROR_OOM;
 
+	r = signature_readsignedchunk(filename,&c->control);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	r = check(filename,c,"Format",force);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	
 	r = check(filename,c,"Date",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = signature_readsignedchunk(filename,&c->control);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -180,6 +180,7 @@ retvalue changes_add(const char *dbdir,DB *references,DB *filesdb,const char *mi
 	r = changes_read(changesfilename,&changes,force);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	
+
 	// TODO: implement the rest
+	return RET_ERROR;
 }
