@@ -672,6 +672,63 @@ ACTION_D(update) {
 	return result;
 }
 
+ACTION_D(iteratedupdate) {
+	retvalue result,r;
+	bool_t doexport;
+	struct update_pattern *patterns;
+	struct distribution *distributions;
+	struct update_distribution *u_distributions;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro iteratedupdate [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = dirs_make_recursive(listdir);	
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = updates_getpatterns(confdir,&patterns);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+
+	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	if( RET_WAS_ERROR(result) ) {
+		updates_freepatterns(patterns);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+
+	if( !keepunneededlists ) {
+		result = updates_clearlists(listdir,u_distributions);
+	}
+	if( !RET_WAS_ERROR(result) )
+		result = updates_iteratedupdate(dbdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,dereferenced);
+	updates_freeupdatedistributions(u_distributions);
+	updates_freepatterns(patterns);
+
+	doexport = force>0 || RET_IS_OK(result);
+	if( doexport && verbose >= 0 )
+		fprintf(stderr,"Exporting indices...\n");
+	if( doexport )
+		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir,force);
+	else
+		r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
 ACTION_N(checkupdate) {
 	retvalue result,r;
 	struct update_pattern *patterns;
@@ -1152,6 +1209,7 @@ static const struct action {
 	{"dumpunreferenced", 	A_RF(dumpunreferenced)},
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
 	{"update",		A_D(update)},
+	{"iteratedupdate",	A_D(iteratedupdate)},
 	{"checkupdate",		A_N(checkupdate)},
 	{"includedeb",		A_D(includedeb)},
 	{"includeudeb",		A_D(includedeb)},

@@ -25,6 +25,7 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 retvalue updates_clearlists(const char *listdir,struct update_distribution *distributions);
 
 retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistdownload,/*@null@*/struct strlist *dereferencedfilekeys);
+retvalue updates_iteratedupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistdownload,/*@null@*/struct strlist *dereferencedfilekeys);
 retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistdownload);
 
 #endif

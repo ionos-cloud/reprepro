@@ -1,3 +1,12 @@
+2005-03-28  Bernhard R. Link <brlink@debian.org>
+	* Implement "interatedupdate" command, which iterates the 
+	distributions and targets within them, instead of first 
+	downloading all lists, then processing all lists, then
+	downloading all packages and then installing them all.
+	(This can be a bit slower, but needs less memory)
+
+	* Two --force are needed to ignore wrong Release.gpg
+
 2005-03-27  Bernhard R. Link <brlink@debian.org>
 	* Implement ".tobedeleted" feature for
 	export skripts.

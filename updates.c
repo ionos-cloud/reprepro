@@ -1164,8 +1164,12 @@ static retvalue updates_queuelists(struct update_distribution *distributions,int
 			r = readchecksums(origin);
 			RET_UPDATE(result,r);
 			//TODO: more force needed?
-			if( RET_WAS_ERROR(r) && !force )
+			if( RET_WAS_ERROR(r) && force <= 1 ) {
+				if( force == 1 ) {
+					fprintf(stderr,"To ignore errors checking Release files specify --force two times.\n");
+				}
 				return r;
+			}
 		}
 		for( target=d->targets; target!=NULL ; target=target->next ) {
 			for( index=target->indices ; index!=NULL ; index=index->next ) {
@@ -1431,7 +1435,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	return result;
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistdownload,struct strlist *dereferencedfilekeys) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1447,7 +1451,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		aptmethod_shutdown(run);
 		return result;
 	}
-	if( nolistdownload ) {
+	if( nolistsdownload ) {
 		if( verbose >= 0 )
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
@@ -1520,7 +1524,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	return result;
 }
 
-retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistdownload) {
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistsdownload) {
 	struct update_distribution *d;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1534,7 +1538,7 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 		aptmethod_shutdown(run);
 		return result;
 	}
-	if( nolistdownload ) {
+	if( nolistsdownload ) {
 		if( verbose >= 0 )
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
@@ -1573,5 +1577,190 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 		updates_dump(d);
 	}
 
+	return result;
+}
+
+static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
+	struct aptmethodrun *run;
+	struct downloadcache *cache;
+	struct update_origin *origin;
+	struct update_target *target;
+	retvalue result,r;
+
+	result = RET_OK;
+
+	r = aptmethod_initialize_run(&run);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* preperations */
+	for( origin=d->origins; origin; origin=origin->next ) {
+		if( origin->pattern == NULL)
+			continue;
+		r = startuporigin(run,origin);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 ) {
+			aptmethod_shutdown(run);
+			return r;
+		}
+	}
+	if( !nolistsdownload ) {
+		for( origin=d->origins;origin; origin=origin->next ) {
+			if( origin->pattern == NULL)
+				continue;
+			if( origin->pattern->ignorerelease )
+				continue;
+			r = queuemetalists(origin);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) ) {
+				if( force <= 0 ) {
+					aptmethod_shutdown(run);
+					return r;
+				}
+				origin->failed = TRUE;
+			}
+		}
+		r = aptmethod_download(run,methoddir,NULL);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && !force ) {
+			aptmethod_shutdown(run);
+			return r;
+		}
+		for( origin=d->origins;origin; origin=origin->next ) {
+			if( origin->pattern == NULL)
+				continue;
+			r = readchecksums(origin);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 1 ) {
+				if( force == 1 ) {
+					fprintf(stderr,"To ignore errors checking Release files specify --force two times.\n");
+				}
+				aptmethod_shutdown(run);
+				return r;
+			}
+		}
+	}
+
+	for( target=d->targets; target!=NULL ; target=target->next ) {
+		struct update_index *index;
+		if( !nolistsdownload ) {
+			for( index=target->indices ; index!=NULL ; index=index->next ) {
+				if( index->origin == NULL || index->origin->failed )
+					continue;
+				r = queueindex(index,force);
+				if( RET_WAS_ERROR(r) ) {
+					RET_UPDATE(result,r);
+					if( force <= 0 ) {
+						aptmethod_shutdown(run);
+						return r;
+					}
+					index->failed = TRUE;
+				}
+			}
+			r = aptmethod_download(run,methoddir,NULL);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 0 ) {
+				aptmethod_shutdown(run);
+				return r;
+			}
+		}
+
+		for( index=target->indices ; index; index=index->next ) {
+			if( index->origin == NULL )
+				continue;
+			if( index->origin->pattern->listhook == NULL )
+				continue;
+			if( index->failed || index->origin->failed ) {
+				continue;
+			}
+			/* Call ListHooks (if given) on the downloaded index files. */
+			r = calllisthook(index->origin->pattern->listhook,index);
+			if( RET_WAS_ERROR(r) ) {
+				index->failed = TRUE;
+				RET_UPDATE(result,r);
+				if( force <= 0) {
+					aptmethod_shutdown(run);
+					return r;
+				}
+			}
+
+		}
+		/* Then get all packages */
+		if( verbose >= 0 )
+			fprintf(stderr,"Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
+		r = downloadcache_initialize(&cache);
+		RET_UPDATE(result,r);	
+		if( !RET_IS_OK(r) ) {
+			(void)downloadcache_free(cache);
+			if( RET_WAS_ERROR(r) && force <= 0 ) {
+				aptmethod_shutdown(run);
+				return result;
+			}
+			continue;
+		}
+		r = searchformissing(dbdir,target,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 ) {
+			(void)downloadcache_free(cache);
+			aptmethod_shutdown(run);
+			return result;
+		}
+		r = upgradelist_enqueue(target->upgradelist,cache,filesdb,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 ) {
+			(void)downloadcache_free(cache);
+			aptmethod_shutdown(run);
+			return result;
+		}
+		if( verbose >= 0 )
+			fprintf(stderr,"Getting packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
+		r = aptmethod_download(run,methoddir,filesdb);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 ) {
+			(void)downloadcache_free(cache);
+			aptmethod_shutdown(run);
+			return result;
+		}
+		r = downloadcache_free(cache);
+		RET_UPDATE(result,r);
+
+		if( verbose >= 0 )
+			fprintf(stderr,"Installing/removing packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
+		r = upgradelist_install(target->upgradelist,dbdir,filesdb,refs,force,target->ignoredelete,dereferencedfilekeys);
+		RET_UPDATE(result,r);
+		upgradelist_free(target->upgradelist);
+		target->upgradelist = NULL;
+		if( RET_WAS_ERROR(r) && force <= 0 ) {
+			aptmethod_shutdown(run);
+			return result;
+		}
+	}
+	if( verbose > 0 )
+		fprintf(stderr,"Shutting down aptmethods...\n");
+	r = aptmethod_shutdown(run);
+	RET_UPDATE(result,r);
+
+	return result;
+}
+
+retvalue updates_iteratedupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,struct strlist *dereferencedfilekeys) {
+	retvalue result,r;
+	struct update_distribution *d;
+
+	if( nolistsdownload ) {
+		if( verbose >= 0 )
+			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
+	}
+
+	result = RET_NOTHING;
+	for( d=distributions ; d != NULL ; d=d->next) {
+		if( d->distribution->deb_override || d->distribution->dsc_override 
+				|| d->distribution->udeb_override) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
+		}
+		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,dereferencedfilekeys);
+		RET_UPDATE(result,r);
+	}
 	return result;
 }
