@@ -9,11 +9,11 @@
 #include "distribution.h"
 #endif
 
-/* insert the given .deb into the mirror in <component> in the <distribution>
- * putting things with architecture of "all" into <d->architectures> (and also
- * causing error, if it is not one of them otherwise)
- * if component is NULL, guessing it from the section. */
-
-retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcedsection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int force);
+/* insert the given .dsc into the mirror in <component> in the <distribution>
+ * if component is NULL, guess it from the section.
+ * If basename, filekey and directory are != NULL, then they are used instead 
+ * of beeing newly calculated. 
+ * (And all files are expected to already be in the pool). */
+retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int force);
 
 #endif

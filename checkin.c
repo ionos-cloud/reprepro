@@ -601,7 +601,10 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,DB *filesdb
 		} else if( e->type == fe_DSC ) {
 			r = dsc_add(dbdir,references,filesdb,mirrordir,
 				changes->component,e->section,e->priority,
-				distribution,fullfilename,force);
+				distribution,fullfilename,
+				e->filekey,e->basename,
+				changes->directory,e->md5andsize,
+				force);
 		}
 		
 		free(fullfilename);

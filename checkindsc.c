@@ -123,8 +123,9 @@ struct dscpackage {
 	char *priority;
 	/* things that will still be NULL then: */
 	char *component; //This might be const, too and save some strdups, but...
+	/* calculated by dsc_copyfiles or set by dsc_checkfiles */
 	char *dscmd5sum;
-	/* Things that will be calculated by dsc_calclocations: */
+	/* Things that may be calculated by dsc_calclocations: */
 	char *directory, *dscbasename, *dscfilekey;
 	struct strlist filekeys;
 };
@@ -205,18 +206,24 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 	return RET_OK;
 }
 
-static retvalue dsc_calclocations(struct dscpackage *pkg) {
+static retvalue dsc_calclocations(struct dscpackage *pkg,const char *filekey,const char *basename,const char *directory) {
 	retvalue r;
 
 	assert( pkg != NULL && pkg->package != NULL && pkg->version != NULL );
 	assert( pkg->component != NULL );
-	
-	pkg->dscbasename = calc_source_basename(pkg->package,pkg->version);
+
+	if( basename )
+		pkg->dscbasename = strdup(basename);
+	else
+		pkg->dscbasename = calc_source_basename(pkg->package,pkg->version);
 	if( pkg->dscbasename == NULL ) {
 		return RET_ERROR_OOM;
 	}
 
-	pkg->directory = calc_sourcedir(pkg->component,pkg->package);
+	if( directory )
+		pkg->directory = strdup(directory);
+	else
+		pkg->directory = calc_sourcedir(pkg->component,pkg->package);
 	if( pkg->directory == NULL ) {
 		return RET_ERROR_OOM;
 	}
@@ -226,7 +233,10 @@ static retvalue dsc_calclocations(struct dscpackage *pkg) {
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	pkg->dscfilekey = calc_dirconcat(pkg->directory,pkg->dscbasename);
+	if( filekey )
+		pkg->dscfilekey = strdup(filekey);
+	else
+		pkg->dscfilekey = calc_dirconcat(pkg->directory,pkg->dscbasename);
 	if( pkg->dscfilekey == NULL ) {
 		return RET_ERROR_OOM;
 	}
@@ -315,12 +325,51 @@ static retvalue dsc_complete(struct dscpackage *pkg) {
 	return RET_OK;
 }
 
-/* insert the given .dsc into the mirror in <component> in the <distribution>
- * if component is NULL, guessing it from the section. */
-// TODO: add something to compare files' md5sums to those in the .changes file.
-// (Perhaps also importing all those first, such that the database-code handles this)
+/* Get the files from the directory dscfilename is residing it, and copy
+ * them into the pool, also setting pkg->dscmd5sum */
+static retvalue dsc_copyfiles(const char *mirrordir,DB *filesdb,
+			struct dscpackage *pkg,const char *dscfilename) {
+	char *sourcedir;
+	retvalue r;
 
-retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int force){
+	r = files_checkin(mirrordir,filesdb,pkg->dscfilekey,dscfilename,&pkg->dscmd5sum);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = dirs_getdirectory(dscfilename,&sourcedir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = files_checkinfiles(mirrordir,filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums);
+
+	free(sourcedir);
+
+	return r;
+}
+
+/* Check the files needed and set the required fields */
+static retvalue dsc_checkfiles(const char *mirrordir,DB *filesdb,
+			struct dscpackage *pkg,const char *dscmd5sum) {
+	retvalue r;
+
+	/* The code we got should have already put the .dsc in the pool
+	 * and calculated its md5sum, so we just use it here: */
+	pkg->dscmd5sum = strdup(dscmd5sum);
+	if( pkg->dscmd5sum == NULL )
+		return RET_ERROR_OOM;
+
+	r = files_expectfiles(mirrordir,filesdb,&pkg->filekeys,&pkg->md5sums);
+
+	return r;
+}
+
+/* insert the given .dsc into the mirror in <component> in the <distribution>
+ * if component is NULL, guessing it from the section.
+ * If basename, filekey and directory are != NULL, then they are used instead 
+ * of beeing newly calculated. 
+ * (And all files are expected to already be in the pool). */
+
+retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int force){
 	retvalue r;
 	struct dscpackage *pkg;
 
@@ -376,21 +425,15 @@ retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 		fprintf(stderr,"%s: component guessed as '%s'\n",dscfilename,pkg->component);
 	}
 
-	r = dsc_calclocations(pkg);
+	r = dsc_calclocations(pkg,filekey,basename,directory);
 
 	/* then looking if we already have this, or copy it in */
 
-	if( !RET_WAS_ERROR(r) )
-		r = files_checkin(filesdb,mirrordir,pkg->dscfilekey,dscfilename,&pkg->dscmd5sum);
-
 	if( !RET_WAS_ERROR(r) ) {
-		char *sourcedir;
-
-		r = dirs_getdirectory(dscfilename,&sourcedir);
-		if( RET_IS_OK(r) ) {
-			r = files_checkinfiles(mirrordir,filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums);
-			free(sourcedir);
-		}
+		if( filekey && basename && directory && md5sum)
+			r = dsc_checkfiles(mirrordir,filesdb,pkg,md5sum);
+		else
+			r = dsc_copyfiles(mirrordir,filesdb,pkg,dscfilename);
 	}
 
 	/* Calculate the chunk to include: */
