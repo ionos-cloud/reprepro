@@ -1,5 +1,5 @@
 
-EXTRA_DIST = test.sh genpackage.sh dpkg-architecture
+EXTRA_DIST = test.sh genpackage.sh dpkg-architecture testchunk.c
 
 MAINTAINERCLEANFILES = Makefile.in
 CLEANFILES = testchunk.data.gz testchunk.data test testchunk2.data.gz testchunk2.data
@@ -12,7 +12,6 @@ randomgen2_SOURCES = randomgen2.c
 
 testchunk: testchunk.c ../ignore.o ../strlist.o ../chunks.o
 	gcc -o testchunk -O2 -Wall -g testchunk.c ../ignore.o ../strlist.o ../chunks.o -lz
-
 
 %.gz: %
 	gzip -c $< > $@
