@@ -994,8 +994,9 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 	char *from,*method;
 	int i,j;
 	struct download *download;
-	char *toget,*saveas;
+	char *toget,*saveas,*releasefile,*name,*totest;
 	const char *origin,*dest,*arch;
+	struct strlist checksums;
 
 	/* * Prepare the download-backend * */
 	r = chunk_getvalue(chunk,"From",&from);
@@ -1016,7 +1017,12 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 	download_add(download,toget,saveas);
 	free(toget);free(saveas);
 
-	/* * Iterator over components to update * */
+	toget = mprintf("dists/%s/Release.gpg",update->suite_from);
+	saveas = mprintf("%s/%s_%s_Release.gpg",listdir,release->codename,update->name);
+	download_add(download,toget,saveas);
+	free(toget);free(saveas);
+
+	/* * Iterate over components to update * */
 	result = RET_NOTHING;
 	for( i = 0 ; i < update->components_from.count ; i++ ) {
 		origin = update->components_from.values[i];
@@ -1050,6 +1056,55 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 	}
 
 	// TODO: check gpg of Release...
+	
+	/* check the given md5sums */
+
+	releasefile = mprintf("%s/%s_%s_Release",listdir,release->codename,update->name);
+	r = release_getchecksums(releasefile,&checksums);
+	free(releasefile);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = RET_NOTHING;
+	for( i = 0 ; i < update->components_from.count ; i++ ) {
+		origin = update->components_from.values[i];
+
+		name = mprintf("%s/source/Sources.gz",origin);
+		totest = mprintf("%s/%s_%s_%s_Sources.gz",listdir,release->codename,update->name,origin);
+		r = release_check(&checksums,name,totest);
+		free(name);
+		if( !RET_IS_OK(r) ) {
+			strlist_done(&checksums);
+			fprintf(stderr,"Error checking authenticity of %s\n",totest);
+			free(totest);
+			if( r == RET_NOTHING)
+				r = RET_ERROR;
+			return r;
+		}
+		free(totest);
+
+		
+		for( j = 0 ; j < update->architectures.count ; j++ ) {
+			arch =update->architectures.values[j];
+
+			name = mprintf("%s/binary-%s/Packages.gz",origin,arch);
+			totest = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,release->codename,update->name,origin,arch);
+			r = release_check(&checksums,name,totest);
+			free(name);
+			if( !RET_IS_OK(r) ) {
+				fprintf(stderr,"Error checking authenticity of %s\n",totest);
+				free(totest);
+				strlist_done(&checksums);
+				if( r == RET_NOTHING)
+					r = RET_ERROR;
+				return r;
+			}
+			free(totest);
+		}
+		
+	}
+
+	strlist_done(&checksums);
 	
 	return result;
 }

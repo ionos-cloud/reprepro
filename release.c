@@ -117,26 +117,35 @@ retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nam
 	return RET_NOTHING;
 }
 
+/* check in fileinfo for <nametocheck> to have md5sum and size of <filename> *
+ * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
+retvalue release_check(const struct strlist *fileinfos, const char *nametocheck, const char *filename) {
+	char *realmd5andsize;
+	retvalue r;
+
+	if( ! RET_IS_OK(r=md5sum_and_size(&realmd5andsize,filename,0))) {
+		fprintf(stderr,"Error checking %s: %m\n",filename);
+		return r;
+	}
+	r = release_searchchecksum(fileinfos,nametocheck,realmd5andsize);
+	free(realmd5andsize);
+	return r;
+
+}
+
 /* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,
  * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
 retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
 	retvalue r;
 	struct strlist files;
-	char *realmd5andsize;
 
 	/* Get the md5sums from the Release-file */
 	r = release_getchecksums(releasefile,&files);
 	if( !RET_IS_OK(r) )
 		return r;
 	
-	realmd5andsize = NULL;
-	if( ! RET_IS_OK(r=md5sum_and_size(&realmd5andsize,filetocheck,0))) {
-		fprintf(stderr,"Error checking %s: %m\n",filetocheck);
-		strlist_done(&files);
-		return r;
-	}
+	r = release_check(&files,nametocheck,filetocheck);
 
-	r = release_searchchecksum(&files,nametocheck,realmd5andsize);
 	if( verbose >=0 ) {
 		if( RET_IS_OK(r) ) 
 			printf("%s ok\n",nametocheck);
@@ -146,7 +155,7 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 			fprintf(stderr,"%s failed\n",nametocheck);
 	}
 
-	free(realmd5andsize);
+
 	strlist_done(&files);
 	return r;
 }
