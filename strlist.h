@@ -26,6 +26,8 @@ retvalue strlist_fprint(FILE *file,const struct strlist *strlist);
 
 /* duplicate with content */
 retvalue strlist_dup(struct strlist *dest,const struct strlist *orig);
+/* replace the contents of dest with those from orig, which get emptied */
+void strlist_move(struct strlist *dest,struct strlist *orig);
 
 int strlist_in(const struct strlist *strlist,const char *element);
 

@@ -166,3 +166,18 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
 	}
 	return RET_OK;
 }
+
+/* replace the contents of dest with those from orig, which get emptied */
+void strlist_move(struct strlist *dest,struct strlist *orig) {
+
+	assert(dest != NULL && orig != NULL);
+
+	if( dest == orig )
+		return;
+
+	dest->size = orig->size;
+	dest->count = orig->count;
+	dest->values = orig->values;
+	orig->size = orig->count = 0;
+	orig->values = NULL;
+}
