@@ -318,10 +318,6 @@ The suite to update from. If this is not present, the codename
 of the distribution using this one is used. Also "*/whatever"
 is replaced by "<codename>/whatever"
 .TP
-.B Architectures
-The architectures to update. If omitted all from the distribution
-to update from.
-.TP
 .B Components
 The components to update. Each item can be either the name
 of a component or a pair of a upstream component and a local
@@ -329,6 +325,14 @@ component seperated with ">". (e.g. "main>all contrib>all non\-free>notall")
 Items with a local part are ignored. If no items are there
 all from the updated distribution are taken. (Use some nonexisting
 like "none", if you want none).
+.TP
+.B Architectures
+The architectures to update. If omitted all from the distribution
+to update from. (As with components, you can use ">" to download
+from one Architecture and add into an other one. (This only determine
+in which Package list they land, it neighter overwrites the Architecture
+line in its description, nor the one in the filename determined from this
+one. In other words, it is no really usefull without additional things)
 .TP
 .B UDebComponents
 Like

@@ -96,7 +96,8 @@ struct update_pattern {
 	//e.g. "ReleaseCheck: B629A24C38C6029A" (NULL means not check)
 	char *verifyrelease;
 	//e.g. "Architectures: i386 sparc mips" (empty means all)
-	struct strlist architectures;
+	struct strlist architectures_from;
+	struct strlist architectures_into;
 	//e.g. "Components: main>main non-free>non-free contrib>contrib"
 	// (empty means all)
 	struct strlist components_from;
@@ -143,7 +144,8 @@ void update_pattern_free(struct update_pattern *update) {
 	free(update->method);
 	free(update->suite_from);
 	free(update->verifyrelease);
-	strlist_done(&update->architectures);
+	strlist_done(&update->architectures_from);
+	strlist_done(&update->architectures_into);
 	strlist_done(&update->components_from);
 	strlist_done(&update->components_into);
 	strlist_done(&update->udebcomponents_from);
@@ -196,52 +198,60 @@ static inline retvalue newupdatetarget(struct update_target **ts,struct target *
 	return RET_OK;
 }
 
-static retvalue splitcomponents(struct strlist *components_from,
-				struct strlist *components_into,
-				const struct strlist *components) {
+static retvalue splitlist(struct strlist *from,
+				struct strlist *into,
+				const struct strlist *list) {
 	retvalue r;
 	int i;
-	const char *component,*dest;
-	char *origin,*destination;
 
-	r = strlist_init(components_from);
+	r = strlist_init(from);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	r = strlist_init(components_into);
+	r = strlist_init(into);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(components_from);
+		strlist_done(from);
 		return r;
 	}
 
 	/* * Iterator over components to update * */
 	r = RET_NOTHING;
-	for( i = 0 ; i < components->count ; i++ ) {
-		component = components->values[i];
-		if( !(dest = strchr(component,'>')) || !*(dest+1)) {
-			destination = strdup(component);
-			origin = strdup(component);
+	for( i = 0 ; i < list->count ; i++ ) {
+		const char *item,*seperator;
+		char *origin,*destination;
+
+		item = list->values[i];
+		// TODO: isn't this broken for the !*(dest+1) case ?
+		if( !(seperator = strchr(item,'>')) ) {
+			destination = strdup(item);
+			origin = strdup(item);
+		} else if( seperator == item ) {
+			destination = strdup(seperator+1);
+			origin = strdup(seperator+1);
+		} else if( *(seperator+1) == '\0' ) {
+			destination = strndup(item,seperator-item);
+			origin = strndup(item,seperator-item);
 		} else {
-			origin = strndup(component,dest-component);
-			destination = strdup(dest+1);
+			origin = strndup(item,seperator-item);
+			destination = strdup(seperator+1);
 		}
 		if( !origin || ! destination ) {
 			free(origin);free(destination);
-			strlist_done(components_from);
-			strlist_done(components_into);
+			strlist_done(from);
+			strlist_done(into);
 			return RET_ERROR_OOM;
 		}
-		r = strlist_add(components_from,origin);
+		r = strlist_add(from,origin);
 		if( RET_WAS_ERROR(r) ) {
 			free(destination);
-			strlist_done(components_from);
-			strlist_done(components_into);
+			strlist_done(from);
+			strlist_done(into);
 			return r;
 		}
-		r = strlist_add(components_into,destination);
+		r = strlist_add(into,destination);
 		if( RET_WAS_ERROR(r) ) {
-			strlist_done(components_from);
-			strlist_done(components_into);
+			strlist_done(from);
+			strlist_done(into);
 			return r;
 		}
 		r = RET_OK;
@@ -251,7 +261,7 @@ static retvalue splitcomponents(struct strlist *components_from,
 
 inline static retvalue parse_pattern(const char *chunk, struct update_pattern **pattern) {
 	struct update_pattern *update;
-	struct strlist componentslist;
+	struct strlist componentslist,architectureslist;
 	retvalue r;
 
 	update = calloc(1,sizeof(struct update_pattern));
@@ -301,13 +311,22 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 		update->suite_from = NULL;
 
 	/* * Check which architectures to update from * */
-	r = chunk_getwordlist(chunk,"Architectures",&update->architectures);
+	r = chunk_getwordlist(chunk,"Architectures",&architectureslist);
 	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;
 	}
 	if( r == RET_NOTHING ) {
-		update->architectures.count = 0;
+		update->architectures_from.count = 0;
+		update->architectures_into.count = 0;
+	} else {
+		r = splitlist(&update->architectures_from,
+				&update->architectures_into,&architectureslist);
+		strlist_done(&architectureslist);
+		if( RET_WAS_ERROR(r) ) {
+			update_pattern_free(update);
+			return r;
+		}
 	}
 
 	/* * Check which components to update from * */
@@ -320,7 +339,7 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 		update->components_from.count = 0;
 		update->components_into.count = 0;
 	} else {
-		r = splitcomponents(&update->components_from,
+		r = splitlist(&update->components_from,
 				&update->components_into,&componentslist);
 		strlist_done(&componentslist);
 		if( RET_WAS_ERROR(r) ) {
@@ -339,7 +358,7 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 		update->udebcomponents_from.count = 0;
 		update->udebcomponents_into.count = 0;
 	} else {
-		r = splitcomponents(&update->udebcomponents_from,
+		r = splitlist(&update->udebcomponents_from,
 				&update->udebcomponents_into,&componentslist);
 		strlist_done(&componentslist);
 		if( RET_WAS_ERROR(r) ) {
@@ -488,6 +507,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 static inline retvalue newindex(struct update_index **indices,
 		const char *listdir,
 		struct update_origin *origin,struct target *target,
+		const char *architecture_from,
 		const char *component_from) {
 	struct update_index *index;
 
@@ -497,14 +517,14 @@ static inline retvalue newindex(struct update_index **indices,
 
 	index->filename = calc_downloadedlistfile(listdir,
 			target->codename,origin->pattern->name,
-			component_from,
-			target->architecture,target->suffix);
+			component_from,architecture_from,
+			target->suffix);
 	if( index->filename == NULL ) {
 		free(index);
 		return RET_ERROR_OOM;
 	}
 	index->upstream = (*target->getupstreamindex)(target,
-		origin->suite_from,component_from,target->architecture);
+		origin->suite_from,component_from,architecture_from);
 	if( index->upstream == NULL ) {
 		free(index->filename);
 		free(index);
@@ -516,13 +536,64 @@ static inline retvalue newindex(struct update_index **indices,
 	return RET_OK;
 }
 
+
+static retvalue addorigintotarget(const char *listdir,struct update_origin *origin,
+		struct target *target,
+		struct distribution *distribution,
+		struct update_target *updatetargets ) {
+	const struct update_pattern *p = origin->pattern;
+	const struct strlist *c_from,*c_into;
+	const struct strlist *a_from,*a_into;
+	int ai,ci;
+	retvalue r;
+
+	if( p->architectures_into.count == 0 ) {
+		a_from = &distribution->architectures;
+		a_into = &distribution->architectures;
+	} else {
+		a_from = &p->architectures_from;
+		a_into = &p->architectures_into;
+	}
+	if( strcmp(target->suffix,"udeb") == 0 )  {
+		if( p->udebcomponents_from.count > 0 ) {
+			c_from = &p->udebcomponents_from;
+			c_into = &p->udebcomponents_into;
+		} else {
+			c_from = &distribution->udebcomponents;
+			c_into = &distribution->udebcomponents;
+		}
+	} else {
+		if( p->components_from.count > 0 ) {
+			c_from = &p->components_from;
+			c_into = &p->components_into;
+		} else {
+			c_from = &distribution->components;
+			c_into = &distribution->components;
+		}
+	}
+
+	for( ai = 0 ; ai < a_into->count ; ai++ ) {
+		if( strcmp(a_into->values[ai],target->architecture) != 0 )
+			continue;
+
+		for( ci = 0 ; ci < c_into->count ; ci++ ) {
+			if( strcmp(c_into->values[ci],target->component) != 0 )
+				continue;
+
+			r = newindex(&updatetargets->indices,listdir,origin,target,
+					a_from->values[ai],c_from->values[ci]);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+	}
+	return RET_OK;
+}
+
 static retvalue gettargets(const char *listdir,struct update_origin *origins,struct distribution *distribution,struct update_target **ts) {
 	struct target *target;
 	struct update_origin *origin;
 	struct update_target *updatetargets;
-	const struct strlist *c_from,*c_into;
 	retvalue r;
-	int i;
 
 	updatetargets = NULL;
 
@@ -534,48 +605,10 @@ static retvalue gettargets(const char *listdir,struct update_origin *origins,str
 		}
 
 		for( origin = origins ; origin ; origin=origin->next ) {
-			const struct update_pattern *p = origin->pattern;
-
-			if( p->architectures.count == 0 ) {
-				if( !strlist_in(&origin->distribution->architectures,target->architecture) && strcmp(target->architecture,"source") != 0 )
-					continue;
-			} else {
-
-				if( !strlist_in(&p->architectures,target->architecture))
-					continue;
-			}
-
-			if( strcmp(target->suffix,"udeb") == 0 )  {
-				if( p->udebcomponents_from.count > 0 ) {
-					c_from = &p->udebcomponents_from;
-					c_into = &p->udebcomponents_into;
-				} else {
-					c_from = &distribution->udebcomponents;
-					c_into = &distribution->udebcomponents;
-				}
-			} else {
-				if( p->components_from.count > 0 ) {
-					c_from = &p->components_from;
-					c_into = &p->components_into;
-				} else {
-					c_from = &distribution->components;
-					c_into = &distribution->components;
-				}
-			}
-
-			for( i = 0 ; i < c_into->count ; i++ ) {
-				if( strcmp(c_into->values[i],
-						target->component) == 0 ) { 
-					r = newindex(&updatetargets->indices,
-						listdir,origin,target,
-						c_from->values[i]);
-
-					if( RET_WAS_ERROR(r) ) {
-						updates_freetargets(
-							updatetargets);
-						return r;
-					}
-				}
+			r=addorigintotarget(listdir,origin,target,distribution,updatetargets);
+			if( RET_WAS_ERROR(r) ) {
+				updates_freetargets(updatetargets);
+				return r;
 			}
 		}
 	}
