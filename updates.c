@@ -826,7 +826,7 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 }
 
 /************************* Preparations *********************************/
-static inline retvalue startuporigin(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution) {
+static inline retvalue startuporigin(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution UNUSED) {
 	retvalue r;
 	struct aptmethod *method;
 
@@ -865,7 +865,7 @@ static retvalue updates_startup(struct aptmethodrun *run,struct distribution *di
 	return result;
 }
 /******************* Fetch all Lists for an update **********************/
-static inline retvalue queuemetalists(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution) {
+static inline retvalue queuemetalists(struct update_origin *origin) {
 	char *toget;
 	retvalue r;
 	const struct update_pattern *p = origin->pattern;
@@ -966,7 +966,7 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 
 
 
-static retvalue updates_queuemetalists(struct aptmethodrun *run,struct distribution *distributions, int force) {
+static retvalue updates_queuemetalists(struct distribution *distributions, int force) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct distribution *distribution;
@@ -978,7 +978,7 @@ static retvalue updates_queuemetalists(struct aptmethodrun *run,struct distribut
 				continue;
 			if( origin->pattern->ignorerelease )
 				continue;
-			r = queuemetalists(run,origin,distribution);
+			r = queuemetalists(origin);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				return r;
@@ -989,7 +989,7 @@ static retvalue updates_queuemetalists(struct aptmethodrun *run,struct distribut
 	return result;
 }
 
-static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distributions,int force) {
+static retvalue updates_queuelists(struct distribution *distributions,int force) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_target *target;
@@ -1107,7 +1107,7 @@ static retvalue updates_calllisthooks(struct distribution *distributions,int for
 	return result;
 }
 
-upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk) {
+upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version UNUSED,const char *new_version UNUSED,const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
 	retvalue r;
 
@@ -1201,7 +1201,7 @@ static retvalue updates_readindices(const char *dbdir,struct distribution *distr
 	return result;
 }
 
-static retvalue updates_enqueue(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force) {
+static retvalue updates_enqueue(struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force) {
 	retvalue result,r;
 	struct update_target *u;
 
@@ -1245,7 +1245,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	retvalue r,result;
 
 	/* first get all "Release" and "Release.gpg" files */
-	result = updates_queuemetalists(run,distributions,force);
+	result = updates_queuemetalists(distributions,force);
 	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		return result;
 	}
@@ -1257,7 +1257,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	}
 
 	/* Then get all index files (with perhaps md5sums from the above) */
-	r = updates_queuelists(run,distributions,force);
+	r = updates_queuelists(distributions,force);
 	RET_UPDATE(result,r);
 	if( RET_WAS_ERROR(result) && !force ) {
 		return result;
@@ -1323,7 +1323,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;
-		r = updates_enqueue(dbdir,cache,filesdb,distribution,force);
+		r = updates_enqueue(cache,filesdb,distribution,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;

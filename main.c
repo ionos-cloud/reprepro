@@ -142,7 +142,7 @@ static retvalue action_extractcontrol(int argc,const char *argv[]) {
 }
 
 
-static retvalue action_addmd5sums(int argc,const char *argv[]) {
+static retvalue action_addmd5sums(int argc,const char *argv[] UNUSED) {
 	char buffer[2000],*c,*m;
 	filesdb files;
 	retvalue result,r;
@@ -201,7 +201,7 @@ static retvalue action_removereferences(int argc,const char *argv[]) {
 }
 
 
-static retvalue action_dumpreferences(int argc,const char *argv[]) {
+static retvalue action_dumpreferences(int argc,const char *argv[] UNUSED) {
 	references refs;
 	retvalue result,r;
 
@@ -220,7 +220,7 @@ static retvalue action_dumpreferences(int argc,const char *argv[]) {
 
 struct fileref { filesdb files; references refs; };
 
-static retvalue checkifreferenced(void *data,const char *filekey,const char *md5sum) {
+static retvalue checkifreferenced(void *data,const char *filekey,const char *md5sum UNUSED) {
 	struct fileref *dist = data;
 	retvalue r;
 
@@ -234,7 +234,7 @@ static retvalue checkifreferenced(void *data,const char *filekey,const char *md5
 		return r;
 }
 
-static retvalue action_dumpunreferenced(int argc,const char *argv[]) {
+static retvalue action_dumpunreferenced(int argc,const char *argv[] UNUSED) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -258,7 +258,7 @@ static retvalue action_dumpunreferenced(int argc,const char *argv[]) {
 	return result;
 }
 
-static retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5sum) {
+static retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5sum UNUSED) {
 	struct fileref *dist = data;
 	retvalue r;
 
@@ -272,7 +272,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,const char *
 		return r;
 }
 
-static retvalue action_deleteunreferenced(int argc,const char *argv[]) {
+static retvalue action_deleteunreferenced(int argc,const char *argv[] UNUSED) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -639,7 +639,7 @@ static retvalue action_md5sums(int argc,const char *argv[]) {
 	}
 }
 
-static retvalue printout(void *data,const char *package,const char *chunk){
+static retvalue printout(void *data UNUSED,const char *package,const char *chunk){
 	printf("'%s' -> '%s'\n",package,chunk);
 	return RET_OK;
 }
@@ -665,7 +665,7 @@ static retvalue action_dumpcontents(int argc,const char *argv[]) {
 	return result;
 }
 
-static retvalue export(void *dummy,const char *chunk,struct distribution *distribution) {
+static retvalue export(void *dummy UNUSED,struct distribution *distribution) {
 
 	if( verbose > 0 ) {
 		fprintf(stderr,"Exporting %s...\n",distribution->codename);
@@ -823,7 +823,7 @@ static retvalue reref(void *data,struct target *target) {
 }
 
 
-static retvalue rereference_dist(void *data,const char *chunk,struct distribution *distribution) {
+static retvalue rereference_dist(void *data,struct distribution *distribution) {
 	struct data_binsrcreref dat;
 	retvalue result;
 
@@ -874,7 +874,7 @@ static retvalue check_target(void *data,struct target *target) {
 	return result;
 }
 
-static retvalue check_dist(void *data,const char *chunk,struct distribution *distribution) {
+static retvalue check_dist(void *data,struct distribution *distribution) {
 	struct data_check *dat=data;
 	retvalue result;
 

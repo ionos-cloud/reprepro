@@ -42,4 +42,10 @@ typedef int bool_t;
 #define TRUE (1==1)
 #define FALSE (0==42)
 
+#ifndef NOUNUSEDATTRIBUTE
+#define UNUSED __attribute((unused))
+#else
+#define UNUSED
+#endif
+
 #endif

@@ -312,7 +312,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 }
 
 /* Parse the Files-header to see what kind of files we carry around */
-static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,const char *packagetypeonly,const char *forcearchitecture,int force) {
+static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,const char *packagetypeonly,const char *forcearchitecture) {
 	retvalue result,r;
 	int i;
 
@@ -413,7 +413,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 	R;
 	r = chunk_getextralinelist(c->control,"Files",&filelines);
 	E("Missing 'Files' field");
-	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture,force);
+	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture);
 	strlist_done(&filelines);
 	R;
 
@@ -424,7 +424,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 #undef R
 }
 
-static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcesection,const char *forcepriority,const struct overrideinfo *srcoverride,const struct overrideinfo *override,int force) {
+static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcesection,const char *forcepriority,const struct overrideinfo *srcoverride,const struct overrideinfo *override) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -551,7 +551,7 @@ static inline retvalue checkforarchitecture(const struct fileentry *e,const char
 	return RET_OK;
 }
 
-static retvalue changes_check(const char *filename,struct changes *changes,const char *forcearchitecture,int force) {
+static retvalue changes_check(const char *filename,struct changes *changes,const char *forcearchitecture) {
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
@@ -643,7 +643,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,const
 	return r;
 }
 
-static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct changes *changes,int force,int delete) {
+static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct changes *changes,int delete) {
 	struct fileentry *e;
 	retvalue r;
 	char *sourcedir; 
@@ -773,13 +773,13 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
 	/* look for component, section and priority to be correct or guess them*/
-	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,srcoverride,binoverride,force);
+	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,srcoverride,binoverride);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
 	}
 	/* do some tests if values are sensible */
-	r = changes_check(changesfilename,changes,forcearchitecture,force);
+	r = changes_check(changesfilename,changes,forcearchitecture);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
@@ -787,7 +787,7 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 	
 	/* add files in the pool */
 	//TODO: D_DELETE would fail here, what to do?
-	r = changes_includefiles(filesdb,changesfilename,changes,force,delete);
+	r = changes_includefiles(filesdb,changesfilename,changes,delete);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;

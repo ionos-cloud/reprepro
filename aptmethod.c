@@ -449,7 +449,7 @@ retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(struct aptmethod *method,const struct tobedone *todo,const char *filename,const char *md5sum,filesdb filesdb) {
+static inline retvalue todo_done(const struct tobedone *todo,const char *filename,const char *md5sum,filesdb filesdb) {
 	char *calculatedmd5;
 
 	/* if the file is somewhere else, copy it: */
@@ -551,7 +551,7 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 	while( todo ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
-			r = todo_done(method,todo,filename,md5sum,filesdb);
+			r = todo_done(todo,filename,md5sum,filesdb);
 
 			/* remove item: */
 			if( lasttodo == NULL )
@@ -781,7 +781,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 
 static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	retvalue result;
-	size_t r;
+	ssize_t r;
 	char *p;
 	int consecutivenewlines;
 
@@ -849,7 +849,8 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 }
 
 static retvalue senddata(struct aptmethod *method) {
-	size_t r,l;
+	size_t l;
+	ssize_t r;
 
 	assert(method->status == ams_ok);
 	if( method->status != ams_ok )

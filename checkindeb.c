@@ -280,7 +280,7 @@ static retvalue deb_copyfiles(filesdb filesdb,struct debpackage *pkg,const char 
 	return r;
 }
 
-static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char *md5sum) {
+static retvalue deb_checkfiles(struct debpackage *pkg,const char *md5sum) {
 	/* Not much to do here, as anything should already be done... */
 
 	pkg->md5sum = strdup(md5sum);
@@ -412,7 +412,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 
 	if( givenfilekey && givenmd5sum ) {
 		assert( delete == D_INPLACE );
-		r = deb_checkfiles(filesdb,pkg,givenmd5sum);
+		r = deb_checkfiles(pkg,givenmd5sum);
 	} else
 		r = deb_copyfiles(filesdb,pkg,debfilename,delete);
 	if( RET_WAS_ERROR(r) ) {

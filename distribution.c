@@ -286,7 +286,7 @@ static retvalue processdistribution(void *d,const char *chunk) {
 	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter);
 	if( RET_IS_OK(result) ){
 
-		result = mydata->action(mydata->data,chunk,distribution);
+		result = mydata->action(mydata->data,distribution);
 		r = distribution_free(distribution);
 		RET_ENDUPDATE(result,r);
 	}

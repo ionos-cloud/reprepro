@@ -53,7 +53,7 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 
 retvalue distribution_export(struct distribution *distribution,const char *dbdir,const char *distdir,int force,bool_t onlyneeded);
 
-typedef retvalue distributionaction(void *data,const char *chunk,struct distribution *distribution);
+typedef retvalue distributionaction(void *data,struct distribution *distribution);
 
 /* call <action> for each distribution-chunk from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_foreach(const char *conf,int argc,const char *argv[],distributionaction action,void *data,int force);

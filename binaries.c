@@ -170,7 +170,7 @@ static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,c
 	return RET_OK;
 }
 
-retvalue binaries_getname(struct target *t,const char *control,char **packagename){
+retvalue binaries_getname(struct target *t UNUSED,const char *control,char **packagename){
 	retvalue r;
 
 	r = chunk_getvalue(control,"Package",packagename);
@@ -182,7 +182,7 @@ retvalue binaries_getname(struct target *t,const char *control,char **packagenam
 	}
 	return r;
 }
-retvalue binaries_getversion(struct target *t,const char *control,char **version) {
+retvalue binaries_getversion(struct target *t UNUSED,const char *control,char **version) {
 	retvalue r;
 
 	r = chunk_getvalue(control,"Version",version);
@@ -229,7 +229,7 @@ retvalue binaries_getinstalldata(struct target *t,const char *packagename,const 
 	return r;
 }
 
-retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
+retvalue binaries_getfilekeys(struct target *t UNUSED,const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
 	retvalue r;
 	r = binaries_parse_getfilekeys(chunk,filekeys);
 	if( RET_WAS_ERROR(r) )
@@ -239,11 +239,11 @@ retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist 
 	r = binaries_parse_md5sum(chunk,md5sums);
 	return r;
 }
-char *binaries_getupstreamindex(struct target *target,const char *suite_from,
+char *binaries_getupstreamindex(struct target *target UNUSED,const char *suite_from,
 		const char *component_from,const char *architecture) {
 	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
 }
-char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,
+char *ubinaries_getupstreamindex(struct target *target UNUSED,const char *suite_from,
 		const char *component_from,const char *architecture) {
 	return mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",suite_from,component_from,architecture);
 }
