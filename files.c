@@ -24,6 +24,7 @@
 #include <string.h>
 #include <db.h>
 #include "error.h"
+#include "strlist.h"
 #include "mprintf.h"
 #include "md5sum.h"
 #include "dirs.h"

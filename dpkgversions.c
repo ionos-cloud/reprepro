@@ -30,6 +30,7 @@
 #include <string.h>
 
 #include <ctype.h>
+#include "error.h"
 #include "dpkgversions.h"
 
 #define _(a) a

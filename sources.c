@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <malloc.h>
 #include "error.h"
+#include "strlist.h"
 #include "packages.h"
 #include "reference.h"
 #include "chunks.h"

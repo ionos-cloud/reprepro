@@ -26,8 +26,10 @@
 #include <zlib.h>
 #include "error.h"
 #include "mprintf.h"
+#include "strlist.h"
 #include "md5sum.h"
 #include "dirs.h"
+#include "reference.h"
 #include "packages.h"
 
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
@@ -298,3 +300,44 @@ retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *
 	RET_ENDUPDATE(result,r);
 	return result;
 }
+
+retvalue packages_insert(const char *identifier,
+		DB *referencesdb, DB *packagesdb,
+		const char *packagename, const char *controlchunk,
+		const struct strlist *files,
+		const struct strlist *oldfiles) {
+
+	retvalue result,r;
+
+	/* mark it as needed by this distribution */
+
+	r = references_insert(referencesdb,identifier,files,oldfiles);
+
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* Add package to the distribution's database */
+
+	if( oldfiles != NULL ) {
+		result = packages_replace(packagesdb,packagename,controlchunk);
+
+	} else {
+		result = packages_add(packagesdb,packagename,controlchunk);
+	}
+
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	/* remove old references to files */
+
+	if( oldfiles != NULL ) {
+		r = references_delete(referencesdb,identifier,
+				oldfiles,files);
+		RET_UPDATE(result,r);
+	}
+
+	return result;
+}
+
+
+

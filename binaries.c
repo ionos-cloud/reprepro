@@ -24,8 +24,8 @@
 #include <malloc.h>
 #include "error.h"
 #include "mprintf.h"
-#include "packages.h"
 #include "chunks.h"
+#include "packages.h"
 #include "binaries.h"
 #include "names.h"
 #include "dpkgversions.h"

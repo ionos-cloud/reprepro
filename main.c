@@ -20,6 +20,7 @@
 #include <assert.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <getopt.h>
 #include <string.h>
 #include <malloc.h>
@@ -27,11 +28,12 @@
 #include "mprintf.h"
 #include "dirs.h"
 #include "names.h"
+#include "md5sum.h"
+#include "strlist.h"
+#include "chunks.h"
 #include "files.h"
 #include "packages.h"
 #include "reference.h"
-#include "md5sum.h"
-#include "chunks.h"
 #include "binaries.h"
 #include "sources.h"
 #include "release.h"

@@ -6,6 +6,10 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef __MIRRORER_STRLIST_H
+#include "strlist.h"
+#warning "What's hapening here?"
+#endif
 
 /* initialize the packages-database for <identifier> */
 DB *packages_initialize(const char *dbpath,const char *dbname);
@@ -28,6 +32,14 @@ char *packages_get(DB *packagesdb,const char *package);
  * < 0 error
  */
 retvalue packages_check(DB *packagesdb,const char *package);
+
+/* insert a chunk in the packages database, adding and deleting
+ * referenced while that. */
+retvalue packages_insert(const char *identifier,
+		DB *referencesdb, DB *packagesdb,
+		const char *packagename, const char *controlchunk,
+		const struct strlist *files,
+		const struct strlist *oldfiles);
 
 /* print the database to a "Packages" or "Sources" file */
 // retvalue packages_printout(DB *packagesdb,const char *filename);

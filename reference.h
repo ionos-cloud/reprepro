@@ -6,11 +6,27 @@
 #warning "What's happening?"
 #endif
 
+#ifndef __MIRRORER_STRLIST_H
+#include "strlist.h"
+#warning "What's happening?"
+#endif
+
+
 DB *references_initialize(const char *dbpath);
 retvalue references_done( DB *db);
 
 /* remove all references from a given identifier */
 retvalue references_remove(DB* refdb,const char *neededby);
+
+/* Add an reference by <identifer> for the given <files>,
+ * excluding <exclude>, if it is nonNULL. */
+retvalue references_insert(DB *refdb,const char *identifer,
+		const struct strlist *files,const struct strlist *exclude);
+
+/* Remove reference by <identifer> for the given <oldfiles>,
+ * excluding <exclude>, if it is nonNULL. */
+retvalue references_delete(DB *refdb,const char *identifer,
+		const struct strlist *files,const struct strlist *exclude);
 
 /* add an reference to a file for an identifier. multiple calls
  * will add multiple references to allow source packages to share

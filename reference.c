@@ -25,6 +25,7 @@
 #include <db.h>
 #include "error.h"
 #include "mprintf.h"
+#include "strlist.h"
 #include "md5sum.h"
 #include "dirs.h"
 #include "reference.h"
@@ -181,6 +182,47 @@ retvalue references_decrement(DB* refdb,const char *needed,const char *neededby)
 	return r;
 }
 
+/* Add an reference by <identifer> for the given <files>,
+ * excluding <exclude>, if it is nonNULL. */
+retvalue references_insert(DB *refdb,const char *identifier,
+		const struct strlist *files,const struct strlist *exclude) {
+	retvalue result,r;
+	int i;
+
+	result = RET_NOTHING;
+
+	for( i = 0 ; i < files->count ; i++ ) {
+		const char *filename = files->values[i];
+
+		if( exclude == NULL || !strlist_in(exclude,filename) ) {
+			r = references_increment(refdb,filename,identifier);
+			RET_UPDATE(result,r);
+		}
+	}
+	return result;
+}
+
+/* Remove reference by <identifer> for the given <oldfiles>,
+ * excluding <exclude>, if it is nonNULL. */
+retvalue references_delete(DB *refdb,const char *identifier,
+		const struct strlist *files,const struct strlist *exclude) {
+	retvalue result,r;
+	int i;
+
+	result = RET_NOTHING;
+
+	for( i = 0 ; i < files->count ; i++ ) {
+		const char *filename = files->values[i];
+
+		if( exclude == NULL || !strlist_in(exclude,filename) ) {
+			r = references_decrement(refdb,filename,identifier);
+			RET_UPDATE(result,r);
+		}
+	}
+	return result;
+	
+}
+
 /* remove all references from a given identifier */
 retvalue references_remove(DB* refdb,const char *neededby) {
 	DBC *cursor;
@@ -260,4 +302,3 @@ retvalue references_dump(DB *refdb) {
 	}
 	return result;
 }
-
