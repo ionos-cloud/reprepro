@@ -141,7 +141,10 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 	ret = chunk_getwordlist(chunk,"Components",&r->components);
 	checkret;
 	ret = chunk_getwordlist(chunk,"Update",&r->updates);
-	checkret;
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
 	ret = chunk_getvalue(chunk,"SignWith",&r->signwith);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
