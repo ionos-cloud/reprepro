@@ -128,7 +128,7 @@ struct dscpackage {
 	struct strlist filekeys;
 };
 
-static void dsc_free(struct dscpackage *pkg) {
+static void dsc_free(/*@only@*/struct dscpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->control);
@@ -143,7 +143,7 @@ static void dsc_free(struct dscpackage *pkg) {
 	free(pkg);
 }
 
-static retvalue dsc_read(struct dscpackage **pkg, const char *filename, bool_t onlysigned) {
+static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename, bool_t onlysigned) {
 	retvalue r;
 	struct dscpackage *dsc;
 
@@ -211,13 +211,13 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename, bool_t o
 	return RET_OK;
 }
 
-static retvalue dsc_calclocations(struct dscpackage *pkg,const char *filekey,const char *basename,const char *directory) {
+static retvalue dsc_calclocations(struct dscpackage *pkg,/*@null@*/const char *filekey,/*@null@*/const char *basename,/*@null@*/const char *directory) {
 	retvalue r;
 
 	assert( pkg != NULL && pkg->package != NULL && pkg->version != NULL );
 	assert( pkg->component != NULL );
 
-	if( basename )
+	if( basename != NULL )
 		pkg->dscbasename = strdup(basename);
 	else
 		pkg->dscbasename = calc_source_basename(pkg->package,pkg->version);
@@ -225,7 +225,7 @@ static retvalue dsc_calclocations(struct dscpackage *pkg,const char *filekey,con
 		return RET_ERROR_OOM;
 	}
 
-	if( directory )
+	if( directory != NULL )
 		pkg->directory = strdup(directory);
 	else
 		pkg->directory = calc_sourcedir(pkg->component,pkg->package);
@@ -238,7 +238,7 @@ static retvalue dsc_calclocations(struct dscpackage *pkg,const char *filekey,con
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	if( filekey )
+	if( filekey != NULL )
 		pkg->dscfilekey = strdup(filekey);
 	else
 		pkg->dscfilekey = calc_dirconcat(pkg->directory,pkg->dscbasename);
@@ -254,19 +254,19 @@ static retvalue dsc_adddsc(struct dscpackage *pkg) {
 	retvalue r;
 
 	r = strlist_include(&pkg->basenames,pkg->dscbasename);
+	pkg->dscbasename = NULL;
 	if( RET_WAS_ERROR(r) )
 		return r;
-	pkg->dscbasename = NULL;
 
 	r = strlist_include(&pkg->md5sums,pkg->dscmd5sum);
+	pkg->dscmd5sum = NULL;
 	if( RET_WAS_ERROR(r) )
 		return r;
-	pkg->dscmd5sum = NULL;
 
 	r = strlist_include(&pkg->filekeys,pkg->dscfilekey);
+	pkg->dscfilekey = NULL;
 	if( RET_WAS_ERROR(r) )
 		return r;
-	pkg->dscfilekey = NULL;
 
 	return RET_OK;
 }
@@ -354,7 +354,7 @@ static retvalue dsc_copyfiles(filesdb filesdb,
 
 /* Check the files needed and set the required fields */
 static retvalue dsc_checkfiles(filesdb filesdb,
-			struct dscpackage *pkg,const char *dscmd5sum) {
+			struct dscpackage *pkg,/*@null@*/const char *dscmd5sum) {
 	retvalue r;
 
 	/* The code we got should have already put the .dsc in the pool
@@ -451,7 +451,8 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	/* then looking if we already have this, or copy it in */
 
 	if( !RET_WAS_ERROR(r) ) {
-		if( filekey && basename && directory && md5sum) {
+		if( filekey != NULL && basename != NULL && 
+				directory != NULL && md5sum != NULL) {
 			assert( delete == D_INPLACE );
 			r = dsc_checkfiles(filesdb,pkg,md5sum);
 		} else

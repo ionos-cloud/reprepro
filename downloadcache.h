@@ -22,7 +22,7 @@ struct downloadcache;
 retvalue downloadcache_initialize(struct downloadcache **download);
 
 /* free all memory */
-retvalue downloadcache_free(struct downloadcache *download);
+retvalue downloadcache_free(/*@null@*//*@only@*/struct downloadcache *download);
 
 /* queue a new file to be downloaded: 
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
