@@ -55,7 +55,7 @@ extern int verbose;
 
 retvalue checkindeb_insert(DB *references,const char *referee,
 		           DB *pkgs,
-		const char *package, const char *chunk,
+		const char *packagename, const char *chunk,
 		const char *filekey, const char *oldfilekey) {
 
 	retvalue result,r;
@@ -63,25 +63,27 @@ retvalue checkindeb_insert(DB *references,const char *referee,
 
 	/* mark it as needed by this distribution */
 
-	r = references_increment(references,filekey,referee);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	if( oldfilekey == NULL || strcmp(filekey,oldfilekey) != 0 ) {
+		r = references_increment(references,filekey,referee);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	/* Add package to distribution's database */
 
 	// Todo: do this earlier...
 	if( oldfilekey != NULL ) {
-		result = packages_replace(pkgs,package,chunk);
+		result = packages_replace(pkgs,packagename,chunk);
 
 	} else {
-		result = packages_add(pkgs,package,chunk);
+		result = packages_add(pkgs,packagename,chunk);
 	}
 
 	if( RET_WAS_ERROR(result) )
 		return result;
 		
 	/* remove old references to files */
-	if( oldfilekey ) {
+	if( oldfilekey != NULL && strcmp(filekey,oldfilekey) != 0) {
 		r = references_decrement(references,oldfilekey,referee);
 		RET_UPDATE(result,r);
 	}
@@ -89,9 +91,6 @@ retvalue checkindeb_insert(DB *references,const char *referee,
 	return result;
 }
 
-// should superseed the add_package from main.c for inclusion
-// of downloaded packages from main.c
-//
 
 retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename, const char *filekey, const char *md5andsize,const char *oldfilekey){
 	char *newchunk;
