@@ -56,17 +56,21 @@
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "/var/spool/reprepro"
 #endif
+#ifndef STD_METHOD_DIR
+#define STD_METHOD_DIR "/usr/lib/apt/methods"
+#endif
 
 /* global options */
-static 
-char 	*mirrordir = STD_BASE_DIR ,
-	*distdir = STD_BASE_DIR "/dists",
-	*dbdir = STD_BASE_DIR "/db",
-	*listdir = STD_BASE_DIR "/lists",
-	*confdir = STD_BASE_DIR "/conf",
-	*overridedir = STD_BASE_DIR "/override",
-	*methoddir = "/usr/lib/apt/methods";
-char	/*@null@*/ *section = NULL,
+static char /*@only@*/ /*@notnull@*/ // *g*
+	*mirrordir = NULL ,
+	*distdir = NULL,
+	*dbdir = NULL,
+	*listdir = NULL,
+	*confdir = NULL,
+	*overridedir = NULL,
+	*methoddir = NULL;
+static char /*@null@*/ 
+	*section = NULL,
 	*priority = NULL,
 	*component = NULL,
 	*architecture = NULL,
@@ -972,7 +976,7 @@ ACTION_D(include) {
 	return result;
 }
 
-retvalue acquirelock(const char *dbdir) {
+static retvalue acquirelock(const char *dbdir) {
 	char *lockfile;
 	int fd;
 	retvalue r;
@@ -1005,7 +1009,7 @@ retvalue acquirelock(const char *dbdir) {
 	if( close(fd) != 0 ) {
 		int e = errno;
 		fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
-		unlink(lockfile);
+		(void)unlink(lockfile);
 		free(lockfile);
 		return RET_ERRNO(e);
 	
@@ -1014,7 +1018,7 @@ retvalue acquirelock(const char *dbdir) {
 	return RET_OK;
 }
 
-void releaselock(const char *dbdir) {
+static void releaselock(const char *dbdir) {
 	char *lockfile;
 
 	lockfile = calc_dirconcat(dbdir,"lockfile");
@@ -1023,7 +1027,7 @@ void releaselock(const char *dbdir) {
 	if( unlink(lockfile) != 0 ) {
 		int e = errno;
 		fprintf(stderr,"Error deleting lockfile '%s': %d=%m!\n",lockfile,e);
-		unlink(lockfile);
+		(void)unlink(lockfile);
 	}
 	free(lockfile);
 }
@@ -1042,7 +1046,7 @@ void releaselock(const char *dbdir) {
 /* to dereference files, one needs files and references database: */
 #define A_D(w) action_d_ ## w, NEED_FILESDB|NEED_REFERENCES|NEED_DEREF 
 
-static struct action {
+static const struct action {
 	char *name;
 	retvalue (*start)(
 			/*@null@*/references references, 
@@ -1050,7 +1054,7 @@ static struct action {
 			/*@null@*/struct strlist *dereferencedfilekeys,
 			int argc,const char *argv[]);
 	int needs;
-} allactions[] = {
+} all_actions[] = {
 	{"__d", 		A_N(printargs)},
 	{"__extractcontrol",	A_N(extractcontrol)},
 	{"_detect", 		A_F(detect)},
@@ -1084,8 +1088,7 @@ static struct action {
 #undef A_RF
 #undef A_F
 
-
-retvalue callaction(const struct action *action,int argc,const char *argv[]) {
+static retvalue callaction(const struct action *action,int argc,const char *argv[]) {
 	retvalue result;
 	references references;
 	filesdb filesdb;
@@ -1182,7 +1185,7 @@ retvalue callaction(const struct action *action,int argc,const char *argv[]) {
 #define LO_CONFDIR 14
 #define LO_METHODDIR 15
 #define LO_VERSION 20
-int longoption = 0;
+static int longoption = 0;
 
 int main(int argc,char *argv[]) {
 	static struct option longopts[] = {
@@ -1290,21 +1293,27 @@ int main(int argc,char *argv[]) {
 						nolistsdownload=TRUE;
 						break;
 					case LO_DISTDIR:
+						free(distdir);
 						distdir = strdup(optarg);
 						break;
 					case LO_DBDIR:
+						free(dbdir);
 						dbdir = strdup(optarg);
 						break;
 					case LO_LISTDIR:
+						free(listdir);
 						listdir = strdup(optarg);
 						break;
 					case LO_OVERRIDEDIR:
+						free(overridedir);
 						overridedir = strdup(optarg);
 						break;
 					case LO_CONFDIR:
+						free(confdir);
 						confdir = strdup(optarg);
 						break;
 					case LO_METHODDIR:
+						free(methoddir);
 						methoddir = strdup(optarg);
 						break;
 					case LO_VERSION:
@@ -1326,12 +1335,8 @@ int main(int argc,char *argv[]) {
 				force++;
 				break;
 			case 'b':
+				free(mirrordir);
 				mirrordir=strdup(optarg);
-				distdir=calc_dirconcat(optarg,"dists");
-				dbdir=calc_dirconcat(optarg,"db");
-				listdir=calc_dirconcat(optarg,"lists");
-				confdir=calc_dirconcat(optarg,"conf");
-				overridedir=calc_dirconcat(optarg,"override");
 				break;
 			case 'i':
 				r = add_ignore(optarg);
@@ -1366,18 +1371,52 @@ int main(int argc,char *argv[]) {
 		fprintf(stderr,"No action given. (see --help for available options and actions)\n");
 		exit(EXIT_FAILURE);
 	}
-
-
-	a = allactions;
+	if( mirrordir == NULL ) {
+		mirrordir=strdup(STD_BASE_DIR);
+		if( mirrordir == NULL ) {
+			(void)fputs("Out of Memory!\n",stderr);
+			exit(EXIT_FAILURE);
+		}
+	}
+	if( methoddir == NULL )
+		methoddir = strdup(STD_METHOD_DIR);
+	if( distdir == NULL )
+		distdir=calc_dirconcat(optarg,"dists");
+	if( dbdir == NULL )
+		dbdir=calc_dirconcat(optarg,"db");
+	if( listdir == NULL )
+		listdir=calc_dirconcat(optarg,"lists");
+	if( confdir == NULL )
+		confdir=calc_dirconcat(optarg,"conf");
+	if( overridedir == NULL )
+		overridedir=calc_dirconcat(optarg,"override");
+	if( distdir == NULL || dbdir == NULL || listdir == NULL 
+			|| confdir == NULL || overridedir == NULL || methoddir == NULL) {
+		(void)fputs("Out of Memory!\n",stderr);
+		exit(EXIT_FAILURE);
+	}
+	a = all_actions;
 	while( a->name ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
 			r = callaction(a,argc-optind,(const char**)argv+optind);
-			return EXIT_RET(r);
+			free(dbdir);
+			free(distdir);
+			free(listdir);
+			free(confdir);
+			free(overridedir);
+			free(mirrordir);
+			exit(EXIT_RET(r));
 		} else
 			a++;
 	}
 
 	fprintf(stderr,"Unknown action '%s'. (see --help for available options and actions)\n",argv[optind]);
-	return EXIT_FAILURE;
+	free(dbdir);
+	free(distdir);
+	free(listdir);
+	free(confdir);
+	free(overridedir);
+	free(mirrordir);
+	exit(EXIT_FAILURE);
 }
 
