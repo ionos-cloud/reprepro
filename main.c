@@ -66,7 +66,8 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*section = NULL,
 	*priority = NULL,
 	*component = NULL,
-	*architecture = NULL;
+	*architecture = NULL,
+	*suffix = NULL;
 static int	delete = 0;
 static int	force = 0;
 static int	nothingiserror = 0;
@@ -321,7 +322,7 @@ static int action_remove(int argc,const char *argv[]) {
 	struct remove_args d;
 
 	if( argc < 3  ) {
-		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] remove <codename> <package-names>\n");
+		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>\n");
 		return 1;
 	}
 	d.references = references_initialize(dbdir);
@@ -340,8 +341,7 @@ static int action_remove(int argc,const char *argv[]) {
 	d.count = argc-2;
 	d.names = argv+2;
 
-	//TODO add something to specifically delete from debian-installer or only the rest?
-	result = distribution_foreach_part(distribution,component,architecture,NULL,remove_from_target,&d,force);
+	result = distribution_foreach_part(distribution,component,architecture,suffix,remove_from_target,&d,force);
 
 	r = distribution_export(distribution,dbdir,distdir,force,1);
 	RET_ENDUPDATE(result,r);
@@ -1022,6 +1022,7 @@ int main(int argc,char *argv[]) {
 " -P, --priority <priority>:         Force include* to set priority.\n"
 " -C, --component <component>: 	     Add or delete only in component.\n"
 " -A, --architecture <architecture>: Add or delete only to architecture.\n"
+" -T, --type <type>:                 Delete only type (dsc,deb,udeb).\n"
 "\n"
 "actions:\n"
 " dumpreferences:    Print all saved references\n"
@@ -1097,6 +1098,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'A':
 				architecture = strdup(optarg);
+				break;
+			case 'T':
+				suffix = strdup(optarg);
 				break;
 			case 'S':
 				section = strdup(optarg);
