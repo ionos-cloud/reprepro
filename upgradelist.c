@@ -58,51 +58,11 @@ typedef struct s_package_data {
 struct s_upgradelist {
 	upgrade_decide_function *decide;
 	packagesdb packages;
+	target target;
 	package_data *list;
 	/* NULL or the last/next thing to test in alphabetical order */
 	package_data *current,*last;
 };
-
-/* extract a package name out of a chunk */
-//TODO: to be replaced by a call to a packagelist-specific callback.
-static retvalue getpackagename(const char *control,char **version) {
-	retvalue r;
-
-	r = chunk_getvalue(control,"Package",version);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not found Version in chunk:'%s'\n",control);
-		return RET_ERROR;
-	}
-	return r;
-}
-/* extract a version out of a chunk */
-//TODO: to be replaced by a call to a packagelist-specific callback.
-static retvalue getversion(const char *control,char **version) {
-	retvalue r;
-
-	r = chunk_getvalue(control,"Version",version);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not found Version in chunk:'%s'\n",control);
-		return RET_ERROR;
-	}
-	return r;
-}
-/* calculate files and control-chunk */
-//TODO: to be replaced by a call to a packagelist-specific callback.
-static retvalue getinstalldata(const char *control,char **newcontrol,struct strlist *newfiles,struct strlist *newmd5sums) {
-	retvalue r;
-
-	*newcontrol = strdup(control);
-	if( *newcontrol == NULL )
-		return RET_ERROR_OOM;
-	r = strlist_init_singleton(strdup("blub"),newfiles);
-	r = strlist_init_singleton(strdup("blub"),newmd5sums);
-	return r;
-}
 
 static void package_data_free(package_data *data){
 	if( data == NULL )
@@ -124,7 +84,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 	retvalue r;
 	package_data *package;
 
-	r = getversion(chunk,&version);
+	r = upgrade->target->getversion(upgrade->target,chunk,&version);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -165,7 +125,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 }
 
 	
-retvalue upgradelist_initialize(upgradelist *ul,packagesdb packages,upgrade_decide_function *decide) {
+retvalue upgradelist_initialize(upgradelist *ul,target t,packagesdb packages,upgrade_decide_function *decide) {
 	upgradelist upgrade;
 	retvalue r;
 
@@ -175,6 +135,7 @@ retvalue upgradelist_initialize(upgradelist *ul,packagesdb packages,upgrade_deci
 
 	upgrade->decide = decide;
 	upgrade->packages = packages;
+	upgrade->target = t;
 
 	r = packages_foreach(packages,save_package_version,upgrade,0);
 
@@ -212,10 +173,10 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 	retvalue r;
 	upgrade_decision decision;
 
-	r = getpackagename(chunk,&packagename);
+	r = upgrade->target->getname(upgrade->target,chunk,&packagename);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = getversion(chunk,&version);
+	r = upgrade->target->getversion(upgrade->target,chunk,&version);
 	if( RET_WAS_ERROR(r) ) {
 		free(packagename);
 		return r;
@@ -292,7 +253,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		new->new_version = version;
 		new->version = version;
 		version = NULL; //to be sure...
-		r = getinstalldata(chunk,&new->new_control,&new->new_files,&new->new_md5sums);
+		r = upgrade->target->getinstalldata(upgrade->target,new->name,new->new_version,chunk,&new->new_control,&new->new_files,&new->new_md5sums);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
 			return RET_ERROR_OOM;
@@ -310,11 +271,10 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		package_data *current = upgrade->current;
 		char *control;struct strlist files,md5sums;
 
-		free(packagename);
-		packagename = NULL; // to be sure...
 
 		r = dpkgversions_isNewer(version,current->version);
 		if( RET_WAS_ERROR(r) ) {
+			free(packagename);
 			free(version);
 			return r;
 		}
@@ -334,6 +294,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 				free(version);
 			}
 
+			free(packagename);
 			return RET_NOTHING;
 		}
 		decision = upgrade->decide(current->name,
@@ -341,10 +302,12 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		if( decision != UD_UPGRADE ) {
 			//TODO: perhaps set a flag if hold was applied...
 			free(version);
+			free(packagename);
 			return RET_NOTHING;
 		}
 
-		r = getinstalldata(chunk,&control,&files,&md5sums);
+		r = upgrade->target->getinstalldata(upgrade->target,packagename,version,chunk,&control,&files,&md5sums);
+		free(packagename);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
 			return r;
@@ -373,7 +336,24 @@ retvalue upgradelist_dump(upgradelist upgrade){
 
 	pkg = upgrade->list;
 	while( pkg ) {
-		printf("'%s': have: '%s' found: '%s' take: '%s'\n",pkg->name,pkg->version_in_use,pkg->new_version,pkg->version);
+		if( pkg->version == pkg->version_in_use ) {
+			if( verbose > 0 )
+				printf("'%s': '%s' will be kept " 
+				       "(best new: '%s')\n",
+				       pkg->name,pkg->version_in_use,
+				       pkg->new_version);
+
+		} else {
+			printf("'%s': '%s' will be upgraded to '%s':\n " 
+			       "files needed: ",
+			       pkg->name,pkg->version_in_use,
+			       pkg->new_version);
+			strlist_fprint(stdout,&pkg->new_files);
+			printf("\nwith md5sums: ");
+			strlist_fprint(stdout,&pkg->new_md5sums);
+			printf("\ninstalling as: '%s'\n",pkg->new_control);
+		}
+
 		pkg = pkg->next;
 	}
 	return RET_OK;

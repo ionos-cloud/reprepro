@@ -247,6 +247,21 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 	return r;
 }
 
+static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,const char *basename,const char *component,struct strlist *filekeys,char **newchunk) {
+	retvalue r;
+
+	r = binaries_calcfilekeys(component,sourcename,basename,filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	*newchunk = chunk_replacefield(chunk,"Filename",filekeys->values[0]);
+	if( !*newchunk ) {
+		strlist_done(filekeys);
+		return RET_ERROR_OOM;
+	}
+	return RET_OK;
+}
+
 static inline retvalue callaction(new_package_action *action,void *data,
 		const char *chunk,const char *packagename,const char *version,
 		const char *sourcename,const char *basename, 
@@ -258,17 +273,10 @@ static inline retvalue callaction(new_package_action *action,void *data,
 	char *newchunk;
 	struct strlist filekeys;
 
-	r = binaries_calcfilekeys(component,sourcename,basename,&filekeys);
+	r = calcnewcontrol(chunk,sourcename,basename,component,&filekeys,&newchunk);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	// Calculating the following here will cause work done
-	// unnecesarrily, but it unifies handling afterwards:
-	newchunk = chunk_replacefield(chunk,"Filename",filekeys.values[0]);
-	if( !newchunk ) {
-		strlist_done(&filekeys);
-		return RET_ERROR_OOM;
-	}
 	r = (*action)(data,newchunk,packagename,version,
 			&filekeys,origfiles,md5sums,oldfiles);
 	free(newchunk);
@@ -375,4 +383,50 @@ retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codena
 	if( o )
 		strlist_done(&oldfilekeys);
 	return result;
+}
+
+retvalue binaries_getname(target t,const char *control,char **packagename){
+	retvalue r;
+
+	r = chunk_getvalue(control,"Package",packagename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not found Package name in chunk:'%s'\n",control);
+		return RET_ERROR;
+	}
+	return r;
+}
+retvalue binaries_getversion(target t,const char *control,char **version) {
+	retvalue r;
+
+	r = chunk_getvalue(control,"Version",version);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not found Version in chunk:'%s'\n",control);
+		return RET_ERROR;
+	}
+	return r;
+}
+	
+retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums) {
+	char *sourcename,*basename;
+	retvalue r;
+
+	//TODO replace this with code doing only the needed work...
+	r = binaries_parse_chunk(chunk,NULL,&sourcename,&basename,md5sums,NULL);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	} else if( r == RET_NOTHING ) {
+		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
+		return RET_ERROR;
+	}
+
+	r = calcnewcontrol(chunk,sourcename,basename,t->component,filekeys,control);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(md5sums);
+	}
+	free(sourcename);free(basename);
+	return r;
 }

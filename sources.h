@@ -10,6 +10,9 @@
 #include "packages.h"
 #warning "What's hapening here?"
 #endif
+#ifndef __MIRRORER_TARGET_H
+#include "target.h"
+#endif
 
 /* get filename and md5sum from a files: line" */
 retvalue sources_getfile(const char *fileline,
@@ -36,4 +39,10 @@ retvalue sources_addtodist(const char *dbpath,DB *references,const char *codenam
 
 /* Calculate the filelines in a form suitable for chunk_replacefields: */
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item);
+
+/* Functions for the target.h-stuff: */
+retvalue sources_getname(target t,const char *chunk,char **packagename);
+retvalue sources_getversion(target ,const char *chunk,char **version);
+retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *files,struct strlist *md5sums);
+
 #endif

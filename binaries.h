@@ -9,6 +9,9 @@
 #include "packages.h"
 #warning "What's hapening here?"
 #endif
+#ifndef __MIRRORER_TARGET_H
+#include "target.h"
+#endif
 
 /* get files out of a "Packages.gz"-chunk. */
 retvalue binaries_parse_getfiles(const char *chunk,struct strlist *files);
@@ -47,5 +50,10 @@ retvalue binaries_findnew(
 /* Add a binary package to a distribution, removing previous versions
  * of it, if necesary. */
 retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codename,const char *component,const char *architecture,const char *package,const char *version,const char *controlchunk,const struct strlist *filekeys);
+
+/* Functions for the target.h-stuff: */
+retvalue binaries_getname(target t,const char *chunk,char **packagename);
+retvalue binaries_getversion(target t,const char *chunk,char **version);
+retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *files,struct strlist *md5sums);
 
 #endif

@@ -341,39 +341,52 @@ retvalue sources_lookforolder(
 	return RET_OK;
 }
 
-static inline retvalue callaction(new_package_action *action, void *data,
-		const char *chunk, const char *package, const char *version,
-		const char *origdirectory, const struct strlist *basenames,
-		const struct strlist *md5sums,
-		const char *component, const struct strlist *oldfilekeys) {
-	char *directory,*newchunk;
-	struct strlist origfiles,filekeys;
+static retvalue calcnewcontrol(
+		const char *chunk, const char *package,
+		const struct strlist *basenames,
+		const char *component,
+		struct strlist *filekeys,char **newchunk) {
+	char *directory;
 	retvalue r;
 
 	directory =  calc_sourcedir(component,package);
 	if( !directory ) 
 		return RET_ERROR_OOM;
 	
-	r = calc_dirconcats(directory,basenames,&filekeys);
+	r = calc_dirconcats(directory,basenames,filekeys);
 	if( RET_WAS_ERROR(r) ) {
 		free(directory);
 		return r;
 	}
+	*newchunk = chunk_replacefield(chunk,"Directory",directory);
+	free(directory);
+	if( !newchunk ) {
+		strlist_done(filekeys);
+		return RET_ERROR_OOM;
+	}
+	return RET_OK;
+}
+
+static inline retvalue callaction(new_package_action *action, void *data,
+		const char *chunk, const char *package, const char *version,
+		const char *origdirectory, const struct strlist *basenames,
+		const struct strlist *md5sums,
+		const char *component, const struct strlist *oldfilekeys) {
+	char *newchunk;
+	struct strlist origfiles,filekeys;
+	retvalue r;
+
+	r = calcnewcontrol(chunk,package,basenames,component,&filekeys,&newchunk);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	
 	r = calc_dirconcats(origdirectory,basenames,&origfiles);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&filekeys);
-		free(directory);
+		free(newchunk);
 		return r;
 	}
 
-	newchunk = chunk_replacefield(chunk,"Directory",directory);
-	free(directory);
-	if( !newchunk ) {
-		strlist_done(&origfiles);
-		strlist_done(&filekeys);
-		return RET_ERROR_OOM;
-	}
 // Calculating origfiles and newchunk will both not be needed in half of the
 // cases. This could be avoided by pushing flags to sources_findnew which
 // to generete. (doing replace_field here makes handling in main.c so
@@ -527,3 +540,53 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 	*(--result) = '\0';
 	return RET_OK;
 }
+
+retvalue sources_getname(target t,const char *control,char **packagename){
+	retvalue r;
+
+	r = chunk_getvalue(control,"Package",packagename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not found Package name in chunk:'%s'\n",control);
+		return RET_ERROR;
+	}
+	return r;
+}
+retvalue sources_getversion(target t,const char *control,char **version) {
+	retvalue r;
+
+	r = chunk_getvalue(control,"Version",version);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not found Version in chunk:'%s'\n",control);
+		return RET_ERROR;
+	}
+	return r;
+}
+	
+retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums) {
+	retvalue r;
+	struct strlist filelines,basenames;
+
+	r = chunk_getextralinelist(chunk,"Files",&filelines);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Files' entry in '%s'!\n",chunk);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+  		return r;
+	r = getBasenamesAndMd5(&filelines,&basenames,md5sums);
+	strlist_done(&filelines);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = calcnewcontrol(chunk,packagename,&basenames,t->component,
+			filekeys,control);
+	strlist_done(&basenames);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(md5sums);
+	}
+	return r;
+}
+

@@ -32,6 +32,7 @@
 #include "md5sum.h"
 #include "chunks.h"
 #include "files.h"
+#include "target.h"
 #include "packages.h"
 #include "reference.h"
 #include "binaries.h"
@@ -893,6 +894,7 @@ static int upgrade(int argc,char *argv[]) {
 	retvalue result,r;
 	upgradelist upgrade;
 	packagesdb pkgs;
+	target target;
 
 	if( argc <=1 ) {
 		fprintf(stderr,"mirrorer upgrade [<distributions>]\n");
@@ -904,12 +906,19 @@ static int upgrade(int argc,char *argv[]) {
 		return EXIT_RET(result);
 	}
 
-	r = packages_initialize(&pkgs,dbdir,"woody-main-source");
+	r = target_initialize_source("woody","main",&target);
 	if( RET_WAS_ERROR(r) ) {
 		return EXIT_RET(r);
 	}
-	result = upgradelist_initialize(&upgrade,pkgs,ud_always);
+
+	r = packages_initialize(&pkgs,dbdir,target->identifier);
+	if( RET_WAS_ERROR(r) ) {
+		target_done(target);
+		return EXIT_RET(r);
+	}
+	result = upgradelist_initialize(&upgrade,target,pkgs,ud_always);
 	if( RET_WAS_ERROR(result) ) {
+		target_done(target);
 		(void)packages_done(pkgs);
 		return EXIT_RET(result);
 	}
