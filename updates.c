@@ -117,6 +117,8 @@ struct update_origin {
 	char *suite_from;
 	const struct distribution *distribution;
 	char *releasefile,*releasegpgfile;
+	/* set when there was a error and it should no loner be used */
+	bool_t failed;
 	// is set when fetching packages..
 	struct aptmethod *download;
 	struct strlist checksums;
@@ -128,6 +130,8 @@ struct update_index {
 	struct update_origin *origin;
 	char *filename;
 	char *upstream;
+	/* there was something missed here */
+	bool_t failed;
 };
 
 struct update_target {
@@ -135,6 +139,8 @@ struct update_target {
 	struct update_index *indices;
 	struct target *target;
 	struct upgradelist *upgradelist;
+	/* Ignore delete marks (as some lists were missing) */
+	bool_t ignoredelete;
 };
 
 void update_pattern_free(struct update_pattern *update) {
@@ -196,6 +202,7 @@ static inline retvalue newupdatetarget(struct update_target **ts,struct target *
 	ut->next = *ts;
 	ut->indices = NULL;
 	ut->upgradelist = NULL;
+	ut->ignoredelete = FALSE;
 	*ts = ut;
 	return RET_OK;
 }
@@ -455,6 +462,8 @@ static retvalue instance_pattern(const char *listdir,
 
 	update->distribution = distribution;
 	update->pattern = pattern;
+	update->failed = FALSE;
+	update->download = NULL;
 
 	if( !pattern->ignorerelease ) {
 		update->releasefile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","data","rel");
@@ -585,6 +594,7 @@ static inline retvalue newindex(struct update_index **indices,
 	}
 	index->origin = origin;
 	index->next = *indices;
+	index->failed = FALSE;
 	*indices = index;
 	return RET_OK;
 }
@@ -770,6 +780,7 @@ static inline retvalue startuporigin(struct aptmethodrun *run,struct update_orig
 			origin->pattern->config,&method);
 	if( RET_WAS_ERROR(r) ) {
 		origin->download = NULL;
+		origin->failed = TRUE;
 		return r;
 	}
 	origin->download = method;
@@ -836,6 +847,8 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 
 	if( origin->releasefile == NULL )
 		return RET_NOTHING;
+	if( origin->failed )
+		return RET_NOTHING;
 
 	/* if there is nothing said, then there is nothing to check... */
 	if( origin->releasegpgfile != NULL ) {
@@ -844,11 +857,14 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 				origin->releasegpgfile,
 				origin->releasefile);
 		if( RET_WAS_ERROR(r) ) {
+			origin->failed = TRUE;
 			return r;
 		}
 	}
 	r = release_getchecksums(origin->releasefile,&origin->checksums);
 	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		origin->failed = TRUE;
 	return r;
 }
 
@@ -858,9 +874,8 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 	size_t l;
 
 	assert( index != NULL && index->origin != NULL );
-	if( origin->download == NULL ) {
-		fprintf(stderr,"Cannot download '%s' as no method started!\n",index->filename);
-		return RET_ERROR;
+	if( origin->download == NULL || origin->failed ) {
+		return RET_NOTHING;
 	}
 	if( origin->releasefile == NULL )
 		return aptmethod_queueindexfile(origin->download,
@@ -1026,6 +1041,14 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force)
 				return result;
+			u->ignoredelete = FALSE;
+			continue;
+		}
+
+		if( index->failed || index->origin->failed ) {
+			if( verbose >= 1 )
+				fprintf(stderr,"  missing '%s'\n",index->filename);
+			u->ignoredelete = TRUE;
 			continue;
 		}
 
@@ -1037,12 +1060,12 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 				ud_decide_by_pattern,
 				(void*)index->origin->pattern,
 				force);
+		if( RET_WAS_ERROR(r) )
+			u->ignoredelete = TRUE;
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force)
 			return result;
 	}
-	//TODO: when upgradelist supports removing unavail packages,
-	//do not forget to disable this here in case of error and force...
 	
 	return result;
 }
@@ -1082,7 +1105,7 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force);
+		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
@@ -1101,6 +1124,36 @@ static void updates_dump(struct distribution *distribution) {
 	}
 }
 
+static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun *run,struct distribution *distributions, int force) {
+	retvalue r,result;
+
+	/* first get all "Release" and "Release.gpg" files */
+	result = updates_queuemetalists(run,distributions,force);
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
+		return result;
+	}
+
+	r = aptmethod_download(run,methoddir,NULL);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(r) && !force ) {
+		return result;
+	}
+
+	/* Then get all index files (with perhaps md5sums from the above) */
+	r = updates_queuelists(run,distributions,force);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) && !force ) {
+		return result;
+	}
+
+	r = aptmethod_download(run,methoddir,NULL);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(r) && !force ) {
+		return result;
+	}
+	return result;
+}
+
 retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force,bool_t nolistdownload) {
 	retvalue result,r;
 	struct distribution *distribution;
@@ -1111,7 +1164,6 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = RET_NOTHING;
 	/* preperations */
 	result = updates_startup(run,distributions,force);
 	if( RET_WAS_ERROR(result) && force <= 0 ) {
@@ -1122,36 +1174,13 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		if( verbose >= 0 )
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
-		/* first get all "Release" and "Release.gpg" files */
-		r = updates_queuemetalists(run,distributions,force);
+		r = updates_downloadlists(methoddir,run,distributions,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) && force <= 0 ) {
 			aptmethod_shutdown(run);
 			return result;
 		}
 
-		r = aptmethod_download(run,methoddir,filesdb);
-		if( RET_WAS_ERROR(r) && !force ) {
-			RET_UPDATE(result,r);
-			aptmethod_shutdown(run);
-			return result;
-		}
-
-		/* Then get all index files (with perhaps md5sums from the above) */
-		r = updates_queuelists(run,distributions,force);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(result) && !force ) {
-			RET_UPDATE(result,r);
-			aptmethod_shutdown(run);
-			return result;
-		}
-
-		r = aptmethod_download(run,methoddir,filesdb);
-		if( RET_WAS_ERROR(r) && !force ) {
-			RET_UPDATE(result,r);
-			aptmethod_shutdown(run);
-			return result;
-		}
 	}
 
 	/* Then get all packages */
@@ -1191,7 +1220,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stderr,"Installing packages...\n");
+		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
 
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
 		r = updates_install(dbdir,filesdb,refs,distribution,force);
@@ -1221,35 +1250,9 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct dist
 		if( verbose >= 0 )
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
-		/* first get all "Release" and "Release.gpg" files */
-		if( RET_IS_OK(result) || force > 0 ) {
-			r = updates_queuemetalists(run,distributions,force);
-			RET_UPDATE(result,r);
-		}
-		if( RET_WAS_ERROR(result) && force <= 0 ) {
-			aptmethod_shutdown(run);
-			return result;
-		}
-
-		r = aptmethod_download(run,methoddir,NULL);
-		if( RET_WAS_ERROR(r) && !force ) {
-			RET_UPDATE(result,r);
-			aptmethod_shutdown(run);
-			return result;
-		}
-
-		/* Then get all index files (with perhaps md5sums from the above) */
-		r = updates_queuelists(run,distributions,force);
+		r = updates_downloadlists(methoddir,run,distributions,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(result) && !force ) {
-			RET_UPDATE(result,r);
-			aptmethod_shutdown(run);
-			return result;
-		}
-
-		r = aptmethod_download(run,methoddir,NULL);
-		if( RET_WAS_ERROR(r) && !force ) {
-			RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(result) && force <= 0 ) {
 			aptmethod_shutdown(run);
 			return result;
 		}

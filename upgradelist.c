@@ -478,7 +478,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force){
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force, bool_t ignoredelete){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -501,9 +501,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 			if( RET_WAS_ERROR(r) && !force )
 				break;
 		}
-		if( pkg->deleted && pkg->version_in_use != NULL ) {
-			// TODO: what if there were previous errors,
-			// prevent removal of packages here?
+		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
 			r = target_removepackage(upgrade->target,refs,pkg->name);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )

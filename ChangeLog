@@ -1,4 +1,8 @@
-2005-01-07  Bernhard R. Link <brlink@debian.org
+2005-01-10  Bernhard R. Link <brlink@debian.org>
+	* Made updates using --force with failing parts
+	more graceful
+
+2005-01-07  Bernhard R. Link <brlink@debian.org>
 	* Changed the meaning of the "Architectures:"
 	field in conf/distributions. Now a distribution
 	will have sources exactly when a "source" is in
