@@ -1,12 +1,11 @@
 TODO:
-	add adding uploads (via .changes, by .dsc and by .deb)
-		add override-support
-	add automated updating of distributions
+	add override-support
 	add searching for packages
-	add easier removing of single packages
-
-	write README
-
-	search for nicer call of gpg within signature.c
+	add easier removing of packages
 	implement extractcontrol.c properly
+	add support to specify the key used for signing
+		(allow it needed a passphrase)
+
+	write dokumentation, some examples
+
 	find a name for this project
