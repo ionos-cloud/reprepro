@@ -23,6 +23,4 @@ retvalue updates_checklists(const char *listdir,const struct update_upstream *up
 
 retvalue updates_readlistsfortarget(struct upgradelist *list,struct target *target,const char *listdir,const struct update_upstream *upstreams,int force);
 
-struct downloadlist;
-retvalue updates_setdownloadupstreams(struct update_upstream *upstreams,struct downloadlist *download);
 #endif

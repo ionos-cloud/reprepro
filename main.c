@@ -46,6 +46,7 @@
 #include "checkindeb.h"
 #include "checkindsc.h"
 #include "checkin.h"
+#include "downloadcache.h"
 
 
 #ifndef STD_BASE_DIR
@@ -682,8 +683,9 @@ static int update(int argc,char *argv[]) {
 	struct update_upstream *patterns;
 	struct distribution *distributions,*d;
 	struct aptmethodrun *run;
-	struct downloadlist *download;
+	struct downloadcache *download;
 	struct target *t;
+	filesdb files;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"mirrorer update [<distributions>]\n");
@@ -724,13 +726,12 @@ static int update(int argc,char *argv[]) {
 		}
 	}
 
-
 	result = aptmethod_download(run,"/usr/lib/apt/methods",NULL);
-	r = aptmethod_shutdown(run);
-	RET_UPDATE(result,r);
 	
-	if( RET_WAS_ERROR(result) )
+	if( RET_WAS_ERROR(result) ) {
+		r = aptmethod_shutdown(run);
 		return EXIT_RET(result);
+	}
 
 	for( d=distributions; d ; d = d->next ) {
 		r = updates_checklists(listdir,d->upstreams,force);
@@ -740,16 +741,15 @@ static int update(int argc,char *argv[]) {
 		}
 	}
 	
-	result = downloadlist_initialize(&download,dbdir,mirrordir);
+	result = downloadcache_initialize(&download);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+	result = files_initialize(&files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
 	
 	for( d=distributions; d ; d = d->next ) {
 
-		r = updates_setdownloadupstreams(d->upstreams,download);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
-			continue;
 		for( t = d->targets; t ; t = t->next ) {
 			r = upgradelist_initialize(&t->upgradelist,
 					t,dbdir,ud_always);
@@ -762,7 +762,7 @@ static int update(int argc,char *argv[]) {
 				t->upgradelist = NULL;
 				continue;
 			}
-			r = upgradelist_enqueue(t->upgradelist,force);
+			r = upgradelist_enqueue(t->upgradelist,download,files,force);
 			if( RET_WAS_ERROR(r) ) {
 				upgradelist_free(t->upgradelist);
 				t->upgradelist = NULL;
@@ -770,7 +770,10 @@ static int update(int argc,char *argv[]) {
 			}
 		}
 	}
-	result = downloadlist_run(download,"/usr/lib/apt/methods");
+	downloadcache_free(download);
+	result = aptmethod_download(run,"/usr/lib/apt/methods",NULL);
+	r = aptmethod_shutdown(run);
+	RET_UPDATE(result,r);
 
 	refs = references_initialize(dbdir);
 	if( ! refs )
@@ -780,8 +783,7 @@ static int update(int argc,char *argv[]) {
 		for( t = d->targets; t ; t = t->next ) {
 			if( t->upgradelist == NULL )
 				continue;
-			r = upgradelist_install(t->upgradelist,
-					downloadlist_filesdb(download),
+			r = upgradelist_install(t->upgradelist,files,
 					refs,force);
 			RET_UPDATE(result,r);
 			upgradelist_free(t->upgradelist);
@@ -791,7 +793,8 @@ static int update(int argc,char *argv[]) {
 		r = distribution_export(d,dbdir,distdir,force,1);
 		RET_ENDUPDATE(result,r);
 	}
-	downloadlist_free(download);
+	r = files_done(files);
+	RET_ENDUPDATE(result,r);
 	
 	while( distributions ) {
 		d = distributions->next;

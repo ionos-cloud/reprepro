@@ -75,7 +75,7 @@ struct update_upstream {
 	// distribution to go into (NULL for pattern)
 	const struct distribution *distribution;
 	// is set for non-pattern when fetching packages..
-	struct download_upstream *download;
+	struct aptmethod *download;
 };
 
 void update_upstream_free(struct update_upstream *update) {
@@ -483,7 +483,7 @@ retvalue updates_getupstreams(const struct update_upstream *patterns,struct dist
 }
 
 /******************* Fetch all Lists for an update **********************/
-retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct update_upstream *upstream) {
+retvalue queuelists(struct aptmethodrun *run,const char *listdir,struct update_upstream *upstream) {
 	char *toget,*saveas;
 	int i,j;
 	struct aptmethod *method;
@@ -493,18 +493,19 @@ retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct up
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
+	upstream->download = method;
 
 	if( !upstream->ignorerelease ) {
 		toget = mprintf("dists/%s/Release",upstream->suite_from);
 		saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","data");
-		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
+		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 
 		if( upstream->verifyrelease != NULL ) {
 			toget = mprintf("dists/%s/Release.gpg",upstream->suite_from);
 			saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","gpg");
-			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
+			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -516,7 +517,7 @@ retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct up
 
 		toget = mprintf("dists/%s/%s/source/Sources.gz",upstream->suite_from,comp);
 		saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,comp,"source");
-		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
+		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 
@@ -525,7 +526,7 @@ retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct up
 
 			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",upstream->suite_from,comp,arch);
 			saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,comp,arch);
-			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
+			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -684,20 +685,6 @@ retvalue updates_readlistsfortarget(struct upgradelist *list,struct target *targ
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
 			break;
-	}
-	return result;
-}
-
-retvalue updates_setdownloadupstreams(struct update_upstream *upstreams,struct downloadlist *download) {
-	retvalue result,r;
-	struct update_upstream *upstream;
-
-	result = RET_NOTHING;
-
-	for( upstream=upstreams ; upstream ; upstream=upstream->next ) {
-		r = downloadlist_newupstream(download,upstream->method,upstream->config,&upstream->download);
-		RET_UPDATE(result,r);
-
 	}
 	return result;
 }

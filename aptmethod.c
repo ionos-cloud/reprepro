@@ -38,16 +38,6 @@
 
 extern int verbose;
 
-struct tobedone {
-	struct tobedone *next;
-	/* must be saved to know where is should be moved to: */
-	char *uri;
-	char *filename;
-	/* if non-NULL, what is expected...*/
-	char *md5sum;
-	/* if non-NULL, add to the database after found (only if md5sum != NULL) */
-	char *filekey;
-};
 
 struct aptmethod {
 	struct aptmethod *next;
@@ -358,7 +348,7 @@ static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
+retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey,struct tobedone **t) {
 	struct tobedone *todo;
 
 	todo = newtodo(method->baseuri,origfile,destfile,md5sum,filekey);
@@ -372,6 +362,8 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 		method->lasttobedone->next = todo;
 		method->lasttobedone = todo;
 	}
+	if( t )
+		*t = todo;
 	return RET_OK;
 	
 }

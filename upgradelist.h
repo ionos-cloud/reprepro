@@ -4,8 +4,11 @@
 #ifndef __MIRRORER_PACKAGES_H
 #include "packages.h"
 #endif
-#ifndef __MIRRORER_DOWNLOADLIST_H
-#include "downloadlist.h"
+#ifndef __MIRRORER_APTMETHOD_H
+#include "aptmethod.h"
+#endif
+#ifndef __MIRRORER_DOWNLOADCACHE_H
+#include "downloadcache.h"
 #endif
 
 /* Things for making decisions what to upgrade and what not */
@@ -27,15 +30,15 @@ retvalue upgradelist_free(struct upgradelist *upgrade);
 retvalue upgradelist_dump(struct upgradelist *upgrade);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files);
 
-/* Take all items in 'filename' into account, and remember them coming from 'upstream */
-retvalue upgradelist_update(struct upgradelist *upgrade,struct download_upstream *upstream,const char *filename,int force);
+/* Take all items in 'filename' into account, and remember them coming from 'method' */
+retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,int force);
 
 //TODO add a function to reduce data-load by removing anything not needed
 //any longer. (perhaps with a flag to remove all packages that are no
 //longer available upstream)
 
-/* request all wanted files in the downloadlists given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade,int force);
+/* request all wanted files refering the methods given before */
+retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb,int force);
 
 retvalue upgradelist_install(struct upgradelist *upgrade,filesdb files,DB *references,int force);
 

@@ -25,8 +25,8 @@
 #include "strlist.h"
 #include "chunks.h"
 #include "dpkgversions.h"
-#include "downloadlist.h"
 #include "target.h"
+#include "downloadcache.h"
 #include "upgradelist.h"
 
 extern int verbose;
@@ -46,7 +46,7 @@ struct package_data {
 	 * NULL means nothing found. */
 	char *new_version;
 	/* where the recent version comes from: */
-	struct download_upstream *upstream;
+	struct aptmethod *aptmethod;
 
 	/* the new control-chunk for the package to go in 
 	 * non-NULL if new_version && newversion > version_in_use */
@@ -65,7 +65,7 @@ struct upgradelist {
 	/* NULL or the last/next thing to test in alphabetical order */
 	struct package_data *current,*last;
 	/* internal...*/
-	struct download_upstream *currentupstream;
+	struct aptmethod *currentaptmethod;
 };
 
 static void package_data_free(struct package_data *data){
@@ -98,7 +98,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 		return RET_ERROR_OOM;
 	}
 
-	package->upstream = NULL;
+	package->aptmethod = NULL;
 	package->name = strdup(packagename);
 	if( package->name == NULL ) {
 		free(package);
@@ -177,7 +177,7 @@ retvalue upgradelist_free(struct upgradelist *upgrade) {
 	return RET_OK;
 }
 
-retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
 	char *packagename,*version;
 	retvalue r;
 	upgrade_decision decision;
@@ -257,8 +257,8 @@ retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
 			free(version);
 			return RET_ERROR_OOM;
 		}
-		assert(upgrade->currentupstream);
-		new->upstream = upgrade->currentupstream;
+		assert(upgrade->currentaptmethod);
+		new->aptmethod = upgrade->currentaptmethod;
 		new->name = packagename;
 		packagename = NULL; //to be sure...
 		new->new_version = version;
@@ -326,8 +326,8 @@ retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
-		assert(upgrade->currentupstream);
-		current->upstream = upgrade->currentupstream;
+		assert(upgrade->currentaptmethod);
+		current->aptmethod = upgrade->currentaptmethod;
 		strlist_move(&current->new_filekeys,&files);
 		strlist_move(&current->new_md5sums,&md5sums);
 		strlist_move(&current->new_origfiles,&origfiles);
@@ -337,11 +337,11 @@ retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
 	return RET_OK;
 }
 
-retvalue upgradelist_update(struct upgradelist *upgrade,struct download_upstream *upstream,const char *filename,int force){
+retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,int force){
 
 	upgrade->current = upgrade->list;
 	upgrade->last = NULL;
-	upgrade->currentupstream = upstream;
+	upgrade->currentaptmethod = method;
 
 	return chunk_foreach(filename,(void*)upgradelist_trypackage,upgrade,force,0);
 }
@@ -362,15 +362,15 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files){
 }
 
 /* request all wanted files in the downloadlists given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade,int force) {
+retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb,int force) {
 	struct package_data *pkg;
 	retvalue result,r;
 	pkg = upgrade->list;
 	result = RET_NOTHING;
 	while( pkg ) {
 		if( pkg->version == pkg->new_version ) {
-			assert(pkg->upstream);
-			r = downloadlist_addfiles(pkg->upstream,
+			assert(pkg->aptmethod);
+			r = downloadcache_addfiles(cache,filesdb,pkg->aptmethod,
 				&pkg->new_origfiles,
 				&pkg->new_filekeys,
 				&pkg->new_md5sums);

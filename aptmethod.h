@@ -8,10 +8,22 @@
 struct aptmethodrun;
 struct aptmethod;
 
+struct tobedone {
+	struct tobedone *next;
+	/* must be saved to know where is should be moved to: */
+	char *uri;
+	char *filename;
+	/* if non-NULL, what is expected...*/
+	char *md5sum;
+	/* if non-NULL, add to the database after found (only if md5sum != NULL) */
+	char *filekey;
+};
+
 retvalue aptmethod_initialize_run(struct aptmethodrun **run);
 retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *config,struct aptmethod **m);
-/* md5sum can be NULL: */
-retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey);
+
+/* md5sum can be NULL(filekey then, too): if todo != NULL, then *todo will be set */
+retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey,struct tobedone **todo);
 
 retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb);
 retvalue aptmethod_shutdown(struct aptmethodrun *run);
