@@ -8,7 +8,7 @@ TODO:
 		when removed upstream. (downgrade too?)
 	implement filters for including only specific packages
 	add support for removal of files when vanishing from where we update...
-	allow to verify a keyring to use.
+	allow to specify a keyring to use.
 
 	write dokumentation, some examples
 	update for use with newer gpgpme
