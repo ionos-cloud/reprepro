@@ -338,7 +338,7 @@ retvalue distribution_foreach(const char *conf,int argc,const char *argv[],distr
 	return result;
 }
 
-struct distmatch_mydata {struct distribution_filter filter; struct distribution **distributions;};
+struct distmatch_mydata {struct distribution_filter filter; struct distribution *distributions;};
 
 static retvalue adddistribution(void *d,const char *chunk) {
 	struct distmatch_mydata *mydata = d;
@@ -354,8 +354,8 @@ static retvalue adddistribution(void *d,const char *chunk) {
 				result = RET_ERROR;
 			}
 		}
-		distribution->next = *mydata->distributions;
-		*mydata->distributions = distribution;
+		distribution->next = mydata->distributions;
+		mydata->distributions = distribution;
 	}
 
 	return result;
@@ -366,11 +366,10 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	retvalue result;
 	char *fn;
 	struct distmatch_mydata mydata;
-	struct distribution *d = NULL;
 
 	mydata.filter.count = argc;
 	mydata.filter.dists = (const char**)argv;
-	mydata.distributions = &d;
+	mydata.distributions = NULL;
 	
 	fn = calc_dirconcat(conf,"distributions");
 	if( !fn ) 
@@ -388,12 +387,12 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	free(fn);
 
 	if( RET_IS_OK(result) ) {
-		*distributions = d;
+		*distributions = mydata.distributions;
 	} else 
-		while( d ) {
-			struct distribution *next = d->next;
-			(void)distribution_free(d);
-			d = next;
+		while( mydata.distributions ) {
+			struct distribution *next = mydata.distributions->next;
+			(void)distribution_free(mydata.distributions);
+			mydata.distributions = next;
 		}
 	
 	return result;
