@@ -108,33 +108,57 @@ retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize)
 	return RET_OK;
 }
 
-static retvalue getfilekeysandmd5(const char *directory,const struct strlist *files,struct strlist *basenames,struct strlist *filekeys,struct strlist *md5sums) {
+static retvalue getBasenames(const struct strlist *filelines,struct strlist *basenames) {
 	int i;
 	retvalue r;
 
-	assert(directory != NULL && files != NULL && md5sums != NULL);
+	assert( filelines != NULL && basenames != NULL );
 
-	r = strlist_init_n(files->count,filekeys);
+	r = strlist_init_n(filelines->count,basenames);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = strlist_init_n(files->count,md5sums);
+	r = RET_NOTHING;
+	for( i = 0 ; i < filelines->count ; i++ ) {
+		char *basename;
+		const char *fileline=filelines->values[i];
+
+		r = sources_getfile(fileline,&basename,NULL);
+		if( RET_WAS_ERROR(r) )
+			break;
+
+		r = strlist_add(basenames,basename);
+		if( RET_WAS_ERROR(r) ) {
+			free(basename);
+			break;
+		}
+		r = RET_OK;
+	}
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(filekeys);
+		strlist_done(basenames);
+	} else {
+		assert( filelines->count == basenames->count );
+	}
+	return r;
+}
+
+static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlist *basenames,struct strlist *md5sums) {
+	int i;
+	retvalue r;
+
+	assert( filelines != NULL && basenames != NULL && md5sums != NULL );
+
+	r = strlist_init_n(filelines->count,basenames);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = strlist_init_n(filelines->count,md5sums);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(basenames);
 		return r;
 	}
-	if( basenames != NULL ) {
-		r = strlist_init_n(files->count,basenames);
-		if( RET_WAS_ERROR(r) ) {
-			strlist_done(filekeys);
-			strlist_done(md5sums);
-			return r;
-		}
-	}
-
 	r = RET_NOTHING;
-	for( i = 0 ; i < files->count ; i++ ) {
-		char *basename,*md5andsize,*filekey;
-		const char *fileline=files->values[i];
+	for( i = 0 ; i < filelines->count ; i++ ) {
+		char *basename,*md5andsize;
+		const char *fileline=filelines->values[i];
 
 		r = sources_getfile(fileline,&basename,&md5andsize);
 		if( RET_WAS_ERROR(r) )
@@ -146,82 +170,25 @@ static retvalue getfilekeysandmd5(const char *directory,const struct strlist *fi
 			free(basename);
 			break;
 		}
-		if( basenames != NULL ) {
-			r = strlist_add(basenames,basename);
-			if( RET_WAS_ERROR(r) ) {
-				free(basename);
-				break;
-			}
-		}
-
-		filekey = calc_srcfilekey(directory,basename);
-		if( basenames == NULL )
-			free(basename);
-		if( filekey == NULL ) {
-			r = RET_ERROR_OOM;
-			break;
-		}
-		r = strlist_add(filekeys,filekey);
+		r = strlist_add(basenames,basename);
 		if( RET_WAS_ERROR(r) ) {
-			free(filekey);
+			free(basename);
 			break;
 		}
 		r = RET_OK;
 	}
 	if( RET_WAS_ERROR(r) ) {
-		if( basenames != NULL )
-			strlist_done(basenames);
-		strlist_done(filekeys);
+		strlist_done(basenames);
 		strlist_done(md5sums);
 	} else {
-		assert( files->count == filekeys->count );
-		assert( files->count == md5sums->count );
-	}
-	return r;
-}
-
-static retvalue getfilekeys(const char *directory,const struct strlist *files,struct strlist *filekeys) {
-	int i;
-	retvalue r;
-
-	assert(directory != NULL && files != NULL );
-
-	r = strlist_init_n(files->count,filekeys);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = RET_NOTHING;
-	for( i = 0 ; i < files->count ; i++ ) {
-		char *basename,*filekey;
-		const char *fileline=files->values[i];
-
-		r = sources_getfile(fileline,&basename,NULL);
-		if( RET_WAS_ERROR(r) )
-			break;
-
-		filekey = calc_srcfilekey(directory,basename);
-		free(basename);
-		if( filekey == NULL ) {
-			r = RET_ERROR_OOM;
-			break;
-		}
-		r = strlist_add(filekeys,filekey);
-		if( RET_WAS_ERROR(r) ) {
-			free(filekey);
-			break;
-		}
-		r = RET_OK;
-	}
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(filekeys);
-	} else {
-		assert( files->count == filekeys->count );
+		assert( filelines->count == basenames->count );
+		assert( filelines->count == md5sums->count );
 	}
 	return r;
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *files) {
+static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *basefiles,struct strlist *md5sums) {
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
@@ -254,26 +221,39 @@ static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **
 
 	/* collect the given md5sum and size */
 
-  	if( files ) {
+  	if( basefiles ) {
+		struct strlist filelines;
   
-		r = chunk_getextralinelist(chunk,"Files",files);
+		r = chunk_getextralinelist(chunk,"Files",&filelines);
 		if( !RET_IS_OK(r) ) {
 			IFREE(packagename);
 			IFREE(version);
   			IFREE(origdirectory);
   			return r;
 		}
-	}
+		if( md5sums )
+			r = getBasenamesAndMd5(&filelines,basefiles,md5sums);
+		else
+			r = getBasenames(&filelines,basefiles);
+		strlist_done(&filelines);
+		if( RET_WAS_ERROR(r) ) {
+			IFREE(packagename);
+			IFREE(version);
+  			IFREE(origdirectory);
+  			return r;
+		}
+	} else 
+		assert(md5sums == NULL); /* only together with basefiles */
 
 	return RET_OK;
 }
 
-retvalue sources_parse_getfiles(const char *chunk, struct strlist *files) {
+retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys) {
 	char *origdirectory;
-	struct strlist filelines;
+	struct strlist basenames;
 	retvalue r;
 	
-	r = sources_parse_chunk(chunk,NULL,NULL,&origdirectory,&filelines);
+	r = sources_parse_chunk(chunk,NULL,NULL,&origdirectory,&basenames,NULL);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;
@@ -282,9 +262,9 @@ retvalue sources_parse_getfiles(const char *chunk, struct strlist *files) {
 		return r;
 	assert( RET_IS_OK(r) );
 
-	r = getfilekeys(origdirectory,&filelines,files);
+	r = calc_dirconcats(origdirectory,&basenames,filekeys);
 	free(origdirectory);
-	strlist_done(&filelines);
+	strlist_done(&basenames);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return r;
@@ -302,7 +282,7 @@ retvalue sources_lookforold(
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}
-	r = sources_parse_getfiles(oldchunk,oldfiles);
+	r = sources_parse_getfilekeys(oldchunk,oldfiles);
 	free(oldchunk);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -327,7 +307,7 @@ retvalue sources_lookforolder(
 		return r;
 	}
 
-	r = sources_parse_chunk(oldchunk,NULL,&ov,NULL,NULL);
+	r = sources_parse_chunk(oldchunk,NULL,&ov,NULL,NULL,NULL);
 
 	if( !RET_IS_OK(r) ) {
 		if( r == RET_NOTHING ) {
@@ -353,7 +333,7 @@ retvalue sources_lookforolder(
 	} else
 		*oldversion = ov;
 
-	r = sources_parse_getfiles(oldchunk,oldfiles);
+	r = sources_parse_getfilekeys(oldchunk,oldfiles);
 	free(oldchunk);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -363,26 +343,26 @@ retvalue sources_lookforolder(
 
 static inline retvalue callaction(new_package_action *action, void *data,
 		const char *chunk, const char *package, const char *version,
-		const char *origdirectory, const struct strlist *filelines,
+		const char *origdirectory, const struct strlist *basenames,
+		const struct strlist *md5sums,
 		const char *component, const struct strlist *oldfilekeys) {
 	char *directory,*newchunk;
-	struct strlist origfiles,filekeys,md5sums;
+	struct strlist origfiles,filekeys;
 	retvalue r;
 
 	directory =  calc_sourcedir(component,package);
 	if( !directory ) 
 		return RET_ERROR_OOM;
 	
-	r = getfilekeysandmd5(directory,filelines,NULL,&filekeys,&md5sums);
+	r = calc_dirconcats(directory,basenames,&filekeys);
 	if( RET_WAS_ERROR(r) ) {
 		free(directory);
 		return r;
 	}
 	
-	r = getfilekeys(origdirectory,filelines,&origfiles);
+	r = calc_dirconcats(origdirectory,basenames,&origfiles);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&filekeys);
-		strlist_done(&md5sums);
 		free(directory);
 		return r;
 	}
@@ -392,7 +372,6 @@ static inline retvalue callaction(new_package_action *action, void *data,
 	if( !newchunk ) {
 		strlist_done(&origfiles);
 		strlist_done(&filekeys);
-		strlist_done(&md5sums);
 		return RET_ERROR_OOM;
 	}
 // Calculating origfiles and newchunk will both not be needed in half of the
@@ -401,11 +380,10 @@ static inline retvalue callaction(new_package_action *action, void *data,
 // nicely type-independent.)
 
 	r = (*action)(data,newchunk,package,version,
-			&filekeys,&origfiles,&md5sums,oldfilekeys);
+			&filekeys,&origfiles,md5sums,oldfilekeys);
 	free(newchunk);
 	strlist_done(&filekeys);
 	strlist_done(&origfiles);
-	strlist_done(&md5sums);
 
 	return r;
 }
@@ -421,9 +399,9 @@ static retvalue processsource(void *data,const char *chunk) {
 
 	char *package,*version,*origdirectory;
 	char *oldversion;
-	struct strlist filelines,oldfilekeys;
+	struct strlist basenames,md5sums,oldfilekeys;
 
-	r = sources_parse_chunk(chunk,&package,&version,&origdirectory,&filelines);
+	r = sources_parse_chunk(chunk,&package,&version,&origdirectory,&basenames,&md5sums);
 	if( r == RET_NOTHING ) {
 		// TODO: error?
 		return RET_ERROR;
@@ -435,7 +413,7 @@ static retvalue processsource(void *data,const char *chunk) {
 	if( r == RET_NOTHING )
 		r = callaction(d->action,d->data,
 				chunk,package,version,
-				origdirectory,&filelines,
+				origdirectory,&basenames,&md5sums,
 				d->component,NULL);
 	else if( RET_IS_OK(r) ) {
 		if( oldversion != NULL ) {
@@ -448,12 +426,12 @@ static retvalue processsource(void *data,const char *chunk) {
 		} else 
 			r = callaction(d->action,d->data,
 					chunk,package,version,
-					origdirectory,&filelines,
+					origdirectory,&basenames,&md5sums,
 					d->component,&oldfilekeys);
 		strlist_done(&oldfilekeys);
 	}
 	free(package);free(version);free(origdirectory);
-	strlist_done(&filelines);
+	strlist_done(&basenames);strlist_done(&md5sums);
 	return r;
 }
 
@@ -470,23 +448,15 @@ retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file
 	return chunk_foreach(sources_file,processsource,&mydata,force,0);
 }
 
-/* Calculate the filekeys and their expected md5sums */
-retvalue sources_calcfilekeys(const char *directory,const char *chunk,struct strlist *files,struct strlist *filekeys, struct strlist *md5andsizes) {
-	struct strlist filelines;
+/* Get the files and their expected md5sums */
+retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5andsizes) {
 	retvalue r;
 
-	r = sources_parse_chunk(chunk,NULL,NULL,NULL,&filelines);
+	r = sources_parse_chunk(chunk,NULL,NULL,NULL,basenames,md5andsizes);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
-		return r;
-	assert( RET_IS_OK(r) );
-
-	r = getfilekeysandmd5(directory,&filelines,files,filekeys,md5andsizes);
-	strlist_done(&filelines);
-
 	return r;
 }
 	
@@ -534,4 +504,33 @@ retvalue sources_addtodist(const char *dbpath,DB *references,const char *codenam
 	if( o )
 		strlist_done(&oldfilekeys);
 	return result;
+}
+
+retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item) {
+	size_t len;
+	int i;
+	char *result;
+
+	assert( basenames != NULL && md5sums != NULL && basenames->count == md5sums->count );
+
+	len = 1;
+	for( i=0 ; i < basenames->count ; i++ ) {
+		len += 3+strlen(basenames->values[i])+strlen(md5sums->values[i]);
+	}
+	result = malloc(len*sizeof(char));
+	if( !result )
+		return RET_ERROR_OOM;
+	*item = result;
+	*(result++) = '\n';
+	for( i=0 ; i < basenames->count ; i++ ) {
+		*(result++) = ' ';
+		strcpy(result,md5sums->values[i]);
+		result += strlen(md5sums->values[i]);
+		*(result++) = ' ';
+		strcpy(result,basenames->values[i]);
+		result += strlen(basenames->values[i]);
+		*(result++) = '\n';
+	}
+	*(--result) = '\0';
+	return RET_OK;
 }

@@ -161,7 +161,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		return r;
 	}
 
-	deb->basename = calc_package_basename(deb->package,deb->version,deb->architecture);
+	deb->basename = calc_binary_basename(deb->package,deb->version,deb->architecture);
 	if( deb->basename == NULL ) {
 		deb_free(deb);
 		return r;

@@ -128,17 +128,38 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 	return r;
 }
 
-void dsc_free(struct dscpackage *pkg) {
+struct dscpackage {
+	/* things to be set by dsc_read: */
+	char *package,*version;
+	char *control;
+	struct strlist basenames,md5sums;
+	/* things that might still be NULL then: */
+	char *section;
+	char *priority;
+	/* things that will still be NULL then: */
+	char *component; //This might be const, too and save some strdups, but...
+	char *dscmd5sum;
+	/* Things that will be calculated by dsc_calclocations: */
+	char *directory, *dscbasename, *dscfilekey;
+	struct strlist filekeys;
+};
+
+static void dsc_free(struct dscpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->control);
-		free(pkg->section);free(pkg->priority);free(pkg->component);
-		free(pkg->directory);
+		strlist_done(&pkg->basenames);strlist_done(&pkg->md5sums);
+		free(pkg->section);
+		free(pkg->priority);
+		free(pkg->component);
+		free(pkg->dscmd5sum);
+		free(pkg->directory);free(pkg->dscbasename);free(pkg->dscfilekey);
+		strlist_done(&pkg->filekeys);
 	}
 	free(pkg);
 }
 
-retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
+static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 	retvalue r;
 	struct dscpackage *dsc;
 
@@ -182,15 +203,74 @@ retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 		dsc_free(dsc);
 		return r;
 	}
+	r = sources_parse_getmd5sums(dsc->control,&dsc->basenames,&dsc->md5sums);
+	if( RET_WAS_ERROR(r) ) {
+		dsc_free(dsc);
+		return r;
+	}
 	*pkg = dsc;
 
 	return RET_OK;
 }
 
-retvalue dsc_complete(struct dscpackage *pkg) {
+retvalue dsc_calclocations(struct dscpackage *pkg) {
+	retvalue r;
+
+	assert( pkg != NULL && pkg->package != NULL && pkg->version != NULL );
+	assert( pkg->component != NULL );
+	
+	pkg->dscbasename = calc_source_basename(pkg->package,pkg->version);
+	if( pkg->dscbasename == NULL ) {
+		return RET_ERROR_OOM;
+	}
+
+	pkg->directory = calc_sourcedir(pkg->component,pkg->package);
+	if( pkg->directory == NULL ) {
+		return RET_ERROR_OOM;
+	}
+	
+	/* Calculate the filekeys: */
+	r = calc_dirconcats(pkg->directory,&pkg->basenames,&pkg->filekeys);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	pkg->dscfilekey = calc_dirconcat(pkg->directory,pkg->dscbasename);
+	if( pkg->dscfilekey == NULL ) {
+		return RET_ERROR_OOM;
+	}
+	return RET_OK;
+}
+
+/* Add the dsc-file to basenames,filekeys and md5sums, so that it will
+ * be referenced and listed in the Sources.gz */
+static retvalue dsc_adddsc(struct dscpackage *pkg) {
+	retvalue r;
+
+	r = strlist_include(&pkg->basenames,pkg->dscbasename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	pkg->dscbasename = NULL;
+
+	r = strlist_include(&pkg->md5sums,pkg->dscmd5sum);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	pkg->dscmd5sum = NULL;
+
+	r = strlist_include(&pkg->filekeys,pkg->dscfilekey);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	pkg->dscfilekey = NULL;
+
+	return RET_OK;
+}
+
+
+static retvalue dsc_complete(struct dscpackage *pkg) {
+	retvalue r;
 	struct fieldtoadd *name;
 	struct fieldtoadd *dir;
 	char *newchunk,*newchunk2;
+	char *newfilelines;
 
 	assert(pkg->section != NULL && pkg->priority != NULL);
 
@@ -207,32 +287,30 @@ retvalue dsc_complete(struct dscpackage *pkg) {
 		return RET_ERROR_OOM;
 	}
 
-	dir = addfield_new("Directory",pkg->directory,NULL);
-	if( !dir ) {
+	r = sources_calcfilelines(&pkg->basenames,&pkg->md5sums,&newfilelines);
+	if( RET_WAS_ERROR(r) ) {
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
-	dir = deletefield_new("Status",dir);
+	dir = addfield_new("Files",newfilelines,NULL);
+	if( dir )
+		dir = addfield_new("Directory",pkg->directory,dir);
+	if( dir )
+		dir = deletefield_new("Status",dir);
+	if( dir )
+		dir = addfield_new("Section",pkg->section,dir);
+	if( dir )
+		dir = addfield_new("Priority",pkg->priority,dir);
 	if( !dir ) {
-		free(newchunk2);
-		return RET_ERROR_OOM;
-	}
-	dir = addfield_new("Section",pkg->section,dir);
-	if( !dir ) {
-		free(newchunk2);
-		return RET_ERROR_OOM;
-	}
-	dir = addfield_new("Priority",pkg->priority,dir);
-	if( !dir ) {
+		free(newfilelines);
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
 		
 	// TODO: add overwriting of other fields here, (before the rest)
 	
-	// TODO: ******** ADD .DSC TO FILES-ITEM ********
-	
 	newchunk  = chunk_replacefields(newchunk2,dir,"Files");
+	free(newfilelines);
 	free(newchunk2);
 	addfield_free(dir);
 	if( newchunk == NULL ) {
@@ -245,18 +323,14 @@ retvalue dsc_complete(struct dscpackage *pkg) {
 	return RET_OK;
 }
 
-/* insert the given .deb into the mirror in <component> in the <distribution>
- * putting things with architecture of "all" into <d->architectures> (and also
- * causing error, if it is not one of them otherwise)
+/* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guessing it from the section. */
 // TODO: add something to compare files' md5sums to those in the .changes file.
 // (Perhaps also importing all those first, such that the database-code handles this)
 
 retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int force){
-	retvalue r,result;
+	retvalue r;
 	struct dscpackage *pkg;
-	struct strlist filekeys,md5sums,files;
-	char *sourcedir;
 
 	/* First taking a closer look to the file: */
 
@@ -310,50 +384,38 @@ retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 		fprintf(stderr,"%s: component guessed as '%s'\n",dscfilename,pkg->component);
 	}
 
-	pkg->directory = calc_sourcedir(pkg->component,pkg->package);
-	if( pkg->directory == NULL ) {
-		dsc_free(pkg);
-		return RET_ERROR_OOM;
-	}
-	
-	/* calculate the needed files: */
-	sources_calcfilekeys(pkg->directory,pkg->control,&files,&filekeys,&md5sums);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg);
-		return r;
-	}
-
-	r = dirs_getdirectory(dscfilename,&sourcedir);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg);
-		return r;
-	}
+	r = dsc_calclocations(pkg);
 
 	/* then looking if we already have this, or copy it in */
 
-	r = files_checkinfiles(mirrordir,filesdb,sourcedir,&files,&filekeys,&md5sums);
-	free(sourcedir);
-	strlist_done(&files);
-	strlist_done(&md5sums);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg);
-		strlist_done(&filekeys);
-		return r;
-	} 
+	if( !RET_WAS_ERROR(r) )
+		r = files_checkin(filesdb,mirrordir,pkg->dscfilekey,dscfilename,&pkg->dscmd5sum);
 
-	r = dsc_complete(pkg);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg);
-		strlist_done(&filekeys);
-		return r;
-	} 
+	if( !RET_WAS_ERROR(r) ) {
+		char *sourcedir;
+
+		r = dirs_getdirectory(dscfilename,&sourcedir);
+		if( RET_IS_OK(r) ) {
+			r = files_checkinfiles(mirrordir,filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums);
+			free(sourcedir);
+		}
+	}
+
+	/* Calculate the chunk to include: */
 	
+	if( !RET_WAS_ERROR(r) )
+		r = dsc_adddsc(pkg);
+
+	if( !RET_WAS_ERROR(r) )
+		r = dsc_complete(pkg);
+
 	/* finaly put it into the source distribution */
+	if( !RET_WAS_ERROR(r) )
+		r = sources_addtodist(dbdir,references,distribution->codename,
+				pkg->component,pkg->package,pkg->version,
+				pkg->control,&pkg->filekeys);
 
-	result = sources_addtodist(dbdir,references,distribution->codename,pkg->component,pkg->package,pkg->version,pkg->control,&filekeys);
-
-	strlist_done(&filekeys);
 	dsc_free(pkg);
 
-	return result;
+	return r;
 }

@@ -423,7 +423,7 @@ static retvalue reference_source(void *data,const char *package,const char *chun
 	struct strlist filekeys;
 	retvalue r;
 
-	r = sources_parse_getfiles(chunk,&filekeys);
+	r = sources_parse_getfilekeys(chunk,&filekeys);
 	if( verbose >= 0 && r == RET_NOTHING ) {
 		fprintf(stderr,"Package does not look like source: '%s'\n",chunk);
 	}
@@ -1114,7 +1114,7 @@ static retvalue check_source(void *data,const char *package,const char *chunk) {
 	struct strlist filekeys;
 	retvalue ret,r;
 
-	r = sources_parse_getfiles(chunk,&filekeys);
+	r = sources_parse_getfilekeys(chunk,&filekeys);
 	if( verbose >= 0 && r == RET_NOTHING ) {
 		fprintf(stderr,"Package does not look like source: '%s'\n",chunk);
 	}

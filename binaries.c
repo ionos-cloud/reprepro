@@ -128,7 +128,7 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 			return r;
 		}
 		/* TODO check parts to consist out of save charakters */
-		*basename = calc_package_basename(ppackage,pversion,parch);
+		*basename = calc_binary_basename(ppackage,pversion,parch);
 		free(pversion);free(parch);
 		if( !*basename ) {
 			free(ppackage);

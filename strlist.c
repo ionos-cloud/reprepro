@@ -108,6 +108,26 @@ retvalue strlist_add(struct strlist *strlist, char *element) {
 	return RET_OK;
 }
 
+retvalue strlist_include(struct strlist *strlist, char *element) {
+	char **v;
+
+	assert(strlist != NULL && element != NULL);
+
+	if( strlist->count >= strlist->size ) {
+		strlist->size += 1;
+		v = realloc(strlist->values, strlist->size*sizeof(char *));
+		if( !v ) {
+			free(element);
+			return RET_ERROR_OOM;
+		}
+		strlist->values = v;
+	}
+	memmove(strlist->values+1,strlist->values,strlist->count*sizeof(char *));
+	strlist->count++;
+	strlist->values[0] = element;
+	return RET_OK;
+}
+
 retvalue strlist_fprint(FILE *file,const struct strlist *strlist) {
 	int c;
 	char **p;

@@ -18,6 +18,8 @@ void strlist_done(struct strlist *strlist);
 
 /* add a string, will get property of the strlist and free'd by it */
 retvalue strlist_add(struct strlist *strlist,char *element);
+/* include a string at the beginning, otherwise like strlist_add */
+retvalue strlist_include(struct strlist *strlist,char *element);
 
 /* print a space seperated list of elements */
 retvalue strlist_fprint(FILE *file,const struct strlist *strlist);
