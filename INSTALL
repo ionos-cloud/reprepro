@@ -1,3 +1,8 @@
+Build-Dependencies:
+	libgpgme 3.x (In Debian libgpgme-dev, NOT libgpgme11-dev)
+	ligdb3
+	libz
+
 Basic Installation
 ==================
 
