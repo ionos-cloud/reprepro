@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -e -v
 
 WORKDIR="`pwd`/testdir"
 
@@ -34,7 +34,7 @@ Suite: broken
 Version: 9999999.02
 Description: test with all fields set
 Override: binoverride
-SrcOverride: srcoverride
+SourceOverride: srcoverride
 CONFEND
 
 #This is a bit ugly, as there could be a second in between...
@@ -87,28 +87,6 @@ echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test2/Relea
 diff dists/test1/Release.expected dists/test1/Release || exit 1
 diff dists/test2/Release.expected dists/test2/Release || exit 1
 
-PACKAGE=bloat+-0a9z.app
-VERSION=99:0.9-A:Z+a:z-0+aA.9zZ
-
-mkdir "$PACKAGE-$VERSION"
-mkdir "$PACKAGE-$VERSION"/debian
-cat >"$PACKAGE-$VERSION"/debian/control <<END
-Source: $PACKAGE
-Section: base
-Priority: superfluous
-Maintainer: me <guess@who>
-
-Package: $PACKAGE
-Architecture: abbacus
-END
-cat >"$PACKAGE-$VERSION"/debian/changelog <<END
-$PACKAGE ($VERSION) test1; urgency=critical
-
-   * new upstream release (Closes: #allofthem)
-
- -- me <guess@who>  Mon, 01 Jan 1980 01:02:02 +0000
-END
-
 PACKAGE=simple EPOCH="" VERSION=123 REVISION=-0 SECTION="stupid/base" genpackage.sh
 "$REPREPRO" -b . include test1 test.changes
 echo returned: $?
@@ -127,6 +105,34 @@ CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
 
 diff dists/test1/Release.expected dists/test1/Release || exit 1
+
+mkdir -p override
+cat > override/srcoverride <<END
+simple Section ugly/games
+simple Priority optional
+simple Maintainer me <no.need@to.guess>
+bloat+-0a9z.app Section stupid/X11
+bloat+-0a9z.app Priority extra
+bloat+-0a9z.app X-addition totally-unsupported
+END
+cat > override/binoverride <<END
+simple Maintainer simple.maintainer
+bloat+-0a9z.app Maintainer bloat.maintainer
+simple Section ugly/base
+bloat+-0a9z.app Section stupid/base
+simple-addons Section ugly/addons
+bloat+-0a9z.app-addons Section stupid/addons
+simple-addons Maintainer simple.add.maintainer
+bloat+-0a9z.app-addons Maintainer bloat.add.maintainer
+simple Priority optional
+bloat+-0a9z.app Priority optional
+simple-addons Priority optional
+bloat+-0a9z.app-addons Priority optional
+END
+
+"$REPREPRO" -b . includedsc test2 simple_123-0.dsc
+"$REPREPRO" -b . includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+"$REPREPRO" -b . includedeb test2 simple_123-0_abacus.deb
 
 echo
 echo "If the script is still running to show this,"

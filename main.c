@@ -885,10 +885,10 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 	const char *binarytype;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"reprepro [--delete] includedeb <distribution> <package>\n");
+		fprintf(stderr,"reprepro [--delete] include[u]deb <distribution> <package>\n");
 		return RET_ERROR;
 	}
-	if( strcmp(argv[0],"includedeb") == 0 ) {
+	if( strcmp(argv[0],"includeudeb") == 0 ) {
 		binarytype="udeb";
 		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
 			fprintf(stderr,"Calling includeudeb with a -T different from 'udeb' makes no sense!\n");
