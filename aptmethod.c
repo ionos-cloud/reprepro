@@ -312,7 +312,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	}
 	/* the main program continues... */
 	method->child = f;
-	if( verbose > 5 )
+	if( verbose > 10 )
 		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,f);
 	close(stdin[0]);
 	close(stdout[1]);
@@ -380,7 +380,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	*(c++) = '\n';
 	*c = '\0';
 
-	if( verbose > 10 ) {
+	if( verbose > 11 ) {
 		fprintf(stderr,"Sending config: '%s'\n",method->command);
 	}
 
@@ -720,8 +720,10 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 			switch( *(input+2) ) {
 				/* 100 Capabilities */
 				case '0':
-					fprintf(stderr,"Got '%s'\n",input);
 					OVERLINE;
+					if( verbose > 14 ) {
+						fprintf(stderr,"Got '%s'\n",input);
+					}
 					return gotcapabilities(method,input);
 				/* 101 Log */
 				case '1':
@@ -732,7 +734,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					return RET_OK;
 				/* 102 Status */
 				case '2':
-					if( verbose > 2 ) {
+					if( verbose > 5 ) {
 						OVERLINE;
 						return logmessage(method,p,"102");
 					}
@@ -742,7 +744,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 			switch( *(input+2) ) {
 				/* 200 URI Start */
 				case '0':
-					if( verbose > 0 ) {
+					if( verbose > 5 ) {
 						OVERLINE;
 						return logmessage(method,p,"start");
 					}
@@ -750,7 +752,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 				/* 201 URI Done */
 				case '1':
 					OVERLINE;
-					if( verbose >= 0 )
+					if( verbose >= 1 )
 						logmessage(method,p,"got");
 					return goturidone(method,p,filesdb);
 			}
