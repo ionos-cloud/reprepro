@@ -6,10 +6,10 @@
 #warning "What's hapening here?"
 #endif
 
-/* Read the control information of <debfile< and save it's only chunk
+/* Read the control information of <debfile> and save it's only chunk
  * into <control> */
 
-retvalue extractcontrol(/*@out@*/ char **control,const char *debfile);
+retvalue extractcontrol(/*@out@*/char **control,const char *debfile);
 
 
 #endif
