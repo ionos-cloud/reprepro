@@ -16,6 +16,7 @@
  */
 #include <config.h>
 
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -28,82 +29,93 @@
 #include "md5sum.h"
 #include "md5.h"
 
-static retvalue md5sumAndSize(char *result,off_t *size,const char *filename,size_t bufsize){
-
-	struct MD5Context context;
-	unsigned char *buffer;
-	ssize_t sizeread;
-	int fd;
-	unsigned i;
-	struct stat stat;
+static retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize) {
 static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+	unsigned char buffer[16];
+	char result[33],*md5sum;
+	unsigned int i;
 
-	/* it would be nice to distinguish between a non-existant file and errors,
-	 * though a stat before a open might introduce timing-attacks. perhaps making
-	 * a stat after an open failed might be the way to go. */
-	fd = open(filename,O_RDONLY);
-	if( fd < 0 ) 
-		return RET_ERRNO(-fd);
-
-	if( size ) {
-		if( fstat(fd,&stat) != 0) {
-			(void)close(fd);
-			return RET_ERROR;
-		}
-		*size = stat.st_size;
-	}
-	
-	if( bufsize <= 0 )
-		bufsize = 16384;
-
-	buffer = malloc(bufsize);
-
-	if( ! buffer ) {
-		(void)close(fd);
-		return RET_ERROR_OOM;
-	}
-	
-	MD5Init(&context);
-	do {
-		sizeread = read(fd,buffer,bufsize);
-		if( sizeread < 0 ) {
-			free(buffer);
-			(void)close(fd);
-			return RET_ERROR;
-		}
-		if( sizeread > 0 )
-			MD5Update(&context,buffer,sizeread);
-	} while( sizeread > 0 );
-	close(fd);
-	MD5Final(buffer,&context);
+	MD5Final(buffer,context);
 	for(i=0;i<16;i++) {
 		result[i<<1] = tab[buffer[i] >> 4];
 		result[(i<<1)+1] = tab[buffer[i] & 0xF];
 	}
-	free(buffer);
 	result[32] = '\0';
+
+	md5sum = mprintf("%s %ld",result,filesize);
+	if( ! md5sum )
+		return RET_ERROR_OOM;
+	*md5 = md5sum;
 	return RET_OK;
 }
 
+static retvalue md5sum_calc(int infd,int outfd, char **result, size_t bufsize) {
+	struct MD5Context context;
+	unsigned char *buffer;
+	off_t filesize;
+	ssize_t sizeread;
+	int ret;
+
+	if( bufsize <= 0 )
+		bufsize = 16384;
+
+	buffer = malloc(bufsize);
+	if( buffer == NULL ) {
+		return RET_ERROR_OOM;
+	}
+
+	filesize = 0;
+	MD5Init(&context);
+	do {
+		sizeread = read(infd,buffer,bufsize);
+		if( sizeread < 0 ) {
+			ret = errno;
+			fprintf(stderr,"Error while reading: %m\n");
+			free(buffer);
+			return RET_ERRNO(ret);;
+		}
+		filesize += sizeread;
+		if( sizeread > 0 ) {
+			ssize_t written;
+
+			MD5Update(&context,buffer,sizeread);
+			if( outfd >= 0 ) {
+				written = write(outfd,buffer,sizeread);
+				if( written < 0 ) {
+					ret = errno;
+					fprintf(stderr,"Error while writing: %m\n");
+					free(buffer);
+   					return RET_ERRNO(ret);;
+				}
+				if( written != sizeread ) {
+					fprintf(stderr,"Error while writing!\n");
+					free(buffer);
+   					return RET_ERROR;
+				}
+			}
+		}
+	} while( sizeread > 0 );
+	free(buffer);
+	return md5sum_genstring(result,&context,filesize);
+
+}
+
 retvalue md5sum_and_size(char **result,const char *filename,ssize_t bufsize){
-	char md5Sum[33];
-	off_t size;
 	retvalue ret;
+	int fd;
 
 	assert(result != NULL);
-	ret = md5sumAndSize(md5Sum,&size,filename,bufsize);
+
+	fd = open(filename,O_RDONLY);
+	if( fd < 0 ) 
+		return RET_ERRNO(-fd);
+
+	ret = md5sum_calc(fd,-1,result,bufsize);
+	close(fd);
 	if( RET_IS_OK(ret) ) {
-		*result = mprintf("%s %ld",md5Sum,size);
-		if( ! *result )
-			return RET_ERROR_OOM;
 		return RET_OK;
 	} else {
 		*result = NULL;
 		return ret;
 	}
-}
-
-retvalue md5sum(char *result,off_t *size,const char *filename,ssize_t bufsize){
-
-	return md5sumAndSize(result,size,filename,bufsize);
 }

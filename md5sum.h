@@ -6,12 +6,6 @@
 #warning "What's hapening here?"
 #endif
 
-/* result should point to a buffer of at least 33 bytes,
- * bufsize is the size of the buffer to be used, use 0 for
- * standard size. 
- */
-retvalue md5sum(char *result,off_t *size,const char *filename,ssize_t bufsize);
-
 /* returns md5sum " " size */
 retvalue md5sum_and_size(char **result,const char *filename,ssize_t bufsize);
 
