@@ -494,7 +494,7 @@ static retvalue instance_pattern(const char *listdir,
 		if( pattern->suite_from[0] == '*' &&
 				pattern->suite_from[1] == '/' )
 			update->suite_from = calc_dirconcat(distribution->codename,pattern->suite_from+2);
-		else if( index(pattern->suite_from,'*') == NULL )
+		else if( strchr(pattern->suite_from,'*') == NULL )
 			update->suite_from = strdup(pattern->suite_from);
 		else {
 			//TODO: implement this...
