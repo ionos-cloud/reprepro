@@ -141,6 +141,8 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 					(void)distribution_free(r); \
 					return ret; \
 				}
+	// TODO: give some message here instead of silently ignoring,
+	// and/or make some fields optional (like Version)
 	ret = chunk_getvalue(chunk,"Codename",&r->codename);
 	checkret;
 	ret = chunk_getvalue(chunk,"Suite",&r->suite);
