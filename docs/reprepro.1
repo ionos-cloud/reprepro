@@ -1,0 +1,290 @@
+.TH REPREPRO 1 "22 July, 2004" "reprepro" REPREPRO
+.SH NAME
+reprepro \- produce, manage and sync a local repository of debian packages
+.SH SYNOPSIS
+.B reprepro --help
+
+.B reprepro
+[
+\fIoptions\fP
+]
+\fIcommand\fP
+[ 
+\fIper\-command\-options\fP 
+]
+.SH DESCRIPTION
+Reprepro ...
+pool database
+libdb3 gpgme 
+.SH "GLOBAL OPTIONS"
+Global options can be specified before the command. They effect
+some subset of commands and are ignored otherwise.
+.TP
+.B -h --help
+Displays a short list of options and commands with description.
+.TP
+.B -v, -V, --verbose
+Be more verbose. Can be applied multiple times. One upcase 
+.B -V 
+counts as five lowercase 
+.B -v.
+.TP
+.B -f, --force
+Do things nevertheless. Might be dangerous and destructive.
+.TP
+.B -b, --basedir \fIbasedir\fP
+Sets the base-dir of the repository to manage, i.e. where the
+.B pool/
+subdirectory resides. Also sets
+.B --distdir \fIbasedir\fP/dists --dbdir \fIbasedir\fP/db 
+.B --listdir \fIbasedir\fP/lists --confdir \fIbasedir\fP/conf 
+.B --overridedir \fIbasedir\fP/override
+(that means especially: use those options afterwards if you want to use them).
+.TP
+.B -c, --confdir \fIconfdir\fP
+Sets the directory where the configuration is searched in.
+.TP
+.B -d, --distdir \fIdistdir\fP
+Sets the directory to generate index files relatively to. (i.e. things like
+Packages.gz Sources.gz and Release.gpg)
+
+.B Note: 
+apt has 
+.B dists
+hardcoded in it, so this is only useful for testing or when your webserver
+pretends another directory structure than your physical layout.
+.TP
+.B -D, --dbdir \fIdbdir\fP
+Sets the directory where reprepro keeps its databases.
+
+.B Note:
+This is permanent data, no cache. One has almost to regenerate the whole
+repository when this is lost.
+.TP
+.B -L, --listdir \fIlistdir\fP
+Sets the directory where downloads it downloads indices to when importing
+from other repositories. This is temporary data and can be safely deleted
+when not in an update run.
+.TP
+.B -o, --overridedir \fIoverridedir\fP
+Sets the directory where specified override-files will be searched in if
+they do not start with a slash.
+.TP
+.B -M, --methoddir \fImethoddir\fP
+Look in \fImethoddir\fP instead of
+.B /usr/lib/apt/methods
+for methods to call when importing from other repositories.
+.TP
+.B -C, --component \fIcomponent\fP
+Specify a component to force into, to remove from or to list only.
+.TP
+.B -A, --architecture \fIarchitecture\fP
+Specify an architecture to only include into, remove from or
+list.
+
+When including this does not lead to packages in the wrong architecture
+but will restrict effect to this architecture. This allows e.g. different
+versions of an
+.B Architecture: all
+\-package in different architectures of the same distribution.
+.TP
+.B -S, --section \fIsection\fP
+Overrides the section of inclusions. (Also override possible override files)
+.TP
+.B -P, --priority \fIpriority\fP
+Overrides the priority of inclusions. (Also override possible override files)
+.SH COMMANDS
+.TP
+.BR export " [ " \fIcodenames\fP " ]"
+Generate all index files for the specified distributions. (For all if none
+is specified). This will normaly be done automatically and more
+fine-tuned when including or removing packages, so seldom needed; but is nevertheless 
+a good way to see if
+a new 
+.B distributions
+config-file does the expected things.
+.TP
+.B list \fIcodename\fP \fIpackagename\fP
+List all packages (source and binary, except when
+.B -A
+is given) with the given name in all components (except when
+.B -c
+is given) of the specified distribution.
+.TP
+.B remove \fIcodename\fP \fIpackagename\fP
+same as list, but remove instead of list.
+.TP
+.BR update " [ " \fIcodenames\fP " ]"
+Sync the specified distributions (all if none given) as
+specified in the config with their upstreams. See the
+.B SYNCING
+section below.
+.TP
+.B includedeb \fIcodename\fP \fI.deb-filename\fP
+Include the given binary Debian package (.deb) in the specified
+distribution, applying override information and guessing all 
+values not given and guessable.
+.TP
+.B includedsc \fIcodename\fP \fI.dsc-filename\fP
+Include the given Debian source package (.dsc, including other files
+like .orig.tar.gz, .tar.gz and/or .diff.gz) in the specified
+distribution, applying override information and guessing all values 
+not given and guessable.
+.TP
+.B include  \fIcodename\fP \fI.changes-filename\fP
+Include in the specified distribution all packages found and suitable
+in the \fI.changes\fP file, applying override information guessing all 
+values not given and guessable.
+.TP
+.BR check " [ " \fIcodenames\fP " ]"
+Check if all packages in the specified distributions have all files
+needed properly registered.
+.TP
+.BR checkpool " [ " fast " ]"
+Check if all files believed to be in the pool are actually still there and
+have the known md5sum. When 
+.B fast
+is specified md5sum is not checked.
+.TP
+.B rereference
+Forget which files are needed and recollect this information.
+.TP
+.B dumpreferences
+Print out which files are marked to be needed by whom.
+.TP
+.B dumpunreferenced
+Print a list of all filed believed to be in the pool, that are
+not known to be needed.
+.TP
+.B deleteunreferenced
+Remove all known files (and forget them) in the pool not marked to be
+needed by anything.
+.SS internal commands
+These are hopefully never needed, but allow manual intervention.
+.B WARNING:
+Is is quite easy to get into an inconsistent and/or unfixable state.
+.TP
+.BR _detect " [ " \fIfilekeys\fP " ]"
+Look for the files, which \fIfilekey\fP
+is given as argument or as a line of the input 
+(when run without arguments), and calculate
+their md5sum and add them to the list of known files.
+.TP
+.BR _forget " [ " \fIfilekeys\fP " ]"
+Like
+.B _detect
+but remove the given \fIfilekey\fP from the list of known
+files.
+.TP
+.B _md5sums
+Print a list of all known files and their md5sums.
+.TP
+.B _addmd5sums
+Add information of known files (without any check done)
+in the strict format of _md5sums output (i.e. don't dare to
+use a single space anywhere more than needed). 
+.TP
+.BI _dumpcontents " identifier"
+Printout all the stored information of the specified
+part of the repository. (Or in other words, the content
+the corresposing Packages or Sources file would get)
+.TP
+.BI "_addreference " filekey " " identifier
+Manually mark \fIfilekey\fP to be needed by \fIidentifier\fP
+.TP
+.BI __extractcontrol .deb-filename
+Look what reprepro believes to be the content of the
+.B control
+file of the specified .deb-file.
+.SH "CONFIG FILES"
+yet to be described
+.SH "OVERRIDE FILES"
+yet to be described
+.SH GUESSING
+When including a binary or source package without explicitly
+declaring a component with
+.B -C
+it will take the
+first component with the name of the section, beeing
+prefix to the section, beeing suffix to the section
+or having the section as prefix or any. (In this order)
+
+Thus having specifiend the components:
+"main non-free contrib non-US/main non-US/non-free non-US/contrib"
+should map e.g.
+"non-US" to "non-US/main" and "contrib/editors" to "contrib",
+while having only "main non-free and contrib" as components should
+map "non-US/contrib" to "contrib" and "non-US" to "main".
+
+.B NOTE: 
+Always specify main as the first component, if you want things 
+to end up there.
+
+.B NOTE: 
+unlike in dak, non-US and non-us are different things...
+.SH SYNCING
+yet to be described
+.SH NOMENCLATURE
+.B Codename 
+is the identifier ...
+.TP
+.B basename
+the name of a file without any directory information.
+.TP
+.B filekey
+the position relative to the mirrordir.  (as found as "Filename:" in Packages.gz)
+.TP
+.B "full filename"
+the position relative to /
+.TP
+.B architecture
+The term like
+.B sparc
+,
+.B i386
+,
+.B mips
+,...
+
+To refer to the source packages, 
+.B source
+is sometimes also considered as architecture.
+.TP
+.B component
+Things like 
+.B main 
+.
+.B non-free 
+and
+.B contrib
+  (somtimes also called sections)
+.TP
+.B section
+Things like 
+.B base
+.B interpreters
+.B oldlibs
+  (sometimes also called subsections)
+.TP
+.B md5sum
+The checksum of a file, beeing in the format
+"\fI<md5sum of file>\fP \fI<length of file>\fP"
+.SH BUGS
+The
+.B --force
+option needs to be replaced by something superior so that one can allow
+stupid things but not descructive things.
+
+Increased verbosity always shows those things one does not want to know.
+(Though this might be inevitable and a corrolary to Murphy)
+
+While the source part is mostly considered as the architecture
+.B source
+some parts may still not use this notation.
+.SH "REPORTING BUGS"
+Report bugs to <brlink@debian.org>.
+.SH COPYRIGHT
+Copyright \(co 2004 Bernhard R. Link
+.br 
+This is free software; see the source for copying conditions. There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
