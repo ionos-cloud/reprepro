@@ -334,7 +334,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	size_t l;
 	const char *p;
 	char *c;
-	int wasnewline;
+	bool_t wasnewline;
 
 	assert(method->command == NULL);
 
@@ -363,16 +363,16 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 
 	strcpy(c,CONF601 CONFITEM);
 	c += sizeof(CONF601)+sizeof(CONFITEM)-2;
-	wasnewline = 1;
+	wasnewline = TRUE;
 	for( p = method->config; *p ; p++ ) {
 		if( *p != '\n' ) {
 			if( !wasnewline || !isspace(*p) )
 				*(c++) = *p;
-			wasnewline = 0;
+			wasnewline = FALSE;
 		} else {
 			strcpy(c,CONFITEM);
 			c += sizeof(CONFITEM)-1;
-			wasnewline = 1;
+			wasnewline = TRUE;
 		}
 	}
 	*(c++) = '\n';

@@ -30,24 +30,6 @@
 #include "names.h"
 #include "terms.h"
 
-/*
-enum term_comparison { tc_none=0, tc_equal, tc_strictlesser, tc_strictlarger,
-				  tc_lesserorequal, tc_largerorequal };
-
-typedef struct term_atom {
-	struct term_atom *next;
-	struct term_atom *nextiftrue,*nextiffalse;
-	int negated; 
-	
-	char *key;
-	enum term_comparison comparison;
-	char *version;
-	int architectures_negated;
-	struct strlist architectures;
-	char *value;
-} term;
-*/ 
-
 void term_free(term *term) {
 	while( term != NULL ) {
 		struct term_atom *next = term->next;
@@ -159,7 +141,7 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 	a = calloc(1,sizeof(struct term_atom));
 	if( a == NULL )
 		return RET_ERROR_OOM;
-	a->negated = 0; // not yet supported..., what char would that be?
+	a->negated = FALSE; // not yet supported..., what char would that be?
 	a->key = strndup(keystart,keyend-keystart);
 	if( a->key == NULL ) {
 		term_free(a);
@@ -218,6 +200,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 	int depth=0;
 	retvalue r;
 	int i;
+	//TODO: ???
 	int atbeginning = 1;
 	char junction = '\0';
 	

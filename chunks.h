@@ -21,7 +21,7 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,char **value);
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *',
  * where pkgname consists of [-+.a-z0-9]*/
-retvalue chunk_getname(const char *chunk,const char *name,char **pkgname,int allowversion);
+retvalue chunk_getname(const char *chunk,const char *name,char **pkgname,bool_t allowversion);
 
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 
 retvalue chunk_gettruth(const char *chunk,const char *name);
@@ -33,7 +33,7 @@ typedef retvalue chunkaction(void *data,const char *chunk);
 
 /* Call action for each chunk in <filename>, 
  * until error when not <force> or until ok when <stopwhenok> */
-retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,int stopwhenok);
+retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,bool_t stopwhenok);
 
 /* modifications of a chunk: */
 struct fieldtoadd {

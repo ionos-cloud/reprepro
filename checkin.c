@@ -382,7 +382,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 	R;
 	r = check(filename,c,"Date",force);
 	R;
-	r = chunk_getname(c->control,"Source",&c->source,0);
+	r = chunk_getname(c->control,"Source",&c->source,FALSE);
 	E("Missing 'Source' field");
 	r = names_checkpkgname(c->source);
 	C("Malforce Source-field");
@@ -534,7 +534,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,const
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
-	int havedsc=0, haveorig=0, havetar=0, havediff=0;
+	bool_t havedsc=FALSE, haveorig=FALSE, havetar=FALSE, havediff=FALSE;
 	
 	/* First check for each given architecture, if it has files: */
 	if( forcearchitecture ) {
@@ -569,7 +569,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,const
 				fprintf(stderr,"I don't know what to do with multiple .dsc files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			havedsc = 1;
+			havedsc = TRUE;
 			calculatedname = calc_source_basename(changes->source,changes->version);
 			if( calculatedname == NULL )
 				return RET_ERROR_OOM;
@@ -584,19 +584,19 @@ static retvalue changes_check(const char *filename,struct changes *changes,const
 				fprintf(stderr,"I don't know what to do with multiple .diff files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			havediff = 1;
+			havediff = TRUE;
 		} else if( e->type == fe_ORIG ) {
 			if( haveorig ) {
 				fprintf(stderr,"I don't know what to do with multiple .orig.tar.gz files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			haveorig = 1;
+			haveorig = TRUE;
 		} else if( e->type == fe_TAR ) {
 			if( havetar ) {
 				fprintf(stderr,"I don't know what to do with multiple .tar.gz files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			havetar = 1;
+			havetar = TRUE;
 		}
 
 		e = e->next;
@@ -669,7 +669,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force) {
 	struct fileentry *e;
 	retvalue r;
-	int somethingwasmissed = 0;
+	bool_t somethingwasmissed = FALSE;
 
 	r = RET_NOTHING;
 
@@ -693,7 +693,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				binoverride,
 				force,D_INPLACE);
 			if( r == RET_NOTHING )
-				somethingwasmissed = 1;
+				somethingwasmissed = TRUE;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_add(dbdir,references,filesdb,
 				e->component,e->architecture,
@@ -704,7 +704,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				binoverride,
 				force,D_INPLACE);
 			if( r == RET_NOTHING )
-				somethingwasmissed = 1;
+				somethingwasmissed = TRUE;
 		} else if( e->type == fe_DSC ) {
 			assert(changes->srccomponent);
 			assert(changes->srcdirectory);
@@ -716,7 +716,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				srcoverride,
 				force,D_INPLACE);
 			if( r == RET_NOTHING )
-				somethingwasmissed = 1;
+				somethingwasmissed = TRUE;
 		}
 		
 		free(fullfilename);

@@ -162,7 +162,7 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 
 	/* first look for fields that should be there */
 
-	r = chunk_getname(dsc->control,"Source",&dsc->package,0);
+	r = chunk_getname(dsc->control,"Source",&dsc->package,FALSE);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
 		r = RET_ERROR;
@@ -462,7 +462,7 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}

@@ -51,7 +51,7 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 
 struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *suffix);
 
-retvalue distribution_export(struct distribution *distribution,const char *dbdir,const char *distdir,int force,int onlyneeded);
+retvalue distribution_export(struct distribution *distribution,const char *dbdir,const char *distdir,int force,bool_t onlyneeded);
 
 typedef retvalue distributionaction(void *data,const char *chunk,struct distribution *distribution);
 

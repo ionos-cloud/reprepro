@@ -33,7 +33,7 @@ extern int verbose;
 // of only \n terminated oned. Though this has still to be tested properly...
 
 /* Call action for each chunk in <filename> */
-retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,int stopwhenok){
+retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,bool_t stopwhenok){
 	gzFile f;
 	retvalue result,ret;
 	char *chunk;
@@ -68,7 +68,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 retvalue chunk_read(gzFile f,char **chunk) {
 	char *buffer,*bhead,*p;
 	size_t size,already,without,l;
-	int afternewline = 0;
+	bool_t afternewline = FALSE;
 
 	size = 4096;
 	already = 0; without = 0;
@@ -291,7 +291,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 
 retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	const char *f,*p,*e;
-	int afternewline = 0;
+	bool_t afternewline = FALSE;
 	char *v;
 
 	f = chunk_getfield(name,chunk);
@@ -300,13 +300,13 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	for ( e = p = f ; *p ; p++ ) {
 		if( afternewline ) {
 			if( *p == ' ' || *p == '\t' )
-				afternewline = 0;
+				afternewline = FALSE;
 			else if( *p != '\r' )
 				break;
 		} else {
 			if(  *p == '\n' ) {
 				e = p;
-				afternewline = 1;
+				afternewline = TRUE;
 			}
 		}
 	}
@@ -384,7 +384,7 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 /* Parse a package/source-field: ' *value( ?\(version\))? *',
  * where pkgname consists of [-+.a-z0-9]*/
 retvalue chunk_getname(const char *chunk,const char *name,
-		char **pkgname,int allowversion) {
+		char **pkgname,bool_t allowversion) {
 	const char *field,*name_end,*p;
 
 	field = chunk_getfield(name,chunk);
@@ -400,7 +400,7 @@ retvalue chunk_getname(const char *chunk,const char *name,
 	if( name_end == field || 
 		( *p != '\0' && *p != '\n' && 
 		  ( !allowversion || *p != '('))) {
-		if( *field == '\n' || *field == 0 ) {
+		if( *field == '\n' || *field == '\0' ) {
 			fprintf(stderr,"Error: Field '%s' is empty!\n",name);
 		} else {
 			fprintf(stderr,"Error: Field '%s' contains unexpected character '%c'!\n",name,*p);

@@ -24,7 +24,7 @@
 #include "error.h"
 #include "strlist.h"
 
-int strlist_in(const struct strlist *strlist,const char *element) {
+bool_t strlist_in(const struct strlist *strlist,const char *element) {
 	int c;
 	char **t;
 
@@ -34,12 +34,12 @@ int strlist_in(const struct strlist *strlist,const char *element) {
 	t = strlist->values;
 	while( c-- != 0 ) {
 		if( strcmp(*(t++),element) == 0 )
-			return 1;
+			return TRUE;
 	}
-	return 0;
+	return FALSE;
 }
 
-int strlist_subset(const struct strlist *strlist,const struct strlist *subset) {
+bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset) {
 	int c;
 	char **t;
 
@@ -49,9 +49,9 @@ int strlist_subset(const struct strlist *strlist,const struct strlist *subset) {
 	t = subset->values;
 	while( c-- != 0 ) {
 		if( !strlist_in(strlist,*(t++)) )
-			return 0;
+			return FALSE;
 	}
-	return 1;
+	return TRUE;
 
 }
 

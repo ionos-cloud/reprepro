@@ -211,7 +211,7 @@ static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char
 
 
 /* check for file in the database and if not found there, if it can be detected */
-int files_expect(filesdb db,const char *filekey,const char *md5sum) {
+retvalue files_expect(filesdb db,const char *filekey,const char *md5sum) {
 	retvalue ret;
 	int dbret;
 	DBT key,data;
@@ -288,7 +288,7 @@ retvalue files_printmissing(filesdb db,const struct strlist *filekeys,const stru
 }
 
 /* dump out all information */
-int files_printmd5sums(filesdb db) {
+retvalue files_printmd5sums(filesdb db) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -349,7 +349,7 @@ retvalue files_foreach(filesdb db,per_file_action action,void *privdata) {
 	return result;
 }
 
-struct checkfiledata { filesdb filesdb ; int fast ; };
+struct checkfiledata { filesdb filesdb ; bool_t fast ; };
 
 static retvalue getfilesize(off_t *s,const char *md5sum) {
 	const char *p;
@@ -428,7 +428,7 @@ static retvalue checkfile(void *data,const char *filekey,const char *md5sumexpec
 	return r;
 }
 
-retvalue files_checkpool(filesdb filesdb,int fast) {
+retvalue files_checkpool(filesdb filesdb,bool_t fast) {
 	struct checkfiledata d;
 	d.fast = fast;
 	d.filesdb = filesdb;

@@ -38,4 +38,8 @@ typedef int retvalue;
 
 #define EXIT_RET(ret) ((ret>=0)?((nothingiserror&&ret==0)?1:0):ret)
 
+typedef int bool_t;
+#define TRUE 1
+#define FALSE 0
+
 #endif

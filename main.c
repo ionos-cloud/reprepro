@@ -68,9 +68,9 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*component = NULL,
 	*architecture = NULL,
 	*suffix = NULL;
-static int	delete = 0;
+static int	delete = D_COPY;
 static int	force = 0;
-static int	nothingiserror = 0;
+static bool_t	nothingiserror = FALSE;
 int		verbose = 0;
 
 static int action_printargs(int argc,const char *argv[]) {
@@ -88,7 +88,7 @@ static int action_extractcontrol(int argc,const char *argv[]) {
 
 	if( argc != 2 ) {
 		fprintf(stderr,"reprepro __extractcontrol <.deb-file>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	result = extractcontrol(&control,argv[1]);
@@ -106,7 +106,7 @@ static int action_addmd5sums(int argc,const char *argv[]) {
 
 	if( argc != 1 ) {
 		fprintf(stderr,"reprepro _addmd5sums < <data>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	r = files_initialize(&files,dbdir,mirrordir);
@@ -120,14 +120,14 @@ static int action_addmd5sums(int argc,const char *argv[]) {
 		if( ! c ) {
 			fprintf(stderr,"Line too long\n");
 			(void)files_done(files);
-			return 1;
+			return EXIT_FAILURE;
 		}
 		*c = '\0';
 		m = index(buffer,' ');
 		if( ! m ) {
 			fprintf(stderr,"Malformed line\n");
 			(void)files_done(files);
-			return 1;
+			return EXIT_FAILURE;
 		}
 		*m = '\0'; m++;
 		r = files_add(files,buffer,m);
@@ -146,11 +146,11 @@ static int action_removereferences(int argc,const char *argv[]) {
 
 	if( argc != 2 ) {
 		fprintf(stderr,"reprepro _removereferences <identifier>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	refs = references_initialize(dbdir);
 	if( ! refs )
-		return 1;
+		return EXIT_FAILURE;
 	ret = references_remove(refs,argv[1]);
 	r = references_done(refs);
 	RET_ENDUPDATE(ret,r);
@@ -164,11 +164,11 @@ static int action_dumpreferences(int argc,const char *argv[]) {
 
 	if( argc != 1 ) {
 		fprintf(stderr,"reprepro dumpreferences\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	refs = references_initialize(dbdir);
 	if( ! refs )
-		return 1;
+		return EXIT_FAILURE;
 	result = references_dump(refs);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
@@ -197,11 +197,11 @@ static int action_dumpunreferenced(int argc,const char *argv[]) {
 
 	if( argc != 1 ) {
 		fprintf(stderr,"reprepro dumpunreferenced\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
-		return 1;
+		return EXIT_FAILURE;
 	r = files_initialize(&dist.files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(dist.refs);
@@ -256,11 +256,11 @@ static int action_deleteunreferenced(int argc,const char *argv[]) {
 
 	if( argc != 1 ) {
 		fprintf(stderr,"reprepro deleteunreferenced\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
-		return 1;
+		return EXIT_FAILURE;
 	r = files_initialize(&dist.files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(dist.refs);
@@ -280,11 +280,11 @@ static int action_addreference(int argc,const char *argv[]) {
 
 	if( argc != 3 ) {
 		fprintf(stderr,"reprepro _addreference <reference> <referee>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	refs = references_initialize(dbdir);
 	if( ! refs )
-		return 1;
+		return EXIT_FAILURE;
 	result = references_increment(refs,argv[1],argv[2]);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
@@ -292,7 +292,7 @@ static int action_addreference(int argc,const char *argv[]) {
 }
 
 
-struct remove_args {DB *references; int count; const char **names; int *gotremoved; int todo;};
+struct remove_args {DB *references; int count; const char **names; bool_t *gotremoved; int todo;};
 
 static retvalue remove_from_target(void *data, struct target *target) {
 	retvalue result,r;
@@ -308,9 +308,9 @@ static retvalue remove_from_target(void *data, struct target *target) {
 	for( i = 0 ; i < d->count ; i++ ){
 		r = target_removepackage(target,d->references,d->names[i]);
 		if( RET_IS_OK(r) ) {
-			if( d->gotremoved[i] == 0 )
+			if( ! d->gotremoved[i] )
 				d->todo--;
-			d->gotremoved[i] = 1;
+			d->gotremoved[i] = TRUE;
 		}
 		RET_UPDATE(result,r);
 	}
@@ -326,11 +326,11 @@ static int action_remove(int argc,const char *argv[]) {
 
 	if( argc < 3  ) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	d.references = references_initialize(dbdir);
 	if( ! d.references )
-		return 1;
+		return EXIT_FAILURE;
 	r = distribution_get(&distribution,confdir,argv[1]);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Did not find matching distributions!\n");
@@ -344,14 +344,14 @@ static int action_remove(int argc,const char *argv[]) {
 	d.count = argc-2;
 	d.names = argv+2;
 	d.todo = d.count;
-	d.gotremoved = calloc(d.count,sizeof(int));
+	d.gotremoved = calloc(d.count,sizeof(*d.gotremoved));
 	if( d.gotremoved == NULL )
 		result = RET_ERROR_OOM;
 	else
 		result = distribution_foreach_part(distribution,component,architecture,suffix,remove_from_target,&d,force);
 
 	if( d.todo < d.count ) {
-		r = distribution_export(distribution,dbdir,distdir,force,1);
+		r = distribution_export(distribution,dbdir,distdir,force,TRUE);
 		RET_ENDUPDATE(result,r);
 	}
 	r = distribution_free(distribution);
@@ -362,7 +362,7 @@ static int action_remove(int argc,const char *argv[]) {
 		fputs("Not removed as not found: ",stderr);
 		while( d.count > 0 ) {
 			d.count--;
-			if( d.gotremoved[d.count] == 0 ) {
+			if( ! d.gotremoved[d.count] ) {
 				fputs(d.names[d.count],stderr);
 				d.todo--;
 				if( d.todo > 0 )
@@ -405,7 +405,7 @@ static int action_list(int argc,const char *argv[]) {
 
 	if( argc != 3  ) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] list <codename> <package-name>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	r = distribution_get(&distribution,confdir,argv[1]);
 	if( r == RET_NOTHING ) {
@@ -444,7 +444,7 @@ static int action_detect(int argc,const char *argv[]) {
 			nl = index(buffer,'\n');
 			if( !nl ) {
 				(void)files_done(files);
-				return 1;
+				return EXIT_FAILURE;
 			}
 			*nl = '\0';
 			r = files_detect(files,buffer);
@@ -477,7 +477,7 @@ static int action_forget(int argc,const char *argv[]) {
 			nl = index(buffer,'\n');
 			if( !nl ) {
 				(void)files_done(files);
-				return 1;
+				return EXIT_FAILURE;
 			}
 			*nl = '\0';
 			r = files_remove(files,buffer);
@@ -508,7 +508,7 @@ static int action_md5sums(int argc,const char *argv[]) {
 				fprintf(stderr,"Error accessing file: %s\n",filename);
 				free(filename);
 				if( ! force )
-					return 1;
+					return EXIT_FAILURE;
 			}
 		}
 		return EXIT_RET(ret);
@@ -534,7 +534,7 @@ static int action_dumpcontents(int argc,const char *argv[]) {
 
 	if( argc != 2 ) {
 		fprintf(stderr,"reprepro _dumpcontents <identifier>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	result = packages_initialize(&packages,dbdir,argv[1]);
@@ -555,7 +555,7 @@ static retvalue export(void *dummy,const char *chunk,struct distribution *distri
 		fprintf(stderr,"Exporting %s...\n",distribution->codename);
 	}
 
-	return distribution_export(distribution,dbdir,distdir,force,0);
+	return distribution_export(distribution,dbdir,distdir,force,FALSE);
 }
 
 static int action_export(int argc,const char *argv[]) {
@@ -563,7 +563,7 @@ static int action_export(int argc,const char *argv[]) {
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro export [<distributions>]\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 	
 	result = distribution_foreach(confdir,argc-1,argv+1,export,NULL,force);
@@ -574,7 +574,7 @@ static int action_export(int argc,const char *argv[]) {
 
 static int action_update(int argc,const char *argv[]) {
 	retvalue result,r;
-	int doexport;
+	bool_t doexport;
 	DB *refs;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
@@ -582,7 +582,7 @@ static int action_update(int argc,const char *argv[]) {
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro update [<distributions>]\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	result = dirs_make_recursive(listdir);	
@@ -608,7 +608,7 @@ static int action_update(int argc,const char *argv[]) {
 
 	refs = references_initialize(dbdir);
 	if( ! refs )
-		return 1;
+		return EXIT_FAILURE;
 	result = files_initialize(&files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(result) ) {
 		references_done(refs);
@@ -681,13 +681,13 @@ static int action_rereference(int argc,const char *argv[]) {
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro rereference [<distributions>]\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	refs = references_initialize(dbdir);
 
 	if( ! refs )
-		return 1;
+		return EXIT_FAILURE;
 	
 	result = distribution_foreach(confdir,argc-1,argv+1,rereference_dist,refs,force);
 	r = references_done(refs);
@@ -734,13 +734,13 @@ static int action_check(int argc,const char *argv[]) {
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro check [<distributions>]\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	dat.references = references_initialize(dbdir);
 
 	if( ! dat.references )
-		return 1;
+		return EXIT_FAILURE;
 
 	r = files_initialize(&dat.files,dbdir,mirrordir);
 
@@ -764,7 +764,7 @@ static int action_checkpool(int argc,const char *argv[]) {
 
 	if( argc < 1 || argc > 2 || (argc == 2 && strcmp(argv[1],"fast") != 0)) {
 		fprintf(stderr,"reprepro checkpool [fast] \n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	r = files_initialize(&files,dbdir,mirrordir);
@@ -790,7 +790,7 @@ static int action_includedeb(int argc,const char *argv[]) {
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] includedeb <distribution> <package>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
@@ -826,7 +826,7 @@ static int action_includedeb(int argc,const char *argv[]) {
 	if( !references ) {
 		files_done(files);
 		distribution_free(distribution);
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	result = deb_add(dbdir,references,files,component,architecture,
@@ -834,8 +834,7 @@ static int action_includedeb(int argc,const char *argv[]) {
 
 	override_free(override);
 
-	// TODO: why is this unconditional?
-	r = distribution_export(distribution,dbdir,distdir,force,1);
+	r = distribution_export(distribution,dbdir,distdir,force,FALSE);
 	RET_ENDUPDATE(result,r);
 
 	r = distribution_free(distribution);
@@ -857,7 +856,7 @@ static int action_includedsc(int argc,const char *argv[]) {
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] includedsc <distribution> <package>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	if( architecture && strcmp(architecture,"source") != 0 ) {
@@ -884,15 +883,17 @@ static int action_includedsc(int argc,const char *argv[]) {
 
 	r = files_initialize(&files,dbdir,mirrordir);
 	if( !files )
-		return 1;
+		return EXIT_FAILURE;
 	references = references_initialize(dbdir);
-	if( !files )
-		return 1;
+	if( !files ) {
+		(void)files_done(files);
+		return EXIT_FAILURE;
+	}
 
 	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete);
 	
 	override_free(srcoverride);
-	r = distribution_export(distribution,dbdir,distdir,force,1);
+	r = distribution_export(distribution,dbdir,distdir,force,FALSE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -912,7 +913,7 @@ static int action_include(int argc,const char *argv[]) {
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] include <distribution> <.changes-file>\n");
-		return 1;
+		return EXIT_FAILURE;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
@@ -920,7 +921,7 @@ static int action_include(int argc,const char *argv[]) {
 		return EXIT_RET(result);
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
-		return 2;
+		return EXIT_FAILURE;
 	}
 	override = NULL;
 	if( distribution->override != NULL ) {
@@ -946,13 +947,13 @@ static int action_include(int argc,const char *argv[]) {
 		return EXIT_RET(r);
 	references = references_initialize(dbdir);
 	if( !files )
-		return 1;
+		return EXIT_FAILURE;
 
 	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete);
 
 	override_free(override);override_free(srcoverride);
 	
-	r = distribution_export(distribution,dbdir,distdir,force,1);
+	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -1069,7 +1070,7 @@ int main(int argc,char *argv[]) {
 "       List all packages by the given name occuring in the given distribution.\n"
 "\n"
 						);
-				exit(0);
+				exit(EXIT_SUCCESS);
 			case 'r':
 				delete++;
 				break;
@@ -1080,7 +1081,7 @@ int main(int argc,char *argv[]) {
 				verbose+=5;
 				break;
 			case 'e':
-				nothingiserror=1;
+				nothingiserror=TRUE;
 				break;
 			case 'f':
 				force++;

@@ -99,7 +99,7 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 		free(pkgs);
 		return RET_ERROR_OOM;
 	}
-	pkgs->wasmodified = 0;
+	pkgs->wasmodified = FALSE;
 	
 	if ((dbret = db_create(&pkgs->database, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s:%s %s\n", filename,identifier,db_strerror(dbret));
@@ -131,7 +131,7 @@ static retvalue packages_replace(packagesdb db,const char *package,const char *c
 
 	SETDBT(key,package);
 	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
-		db->wasmodified = 1;
+		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: removed old '%s' from '%s'.\n", (const char *)key.data,db->identifier);
 	} else {
@@ -142,7 +142,7 @@ static retvalue packages_replace(packagesdb db,const char *package,const char *c
 	SETDBT(key,package);
 	SETDBT(data,chunk);
 	if ((dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
-		db->wasmodified = 1;
+		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: '%s' added to '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -160,7 +160,7 @@ static retvalue packages_add(packagesdb db,const char *package,const char *chunk
 	SETDBT(key,package);
 	SETDBT(data,chunk);
 	if ((dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
-		db->wasmodified = 1;
+		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: '%s' added to '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -202,7 +202,7 @@ retvalue packages_remove(packagesdb db,const char *package) {
 
 	SETDBT(key,package);
 	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
-		db->wasmodified = 1;
+		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: '%s' removed from '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;

@@ -293,7 +293,7 @@ retvalue distribution_foreach(const char *conf,int argc,const char *argv[],distr
 	if( !fn ) 
 		return RET_ERROR_OOM;
 	
-	result = chunk_foreach(fn,processdistribution,&mydata,force,0);
+	result = chunk_foreach(fn,processdistribution,&mydata,force,FALSE);
 
 	free(fn);
 	return result;
@@ -330,7 +330,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	if( !fn ) 
 		return RET_ERROR_OOM;
 	
-	result = chunk_foreach(fn,adddistribution,&mydata,0,0);
+	result = chunk_foreach(fn,adddistribution,&mydata,0,FALSE);
 	free(fn);
 
 	if( RET_IS_OK(result) ) {
@@ -368,7 +368,7 @@ retvalue distribution_get(struct distribution **distribution,const char *conf,co
 	if( !fn ) 
 		return RET_ERROR_OOM;
 	
-	result = chunk_foreach(fn,processgetdistribution,&mydata,0,1);
+	result = chunk_foreach(fn,processgetdistribution,&mydata,0,TRUE);
 
 	free(fn);
 
@@ -380,7 +380,7 @@ retvalue distribution_get(struct distribution **distribution,const char *conf,co
 
 retvalue distribution_export(struct distribution *distribution,
 		const char *dbdir, const char *distdir,
-		int force, int onlyneeded) {
+		int force, bool_t onlyneeded) {
 	struct target *target;
 	retvalue result,r;
 

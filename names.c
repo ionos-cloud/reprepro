@@ -347,7 +347,7 @@ retvalue names_checkpkgname(const char *name) {
 
 void names_overversion(const char **version) {
 	const char *n = *version;
-	int hadepoch = 0;
+	bool_t hadepoch = FALSE;
 
 	if( *n < '0' || *n > '9' ) {
 		if( (*n < 'a' || *n > 'z') && (*n < 'A' || *n > 'Z') )
@@ -365,7 +365,7 @@ void names_overversion(const char **version) {
 	while( *n >= '0' && *n <= '9' )
 		n++;
 	if( *n == ':' ) {
-		hadepoch = 1;
+		hadepoch = TRUE;
 		n++;
 //TODO: more corectly another check should be here to also look for a digit...
 	}

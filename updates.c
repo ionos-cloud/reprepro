@@ -93,7 +93,7 @@ struct update_pattern {
 	//e.g. "Suite: woody" or "Suite: <asterix>/updates" (NULL means "*")
 	char *suite_from;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
-	int ignorerelease;
+	bool_t ignorerelease;
 	//e.g. "ReleaseCheck: B629A24C38C6029A" (NULL means not check)
 	char *verifyrelease;
 	//e.g. "Architectures: i386 sparc mips" (empty means all)
@@ -484,7 +484,7 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 	updatesfile = calc_dirconcat(confdir,"updates");
 	if( !updatesfile ) 
 		return RET_ERROR_OOM;
-	r = chunk_foreach(updatesfile,parsechunk,&update,force,0);
+	r = chunk_foreach(updatesfile,parsechunk,&update,force,FALSE);
 	free(updatesfile);
 	if( RET_IS_OK(r) )
 		*patterns = update;
@@ -848,7 +848,7 @@ upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const 
 	if( pattern->includecondition ) {
 		struct term_atom *atom = pattern->includecondition;
 		while( atom ) {
-			int correct;char *value;
+			bool_t correct;char *value;
 			enum term_comparison c = atom->comparison;
 			retvalue r;
 
@@ -861,7 +861,7 @@ upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const 
 //				fprintf(stderr,"not found %s\n",atom->key);
 				correct = ( c != tc_notequal );
 			} else if( c == tc_none) {
-				correct = 1;
+				correct = TRUE;
 				free(value);
 			} else {
 				int i;

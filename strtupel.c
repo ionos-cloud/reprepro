@@ -133,7 +133,7 @@ const strtupel *strtupel_next(const strtupel *tupel) {
 	return p;
 }
 
-int strtupel_empty(const strtupel *tupel) {
+static bool_t strtupel_empty(const strtupel *tupel) {
 
 	return (*tupel == '\0');
 }

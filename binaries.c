@@ -79,7 +79,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	assert(packagename);
 
 	/* get the sourcename */
-	r = chunk_getname(chunk,"Source",&mysourcename,1);
+	r = chunk_getname(chunk,"Source",&mysourcename,TRUE);
 	if( r == RET_NOTHING ) {
 		mysourcename = strdup(packagename);
 		if( !mysourcename )

@@ -134,7 +134,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 
 	/* first look for fields that should be there */
 
-	r = chunk_getname(deb->control,"Package",&deb->package,0);
+	r = chunk_getname(deb->control,"Package",&deb->package,FALSE);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing 'Package' field in %s!\n",filename);
 		r = RET_ERROR;
@@ -165,7 +165,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 	}
 
 	/* can be there, otherwise we also know what it is */
-	r = chunk_getname(deb->control,"Source",&deb->source,1);
+	r = chunk_getname(deb->control,"Source",&deb->source,TRUE);
 	if( r == RET_NOTHING ) {
 		deb->source = strdup(deb->package);
 		if( deb->source == NULL )
@@ -419,7 +419,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -429,7 +429,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -442,7 +442,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}

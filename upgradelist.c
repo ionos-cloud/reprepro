@@ -218,6 +218,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	 * again and again... and again... and even some more...*/
 
 	while(1) {
+		//TODO: rename this!
 		int found;
 
 		assert( insertafter == NULL || insertafter->next == current );
@@ -388,7 +389,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method
 	upgrade->predecide = decide;
 	upgrade->predecide_data = decide_data;
 
-	return chunk_foreach(filename,upgradelist_trypackage,upgrade,force,0);
+	return chunk_foreach(filename,upgradelist_trypackage,upgrade,force,FALSE);
 }
 
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files){
@@ -444,11 +445,11 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 			r = files_expectfiles(files,&pkg->new_filekeys,
 					&pkg->new_md5sums);
 			if( ! RET_WAS_ERROR(r) )
-			// TODO: decide what to give to the downgrade flag...
+				/* upgrade (or possibly downgrade) */
 				r = target_addpackage(upgrade->target,
 				references,
 				pkg->name,pkg->new_version,pkg->new_control,
-				&pkg->new_filekeys,force,1);
+				&pkg->new_filekeys,force,TRUE);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )
 				break;

@@ -30,7 +30,7 @@
 
 extern int verbose;
 
-/* create directory dirname. returns 0 on success or if already existing, -1 otherwise */
+/* create directory dirname. */
 static retvalue dirs_check(const char *dirname) {
 	int ret;
 

@@ -29,7 +29,7 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig);
 /* replace the contents of dest with those from orig, which get emptied */
 void strlist_move(struct strlist *dest,struct strlist *orig);
 
-int strlist_in(const struct strlist *strlist,const char *element);
-int strlist_subset(const struct strlist *strlist,const struct strlist *subset);
+bool_t strlist_in(const struct strlist *strlist,const char *element);
+bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset);
 
 #endif

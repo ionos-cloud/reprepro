@@ -20,7 +20,7 @@
 typedef struct s_packagesdb {
 	char *identifier;
 	DB *database;
-	int wasmodified;
+	bool_t wasmodified;
 } *packagesdb;
 
 /* initialize the packages-database for <identifier> */

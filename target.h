@@ -30,15 +30,15 @@ struct target {
 	/* "deb" "udeb" or "dsc" */
 	const char *suffix;
 	char *directory;
-	int compressions[ic_max+1];
-	int hasrelease;
+	bool_t compressions[ic_max+1];
+	bool_t hasrelease;
 	const char *indexfile;
 	get_name *getname;
 	get_version *getversion;
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
 	get_upstreamindex *getupstreamindex;
-	int wasmodified;
+	bool_t wasmodified;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
 	/* is initialized as soon as needed: */
@@ -51,7 +51,7 @@ retvalue target_initialize_source(const char *codename,const char *component,str
 retvalue target_free(struct target *target);
 
 retvalue target_mkdistdir(struct target *target,const char *distdir);
-retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded);
+retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,bool_t onlyneeded);
 
 retvalue target_printmd5sums(const struct target *target,const char *distdir,FILE *out,int force);
 
@@ -62,9 +62,9 @@ retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
-retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,int downgrade);
+retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade);
 retvalue target_removepackage(struct target *target,DB *references,const char *name);
-retvalue target_writeindices(struct target *target,const char *distdir, int force,int onlyneeded);
+retvalue target_writeindices(struct target *target,const char *distdir, int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force);
 retvalue target_rereference(struct target *target,DB *referencesdb,int force);
 

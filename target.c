@@ -46,7 +46,7 @@ static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	const char *suffix,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, int unc, int hasrelease, struct target **d) {
+	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, bool_t uncompressed, bool_t hasrelease, struct target **d) {
 
 	struct target *t;
 
@@ -61,10 +61,10 @@ static retvalue target_initialize(
 	}
 	t->directory = directory;
 	t->indexfile = indexfile;
-	if( unc ) {
-		t->compressions[ic_uncompressed] = 1;
+	if( uncompressed ) {
+		t->compressions[ic_uncompressed] = TRUE;
 	}
-	t->compressions[ic_gzip] = 1;
+	t->compressions[ic_gzip] = TRUE;
 	t->codename = strdup(codename);
 	t->component = strdup(component);
 	t->architecture = strdup(architecture);
@@ -85,14 +85,14 @@ static retvalue target_initialize(
 }
 
 retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",1,0,target);
+	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",TRUE,FALSE,target);
 }
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,1,target);
+	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",TRUE,TRUE,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,struct target **target) {
-	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",0,1,target);
+	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",FALSE,TRUE,target);
 }
 
 
@@ -144,7 +144,7 @@ retvalue target_closepackagesdb(struct target *target) {
 	} else {
 		if( target->packages->wasmodified && !target->wasmodified ) {
 			fprintf(stderr,"Internal Warning: Missed change!\n");
-			target->wasmodified = 1;
+			target->wasmodified = TRUE;
 		}
 		r = packages_done(target->packages);
 		target->packages = NULL;
@@ -177,14 +177,14 @@ retvalue target_removepackage(struct target *target,DB *references,const char *n
 		fprintf(stderr,"removing '%s' from '%s'...\n",name,target->identifier);
 	r = packages_remove(target->packages,name);
 	if( RET_IS_OK(r) ) {
-		target->wasmodified = 1;
+		target->wasmodified = TRUE;
 		r = references_delete(references,target->identifier,&files,NULL);
 	}
 	strlist_done(&files);
 	return r;
 }
 
-retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,int downgrade) {
+retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol;
 	retvalue r;
@@ -243,7 +243,7 @@ retvalue target_addpackage(struct target *target,DB *references,const char *name
 	}
 	r = packages_insert(references,target->packages,name,control,filekeys,ofk);
 	if( RET_IS_OK(r) )
-		target->wasmodified = 1;
+		target->wasmodified = TRUE;
 
 	if( ofk )
 		strlist_done(ofk);
@@ -380,7 +380,7 @@ retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int
 }
 /* export a database */
 
-retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded) {
+retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,bool_t onlyneeded) {
 	indexcompression compression;
 	retvalue result,r,r2;
 
@@ -426,8 +426,8 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 	}
 	if( !RET_WAS_ERROR(result) ) {
 		if( target->packages )
-			target->packages->wasmodified = 0;
-		target->wasmodified = 0;
+			target->packages->wasmodified = FALSE;
+		target->wasmodified = FALSE;
 	}
 	return result;
 }

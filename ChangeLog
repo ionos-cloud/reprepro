@@ -1,3 +1,6 @@
+2004-12-30  Bernhard R. Link <brlink@debian.org>
+	* Tidy up (introduce bool_t and replace dpkgversion_isNewer)
+
 2004-12-24  Bernhard R. Link <brlink@debian.org>
 	* Fixed a boolean inversion in the check if | is allowed
 	  in formulas.
