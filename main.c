@@ -765,6 +765,9 @@ static int action_includedeb(int argc,const char *argv[]) {
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
+	if( RET_WAS_ERROR(result) ) {
+		return EXIT_RET(result);
+	}
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
 		return 2;
@@ -834,6 +837,8 @@ static int action_includedsc(int argc,const char *argv[]) {
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
 		return 2;
@@ -882,6 +887,8 @@ static int action_include(int argc,const char *argv[]) {
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
 		return 2;
