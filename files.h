@@ -47,6 +47,8 @@ retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
  * sourcedir/file where file is the entry from files */
 retvalue files_checkinfiles(const char *mirrordir,DB *filesdb,const char *sourcedir,
 const struct strlist *basefilenames,const struct strlist *filekeys,const struct strlist *md5sums);
+/* The same for a single file: */
+retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourcedir,const char *basename,const char *filekey,const char *md5sum);
 
 typedef retvalue per_file_action(void *data,const char *filekey,const char *md5andsize);
 
