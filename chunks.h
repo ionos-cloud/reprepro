@@ -3,6 +3,11 @@
 
 #include <zlib.h>
 
+#ifndef __MIRRORER_ERROR_H
+#include "error.h"
+#warning "What's hapening here?"
+#endif
+
 /* get the next chunk from file f */
 char *chunk_read(gzFile f);
 /* point to a specified field in a chunk */
@@ -18,5 +23,11 @@ char *chunk_dupword(const char *field);
 /* create a new chunk with the context of field name replaced with new,
  * prints an error when not found and adds to the end */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
+
+
+typedef retvalue chunkaction(void *data,const char *chunk);
+
+/* Call action for each chunk in <filename> */
+retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force);
 
 #endif

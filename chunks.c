@@ -16,13 +16,41 @@
  */
 #include <config.h>
 
+#include <errno.h>
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <zlib.h>
 #include <assert.h>
+#include "error.h"
 #include "chunks.h"
+
+/* Call action for each chunk in <filename> */
+retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force){
+	gzFile f;
+	retvalue result,ret;
+	char *chunk;
+
+	f = gzopen(filename,"r");
+	if( !f ) {
+		fprintf(stderr,"Unable to open file %s: %m\n",filename);
+		return RET_ERRNO(errno);
+	}
+	result = RET_NOTHING;
+	while( (chunk = chunk_read(f))) {
+		ret = action(data,chunk);
+
+		RET_UPDATE(result,ret);
+
+		if( RET_WAS_ERROR(ret) && !force ) {
+			free(chunk);
+			return result;
+		}
+		free(chunk);
+	}
+	return result;
+}
 
 /* get the next chunk from file f */
 char *chunk_read(gzFile f) {
