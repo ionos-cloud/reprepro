@@ -6,8 +6,8 @@
 #warning wth?
 #endif
 
-/* return RET_OK, if first >> second, RET_NOTHING if not,
- * return error if those are not proper versions */
-retvalue dpkgversions_isNewer(const char *first,const char *second);
+/* return error if those are not proper versions,
+ * otherwise RET_OK and result is <0, ==0 or >0, if first is smaller, equal or larger */
+retvalue dpkgversions_cmp(const char *first,const char *second,int *result);
 
 #endif

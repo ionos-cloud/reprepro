@@ -205,7 +205,9 @@ retvalue target_addpackage(struct target *target,DB *references,const char *name
 			return r;
 		}
 		if( RET_IS_OK(r) ) {
-			r = dpkgversions_isNewer(version,oldversion);
+			int versioncmp;
+
+			r = dpkgversions_cmp(version,oldversion,&versioncmp);
 			if( RET_WAS_ERROR(r) ) {
 				fprintf(stderr,"Parse errors processing versions of %s.\n",name);
 				if( !force ) {
@@ -214,7 +216,7 @@ retvalue target_addpackage(struct target *target,DB *references,const char *name
 					return r;
 				}
 			} else {
-				if( r == RET_NOTHING ) {
+				if( versioncmp <= 0 ) {
 					/* new Version is not newer than old version */
 					if( downgrade ) {
 						fprintf(stderr,"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n",name,oldversion,version,target->identifier);

@@ -313,33 +313,35 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	} else {
 		/* The package already exists: */
 		char *control;struct strlist files,md5sums,origfiles;
+		int versioncmp;
 
 		upgrade->last = current;
 
-		r = dpkgversions_isNewer(version,current->version);
+		r = dpkgversions_cmp(version,current->version,&versioncmp);
 		if( RET_WAS_ERROR(r) ) {
 			free(packagename);
 			free(version);
 			return r;
 		}
-		if( r == RET_NOTHING ) {
-			if( verbose > 30 )
-				fprintf(stderr,"Ignoring '%s' from '%s' as not newer than '%s'\n",
-				version,packagename,current->version);
+		if( versioncmp <= 0 ) {
 			/* there already is a newer version, so
 			 * doing nothing but perhaps updating what
 			 * versions are around, when we are newer
 			 * than yet known candidates... */
-			if( current->new_version == NULL || 
-			    ( current->new_version != current->version &&
-				dpkgversions_isNewer(version,
-					current->new_version) == RET_OK ) ) {
+			int c = 0;
 
+			if( current->new_version == current->version )
+				c =versioncmp;
+			else if( current->new_version == NULL )
+				c = 1;
+			else (void)dpkgversions_cmp(version,
+					       current->new_version,&c);
+
+			if( c > 0 ) {
 				free(current->new_version);
 				current->new_version = version;
-			} else {
+			} else
 				free(version);
-			}
 
 			free(packagename);
 			return RET_NOTHING;
