@@ -39,6 +39,17 @@ int strlist_in(const struct strlist *strlist,const char *element) {
 	return 0;
 }
 
+retvalue strlist_init_n(int startsize,struct strlist *strlist) {
+	assert(strlist != NULL && startsize >= 0);
+
+	strlist->count = 0;
+	strlist->size = startsize;
+	strlist->values = malloc(startsize*sizeof(char *));
+	if( startsize > 0 && strlist->values == NULL )
+		return RET_ERROR_OOM;
+	return RET_OK;
+}
+
 retvalue strlist_init(struct strlist *strlist) {
 	assert(strlist != NULL);
 	
