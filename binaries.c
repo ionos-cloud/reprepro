@@ -108,7 +108,7 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **source
 	/* generate a base filename based on package,version and architecture */
 
 	if( basename ) {
-		char *parch,*pversion,*v;
+		char *parch,*pversion;
 
 		// TODO combine the two looks for version...
 		r = chunk_getvalue(chunk,"Version",&pversion);
@@ -126,13 +126,8 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **source
 			free(pversion);
 			return r;
 		}
-		v = index(pversion,':');
-		if( v )
-			v++;
-		else
-			v = pversion;
 		/* TODO check parts to consist out of save charakters */
-		*basename = calc_package_basename(ppackage,v,parch);
+		*basename = calc_package_basename(ppackage,pversion,parch);
 		free(pversion);free(parch);
 		if( !*basename ) {
 			free(ppackage);

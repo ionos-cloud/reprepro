@@ -42,11 +42,6 @@ See the file TODO for things I plan to do.
 	ugly, as they can only check your signature directly.
 	(Or in other words: not useful for mirroring things
 	 to be used by strangers).
- - filenames:
- 	Currently, the full version is placed in filenames
-	used to store them in the pool. Escpecially epochs
-	(leading "<somewhat>:" to the version) will be
-	included.
  - location:
  	The directory layout under pool/ is only divided
 	by the component and the sourcename. Ecspecially

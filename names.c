@@ -71,7 +71,12 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 
 
 char *calc_package_basename(const char *name,const char *version,const char *arch) {
-	return mprintf("%s_%s_%s.deb",name,version,arch);
+	const char *v = index(version,':');
+	if( v )
+		v++;
+	else
+		v = version;
+	return mprintf("%s_%s_%s.deb",name,v,arch);
 }
 
 char *calc_concatmd5andsize(const char *md5sum,const char *size) {
