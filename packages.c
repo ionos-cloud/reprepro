@@ -269,7 +269,7 @@ retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *f
 
 	pkgs = packages_initialize(dbpath,dbname);
 	if( ! pkgs )
-		return 1;
+		return RET_ERROR;
 	result = packages_printout(pkgs,filename);
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
@@ -283,7 +283,7 @@ retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *
 
 	pkgs = packages_initialize(dbpath,dbname);
 	if( ! pkgs )
-		return 1;
+		return RET_ERROR;
 	result = packages_zprintout(pkgs,filename);
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
