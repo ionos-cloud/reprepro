@@ -222,9 +222,6 @@ enum filterlisttype filterlist_find(const char *name,struct filterlist *list) {
 	if( list->root && find(name,list) ) {
 		return list->last->what;
 	} else {
-		if( verbose > 4 ) {
-			fprintf(stderr, "Package not found in filterlist: '%s'\n",name);
-		}
 		return list->defaulttype;
 	}
 }
