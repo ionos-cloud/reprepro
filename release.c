@@ -73,7 +73,7 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 	realmd5andsize = NULL;
 	if( ! RET_IS_OK(r=md5sum_and_size(&realmd5andsize,filetocheck,0))) {
 		fprintf(stderr,"Error checking %s: %m\n",filetocheck);
-		strlist_free(&files);
+		strlist_done(&files);
 		return r;
 	}
 
@@ -107,7 +107,7 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 	if( r==RET_NOTHING && verbose>=0 )
 		fprintf(stderr,"%s failed as missing\n",nametocheck);
 	free(realmd5andsize);
-	strlist_free(&files);
+	strlist_done(&files);
 	return r;
 }
 
@@ -120,8 +120,8 @@ void release_free(struct release *release) {
 		free(release->origin);
 		free(release->label);
 		free(release->description);
-		strlist_free(&release->architectures);
-		strlist_free(&release->components);
+		strlist_done(&release->architectures);
+		strlist_done(&release->components);
 		free(release);
 	}
 }

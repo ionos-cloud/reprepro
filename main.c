@@ -392,7 +392,7 @@ retvalue reference_source(void *data,const char *package,const char *chunk) {
 		}
 		filekey = calc_srcfilekey(dir,basefilename);
 		if( !filekey) {
-			free(dir);strlist_free(&files);free(basefilename);
+			free(dir);strlist_done(&files);free(basefilename);
 			return RET_ERROR;
 		}
 		r = references_increment(dist->refs,filekey,dist->identifier);
@@ -401,7 +401,7 @@ retvalue reference_source(void *data,const char *package,const char *chunk) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	free(dir);strlist_free(&files);
+	free(dir);strlist_done(&files);
 	return ret;
 }
 

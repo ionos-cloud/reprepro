@@ -104,8 +104,8 @@ static retvalue processupdates(void *data,const char *chunk) {
 			components_need_free = 0;
 		}
 		if( !RET_WAS_ERROR(r) ) {
-			strlist_new(&update.components_from);
-			strlist_new(&update.components_into);
+			strlist_init(&update.components_from);
+			strlist_init(&update.components_into);
 
 			/* * Iterator over components to update * */
 			r = RET_NOTHING;
@@ -134,12 +134,12 @@ static retvalue processupdates(void *data,const char *chunk) {
 			if( !RET_WAS_ERROR(r) )
 				r = d->action(d->data,chunk,d->release,&update);
 
-			strlist_free(&update.components_from);
-			strlist_free(&update.components_into);
+			strlist_done(&update.components_from);
+			strlist_done(&update.components_into);
 			if( components_need_free )
-				strlist_free(&componentlist);
+				strlist_done(&componentlist);
 		}
-			strlist_free(&update.architectures);
+			strlist_done(&update.architectures);
 		}
 			free(update.suite_from);
 		}
@@ -166,7 +166,7 @@ static retvalue doupdate(void *data,const char *chunk,const struct release *rele
 
 	r = chunk_foreach(d->updatesfile,processupdates,d,d->force);
 
-	strlist_free(&d->upstreams);
+	strlist_done(&d->upstreams);
 
 	return r;
 }

@@ -39,7 +39,7 @@ int strlist_in(const struct strlist *strlist,const char *element) {
 	return 0;
 }
 
-retvalue strlist_new(struct strlist *strlist) {
+retvalue strlist_init(struct strlist *strlist) {
 	assert(strlist != NULL);
 	
 	strlist->count = 0;
@@ -49,7 +49,7 @@ retvalue strlist_new(struct strlist *strlist) {
 	return RET_OK;
 }
 
-void strlist_free(struct strlist *strlist) {
+void strlist_done(struct strlist *strlist) {
 	int c;
 	char **t;
 
@@ -115,7 +115,7 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
 		return RET_ERROR_OOM;
 	for( i = 0 ; i < dest->count ; i++ ) {
 		if( !(dest->values[i] = strdup(orig->values[i])) ) {
-			strlist_free(dest);
+			strlist_done(dest);
 			return RET_ERROR_OOM;
 		}
 	}

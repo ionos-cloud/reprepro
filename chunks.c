@@ -260,7 +260,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	f = chunk_getfield(name,chunk);
 	if( !f )
 		return RET_NOTHING;
-	r = strlist_new(strlist);
+	r = strlist_init(strlist);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	/* walk over the first line */
@@ -285,12 +285,12 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 		else 
 			v = strdup("");
 		if( !v ) {
-			strlist_free(strlist);
+			strlist_done(strlist);
 			return RET_ERROR_OOM;
 		}
 		r = strlist_add(strlist,v);
 		if( !RET_IS_OK(r) ) {
-			strlist_free(strlist);
+			strlist_done(strlist);
 			return r;
 		}
 		if( *f == '\0' )
@@ -308,7 +308,7 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 	f = chunk_getfield(name,chunk);
 	if( !f )
 		return RET_NOTHING;
-	r = strlist_new(strlist);
+	r = strlist_init(strlist);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	while( *f != '\0' ) {
@@ -329,12 +329,12 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 			f++;
 		v = strndup(b,f-b);
 		if( !v ) {
-			strlist_free(strlist);
+			strlist_done(strlist);
 			return RET_ERROR_OOM;
 		}
 		r = strlist_add(strlist,v);
 		if( !RET_IS_OK(r) ) {
-			strlist_free(strlist);
+			strlist_done(strlist);
 			return r;
 		}
 	}

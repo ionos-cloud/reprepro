@@ -11,8 +11,8 @@ struct strlist {
 	int count,size;
 };
 
-retvalue strlist_new(struct strlist *strlist);
-void strlist_free(struct strlist *strlist);
+retvalue strlist_init(struct strlist *strlist);
+void strlist_done(struct strlist *strlist);
 
 /* add a string, will get property of the strlist and free'd by it */
 retvalue strlist_add(struct strlist *strlist,char *element);

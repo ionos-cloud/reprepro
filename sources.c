@@ -185,7 +185,7 @@ static retvalue addsource(void *data,const char *chunk) {
 	if( oldchunk && (isnewer=sources_isnewer(chunk,oldchunk)) != 0 ) {
 		if( isnewer < 0 ) {
 			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
-			free(package);strlist_free(&files);
+			free(package);strlist_done(&files);
 			free(olddirectory);
 			free(oldchunk);
 			return RET_ERROR;
@@ -204,7 +204,7 @@ static retvalue addsource(void *data,const char *chunk) {
 	}
 	free(oldchunk);
 	
-	free(package);strlist_free(&files);
+	free(package);strlist_done(&files);
 	free(olddirectory);
 
 	return r;
@@ -253,7 +253,7 @@ retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
 
 		free(filename);free(filekey);
 	}
-	free(directory);strlist_free(&files);
+	free(directory);strlist_done(&files);
 
 	return result;
 }
