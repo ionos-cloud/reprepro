@@ -492,18 +492,27 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 }
 
 static retvalue getorigins(const char *listdir,const struct update_pattern *patterns,const struct distribution *distribution,struct update_origin **origins) {
-	const struct update_pattern *pattern;
 	struct update_origin *updates = NULL;
 	retvalue result;
+	int i;
 
 	result = RET_NOTHING;
-
-	for( pattern = patterns ; pattern ; pattern = pattern->next ) {
+	for( i = 0; i < distribution->updates.count ; i++ ) {
+		const char *name = distribution->updates.values[i];
+		const struct update_pattern *pattern;
 		struct update_origin *update;
 		retvalue r;
 
-		if( !strlist_in(&distribution->updates,pattern->name) )
-			continue;
+		for( pattern = patterns ; pattern ; pattern = pattern->next ) {
+			if( strcmp(name,pattern->name) == 0 )
+				break;
+		}
+		if( pattern == NULL ) {
+			fprintf(stderr,"Cannot find definition of upgrade-rule '%s' for distribution '%s'!\n",name,distribution->codename);
+			RET_UPDATE(result,RET_ERROR);
+			break;
+		}
+
 		r = instance_pattern(listdir,pattern,distribution,&update);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -513,6 +522,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 			updates = update;
 		}
 	}
+
 	if( RET_WAS_ERROR(result) ) {
 		updates_freeorigins(updates);
 	} else {
