@@ -1,5 +1,5 @@
 * First if all, this is version 0.0. Thus many things I consider important are still
-not implemented. While I'm in 0.0 I'll also change semantics, names and commandline
+not implemented. While I'm in 0.0 I may also change semantics, names and commandline
 syntax and even structure of the database without any upgrade path. 
 
 See the file TODO for things I plan to do.
@@ -23,8 +23,36 @@ See the file TODO for things I plan to do.
 	
 * Some naming conventions:
 	basename: the name of a file without any directory information.
-	filekey: the position relative to the mirrordir. (as found as "Filename:" in Packages.gz)
+	filekey: the position relative to the mirrordir. i
+	(as found as "Filename:" in Packages.gz)
 	full filename: the position relative to /
 
 	architecture: The term like "sparc","i386","mips",...
 	component: Things like "main" "non-free" "contrib" ...
+
+
+* Differences to how other standard tools handle the situation:
+
+ - mirroring:
+ 	This makes no real mirror of the distribution, but
+	only of it contents. Thus the Index-files will
+	be different. (And thus no longer can be verified
+	by the offical signatures). This means people using
+	this mirror have to trust you to not include anything
+	ugly, as they can only check your signature directly.
+	(Or in other words: not useful for mirroring things
+	 to be used by strangers).
+ - filenames:
+ 	Currently, the full version is placed in filenames
+	used to store them in the pool. Escpecially epochs
+	(leading "<somewhat>:" to the version) will be
+	included.
+ - location:
+ 	The directory layout under pool/ is only divided
+	by the component and the sourcename. Ecspecially
+	woody and updates/woody will share the same space,
+	thus avoiding multiple instances of the same file.
+	(Can also cause trouble in the rare cases, when both 
+	 have a file of the same name with different md5sum. 
+	 Using -f can help here).
+	 
