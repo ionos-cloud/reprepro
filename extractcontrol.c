@@ -111,6 +111,12 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	close(pipe1[0]);close(pipe1[1]);
 	close(pipe2[1]);
 
+	// read data:
+	//TODO: check return values...
+	f = gzdopen(pipe2[0],"r");
+	*control = chunk_read(f);
+	gzclose(f);
+
 	while( ar != -1 || tar != -1 ) {
 		pid=wait(&status);
 		if( pid < 0 ) {
@@ -136,14 +142,5 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		}
 		
 	}
-	if( result == RET_OK ) {
-		// read data;
-		//TODO: check return values...
-		f = gzdopen(pipe2[0],"r");
-		*control = chunk_read(f);
-		gzclose(f);
-	} else
-		close(pipe2[0]);
-
 	return result;
 }
