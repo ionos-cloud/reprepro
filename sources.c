@@ -292,7 +292,10 @@ retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *
 	struct strlist basenames,mymd5sums;
 	retvalue r;
 	
-	r = parse_chunk(chunk,&origdirectory,&basenames,&mymd5sums);
+	if( md5sums )
+		r = parse_chunk(chunk,&origdirectory,&basenames,&mymd5sums);
+	else
+		r = parse_chunk(chunk,&origdirectory,&basenames,NULL);
 	if( r == RET_NOTHING ) {
 		//TODO: check if it is even text and do not print 
 		//of looking binary??
@@ -307,10 +310,12 @@ retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *
 	free(origdirectory);
 	strlist_done(&basenames);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&mymd5sums);
+		if( md5sums )
+			strlist_done(&mymd5sums);
 		return r;
 	}
-	strlist_move(md5sums,&mymd5sums);
+	if( md5sums )
+		strlist_move(md5sums,&mymd5sums);
 	return r;
 }
 
