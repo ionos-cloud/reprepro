@@ -859,6 +859,8 @@ static retvalue senddata(struct aptmethod *method) {
 		}
 
 		method->alreadywritten = 0;
+		// TODO: make sure this is already checked for earlier...
+		assert(index(method->nexttosend->uri,'\n')==NULL || index(method->nexttosend->filename,'\n') == 0);
 		method->command = mprintf(
 			 "600 URI Acquire\nURI: %s\nFilename: %s\n\n",
 			 method->nexttosend->uri,method->nexttosend->filename);
@@ -907,7 +909,7 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 			method = method->next;
 		}
 		if( method == NULL ) {
-			fprintf(stderr,"Unexpected child died: %d\n",(int)child);
+			fprintf(stderr,"Unexpected child died(maybe gpg if signing/verifing was done): %d\n",(int)child);
 			continue;
 		}
 		/* remove this child out of the list: */
@@ -936,7 +938,8 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 	return result;
 }
 
-static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb) {
+/* *workleft is always set, even when return indicated error. (workleft < 0 when critical)*/
+static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;
@@ -946,13 +949,13 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb
 	FD_ZERO(&readfds);
 	FD_ZERO(&writefds);
 	maxfd = 0;
-	*activity = 0;
+	*workleft = 0;
 	for( method = run->methods ; method ; method = method->next ) {
 		if( method->status == ams_ok && ( method->command || method->nexttosend)) {
 			FD_SET(method->stdin,&writefds);
 			if( method->stdin > maxfd )
 				maxfd = method->stdin;
-			(*activity)++;
+			(*workleft)++;
 			if( verbose > 19 )
 				fprintf(stderr,"want to write to '%s'\n",method->baseuri);
 		}
@@ -961,13 +964,13 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb
 			FD_SET(method->stdout,&readfds);
 			if( method->stdout > maxfd )
 				maxfd = method->stdout;
-			(*activity)++;
+			(*workleft)++;
 			if( verbose > 19 )
 				fprintf(stderr,"want to read from '%s'\n",method->baseuri);
 		}
 	}
 
-	if( *activity == 0 )
+	if( *workleft == 0 )
 		return RET_NOTHING;
 
 	// TODO: think about a timeout...
@@ -975,7 +978,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb
 	if( v < 0 ) {
 		int err = errno;
 		fprintf(stderr,"Select returned error: %d=%m\n",err);
-		*activity = -1;
+		*workleft = -1;
 		// TODO: what to do here?
 		return RET_ERRNO(errno);
 	}
@@ -999,7 +1002,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb
 retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb) {
 	struct aptmethod *method,*lastmethod;
 	retvalue result,r;
-	int activity;
+	int workleft;
 
 	result = RET_NOTHING;
 
@@ -1027,9 +1030,9 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,files
 	do {
 	  r = checkchilds(run);
 	  RET_UPDATE(result,r);
-	  r = readwrite(run,&activity,filesdb);
+	  r = readwrite(run,&workleft,filesdb);
 	  RET_UPDATE(result,r);
-	} while( activity > 0 );
+	} while( workleft > 0 );
 
 	return result;
 }
