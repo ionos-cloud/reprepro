@@ -114,7 +114,7 @@ retvalue files_add(filesdb db,const char *filekey,const char *md5sum) {
 	SETDBT(key,filekey);
 	SETDBT(data,md5sum);
 	if( (dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
-		if( verbose>1)
+		if( verbose > 6 )
 			printf("db: %s: file added.\n", (const char *)key.data);
 		return RET_OK;
 	} else {
@@ -153,7 +153,7 @@ retvalue files_remove(filesdb db,const char *filekey) {
 
 	SETDBT(key,filekey);
 	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
-		if( verbose>1 )
+		if( verbose > 6 )
 			printf("db: %s: file forgotten.\n", (const char *)key.data);
 		return RET_OK;
 	} else {

@@ -193,7 +193,7 @@ retvalue references_decrement(references refs,const char *needed,const char *nee
 	SETDBT(key,needed);	
 	SETDBT(data,neededby);	
 	if( (dbret=cursor->c_get(cursor,&key,&data,DB_GET_BOTH)) == 0 ) {
-			if( verbose > 5 )
+			if( verbose > 8 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
 					(const char *)key.data,neededby);
 			dbret = cursor->c_del(cursor,0);
@@ -287,7 +287,7 @@ retvalue references_remove(references refs,const char *neededby) {
 		const char *found_by = data.data;
 		if( strncmp( found_by,neededby,l) == 0 && 
 		    (found_by[l] == '\0' || found_by[l] == ' ')) {
-			if( verbose > 5 )
+			if( verbose > 8 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
 					found_to,neededby);
 			dbret = cursor->c_del(cursor,0);

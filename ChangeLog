@@ -4,6 +4,8 @@
 	longer needed due to newer versions available,
 	except when --keepunreferencedfiles is given.
 
+	* change some verbosities of files and refereces
+
 2005-01-17  Bernhard R. Link <brlink@debian.org>
 	* remove short options -e -N -l -r -M -d -D -c -p -o
 	to make it more guessable (and reserving short options
