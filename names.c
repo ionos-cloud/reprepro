@@ -31,8 +31,12 @@ retvalue propername(const char *string) {
 	const unsigned char *s;
 	assert( string != NULL );
 
+	if( string[0] == '.' && string[1] == '\0' ) {
+		fprintf(stderr,"Version/Architecture/Files/... must be more than a single dot!\n");
+		return RET_ERROR;
+	}
 	if( string[0] == '.' && string[1] == '.' ) {
-		fprintf(stderr,"Names may not start with two dots!\n");
+		fprintf(stderr,"Version/Architecture/Files/... identifiers may not start with two dots!\n");
 		return RET_ERROR;
 	}
 	s = string;
@@ -46,6 +50,18 @@ retvalue propername(const char *string) {
 	}
 	return RET_OK;
 	
+}
+
+retvalue propernames(const struct strlist *names) {
+	int i;
+
+	for( i = 0 ; i < names->count ; i ++ ) {
+		retvalue r = propername(names->values[i]);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
 }
 
 retvalue properpackagename(const char *string) {

@@ -161,16 +161,11 @@ static inline retvalue calcnewcontrol(
 		struct strlist *filekeys,char **newchunk,struct strlist *origfiles) {
 	char *directory;
 	retvalue r;
-	int i;
 
 	r = properpackagename(package);
 	assert( r != RET_NOTHING );
-	i = 0;
-	while( RET_IS_OK(r) && i < basenames->count ) {
-		r = propername(basenames->values[i]);
-		assert( r != RET_NOTHING );
-		i++;
-	}
+	if( RET_IS_OK(r) )
+		r = propernames(basenames);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Forbidden characters in source package '%s'!\n",package);
 		return r;

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -167,6 +167,8 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
 		r = RET_ERROR;
 	}
+	if( RET_IS_OK(r) )
+		r = properpackagename(dsc->package);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
@@ -180,6 +182,9 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 	(void) checkvalue(filename,dsc->control,"Standards-Version");
 
 	r = getvalue(filename,dsc->control,"Version",&dsc->version);
+	if( RET_IS_OK(r) ) {
+		r = propername(dsc->version);
+	}
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
@@ -196,6 +201,8 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 		return r;
 	}
 	r = sources_parse_getmd5sums(dsc->control,&dsc->basenames,&dsc->md5sums);
+	if( RET_IS_OK(r) )
+		r = propernames(&dsc->basenames);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;

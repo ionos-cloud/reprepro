@@ -42,6 +42,7 @@ retvalue names_checkbasename(const char *basename);
 
 /* check for forbidden characters */
 retvalue propername(const char *string);
+retvalue propernames(const struct strlist *names);
 retvalue properpackagename(const char *string);
 
 #endif
