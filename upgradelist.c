@@ -65,8 +65,6 @@ struct package_data {
 };
 
 struct upgradelist {
-	upgrade_decide_function *decide;
-	void *decide_data;
 	struct target *target;
 	struct package_data *list;
 	/* package the next package will most probably be after. 
@@ -143,7 +141,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 	return RET_OK;
 }
 	
-retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const char *dbdir,upgrade_decide_function *decide,void *decide_data) {
+retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const char *dbdir) {
 	struct upgradelist *upgrade;
 	retvalue r,r2;
 
@@ -151,8 +149,6 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 	if( upgrade == NULL )
 		return RET_ERROR_OOM;
 
-	upgrade->decide = decide;
-	upgrade->decide_data = decide_data;
 	upgrade->target = t;
 
 	r = target_initpackagesdb(t,dbdir);
@@ -224,21 +220,20 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	 * again and again... and again... and even some more...*/
 
 	while(1) {
-		//TODO: rename this!
-		int found;
+		int cmp;
 
 		assert( insertafter == NULL || insertafter->next == current );
 		assert( insertafter != NULL || current == upgrade->list );
 
 		if( current == NULL )
-			found = -1; /* every package is before the end of list */
+			cmp = -1; /* every package is before the end of list */
 		else
-			found = strcmp(packagename,current->name);
+			cmp = strcmp(packagename,current->name);
 
-		if( found == 0 )
+		if( cmp == 0 )
 			break;
 
-		if( found < 0 ) {
+		if( cmp < 0 ) {
 			int precmp;
 
 			if( insertafter == NULL ) {
@@ -267,7 +262,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			}
 			assert( "This is not reached" == NULL );
 		}
-		/* found > 0 : may come later... */
+		/* cmp > 0 : may come later... */
 		assert( current != NULL );
 		insertafter = current;
 		current = current->next;
@@ -282,13 +277,11 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		struct package_data *new;
 
 		decision = upgrade->predecide(upgrade->predecide_data,packagename,NULL,version,chunk);
-		if( decision == UD_UPGRADE )
-			decision = upgrade->decide(upgrade->decide_data,packagename,NULL,version,chunk);
 		if( decision != UD_UPGRADE ) {
 			upgrade->last = insertafter;
 			free(packagename);
 			free(version);
-			return RET_NOTHING;
+			return (decision==UD_ERROR)?RET_ERROR:RET_NOTHING;
 		}
 
 		new = calloc(1,sizeof(struct package_data));
@@ -359,9 +352,6 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 				version,packagename,current->version);
 		decision = upgrade->predecide(upgrade->predecide_data,current->name,
 				current->version,version,chunk);
-		if( decision == UD_UPGRADE )
-			decision = upgrade->decide(upgrade->decide_data,current->name,
-					current->version,version,chunk);
 		if( decision != UD_UPGRADE ) {
 			/* Even if we do not install it, setting it on hold
 			 * will keep it or even install from a mirror before
@@ -370,7 +360,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 				current->deleted = FALSE;
 			free(version);
 			free(packagename);
-			return RET_NOTHING;
+			return (decision==UD_ERROR)?RET_ERROR:RET_NOTHING;
 		}
 
 		if( versioncmp == 0 ) {

@@ -1,6 +1,8 @@
 2005-01-26  Bernhard R. Link <brlink@debian.org>
 	* change FilterList to need a defaultaction given
 
+	* tidy up upgradelist.c and report errors properly
+
 2005-01-25  Bernhard R. Link <brlink@debian.org>
 	* Add ListHook keyword for external processing
 	  of the downloaded index file before updating.

@@ -1112,35 +1112,31 @@ upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const 
 			return UD_HOLD;
 		case flt_error:
 			/* cannot yet be handled! */
-			fprintf(stderr,"Error: unexpected Packagename '%s'!\n",package);
-			return UD_NO;
+			fprintf(stderr,"Packagename marked to be unexpected('error'): '%s'!\n",package);
+			return UD_ERROR;
 		case flt_install:
 			break;
 	}
 
 	if( pattern->includecondition ) {
 		r = term_decidechunk(pattern->includecondition,newcontrolchunk);
-		// gna..., why is there no way to report errors?
-		// TODO: fix this insanity...
 		if( RET_WAS_ERROR(r) )
-			r = RET_NOTHING;
+			return UD_ERROR;
 		if( r == RET_NOTHING ) {
-			// fprintf(stderr,"Rejecting %s\n",package);
 			return UD_NO;
 		}
 	}
-	// fprintf(stderr,"Accepting %s\n",package);
 
 	return UD_UPGRADE;
 }
 
-static inline retvalue searchformissing(const char *dbdir,struct update_target *u,upgrade_decide_function *decide,void *decision_data,int force) {
+static inline retvalue searchformissing(const char *dbdir,struct update_target *u,int force) {
 	struct update_index *index;
 	retvalue result,r;
 
 	if( verbose > 2 )
 		fprintf(stderr,"  processing updates for '%s'\n",u->target->identifier);
-	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir,decide,decision_data);
+	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -1190,7 +1186,7 @@ static retvalue updates_readindices(const char *dbdir,struct distribution *distr
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = searchformissing(dbdir,u,ud_always,NULL,force);
+		r = searchformissing(dbdir,u,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
 			break;
@@ -1323,6 +1319,10 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;
+	}
+	if( RET_WAS_ERROR(result) && ! force ) {
+		aptmethod_shutdown(run);
+		return result;
 	}
 	if( verbose >= 0 )
 		fprintf(stderr,"Getting packages...\n");

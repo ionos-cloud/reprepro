@@ -193,7 +193,7 @@ Method: file:$WORKDIR
 Suite: test2
 Architectures: coal>abacus abacus source
 FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
-FilterList: deinstall list
+FilterList: error list
 ListHook: /bin/cp
 END
 
