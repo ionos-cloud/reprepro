@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -69,6 +69,7 @@ extern int verbose;
 typedef	enum { fe_UNKNOWN=0,fe_DEB,fe_UDEB,fe_DSC,fe_DIFF,fe_ORIG,fe_TAR} filetype;
 
 #define FE_BINARY(ft) ( (ft) == fe_DEB || (ft) == fe_UDEB )
+#define FE_SOURCE(ft) ( (ft) == fe_DIFF || (ft) == fe_ORIG || (ft) == fe_TAR || (ft) == fe_DSC || (ft) == fe_UNKNOWN)
 
 struct fileentry {
 	struct fileentry *next;
@@ -79,6 +80,10 @@ struct fileentry {
 	char *priority;
 	char *architecture;
 	char *name;
+	/* this might be different for different files,
+	 * (though this is only allowed in rare cases),
+	 * will be set by _fixfields */
+	char *component;
 	/* only set after changes_includefiles */
 	char *filekey;
 };
@@ -92,7 +97,12 @@ struct changes {
 	struct fileentry *files;
 	char *control;
 	/* Things to be set by changes_fixfields: */
-	char *component,*directory;
+	/* the component source files are put into */
+	const char *srccomponent;
+	/* the directory where source files are put into */
+	char *srcdirectory;
+	/* (only to warn if multiple are used) */
+	const char *firstcomponent;
 };
 
 static void freeentries(struct fileentry *entry) {
@@ -101,6 +111,7 @@ static void freeentries(struct fileentry *entry) {
 	while( entry ) {
 		h = entry->next;
 		free(entry->filekey);
+		free(entry->component);
 		free(entry->basename);
 		free(entry->md5sum);
 		free(entry->section);
@@ -121,14 +132,13 @@ static void changes_free(struct changes *changes) {
 		freeentries(changes->files);
 		strlist_done(&changes->distributions);
 		free(changes->control);
-		free(changes->component);
-		free(changes->directory);
+		free(changes->srcdirectory);
 	}
 	free(changes);
 }
 
 
-static retvalue newentry(struct fileentry **entry,const char *fileline,const char *forcearchitecture) {
+static retvalue newentry(struct fileentry **entry,const char *fileline,const char *forcearchitecture, const char *sourcename) {
 	struct fileentry *e;
 	const char *p,*md5start,*md5end;
 	const char *sizestart,*sizeend;
@@ -250,6 +260,9 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		}
 		archstart = "source";
 		archend = archstart + 6;
+		if( strncmp(filestart,sourcename,nameend-filestart) != 0 ) {
+			fprintf(stderr,"Warning: Strange file '%s'!\nLooks like source but does not start with '%s_' as I would have guessed!\nI hope you know what you do.\n",filestart,sourcename);
+		}
 	}
 	/* now copy all those parts into the structure */
 	e = calloc(1,sizeof(struct fileentry));
@@ -302,7 +315,7 @@ static retvalue changes_parsefilelines(const char *filename,struct changes *chan
 	for( i = 0 ; i < filelines->count ; i++ ) {
 		const char *fileline = filelines->values[i];
 
-		r = newentry(&changes->files,fileline,forcearchitecture);
+		r = newentry(&changes->files,fileline,forcearchitecture,changes->source);
 		RET_UPDATE(result,r);
 		if( r == RET_ERROR )
 			return r;
@@ -406,6 +419,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 
 static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcesection,const char *forcepriority,const struct overrideinfo *srcoverride,const struct overrideinfo *override,int force) {
 	struct fileentry *e;
+	retvalue r;
 
 	e = changes->files;
 
@@ -437,8 +451,8 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			fprintf(stderr,"Section '%s' of '%s' is not valid!\n",e->section,filename);
 			return RET_ERROR;
 		}
-		if( strcmp(e->section,"byhand" ) == 0 ) {
-			fprintf(stderr,"Cannot cope with'byhand' file '%s'!\n",e->basename);
+		if( strncmp(e->section,"byhand",6) == 0 ) {
+			fprintf(stderr,"Cannot cope with 'byhand' file '%s'!\n",e->basename);
 			return RET_ERROR;
 		}
 		if( strcmp(e->section,"-") == 0 ) {
@@ -460,40 +474,48 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			return RET_ERROR;
 		}
 
-		if( forcecomponent == NULL ) {
-			char *component;
-			retvalue r;
+		// I'm undecided here. If this is a udeb, one could also use
+		// distribution->udebcomponents. Though this might result
+		// in not really predictable guesses for the section.
+		r = guess_component(distribution->codename,&distribution->components,changes->source,e->section,forcecomponent,&e->component);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		assert(e->component != NULL);
 
-			r = guess_component(distribution->codename,&distribution->components,changes->source,e->section,forcecomponent,&component);
-			if( RET_WAS_ERROR(r) )
-				return r;
+		if( changes->firstcomponent == NULL ) {
+			changes->firstcomponent = e->component;
+		} else if( strcmp(changes->firstcomponent,e->component) != 0)  {
+				fprintf(stderr,"Warning: %s contains files guessed to be in different components ('%s' vs '%s)!\nI hope you know what you do and this is not the cause of some broken override file.\n",filename,e->component,changes->firstcomponent);
+		}
 
-			if( changes->component ) {
-				if( strcmp(changes->component,component) != 0)  {
-					fprintf(stderr,"%s contains files guessed to be in different components ('%s' vs '%s)!\n",filename,component,changes->component);
-					free(component);
-					return RET_ERROR;
-				}
-				free(component);
-
-			} else {
-				changes->component = component;
+		if( FE_SOURCE(e->type) ) {
+			if( changes->srccomponent == NULL ) {
+				changes->srccomponent = e->component;
+			} else if( strcmp(changes->srccomponent,e->component) != 0)  {
+				fprintf(stderr,"%s contains source files guessed to be in different components ('%s' vs '%s)!\n",filename,e->component,changes->firstcomponent);
+				return RET_ERROR;
 			}
-
+		} else if( FE_BINARY(e->type) ){
+			// Let's just check here, perhaps
+			if( e->type == fe_UDEB && 
+					!strlist_in(&distribution->udebcomponents,e->component)) {
+				fprintf(stderr,"Cannot put file '%s' into component '%s', as it is not listed in UDebComponents!\n",e->basename,e->component);
+				return RET_ERROR;
+			}
+		} else {
+			assert( FE_SOURCE(e->type) || FE_BINARY(e->type) );
+			fprintf(stderr,"Internal Error!\n");
+			return RET_ERROR;
 		}
 
 		e = e->next;
 	}
-	if( forcecomponent ) {
-		changes->component = strdup(forcecomponent);
-		if( changes->component == NULL )
-			return RET_ERROR_OOM;
-	} else
-		assert( changes->component != NULL);
 
-	changes->directory = calc_sourcedir(changes->component,changes->source);
-	if( changes->directory == NULL )
-		return RET_ERROR_OOM;
+	if( changes->srccomponent != NULL ) {
+		changes->srcdirectory = calc_sourcedir(changes->srccomponent,changes->source);
+		if( changes->srcdirectory == NULL )
+			return RET_ERROR_OOM;
+	}
 
 	return RET_OK;
 }
@@ -600,7 +622,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,const
 	return r;
 }
 
-static retvalue changes_includefiles(filesdb filesdb,const char *component,const char *filename,struct changes *changes,int force,int delete) {
+static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct changes *changes,int force,int delete) {
 	struct fileentry *e;
 	retvalue r;
 	char *sourcedir; 
@@ -613,7 +635,22 @@ static retvalue changes_includefiles(filesdb filesdb,const char *component,const
 
 	e = changes->files;
 	while( e ) {
-		e->filekey = calc_dirconcat(changes->directory,e->basename);
+		if( FE_SOURCE(e->type) ) {
+			assert(changes->srcdirectory);
+			e->filekey = calc_dirconcat(changes->srcdirectory,e->basename);
+		} else {
+			char *directory;
+
+			// TODO: make this in-situ?
+			/* as the directory depends on the sourcename, it can be
+			 * different for every file... */
+			directory = calc_sourcedir(e->component,changes->source);
+			if( directory == NULL )
+				return RET_ERROR_OOM;
+
+			e->filekey = calc_dirconcat(directory,e->basename);
+			free(directory);
+		}
 
 		if( e->filekey == NULL ) {
 			free(sourcedir);
@@ -648,7 +685,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {
 			r = deb_add(dbdir,references,filesdb,
-				changes->component,e->architecture,
+				e->component,e->architecture,
 				e->section,e->priority,
 				"deb",
 				distribution,fullfilename,
@@ -659,7 +696,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				somethingwasmissed = 1;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_add(dbdir,references,filesdb,
-				changes->component,e->architecture,
+				e->component,e->architecture,
 				e->section,e->priority,
 				"udeb",
 				distribution,fullfilename,
@@ -669,11 +706,13 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 			if( r == RET_NOTHING )
 				somethingwasmissed = 1;
 		} else if( e->type == fe_DSC ) {
+			assert(changes->srccomponent);
+			assert(changes->srcdirectory);
 			r = dsc_add(dbdir,references,filesdb,
-				changes->component,e->section,e->priority,
+				changes->srccomponent,e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->basename,
-				changes->directory,e->md5sum,
+				changes->srcdirectory,e->md5sum,
 				srcoverride,
 				force,D_INPLACE);
 			if( r == RET_NOTHING )
@@ -726,7 +765,7 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 	
 	/* add files in the pool */
 	//TODO: D_DELETE would fail here, what to do?
-	r = changes_includefiles(filesdb,changes->component,changesfilename,changes,force,delete);
+	r = changes_includefiles(filesdb,changesfilename,changes,force,delete);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
