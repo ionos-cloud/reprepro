@@ -21,16 +21,18 @@
 #include <stdio.h>
 #include "names.h"
 
-char *calc_srcfilekey(const char *sourcedir,const char *filename){
+char *calc_dirconcat(const char *str1,const char *str2) {
 	char *p;
-	asprintf(&p,"%s/%s",sourcedir,filename);
+	asprintf(&p,"%s/%s",str1,str2);
 	return p;
 }
 
+char *calc_srcfilekey(const char *sourcedir,const char *filename){
+	return calc_dirconcat(sourcedir,filename);
+}
+
 char *calc_fullfilename(const char *mirrordir,const char *filekey){
-	char *p;
-	asprintf(&p,"%s/%s",mirrordir,filekey);
-	return p;
+	return calc_dirconcat(mirrordir,filekey);
 }
 
 char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const char *filename){

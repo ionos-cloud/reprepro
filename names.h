@@ -1,6 +1,7 @@
 #ifndef __MIRRORER_NAMES_H
 #define __MIRRORER_NAMES_H
 
+char *calc_dirconcat(const char *str1,const char *str2);
 char *calc_package_filename(const char *package,const char *version,const char *arch);
 char *calc_sourcedir(const char *part,const char *sourcename);
 char *calc_filekey(const char *part,const char *sourcename,const char *filename);

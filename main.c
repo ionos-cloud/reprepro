@@ -26,6 +26,7 @@
 #include "files.h"
 #include "packages.h"
 #include "reference.h"
+#include "md5sum.h"
 #include "chunks.h"
 #include "binaries.h"
 #include "sources.h"
@@ -659,15 +660,37 @@ int forget(int argc,char *argv[]) {
 
 int md5sums(int argc,char *argv[]) {
 	DB *files;
+	char *filename,*md;
 	retvalue ret,r;
+	int i;
 
-	files = files_initialize(dbdir);
-	if( !files )
-		return 1;
-	ret = files_printmd5sums(files);
-	r = files_done(files);
-	RET_ENDUPDATE(ret,r);
-	return EXIT_RET(ret);
+	if( argc > 1 ) {
+		ret = RET_NOTHING;
+		for( i = 1 ; i < argc ; i++ ) {
+			filename=calc_dirconcat(distdir,argv[i]);
+			r = md5sum_and_size(&md,filename,0);
+			RET_UPDATE(ret,r);
+			if( RET_IS_OK(r) ) {
+				printf(" %s %s\n",md,argv[i]);
+				free(md);
+				free(filename);
+			} else {
+				fprintf(stderr,"Error accessing file: %s: %m\n",filename);
+				free(filename);
+				if( ! force )
+					return 1;
+			}
+		}
+		return EXIT_RET(ret);
+	} else {
+		files = files_initialize(dbdir);
+		if( !files )
+			return 1;
+		ret = files_printmd5sums(files);
+		r = files_done(files);
+		RET_ENDUPDATE(ret,r);
+		return EXIT_RET(ret);
+	}
 }
 
 int checkrelease(int argc,char *argv[]) {
