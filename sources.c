@@ -319,10 +319,6 @@ retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *
 	return r;
 }
 
-char *binaries_getupstreamindex(struct target *target,const char *suite_from,
-		const char *component_from,const char *architecture) {
-	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
-}
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture) {
 	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);

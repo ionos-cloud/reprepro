@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -101,6 +101,10 @@ struct update_pattern {
 	// (empty means all)
 	struct strlist components_from;
 	struct strlist components_into;
+	//e.g. "UDebComponents: main>main"
+	// (empty means all)
+	struct strlist udebcomponents_from;
+	struct strlist udebcomponents_into;
 };
 
 struct update_origin {
@@ -139,6 +143,8 @@ void update_pattern_free(struct update_pattern *update) {
 	strlist_done(&update->architectures);
 	strlist_done(&update->components_from);
 	strlist_done(&update->components_into);
+	strlist_done(&update->udebcomponents_from);
+	strlist_done(&update->udebcomponents_into);
 	free(update);
 }
 
@@ -320,6 +326,26 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 		}
 	}
 
+	/* * Check which components to update udebs from * */
+	r = chunk_getwordlist(chunk,"UDebComponents",&componentslist);
+	if( RET_WAS_ERROR(r) ) {
+		update_pattern_free(update);
+		return r;
+	}
+	if( r == RET_NOTHING ) {
+		update->udebcomponents_from.count = 0;
+		update->udebcomponents_into.count = 0;
+	} else {
+		r = splitcomponents(&update->udebcomponents_from,
+				&update->udebcomponents_into,&componentslist);
+		strlist_done(&componentslist);
+		if( RET_WAS_ERROR(r) ) {
+			update_pattern_free(update);
+			return r;
+		}
+	}
+
+
 	/* * Check if we should get the Release-file * */
 	r = chunk_gettruth(chunk,"IgnoreRelease");
 	if( RET_WAS_ERROR(r) ) {
@@ -377,13 +403,13 @@ static retvalue instance_pattern(const char *listdir,
 	update->pattern = pattern;
 
 	if( !pattern->ignorerelease ) {
-		update->releasefile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","data");
+		update->releasefile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","data","rel");
 		if( update->releasefile == NULL ) {
 			updates_freeorigins(update);
 			return RET_ERROR_OOM;
 		}
 		if( pattern->verifyrelease ) {
-			update->releasegpgfile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","gpg");
+			update->releasegpgfile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","gpg","rel");
 			if( update->releasegpgfile == NULL ) {
 				updates_freeorigins(update);
 				return RET_ERROR_OOM;
@@ -466,7 +492,7 @@ static inline retvalue newindex(struct update_index **indices,
 	index->filename = calc_downloadedlistfile(listdir,
 			target->codename,origin->pattern->name,
 			component_from,
-			target->architecture);
+			target->architecture,target->suffix);
 	if( index->filename == NULL ) {
 		free(index);
 		return RET_ERROR_OOM;
@@ -513,12 +539,22 @@ static retvalue gettargets(const char *listdir,struct update_origin *origins,str
 					continue;
 			}
 
-			if( p->components_from.count > 0 ) {
-				c_from = &p->components_from;
-				c_into = &p->components_into;
+			if( strcmp(target->suffix,"udeb") == 0 )  {
+				if( p->udebcomponents_from.count > 0 ) {
+					c_from = &p->udebcomponents_from;
+					c_into = &p->udebcomponents_into;
+				} else {
+					c_from = &distribution->udebcomponents;
+					c_into = &distribution->udebcomponents;
+				}
 			} else {
-				c_from = &distribution->components;
-				c_into = &distribution->components;
+				if( p->components_from.count > 0 ) {
+					c_from = &p->components_from;
+					c_into = &p->components_into;
+				} else {
+					c_from = &distribution->components;
+					c_into = &distribution->components;
+				}
 			}
 
 			for( i = 0 ; i < c_into->count ; i++ ) {

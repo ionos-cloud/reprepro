@@ -67,13 +67,14 @@ static inline char * escapecpy(char *dest,const char *orig) {
 	return dest;
 }
 
-char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture) {
-	size_t l_listdir,len;
+char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *suffix) {
+	size_t l_listdir,len,l_suffix;
 	char *result,*p;
 	
 	l_listdir = strlen(listdir),
 	len = escapedlen(codename) + escapedlen(origin) + escapedlen(component) + escapedlen(architecture);
-	p = result = malloc(l_listdir + len + 5);
+	l_suffix = strlen(suffix);
+	p = result = malloc(l_listdir + len + l_suffix + 7);
 	if( result == NULL )
 		return result;
 	memcpy(p,listdir,l_listdir);
@@ -86,6 +87,8 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 	p = escapecpy(p,component);
 	*p = '_'; p++;
 	p = escapecpy(p,architecture);
+	*p = '_'; p++;
+	strcpy(p,suffix); p += l_suffix;
 	*p = '\0';
 	return result;
 }

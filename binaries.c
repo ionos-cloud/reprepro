@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include "error.h"
+#include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
 #include "chunks.h"
@@ -224,4 +225,12 @@ retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist 
 		return r;
 	r = binaries_parse_md5sum(chunk,md5sums);
 	return r;
+}
+char *binaries_getupstreamindex(struct target *target,const char *suite_from,
+		const char *component_from,const char *architecture) {
+	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
+}
+char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,
+		const char *component_from,const char *architecture) {
+	return mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",suite_from,component_from,architecture);
 }

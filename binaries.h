@@ -18,5 +18,7 @@ retvalue binaries_getinstalldata(struct target *t,const char *packagename,const 
 retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums);
 char *binaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
+char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,
+		const char *component_from,const char *architecture);
 
 #endif

@@ -85,7 +85,7 @@ static retvalue target_initialize(
 }
 
 retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",1,0,target);
+	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",1,0,target);
 }
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target) {
 	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,1,target);
