@@ -59,13 +59,15 @@ int release(int argc,char *argv[]) {
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	if( references_removedepedency(refs,argv[1]) < 0 ) {
+	if( references_removedependency(refs,argv[1]) < 0 ) {
 		references_done(refs);
 		return 1;
 	}
 	references_done(refs);
 	return 0;
 }
+
+
 int addreference(int argc,char *argv[]) {
 	DB *refs;
 	int result;
@@ -77,7 +79,7 @@ int addreference(int argc,char *argv[]) {
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	result = references_adddepedency(refs,argv[1],argv[2]);
+	result = references_adddependency(refs,argv[1],argv[2]);
 	references_done(refs);
 	return result;
 }
@@ -86,7 +88,7 @@ int exportpackages(int argc,char *argv[]) {
 	int result;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer export <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer printout <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	pkgs = packages_initialize(dbdir,argv[1]);
@@ -101,7 +103,7 @@ int zexportpackages(int argc,char *argv[]) {
 	int result;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer zexport <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer zprintout <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	pkgs = packages_initialize(dbdir,argv[1]);
@@ -109,6 +111,53 @@ int zexportpackages(int argc,char *argv[]) {
 		return 1;
 	result = packages_zprintout(pkgs,argv[2]);
 	packages_done(pkgs);
+	return result;
+}
+
+/****** common for reference{binaries,sources} *****/
+struct referee {
+	DB *pkgs,*refs;
+	const char *identifier;
+};
+
+int reference_binary(void *data,const char *package,const char *chunk) {
+	struct referee *dist = data;
+	const char *f;
+	char *filekey;
+	int r;
+
+	f = chunk_getfield(chunk,"Filename");
+	if( !f )
+		return 0;
+	filekey = chunk_dupvaluecut(f,ppooldir);
+	if( !filekey )
+		return -1;
+	r = references_adddependency(dist->refs,filekey,dist->identifier);
+	free(filekey);
+	return r==0;
+}
+
+int referencebinaries(int argc,char *argv[]) {
+	int result;
+	struct referee dist;
+
+	if( argc != 2 ) {
+		fprintf(stderr,"mirrorer referencebinaries <identifier>\n");
+		return 1;
+	}
+	dist.identifier = argv[1];
+	dist.refs = references_initialize(dbdir);
+	if( ! dist.refs )
+		return 1;
+	dist.pkgs = packages_initialize(dbdir,argv[1]);
+	if( ! dist.pkgs ) {
+		references_done(dist.refs);
+		return 1;
+	}
+	result = packages_foreach(dist.pkgs,reference_binary,&dist);
+
+	packages_done(dist.pkgs);
+	references_done(dist.refs);
 	return result;
 }
 
@@ -185,7 +234,7 @@ int addsources(int argc,char *argv[]) {
 	}
 	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
-		dist.files->close(dist.files,0);
+		files_done(dist.files);
 		return 1;
 	}
 	result = 0;
@@ -194,7 +243,7 @@ int addsources(int argc,char *argv[]) {
 		if( r < 0 )
 			result = r;
 	}
-	dist.files->close(dist.files,0);
+	files_done(dist.files);
 	packages_done(dist.pkgs);
 	return result;
 }
@@ -252,7 +301,7 @@ int prepareaddsources(int argc,char *argv[]) {
 	}
 	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
-		dist.files->close(dist.files,0);
+		files_done(dist.files);
 		return 1;
 	}
 	result = 0;
@@ -261,7 +310,7 @@ int prepareaddsources(int argc,char *argv[]) {
 		if( r < 0 )
 			result = r;
 	}
-	dist.files->close(dist.files,0);
+	files_done(dist.files);
 	packages_done(dist.pkgs);
 	return result;
 }
@@ -308,7 +357,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 	}
 	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
-		dist.files->close(dist.files,0);
+		files_done(dist.files);
 		return 1;
 	}
 	result = 0;
@@ -317,7 +366,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 		if( r < 0 )
 			result = r;
 	}
-	dist.files->close(dist.files,0);
+	files_done(dist.files);
 	packages_done(dist.pkgs);
 	return result;
 }
@@ -371,7 +420,7 @@ int addpackages(int argc,char *argv[]) {
 	}
 	dist.pkgs = packages_initialize(dbdir,argv[1]);
 	if( ! dist.pkgs ) {
-		dist.files->close(dist.files,0);
+		files_done(dist.files);
 		return 1;
 	}
 	dist.referee = argv[1];
@@ -382,7 +431,7 @@ int addpackages(int argc,char *argv[]) {
 		if( r < 0 )
 			result = r;
 	}
-	dist.files->close(dist.files,0);
+	files_done(dist.files);
 	packages_done(dist.pkgs);
 	return result;
 }
@@ -412,7 +461,7 @@ int detect(int argc,char *argv[]) {
 		while( fgets(buffer,4999,stdin) ) {
 			nl = index(buffer,'\n');
 			if( !nl ) {
-				files->close(files,0);
+				files_done(files);
 				return 1;
 			}
 			*nl = '\0';
@@ -421,7 +470,7 @@ int detect(int argc,char *argv[]) {
 				case -1: if(ret<2)ret = 2; break;
 			}
 		} 
-	files->close(files,0);
+	files_done(files);
 	return ret;
 }
 int forget(int argc,char *argv[]) {
@@ -441,18 +490,14 @@ int forget(int argc,char *argv[]) {
 		while( fgets(buffer,4999,stdin) ) {
 			nl = index(buffer,'\n');
 			if( !nl ) {
-				files->close(files,0);
+				files_done(files);
 				return 1;
 			}
 			*nl = '\0';
 			files_remove(files,buffer);
 		} 
-	files->close(files,0);
+	files_done(files);
 	return 0;
-}
-int grapdependencies(int argc,char *argv[]) {
-	fprintf(stderr,"Not yet implemented!\n");
-	return 1;
 }
 
 int md5sums(int argc,char *argv[]) {
@@ -462,7 +507,7 @@ int md5sums(int argc,char *argv[]) {
 	if( !files )
 		return 1;
 	files_printmd5sums(files);
-	files->close(files,0);
+	files_done(files);
 	return 0;
 }
 
@@ -497,7 +542,7 @@ struct action {
 	{"zexport", zexportpackages},
 	{"addreference", addreference},
 	{"release", release},
-	{"grapdependencies",grapdependencies},
+	{"referencebinaries",referencebinaries},
 	{NULL,NULL}
 };
 
@@ -544,6 +589,10 @@ int main(int argc,char *argv[]) {
 "   will iventory an already existing pool-dir\n"
 "   WARNING: names relative to pool-dir in shortest possible form\n"
 " release <type>:     Remove all marks \"Needed by <type>\"\n"
+" referencebinaries <identifer>:\n"
+"       Mark everything in dist <identifier> to be needed by <identifier>\n"
+" referencesources <identifer>:\n"
+"       Mark everything in dist <identifier> to be needed by <identifier>\n"
 " addpackages <identifier> <part> <files>:\n"
 "       Add the contents of Packages-files <files> to dist <identifier>\n"
 " prepareaddpackages <identifier> <part> <files>:\n"

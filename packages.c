@@ -156,15 +156,14 @@ int package_check(DB *packagesdb,const char *package) {
 	}
 }
 
-// Damn code duplication due to this zlib-thingie. Anyone found
-// the way I overlooked to get gzopen not compressing things?
+/* action to be called by packages_forall */
+//typedef int per_package_action(void *data,const char *package,const char *chunk);
 
-/* print the database to a "Packages" or "Sources" file */
-int packages_printout(DB *packagesdb,const char *filename) {
+/* call action once for each saved chunk: */
+int packages_foreach(DB *packagesdb,per_package_action action,void *privdata) {
 	DBC *cursor;
 	DBT key,data;
-	int ret;
-	FILE *pf;
+	int ret,r;
 
 	cursor = NULL;
 	if( (ret = packagesdb->cursor(packagesdb,NULL,&cursor,0)) != 0 ) {
@@ -174,70 +173,69 @@ int packages_printout(DB *packagesdb,const char *filename) {
 	CLEARDBT(key);	
 	CLEARDBT(data);	
 
+
+	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		r = action(privdata,(const char*)key.data,(const char*)data.data);
+		if( r < 0 ) 
+			break;
+	}
+
+	if( ret != 0 && ret != DB_NOTFOUND ) {
+		packagesdb->err(packagesdb, ret, "packages.db:");
+		return -1;
+	}
+	if( (ret = cursor->c_close(cursor)) != 0 ) {
+		packagesdb->err(packagesdb, ret, "packages.db:");
+		return -1;
+	}
+
+	return 1;
+}
+
+
+static int printout(void *data,const char *package,const char *chunk) {
+	FILE *pf = data;
+
+	fwrite(chunk,strlen(chunk),1,pf);
+	fwrite("\n",1,1,pf);
+	return 1;
+}
+
+static int zprintout(void *data,const char *package,const char *chunk) {
+	gzFile pf = data;
+
+	gzwrite(pf,(const voidp)chunk,strlen(chunk));
+	gzwrite(pf,"\n",1);
+	return 1;
+}
+
+/* print the database to a "Packages" or "Sources" file */
+int packages_printout(DB *packagesdb,const char *filename) {
+	int ret;
+	FILE *pf;
 
 	pf = fopen(filename,"wb");
 	if( !pf ) {
 		fprintf(stderr,"Error creating '%s': %m\n",filename);
 		return -1;
 	}
-	
-	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-//		fprintf(pf,"%s\n",(const char*)data.data);		
-		fwrite(data.data,strlen(data.data),1,pf);
-		fwrite("\n",1,1,pf);
-	}
-
+	ret = packages_foreach(packagesdb,printout,pf);
 	fclose(pf);
-	
-	if( ret != DB_NOTFOUND ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
-		return -1;
-	}
-	if( (ret = cursor->c_close(cursor)) != 0 ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
-		return -1;
-	}
-
-	return 0;
+	return ret;
 }
 
 /* print the database to a "Packages.gz" or "Sources.gz" file */
 int packages_zprintout(DB *packagesdb,const char *filename) {
-	DBC *cursor;
-	DBT key,data;
 	int ret;
 	gzFile pf;
-
-	cursor = NULL;
-	if( (ret = packagesdb->cursor(packagesdb,NULL,&cursor,0)) != 0 ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
-		return -1;
-	}
-	CLEARDBT(key);	
-	CLEARDBT(data);	
-
 
 	pf = gzopen(filename,"wb");
 	if( !pf ) {
 		fprintf(stderr,"Error creating '%s': %m\n",filename);
 		return -1;
 	}
-	
-	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		gzwrite(pf,data.data,strlen(data.data));
-		gzwrite(pf,"\n",1);
-	}
-
+	ret = packages_foreach(packagesdb,zprintout,pf);
 	gzclose(pf);
-	
-	if( ret != DB_NOTFOUND ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
-		return -1;
-	}
-	if( (ret = cursor->c_close(cursor)) != 0 ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
-		return -1;
-	}
-
-	return 0;
+	return ret;
 }
+

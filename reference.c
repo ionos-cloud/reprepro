@@ -59,7 +59,7 @@ DB *references_initialize(const char *dbpath) {
 	return dbp;
 }
 
-int references_adddepedency(DB* refdb,const char *needed,const char *neededby) {
+int references_adddependency(DB* refdb,const char *needed,const char *neededby) {
 	int ret;
 	DBT key,data;
 
@@ -75,7 +75,7 @@ int references_adddepedency(DB* refdb,const char *needed,const char *neededby) {
 
 }
 
-int references_removedepedency(DB* refdb,const char *neededby) {
+int references_removedependency(DB* refdb,const char *neededby) {
 	DBC *cursor;
 	DBT key,data;
 	int ret, r = 0;

@@ -9,6 +9,8 @@ char *chunk_read(gzFile f);
 const char *chunk_getfield(const char *name,const char *chunk);
 /* strdup a field given by chunk_getfield */
 char *chunk_dupvalue(const char *field);
+/* strdup without a leading "<prefix>/" */
+char *chunk_dupvaluecut(const char *field,const char *prefix);
 /* strdup the following lines of a field */
 char *chunk_dupextralines(const char *field);
 /* strdup the first word of a field */

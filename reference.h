@@ -3,7 +3,7 @@
 
 DB *references_initialize(const char *dbpath);
 int references_done(DB *db);
-int references_removedepedency(DB* refdb,const char *neededby);
-int references_adddepedency(DB* refdb,const char *needed,const char *neededby);
+int references_removedependency(DB* refdb,const char *neededby);
+int references_adddependency(DB* refdb,const char *needed,const char *neededby);
 
 #endif

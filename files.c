@@ -59,6 +59,11 @@ DB *files_initialize(const char *dbpath) {
 	return dbp;
 }
 
+/* release the files-database initialized got be files_initialize */
+int files_done(DB *db) {
+	/* just in case we want something here later */
+	return db->close(db,0);
+}
 
 /* Add file's md5sum to database */
 int files_add(DB *filesdb,const char *filekey,const char *md5sum_and_size) {

@@ -29,4 +29,10 @@ int packages_check(DB *packagesdb,const char *package);
 int packages_printout(DB *packagesdb,const char *filename);
 int packages_zprintout(DB *packagesdb,const char *filename);
 
+/* action to be called by packages_forall */
+typedef int per_package_action(void *data,const char *package,const char *chunk);
+
+/* call action once for each saved chunk: */
+int packages_foreach(DB *packagesdb,per_package_action action,void *data);
+	
 #endif
