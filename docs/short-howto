@@ -1,0 +1,51 @@
+This is a short how to setup a repository.
+
+First choose some directory you want your things in.
+
+1) Config
+
+Generate a directory named conf/
+Place a file names "distributions" there.
+There add things like:
+
+Origin: Debian
+Label: Debian-All
+Suite: stable
+Codename: woody
+Version: 3.0
+Architectures: i386 sparc mips
+Components: main non-free contrib
+Description: Debian woody + woody/non-US + woody/updates
+#Update: security woody swoody
+#SignWith: yes
+
+or: 
+
+Origin: PCPool
+Label: PCPool
+Suite: stable
+Codename: pcpool
+Version: 3.0
+Architectures: i386
+Components: main non-free contrib bad protected server
+Description: PCPool specific (or backported) packages
+SignWith: yes
+
+Multiple such entries are seperated with an empty line.
+The codename is used to determine the directory to create,
+the Update line is described later, when SignWith is there,
+it will try to sign it. (It cannot yet be use to tell which
+key to use).
+The other fields are copies into the appropiate Release files
+generated.
+
+
+2) Add files
+
+To add a .deb manually:
+
+mirrorer -Vb . includedeb pcpool /lhome/aptcache/zoggy_0.91-3_i386.deb
+
+to add a .changes file:
+
+mirrorer -Vb . include pcpool test.changes
