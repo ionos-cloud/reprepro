@@ -6,6 +6,8 @@
 #warning "What's hapening here?"
 #endif
 
+// give them better names, and add a calulate by copy here...
+
 /* returns md5sum " " size */
 retvalue md5sum_and_size(char **result,const char *filename,ssize_t bufsize);
 

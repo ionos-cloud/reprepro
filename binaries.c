@@ -53,7 +53,7 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 	/* collect the given md5sum and size */
 
 	if( md5sums ) {
-		char *pmd5,*psize,*md5andsize;
+		char *pmd5,*psize,*md5sum;
 
 		r = chunk_getvalue(chunk,"MD5sum",&pmd5);
 		if( !RET_IS_OK(r) ) {
@@ -66,15 +66,15 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 			free(pmd5);
 			return r;
 		}
-		md5andsize = calc_concatmd5andsize(pmd5,psize);
+		md5sum = calc_concatmd5andsize(pmd5,psize);
 		free(pmd5);free(psize);
-		if( !md5andsize ) {
+		if( md5sum == NULL ) {
 			free(ppackage);
 			return RET_ERROR_OOM;
 		}
-		r = strlist_init_singleton(md5andsize,md5sums);
+		r = strlist_init_singleton(md5sum,md5sums);
 		if( RET_WAS_ERROR(r) ) {
-			free(md5andsize);
+			free(md5sum);
 			free(ppackage);
 			return r;
 		}

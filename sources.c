@@ -36,7 +36,7 @@ extern int verbose;
 
 /* traverse through a '\n' sepeated lit of "<md5sum> <size> <filename>" 
  * > 0 while entires found, ==0 when not, <0 on error */
-retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize) {
+retvalue sources_getfile(const char *fileline,char **basename,char **md5sum) {
 	const char *md5,*md5end,*size,*sizeend,*fn,*fnend;
 	char *md5as,*filen;
 
@@ -85,7 +85,7 @@ retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize)
 	filen = strndup(fn,fnend-fn);
 	if( !filen )
 		return RET_ERROR_OOM;
-	if( md5andsize ) {
+	if( md5sum ) {
 		md5as = malloc((md5end-md5)+2+(sizeend-size));
 		if( !md5as ) {
 			free(filen);
@@ -96,14 +96,14 @@ retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize)
 		strncpy(md5as+1+(md5end-md5),size,sizeend-size);
 		md5as[(md5end-md5)+1+(sizeend-size)] = '\0';
 	
-		*md5andsize = md5as;
+		*md5sum = md5as;
 	}
 	if( basename )
 		*basename = filen;
 	else
 		free(filen);
 
-//	fprintf(stderr,"'%s' -> '%s' \n",*filename,*md5andsize);
+//	fprintf(stderr,"'%s' -> '%s' \n",*filename,*md5sum);
 	
 	return RET_OK;
 }
@@ -157,16 +157,16 @@ static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlis
 	}
 	r = RET_NOTHING;
 	for( i = 0 ; i < filelines->count ; i++ ) {
-		char *basename,*md5andsize;
+		char *basename,*md5sum;
 		const char *fileline=filelines->values[i];
 
-		r = sources_getfile(fileline,&basename,&md5andsize);
+		r = sources_getfile(fileline,&basename,&md5sum);
 		if( RET_WAS_ERROR(r) )
 			break;
 
-		r = strlist_add(md5sums,md5andsize);
+		r = strlist_add(md5sums,md5sum);
 		if( RET_WAS_ERROR(r) ) {
-			free(md5andsize);
+			free(md5sum);
 			free(basename);
 			break;
 		}
@@ -449,10 +449,10 @@ retvalue sources_findnew(packagesdb pkgs,const char *component,const char *sourc
 }
 
 /* Get the files and their expected md5sums */
-retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5andsizes) {
+retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums) {
 	retvalue r;
 
-	r = sources_parse_chunk(chunk,NULL,NULL,NULL,basenames,md5andsizes);
+	r = sources_parse_chunk(chunk,NULL,NULL,NULL,basenames,md5sums);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;

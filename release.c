@@ -53,7 +53,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	retvalue r;
 	char *chunk;
 	struct strlist files;
-	char *filename,*md5andsize;
+	char *filename,*md5sum;
 	int i;
 
 	fi = gzopen(releasefile,"r");
@@ -84,7 +84,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	}
 
 	for( i = 0 ; i < files.count ; i++ ) {
-		r = sources_getfile(files.values[i],&filename,&md5andsize);
+		r = sources_getfile(files.values[i],&filename,&md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			strlist_done(&files);
 			strlist_done(info);
@@ -96,7 +96,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 			strlist_done(info);
 			return r;
 		}
-		r = strlist_add(info,md5andsize);
+		r = strlist_add(info,md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			strlist_done(&files);
 			strlist_done(info);
@@ -113,17 +113,17 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
  * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
 static retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nametocheck, const char *expected) {
 	int i;
-	const char *filename,*md5andsize;
+	const char *filename,*md5sum;
 
 	for( i = 0 ; i+1 < fileinfos->count ; i+=2 ) {
 		filename = fileinfos->values[i];
-		md5andsize = fileinfos->values[i+1];
+		md5sum = fileinfos->values[i+1];
 		if( verbose > 20 ) 
 			fprintf(stderr,"is it %s?\n",filename);
 		if( strcmp(filename,nametocheck) == 0 ) {
 			if( verbose > 19 ) 
-				fprintf(stderr,"found. is '%s' == '%s'?\n",md5andsize,expected);
-			if( strcmp(md5andsize,expected) == 0 )
+				fprintf(stderr,"found. is '%s' == '%s'?\n",md5sum,expected);
+			if( strcmp(md5sum,expected) == 0 )
 				return RET_OK;
 			else 
 				return RET_ERROR_WRONG_MD5;
@@ -135,22 +135,22 @@ static retvalue release_searchchecksum(const struct strlist *fileinfos, const ch
 /* check in fileinfo for <nametocheck> to have md5sum and size of <filename> *
  * returns RET_OK if ok, error otherwise     */
 retvalue release_check(const struct strlist *fileinfos, const char *nametocheck, const char *filename) {
-	char *realmd5andsize;
+	char *realmd5sum;
 	retvalue r;
 
 	/* this does not really belong here, but makes live easier... */
 	if( !nametocheck || !filename )
 		return RET_ERROR_OOM;
 
-	r=md5sum_and_size(&realmd5andsize,filename,0);
+	r=md5sum_and_size(&realmd5sum,filename,0);
 	if( !RET_IS_OK(r)) {
 		if( r == RET_NOTHING )
 			r = RET_ERROR;
 		fprintf(stderr,"Error calculating checksum of %s: %m\n",filename);
 		return r;
 	}
-	r = release_searchchecksum(fileinfos,nametocheck,realmd5andsize);
-	free(realmd5andsize);
+	r = release_searchchecksum(fileinfos,nametocheck,realmd5sum);
+	free(realmd5sum);
 	if( r == RET_NOTHING ) {
 		r = RET_ERROR;
 		fprintf(stderr,"Can't find authenticity '%s' for '%s'\n",nametocheck,filename);
@@ -264,8 +264,8 @@ retvalue release_gensource(const struct distribution *distribution,const char *c
 	
 }
 
-static retvalue printmd5andsize(FILE *f,const char *dir,const char *fmt,...) __attribute__ ((format (printf, 3, 4))); 
-static retvalue printmd5andsize(FILE *f,const char *dir,const char *fmt,...) {
+static retvalue printmd5sum(FILE *f,const char *dir,const char *fmt,...) __attribute__ ((format (printf, 3, 4))); 
+static retvalue printmd5sum(FILE *f,const char *dir,const char *fmt,...) {
 	va_list ap;
 	char *fn,*filename,*md;
 	retvalue r;
@@ -303,15 +303,15 @@ static retvalue printbin(void *data,const char *component,const char *architectu
 	retvalue result,r;
 	struct genrel *d = data;
 
-	result = printmd5andsize(d->f,d->dirofdist,
+	result = printmd5sum(d->f,d->dirofdist,
 		"%s/binary-%s/Release",
 		component,architecture);
 
-	r = printmd5andsize(d->f,d->dirofdist,
+	r = printmd5sum(d->f,d->dirofdist,
 		"%s/binary-%s/Packages",
 		component,architecture);
 	RET_UPDATE(result,r);
-	r = printmd5andsize(d->f,d->dirofdist,
+	r = printmd5sum(d->f,d->dirofdist,
 		"%s/binary-%s/Packages.gz",
 		component,architecture);
 	RET_UPDATE(result,r);
@@ -323,10 +323,10 @@ static retvalue printsource(void *data,const char *component) {
 	retvalue result,r;
 	struct genrel *d = data;
 
-	result = printmd5andsize(d->f,d->dirofdist,
+	result = printmd5sum(d->f,d->dirofdist,
 			"%s/source/Release",
 			component);
-	r = printmd5andsize(d->f,d->dirofdist,
+	r = printmd5sum(d->f,d->dirofdist,
 			"%s/source/Sources.gz",
 			component);
 	RET_UPDATE(result,r);

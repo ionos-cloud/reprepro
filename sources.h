@@ -11,13 +11,13 @@
 #warning "What's hapening here?"
 #endif
 
-/* get filename and md5andsize from a files: line" */
+/* get filename and md5sum from a files: line" */
 retvalue sources_getfile(const char *fileline,
 		char **basename,
-		char **md5andsize);
+		char **md5sum);
 
 retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys);
-retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5andsizes);
+retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums);
 
 /* Look for an old version of the Package in the database.
  * return RET_NOTHING, if there is none at all. */

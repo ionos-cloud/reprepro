@@ -30,6 +30,9 @@ See the file TODO for things I plan to do.
 	architecture: The term like "sparc","i386","mips",...
 	component: Things like "main" "non-free" "contrib" ...
 
+	md5sum: The checksum of a file, beeing in the format
+		"<md5sum of file> <length of file>"
+
 
 * Differences to how other standard tools handle the situation:
 

@@ -72,7 +72,7 @@ struct fileentry {
 	struct fileentry *next;
 	char *basename;
 	filetype type;
-	char *md5andsize;
+	char *md5sum;
 	char *section;
 	char *priority;
 	char *architecture;
@@ -100,7 +100,7 @@ static void freeentries(struct fileentry *entry) {
 		h = entry->next;
 		free(entry->filekey);
 		free(entry->basename);
-		free(entry->md5andsize);
+		free(entry->md5sum);
 		free(entry->section);
 		free(entry->priority);
 		free(entry->architecture);
@@ -253,7 +253,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline) {
 	e = calloc(1,sizeof(struct fileentry));
 	if( e == NULL )
 		return RET_ERROR_OOM;
-	e->md5andsize = names_concatmd5sumandsize(md5start,md5end,sizestart,sizeend);
+	e->md5sum = names_concatmd5sumandsize(md5start,md5end,sizestart,sizeend);
 	e->section = strndup(sectionstart,sectionend-sectionstart);
 	e->priority = strndup(priostart,prioend-priostart);
 	e->basename = strndup(filestart,fileend-filestart);
@@ -261,7 +261,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline) {
 	e->name = strndup(filestart,nameend-filestart);
 	e->type = type;
 
-	if( !e->basename || !e->md5andsize || !e->section || !e->priority || !e->architecture || !e->name ) {
+	if( !e->basename || !e->md5sum || !e->section || !e->priority || !e->architecture || !e->name ) {
 		freeentries(e);
 		return RET_ERROR_OOM;
 	}
@@ -566,7 +566,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *component,const
 			free(sourcedir);
 			return RET_ERROR_OOM;
 		}
-		r = files_checkinfile(filesdb,sourcedir,e->basename,e->filekey,e->md5andsize);
+		r = files_checkinfile(filesdb,sourcedir,e->basename,e->filekey,e->md5sum);
 		if( RET_WAS_ERROR(r) )
 			break;
 		e = e->next;
@@ -598,14 +598,14 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 			r = deb_add(dbdir,references,filesdb,
 				changes->component,e->section,e->priority,
 				distribution,fullfilename,
-				e->filekey,e->md5andsize,
+				e->filekey,e->md5sum,
 				force);
 		} else if( e->type == fe_DSC ) {
 			r = dsc_add(dbdir,references,filesdb,
 				changes->component,e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->basename,
-				changes->directory,e->md5andsize,
+				changes->directory,e->md5sum,
 				force);
 		}
 		

@@ -46,7 +46,7 @@ retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const 
  * with correct md5sum. Return <md5andsize> with the data of this file,
  * if no error (that is if RET_OK or RET_NOTHING) */
 retvalue files_checkin(filesdb filesdb,const char *filekey,
-		const char *origfilename, char **md5andsize);
+		const char *origfilename, char **md5sum);
 
 /* Make sure filekeys with md5sums are in the pool. If not copy from
  * sourcedir/file where file is the entry from files */
@@ -54,7 +54,7 @@ retvalue files_checkinfiles(filesdb filesdb,const char *sourcedir,const struct s
 /* The same for a single file: */
 retvalue files_checkinfile(filesdb filesdb,const char *sourcedir,const char *basename,const char *filekey,const char *md5sum);
 
-typedef retvalue per_file_action(void *data,const char *filekey,const char *md5andsize);
+typedef retvalue per_file_action(void *data,const char *filekey,const char *md5sum);
 
 /* callback for each registered file */
 retvalue files_foreach(filesdb filesdb,per_file_action action,void *data);

@@ -78,7 +78,7 @@ typedef retvalue new_package_action(
 	const struct strlist *filekeys,
 	/* the original files the chunk describes: */
 	const struct strlist *origfiles,
-	/* the md5sumandsize of theese files requested: */
+	/* the md5sum of theese files requested: */
 	const struct strlist *md5sums,
 	/* files (r.t. mirrordir) the previous version needed: */
 	const struct strlist *oldfilekeys

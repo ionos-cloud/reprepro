@@ -170,7 +170,7 @@ static int dumpreferences(int argc,char *argv[]) {
 
 struct fileref { filesdb files; DB *refs; };
 
-static retvalue checkifreferenced(void *data,const char *filekey,const char *md5andsize) {
+static retvalue checkifreferenced(void *data,const char *filekey,const char *md5sum) {
 	struct fileref *dist = data;
 	retvalue r;
 
@@ -208,7 +208,7 @@ static int dumpunreferenced(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5andsize) {
+static retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5sum) {
 	struct fileref *dist = data;
 	retvalue r;
 	char *filename;
