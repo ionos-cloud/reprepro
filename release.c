@@ -224,7 +224,7 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	data.f = f;
 	data.distdir = distdir;
 	data.force = force;
-	result = distribution_foreach_part(distribution,NULL,NULL,printmd5,&data,force);
+	result = distribution_foreach_part(distribution,NULL,NULL,NULL,printmd5,&data,force);
 
 	if( fclose(f) != 0 ) {
 		free(filename);

@@ -21,8 +21,8 @@ struct distribution {
 	char *signwith;
 	/* the override file to use by default */
 	char *override,*srcoverride;
-	/* if it contains support for udebs, != NULL, normaly "debian-installer" */
-	char *udeblistdir;
+	/* the list of components containing a debian-installer dir, normaly only "main" */
+	struct strlist udebcomponents;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* list of all update_upstreams for this ditribution,
@@ -39,9 +39,9 @@ typedef retvalue distribution_each_action(void *data, struct target *t);
 
 /* call <action> for each part of <distribution>, if component or architecture is 
  * not NULL or "all", only do those parts */
-retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,distribution_each_action action,void *data,int force);
+retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,const char *suffix,distribution_each_action action,void *data,int force);
 
-struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture);
+struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *suffix);
 
 retvalue distribution_export(struct distribution *distribution,const char *dbdir,const char *distdir,int force,int onlyneeded);
 

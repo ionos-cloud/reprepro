@@ -43,6 +43,7 @@ extern int verbose;
 
 static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
+	const char *suffix,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
 	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, int unc ,struct target **d) {
 
@@ -66,7 +67,8 @@ static retvalue target_initialize(
 	t->codename = strdup(codename);
 	t->component = strdup(component);
 	t->architecture = strdup(architecture);
-	t->identifier = calc_identifier(codename,component,architecture);
+	t->suffix = suffix;
+	t->identifier = calc_identifier(codename,component,architecture,suffix);
 	if( !t->codename|| !t->component|| !t->architecture|| !t->identifier) {
 		(void)target_free(t);
 		return RET_ERROR_OOM;
@@ -80,12 +82,15 @@ static retvalue target_initialize(
 	return RET_OK;
 }
 
+retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target) {
+	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",1,target);
+}
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,target);
+	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,struct target **target) {
-	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",0,target);
+	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",0,target);
 }
 
 

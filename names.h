@@ -10,14 +10,14 @@ typedef enum {ic_uncompressed=0, ic_gzip } indexcompression;
 
 char *calc_comprconcat(const char *str1,const char *str2,const char *str3,indexcompression compr);
 
-char *calc_binary_basename(const char *package,const char *version,const char *architecture);
+char *calc_binary_basename(const char *package,const char *version,const char *architecture,const char *suffix);
 char *calc_source_basename(const char *name,const char *version);
 char *calc_sourcedir(const char *component,const char *sourcename);
 char *calc_filekey(const char *component,const char *sourcename,const char *filename);
 char *calc_srcfilekey(const char *sourcedir,const char *filename);
 char *calc_fullfilename(const char *mirrordir,const char *filekey);
 char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const char *filename);
-char *calc_identifier(const char *codename,const char *component,const char *architecture);
+char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *suffix);
 char *calc_concatmd5andsize(const char *md5sum,const char *size);
 char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend);
 

@@ -651,6 +651,18 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 			r = deb_add(dbdir,references,filesdb,
 				changes->component,e->architecture,
 				e->section,e->priority,
+				"deb",
+				distribution,fullfilename,
+				e->filekey,e->md5sum,
+				binoverride,
+				force,D_INPLACE);
+			if( r == RET_NOTHING )
+				somethingwasmissed = 1;
+		} if( e->type == fe_UDEB ) {
+			r = deb_add(dbdir,references,filesdb,
+				changes->component,e->architecture,
+				e->section,e->priority,
+				"udeb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
 				binoverride,

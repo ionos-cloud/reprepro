@@ -27,6 +27,8 @@ struct target {
 	char *component;
 	char *architecture;
 	char *identifier;
+	/* "deb" "udeb" or "dsc" */
+	const char *suffix;
 	char *directory;
 	int compressions[ic_max+1];
 	const char *indexfile;

@@ -335,7 +335,8 @@ static int action_remove(int argc,const char *argv[]) {
 	d.count = argc-2;
 	d.names = argv+2;
 
-	result = distribution_foreach_part(distribution,component,architecture,remove_from_target,&d,force);
+	//TODO add something to specifically delete from debian-installer or only the rest?
+	result = distribution_foreach_part(distribution,component,architecture,NULL,remove_from_target,&d,force);
 
 	r = distribution_export(distribution,dbdir,distdir,force,1);
 	RET_ENDUPDATE(result,r);
@@ -388,7 +389,7 @@ static int action_list(int argc,const char *argv[]) {
 		return EXIT_RET(r);
 	}
 
-	result = distribution_foreach_part(distribution,component,architecture,list_in_target,(void*)argv[2],force);
+	result = distribution_foreach_part(distribution,component,architecture,NULL,list_in_target,(void*)argv[2],force);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
@@ -642,7 +643,7 @@ static retvalue rereference_dist(void *data,const char *chunk,struct distributio
 	dat.distribution = distribution;
 	dat.references = data;
 
-	result = distribution_foreach_part(distribution,NULL,NULL,reref,&dat,force);
+	result = distribution_foreach_part(distribution,NULL,NULL,NULL,reref,&dat,force);
 
 	return result;
 }
@@ -694,7 +695,8 @@ static retvalue check_dist(void *data,const char *chunk,struct distribution *dis
 
 	dat->distribution = distribution;
 
-	result = distribution_foreach_part(distribution,component,architecture,check_target,dat,force);
+	//TODO: some switch to specifically test .debs / .udebs? 
+	result = distribution_foreach_part(distribution,component,architecture,NULL,check_target,dat,force);
 	
 	return result;
 }
@@ -801,7 +803,7 @@ static int action_includedeb(int argc,const char *argv[]) {
 	}
 
 	result = deb_add(dbdir,references,files,component,architecture,
-			section,priority,distribution,argv[2],NULL,NULL,override,force,delete);
+			section,priority,"deb",distribution,argv[2],NULL,NULL,override,force,delete);
 
 	override_free(override);
 

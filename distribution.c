@@ -51,7 +51,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->signwith);
 		free(distribution->override);
 		free(distribution->srcoverride);
-		free(distribution->udeblistdir);
+		strlist_done(&distribution->udebcomponents);
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
@@ -97,7 +97,7 @@ static retvalue createtargets(struct distribution *distribution) {
 				}
 				if( RET_WAS_ERROR(r) )
 					return r;
-				if( distribution->udeblistdir != NULL ) {
+				if( strlist_in(&distribution->udebcomponents,comp) ) {
 					r = target_initialize_ubinary(distribution->codename,comp,arch,&t);
 					if( RET_IS_OK(r) ) {
 						if( last ) {
@@ -180,12 +180,11 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 		return ret;
 	} else if( ret == RET_NOTHING )
 		r->srcoverride = NULL;
-	ret = chunk_getvalue(chunk,"UDebDir",&r->udeblistdir);
+	ret = chunk_getwordlist(chunk,"UDebComponents",&r->udebcomponents);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
-	} else if( ret == RET_NOTHING )
-		r->udeblistdir = NULL;
+	}
 
 	ret = createtargets(r);
 	checkret;
@@ -220,16 +219,17 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 }
 	
 /* call <action> for each part of <distribution>. */
-retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,distribution_each_action action,void *data,int force) {
+retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,const char *suffix,distribution_each_action action,void *data,int force) {
 	retvalue result,r;
 	struct target *t;
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t ; t = t->next ) {
-		// TODO: udebs here?
 		if( component != NULL && strcmp(component,t->component) != 0 )
 			continue;
 		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+			continue;
+		if( suffix != NULL && strcmp(suffix,t->suffix) != 0 )
 			continue;
 		r = action(data,t);
 		RET_UPDATE(result,r);
@@ -239,13 +239,13 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 	return result;
 }
 
-struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture) {
-	// UDEBs?
+struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *suffix) {
 	struct target *t = distribution->targets;
 
-	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture)  )) {
+	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) || strcmp(t->suffix,suffix) )) {
 		t = t->next;
 	}
+	// todo: make sure UDEBs get never called here without real testing...!!!!
 	assert(t);
 	return t;
 }
@@ -377,10 +377,12 @@ retvalue distribution_export(struct distribution *distribution,
 
 	result = RET_NOTHING;
 	for( target=distribution->targets; target ; target = target->next ) {
-		r = release_genrelease(distribution,target,distdir);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force)
-			break;
+		if( strcmp(target->suffix,"udeb") != 0 ) {
+			r = release_genrelease(distribution,target,distdir);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && ! force)
+				break;
+		}
 		r = target_export(target,dbdir,distdir, force, onlyneeded);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force)

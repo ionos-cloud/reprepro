@@ -90,10 +90,14 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 	return result;
 }
 
-char *calc_identifier(const char *codename,const char *component,const char *architecture) {
+char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *suffix) {
 	// TODO: add checks to all data possibly given into here...
 	assert( index(codename,'|') == NULL && index(component,'|') == NULL && index(architecture,'|') == NULL );
-	return mprintf("%s|%s|%s",codename,component,architecture);
+	assert( codename && component && architecture && suffix );
+	if( suffix[0] == 'u' ) 
+		return mprintf("u|%s|%s|%s",codename,component,architecture);
+	else
+		return mprintf("%s|%s|%s",codename,component,architecture);
 }
 
 char *calc_addsuffix(const char *str1,const char *str2) {
@@ -158,13 +162,15 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 }
 
 
-char *calc_binary_basename(const char *name,const char *version,const char *arch) {
-	const char *v = index(version,':');
+char *calc_binary_basename(const char *name,const char *version,const char *arch,const char *suffix) {
+	const char *v;
+	assert( name && version && arch && suffix );
+	v = index(version,':');
 	if( v )
 		v++;
 	else
 		v = version;
-	return mprintf("%s_%s_%s.deb",name,v,arch);
+	return mprintf("%s_%s_%s.%s",name,v,arch,suffix);
 }
 
 char *calc_source_basename(const char *name,const char *version) {

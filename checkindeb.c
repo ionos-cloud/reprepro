@@ -236,11 +236,11 @@ retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *override
 	return RET_OK;
 }
 
-static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfilekey) {
+static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfilekey,const char *suffix) {
 	retvalue r;
 	char *basename;
 	
-	basename = calc_binary_basename(pkg->package,pkg->version,pkg->architecture);
+	basename = calc_binary_basename(pkg->package,pkg->version,pkg->architecture,suffix);
 	if( basename == NULL )
 		return RET_ERROR_OOM;
 
@@ -280,7 +280,7 @@ static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete){
+retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete){
 	retvalue r,result;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -375,7 +375,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		}
 	} 
 
-	r = deb_calclocations(pkg,givenfilekey);
+	r = deb_calclocations(pkg,givenfilekey,suffix);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -404,7 +404,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,pkg->architecture);
+		struct target *t = distribution_getpart(distribution,pkg->component,pkg->architecture,suffix);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
@@ -414,7 +414,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		}
 		RET_UPDATE(result,r);
 	} else if( forcearchitecture ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture);
+		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture,suffix);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
@@ -424,7 +424,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		}
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i]);
+		struct target *t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i],suffix);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
