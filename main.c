@@ -42,6 +42,7 @@
 #include "signature.h"
 #include "extractcontrol.h"
 #include "checkindeb.h"
+#include "checkindsc.h"
 
 
 #ifndef STD_BASE_DIR
@@ -55,7 +56,10 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*distdir = STD_BASE_DIR "/dists",
 	*dbdir = STD_BASE_DIR "/db",
 	*listdir = STD_BASE_DIR "/lists",
-	*confdir = STD_BASE_DIR "/conf";
+	*confdir = STD_BASE_DIR "/conf",
+	*section = NULL,
+	*priority = NULL,
+	*component = NULL;
 static int	local = 0;
 static int	force = 0;
 static int	nothingiserror = 0;
@@ -1231,7 +1235,42 @@ static int includedeb(int argc,char *argv[]) {
 	if( !files )
 		return 1;
 
-	result =deb_add(dbdir,references,files,mirrordir,NULL,distribution,argv[2],force);
+	result =deb_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],force);
+	distribution_free(distribution);
+
+	r = files_done(files);
+	RET_ENDUPDATE(result,r);
+	r = references_done(references);
+	RET_ENDUPDATE(result,r);
+
+	return EXIT_RET(result);
+}
+
+
+static int includedsc(int argc,char *argv[]) {
+	retvalue result,r;
+	DB *files,*references;
+	struct distribution *distribution;
+
+	if( argc < 3 ) {
+		fprintf(stderr,"mirrorer includedsc <distribution> <package>\n");
+		return 1;
+	}
+
+	result = distribution_get(&distribution,confdir,argv[1]);
+	if( result == RET_NOTHING ) {
+		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
+		return 2;
+	}
+
+	files = files_initialize(dbdir);
+	if( !files )
+		return 1;
+	references = references_initialize(dbdir);
+	if( !files )
+		return 1;
+
+	result =dsc_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],force);
 	distribution_free(distribution);
 
 	r = files_done(files);
@@ -1275,6 +1314,7 @@ static struct action {
 	{"update",update},
 	{"__extractcontrol",extract_control},
 	{"includedeb",includedeb},
+	{"includedsc",includedsc},
 	{NULL,NULL}
 };
 
@@ -1288,6 +1328,9 @@ int main(int argc,char *argv[]) {
 		{"dbdir", 1, 0, 'D'},
 		{"listdir", 1, 0, 'L'},
 		{"confdir", 1, 0, 'c'},
+		{"section", 1, 0, 'S'},
+		{"priority", 1, 0, 'P'},
+		{"component", 1, 0, 'C'},
 		{"help", 0, 0, 'h'},
 		{"verbose", 0, 0, 'v'},
 		{"nothingiserror", 0, 0, 'e'},
@@ -1297,7 +1340,7 @@ int main(int argc,char *argv[]) {
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:i:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:i:C:S:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
@@ -1312,6 +1355,9 @@ int main(int argc,char *argv[]) {
 " -D, --dbdir <dir>:      Directory to place the database in.\n"
 " -L, --listdir <dir>:    Directory to place downloaded lists in.\n"
 " -c, --confdir <dir>:    Directory to search configuration in.\n"
+" -S, --section <section>: Force include* to put in section.\n"
+" -P, --priority <priority>: Force include* to set priority.\n"
+" -C, --component <component>: Force include* to put in component.\n"
 "\n"
 "actions:\n"
 " add <filename>:     Not yet implemented.\n"
@@ -1375,6 +1421,15 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'c':
 				confdir = strdup(optarg);
+				break;
+			case 'C':
+				component = strdup(optarg);
+				break;
+			case 'S':
+				section = strdup(optarg);
+				break;
+			case 'P':
+				priority = strdup(optarg);
 				break;
 			default:
 				fprintf (stderr,"Not supported option '-%c'\n", c);

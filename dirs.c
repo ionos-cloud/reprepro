@@ -17,6 +17,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdio.h>
@@ -100,4 +101,31 @@ retvalue dirs_make_parents(const char *mirrordir,const struct strlist *filekeys)
 		RET_UPDATE(result,r);
 	}
 	return result;
+}
+
+retvalue dirs_getdirectory(const char *filename,char **directory) {
+	size_t len;
+
+	assert( filename != NULL && *filename != '\0' );
+
+	len = strlen(filename);
+	while( len > 1 && filename[len-1] == '/' ) {
+		len--;
+	}
+	while( len > 0 && filename[len-1] != '/' ) {
+		len--;
+	}
+	if( len == 0 ) {
+		*directory = strdup(".");
+	} else {
+		if( len == 1 )
+			*directory = strdup("/");
+		else
+			*directory = strndup(filename,len-1);
+	}
+	if( *directory == NULL )
+		return RET_ERROR_OOM;
+	else
+		return RET_OK;
+	
 }

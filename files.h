@@ -43,6 +43,11 @@ retvalue files_insert(DB *filesdb,const char *mirrordir,const struct strlist *fi
 retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
 		const char *origfilename, char **md5andsize);
 
+/* Make sure filekeys with md5sums are in the pool. If not copy from
+ * sourcedir/file where file is the entry from files */
+retvalue files_checkinfiles(const char *mirrordir,DB *filesdb,const char *sourcedir,
+const struct strlist *basefilenames,const struct strlist *filekeys,const struct strlist *md5sums);
+
 typedef retvalue per_file_action(void *data,const char *filekey,const char *md5andsize);
 
 /* callback for each registered file */

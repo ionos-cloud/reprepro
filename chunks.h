@@ -34,17 +34,18 @@ struct fieldtoadd {
 	struct fieldtoadd *next;
 	/* The name of the field: */
 	const char *field;
-	/* The data to include: */
+	/* The data to include: (if NULL, delete this field) */
 	const char *data;
 	/* how many chars in them (the *exact* len to use
 	 *                        , no \0 allowed within!), */
 	size_t len_field,len_data;
 };
 
-
+// TODO make this return retvalue..
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
 char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis);
+struct fieldtoadd *deletefield_new(const char *field,struct fieldtoadd *next);
 struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next);
 struct fieldtoadd *addfield_newn(const char *field,const char *data,size_t len,struct fieldtoadd *next);
 void addfield_free(struct fieldtoadd *f);

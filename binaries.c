@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include "error.h"
+#include "strlist.h"
 #include "names.h"
 #include "chunks.h"
 #include "packages.h"

@@ -108,7 +108,7 @@ retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize)
 	return RET_OK;
 }
 
-static retvalue getfilekeysandmd5(const char *directory,const struct strlist *files,struct strlist *filekeys,struct strlist *md5sums) {
+static retvalue getfilekeysandmd5(const char *directory,const struct strlist *files,struct strlist *basenames,struct strlist *filekeys,struct strlist *md5sums) {
 	int i;
 	retvalue r;
 
@@ -121,6 +121,14 @@ static retvalue getfilekeysandmd5(const char *directory,const struct strlist *fi
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(filekeys);
 		return r;
+	}
+	if( basenames != NULL ) {
+		r = strlist_init_n(files->count,basenames);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(filekeys);
+			strlist_done(md5sums);
+			return r;
+		}
 	}
 
 	r = RET_NOTHING;
@@ -135,11 +143,20 @@ static retvalue getfilekeysandmd5(const char *directory,const struct strlist *fi
 		r = strlist_add(md5sums,md5andsize);
 		if( RET_WAS_ERROR(r) ) {
 			free(md5andsize);
+			free(basename);
 			break;
+		}
+		if( basenames != NULL ) {
+			r = strlist_add(basenames,basename);
+			if( RET_WAS_ERROR(r) ) {
+				free(basename);
+				break;
+			}
 		}
 
 		filekey = calc_srcfilekey(directory,basename);
-		free(basename);
+		if( basenames == NULL )
+			free(basename);
 		if( filekey == NULL ) {
 			r = RET_ERROR_OOM;
 			break;
@@ -152,6 +169,8 @@ static retvalue getfilekeysandmd5(const char *directory,const struct strlist *fi
 		r = RET_OK;
 	}
 	if( RET_WAS_ERROR(r) ) {
+		if( basenames != NULL )
+			strlist_done(basenames);
 		strlist_done(filekeys);
 		strlist_done(md5sums);
 	} else {
@@ -354,7 +373,7 @@ static inline retvalue callaction(new_package_action *action, void *data,
 	if( !directory ) 
 		return RET_ERROR_OOM;
 	
-	r = getfilekeysandmd5(directory,filelines,&filekeys,&md5sums);
+	r = getfilekeysandmd5(directory,filelines,NULL,&filekeys,&md5sums);
 	if( RET_WAS_ERROR(r) ) {
 		free(directory);
 		return r;
@@ -451,6 +470,26 @@ retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file
 	return chunk_foreach(sources_file,processsource,&mydata,force,0);
 }
 
+/* Calculate the filekeys and their expected md5sums */
+retvalue sources_calcfilekeys(const char *directory,const char *chunk,struct strlist *files,struct strlist *filekeys, struct strlist *md5andsizes) {
+	struct strlist filelines;
+	retvalue r;
+
+	r = sources_parse_chunk(chunk,NULL,NULL,NULL,&filelines);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( RET_IS_OK(r) );
+
+	r = getfilekeysandmd5(directory,&filelines,files,filekeys,md5andsizes);
+	strlist_done(&filelines);
+
+	return r;
+}
+	
 /* Add a source package to a distribution, removing previous versions
  * of it, if necesary. */
 retvalue sources_addtodist(const char *dbpath,DB *references,const char *codename,const char *component,const char *package,const char *version,const char *controlchunk,const struct strlist *filekeys) {

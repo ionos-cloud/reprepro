@@ -16,6 +16,7 @@ struct debpackage {
 	char *control;
 	/* things that might still be NULL then: */
 	char *section;
+	char *priority;
 	/* things that will still be NULL then: */
 	char *component; //This might be const, too and save some strdups, but...
 };
@@ -35,5 +36,5 @@ retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const
  * causing error, if it is not one of them otherwise)
  * ([todo:]if component is NULL, using translation table <guesstable>)
  * ([todo:]using overwrite-database <overwrite>)*/
-retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *component,struct distribution *distribution,const char *debfilename,int force);
+retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,int force);
 #endif

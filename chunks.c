@@ -135,30 +135,46 @@ static const char *chunk_getfield(const char *name,const char *chunk) {
 	return NULL;
 }
 
+/* get the content of the given field, including all following lines, in a format
+ * that may be put into chunk_replacefields */
+retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
+	const char *field;
+	char *val;
+	const char *b,*e;
 
+	assert(value != NULL);
+	field = chunk_getfield(name,chunk);
+	if( !field )
+		return RET_NOTHING;
 
+	b = field;
+	/* jump over spaces at the beginning */
+	if( isspace(*b) )
+		b++;
 
+	/* search for the end */
+	e = b;
+	do {
+		while( *e != '\n' && *e != '\0' )
+			e++;
+		if( *e != '\0' )
+			e++;
+	} while( *e != ' ' && *e != '\n' && *e != '\0' );
 
-/*
-char *chunk_dupnextline(const char **field) {
-	const char *h,*r;
-
-	if( !field)
-		return NULL;
-	h = *field;
-	if( isspace(*h) )
-		h++;
-	r = h;
-	while( *h != '\n' && *h != '\0' )
-		h++;
-	*field = h;
-	if( **field == '\n' )
-		(*field)++;
-	if( !isspace( **field ) )
-		*field = NULL;
-	return strndup(r,h-r);
+	if( e > b && *e == '\0' )
+		e--;
+	/* remove trailing newline */
+	if( e > b && *e == '\n' )
+		e--;
+	if( e > b )
+		val = strndup(b,e-b+1);
+	else 
+		val = strdup("");
+	if( !val )
+		return RET_ERROR_OOM;
+	*value = val;
+	return RET_OK;
 }
-*/
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
@@ -179,8 +195,8 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	e = b;
 	while( *e != '\n' && *e != '\0' )
 		e++;
-	/* remove trailing spaced */
-	while( e > b && *e != '\0' && isspace(*e) )
+	/* remove trailing spaces */
+	while( e > b && isspace(*e) )
 		e--;
 	if( !isspace(*e) )
 		val = strndup(b,e-b+1);
@@ -363,13 +379,15 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 			/* add them now: */
 			f = toadd;
 			while( f ) {
-				memcpy(n,f->field,f->len_field);
-				n += f->len_field;
-				*n = ':'; n++;
-				*n = ' '; n++;
-				memcpy(n,f->data,f->len_data);
-				n += f->len_data;
-				*n = '\n'; n++;
+				if( f->data ) {
+					memcpy(n,f->field,f->len_field);
+					n += f->len_field;
+					*n = ':'; n++;
+					*n = ' '; n++;
+					memcpy(n,f->data,f->len_data);
+					n += f->len_data;
+					*n = '\n'; n++;
+				}
 				f = f->next;
 			}
 			result = RET_OK;
@@ -417,6 +435,8 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next) {
 	struct fieldtoadd *n;
 
+	assert(field != NULL && data != NULL);
+
 	n = malloc(sizeof(struct fieldtoadd));
 	if( n == NULL )
 		return n;
@@ -424,6 +444,21 @@ struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldt
 	n->len_field = strlen(field);
 	n->data = data;
 	n->len_data = strlen(data);
+	n->next = next;
+	return n;
+}
+struct fieldtoadd *deletefield_new(const char *field,struct fieldtoadd *next) {
+	struct fieldtoadd *n;
+
+	assert(field != NULL);
+
+	n = malloc(sizeof(struct fieldtoadd));
+	if( n == NULL )
+		return n;
+	n->field = field;
+	n->len_field = strlen(field);
+	n->data = NULL;
+	n->len_data = 0;
 	n->next = next;
 	return n;
 }

@@ -12,4 +12,7 @@ char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const cha
 char *calc_identifier(const char *codename,const char *component,const char *architecture);
 char *calc_concatmd5andsize(const char *md5sum,const char *size);
 
+/* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
+retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,struct strlist *files);
+
 #endif

@@ -30,6 +30,7 @@
 #include <zlib.h>
 #include <db.h>
 #include "error.h"
+#include "strlist.h"
 #include "md5sum.h"
 #include "names.h"
 #include "chunks.h"
@@ -107,6 +108,7 @@ void deb_free(struct debpackage *pkg) {
 		free(pkg->source);free(pkg->architecture);
 		free(pkg->basename);free(pkg->control);
 		free(pkg->section);free(pkg->component);
+		free(pkg->priority);
 	}
 	free(pkg);
 }
@@ -165,7 +167,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		return r;
 	}
 
-	r = checkvalue(filename,deb->control,"Priority");
+	r = getvalue_n(deb->control,"Priority",&deb->priority);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
@@ -182,28 +184,37 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 
 retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize) {
 	const char *size;
-	struct fieldtoadd *file;
+	struct fieldtoadd *replace;
 	char *newchunk;
+
+	assert( pkg->section != NULL && pkg->priority != NULL);
 
 	size = md5andsize;
 	while( !isblank(*size) && *size )
 		size++;
-	file = addfield_newn("MD5Sum",md5andsize, size-md5andsize,NULL);
-	if( !file )
+	replace = addfield_newn("MD5Sum",md5andsize, size-md5andsize,NULL);
+	if( !replace )
 		return RET_ERROR_OOM;
 	while( *size && isblank(*size) )
 		size++;
-	file = addfield_new("Size",size,file);
-	if( !file )
+	replace = addfield_new("Size",size,replace);
+	if( !replace )
 		return RET_ERROR_OOM;
-	file = addfield_new("Filename",filekey,file);
-	if( !file )
+	replace = addfield_new("Filename",filekey,replace);
+	if( !replace )
 		return RET_ERROR_OOM;
+	replace = addfield_new("Section",pkg->section ,replace);
+	if( !replace )
+		return RET_ERROR_OOM;
+	replace = addfield_new("Priority",pkg->priority, replace);
+	if( !replace )
+		return RET_ERROR_OOM;
+
 
 	// TODO: add overwriting of other fields here, (before the rest)
 	
-	newchunk  = chunk_replacefields(pkg->control,file,"Description");
-	addfield_free(file);
+	newchunk  = chunk_replacefields(pkg->control,replace,"Description");
+	addfield_free(replace);
 	if( newchunk == NULL ) {
 		return RET_ERROR_OOM;
 	}
@@ -219,7 +230,7 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,struct distribution *distribution,const char *debfilename,int force){
+retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
 	char *md5andsize;
@@ -233,10 +244,38 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 		return r;
 	}
 
+	if( forcesection ) {
+		free(pkg->section);
+		pkg->section = strdup(forcesection);
+		if( pkg->section == NULL ) {
+			deb_free(pkg);
+			return RET_ERROR_OOM;
+		}
+	}
+	if( forcepriority ) {
+		free(pkg->priority);
+		pkg->priority = strdup(forcepriority);
+		if( pkg->priority == NULL ) {
+			deb_free(pkg);
+			return RET_ERROR_OOM;
+		}
+	}
+
 	/* look for overwrites */
 
 	// TODO: look for overwrites and things like this here...
 	// TODO: set pkg->section to new value if doing so.
+
+	if( pkg->section == NULL ) {
+		fprintf(stderr,"No section was given for '%s', skipping.\n",pkg->package);
+		deb_free(pkg);
+		return RET_ERROR;
+	}
+	if( pkg->priority == NULL ) {
+		fprintf(stderr,"No priority was given for '%s', skipping.\n",pkg->package);
+		deb_free(pkg);
+		return RET_ERROR;
+	}
 	
 	/* decide where it has to go */
 

@@ -20,7 +20,10 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <malloc.h>
+#include "error.h"
 #include "mprintf.h"
+#include "strlist.h"
 #include "names.h"
 
 char *calc_identifier(const char *codename,const char *component,const char *architecture) {
@@ -84,4 +87,36 @@ char *calc_concatmd5andsize(const char *md5sum,const char *size) {
 	/* this is not the only reference, as there are prints
 	 * with size as ofs_t, too */
 	return mprintf("%s %s",md5sum,size);
+}
+
+/* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
+retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,
+						struct strlist *files) {
+	retvalue r;
+	int i;
+
+	assert(directory != NULL && basefilenames != NULL && files != NULL );
+
+	r = strlist_init_n(basefilenames->count,files);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = RET_NOTHING;
+	for( i = 0 ; i < basefilenames->count ; i++ ) {
+		char *file;
+
+		file = calc_dirconcat(directory,basefilenames->values[i]);
+		if( file == NULL ) {
+			strlist_done(files);
+			return RET_ERROR_OOM;
+		}
+		r = strlist_add(files,file);
+		if( RET_WAS_ERROR(r) ) {
+			free(file);
+			strlist_done(files);
+			return r;
+		}
+	}
+	return r;
+
 }

@@ -34,6 +34,8 @@
 #include "release.h"
 #include "signature.h"
 
+extern int verbose;
+
 retvalue signature_check(const char *chunk, const char *releasegpg, const char *release) {
 	retvalue r;
 	char *releasecheck,*command;
@@ -119,3 +121,55 @@ retvalue signature_sign(const char *chunk,const char *filename) {
 	return r;
 }
 
+/* Read a single chunk from a file, that may be signed. */
+// TODO: Think about ways to check the signature...
+retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
+	char *chunk,*chunk2,*endmarker;
+	gzFile f;
+	int issigned = 0;
+	
+	f = gzopen(filename,"r");
+	if( !f ) {
+		fprintf(stderr,"Unable to open file %s: %m\n",filename);
+		return RET_ERRNO(errno);
+	}
+
+	//TODO: why doesn't return this retvalue?
+	chunk = chunk_read(f);
+	if( !chunk )
+		return RET_ERROR;
+
+	if( strncmp(chunk,"-----BEGIN",10) == 0 ) {
+		issigned = 1;
+		// signed, do validations here...
+		free(chunk);
+		chunk = chunk_read(f);
+		if( !chunk )
+			return RET_ERROR;
+	}
+
+	if( issigned ) {
+		endmarker = strstr(chunk,"-----");
+		if( endmarker != NULL ) {
+			if( verbose > 0 ) 
+				fprintf(stderr,"Truncating at ----\n");
+			*endmarker ='\0';
+		}
+	}
+
+	while( (chunk2 = chunk_read(f)) != NULL ) {
+		if( strncmp(chunk2,"-----",5) == 0 ) {
+			if( !issigned ) {
+				fprintf(stderr,"Unexpected ----\n");
+			}
+		} else {
+				fprintf(stderr,"Unexpected extra data: '%s'\n",chunk2);
+		}
+		free(chunk2);
+	}
+	//TODO: check result:
+	gzclose(f);
+
+	*chunkread = chunk;
+	return RET_OK;
+}
