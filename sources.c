@@ -173,7 +173,7 @@ int sources_add(DB *pkgs,const char *part,const char *sources_file, source_packa
 	while( (chunk = chunk_read(fi))) {
 		if( sources_parse_chunk(chunk,&package,&olddirectory,&files) > 0) {
 			hadold = 0;
-			oldchunk = getpackage(pkgs,package);
+			oldchunk = packages_get(pkgs,package);
 			if( oldchunk && (r=sources_isnewer(chunk,oldchunk)) != 0 ) {
 				if( r < 0 ) {
 					fprintf(stderr,"Omitting %s because of parse errors.\n",package);

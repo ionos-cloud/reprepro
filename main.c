@@ -40,14 +40,14 @@ int release(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer release <identifier>\n");
 		return 1;
 	}
-	refs = initialize_references(dbdir);
+	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	if( reference_removedepedency(refs,argv[1]) < 0 ) {
-		refs->close(refs,0);
+	if( references_removedepedency(refs,argv[1]) < 0 ) {
+		references_done(refs);
 		return 1;
 	}
-	refs->close(refs,0);
+	references_done(refs);
 	return 0;
 }
 int addreference(int argc,char *argv[]) {
@@ -58,11 +58,11 @@ int addreference(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer addreference <reference> <referee>\n");
 		return 1;
 	}
-	refs = initialize_references(dbdir);
+	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	result = reference_adddepedency(refs,argv[1],argv[2]);
-	refs->close(refs,0);
+	result = references_adddepedency(refs,argv[1],argv[2]);
+	references_done(refs);
 	return result;
 }
 int exportpackages(int argc,char *argv[]) {
@@ -73,11 +73,11 @@ int exportpackages(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer export <identifier> <Packages-file to create>\n");
 		return 1;
 	}
-	pkgs = initialize_packages(dbdir,argv[1]);
+	pkgs = packages_initialize(dbdir,argv[1]);
 	if( ! pkgs )
 		return 1;
 	result = packages_printout(pkgs,argv[2]);
-	pkgs->close(pkgs,0);
+	packages_done(pkgs);
 	return result;
 }
 int zexportpackages(int argc,char *argv[]) {
@@ -88,11 +88,11 @@ int zexportpackages(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer zexport <identifier> <Packages-file to create>\n");
 		return 1;
 	}
-	pkgs = initialize_packages(dbdir,argv[1]);
+	pkgs = packages_initialize(dbdir,argv[1]);
 	if( ! pkgs )
 		return 1;
 	result = packages_zprintout(pkgs,argv[2]);
-	pkgs->close(pkgs,0);
+	packages_done(pkgs);
 	return result;
 }
 
@@ -143,9 +143,9 @@ int add_source(void *data,const char *chunk,const char *package,const char *dire
 	if( !newchunk )
 		return -1;
 	if( hadold )
-		r = replacepackage(dist->pkgs,package,newchunk);
+		r = packages_replace(dist->pkgs,package,newchunk);
 	else
-		r = addpackage(dist->pkgs,package,newchunk);
+		r = packages_add(dist->pkgs,package,newchunk);
 	free(newchunk);
 	if( r < 0 )
 		return -1;
@@ -167,7 +167,7 @@ int addsources(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = initialize_packages(dbdir,dist.referee);
+	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
 		dist.files->close(dist.files,0);
 		return 1;
@@ -179,7 +179,7 @@ int addsources(int argc,char *argv[]) {
 			result = r;
 	}
 	dist.files->close(dist.files,0);
-	dist.pkgs->close(dist.pkgs,0);
+	packages_done(dist.pkgs);
 	return result;
 }
 /****************************prepareaddsources********************************************/
@@ -234,7 +234,7 @@ int prepareaddsources(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = initialize_packages(dbdir,dist.referee);
+	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
 		dist.files->close(dist.files,0);
 		return 1;
@@ -246,7 +246,7 @@ int prepareaddsources(int argc,char *argv[]) {
 			result = r;
 	}
 	dist.files->close(dist.files,0);
-	dist.pkgs->close(dist.pkgs,0);
+	packages_done(dist.pkgs);
 	return result;
 }
 
@@ -290,7 +290,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = initialize_packages(dbdir,dist.referee);
+	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
 		dist.files->close(dist.files,0);
 		return 1;
@@ -302,7 +302,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 			result = r;
 	}
 	dist.files->close(dist.files,0);
-	dist.pkgs->close(dist.pkgs,0);
+	packages_done(dist.pkgs);
 	return result;
 }
 
@@ -331,9 +331,9 @@ int add_package(void *data,const char *chunk,const char *package,const char *sou
 	if( !newchunk )
 		return -1;
 	if( hadold )
-		r = replacepackage(dist->pkgs,package,newchunk);
+		r = packages_replace(dist->pkgs,package,newchunk);
 	else
-		r = addpackage(dist->pkgs,package,newchunk);
+		r = packages_add(dist->pkgs,package,newchunk);
 	free(newchunk);
 	if( r < 0 )
 		return -1;
@@ -353,7 +353,7 @@ int addpackages(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		return 1;
 	}
-	dist.pkgs = initialize_packages(dbdir,argv[1]);
+	dist.pkgs = packages_initialize(dbdir,argv[1]);
 	if( ! dist.pkgs ) {
 		dist.files->close(dist.files,0);
 		return 1;
@@ -367,7 +367,7 @@ int addpackages(int argc,char *argv[]) {
 			result = r;
 	}
 	dist.files->close(dist.files,0);
-	dist.pkgs->close(dist.pkgs,0);
+	packages_done(dist.pkgs);
 	return result;
 }
 

@@ -174,16 +174,16 @@ int binaries_add(DB *pkgs,const char *part,const char *packages_file, binary_pac
 	while( (chunk = chunk_read(fi))) {
 		if( binaries_parse_chunk(chunk,&package,&oldfile,&sourcename,&filename,&md5andsize) > 0) {
 			hadold = 0;
-			oldchunk = getpackage(pkgs,package);
+			oldchunk = packages_get(pkgs,package);
 			if( oldchunk && (r=binaries_isnewer(chunk,oldchunk)) != 0 ) {
+				free(oldchunk);
+				oldchunk = NULL;
 				if( r < 0 ) {
 					fprintf(stderr,"Omitting %s because of parse errors.\n",package);
 					goto err;
 				}
 				/* old package will be obsoleted */
 				hadold=1;
-				free(oldchunk);
-				oldchunk = NULL;
 			}
 			if( oldchunk == NULL ) {
 				/* add package (or whatever action wants to do) */

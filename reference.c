@@ -13,7 +13,11 @@
 
 extern int verbose;
 
-DB *initialize_references(const char *dbpath) {
+int references_done(DB *db) {
+	return db->close(db,0);
+}
+	
+DB *references_initialize(const char *dbpath) {
 	DB *dbp;
 	int ret;
 	char *filename;
@@ -39,7 +43,7 @@ DB *initialize_references(const char *dbpath) {
 	return dbp;
 }
 
-int reference_adddepedency(DB* refdb,const char *needed,const char *neededby) {
+int references_adddepedency(DB* refdb,const char *needed,const char *neededby) {
 	int ret;
 	DBT key,data;
 
@@ -55,7 +59,7 @@ int reference_adddepedency(DB* refdb,const char *needed,const char *neededby) {
 
 }
 
-int reference_removedepedency(DB* refdb,const char *neededby) {
+int references_removedepedency(DB* refdb,const char *neededby) {
 	DBC *cursor;
 	DBT key,data;
 	int ret, r = 0;

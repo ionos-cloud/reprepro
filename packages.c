@@ -15,7 +15,14 @@
 
 extern int verbose;
 
-DB *initialize_packages(const char *dbpath,const char *identifier) {
+/* release the packages-database initialized got be packages_initialize */
+int packages_done(DB *db) {
+	/* just in case we want something here later */
+	return db->close(db,0);
+}
+
+/* initialize the packages-database for <identifier> */
+DB *packages_initialize(const char *dbpath,const char *identifier) {
 	DB *dbp;
 	int ret;
 	char *filename;
@@ -41,8 +48,8 @@ DB *initialize_packages(const char *dbpath,const char *identifier) {
 	return dbp;
 }
 
-
-int replacepackage(DB *packagesdb,const char *package,const char *chunk) {
+/* replace a save chunk with another */
+int packages_replace(DB *packagesdb,const char *package,const char *chunk) {
 	int ret;
 	DBT key,data;
 
@@ -66,7 +73,8 @@ int replacepackage(DB *packagesdb,const char *package,const char *chunk) {
 	return ret;
 }
 
-int addpackage(DB *packagesdb,const char *package,const char *chunk) {
+/* save a given chunk in the database */
+int packages_add(DB *packagesdb,const char *package,const char *chunk) {
 	int ret;
 	DBT key,data;
 
@@ -80,7 +88,9 @@ int addpackage(DB *packagesdb,const char *package,const char *chunk) {
 	}
 	return ret;
 }
-char *getpackage(DB *packagesdb,const char *package) {
+
+/* get the saved chunk from the database */
+char *packages_get(DB *packagesdb,const char *package) {
 	int ret;
 	DBT key,data;
 
@@ -97,7 +107,8 @@ char *getpackage(DB *packagesdb,const char *package) {
 	}
 }
 
-int removepackage(DB *packagesdb,const char *package) {
+/* remove a given chunk from the database */
+int packages_remove(DB *packagesdb,const char *package) {
 	int ret;
 	DBT key;
 
@@ -111,7 +122,8 @@ int removepackage(DB *packagesdb,const char *package) {
 	return ret;
 }
 
-int checkpackage(DB *packagesdb,const char *package) {
+/* check for existance of the given version of a package in the arch, */
+int package_check(DB *packagesdb,const char *package) {
 	int ret;
 	DBT key,data;
 
@@ -128,6 +140,10 @@ int checkpackage(DB *packagesdb,const char *package) {
 	}
 }
 
+// Damn code duplication due to this zlib-thingie. Anyone found
+// the way I overlooked to get gzopen not compressing things?
+
+/* print the database to a "Packages" or "Sources" file */
 int packages_printout(DB *packagesdb,const char *filename) {
 	DBC *cursor;
 	DBT key,data;
@@ -169,6 +185,7 @@ int packages_printout(DB *packagesdb,const char *filename) {
 	return 0;
 }
 
+/* print the database to a "Packages.gz" or "Sources.gz" file */
 int packages_zprintout(DB *packagesdb,const char *filename) {
 	DBC *cursor;
 	DBT key,data;
