@@ -24,6 +24,7 @@ retvalue upgradelist_initialize(upgradelist *ul,target target, packagesdb packag
 retvalue upgradelist_done(upgradelist upgrade);
 
 retvalue upgradelist_dump(upgradelist upgrade);
+retvalue upgradelist_listmissing(upgradelist upgrade,filesdb files);
 
 retvalue upgradelist_update(upgradelist upgrade,const char *filename,int force);
 

@@ -341,11 +341,11 @@ retvalue sources_lookforolder(
 	return RET_OK;
 }
 
-static retvalue calcnewcontrol(
+static inline retvalue calcnewcontrol(
 		const char *chunk, const char *package,
 		const struct strlist *basenames,
-		const char *component,
-		struct strlist *filekeys,char **newchunk) {
+		const char *component,const char *origdirectory,
+		struct strlist *filekeys,char **newchunk,struct strlist *origfiles) {
 	char *directory;
 	retvalue r;
 
@@ -364,6 +364,12 @@ static retvalue calcnewcontrol(
 		strlist_done(filekeys);
 		return RET_ERROR_OOM;
 	}
+	r = calc_dirconcats(origdirectory,basenames,origfiles);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(filekeys);
+		free(*newchunk);
+		return r;
+	}
 	return RET_OK;
 }
 
@@ -376,16 +382,10 @@ static inline retvalue callaction(new_package_action *action, void *data,
 	struct strlist origfiles,filekeys;
 	retvalue r;
 
-	r = calcnewcontrol(chunk,package,basenames,component,&filekeys,&newchunk);
+	r = calcnewcontrol(chunk,package,basenames,component,origdirectory,&filekeys,&newchunk,&origfiles);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	
-	r = calc_dirconcats(origdirectory,basenames,&origfiles);
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&filekeys);
-		free(newchunk);
-		return r;
-	}
 
 // Calculating origfiles and newchunk will both not be needed in half of the
 // cases. This could be avoided by pushing flags to sources_findnew which
@@ -566,8 +566,9 @@ retvalue sources_getversion(target t,const char *control,char **version) {
 	return r;
 }
 	
-retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums) {
+retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	retvalue r;
+	char *origdirectory;
 	struct strlist filelines,basenames;
 
 	r = chunk_getextralinelist(chunk,"Files",&filelines);
@@ -577,12 +578,22 @@ retvalue sources_getinstalldata(target t,const char *packagename,const char *ver
 	}
 	if( RET_WAS_ERROR(r) )
   		return r;
-	r = getBasenamesAndMd5(&filelines,&basenames,md5sums);
-	strlist_done(&filelines);
+	r = chunk_getvalue(chunk,"Directory",&origdirectory);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Directory' entry in '%s'!\n",chunk);
+		r = RET_ERROR;
+	}
 	if( RET_WAS_ERROR(r) )
 		return r;
+	r = getBasenamesAndMd5(&filelines,&basenames,md5sums);
+	strlist_done(&filelines);
+	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
+		return r;
+	}
 	r = calcnewcontrol(chunk,packagename,&basenames,t->component,
-			filekeys,control);
+			origdirectory,filekeys,control,origfiles);
+	free(origdirectory);
 	strlist_done(&basenames);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(md5sums);

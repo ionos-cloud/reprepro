@@ -9,7 +9,7 @@ typedef struct s_target *target;
 
 typedef retvalue get_name(target,const char *,char **);
 typedef retvalue get_version(target,const char *,char **);
-typedef retvalue get_installdata(target,const char *,const char *,const char *,char **,struct strlist *,struct strlist *);
+typedef retvalue get_installdata(target,const char *,const char *,const char *,char **,struct strlist *,struct strlist *,struct strlist *);
 
 struct s_target {
 	char *codename;

@@ -894,6 +894,7 @@ static int upgrade(int argc,char *argv[]) {
 	retvalue result,r;
 	upgradelist upgrade;
 	packagesdb pkgs;
+	filesdb files;
 	target target;
 
 	if( argc <=1 ) {
@@ -925,6 +926,13 @@ static int upgrade(int argc,char *argv[]) {
 
 	result = upgradelist_update(upgrade,argv[1],force);
 	upgradelist_dump(upgrade);
+
+	r = files_initialize(&files,dbdir,mirrordir);
+	if( RET_IS_OK(r) ) {
+		upgradelist_listmissing(upgrade,files);
+
+		files_done(files);
+	}
 
 	r = upgradelist_done(upgrade);
 	RET_ENDUPDATE(result,r);

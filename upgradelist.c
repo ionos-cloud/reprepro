@@ -51,8 +51,9 @@ typedef struct s_package_data {
 	char *new_control;
 	/* the list of files that will belong to this: 
 	 * same validity */
-	struct strlist new_files;
+	struct strlist new_filekeys;
 	struct strlist new_md5sums;
+	struct strlist new_origfiles;
 } package_data;
 
 struct s_upgradelist {
@@ -72,8 +73,9 @@ static void package_data_free(package_data *data){
 	free(data->new_version);
 	//free(data->new_from);
 	free(data->new_control);
-	strlist_done(&data->new_files);
+	strlist_done(&data->new_filekeys);
 	strlist_done(&data->new_md5sums);
+	strlist_done(&data->new_origfiles);
 	free(data);
 }
 
@@ -253,7 +255,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		new->new_version = version;
 		new->version = version;
 		version = NULL; //to be sure...
-		r = upgrade->target->getinstalldata(upgrade->target,new->name,new->new_version,chunk,&new->new_control,&new->new_files,&new->new_md5sums);
+		r = upgrade->target->getinstalldata(upgrade->target,new->name,new->new_version,chunk,&new->new_control,&new->new_filekeys,&new->new_md5sums,&new->new_origfiles);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
 			return RET_ERROR_OOM;
@@ -269,7 +271,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 	} else {
 		/* The package already exists: */
 		package_data *current = upgrade->current;
-		char *control;struct strlist files,md5sums;
+		char *control;struct strlist files,md5sums,origfiles;
 
 
 		r = dpkgversions_isNewer(version,current->version);
@@ -306,7 +308,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 			return RET_NOTHING;
 		}
 
-		r = upgrade->target->getinstalldata(upgrade->target,packagename,version,chunk,&control,&files,&md5sums);
+		r = upgrade->target->getinstalldata(upgrade->target,packagename,version,chunk,&control,&files,&md5sums,&origfiles);
 		free(packagename);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
@@ -315,8 +317,9 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
-		strlist_move(&current->new_files,&files);
+		strlist_move(&current->new_filekeys,&files);
 		strlist_move(&current->new_md5sums,&md5sums);
+		strlist_move(&current->new_origfiles,&origfiles);
 		free(current->new_control);
 		current->new_control = control;
 	}
@@ -329,6 +332,21 @@ retvalue upgradelist_update(upgradelist upgrade,const char *filename,int force){
 	upgrade->last = NULL;
 
 	return chunk_foreach(filename,(void*)upgradelist_trypackage,upgrade,force,0);
+}
+
+retvalue upgradelist_listmissing(upgradelist upgrade,filesdb files){
+	package_data *pkg;
+
+	pkg = upgrade->list;
+	while( pkg ) {
+		if( pkg->version == pkg->new_version ) {
+			files_printmissing(files,&pkg->new_filekeys,&pkg->new_md5sums,&pkg->new_origfiles);
+
+		}
+
+		pkg = pkg->next;
+	}
+	return RET_OK;
 }
 
 retvalue upgradelist_dump(upgradelist upgrade){
@@ -348,7 +366,7 @@ retvalue upgradelist_dump(upgradelist upgrade){
 			       "files needed: ",
 			       pkg->name,pkg->version_in_use,
 			       pkg->new_version);
-			strlist_fprint(stdout,&pkg->new_files);
+			strlist_fprint(stdout,&pkg->new_filekeys);
 			printf("\nwith md5sums: ");
 			strlist_fprint(stdout,&pkg->new_md5sums);
 			printf("\ninstalling as: '%s'\n",pkg->new_control);

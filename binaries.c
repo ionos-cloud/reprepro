@@ -410,7 +410,7 @@ retvalue binaries_getversion(target t,const char *control,char **version) {
 	return r;
 }
 	
-retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums) {
+retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	char *sourcename,*basename;
 	retvalue r;
 
@@ -421,6 +421,12 @@ retvalue binaries_getinstalldata(target t,const char *packagename,const char *ve
 	} else if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
 		return RET_ERROR;
+	}
+	r = binaries_parse_getfiles(chunk,origfiles);
+	if( RET_WAS_ERROR(r) ) {
+		free(sourcename);free(basename);
+		strlist_done(md5sums);
+		return r;
 	}
 
 	r = calcnewcontrol(chunk,sourcename,basename,t->component,filekeys,control);

@@ -43,6 +43,6 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 /* Functions for the target.h-stuff: */
 retvalue sources_getname(target t,const char *chunk,char **packagename);
 retvalue sources_getversion(target ,const char *chunk,char **version);
-retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *files,struct strlist *md5sums);
+retvalue sources_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
 
 #endif

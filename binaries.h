@@ -54,6 +54,6 @@ retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codena
 /* Functions for the target.h-stuff: */
 retvalue binaries_getname(target t,const char *chunk,char **packagename);
 retvalue binaries_getversion(target t,const char *chunk,char **version);
-retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *files,struct strlist *md5sums);
+retvalue binaries_getinstalldata(target t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
 
 #endif
