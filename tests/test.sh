@@ -193,7 +193,15 @@ Method: file:$WORKDIR
 Suite: test2
 Architectures: coal>abacus abacus source
 FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
+FilterList: list
 ListHook: /bin/cp
+END
+
+cat >conf/list <<END
+simple-addons		install
+bloat+-0a9z.app 	install
+simple			install
+bloat+-0a9z.app-addons	install
 END
 
 "$REPREPRO" -b . update test1

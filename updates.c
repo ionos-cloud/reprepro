@@ -39,6 +39,7 @@
 #include "upgradelist.h"
 #include "distribution.h"
 #include "terms.h"
+#include "filterlist.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
@@ -110,6 +111,9 @@ struct update_pattern {
 	struct strlist udebcomponents_into;
 	// NULL means no condition
 	term *includecondition;
+	// NULL means nothing given
+	struct filterlist *filterlist;
+	const struct filterlist *filterlist_last;
 	// NULL means nothing to execute after lists are downloaded...
 	char *listhook;
 };
@@ -162,6 +166,8 @@ void update_pattern_free(struct update_pattern *update) {
 	strlist_done(&update->udebcomponents_from);
 	strlist_done(&update->udebcomponents_into);
 	term_free(update->includecondition);
+	filterlist_free(update->filterlist);
+	free(update->listhook);
 	free(update);
 }
 
@@ -272,10 +278,10 @@ static retvalue splitlist(struct strlist *from,
 	return r;
 }
 
-inline static retvalue parse_pattern(const char *chunk, struct update_pattern **pattern) {
+inline static retvalue parse_pattern(const char *confdir,const char *chunk, struct update_pattern **pattern) {
 	struct update_pattern *update;
 	struct strlist componentslist,architectureslist;
-	char *formula;
+	char *formula,*filename;
 	retvalue r;
 	static const char * const allowedfields[] = {"Name", "Method", 
 "Config", "Suite", "Architectures", "Components", "UDebComponents", 
@@ -428,6 +434,26 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 		}
 		assert( r != RET_NOTHING );
 	}
+	/* * Check if there is a list to say what can be included by update * */
+	r = chunk_getvalue(chunk,"FilterList",&filename);
+	if( RET_WAS_ERROR(r) ) {
+		update_pattern_free(update);
+		return r;
+	}
+	if( r != RET_NOTHING ) {
+		r = filterlist_load(&update->filterlist,confdir,filename);
+		free(filename);
+		if( RET_WAS_ERROR(r) ) {
+			update->filterlist = NULL;
+			update_pattern_free(update);
+			return r;
+		}
+		assert( r != RET_NOTHING );
+		update->filterlist_last = update->filterlist;
+	} else {
+		update->filterlist = NULL;
+		update->filterlist_last = NULL;
+	}
 	/* * Check if there is a script to call * */
 	r = chunk_getvalue(chunk,"ListHook",&update->listhook);
 	if( RET_WAS_ERROR(r) ) {
@@ -508,15 +534,20 @@ static retvalue instance_pattern(const char *listdir,
 	return RET_OK;
 }
 
+struct getpatterns_data {
+	struct update_pattern **patterns;
+	const char *confdir;
+};
+
 static retvalue parsechunk(void *data,const char *chunk) {
 	struct update_pattern *update;
-	struct update_pattern **patterns = data;
+	struct getpatterns_data *d = data;
 	retvalue r;
 
-	r = parse_pattern(chunk,&update);
+	r = parse_pattern(d->confdir,chunk,&update);
 	if( RET_IS_OK(r) ) {
-		update->next = *patterns;
-		*patterns = update;
+		update->next = *d->patterns;
+		*d->patterns = update;
 	}
 	return r;
 }
@@ -524,12 +555,15 @@ static retvalue parsechunk(void *data,const char *chunk) {
 retvalue updates_getpatterns(const char *confdir,struct update_pattern **patterns,int force) {
 	char *updatesfile;
 	struct update_pattern *update = NULL;
+	struct getpatterns_data data;
 	retvalue r;
 
 	updatesfile = calc_dirconcat(confdir,"updates");
 	if( !updatesfile ) 
 		return RET_ERROR_OOM;
-	r = chunk_foreach(updatesfile,parsechunk,&update,force,FALSE);
+	data.patterns = &update;
+	data.confdir = confdir;
+	r = chunk_foreach(updatesfile,parsechunk,&data,force,FALSE);
 	free(updatesfile);
 	if( RET_IS_OK(r) )
 		*patterns = update;
@@ -1074,6 +1108,24 @@ static retvalue updates_calllisthooks(struct distribution *distributions,int for
 upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
 	retvalue r;
+
+	if( pattern->filterlist_last ) {
+		if( filterlist_find(package,pattern->filterlist,&pattern->filterlist_last) ) {
+			switch( pattern->filterlist_last->what ) {
+				case flt_deinstall:
+				case flt_purge:
+					return UD_NO;
+				case flt_hold:
+					return UD_HOLD;
+				case flt_install:
+					break;
+			}
+		} else {
+			if( verbose >= 4 )
+				fprintf(stderr,"Did not found '%s' in FilterList file!\n",package);
+			return UD_NO;
+		}
+	}
 
 	if( pattern->includecondition ) {
 		r = term_decidechunk(pattern->includecondition,newcontrolchunk);

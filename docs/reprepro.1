@@ -155,9 +155,9 @@ not given and guessable.
 Note that as .dsc files do not contain section or priorty, but the
 Sources.gz file does, you have to either specify a SrcOverride or
 given them via
-.B -S
+.B \-S
 and
-.B -P
+.B \-P
 .TP
 .B include  \fIcodename\fP \fI.changes-filename\fP
 Include in the specified distribution all packages found and suitable
@@ -381,7 +381,7 @@ Download the
 file and check if it is a signature of the
 .B Releasefile 
 with the key given here. (In the Format as
-"gpg \-\-with-colons \-\-list-key" prints it, i.e. the last
+"gpg \-\-with\-colons \-\-list\-key" prints it, i.e. the last
 16 hexdigits of the fingerprint)
 .TP
 .B IgnoreRelease
@@ -396,6 +396,22 @@ this source. The format is misusing the parser intended for
 Dependency lines. To get only architecture all packages use
 "architecture (== all)", to get only at least important
 packages use "priority (==required) | priority (==important)".
+.TP
+.B FilterList
+This file in the format of dpkg \-\-get\-selections will be read
+(relative to
+.B \-\-confdir
+, if not starting with a slash), and only packages listed in
+there as 
+.B install
+will be installed. Things listed as
+.B deinstall
+or 
+.B purge
+or nonexistent will be treated like not beeing known.
+A package beeing
+.B hold
+will not be upgraded but also not downgraded or removed.
 .TP
 .B ListHook
 If this is given, it es executed for all downloaded index files
@@ -414,7 +430,7 @@ prefix to the section, beeing suffix to the section
 or having the section as prefix or any. (In this order)
 
 Thus having specifiend the components:
-"main non\-free contrib non\-US/main non\-US/non-free non\-US/contrib"
+"main non\-free contrib non\-US/main non\-US/non\-free non\-US/contrib"
 should map e.g.
 "non\-US" to "non\-US/main" and "contrib/editors" to "contrib",
 while having only "main non\-free and contrib" as components should
