@@ -513,9 +513,9 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 
 }
 
-void names_overversion(const char **version) {
+void names_overversion(const char **version,bool_t epochsuppressed) {
 	const char *n = *version;
-	bool_t hadepoch = FALSE;
+	bool_t hadepoch = epochsuppressed;
 
 	if( *n < '0' || *n > '9' ) {
 		if( (*n < 'a' || *n > 'z') && (*n < 'A' || *n > 'Z') )

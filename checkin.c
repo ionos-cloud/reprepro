@@ -207,7 +207,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	// We cannot say where the version ends and the filename starts,
 	// but as the packagetypes would be valid part of the version, too,
 	// this check gets the broken things. 
-	names_overversion(&p);
+	names_overversion(&p,TRUE);
 	if( *p != '\0' && *p != '_' ) {
 		fprintf(stderr,"Unexpected character '%c' in filename within '%s'!\n",*p,fileline);
 		return RET_ERROR;

@@ -2,6 +2,10 @@
 	* Make -T work everywhere -A works.
 	* rename variables from suffix to packagetype
 
+	* allow colons in .changes filenames.
+	  (epoch with colon is stripped, but
+	   colons after that are allowed)
+
 2005-01-19  Bernhard R. Link <brlink@debian.org>
 	* now also include, includedeb, includedsc
 	and update will remove files which are no
