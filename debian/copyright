@@ -24,9 +24,15 @@ the source package as the file COPYING.  If not, write to the Free
 Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.
 
-The files dpkgversions.c is derived from files
+The file dpkgversions.c is derived from files
 Copyright (C) 1995 Ian Jackson <ian@chiark.greenend.org.uk>
 also under GPL as above.
 
 md5.[ch] are written by Colin Plumb in 1993 and modified by 
 Ian Jackson in 1995 and are in the public domain.
+
+docs/tiffany.example if derived from 
+http://ftp-master.debian.org/~ajt/tiffani/tiffani: 
+Copyright (C) 2004-5  Anthony Towns <aj@azure.humbug.org.au>
+Copyright (C) 2004-5  Andreas Barth <aba@not.so.argh.org>
+also under GPL as above.
