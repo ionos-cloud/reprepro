@@ -27,6 +27,8 @@
 #include "strlist.h"
 #include "names.h"
 
+extern int verbose;
+
 retvalue propername(const char *string) {
 	const unsigned char *s;
 	assert( string != NULL );
@@ -345,17 +347,31 @@ retvalue names_checkpkgname(const char *name) {
 
 void names_overversion(const char **version) {
 	const char *n = *version;
+	int hadepoch = 0;
 
-	if( *n < '0' || *n > '9' )
-		return;
-	n++;
+	if( *n < '0' || *n > '9' ) {
+		if( (*n < 'a' || *n > 'z') && (*n < 'A' || *n > 'Z') )
+			return;
+		else {
+			/* As there are packages violating the rule of policy 5.6.11 to
+			 * start with a digit, disabling this test, and only omitting a
+			 * warning. */
+			if( verbose >= 0 ) 
+				fprintf(stderr,"Warning: Package version '%s' does not start with a digit, violating 'should'-directive in policy 5.6.11\n",n);
+//			return;
+		}
+	} else
+		n++;
 	while( *n >= '0' && *n <= '9' )
 		n++;
-	if( *n == ':' )
+	if( *n == ':' ) {
+		hadepoch = 1;
 		n++;
+//TODO: more corectly another check should be here to also look for a digit...
+	}
 	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
 			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.'
-			|| *n == '-' || *n == '+' )
+			|| *n == '-' || *n == '+' || (hadepoch && *n == ':') )
 		n++;
 	*version = n;
 }
