@@ -396,7 +396,7 @@ static inline retvalue callaction(new_package_action *action, void *data,
 
 struct sources_add {DB *pkgs; void *data; const char *component; new_package_action *action; };
 
-static retvalue callsaction(void *data,const char *chunk) {
+static retvalue processsource(void *data,const char *chunk) {
 	retvalue r;
 	struct sources_add *d = data;
 
@@ -448,5 +448,5 @@ retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file
 	mydata.component=component;
 	mydata.action=action;
 
-	return chunk_foreach(sources_file,callsaction,&mydata,force,0);
+	return chunk_foreach(sources_file,processsource,&mydata,force,0);
 }

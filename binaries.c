@@ -277,7 +277,7 @@ static inline retvalue callaction(new_package_action *action,void *data,
 
 struct binaries_add {DB *pkgs; void *data; const char *component; new_package_action *action; };
 
-static retvalue addbinary(void *data,const char *chunk) {
+static retvalue processbinary(void *data,const char *chunk) {
 	struct binaries_add *d = data;
 	retvalue r;
 	char *oldversion;
@@ -325,8 +325,6 @@ static retvalue addbinary(void *data,const char *chunk) {
 	return r;
 }
 
-
-
 /* call action for each package in packages_file */
 retvalue binaries_findnew(DB *pkgs,const char *component,const char *packages_file, new_package_action action,void *data,int force) {
 	struct binaries_add mydata;
@@ -336,5 +334,5 @@ retvalue binaries_findnew(DB *pkgs,const char *component,const char *packages_fi
 	mydata.component=component;
 	mydata.action=action;
 
-	return chunk_foreach(packages_file,addbinary,&mydata,force,0);
+	return chunk_foreach(packages_file,processbinary,&mydata,force,0);
 }
