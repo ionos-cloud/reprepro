@@ -5,6 +5,8 @@ TODO:
 	implement extractcontrol.c properly
 	add support to specify the key used for signing
 		(allow it needed a passphrase)
+	add support for removing packages automatically
+		when removed upstream. (downgrade too?)
 
 	write dokumentation, some examples
 
