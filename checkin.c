@@ -782,10 +782,9 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 	if( delete >= D_MOVE ) {
 		if( r == RET_NOTHING && delete < D_DELETE ) {
 			if( verbose >= 0 ) {
-				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use -d -d to delete anyway in such cases)\n",changesfilename);
+				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use --delete --delete to delete anyway in such cases)\n",changesfilename);
 			}
 		} else {
-			assert(RET_IS_OK(r));
 			if( verbose >= 5 ) {
 				fprintf(stderr,"Deleting '%s'.\n",changesfilename);
 			}
