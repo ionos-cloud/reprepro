@@ -45,12 +45,12 @@ retvalue packages_done(packagesdb db) {
 	int r;
 	/* just in case we want something here later */
 	r = db->database->close(db->database,0);
+	free(db->identifier);
+	free(db);
 	if( r < 0 )
 		return RET_DBERR(r);
 	else
 		return RET_OK;
-	free(db->identifier);
-	free(db);
 }
 
 retvalue packages_init(packagesdb *db,const char *dbpath,const char *codename,const char *component,const char *architecture) {
