@@ -31,6 +31,8 @@
 #include "md5.h"
 #include "md5sum.h"
 
+extern int verbose;
+
 static retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize) {
 static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 	unsigned char buffer[16];
@@ -183,13 +185,20 @@ retvalue md5sum_copy(const char *origfilename,const char *destfilename,
 retvalue md5sum_place(const char *origfilename,const char *destfilename, 
 			char **result) {
 	int i;
+	retvalue r;
+
+	r = dirs_make_parent(destfilename);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	unlink(destfilename);
 	i = link(origfilename,destfilename);
 	if( i == 0 ) {
 		return md5sum_read(destfilename,result);
 	} else {
-		retvalue r;
+		if( verbose > 1 ) {
+			fprintf(stderr,"Linking failed, copying file '%s' to '%s'...\n",origfilename,destfilename);
+		}
 		
 		r = md5sum_copy(origfilename,destfilename,result);
 		if( r == RET_ERROR_EXIST ) {
