@@ -1254,14 +1254,14 @@ static int adddeb(int argc,char *argv[]) {
 	DB *files,*references;
 	struct distribution *distribution;
 
-	if( argc < 4 ) {
-		fprintf(stderr,"mirrorer _adddeb <distribution> <part> <package>\n");
+	if( argc < 3 ) {
+		fprintf(stderr,"mirrorer _adddeb <distribution> <package>\n");
 		return 1;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
 	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Could not find '%s' in '%s/distributions'!",argv[1],confdir);
+		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
 		return 2;
 	}
 
@@ -1272,7 +1272,7 @@ static int adddeb(int argc,char *argv[]) {
 	if( !files )
 		return 1;
 
-	result =deb_add(dbdir,references,files,mirrordir,argv[2],distribution,argv[3],force);
+	result =deb_add(dbdir,references,files,mirrordir,NULL,distribution,argv[2],force);
 	distribution_free(distribution);
 
 	r = files_done(files);

@@ -20,9 +20,14 @@ retvalue checkindeb_insert( DB *references,const char *referee,
 		const char *filekey, const char *oldfilekey);
 
 struct debpackage {
+	/* things to be set by deb_read: */
 	char *package,*version,*source,*architecture;
 	char *basename;
 	char *control;
+	/* things that might still be NULL then: */
+	char *section;
+	/* things that will still be NULL then: */
+	char *component; //This might be const, too and save some strdups, but...
 };
 /* read the data from a .deb, make some checks and extract some data */
 retvalue deb_read(struct debpackage **pkg, const char *filename);

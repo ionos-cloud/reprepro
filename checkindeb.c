@@ -114,13 +114,13 @@ retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const
 	return result;
 }
 
-static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *component,const char *architecture,struct debpackage *package,const struct strlist *filekeys) {
+static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *architecture,struct debpackage *package,const struct strlist *filekeys) {
 	retvalue result,r;
 	char *identifier,*oldversion;
 	DB *packages;
 	struct strlist oldfilekeys,*o;
 
-	identifier = calc_identifier(distribution->codename,component,architecture);
+	identifier = calc_identifier(distribution->codename,package->component,architecture);
 	if( ! identifier )
 		return RET_ERROR_OOM;
 
@@ -202,6 +202,16 @@ static inline retvalue getvalue_d(const char *defaul,const char *chunk,const cha
 	return r;
 }
 
+static inline retvalue getvalue_n(const char *chunk,const char *field,char **value) {
+	retvalue r;
+
+	r = chunk_getvalue(chunk,field,value);
+	if( r == RET_NOTHING ) {
+		*value = NULL;
+	}
+	return r;
+}
+
 void deb_free(struct debpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
@@ -265,17 +275,12 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		return r;
 	}
 
-	/* check for priority and section, compare with defaults
-	 * and overrides */
-
-	//TODO ... do so ...
-
 	r = checkvalue(filename,deb->control,"Priority");
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
 	}
-	r = checkvalue(filename,deb->control,"Section");
+	r = getvalue_n(deb->control,"Section",&deb->section);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
@@ -319,13 +324,91 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
 	return RET_OK;
 }
 
+
+/* Guess which component to use:
+ * - if the user gave one, use that one.
+ * - if the section is a componentname, use this one
+ * - if the section starts with a componentname/, use this one
+ * - if the section ends with a /componentname, use this one
+ * - if the section/ is the start of a componentname, use this one
+ * - use the first component in the list
+ */
+
+retvalue guess_component(struct distribution *distribution, 
+			 struct debpackage *package,
+			 const char *givencomponent) {
+	int i;
+	const char *section;
+	size_t section_len;
+
+#define RETURNTHIS(comp) { \
+		char *c = strdup(comp); \
+		if( !c ) \
+			return RET_ERROR_OOM; \
+		free(package->component); \
+		package->component = c; \
+		return RET_OK; \
+	}
+	
+	if( givencomponent ) {
+		if( givencomponent && !strlist_in(&distribution->components,givencomponent) ) {
+			fprintf(stderr,"Could not find '%s' in components of '%s': ",
+					givencomponent,distribution->codename);
+			strlist_fprint(stderr,&distribution->components);
+			fputs("'\n",stderr);
+			return RET_ERROR;
+		}
+
+		RETURNTHIS(givencomponent);
+	}
+	section = package->section;
+	if( section == NULL ) {
+		fprintf(stderr,"Found no section for '%s', so I cannot guess the component to put it in!\n",package->package);
+		return RET_ERROR;
+	}
+	if( distribution->components.count <= 0 ) {
+		fprintf(stderr,"I do not find any components in '%s', so there is no chance I cannot even take one by guessing!\n",distribution->codename);
+		return RET_ERROR;
+	}
+	section_len = strlen(section);
+
+	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		const char *component = distribution->components.values[i];
+
+		if( strcmp(section,component) == 0 )
+			RETURNTHIS(component);
+	}
+	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		const char *component = distribution->components.values[i];
+		size_t len = strlen(component);
+
+		if( len<section_len && section[len] == '/' && strncmp(section,component,len) == 0 )
+			RETURNTHIS(component);
+	}
+	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		const char *component = distribution->components.values[i];
+		size_t len = strlen(component);
+
+		if( len<section_len && section[section_len-len-1] == '/' && 
+				strncmp(section+section_len-len,component,len) == 0 )
+			RETURNTHIS(component);
+	}
+	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		const char *component = distribution->components.values[i];
+
+		if( strncmp(section,component,section_len) == 0 && component[section_len] == '/' )
+			RETURNTHIS(component);
+	}
+	RETURNTHIS(distribution->components.values[0]);
+#undef RETURNTHIS
+}
+
 /* insert the given .deb into the mirror in <component> in the <distribution>
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
- * ([todo:]if component is NULL, using translation table <guesstable>)
- * ([todo:]using overwrite-database <overwrite>)*/
+ * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *component,struct distribution *distribution,const char *debfilename,int force){
+retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,struct distribution *distribution,const char *debfilename,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
 	char *filekey,*md5andsize;
@@ -342,23 +425,20 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	/* look for overwrites */
 
 	// TODO: look for overwrites and things like this here...
+	// TODO: set pkg->section to new value if doing so.
 	
 	/* decide where it has to go */
 
-	// TODO: decide what component is, if not yet set...
-
-	/* some sanity checks: */
-
-	if( component && !strlist_in(&distribution->components,component) ) {
-		fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
-				debfilename,component);
-		strlist_fprint(stderr,&distribution->components);
-		fputs("'\n",stderr);
-		if( force <= 0 ) {
-			deb_free(pkg);
-			return RET_ERROR;
-		}
+	r = guess_component(distribution,pkg,forcecomponent);
+	if( RET_WAS_ERROR(r) ) {
+		deb_free(pkg);
+		return r;
 	}
+	if( verbose > 0 && forcecomponent == NULL ) {
+		fprintf(stderr,"%s: component guessed as '%s'\n",debfilename,pkg->component);
+	}
+	
+	/* some sanity checks: */
 
 	if( strcmp(pkg->architecture,"all") != 0 &&
 	    !strlist_in( &distribution->architectures, pkg->architecture )) {
@@ -373,7 +453,7 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	} 
 	
 	/* calculate it's filekey */
-	filekey = calc_filekey(component,pkg->source,pkg->basename);
+	filekey = calc_filekey(pkg->component,pkg->source,pkg->basename);
 	if( filekey == NULL) {
 		deb_free(pkg);
 		return RET_ERROR_OOM;
@@ -408,10 +488,10 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		r = deb_addtodist(dbdir,references,distribution,component,pkg->architecture,pkg,&filekeys);
+		r = deb_addtodist(dbdir,references,distribution,pkg->architecture,pkg,&filekeys);
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		r = deb_addtodist(dbdir,references,distribution,component,distribution->architectures.values[i],pkg,&filekeys);
+		r = deb_addtodist(dbdir,references,distribution,distribution->architectures.values[i],pkg,&filekeys);
 		RET_UPDATE(result,r);
 	}
 

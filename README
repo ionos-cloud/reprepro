@@ -55,4 +55,23 @@ See the file TODO for things I plan to do.
 	(Can also cause trouble in the rare cases, when both 
 	 have a file of the same name with different md5sum. 
 	 Using -f can help here).
-	 
+	
+* Things that might be intreting to know:
+
+ - guessing the component:
+ 	If inserting a binary or source package without naming
+	an component, this program has to guess of course.
+	This will done the following way: It will take the
+	first component with the name of the section, beeing
+	prefix to the section, beeing suffix to the section
+	or having the section as prefix or any.
+	Thus having specifiend the components:
+	"main non-free contrib non-US/main non-US/non-free non-US/contrib"
+	should map .e.g 
+	"non-US" to "non-US/main" and "contrib/editors" to "contrib",
+	while having only "main non-free and contrib" as components should
+	map e.g. "non-US/contrib" to "contrib" and "non-US" to "main".
+
+	NOTE: Always specify main as the first component, if you want things 
+	      to end up there.
+	
