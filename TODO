@@ -3,3 +3,8 @@ TODO:
 	add automated updating of distributions
 	add searching for packages
 	add easier removing of single packages
+
+	write README
+
+	search for nicer call of gpg within signature.c
+	find a name for this project

@@ -1,10 +1,27 @@
-TODO: write this file
-
-First if all, this is version 0.0. Thus many things I consider important are still
+* First if all, this is version 0.0. Thus many things I consider important are still
 not implemented. While I'm in 0.0 I'll also change semantics, names and commandline
 syntax and even structure of the database without any upgrade path. 
 
-Some naming conventions:
+See the file TODO for things I plan to do.
+
+* What it is:
+
+	This project aims to be a weightleight manager of a debian package
+	(i.e. binary .deb and source .dsc+.tar.gz+.diff.gz) repository.
+	Emphasis is put on having all packages in the pool/-directory,
+	generation of signed Release file and maximal checking of all
+	sources.
+	Libraries needed are libdb3 and libz.
+	
+* Current status:
+	
+	Package managment and database mostly works. Missing/To be Finished
+	is the direct inclusion of Packages and updating the packages from
+	some upstream repository(e.g. debian mirrors).
+	Both already works with some Makefile-magic, is meant to be supported
+	natively.
+	
+* Some naming conventions:
 	basename: the name of a file without any directory information.
 	filekey: the position relative to the mirrordir. (as found as "Filename:" in Packages.gz)
 	full filename: the position relative to /

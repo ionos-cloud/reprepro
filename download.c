@@ -27,6 +27,9 @@
 #include "strlist.h"
 #include "download.h"
 
+/* This file is merely a prototype implementation, so that I can work on
+ * those things needing this functionality. */
+
 struct download {
 	FILE *pipe;
 };
