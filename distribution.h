@@ -40,27 +40,22 @@ struct distribution {
 };
 
 
-retvalue distribution_get(struct distribution **distribution,const char *conf,const char *name);
-retvalue distribution_free(struct distribution *distribution);
+retvalue distribution_get(/*@out@*/struct distribution **distribution,const char *conf,const char *name);
+retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 typedef retvalue distribution_each_action(void *data, struct target *t);
 
 /* call <action> for each part of <distribution>, if component or architecture is 
  * not NULL or "all", only do those parts */
-retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data,int force);
+retvalue distribution_foreach_part(const struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data,int force);
 
 struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 retvalue distribution_export(struct distribution *distribution,const char *dbdir,const char *distdir,int force,bool_t onlyneeded);
 
-//typedef retvalue distributionaction(void *data,struct distribution *distribution);
-
-/* call <action> for each distribution-chunk from <conf> fitting in the filter given in <argc,argv> */
-//retvalue distribution_foreach(const char *conf,int argc,const char *argv[],distributionaction action,void *data,int force);
-
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],struct distribution **distributions);
+retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
 
-retvalue distribution_freelist(struct distribution *distributions);
-retvalue distribution_exportandfreelist(struct distribution *distributions, const char *dbdir, const char *distdir, int force);
+retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
+retvalue distribution_exportandfreelist(/*@only@*/struct distribution *distributions, const char *dbdir, const char *distdir, int force);
 #endif

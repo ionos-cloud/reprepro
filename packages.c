@@ -274,7 +274,7 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 }
 
 
-static retvalue printout(void *data,const char *package UNUSED,const char *chunk) {
+static retvalue printout(void *data,UNUSED(const char *package),const char *chunk) {
 	FILE *pf = data;
 	size_t l;
 
@@ -289,7 +289,7 @@ static retvalue printout(void *data,const char *package UNUSED,const char *chunk
 	}
 }
 
-static retvalue zprintout(void *data,const char *package UNUSED,const char *chunk) {
+static retvalue zprintout(void *data,UNUSED(const char *package),const char *chunk) {
 	gzFile pf = data;
 	size_t l;
 

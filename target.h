@@ -14,11 +14,11 @@
 
 struct target;
 
-typedef retvalue get_name(struct target *,const char *,char **);
-typedef retvalue get_version(struct target *,const char *,char **);
-typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,char **,struct strlist *,struct strlist *,struct strlist *);
+typedef retvalue get_name(struct target *,const char *,/*@out@*/char **);
+typedef retvalue get_version(struct target *,const char *,/*@out@*/char **);
+typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,/*@out@*/char **,/*@out@*/struct strlist *,/*@out@*/struct strlist *,/*@out@*/struct strlist *);
 /* md5sums may be NULL */
-typedef retvalue get_filekeys(struct target *,const char *,struct strlist *filekeys,struct strlist *md5sum);
+typedef retvalue get_filekeys(struct target *,const char *,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sum);
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 
@@ -63,7 +63,7 @@ retvalue target_closepackagesdb(struct target *target);
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
 retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade,struct strlist *dereferencedfilekeys);
-retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *dereferencedfilekeys);
+retvalue target_removepackage(struct target *target,references refs,const char *name, /*@null@*/struct strlist *dereferencedfilekeys);
 retvalue target_writeindices(struct target *target,const char *distdir, int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
 retvalue target_rereference(struct target *target,references refs,int force);

@@ -556,6 +556,6 @@ void upgradelist_dump(struct upgradelist *upgrade){
 }
 
 /* standard answer function */
-upgrade_decision ud_always(void *privdata UNUSED,const char *package UNUSED,const char *old_version UNUSED,const char *new_version UNUSED,const char *new_controlchunk UNUSED) {
+upgrade_decision ud_always(UNUSED(void *privdata),UNUSED(const char *package),UNUSED(const char *old_version),UNUSED(const char *new_version),UNUSED(const char *new_controlchunk)) {
 	return UD_UPGRADE;
 }

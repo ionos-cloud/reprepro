@@ -942,7 +942,7 @@ retvalue updates_clearlists(const char *listdir,struct distribution *distributio
 }
 
 /************************* Preparations *********************************/
-static inline retvalue startuporigin(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution UNUSED) {
+static inline retvalue startuporigin(struct aptmethodrun *run,struct update_origin *origin,UNUSED(struct distribution *distribution)) {
 	retvalue r;
 	struct aptmethod *method;
 
@@ -1223,7 +1223,7 @@ static retvalue updates_calllisthooks(struct distribution *distributions,int for
 	return result;
 }
 
-upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version UNUSED,const char *new_version UNUSED,const char *newcontrolchunk) {
+upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,UNUSED(const char *old_version),UNUSED(const char *new_version),const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
 	retvalue r;
 

@@ -236,7 +236,7 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 	return RET_OK;
 }
 
-retvalue sources_getname(struct target *t UNUSED,const char *control,char **packagename){
+retvalue sources_getname(UNUSED(struct target *t),const char *control,char **packagename){
 	retvalue r;
 
 	r = chunk_getvalue(control,"Package",packagename);
@@ -248,7 +248,7 @@ retvalue sources_getname(struct target *t UNUSED,const char *control,char **pack
 	}
 	return r;
 }
-retvalue sources_getversion(struct target *t UNUSED,const char *control,char **version) {
+retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **version) {
 	retvalue r;
 
 	r = chunk_getvalue(control,"Version",version);
@@ -261,7 +261,7 @@ retvalue sources_getversion(struct target *t UNUSED,const char *control,char **v
 	return r;
 }
 	
-retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version UNUSED,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
+retvalue sources_getinstalldata(struct target *t,const char *packagename,UNUSED(const char *version),const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	retvalue r;
 	char *origdirectory;
 	struct strlist filelines,basenames;
@@ -304,7 +304,7 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 	return r;
 }
 
-retvalue sources_getfilekeys(struct target *t UNUSED,const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
+retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
 	char *origdirectory;
 	struct strlist basenames,mymd5sums;
 	retvalue r;
@@ -336,7 +336,7 @@ retvalue sources_getfilekeys(struct target *t UNUSED,const char *chunk,struct st
 	return r;
 }
 
-char *sources_getupstreamindex(struct target *target UNUSED,const char *suite_from,
-		const char *component_from,const char *architecture UNUSED) {
+char *sources_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
+		const char *component_from,UNUSED(const char *architecture)) {
 	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
 }

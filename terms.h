@@ -37,7 +37,7 @@ typedef struct term_atom {
 /* (!= value) is allowed */
 #define T_NOTEQUAL	0x40
 
-retvalue term_compile(term **term, const char *formula, int options);
+retvalue term_compile(/*@out@*/term **term, const char *formula, int options);
 void term_free(term *term);
 
 /* decide based on a chunk, (warning: string comparisons even for architecture!)*/
