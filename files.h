@@ -29,6 +29,11 @@ retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey);
 /* check for file in the database and if not found there, if it can be detected */
 retvalue files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const char *md5andsize);
 
+/* print missing files */
+retvalue files_printmissing(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles);
+/* check for several files in the database and in the pool if missing */
+retvalue files_insert(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums);
+
 /* Copy file <origfilename> to <mirrordir>/<filekey> and add it to
  * the database <filesdb>. Return RET_ERROR_WRONG_MD5 if already there 
  * with other md5sum, return other error when the file does not exists

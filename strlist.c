@@ -50,6 +50,19 @@ retvalue strlist_init_n(int startsize,struct strlist *strlist) {
 	return RET_OK;
 }
 
+retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
+	assert(strlist != NULL);
+	
+	strlist->count = 1;
+	strlist->size = 1;
+	strlist->values = malloc(sizeof(char *));
+	if( strlist->values == NULL )
+		return RET_ERROR_OOM;
+	strlist->values[0] = value;
+
+	return RET_OK;
+}
+
 retvalue strlist_init(struct strlist *strlist) {
 	assert(strlist != NULL);
 	

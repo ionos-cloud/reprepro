@@ -109,6 +109,99 @@ retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize)
 	return RET_OK;
 }
 
+static retvalue getfilekeysandmd5(const char *directory,const struct strlist *files,struct strlist *filekeys,struct strlist *md5sums) {
+	int i;
+	retvalue r;
+
+	assert(directory != NULL && files != NULL && md5sums != NULL);
+
+	r = strlist_init_n(files->count,filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = strlist_init_n(files->count,md5sums);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(filekeys);
+		return r;
+	}
+
+	r = RET_NOTHING;
+	for( i = 0 ; i < files->count ; i++ ) {
+		char *basename,*md5andsize,*filekey;
+		const char *fileline=files->values[i];
+
+		r = sources_getfile(fileline,&basename,&md5andsize);
+		if( RET_WAS_ERROR(r) )
+			break;
+
+		r = strlist_add(md5sums,md5andsize);
+		if( RET_WAS_ERROR(r) ) {
+			free(md5andsize);
+			break;
+		}
+
+		filekey = calc_srcfilekey(directory,basename);
+		free(basename);
+		if( filekey == NULL ) {
+			r = RET_ERROR_OOM;
+			break;
+		}
+		r = strlist_add(filekeys,filekey);
+		if( RET_WAS_ERROR(r) ) {
+			free(filekey);
+			break;
+		}
+		r = RET_OK;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(filekeys);
+		strlist_done(md5sums);
+	} else {
+		assert( files->count == filekeys->count );
+		assert( files->count == md5sums->count );
+	}
+	return r;
+}
+
+static retvalue getfilekeys(const char *directory,const struct strlist *files,struct strlist *filekeys) {
+	int i;
+	retvalue r;
+
+	assert(directory != NULL && files != NULL );
+
+	r = strlist_init_n(files->count,filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = RET_NOTHING;
+	for( i = 0 ; i < files->count ; i++ ) {
+		char *basename,*filekey;
+		const char *fileline=files->values[i];
+
+		r = sources_getfile(fileline,&basename,NULL);
+		if( RET_WAS_ERROR(r) )
+			break;
+
+		filekey = calc_srcfilekey(directory,basename);
+		free(basename);
+		if( filekey == NULL ) {
+			r = RET_ERROR_OOM;
+			break;
+		}
+		r = strlist_add(filekeys,filekey);
+		if( RET_WAS_ERROR(r) ) {
+			free(filekey);
+			break;
+		}
+		r = RET_OK;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(filekeys);
+	} else {
+		assert( files->count == filekeys->count );
+	}
+	return r;
+}
+
 /* get the intresting information out of a "Sources.gz"-chunk */
 retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *files) {
 	retvalue r;
@@ -157,32 +250,68 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version
 	return RET_OK;
 }
 
+retvalue sources_parse_getfiles(const char *chunk, struct strlist *files) {
+	char *origdirectory;
+	struct strlist filelines,filekeys;
+	retvalue r;
+	
+	r = sources_parse_chunk(chunk,NULL,NULL,&origdirectory,&filelines);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( RET_IS_OK(r) );
+
+	r = getfilekeys(origdirectory,&filelines,&filekeys);
+	free(origdirectory);
+	strlist_done(&filelines);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return r;
+}
+
 /* Look for an older version of the Package in the database.
- * Set *oldversion, if there is already a newer (or equal) version to
- * <version> and <version> is != NULL */
-retvalue sources_lookforolder(
+ * return RET_NOTHING, if there is none at all. */
+retvalue sources_lookforold(
 		DB *packages,const char *packagename,
-		const char *newversion,char **oldversion,
-		char **olddirectory,struct strlist *oldfiles) {
-	char *oldchunk,*ov;
+		struct strlist *oldfiles) {
+	char *oldchunk;
 	retvalue r;
 
 	// TODO: why does packages_get return something else than a retvalue?
 	oldchunk = packages_get(packages,packagename);
 	if( oldchunk  == NULL ) {
-		*olddirectory = NULL;
-		if( oldversion != NULL && newversion != NULL )
-			*oldversion = NULL;
+		return RET_NOTHING;
+	}
+	r = sources_parse_getfiles(oldchunk,oldfiles);
+	free(oldchunk);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	return RET_OK;
+}
+
+/* Look for an older version of the Package in the database.
+ * Set *oldversion, if there is already a newer (or equal) version to
+ * <version>, return RET_NOTHING, if there is none at all. */
+retvalue sources_lookforolder(
+		DB *packages,const char *packagename,
+		const char *newversion,char **oldversion,
+		struct strlist *oldfiles) {
+	char *oldchunk,*ov;
+	retvalue r;
+
+	assert(oldversion != NULL && newversion != NULL);
+
+	// TODO: why does packages_get return something else than a retvalue?
+	oldchunk = packages_get(packages,packagename);
+	if( oldchunk  == NULL ) {
 		return RET_NOTHING;
 	}
 
-	if( newversion ) {
-		assert(oldversion != NULL);
-		r = sources_parse_chunk(oldchunk,NULL,&ov,olddirectory,oldfiles);
-	} else {
-		assert( oldversion == NULL );
-		r = sources_parse_chunk(oldchunk,NULL,NULL,olddirectory,oldfiles);
-	}
+	r = sources_parse_chunk(oldchunk,NULL,&ov,NULL,NULL);
 
 	if( !RET_IS_OK(r) ) {
 		if( r == RET_NOTHING ) {
@@ -194,79 +323,116 @@ retvalue sources_lookforolder(
 		return r;
 	}
 
-	if( newversion ) {
-		r = dpkgversions_isNewer(newversion,ov);
+	r = dpkgversions_isNewer(newversion,ov);
 
-		if( RET_WAS_ERROR(r) ) {
-			fprintf(stderr,"Parse errors processing versions of %s.\n",packagename);
-			free(ov);
-			free(*olddirectory);
-			*olddirectory = NULL;
-			strlist_done(oldfiles);
-			free(oldchunk);
-			return r;
-		}
-		if( RET_IS_OK(r) ) {
-			*oldversion = NULL;
-			free(ov);
-		} else
-			*oldversion = ov;
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Parse errors processing versions of %s.\n",packagename);
+		free(ov);
+		free(oldchunk);
+		return r;
 	}
+	if( RET_IS_OK(r) ) {
+		*oldversion = NULL;
+		free(ov);
+	} else
+		*oldversion = ov;
 
+	r = sources_parse_getfiles(oldchunk,oldfiles);
 	free(oldchunk);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	return RET_OK;
+}
+
+static inline retvalue callaction(new_package_action *action, void *data,
+		const char *chunk, const char *package, const char *version,
+		const char *origdirectory, const struct strlist *filelines,
+		const char *component, const struct strlist *oldfilekeys) {
+	char * directory;
+	struct strlist origfiles,filekeys,md5sums;
+	retvalue r;
+
+	directory =  calc_sourcedir(component,package);
+	if( !directory ) 
+		return RET_ERROR_OOM;
+	
+	r = getfilekeysandmd5(directory,filelines,&filekeys,&md5sums);
+	if( RET_WAS_ERROR(r) ) {
+		free(directory);
+		return r;
+	}
+	
+	r = getfilekeys(origdirectory,filelines,&origfiles);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&filekeys);
+		strlist_done(&md5sums);
+		free(directory);
+		return r;
+	}
+	r = (*action)(data,chunk,package,version,directory,
+			&filekeys,&origfiles,&md5sums,oldfilekeys);
+	free(directory);
+	strlist_done(&filekeys);
+	strlist_done(&origfiles);
+	strlist_done(&md5sums);
+
 	return r;
 }
 
+
 //typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *origdirectory,const char *files,const char *oldchunk);
 
-struct sources_add {DB *pkgs; void *data; const char *component; source_package_action *action; };
+struct sources_add {DB *pkgs; void *data; const char *component; new_package_action *action; };
+
+
+
 
 static retvalue addsource(void *data,const char *chunk) {
 	retvalue r;
 	struct sources_add *d = data;
 
-	char *package,*version,*directory,*origdirectory;
-	char *oldversion,*olddirectory;
-	struct strlist files,oldfiles;
+	char *package,*version,*origdirectory;
+	char *oldversion;
+	struct strlist filelines,oldfilekeys,*o;
 
-	r = sources_parse_chunk(chunk,&package,&version,&origdirectory,&files);
+	r = sources_parse_chunk(chunk,&package,&version,&origdirectory,&filelines);
 	if( r == RET_NOTHING ) {
 		// TODO: error?
 		return RET_ERROR;
 	} else if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	r = sources_lookforolder(d->pkgs,package,version,&oldversion,&olddirectory,&oldfiles);
-	if( RET_WAS_ERROR(r) ) {
-		free(version);free(origdirectory);strlist_done(&files);
-		return r;
-	}
 
-	if( oldversion != NULL ) {
-		if( verbose > 40 )
-			fprintf(stderr,"Ignoring '%s' with version '%s', as '%s'
-					is already there.\n",package,version,oldversion);
-		free(oldversion);
-		r = RET_NOTHING;
-	} else {
-		/* add source package */
-		directory =  calc_sourcedir(d->component,package);
-		if( !directory )
-			r = RET_ERROR_OOM;
-		else 
-			r = (*d->action)(d->data,chunk,package,version,directory,origdirectory,&files,olddirectory,&oldfiles);
-		free(directory);
+	r = sources_lookforolder(d->pkgs,package,version,&oldversion,&oldfilekeys);
+	if( r == RET_NOTHING )
+		r = callaction(d->action,d->data,
+				chunk,package,version,
+				origdirectory,&filelines,
+				d->component,NULL);
+	else if( RET_IS_OK(r) ) {
+		if( oldversion != NULL ) {
+			if( verbose > 40 )
+				fprintf(stderr,
+"Ignoring '%s' with version '%s', as '%s' is already there.\n"
+					,package,version,oldversion);
+			free(oldversion);
+			r = RET_NOTHING;
+		} else 
+			r = callaction(d->action,d->data,
+					chunk,package,version,
+					origdirectory,&filelines,
+					d->component,o);
+		strlist_done(&oldfilekeys);
 	}
-	free(olddirectory);strlist_done(&oldfiles);
-	free(package);strlist_done(&files);
-	free(origdirectory);free(version);
-
+	free(package);free(version);free(origdirectory);
+	strlist_done(&filelines);
 	return r;
 }
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
  * <pkgs> and using <component> as subdir of pool (i.e. "main","contrib",...) for generated paths */
-retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, source_package_action action,void *data,int force) {
+retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file, new_package_action action,void *data,int force) {
 	struct sources_add mydata;
 
 	mydata.data=data;
@@ -275,62 +441,4 @@ retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, so
 	mydata.action=action;
 
 	return chunk_foreach(sources_file,addsource,&mydata,force,0);
-}
-
-retvalue sources_getfilekeys(const char *directory,const struct strlist *files,struct strlist *filekeys) {
-	int i;
-	retvalue r;
-
-	assert(directory != NULL && files != NULL);
-
-	r = strlist_init_n(files->count,filekeys);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	for( i = 0 ; i < files->count ; i++ ) {
-		char *filekey;
-
-		filekey = calc_srcfilekey(directory,files->values[i]);
-		if( filekey == NULL ) {
-			strlist_done(filekeys);
-			return RET_ERROR_OOM;
-		}
-		strlist_add(filekeys,filekey);
-	}
-	assert( files->count == filekeys->count );
-	return RET_OK;
-}
-
-/* remove all references by the given chunk */
-retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
-	char *directory;
-	struct strlist files,filekeys;
-	retvalue r;
-
-	r = sources_parse_chunk(chunk,NULL,NULL,&directory,&files);
-	if( !RET_IS_OK(r) )
-		return r;
-
-	r = sources_getfilekeys(directory,&files,&filekeys);
-	free(directory);strlist_done(&filekeys);
-	if( !RET_IS_OK(r) )
-		return r;
-
-	r = references_delete(refs,referee,&filekeys,NULL);
-	strlist_done(&filekeys);
-	return r;
-}
-
-/* Add references for the given source */
-retvalue sources_reference(DB *refs,const char *referee,const char *dir,const struct strlist *files) {
-	struct strlist filekeys;
-	retvalue r;
-
-	r = sources_getfilekeys(dir,files,&filekeys);
-	if( !RET_IS_OK(r) )
-		return r;
-
-	r = references_insert(refs,referee,&filekeys,NULL);
-	strlist_done(&filekeys);
-	return r;
 }

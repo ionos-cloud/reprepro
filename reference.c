@@ -49,7 +49,6 @@ DB *references_initialize(const char *dbpath) {
 	int ret;
 	char *filename;
 	retvalue r;
-
 	
 	filename = mprintf("%s/references.db",dbpath);
 	if( !filename )
@@ -97,7 +96,7 @@ retvalue references_isused(DB *refdb,const char *what) {
 	}
 }
 
-retvalue references_check(DB *refdb,const char *what,const char *by) {
+static retvalue references_checksingle(DB *refdb,const char *what,const char *by) {
 	int dbret;
 	retvalue r;
 	DBT key,data;
@@ -125,6 +124,18 @@ retvalue references_check(DB *refdb,const char *what,const char *by) {
 		return RET_DBERR(dbret);
 	}
 	return r;
+}
+retvalue references_check(DB *refdb,const char *referee,const struct strlist *filekeys) {
+	int i;
+	retvalue ret,r;
+
+	ret = RET_NOTHING;
+	for( i = 0 ; i < filekeys->count ; i++ ) {
+		r = references_checksingle(refdb,filekeys->values[i],referee);
+		RET_UPDATE(ret,r);
+		
+	}
+	return ret;
 }
 
 /* add an reference to a file for an identifier. multiple calls

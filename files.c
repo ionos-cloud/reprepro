@@ -254,6 +254,53 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 	return ret;
 }
 
+/* check for several files in the database and in the pool if missing */
+retvalue files_insert(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums) {
+	int i;
+	retvalue r;
+
+	for( i = 0 ; i < filekeys->count ; i++ ) {
+		const char *filekey = filekeys->values[i];
+		const char *md5sum = md5sums->values[i];
+
+		r = files_expect(filesdb,mirrordir,filekey,md5sum);
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+		if( r == RET_NOTHING ) {
+			/* File missing */
+			fprintf(stderr,"Missing file %s\n",filekey);
+			return RET_ERROR;
+		}
+	}
+	return RET_OK;
+}
+
+/* print missing files */
+retvalue files_printmissing(DB *filesdb,const char *mirrordir,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles) {
+	int i;
+	retvalue ret,r;
+
+	ret = RET_NOTHING;
+	for( i = 0 ; i < filekeys->count ; i++ ) {
+		const char *filekey = filekeys->values[i];
+		const char *md5sum = md5sums->values[i];
+		const char *origfile = origfiles->values[i];
+
+		r = files_expect(filesdb,mirrordir,filekey,md5sum);
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+		if( r == RET_NOTHING ) {
+			/* File missing */
+			printf("%s %s/%s\n",origfile,mirrordir,filekey);
+			RET_UPDATE(ret,RET_OK);
+		} else
+			RET_UPDATE(ret,r);
+	}
+	return ret;
+}
+
 /* dump out all information */
 int files_printmd5sums(DB* filesdb) {
 	DBC *cursor;

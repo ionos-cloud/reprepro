@@ -13,6 +13,7 @@ struct strlist {
 
 retvalue strlist_init(struct strlist *strlist);
 retvalue strlist_init_n(int startsize,struct strlist *strlist);
+retvalue strlist_init_singleton(char *value,struct strlist *strlist);
 void strlist_done(struct strlist *strlist);
 
 /* add a string, will get property of the strlist and free'd by it */

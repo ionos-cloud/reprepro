@@ -33,7 +33,7 @@ void deb_free(struct debpackage *pkg);
 
 /* Insert the given control-chunk in the database, including all
  * files in the database and registering them */
-retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename,const char *filekey,const char *md5andsize,const char *oldfilekey);
+retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename,const char *filekey,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *oldfilekeys);
 
 /* insert the given .deb into the mirror in <component> in the <distribution>
  * putting things with architecture of "all" into <architectures> (and also

@@ -92,17 +92,15 @@ retvalue checkindeb_insert(DB *references,const char *referee,
 }
 
 
-retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename, const char *filekey, const char *md5andsize,const char *oldfilekey){
+retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename, const char *filekey,const struct strlist *filekeys, const struct strlist *md5sums,const struct strlist *oldfilekeys){
 	char *newchunk;
 	retvalue result,r;
 
 	/* look for needed files */
 
-	r = files_expect(filesdb,mirrordir,filekey,md5andsize);
-	if( ! RET_IS_OK(r) ) {
-		printf("Missing file %s\n",filekey);
+	r = files_insert(filesdb,mirrordir,filekeys,md5sums);
+	if( RET_WAS_ERROR(r) )
 		return r;
-	} 
 	
 	/* write in its position and check it in */
 
@@ -110,17 +108,18 @@ retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const
 	if( !newchunk )
 		return RET_ERROR;
 
-	result = checkindeb_insert(referencesdb,identifier,packagesdb,
-			packagename,newchunk,filekey,oldfilekey);
+	result = packages_insert(identifier,referencesdb,packagesdb,
+			packagename,newchunk,filekeys,oldfilekeys);
 
 	free(newchunk);
 	return result;
 }
 
-static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *component,const char *architecture,struct debpackage *package,const char *filekey) {
+static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *component,const char *architecture,struct debpackage *package,const struct strlist *filekeys) {
 	retvalue result,r;
-	char *identifier,*oldfilekey,*oldversion;
+	char *identifier,*oldversion;
 	DB *packages;
+	struct strlist oldfilekeys,*o;
 
 	identifier = calc_identifier(distribution->codename,component,architecture);
 	if( ! identifier )
@@ -132,27 +131,32 @@ static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribut
 		return RET_ERROR;
 	}
 
-	r = binaries_lookforolder(packages,package->package,package->version,&oldversion,&oldfilekey);
+	r = binaries_lookforolder(packages,package->package,package->version,&oldversion,&oldfilekeys);
 	if( RET_WAS_ERROR(r) ) {
 		(void)packages_done(packages);
 		free(identifier);
 		return r;
 	}
+	if( RET_IS_OK(r) )
+		o = &oldfilekeys;
+	else
+		o = NULL;
 
-	if( oldversion ) {
+	if( RET_IS_OK(r) && oldversion ) {
 		fprintf(stderr,"Version '%s' already in the archive, skipping '%s'\n",oldversion,package->version);
 		free(oldversion);
 		result = RET_NOTHING;
 	} else
-		result = checkindeb_insert(references,identifier,packages,
+		result = packages_insert(identifier,references,packages,
 			package->package, package->control,
-			filekey, oldfilekey);
+			filekeys, o);
 
 	r = packages_done(packages);
 	RET_ENDUPDATE(result,r);
 
 	free(identifier);
-	free(oldfilekey);
+	if( o )
+		strlist_done(&oldfilekeys);
 	return result;
 }
 
@@ -326,6 +330,7 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	retvalue r,result;
 	struct debpackage *pkg;
 	char *filekey,*md5andsize;
+	struct strlist filekeys;
 	int i;
 
 	/* First taking a closer look to the file: */
@@ -370,6 +375,16 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	
 	/* calculate it's filekey */
 	filekey = calc_filekey(component,pkg->source,pkg->basename);
+	if( filekey == NULL) {
+		deb_free(pkg);
+		return RET_ERROR_OOM;
+	}
+	r = strlist_init_singleton(filekey,&filekeys);
+	if( RET_WAS_ERROR(r) ) {
+		free(filekey);
+		deb_free(pkg);
+		return r;
+	}
 
 	/* then looking if we already have this, or copy it in */
 
@@ -394,14 +409,14 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		r = deb_addtodist(dbdir,references,distribution,component,pkg->architecture,pkg,filekey);
+		r = deb_addtodist(dbdir,references,distribution,component,pkg->architecture,pkg,&filekeys);
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		r = deb_addtodist(dbdir,references,distribution,component,distribution->architectures.values[i],pkg,filekey);
+		r = deb_addtodist(dbdir,references,distribution,component,distribution->architectures.values[i],pkg,&filekeys);
 		RET_UPDATE(result,r);
 	}
 
-	free(filekey);
+	strlist_done(&filekeys);
 	deb_free(pkg);
 
 	return result;

@@ -40,7 +40,7 @@ retvalue references_decrement(DB* refdb,const char *needed,const char *neededby)
 retvalue references_isused(DB *refdb,const char *what);
 
 /* check if a reference is found as expected */
-retvalue references_check(DB *refdb,const char *what,const char *by);
+retvalue references_check(DB *refdb,const char *referee,const struct strlist *what);
 
 /* print out all referee-referenced-pairs. */
 retvalue references_dump(DB *refdb);
