@@ -352,7 +352,7 @@ struct distribution {
 
 /***********************************addsources***************************/
 
-retvalue add_source(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,int hadold) {
+retvalue add_source(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk) {
 	char *newchunk,*fulldir;
 	retvalue ret,r;
 	struct distribution *dist = (struct distribution*)data;
@@ -392,7 +392,7 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	free(fulldir);
 	if( !newchunk )
 		return RET_ERROR;
-	if( hadold )
+	if( oldchunk != NULL )
 		r = packages_replace(dist->pkgs,package,newchunk);
 	else
 		r = packages_add(dist->pkgs,package,newchunk);
@@ -435,7 +435,7 @@ int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,int hadold) {
+retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk) {
 	retvalue r,ret;
 	struct distribution *dist = (struct distribution*)data;
 	char *dn;
@@ -507,7 +507,7 @@ int prepareaddsources(int argc,char *argv[]) {
 
 /****************************prepareaddpackages*******************************************/
 
-retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *filename,const char *filekey,const char *md5andsize,int hadold) {
+retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *filename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	retvalue r;
 	struct distribution *dist = (struct distribution*)data;
 	char *fn;
@@ -565,7 +565,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 
 /***********************************addpackages*******************************************/
 
-retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *filename,const char *filekey,const char *md5andsize,int hadold) {
+retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *filename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	char *newchunk;
 	char *filewithdir;
 	retvalue r;
@@ -589,7 +589,7 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	free(filewithdir);
 	if( !newchunk )
 		return RET_ERROR;
-	if( hadold )
+	if( oldchunk != NULL )
 		r = packages_replace(dist->pkgs,package,newchunk);
 	else
 		r = packages_add(dist->pkgs,package,newchunk);

@@ -180,7 +180,7 @@ static int sources_isnewer(const char *newchunk,const char *oldchunk) {
 	return r;
 }
 
-//typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,int hadold);
+//typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk);
 
 struct sources_add {DB *pkgs; void *data; const char *part; source_package_action *action; };
 
@@ -191,7 +191,6 @@ static retvalue addsource(void *data,const char *chunk) {
 
 	char *package,*directory,*olddirectory,*files;
 	char *oldchunk;
-	int hadold=0;
 
 	r = sources_parse_chunk(chunk,&package,&olddirectory,&files);
 	if( r == RET_NOTHING ) {
@@ -199,7 +198,6 @@ static retvalue addsource(void *data,const char *chunk) {
 	} else if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	hadold = 0;
 	oldchunk = packages_get(d->pkgs,package);
 	if( oldchunk && (isnewer=sources_isnewer(chunk,oldchunk)) != 0 ) {
 		if( isnewer < 0 ) {
@@ -209,23 +207,19 @@ static retvalue addsource(void *data,const char *chunk) {
 			free(oldchunk);
 			return RET_ERROR;
 		}
-		/* old package may be to be removed */
-		hadold=1;
-		free(oldchunk);
-		oldchunk = NULL;
 	}
-	if( oldchunk == NULL ) {
+	if( oldchunk == NULL || isnewer > 0 ) {
 		/* add source package */
 		directory =  calc_sourcedir(d->part,package);
 		if( !directory )
 			r = RET_ERROR_OOM;
 		else
-			r = (*d->action)(d->data,chunk,package,directory,olddirectory,files,hadold);
+			r = (*d->action)(d->data,chunk,package,directory,olddirectory,files,oldchunk);
 		free(directory);
 	} else {
 		r = RET_NOTHING;
-		free(oldchunk);
 	}
+	free(oldchunk);
 	
 	free(package);free(files);
 	free(olddirectory);

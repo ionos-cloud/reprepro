@@ -25,8 +25,8 @@ typedef retvalue binary_package_action(
 	/* the expected md5sum and size */
 	const char *md5andsize,
 	/* the pkgs database had an entry of the same name already
-	   (which was considered older) */
-	int hadold);
+	   (which was considered older), NULL otherwise */
+	const char *oldchunk);
 
 /* call action for each package in packages_file */
 retvalue binaries_add(

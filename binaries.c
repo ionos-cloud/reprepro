@@ -186,7 +186,7 @@ struct binaries_add {DB *pkgs; void *data; const char *part; binary_package_acti
 static retvalue addbinary(void *data,const char *chunk) {
 	struct binaries_add *d = data;
 	retvalue r;
-	int newer,hadold;
+	int newer;
 	char *oldchunk;
 	char *package,*filename,*oldfile,*sourcename,*filekey,*md5andsize;
 
@@ -199,21 +199,16 @@ static retvalue addbinary(void *data,const char *chunk) {
 		return RET_ERROR;
 	}
 	assert(RET_IS_OK(r));
-	hadold = 0;
 	oldchunk = packages_get(d->pkgs,package);
 	if( oldchunk && (newer=binaries_isnewer(chunk,oldchunk)) != 0 ) {
-		free(oldchunk);
-		oldchunk = NULL;
 		if( newer < 0 ) {
 			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
 			free(md5andsize);free(oldfile);free(package);
 			free(sourcename);free(filename);
 			return RET_ERROR;
 		}
-		/* old package will be obsoleted */
-		hadold=1;
 	}
-	if( oldchunk == NULL ) {
+	if( oldchunk==NULL || newer > 0 ) {
 		/* add package (or whatever action wants to do) */
 
 		filekey =  calc_filekey(d->part,sourcename,filename);
@@ -222,14 +217,14 @@ static retvalue addbinary(void *data,const char *chunk) {
 		else {
 			r = (*d->action)(d->data,chunk,
 					package,sourcename,oldfile,filename,
-					filekey,md5andsize,hadold);
+					filekey,md5andsize,oldchunk);
 			free(filekey);
 		}
 
 	} else {
 		r = RET_NOTHING;
-		free(oldchunk);
 	}
+	free(oldchunk);
 	
 	free(package);free(md5andsize);
 	free(oldfile);free(filename);free(sourcename);

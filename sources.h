@@ -25,8 +25,8 @@ typedef retvalue source_package_action(
 	const char *olddirectory,
 	/* a \n seperated list of md5sums,sizes and filenames, as parseable by sources_getfile */
 	const char *files,
-	/* !=0 if there was a older chunk in the pkgs-database to be replaced */
-	int hadold);
+	/* !=NULL if there was a older chunk in the pkgs-database to be replaced */
+	const char *oldchunk);
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
  * <pkgs> and using <part> as subdir of pool (i.e. "main","contrib",...) for generated paths */
