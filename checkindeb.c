@@ -173,7 +173,7 @@ static inline retvalue getvalue_d(const char *defaul,const char *chunk,const cha
 void deb_free(struct debpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
-		free(pkg->source);free(pkg->arch);
+		free(pkg->source);free(pkg->architecture);
 		free(pkg->basename);free(pkg->control);
 	}
 	free(pkg);
@@ -214,7 +214,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		deb_free(deb);
 		return r;
 	}
-	r = getvalue(filename,deb->control,"Architecture",&deb->arch);
+	r = getvalue(filename,deb->control,"Architecture",&deb->architecture);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
@@ -227,7 +227,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		return r;
 	}
 
-	deb->basename = calc_package_basename(deb->package,deb->version,deb->arch);
+	deb->basename = calc_package_basename(deb->package,deb->version,deb->architecture);
 	if( deb->basename == NULL ) {
 		deb_free(deb);
 		return r;
@@ -286,4 +286,86 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
 
 	return RET_OK;
 }
+retvalue deb_addtodist(const char *distribution,const char *architecture,struct debpackage *package) {
 
+	// TODO: implement this one..
+	return RET_NOTHING;
+}
+
+/* insert the given .deb into the mirror in <component> in the <distribution>
+ * putting things with architecture of "all" into <architectures> (and also
+ * causing error, if it is not one of them otherwise)
+ * ([todo:]if component is NULL, using translation table <guesstable>)
+ * ([todo:]using overwrite-database <overwrite>)*/
+
+retvalue deb_add(DB *filesdb,const char *mirrordir,const char *component,const char *distribution,const struct strlist *architectures,const char *debfilename,int force){
+	retvalue r,result;
+	struct debpackage *pkg;
+	char *filekey,*md5andsize;
+	int i;
+
+	/* First taking a closer look to the file: */
+
+	r = deb_read(&pkg,debfilename);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+
+	/* look for overwrites */
+
+	// TODO: look for overwrites and things like this here...
+	
+	/* some sanity checks: */
+
+	if( strcmp(pkg->architecture,"all") != 0 &&
+	    !strlist_in( architectures, pkg->architecture )) {
+		fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
+				debfilename,pkg->architecture);
+		strlist_fprint(stderr,architectures);
+		fputs("'\n",stderr);
+		if( force <= 0 ) {
+			deb_free(pkg);
+			return RET_ERROR;
+		}
+	} 
+	
+	/* decide where it has to go */
+
+	// TODO: decide what component is, if not yet set...
+	filekey = calc_filekey(component,pkg->source,pkg->basename);
+
+	/* then looking if we already have this, or copy it in */
+
+	r = files_checkin(filesdb,mirrordir,filekey,debfilename,&md5andsize);
+	if( RET_WAS_ERROR(r) ) {
+		free(filekey);
+		deb_free(pkg);
+		return r;
+	} 
+
+	r = deb_complete(pkg,filekey,md5andsize);
+	if( RET_WAS_ERROR(r) ) {
+		free(filekey);
+		free(md5andsize);
+		deb_free(pkg);
+		return r;
+	} 
+	free(md5andsize);
+	free(filekey);
+	
+	/* finaly put it into one or more distributions */
+
+	result = RET_NOTHING;
+
+	if( strcmp(pkg->architecture,"all") != 0 ) {
+		r = deb_addtodist(distribution,pkg->architecture,pkg);
+		RET_UPDATE(result,r);
+	} else for( i = 0 ; i < architectures->count ; i++ ) {
+		r = deb_addtodist(distribution,architectures->values[i],pkg);
+		RET_UPDATE(result,r);
+	}
+
+	deb_free(pkg);
+
+	return result;
+}

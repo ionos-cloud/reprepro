@@ -1331,58 +1331,25 @@ static int check(int argc,char *argv[]) {
 /***********************adddeb******************************************/
 
 static int adddeb(int argc,char *argv[]) {
-	retvalue r;
-	struct debpackage *pkg;
+	retvalue result,r;
 	DB *files;
-	char *filekey,*md5andsize;
 
 	if( argc < 4 ) {
 		fprintf(stderr,"mirrorer _adddeb <distribution> <part> <package>\n");
 		return 1;
 	}
 
-	/* First taking a closer look to the file: */
-
-	r = deb_read(&pkg,argv[3]);	
-	if( RET_WAS_ERROR(r) ) {
-		return EXIT_RET(r);
-	}
-
-	fprintf(stderr,"%s,%s,%s,%s\n%s",pkg->package,pkg->source,pkg->version,pkg->arch,pkg->control);
-	// TODO: look for overwrites and things like this here...
-	
-	/* decide where it has to go */
-
-	filekey = calc_filekey(argv[2],pkg->source,pkg->basename);
-
-	/* then looking if we already have this, or copy it in */
-
 	files = files_initialize(dbdir);
 	if( !files )
 		return 1;
 
-	r = files_checkin(files,mirrordir,filekey,argv[3],&md5andsize);
-	files_done(files);
-	if( RET_WAS_ERROR(r) ) {
-		deb_free(pkg);
-		return EXIT_RET(r);
-	} 
+	//TODO check if distribution is valid and get's its architecture list
+	result =deb_add(files,mirrordir,argv[2],argv[1],NULL,argv[3],force);
 
-	r = deb_complete(pkg,filekey,md5andsize);
-	if( RET_WAS_ERROR(r) ) {
-		deb_free(pkg);
-		return EXIT_RET(r);
-	} 
-	
-	/* finaly put it into a distribution */
+	r = files_done(files);
+	RET_ENDUPDATE(result,r);
 
-	fprintf(stderr,"\n%s\n",pkg->control);
-	//TODO...
-
-	free(md5andsize);
-	deb_free(pkg);
-
-	return 0;
+	return EXIT_RET(result);
 }
 
 /*********************/

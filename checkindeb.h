@@ -17,14 +17,22 @@ retvalue checkindeb_insert( DB *references,const char *referee,
 		const char *filekey, const char *oldfilekey);
 
 struct debpackage {
-	char *package,*version,*source,*arch;
+	char *package,*version,*source,*architecture;
 	char *basename;
 	char *control;
 };
 /* read the data from a .deb, make some checks and extract some data */
 retvalue deb_read(struct debpackage **pkg, const char *filename);
+
 /* do overwrites, add Filename, Size and md5sum to the control-item */
 retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize);
 void deb_free(struct debpackage *pkg);
+
+/* insert the given .deb into the mirror in <component> in the <distribution>
+ * putting things with architecture of "all" into <architectures> (and also
+ * causing error, if it is not one of them otherwise)
+ * ([todo:]if component is NULL, using translation table <guesstable>)
+ * ([todo:]using overwrite-database <overwrite>)*/
+retvalue deb_add(DB *filesdb,const char *mirrordir,const char *component,const char *distribution,const struct strlist *architectures,const char *debfilename,int force);
 
 #endif
