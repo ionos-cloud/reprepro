@@ -725,6 +725,8 @@ static int update(int argc,char *argv[]) {
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	
+	if( verbose >= 0 )
+		fprintf(stderr,"Exporting indices...\n");
 	while( distributions ) {
 		struct distribution *d = distributions->next;
 

@@ -29,8 +29,7 @@
 
 
 struct downloaditem {
-	// todo: what is best, some tree, balanced tree, linear?
-	struct downloaditem *next,*prev;
+	struct downloaditem *parent,*left,*right;
 	struct tobedone *todo;
 };
 
@@ -51,27 +50,43 @@ retvalue downloadcache_initialize(struct downloadcache **download) {
 }
 
 /* free all memory */
+static void freeitem(struct downloaditem *item) {
+	if( item == NULL )
+		return;
+	freeitem(item->left);
+	freeitem(item->right);
+	free(item);
+}
 retvalue downloadcache_free(struct downloadcache *download) {
 
-	struct downloaditem *item;
+	if( download == NULL )
+		return RET_NOTHING;
 
-	while( download->items ) {
-		item = download->items;
-		download->items = item->next;
-		free(item);
-	}
+	freeitem(download->items);
 	free(download);
 	return RET_OK;
 }
 
-const struct downloaditem *searchforitem(const struct downloadcache *list,
-					const char *filekey) {
-	const struct downloaditem *item;
+const struct downloaditem *searchforitem(struct downloadcache *list,
+					const char *filekey,
+					struct downloaditem **p,
+					struct downloaditem ***h) {
+	struct downloaditem *item;
+	int c;
 
-	//TODO: there is no doubt, so use better than brute force...
-	for( item=list->items ; item ; item = item->next ) {
-		if( strcmp(filekey,item->todo->filekey) == 0 )
+	item = list->items;
+	while( item ) {
+		*p = item;
+		c = strcmp(filekey,item->todo->filekey);
+		if( c == 0 )
 			return item;
+		else if( c < 0 ) {
+			*h = &item->left;
+			item = item->left;
+		} else {
+			*h = &item->right;
+			item = item->right;
+		}
 	}
 	return NULL;
 }
@@ -82,7 +97,7 @@ const struct downloaditem *searchforitem(const struct downloadcache *list,
 retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct aptmethod *method,const char *orig,const char *filekey,const char *md5sum) {
 
 	const struct downloaditem *i;
-	struct downloaditem *item;
+	struct downloaditem *item,**h,*parent;
 	char *fullfilename;
 	retvalue r;
 
@@ -91,7 +106,7 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 	if( r != RET_NOTHING )
 		return r;
 
-	i = searchforitem(cache,filekey);
+	i = searchforitem(cache,filekey,&parent,&h);
 	if( i != NULL ) {
 		if( strcmp(md5sum,i->todo->md5sum) == 0 )
 			return RET_NOTHING;
@@ -114,11 +129,16 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 		free(item);
 		return r;
 	}
-	
-	if( cache->items )
-		cache->items->prev = item;
-	item->next = cache->items;
-	cache->items = item;
+	item->left = item->right = NULL;
+
+	if( cache->items == NULL ) {
+		cache->items = item;
+		item->parent = NULL;
+		return RET_OK;
+	}
+	item->parent = parent;
+	*h = item;
+
 	return RET_OK;
 }
 

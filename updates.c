@@ -488,6 +488,7 @@ static retvalue gettargets(const char *listdir,struct update_origin *origins,str
 	struct target *target;
 	struct update_origin *origin;
 	struct update_target *updatetargets;
+	const struct strlist *c_from,*c_into;
 	retvalue r;
 	int i;
 
@@ -503,15 +504,29 @@ static retvalue gettargets(const char *listdir,struct update_origin *origins,str
 		for( origin = origins ; origin ; origin=origin->next ) {
 			const struct update_pattern *p = origin->pattern;
 
-			if( !strlist_in(&p->architectures,target->architecture))
-				continue;
+			if( p->architectures.count == 0 ) {
+				if( !strlist_in(&origin->distribution->architectures,target->architecture) && strcmp(target->architecture,"source") != 0 )
+					continue;
+			} else {
 
-			for( i = 0 ; i < p->components_into.count ; i++ ) {
-				if( strcmp(p->components_into.values[i],
+				if( !strlist_in(&p->architectures,target->architecture))
+					continue;
+			}
+
+			if( p->components_from.count > 0 ) {
+				c_from = &p->components_from;
+				c_into = &p->components_into;
+			} else {
+				c_from = &distribution->components;
+				c_into = &distribution->components;
+			}
+
+			for( i = 0 ; i < c_into->count ; i++ ) {
+				if( strcmp(c_into->values[i],
 						target->component) == 0 ) { 
 					r = newindex(&updatetargets->indices,
 						listdir,origin,target,
-						p->components_from.values[i]);
+						c_from->values[i]);
 
 					if( RET_WAS_ERROR(r) ) {
 						updates_freetargets(
@@ -728,6 +743,8 @@ static inline retvalue searchformissing(const char *dbdir,struct downloadcache *
 	struct update_index *index;
 	retvalue result,r;
 
+	if( verbose > 2 )
+		fprintf(stderr,"  processing updates for '%s'\n",u->target->identifier);
 	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir,ud_always);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -736,6 +753,8 @@ static inline retvalue searchformissing(const char *dbdir,struct downloadcache *
 
 	for( index=u->indices ; index ; index=index->next ) {
 
+		if( verbose > 4 )
+			fprintf(stderr,"  reading '%s'\n",index->filename);
 		assert(index->origin->download);
 		r = upgradelist_update(u->upgradelist,
 				index->origin->download,index->filename,force);
@@ -831,6 +850,8 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 	}
 
 	/* Then get all packages */
+	if( verbose >= 0 )
+		fprintf(stderr,"Calculating packages to get...\n");
 	r = downloadcache_initialize(&cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
@@ -844,16 +865,24 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 		if( RET_WAS_ERROR(r) && ! force )
 			break;
 	}
+	if( verbose >= 0 )
+		fprintf(stderr,"Getting packages...\n");
 	r = aptmethod_download(run,methoddir,filesdb);
 	RET_UPDATE(result,r);
+	if( verbose > 0 )
+		fprintf(stderr,"Freeing some memory...\n");
 	r = downloadcache_free(cache);
 	RET_UPDATE(result,r);
+	if( verbose > 0 )
+		fprintf(stderr,"Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
 
 	if( RET_WAS_ERROR(result) && !force ) {
 		return result;
 	}
+	if( verbose >= 0 )
+		fprintf(stderr,"Installing packages...\n");
 
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
 		r = updates_install(filesdb,refsdb,distribution,force);

@@ -93,6 +93,8 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 		struct aptmethod *h;
 
 		if( method->child > 0 ) {
+			if( verbose > 5 )
+				fprintf(stderr,"Still waiting for %d\n",method->child);
 			lastmethod = method;
 			method = method->next;
 			continue;
@@ -109,11 +111,17 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 
 	/* finally get rid of all the processes: */
 	for( method = run->methods ; method ; method = method->next ) {
-		if( method->stdin >= 0 )
+		if( method->stdin >= 0 ) {
 			(void)close(method->stdin);
+			if( verbose > 30 )
+				fprintf(stderr,"Closing stdin of %d\n",method->child);
+		}
 		method->stdin = -1;
-		if( method->stdout >= 0 )
+		if( method->stdout >= 0 ) {
 			(void)close(method->stdout);
+			if( verbose > 30 )
+				fprintf(stderr,"Closing stdout %d\n",method->child);
+		}
 		method->stdout = -1;
 	}
 	while( run->methods ) {
@@ -218,7 +226,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 
 /**************************Fire up a method*****************************/
 
-inline static retvalue aptmethod_startup(struct aptmethod *method,const char *methoddir) {
+inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmethod *method,const char *methoddir) {
 	pid_t f;
 	int stdin[2];
 	int stdout[2];
@@ -260,6 +268,7 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
+		long maxopen;
 		char *methodname;
 		/* child: */
 		close(stdin[1]);
@@ -272,7 +281,22 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
 			exit(255);
 		}
-		// TODO: close all fd but 0,1,2
+		/* Try to close all open fd but 0,1,2 */
+		maxopen = sysconf(_SC_OPEN_MAX);
+		if( maxopen > 0 ) {
+			int fd;
+			for( fd = 3 ; fd < maxopen ; fd++ )
+				close(fd);
+		} else {
+			/* closeat least the ones definitly causing problems*/
+			const struct aptmethod *m;
+			for( m = run->methods; m ; m = m->next ) {
+				if( m != method ) {
+					close(m->stdin);
+					close(m->stdout);
+				}
+			}
+		}
 	
 		methodname = calc_dirconcat(methoddir,method->name);
 
@@ -286,6 +310,8 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 	}
 	/* the main program continues... */
 	method->child = f;
+	if( verbose > 5 )
+		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,f);
 	close(stdin[0]);
 	close(stdout[1]);
 	method->stdin = stdin[1];
@@ -824,7 +850,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,files
 	/* fire up all methods, removing those that do not work: */
 	lastmethod = NULL; method = run->methods;
 	while( method ) {
-		r = aptmethod_startup(method,methoddir);
+		r = aptmethod_startup(run,method,methoddir);
 		if( !RET_IS_OK(r) ) {
 			struct aptmethod *next = method->next;
 
