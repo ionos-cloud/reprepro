@@ -360,6 +360,10 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 				RET_UPDATE(result,r);
 
 				r = printmd5andsize(f,distdir,
+					"%s/%s/binary-%s/Packages",
+					release->codename,c,a);
+				RET_UPDATE(result,r);
+				r = printmd5andsize(f,distdir,
 					"%s/%s/binary-%s/Packages.gz",
 					release->codename,c,a);
 				RET_UPDATE(result,r);
