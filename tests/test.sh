@@ -24,6 +24,7 @@ cat > conf/distributions <<CONFEND
 Codename: test1
 Architectures: abacus source
 Components: stupid ugly
+Update: Test2toTest1
 
 Codename: test2
 Architectures: abacus coal source
@@ -171,6 +172,34 @@ dists/test2/ugly/source/Sources.gz:Priority: optional
 dists/test2/ugly/source/Sources.gz:Section: ugly/games
 END
 diff -u results.expected results
+"$REPREPRO" -b . listfilter test2 'Source(==simple)|(!Source,Package(==simple))' > results
+cat > results.expected << END
+test2|ugly|abacus: simple 123-0
+test2|ugly|coal: simple-addons 123-0
+test2|ugly|source: simple 123-0
+END
+diff -u results.expected results
+"$REPREPRO" -b . listfilter test2 'Source(==bloat+-0a9z.app)|(!Source,Package(==bloat+-0a9z.app))' > results
+cat > results.expected << END
+test2|stupid|abacus: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+test2|stupid|coal: bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+test2|stupid|source: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+END
+diff -u results.expected results
+
+cat >conf/updates <<END
+Name: Test2toTest1
+Method: file:$WORKDIR
+Suite: test2
+Architectures: coal>abacus abacus source
+FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
+END
+
+"$REPREPRO" -b . update test1
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
+find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
+diff -u test2 test1
+
 
 set +v
 echo
