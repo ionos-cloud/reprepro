@@ -300,6 +300,8 @@ static retvalue remove_from_target(void *data, struct target *target) {
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
 		r = target_removepackage(target,d->references,d->names[i]);
+		if( r == RET_ERROR_MISSING )
+			r = RET_NOTHING;
 		RET_UPDATE(result,r);
 	}
 	r = target_closepackagesdb(target);

@@ -32,6 +32,9 @@ See the file TODO for things I plan to do.
 
 	architecture: The term like "sparc","i386","mips",...
 	component: Things like "main" "non-free" "contrib" ...
+		   (somtimes also called sections)
+	section: Things like "base" "interpreters" "oldlibs"
+		   (sometimes also called subsections)
 
 	md5sum: The checksum of a file, beeing in the format
 		"<md5sum of file> <length of file>"
@@ -60,6 +63,15 @@ See the file TODO for things I plan to do.
  	This is currently just implemented as alias for '-',
 	to make sure lack of implementation does not cause them
 	to land in a byhand-section...
+ - Override files:
+ 	Only the ExtraOverride style of apt-ftparchive(1) is
+	supported. 
+	(i.e. "packagename Section section\npackagename Maintainer maintainer\n")
+	Note that other than apt-ftparchive case is most likely
+	to be significant. (Having the wrong case in might also
+	cause havoc in apt-ftparchive, as that changes the case of
+	the fieldname, which might confuse other programms...)
+ 	
 	
 * Things that might be intresting to know:
 
