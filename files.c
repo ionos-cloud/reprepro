@@ -181,7 +181,8 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 
 	/* check in database */
 	ret = files_check(filesdb,filekey,md5andsize);
-	if( RET_WAS_ERROR(ret) ) {
+	if( ret != RET_NOTHING ) {
+		/* if error or already in database, nothing to do */
 		return ret;
 	}
 
@@ -200,11 +201,11 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 			fprintf(stderr,"Error accessing file \"%s\": %m(%d)\n",filename,ret);
 			free(filename);
 			free(realmd5andsize);
-			return RET_NOTHING;
+			return ret;
 		} else {
 			free(filename);
 			free(realmd5andsize);
-			return ret;
+			return RET_NOTHING;
 		}
 	}
 	free(filename);
