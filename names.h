@@ -22,6 +22,7 @@ char *calc_concatmd5andsize(const char *md5sum,const char *size);
 char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend);
 
 char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype);
+char *calc_downloadedlistpattern(const char *codename);
 
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,struct strlist *files);

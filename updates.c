@@ -22,6 +22,7 @@
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include <stdarg.h>
 #include <unistd.h>
 #include <malloc.h>
@@ -820,6 +821,117 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 			}
 			distribution->updateorigins = update;
 			distribution->updatetargets = targets;
+		}
+	}
+	return RET_OK;
+}
+
+static bool_t foundinorigins(struct update_origin *origins,size_t nameoffset,const char *name) {
+	struct update_origin *o;
+
+	for( o = origins; o != NULL ; o = o->next ) {
+		if( o->releasefile == NULL )
+			continue;
+		assert(strlen(o->releasefile) > nameoffset);
+		if( strcmp(name,o->releasefile+nameoffset) == 0 )
+			return TRUE;
+		if( o->releasegpgfile == NULL )
+			continue;
+		assert(strlen(o->releasegpgfile) > nameoffset);
+		if( strcmp(name,o->releasegpgfile+nameoffset) == 0 )
+			return TRUE;
+	}
+	return FALSE;
+}
+
+static bool_t foundinindices(struct update_target *targets,size_t nameoffset,const char *name) {
+	struct update_target *t;
+	struct update_index *i;
+
+	for( t = targets; t != NULL ; t = t->next ) {
+		for( i = t->indices ; i != NULL ; i=i->next ) {
+			if( i->filename == NULL )
+				continue;
+			assert(strlen(i->filename) > nameoffset);
+			if( strcmp(name,i->filename+nameoffset) == 0 )
+				return TRUE;
+		}
+	}
+	return FALSE;
+}
+
+static retvalue listclean_distribution(const char *listdir,DIR *dir, const char *pattern,
+		struct update_origin *origins,
+		struct update_target *targets) {
+	struct dirent entry, *r;
+	int e;
+	size_t patternlen = strlen(pattern);
+	size_t nameoffset = strlen(listdir)+1;
+
+	while( 1 ) {
+		int namelen;
+		char *fullfilename;
+
+		e = readdir_r(dir,&entry,&r);
+		if( e != 0 ) {
+			/* this should not happen... */
+			e = errno;
+			fprintf(stderr,"Error reading dir '%s': %d=%m!\n",listdir,e);
+			return RET_ERRNO(e);
+		}
+		if( r == NULL || r != &entry )
+			return RET_OK;
+		namelen = _D_EXACT_NAMLEN(r);
+		if( namelen < patternlen || strncmp(pattern,r->d_name,patternlen) != 0)
+			continue;
+		if( foundinorigins(origins,nameoffset,r->d_name) )
+			continue;
+		if( foundinindices(targets,nameoffset,r->d_name) )
+			continue;
+		fullfilename = calc_dirconcat(listdir,r->d_name);
+		if( fullfilename == NULL )
+			return RET_ERROR_OOM;
+		if( verbose >= 0 )
+			fprintf(stderr,"Removing apperent leftover file '%s'.\n"
+					"(Use --keepunneededlists to avoid this in the future.)\n",fullfilename);
+		e = unlink(fullfilename);
+		if( e != 0 ) {
+			e = errno;
+			fprintf(stderr,"Error unlinking '%s': %d=%m.\n",fullfilename,e);
+			free(fullfilename);
+			return RET_ERRNO(e);
+		}
+		free(fullfilename);
+	}
+	return RET_OK;
+}
+
+retvalue updates_clearlists(const char *listdir,struct distribution *distributions) {
+	struct distribution *distribution;
+
+	for( distribution = distributions ; distribution ; distribution = distribution->next ) {
+		char *pattern;
+		retvalue r;
+		DIR *dir;
+
+		pattern = calc_downloadedlistpattern(distribution->codename);
+		if( pattern == NULL )
+			return RET_ERROR_OOM;
+		// TODO: check if it is always created before...
+		dir = opendir(listdir);
+		if( dir == NULL ) {
+			int e = errno;
+			fprintf(stderr,"Error opening directory '%s' (error %d=%m)!",listdir,e);
+			free(pattern);
+			return RET_ERRNO(e);
+		}
+		r = listclean_distribution(listdir,dir,pattern,
+				distribution->updateorigins,
+				distribution->updatetargets);
+		free(pattern);
+		closedir(dir);
+		if( RET_WAS_ERROR(r) ) {
+			return r;
 		}
 	}
 	return RET_OK;

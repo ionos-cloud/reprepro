@@ -13,9 +13,21 @@ reprepro \- produce, manage and sync a local repository of debian packages
 \fIper\-command\-options\fP 
 ]
 .SH DESCRIPTION
-Reprepro ...
-pool database
-libdb3 gpgme 
+reprepro is a tool to manage a repository of Debian packages
+(.deb, .udeb, .dsc, ...). 
+It stores files either beeing injected manually or 
+downloaded from some other repository (partically) mirrored 
+into a pool/ hierarchy. 
+Managed packages and files are stored in a libdb3 database, 
+so no database server is needed. 
+Checking signatures of mirrored repositories and creating
+signatures of the generated Package indices is supported.
+
+\fBWARNING: Reprepro does not have much users yet, so not all
+code paths are severly tested. Please report any bugs you
+find.\fP
+
+Former working title of this program was mirrorer.
 .SH "GLOBAL OPTIONS"
 Global options can be specified before the command. They effect
 some subset of commands and are ignored otherwise.
@@ -96,6 +108,25 @@ Overrides the section of inclusions. (Also override possible override files)
 .TP
 .B \-P, \-\-priority \fIpriority\fP
 Overrides the priority of inclusions. (Also override possible override files)
+.TP
+.B \-\-nolistsdownload
+When running \fBupdate\fP or \fBcheckupdate\fP do not download any Release
+or index files (and also do not check them). This is hardly useful except
+when you just run one of those command for the same distributions.
+.TP 
+.B \-\-keepunreferencedfiles
+Do not delete files that are no longer used because the package they
+are from is deleted/replaced with a newer version from the last distribution
+it was in.
+.TP 
+.B \-\-keepunneededlists
+Do not try to delete files from \fBlists/f\P before updating, that seem to
+belong to one of the updated distributions but will not be needed. 
+Those file may happen to exist when you removed 
+some Update: rule or changed Components/Architectures/... .
+This is mostly only useful if you want to temporarily disable some update
+rule and want to avoid downloading their index files again when you readd
+it later.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -555,7 +586,7 @@ some parts may still not use this notation.
 .SH "REPORTING BUGS"
 Report bugs to <brlink@debian.org>.
 .SH COPYRIGHT
-Copyright \(co 2004 Bernhard R. Link
+Copyright \(co 2004,2005 Bernhard R. Link
 .br 
 This is free software; see the source for copying conditions. There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

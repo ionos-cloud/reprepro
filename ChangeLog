@@ -1,3 +1,7 @@
+2005-02-03  Bernhard R. Link <brlink@debian.org>
+	* When updating delete files lists/<codename>_ for
+	all updated distributions, which will not be needed any more.
+
 2005-02-01  Bernhard R. Link <brlink@debian.org>
 	* Add some missing files in Makefile.am so they end up in dist
 	* Add some #includes so that it also compiles without

@@ -368,6 +368,20 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 	return result;
 }
 
+char *calc_downloadedlistpattern(const char *codename) {
+	size_t len;
+	char *result,*p;
+	
+	len = escapedlen(codename);
+	p = result = malloc(len + 2);
+	if( result == NULL )
+		return result;
+	p = escapecpy(p,codename);
+	*p = '_'; p++;
+	*p = '\0';
+	return result;
+}
+
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	// TODO: add checks to all data possibly given into here...
 	assert( index(codename,'|') == NULL && index(component,'|') == NULL && index(architecture,'|') == NULL );

@@ -76,6 +76,7 @@ static int	force = 0;
 static bool_t	nothingiserror = FALSE;
 static bool_t	nolistsdownload = FALSE;
 static bool_t	keepunreferenced = FALSE;
+static bool_t	keepunneededlists = FALSE;
 int		verbose = 0;
 
 static inline retvalue removeunreferencedfiles(references refs,filesdb files,struct strlist *dereferencedfilekeys) {
@@ -727,6 +728,12 @@ static retvalue action_update(int argc,const char *argv[]) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
+	if( !keepunneededlists ) {
+		result = updates_clearlists(listdir,distributions);
+		if( RET_WAS_ERROR(result) )
+			return result;
+	}
+
 	r = references_initialize(&refs,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1272,8 +1279,9 @@ static struct action {
 
 #define LO_DELETE 1
 #define LO_KEEPUNREFERENCED 2
-#define LO_NOHTINGISERROR 3
-#define LO_NOLISTDOWNLOAD 4
+#define LO_KEEPUNNEEDEDLISTS 3
+#define LO_NOHTINGISERROR 4
+#define LO_NOLISTDOWNLOAD 5
 #define LO_DISTDIR 10
 #define LO_DBDIR 11
 #define LO_LISTDIR 12
@@ -1303,6 +1311,7 @@ int main(int argc,char *argv[]) {
 		{"nothingiserror", 0, &longoption, LO_NOHTINGISERROR},
 		{"nolistsdownload", 0, &longoption, LO_NOLISTDOWNLOAD},
 		{"keepunreferencedfiles", 0, &longoption, LO_KEEPUNREFERENCED},
+		{"keepunneededlists", 0, &longoption, LO_KEEPUNNEEDEDLISTS},
 		{"force", 0, NULL, 'f'},
 		{NULL, 0, NULL, 0}
 	};
@@ -1371,6 +1380,9 @@ int main(int argc,char *argv[]) {
 						break;
 					case LO_KEEPUNREFERENCED:
 						keepunreferenced=TRUE;
+						break;
+					case LO_KEEPUNNEEDEDLISTS:
+						keepunneededlists=TRUE;
 						break;
 					case LO_NOHTINGISERROR:
 						nothingiserror=TRUE;
