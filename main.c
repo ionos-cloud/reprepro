@@ -922,7 +922,7 @@ static retvalue exportsource(void *data,const char *component) {
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
-	filename = mprintf("%s/%s/source/Sources.gz",d->dirofdist,component);	
+	filename = mprintf("%s/%s/sources/Sources.gz",d->dirofdist,component);	
 	if( !filename ) {
 		free(dbname);
 		return RET_ERROR_OOM;
@@ -988,8 +988,13 @@ static retvalue fetchupstreamcomponentlists(
 		const char *upstream,
 		const char *origin,
 		const char *destination) {
+	const char *toget,*saveas;
 
+	toget = mprintf("dists/%s/source/Sources.gz",origin);
+	saveas = mprintf("%s_%s_%s_Sources.gz",release->codename,upstream,origin);
 	fprintf(stderr,"... '%s':'%s'>'%s'\n",upstream,origin,destination);
+	download_add(download,toget,saveas);
+
 	return RET_NOTHING;
 }
 
