@@ -182,12 +182,16 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 }
 	
 /* call <action> for each part of <distribution>. */
-retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_action action,void *data,int force) {
+retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,distribution_each_action action,void *data,int force) {
 	retvalue result,r;
 	struct target *t;
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t ; t = t->next ) {
+		if( component != NULL && strcmp(component,t->component) != 0 )
+			continue;
+		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+			continue;
 		r = action(data,t);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
@@ -226,13 +230,13 @@ static retvalue processdistribution(void *d,const char *chunk) {
 	return result;
 }
 
-retvalue distribution_foreach(const char *conf,int argc,char *argv[],distributionaction action,void *data,int force) {
+retvalue distribution_foreach(const char *conf,int argc,const char *argv[],distributionaction action,void *data,int force) {
 	retvalue result;
 	char *fn;
 	struct dist_mydata mydata;
 
 	mydata.filter.count = argc;
-	mydata.filter.dists = (const char**)argv;
+	mydata.filter.dists = argv;
 	mydata.data = data;
 	mydata.action = action;
 	
@@ -263,7 +267,7 @@ static retvalue adddistribution(void *d,const char *chunk) {
 }
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *conf,int argc,char *argv[],struct distribution **distributions) {
+retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],struct distribution **distributions) {
 	retvalue result;
 	char *fn;
 	struct distmatch_mydata mydata;
