@@ -33,13 +33,17 @@
 #include "sources.h"
 #include "release.h"
 
+#ifndef STD_BASE_DIR
+#define STD_BASE_DIR "/var/spool/mirrorer"
+#endif
+
 /* global options */
-char 	*incommingdir = "/var/spool/mirrorer/incomming",
+char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*ppooldir = "pool",
-	*pooldir = "/var/spool/mirrorer/pool",
-	*distdir = "/var/spool/mirrorer/dists",
-	*dbdir = "/var/spool/mirrorer/db",
-	*confdir = "/var/spool/mirrorer/db";
+	*pooldir = STD_BASE_DIR "/pool",
+	*distdir = STD_BASE_DIR "/dists",
+	*dbdir = STD_BASE_DIR "/db",
+	*confdir = STD_BASE_DIR "/conf";
 int 	local = 0;
 int	verbose = 0;
 int	force = 0;
@@ -176,36 +180,28 @@ int addreference(int argc,char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
 }
+
+
 int exportpackages(int argc,char *argv[]) {
-	DB *pkgs;
-	retvalue result,r;
+	retvalue result;
 
 	if( argc != 3 ) {
 		fprintf(stderr,"mirrorer genpackages <identifier> <Packages-file to create>\n");
 		return 1;
 	}
-	pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! pkgs )
-		return 1;
-	result = packages_printout(pkgs,argv[2]);
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
+	result = packages_doprintout(dbdir,argv[1],argv[2]);
 	return EXIT_RET(result);
 }
+
+
 int zexportpackages(int argc,char *argv[]) {
-	DB *pkgs;
-	retvalue result,r;
+	retvalue result;
 
 	if( argc != 3 ) {
 		fprintf(stderr,"mirrorer genzpackages <identifier> <Packages-file to create>\n");
 		return 1;
 	}
-	pkgs = packages_initialize(dbdir,argv[1]);
-	if( ! pkgs )
-		return 1;
-	result = packages_zprintout(pkgs,argv[2]);
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
+	result = packages_dozprintout(dbdir,argv[1],argv[2]);
 	return EXIT_RET(result);
 }
 
@@ -745,30 +741,123 @@ int checkrelease(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
+struct data_binsrcexport { const struct release *release; const char *dirofdist;};
+
+static retvalue exportbin(void *data,const char *component,const char *architecture) {
+	retvalue result,r;
+	struct data_binsrcexport *d = data;
+	char *dbname,*filename;
+
+	result = release_genbinary(d->release,architecture,component,distdir);
+	dbname = mprintf("%s-%s-%s",d->release->codename,component,architecture);
+	if( !dbname ) {
+		return RET_ERROR_OOM;
+	}
+	filename = mprintf("%s/%s/binary-%s/Packages.gz",d->dirofdist,component,architecture);	
+	if( !filename ) {
+		free(dbname);
+		return RET_ERROR_OOM;
+	}
+	if( verbose > 1 ) {
+		fprintf(stderr,"Exporting %s...\n",dbname);
+	}
+	
+	r = packages_dozprintout(dbdir,dbname,filename);
+	RET_UPDATE(result,r);
+
+	free(filename);
+	filename = mprintf("%s/%s/binary-%s/Packages",d->dirofdist,component,architecture);	
+	if( !filename ) {
+		free(dbname);
+		return RET_ERROR_OOM;
+	}
+	
+	r = packages_doprintout(dbdir,dbname,filename);
+	RET_UPDATE(result,r);
+
+	free(filename);
+	free(dbname);
+
+	return result;
+}
+
+static retvalue exportsource(void *data,const char *component) {
+	retvalue result,r;
+	struct data_binsrcexport *d = data;
+	char *dbname;
+	char *filename;
+
+	result = release_gensource(d->release,component,distdir);
+
+	dbname = mprintf("%s-%s-src",d->release->codename,component);
+	if( !dbname ) {
+		return RET_ERROR_OOM;
+	}
+	filename = mprintf("%s/%s/source/Sources.gz",d->dirofdist,component);	
+	if( !filename ) {
+		free(dbname);
+		return RET_ERROR_OOM;
+	}
+	if( verbose > 1 ) {
+		fprintf(stderr,"Exporting %s...\n",dbname);
+	}
+	
+	r = packages_dozprintout(dbdir,dbname,filename);
+	RET_UPDATE(result,r);
+
+	free(dbname);
+	free(filename);
+
+	return result;
+}
+
+
 struct data_export {int count; char **dists; };
 
 static retvalue doexport(void *data,const char *chunk) {
 	struct data_export *d = data;
-	retvalue r;
+	struct data_binsrcexport dat;
+	retvalue result,r;
 	struct release *release;
+	char *dirofdist;
 	int i;
 
-	r = release_parse(&release,chunk);
-	if( RET_IS_OK(r) ) {
+	result = release_parse(&release,chunk);
+	if( RET_IS_OK(result) ) {
 		if( d->count > 0 ) {
 			i = d->count;
 			while( i-- > 0 && strcmp((d->dists)[i],release->codename) != 0 ) {
 			}
-			if( i == 0 ) {
+			if( i < 0 ) {
+				if( verbose > 1 ) {
+					fprintf(stderr,"skipping %s\n",release->codename);
+				}
 				free(release);
 				return RET_NOTHING;
 			}
 		}
+		if( verbose > 0 ) {
+			fprintf(stderr,"Exporting %s...\n",release->codename);
+		}
+		dirofdist = calc_dirconcat(distdir,release->codename);
+		if( !dirofdist ) {
+			free(release);
+			return RET_ERROR_OOM;
+		}
+
+		dat.release = release;
+		dat.dirofdist = dirofdist;
+
+		result = release_foreach_part(release,exportsource,exportbin,&dat);
+		
 		r = release_gen(release,distdir);
+		RET_UPDATE(result,r);
+
+		free(dirofdist);
 		free(release);
 	}
-	return r;
-};
+	return result;
+}
 
 int export(int argc,char *argv[]) {
 	retvalue result;

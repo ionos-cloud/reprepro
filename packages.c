@@ -47,7 +47,7 @@ retvalue packages_done(DB *db) {
 }
 
 /* initialize the packages-database for <identifier> */
-DB *packages_initialize(const char *dbpath,const char *identifier) {
+DB *packages_initialize(const char *dbpath,const char *dbname) {
 	DB *dbp;
 	int dbret;
 	char *filename;
@@ -61,12 +61,12 @@ DB *packages_initialize(const char *dbpath,const char *identifier) {
 		return NULL;
 	}
 	if ((dbret = db_create(&dbp, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
+		fprintf(stderr, "db_create: %s:%s %s\n", filename,dbname,db_strerror(dbret));
 		free(filename);
 		return NULL;
 	}
-	if ((dbret = dbp->open(dbp, filename, identifier, DB_BTREE, DB_CREATE, 0664)) != 0) {
-		dbp->err(dbp, dbret, "%s", filename);
+	if ((dbret = dbp->open(dbp, filename, dbname, DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp->err(dbp, dbret, "%s:%s", filename,dbname);
 		dbp->close(dbp,0);
 		free(filename);
 		return NULL;
@@ -262,3 +262,30 @@ retvalue packages_zprintout(DB *packagesdb,const char *filename) {
 	return ret;
 }
 
+/* like packages_printout, but open and close database yourself */
+retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *filename){
+	DB *pkgs;
+	retvalue result,r;
+
+	pkgs = packages_initialize(dbpath,dbname);
+	if( ! pkgs )
+		return 1;
+	result = packages_printout(pkgs,filename);
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+/* like packages_zprintout, but open and close database yourself */
+retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *filename){
+	DB *pkgs;
+	retvalue result,r;
+
+	pkgs = packages_initialize(dbpath,dbname);
+	if( ! pkgs )
+		return 1;
+	result = packages_zprintout(pkgs,filename);
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+	return result;
+}

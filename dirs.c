@@ -30,7 +30,7 @@ extern int verbose;
 static int check_dir(const char *dirname) {
 	int ret;
 
-	ret = mkdir(dirname,0770);
+	ret = mkdir(dirname,0775);
 	if( ret == 0 ) {
 		if( verbose )
 		fprintf(stderr,"Created directory \"%s\"\n",dirname);

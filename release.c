@@ -236,8 +236,8 @@ retvalue release_gensource(const struct release *release,const char *component,c
 	
 }
 
-static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...) __attribute__ ((format (printf, 3, 4))); 
-static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...) {
+static retvalue printmd5andsize(FILE *f,const char *dir,const char *fmt,...) __attribute__ ((format (printf, 3, 4))); 
+static retvalue printmd5andsize(FILE *f,const char *dir,const char *fmt,...) {
 	va_list ap;
 	char *fn,*filename,*md;
 	retvalue r;
@@ -248,7 +248,7 @@ static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...)
 	if( !fn )
 		return RET_ERROR_OOM;
 
-	filename = calc_dirconcat(distdir,fn);
+	filename = calc_dirconcat(dir,fn);
 	if( !filename ) {
 		free(filename);
 		return RET_ERROR_OOM;
@@ -258,7 +258,7 @@ static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...)
 	free(filename);
 
 	if( !RET_IS_OK(r) ) {
-		fprintf(stderr,"Error processing %s/%s\n",distdir,fn);
+		fprintf(stderr,"Error processing %s/%s\n",dir,fn);
 		free(fn);
 		return r;
 	}
@@ -317,26 +317,23 @@ retvalue release_foreach_part(const struct release *release,release_each_source_
 	return result;
 }
 
-struct genrel {const struct release *release;const char *distdir; FILE *f; };
+struct genrel { FILE *f; const char *dirofdist; };
 
 static retvalue printbin(void *data,const char *component,const char *architecture) {
 	retvalue result,r;
 	struct genrel *d = data;
 
-	result = release_genbinary(d->release,architecture,component,d->distdir);
-	
-	r = printmd5andsize(d->f,d->distdir,
-		"%s/%s/binary-%s/Release",
-		d->release->codename,component,architecture);
-	RET_UPDATE(result,r);
+	result = printmd5andsize(d->f,d->dirofdist,
+		"%s/binary-%s/Release",
+		component,architecture);
 
-	r = printmd5andsize(d->f,d->distdir,
-		"%s/%s/binary-%s/Packages",
-		d->release->codename,component,architecture);
+	r = printmd5andsize(d->f,d->dirofdist,
+		"%s/binary-%s/Packages",
+		component,architecture);
 	RET_UPDATE(result,r);
-	r = printmd5andsize(d->f,d->distdir,
-		"%s/%s/binary-%s/Packages.gz",
-		d->release->codename,component,architecture);
+	r = printmd5andsize(d->f,d->dirofdist,
+		"%s/binary-%s/Packages.gz",
+		component,architecture);
 	RET_UPDATE(result,r);
 
 	return result;
@@ -346,15 +343,12 @@ static retvalue printsource(void *data,const char *component) {
 	retvalue result,r;
 	struct genrel *d = data;
 
-	result = release_gensource(d->release,component,d->distdir);
-	
-	r = printmd5andsize(d->f,d->distdir,
-			"%s/%s/source/Release",
-			d->release->codename,component);
-	RET_UPDATE(result,r);
-	r = printmd5andsize(d->f,d->distdir,
-			"%s/%s/source/Sources.gz",
-			d->release->codename,component);
+	result = printmd5andsize(d->f,d->dirofdist,
+			"%s/source/Release",
+			component);
+	r = printmd5andsize(d->f,d->dirofdist,
+			"%s/source/Sources.gz",
+			component);
 	RET_UPDATE(result,r);
 
 	return result;
@@ -364,6 +358,7 @@ static retvalue printsource(void *data,const char *component) {
 retvalue release_gen(const struct release *release,const char *distdir) {
 	FILE *f;
 	char *filename;
+	char *dirofdist;
 	int e;
 	retvalue result;
 	char buffer[100];
@@ -379,8 +374,14 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 		return RET_ERROR;
 	}
 
-	filename =mprintf("%s/%s/Release",distdir,release->codename);
+	dirofdist = calc_dirconcat(distdir,release->codename);
+	if( !dirofdist ) {
+		return RET_ERROR_OOM;
+	}
+
+	filename = calc_dirconcat(dirofdist,"Release");
 	if( !filename ) {
+		free(dirofdist);
 		return RET_ERROR_OOM;
 	}
 	make_parent_dirs(filename);
@@ -389,6 +390,7 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 		e = errno;
 		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
 		free(filename);
+		free(dirofdist);
 		return RET_ERRNO(e);
 	}
 	free(filename);
@@ -412,9 +414,10 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 	/* generate bin/source-Release-files and add md5sums */
 
 	data.f = f;
-	data.distdir = distdir;
-	data.release = release;
+	data.dirofdist = dirofdist;
 	result = release_foreach_part(release,printsource,printbin,&data);
+
+	free(dirofdist);
 	
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);

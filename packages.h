@@ -8,7 +8,7 @@
 #endif
 
 /* initialize the packages-database for <identifier> */
-DB *packages_initialize(const char *dbpath,const char *identifier);
+DB *packages_initialize(const char *dbpath,const char *dbname);
 
 /* release the packages-database initialized got be packages_initialize */
 retvalue packages_done(DB *db);
@@ -32,6 +32,9 @@ retvalue packages_check(DB *packagesdb,const char *package);
 /* print the database to a "Packages" or "Sources" file */
 retvalue packages_printout(DB *packagesdb,const char *filename);
 retvalue packages_zprintout(DB *packagesdb,const char *filename);
+/* like packages_printout, but open and close database yourself */
+retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *filename);
+retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *filename);
 
 /* action to be called by packages_forall */
 typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
