@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -97,9 +97,9 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	}
 	r = properpackagename(packagename);
 	if( !RET_WAS_ERROR(r) )
-		r = propername(version);
+		r = properversion(version);
 	if( !RET_WAS_ERROR(r) )
-		r = propername(parch);
+		r = properfilenamepart(parch);
 	if( RET_WAS_ERROR(r) ) {
 		free(parch);
 		return r;
@@ -140,7 +140,7 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 	char *filekey;
 	retvalue r;
 
-	r = propername(sourcename);
+	r = propersourcename(sourcename);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -23,42 +23,232 @@
 #include <string.h>
 #include <malloc.h>
 #include "error.h"
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
 
 extern int verbose;
 
-retvalue propername(const char *string) {
-	const unsigned char *s;
-	assert( string != NULL );
+/* check if the character starting where <character> points
+ * at is a overlong one */
+static inline bool_t overlongUTF8(const char *character) {
+	/* This checks for overlong utf-8 characters.
+	 * (as they might mask '.' '\0' or '/' chars).
+	 * we assume no filesystem/ar/gpg code will parse
+	 * invalid utf8, as we would only be able to rule
+	 * this out if we knew it is utf8 we arec coping
+	 * with. (Well, you should not use --ignore=validchars
+	 * anyway). */
+	unsigned char c = *character;
 
-	if( string[0] == '.' && string[1] == '\0' ) {
-		fprintf(stderr,"Version/Architecture/Files/... must be more than a single dot!\n");
+	if( (c & 0xC2 /*11000010*/) == 0xC0 /*11000000*/ ) {
+		unsigned char nextc = *(character+1);
+
+		if( (nextc & 0xC0 /*11000000*/ ) != 0x80 /*10000000*/ )
+			return FALSE;
+
+		if( (c & 0x3E /* 00111110 */ ) == 0 )
+			return TRUE;
+		if( c == 0xE0 /*11100000*/ && (nextc & 0x20 /*00100000*/ ) == 0) 
+			return TRUE;
+		if( c == 0xF0 /*11110000*/ && (nextc & 0x30 /*00110000*/ ) == 0) 
+			return TRUE;
+		if( c == 0xF8 /*11111000*/ && (nextc & 0x38 /*00111000*/ ) == 0) 
+			return TRUE;
+		if( c == 0xFC /*11111100*/ && (nextc & 0x3C /*00111100*/ ) == 0) 
+			return TRUE;
+	}
+	return FALSE;
+}
+
+/* check if this is something that can be used as directory safely */
+retvalue propersourcename(const char *string) {
+	const char *s;
+	bool_t firstcharacter = TRUE;
+
+	if( string[0] == '\0' ) {
+		/* This is not really ignoreable, as this will lead
+		 * to paths not normalized, so all checks go wrong */
+		fprintf(stderr,"Source name is not allowed to be emtpy!\n");
 		return RET_ERROR;
 	}
-	if( string[0] == '.' && string[1] == '.' ) {
-		fprintf(stderr,"Version/Architecture/Files/... identifiers may not start with two dots!\n");
+	if( string[0] == '.' ) {
+		/* A dot is not only hard to see, it would cause the directory
+		 * to become /./.bla, which is quite dangerous. */
+		fprintf(stderr,"Source names are not allowed to start with a dot!\n");
 		return RET_ERROR;
 	}
 	s = string;
 	while( *s ) {
-		if( *s < ' ' || (*s & 128) != 0 ||
-		    *s == '/' || *s == '|' ) {
-			fprintf(stderr,"Character 0x%2x not allowed here! (='%c')\n", (unsigned int)*s,*s);
+		if( (*s > 'z' || *s < 'a' ) && 
+		    (*s > '9' || *s < '0' ) && 
+		    (firstcharacter || 
+		     ( *s != '+' && *s != '-' && *s != '.'))) {
+			if( *s < ' ' || *s == '/' ) {
+				fprintf(stderr,"Character 0x%2x not allowed within sourcename '%s'!\n",(unsigned int)*s,string);
+				return RET_ERROR;
+			}
+			if( overlongUTF8(s) ) {
+				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting sourcename '%s'!\n",string);
+				return RET_ERROR;
+			}
+			if( !IGNORING(
+"Not rejecting","To ignore this",forbiddenchar,"Character 0x%2x not allowed in sourcename: '%s'!\n",(unsigned int)*s,string) ) {
+				return RET_ERROR;
+			}
+			if( *s & 0x80 ) {
+				if( !IGNORING(
+"Not rejecting","To ignore this",8bit,"8bit character in sourcename: '%s'!\n",string) ) {
+					return RET_ERROR;
+				}
+			}
+		}
+		s++;
+		firstcharacter = FALSE;
+	}
+	return RET_OK;
+}
+
+/* check if this is something that can be used as directory safely */
+retvalue properfilename(const char *string) {
+	const char *s;
+
+	if( string[0] == '\0' ) {
+		fprintf(stderr,"Error: empty filename!\n");
+		return RET_ERROR;
+	}
+	if( (string[0] == '.' && string[1] == '\0') ||
+		(string[0] == '.' && string[1] == '.' && string[2] == '\0') ) {
+		fprintf(stderr,"Filename not allowed: '%s'!\n",string);
+		return RET_ERROR;
+	}
+	s = string;
+	while( *s ) {
+		if( *s < ' ' || *s == '/' ) {
+			fprintf(stderr,"Character 0x%2x not allowed within filename '%s'!\n",(unsigned int)*s,string);
+			return RET_ERROR;
+		}
+		if( *s & 0x80 ) {
+			if( overlongUTF8(s) ) {
+				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filename '%s'!\n",string);
+				return RET_ERROR;
+			}
+			if( !IGNORING(
+"Not rejecting","To ignore this",8bit,"8bit character in filename: '%s'!\n",string)) {
+				return RET_ERROR;
+			}
+		}
+		s++;
+	}
+	return RET_OK;
+}
+
+retvalue properidentiferpart(const char *string) {
+	const char *s;
+
+	if( string[0] == '\0' && !IGNORING(
+"Ignoring","To ignore this",emptyfilenamepart,"A string to be used of an filename is empty!\n") ) {
+		return RET_ERROR;
+	}
+	s = string;
+	while( *s ) {
+		if( *s < ' ' || *s == '|' ) {
+			fprintf(stderr,"Character 0x%2x not allowed within identifier '%s'!\n",(unsigned int)*s,string);
 			return RET_ERROR;
 		}
 		s++;
 	}
 	return RET_OK;
-	
 }
 
-retvalue propernames(const struct strlist *names) {
+retvalue properfilenamepart(const char *string) {
+	const char *s;
+
+	s = string;
+	while( *s ) {
+		if( *s < ' ' || *s == '/' ) {
+			fprintf(stderr,"Character 0x%2x not allowed within filenamepart '%s'!\n",(unsigned int)*s,string);
+			return RET_ERROR;
+		}
+		if( *s & 0x80 ) {
+			if( overlongUTF8(s) ) {
+				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filenamepart '%s'!\n",string);
+				return RET_ERROR;
+			}
+			if( !IGNORING(
+"Not rejecting","To ignore this",8bit,"8bit character in filenamepart: '%s'!\n",string)) {
+				return RET_ERROR;
+			}
+		}
+		s++;
+	}
+	return RET_OK;
+}
+
+retvalue properversion(const char *string) {
+	const char *s = string;
+	bool_t hadepoch = FALSE;
+	bool_t first = TRUE;
+	bool_t yetonlydigits = TRUE;
+
+	if( string[0] == '\0' && !IGNORING(
+"Ignoring","To ignore this",emptyfilenamepart,"A version string is empty!\n") ) {
+		return RET_ERROR;
+	}
+	if( ( *s < '0' || *s > '9' ) &&
+	    (( *s >= 'a' && *s <= 'z') || (*s >='A' && *s <= 'Z'))) {
+		/* As there are official packages violating the rule 
+		 * of policy 5.6.11 to start with a digit, disabling 
+		 * this test, and only omitting a warning. */
+		if( verbose >= 0 ) 
+			fprintf(stderr,"Warning: Package version '%s' does not start with a digit, violating 'should'-directive in policy 5.6.11\n",string);
+	}
+	for( ; *s != '\0' ; s++,first=FALSE ) {
+		if( (*s <= '9' || *s >= '0' ) ) {
+			continue;
+		} 
+		if( !first && yetonlydigits && *s == ':' ) {
+			hadepoch = TRUE;
+			continue;
+		}
+		yetonlydigits = FALSE;
+		if( (*s >= 'A' && *s <= 'Z' ) ||
+		           (*s >= 'a' || *s <= 'z' )) {
+			yetonlydigits = FALSE;
+			continue;
+		}
+		if( first || (*s != '+'  && *s != '-' && 
+	            	      *s != '.'  && *s != '~' &&
+			      (!hadepoch || *s != ':' ))) {
+			if( *s < ' ' || *s == '/' ) {
+				fprintf(stderr,"Character 0x%2x not allowed within sourcename '%s'!\n",(unsigned int)*s,string);
+				return RET_ERROR;
+			}
+			if( overlongUTF8(s) ) {
+				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting version '%s'!\n",string);
+				return RET_ERROR;
+			}
+			if( !IGNORING(
+"Not rejecting","To ignore this",forbiddenchar,"Character '%c' not allowed in version: '%s'!\n",*s,string) ) {
+				return RET_ERROR;
+			}
+			if( *s & 0x80 ) {
+				if( !IGNORING(
+"Not rejecting","To ignore this",8bit,"8bit character in version: '%s'!\n",string) ) {
+					return RET_ERROR;
+				}
+			}
+		} 
+	}
+	return RET_OK;
+}
+
+retvalue properfilenames(const struct strlist *names) {
 	int i;
 
 	for( i = 0 ; i < names->count ; i ++ ) {
-		retvalue r = propername(names->values[i]);
+		retvalue r = properfilename(names->values[i]);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -67,22 +257,48 @@ retvalue propernames(const struct strlist *names) {
 }
 
 retvalue properpackagename(const char *string) {
-	const unsigned char *s;
-	assert( string != NULL );
+	const char *s;
+	bool_t firstcharacter = TRUE;
 
-	if( string[0] == '.' ) {
-		fprintf(stderr,"Packagenames may not start with a dot!\n");
+	/* To be able to avoid multiple warnings,
+	 * this should always be a subset of propersourcename */
+
+	if( string[0] == '\0' ) {
+		/* This is not really ignoreable, as this is a primary
+		 * key for our database */
+		fprintf(stderr,"Package name is not allowed to be emtpy!\n");
 		return RET_ERROR;
 	}
 	s = string;
 	while( *s ) {
+		/* DAK also allowed upper case letters last I looked, policy
+		 * does not, so they are not allowed without --ignore=forbiddenchar */
+		// perhaps some extra ignore-rule for upper case?
 		if( (*s > 'z' || *s < 'a' ) && 
 		    (*s > '9' || *s < '0' ) && 
-		    *s != '+' && *s != '-' && *s != '.') {
-			fprintf(stderr,"Character 0x%2x not allowed in package names! (='%c')\n", (unsigned int)*s,*s);
-			return RET_ERROR;
+		    ( firstcharacter || 
+  	    	      (*s != '+' && *s != '-' && *s != '.'))) {
+			if( *s < ' ' || *s == '/' ) {
+				fprintf(stderr,"Character 0x%2x not allowed within package name '%s'!\n",(unsigned int)*s,string);
+				return RET_ERROR;
+			}
+			if( overlongUTF8(s) ) {
+				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting package name '%s'!\n",string);
+				return RET_ERROR;
+			}
+			if( !IGNORING(
+"Not rejecting","To ignore this",forbiddenchar,"Character 0x%2x not allowed in package name: '%s'!\n",(unsigned int)*s,string) ) {
+				return RET_ERROR;
+			}
+			if( *s & 0x80 ) {
+				if( !IGNORING(
+"Not rejecting","To ignore this",8bit,"8bit character in package name: '%s'!\n",string) ) {
+					return RET_ERROR;
+				}
+			}
 		}
 		s++;
+		firstcharacter = FALSE;
 	}
 	return RET_OK;
 }
@@ -104,7 +320,7 @@ static inline size_t escapedlen(const char *p) {
 	return l;
 }
 
-static inline char * escapecpy(char *dest,const char *orig) {
+static inline char *escapecpy(char *dest,const char *orig) {
 	static char hex[16] = "0123456789ABCDEF";
 	if( *orig == '-' ) {
 		orig++;
@@ -297,54 +513,6 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 
 }
 
-static inline int ispkgnamechar(char c) {
-// Policy says, only lower case letters are allowed,
-// though dak allows upper case, too. I hope nothing
-// needs them.
-
-	return  ( c == '+' ) || ( c == '-') || ( c == '.' )
-		|| (( c >= 'a') && ( c <= 'z' ))
-		|| (( c >= '0') && ( c <= '9' ));
-}
-
-void names_overpkgname(const char **name_end) {
-	const char *n = *name_end;
-
-	if( ( *n < '0' || *n > '9' ) && ( *n < 'a' || *n > 'z' ) ) {
-		return;
-	}
-	n++;
-
-	while( ispkgnamechar(*n) )
-		n++;
-
-	*name_end = n;
-}
-
-retvalue names_checkpkgname(const char *name) {
-	const char *n = name;
-
-	if( ( *n < '0' || *n > '9' ) && ( *n < 'a' || *n > 'z' ) ) {
-		fprintf(stderr,"Not starting with a lowercase alphanumeric character: '%s'!\n",name);
-		return RET_ERROR;
-	}
-	n++;
-	if( !ispkgnamechar(*n) ) {
-		fprintf(stderr,"Not at least 2 characters long: '%s'!\n",name);
-		return RET_ERROR;
-	}
-	n++;
-
-	while( ispkgnamechar(*n) )
-		n++;
-
-	if( *n != '\0' ) {
-		fprintf(stderr,"Unexpected Character '%c' in '%s'!\n",*n,name);
-		return RET_ERROR;
-	}
-	return RET_OK;
-}
-
 void names_overversion(const char **version) {
 	const char *n = *version;
 	bool_t hadepoch = FALSE;
@@ -374,53 +542,6 @@ void names_overversion(const char **version) {
 			|| *n == '-' || *n == '+' || (hadepoch && *n == ':') )
 		n++;
 	*version = n;
-}
-
-retvalue names_checkversion(const char *version) {
-	const char *n = version;
-// jennifer(dak) uses "^([0-9]+:)?[0-9A-Za-z\.\-\+:]+$", thus explicitly allowing
-// an epoch and having colons in the rest. As those are nasty anyway, we should
-// perhaps forbid them.
-// an epoch, when the version number may use colons seems not very efficient.
-// though also see names_checkbasename for problems with double colons...
-
-	if( *n == '\0' ) {
-		fprintf(stderr,"An empty string is no valid version number!\n");
-		return RET_ERROR;
-	}
-	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
-			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.'
-			|| *n == '-' || *n == '+' || *n == ':' )
-		n++;
-
-	if( *n != '\0' ) {
-		fprintf(stderr,"Unexpected Character '%c' in '%s'!\n",*n,version);
-		return RET_ERROR;
-	}
-	return RET_OK;
-
-}
-
-retvalue names_checkbasename(const char *basename) {
-	const char *n = basename;
-// DAK allows '~', though I do not know, where it could come from...
-// Note that while versions may have colons after the epoch, jennifier
-// rejects files having colons in them, so we do the same...
-
-	if( *n == '\0' ) {
-		fprintf(stderr,"An empty string is no valid filename!\n");
-		return RET_ERROR;
-	}
-	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
-			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.'
-			|| *n == '-' || *n == '+' )
-		n++;
-
-	if( *n != '\0' ) {
-		fprintf(stderr,"Unexpected Character '%c' in '%s'!\n",*n,basename);
-		return RET_ERROR;
-	}
-	return RET_OK;
 }
 
 /* split a "<md5> <size> <filename>" into md5sum and filename */

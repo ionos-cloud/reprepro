@@ -192,7 +192,8 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	}
 
 	p = filestart;
-	names_overpkgname(&p);
+	while( *p != '\0' && *p != '_' && !isspace(*p) )
+		p++;
 	if( *p != '_' ) {
 		if( *p == '\0' )
 			fprintf(stderr,"No underscore in filename in '%s'!",fileline);
@@ -383,16 +384,16 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 	R;
 	r = chunk_getname(c->control,"Source",&c->source,FALSE);
 	E("Missing 'Source' field");
-	r = names_checkpkgname(c->source);
-	C("Malforce Source-field");
+	r = propersourcename(c->source);
+	R;
 	r = chunk_getwordlist(c->control,"Binary",&c->binaries);
 	E("Missing 'Binary' field");
 	r = chunk_getwordlist(c->control,"Architecture",&c->architectures);
 	E("Missing 'Architecture' field");
 	r = chunk_getvalue(c->control,"Version",&c->version);
 	E("Missing 'Version' field");
-	r = names_checkversion(c->version);
-	C("Malforce Version number");
+	r = properversion(c->version);
+	E("Malforce Version number");
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field");
 	r = check(filename,c,"Urgency",force);
@@ -420,8 +421,11 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 	struct fileentry *e;
 	retvalue r;
 
-	e = changes->files;
+	r = propersourcename(changes->source);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
+	e = changes->files;
 	if( e == NULL ) {
 		fprintf(stderr,"No files given in '%s'!\n",filename);
 		return RET_ERROR;
@@ -488,6 +492,11 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		}
 
 		if( FE_SOURCE(e->type) ) {
+			if( strcmp(changes->source,e->name) != 0 ) {
+				r = propersourcename(e->name);
+				if( RET_WAS_ERROR(r) )
+					return r;
+			}
 			if( changes->srccomponent == NULL ) {
 				changes->srccomponent = e->component;
 			} else if( strcmp(changes->srccomponent,e->component) != 0)  {
@@ -495,6 +504,12 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 				return RET_ERROR;
 			}
 		} else if( FE_BINARY(e->type) ){
+			r = properpackagename(e->name);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			r = properfilenamepart(e->architecture);
+			if( RET_WAS_ERROR(r) )
+				return r;
 			// Let's just check here, perhaps
 			if( e->type == fe_UDEB && 
 					!strlist_in(&distribution->udebcomponents,e->component)) {
@@ -573,8 +588,8 @@ static retvalue changes_check(const char *filename,struct changes *changes,const
 			if( calculatedname == NULL )
 				return RET_ERROR_OOM;
 			if( strcmp(calculatedname,e->basename) != 0 ) {
-				free(calculatedname);
 				fprintf(stderr,"dsc-filename is '%s' instead of the expected '%s'!\n",e->basename,calculatedname);
+				free(calculatedname);
 				return RET_ERROR;
 			}
 			free(calculatedname);

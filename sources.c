@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -162,16 +162,16 @@ static inline retvalue calcnewcontrol(
 	char *directory;
 	retvalue r;
 
-	r = properpackagename(package);
+	r = propersourcename(package);
 	assert( r != RET_NOTHING );
 	if( RET_IS_OK(r) )
-		r = propernames(basenames);
+		r = properfilenames(basenames);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Forbidden characters in source package '%s'!\n",package);
 		return r;
 	}
 
-	directory =  calc_sourcedir(component,package);
+	directory = calc_sourcedir(component,package);
 	if( !directory ) 
 		return RET_ERROR_OOM;
 	
@@ -284,6 +284,14 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 	strlist_done(&filelines);
 	if( RET_WAS_ERROR(r) ) {
 		free(origdirectory);
+		return r;
+	}
+	r = properfilenames(&basenames);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
+		strlist_done(&basenames);
+		strlist_done(md5sums);
 		return r;
 	}
 	r = calcnewcontrol(chunk,packagename,&basenames,t->component,

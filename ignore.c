@@ -32,7 +32,7 @@ retvalue add_ignore(const char *given) {
 		}
 	}
 	if( i == IGN_COUNT ) {
-		if( ISIGNORED(ignore,"Unknown --ignore value: '%s'!\n",given))
+		if( IGNORING("Ignoring","To Ignore",ignore,"Unknown --ignore value: '%s'!\n",given))
 			return RET_NOTHING;
 		else
 			return RET_ERROR;

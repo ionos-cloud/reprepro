@@ -1,3 +1,8 @@
+2005-01-15  Bernhard R. Link <brlink@debian.org>
+	* Seperate parsing and looking for allowed
+	values a bit more. Some more things can
+	be ignored with --ignore now.
+
 2005-01-10  Bernhard R. Link <brlink@debian.org>
 	* Made updates using --force with failing parts
 	more graceful

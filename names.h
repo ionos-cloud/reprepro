@@ -29,20 +29,16 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 /* split a "<md5> <size> <filename>" into md5sum and filename */
 retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum);
 
-/* move over a valid name of a package. (Who allowed "source(vers)" ??) */
-void names_overpkgname(const char **name_end);
 /* move over a version number */
 void names_overversion(const char **version);
-/* check for a string to be a valid package name */
-retvalue names_checkpkgname(const char *name);
-/* check for a string to be a valid version number */
-retvalue names_checkversion(const char *version);
-/* check for a string to be a valid filename */
-retvalue names_checkbasename(const char *basename);
 
 /* check for forbidden characters */
-retvalue propername(const char *string);
-retvalue propernames(const struct strlist *names);
+retvalue propersourcename(const char *string);
+retvalue properfilenamepart(const char *string);
+retvalue properfilename(const char *string);
+retvalue properfilenames(const struct strlist *names);
 retvalue properpackagename(const char *string);
+retvalue properversion(const char *string);
+retvalue properidentifierpart(const char *string);
 
 #endif

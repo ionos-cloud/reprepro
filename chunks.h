@@ -19,8 +19,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist);
 retvalue chunk_getwholedata(const char *chunk,const char *name,char **value);
 
-/* Parse a package/source-field: ' *value( ?\(version\))? *',
- * where pkgname consists of [-+.a-z0-9]*/
+/* Parse a package/source-field: ' *value( ?\(version\))? *' */
 retvalue chunk_getname(const char *chunk,const char *name,char **pkgname,bool_t allowversion);
 
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 

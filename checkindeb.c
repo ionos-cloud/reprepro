@@ -162,13 +162,20 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		deb_free(deb);
 		return r;
 	}
-
 	/* can be there, otherwise we also know what it is */
 	r = chunk_getname(deb->control,"Source",&deb->source,TRUE);
-	if( r == RET_NOTHING ) {
+	if( RET_IS_OK(r) ) {
+		// As package-check is strict subset of source-check
+		// this has only be done, if it is not also sourcename:
+		r = properpackagename(deb->package);
+		if( RET_IS_OK(r) )
+			r = propersourcename(deb->source);
+	} else if( r == RET_NOTHING ) {
 		deb->source = strdup(deb->package);
 		if( deb->source == NULL )
 			r = RET_ERROR_OOM;
+		else
+			r = propersourcename(deb->package);
 	}
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
@@ -185,6 +192,14 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		deb_free(deb);
 		return r;
 	}
+	r = properversion(deb->version);
+	if( !RET_WAS_ERROR(r) )
+		r = properfilenamepart(deb->architecture);
+	if( RET_WAS_ERROR(r) ) {
+		deb_free(deb);
+		return r;
+	}
+
 	*pkg = deb;
 
 	return RET_OK;

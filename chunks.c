@@ -385,8 +385,7 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 	return RET_OK;
 }
 
-/* Parse a package/source-field: ' *value( ?\(version\))? *',
- * where pkgname consists of [-+.a-z0-9]*/
+/* Parse a package/source-field: ' *value( ?\(version\))? *' */
 retvalue chunk_getname(const char *chunk,const char *name,
 		char **pkgname,bool_t allowversion) {
 	const char *field,*name_end,*p;
@@ -397,7 +396,11 @@ retvalue chunk_getname(const char *chunk,const char *name,
 	while( *field != '\0' && *field != '\n' && isspace(*field) )
 		field++;
 	name_end = field;
-	names_overpkgname(&name_end);
+	/* this has now checked somewhere else for correctness and
+	 * is only a pure seperation process: 
+	 * (as package(version) is possible, '(' must be checked) */
+	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !isspace(*name_end) )
+		name_end++;
 	p = name_end;
 	while( *p != '\0' && *p != '\n' && isspace(*p) )
 		p++;

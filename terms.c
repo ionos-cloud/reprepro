@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004 Bernhard R. Link
+ *  Copyright (C) 2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -52,7 +52,9 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 
 	overspace();
 	keystart = f;
-	names_overpkgname(&f);
+	// TODO: allow more strict checking again with some option?
+	while( *f != '\0' && *f != '(' && !isspace(*f) )
+		f++;
 	keyend = f;
 	if( keystart == keyend ) {
 		*formula = f;

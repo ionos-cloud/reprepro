@@ -7,7 +7,10 @@
 
 #define VALID_IGNORES \
 	IGN(ignore) \
-	IGN(invalid_distribution)
+	IGN(invalid_distribution) \
+	IGN(forbiddenchar) \
+	IGN(8bit) \
+	IGN(emptyfilenamepart)
 
 
 enum ignore { 
@@ -21,17 +24,17 @@ enum ignore {
 extern int ignored[IGN_COUNT];
 extern bool_t ignore[IGN_COUNT];
 
-#define ISIGNORED(what,msg_fmt, ...) \
+#define IGNORING(ignoring,toignore,what,msg_fmt, ...) \
 	({ 	fprintf(stderr, msg_fmt , ## __VA_ARGS__); \
 		ignored[IGN_ ## what] ++; \
 		if( ignore[IGN_ ## what] ) { \
-			fputs("Ignoring as --ignore=" #what " given.\n",stderr); \
+			fputs(ignoring " as --ignore=" #what " given.\n",stderr); \
 		} else { \
-			fputs("To ignore this use --ignore=" #what ".\n",stderr); \
+			fputs(toignore " use --ignore=" #what ".\n",stderr); \
 		} \
 		ignore[IGN_ ## what]; \
 	})
-#define STILLIGNORE(what) ignore[IGN_ ## what]
+#define IGNORABLE(what) ignore[IGN_ ## what]
 
 #define RETURN_IF_ERROR_UNLESS_IGNORED(r,what,msg_fmt, ...) \
 	if( RET_WAS_ERROR(r) && !ISIGNORED(what,msg_fmt, ## __VA_ARGS__) ) \

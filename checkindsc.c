@@ -167,7 +167,7 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 		r = RET_ERROR;
 	}
 	if( RET_IS_OK(r) )
-		r = properpackagename(dsc->package);
+		r = propersourcename(dsc->package);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
@@ -182,7 +182,7 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 
 	r = getvalue(filename,dsc->control,"Version",&dsc->version);
 	if( RET_IS_OK(r) ) {
-		r = propername(dsc->version);
+		r = properversion(dsc->version);
 	}
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
@@ -201,7 +201,7 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 	}
 	r = sources_parse_getmd5sums(dsc->control,&dsc->basenames,&dsc->md5sums);
 	if( RET_IS_OK(r) )
-		r = propernames(&dsc->basenames);
+		r = properfilenames(&dsc->basenames);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
