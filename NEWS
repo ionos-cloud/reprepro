@@ -1,1 +1,9 @@
-This is version 0.1.
+This is version 0.1.1, a little update to 0.1 to
+fix --includeonlysigned to not accept files signed
+with a unknown key or with multiple keys. Note
+that this only checks if a key is in the keyring anyway
+and your gpg config might automatically download missing
+keys. Also note that include and includedsc are mostly
+thought for manual inclusion of trusted files. Future
+version will have a command to scan some incoming dir
+and have some more fine-tuned checks.
