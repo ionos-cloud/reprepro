@@ -292,7 +292,7 @@ static int removepackage(int argc,char *argv[]) {
 	struct target *target;
 
 	if( argc < 3 || component == NULL || architecture == NULL ) {
-		fprintf(stderr,"mirrorer -C <component> -A <architecture> removebinary <codename> <package-names>\n");
+		fprintf(stderr,"mirrorer -C <component> -A <architecture> remove <codename> <package-names>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
