@@ -185,6 +185,8 @@ static retvalue files_calcmd5sum(filesdb filesdb,const char *filekey,char **md5s
 
 	ret = files_calcmd5(md5sum,filename);
 	free(filename);
+	if( ret == RET_ERROR_MISSING )
+		ret = RET_NOTHING;
 	return ret;
 
 }
