@@ -230,9 +230,9 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 	if( method->tobedone == NULL ) {
 		return RET_NOTHING;
 	}
-	/* when we are already running, nothing is to do...*/
+	/* when we are already running, we are already ready...*/
 	if( method->child > 0 ) {
-		return RET_NOTHING;
+		return RET_OK;
 	}
 
 	method->status = ams_waitforcapabilities;
@@ -449,6 +449,9 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 				/* just in case some method received
 				 * files before we request them ;-) */
 				method->nexttosend = todo->next;
+			}
+			if( method->lasttobedone == todo ) {
+				method->lasttobedone = todo->next;
 			}
 			free(todo->uri);
 			free(todo->filename);

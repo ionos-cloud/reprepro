@@ -230,7 +230,8 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,const char *
 			if( err != 0 ) {
 				r = RET_ERRNO(errno);
 				fprintf(stderr,"error while unlinking %s: %m\n",filename);
-			} else 
+			} 
+			if( err == 0 || force ) 
 				r = files_remove(dist->files,filekey);
 			free(filename);
 		}
@@ -771,7 +772,7 @@ static int update(int argc,char *argv[]) {
 		}
 	}
 	downloadcache_free(download);
-	result = aptmethod_download(run,"/usr/lib/apt/methods",NULL);
+	result = aptmethod_download(run,"/usr/lib/apt/methods",files);
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
 
