@@ -179,3 +179,23 @@ retvalue md5sum_copy(const char *origfilename,const char *destfilename,
 	}
 	return RET_OK;
 }
+/* same as above, but delete existing files and try to hardlink first. */
+retvalue md5sum_place(const char *origfilename,const char *destfilename, 
+			char **result) {
+	int i;
+
+	unlink(destfilename);
+	i = link(origfilename,destfilename);
+	if( i == 0 ) {
+		return md5sum_read(destfilename,result);
+	} else {
+		retvalue r;
+		
+		r = md5sum_copy(origfilename,destfilename,result);
+		if( r == RET_ERROR_EXIST ) {
+			fprintf(stderr,"File '%s' already exists and could not be removed to link/copy '%s' there!\n",destfilename,origfilename);
+
+		}
+		return r;
+	}
+}

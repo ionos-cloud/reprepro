@@ -15,4 +15,7 @@ retvalue md5sum_read(const char *filename,char **result);
  * is already existing before. */
 retvalue md5sum_copy(const char *origfilename,const char *destfilename, 
 			char **result);
+/* same as above, but delete existing files and try to hardlink first. */
+retvalue md5sum_place(const char *origfilename,const char *destfilename, 
+			char **result);
 #endif
