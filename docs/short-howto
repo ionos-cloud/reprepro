@@ -30,6 +30,8 @@ Architectures: i386
 Components: main non-free contrib bad protected server
 Description: PCPool specific (or backported) packages
 SignWith: yes
+Override: override
+SourceOverride: srcoverride
 
 Multiple such entries are seperated with an empty line.
 The codename is used to determine the directory to create,
@@ -75,7 +77,16 @@ To see in which architectures/components a packages exists and which version it 
 
 mirrorer -b . list pcpool zoggy
 
-5) importing from upstream represetories
+5) Override-Files
+When including packages via includedeb, includedsc or include
+the applicaple override file from the distribution it is placed
+into is used. The file given by Override for .deb's the file
+given by SourceOverride for .dsc's. If the filename starts with
+a slash (/) it is not relative to the override directory given
+with -o. Note that the Format is those of apt-ftparchive's
+ExtraOverride, not the old format.
+
+6) importing from upstream represetories
 
 In conf/updates can be entries like this:	
 
