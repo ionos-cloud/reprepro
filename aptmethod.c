@@ -455,7 +455,7 @@ static inline retvalue todo_done(struct aptmethod *method,const struct tobedone 
 	if( strcmp(filename,todo->filename) != 0 ) {
 		retvalue r;
 		if( verbose > 0 ) {
-			fprintf(stderr,"Coyping file '%s' to '%s'...\n",filename,todo->filename);
+			fprintf(stderr,"Linking/Copying file '%s' to '%s'...\n",filename,todo->filename);
 		}
 		r = md5sum_place(filename,todo->filename,&calculatedmd5);
 		if( r == RET_NOTHING ) {
