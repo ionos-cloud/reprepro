@@ -128,8 +128,9 @@ static retvalue files_get(filesdb db,const char *filekey,char **md5sum) {
 		char *n;
 
 		n = strdup((const char *)data.data);
-		if( *md5sum == NULL )
+		if( n == NULL )
 			return RET_ERROR_OOM;
+		*md5sum = n;
 		return RET_OK;
 	} else if( dbret != DB_NOTFOUND ){
 		 db->database->err(db->database, dbret, "files.db:");

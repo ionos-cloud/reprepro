@@ -173,17 +173,19 @@ static retvalue copy(const char *fullfilename,const char *origfile,const char *m
 	}
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( calculatedmd5sum != NULL )
-		*calculatedmd5sum = md5sum;
 
-	if( strcmp(md5sum,md5expected) == 0 ) {
-		r = RET_OK;
-	} else {
-		unlink(fullfilename);
-		fprintf(stderr,"WARNING: '%s' has md5sum '%s', while '%s' was expected.\n",origfile,md5sum,md5expected);
-		r = RET_ERROR_WRONG_MD5;
+	if( md5expected != NULL ) {
+		if( strcmp(md5sum,md5expected) == 0 ) {
+			r = RET_OK;
+		} else {
+			unlink(fullfilename);
+			fprintf(stderr,"WARNING: '%s' has md5sum '%s', while '%s' was expected.\n",origfile,md5sum,md5expected);
+			r = RET_ERROR_WRONG_MD5;
+		}
 	}
 
+	if( calculatedmd5sum != NULL )
+		*calculatedmd5sum = md5sum;
 	if( calculatedmd5sum == NULL )
 		free(md5sum);
 
@@ -197,7 +199,7 @@ static retvalue move(const char *fullfilename,const char *origfile,const char *m
 	r = copy(fullfilename,origfile,md5expected,md5sum);
 	if( RET_IS_OK(r) ) {
 		if( verbose > 15 ) {
-			fprintf(stderr,"Deleting '%s'.",origfile);
+			fprintf(stderr,"Deleting '%s' after copying away.\n",origfile);
 		}
 		if( unlink(origfile) != 0 ) {
 			fprintf(stderr,"Error deleting '%s': %m",origfile);

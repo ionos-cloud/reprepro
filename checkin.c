@@ -737,10 +737,10 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 		} else {
 			assert(RET_IS_OK(r));
 			if( verbose >= 5 ) {
-				fprintf(stderr,"Deleting '%s'.",changesfilename);
+				fprintf(stderr,"Deleting '%s'.\n",changesfilename);
 			}
 			if( unlink(changesfilename) != 0 ) {
-				fprintf(stderr,"Error deleting '%s': %m",changesfilename);
+				fprintf(stderr,"Error deleting '%s': %m\n",changesfilename);
 			}
 		}
 	}

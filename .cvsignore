@@ -14,7 +14,7 @@ config.cache
 config.status
 debug.log
 .deps
-mirrorer
+reprepro
 *.o
 .deps
 old
