@@ -1,3 +1,12 @@
+2005-02-20  Bernhard R. Link <brlink@debian.org>
+	* add docs/tiffany.example, which generates
+	apt-qupdate'able .diff directories.
+
+	* Many small changes to make splint more
+	happy. (Mostly annotations, some clearance
+	and some fixes of memory holes or possible
+	segfaults if running out of memory)
+
 2005-02-19  Bernhard R. Link <brlink@debian.org>
 	* Refactor Index Exporting and Release generation 
 	to reduce the time Release files and Package indices
