@@ -87,7 +87,10 @@ retvalue references_isused(DB *refdb,const char *what) {
 	}
 }
 
-retvalue references_adddependency(DB* refdb,const char *needed,const char *neededby) {
+/* add an reference to a file for an identifier. multiple calls
+ * will add multiple references to allow source packages to share
+ * files over versions. (as first the new is added, then the old removed) */
+retvalue references_increment(DB* refdb,const char *needed,const char *neededby) {
 	int dbret;
 	DBT key,data;
 
@@ -103,7 +106,44 @@ retvalue references_adddependency(DB* refdb,const char *needed,const char *neede
 	}
 }
 
-retvalue references_removedependency(DB* refdb,const char *neededby) {
+/* remove *one* reference for a file from a given reference */
+retvalue references_decrement(DB* refdb,const char *needed,const char *neededby) {
+	DBC *cursor;
+	DBT key,data;
+	int dbret;
+	retvalue r;
+
+	r = RET_NOTHING;
+	cursor = NULL;
+	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
+	}
+	SETDBT(key,needed);	
+	SETDBT(data,neededby);	
+	if( (dbret=cursor->c_get(cursor,&key,&data,DB_GET_BOTH)) == 0 ) {
+			if( verbose > 5 )
+				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
+					(const char *)key.data,neededby);
+			dbret = cursor->c_del(cursor,0);
+			if( dbret != 0 ) {
+				refdb->err(refdb, dbret, "references.db:reference:");
+				RET_UPDATE(r,RET_DBERR(dbret));
+			}
+	}
+	if( dbret != DB_NOTFOUND ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
+	}
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
+	}
+	return r;
+}
+
+/* remove all references from a given identifier */
+retvalue references_remove(DB* refdb,const char *neededby) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -120,7 +160,7 @@ retvalue references_removedependency(DB* refdb,const char *neededby) {
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		if( strcmp( (const char*)data.data,neededby) == 0 ) {
 			if( verbose > 5 )
-				fprintf(stderr,"Removing mark from file '%s' to be needed by '%s'\n",
+				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
 					(const char *)key.data,neededby);
 			dbret = cursor->c_del(cursor,0);
 			if( dbret != 0 ) {
@@ -140,7 +180,7 @@ retvalue references_removedependency(DB* refdb,const char *neededby) {
 	return r;
 }
 
-/* print out all referee-referenced-pairs. return 1 if ok, -1 on error */
+/* print out all referee-referenced-pairs. */
 retvalue references_dump(DB *refdb) {
 	DBC *cursor;
 	DBT key,data;

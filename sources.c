@@ -106,7 +106,7 @@ retvalue sources_getfile(const char **files,char **filename,char **md5andsize) {
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files) {
+retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files) {
 	const char *f;
 #define IFREE(p) if(p) free(*p);
 

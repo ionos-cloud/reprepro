@@ -89,18 +89,18 @@ int addmd5sums(int argc,char *argv[]) {
 }
 
 
-int removedependency(int argc,char *argv[]) {
+int removereferences(int argc,char *argv[]) {
 	DB *refs;
 	retvalue ret,r;
 
 	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer release <identifier>\n");
+		fprintf(stderr,"mirrorer removereferences <identifier>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	ret = references_removedependency(refs,argv[1]);
+	ret = references_remove(refs,argv[1]);
 	r = references_done(refs);
 	RET_ENDUPDATE(ret,r);
 	return EXIT_RET(ret);
@@ -175,7 +175,7 @@ int addreference(int argc,char *argv[]) {
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	result = references_adddependency(refs,argv[1],argv[2]);
+	result = references_increment(refs,argv[1],argv[2]);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
@@ -231,7 +231,7 @@ retvalue reference_binary(void *data,const char *package,const char *chunk) {
 	}
 	if( verbose > 10 )
 		fprintf(stderr,"referencing filekey: %s\n",filekey);
-	r = references_adddependency(dist->refs,filekey,dist->identifier);
+	r = references_increment(dist->refs,filekey,dist->identifier);
 	free(filekey);
 	return r;
 }
@@ -304,7 +304,7 @@ retvalue reference_source(void *data,const char *package,const char *chunk) {
 			free(dir);free(files);free(filename);
 			return RET_ERROR;
 		}
-		r = references_adddependency(dist->refs,filekey,dist->identifier);
+		r = references_increment(dist->refs,filekey,dist->identifier);
 		free(filekey);free(filename);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -345,7 +345,7 @@ int referencesources(int argc,char *argv[]) {
 /****** common for [prepare]add{sources,packages} *****/
 
 struct distribution {
-	DB *files,*pkgs;
+	DB *files,*pkgs,*refs;
 	const char *referee,*part;
 };
 
@@ -353,17 +353,18 @@ struct distribution {
 
 retvalue add_source(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk) {
 	char *newchunk,*fulldir;
-	retvalue ret,r;
+	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
 	const char *nextfile;
+	char *oldfiles;
 	char *filename,*filekey,*md5andsize;
+
 
 	/* look for needed files */
 
 	nextfile = files;
-	ret = RET_NOTHING;
 	while( RET_IS_OK(r=sources_getfile(&nextfile,&filename,&md5andsize)) ){
-		filekey = calc_srcfilekey(directory,filename);
+		filekey = calc_dirconcat(directory,filename);
 		
 		r = files_expect(dist->files,pooldir,filekey,md5andsize);
 		if( RET_WAS_ERROR(r) ) {
@@ -377,9 +378,12 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 			return RET_ERROR;
 		}
 
+		references_increment(dist->refs,filekey,dist->referee);
+
 		free(filename);free(md5andsize);free(filekey);
 	}
-	RET_UPDATE(ret,r);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	/* Add package to distribution's database */
 
@@ -390,17 +394,38 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	newchunk = chunk_replaceentry(chunk,"Directory",fulldir);
 	free(fulldir);
 	if( !newchunk )
-		return RET_ERROR;
+		return RET_ERROR_OOM;
 	if( oldchunk != NULL ) {
-		// TODO remove reference from old
-		r = packages_replace(dist->pkgs,package,newchunk);
+		result = packages_replace(dist->pkgs,package,newchunk);
 	} else {
-		// TODO: add reference?
-		r = packages_add(dist->pkgs,package,newchunk);
+		result = packages_add(dist->pkgs,package,newchunk);
 	}
 	free(newchunk);
-	RET_UPDATE(ret,r);
-	return ret;
+
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	/* remove no longer needed references
+	 * (note that this might decrement a reference to
+	 * a .orig.tar.gz, that is now double, because
+	 * the old and the new package use it.) */
+
+	if( oldchunk != NULL ) {
+		sources_parse_chunk(oldchunk,NULL,NULL,&oldfiles);
+		nextfile = oldfiles;
+		while( RET_IS_OK(r=sources_getfile(&nextfile,&filename,NULL)) ){
+			/* the directory was the same, as it is
+			 * calculated from the sourcename */
+			filekey = calc_srcfilekey(directory,filename);
+
+			r = references_decrement(dist->refs,filekey,dist->referee);
+			RET_UPDATE(result,r);
+
+			free(filename);free(filekey);
+		}
+		free(oldfiles);
+	}
+	return result;
 }
 
 int addsources(int argc,char *argv[]) {
@@ -424,6 +449,12 @@ int addsources(int argc,char *argv[]) {
 		files_done(dist.files);
 		return 1;
 	}
+	dist.refs = references_initialize(dbdir);
+	if( ! dist.refs ) {
+		files_done(dist.files);
+		packages_done(dist.pkgs);
+		return 1;
+	}
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
 		r = sources_add(dist.pkgs,dist.part,argv[i],add_source,&dist);
@@ -432,6 +463,8 @@ int addsources(int argc,char *argv[]) {
 	r = files_done(dist.files);
 	RET_ENDUPDATE(result,r);
 	r = packages_done(dist.pkgs);
+	RET_ENDUPDATE(result,r);
+	r = references_done(dist.refs);
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
 }
@@ -495,6 +528,7 @@ int prepareaddsources(int argc,char *argv[]) {
 		files_done(dist.files);
 		return 1;
 	}
+	dist.refs = NULL;
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
 		r = sources_add(dist.pkgs,dist.part,argv[i],showmissingsourcefiles,&dist);
@@ -553,6 +587,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 		files_done(dist.files);
 		return 1;
 	}
+	dist.refs = NULL;
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
 		r = binaries_add(dist.pkgs,dist.part,argv[i],showmissing,&dist);
@@ -570,16 +605,22 @@ int prepareaddpackages(int argc,char *argv[]) {
 retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *filename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	char *newchunk;
 	char *filewithdir;
-	retvalue r;
+	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
 
 	/* look for needed files */
-
+	
 	r = files_expect(dist->files,pooldir,filekey,md5andsize);
 	if( ! RET_IS_OK(r) ) {
 		printf("Missing file %s\n",filekey);
 		return r;
 	} 
+
+	/* mark it as needed by this distribution */
+
+	r = references_increment(dist->refs,filekey,dist->referee);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	/* Add package to distribution's database */
 
@@ -591,14 +632,23 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	if( !newchunk )
 		return RET_ERROR;
 	if( oldchunk != NULL ) {
-		// TODO: remove old reference?
-		r = packages_replace(dist->pkgs,package,newchunk);
+		result = packages_replace(dist->pkgs,package,newchunk);
+
 	} else {
-		// TODO: add reference?
-		r = packages_add(dist->pkgs,package,newchunk);
+		result = packages_add(dist->pkgs,package,newchunk);
 	}
 	free(newchunk);
-	return r;
+
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	/* remove old references to files */
+
+	if( oldchunk ) {
+		r = references_decrement(dist->refs,filekey,dist->referee);
+		RET_UPDATE(result,r);
+	}
+	return result;
 }
 
 
@@ -620,6 +670,12 @@ int addpackages(int argc,char *argv[]) {
 		files_done(dist.files);
 		return 1;
 	}
+	dist.refs = references_initialize(dbdir);
+	if( ! dist.refs ) {
+		files_done(dist.files);
+		packages_done(dist.pkgs);
+		return 1;
+	}
 	dist.referee = argv[1];
 	dist.part = argv[2];
 	result = RET_NOTHING;
@@ -631,12 +687,10 @@ int addpackages(int argc,char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	r = packages_done(dist.pkgs);
 	RET_ENDUPDATE(result,r);
+	r = references_done(dist.refs);
+	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
 }
-
-
-
-
 
 int detect(int argc,char *argv[]) {
 	DB *files;
@@ -883,7 +937,7 @@ static retvalue rerefbin(void *data,const char *component,const char *architectu
 		return RET_ERROR;
 	}
 
-	result = references_removedependency(d->references,dbname);
+	result = references_remove(d->references,dbname);
 
 	if( verbose > 2 )
 		fprintf(stderr,"Referencing %s...\n",dbname);
@@ -925,7 +979,7 @@ static retvalue rerefsrc(void *data,const char *component) {
 		return RET_ERROR;
 	}
 
-	result = references_removedependency(d->references,dbname);
+	result = references_remove(d->references,dbname);
 
 	if( verbose > 2 )
 		fprintf(stderr,"Referencing %s...\n",dbname);
@@ -1007,7 +1061,7 @@ struct action {
 	{"printunreferenced", dumpunreferenced},
 	{"dumpreferences", dumpreferences},
 	{"dumpunreferenced", dumpunreferenced},
-	{"removedependency", removedependency},
+	{"removereferences", removereferences},
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
 	{"addmd5sums",addmd5sums },
@@ -1059,7 +1113,7 @@ int main(int argc,char *argv[]) {
 "  ('find $pooldir -type f -printf \"%%P\\n\" | mirrorer -p $pooldir inventory'\n"
 "   will iventory an already existing pool-dir\n"
 "   WARNING: names relative to pool-dir in shortest possible form\n"
-" removedependency <type>:     Remove all marks \"Needed by <type>\"\n"
+" removereferences <identifier>: Remove all marks \"Needed by <identifier>\"\n"
 " referencebinaries <identifer>:\n"
 "       Mark everything in dist <identifier> to be needed by <identifier>\n"
 " referencesources <identifer>:\n"

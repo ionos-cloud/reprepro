@@ -8,13 +8,22 @@
 
 DB *references_initialize(const char *dbpath);
 retvalue references_done(DB *db);
-retvalue references_removedependency(DB* refdb,const char *neededby);
-retvalue references_adddependency(DB* refdb,const char *needed,const char *neededby);
+
+/* remove all references from a given identifier */
+retvalue references_remove(DB* refdb,const char *neededby);
+
+/* add an reference to a file for an identifier. multiple calls
+ * will add multiple references to allow source packages to share
+ * files over versions. (as first the new is added, then the old removed) */
+retvalue references_increment(DB* refdb,const char *needed,const char *neededby);
+
+/* delete *one* reference to a file for an identifier */
+retvalue references_decrement(DB* refdb,const char *needed,const char *neededby);
 
 /* check if an item is needed, returns RET_NOTHING if not */
 retvalue references_isused(DB *refdb,const char *what);
 
-/* print out all referee-referenced-pairs. return 1 if ok, -1 on error */
+/* print out all referee-referenced-pairs. */
 retvalue references_dump(DB *refdb);
 
 #endif

@@ -11,6 +11,8 @@
  * > 0 while entires found, ==0 when not, <0 on error */
 retvalue sources_getfile(const char **files,char **filename,char **md5andsize);
 
+retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files);
+
 /* action taken by sources_add for each sourcepacke missing */
 typedef retvalue source_package_action(
 	/* the private data passed to sources_add */
