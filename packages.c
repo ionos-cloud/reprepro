@@ -228,7 +228,7 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 	cursor = NULL;
 	if( (dbret = db->database->cursor(db->database,NULL,&cursor,0)) != 0 ) {
 		db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
-		return -1;
+		return RET_ERROR;
 	}
 	CLEARDBT(key);	
 	CLEARDBT(data);	
