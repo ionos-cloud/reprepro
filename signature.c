@@ -103,7 +103,7 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 		}
 #ifdef HASGPGMEGOODEXP
 		/* The key is explicitly given, so we do not care for its age! */
-		if( status == GPGME_SIG_STAT_GOOD || status == GPGME_SIG_STATUS_EXPKEY) {
+		if( status == GPGME_SIG_STAT_GOOD || status == GPGME_SIG_STAT_GOOD_EXPKEY) {
 #else
 		if( status == GPGME_SIG_STAT_GOOD ) {
 #endif
