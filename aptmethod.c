@@ -44,18 +44,19 @@ struct aptmethod {
 	struct aptmethod *next;
 	char *name;
 	char *baseuri;
-	char *config;
+	/*@null@*/char *config;
 	int stdin,stdout;
 	pid_t child;
 
 	enum { ams_notstarted=0, ams_waitforcapabilities, ams_ok, ams_failed } status;
 	
-	struct tobedone *tobedone,*lasttobedone,*nexttosend;
+	struct tobedone *tobedone,*lasttobedone;
+	/*@dependent@*/const struct tobedone *nexttosend;
 	/* what is currently read: */
-	char *inputbuffer;
+	/*@null@*/char *inputbuffer;
 	size_t input_size,alreadyread;
 	/* What is currently written: */
-	char *command;
+	/*@null@*/char *command;
 	size_t alreadywritten,output_length;
 };
 
@@ -63,7 +64,7 @@ struct aptmethodrun {
 	struct aptmethod *methods;
 };
 
-static void aptmethod_free(struct aptmethod *method) {
+static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 	if( method == NULL )
 		return;
 	free(method->name);
@@ -116,13 +117,13 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 		if( method->stdin >= 0 ) {
 			(void)close(method->stdin);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdin of %d\n",method->child);
+				fprintf(stderr,"Closing stdin of %d\n",(int)method->child);
 		}
 		method->stdin = -1;
 		if( method->stdout >= 0 ) {
 			(void)close(method->stdout);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdout %d\n",method->child);
+				fprintf(stderr,"Closing stdout %d\n",(int)method->child);
 		}
 		method->stdout = -1;
 	}
@@ -256,7 +257,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	r = pipe(stdout);	
 	if( r < 0 ) {
 		int err = errno;
-		close(stdin[0]);close(stdin[1]);
+		(void)close(stdin[0]);(void)close(stdin[1]);
 		fprintf(stderr,"Error while pipe: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
@@ -264,8 +265,8 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	f = fork();
 	if( f < 0 ) {
 		int err = errno;
-		close(stdin[0]);close(stdin[1]);
-		close(stdout[0]);close(stdout[1]);
+		(void)close(stdin[0]);(void)close(stdin[1]);
+		(void)close(stdout[0]);(void)close(stdout[1]);
 		fprintf(stderr,"Error while forking: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
@@ -273,8 +274,8 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		long maxopen;
 		char *methodname;
 		/* child: */
-		close(stdin[1]);
-		close(stdout[0]);
+		(void)close(stdin[1]);
+		(void)close(stdout[0]);
 		if( dup2(stdin[0],0) < 0 ) {
 			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
 			exit(255);
@@ -288,14 +289,14 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		if( maxopen > 0 ) {
 			int fd;
 			for( fd = 3 ; fd < maxopen ; fd++ )
-				close(fd);
+				(void)close(fd);
 		} else {
 			/* closeat least the ones definitly causing problems*/
 			const struct aptmethod *m;
 			for( m = run->methods; m ; m = m->next ) {
 				if( m != method ) {
-					close(m->stdin);
-					close(m->stdout);
+					(void)close(m->stdin);
+					(void)close(m->stdout);
 				}
 			}
 		}
@@ -313,9 +314,9 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	/* the main program continues... */
 	method->child = f;
 	if( verbose > 10 )
-		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,f);
-	close(stdin[0]);
-	close(stdout[1]);
+		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,(int)f);
+	(void)close(stdin[0]);
+	(void)close(stdout[1]);
 	method->stdin = stdin[1];
 	method->stdout = stdout[0];
 	method->inputbuffer = NULL;
@@ -351,7 +352,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	}
 
 	l = sizeof(CONF601)+sizeof(CONFITEM)+1;
-	for( p = method->config; *p ; p++ ) {
+	for( p = method->config; *p != '\0' ; p++ ) {
 		if( *p == '\n' )
 			l += sizeof(CONFITEM)-1;
 		else 
@@ -365,7 +366,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	strcpy(c,CONF601 CONFITEM);
 	c += sizeof(CONF601)+sizeof(CONFITEM)-2;
 	wasnewline = TRUE;
-	for( p = method->config; *p ; p++ ) {
+	for( p = method->config; *p != '\0'  ; p++ ) {
 		if( *p != '\n' ) {
 			if( !wasnewline || !isspace(*p) )
 				*(c++) = *p;
@@ -390,7 +391,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 
 /**************************how to add files*****************************/
 
-static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
+/*@null@*/static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
 	struct tobedone *todo;
 
 	todo = malloc(sizeof(struct tobedone));
@@ -495,8 +496,8 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	if( todo->filekey ) {
 		retvalue r;
 
-		assert(filesdb);
-		assert(todo->md5sum);
+		assert(filesdb != NULL);
+		assert(todo->md5sum != NULL);
 		
 		r = files_add(filesdb,todo->filekey,todo->md5sum);
 		if( RET_WAS_ERROR(r) )
@@ -706,7 +707,7 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 	
 static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
 	const char *p;
-#define OVERLINE {while( *p && *p != '\n') p++; if(*p == '\n') p++; }
+#define OVERLINE {while( *p != '\0' && *p != '\n') p++; if(*p == '\n') p++; }
 
 	while( *input == '\n' || *input == '\r' )
 		input++;
@@ -788,6 +789,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	assert( method->status != ams_ok || method->tobedone );
 	if( method->status != ams_waitforcapabilities && method->status != ams_ok )
 		return RET_NOTHING;
+	assert( method->inputbuffer != NULL );
 
 	/* First look if we have enough room to read.. */
 	if( method->alreadyread + 1024 >= method->input_size ) {
@@ -921,11 +923,11 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 		}
 		/* Make sure we do not cope with this child any more */
 		if( method->stdin != -1 ) {
-			close(method->stdin);
+			(void)close(method->stdin);
 			method->stdin = -1;
 		}
 		if( method->stdout != -1 ) {
-			close(method->stdout);
+			(void)close(method->stdout);
 			method->stdout = -1;
 		}
 		method->child = -1;
