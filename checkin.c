@@ -66,7 +66,6 @@ extern int verbose;
  *
  */
 
-/* don't get confused by all this UDEB around here, that is not yet supported... */
 typedef	enum { fe_UNKNOWN=0,fe_DEB,fe_UDEB,fe_DSC,fe_DIFF,fe_ORIG,fe_TAR} filetype;
 
 #define FE_BINARY(ft) ( (ft) == fe_DEB || (ft) == fe_UDEB )
@@ -640,7 +639,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 	e = changes->files;
 	while( e ) {
 		char *fullfilename;
-		if( e->type != fe_DEB && e->type != fe_DSC ) {
+		if( e->type != fe_DEB && e->type != fe_DSC && e->type != fe_UDEB) {
 			e = e->next;
 			continue;
 		}
@@ -658,7 +657,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				force,D_INPLACE);
 			if( r == RET_NOTHING )
 				somethingwasmissed = 1;
-		} if( e->type == fe_UDEB ) {
+		} else if( e->type == fe_UDEB ) {
 			r = deb_add(dbdir,references,filesdb,
 				changes->component,e->architecture,
 				e->section,e->priority,
