@@ -24,4 +24,10 @@ retvalue release_gensource(const struct release *release,const char *component,c
 /* Generate a main "Release" file for a distribution */
 retvalue release_gen(const struct release *release,const char *distdir);
 
+typedef retvalue release_each_source_action(void *data, const char *component);
+typedef retvalue release_each_binary_action(void *data, const char *component, const char *arch);
+
+/* call <sourceaction> for each source part of <release> and <binaction> for each binary part of it. */
+retvalue release_foreach_part(const struct release *release,release_each_source_action sourceaction,release_each_binary_action binaction,void *data);
+
 #endif

@@ -292,16 +292,88 @@ static const char *next_word(const char *c) {
 	return c;
 }
 
+/* call <sourceaction> for each source part of <release> and <binaction> for each binary part of it. */
+retvalue release_foreach_part(const struct release *release,release_each_source_action sourceaction,release_each_binary_action binaction,void *data) {
+	retvalue result,r;
+	const char *arch,*comp;
+	char *a,*c;
+
+	result = RET_NOTHING;
+	for( comp=release->components ; *comp ; comp=next_word(comp) ) {
+		c = first_word(comp);
+		if( !c ) {return RET_ERROR_OOM;}
+		for( arch=release->architectures ; *arch ; arch=next_word(arch) ) {
+			a = first_word(arch);
+			if( !a ) {free(c);return RET_ERROR_OOM;}
+			if( strcmp(a,"source") != 0 ) {
+				r = binaction(data,c,a);
+				RET_UPDATE(result,r);
+				//TODO: decide if break on error/introduce a force-flag
+			}
+			free(a);
+			
+		}
+		r = sourceaction(data,c);
+		RET_UPDATE(result,r);
+		//TODO: dito
+		free(c);
+	}
+	return result;
+}
+
+struct genrel {const struct release *release;const char *distdir; FILE *f; };
+
+static retvalue printbin(void *data,const char *component,const char *architecture) {
+	retvalue result,r;
+	struct genrel *d = data;
+
+	result = release_genbinary(d->release,architecture,component,d->distdir);
+	
+	r = printmd5andsize(d->f,d->distdir,
+		"%s/%s/binary-%s/Release",
+		d->release->codename,component,architecture);
+	RET_UPDATE(result,r);
+
+	r = printmd5andsize(d->f,d->distdir,
+		"%s/%s/binary-%s/Packages",
+		d->release->codename,component,architecture);
+	RET_UPDATE(result,r);
+	r = printmd5andsize(d->f,d->distdir,
+		"%s/%s/binary-%s/Packages.gz",
+		d->release->codename,component,architecture);
+	RET_UPDATE(result,r);
+
+	return result;
+}
+
+static retvalue printsource(void *data,const char *component) {
+	retvalue result,r;
+	struct genrel *d = data;
+
+	result = release_gensource(d->release,component,d->distdir);
+	
+	r = printmd5andsize(d->f,d->distdir,
+			"%s/%s/source/Release",
+			d->release->codename,component);
+	RET_UPDATE(result,r);
+	r = printmd5andsize(d->f,d->distdir,
+			"%s/%s/source/Sources.gz",
+			d->release->codename,component);
+	RET_UPDATE(result,r);
+
+	return result;
+}
+
 /* Generate a main "Release" file for a distribution */
 retvalue release_gen(const struct release *release,const char *distdir) {
 	FILE *f;
 	char *filename;
 	int e;
-	retvalue result,r;
-	const char *arch,*comp;
-	char *a,*c;
+	retvalue result;
 	char buffer[100];
 	time_t t;
+
+	struct genrel data;
 
 	time(&t);
 	// e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S %z",localtime(&t));
@@ -341,50 +413,13 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 		release->architectures, release->components,
 		release->description);
 
-	/* add md5sums */
-	// TODO: split this out to a foreach-rotine
-	result = RET_NOTHING;
-	for( comp=release->components ; *comp ; comp=next_word(comp) ) {
-		c = first_word(comp);
-		if( !c ) {return RET_ERROR_OOM;}
-		for( arch=release->architectures ; *arch ; arch=next_word(arch) ) {
-			a = first_word(arch);
-			if( !a ) {free(c);return RET_ERROR_OOM;}
-			if( strcmp(a,"source") != 0 ) {
-				r = release_genbinary(release,a,c,distdir);
-				RET_UPDATE(result,r);
-				
-				r = printmd5andsize(f,distdir,
-					"%s/%s/binary-%s/Release",
-					release->codename,c,a);
-				RET_UPDATE(result,r);
+	/* generate bin/source-Release-files and add md5sums */
 
-				r = printmd5andsize(f,distdir,
-					"%s/%s/binary-%s/Packages",
-					release->codename,c,a);
-				RET_UPDATE(result,r);
-				r = printmd5andsize(f,distdir,
-					"%s/%s/binary-%s/Packages.gz",
-					release->codename,c,a);
-				RET_UPDATE(result,r);
-			}
-			free(a);
-			
-		}
-		r = release_gensource(release,c,distdir);
-		RET_UPDATE(result,r);
-		r = printmd5andsize(f,distdir,
-				"%s/%s/source/Release",
-				release->codename,c);
-		RET_UPDATE(result,r);
-		r = printmd5andsize(f,distdir,
-				"%s/%s/source/Sources.gz",
-				release->codename,c);
-		RET_UPDATE(result,r);
-		free(c);
-	}
+	data.f = f;
+	data.distdir = distdir;
+	data.release = release;
+	result = release_foreach_part(release,printsource,printbin,&data);
 	
-
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);
 
