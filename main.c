@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -218,7 +218,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,const char *
 	struct fileref *dist = data;
 	retvalue r;
 	char *filename;
-	int err;
+	int err,en;
 
 	r = references_isused(dist->refs,filekey);
 	if( r == RET_NOTHING ) {
@@ -230,10 +230,15 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,const char *
 		else {
 			err = unlink(filename);
 			if( err != 0 ) {
-				r = RET_ERRNO(errno);
-				fprintf(stderr,"error while unlinking %s: %m\n",filename);
+				en = errno;
+				r = RET_ERRNO(en);
+				if( errno == ENOENT ) {
+					fprintf(stderr,"%s not found, forgetting anyway\n",filename);
+				} else {
+					fprintf(stderr,"error while unlinking %s: %m(%d)\n",filename,en);
+				}
 			} 
-			if( err == 0 || force ) 
+			if( err == 0 || en == ENOENT || force ) 
 				r = files_remove(dist->files,filekey);
 			free(filename);
 		}
