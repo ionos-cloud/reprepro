@@ -25,6 +25,8 @@
 #include <string.h>
 #include <malloc.h>
 #include "error.h"
+#define DEFINE_IGNORE_VARIABLES
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "dirs.h"
@@ -55,8 +57,7 @@
 
 /* global options */
 static 
-char 	*incommingdir = STD_BASE_DIR "/incomming",
-	*mirrordir = STD_BASE_DIR ,
+char 	*mirrordir = STD_BASE_DIR ,
 	*distdir = STD_BASE_DIR "/dists",
 	*dbdir = STD_BASE_DIR "/db",
 	*listdir = STD_BASE_DIR "/lists",
@@ -1049,7 +1050,7 @@ int main(int argc,char *argv[]) {
 	static struct option longopts[] = {
 		{"delete", 0, NULL, 'r'},
 		{"basedir", 1, NULL, 'b'},
-		{"incommingdir", 1, NULL, 'i'},
+		{"ignore", 1, NULL, 'i'},
 		{"methoddir", 1, NULL, 'M'},
 		{"distdir", 1, NULL, 'd'},
 		{"dbdir", 1, NULL, 'D'},
@@ -1068,6 +1069,9 @@ int main(int argc,char *argv[]) {
 		{NULL, 0, NULL, 0}
 	};
 	int c;struct action *a;
+	retvalue r;
+
+	init_ignores();
 
 
 	while( (c = getopt_long(argc,argv,"+feNVvhlb:P:p:d:c:D:L:M:i:A:C:S:",longopts,NULL)) != -1 ) {
@@ -1080,8 +1084,6 @@ int main(int argc,char *argv[]) {
 " -r, --delete:                       Delete included files if reasonable.\n"
 " -b, --basedir <dir>:               Base-dir (will overwrite prior given\n"
 "                                                        -d, -D, -L, -c).\n"
-// TODO: is not yet used...
-// " -i, --incomming <dir>:             incomming-Directory.\n"
 " -d, --distdir <dir>:               Directory to place the \"dists\" dir in.\n"
 " -D, --dbdir <dir>:                 Directory to place the database in.\n"
 " -L, --listdir <dir>:               Directory to place downloaded lists in.\n"
@@ -1138,7 +1140,6 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'b':
 				mirrordir=strdup(optarg);
-				incommingdir=calc_dirconcat(optarg,"incomming");
 				distdir=calc_dirconcat(optarg,"dists");
 				dbdir=calc_dirconcat(optarg,"db");
 				listdir=calc_dirconcat(optarg,"lists");
@@ -1146,7 +1147,10 @@ int main(int argc,char *argv[]) {
 				overridedir=calc_dirconcat(optarg,"override");
 				break;
 			case 'i':
-				incommingdir = strdup(optarg);
+				r = add_ignore(optarg);
+				if( RET_WAS_ERROR(r) ) {
+					exit(EXIT_FAILURE);
+				}
 				break;
 			case 'M':
 				methoddir = strdup(optarg);
