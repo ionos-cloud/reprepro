@@ -88,12 +88,25 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 				case GPGME_SIG_STAT_GOOD:
 					fprintf(stderr,"Good signature!\n");
 					break;
+#ifdef HASGPGMEGOODEXP
+				case GPGME_SIG_STAT_GOOD_EXP:
+					fprintf(stderr,"Valid but expired signature!\n");
+					break;
+				case GPGME_SIG_STAT_GOOD_EXPKEY:
+					fprintf(stderr,"Valid signature with expired key!\n");
+					break;
+#endif
 				default:
 					fprintf(stderr,"Error checking!\n");
 					break;
 			}
 		}
+#ifdef HASGPGMEGOODEXP
+		/* The key is explicitly given, so we do not care for its age! */
+		if( status == GPGME_SIG_STAT_GOOD || status == GPGME_SIG_STATUS_EXPKEY) {
+#else
 		if( status == GPGME_SIG_STAT_GOOD ) {
+#endif
 			size_t fl,kl;
 
 			if( key == NULL || (
@@ -157,6 +170,10 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		case GPGME_SIG_STAT_NOKEY:
 		case GPGME_SIG_STAT_DIFF:
 		case GPGME_SIG_STAT_GOOD:
+#ifdef HASGPGMEGOODEXP
+		case GPGME_SIG_STAT_GOOD_EXP:
+		case GPGME_SIG_STAT_GOOD_EXPKEY:
+#endif
 			return checksignatures(context,options,releasegpg);
 		default:
 			fprintf(stderr,"Error checking signature!\n");
@@ -292,6 +309,18 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
 			gpgme_data_release(dh);
 			fprintf(stderr,"Signature is bad!\n");
 			return RET_ERROR_BADSIG;
+#ifdef HASGPGMEGOODEXP
+		case GPGME_SIG_STAT_GOOD_EXP:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"Signature is valid but expired!\n");
+			return RET_ERROR_BADSIG;
+		case GPGME_SIG_STAT_GOOD_EXPKEY:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"Signature is valid but the key is expired!\n");
+			return RET_ERROR_BADSIG;
+#endif
 		default:
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
