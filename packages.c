@@ -300,7 +300,7 @@ static retvalue packages_printout(packagesdb packagesdb,const char *filename) {
 	r = fclose(pf);
 	if( r != 0 )
 		RET_ENDUPDATE(ret,RET_ERRNO(errno));
-	if( RET_IS_OK(ret) ) 
+	if( !RET_WAS_ERROR(ret) ) 
 		packagesdb->wasmodified = 0;
 	return ret;
 }
@@ -329,6 +329,10 @@ static retvalue packages_zprintout(packagesdb packagesdb,const char *filename) {
 
 retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompression compression) {
 	assert( compression >= 0 && compression <= ic_max );
+
+	if( verbose > 5 ) {
+		fprintf(stderr,"  writing to '%s'...\n",filename);
+	}
 
 	switch( compression ) {
 		case ic_uncompressed:

@@ -447,7 +447,7 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	/* finaly put it into the source distribution */
 	if( !RET_WAS_ERROR(r) ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,"source");
-		r = target_initpackagesdb(t,dbdir,NULL);
+		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) )
 		r = target_addpackage(t,references,NULL,pkg->package,pkg->version,pkg->control,&pkg->filekeys,NULL,force,0);
 	}

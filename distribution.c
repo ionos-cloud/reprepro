@@ -35,9 +35,12 @@
 #include "md5sum.h"
 #include "dirs.h"
 #include "names.h"
+#include "release.h"
 #include "distribution.h"
 
-void distribution_free(struct distribution *distribution) {
+retvalue distribution_free(struct distribution *distribution) {
+	retvalue result,r;
+
 	if( distribution) {
 		free(distribution->codename);
 		free(distribution->suite);
@@ -45,18 +48,24 @@ void distribution_free(struct distribution *distribution) {
 		free(distribution->origin);
 		free(distribution->label);
 		free(distribution->description);
+		free(distribution->signwith);
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
 
+		result = RET_OK;
+
 		while( distribution->targets ) {
 			struct target *next = distribution->targets->next;
 
-			target_free(distribution->targets);
+			r = target_free(distribution->targets);
+			RET_UPDATE(result,r);
 			distribution->targets = next;
 		}
 		free(distribution);
-	}
+		return result;
+	} else
+		return RET_OK;
 }
 
 /* create all contained targets... */
@@ -110,7 +119,7 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 		return RET_ERROR_OOM;
 
 #define checkret		 if(!RET_IS_OK(ret)) { \
-					distribution_free(r); \
+					(void)distribution_free(r); \
 					return ret; \
 				}
 	ret = chunk_getvalue(chunk,"Codename",&r->codename);
@@ -131,6 +140,12 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 	checkret;
 	ret = chunk_getwordlist(chunk,"Update",&r->updates);
 	checkret;
+	ret = chunk_getvalue(chunk,"SignWith",&r->signwith);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING )
+		r->signwith = NULL;
 
 	ret = createtargets(r);
 	checkret;
@@ -155,7 +170,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 			while( i-- > 0 && strcmp((filter.dists)[i],(*distribution)->codename) != 0 ) {
 			}
 			if( i < 0 ) {
-				distribution_free(*distribution);
+				(void)distribution_free(*distribution);
 				*distribution = NULL;
 				return RET_NOTHING;
 			}
@@ -195,14 +210,15 @@ struct dist_mydata {struct distribution_filter filter; distributionaction *actio
 
 static retvalue processdistribution(void *d,const char *chunk) {
 	struct dist_mydata *mydata = d;
-	retvalue result;
+	retvalue result,r;
 	struct distribution *distribution;
 
 	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter);
 	if( RET_IS_OK(result) ){
 
 		result = mydata->action(mydata->data,chunk,distribution);
-		distribution_free(distribution);
+		r = distribution_free(distribution);
+		RET_ENDUPDATE(result,r);
 	}
 
 	return result;
@@ -267,7 +283,7 @@ retvalue distribution_getmatched(const char *conf,int argc,char *argv[],struct d
 	} else 
 		while( d ) {
 			struct distribution *next = d->next;
-			distribution_free(d);
+			(void)distribution_free(d);
 			d = next;
 		}
 	
@@ -304,5 +320,31 @@ retvalue distribution_get(struct distribution **distribution,const char *conf,co
 	if( !RET_WAS_ERROR(result) )
 		*distribution = mydata.distribution;
 	
+	return result;
+}
+
+retvalue distribution_export(struct distribution *distribution,
+		const char *dbdir, const char *distdir,
+		int force, int onlyneeded) {
+	struct target *target;
+	retvalue result,r;
+
+	result = RET_NOTHING;
+	for( target=distribution->targets; target ; target = target->next ) {
+		r = release_genrelease(distribution,target,distdir);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force)
+			break;
+		r = target_export(target,dbdir,distdir, force, onlyneeded);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force)
+			break;
+	}
+	if( !RET_WAS_ERROR(result) || force ) {
+		retvalue r;
+
+		r = release_gen(distribution,distdir,force);
+		RET_UPDATE(result,r);
+	}
 	return result;
 }

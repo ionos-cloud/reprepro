@@ -306,22 +306,22 @@ static int removepackage(int argc,char *argv[]) {
 	if( !strlist_in(&distribution->components,component) ) {
 		fprintf(stderr,"No component '%s' in '%s'!\n",component,distribution->codename);
 		(void)references_done(refs);
-		distribution_free(distribution);
+		(void)distribution_free(distribution);
 		return 1;
 	}
 	if( !strlist_in(&distribution->architectures,architecture) ) {
 		fprintf(stderr,"No architecture '%s' in '%s'!\n",architecture,distribution->codename);
 		(void)references_done(refs);
-		distribution_free(distribution);
+		(void)distribution_free(distribution);
 		return 1;
 	}
 
 	target = distribution_getpart(distribution,component,architecture);
 
-	result = target_initpackagesdb(target,dbdir,NULL);
+	result = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(result) ) {
 		(void)references_done(refs);
-		distribution_free(distribution);
+		(void)distribution_free(distribution);
 		return 1;
 	}
 
@@ -331,7 +331,10 @@ static int removepackage(int argc,char *argv[]) {
 		RET_UPDATE(result,r);
 	}
 
-	distribution_free(distribution);
+	r = distribution_export(distribution,dbdir,distdir,force,1);
+	RET_ENDUPDATE(result,r);
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
@@ -647,45 +650,13 @@ static int checkrelease(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-struct data_export { const struct distribution *distribution;int force;};
-
-static retvalue exportbinsrc(void *data,struct target *target) {
-	retvalue result,r;
-	struct data_export *d = data;
-
-	result = release_genrelease(d->distribution,target,distdir);
-
-	if( RET_WAS_ERROR(result) && !force )
-		return result;
-
-	r = target_initpackagesdb(target,dbdir,NULL);
-	if( !RET_WAS_ERROR(r) )
-		r = target_export(target,distdir,d->force);
-	RET_UPDATE(result,r);
-
-	return result;
-}
-
-static retvalue doexport(void *dummy,const char *chunk,const struct distribution *distribution) {
-	struct data_export dat;
-	retvalue result;
+static retvalue doexport(void *dummy,const char *chunk,struct distribution *distribution) {
 
 	if( verbose > 0 ) {
 		fprintf(stderr,"Exporting %s...\n",distribution->codename);
 	}
 
-	dat.distribution = distribution;
-	dat.force = force;
-
-	result = distribution_foreach_part(distribution,exportbinsrc,&dat,force);
-	if( !RET_WAS_ERROR(result) || force ) {
-		retvalue r;
-
-		r = release_gen(distribution,distdir,chunk,force);
-		RET_UPDATE(result,r);
-	}
-
-	return result;
+	return distribution_export(distribution,dbdir,distdir,force,0);
 }
 
 static int export(int argc,char *argv[]) {
@@ -775,7 +746,7 @@ static int upgrade(int argc,char *argv[]) {
 
 	result = upgradelist_initialize(&upgrade,target,dbdir,ud_always);
 	if( RET_WAS_ERROR(result) ) {
-		target_free(target);
+		(void)target_free(target);
 		return EXIT_RET(result);
 	}
 
@@ -802,14 +773,14 @@ static retvalue reref(void *data,struct target *target) {
 	retvalue result;
 	struct data_binsrcreref *d = data;
 
-	result = target_initpackagesdb(target,dbdir,NULL);
+	result = target_initpackagesdb(target,dbdir);
 	if( !RET_WAS_ERROR(result) )
 		result = target_rereference(target,d->references,force);
 	return result;
 }
 
 
-static retvalue rereference_dist(void *data,const char *chunk,const struct distribution *distribution) {
+static retvalue rereference_dist(void *data,const char *chunk,struct distribution *distribution) {
 	struct data_binsrcreref dat;
 	retvalue result;
 
@@ -852,13 +823,13 @@ static retvalue check_target(void *data,struct target *target) {
 	struct data_check *d = data;
 	retvalue r;
 
-	r = target_initpackagesdb(target,dbdir,NULL);
+	r = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return target_check(target,d->files,d->references,force);
 }
 
-static retvalue check_dist(void *data,const char *chunk,const struct distribution *distribution) {
+static retvalue check_dist(void *data,const char *chunk,struct distribution *distribution) {
 	struct data_check *dat=data;
 	retvalue result;
 
@@ -935,8 +906,12 @@ static int includedeb(int argc,char *argv[]) {
 		return 1;
 
 	result = deb_add(dbdir,references,files,component,architecture,section,priority,distribution,argv[2],NULL,NULL,force);
-	distribution_free(distribution);
 
+	r = distribution_export(distribution,dbdir,distdir,force,1);
+	RET_ENDUPDATE(result,r);
+
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(references);
@@ -975,8 +950,11 @@ static int includedsc(int argc,char *argv[]) {
 		return 1;
 
 	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,force);
-	distribution_free(distribution);
-
+	
+	r = distribution_export(distribution,dbdir,distdir,force,1);
+	RET_ENDUPDATE(result,r);
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(references);
@@ -1009,8 +987,11 @@ static int includechanges(int argc,char *argv[]) {
 		return 1;
 
 	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,argv[2],force);
-	distribution_free(distribution);
-
+	
+	r = distribution_export(distribution,dbdir,distdir,force,1);
+	RET_ENDUPDATE(result,r);
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(references);

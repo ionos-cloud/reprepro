@@ -36,6 +36,6 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 retvalue release_genrelease(const struct distribution *distribution,const struct target *target,const char *distdir);
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct distribution *distribution,const char *distdir,const char *chunk,int force);
+retvalue release_gen(const struct distribution *distribution,const char *distdir,int force);
 
 #endif

@@ -235,11 +235,10 @@ static retvalue printmd5(void *data,struct target *target) {
 }
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct distribution *distribution,const char *distdir,const char *chunk,int force) {
+retvalue release_gen(const struct distribution *distribution,const char *distdir,int force) {
 	FILE *f;
 	char *filename;
 	char *dirofdist;
-	char *signoptions;
 	size_t e;
 	retvalue result,r;
 	char buffer[100];
@@ -313,17 +312,10 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 		return result;
 	}
 
-	r = chunk_getvalue(chunk,"SignWith",&signoptions);
-	if( RET_WAS_ERROR(r) ) {
-		free(dirofdist);
-		free(filename);
-		return r;
-	}
 	/* in case of error or nothing to do there is nothing to do... */
-	if( RET_IS_OK(r) ) { 
-		r = signature_sign(signoptions,filename);
+	if( distribution->signwith ) { 
+		r = signature_sign(distribution->signwith,filename);
 		RET_UPDATE(result,r);
-		free(signoptions);
 	}
 	free(filename);
 	return result;

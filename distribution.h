@@ -17,13 +17,15 @@ struct distribution {
 	char *codename,*suite,*version;
 	char *origin,*label,*description;
 	struct strlist architectures,components,updates;
+	/* the key to sign with, may be NULL: */
+	char *signwith;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 };
 
 
 retvalue distribution_get(struct distribution **distribution,const char *conf,const char *name);
-void distribution_free(struct distribution *distribution);
+retvalue distribution_free(struct distribution *distribution);
 
 typedef retvalue distribution_each_action(void *data, struct target *t);
 
@@ -32,7 +34,9 @@ retvalue distribution_foreach_part(const struct distribution *distribution,distr
 
 struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture);
 
-typedef retvalue distributionaction(void *data,const char *chunk,const struct distribution *distribution);
+retvalue distribution_export(struct distribution *distribution,const char *dbdir,const char *distdir,int force,int onlyneeded);
+
+typedef retvalue distributionaction(void *data,const char *chunk,struct distribution *distribution);
 
 /* call <action> for each distribution-chunk from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_foreach(const char *conf,int argc,char *argv[],distributionaction action,void *data,int force);

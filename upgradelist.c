@@ -128,7 +128,6 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 	
 retvalue upgradelist_initialize(upgradelist *ul,struct target *t,const char *dbdir,upgrade_decide_function *decide) {
 	upgradelist upgrade;
-	packagesdb packages;
 	retvalue r;
 
 	upgrade = calloc(1,sizeof(struct s_upgradelist));
@@ -138,13 +137,13 @@ retvalue upgradelist_initialize(upgradelist *ul,struct target *t,const char *dbd
 	upgrade->decide = decide;
 	upgrade->target = t;
 
-	r = target_initpackagesdb(t,dbdir,&packages);
+	r = target_initpackagesdb(t,dbdir);
 	if( RET_WAS_ERROR(r) ) {
 		upgradelist_done(upgrade);
 		return r;
 	}
 
-	r = packages_foreach(packages,save_package_version,upgrade,0);
+	r = packages_foreach(t->packages,save_package_version,upgrade,0);
 
 	if( RET_WAS_ERROR(r) ) {
 		upgradelist_done(upgrade);

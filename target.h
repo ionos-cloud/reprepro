@@ -38,19 +38,20 @@ struct target {
 
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target);
 retvalue target_initialize_source(const char *codename,const char *component,struct target **target);
-void target_free(struct target *target);
+retvalue target_free(struct target *target);
 
+retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded);
 
 retvalue target_printmd5sums(const struct target *target,const char *distdir,FILE *out,int force);
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(struct target *target, const char *dbdir, packagesdb *db);
+retvalue target_initpackagesdb(struct target *target, const char *dbdir);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
 retvalue target_addpackage(struct target *target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade);
 retvalue target_removepackage(struct target *target,DB *references,const char *name);
-retvalue target_export(struct target *target,const char *distdir, int force);
+retvalue target_writeindices(struct target *target,const char *distdir, int force);
 retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force);
 retvalue target_rereference(struct target *target,DB *referencesdb,int force);
 

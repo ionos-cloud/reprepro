@@ -65,7 +65,7 @@ static retvalue target_initialize(
 	t->architecture = strdup(architecture);
 	t->identifier = calc_identifier(codename,component,architecture);
 	if( !t->codename|| !t->component|| !t->architecture|| !t->identifier) {
-		target_free(t);
+		(void)target_free(t);
 		return RET_ERROR_OOM;
 	}
 	t->getname = getname;
@@ -85,9 +85,11 @@ retvalue target_initialize_source(const char *codename,const char *component,str
 }
 
 
-void target_free(struct target *target) {
+retvalue target_free(struct target *target) {
+	retvalue result = RET_OK;
+
 	if( target == NULL )
-		return;
+		return RET_OK;
 	free(target->codename);
 	free(target->component);
 	free(target->architecture);
@@ -95,13 +97,14 @@ void target_free(struct target *target) {
 	free(target->directory);
 	if( target->packages ) {
 		//TODO: report downwards, if error!!!
-		(void)packages_done(target->packages);
+		result = packages_done(target->packages);
 	}
 	free(target);
+	return result;
 }
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(struct target *target, const char *dbdir, packagesdb *db) {
+retvalue target_initpackagesdb(struct target *target, const char *dbdir) {
 	retvalue r;
 
 	if( target->packages != NULL ) 
@@ -113,8 +116,6 @@ retvalue target_initpackagesdb(struct target *target, const char *dbdir, package
 			return r;
 		}
 	}
-	if( db )
-		*db = target->packages;
 	return r;
 }
 
@@ -304,7 +305,7 @@ retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int
 	return packages_foreach(target->packages,checkpkg,&data,force);
 }
 /* export a database */
-retvalue target_export(struct target *target,const char *distdir,int force) {
+retvalue target_writeindices(struct target *target,const char *distdir,int force) {
 	indexcompression compression;
 	retvalue result,r;
 
@@ -328,6 +329,25 @@ retvalue target_export(struct target *target,const char *distdir,int force) {
 	}
 	return result;
 }
+
+retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded) {
+	retvalue r;
+
+	if( verbose > 2 ) {
+		fprintf(stderr," exporting '%s'...\n",target->identifier);
+	}
+	if( onlyneeded ) {
+		if( !( target->packages && target->packages->wasmodified ) ) 
+			return RET_NOTHING;
+	} else {
+		r = target_initpackagesdb(target,dbdir);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return  target_writeindices(target,distdir,force);
+}
+
+
 
 static inline retvalue printfilemd5(const struct target *target,
 		const char *distdir,FILE *out,
