@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -549,13 +550,55 @@ static retvalue senddata(struct aptmethod *method) {
 	return RET_OK;
 }
 
+static retvalue aptmethodrun_checkchilds(struct aptmethodrun *run) {
+	pid_t child;int status; 
+	retvalue result = RET_OK;
+
+	while( (child = waitpid(-1,&status,WNOHANG)) > 0 ) {
+		struct aptmethod *method,*lastmethod;
+
+		lastmethod = NULL; method = run->methods;
+		while( method ) {
+			if( method->child == child )
+				break;
+			lastmethod = method;
+			method = method->next;
+		}
+		if( method == NULL ) {
+			fprintf(stderr,"Unexpected child died: %d\n",(int)child);
+			continue;
+		}
+		/* remove this child out of the list: */
+		if( lastmethod ) {
+			lastmethod->next = method->next;
+		} else
+			run->methods = method->next;
+
+		/* say something if it exited unnormal: */
+		if( WIFEXITED(status) ) {
+			int exitcode;
+
+			exitcode = WEXITSTATUS(status);
+			if( exitcode != 0 ) {
+				fprintf(stderr,"Method %s://%s exited with non-zero exit-code %d!\n",method->name,method->baseuri,exitcode);
+				result = RET_ERROR;
+			}
+		} else {
+			fprintf(stderr,"Method %s://%s exited unnormally!\n",method->name,method->baseuri);
+				result = RET_ERROR;
+		}
+
+		/* free the data... */
+		aptmethod_free(method);
+	}
+	return result;
+}
+
 static retvalue aptmethodrun_wait(struct aptmethodrun *run,int *activity) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;
 	retvalue result,r;
-
-	//TODO: add something to tell if we are finished...
 
 	/* First calculate what to look at: */
 	FD_ZERO(&readfds);
@@ -633,6 +676,8 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir) {
 	}
 	/* waiting for them to finish: */
 	do {
+	  r = aptmethodrun_checkchilds(run);
+	  RET_UPDATE(result,r);
 	  r = aptmethodrun_wait(run,&activity);
 	  RET_UPDATE(result,r);
 	} while( activity > 0 );
@@ -645,10 +690,12 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir) {
 	while( run->methods ) {
 		pid_t pid;int status;
 		
-		pid = wait(*status);
+		pid = wait(&status);
 		lastmethod = NULL; method = run->methods;
 		while( method ) {
 			if( method->child == pid ) {
+				struct aptmethod *next = method->next;
+
 				if( lastmethod ) {
 					lastmethod->next = next;
 				} else
