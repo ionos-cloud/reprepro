@@ -763,44 +763,11 @@ static int export(int argc,char *argv[]) {
 
 /***********************update********************************/
 
-static retvalue fetchupstreamlists(void *data,const char *chunk,const struct distribution *distribution,struct update *update) {
-	retvalue result,r;
-	struct aptmethodrun *run;
-
-	r = aptmethod_initialize_run(&run);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	/* * Calculate what to download * */
-
-	r = updates_calcliststofetch(run,
-			listdir,distribution->codename,update->name,chunk,
-			update->suite_from,
-			&update->components_from,
-			&update->architectures);
-
-	if( RET_WAS_ERROR(r) ) {
-		aptmethod_cancel(run);
-		return r;
-	}
-
-	/* * download * */
-
-	result = aptmethod_download(run,"/usr/lib/apt/methods");
-	
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	/* check the given .gpg of Release and the md5sums therein*/
-	r = updates_checkfetchedlists(update,chunk,listdir,distribution->codename);
-
-	RET_ENDUPDATE(result,r);
-	
-	return result;
-}
-
 static int update(int argc,char *argv[]) {
-	retvalue result;
+	retvalue result,r;
+	struct update_upstream *patterns,*upstreams;
+	struct distribution *distributions;
+	struct aptmethodrun *run;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"mirrorer update [<distributions>]\n");
@@ -811,7 +778,38 @@ static int update(int argc,char *argv[]) {
 	if( RET_WAS_ERROR(result) ) {
 		return EXIT_RET(result);
 	}
-	result = updates_foreach(confdir,argc-1,argv+1,fetchupstreamlists,NULL,force);
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+
+	result = updates_getpatterns(confdir,&patterns,0);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+
+	result = updates_getupstreams(patterns,distributions,&upstreams);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+
+	r = aptmethod_initialize_run(&run);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+
+	r = updates_queuelists(run,listdir,upstreams);
+
+	if( RET_WAS_ERROR(r) ) {
+		aptmethod_cancel(run);
+		return r;
+	}
+
+	result = aptmethod_download(run,"/usr/lib/apt/methods");
+	
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = updates_checklists(listdir,upstreams,force);
+
 	return EXIT_RET(result);
 }
 
@@ -864,7 +862,6 @@ static int upgrade(int argc,char *argv[]) {
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
 	
-//	result = updates_foreach(confdir,argc-1,argv+1,fetchupstreamlists,NULL,force);
 	return EXIT_RET(result);
 }
 

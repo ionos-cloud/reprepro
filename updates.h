@@ -9,33 +9,12 @@
 #include "release.h"
 #include "strlist.h"
 
+struct update_upstream;
 
-struct update {
-	char *name;
-	struct strlist architectures;
-	char *suite_from;
-	struct strlist components_from;
-	struct strlist components_into;
-};
+retvalue updates_getpatterns(const char *confdir,struct update_upstream **patterns,int force);
 
-typedef retvalue updatesaction(void *data,const char *chunk,const struct distribution *distribution,struct update *update);
+retvalue updates_getupstreams(const struct update_upstream *patterns,const struct distribution *distributions,struct update_upstream **upstreams);
 
-retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction action,void *data,int force);
-
-/* Add to todownload (which should already be initialized) all indixes to get
- * (like Packages.gz Sources.gz Release and Release.gpg) */
-retvalue updates_calcliststofetch(struct aptmethodrun *run,
-		/* where to save to file */
-		const char *listdir, const char *codename,const char *update,const char *updatechunk,
-		/* where to get it from */
-		const char *suite_from,
-		/* what parts to get */
-		const struct strlist *components_from,
-		const struct strlist *architectures
-		);
-
-/* Check for the files that calcListsToFetch asked to download were downloaded correctly and
- * are correctly signed. (If the current fields in the updatechunk are available/missing) */
-retvalue updates_checkfetchedlists(const struct update *update,const char *updatechunk,const char *listdir,const char *codename);
-
+retvalue updates_queuelists(struct aptmethodrun *run,const char *listdir,struct update_upstream *upstreams);
+retvalue updates_checklists(const char *listdir,const struct update_upstream *upstreams,int force);
 #endif
