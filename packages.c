@@ -267,11 +267,17 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 
 static retvalue printout(void *data,const char *package,const char *chunk) {
 	FILE *pf = data;
+	size_t l;
 
-	if( fwrite(chunk,strlen(chunk),1,pf) != 1 || fwrite("\n",1,1,pf) != 1 )
+	l = strlen(chunk);
+	if( fwrite(chunk,l,1,pf) != 1 || fwrite("\n",1,1,pf) != 1 )
 		return RET_ERROR;
-	else
+	else {
+		if( chunk[l-1] != '\n' )
+			if( fwrite("\n",1,1,pf) != 1 )
+				return RET_ERROR;
 		return RET_OK;
+	}
 }
 
 static retvalue zprintout(void *data,const char *package,const char *chunk) {
@@ -281,8 +287,12 @@ static retvalue zprintout(void *data,const char *package,const char *chunk) {
 	l = strlen(chunk);
 	if( gzwrite(pf,(const voidp)chunk,l) != l || gzwrite(pf,"\n",1) != 1 )
 		return RET_ERROR;
-	else
+	else {
+		if( chunk[l-1] != '\n' )
+			if( gzwrite(pf,"\n",1) != 1 )
+				return RET_ERROR;
 		return RET_OK;
+	}
 }
 
 /* print the database to a "Packages" or "Sources" file */
