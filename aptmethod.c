@@ -954,7 +954,8 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb
 			if( method->stdin > maxfd )
 				maxfd = method->stdin;
 			(*activity)++;
-			fprintf(stderr,"want to write to '%s'\n",method->baseuri);
+			if( verbose > 19 )
+				fprintf(stderr,"want to write to '%s'\n",method->baseuri);
 		}
 		if( method->status == ams_waitforcapabilities ||
 				method->tobedone ) {
@@ -962,7 +963,8 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb
 			if( method->stdout > maxfd )
 				maxfd = method->stdout;
 			(*activity)++;
-			fprintf(stderr,"want to read from '%s'\n",method->baseuri);
+			if( verbose > 19 )
+				fprintf(stderr,"want to read from '%s'\n",method->baseuri);
 		}
 	}
 
