@@ -489,11 +489,21 @@ static retvalue changes_check(const char *filename,struct changes *changes,int f
 			r = RET_ERROR;
 		}
 		if( e->type == fe_DSC ) {
+			char *calculatedname;
 			if( havedsc ) {
 				fprintf(stderr,"I don't know what to do with multiple .dsc files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
 			havedsc = 1;
+			calculatedname = calc_source_basename(changes->source,changes->version);
+			if( calculatedname == NULL )
+				return RET_ERROR_OOM;
+			if( strcmp(calculatedname,e->basename) != 0 ) {
+				free(calculatedname);
+				fprintf(stderr,"dsc-filename is '%s' instead of the expected '%s'!\n",e->basename,calculatedname);
+				return RET_ERROR;
+			}
+			free(calculatedname);
 		} else if( e->type == fe_DIFF ) {
 			if( havediff ) {
 				fprintf(stderr,"I don't know what to do with multiple .diff files in '%s'!\n",filename);
