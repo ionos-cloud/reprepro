@@ -40,4 +40,7 @@ typedef struct term_atom {
 retvalue term_compile(term **term, const char *formula, int options);
 void term_free(term *term);
 
+/* decide based on a chunk, (warning: string comparisons even for architecture!)*/
+retvalue term_decidechunk(term *condition,const char *controlchunk);
+
 #endif

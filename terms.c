@@ -28,6 +28,7 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
+#include "chunks.h"
 #include "terms.h"
 
 void term_free(term *term) {
@@ -302,5 +303,54 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 		return RET_ERROR;
 	}
 	*term = first;
+	return RET_OK;
+}
+
+retvalue term_decidechunk(term *condition,const char *controlchunk) {
+	struct term_atom *atom = condition;
+	while( atom ) {
+		bool_t correct;char *value;
+		enum term_comparison c = atom->comparison;
+		retvalue r;
+
+		r = chunk_getvalue(controlchunk,atom->key,&value);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING ) {
+			correct = ( c != tc_notequal );
+		} else if( c == tc_none) {
+			correct = TRUE;
+			free(value);
+		} else {
+			int i;
+			i = strcmp(value,atom->comparewith);
+			free(value);
+			if( i < 0 ) 
+				correct = c == tc_strictless
+					|| c == tc_lessorequal
+					|| c == tc_notequal;
+			else if( i > 0 ) 
+				correct = c == tc_strictmore
+					|| c == tc_moreorequal
+					|| c == tc_notequal;
+			else 
+				correct = c == tc_lessorequal
+					|| c == tc_moreorequal
+					|| c == tc_equal;
+		}
+		if( atom->negated )
+			correct = !correct;
+		if( correct ) {
+			atom = atom->nextiftrue;
+		} else {
+			atom = atom->nextiffalse;
+			if( atom == NULL) {
+				/* do not include */
+				return RET_NOTHING;
+			}
+		}
+
+	}
+	/* do include */
 	return RET_OK;
 }

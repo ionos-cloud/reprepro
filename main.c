@@ -49,6 +49,7 @@
 #include "checkindsc.h"
 #include "checkin.h"
 #include "downloadcache.h"
+#include "terms.h"
 
 
 #ifndef STD_BASE_DIR
@@ -465,6 +466,74 @@ static retvalue action_list(int argc,const char *argv[]) {
 	}
 
 	result = distribution_foreach_part(distribution,component,architecture,packagetype,list_in_target,(void*)argv[2],force);
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+
+struct listfilter { struct target *target; term *condition; };
+
+static retvalue listfilterprint(void *data,const char *packagename,const char *control){
+	struct listfilter *d = data;
+	char *version;
+	retvalue r;
+
+	r = term_decidechunk(d->condition,control);
+	if( RET_IS_OK(r) ) {
+		r = (*d->target->getversion)(d->target,control,&version);
+		if( RET_IS_OK(r) ) {
+			printf("%s: %s %s\n",d->target->identifier,packagename,version);
+			free(version);
+		} else {
+			printf("Could not retrieve version from %s in %s\n",packagename,d->target->identifier);
+		}
+	}
+	return r;
+}
+
+static retvalue listfilter_in_target(void *data, struct target *target) {
+	retvalue r,result;
+	struct listfilter d;
+
+	result = target_initpackagesdb(target,dbdir);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	d.target = target;
+	d.condition = data;
+	result = packages_foreach(target->packages,listfilterprint,&d,force);
+
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+static retvalue action_listfilter(int argc,const char *argv[]) {
+	retvalue r,result;
+	struct distribution *distribution;
+	term *condition;
+
+	if( argc != 3  ) {
+		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] list <codename> <term to describe which packages to list>\n");
+		return RET_ERROR;
+	}
+	r = distribution_get(&distribution,confdir,argv[1]);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not find matching distributions!\n");
+		return RET_NOTHING;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	result = term_compile(&condition,argv[2],T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_free(distribution);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+
+	result = distribution_foreach_part(distribution,component,architecture,packagetype,listfilter_in_target,condition,force);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
 	return result;
@@ -1129,6 +1198,7 @@ static struct action {
 	{"_addreference", 	action_addreference},
         {"remove", 		action_remove},
 	{"list", 		action_list},
+	{"listfilter", 		action_listfilter},
 	{"export", 		action_export},
 	{"check", 		action_check},
 	{"checkpool", 		action_checkpool},

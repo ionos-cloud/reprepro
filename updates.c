@@ -964,55 +964,17 @@ static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution 
 
 upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
+	retvalue r;
 
 	if( pattern->includecondition ) {
-		struct term_atom *atom = pattern->includecondition;
-		while( atom ) {
-			bool_t correct;char *value;
-			enum term_comparison c = atom->comparison;
-			retvalue r;
-
-			r = chunk_getvalue(newcontrolchunk,atom->key,&value);
-			// gna..., why is there no way to report errors?
-			// TODO: fix this insanity...
-			if( RET_WAS_ERROR(r) )
-				r = RET_NOTHING;
-			if( r == RET_NOTHING ) {
-//				fprintf(stderr,"not found %s\n",atom->key);
-				correct = ( c != tc_notequal );
-			} else if( c == tc_none) {
-				correct = TRUE;
-				free(value);
-			} else {
-				int i;
-//				fprintf(stderr,"found %s as '%s' (will compare with '%s')\n",atom->key,value,atom->comparewith);
-				i = strcmp(value,atom->comparewith);
-				free(value);
-				if( i < 0 ) 
-					correct = c == tc_strictless
-					     || c == tc_lessorequal
-					     || c == tc_notequal;
-				else if( i > 0 ) 
-					correct = c == tc_strictmore
-					     || c == tc_moreorequal
-					     || c == tc_notequal;
-				else 
-					correct = c == tc_lessorequal
-					     || c == tc_moreorequal
-					     || c == tc_equal;
-			}
-			if( atom->negated )
-				correct = !correct;
-			if( correct ) {
-				atom = atom->nextiftrue;
-			} else {
-				atom = atom->nextiffalse;
-				if( atom == NULL) {
-					// fprintf(stderr,"Rejecting %s\n",package);
-					return UD_NO;
-				}
-			}
-
+		r = term_decidechunk(pattern->includecondition,newcontrolchunk);
+		// gna..., why is there no way to report errors?
+		// TODO: fix this insanity...
+		if( RET_WAS_ERROR(r) )
+			r = RET_NOTHING;
+		if( r == RET_NOTHING ) {
+			// fprintf(stderr,"Rejecting %s\n",package);
+			return UD_NO;
 		}
 	}
 	// fprintf(stderr,"Accepting %s\n",package);
