@@ -269,11 +269,25 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	const char *field;
 	char *val;
 
-	assert(*value != NULL);
+	assert(value != NULL);
 	field = chunk_getfield(name,chunk);
 	if( !field )
 		return RET_NOTHING;
 	val = chunk_dupvalue(field);
+	if( !val )
+		return RET_ERROR_OOM;
+	*value = val;
+	return RET_OK;
+}
+retvalue chunk_getextralines(const char *chunk,const char *name,char **value) {
+	const char *field;
+	char *val;
+
+	assert(value != NULL);
+	field = chunk_getfield(name,chunk);
+	if( !field )
+		return RET_NOTHING;
+	val = chunk_dupextralines(field);
 	if( !val )
 		return RET_ERROR_OOM;
 	*value = val;

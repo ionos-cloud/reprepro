@@ -29,6 +29,7 @@ retvalue chunk_worditerator_next(struct worditerator *iterator);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
+retvalue chunk_getextralines(const char *chunk,const char *name,char **value);
 /* get a word iterator for the given field */
 retvalue chunk_getworditerator(const char *chunk,const char *name,struct worditerator *iterator);
 
