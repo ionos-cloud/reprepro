@@ -22,6 +22,16 @@ char *chunk_dupword(const char *field);
  * prints an error when not found and adds to the end */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
 
+/* worditerator */
+struct worditerator { const char *c; };
+retvalue chunk_worditerator_get(const struct worditerator *iterator,char **word);
+retvalue chunk_worditerator_next(struct worditerator *iterator);
+
+/* look for name in chunk. returns RET_NOTHING if not found */
+retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
+/* get a word iterator for the given field */
+retvalue chunk_getworditerator(const char *chunk,const char *name,struct worditerator *iterator);
+
 
 typedef retvalue chunkaction(void *data,const char *chunk);
 

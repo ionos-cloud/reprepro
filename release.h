@@ -38,7 +38,7 @@ typedef retvalue release_each_binary_action(void *data, const char *component, c
 retvalue release_foreach_part(const struct release *release,release_each_source_action sourceaction,release_each_binary_action binaction,void *data);
 
 
-typedef retvalue releaseaction(void *data,const struct release *release);
+typedef retvalue releaseaction(void *data,const char *chunk,const struct release *release);
 
 retvalue release_foreach(const char *conf,int argc,char *argv[],releaseaction action,void *data,int force);
 

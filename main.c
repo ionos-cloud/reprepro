@@ -43,6 +43,7 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*mirrordir = STD_BASE_DIR ,
 	*distdir = STD_BASE_DIR "/dists",
 	*dbdir = STD_BASE_DIR "/db",
+	*listdir = STD_BASE_DIR "/lists",
 	*confdir = STD_BASE_DIR "/conf";
 int 	local = 0;
 int	verbose = 0;
@@ -938,7 +939,7 @@ static retvalue exportsource(void *data,const char *component) {
 }
 
 
-static retvalue doexport(void *dummy,const struct release *release) {
+static retvalue doexport(void *dummy,const char *chunk,const struct release *release) {
 	struct data_binsrcexport dat;
 	retvalue result,r;
 	char *dirofdist;
@@ -972,6 +973,72 @@ int export(int argc,char *argv[]) {
 	}
 	
 	result = release_foreach(confdir,argc-1,argv+1,doexport,NULL,force);
+	return EXIT_RET(result);
+}
+
+/***********************update********************************/
+
+static retvalue doupdate(void *dummy,const char *chunk,const struct release *release) {
+	retvalue result,r;
+	char *upstream,*keyname,*component;
+	struct worditerator upstreams,components;
+
+	r = chunk_getworditerator(chunk,"Update",&upstreams);
+	if( r == RET_NOTHING && verbose > 1 ) {
+		fprintf(stderr,"Ignoring release '%s', as it describes no update\n",release->codename);
+	}
+	if( !RET_IS_OK(r) )
+		return r;
+
+	result = RET_NOTHING;
+
+	/* Iteratate over all given upstreams */
+	while( RET_IS_OK( r = chunk_worditerator_get(&upstreams,&upstream) ) ) {
+		if( verbose > 0 ) {
+			fprintf(stderr,"Updating '%s':'%s'...\n",release->codename,upstream);
+		}
+
+		/* Check which components to update */
+		keyname = mprintf("Update-%s",upstream);
+		if( !keyname )
+			r = RET_ERROR_OOM;
+		else 
+			r = chunk_getworditerator(chunk,keyname,&components);
+		if( !RET_IS_OK(r) ) {
+			if( r== RET_NOTHING ) {
+				fprintf(stderr,"Cannot find '%s' line in '%s' specification.\n",keyname,release->codename);
+				RET_UPDATE(result,RET_ERROR);
+			} else
+				RET_UPDATE(result,r);
+			free(upstream);
+			break;
+		} 
+		/* Iterator over components to update */
+		while( RET_IS_OK( r = chunk_worditerator_get(&components,&component) ) ){
+			fprintf(stderr,"... '%s'\n",component);	
+			
+			free(component);
+			chunk_worditerator_next(&components);
+		}
+		RET_UPDATE(result,r);
+
+		free(upstream);
+		chunk_worditerator_next(&upstreams);
+	}
+	RET_UPDATE(result,r);
+
+	return result;
+}
+
+int update(int argc,char *argv[]) {
+	retvalue result;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"mirrorer update [<distributions>]\n");
+		return 1;
+	}
+	
+	result = release_foreach(confdir,argc-1,argv+1,doupdate,NULL,force);
 	return EXIT_RET(result);
 }
 
@@ -1063,7 +1130,7 @@ static retvalue rerefsrc(void *data,const char *component) {
 }
 
 
-static retvalue rereference_dist(void *data,const struct release *release) {
+static retvalue rereference_dist(void *data,const char *chunk,const struct release *release) {
 	struct data_binsrcreref dat;
 	retvalue result;
 
@@ -1131,7 +1198,8 @@ struct action {
 	{"removereferences", removereferences},
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
-	{"addmd5sums",addmd5sums },
+	{"addmd5sums",addmd5sums},
+	{"update",update},
 	{NULL,NULL}
 };
 
@@ -1143,6 +1211,7 @@ int main(int argc,char *argv[]) {
 		{"incommingdir", 1, 0, 'i'},
 		{"distdir", 1, 0, 'd'},
 		{"dbdir", 1, 0, 'D'},
+		{"listdir", 1, 0, 'L'},
 		{"confdir", 1, 0, 'c'},
 		{"help", 0, 0, 'h'},
 		{"verbose", 0, 0, 'v'},
@@ -1153,7 +1222,7 @@ int main(int argc,char *argv[]) {
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:i:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:i:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
@@ -1166,6 +1235,7 @@ int main(int argc,char *argv[]) {
 " -i, --incomming <dir>:  incomming-Directory.\n"
 " -d, --distdir <dir>:    Directory to place the \"dists\" dir in.\n"
 " -D, --dbdir <dir>:      Directory to place the database in.\n"
+" -L, --listdir <dir>:    Directory to place downloaded lists in.\n"
 " -c, --confdir <dir>:    Directory to search configuration in.\n"
 "\n"
 "actions:\n"
@@ -1218,6 +1288,7 @@ int main(int argc,char *argv[]) {
 				incommingdir=mprintf("%s/incomming",optarg);
 				distdir=mprintf("%s/dists",optarg);
 				dbdir=mprintf("%s/db",optarg);
+				listdir=mprintf("%s/lists",optarg);
 				confdir=mprintf("%s/conf",optarg);
 				break;
 			case 'i':
@@ -1228,6 +1299,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'D':
 				dbdir = strdup(optarg);
+				break;
+			case 'L':
+				listdir = strdup(optarg);
 				break;
 			case 'c':
 				confdir = strdup(optarg);
