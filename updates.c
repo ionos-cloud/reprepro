@@ -93,7 +93,7 @@ static retvalue calcComponentsToUpdate(struct strlist *components_from,
 
 	assert( components_from != NULL && components_into != NULL );
 
-	/* First look what is to do, otherwise it's easy... */
+	/* First look what is to do. If there is nothing special it's easy... */
 	r = chunk_getwordlist(updatechunk,"Components",&componentlist);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
