@@ -1,4 +1,5 @@
 TODO:
+	auto-remove files no longer needed after package remove/upgrade
 	add override-support while updating (or decide if this should be done)
 	implement extractcontrol.c properly
 	add support to specify the key used for signing
