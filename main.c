@@ -710,99 +710,42 @@ static int checkrelease(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-struct data_binsrcexport { const struct distribution *distribution; const char *dirofdist;int force;};
+struct data_export { const struct distribution *distribution;int force;};
 
-static retvalue exportbin(void *data,const char *component,const char *architecture) {
+static retvalue exportbinsrc(void *data,const target target) {
 	retvalue result,r;
-	struct data_binsrcexport *d = data;
-	char *dbname,*filename;
+	struct data_export *d = data;
 
-	result = release_genbinary(d->distribution,architecture,component,distdir);
-	dbname = calc_identifier(d->distribution->codename,component,architecture);
-	if( !dbname ) {
-		return RET_ERROR_OOM;
-	}
-	filename = mprintf("%s/%s/binary-%s/Packages.gz",d->dirofdist,component,architecture);	
-	if( !filename ) {
-		free(dbname);
-		return RET_ERROR_OOM;
-	}
-	if( verbose > 1 ) {
-		fprintf(stderr,"Exporting %s...\n",dbname);
-	}
-	
-	r = packages_dozprintout(dbdir,dbname,filename);
+	result = release_genrelease(d->distribution,target,distdir);
+
+	if( RET_WAS_ERROR(result) && !force )
+		return result;
+
+	r = target_doexport(target,dbdir,distdir,d->force);
 	RET_UPDATE(result,r);
-
-	free(filename);
-	filename = mprintf("%s/%s/binary-%s/Packages",d->dirofdist,component,architecture);	
-	if( !filename ) {
-		free(dbname);
-		return RET_ERROR_OOM;
-	}
-	
-	r = packages_doprintout(dbdir,dbname,filename);
-	RET_UPDATE(result,r);
-
-	free(filename);
-	free(dbname);
 
 	return result;
 }
-
-static retvalue exportsource(void *data,const char *component) {
-	retvalue result,r;
-	struct data_binsrcexport *d = data;
-	char *dbname;
-	char *filename;
-
-	result = release_gensource(d->distribution,component,distdir);
-
-	dbname = calc_identifier(d->distribution->codename,component,"source");
-	if( !dbname ) {
-		return RET_ERROR_OOM;
-	}
-	filename = mprintf("%s/%s/source/Sources.gz",d->dirofdist,component);	
-	if( !filename ) {
-		free(dbname);
-		return RET_ERROR_OOM;
-	}
-	if( verbose > 1 ) {
-		fprintf(stderr,"Exporting %s...\n",dbname);
-	}
-	
-	r = packages_dozprintout(dbdir,dbname,filename);
-	RET_UPDATE(result,r);
-
-	free(dbname);
-	free(filename);
-
-	return result;
-}
-
 
 static retvalue doexport(void *dummy,const char *chunk,const struct distribution *distribution) {
-	struct data_binsrcexport dat;
-	retvalue result,r;
-	char *dirofdist;
+	struct data_export dat;
+	retvalue result;
 
 	if( verbose > 0 ) {
 		fprintf(stderr,"Exporting %s...\n",distribution->codename);
 	}
-	dirofdist = calc_dirconcat(distdir,distribution->codename);
-	if( !dirofdist ) {
-		return RET_ERROR_OOM;
-	}
 
 	dat.distribution = distribution;
-	dat.dirofdist = dirofdist;
+	dat.force = force;
 
-	result = distribution_foreach_part(distribution,exportsource,exportbin,&dat,force);
-	
-	r = release_gen(distribution,distdir,chunk);
-	RET_UPDATE(result,r);
+	result = distribution_foreach_part(distribution,exportbinsrc,&dat,force);
+	if( !RET_WAS_ERROR(result) || force ) {
+		retvalue r;
 
-	free(dirofdist);
+		r = release_gen(distribution,distdir,chunk,force);
+		RET_UPDATE(result,r);
+	}
+
 	return result;
 }
 
@@ -966,7 +909,7 @@ static retvalue rereference_dist(void *data,const char *chunk,const struct distr
 	dat.distribution = distribution;
 	dat.references = data;
 
-	result = distribution_foreach_part_t(distribution,reref,&dat,force);
+	result = distribution_foreach_part(distribution,reref,&dat,force);
 
 	return result;
 }
@@ -1011,7 +954,7 @@ static retvalue check_dist(void *data,const char *chunk,const struct distributio
 
 	dat->distribution = distribution;
 
-	result = distribution_foreach_part_t(distribution,check_target,dat,force);
+	result = distribution_foreach_part(distribution,check_target,dat,force);
 	
 	return result;
 }

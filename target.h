@@ -4,6 +4,9 @@
 #ifndef __MIRRORER_STRLIST_H
 #include "strlist.h"
 #endif
+#ifndef __MIRRORER_NAMES_H
+#include "names.h"
+#endif
 #ifndef __MIRRORER_PACKAGES_H
 #include "packages.h"
 #endif
@@ -21,6 +24,8 @@ struct s_target {
 	char *architecture;
 	char *identifier;
 	char *directory;
+	int compressions[ic_max+1];
+	const char *indexfile;
 	get_name *getname;
 	get_version *getversion;
 	get_installdata *getinstalldata;
@@ -34,4 +39,7 @@ void target_done(target target);
 retvalue target_addpackage(target target,packagesdb packages,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force);
 retvalue target_rereference(const char *dbdir,DB *referencesdb,target target,int force);
 retvalue target_check(const char *dbdir,filesdb filesdb,DB *referencesdb,target target,int force);
+retvalue target_export(target target,packagesdb packages,const char *distdir, int force);
+retvalue target_doexport(target target,const char *dbdir,const char *distdir, int force);
+retvalue target_printmd5sums(target target,const char *distdir,FILE *out,int force);
 #endif

@@ -13,6 +13,7 @@ typedef int retvalue;
 #define RET_ERROR_EXIST -4
 #define RET_ERROR_GPGME -5
 #define RET_ERROR_BADSIG -6
+#define RET_ERROR_MISSING -7
 
 #define RET_IS_OK(r) ((r) == RET_OK)
 #define RET_WAS_NO_ERROR(r) ((r) >= 0)

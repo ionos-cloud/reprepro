@@ -32,6 +32,7 @@
 #include "binaries.h"
 #include "sources.h"
 #include "names.h"
+#include "md5sum.h"
 #include "target.h"
 
 extern int verbose;
@@ -39,10 +40,11 @@ extern int verbose;
 static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, char *directory, target *d) {
+	get_filekeys getfilekeys, char *directory, const char *indexfile, int unc ,  target *d) {
 
 	target t;
 
+	assert(indexfile);
 	if( directory == NULL )
 		return RET_ERROR_OOM;
 
@@ -52,6 +54,11 @@ static retvalue target_initialize(
 		return RET_ERROR_OOM;
 	}
 	t->directory = directory;
+	t->indexfile = indexfile;
+	if( unc ) {
+		t->compressions[ic_uncompressed] = 1;
+	}
+	t->compressions[ic_gzip] = 1;
 	t->codename = strdup(codename);
 	t->component = strdup(component);
 	t->architecture = strdup(architecture);
@@ -69,11 +76,11 @@ static retvalue target_initialize(
 }
 
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,target *target) {
-	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,mprintf("%s/%s/binary-%s",codename,component,architecture),target);
+	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,target *target) {
-	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,mprintf("%s/%s/source",codename,component),target);
+	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,mprintf("%s/%s/source",codename,component),"Sources",0,target);
 }
 
 
@@ -222,5 +229,93 @@ retvalue target_check(const char *dbdir,filesdb filesdb,DB *referencesdb,target 
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
 
+	return result;
+}
+/* export a database */
+retvalue target_export(target target,packagesdb packages,const char *distdir,int force) {
+	indexcompression compression;
+	retvalue result,r;
+
+	assert(target && packages);
+	result = RET_NOTHING;
+
+	for( compression = 0 ; compression <= ic_max ; compression++) {
+		if( target->compressions[compression] ) {
+			char * filename;
+
+			filename = calc_comprconcat(distdir,target->directory,
+					target->indexfile,compression);
+			if( filename == NULL )
+				return RET_ERROR_OOM;
+			r = packages_export(packages,filename,compression);
+			free(filename);
+			RET_UPDATE(result,r);
+			if( !force && RET_WAS_ERROR(r) )
+				return r;
+		}
+	}
+	return result;
+}
+/* export a database, also open the file... */
+retvalue target_doexport(target target,const char *dbdir,const char *distdir, int force) {
+	retvalue result,r;
+	packagesdb pkgs;
+
+	r = packages_initialize(&pkgs,dbdir,target->identifier);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = target_export(target,pkgs,distdir,force);
+
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+static inline retvalue printfilemd5(target target,const char *distdir,FILE *out,
+		const char *filename,indexcompression compression) {
+	char *fn,*md;
+	const char *fn2;
+	retvalue r;
+
+	fn = calc_comprconcat(distdir,target->directory,filename,compression);
+	if( fn == NULL )
+		return RET_ERROR_OOM;
+	// well, a crude hack, but not too bad:
+	fn2 = fn + strlen(distdir) + strlen(target->codename) + 2; 
+
+	r = md5sum_read(fn,&md);
+
+	if( RET_IS_OK(r) ) {
+		fprintf(out," %s %s\n",md,fn2);
+		free(md);
+	} else {
+		fprintf(stderr,"Error processing %s\n",fn);
+		if( r == RET_NOTHING ) 
+			r = RET_ERROR_MISSING;
+	}
+	free(fn);
+	return r;
+}
+
+retvalue target_printmd5sums(target target,const char *distdir,FILE *out,int force) {
+	indexcompression compression;
+	retvalue result,r;
+
+	result = printfilemd5(target,distdir,out,"Release",ic_uncompressed);
+
+	if( RET_WAS_ERROR(result) && !force)
+		return result;
+
+	for( compression = 0 ; compression <= ic_max ; compression++) {
+		if( target->compressions[compression] ) {
+			r = printfilemd5(target,distdir,out,target->indexfile,compression);
+
+			RET_UPDATE(result,r);
+			if( !force && RET_WAS_ERROR(r) )
+				return r;
+		}
+	}
 	return result;
 }

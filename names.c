@@ -105,6 +105,20 @@ char *calc_dirconcat3(const char *str1,const char *str2,const char *str3) {
 	return mprintf("%s/%s/%s",str1,str2,str3);
 }
 
+char *calc_comprconcat(const char *str1,const char *str2,const char *str3,indexcompression compr) {
+	assert(compr >= 0 && compr <= ic_max );
+
+	switch( compr ) {
+		case ic_uncompressed:
+			return mprintf("%s/%s/%s",str1,str2,str3);
+		case ic_gzip:
+			return mprintf("%s/%s/%s.gz",str1,str2,str3);
+		default:
+			assert(0);
+			return NULL;
+	}
+}
+
 char *calc_srcfilekey(const char *sourcedir,const char *filename){
 	return calc_dirconcat(sourcedir,filename);
 }

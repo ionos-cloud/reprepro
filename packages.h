@@ -10,6 +10,9 @@
 #include "strlist.h"
 #warning "What's hapening here?"
 #endif
+#ifndef __MIRRORER_NAMES_H
+#include "names.h"
+#endif
 #ifndef __MIRRORER_FILES_H
 #include "files.h"
 #endif
@@ -51,6 +54,7 @@ retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
 /* like packages_printout, but open and close database yourself */
 retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *filename);
 retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *filename);
+retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompression compression);
 
 /* action to be called by packages_forall */
 typedef retvalue per_package_action(void *data,const char *package,const char *chunk);

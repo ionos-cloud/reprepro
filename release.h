@@ -35,13 +35,7 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 /* Generate a "Release"-file for an arbitrary  directory */
 retvalue release_genrelease(const struct distribution *distribution,const target target,const char *distdir);
 
-/* Generate a "Release"-file for binary directory */
-retvalue release_genbinary(const struct distribution *distribution,const char *arch,const char *component,const char *distdir);
-
-/* Generate a "Release"-file for source directory */
-retvalue release_gensource(const struct distribution *distribution,const char *component,const char *distdir);
-
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct distribution *distribution,const char *distdir,const char *chunk);
+retvalue release_gen(const struct distribution *distribution,const char *distdir,const char *chunk,int force);
 
 #endif

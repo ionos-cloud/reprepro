@@ -16,6 +16,7 @@
  */
 #include <config.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -314,6 +315,21 @@ static retvalue packages_zprintout(packagesdb packagesdb,const char *filename) {
 		RET_ENDUPDATE(ret,RET_ZERRNO(r));
 	return ret;
 }
+
+retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompression compression) {
+	assert( compression >= 0 && compression <= ic_max );
+
+	switch( compression ) {
+		case ic_uncompressed:
+			return packages_printout(packagesdb,filename);
+		case ic_gzip:
+			return packages_zprintout(packagesdb,filename);
+		default:
+			assert(0);
+			return RET_ERROR;
+	}
+}
+
 
 /* like packages_printout, but open and close database yourself */
 retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *filename){

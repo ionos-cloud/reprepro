@@ -226,156 +226,16 @@ retvalue release_genrelease(const struct distribution *distribution,const target
 	
 }
 
-/* Generate a "Release"-file for binary directory */
-retvalue release_genbinary(const struct distribution *distribution,const char *arch,const char *component,const char *distdir) {
-	FILE *f;
-	char *filename;
-	int e;
+struct genrel { FILE *f; const char *distdir; int force; };
 
-
-	filename = mprintf("%s/%s/%s/binary-%s/Release",distdir,distribution->codename,component,arch);
-	if( !filename ) {
-		return RET_ERROR_OOM;
-	}
-	(void)dirs_make_parent(filename);
-	f = fopen(filename,"w");
-	if( !f ) {
-		e = errno;
-		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
-		free(filename);
-		return RET_ERRNO(e);
-	}
-	free(filename);
-
-	fprintf(f,	"Archive: %s\n"
-			"Version: %s\n"
-			"Component: %s\n"
-			"Origin: %s\n"
-			"Label: %s\n"
-			"Architecture: %s\n"
-			"Description: %s\n",
-		distribution->suite,distribution->version,component,
-		distribution->origin,distribution->label,arch,
-		distribution->description);
-
-	if( fclose(f) != 0 )
-		return RET_ERRNO(errno);
-
-	return RET_OK;
-	
-}
-
-/* Generate a "Release"-file for source directory */
-retvalue release_gensource(const struct distribution *distribution,const char *component,const char *distdir) {
-	FILE *f;
-	char *filename;
-	int e;
-
-
-	filename = mprintf("%s/%s/%s/source/Release",distdir,distribution->codename,component);
-	if( !filename ) {
-		return RET_ERROR_OOM;
-	}
-	(void)dirs_make_parent(filename);
-	f = fopen(filename,"w");
-	if( !f ) {
-		e = errno;
-		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
-		free(filename);
-		return RET_ERRNO(e);
-	}
-	free(filename);
-
-	fprintf(f,	"Archive: %s\n"
-			"Version: %s\n"
-			"Component: %s\n"
-			"Origin: %s\n"
-			"Label: %s\n"
-			"Architecture: source\n"
-			"Description: %s\n",
-		distribution->suite,distribution->version,component,
-		distribution->origin,distribution->label,
-		distribution->description);
-
-	if( fclose(f) != 0 )
-		return RET_ERRNO(errno);
-
-	return RET_OK;
-	
-}
-
-static retvalue printmd5sum(FILE *f,const char *dir,const char *fmt,...) __attribute__ ((format (printf, 3, 4))); 
-static retvalue printmd5sum(FILE *f,const char *dir,const char *fmt,...) {
-	va_list ap;
-	char *fn,*filename,*md;
-	retvalue r;
-
-	va_start(ap,fmt);
-	fn = vmprintf(fmt,ap);
-	va_end(ap);
-	if( !fn )
-		return RET_ERROR_OOM;
-
-	filename = calc_dirconcat(dir,fn);
-	if( !filename ) {
-		free(filename);
-		return RET_ERROR_OOM;
-	}
-	
-	r = md5sum_read(filename,&md);
-	free(filename);
-
-	if( !RET_IS_OK(r) ) {
-		fprintf(stderr,"Error processing %s/%s\n",dir,fn);
-		free(fn);
-		return r;
-	}
-
-	fprintf(f," %s %s\n",md,fn);
-	free(md);free(fn);
-
-	return RET_OK;
-}
-
-struct genrel { FILE *f; const char *dirofdist; };
-
-static retvalue printbin(void *data,const char *component,const char *architecture) {
-	retvalue result,r;
+static retvalue printmd5(void *data,const target target) {
 	struct genrel *d = data;
 
-	result = printmd5sum(d->f,d->dirofdist,
-		"%s/binary-%s/Release",
-		component,architecture);
-
-	r = printmd5sum(d->f,d->dirofdist,
-		"%s/binary-%s/Packages",
-		component,architecture);
-	RET_UPDATE(result,r);
-	r = printmd5sum(d->f,d->dirofdist,
-		"%s/binary-%s/Packages.gz",
-		component,architecture);
-	RET_UPDATE(result,r);
-
-	return result;
-}
-
-static retvalue printsource(void *data,const char *component) {
-	retvalue result,r;
-	struct genrel *d = data;
-
-	result = printmd5sum(d->f,d->dirofdist,
-			"%s/source/Release",
-			component);
-	r = printmd5sum(d->f,d->dirofdist,
-			"%s/source/Sources.gz",
-			component);
-	RET_UPDATE(result,r);
-
-	return result;
+	return target_printmd5sums(target,d->distdir,d->f,d->force);
 }
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct distribution *distribution,const char *distdir,const char *chunk) {
+retvalue release_gen(const struct distribution *distribution,const char *distdir,const char *chunk,int force) {
 	FILE *f;
 	char *filename;
 	char *dirofdist;
@@ -405,8 +265,8 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	}
 
 	filename = calc_dirconcat(dirofdist,"Release");
+	free(dirofdist);
 	if( !filename ) {
-		free(dirofdist);
 		return RET_ERROR_OOM;
 	}
 	(void)dirs_make_parent(filename);
@@ -415,7 +275,6 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 		e = errno;
 		fprintf(stderr,"Error rewriting file %s: %m\n",filename);
 		free(filename);
-		free(dirofdist);
 		return RET_ERRNO(e);
 	}
 
@@ -439,10 +298,10 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	/* generate bin/source-Release-files and add md5sums */
 
 	data.f = f;
-	data.dirofdist = dirofdist;
+	data.distdir = distdir;
+	data.force = force;
 	//TODO: get a force from above?
-	result = distribution_foreach_part(distribution,printsource,printbin,&data,0);
-	free(dirofdist);
+	result = distribution_foreach_part(distribution,printmd5,&data,force);
 
 	if( fclose(f) != 0 ) {
 		free(filename);
