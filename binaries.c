@@ -23,7 +23,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include "error.h"
-#include "mprintf.h"
+#include "names.h"
 #include "chunks.h"
 #include "packages.h"
 #include "binaries.h"
@@ -65,7 +65,7 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **source
 			free(pmd5);
 			return r;
 		}
-		md5andsize = mprintf("%s %s",pmd5,psize);
+		md5andsize = calc_concatmd5andsize(pmd5,psize);
 		free(pmd5);free(psize);
 		if( !md5andsize ) {
 			free(ppackage);

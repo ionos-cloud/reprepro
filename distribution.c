@@ -29,7 +29,6 @@
 #include <zlib.h>
 #include <db.h>
 #include "error.h"
-#include "mprintf.h"
 #include "chunks.h"
 #include "packages.h"
 #include "sources.h"

@@ -73,3 +73,9 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 char *calc_package_basename(const char *name,const char *version,const char *arch) {
 	return mprintf("%s_%s_%s.deb",name,version,arch);
 }
+
+char *calc_concatmd5andsize(const char *md5sum,const char *size) {
+	/* this is not the only reference, as there are prints
+	 * with size as ofs_t, too */
+	return mprintf("%s %s",md5sum,size);
+}

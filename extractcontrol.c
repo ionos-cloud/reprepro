@@ -28,7 +28,6 @@
 #include <malloc.h>
 #include <zlib.h>
 #include "error.h"
-#include "mprintf.h"
 #include "md5sum.h"
 #include "chunks.h"
 #include "extractcontrol.h"

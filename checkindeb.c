@@ -30,7 +30,6 @@
 #include <zlib.h>
 #include <db.h>
 #include "error.h"
-#include "mprintf.h"
 #include "md5sum.h"
 #include "names.h"
 #include "chunks.h"

@@ -24,7 +24,6 @@
 #include <zlib.h>
 #include <assert.h>
 #include "error.h"
-#include "mprintf.h"
 #include "chunks.h"
 
 extern int verbose;
