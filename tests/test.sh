@@ -45,7 +45,7 @@ test -f dists/test2/Release
 
 cat > dists/test1/Release.expected <<END
 Codename: test1
-Date: $CURDATE
+Date: normalized
 Architectures: abacus
 Components: stupid ugly
 MD5Sum:
@@ -66,7 +66,7 @@ Label: Only a test
 Suite: broken
 Codename: test2
 Version: 9999999.02
-Date: $CURDATE
+Date: normalized
 Architectures: abacus
 Components: stupid ugly
 Description: test with all fields set
@@ -82,6 +82,8 @@ MD5Sum:
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
  7029066c27ac6f5ef18d660d5741979a 20 ugly/source/Sources.gz
 END
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test2/Release
 diff dists/test1/Release.expected dists/test1/Release || exit 1
 diff dists/test2/Release.expected dists/test2/Release || exit 1
 
@@ -122,7 +124,7 @@ echo returned: $?
 "$REPREPRO" -b . -C ugly remove test1 bloat+-0a9z.app-addons
 "$REPREPRO" -b . -C stupid remove test1 simple-addons
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
-echo -e '%g/^Date:/s/Date: .*/Date: '"$CURDATE"'/\nw\nq' | ed -s dists/test1/Release.expected
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
 
 diff dists/test1/Release.expected dists/test1/Release || exit 1
 
