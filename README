@@ -1,7 +1,3 @@
-* First if all, this is version 0.0. Thus many things I consider important are still
-not implemented. While I'm in 0.0 I may also change semantics, names and commandline
-syntax and even structure of the database without any upgrade path. 
-
 See the file TODO for things I plan to do.
 
 * What it is:

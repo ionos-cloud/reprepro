@@ -1294,6 +1294,7 @@ static struct action {
 #define LO_OVERRIDEDIR 13
 #define LO_CONFDIR 14
 #define LO_METHODDIR 15
+#define LO_VERSION 20
 int longoption = 0;
 
 int main(int argc,char *argv[]) {
@@ -1314,6 +1315,7 @@ int main(int argc,char *argv[]) {
 		{"type", 1, NULL, 'T'},
 		{"help", 0, NULL, 'h'},
 		{"verbose", 0, NULL, 'v'},
+		{"version", 0, &longoption, LO_VERSION},
 		{"nothingiserror", 0, &longoption, LO_NOHTINGISERROR},
 		{"nolistsdownload", 0, &longoption, LO_NOLISTDOWNLOAD},
 		{"keepunreferencedfiles", 0, &longoption, LO_KEEPUNREFERENCED},
@@ -1418,6 +1420,9 @@ int main(int argc,char *argv[]) {
 					case LO_METHODDIR:
 						methoddir = strdup(optarg);
 						break;
+					case LO_VERSION:
+						fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",argv[0]);
+						exit(EXIT_SUCCESS);
 					default:
 						fprintf (stderr,"Error parsing arguments!\n");
 						exit(EXIT_FAILURE);

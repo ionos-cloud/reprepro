@@ -1,6 +1,6 @@
-reprepro (0.0-1) experimental; urgency=low
+reprepro (0.1-1) unstable; urgency=low
 
-  * Initial Upload to experimental.
+  * Initial Upload.
 
- -- Bernhard R. Link <brlink@debian.org>  Tue,  1 Feb 2005 12:25:56 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  6 Feb 2005 13:43:25 +0100
 
