@@ -117,8 +117,8 @@ void release_free(struct release *release) {
 		free(release->origin);
 		free(release->label);
 		free(release->description);
-		free(release->architectures);
-		free(release->components);
+		strlist_free(&release->architectures);
+		strlist_free(&release->components);
 		free(release);
 	}
 }
@@ -133,30 +133,26 @@ retvalue release_parse(struct release **release,const char *chunk) {
 	if( !r )
 		return RET_ERROR_OOM;
 
-#define parse(name,target)	ret = chunk_getvalue(chunk,name,&target); \
-				if(!RET_IS_OK(ret)) { \
+#define checkret		 if(!RET_IS_OK(ret)) { \
 					release_free(r); \
 					return ret; \
 				}
-#define parseold(name,target) 	f = chunk_getfield(name,chunk); \
-				if( !f ) { \
-					*release = NULL; \
-					release_free(r); \
-					return RET_NOTHING; \
-				} \
-				target = chunk_dupvalue(f); \
-				if( !target ) { \
-					release_free(r); \
-					return RET_ERROR_OOM; \
-				}
-	parse("Codename",r->codename);
-	parse("Suite",r->suite);
-	parse("Version",r->version);
-	parse("Origin",r->origin);
-	parse("Label",r->label);
-	parse("Description",r->description);
-	parse("Architectures",r->architectures);
-	parse("Components",r->components);
+	ret = chunk_getvalue(chunk,"Codename",&r->codename);
+	checkret;
+	ret = chunk_getvalue(chunk,"Suite",&r->suite);
+	checkret;
+	ret = chunk_getvalue(chunk,"Version",&r->version);
+	checkret;
+	ret = chunk_getvalue(chunk,"Origin",&r->origin);
+	checkret;
+	ret = chunk_getvalue(chunk,"Label",&r->label);
+	checkret;
+	ret = chunk_getvalue(chunk,"Description",&r->description);
+	checkret;
+	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
+	checkret;
+	ret = chunk_getwordlist(chunk,"Components",&r->components);
+	checkret;
 
 	*release = r;
 	return RET_OK;
@@ -298,50 +294,27 @@ static retvalue printmd5andsize(FILE *f,const char *dir,const char *fmt,...) {
 	return RET_OK;
 }
 
-static char *first_word(const char *c) {
-	const char *p;
-
-	p = c;
-	while( *p && !isspace(*p) ) {
-		p++;
-	}
-	return strndup(c,p-c);
-}
-
-static const char *next_word(const char *c) {
-
-	while( *c && !isspace(*c) )
-		c++;
-	while( *c && isspace(*c) )
-		c++;
-	return c;
-}
-
 /* call <sourceaction> for each source part of <release> and <binaction> for each binary part of it. */
 retvalue release_foreach_part(const struct release *release,release_each_source_action sourceaction,release_each_binary_action binaction,void *data) {
 	retvalue result,r;
+	int i,j;
 	const char *arch,*comp;
-	char *a,*c;
 
 	result = RET_NOTHING;
-	for( comp=release->components ; *comp ; comp=next_word(comp) ) {
-		c = first_word(comp);
-		if( !c ) {return RET_ERROR_OOM;}
-		for( arch=release->architectures ; *arch ; arch=next_word(arch) ) {
-			a = first_word(arch);
-			if( !a ) {free(c);return RET_ERROR_OOM;}
-			if( strcmp(a,"source") != 0 ) {
-				r = binaction(data,c,a);
+	for( i = 0 ; i < release->components.count ; i++ ) {
+		comp = release->components.values[i];
+		for( j = 0 ; j < release->architectures.count ; j++ ) {
+			arch = release->architectures.values[j];
+			if( strcmp(arch,"source") != 0 ) {
+				r = binaction(data,comp,arch);
 				RET_UPDATE(result,r);
 				//TODO: decide if break on error/introduce a force-flag
 			}
-			free(a);
 			
 		}
-		r = sourceaction(data,c);
+		r = sourceaction(data,comp);
 		RET_UPDATE(result,r);
 		//TODO: dito
-		free(c);
 	}
 	return result;
 }
@@ -431,13 +404,14 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 			"Codename: %s\n"
 			"Version: %s\n"
 			"Date: %s\n"
-			"Architectures: %s\n"
-			"Components: %s\n"
-			"Description: %s\n"
-			"MD5Sums:\n",
+			"Architectures: ",
 		release->origin, release->label, release->suite,
-		release->codename, release->version, buffer,
-		release->architectures, release->components,
+		release->codename, release->version, buffer);
+	strlist_fprint(f,&release->architectures);
+	fprintf(f,    "\nComponents: ");
+	strlist_fprint(f,&release->components);
+	fprintf(f,    "\nDescription: %s\n"
+			"MD5Sums:\n",
 		release->description);
 
 	/* generate bin/source-Release-files and add md5sums */

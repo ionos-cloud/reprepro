@@ -9,7 +9,7 @@
 
 struct download;
 
-retvalue download_initialize(struct download **download,const char *config);
+retvalue download_initialize(struct download **download,const char *method,const char *config);
 retvalue download_add(struct download *download,const char *orig,const char *dest);
 retvalue download_run(struct download *download);
 retvalue download_cancel(struct download *download);

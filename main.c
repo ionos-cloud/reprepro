@@ -35,6 +35,7 @@
 #include "sources.h"
 #include "release.h"
 #include "download.h"
+#include "updates.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "/var/spool/mirrorer"
@@ -922,7 +923,7 @@ static retvalue exportsource(void *data,const char *component) {
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
-	filename = mprintf("%s/%s/sources/Sources.gz",d->dirofdist,component);	
+	filename = mprintf("%s/%s/source/Sources.gz",d->dirofdist,component);	
 	if( !filename ) {
 		free(dbname);
 		return RET_ERROR_OOM;
@@ -980,81 +981,56 @@ int export(int argc,char *argv[]) {
 
 /***********************update********************************/
 
-
-static retvalue fetchupstreamcomponentlists(
-		struct download *download,
-		const char *chunk,
-		const struct release *release,
-		const char *upstream,
-		const char *origin,
-		const char *destination) {
-	const char *toget,*saveas;
-
-	toget = mprintf("dists/%s/source/Sources.gz",origin);
-	saveas = mprintf("%s_%s_%s_Sources.gz",release->codename,upstream,origin);
-	fprintf(stderr,"... '%s':'%s'>'%s'\n",upstream,origin,destination);
-	download_add(download,toget,saveas);
-
-	return RET_NOTHING;
-}
-
-static retvalue fetchupstreamlists(const char *chunk,const struct release *release,const char *upstream) {
+static retvalue fetchupstreamlists(void *data,const char *chunk,const struct release *release,struct update *update) {
 	retvalue result,r;
-	char *keyname,*component,*destination,*origin;
-	char *config;
-	struct strlist components;
-	int i;
+	char *from,*method;
+	int i,j;
 	struct download *download;
-
-	/* * Check which components to update * */
-	
-	keyname = mprintf("Update-%s",upstream);
-	if( !keyname )
-		r = RET_ERROR_OOM;
-	else 
-		r = chunk_getwordlist(chunk,keyname,&components);
-	if( !RET_IS_OK(r) ) {
-		if( r== RET_NOTHING ) {
-			fprintf(stderr,"Cannot find '%s' line in '%s' specification.\n",keyname,release->codename);
-			return RET_ERROR;
-		} else
-			return r;
-	} 
+	char *toget,*saveas;
+	const char *origin,*dest,*arch;
 
 	/* * Prepare the download-backend * */
-	r = chunk_getextralines(chunk,keyname,&config);
-	/* it was already found, so should be found again */
-	assert( r != RET_NOTHING );
+	r = chunk_getvalue(chunk,"From",&from);
+	if( !RET_IS_OK(r) )
+		return r;
+	r = chunk_getvalue(chunk,"Method",&method);
 	if( !RET_IS_OK(r) )
 		return r;
 
-	r = download_initialize(&download,config);
+	r = download_initialize(&download,method,from);
 	if( !RET_IS_OK(r) )
 		return r;
+
+	//TODO: implement error-checking...
+
+	toget = mprintf("dists/%s/Release",update->suite_from);
+	saveas = mprintf("%s/%s_%s_Release",listdir,release->codename,update->name);
+	download_add(download,toget,saveas);
+	free(toget);free(saveas);
 
 	/* * Iterator over components to update * */
 	result = RET_NOTHING;
-	for( i = 0 ; i < components.count ; i++ ) {
-		component = components.values[i];
-		if( !(destination = strchr(component,'>')) || !*(destination+1))
-			r = fetchupstreamcomponentlists(download,
-					chunk,release,upstream,
-					component,component);
-		else {
-			origin = strndup(component,destination-component);
-			destination++;
-			if( !origin )
-				r = RET_ERROR_OOM;
-			else
-				r = fetchupstreamcomponentlists(download,
-						chunk,release,upstream,
-						origin,destination);
-			free(origin);
-		}
+	for( i = 0 ; i < update->components_from.count ; i++ ) {
+		origin = update->components_from.values[i];
+		dest = update->components_into.values[i];
 
-		RET_UPDATE(result,r);
+		toget = mprintf("dists/%s/%s/source/Sources.gz",update->suite_from,origin);
+		saveas = mprintf("%s/%s_%s_%s_Sources.gz",listdir,release->codename,update->name,origin);
+		download_add(download,toget,saveas);
+		free(toget);free(saveas);
+
+		
+		for( j = 0 ; j < update->architectures.count ; j++ ) {
+			arch =update->architectures.values[j];
+
+			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",update->suite_from,origin,arch);
+			saveas = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,release->codename,update->name,origin,arch);
+			download_add(download,toget,saveas);
+			free(toget);free(saveas);
+			
+		}
+		
 	}
-	strlist_free(&components);
 
 	/* * fire up downloading * */
 
@@ -1070,39 +1046,6 @@ static retvalue fetchupstreamlists(const char *chunk,const struct release *relea
 	return result;
 }
 
-
-static retvalue doupdate(void *dummy,const char *chunk,const struct release *release) {
-	retvalue result,r;
-	char *upstream;
-	struct strlist upstreams;
-	int i;
-
-	r = chunk_getwordlist(chunk,"Update",&upstreams);
-	if( r == RET_NOTHING && verbose > 1 ) {
-		fprintf(stderr,"Ignoring release '%s', as it describes no update\n",release->codename);
-	}
-	if( !RET_IS_OK(r) )
-		return r;
-
-	result = RET_NOTHING;
-
-	/* Iteratate over all given upstreams */
-	for( i = 0 ; i < upstreams.count ; i++ ) {
-		upstream = upstreams.values[i];
-		if( verbose > 0 ) {
-			fprintf(stderr,"Updating '%s':'%s'...\n",release->codename,upstream);
-		}
-
-		r = fetchupstreamlists(chunk,release,upstream);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
-	strlist_free(&upstreams);
-
-	return result;
-}
-
 int update(int argc,char *argv[]) {
 	retvalue result;
 
@@ -1111,7 +1054,7 @@ int update(int argc,char *argv[]) {
 		return 1;
 	}
 	
-	result = release_foreach(confdir,argc-1,argv+1,doupdate,NULL,force);
+	result = updates_foreach(confdir,argc-1,argv+1,fetchupstreamlists,NULL,force);
 	return EXIT_RET(result);
 }
 

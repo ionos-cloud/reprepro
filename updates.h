@@ -9,10 +9,18 @@
 #include "release.h"
 #include "strlist.h"
 
-typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,const char *name);
 
-retvalue updates_foreach_matching(const char *conf,const struct release *release,const struct strlist *updates,updatesaction action,void *data,int force);
+struct update {
+	char *name;
+	struct strlist architectures;
+	char *suite_from;
+	struct strlist components_from;
+	struct strlist components_into;
+};
 
+typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,struct update *update);
+
+retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction action,void *data,int force);
 
 
 #endif

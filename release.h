@@ -5,6 +5,7 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#include "strlist.h"
 
 /* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,
  * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
@@ -13,7 +14,7 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 struct release {
 	char *codename,*suite,*version;
 	char *origin,*label,*description;
-	char *architectures,*components;
+	struct strlist architectures,components;
 };
 
 void release_free(struct release *release);

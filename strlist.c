@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <assert.h>
 #include <malloc.h>
+#include <stdio.h>
+#include <string.h>
 #include "error.h"
 #include "strlist.h"
 
@@ -67,7 +69,7 @@ void strlist_free(struct strlist *strlist) {
 retvalue strlist_add(struct strlist *strlist, char *element) {
 	char **v;
 
-	assert(strlist != NULL);
+	assert(strlist != NULL && element != NULL);
 
 	if( strlist->count >= strlist->size ) {
 		strlist->size += 8;
@@ -80,5 +82,42 @@ retvalue strlist_add(struct strlist *strlist, char *element) {
 	}
 
 	strlist->values[strlist->count++] = element;
+	return RET_OK;
+}
+
+retvalue strlist_fprint(FILE *file,const struct strlist *strlist) {
+	int c;
+	char **p;
+
+	assert(strlist != NULL);
+	assert(file != NULL);
+
+	c = strlist->count;
+	p = strlist->values;
+	while( c > 0 ) {
+		fputs(*(p++),file);
+		if( --c > 0 ) {
+			fputc(' ',file);
+		}
+	}
+	return RET_OK;
+}
+
+/* duplicate with content */
+retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
+	int i;
+
+	assert(dest != NULL && orig != NULL);
+	
+	dest->size = dest->count = orig->count;
+	dest->values = calloc(dest->count,sizeof(char*));;
+	if( !dest->values )
+		return RET_ERROR_OOM;
+	for( i = 0 ; i < dest->count ; i++ ) {
+		if( !(dest->values[i] = strdup(orig->values[i])) ) {
+			strlist_free(dest);
+			return RET_ERROR_OOM;
+		}
+	}
 	return RET_OK;
 }

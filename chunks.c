@@ -209,12 +209,20 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 		return RET_NOTHING;
 
 	b = field;
+	/* jump over spaces at the beginning */
 	if( isspace(*b) )
 		b++;
+	/* search for the end */
 	e = b;
 	while( *e != '\n' && *e != '\0' )
 		e++;
-	val = strndup(b,e-b);
+	/* remove trailing spaced */
+	while( e > b && *e && isspace(*e) )
+		e--;
+	if( e != b )
+		val = strndup(b,e-b+1);
+	else 
+		val = strdup("");
 	if( !val )
 		return RET_ERROR_OOM;
 	*value = val;

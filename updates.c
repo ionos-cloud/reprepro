@@ -37,21 +37,29 @@
 extern int verbose;
 
 
-// typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,const char *name);
+// typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,struct update *update);
 
 struct mydata {
+	const char *updatesfile;
+	int force;
+	struct strlist upstreams;
 	const struct release *release;
-	const struct strlist *updates;
-	void *data;
 	updatesaction *action;
+	void *data;
 };
 
 static retvalue processupdates(void *data,const char *chunk) {
 	struct mydata *d = data;
 	retvalue r;
-	char *name;
+	int i;
+	struct update update;
+	struct strlist componentlist;
+	const struct strlist *components;
+	int components_need_free;
+	const char *component;
+	char *origin,*destination;
 
-	r = chunk_getvalue(chunk,"Name",&name);
+	r = chunk_getvalue(chunk,"Name",&update.name);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Unexpected chunk in updates-file: '%s'.\n",chunk);
 		return r;
@@ -59,42 +67,127 @@ static retvalue processupdates(void *data,const char *chunk) {
 	if( !RET_IS_OK(r) )
 		return r;
 
-	if( strlist_in(d->updates,name) ) {
+	r = RET_NOTHING;
+
+	if( strlist_in(&d->upstreams,update.name) ) {
 
 		if( verbose > 2 ) {
-			fprintf(stderr,"processing '%s' for '%s'\n",name,d->release->codename);
+			fprintf(stderr,"processing '%s' for '%s'\n",update.name,d->release->codename);
 		}
-		// TODO: generate more information...
-		// (like which distributions, architectures and components to update)
-		d->action(d->data,chunk,d->release,name);
+		/* * Check which suite to update from * */
+		r = chunk_getvalue(chunk,"Suite",&update.suite_from);
+		if( r == RET_NOTHING ) {
+			/* if nothing given, try the one we know */
+			update.suite_from = strdup(d->release->codename);
+			if( !update.suite_from )
+				r = RET_ERROR_OOM;
+		} // TODO: check for some token to be repaced by the codename?
+		  // i.e. */updates gets stable/updates unstable/updates ...
+		if( !RET_WAS_ERROR(r) ) {
 
-		free(name);
-		return RET_OK;
+		/* * Check which architectures to update from * */
+		r = chunk_getwordlist(chunk,"Architectures",&update.architectures);
+		if( r == RET_NOTHING ) {
+			/* if nothing given, try to get all the distribution knows */
+			r = strlist_dup(&update.architectures,&d->release->architectures);
+		}
+		if( !RET_WAS_ERROR(r) ) {
+
+		/* * Check which components to update from * */
+
+		components_need_free = 1;
+		components = &componentlist;
+		r = chunk_getwordlist(chunk,"Components",&componentlist);
+		if( r == RET_NOTHING ) {
+			/* if nothing given, try to get all the distribution knows */
+			components = &d->release->components;
+			components_need_free = 0;
+		}
+		if( !RET_WAS_ERROR(r) ) {
+			strlist_new(&update.components_from);
+			strlist_new(&update.components_into);
+
+			/* * Iterator over components to update * */
+			r = RET_NOTHING;
+			for( i = 0 ; i < components->count ; i++ ) {
+				component = components->values[i];
+				if( !(destination = strchr(component,'>')) || !*(destination+1)) {
+					destination = strdup(component);
+					origin = strdup(component);
+				} else {
+					origin = strndup(component,destination-component);
+					destination = strdup(destination+1);
+				}
+				if( !origin || ! destination ) {
+					r = RET_ERROR_OOM;
+					break;
+				}
+				//TODO: check if in release.compoents 
+				r = strlist_add(&update.components_from,origin);
+				if( RET_WAS_ERROR(r) )
+					break;
+				r = strlist_add(&update.components_into,destination);
+				if( RET_WAS_ERROR(r) )
+					break;
+			}
+
+			if( !RET_WAS_ERROR(r) )
+				r = d->action(d->data,chunk,d->release,&update);
+
+			strlist_free(&update.components_from);
+			strlist_free(&update.components_into);
+			if( components_need_free )
+				strlist_free(&componentlist);
+		}
+			strlist_free(&update.architectures);
+		}
+			free(update.suite_from);
+		}
 
 	} else if( verbose > 5 ) {
-		fprintf(stderr,"skipping '%s' in this run\n",name);
+		fprintf(stderr,"skipping '%s' in this run\n",update.name);
 	}
-	free(name);
-	return RET_NOTHING;
+	free(update.name);
+	return r;
 }
 
-retvalue updates_foreach_matching(const char *conf,const struct release *release,const struct strlist *updates,updatesaction action,void *data,int force) {
-	retvalue result;
-	char *fn;
+static retvalue doupdate(void *data,const char *chunk,const struct release *release) {
+	struct mydata *d = data;
+	retvalue r;
+
+	r = chunk_getwordlist(chunk,"Update",&d->upstreams);
+	if( r == RET_NOTHING && verbose > 1 ) {
+		fprintf(stderr,"Ignoring release '%s', as it describes no update\n",release->codename);
+	}
+	if( !RET_IS_OK(r) )
+		return r;
+
+	d->release = release;
+
+	r = chunk_foreach(d->updatesfile,processupdates,d,d->force);
+
+	strlist_free(&d->upstreams);
+
+	return r;
+}
+
+
+retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction action,void *data,int force) {
 	struct mydata mydata;
+	retvalue result;
 
-	mydata.release = release;
-	mydata.updates = updates;
-	mydata.data = data;
-	mydata.action = action;
-	
-	fn = calc_dirconcat(conf,"updates");
-	if( !fn ) 
+	mydata.updatesfile = calc_dirconcat(confdir,"updates");
+	if( !mydata.updatesfile ) 
 		return RET_ERROR_OOM;
-	
-	result = chunk_foreach(fn,processupdates,&mydata,force);
 
-	free(fn);
+	mydata.force=force;
+	mydata.action=action;
+	mydata.data=data;
+	
+	result = release_foreach(confdir,argc,argv,doupdate,&mydata,force);
+
+	free((char*)mydata.updatesfile);
+
 	return result;
 }
 

@@ -29,28 +29,13 @@ struct download {
 	FILE *pipe;
 };
 
-retvalue download_initialize(struct download **download,const char *config) {
-	const char *m,*me,*nl;
-	char *method;
+retvalue download_initialize(struct download **download,const char *method,const char *config) {
 	FILE *pipe;
 	struct download *d;
 
-	fprintf(stderr,"download_initialize: '%s'\n",config);
-	m = config;
-	while( *m && isblank(*m) )
-		m++;
-	nl = m;
-	while( *nl && *nl != '\n' )
-		nl++;
-	me = nl;
-	while( me > m && isblank(*me) )
-		me--;
-	if( me == m || !(method = strndup(m,me-m+1)) )
-		return RET_ERROR_OOM;
-
+	fprintf(stderr,"download_initialize: '%s' '%s'\n",method,config);
 	d = malloc(sizeof(struct download));
 	if( !d ) {
-		free(method);
 		return RET_ERROR_OOM;
 	}
 
@@ -58,15 +43,13 @@ retvalue download_initialize(struct download **download,const char *config) {
 	if( !pipe ) {
 		fprintf(stderr,"Error executing '%s': %m\n",method);
 		free(d);
-		free(method);
 		return RET_ERRNO(errno);
 	}
 		fprintf(stderr,"Executed '%s': %m\n",method);
-	free(method);
 
-	if( *nl ) {
-		nl++;
-		fwrite(nl,strlen(nl),1,pipe);
+	if( *config ) {
+		fputs(config,pipe);
+		fputc('\n',pipe);
 	}
 	d->pipe = pipe;
 	*download = d;
