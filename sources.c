@@ -238,81 +238,60 @@ retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, so
 	return chunk_foreach(sources_file,addsource,&mydata,force,0);
 }
 
+retvalue sources_getfilekeys(const char *directory,const struct strlist *files,struct strlist *filekeys) {
+	int i;
+	retvalue r;
+
+	assert(directory != NULL && files != NULL);
+
+	r = strlist_init_n(files->count,filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	for( i = 0 ; i < files->count ; i++ ) {
+		char *filekey;
+
+		filekey = calc_srcfilekey(directory,files->values[i]);
+		if( filekey == NULL ) {
+			strlist_done(filekeys);
+			return RET_ERROR_OOM;
+		}
+		strlist_add(filekeys,filekey);
+	}
+	assert( files->count == filekeys->count );
+	return RET_OK;
+}
+
 /* remove all references by the given chunk */
 retvalue sources_dereference(DB *refs,const char *referee,const char *chunk) {
 	char *directory;
-	struct strlist files;
-	char *filename,*filekey;
-	char *package,*version,*identifier;
-	retvalue r,result;
-	int i;
+	struct strlist files,filekeys;
+	retvalue r;
 
-	r = sources_parse_chunk(chunk,&package,&version,&directory,&files);
+	r = sources_parse_chunk(chunk,NULL,NULL,&directory,&files);
 	if( !RET_IS_OK(r) )
 		return r;
 
-	identifier = mprintf("%s %s %s",referee,package,version);
-	free(version);free(package);
-	if( !identifier ) {
-		free(directory);strlist_done(&files);
-		return RET_ERROR_OOM;
-	}
+	r = sources_getfilekeys(directory,&files,&filekeys);
+	free(directory);strlist_done(&filekeys);
+	if( !RET_IS_OK(r) )
+		return r;
 
-	result = RET_NOTHING;
-	
-	for( i = 0 ; i < files.count ; i++ ) {
-		r = sources_getfile(files.values[i],&filename,NULL);
-		if( RET_WAS_ERROR(r) ) {
-			result = r;
-			break;
-		}
-		filekey = calc_srcfilekey(directory,filename);
-		if( verbose > 4 ) {
-			fprintf(stderr,"Decrementing reference for '%s' to '%s'...\n",referee,filekey);
-		}
-
-		r = references_decrement(refs,filekey,identifier);
-		RET_UPDATE(result,r);
-
-		free(filename);free(filekey);
-	}
-	free(identifier);
-	free(directory);strlist_done(&files);
-
-	return result;
+	r = references_delete(refs,referee,&filekeys,NULL);
+	strlist_done(&filekeys);
+	return r;
 }
 
 /* Add references for the given source */
-retvalue sources_reference(DB *refs,const char *referee,const char *package,const char *version,const char *dir,const struct strlist *files) {
-	char *basefilename,*filekey;
-	char *identifier;
-	retvalue r,result;
-	int i;
+retvalue sources_reference(DB *refs,const char *referee,const char *dir,const struct strlist *files) {
+	struct strlist filekeys;
+	retvalue r;
 
-	identifier = mprintf("%s %s %s",referee,package,version);
-	if( !identifier ) {
-		return RET_ERROR_OOM;
-	}
+	r = sources_getfilekeys(dir,files,&filekeys);
+	if( !RET_IS_OK(r) )
+		return r;
 
-	result = RET_NOTHING;
-	for( i = 0 ; i < files->count ; i++ ) {
-		r = sources_getfile(files->values[i],&basefilename,NULL);
-		if( RET_WAS_ERROR(r) ) {
-			RET_UPDATE(result,r);
-			break;
-		}
-		filekey = calc_srcfilekey(dir,basefilename);
-		free(basefilename);
-		if( !filekey) {
-			free(identifier);
-			return RET_ERROR_OOM;
-		}
-		r = references_increment(refs,filekey,identifier);
-		free(filekey);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
-	free(identifier);
-	return result;
+	r = references_insert(refs,referee,&filekeys,NULL);
+	strlist_done(&filekeys);
+	return r;
 }

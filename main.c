@@ -296,7 +296,8 @@ static int zexportpackages(int argc,char *argv[]) {
 	result = packages_dozprintout(dbdir,argv[1],argv[2]);
 	return EXIT_RET(result);
 }
-
+/* 
+// TODO: needs to be rewritten...
 static int removepackage(int argc,char *argv[]) {
 	retvalue result,r;
 	DB *pkgs,*refs;
@@ -347,6 +348,7 @@ static int removepackage(int argc,char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
 }
+*/
 /****** reference_{binary,source} *****/
 struct referee {
 	DB *refs;
@@ -388,7 +390,7 @@ static retvalue reference_source(void *data,const char *package,const char *chun
 		fprintf(stderr,"referencing source package: %s\n",package);
 
 
-	r = sources_reference(dist->refs,dist->identifier,package,version,dir,&files);
+	r = sources_reference(dist->refs,dist->identifier,dir,&files);
 	free(version); free(dir);strlist_done(&files);
 	return r;
 }
@@ -438,7 +440,7 @@ static retvalue add_source(void *data,const char *chunk,const char *package,cons
 	}
 
 	/* after all is there, reference it */
-	r = sources_reference(dist->refs,dist->referee,package,version,directory,files);
+	r = sources_reference(dist->refs,dist->referee,directory,files);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -1362,7 +1364,7 @@ static struct action {
 	{"addpackages", addpackages},
 	{"_genpackages", exportpackages},
 	{"_genzpackages", zexportpackages},
-        {"_removepackage", removepackage},
+/*        {"_removepackage", removepackage},*/
 	{"export", export},
 	{"check", check},
 	{"rereference", rereference},
