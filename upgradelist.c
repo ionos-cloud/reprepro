@@ -194,7 +194,7 @@ retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
 	/* the algorithm assumes almost all packages are feed in
 	 * alphabetically. So the next package will likely be quite
 	 * after the last one. Otherwise we walk down the long list
-	 * again and again... */
+	 * again and again... and again...*/
 
 	if( upgrade->list == NULL ) {
 		upgrade->current = NULL;
@@ -326,6 +326,8 @@ retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
+		assert(upgrade->currentupstream);
+		current->upstream = upgrade->currentupstream;
 		strlist_move(&current->new_filekeys,&files);
 		strlist_move(&current->new_md5sums,&md5sums);
 		strlist_move(&current->new_origfiles,&origfiles);
@@ -367,6 +369,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,int force) {
 	result = RET_NOTHING;
 	while( pkg ) {
 		if( pkg->version == pkg->new_version ) {
+			assert(pkg->upstream);
 			r = downloadlist_addfiles(pkg->upstream,
 				&pkg->new_origfiles,
 				&pkg->new_filekeys,

@@ -38,12 +38,6 @@
 
 extern int verbose;
 
-struct queuedjob {
-	struct queuedjob *next;
-	char *command;
-	size_t alreadywritten,len;
-};
-
 struct tobedone {
 	struct tobedone *next;
 	/* must be saved to know where is should be moved to: */
@@ -65,10 +59,13 @@ struct aptmethod {
 
 	enum { ams_waitforcapabilities=0, ams_ok, ams_failed } status;
 	
-	struct queuedjob *jobs,*lastqueued;
-	struct tobedone *tobedone,*lasttobedone;
+	struct tobedone *tobedone,*lasttobedone,*nexttosend;
+	/* what is currently read: */
 	char *inputbuffer;
-	size_t len,read;
+	size_t input_size,alreadyread;
+	/* What is currently written: */
+	char *command;
+	size_t alreadywritten,output_length;
 };
 
 struct aptmethodrun {
@@ -81,16 +78,7 @@ static void aptmethod_free(struct aptmethod *method) {
 	free(method->name);
 	free(method->baseuri);
 	free(method->inputbuffer);
-
-	while( method->jobs ) {
-		struct queuedjob *job;
-
-		job = method->jobs;
-		method->jobs = job->next;
-
-		free(job->command);
-		free(job);
-	}
+	free(method->command);
 
 	while( method->tobedone ) {
 		struct tobedone *todo;
@@ -246,7 +234,14 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 	int stdout[2];
 	int r;
 
-	if( method->jobs == NULL ) {
+	/* When there is nothing to get, there is no reason to startup
+	 * the method. (And whoever adds methods only to execute commands
+	 * will have the tough time they deserve) */
+	if( method->tobedone == NULL ) {
+		return RET_NOTHING;
+	}
+	/* when we are already running, nothing is to do...*/
+	if( method->child > 0 ) {
 		return RET_NOTHING;
 	}
 
@@ -306,31 +301,28 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 	method->stdin = stdin[1];
 	method->stdout = stdout[0];
 	method->inputbuffer = NULL;
-	method->len = 0;
-	method->read = 0;
+	method->input_size = 0;
+	method->alreadyread = 0;
+	method->command = NULL;
+	method->output_length = 0;
+	method->alreadywritten = 0;
 	return RET_OK;
 }
 
 /************************Sending Configuration**************************/
 
 static inline retvalue sendconfig(struct aptmethod *method) {
-	struct queuedjob *job;
 
-	fprintf(stderr,"prepare to send config\n");
+	assert(method->command == NULL);
 
-	job = malloc(sizeof(struct queuedjob));
-
-	job->alreadywritten = 0;
+	method->alreadywritten = 0;
 	//TODO: get some real config...
-	job->command = mprintf("601 Configuration\nConfig-Item: Dir=/\n\n");
-	if( job->command == NULL ) {
-		free(job);
+	method->command = mprintf("601 Configuration\nConfig-Item: Dir=/\n\n");
+	if( method->command == NULL ) {
 		return RET_ERROR_OOM;
 	}
-	job->len = strlen(job->command);
+	method->output_length = strlen(method->command);
 
-	job->next = method->jobs;
-	method->jobs = job;
 	return RET_OK;
 }
 
@@ -368,39 +360,17 @@ static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,
 
 retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
 	struct tobedone *todo;
-	struct queuedjob *job;
 
-	job = malloc(sizeof(struct queuedjob));
 	todo = newtodo(method->baseuri,origfile,destfile,md5sum,filekey);
-	if( job == NULL || todo == NULL ) {
-		free(job);
+	if( todo == NULL ) {
 		return RET_ERROR_OOM;
 	}
-
-	// TODO: think of a method to generate those on-the-fly...
-	job->next = NULL;
-	job->alreadywritten = 0;
-	job->command = mprintf("600 URI Acquire\nURI: %s\nFilename: %s\n\n",todo->uri,todo->filename);
-	if( job->command == NULL ) {
-		free(job);
-		free(todo->uri);
-		free(todo->filename);
-		free(todo);
-		return RET_ERROR_OOM;
-	}
-	job->len = strlen(job->command);
 
 	if( method->lasttobedone == NULL )
-		method->lasttobedone = method->tobedone = todo;
+		method->nexttosend = method->lasttobedone = method->tobedone = todo;
 	else {
 		method->lasttobedone->next = todo;
 		method->lasttobedone = todo;
-	}
-	if( method->lastqueued == NULL )
-		method->lastqueued = method->jobs = job;
-	else {
-		method->lastqueued->next = job;
-		method->lastqueued = job;
 	}
 	return RET_OK;
 	
@@ -483,9 +453,15 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 				method->tobedone = todo->next;
 			else
 				lasttodo->next = todo->next;
+			if( method->nexttosend == todo ) {
+				/* just in case some method received
+				 * files before we request them ;-) */
+				method->nexttosend = todo->next;
+			}
 			free(todo->uri);
 			free(todo->filename);
 			free(todo->md5sum);
+			free(todo->filekey);
 			free(todo);
 			return r;
 		}
@@ -626,25 +602,25 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	int consecutivenewlines;
 
 	/* First look if we have enough room to read.. */
-	if( method->read + 1024 >= method->len ) {
+	if( method->alreadyread + 1024 >= method->input_size ) {
 		char *newptr;
 		
-		if( method->len >= 128000 ) {
+		if( method->input_size >= 128000 ) {
 			fprintf(stderr,"Ridiculous long answer from method!\n");
 			method->status = ams_failed;
 			return RET_ERROR;
 		}
 		
-		newptr = realloc(method->inputbuffer,method->read+1024);
+		newptr = realloc(method->inputbuffer,method->alreadyread+1024);
 		if( newptr == NULL ) {
 			return RET_ERROR_OOM;
 		}
 		method->inputbuffer = newptr;
-		method->len = method->read + 1024;
+		method->input_size = method->alreadyread + 1024;
 	}
 	/* then read as much as the pipe is able to fill of our buffer */
 
-	r = read(method->stdout,method->inputbuffer+method->read,method->len-method->read-1);
+	r = read(method->stdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
 
 	if( r < 0 ) {
 		int err = errno;
@@ -652,13 +628,13 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 		method->status = ams_failed;
 		return RET_ERRNO(err);
 	}
-	method->read += r;
+	method->alreadyread += r;
 
 	result = RET_NOTHING;
 	while(1) {
 		retvalue res;
 
-		r = method->read; 
+		r = method->alreadyread; 
 		p = method->inputbuffer;
 		consecutivenewlines = 0;
 
@@ -676,50 +652,62 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 			}
 			p++; r--;
 		}
-		if( r <= 0 )
+		if( r <= 0 ) {
 			return result;
+		}
 		*p ='\0'; p++; r--;
 		res = parsereceivedblock(method,method->inputbuffer,filesdb);
 		if( r > 0 )
 			memmove(method->inputbuffer,p,r);
-		method->read = r;
+		method->alreadyread = r;
 		RET_UPDATE(result,res);
 	}
 }
 
 static retvalue senddata(struct aptmethod *method) {
+	size_t r,l;
 
+	assert(method->status == ams_ok);
 	if( method->status != ams_ok )
 		return RET_NOTHING;
 
-	//while( method->jobs ) {
-	if( method->jobs ) {
-		struct queuedjob *job = method->jobs;
-		size_t r,l;
-
-		l = job->len-job->alreadywritten;
-
-		r = write(method->stdin,job->command+job->alreadywritten,l);
-		if( r < 0 ) {
-			int err;
-
-			err = errno;
-			fprintf(stderr,"Error writing to pipe: %d=%m\n",err);
-			//TODO: disable the whole method??
-			method->status = ams_failed;
-			return RET_ERRNO(err);
-		}
-		if( r < l ) {
-			job->alreadywritten += r;
-			fprintf(stderr,"Written %d of %d bytes\n",r,job->len);
-			//break;
+	if( method->command == NULL ) {
+		/* nothing queued to send, nothing to be queued...*/
+		if( method->nexttosend == NULL ) {
 			return RET_OK;
 		}
 
-		method->jobs = job->next;
-		free(job->command);
-		free(job);
+		method->alreadywritten = 0;
+		method->command = mprintf(
+			 "600 URI Acquire\nURI: %s\nFilename: %s\n\n",
+			 method->nexttosend->uri,method->nexttosend->filename);
+		if( method->command == NULL ) {
+			return RET_ERROR_OOM;
+		}
+		method->output_length = strlen(method->command);
+		method->nexttosend = method->nexttosend->next;
 	}
+
+
+	l = method->output_length - method->alreadywritten;
+
+	r = write(method->stdin,method->command+method->alreadywritten,l);
+	if( r < 0 ) {
+		int err;
+
+		err = errno;
+		fprintf(stderr,"Error writing to pipe: %d=%m\n",err);
+		//TODO: disable the whole method??
+		method->status = ams_failed;
+		return RET_ERRNO(err);
+	}
+	if( r < l ) {
+		method->alreadywritten += r;
+		return RET_OK;
+	}
+
+	free(method->command);
+	method->command = NULL;
 	return RET_OK;
 }
 
@@ -779,7 +767,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb
 	maxfd = 0;
 	*activity = 0;
 	for( method = run->methods ; method ; method = method->next ) {
-		if( method->status == ams_ok && method->jobs ) {
+		if( method->status == ams_ok && ( method->command || method->nexttosend)) {
 			FD_SET(method->stdin,&writefds);
 			if( method->stdin > maxfd )
 				maxfd = method->stdin;

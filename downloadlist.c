@@ -191,6 +191,7 @@ retvalue downloadlist_add(struct download_upstream *upstream,const char *origfil
 	struct downloaditem *item;
 	retvalue r;
 
+	assert(upstream);
 	r = files_check(upstream->list->filesdb,filekey,md5sum);
 	if( r != RET_NOTHING )
 		return r;
