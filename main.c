@@ -19,6 +19,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
 #include <malloc.h>
@@ -988,14 +989,138 @@ int export(int argc,char *argv[]) {
 }
 
 /***********************update********************************/
+static retvalue	checkreleasegpg(const char *chunk, const char *releasegpg, const char *release) {
+	retvalue r;
+	char *releasecheck,*command;
+	int ret;
+
+	if( !release || !releasegpg )
+		return RET_ERROR_OOM;
+
+	r = chunk_getvalue(chunk,"ReleaseCheck",&releasecheck);
+	/* if there is no command, then there is nothing to check... */
+	if( RET_WAS_ERROR(r) || r == RET_NOTHING)
+		return r;
+
+	//TODO: note in documentation, that names should not contain
+	// shell active characters...
+	command = mprintf("%s %s %s",releasecheck,releasegpg,release);
+	if( !command ) {
+		free(releasecheck);
+		return RET_ERROR_OOM;
+	}
+
+	ret = system(command);
+	if( ret != 0 ) {
+		fprintf(stderr,"Calling '%s' gave returncode %d!\n",command,ret);
+		r = RET_ERROR;
+	} else
+		r = RET_OK;
+
+	free(releasecheck);free(command);
+	return r;
+}
+
+static retvalue addpackagelists(struct download *download,
+		/* where to save to file */
+		const char *listname, const char *codename,const char *update, 
+		/* where to get it from */
+		const char *suite_from,
+		/* what parts to get */
+		const struct strlist *components_from,
+		const struct strlist *architectures
+		) {
+
+	const char *comp,*arch;
+	char *toget,*saveas;
+	retvalue r;
+	int i,j;
+
+	toget = mprintf("dists/%s/Release",suite_from);
+	saveas = mprintf("%s/%s_%s_Release",listdir,codename,update);
+	r = download_add(download,toget,saveas);
+	free(toget);free(saveas);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	toget = mprintf("dists/%s/Release.gpg",suite_from);
+	saveas = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update);
+	r = download_add(download,toget,saveas);
+	free(toget);free(saveas);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* * Iterate over components to update * */
+	for( i = 0 ; i < components_from->count ; i++ ) {
+		comp = components_from->values[i];
+
+		toget = mprintf("dists/%s/%s/source/Sources.gz",suite_from,comp);
+		saveas = mprintf("%s/%s_%s_%s_Sources.gz",listdir,codename,update,comp);
+		r = download_add(download,toget,saveas);
+		free(toget);free(saveas);
+		if( RET_WAS_ERROR(r) )
+			return r;
+
+
+		for( j = 0 ; j < architectures->count ; j++ ) {
+			arch =architectures->values[j];
+
+			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,comp,arch);
+			saveas = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,codename,update,comp,arch);
+			r = download_add(download,toget,saveas);
+			free(toget);free(saveas);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+
+	}
+	return RET_OK;
+}
+
+static retvalue checkpackagelists(struct strlist *checksums,
+		/* where to save to file */
+		const char *listname, const char *codename,const char *update, 
+		/* where to get it from */
+		const char *suite_from,
+		/* what parts to get */
+		const struct strlist *components_from,
+		const struct strlist *architectures
+		) {
+	const char *comp,*arch;
+	retvalue result,r;
+	char *name,*totest;
+	int i,j;
+	
+	result = RET_NOTHING;
+	for( i = 0 ; i < components_from->count ; i++ ) {
+		comp = components_from->values[i];
+
+		name = mprintf("%s/source/Sources.gz",comp);
+		totest = mprintf("%s/%s_%s_%s_Sources.gz",listdir,codename,update,comp);
+		r = release_check(checksums,name,totest);
+		free(name); free(totest);
+		RET_UPDATE(result,r);
+
+		
+		for( j = 0 ; j < architectures->count ; j++ ) {
+			arch = architectures->values[j];
+
+			name = mprintf("%s/binary-%s/Packages.gz",comp,arch);
+			totest = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,codename,update,comp,arch);
+			r = release_check(checksums,name,totest);
+			free(name); free(totest);
+			RET_UPDATE(result,r);
+		}
+		
+	}
+	return result;
+}
 
 static retvalue fetchupstreamlists(void *data,const char *chunk,const struct release *release,struct update *update) {
 	retvalue result,r;
 	char *from,*method;
-	int i,j;
 	struct download *download;
-	char *toget,*saveas,*releasefile,*name,*totest;
-	const char *origin,*dest,*arch;
+	char *releasefile,*gpgfile;
 	struct strlist checksums;
 
 	/* * Prepare the download-backend * */
@@ -1003,50 +1128,19 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 	if( !RET_IS_OK(r) )
 		return r;
 	r = chunk_getvalue(chunk,"Method",&method);
-	if( !RET_IS_OK(r) )
+	if( !RET_IS_OK(r) ) {
+		free(from);
 		return r;
-
-	r = download_initialize(&download,method,from);
-	if( !RET_IS_OK(r) )
-		return r;
-
-	//TODO: implement error-checking...
-
-	toget = mprintf("dists/%s/Release",update->suite_from);
-	saveas = mprintf("%s/%s_%s_Release",listdir,release->codename,update->name);
-	download_add(download,toget,saveas);
-	free(toget);free(saveas);
-
-	toget = mprintf("dists/%s/Release.gpg",update->suite_from);
-	saveas = mprintf("%s/%s_%s_Release.gpg",listdir,release->codename,update->name);
-	download_add(download,toget,saveas);
-	free(toget);free(saveas);
-
-	/* * Iterate over components to update * */
-	result = RET_NOTHING;
-	for( i = 0 ; i < update->components_from.count ; i++ ) {
-		origin = update->components_from.values[i];
-		dest = update->components_into.values[i];
-
-		toget = mprintf("dists/%s/%s/source/Sources.gz",update->suite_from,origin);
-		saveas = mprintf("%s/%s_%s_%s_Sources.gz",listdir,release->codename,update->name,origin);
-		download_add(download,toget,saveas);
-		free(toget);free(saveas);
-
-		
-		for( j = 0 ; j < update->architectures.count ; j++ ) {
-			arch =update->architectures.values[j];
-
-			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",update->suite_from,origin,arch);
-			saveas = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,release->codename,update->name,origin,arch);
-			download_add(download,toget,saveas);
-			free(toget);free(saveas);
-			
-		}
-		
 	}
 
-	/* * fire up downloading * */
+	r = download_initialize(&download,method,from);
+	free(method);free(from);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	result = addpackagelists(download,listdir,release->codename,update->name,update->suite_from,&update->components_from,&update->architectures);
+
+	/* * download * */
 
 	if( RET_IS_OK(result) )
 		result = download_run(download);
@@ -1055,54 +1149,28 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 		RET_ENDUPDATE(result,r);
 	}
 
-	// TODO: check gpg of Release...
-	
-	/* check the given md5sums */
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	/* check the given .gpg of Release and the md5sums therein*/
 
 	releasefile = mprintf("%s/%s_%s_Release",listdir,release->codename,update->name);
+	gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,release->codename,update->name);
+	r = checkreleasegpg(chunk,gpgfile,releasefile);
+	free(gpgfile);
+
+	if( RET_WAS_ERROR(r) ) {
+		free(releasefile);
+		return r;
+	}
+
 	r = release_getchecksums(releasefile,&checksums);
 	free(releasefile);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = RET_NOTHING;
-	for( i = 0 ; i < update->components_from.count ; i++ ) {
-		origin = update->components_from.values[i];
+	result = checkpackagelists(&checksums,listdir,release->codename,update->name,update->suite_from,&update->components_from,&update->architectures);
 
-		name = mprintf("%s/source/Sources.gz",origin);
-		totest = mprintf("%s/%s_%s_%s_Sources.gz",listdir,release->codename,update->name,origin);
-		r = release_check(&checksums,name,totest);
-		free(name);
-		if( !RET_IS_OK(r) ) {
-			strlist_done(&checksums);
-			fprintf(stderr,"Error checking authenticity of %s\n",totest);
-			free(totest);
-			if( r == RET_NOTHING)
-				r = RET_ERROR;
-			return r;
-		}
-		free(totest);
-
-		
-		for( j = 0 ; j < update->architectures.count ; j++ ) {
-			arch =update->architectures.values[j];
-
-			name = mprintf("%s/binary-%s/Packages.gz",origin,arch);
-			totest = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,release->codename,update->name,origin,arch);
-			r = release_check(&checksums,name,totest);
-			free(name);
-			if( !RET_IS_OK(r) ) {
-				fprintf(stderr,"Error checking authenticity of %s\n",totest);
-				free(totest);
-				strlist_done(&checksums);
-				if( r == RET_NOTHING)
-					r = RET_ERROR;
-				return r;
-			}
-			free(totest);
-		}
-		
-	}
 
 	strlist_done(&checksums);
 	

@@ -118,19 +118,30 @@ retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nam
 }
 
 /* check in fileinfo for <nametocheck> to have md5sum and size of <filename> *
- * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
+ * returns RET_OK if ok, error otherwise     */
 retvalue release_check(const struct strlist *fileinfos, const char *nametocheck, const char *filename) {
 	char *realmd5andsize;
 	retvalue r;
 
-	if( ! RET_IS_OK(r=md5sum_and_size(&realmd5andsize,filename,0))) {
-		fprintf(stderr,"Error checking %s: %m\n",filename);
+	/* this does not really belong here, but makes live easier... */
+	if( !nametocheck || !filename )
+		return RET_ERROR_OOM;
+
+	r=md5sum_and_size(&realmd5andsize,filename,0);
+	if( !RET_IS_OK(r)) {
+		if( r == RET_NOTHING )
+			r = RET_ERROR;
+		fprintf(stderr,"Error calculating checksum of %s: %m\n",filename);
 		return r;
 	}
 	r = release_searchchecksum(fileinfos,nametocheck,realmd5andsize);
 	free(realmd5andsize);
+	if( r == RET_NOTHING ) {
+		r = RET_ERROR;
+		fprintf(stderr,"Can't find authenticity '%s' for '%s'\n",nametocheck,filename);
+	} else if( !RET_IS_OK(r)) 
+		fprintf(stderr,"Error checking authenticity of %s\n",filename);
 	return r;
-
 }
 
 /* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,

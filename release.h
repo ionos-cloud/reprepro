@@ -14,7 +14,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info);
 retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nametocheck, const char *expected);
 
 /* check in fileinfo for <nametocheck> to have md5sum and size of <filename> *
- * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
+ * returns RET_OK if ok, error otherwise     */
 retvalue release_check(const struct strlist *fileinfos, const char *nametocheck, const char *filename);
 	
 /* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,

@@ -57,6 +57,10 @@ retvalue download_initialize(struct download **download,const char *method,const
 	return RET_OK;
 }
 retvalue download_add(struct download *download,const char *orig,const char *dest) {
+	/* this does not really belong here, but makes live easier... */
+	if( !orig || !dest )
+		return RET_ERROR_OOM; 
+
 	fprintf(download->pipe,"%s %s\n",orig,dest);
 	return RET_OK;
 }
