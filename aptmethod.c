@@ -262,6 +262,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	job = malloc(sizeof(struct queuedjob));
 
 	job->alreadywritten = 0;
+	//TODO: get some real config...
 	job->command = mprintf("601 Configuration\nConfig-Item: Dir=/\n\n");
 	if( job->command == NULL ) {
 		free(job);
