@@ -110,11 +110,11 @@ retvalue md5sum_read(const char *filename,char **result){
 
 	fd = open(filename,O_RDONLY);
 	if( fd < 0 ) {
-		if( errno == EACCES  )
+		i = errno;
+		if( i == EACCES || i == ENOENT )
 			return RET_NOTHING;
 		else {
-			i = errno;
-			fprintf(stderr,"Error opening '%s': %d=%m\n",filename,i);
+			fprintf(stderr,"Error opening '%s': %d=%m!\n",filename,i);
 			return RET_ERRNO(i);
 		}
 	}
@@ -144,7 +144,7 @@ retvalue md5sum_copy(const char *origfilename,const char *destfilename,
 	fdr = open(origfilename,O_RDONLY);
 	if( fdr < 0 ) {
 		i = errno;
-		if( i  == EACCES )
+		if( i  == EACCES || i == ENOENT )
 			return RET_NOTHING;
 		fprintf(stderr,"Error opening '%s': %d=%m\n",origfilename,i);
 		return RET_ERRNO(i);
