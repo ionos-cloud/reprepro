@@ -284,6 +284,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	retvalue r,result;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
+	const struct strlist *components;
 	int i;
 
 	assert( (givenmd5sum && givenfilekey) ||
@@ -334,7 +335,12 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	
 	/* decide where it has to go */
 
-	r = guess_component(distribution->codename,&distribution->components,
+	if( strcmp(suffix,"udeb") == 0 )
+		components = &distribution->udebcomponents;
+	else
+		components = &distribution->components;
+
+	r = guess_component(distribution->codename,components,
 			pkg->package,pkg->section,forcecomponent,&pkg->component);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
@@ -373,7 +379,12 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 			deb_free(pkg);
 			return RET_ERROR;
 		}
-	} 
+	}
+	if( !strlist_in(components,pkg->component) ) {
+		fprintf(stderr,"While checking in '%s': Would put in component '%s', but that is not available!\n",debfilename,pkg->component);
+		/* this cannot be ignored on force as there is not data structure available*/
+		return RET_ERROR;
+	}
 
 	r = deb_calclocations(pkg,givenfilekey,suffix);
 	if( RET_WAS_ERROR(r) ) {
