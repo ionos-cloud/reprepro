@@ -1,10 +1,8 @@
 TODO:
 	add override-support
-	add searching for packages
-	add easier removing of packages
 	implement extractcontrol.c properly
 	add support to specify the key used for signing
-		(allow it needed a passphrase)
+		(allow it needing a passphrase)
 	add support for removing packages automatically
 		when removed upstream. (downgrade too?)
 
