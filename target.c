@@ -17,7 +17,10 @@
 #include <config.h>
 
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <assert.h>
+#include <unistd.h>
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
@@ -300,11 +303,15 @@ retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int
 	return packages_foreach(target->packages,checkpkg,&data,force);
 }
 /* export a database */
-retvalue target_writeindices(struct target *target,const char *distdir,int force) {
+
+retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded) {
 	indexcompression compression;
 	retvalue result,r;
 
-	assert(target && target->packages);
+	if( verbose > 2 ) {
+		fprintf(stderr," exporting '%s'...\n",target->identifier);
+	}
+
 	result = RET_NOTHING;
 
 	for( compression = 0 ; compression <= ic_max ; compression++) {
@@ -315,31 +322,29 @@ retvalue target_writeindices(struct target *target,const char *distdir,int force
 					target->indexfile,compression);
 			if( filename == NULL )
 				return RET_ERROR_OOM;
-			r = packages_export(target->packages,filename,compression);
+			if( onlyneeded && !(target->packages && target->packages->wasmodified)) {
+				struct stat s;
+				int i;
+
+				i = stat(filename,&s);
+				if( i == 0 && S_ISREG(s.st_mode) ) {
+					free(filename);
+					continue;
+				}
+			}
+			r = target_initpackagesdb(target,dbdir);
+			if( !RET_WAS_ERROR(r) )
+				r = packages_export(target->packages,
+						filename,compression);
 			free(filename);
 			RET_UPDATE(result,r);
 			if( !force && RET_WAS_ERROR(r) )
 				return r;
 		}
 	}
+	if( !RET_WAS_ERROR(result) )
+		target->packages->wasmodified = 0;
 	return result;
-}
-
-retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded) {
-	retvalue r;
-
-	if( verbose > 2 ) {
-		fprintf(stderr," exporting '%s'...\n",target->identifier);
-	}
-	if( onlyneeded ) {
-		if( !( target->packages && target->packages->wasmodified ) ) 
-			return RET_NOTHING;
-	} else {
-		r = target_initpackagesdb(target,dbdir);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-	return  target_writeindices(target,distdir,force);
 }
 
 

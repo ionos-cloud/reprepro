@@ -49,12 +49,6 @@ retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
 		const struct strlist *files,
 		const struct strlist *oldfiles);
 
-/* print the database to a "Packages" or "Sources" file */
-// retvalue packages_printout(packagesdb packagesdb,const char *filename);
-// retvalue packages_zprintout(packagesdb packagesdb,const char *filename);
-/* like packages_printout, but open and close database yourself */
-retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *filename);
-retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *filename);
 retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompression compression);
 
 /* action to be called by packages_forall */

@@ -300,8 +300,6 @@ static retvalue packages_printout(packagesdb packagesdb,const char *filename) {
 	r = fclose(pf);
 	if( r != 0 )
 		RET_ENDUPDATE(ret,RET_ERRNO(errno));
-	if( !RET_WAS_ERROR(ret) ) 
-		packagesdb->wasmodified = 0;
 	return ret;
 }
 
@@ -321,9 +319,6 @@ static retvalue packages_zprintout(packagesdb packagesdb,const char *filename) {
 	r = gzclose(pf);
 	if( r < 0 )
 		RET_ENDUPDATE(ret,RET_ZERRNO(r));
-	// TODO move this to packages_export to avoid problems when one is exported and the other is not?
-	if( RET_IS_OK(ret) ) 
-		packagesdb->wasmodified = 0;
 	return ret;
 }
 
