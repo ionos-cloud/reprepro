@@ -61,13 +61,16 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 		fprintf(stderr,"Error opening %s: %m!\n",releasefile);
 		return RET_ERRNO(errno);
 	}
-	chunk = chunk_read(fi);
+	r = chunk_read(fi,&chunk);
 	i = gzclose(fi);
 	if( i < 0)
 		return RET_ZERRNO(i);
-	if( !chunk ) {
+	if( !RET_IS_OK(r) ) {
 		fprintf(stderr,"Error reading %s.\n",releasefile);
-		return RET_ERROR;
+		if( r == RET_NOTHING )
+			return RET_ERROR;
+		else
+			return r;
 	}
 	r = chunk_getextralinelist(chunk,"MD5Sum",&files);
 	free(chunk);

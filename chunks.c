@@ -29,8 +29,8 @@
 
 extern int verbose;
 
-//TODO: this currently only parses \n-seperated files nicely,
-//      when there are \r\n is does stupid things...
+//TODO: this should now also be able to parse \r\n terminated lines instead
+// of only \n terminated oned. Though this has still to be tested properly...
 
 /* Call action for each chunk in <filename> */
 retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,int stopwhenok){

@@ -50,7 +50,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	int status;
 	gzFile f;
 
-	retvalue result;
+	retvalue result,r;
 
 	result = RET_OK;
 
@@ -114,7 +114,10 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	// read data:
 	//TODO: check return values...
 	f = gzdopen(pipe2[0],"r");
-	*control = chunk_read(f);
+	r = chunk_read(f,control);
+	if( r == RET_NOTHING )
+		r = RET_ERROR_MISSING;
+	RET_UPDATE(result,r);
 	gzclose(f);
 
 	while( ar != -1 || tar != -1 ) {

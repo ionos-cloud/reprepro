@@ -9,8 +9,8 @@
 #endif
 #include "strlist.h"
 
-/* get the next chunk from file f */
-char *chunk_read(gzFile f);
+/* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
+retvalue chunk_read(gzFile f,char **chunk);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
