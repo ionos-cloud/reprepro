@@ -19,6 +19,8 @@ struct distribution {
 	struct strlist architectures,components,updates;
 	/* the key to sign with, may be NULL: */
 	char *signwith;
+	/* the override file to use by default */
+	char *override;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* list of all update_upstreams for this ditribution,

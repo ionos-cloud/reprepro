@@ -151,6 +151,12 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 		return ret;
 	} else if( ret == RET_NOTHING )
 		r->signwith = NULL;
+	ret = chunk_getvalue(chunk,"Override",&r->signwith);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING )
+		r->override = NULL;
 
 	ret = createtargets(r);
 	checkret;
