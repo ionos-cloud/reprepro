@@ -71,7 +71,7 @@ static int	force = 0;
 static int	nothingiserror = 0;
 int		verbose = 0;
 
-static int printargs(int argc,char *argv[]) {
+static int printargs(int argc,const char *argv[]) {
 	int i;
 
 	fprintf(stderr,"argc: %d\n",argc);
@@ -80,7 +80,7 @@ static int printargs(int argc,char *argv[]) {
 	}
 	return 0;
 }
-static int extract_control(int argc,char *argv[]) {
+static int extract_control(int argc,const char *argv[]) {
 	retvalue result;
 	char *control;
 
@@ -97,7 +97,7 @@ static int extract_control(int argc,char *argv[]) {
 }
 
 
-static int addmd5sums(int argc,char *argv[]) {
+static int addmd5sums(int argc,const char *argv[]) {
 	char buffer[2000],*c,*m;
 	filesdb files;
 	retvalue result,r;
@@ -138,7 +138,7 @@ static int addmd5sums(int argc,char *argv[]) {
 }
 
 
-static int removereferences(int argc,char *argv[]) {
+static int removereferences(int argc,const char *argv[]) {
 	DB *refs;
 	retvalue ret,r;
 
@@ -156,7 +156,7 @@ static int removereferences(int argc,char *argv[]) {
 }
 
 
-static int dumpreferences(int argc,char *argv[]) {
+static int dumpreferences(int argc,const char *argv[]) {
 	DB *refs;
 	retvalue result,r;
 
@@ -189,7 +189,7 @@ static retvalue checkifreferenced(void *data,const char *filekey,const char *md5
 		return r;
 }
 
-static int dumpunreferenced(int argc,char *argv[]) {
+static int dumpunreferenced(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -243,7 +243,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,const char *
 		return r;
 }
 
-static int deleteunreferenced(int argc,char *argv[]) {
+static int deleteunreferenced(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -267,7 +267,7 @@ static int deleteunreferenced(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int addreference(int argc,char *argv[]) {
+static int addreference(int argc,const char *argv[]) {
 	DB *refs;
 	retvalue result,r;
 
@@ -284,19 +284,40 @@ static int addreference(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int removepackage(int argc,char *argv[]) {
-	retvalue result,r;
-	DB *refs;
-	int i;
-	struct distribution *distribution;
-	struct target *target;
 
-	if( argc < 3 || component == NULL || architecture == NULL ) {
-		fprintf(stderr,"mirrorer -C <component> -A <architecture> remove <codename> <package-names>\n");
+struct remove_args {DB *references; int count; const char **names; };
+
+static retvalue remove_from_target(void *data, struct target *target) {
+	retvalue result,r;
+	int i;
+	struct remove_args *d = data;
+
+	result = target_initpackagesdb(target,dbdir);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	result = RET_NOTHING;
+	for( i = 0 ; i < d->count ; i++ ){
+		r = target_removepackage(target,d->references,d->names[i]);
+		RET_UPDATE(result,r);
+	}
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+static int removepackage(int argc,const char *argv[]) {
+	retvalue result,r;
+	struct distribution *distribution;
+	struct remove_args d;
+
+	if( argc < 3  ) {
+		fprintf(stderr,"mirrorer [-C <component>] [-A <architecture>] remove <codename> <package-names>\n");
 		return 1;
 	}
-	refs = references_initialize(dbdir);
-	if( ! refs )
+	d.references = references_initialize(dbdir);
+	if( ! d.references )
 		return 1;
 	r = distribution_get(&distribution,confdir,argv[1]);
 	if( r == RET_NOTHING ) {
@@ -304,49 +325,73 @@ static int removepackage(int argc,char *argv[]) {
 		return EXIT_RET(RET_NOTHING);
 	}
 	if( RET_WAS_ERROR(r) ) {
-		(void)references_done(refs);
+		(void)references_done(d.references);
 		return EXIT_RET(r);
 	}
 
-	if( !strlist_in(&distribution->components,component) ) {
-		fprintf(stderr,"No component '%s' in '%s'!\n",component,distribution->codename);
-		(void)references_done(refs);
-		(void)distribution_free(distribution);
-		return 1;
-	}
-	if( !strlist_in(&distribution->architectures,architecture) ) {
-		fprintf(stderr,"No architecture '%s' in '%s'!\n",architecture,distribution->codename);
-		(void)references_done(refs);
-		(void)distribution_free(distribution);
-		return 1;
-	}
+	d.count = argc-2;
+	d.names = argv+2;
 
-	target = distribution_getpart(distribution,component,architecture);
-	assert(target);
-
-	result = target_initpackagesdb(target,dbdir);
-	if( RET_WAS_ERROR(result) ) {
-		(void)references_done(refs);
-		(void)distribution_free(distribution);
-		return 1;
-	}
-
-	result = RET_NOTHING;
-	for( i = 2 ; i< argc ; i++ ) {
-		r = target_removepackage(target,refs,argv[i]);
-		RET_UPDATE(result,r);
-	}
+	result = distribution_foreach_part(distribution,component,architecture,remove_from_target,&d,force);
 
 	r = distribution_export(distribution,dbdir,distdir,force,1);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
-	r = references_done(refs);
+	r = references_done(d.references);
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
 }
 
-static int detect(int argc,char *argv[]) {
+static retvalue list_in_target(void *data, struct target *target) {
+	retvalue r,result;
+	const char *packagename = data;
+	char *control,*version;
+
+	result = target_initpackagesdb(target,dbdir);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = packages_get(target->packages,packagename,&control);
+	if( RET_IS_OK(result) ) {
+		r = target->getversion(target,control,&version);
+		if( RET_IS_OK(r) ) {
+			printf("%s: %s %s\n",target->identifier,packagename,version);
+			free(version);
+		} else {
+			printf("Could not retrieve version from %s in %s\n",packagename,target->identifier);
+		}
+		free(control);
+	}
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+static int listpackage(int argc,const char *argv[]) {
+	retvalue r,result;
+	struct distribution *distribution;
+
+	if( argc != 3  ) {
+		fprintf(stderr,"mirrorer [-C <component>] [-A <architecture>] list <codename> <package-name>\n");
+		return 1;
+	}
+	r = distribution_get(&distribution,confdir,argv[1]);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not find matching distributions!\n");
+		return EXIT_RET(RET_NOTHING);
+	}
+	if( RET_WAS_ERROR(r) ) {
+		return EXIT_RET(r);
+	}
+
+	result = distribution_foreach_part(distribution,component,architecture,list_in_target,(void*)argv[2],force);
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
+	return EXIT_RET(result);
+}
+
+static int detect(int argc,const char *argv[]) {
 	filesdb files;
 	char buffer[5000],*nl;
 	int i;
@@ -378,7 +423,7 @@ static int detect(int argc,char *argv[]) {
 	return EXIT_RET(ret);
 }
 
-static int forget(int argc,char *argv[]) {
+static int forget(int argc,const char *argv[]) {
 	filesdb files;
 	char buffer[5000],*nl;
 	int i;
@@ -410,7 +455,7 @@ static int forget(int argc,char *argv[]) {
 	return EXIT_RET(ret);
 }
 
-static int md5sums(int argc,char *argv[]) {
+static int md5sums(int argc,const char *argv[]) {
 	filesdb files;
 	char *filename,*md5sum;
 	retvalue ret,r;
@@ -450,7 +495,7 @@ static retvalue printout(void *data,const char *package,const char *chunk){
 	return RET_OK;
 }
 
-static int dumpcontents(int argc,char *argv[]) {
+static int dumpcontents(int argc,const char *argv[]) {
 	retvalue result,r;
 	packagesdb packages;
 
@@ -480,7 +525,7 @@ static retvalue doexport(void *dummy,const char *chunk,struct distribution *dist
 	return distribution_export(distribution,dbdir,distdir,force,0);
 }
 
-static int export(int argc,char *argv[]) {
+static int export(int argc,const char *argv[]) {
 	retvalue result;
 
 	if( argc < 1 ) {
@@ -494,7 +539,7 @@ static int export(int argc,char *argv[]) {
 
 /***********************update********************************/
 
-static int update(int argc,char *argv[]) {
+static int update(int argc,const char *argv[]) {
 	retvalue result,r;
 	int doexport;
 	DB *refs;
@@ -568,12 +613,15 @@ static int update(int argc,char *argv[]) {
 struct data_binsrcreref { const struct distribution *distribution; DB *references;};
 
 static retvalue reref(void *data,struct target *target) {
-	retvalue result;
+	retvalue result,r;
 	struct data_binsrcreref *d = data;
 
 	result = target_initpackagesdb(target,dbdir);
-	if( !RET_WAS_ERROR(result) )
+	if( !RET_WAS_ERROR(result) ) {
 		result = target_rereference(target,d->references,force);
+		r = target_closepackagesdb(target);
+		RET_ENDUPDATE(result,r);
+	}
 	return result;
 }
 
@@ -589,12 +637,12 @@ static retvalue rereference_dist(void *data,const char *chunk,struct distributio
 	dat.distribution = distribution;
 	dat.references = data;
 
-	result = distribution_foreach_part(distribution,reref,&dat,force);
+	result = distribution_foreach_part(distribution,NULL,NULL,reref,&dat,force);
 
 	return result;
 }
 
-static int rereference(int argc,char *argv[]) {
+static int rereference(int argc,const char *argv[]) {
 	retvalue result,r;
 	DB *refs;
 
@@ -641,12 +689,12 @@ static retvalue check_dist(void *data,const char *chunk,struct distribution *dis
 
 	dat->distribution = distribution;
 
-	result = distribution_foreach_part(distribution,check_target,dat,force);
+	result = distribution_foreach_part(distribution,component,architecture,check_target,dat,force);
 	
 	return result;
 }
 
-static int check(int argc,char *argv[]) {
+static int check(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct data_check dat;
 
@@ -676,7 +724,7 @@ static int check(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int checkpool(int argc,char *argv[]) {
+static int checkpool(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;
 
@@ -700,7 +748,7 @@ static int checkpool(int argc,char *argv[]) {
 
 /***********************include******************************************/
 
-static int includedeb(int argc,char *argv[]) {
+static int includedeb(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;DB *references;
 	struct distribution *distribution;
@@ -744,7 +792,7 @@ static int includedeb(int argc,char *argv[]) {
 }
 
 
-static int includedsc(int argc,char *argv[]) {
+static int includedsc(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files; DB *references;
 	struct distribution *distribution;
@@ -786,7 +834,7 @@ static int includedsc(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int includechanges(int argc,char *argv[]) {
+static int includechanges(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;DB *references;
 	struct distribution *distribution;
@@ -829,7 +877,7 @@ static int includechanges(int argc,char *argv[]) {
 
 static struct action {
 	char *name;
-	int (*start)(int argc,char *argv[]);
+	int (*start)(int argc,const char *argv[]);
 } actions[] = {
 	{"__d", printargs},
 	{"_detect", detect},
@@ -837,6 +885,7 @@ static struct action {
 	{"_md5sums", md5sums},
 	{"_dumpcontents", dumpcontents},
         {"remove", removepackage},
+	{"list", listpackage},
 	{"export", export},
 	{"check", check},
 	{"checkpool", checkpool},
@@ -998,7 +1047,7 @@ int main(int argc,char *argv[]) {
 	a = actions;
 	while( a->name ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
-			return a->start(argc-optind,argv+optind);
+			return a->start(argc-optind,(const char**)argv+optind);
 		} else
 			a++;
 	}
