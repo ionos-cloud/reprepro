@@ -49,6 +49,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	pid_t ar,tar,pid;
 	int status;
 	gzFile f;
+	char *controlchunk;
 
 	retvalue result,r;
 
@@ -84,7 +85,6 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		fprintf(stderr,"calling ar failed: %m\n");
 		exit(254);
 	}
-//	fprintf(stderr,"ar is %d\n",ar);
 
 	tar = fork();
 	if( tar < 0 ) {
@@ -106,19 +106,31 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		exit(254);
 		
 	}
-//	fprintf(stderr,"tar is %d\n",tar);
 
 	close(pipe1[0]);close(pipe1[1]);
 	close(pipe2[1]);
 
-	// read data:
-	//TODO: check return values...
-	f = gzdopen(pipe2[0],"r");
-	r = chunk_read(f,control);
-	if( r == RET_NOTHING )
-		r = RET_ERROR_MISSING;
-	RET_UPDATE(result,r);
-	gzclose(f);
+	/* read data: */
+	if( RET_IS_OK(result) ) {
+		//TODO: making a gzdopen here is kinda stupid...
+		f = gzdopen(pipe2[0],"r");
+		if( !f ) {
+			fprintf(stderr,"Error opening gzip-stream for pipe!\n");
+			RET_UPDATE(result,RET_ERROR);
+		} else {
+			r = chunk_read(f,&controlchunk);
+			if( r == RET_NOTHING ) {
+				fprintf(stderr,"Got no control information from .deb!\n");
+				r = RET_ERROR_MISSING;
+			}
+			RET_UPDATE(result,r);
+			gzclose(f);
+		}
+	}
+	
+	/* avoid beeing a memory leak */
+	if( !(RET_IS_OK(result)) )
+		controlchunk = NULL;
 
 	while( ar != -1 || tar != -1 ) {
 		pid=wait(&status);
@@ -145,5 +157,9 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		}
 		
 	}
+	if( RET_IS_OK(result) )
+		*control = controlchunk;
+	else
+		free(controlchunk);
 	return result;
 }
