@@ -1,3 +1,7 @@
+2005-02-12  Bernhard R. Link <brlink@debian.org>
+	* Some clean up of the code and added some
+	paranoia checks.
+
 2005-02-10  Bernhard R. Link <brlink@debian.org>
 	* No longer shutdown aptmethods when nothing is to do.
 	(This caused problems when index files are already in
