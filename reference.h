@@ -11,6 +11,9 @@ retvalue references_done(DB *db);
 retvalue references_removedependency(DB* refdb,const char *neededby);
 retvalue references_adddependency(DB* refdb,const char *needed,const char *neededby);
 
+/* check if an item is needed, returns RET_NOTHING if not */
+retvalue references_isused(DB *refdb,const char *what);
+
 /* print out all referee-referenced-pairs. return 1 if ok, -1 on error */
 retvalue references_dump(DB *refdb);
 

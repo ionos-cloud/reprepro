@@ -118,6 +118,45 @@ int dumpreferences(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
+struct fileref { DB *files,*refs; };
+
+retvalue checkifreferenced(void *data,const char *filekey,const char *md5andsize) {
+	struct fileref *dist = data;
+	retvalue r;
+
+	r = references_isused(dist->refs,filekey);
+	if( r == RET_NOTHING ) {
+		printf("%s\n",filekey);
+		return RET_OK;		
+	} else if( RET_IS_OK(r) ) {
+		return RET_NOTHING;
+	} else
+		return r;
+}
+
+int dumpunreferenced(int argc,char *argv[]) {
+	retvalue result,r;
+	struct fileref dist;
+
+	if( argc != 1 ) {
+		fprintf(stderr,"mirrorer dumpunreferenced\n");
+		return 1;
+	}
+	dist.refs = references_initialize(dbdir);
+	if( ! dist.refs )
+		return 1;
+	dist.files = files_initialize(dbdir);
+	if( ! dist.files ) {
+		references_done(dist.refs);
+		return 1;
+	}
+	result = files_foreach(dist.files,checkifreferenced,&dist);
+	r = files_done(dist.files);
+	RET_ENDUPDATE(result,r);
+	r = references_done(dist.refs);
+	RET_ENDUPDATE(result,r);
+	return EXIT_RET(result);
+}
 
 int addreference(int argc,char *argv[]) {
 	DB *refs;
@@ -726,7 +765,10 @@ struct action {
 	{"export", exportpackages},
 	{"zexport", zexportpackages},
 	{"addreference", addreference},
+	{"printreferences", dumpreferences},
+	{"printunreferenced", dumpunreferenced},
 	{"dumpreferences", dumpreferences},
+	{"dumpunreferenced", dumpunreferenced},
 	{"release", release},
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
@@ -782,6 +824,8 @@ int main(int argc,char *argv[]) {
 "       Mark everything in dist <identifier> to be needed by <identifier>\n"
 " referencesources <identifer>:\n"
 "       Mark everything in dist <identifier> to be needed by <identifier>\n"
+" printreferences:    Print all saved references\n"
+" printunreferenced:  Print registered files withour reference\n"
 " addpackages <identifier> <part> <files>:\n"
 "       Add the contents of Packages-files <files> to dist <identifier>\n"
 " prepareaddpackages <identifier> <part> <files>:\n"

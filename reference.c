@@ -63,9 +63,25 @@ DB *references_initialize(const char *dbpath) {
 		dbp->close(dbp,0);
 		free(filename);
 		return NULL;
-	}                     
+	}
 	free(filename);
 	return dbp;
+}
+
+retvalue references_isused(DB *refdb,const char *what) {
+	int dbret;
+	DBT key,data;
+
+	SETDBT(key,what);
+	CLEARDBT(data);	
+	if( (dbret = refdb->get(refdb, NULL, &key, &data, 0)) == 0){
+		return RET_OK;
+	} else if( dbret == DB_NOTFOUND ){
+		return RET_NOTHING;
+	} else {
+		refdb->err(refdb, dbret, "references.db:");
+		return RET_DBERR(dbret);
+	}
 }
 
 retvalue references_adddependency(DB* refdb,const char *needed,const char *neededby) {

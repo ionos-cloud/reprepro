@@ -258,3 +258,35 @@ int files_printmd5sums(DB* filesdb) {
 	}
 	return result;
 }
+
+// retvalue files_foreach(DB* filesdb,per_file_action action,void *data);
+
+/* callback for each registered file */
+retvalue files_foreach(DB* filesdb,per_file_action action,void *privdata) {
+	DBC *cursor;
+	DBT key,data;
+	int dbret;
+	retvalue result,r;
+
+	cursor = NULL;
+	if( (dbret = filesdb->cursor(filesdb,NULL,&cursor,0)) != 0 ) {
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
+	}
+	CLEARDBT(key);	
+	CLEARDBT(data);	
+	result = RET_NOTHING;
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		r = action(privdata,(const char*)key.data,(const char*)data.data);
+		RET_UPDATE(result,r);
+	}
+	if( dbret != DB_NOTFOUND ) {
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
+	}
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
+	}
+	return result;
+}

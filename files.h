@@ -29,6 +29,11 @@ retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey);
 /* check for file in the database and if not found there, if it can be detected */
 retvalue files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const char *md5andsize);
 
+typedef retvalue per_file_action(void *data,const char *filekey,const char *md5andsize);
+
+/* callback for each registered file */
+retvalue files_foreach(DB* filesdb,per_file_action action,void *data);
+
 /* dump out all information */
 retvalue files_printmd5sums(DB* filesdb);
 
