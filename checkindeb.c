@@ -343,7 +343,7 @@ retvalue guess_component(struct distribution *distribution,
 retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,struct distribution *distribution,const char *debfilename,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
-	char *filekey,*md5andsize;
+	char *md5andsize;
 	struct strlist filekeys;
 	int i;
 
@@ -385,36 +385,28 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	} 
 	
 	/* calculate it's filekey */
-	filekey = calc_filekey(pkg->component,pkg->source,pkg->basename);
-	if( filekey == NULL) {
-		deb_free(pkg);
-		return RET_ERROR_OOM;
-	}
-	r = strlist_init_singleton(filekey,&filekeys);
+	binaries_calcfilekeys(pkg->component,pkg->source,pkg->basename,&filekeys);
 	if( RET_WAS_ERROR(r) ) {
-		free(filekey);
 		deb_free(pkg);
 		return r;
 	}
 
 	/* then looking if we already have this, or copy it in */
 
-	//TODO ... rewrite this to do a list of files ...
-	r = files_checkin(filesdb,mirrordir,filekey,debfilename,&md5andsize);
+	r = files_checkin(filesdb,mirrordir,filekeys.values[0],debfilename,&md5andsize);
 	if( RET_WAS_ERROR(r) ) {
-		free(filekey);
+		strlist_done(&filekeys);
 		deb_free(pkg);
 		return r;
 	} 
 
-	r = deb_complete(pkg,filekey,md5andsize);
+	r = deb_complete(pkg,filekeys.values[0],md5andsize);
+	free(md5andsize);
 	if( RET_WAS_ERROR(r) ) {
-		free(filekey);
-		free(md5andsize);
+		strlist_done(&filekeys);
 		deb_free(pkg);
 		return r;
 	} 
-	free(md5andsize);
 	
 	/* finaly put it into one or more distributions */
 

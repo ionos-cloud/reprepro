@@ -26,6 +26,8 @@ retvalue binaries_lookforolder(
 		const char *newversion,char **oldversion,
 		struct strlist *oldfilekeys);
 
+retvalue binaries_calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys);
+
 /* call action for each package in packages_file, not already in pkgs. */
 retvalue binaries_findnew(
 	/* the database of already included packages */

@@ -232,6 +232,20 @@ retvalue binaries_lookforolder(
 	return r;
 }
 
+retvalue binaries_calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys) {
+	char *filekey;
+	retvalue r;
+
+	filekey =  calc_filekey(component,sourcename,basename);
+	if( !filekey )
+		return RET_ERROR_OOM;
+	r = strlist_init_singleton(filekey,filekeys);
+	if( RET_WAS_ERROR(r) ) {
+		free(filekey);
+	}
+	return r;
+}
+
 static inline retvalue callaction(new_package_action *action,void *data,
 		const char *chunk,const char *packagename,const char *version,
 		const char *sourcename,const char *basename, 
@@ -240,20 +254,16 @@ static inline retvalue callaction(new_package_action *action,void *data,
 		const struct strlist *origfiles,
 		const struct strlist *oldfiles) {
 	retvalue r;
-	char *filekey,*newchunk;
+	char *newchunk;
 	struct strlist filekeys;
 
-	filekey =  calc_filekey(component,sourcename,basename);
-	if( !filekey )
-		return RET_ERROR_OOM;
-	r = strlist_init_singleton(filekey,&filekeys);
-	if( RET_WAS_ERROR(r) ) {
-		free(filekey);
+	r = binaries_calcfilekeys(component,sourcename,basename,&filekeys);
+	if( RET_WAS_ERROR(r) )
 		return r;
-	}
+
 	// Calculating the following here will cause work done
 	// unnecesarrily, but it unifies handling afterwards:
-	newchunk = chunk_replacefield(chunk,"Filename",filekey);
+	newchunk = chunk_replacefield(chunk,"Filename",filekeys.values[0]);
 	if( !newchunk ) {
 		strlist_done(&filekeys);
 		return RET_ERROR_OOM;
