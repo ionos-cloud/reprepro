@@ -280,7 +280,7 @@ static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force){
+retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
 	int i;
@@ -339,7 +339,17 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	
 	/* some sanity checks: */
 
-	if( strcmp(pkg->architecture,"all") != 0 &&
+	if( forcearchitecture && strcmp(forcearchitecture,"all") == 0 )
+		forcearchitecture = NULL;
+
+	if( forcearchitecture && 
+			strcmp(pkg->architecture,forcearchitecture) != 0 &&
+			strcmp(pkg->architecture,"all") != 0 ) {
+		fprintf(stderr,"Cannot checking in '%s' into architecture '%s', as it is '%s'!",
+				debfilename,forcearchitecture,pkg->architecture);
+		deb_free(pkg);
+		return RET_ERROR;
+	} else if( strcmp(pkg->architecture,"all") != 0 &&
 	    !strlist_in( &distribution->architectures, pkg->architecture )) {
 		fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
 				debfilename,pkg->architecture);
@@ -380,6 +390,12 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,pkg->architecture);
+		r = target_initpackagesdb(t,dbdir,NULL);
+		if( !RET_WAS_ERROR(r) )
+		r = target_addpackage(t,references,NULL,pkg->package,pkg->version,pkg->control,&pkg->filekeys,NULL,force,0);
+		RET_UPDATE(result,r);
+	} else if( forcearchitecture ) {
+		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture);
 		r = target_initpackagesdb(t,dbdir,NULL);
 		if( !RET_WAS_ERROR(r) )
 		r = target_addpackage(t,references,NULL,pkg->package,pkg->version,pkg->control,&pkg->filekeys,NULL,force,0);

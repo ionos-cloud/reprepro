@@ -93,6 +93,10 @@ void target_free(struct target *target) {
 	free(target->architecture);
 	free(target->identifier);
 	free(target->directory);
+	if( target->packages ) {
+		//TODO: report downwards, if error!!!
+		(void)packages_done(target->packages);
+	}
 	free(target);
 }
 

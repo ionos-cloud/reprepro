@@ -62,7 +62,8 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*confdir = STD_BASE_DIR "/conf",
 	*section = NULL,
 	*priority = NULL,
-	*component = NULL;
+	*component = NULL,
+	*architecture = NULL;
 static int	local = 0;
 static int	force = 0;
 static int	nothingiserror = 0;
@@ -289,7 +290,7 @@ static int removepackage(int argc,char *argv[]) {
 
 	//TODO: add architecture-selector...
 
-	if( argc < 3 || component == NULL ) {
+	if( argc < 3 || component == NULL || architecture == NULL ) {
 		fprintf(stderr,"mirrorer -C <component> -A <architecture> removebinary <codename> <package-names>\n");
 		return 1;
 	}
@@ -308,8 +309,14 @@ static int removepackage(int argc,char *argv[]) {
 		distribution_free(distribution);
 		return 1;
 	}
+	if( !strlist_in(&distribution->architectures,architecture) ) {
+		fprintf(stderr,"No architecture '%s' in '%s'!\n",architecture,distribution->codename);
+		(void)references_done(refs);
+		distribution_free(distribution);
+		return 1;
+	}
 
-	target = distribution_getpart(distribution,component,"source");
+	target = distribution_getpart(distribution,component,architecture);
 
 	result = target_initpackagesdb(target,dbdir,NULL);
 	if( RET_WAS_ERROR(result) ) {
@@ -330,13 +337,9 @@ static int removepackage(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-/****** reference_{binary,source} *****/
-struct referee {
-	DB *refs;
-	const char *identifier;
-};
-
 /****** common for [prepare]add{sources,packages} *****/
+//TODO: all these 4 functions are depreceated, they will only
+//stay until their replacement works..
 
 struct distributionhandles {
 	filesdb files;packagesdb pkgs;DB *refs;
@@ -926,7 +929,7 @@ static int includedeb(int argc,char *argv[]) {
 	if( !references )
 		return 1;
 
-	result = deb_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,force);
+	result = deb_add(dbdir,references,files,component,architecture,section,priority,distribution,argv[2],NULL,NULL,force);
 	distribution_free(distribution);
 
 	r = files_done(files);
@@ -946,6 +949,11 @@ static int includedsc(int argc,char *argv[]) {
 	if( argc < 3 ) {
 		fprintf(stderr,"mirrorer includedsc <distribution> <package>\n");
 		return 1;
+	}
+
+	if( architecture && strcmp(architecture,"source") != 0 ) {
+		fprintf(stderr,"Cannot put a source-package anywhere else than in architecture 'source'!\n");
+		return 2;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
@@ -995,7 +1003,7 @@ static int includechanges(int argc,char *argv[]) {
 	if( !files )
 		return 1;
 
-	result = changes_add(dbdir,references,files,component,section,priority,distribution,argv[2],force);
+	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,argv[2],force);
 	distribution_free(distribution);
 
 	r = files_done(files);
@@ -1055,6 +1063,7 @@ int main(int argc,char *argv[]) {
 		{"section", 1, 0, 'S'},
 		{"priority", 1, 0, 'P'},
 		{"component", 1, 0, 'C'},
+		{"architecture", 1, 0, 'A'},
 		{"help", 0, 0, 'h'},
 		{"verbose", 0, 0, 'v'},
 		{"nothingiserror", 0, 0, 'e'},
@@ -1064,7 +1073,7 @@ int main(int argc,char *argv[]) {
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:i:C:S:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:i:A:C:S:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
@@ -1079,12 +1088,12 @@ int main(int argc,char *argv[]) {
 " -D, --dbdir <dir>:      Directory to place the database in.\n"
 " -L, --listdir <dir>:    Directory to place downloaded lists in.\n"
 " -c, --confdir <dir>:    Directory to search configuration in.\n"
-" -S, --section <section>: Force include* to put in section.\n"
+" -S, --section <section>: Force include* to set section.\n"
 " -P, --priority <priority>: Force include* to set priority.\n"
-" -C, --component <component>: Force include* to put in component.\n"
+" -C, --component <component>: Add or delete only in component.\n"
+" -A, --architecture <architecture>: Add or delete only to architecture.\n"
 "\n"
 "actions:\n"
-" add <filename>:     Not yet implemented.\n"
 " _forget <file>:      Forget the given files (read stdin if none)\n"
 "                     (Only usefull to unregister files manually deleted)\n"
 " _detect <file>:      Add given files to the database (read stdin if none)\n"
@@ -1148,6 +1157,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'C':
 				component = strdup(optarg);
+				break;
+			case 'A':
+				architecture = strdup(optarg);
 				break;
 			case 'S':
 				section = strdup(optarg);

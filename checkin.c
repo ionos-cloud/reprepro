@@ -126,7 +126,7 @@ static void changes_free(struct changes *changes) {
 }
 
 
-static retvalue newentry(struct fileentry **entry,const char *fileline) {
+static retvalue newentry(struct fileentry **entry,const char *fileline,const char *forcearchitecture) {
 	struct fileentry *e;
 	const char *p,*md5start,*md5end;
 	const char *sizestart,*sizeend;
@@ -265,31 +265,51 @@ static retvalue newentry(struct fileentry **entry,const char *fileline) {
 		freeentries(e);
 		return RET_ERROR_OOM;
 	}
+	if( forcearchitecture ) {
+		if( strcmp(forcearchitecture,"source") != 0 && 
+				strcmp(e->architecture,"all") == 0 ) {
+			if( verbose > 2 )
+				fprintf(stderr,"Placing '%s' only in architecture '%s' as requested.\n",e->basename,forcearchitecture);
+			free(e->architecture);
+			e->architecture = strdup(forcearchitecture);
+		} else if( strcmp(forcearchitecture,e->architecture) != 0) {
+			if( verbose > 1 )
+				fprintf(stderr,"Skipping '%s' as not for architecture '%s'.\n",e->basename,forcearchitecture);
+			freeentries(e);
+			return RET_NOTHING;
+		}
+		if( e->architecture == NULL ) {
+			freeentries(e);
+			return RET_ERROR_OOM;
+		}
+	}
+
 	e->next = *entry;
 	*entry = e;
 	return RET_OK;
 }
 
 /* Parse the Files-header to see what kind of files we carry around */
-static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,int force) {
-	retvalue r;
+static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,const char *forcearchitecture,int force) {
+	retvalue result,r;
 	int i;
 
 	assert( changes->files == NULL);
-	r = RET_NOTHING;
+	result = RET_NOTHING;
 
 	for( i = 0 ; i < filelines->count ; i++ ) {
 		const char *fileline = filelines->values[i];
 
-		r = newentry(&changes->files,fileline);
+		r = newentry(&changes->files,fileline,forcearchitecture);
+		RET_UPDATE(result,r);
 		if( r == RET_ERROR )
 			return r;
 	}
-	if( r == RET_NOTHING ) {
+	if( result == RET_NOTHING ) {
 		fprintf(stderr,"%s: Not enough files in .changes!\n",filename);
 		return RET_ERROR;
 	}
-	return r;
+	return result;
 }
 
 static retvalue check(const char *filename,struct changes *changes,const char *field,int force) {
@@ -304,7 +324,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename,struct changes **changes,int force) {
+static retvalue changes_read(const char *filename,struct changes **changes,const char *forcearchitecture,int force) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines;
@@ -371,7 +391,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,int f
 	R;
 	r = chunk_getextralinelist(c->control,"Files",&filelines);
 	E("Missing 'Files' field");
-	r = changes_parsefilelines(filename,c,&filelines,force);
+	r = changes_parsefilelines(filename,c,&filelines,forcearchitecture,force);
 	strlist_done(&filelines);
 	R;
 
@@ -462,22 +482,39 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 	return RET_OK;
 }
 
-static retvalue changes_check(const char *filename,struct changes *changes,int force) {
+static inline retvalue checkforarchitecture(const struct fileentry *e,const char *architecture ) {
+	while( e && strcmp(e->architecture,architecture) != 0 )
+		e = e->next;
+	if( e == NULL ) {
+		fprintf(stderr,"Architecture-header lists architecture '%s', but no files for this!\n",architecture);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static retvalue changes_check(const char *filename,struct changes *changes,const char *forcearchitecture,int force) {
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
 	int havedsc=0, haveorig=0, havetar=0, havediff=0;
 	
 	/* First check for each given architecture, if it has files: */
-	for( i = 0 ; i < changes->architectures.count ; i++ ) {
-		const char *architecture = changes->architectures.values[i];
-		
-		e = changes->files;
-		while( e && strcmp(e->architecture,architecture) != 0 )
-			e = e->next;
-		if( e == NULL ) {
-			fprintf(stderr,"Architecture-header in '%s' lists architecture '%s', but no files for this!\n",filename,architecture);
-			r = RET_ERROR;
+	if( forcearchitecture ) {
+		if( !strlist_in(&changes->architectures,forcearchitecture) ){
+			fprintf(stderr,"Architecture-header does not list the"
+				     " architecture '%s' to be forced in!\n",
+					forcearchitecture);
+			return RET_ERROR_MISSING;
+		}
+		r = checkforarchitecture(changes->files,forcearchitecture);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	} else {
+		for( i = 0 ; i < changes->architectures.count ; i++ ) {
+			r = checkforarchitecture(changes->files,
+				changes->architectures.values[i]);
+			if( RET_WAS_ERROR(r) )
+				return r;
 		}
 	}
 	/* Then check for each file, if its architecture is sensible
@@ -596,7 +633,8 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 		// do not have to be calculated again. (and the md5sums fit)
 		if( e->type == fe_DEB ) {
 			r = deb_add(dbdir,references,filesdb,
-				changes->component,e->section,e->priority,
+				changes->component,e->architecture,
+				e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
 				force);
@@ -621,11 +659,11 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int force) {
+retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int force) {
 	retvalue r;
 	struct changes *changes;
 
-	r = changes_read(changesfilename,&changes,force);
+	r = changes_read(changesfilename,&changes,forcearchitecture,force);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( changes->distributions.count != 1 ) {
@@ -635,7 +673,7 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 	}
 	if( !strlist_in(&changes->distributions,distribution->suite) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
-		fprintf(stderr,"Warning: .changes put in a distribution not listed!\n");
+		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
 	/* look for component, section and priority to be correct or guess them*/
 	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,force);
@@ -644,7 +682,7 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 		return r;
 	}
 	/* do some tests if values are sensible */
-	r = changes_check(changesfilename,changes,force);
+	r = changes_check(changesfilename,changes,forcearchitecture,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;

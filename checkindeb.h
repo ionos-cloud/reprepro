@@ -16,5 +16,5 @@
  * putting things with architecture of "all" into <architectures> (and also
  * causing error, if it is not one of them otherwise)
  * ([todo:]using overwrite-database <overwrite>)*/
-retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force);
+retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearch,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force);
 #endif
