@@ -338,7 +338,10 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 	retvalue result,r,r2;
 
 	if( verbose > 5 ) {
-		fprintf(stderr," exporting '%s'...\n",target->identifier);
+		if( onlyneeded )
+			fprintf(stderr," looking for changes in '%s'...\n",target->identifier);
+		else
+			fprintf(stderr," exporting '%s'...\n",target->identifier);
 	}
 
 	result = RET_NOTHING;
