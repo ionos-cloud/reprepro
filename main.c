@@ -61,6 +61,7 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*dbdir = STD_BASE_DIR "/db",
 	*listdir = STD_BASE_DIR "/lists",
 	*confdir = STD_BASE_DIR "/conf",
+	*methoddir = "/usr/lib/apt/methods" ,
 	*section = NULL,
 	*priority = NULL,
 	*component = NULL,
@@ -720,7 +721,7 @@ static int update(int argc,char *argv[]) {
 		return EXIT_RET(result);
 	}
 
-	result = updates_update(dbdir,listdir,"/usr/lib/apt/methods",files,refs,distributions,force);
+	result = updates_update(dbdir,listdir,methoddir,files,refs,distributions,force);
 
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
@@ -1019,6 +1020,7 @@ int main(int argc,char *argv[]) {
 		{"local", 0, 0, 'l'},
 		{"basedir", 1, 0, 'b'},
 		{"incommingdir", 1, 0, 'i'},
+		{"methoddir", 1, 0, 'M'},
 		{"distdir", 1, 0, 'd'},
 		{"dbdir", 1, 0, 'D'},
 		{"listdir", 1, 0, 'L'},
@@ -1036,21 +1038,24 @@ int main(int argc,char *argv[]) {
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:i:A:C:S:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:M:i:A:C:S:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
 "mirrorer - Manage a debian-mirror\n\n"
 "options:\n"
 " -h, --help:             Show this help\n"
-" -l, --local:            Do only process the given file.\n"
-"                         (i.e. do not look at .tar.gz when getting .dsc)\n"
-" -m, --mirrordir <dir>:    Base-dir (will overwrite prior given -i, -d, -D).\n"
-" -i, --incomming <dir>:  incomming-Directory.\n"
+//" -l, --local:            Do only process the given file.\n"
+//"                         (i.e. do not look at .tar.gz when getting .dsc)\n"
+" -b, --basedir <dir>:    Base-dir (will overwrite prior given\n"
+"                                   -d, -D, -L, -c).\n"
+// TODO: is not yet used...
+// " -i, --incomming <dir>:  incomming-Directory.\n"
 " -d, --distdir <dir>:    Directory to place the \"dists\" dir in.\n"
 " -D, --dbdir <dir>:      Directory to place the database in.\n"
 " -L, --listdir <dir>:    Directory to place downloaded lists in.\n"
 " -c, --confdir <dir>:    Directory to search configuration in.\n"
+" -M, --methodir <dir>:   Use instead of /usr/lib/apt/methods/\n"
 " -S, --section <section>: Force include* to set section.\n"
 " -P, --priority <priority>: Force include* to set priority.\n"
 " -C, --component <component>: Add or delete only in component.\n"
@@ -1068,15 +1073,18 @@ int main(int argc,char *argv[]) {
 " dumpreferences:    Print all saved references\n"
 " dumpunreferenced:   Print registered files withour reference\n"
 " deleteunreferenced: Delete and forget all unreferenced files\n"
-" export              Generate Packages.gz/Packages/Sources.gz/Release\n"
-" addpackages <identifier> <component> <files>:\n"
-"       Add the contents of Packages-files <files> to dist <identifier>\n"
-" prepareaddpackages <identifier> <component> <files>:\n"
-"       Search for missing files and print those not found\n"
-" addsources <identifier> <component> <files>:\n"
-"       Add the contents of Sources-files <files> to dist <identifier>\n"
-" prepareaddsources <identifier> <component> <files>:\n"
-"       Search for missing files and print those not found\n"
+" export [<distributions>]\n"
+"	Force (re)generation of Packages.gz/Packages/Sources.gz/Release\n"
+" update [<distributions>]\n"
+"	Update the given distributions from the configured sources.\n"
+" remove <distribution> <packagename>\n"
+"       Remove the given package from the specified distribution.\n"
+" include <distribution> <.changes-file>\n"
+"       Inlcude the given upload.\n"
+" includedeb <distribution> <.deb-file>\n"
+"       Inlcude the given binary package.\n"
+" includedsc <distribution> <.dsc-file>\n"
+"       Inlcude the given source package.\n"
 "\n"
 						);
 				exit(0);
@@ -1105,6 +1113,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'i':
 				incommingdir = strdup(optarg);
+				break;
+			case 'M':
+				methoddir = strdup(optarg);
 				break;
 			case 'd':
 				distdir = strdup(optarg);

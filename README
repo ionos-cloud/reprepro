@@ -21,13 +21,14 @@ See the file TODO for things I plan to do.
 	Both already works with some Makefile-magic, is meant to be supported
 	natively.
 
-	Downloading files currently happens through calling files
-	within /var/lib/apt/methods. Giving them their configuration
-	and beeing able to set the path to them will later be added...
+	Downloading files happens through calling files within 
+	/usr/lib/apt/methods (or -M). One can give them Configuration
+	by means of a "Config: " multiline.
+	(every line beeing in the format as apt-get --option)
 	
 * Some naming conventions:
 	basename: the name of a file without any directory information.
-	filekey: the position relative to the mirrordir. i
+	filekey: the position relative to the mirrordir.
 	(as found as "Filename:" in Packages.gz)
 	full filename: the position relative to /
 
@@ -81,4 +82,3 @@ See the file TODO for things I plan to do.
 	NOTE: Always specify main as the first component, if you want things 
 	      to end up there.
 	NOTE: unlike in dak, non-US and non-us are different things...
-	
