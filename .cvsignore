@@ -19,3 +19,5 @@ reprepro
 .deps
 old
 test
+docs/Makefile
+docs/Makefile.in
