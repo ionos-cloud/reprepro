@@ -35,7 +35,9 @@
 //TODO: think about, if calculating md5sum and copying could be done in
 //the same step. (the data is pulled once through the memory anyway...
 
-static retvalue copyfile(const char *destfullfilename,const char *origfile) {
+/* Copy a file and calculate the md5sum of the result,
+ * return RET_NOTHING (and no md5sum), if it already exists*/
+static retvalue copyfile(const char *destfullfilename,const char *origfile,char **md5sum) {
 	int ret,fd,fdw;
 	retvalue r;
 	struct stat stat;
@@ -113,6 +115,11 @@ static retvalue copyfile(const char *destfullfilename,const char *origfile) {
 		return RET_ERRNO(ret);
 	}
 	close(fd);
+	r = md5sum_and_size(md5sum,destfullfilename,0);
+	if( RET_WAS_ERROR(r) ) {
+		unlink(destfullfilename);
+		return r;
+	}
 	return RET_OK;
 }
 
@@ -127,7 +134,7 @@ retvalue copyfile_md5known(const char *mirrordir,const char *filekey,const char 
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 
-	r = copyfile(fullfilename,origfile);
+	r = copyfile(fullfilename,origfile,&md5sum);
 	if( r == RET_NOTHING ) {
 		/* The file already exists, check if it's md5sum fits */
 		r = md5sum_and_size(&md5sum,fullfilename,0);
@@ -156,7 +163,7 @@ retvalue copyfile_md5known(const char *mirrordir,const char *filekey,const char 
 				return RET_ERRNO(ret);
 			}
 			/* try again: */
-			r = copyfile(fullfilename,origfile);
+			r = copyfile(fullfilename,origfile,&md5sum);
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Cannot create file '%s'. create says is still exists, though it was deleted.\n",fullfilename);
 				r = RET_ERRNO(EEXIST);
@@ -164,12 +171,6 @@ retvalue copyfile_md5known(const char *mirrordir,const char *filekey,const char 
 		}
 	} 
 	if( RET_WAS_ERROR(r) ) {
-		free(fullfilename);
-		return r;
-	}
-	r = md5sum_and_size(&md5sum,fullfilename,0);
-	if( RET_WAS_ERROR(r) ) {
-		unlink(fullfilename);
 		free(fullfilename);
 		return r;
 	}
@@ -206,7 +207,7 @@ retvalue copyfile_getmd5(const char *mirrordir,const char *filekey,const char *o
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 
-	r = copyfile(fullfilename,origfile);
+	r = copyfile(fullfilename,origfile,md5sum);
 	if( r == RET_NOTHING ) {
 		/* there is already a file of that name */
 		// TODO: compare their md5sums and perhaps
@@ -214,12 +215,6 @@ retvalue copyfile_getmd5(const char *mirrordir,const char *filekey,const char *o
 		fprintf(stderr,"Inimplementated case\n");
 		r = RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) ) {
-		free(fullfilename);
-		return r;
-	}
-	r = md5sum_and_size(md5sum,fullfilename,0);
-	free(fullfilename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
