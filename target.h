@@ -17,7 +17,8 @@ struct target;
 typedef retvalue get_name(struct target *,const char *,char **);
 typedef retvalue get_version(struct target *,const char *,char **);
 typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,char **,struct strlist *,struct strlist *,struct strlist *);
-typedef retvalue get_filekeys(struct target *,const char *,struct strlist *);
+/* md5sums may be NULL */
+typedef retvalue get_filekeys(struct target *,const char *,struct strlist *filekeys,struct strlist *md5sum);
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 

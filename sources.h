@@ -19,7 +19,7 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 retvalue sources_getname(struct target * t,const char *chunk,char **packagename);
 retvalue sources_getversion(struct target *t,const char *chunk,char **version);
 retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys);
+retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums);
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 #endif

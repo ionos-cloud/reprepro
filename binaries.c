@@ -212,6 +212,13 @@ retvalue binaries_getinstalldata(struct target *t,const char *packagename,const 
 	return r;
 }
 
-retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys) {
-	return binaries_parse_getfilekeys(chunk,filekeys);
+retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
+	retvalue r;
+	r = binaries_parse_getfilekeys(chunk,filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( md5sums == NULL )
+		return r;
+	r = binaries_parse_chunk(chunk,NULL,NULL,NULL,md5sums);
+	return r;
 }

@@ -138,7 +138,7 @@ retvalue target_removepackage(struct target *target,DB *references,const char *n
 					name,target->identifier);
 		return RET_ERROR_MISSING;
 	}
-	r = target->getfilekeys(target,oldchunk,&files);
+	r = target->getfilekeys(target,oldchunk,&files,NULL);
 	free(oldchunk);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -198,7 +198,7 @@ retvalue target_addpackage(struct target *target,DB *references,const char *name
 			free(oldversion);
 		}
 
-		r = target->getfilekeys(target,oldcontrol,&oldfilekeys);
+		r = target->getfilekeys(target,oldcontrol,&oldfilekeys,NULL);
 		free(oldcontrol);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
@@ -225,7 +225,7 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 	struct strlist filekeys;
 	retvalue r;
 
-	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys);
+	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys,NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( verbose > 10 ) {
@@ -273,10 +273,10 @@ struct data_check {
 
 static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	struct data_check *d = data;
-	struct strlist filekeys;
-	retvalue r;
+	struct strlist filekeys,md5sums;
+	retvalue result,r;
 
-	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys);
+	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys,&md5sums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( verbose > 10 ) {
@@ -284,10 +284,12 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 		strlist_fprint(stderr,&filekeys);
 		putc('\n',stderr);
 	}
-	r = references_check(d->referencesdb,d->target->identifier,&filekeys);
-	// TODO check md5sums in filesdb
+	result = references_check(d->referencesdb,d->target->identifier,&filekeys);
+	r = files_expectfiles(d->filesdb,&filekeys,&md5sums);
+	RET_UPDATE(result,r);
 	strlist_done(&filekeys);
-	return r;
+	strlist_done(&md5sums);
+	return result;
 }
 
 retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force) {

@@ -154,12 +154,12 @@ static retvalue sources_parse_chunk(const char *chunk,char **origdirectory,struc
 	return RET_OK;
 }
 
-static retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys) {
+static retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys,struct strlist *md5sums) {
 	char *origdirectory;
 	struct strlist basenames;
 	retvalue r;
 	
-	r = sources_parse_chunk(chunk,&origdirectory,&basenames,NULL);
+	r = sources_parse_chunk(chunk,&origdirectory,&basenames,md5sums);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;
@@ -171,8 +171,11 @@ static retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *fil
 	r = calc_dirconcats(origdirectory,&basenames,filekeys);
 	free(origdirectory);
 	strlist_done(&basenames);
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		// TODO: this is not so nice...
+		strlist_done(md5sums);
 		return r;
+	}
 	return r;
 }
 
@@ -309,8 +312,8 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 	return r;
 }
 
-retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys) {
-	return sources_parse_getfilekeys(chunk,filekeys);
+retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
+	return sources_parse_getfilekeys(chunk,filekeys,md5sums);
 }
 char *binaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture) {

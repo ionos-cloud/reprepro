@@ -19,7 +19,7 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 retvalue binaries_getname(struct target *t,const char *chunk,char **packagename);
 retvalue binaries_getversion(struct target *t,const char *chunk,char **version);
 retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys);
+retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums);
 char *binaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 
