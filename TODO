@@ -1,4 +1,7 @@
 TODO:
+	check if Source with other version number is
+	correctly handled by deb_read...
+
 	add adding uploads (via .changes, by .dsc and by .deb)
 	add automated updating of distributions
 	add searching for packages

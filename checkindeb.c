@@ -39,6 +39,7 @@
 #include "binaries.h"
 #include "files.h"
 #include "extractcontrol.h"
+#include "guesscomponent.h"
 
 extern int verbose;
 
@@ -105,6 +106,7 @@ void deb_free(struct debpackage *pkg) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->source);free(pkg->architecture);
 		free(pkg->basename);free(pkg->control);
+		free(pkg->section);free(pkg->component);
 	}
 	free(pkg);
 }
@@ -212,85 +214,6 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
 	return RET_OK;
 }
 
-
-/* Guess which component to use:
- * - if the user gave one, use that one.
- * - if the section is a componentname, use this one
- * - if the section starts with a componentname/, use this one
- * - if the section ends with a /componentname, use this one
- * - if the section/ is the start of a componentname, use this one
- * - use the first component in the list
- */
-
-retvalue guess_component(struct distribution *distribution, 
-			 struct debpackage *package,
-			 const char *givencomponent) {
-	int i;
-	const char *section;
-	size_t section_len;
-
-#define RETURNTHIS(comp) { \
-		char *c = strdup(comp); \
-		if( !c ) \
-			return RET_ERROR_OOM; \
-		free(package->component); \
-		package->component = c; \
-		return RET_OK; \
-	}
-	
-	if( givencomponent ) {
-		if( givencomponent && !strlist_in(&distribution->components,givencomponent) ) {
-			fprintf(stderr,"Could not find '%s' in components of '%s': ",
-					givencomponent,distribution->codename);
-			strlist_fprint(stderr,&distribution->components);
-			fputs("'\n",stderr);
-			return RET_ERROR;
-		}
-
-		RETURNTHIS(givencomponent);
-	}
-	section = package->section;
-	if( section == NULL ) {
-		fprintf(stderr,"Found no section for '%s', so I cannot guess the component to put it in!\n",package->package);
-		return RET_ERROR;
-	}
-	if( distribution->components.count <= 0 ) {
-		fprintf(stderr,"I do not find any components in '%s', so there is no chance I cannot even take one by guessing!\n",distribution->codename);
-		return RET_ERROR;
-	}
-	section_len = strlen(section);
-
-	for( i = 0 ; i < distribution->components.count ; i++ ) {
-		const char *component = distribution->components.values[i];
-
-		if( strcmp(section,component) == 0 )
-			RETURNTHIS(component);
-	}
-	for( i = 0 ; i < distribution->components.count ; i++ ) {
-		const char *component = distribution->components.values[i];
-		size_t len = strlen(component);
-
-		if( len<section_len && section[len] == '/' && strncmp(section,component,len) == 0 )
-			RETURNTHIS(component);
-	}
-	for( i = 0 ; i < distribution->components.count ; i++ ) {
-		const char *component = distribution->components.values[i];
-		size_t len = strlen(component);
-
-		if( len<section_len && section[section_len-len-1] == '/' && 
-				strncmp(section+section_len-len,component,len) == 0 )
-			RETURNTHIS(component);
-	}
-	for( i = 0 ; i < distribution->components.count ; i++ ) {
-		const char *component = distribution->components.values[i];
-
-		if( strncmp(section,component,section_len) == 0 && component[section_len] == '/' )
-			RETURNTHIS(component);
-	}
-	RETURNTHIS(distribution->components.values[0]);
-#undef RETURNTHIS
-}
-
 /* insert the given .deb into the mirror in <component> in the <distribution>
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
@@ -317,7 +240,8 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	
 	/* decide where it has to go */
 
-	r = guess_component(distribution,pkg,forcecomponent);
+	r = guess_component(distribution->codename,&distribution->components,
+			pkg->package,pkg->section,forcecomponent,&pkg->component);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
