@@ -1,5 +1,10 @@
 Makefile
 Makefile.in
 randomgen
+randomgen2
 testchunk
+testchunk.data
+testchunk.data.gz
+testchunk2.data
+testchunk2.data.gz
 .deps

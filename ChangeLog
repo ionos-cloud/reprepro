@@ -6,6 +6,9 @@
 	all are moved to their final place) and to prepare
 	DebIndices UDebIndices and DscIndices Options.
 
+	* add another test-case
+	* FIX the overflow bug in chunks_replacefield
+
 2005-02-14  Bernhard R. Link <brlink@debian.org>
 	* Some little changes to make splint
 	and valgrind happier.
