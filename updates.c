@@ -39,8 +39,8 @@ extern int verbose;
 
 /* if found in a update-chunk, do no download or check release-files */
 #define IGNORE_RELEASE "NoRelease"
-/* FORMERLY: fieldname of the command to check Release.gpg, e.g. 'gpg --trusted-key B629A24C38C6029A --verify' */
-/* not yet used yet, will be used for key-id or something like this */
+/* defined if release.gpg should be checked, 
+ * value not yet used, will be key-id or something like this */
 #define VERIFY_RELEASE "ReleaseCheck"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
