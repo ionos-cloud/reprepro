@@ -1,3 +1,4 @@
+SUBDIRS = docs
 
 bin_PROGRAMS = reprepro
 
