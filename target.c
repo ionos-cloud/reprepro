@@ -307,21 +307,59 @@ struct data_check {
 
 static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	struct data_check *d = data;
-	struct strlist filekeys,md5sums;
+	struct strlist expectedfilekeys,actualfilekeys,md5sums;
+	char *dummy,*version;
 	retvalue result,r;
 
-	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys,&md5sums);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	r = d->target->getversion(d->target,chunk,&version);
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Error extraction version number from package control info of '%s'!\n",package);
+	}
+	if( RET_IS_OK(r) ) {
+		r = d->target->getinstalldata(d->target,package,version,chunk,&dummy,&expectedfilekeys,&md5sums,&actualfilekeys);
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,"Error extracting information of package '%s'!\n",package);
+			free(version);
+		}
+	}
+	result = r;
+	if( RET_IS_OK(r) ) {
+		free(version);
+		free(dummy);
+		if( !strlist_subset(&expectedfilekeys,&actualfilekeys) || 
+		    !strlist_subset(&expectedfilekeys,&actualfilekeys) ) {
+			fprintf(stderr,"Reparsing the package information of '%s' yields to the expectation to find:\n",package);
+			strlist_fprint(stderr,&expectedfilekeys);
+			fputs("but found:\n",stderr);
+			strlist_fprint(stderr,&actualfilekeys);
+			putc('\n',stderr);
+			result = RET_ERROR;
+		}
+		strlist_done(&expectedfilekeys);
+	} else {
+		r = (*d->target->getfilekeys)(d->target,chunk,&actualfilekeys,&md5sums);
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,"Even more errors extracting information of package '%s'!\n",package);
+			return r;
+		}
+	}
+
+	if( verbose > 10 ) {
+		fprintf(stderr,"checking files of '%s'\n",package);
+	}
+	r = files_expectfiles(d->filesdb,&actualfilekeys,&md5sums);
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Files are missing for '%s'!\n",package);
+	}
+	RET_UPDATE(result,r);
 	if( verbose > 10 ) {
 		fprintf(stderr,"checking references to '%s' for '%s': ",d->target->identifier,package);
-		strlist_fprint(stderr,&filekeys);
+		strlist_fprint(stderr,&actualfilekeys);
 		putc('\n',stderr);
 	}
-	result = references_check(d->referencesdb,d->target->identifier,&filekeys);
-	r = files_expectfiles(d->filesdb,&filekeys,&md5sums);
+	r = references_check(d->referencesdb,d->target->identifier,&actualfilekeys);
 	RET_UPDATE(result,r);
-	strlist_done(&filekeys);
+	strlist_done(&actualfilekeys);
 	strlist_done(&md5sums);
 	return result;
 }
