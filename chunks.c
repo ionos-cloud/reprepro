@@ -381,6 +381,7 @@ retvalue chunk_getname(const char *chunk,const char *name,
 			fprintf(stderr,"Error: Field '%s' misses closing parathesis!\n",name);
 			return RET_ERROR;
 		}
+		p++;
 	}
 	while( *p && *p != '\n' && isspace(*p) )
 		p++;
