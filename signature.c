@@ -305,7 +305,7 @@ retvalue signature_sign(const char *options,const char *filename) {
 /* Read a single chunk from a file, that may be signed. */
 // TODO: Think about ways to check the signature...
 retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned) {
-	const char *startofchanges,*endofchanges;
+	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	GpgmeError err;
 	GpgmeData dh,dh_gpg;
@@ -359,7 +359,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 				return RET_ERROR_BADSIG;
 			}
 			if( verbose > -1 ) 
-				fprintf(stderr,"Signature could not be checked or multiple signatures with different states, proceeding anyway...\n");
+				fprintf(stderr,"Signature with unknown key, proceeding anyway...\n");
 			gpgme_data_release(dh_gpg);
 			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
 			break;
@@ -394,7 +394,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 		case GPGME_SIG_STAT_ERROR:
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
-			fprintf(stderr,"gpgme reported errors checking '%s'!\n",filename);
+			fprintf(stderr,"gpgme reported an error checking '%s'!\n",filename);
 			return RET_ERROR_GPGME;
 		default:
 			gpgme_data_release(dh_gpg);
@@ -404,20 +404,37 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 	}
 
 	startofchanges = plain_data;
-	while( startofchanges < plain_data+plain_len && 
+	while( startofchanges - plain_data < plain_len && 
 			*startofchanges && isspace(*startofchanges)) {
 		startofchanges++;
 	}
-	if( startofchanges >= plain_data+plain_len ) {
+	if( startofchanges - plain_data >= plain_len ) {
 		fprintf(stderr,"Could only find spaces within '%s'!\n",filename);
 		free(plain_data);
 		return RET_ERROR;
 	}
 	endofchanges = startofchanges;
-	// TODO check for double newline and complain if there are things after it, that are not spaces...
-	// TODO: check that the len is finaly reached and no \0 before...
+	while( endofchanges - plain_data < plain_len && 
+		*endofchanges && ( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
+		endofchanges++;
+	}
+	afterchanges = endofchanges;
+	while( afterchanges - plain_data < plain_len && 
+		*afterchanges && isspace(*afterchanges)) {
+		afterchanges++;
+	}
+	if( afterchanges - plain_data != plain_len ) {
+		if( *afterchanges == '\0' ) {
+			fprintf(stderr,"Unexpected \\0 character within '%s'!\n",filename);
+			free(plain_data);
+			return RET_ERROR;
+		}
+		fprintf(stderr,"Unexpected data after ending empty line in '%s'!\n",filename);
+		free(plain_data);
+		return RET_ERROR;
+	}
 
-	chunk = strndup(startofchanges,plain_len-(startofchanges-plain_data));
+	chunk = strndup(startofchanges,endofchanges-startofchanges);
 	free(plain_data);
 	if( chunk == NULL )
 		return RET_ERROR_OOM;
