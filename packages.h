@@ -25,7 +25,7 @@ typedef struct s_packagesdb *packagesdb;
 retvalue packages_initialize(packagesdb *pkgs,const char *dbpath,const char *identifier);
 
 /* The same but calculate the identifier */
-retvalue packages_init(packagesdb *pkgs,const char *dbpath,const char *codename,const char *component,const char *architecture,const char *suffix);
+retvalue packages_init(packagesdb *pkgs,const char *dbpath,const char *codename,const char *component,const char *architecture,const char *packagetype);
 
 /* release the packages-database initialized got be packages_initialize */
 retvalue packages_done(packagesdb db);

@@ -65,11 +65,11 @@ retvalue packages_done(packagesdb db) {
 		return RET_OK;
 }
 
-retvalue packages_init(packagesdb *db,const char *dbpath,const char *codename,const char *component,const char *architecture,const char *suffix) {
+retvalue packages_init(packagesdb *db,const char *dbpath,const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	char * identifier;
 	retvalue r;
 
-	identifier = calc_identifier(codename,component,architecture,suffix);
+	identifier = calc_identifier(codename,component,architecture,packagetype);
 	if( ! identifier )
 		return RET_ERROR_OOM;
 

@@ -232,7 +232,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 }
 	
 /* call <action> for each part of <distribution>. */
-retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,const char *suffix,distribution_each_action action,void *data,int force) {
+retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data,int force) {
 	retvalue result,r;
 	struct target *t;
 
@@ -242,7 +242,7 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 			continue;
 		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
 			continue;
-		if( suffix != NULL && strcmp(suffix,t->suffix) != 0 )
+		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
 		r = action(data,t);
 		RET_UPDATE(result,r);
@@ -252,10 +252,10 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 	return result;
 }
 
-struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *suffix) {
+struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
 	struct target *t = distribution->targets;
 
-	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) || strcmp(t->suffix,suffix) )) {
+	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) || strcmp(t->packagetype,packagetype) )) {
 		t = t->next;
 	}
 	// todo: make sure UDEBs get never called here without real testing...!!!!

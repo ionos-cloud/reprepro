@@ -137,7 +137,7 @@ static void changes_free(struct changes *changes) {
 }
 
 
-static retvalue newentry(struct fileentry **entry,const char *fileline,const char *forcearchitecture, const char *sourcename) {
+static retvalue newentry(struct fileentry **entry,const char *fileline,const char *packagetypeonly,const char *forcearchitecture, const char *sourcename) {
 	struct fileentry *e;
 	const char *p,*md5start,*md5end;
 	const char *sizestart,*sizeend;
@@ -205,7 +205,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	p++;
 	versionstart = p;
 	// We cannot say where the version ends and the filename starts,
-	// but as the suffixes would be valid part of the version, too,
+	// but as the packagetypes would be valid part of the version, too,
 	// this check gets the broken things. 
 	names_overversion(&p);
 	if( *p != '\0' && *p != '_' ) {
@@ -242,7 +242,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		}
 	} else {
 		/* this looks like some source-package, we will have
-		 * to look for the suffix ourself... */
+		 * to look for the packagetype ourself... */
 		while( *p && !isspace(*p) ) {
 			p++;
 		}
@@ -264,6 +264,13 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 			fprintf(stderr,"Warning: Strange file '%s'!\nLooks like source but does not start with '%s_' as I would have guessed!\nI hope you know what you do.\n",filestart,sourcename);
 		}
 	}
+	if( FE_SOURCE(type) && packagetypeonly != NULL && strcmp(packagetypeonly,"dsc")!=0)
+		return RET_NOTHING;
+	if( type == fe_DEB && packagetypeonly != NULL && strcmp(packagetypeonly,"deb")!=0)
+		return RET_NOTHING;
+	if( type == fe_UDEB && packagetypeonly != NULL && strcmp(packagetypeonly,"udeb")!=0)
+		return RET_NOTHING;
+
 	/* now copy all those parts into the structure */
 	e = calloc(1,sizeof(struct fileentry));
 	if( e == NULL )
@@ -305,7 +312,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 }
 
 /* Parse the Files-header to see what kind of files we carry around */
-static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,const char *forcearchitecture,int force) {
+static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,const char *packagetypeonly,const char *forcearchitecture,int force) {
 	retvalue result,r;
 	int i;
 
@@ -315,7 +322,7 @@ static retvalue changes_parsefilelines(const char *filename,struct changes *chan
 	for( i = 0 ; i < filelines->count ; i++ ) {
 		const char *fileline = filelines->values[i];
 
-		r = newentry(&changes->files,fileline,forcearchitecture,changes->source);
+		r = newentry(&changes->files,fileline,packagetypeonly,forcearchitecture,changes->source);
 		RET_UPDATE(result,r);
 		if( r == RET_ERROR )
 			return r;
@@ -339,7 +346,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename,struct changes **changes,const char *forcearchitecture,int force) {
+static retvalue changes_read(const char *filename,struct changes **changes,const char *packagetypeonly,const char *forcearchitecture,int force) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines;
@@ -406,7 +413,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 	R;
 	r = chunk_getextralinelist(c->control,"Files",&filelines);
 	E("Missing 'Files' field");
-	r = changes_parsefilelines(filename,c,&filelines,forcearchitecture,force);
+	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture,force);
 	strlist_done(&filelines);
 	R;
 
@@ -748,11 +755,11 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys) {
+retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys) {
 	retvalue r;
 	struct changes *changes;
 
-	r = changes_read(changesfilename,&changes,forcearchitecture,force);
+	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,force);
 	if( RET_WAS_ERROR(r) )
 		return r;
 //	if( changes->distributions.count != 1 ) {

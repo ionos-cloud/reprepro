@@ -44,7 +44,7 @@ extern int verbose;
 
 static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
-	const char *suffix,
+	const char *packagetype,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
 	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, bool_t uncompressed, bool_t hasrelease, struct target **d) {
 
@@ -68,8 +68,8 @@ static retvalue target_initialize(
 	t->codename = strdup(codename);
 	t->component = strdup(component);
 	t->architecture = strdup(architecture);
-	t->suffix = suffix;
-	t->identifier = calc_identifier(codename,component,architecture,suffix);
+	t->packagetype = packagetype;
+	t->identifier = calc_identifier(codename,component,architecture,packagetype);
 	if( !t->codename|| !t->component|| !t->architecture|| !t->identifier) {
 		(void)target_free(t);
 		return RET_ERROR_OOM;

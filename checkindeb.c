@@ -250,11 +250,11 @@ retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *override
 	return RET_OK;
 }
 
-static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfilekey,const char *suffix) {
+static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfilekey,const char *packagetype) {
 	retvalue r;
 	char *basename;
 	
-	basename = calc_binary_basename(pkg->package,pkg->version,pkg->architecture,suffix);
+	basename = calc_binary_basename(pkg->package,pkg->version,pkg->architecture,packagetype);
 	if( basename == NULL )
 		return RET_ERROR_OOM;
 
@@ -294,7 +294,7 @@ static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys){
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys){
 	retvalue r,result;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -351,7 +351,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	
 	/* decide where it has to go */
 
-	if( strcmp(suffix,"udeb") == 0 )
+	if( strcmp(packagetype,"udeb") == 0 )
 		components = &distribution->udebcomponents;
 	else
 		components = &distribution->components;
@@ -402,7 +402,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		return RET_ERROR;
 	}
 
-	r = deb_calclocations(pkg,givenfilekey,suffix);
+	r = deb_calclocations(pkg,givenfilekey,packagetype);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -431,7 +431,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,pkg->architecture,suffix);
+		struct target *t = distribution_getpart(distribution,pkg->component,pkg->architecture,packagetype);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
@@ -441,7 +441,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		}
 		RET_UPDATE(result,r);
 	} else if( forcearchitecture ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture,suffix);
+		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture,packagetype);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
@@ -454,7 +454,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		struct target *t;
 		if( strcmp(distribution->architectures.values[i],"source") == 0 )
 			continue;
-		t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i],suffix);
+		t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i],packagetype);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;

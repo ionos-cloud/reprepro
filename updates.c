@@ -580,7 +580,7 @@ static inline retvalue newindex(struct update_index **indices,
 	index->filename = calc_downloadedlistfile(listdir,
 			target->codename,origin->pattern->name,
 			component_from,architecture_from,
-			target->suffix);
+			target->packagetype);
 	if( index->filename == NULL ) {
 		free(index);
 		return RET_ERROR_OOM;
@@ -619,7 +619,7 @@ static retvalue addorigintotarget(const char *listdir,struct update_origin *orig
 		a_from = &p->architectures_from;
 		a_into = &p->architectures_into;
 	}
-	if( strcmp(target->suffix,"udeb") == 0 )  {
+	if( strcmp(target->packagetype,"udeb") == 0 )  {
 		if( p->udebcomponents_from.count > 0 ) {
 			c_from = &p->udebcomponents_from;
 			c_into = &p->udebcomponents_into;

@@ -68,7 +68,7 @@ char 	*mirrordir = STD_BASE_DIR ,
 	*priority = NULL,
 	*component = NULL,
 	*architecture = NULL,
-	*suffix = NULL;
+	*packagetype = NULL;
 static int	delete = D_COPY;
 static int	force = 0;
 static bool_t	nothingiserror = FALSE;
@@ -379,7 +379,7 @@ static retvalue action_remove(int argc,const char *argv[]) {
 	if( d.gotremoved == NULL )
 		result = RET_ERROR_OOM;
 	else
-		result = distribution_foreach_part(distribution,component,architecture,suffix,remove_from_target,&d,force);
+		result = distribution_foreach_part(distribution,component,architecture,packagetype,remove_from_target,&d,force);
 
 	if( d.todo < d.count ) {
 		r = distribution_export(distribution,dbdir,distdir,force,TRUE);
@@ -452,7 +452,7 @@ static retvalue action_list(int argc,const char *argv[]) {
 	struct distribution *distribution;
 
 	if( argc != 3  ) {
-		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] list <codename> <package-name>\n");
+		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>\n");
 		return RET_ERROR;
 	}
 	r = distribution_get(&distribution,confdir,argv[1]);
@@ -464,7 +464,7 @@ static retvalue action_list(int argc,const char *argv[]) {
 		return r;
 	}
 
-	result = distribution_foreach_part(distribution,component,architecture,NULL,list_in_target,(void*)argv[2],force);
+	result = distribution_foreach_part(distribution,component,architecture,packagetype,list_in_target,(void*)argv[2],force);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
 	return result;
@@ -817,8 +817,7 @@ static retvalue check_dist(void *data,const char *chunk,struct distribution *dis
 
 	dat->distribution = distribution;
 
-	//TODO: some switch to specifically test .debs / .udebs? 
-	result = distribution_foreach_part(distribution,component,architecture,NULL,check_target,dat,force);
+	result = distribution_foreach_part(distribution,component,architecture,packagetype,check_target,dat,force);
 	
 	return result;
 }
@@ -883,11 +882,29 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 	struct distribution *distribution;
 	struct overrideinfo *override;
 	struct strlist dereferencedfilekeys;
+	const char *binarytype;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] includedeb <distribution> <package>\n");
 		return RET_ERROR;
 	}
+	if( strcmp(argv[0],"includedeb") == 0 ) {
+		binarytype="udeb";
+		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
+			fprintf(stderr,"Calling includeudeb with a -T different from 'udeb' makes no sense!\n");
+			return RET_ERROR;
+		}
+	} else if( strcmp(argv[0],"includedeb") == 0 ) {
+		binarytype="udeb";
+		if( packagetype != NULL && strcmp(packagetype,"deb") != 0 ) {
+			fprintf(stderr,"Calling includedeb with -T something where something is not 'deb' makes no sense!\n");
+			return RET_ERROR;
+		}
+	} else {
+		fprintf(stderr,"Internal error with command parsing!\n");
+		return RET_ERROR;
+	}
+
 	result = strlist_init(&dereferencedfilekeys);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -902,6 +919,7 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 		return RET_ERROR;
 	}
 
+	// TODO: same for component? (depending on type?)
 	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
 		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
 		return RET_ERROR;
@@ -930,7 +948,9 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 	}
 
 	result = deb_add(dbdir,refs,files,component,architecture,
-			section,priority,"deb",distribution,argv[2],NULL,NULL,override,force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
+			section,priority,binarytype,distribution,argv[2],
+			NULL,NULL,override,force,delete,
+			keepunreferenced?NULL:&dereferencedfilekeys);
 
 	override_free(override);
 
@@ -964,6 +984,10 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 
 	if( architecture != NULL && strcmp(architecture,"source") != 0 ) {
 		fprintf(stderr,"Cannot put a source-package anywhere else than in architecture 'source'!\n");
+		return RET_ERROR;
+	}
+	if( packagetype != NULL && strcmp(packagetype,"dsc") != 0 ) {
+		fprintf(stderr,"Cannot put a source-package anywhere else than in type 'dsc'!\n");
 		return RET_ERROR;
 	}
 
@@ -1067,7 +1091,7 @@ static retvalue action_include(int argc,const char *argv[]) {
 		return r;
 	}
 
-	result = changes_add(dbdir,refs,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
+	result = changes_add(dbdir,refs,files,packagetype,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
 
 	override_free(override);override_free(srcoverride);
 	
@@ -1115,6 +1139,7 @@ static struct action {
 	{"update",		action_update},
 	{"checkupdate",		action_checkupdate},
 	{"includedeb",		action_includedeb},
+	{"includeudeb",		action_includedeb},
 	{"includedsc",		action_includedsc},
 	{"include",		action_include},
 	{NULL,NULL}
@@ -1182,9 +1207,9 @@ int main(int argc,char *argv[]) {
 "     --methodir <dir>:              Use instead of /usr/lib/apt/methods/\n"
 " -S, --section <section>:           Force include* to set section.\n"
 " -P, --priority <priority>:         Force include* to set priority.\n"
-" -C, --component <component>: 	     Add or delete only in component.\n"
-" -A, --architecture <architecture>: Add or delete only to architecture.\n"
-" -T, --type <type>:                 Delete only type (dsc,deb,udeb).\n"
+" -C, --component <component>: 	     Add,list or delete only in component.\n"
+" -A, --architecture <architecture>: Add,list or delete only to architecture.\n"
+" -T, --type <type>:                 Add,list or delete only type (dsc,deb,udeb).\n"
 "\n"
 "actions:\n"
 " dumpreferences:    Print all saved references\n"
@@ -1203,6 +1228,8 @@ int main(int argc,char *argv[]) {
 "       Inlcude the given upload.\n"
 " includedeb <distribution> <.deb-file>\n"
 "       Inlcude the given binary package.\n"
+" includeudeb <distribution> <.udeb-file>\n"
+"       Inlcude the given installer binary package.\n"
 " includedsc <distribution> <.dsc-file>\n"
 "       Inlcude the given source package.\n"
 " list <distribution> <package-name>\n"
@@ -1278,7 +1305,7 @@ int main(int argc,char *argv[]) {
 				architecture = strdup(optarg);
 				break;
 			case 'T':
-				suffix = strdup(optarg);
+				packagetype = strdup(optarg);
 				break;
 			case 'S':
 				section = strdup(optarg);

@@ -28,7 +28,7 @@ struct target {
 	char *architecture;
 	char *identifier;
 	/* "deb" "udeb" or "dsc" */
-	const char *suffix;
+	const char *packagetype;
 	char *directory;
 	bool_t compressions[ic_max+1];
 	bool_t hasrelease;

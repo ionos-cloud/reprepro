@@ -342,14 +342,14 @@ static inline char *escapecpy(char *dest,const char *orig) {
 	return dest;
 }
 
-char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *suffix) {
-	size_t l_listdir,len,l_suffix;
+char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype) {
+	size_t l_listdir,len,l_packagetype;
 	char *result,*p;
 	
 	l_listdir = strlen(listdir),
 	len = escapedlen(codename) + escapedlen(origin) + escapedlen(component) + escapedlen(architecture);
-	l_suffix = strlen(suffix);
-	p = result = malloc(l_listdir + len + l_suffix + 7);
+	l_packagetype = strlen(packagetype);
+	p = result = malloc(l_listdir + len + l_packagetype + 7);
 	if( result == NULL )
 		return result;
 	memcpy(p,listdir,l_listdir);
@@ -359,7 +359,7 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 	*p = '_'; p++;
 	p = escapecpy(p,origin);
 	*p = '_'; p++;
-	strcpy(p,suffix); p += l_suffix;
+	strcpy(p,packagetype); p += l_packagetype;
 	*p = '_'; p++;
 	p = escapecpy(p,component);
 	*p = '_'; p++;
@@ -368,11 +368,11 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 	return result;
 }
 
-char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *suffix) {
+char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	// TODO: add checks to all data possibly given into here...
 	assert( index(codename,'|') == NULL && index(component,'|') == NULL && index(architecture,'|') == NULL );
-	assert( codename && component && architecture && suffix );
-	if( suffix[0] == 'u' ) 
+	assert( codename && component && architecture && packagetype );
+	if( packagetype[0] == 'u' ) 
 		return mprintf("u|%s|%s|%s",codename,component,architecture);
 	else
 		return mprintf("%s|%s|%s",codename,component,architecture);
@@ -440,15 +440,15 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 }
 
 
-char *calc_binary_basename(const char *name,const char *version,const char *arch,const char *suffix) {
+char *calc_binary_basename(const char *name,const char *version,const char *arch,const char *packagetype) {
 	const char *v;
-	assert( name && version && arch && suffix );
+	assert( name && version && arch && packagetype );
 	v = index(version,':');
 	if( v )
 		v++;
 	else
 		v = version;
-	return mprintf("%s_%s_%s.%s",name,v,arch,suffix);
+	return mprintf("%s_%s_%s.%s",name,v,arch,packagetype);
 }
 
 char *calc_source_basename(const char *name,const char *version) {

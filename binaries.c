@@ -71,7 +71,7 @@ static retvalue binaries_parse_md5sum(const char *chunk,struct strlist *md5sums)
 }
 
 /* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
-static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,const char *suffix,const char *version,char **sourcename,char **basename) {
+static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,const char *packagetype,const char *version,char **sourcename,char **basename) {
 	retvalue r;
 	char *parch;
 	char *mysourcename,*mybasename;
@@ -104,7 +104,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 		free(parch);
 		return r;
 	}
-	mybasename = calc_binary_basename(packagename,version,parch,suffix);
+	mybasename = calc_binary_basename(packagename,version,parch,packagetype);
 	free(parch);
 	if( !mybasename ) {
 		free(mysourcename);
@@ -203,7 +203,7 @@ retvalue binaries_getinstalldata(struct target *t,const char *packagename,const 
 	r = binaries_parse_md5sum(chunk,&mymd5sums);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = binaries_parse_chunk(chunk,packagename,t->suffix,version,&sourcename,&basename);
+	r = binaries_parse_chunk(chunk,packagename,t->packagetype,version,&sourcename,&basename);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&mymd5sums);
 		return r;
