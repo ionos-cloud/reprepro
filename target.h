@@ -49,7 +49,7 @@ retvalue target_initpackagesdb(struct target *target, const char *dbdir);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
-retvalue target_addpackage(struct target *target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade);
+retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,int downgrade);
 retvalue target_removepackage(struct target *target,DB *references,const char *name);
 retvalue target_writeindices(struct target *target,const char *distdir, int force);
 retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force);

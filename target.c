@@ -150,18 +150,13 @@ retvalue target_removepackage(struct target *target,DB *references,const char *n
 	return r;
 }
 
-retvalue target_addpackage(struct target *target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade) {
+retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,int downgrade) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol;
 	retvalue r;
 
 	assert(target->packages);
 
-	if( md5sums != NULL ) {
-		r = files_expectfiles(files,filekeys,md5sums);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
 	r = packages_get(target->packages,name,&oldcontrol);
 	if( RET_WAS_ERROR(r) )
 		return r;

@@ -360,11 +360,14 @@ retvalue upgradelist_install(upgradelist upgrade,filesdb files,DB *references,in
 	result = RET_NOTHING;
 	while( pkg ) {
 		if( pkg->version == pkg->new_version ) {
+			r = files_expectfiles(files,&pkg->new_filekeys,
+					&pkg->new_md5sums);
+			if( ! RET_WAS_ERROR(r) )
 			// TODO: decide what to give to the downgrade flag...
-			r = target_addpackage(upgrade->target,
-				references,files,
+				r = target_addpackage(upgrade->target,
+				references,
 				pkg->name,pkg->new_version,pkg->new_control,
-				&pkg->new_filekeys,&pkg->new_md5sums,force,0);
+				&pkg->new_filekeys,force,1);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )
 				break;
