@@ -18,8 +18,20 @@ struct overrideinfo {
 	struct strlist fields;
 };
 
+/* to avoid typos */
+#define PRIORITY_FIELDNAME "Priority"
+#define SECTION_FIELDNAME "Section"
+
 void override_free(struct overrideinfo *info);
 retvalue override_read(const char *filename,struct overrideinfo **info);
 
+const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package);
+const char *override_get(const struct overrideinfo *override,const char *field);
+
+
+/* add new fields to otherreplaces, but not "Section", or "Priority".
+ * incorporates otherreplaces, or frees them on error */
+struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override,
+		struct fieldtoadd *otherreplaces);
 
 #endif

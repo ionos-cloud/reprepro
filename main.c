@@ -752,6 +752,7 @@ static int includedeb(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;DB *references;
 	struct distribution *distribution;
+	struct overrideinfo *override;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"mirrorer includedeb <distribution> <package>\n");
@@ -769,15 +770,34 @@ static int includedeb(int argc,const char *argv[]) {
 		return 2;
 	}
 
+	override = NULL;
+	if( distribution->override != NULL ) {
+		result = override_read(distribution->override,&override);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			return result;
+		}
+	}
+
 	r = files_initialize(&files,dbdir,mirrordir);
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		distribution_free(distribution);
 		return EXIT_RET(r);
+	}
 	references = references_initialize(dbdir);
-	if( !references )
+	if( !references ) {
+		files_done(files);
+		distribution_free(distribution);
 		return 1;
+	}
 
-	result = deb_add(dbdir,references,files,component,architecture,section,priority,distribution,argv[2],NULL,NULL,force);
+	result = deb_add(dbdir,references,files,component,architecture,
+			section,priority,distribution,argv[2],NULL,NULL,override,force);
 
+	override_free(override);
+
+	// TODO: why is this unconditional?
 	r = distribution_export(distribution,dbdir,distdir,force,1);
 	RET_ENDUPDATE(result,r);
 
@@ -796,6 +816,7 @@ static int includedsc(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files; DB *references;
 	struct distribution *distribution;
+	struct overrideinfo *srcoverride;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"mirrorer includedsc <distribution> <package>\n");
@@ -812,6 +833,15 @@ static int includedsc(int argc,const char *argv[]) {
 		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
 		return 2;
 	}
+	srcoverride = NULL;
+	if( distribution->srcoverride != NULL ) {
+		result = override_read(distribution->srcoverride,&srcoverride);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			return result;
+		}
+	}
 
 	r = files_initialize(&files,dbdir,mirrordir);
 	if( !files )
@@ -820,8 +850,9 @@ static int includedsc(int argc,const char *argv[]) {
 	if( !files )
 		return 1;
 
-	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,force);
+	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force);
 	
+	override_free(srcoverride);
 	r = distribution_export(distribution,dbdir,distdir,force,1);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
@@ -838,6 +869,7 @@ static int includechanges(int argc,const char *argv[]) {
 	retvalue result,r;
 	filesdb files;DB *references;
 	struct distribution *distribution;
+	struct overrideinfo *override,*srcoverride;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"mirrorer include <distribution> <package>\n");
@@ -849,6 +881,24 @@ static int includechanges(int argc,const char *argv[]) {
 		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
 		return 2;
 	}
+	override = NULL;
+	if( distribution->override != NULL ) {
+		result = override_read(distribution->override,&override);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			return result;
+		}
+	}
+	srcoverride = NULL;
+	if( distribution->srcoverride != NULL ) {
+		result = override_read(distribution->srcoverride,&srcoverride);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			return result;
+		}
+	}
 
 	r = files_initialize(&files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) )
@@ -857,7 +907,9 @@ static int includechanges(int argc,const char *argv[]) {
 	if( !files )
 		return 1;
 
-	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,argv[2],force);
+	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force);
+
+	override_free(override);override_free(srcoverride);
 	
 	r = distribution_export(distribution,dbdir,distdir,force,1);
 	RET_ENDUPDATE(result,r);

@@ -39,6 +39,7 @@
 #include "sources.h"
 #include "files.h"
 #include "guesscomponent.h"
+#include "override.h"
 #include "checkindsc.h"
 #include "checkindeb.h"
 #include "checkin.h"
@@ -65,7 +66,10 @@ extern int verbose;
  *
  */
 
+/* don't get confused by all this UDEB around here, that is not yet supported... */
 typedef	enum { fe_UNKNOWN=0,fe_DEB,fe_UDEB,fe_DSC,fe_DIFF,fe_ORIG,fe_TAR} filetype;
+
+#define FE_BINARY(ft) ( (ft) == fe_DEB || (ft) == fe_UDEB )
 
 struct fileentry {
 	struct fileentry *next;
@@ -401,7 +405,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 #undef R
 }
 
-static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcepriority,const char *forcesection,int force) {
+static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcepriority,const char *forcesection,const struct overrideinfo *srcoverride,const struct overrideinfo *override,int force) {
 	struct fileentry *e;
 
 	e = changes->files;
@@ -412,13 +416,23 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 	}
 	
 	while( e ) {
-		if( forcesection ) {
+		const struct overrideinfo *oinfo = NULL;
+		const char *force = NULL;
+		if( !forcesection || !forcepriority ) {
+			oinfo = override_search(
+					FE_BINARY(e->type)?override:srcoverride,
+					e->name);
+		}
+		
+		if( forcesection ) 
+			force = forcesection;
+		else
+			force = override_get(oinfo,SECTION_FIELDNAME);
+		if( force ) {
 			free(e->section);
-			e->section = strdup(forcesection);
+			e->section = strdup(force);
 			if( e->section == NULL )
 				return RET_ERROR_OOM;
-		} else {
-		// TODO: otherwise check overwrite file...
 		}
 		if( strcmp(e->section,"unknown") == 0 ) {
 			fprintf(stderr,"Section '%s' of '%s' is not valid!\n",e->section,filename);
@@ -429,17 +443,21 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			return RET_ERROR;
 		}
 		if( strcmp(e->section,"-") == 0 ) {
-			fprintf(stderr,"No section specified for of '%s'!\n",filename);
+			fprintf(stderr,"No section specified for '%s'!\n",filename);
 			return RET_ERROR;
 		}
-		if( forcepriority ) {
+		if( forcepriority )
+			force = forcepriority;
+		else
+			force = override_get(oinfo,PRIORITY_FIELDNAME);
+		if( force ) {
 			free(e->priority);
-			e->priority = strdup(forcepriority);
+			e->priority = strdup(force);
 			if( e->priority == NULL )
 				return RET_ERROR_OOM;
-		};
+		}
 		if( strcmp(e->priority,"-") == 0 ) {
-			fprintf(stderr,"No priority specified for of '%s'!\n",filename);
+			fprintf(stderr,"No priority specified for '%s'!\n",filename);
 			return RET_ERROR;
 		}
 
@@ -612,7 +630,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *component,const
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb filesdb,struct distribution *distribution,struct changes *changes,int force) {
+static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -634,6 +652,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
+				binoverride,
 				force);
 		} else if( e->type == fe_DSC ) {
 			r = dsc_add(dbdir,references,filesdb,
@@ -641,6 +660,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 				distribution,fullfilename,
 				e->filekey,e->basename,
 				changes->directory,e->md5sum,
+				srcoverride,
 				force);
 		}
 		
@@ -656,7 +676,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int force) {
+retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force) {
 	retvalue r;
 	struct changes *changes;
 
@@ -673,7 +693,7 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
 	/* look for component, section and priority to be correct or guess them*/
-	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,force);
+	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,srcoverride,binoverride,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
@@ -692,9 +712,10 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 		return r;
 	}
 
+	// TODO: make sure the name is transmitted, as if this differs override is wrong...
 	/* add the source and binary packages in the given distribution */
 	r = changes_includepkgs(dbdir,references,filesdb,
-		distribution,changes,force);
+		distribution,changes,srcoverride,binoverride,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;

@@ -152,11 +152,16 @@ retvalue override_read(const char *filename,struct overrideinfo **info) {
 					strcmp(last->next->packagename,firstpart) > 0) {
 					last = last->next;
 				}
-				/* add it after last and before last->next */
-				r = newoverrideinfo(firstpart,secondpart,thirdpart,&last->next);
-				if( RET_WAS_ERROR(r) )
-					return r;
-				continue;
+				if( !last->next || strcmp(last->next->packagename,firstpart) != 0 ) {
+					/* add it after last and before last->next */
+					r = newoverrideinfo(firstpart,secondpart,thirdpart,&last->next);
+					last = last->next;
+					if( RET_WAS_ERROR(r) )
+						return r;
+					continue;
+				} else
+					last = last->next;
+
 			} else {
 				assert( strcmp(last->packagename,firstpart)  == 0 );
 			}
@@ -182,5 +187,50 @@ retvalue override_read(const char *filename,struct overrideinfo **info) {
 	if( root == NULL )
 		return RET_NOTHING;
 	else
-		return RET_ERROR;
+		return RET_OK;
+}
+
+const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package) {
+	while( overrides && strcmp(overrides->packagename,package)< 0 )
+		overrides = overrides->next;
+	return overrides;
+}
+
+const char *override_get(const struct overrideinfo *override,const char *field) {
+	int i;
+
+	if( override == NULL )
+		return NULL;
+	
+	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
+		// TODO curently case-sensitiv. warn if otherwise?
+		if( strcmp(override->fields.values[i],field) == 0 )
+			return override->fields.values[i+1];
+	}
+	return NULL;
+}
+
+/* add new fields to otherreplaces, but not "Section", or "Priority".
+ * incorporates otherreplaces, or frees them on error,
+ * returns otherreplaces when nothing was to do, NULL on RET_ERROR_OOM*/
+struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override,
+		struct fieldtoadd *otherreplaces) {
+	int i;
+
+	if( override == NULL )
+		return otherreplaces;
+
+	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
+		if( strcmp(override->fields.values[i],SECTION_FIELDNAME) != 0 &&
+		    strcmp(override->fields.values[i],PRIORITY_FIELDNAME) != 0 ) {
+			otherreplaces = addfield_new(
+				override->fields.values[i],override->fields.values[i+1],
+				otherreplaces);
+			if( otherreplaces == NULL )
+				return NULL;
+		}
+
+	}
+	return otherreplaces;
+
 }

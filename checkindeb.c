@@ -176,12 +176,12 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		return r;
 	}
 
-	r = getvalue_n(deb->control,"Priority",&deb->priority);
+	r = getvalue_n(deb->control,PRIORITY_FIELDNAME,&deb->priority);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
 	}
-	r = getvalue_n(deb->control,"Section",&deb->section);
+	r = getvalue_n(deb->control,SECTION_FIELDNAME,&deb->section);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
@@ -192,7 +192,7 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 }
 
 /* do overwrites, add Filename, Size and md5sum to the control-item */
-retvalue deb_complete(struct debpackage *pkg) {
+retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *override) {
 	const char *size;
 	struct fieldtoadd *replace;
 	char *newchunk;
@@ -213,16 +213,17 @@ retvalue deb_complete(struct debpackage *pkg) {
 	replace = addfield_new("Filename",pkg->filekey,replace);
 	if( !replace )
 		return RET_ERROR_OOM;
-	replace = addfield_new("Section",pkg->section ,replace);
+	replace = addfield_new(SECTION_FIELDNAME,pkg->section ,replace);
 	if( !replace )
 		return RET_ERROR_OOM;
-	replace = addfield_new("Priority",pkg->priority, replace);
+	replace = addfield_new(PRIORITY_FIELDNAME,pkg->priority, replace);
 	if( !replace )
 		return RET_ERROR_OOM;
 
+	replace = override_addreplacefields(override,replace);
+	if( !replace )
+		return RET_ERROR_OOM;
 
-	// TODO: add overwriting of other fields here, (before the rest)
-	
 	newchunk  = chunk_replacefields(pkg->control,replace,"Description");
 	addfield_free(replace);
 	if( newchunk == NULL ) {
@@ -279,9 +280,10 @@ static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force){
+retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
+	const struct overrideinfo *oinfo;
 	int i;
 
 	/* First taking a closer look to the file: */
@@ -289,6 +291,14 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	r = deb_read(&pkg,debfilename);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
+	}
+
+	oinfo = override_search(binoverride,pkg->package);
+	if( forcesection == NULL ) {
+		forcesection = override_get(oinfo,SECTION_FIELDNAME);
+	}
+	if( forcepriority == NULL ) {
+		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
 	}
 
 	if( forcesection ) {
@@ -307,11 +317,6 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 			return RET_ERROR_OOM;
 		}
 	}
-
-	/* look for overwrites */
-
-	// TODO: look for overwrites and things like this here...
-	// TODO: set pkg->section to new value if doing so.
 
 	if( pkg->section == NULL ) {
 		fprintf(stderr,"No section was given for '%s', skipping.\n",pkg->package);
@@ -377,13 +382,13 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		return r;
 	} 
 
-	r = deb_complete(pkg);
+	r = deb_complete(pkg,oinfo);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
 	} 
 	
-	/* finaly put it into one or more distributions */
+	/* finaly put it into one or more architectures of the distribution */
 
 	result = RET_NOTHING;
 

@@ -185,12 +185,12 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 		return r;
 	}
 
-	r = getvalue_n(dsc->control,"Section",&dsc->section);
+	r = getvalue_n(dsc->control,SECTION_FIELDNAME,&dsc->section);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
 	}
-	r = getvalue_n(dsc->control,"Priority",&dsc->priority);
+	r = getvalue_n(dsc->control,PRIORITY_FIELDNAME,&dsc->priority);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
@@ -266,10 +266,10 @@ static retvalue dsc_adddsc(struct dscpackage *pkg) {
 }
 
 
-static retvalue dsc_complete(struct dscpackage *pkg) {
+static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *override) {
 	retvalue r;
 	struct fieldtoadd *name;
-	struct fieldtoadd *dir;
+	struct fieldtoadd *replace;
 	char *newchunk,*newchunk2;
 	char *newfilelines;
 
@@ -293,27 +293,27 @@ static retvalue dsc_complete(struct dscpackage *pkg) {
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
-	dir = addfield_new("Files",newfilelines,NULL);
-	if( dir )
-		dir = addfield_new("Directory",pkg->directory,dir);
-	if( dir )
-		dir = deletefield_new("Status",dir);
-	if( dir )
-		dir = addfield_new("Section",pkg->section,dir);
-	if( dir )
-		dir = addfield_new("Priority",pkg->priority,dir);
-	if( !dir ) {
+	replace = addfield_new("Files",newfilelines,NULL);
+	if( replace )
+		replace = addfield_new("Directory",pkg->directory,replace);
+	if( replace )
+		replace = deletefield_new("Status",replace);
+	if( replace )
+		replace = addfield_new(SECTION_FIELDNAME,pkg->section,replace);
+	if( replace )
+		replace = addfield_new(PRIORITY_FIELDNAME,pkg->priority,replace);
+	if( replace )
+		replace = override_addreplacefields(override,replace);
+	if( !replace ) {
 		free(newfilelines);
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
-		
-	// TODO: add overwriting of other fields here, (before the rest)
 	
-	newchunk  = chunk_replacefields(newchunk2,dir,"Files");
+	newchunk  = chunk_replacefields(newchunk2,replace,"Files");
 	free(newfilelines);
 	free(newchunk2);
-	addfield_free(dir);
+	addfield_free(replace);
 	if( newchunk == NULL ) {
 		return RET_ERROR_OOM;
 	}
@@ -368,9 +368,10 @@ static retvalue dsc_checkfiles(filesdb filesdb,
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
 
-retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int force){
+retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force){
 	retvalue r;
 	struct dscpackage *pkg;
+	const struct overrideinfo *oinfo;
 
 	/* First taking a closer look to the file: */
 
@@ -378,6 +379,15 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
+
+	oinfo = override_search(srcoverride,pkg->package);
+	if( forcesection == NULL ) {
+		forcesection = override_get(oinfo,SECTION_FIELDNAME);
+	}
+	if( forcepriority == NULL ) {
+		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
+	}
+
 	if( forcesection ) {
 		free(pkg->section);
 		pkg->section = strdup(forcesection);
@@ -395,11 +405,6 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		}
 	}
 
-	/* look for overwrites */
-
-	// TODO: look for overwrites and things like this here...
-	// TODO: set pkg->section to new value if doing so.
-	
 	if( pkg->section == NULL ) {
 		fprintf(stderr,"No section was given for '%s', skipping.\n",pkg->package);
 		dsc_free(pkg);
@@ -441,7 +446,7 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = dsc_adddsc(pkg);
 
 	if( !RET_WAS_ERROR(r) )
-		r = dsc_complete(pkg);
+		r = dsc_complete(pkg,oinfo);
 
 	/* finaly put it into the source distribution */
 	if( !RET_WAS_ERROR(r) ) {

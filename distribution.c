@@ -49,6 +49,8 @@ retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->label);
 		free(distribution->description);
 		free(distribution->signwith);
+		free(distribution->override);
+		free(distribution->srcoverride);
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
@@ -151,12 +153,18 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 		return ret;
 	} else if( ret == RET_NOTHING )
 		r->signwith = NULL;
-	ret = chunk_getvalue(chunk,"Override",&r->signwith);
+	ret = chunk_getvalue(chunk,"Override",&r->override);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
 	} else if( ret == RET_NOTHING )
 		r->override = NULL;
+	ret = chunk_getvalue(chunk,"SourceOverride",&r->srcoverride);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING )
+		r->srcoverride = NULL;
 
 	ret = createtargets(r);
 	checkret;

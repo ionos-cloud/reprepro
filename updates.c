@@ -815,6 +815,10 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 	result = RET_NOTHING;
 	/* first get all "Release" and "Release.gpg" files */
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		if( distribution->override || distribution->srcoverride ) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",distribution->codename);
+		}
 		r = updates_prepare(run,distribution);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )

@@ -20,7 +20,7 @@ struct distribution {
 	/* the key to sign with, may be NULL: */
 	char *signwith;
 	/* the override file to use by default */
-	char *override;
+	char *override,*srcoverride;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* list of all update_upstreams for this ditribution,
