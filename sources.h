@@ -1,7 +1,6 @@
 #ifndef __MIRRORER_SOURCES_H
 #define __MIRRORER_SOURCES_H
 
-#include <db.h>
 #ifndef __MIRRORER_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"

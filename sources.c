@@ -114,7 +114,7 @@ static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlis
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-static retvalue sources_parse_chunk(const char *chunk,char **origdirectory,struct strlist *basefiles,struct strlist *md5sums) {
+static retvalue parse_chunk(const char *chunk,char **origdirectory,struct strlist *basefiles,struct strlist *md5sums) {
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
@@ -154,31 +154,6 @@ static retvalue sources_parse_chunk(const char *chunk,char **origdirectory,struc
 	return RET_OK;
 }
 
-static retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys,struct strlist *md5sums) {
-	char *origdirectory;
-	struct strlist basenames;
-	retvalue r;
-	
-	r = sources_parse_chunk(chunk,&origdirectory,&basenames,md5sums);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
-		return RET_ERROR;
-	}
-	if( RET_WAS_ERROR(r) )
-		return r;
-	assert( RET_IS_OK(r) );
-
-	r = calc_dirconcats(origdirectory,&basenames,filekeys);
-	free(origdirectory);
-	strlist_done(&basenames);
-	if( RET_WAS_ERROR(r) ) {
-		// TODO: this is not so nice...
-		strlist_done(md5sums);
-		return r;
-	}
-	return r;
-}
-
 static inline retvalue calcnewcontrol(
 		const char *chunk, const char *package,
 		const struct strlist *basenames,
@@ -215,7 +190,7 @@ static inline retvalue calcnewcontrol(
 retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums) {
 	retvalue r;
 
-	r = sources_parse_chunk(chunk,NULL,basenames,md5sums);
+	r = parse_chunk(chunk,NULL,basenames,md5sums);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;
@@ -313,8 +288,32 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 }
 
 retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
-	return sources_parse_getfilekeys(chunk,filekeys,md5sums);
+	char *origdirectory;
+	struct strlist basenames,mymd5sums;
+	retvalue r;
+	
+	r = parse_chunk(chunk,&origdirectory,&basenames,&mymd5sums);
+	if( r == RET_NOTHING ) {
+		//TODO: check if it is even text and do not print 
+		//of looking binary??
+		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( RET_IS_OK(r) );
+
+	r = calc_dirconcats(origdirectory,&basenames,filekeys);
+	free(origdirectory);
+	strlist_done(&basenames);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&mymd5sums);
+		return r;
+	}
+	strlist_move(md5sums,&mymd5sums);
+	return r;
 }
+
 char *binaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture) {
 	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
