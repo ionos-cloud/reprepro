@@ -152,7 +152,7 @@ retvalue md5sum_copy(const char *origfilename,const char *destfilename,
 		fprintf(stderr,"Error opening '%s': %d=%m\n",origfilename,i);
 		return RET_ERRNO(i);
 	}
-	fdw = open(destfilename,O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL,0777);
+	fdw = open(destfilename,O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL,0666);
 	if( fdw < 0 ) {
 		i = errno;
 		if( i == EEXIST ) {

@@ -1,3 +1,7 @@
+2005-04-05  Bernhard R. Link <brlink@debian.org>	
+	* create files without executeable bit set
+	when copying files.
+
 2005-03-29  Bernhard R. Link <brlink@debian.org>
 	* iteratedupdate directly exports indices instead
 	of all at the end...
