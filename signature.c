@@ -100,8 +100,6 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 				(kl = strlen(key)) <= (fl = strlen(fingerprint))
 				&& strncmp(fingerprint+fl-kl,key,kl) == 0 )) {
 
-				if( verbose > 0 )
-				
 				result = RET_OK;
 				if( verbose <= 3 )
 					break;
