@@ -2,6 +2,10 @@
 	* Add --onlyacceptsigned to make include and includedsc only
 	accept signed files.
 
+	* Check Codename, Components and Architectures fields
+	of conf/distributions for sane values
+	* fix checks for strange characters
+
 2005-02-03  Bernhard R. Link <brlink@debian.org>
 	* When updating delete files lists/<codename>_ for
 	all updated distributions, which will not be needed any more.

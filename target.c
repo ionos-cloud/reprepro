@@ -325,8 +325,8 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	if( RET_IS_OK(r) ) {
 		free(version);
 		free(dummy);
-		if( !strlist_subset(&expectedfilekeys,&actualfilekeys) || 
-		    !strlist_subset(&expectedfilekeys,&actualfilekeys) ) {
+		if( !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) || 
+		    !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) ) {
 			fprintf(stderr,"Reparsing the package information of '%s' yields to the expectation to find:\n",package);
 			strlist_fprint(stderr,&expectedfilekeys);
 			fputs("but found:\n",stderr);

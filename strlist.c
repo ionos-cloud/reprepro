@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -39,7 +39,7 @@ bool_t strlist_in(const struct strlist *strlist,const char *element) {
 	return FALSE;
 }
 
-bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset) {
+bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset,const char **missing) {
 	int c;
 	char **t;
 
@@ -48,8 +48,11 @@ bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset
 	c = subset->count; 
 	t = subset->values;
 	while( c-- != 0 ) {
-		if( !strlist_in(strlist,*(t++)) )
+		if( !strlist_in(strlist,*(t++)) ) {
+			if( missing )
+				*missing = *(t-1);
 			return FALSE;
+		}
 	}
 	return TRUE;
 

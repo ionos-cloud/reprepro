@@ -34,6 +34,8 @@ void strlist_move(struct strlist *dest,struct strlist *orig);
 retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig);
 
 bool_t strlist_in(const struct strlist *strlist,const char *element);
-bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset);
+
+/* if missing != NULL And subset no subset of strlist, set *missing to the first missing one */
+bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset,const char **missing);
 
 #endif

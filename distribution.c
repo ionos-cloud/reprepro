@@ -132,9 +132,26 @@ static retvalue createtargets(struct distribution *distribution) {
 	return RET_OK;
 }
 
-static retvalue distribution_parse(struct distribution **distribution,const char *chunk) {
+struct distribution_filter {int count; const char **dists; };
+
+static inline bool_t isinfilter(const char *codename, const struct distribution_filter filter){
+	int i;
+
+	/* nothing given means all */
+	if( filter.count <= 0 )
+		return TRUE;
+
+	for( i = 0 ; i < filter.count ; i++ ) {
+		if( strcmp((filter.dists)[i],codename) == 0 )
+			return TRUE;
+	}
+	return FALSE;
+}
+
+static retvalue distribution_parse_and_filter(struct distribution **distribution,const char *chunk,struct distribution_filter filter) {
 	struct distribution *r;
 	retvalue ret;
+	const char *missing;
 static const char * const allowedfields[] = {
 "Codename", "Suite", "Version", "Origin", "Label", "Description", 
 "Architectures", "Components", "Update", "SignWith", "Override", 
@@ -156,15 +173,18 @@ static const char * const allowedfields[] = {
 
 	ret = chunk_getvalue(chunk,"Codename",&r->codename);
 	fieldrequired("Codename");
+	if( RET_IS_OK(ret) )
+		ret = propercodename(r->codename);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
 	}
 
-#define nullifnone(a)		if(RET_WAS_ERROR(ret)) { \
-					(void)distribution_free(r); \
-					return ret; \
-				} else r->a = NULL;
+	if( !isinfilter(r->codename,filter) ) {
+		(void)distribution_free(r);
+		return RET_NOTHING;
+	}
+
 #define getpossibleemptyfield(key,fieldname) \
 		ret = chunk_getvalue(chunk,key,&r->fieldname); \
 		if(RET_WAS_ERROR(ret)) { \
@@ -172,6 +192,15 @@ static const char * const allowedfields[] = {
 			return ret; \
 		} else if( ret == RET_NOTHING) \
 			r->fieldname = NULL;
+#define getpossibleemptywordlist(key,fieldname) \
+		ret = chunk_getwordlist(chunk,key,&r->fieldname); \
+		if(RET_WAS_ERROR(ret)) { \
+			(void)distribution_free(r); \
+			return ret; \
+		} else if( ret == RET_NOTHING) { \
+			r->fieldname.count = 0; \
+			r->fieldname.values = NULL; \
+		}
 		
 	getpossibleemptyfield("Suite",suite);
 	getpossibleemptyfield("Version",version);
@@ -180,12 +209,16 @@ static const char * const allowedfields[] = {
 	getpossibleemptyfield("Description",description);
 	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
 	fieldrequired("Architectures");
+	if( RET_IS_OK(ret) )
+		ret = properarchitectures(&r->architectures);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
 	}
 	ret = chunk_getwordlist(chunk,"Components",&r->components);
 	fieldrequired("Components");
+	if( RET_IS_OK(ret) )
+		ret = propercomponents(&r->components);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
@@ -198,8 +231,15 @@ static const char * const allowedfields[] = {
 	getpossibleemptyfield("SignWith",signwith);
 	getpossibleemptyfield("Override",override);
 	getpossibleemptyfield("SourceOverride",srcoverride);
-	ret = chunk_getwordlist(chunk,"UDebComponents",&r->udebcomponents);
-	if( RET_WAS_ERROR(ret) ) {
+
+	getpossibleemptywordlist("UDebComponents",udebcomponents);
+
+	// TODO: instead of checking here make sure it can have more
+	// in the rest of the code...
+	if( !strlist_subset(&r->components,&r->udebcomponents,&missing) ) {
+		fprintf(stderr,"In distribution description of '%s':\n"
+				"UDebComponent contains '%s' not found in Components!\n",
+				r->codename,missing);
 		(void)distribution_free(r);
 		return ret;
 	}
@@ -215,31 +255,7 @@ static const char * const allowedfields[] = {
 
 #undef fieldrequired
 #undef getpossibleemptyfield
-}
-
-struct distribution_filter {int count; const char **dists; };
-
-static retvalue distribution_parse_and_filter(struct distribution **distribution,const char *chunk,struct distribution_filter filter) {
-	retvalue result;
-	int i;
-	
-	// TODO: combine this with distribution_parse, so that
-	// there is no need to read anything in even when it
-	// is not the correct one...
-	result = distribution_parse(distribution,chunk);
-	if( RET_IS_OK(result) ) {
-		if( filter.count > 0 ) {
-			i = filter.count;
-			while( i-- > 0 && strcmp((filter.dists)[i],(*distribution)->codename) != 0 ) {
-			}
-			if( i < 0 ) {
-				(void)distribution_free(*distribution);
-				*distribution = NULL;
-				return RET_NOTHING;
-			}
-		}
-	}
-	return result;
+#undef getpossibleemptywordlist
 }
 	
 /* call <action> for each part of <distribution>. */

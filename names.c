@@ -62,6 +62,23 @@ static inline bool_t overlongUTF8(const char *character) {
 	return FALSE;
 }
 
+#define REJECTLOWCHARS(s,str,descr) \
+	if( (unsigned char)*s < ' ' ) { \
+		fprintf(stderr, \
+			"Character 0x%02hhx not allowed within %s '%s'!\n", \
+			*s,descr,str); \
+		return RET_ERROR; \
+	}
+
+#define REJECTCHARIF(c,s,str,descr) \
+	if( c ) { \
+		fprintf(stderr, \
+			"Character '%c' not allowed within %s '%s'!\n", \
+			*s,descr,string); \
+		return RET_ERROR; \
+	}
+	
+
 /* check if this is something that can be used as directory safely */
 retvalue propersourcename(const char *string) {
 	const char *s;
@@ -85,16 +102,14 @@ retvalue propersourcename(const char *string) {
 		    (*s > '9' || *s < '0' ) && 
 		    (firstcharacter || 
 		     ( *s != '+' && *s != '-' && *s != '.'))) {
-			if( *s < ' ' || *s == '/' ) {
-				fprintf(stderr,"Character 0x%2x not allowed within sourcename '%s'!\n",(unsigned int)*s,string);
-				return RET_ERROR;
-			}
+			REJECTLOWCHARS(s,string,"sourcename");
+			REJECTCHARIF( *s == '/', s,string, "sourcename");
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting sourcename '%s'!\n",string);
 				return RET_ERROR;
 			}
 			if( !IGNORING(
-"Not rejecting","To ignore this",forbiddenchar,"Character 0x%2x not allowed in sourcename: '%s'!\n",(unsigned int)*s,string) ) {
+"Not rejecting","To ignore this",forbiddenchar,"Character 0x%02hhx not allowed in sourcename: '%s'!\n",*s,string) ) {
 				return RET_ERROR;
 			}
 			if( *s & 0x80 ) {
@@ -123,12 +138,9 @@ retvalue properfilename(const char *string) {
 		fprintf(stderr,"Filename not allowed: '%s'!\n",string);
 		return RET_ERROR;
 	}
-	s = string;
-	while( *s ) {
-		if( *s < ' ' || *s == '/' ) {
-			fprintf(stderr,"Character 0x%2x not allowed within filename '%s'!\n",(unsigned int)*s,string);
-			return RET_ERROR;
-		}
+	for( s = string ; *s ; s++ ) {
+		REJECTLOWCHARS(s,string,"filename");
+		REJECTCHARIF( *s == '/' ,s,string,"filename");
 		if( *s & 0x80 ) {
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filename '%s'!\n",string);
@@ -139,38 +151,102 @@ retvalue properfilename(const char *string) {
 				return RET_ERROR;
 			}
 		}
-		s++;
 	}
 	return RET_OK;
 }
 
-retvalue properidentiferpart(const char *string) {
+static retvalue properidentifierpart(const char *string,const char *description) {
 	const char *s;
 
 	if( string[0] == '\0' && !IGNORING(
 "Ignoring","To ignore this",emptyfilenamepart,"A string to be used of an filename is empty!\n") ) {
 		return RET_ERROR;
 	}
+	for( s = string; *s ; s++ ) {
+		REJECTLOWCHARS(s,string,description);
+		REJECTCHARIF( *s == '|' || *s == '/' ,s,string,description);
+	}
+	return RET_OK;
+}
+
+retvalue properarchitectures(const struct strlist *architectures) {
+	int i;
+	retvalue r;
+
+	for( i = 0 ; i < architectures->count ; i++ ) {
+		r = properidentifierpart(architectures->values[i],"architecture");
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+/* check if this is something that can be used as directory *and* identifer safely */
+static retvalue properdirectoryandidentifier(const char *string, const char *description) {
+	const char *s;
+
+	if( string[0] == '\0' ) {
+		fprintf(stderr,"Error: empty %s!\n",description);
+		return RET_ERROR;
+	}
+	if( (string[0] == '.' && (string[1] == '\0'||string[1]=='/')) ||
+		(string[0] == '.' && string[1] == '.' && 
+		 	(string[2] == '\0'||string[2] =='/')) ) {
+		fprintf(stderr,"%s cannot be '%s', as it is used as directory!\n",description,string);
+		return RET_ERROR;
+	}
 	s = string;
 	while( *s ) {
-		if( *s < ' ' || *s == '|' ) {
-			fprintf(stderr,"Character 0x%2x not allowed within identifier '%s'!\n",(unsigned int)*s,string);
+		REJECTLOWCHARS(s,string,description);
+		REJECTCHARIF( *s == '|' ,s,string,description);
+		if( *s == '/' && 
+			((s[1] == '.' && (s[2] == '\0' || s[2] == '/' ) ) ||
+			 (s[1] == '.' && s[2] == '.' && 
+			  	(s[3] == '\0' || s[3] =='/')))) {
+			fprintf(stderr,"%s cannot be '%s': directory parts . or .. in it!\n",description,string);
 			return RET_ERROR;
+		}
+		if( *s == '/' && s[1] == '/' ) {
+			fprintf(stderr,"%s '%s' should have only single '/'!\n",description,string);
+			return RET_ERROR;
+		}
+		if( *s & 0x80 ) {
+			if( overlongUTF8(s) ) {
+				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting %s '%s'!\n",description,string);
+				return RET_ERROR;
+			}
+			if( !IGNORING(
+"Not rejecting","To ignore this",8bit,"8bit character in %s: '%s'!\n",description,string)) {
+				return RET_ERROR;
+			}
 		}
 		s++;
 	}
 	return RET_OK;
 }
 
+retvalue propercomponents(const struct strlist *components) {
+	int i;
+	retvalue r;
+
+	for( i = 0 ; i < components->count ; i++ ) {
+		r = properdirectoryandidentifier(components->values[i],"Component");
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+retvalue propercodename(const char *codename) {
+	return properdirectoryandidentifier(codename,"Codename");
+}
+
 retvalue properfilenamepart(const char *string) {
 	const char *s;
 
-	s = string;
-	while( *s ) {
-		if( *s < ' ' || *s == '/' ) {
-			fprintf(stderr,"Character 0x%2x not allowed within filenamepart '%s'!\n",(unsigned int)*s,string);
-			return RET_ERROR;
-		}
+	for( s = string ; *s ; s++ ) {
+		REJECTLOWCHARS(s,string,"filenamepart");
+		REJECTCHARIF( *s == '/' ,s,string,"filenamepart");
 		if( *s & 0x80 ) {
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filenamepart '%s'!\n",string);
@@ -181,7 +257,6 @@ retvalue properfilenamepart(const char *string) {
 				return RET_ERROR;
 			}
 		}
-		s++;
 	}
 	return RET_OK;
 }
@@ -221,10 +296,8 @@ retvalue properversion(const char *string) {
 		if( first || (*s != '+'  && *s != '-' && 
 	            	      *s != '.'  && *s != '~' &&
 			      (!hadepoch || *s != ':' ))) {
-			if( *s < ' ' || *s == '/' ) {
-				fprintf(stderr,"Character 0x%2x not allowed within sourcename '%s'!\n",(unsigned int)*s,string);
-				return RET_ERROR;
-			}
+			REJECTLOWCHARS(s,string,"version");
+			REJECTCHARIF( *s == '/' ,s,string,"version");
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting version '%s'!\n",string);
 				return RET_ERROR;
@@ -278,16 +351,14 @@ retvalue properpackagename(const char *string) {
 		    (*s > '9' || *s < '0' ) && 
 		    ( firstcharacter || 
   	    	      (*s != '+' && *s != '-' && *s != '.'))) {
-			if( *s < ' ' || *s == '/' ) {
-				fprintf(stderr,"Character 0x%2x not allowed within package name '%s'!\n",(unsigned int)*s,string);
-				return RET_ERROR;
-			}
+			REJECTLOWCHARS(s,string,"package name");
+			REJECTCHARIF( *s == '/' ,s,string,"package name");
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting package name '%s'!\n",string);
 				return RET_ERROR;
 			}
 			if( !IGNORING(
-"Not rejecting","To ignore this",forbiddenchar,"Character 0x%2x not allowed in package name: '%s'!\n",(unsigned int)*s,string) ) {
+"Not rejecting","To ignore this",forbiddenchar,"Character 0x%02hhx not allowed in package name: '%s'!\n",*s,string) ) {
 				return RET_ERROR;
 			}
 			if( *s & 0x80 ) {

@@ -40,6 +40,8 @@ retvalue properfilename(const char *string);
 retvalue properfilenames(const struct strlist *names);
 retvalue properpackagename(const char *string);
 retvalue properversion(const char *string);
-retvalue properidentifierpart(const char *string);
+retvalue propercodename(const char *codename);
+retvalue properarchitectures(const struct strlist *architectures);
+retvalue propercomponents(const struct strlist *components);
 
 #endif
