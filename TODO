@@ -1,12 +1,20 @@
 TODO:
-	add override-support
+	add override-support while updating (or deecide if this should be done)
+	cache search results for override file while including .changes
 	implement extractcontrol.c properly
 	add support to specify the key used for signing
 		(allow it needing a passphrase)
 	add support for removing packages automatically
 		when removed upstream. (downgrade too?)
 	switch to delete files after having included them.
+	implement filters for including only specific packages
+	add support for removal of files when vanishing from where we update...
 
 	write dokumentation, some examples
 
 	find a name for this project
+		(what about debapprox? reprepro?)
+
+BUGS:
+	remove without -f does not work when not in first component...
+	do not export when nothing has happened...
