@@ -4,6 +4,7 @@
 #include <db.h>
 #ifndef __MIRRORER_ERROR_H
 #include "error.h"
+#warning "What's hapening here?"
 #endif
 
 /* initialize the packages-database for <identifier> */

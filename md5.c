@@ -25,6 +25,8 @@
  * Still in public domain.
  */
 
+#include <config.h>
+
 #include <endian.h>		/* for __BYTE_ORDER */
 #include <string.h>		/* for memcpy() */
 #include <sys/types.h>		/* for stupid systems */

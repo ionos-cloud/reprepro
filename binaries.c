@@ -14,10 +14,15 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <config.h>
+
+#include <errno.h>
+#include <assert.h>
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
 #include <malloc.h>
+#include "error.h"
 #include "packages.h"
 #include "chunks.h"
 #include "binaries.h"
@@ -28,18 +33,18 @@ extern int verbose;
 extern int force;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-static int binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **filename,char **md5andsize) {
+static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **filename,char **md5andsize) {
 	const char *f,*f2;
 	char *pmd5,*psize,*ppackage;
 #define IFREE(p) if(p) free(*p);
 
 	f  = chunk_getfield("Package",chunk);
 	if( !f ) {
-		return 0;
+		return RET_NOTHING;
 	}
 	ppackage = chunk_dupvalue(f);	
 	if( !ppackage ) {
-		return -1;
+		return RET_ERROR_OOM;
 	}
 	if( packagename ) {
 		*packagename = ppackage;
@@ -50,12 +55,12 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 		f = chunk_getfield("Filename",chunk);
 		if( ! f ) {
 			free(ppackage);
-			return 0;
+			return RET_NOTHING;
 		}
 		*origfilename = chunk_dupvalue(f);
 		if( !*origfilename ) {
 			free(ppackage);
-			return -1;
+			return RET_ERROR_OOM;
 		}
 		if( verbose > 3 ) 
 			fprintf(stderr,"got: %s\n",*origfilename);
@@ -71,7 +76,7 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 		if( !f || !f2 ) {
 			free(ppackage);
 			IFREE(origfilename);
-			return 0;
+			return RET_NOTHING;
 		}
 		pmd5 = chunk_dupvalue(f);
 		psize = chunk_dupvalue(f2);
@@ -79,14 +84,14 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 			free(ppackage);
 			free(psize);free(pmd5);
 			IFREE(origfilename);
-			return -1;
+			return RET_ERROR_OOM;
 		}
 		asprintf(md5andsize,"%s %s",pmd5,psize);
 		free(pmd5);free(psize);
 		if( !*md5andsize ) {
 			free(ppackage);
 			IFREE(origfilename);
-			return -1;
+			return RET_ERROR_OOM;
 		}
 	}
 
@@ -104,7 +109,7 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 			free(ppackage);
 			IFREE(origfilename);
 			IFREE(md5andsize);
-			return -1;
+			return RET_ERROR_OOM;
 		}
 	}
 
@@ -120,7 +125,7 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 			IFREE(origfilename);
 			IFREE(md5andsize);
 			IFREE(sourcename);
-			return 0;
+			return RET_NOTHING;
 		}
 		pversion = chunk_dupvalue(f);
 		parch = chunk_dupvalue(f2);
@@ -129,7 +134,7 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 			IFREE(origfilename);
 			IFREE(md5andsize);
 			IFREE(sourcename);
-			return -1;
+			return RET_ERROR_OOM;
 		}
 		v = index(pversion,':');
 		if( v )
@@ -144,7 +149,7 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 			IFREE(origfilename);
 			IFREE(md5andsize);
 			IFREE(sourcename);
-			return -1;
+			return RET_ERROR_OOM;
 		}
 		free(pversion);free(parch);
 	}
@@ -152,7 +157,7 @@ static int binaries_parse_chunk(const char *chunk,char **packagename,char **orig
 	if( packagename == NULL)
 		free(ppackage);
 
-	return 1;
+	return RET_OK;
 }
 
 /* check if one chunk describes a packages superseded by another
@@ -176,26 +181,41 @@ static int binaries_isnewer(const char *newchunk,const char *oldchunk) {
 }
 
 /* call action for each package in packages_file */
-int binaries_add(DB *pkgs,const char *part,const char *packages_file, binary_package_action action,void *data) {
+retvalue binaries_add(DB *pkgs,const char *part,const char *packages_file, binary_package_action action,void *data) {
 	gzFile *fi;
 	char *chunk,*oldchunk;
 	char *package,*filename,*oldfile,*sourcename,*filekey,*md5andsize;
-	int r,hadold=0;
+	int newer,hadold=0;
+	retvalue result,ret;
 
 	fi = gzopen(packages_file,"r");
 	if( !fi ) {
 		fprintf(stderr,"Unable to open file %s\n",packages_file);
-		return -1;
+		return RET_ERRNO(errno);
 	}
+	result = RET_NOTHING;
 	while( (chunk = chunk_read(fi))) {
-		if( binaries_parse_chunk(chunk,&package,&oldfile,&sourcename,&filename,&md5andsize) > 0) {
+		ret = binaries_parse_chunk(chunk,&package,&oldfile,&sourcename,&filename,&md5andsize);
+		if( RET_WAS_ERROR(ret) ) {
+			fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
+err:
+			free(chunk);
+			gzclose(fi);
+			return ret;
+		} else if( ret == RET_NOTHING ) {
+			fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
+		} else {
+			assert(RET_IS_OK(ret));
 			hadold = 0;
 			oldchunk = packages_get(pkgs,package);
-			if( oldchunk && (r=binaries_isnewer(chunk,oldchunk)) != 0 ) {
+			if( oldchunk && (newer=binaries_isnewer(chunk,oldchunk)) != 0 ) {
 				free(oldchunk);
 				oldchunk = NULL;
-				if( r < 0 ) {
+				if( newer < 0 ) {
 					fprintf(stderr,"Omitting %s because of parse errors.\n",package);
+					ret = RET_ERROR;
+					free(md5andsize);free(oldfile);free(package);
+					free(sourcename);free(filename);
 					goto err;
 				}
 				/* old package will be obsoleted */
@@ -205,31 +225,32 @@ int binaries_add(DB *pkgs,const char *part,const char *packages_file, binary_pac
 				/* add package (or whatever action wants to do) */
 
 				filekey =  calc_filekey(part,sourcename,filename);
-				if( !filekey )
+				if( !filekey ) {
+					ret = RET_ERROR_OOM;
+					free(md5andsize);free(oldfile);free(package);
+					free(sourcename);free(filename);
 					goto err;
+				}
 
-				r = (action)(data,chunk,package,sourcename,oldfile,filename,filekey,md5andsize,hadold);
+				ret = (action)(data,chunk,package,sourcename,oldfile,filename,filekey,md5andsize,hadold);
 				free(filekey);
 
-				if( (r < 0 && !force) || r< -1 )
+				if( RET_WAS_ERROR(ret) && !force) {
+					free(md5andsize);free(oldfile);free(package);
+					free(sourcename);free(filename);
 					goto err;
+				}
+				RET_UPDATE(result,ret);
 
 			} else
 				free(oldchunk);
 			
 			free(package);free(md5andsize);
 			free(oldfile);free(filename);free(sourcename);
-		} else {
-			fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
 		}
 		free(chunk);
 	}
 	gzclose(fi);
-	return 0;
-err:
-	free(md5andsize);free(oldfile);free(package);
-	free(sourcename);free(filename);
-	gzclose(fi);
-	return -1;
+	return result;
 
 }

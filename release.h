@@ -3,6 +3,7 @@
 
 #ifndef __MIRRORER_ERROR_H
 #include "error.h"
+#warning "What's hapening here?"
 #endif
 
 /* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,

@@ -1,8 +1,13 @@
 #ifndef __MIRRORER_BINARIES_H
 #define __MIRRORER_BINARIES_H
 
+#ifndef __MIRRORER_ERROR_H
+#include "error.h"
+#warning "What's hapening here?"
+#endif
+
 /* the type of a action for binaries_add */
-typedef int binary_package_action(
+typedef retvalue binary_package_action(
 	/* the data supplied to binaries_add */
 	void *data,
 	/* the chunk to be added */
@@ -24,7 +29,7 @@ typedef int binary_package_action(
 	int hadold);
 
 /* call action for each package in packages_file */
-int binaries_add(
+retvalue binaries_add(
 	/* the database of already included packages */
 	DB *pkgs,
 	/* the part (i.e. "main","contrib","non-free") to be used for dirs */

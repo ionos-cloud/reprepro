@@ -3,6 +3,7 @@
 
 #ifndef __MIRRORER_ERROR_H
 #include "error.h"
+#warning "What's hapening here?"
 #endif
 
 /* result should point to a buffer of at least 33 bytes,
