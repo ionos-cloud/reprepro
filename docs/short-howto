@@ -13,7 +13,7 @@ Label: Debian-All
 Suite: stable
 Codename: woody
 Version: 3.0
-Architectures: i386 sparc mips
+Architectures: i386 sparc mips source
 Components: main non-free contrib
 UDebComponents: main
 Description: Debian woody + woody/non-US + woody/updates
@@ -27,7 +27,7 @@ Label: PCPool
 Suite: stable
 Codename: pcpool
 Version: 3.0
-Architectures: i386
+Architectures: i386 source
 Components: main non-free contrib bad protected server
 Description: PCPool specific (or backported) packages
 SignWith: yes

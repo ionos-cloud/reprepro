@@ -1,3 +1,9 @@
+2005-01-07  Bernhard R. Link <brlink@debian.org
+	* Changed the meaning of the "Architectures:"
+	field in conf/distributions. Now a distribution
+	will have sources exactly when a "source" is in
+	this line.
+
 2005-01-05  Bernhard R. Link <brlink@debian.org>
 	* Only generate Release (and Release.gpg) files when
 	  something changed.

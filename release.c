@@ -182,6 +182,7 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	char buffer[100];
 	time_t t;
 	struct tm *gmt;
+	int i;
 
 	struct genrel data;
 
@@ -215,6 +216,8 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 		return RET_ERRNO(e);
 	}
 
+	// TODO: check all those return values...
+
 	if( distribution->origin != NULL )
 		fprintf(f,"Origin: %s\n", distribution->origin);
 	if( distribution->label != NULL )
@@ -225,8 +228,14 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	if( distribution->version != NULL )
 		fprintf(f,"Version: %s\n", distribution->version);
 	fprintf(f,"Date: %s\n",buffer);
-	fprintf(f,"Architectures: ");
-	strlist_fprint(f,&distribution->architectures);
+	fprintf(f,"Architectures:");
+	for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+		/* Debian's topmost Release files do not list it, so we won't either */
+		if( strcmp(distribution->architectures.values[i],"source") == 0 )
+			continue;
+		fputc(' ',f);
+		fputs(distribution->architectures.values[i],f);
+	}
 	fprintf(f,"\nComponents: ");
 	strlist_fprint(f,&distribution->components);
 	fprintf(f,"\n");

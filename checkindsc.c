@@ -379,7 +379,18 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
 
-	/* First taking a closer look to the file: */
+	//TODO: add some check here to make sure it is really a .dsc file...
+
+	/* First make sure this distribution has a source section at all,
+	 * for which it has to be listed in the "Architectures:"-field ;-) */
+	if( !strlist_in(&distribution->architectures,"source") ) {
+		fprintf(stderr,"Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",distribution->codename);
+		// nota bene: this cannot be forced or ignored, as no target has
+		// been created for this..
+		return RET_ERROR;
+	}
+
+	/* Then take a closer look to the file: */
 
 	r = dsc_read(&pkg,dscfilename);
 	if( RET_WAS_ERROR(r) ) {

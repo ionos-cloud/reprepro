@@ -264,7 +264,19 @@ Release files.
 .TP
 .B Architectures
 This required field lists the binary architectures within
-this distribution.
+this distribution and if it contains
+.B source
+(i.e. if there is an item
+.B source
+in this line this Distribution has source. All other items
+specify things to be put after "binary-" to form directory names
+and be checked against "Architecture:" fields.)
+
+This will also be copied into the Release files. (With exception
+of the
+.B source
+item, which will not occour in the topmost Release file wheather
+it is present here or not)
 .TP
 .B Components
 This required field lists the component of a
@@ -272,10 +284,6 @@ distribution. See
 .B GUESSING
 for rules which component packages are included into
 by default. This will also be copied into the Release files.
-.B source
-is always implicit implied and is not needed to be given. (May change
-in the future.)
-This will also be copied into the Release files.
 .TP
 .B UDebComponents
 Components with a debian\-installer subhirachy containing .udebs.
@@ -349,7 +357,8 @@ but for the udebs.
 Download the
 .B Release.gpg
 file and check if it is a signature of the
-.B Releasefile with the key given here. (In the Format as
+.B Releasefile 
+with the key given here. (In the Format as
 "gpg \-\-with-colons \-\-list-key" prints it, i.e. the last
 16 hexdigits of the fingerprint)
 .TP

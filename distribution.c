@@ -113,15 +113,20 @@ static retvalue createtargets(struct distribution *distribution) {
 			}
 			
 		}
-		r = target_initialize_source(distribution->codename,comp,&t);
-		if( last ) {
-			last->next = t;
-		} else {
-			distribution->targets = t;
+		/* check if this distribution contains source
+		 * (yes, yes, source is not really an architecture, but
+		 *  the .changes files started with this...) */
+		if( strlist_in(&distribution->architectures,"source") ) {
+			r = target_initialize_source(distribution->codename,comp,&t);
+			if( last ) {
+				last->next = t;
+			} else {
+				distribution->targets = t;
+			}
+			last = t;
+			if( RET_WAS_ERROR(r) )
+				return r;
 		}
-		last = t;
-		if( RET_WAS_ERROR(r) )
-			return r;
 	}
 	return RET_OK;
 }
