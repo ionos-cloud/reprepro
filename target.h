@@ -1,13 +1,13 @@
-#ifndef __MIRRORER_TARGET_H
-#define __MIRRORER_TARGET_H
+#ifndef REPREPRO_TARGET_H
+#define REPREPRO_TARGET_H
 
-#ifndef __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
-#ifndef __MIRRORER_NAMES_H
+#ifndef REPREPRO_NAMES_H
 #include "names.h"
 #endif
-#ifndef __MIRRORER_PACKAGES_H
+#ifndef REPREPRO_PACKAGES_H
 #include "packages.h"
 #endif
 
@@ -62,10 +62,10 @@ retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
-retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade);
-retvalue target_removepackage(struct target *target,DB *references,const char *name);
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade);
+retvalue target_removepackage(struct target *target,references refs,const char *name);
 retvalue target_writeindices(struct target *target,const char *distdir, int force,bool_t onlyneeded);
-retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force);
-retvalue target_rereference(struct target *target,DB *referencesdb,int force);
+retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
+retvalue target_rereference(struct target *target,references refs,int force);
 
 #endif

@@ -1,13 +1,13 @@
-#ifndef __MIRRORER_UPGRADELIST_H
-#define __MIRRORER_UPGRADELIST_H
+#ifndef REPREPRO_UPGRADELIST_H
+#define REPREPRO_UPGRADELIST_H
 
-#ifndef __MIRRORER_PACKAGES_H
+#ifndef REPREPRO_PACKAGES_H
 #include "packages.h"
 #endif
-#ifndef __MIRRORER_APTMETHOD_H
+#ifndef REPREPRO_APTMETHOD_H
 #include "aptmethod.h"
 #endif
-#ifndef __MIRRORER_DOWNLOADCACHE_H
+#ifndef REPREPRO_DOWNLOADCACHE_H
 #include "downloadcache.h"
 #endif
 
@@ -43,6 +43,6 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade);
 /* request all wanted files refering the methods given before */
 retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb,int force);
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,DB *references,int force);
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force);
 
 #endif

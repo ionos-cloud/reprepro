@@ -1,5 +1,5 @@
-#ifndef __MIRRORER_NAMES_H
-#define __MIRRORER_NAMES_H
+#ifndef REPREPRO_NAMES_H
+#define REPREPRO_NAMES_H
 
 char *calc_addsuffix(const char *str1,const char *str2);
 char *calc_dirconcat(const char *str1,const char *str2);

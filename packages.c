@@ -23,8 +23,8 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
-#include <db.h>
 #include <zlib.h>
+#include <db.h>
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
@@ -34,6 +34,11 @@
 #include "files.h"
 #include "target.h"
 #include "packages.h"
+
+struct s_packagesdb {
+	char *identifier;
+	DB *database;
+};
 
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
 #define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
@@ -99,7 +104,6 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 		free(pkgs);
 		return RET_ERROR_OOM;
 	}
-	pkgs->wasmodified = FALSE;
 	
 	if ((dbret = db_create(&pkgs->database, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s:%s %s\n", filename,identifier,db_strerror(dbret));
@@ -131,7 +135,6 @@ static retvalue packages_replace(packagesdb db,const char *package,const char *c
 
 	SETDBT(key,package);
 	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
-		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: removed old '%s' from '%s'.\n", (const char *)key.data,db->identifier);
 	} else {
@@ -142,7 +145,6 @@ static retvalue packages_replace(packagesdb db,const char *package,const char *c
 	SETDBT(key,package);
 	SETDBT(data,chunk);
 	if ((dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
-		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: '%s' added to '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -160,7 +162,6 @@ static retvalue packages_add(packagesdb db,const char *package,const char *chunk
 	SETDBT(key,package);
 	SETDBT(data,chunk);
 	if ((dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
-		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: '%s' added to '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -202,7 +203,6 @@ retvalue packages_remove(packagesdb db,const char *package) {
 
 	SETDBT(key,package);
 	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
-		db->wasmodified = TRUE;
 		if( verbose > 2 )
 			printf("db: '%s' removed from '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -359,7 +359,7 @@ retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompres
 	}
 }
 
-retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
+retvalue packages_insert(references refs, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
 		const struct strlist *oldfiles) {
@@ -369,7 +369,7 @@ retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
 
 	/* mark it as needed by this distribution */
 
-	r = references_insert(referencesdb,packagesdb->identifier,files,oldfiles);
+	r = references_insert(refs,packagesdb->identifier,files,oldfiles);
 
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -389,7 +389,7 @@ retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
 	/* remove old references to files */
 
 	if( oldfiles != NULL ) {
-		r = references_delete(referencesdb,packagesdb->identifier,
+		r = references_delete(refs,packagesdb->identifier,
 				oldfiles,files);
 		RET_UPDATE(result,r);
 	}

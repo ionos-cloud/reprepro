@@ -1,7 +1,7 @@
-#ifndef __MIRRORER_STRTUPEL_H
-#define __MIRRORER_STRTUPEL_H
+#ifndef REPREPRO_STRTUPEL_H
+#define REPREPRO_STRTUPEL_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif

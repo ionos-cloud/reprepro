@@ -27,7 +27,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <zlib.h>
-#include <db.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"

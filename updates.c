@@ -25,7 +25,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <zlib.h>
-#include <db.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -1026,13 +1025,13 @@ static retvalue updates_enqueue(const char *dbdir,struct downloadcache *cache,fi
 }
 
 
-static retvalue updates_install(const char *dbdir,filesdb filesdb,DB *refsdb,struct distribution *distribution,int force) {
+static retvalue updates_install(const char *dbdir,filesdb filesdb,references refs,struct distribution *distribution,int force) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refsdb,force);
+		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
@@ -1051,7 +1050,7 @@ static void updates_dump(struct distribution *distribution) {
 	}
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,DB *refsdb,struct distribution *distributions,int force) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force) {
 	struct distribution *distribution;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1146,7 +1145,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		fprintf(stderr,"Installing packages...\n");
 
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		r = updates_install(dbdir,filesdb,refsdb,distribution,force);
+		r = updates_install(dbdir,filesdb,refs,distribution,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;

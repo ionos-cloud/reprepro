@@ -142,17 +142,13 @@ retvalue target_closepackagesdb(struct target *target) {
 		fprintf(stderr,"Internal Warning: Double close!\n");
 		r = RET_OK;
 	} else {
-		if( target->packages->wasmodified && !target->wasmodified ) {
-			fprintf(stderr,"Internal Warning: Missed change!\n");
-			target->wasmodified = TRUE;
-		}
 		r = packages_done(target->packages);
 		target->packages = NULL;
 	}
 	return r;
 }
 
-retvalue target_removepackage(struct target *target,DB *references,const char *name) {
+retvalue target_removepackage(struct target *target,references refs,const char *name) {
 	char *oldchunk;
 	struct strlist files;
 	retvalue r;
@@ -178,13 +174,13 @@ retvalue target_removepackage(struct target *target,DB *references,const char *n
 	r = packages_remove(target->packages,name);
 	if( RET_IS_OK(r) ) {
 		target->wasmodified = TRUE;
-		r = references_delete(references,target->identifier,&files,NULL);
+		r = references_delete(refs,target->identifier,&files,NULL);
 	}
 	strlist_done(&files);
 	return r;
 }
 
-retvalue target_addpackage(struct target *target,DB *references,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade) {
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol;
 	retvalue r;
@@ -241,7 +237,7 @@ retvalue target_addpackage(struct target *target,DB *references,const char *name
 				return r;
 		}
 	}
-	r = packages_insert(references,target->packages,name,control,filekeys,ofk);
+	r = packages_insert(refs,target->packages,name,control,filekeys,ofk);
 	if( RET_IS_OK(r) )
 		target->wasmodified = TRUE;
 
@@ -252,7 +248,7 @@ retvalue target_addpackage(struct target *target,DB *references,const char *name
 
 /* rereference a full database */
 struct data_reref { 
-	DB *referencesdb;
+	references refs;
 	struct target *target;
 };
 
@@ -269,12 +265,12 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 		strlist_fprint(stderr,&filekeys);
 		putc('\n',stderr);
 	}
-	r = references_insert(d->referencesdb,d->target->identifier,&filekeys,NULL);
+	r = references_insert(d->refs,d->target->identifier,&filekeys,NULL);
 	strlist_done(&filekeys);
 	return r;
 }
 
-retvalue target_rereference(struct target *target,DB *referencesdb,int force) {
+retvalue target_rereference(struct target *target,references refs,int force) {
 	retvalue result,r;
 	struct data_reref refdata;
 
@@ -287,12 +283,12 @@ retvalue target_rereference(struct target *target,DB *referencesdb,int force) {
 			fprintf(stderr,"Rereferencing %s...\n",target->identifier);
 	}
 
-	result = references_remove(referencesdb,target->identifier);
+	result = references_remove(refs,target->identifier);
 
 	if( verbose > 2 )
 		fprintf(stderr,"Referencing %s...\n",target->identifier);
 
-	refdata.referencesdb = referencesdb;
+	refdata.refs = refs;
 	refdata.target = target;
 	r = packages_foreach(target->packages,rereferencepkg,&refdata,force);
 	RET_UPDATE(result,r);
@@ -302,7 +298,7 @@ retvalue target_rereference(struct target *target,DB *referencesdb,int force) {
 
 /* check a full database */
 struct data_check { 
-	DB *referencesdb;
+	references refs;
 	filesdb filesdb;
 	struct target *target;
 };
@@ -359,21 +355,21 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 		strlist_fprint(stderr,&actualfilekeys);
 		putc('\n',stderr);
 	}
-	r = references_check(d->referencesdb,d->target->identifier,&actualfilekeys);
+	r = references_check(d->refs,d->target->identifier,&actualfilekeys);
 	RET_UPDATE(result,r);
 	strlist_done(&actualfilekeys);
 	strlist_done(&md5sums);
 	return result;
 }
 
-retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force) {
+retvalue target_check(struct target *target,filesdb filesdb,references refs,int force) {
 	struct data_check data;
 
 	assert(target->packages);
 	if( verbose > 1 ) {
 		fprintf(stderr,"Checking packages in '%s'...\n",target->identifier);
 	}
-	data.referencesdb = referencesdb;
+	data.refs = refs;
 	data.filesdb = filesdb;
 	data.target = target;
 	return packages_foreach(target->packages,checkpkg,&data,force);
@@ -401,7 +397,7 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 					target->indexfile,compression);
 			if( filename == NULL )
 				return RET_ERROR_OOM;
-			if( onlyneeded && !target->wasmodified &&!(target->packages && target->packages->wasmodified)) {
+			if( onlyneeded && !target->wasmodified ) {
 				struct stat s;
 				int i;
 
@@ -425,8 +421,6 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 		}
 	}
 	if( !RET_WAS_ERROR(result) ) {
-		if( target->packages )
-			target->packages->wasmodified = FALSE;
 		target->wasmodified = FALSE;
 	}
 	return result;

@@ -1,22 +1,18 @@
-#ifndef __MIRRORER_FILES_H
-#define __MIRRORER_FILES_H
+#ifndef REPREPRO_FILES_H
+#define REPREPRO_FILES_H
 
-#include <db.h>
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
 
-typedef struct s_filesdb {
-	DB *database;
-	char *mirrordir;
-} *filesdb;
+typedef struct s_filesdb *filesdb;
 
 /* initalize "md5sum and size"-database */
-retvalue files_initialize(filesdb *filesdb,const char *dbpath,const char *mirrordir);
+retvalue files_initialize(/*@out@*/ filesdb *filesdb,const char *dbpath,const char *mirrordir);
 
 /* release the files-database initialized got be files_initialize */
-retvalue files_done(filesdb db);
+retvalue files_done(/*@only@*/filesdb db);
 
 /* Add file's md5sum to database */
 retvalue files_add(filesdb filesdb,const char *filekey,const char *md5sum);
@@ -77,5 +73,8 @@ retvalue files_checkpool(filesdb filesdb,bool_t fast);
 
 /* dump out all information */
 retvalue files_printmd5sums(filesdb filesdb);
+
+/* concat mirrordir. return NULL if OutOfMemory */
+char *files_calcfullfilename(const filesdb filesdb,const char *filekey);
 
 #endif

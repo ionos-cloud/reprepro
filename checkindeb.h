@@ -1,17 +1,17 @@
-#ifndef __MIRRORER_CHECKINDEB_H
-#define __MIRRORER_CHECKINDEB_H
+#ifndef REPREPRO_CHECKINDEB_H
+#define REPREPRO_CHECKINDEB_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_DISTRIBUTION_H
+#ifndef REPREPRO_DISTRIBUTION_H
 #include "distribution.h"
 #endif
-#ifndef __MIRRORER_FILES_H
+#ifndef REPREPRO_FILES_H
 #include "files.h"
 #endif
-#ifndef __MIRRORER_OVERRIDE_H
+#ifndef REPREPRO_OVERRIDE_H
 #include "override.h"
 #endif
 
@@ -21,5 +21,5 @@
  * if overwrite is not NULL, it will be search for fields to reset for this
  * package. (forcesection and forcepriority have higher priority than the
  * information there) */
-retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *override,int force,int delete);
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *override,int force,int delete);
 #endif

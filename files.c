@@ -36,6 +36,11 @@
 #include "files.h"
 #include "copyfile.h"
 
+struct s_filesdb {
+	DB *database;
+	char *mirrordir;
+};
+
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
 #define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
 
@@ -549,4 +554,9 @@ retvalue files_includefiles(filesdb db,const char *sourcedir,const struct strlis
 		
 	}
 	return result;
+}
+
+/* concat mirrordir. return NULL if OutOfMemory */
+char *files_calcfullfilename(const filesdb filesdb,const char *filekey) {
+	return calc_dirconcat(filesdb->mirrordir,filekey);
 }

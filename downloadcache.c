@@ -117,7 +117,7 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 	if( item == NULL )
 		return RET_ERROR_OOM;
 
-	fullfilename = calc_dirconcat(filesdb->mirrordir,filekey);
+	fullfilename = files_calcfullfilename(filesdb,filekey);
 	if( fullfilename == NULL ) {
 		free(item);
 		return RET_ERROR_OOM;

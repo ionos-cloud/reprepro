@@ -1,7 +1,7 @@
-#ifndef __MIRRORER_SIGNATURE_H
-#define __MIRRORER_SIGNATURE_H
+#ifndef REPREPRO_SIGNATURE_H
+#define REPREPRO_SIGNATURE_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif

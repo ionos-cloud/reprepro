@@ -1,14 +1,14 @@
-#ifndef __MIRRORER_DISTRIBUTION_H
-#define __MIRRORER_DISTRIBUTION_H
+#ifndef REPREPRO_DISTRIBUTION_H
+#define REPREPRO_DISTRIBUTION_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
-#ifndef __MIRRORER_TARGET_H
+#ifndef REPREPRO_TARGET_H
 #include "target.h"
 #endif
 
@@ -19,16 +19,16 @@ struct distribution {
 	/* additional information for the Release-file to be
 	 * generated, may be NULL. only suite is sometimes used
 	 * (and only for sanity checks) */
-	char *suite,*version;
-	char *origin,*label,*description;
+	/*@null@*/char *suite,*version;
+	/*@null@*/char *origin,*label,*description;
 	/* What architectures and components are there */
 	struct strlist architectures,components;
 	/* which update rules to use */
 	struct strlist updates;
 	/* the key to sign with, may be NULL: */
-	char *signwith;
+	/*@null@*/char *signwith;
 	/* the override file to use by default */
-	char *override,*srcoverride;
+	/*@null@*/char *override,*srcoverride;
 	/* the list of components containing a debian-installer dir, normaly only "main" */
 	struct strlist udebcomponents;
 	/* A list of all targets contained in the distribution*/

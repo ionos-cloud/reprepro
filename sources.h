@@ -1,11 +1,11 @@
-#ifndef __MIRRORER_SOURCES_H
-#define __MIRRORER_SOURCES_H
+#ifndef REPREPRO_SOURCES_H
+#define REPREPRO_SOURCES_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_TARGET_H
+#ifndef REPREPRO_TARGET_H
 #include "target.h"
 #endif
 

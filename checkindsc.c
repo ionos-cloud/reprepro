@@ -29,7 +29,6 @@
 #include <malloc.h>
 #include <ctype.h>
 #include <zlib.h>
-#include <db.h>
 #include "error.h"
 #include "strlist.h"
 #include "md5sum.h"
@@ -375,7 +374,7 @@ static retvalue dsc_checkfiles(filesdb filesdb,
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
 
-retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -462,7 +461,7 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}

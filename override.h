@@ -1,14 +1,14 @@
-#ifndef __MIRRORER_OVERRIDE_H
-#define __MIRRORER_OVERRIDE_H
+#ifndef REPREPRO_OVERRIDE_H
+#define REPREPRO_OVERRIDE_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
-#ifndef __MIRRORER_CHUNKS_H
+#ifndef REPREPRO_CHUNKS_H
 #include "chunks.h"
 #endif
 
@@ -22,10 +22,10 @@ struct overrideinfo {
 #define PRIORITY_FIELDNAME "Priority"
 #define SECTION_FIELDNAME "Section"
 
-void override_free(struct overrideinfo *info);
+void override_free(/*@only@*//*@null@*/struct overrideinfo *info);
 /* when filename does not start with '/' read override info from overridedir/filename,
  * otherwise from filename directly.. */
-retvalue override_read(const char *overridedir,const char *filename,struct overrideinfo **info);
+retvalue override_read(const char *overridedir,const char *filename,/*@out@*/struct overrideinfo **info);
 
 const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package);
 const char *override_get(const struct overrideinfo *override,const char *field);

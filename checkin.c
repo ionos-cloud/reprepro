@@ -27,7 +27,6 @@
 #include <string.h>
 #include <malloc.h>
 #include <ctype.h>
-#include <db.h>
 #include "error.h"
 #include "strlist.h"
 #include "md5sum.h"
@@ -666,7 +665,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force) {
+static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -680,11 +679,11 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 			e = e->next;
 			continue;
 		}
-		fullfilename = calc_dirconcat(filesdb->mirrordir,e->filekey);
+		fullfilename = files_calcfullfilename(filesdb,e->filekey);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {
-			r = deb_add(dbdir,references,filesdb,
+			r = deb_add(dbdir,refs,filesdb,
 				e->component,e->architecture,
 				e->section,e->priority,
 				"deb",
@@ -695,7 +694,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_UDEB ) {
-			r = deb_add(dbdir,references,filesdb,
+			r = deb_add(dbdir,refs,filesdb,
 				e->component,e->architecture,
 				e->section,e->priority,
 				"udeb",
@@ -708,7 +707,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 		} else if( e->type == fe_DSC ) {
 			assert(changes->srccomponent);
 			assert(changes->srcdirectory);
-			r = dsc_add(dbdir,references,filesdb,
+			r = dsc_add(dbdir,refs,filesdb,
 				changes->srccomponent,e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->basename,
@@ -734,7 +733,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb fil
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete) {
+retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete) {
 	retvalue r;
 	struct changes *changes;
 
@@ -773,7 +772,7 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 	}
 
 	/* add the source and binary packages in the given distribution */
-	r = changes_includepkgs(dbdir,references,filesdb,
+	r = changes_includepkgs(dbdir,refs,filesdb,
 		distribution,changes,srcoverride,binoverride,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);

@@ -1,11 +1,11 @@
-#ifndef __MIRRORER_DIRS_H
-#define __MIRRORER_DIRS_H
+#ifndef REPREPRO_DIRS_H
+#define REPREPRO_DIRS_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #warning "What is happening here?"
 #include "error.h"
 #endif
-#ifndef __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
 #warning "What is happening here?"
 #include "strlist.h"
 #endif

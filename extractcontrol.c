@@ -34,11 +34,11 @@
 
 extern int verbose;
 
-//**********************************************************************
-//* This is simply a ugly prototype until I have time to get something
-//* correct (perhaps borrowing code from dpkg2.0). Until then its just
-//* a quick and dirty hack to make it running.
-//**********************************************************************
+// **********************************************************************
+// * This is simply a ugly prototype until I have time to get something
+// * correct (perhaps borrowing code from dpkg2.0). Until then its just
+// * a quick and dirty hack to make it running.
+// **********************************************************************
 //TODO: write this properly.
 
 

@@ -27,7 +27,6 @@
 #include <ctype.h>
 #include <time.h>
 #include <zlib.h>
-#include <db.h>
 #include "error.h"
 #include "chunks.h"
 #include "sources.h"

@@ -1,17 +1,17 @@
-#ifndef __MIRRORER_RELEASE_H
-#define __MIRRORER_RELEASE_H
+#ifndef REPREPRO_RELEASE_H
+#define REPREPRO_RELEASE_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
-#ifndef __MIRRORER_DISTRIBUTION_H
+#ifndef REPREPRO_DISTRIBUTION_H
 #include "distribution.h"
 #endif
-#ifndef __MIRRORER_TARGET_H
+#ifndef REPREPRO_TARGET_H
 #include "target.h"
 #endif
 

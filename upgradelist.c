@@ -478,7 +478,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,DB *references,int force){
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -494,8 +494,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 					&pkg->new_md5sums);
 			if( ! RET_WAS_ERROR(r) )
 				/* upgrade (or possibly downgrade) */
-				r = target_addpackage(upgrade->target,
-				references,
+				r = target_addpackage(upgrade->target,refs,
 				pkg->name,pkg->new_version,pkg->new_control,
 				&pkg->new_filekeys,force,TRUE);
 			RET_UPDATE(result,r);
@@ -505,7 +504,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 		if( pkg->deleted && pkg->version_in_use != NULL ) {
 			// TODO: what if there were previous errors,
 			// prevent removal of packages here?
-			r = target_removepackage(upgrade->target,references,pkg->name);
+			r = target_removepackage(upgrade->target,refs,pkg->name);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )
 				break;

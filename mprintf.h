@@ -1,5 +1,5 @@
-#ifndef __MIRRORER_MPRINTF
-#define __MIRRORER_MPRINTF
+#ifndef REPREPRO_MPRINTF
+#define REPREPRO_MPRINTF
 
 #include <stdarg.h>
 

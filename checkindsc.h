@@ -1,17 +1,17 @@
-#ifndef __MIRRORER_CHECKINDSC_H
-#define __MIRRORER_CHECKINDSC_H
+#ifndef REPREPRO_CHECKINDSC_H
+#define REPREPRO_CHECKINDSC_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_DISTRIBUTION_H
+#ifndef REPREPRO_DISTRIBUTION_H
 #include "distribution.h"
 #endif
-#ifndef __MIRRORER_FILES_H
+#ifndef REPREPRO_FILES_H
 #include "files.h"
 #endif
-#ifndef __MIRRORER_OVERRIDE_H
+#ifndef REPREPRO_OVERRIDE_H
 #include "override.h"
 #endif
 
@@ -20,6 +20,6 @@
  * If basename, filekey and directory are != NULL, then they are used instead 
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete);
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete);
 
 #endif

@@ -1,7 +1,7 @@
-#ifndef __MIRRORER_APTMETHOD_H
-#define __MIRRORER_APTMETHOD_H
+#ifndef REPREPRO_APTMETHOD_H
+#define REPREPRO_APTMETHOD_H
 
-#ifndef __MIRRORER_FILES_H
+#ifndef REPREPRO_FILES_H
 #include "files.h"
 #endif
 

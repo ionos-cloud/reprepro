@@ -83,6 +83,7 @@ static void aptmethod_free(struct aptmethod *method) {
 		free(todo->filekey);
 		free(todo);
 	}
+	free(method);
 }
 
 retvalue aptmethod_shutdown(struct aptmethodrun *run) {
@@ -95,7 +96,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 
 		if( method->child > 0 ) {
 			if( verbose > 5 )
-				fprintf(stderr,"Still waiting for %d\n",method->child);
+				fprintf(stderr,"Still waiting for %d\n",(int)method->child);
 			lastmethod = method;
 			method = method->next;
 			continue;

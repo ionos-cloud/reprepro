@@ -1,18 +1,18 @@
-#ifndef __MIRRORER_DOWNLOADLIST_H
-#define __MIRRORER_DOWNLOADLIST_H
+#ifndef REPREPRO_DOWNLOADLIST_H
+#define REPREPRO_DOWNLOADLIST_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_FILES_H
+#ifndef REPREPRO_FILES_H
 #include "files.h"
 #endif
-#ifndef __MIRRORER_APTMETHOD_H
+#ifndef REPREPRO_APTMETHOD_H
 #include "aptmethod.h"
 #endif
 

@@ -1,27 +1,25 @@
-#ifndef __MIRRORER_PACKAGES_H
-#define __MIRRORER_PACKAGES_H
+#ifndef REPREPRO_PACKAGES_H
+#define REPREPRO_PACKAGES_H
 
-#include <db.h>
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_NAMES_H
+#ifndef REPREPRO_NAMES_H
 #include "names.h"
 #endif
-#ifndef __MIRRORER_FILES_H
+#ifndef REPREPRO_FILES_H
 #include "files.h"
 #endif
+#ifndef REPREPRO_REFERENCE_H
+#include "reference.h"
+#endif
 
-typedef struct s_packagesdb {
-	char *identifier;
-	DB *database;
-	bool_t wasmodified;
-} *packagesdb;
+typedef struct s_packagesdb *packagesdb;
 
 /* initialize the packages-database for <identifier> */
 retvalue packages_initialize(packagesdb *pkgs,const char *dbpath,const char *identifier);
@@ -44,7 +42,7 @@ retvalue packages_get(packagesdb db,const char *package,char **chunk);
 
 /* insert a chunk in the packages database, adding and deleting
  * references and insert files while that. */
-retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
+retvalue packages_insert(references refs, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
 		const struct strlist *oldfiles);

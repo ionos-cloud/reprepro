@@ -141,16 +141,16 @@ static retvalue action_addmd5sums(int argc,const char *argv[]) {
 
 
 static retvalue action_removereferences(int argc,const char *argv[]) {
-	DB *refs;
+	references refs;
 	retvalue ret,r;
 
 	if( argc != 2 ) {
 		fprintf(stderr,"reprepro _removereferences <identifier>\n");
 		return RET_ERROR;
 	}
-	refs = references_initialize(dbdir);
-	if( ! refs )
-		return RET_ERROR;
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	ret = references_remove(refs,argv[1]);
 	r = references_done(refs);
 	RET_ENDUPDATE(ret,r);
@@ -159,23 +159,23 @@ static retvalue action_removereferences(int argc,const char *argv[]) {
 
 
 static retvalue action_dumpreferences(int argc,const char *argv[]) {
-	DB *refs;
+	references refs;
 	retvalue result,r;
 
 	if( argc != 1 ) {
 		fprintf(stderr,"reprepro dumpreferences\n");
 		return RET_ERROR;
 	}
-	refs = references_initialize(dbdir);
-	if( ! refs )
-		return RET_ERROR;
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	result = references_dump(refs);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 	return result;
 }
 
-struct fileref { filesdb files; DB *refs; };
+struct fileref { filesdb files; references refs; };
 
 static retvalue checkifreferenced(void *data,const char *filekey,const char *md5sum) {
 	struct fileref *dist = data;
@@ -199,9 +199,9 @@ static retvalue action_dumpunreferenced(int argc,const char *argv[]) {
 		fprintf(stderr,"reprepro dumpunreferenced\n");
 		return RET_ERROR;
 	}
-	dist.refs = references_initialize(dbdir);
-	if( ! dist.refs )
-		return RET_ERROR;
+	r = references_initialize(&dist.refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	r = files_initialize(&dist.files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(dist.refs);
@@ -239,7 +239,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,const char *
 					fprintf(stderr,"error while unlinking %s: %m(%d)\n",filename,en);
 				}
 			} 
-			if( err == 0 || en == ENOENT || force ) 
+			if( err == 0 || en == ENOENT || force > 0 ) 
 				r = files_remove(dist->files,filekey);
 			free(filename);
 		}
@@ -258,9 +258,9 @@ static retvalue action_deleteunreferenced(int argc,const char *argv[]) {
 		fprintf(stderr,"reprepro deleteunreferenced\n");
 		return RET_ERROR;
 	}
-	dist.refs = references_initialize(dbdir);
-	if( ! dist.refs )
-		return RET_ERROR;
+	r = references_initialize(&dist.refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	r = files_initialize(&dist.files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(dist.refs);
@@ -275,16 +275,16 @@ static retvalue action_deleteunreferenced(int argc,const char *argv[]) {
 }
 
 static retvalue action_addreference(int argc,const char *argv[]) {
-	DB *refs;
+	references refs;
 	retvalue result,r;
 
 	if( argc != 3 ) {
 		fprintf(stderr,"reprepro _addreference <reference> <referee>\n");
 		return RET_ERROR;
 	}
-	refs = references_initialize(dbdir);
-	if( ! refs )
-		return RET_ERROR;
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	result = references_increment(refs,argv[1],argv[2]);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
@@ -292,7 +292,7 @@ static retvalue action_addreference(int argc,const char *argv[]) {
 }
 
 
-struct remove_args {DB *references; int count; const char **names; bool_t *gotremoved; int todo;};
+struct remove_args {references refs; int count; const char **names; bool_t *gotremoved; int todo;};
 
 static retvalue remove_from_target(void *data, struct target *target) {
 	retvalue result,r;
@@ -306,7 +306,7 @@ static retvalue remove_from_target(void *data, struct target *target) {
 
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
-		r = target_removepackage(target,d->references,d->names[i]);
+		r = target_removepackage(target,d->refs,d->names[i]);
 		if( RET_IS_OK(r) ) {
 			if( ! d->gotremoved[i] )
 				d->todo--;
@@ -328,16 +328,16 @@ static retvalue action_remove(int argc,const char *argv[]) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>\n");
 		return RET_ERROR;
 	}
-	d.references = references_initialize(dbdir);
-	if( ! d.references )
-		return RET_ERROR;
+	r = references_initialize(&d.refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	r = distribution_get(&distribution,confdir,argv[1]);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Did not find matching distributions!\n");
 		return RET_NOTHING;
 	}
 	if( RET_WAS_ERROR(r) ) {
-		(void)references_done(d.references);
+		(void)references_done(d.refs);
 		return r;
 	}
 
@@ -356,20 +356,20 @@ static retvalue action_remove(int argc,const char *argv[]) {
 	}
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
-	r = references_done(d.references);
+	r = references_done(d.refs);
 	RET_ENDUPDATE(result,r);
 	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {
-		fputs("Not removed as not found: ",stderr);
+		(void)fputs("Not removed as not found: ",stderr);
 		while( d.count > 0 ) {
 			d.count--;
 			if( ! d.gotremoved[d.count] ) {
-				fputs(d.names[d.count],stderr);
+				(void)fputs(d.names[d.count],stderr);
 				d.todo--;
 				if( d.todo > 0 )
-					fputs(", ",stderr);
+					(void)fputs(", ",stderr);
 			}
 		}
-		fputc('\n',stderr);
+		(void)fputc('\n',stderr);
 	}
 	return result;
 }
@@ -385,7 +385,7 @@ static retvalue list_in_target(void *data, struct target *target) {
 	}
 	result = packages_get(target->packages,packagename,&control);
 	if( RET_IS_OK(result) ) {
-		r = target->getversion(target,control,&version);
+		r = (*target->getversion)(target,control,&version);
 		if( RET_IS_OK(r) ) {
 			printf("%s: %s %s\n",target->identifier,packagename,version);
 			free(version);
@@ -507,7 +507,7 @@ static retvalue action_md5sums(int argc,const char *argv[]) {
 			} else {
 				fprintf(stderr,"Error accessing file: %s\n",filename);
 				free(filename);
-				if( ! force )
+				if( force > 0 )
 					return RET_ERROR;
 			}
 		}
@@ -575,7 +575,7 @@ static retvalue action_export(int argc,const char *argv[]) {
 static retvalue action_update(int argc,const char *argv[]) {
 	retvalue result,r;
 	bool_t doexport;
-	DB *refs;
+	references refs;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
 	filesdb files;
@@ -606,12 +606,12 @@ static retvalue action_update(int argc,const char *argv[]) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	refs = references_initialize(dbdir);
-	if( ! refs )
-		return RET_ERROR;
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	result = files_initialize(&files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(result) ) {
-		references_done(refs);
+		(void)references_done(refs);
 		return result;
 	}
 
@@ -620,23 +620,23 @@ static retvalue action_update(int argc,const char *argv[]) {
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	
-	doexport = force || RET_IS_OK(result);
+	doexport = force>0 || RET_IS_OK(result);
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	while( distributions ) {
 		struct distribution *d = distributions->next;
 
 		if( doexport ) {
-			r = distribution_export(distributions,dbdir,distdir,force,1);
+			r = distribution_export(distributions,dbdir,distdir,force,TRUE);
 			RET_ENDUPDATE(result,r);
 		}
 		
-		distribution_free(distributions);
-
+		(void)distribution_free(distributions);
 		distributions = d;
 	}
 
-	references_done(refs);
+	r = references_done(refs);
+	RET_ENDUPDATE(result,r);
 
 	return result;
 }
@@ -677,7 +677,7 @@ static retvalue action_checkupdate(int argc,const char *argv[]) {
 	while( distributions ) {
 		struct distribution *d = distributions->next;
 
-		distribution_free(distributions);
+		(void)distribution_free(distributions);
 		distributions = d;
 	}
 
@@ -686,7 +686,7 @@ static retvalue action_checkupdate(int argc,const char *argv[]) {
 
 
 /***********************rereferencing*************************/
-struct data_binsrcreref { const struct distribution *distribution; DB *references;};
+struct data_binsrcreref { const struct distribution *distribution; references refs;};
 
 static retvalue reref(void *data,struct target *target) {
 	retvalue result,r;
@@ -694,7 +694,7 @@ static retvalue reref(void *data,struct target *target) {
 
 	result = target_initpackagesdb(target,dbdir);
 	if( !RET_WAS_ERROR(result) ) {
-		result = target_rereference(target,d->references,force);
+		result = target_rereference(target,d->refs,force);
 		r = target_closepackagesdb(target);
 		RET_ENDUPDATE(result,r);
 	}
@@ -711,7 +711,7 @@ static retvalue rereference_dist(void *data,const char *chunk,struct distributio
 	}
 
 	dat.distribution = distribution;
-	dat.references = data;
+	dat.refs = data;
 
 	result = distribution_foreach_part(distribution,NULL,NULL,NULL,reref,&dat,force);
 
@@ -720,17 +720,16 @@ static retvalue rereference_dist(void *data,const char *chunk,struct distributio
 
 static retvalue action_rereference(int argc,const char *argv[]) {
 	retvalue result,r;
-	DB *refs;
+	references refs;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro rereference [<distributions>]\n");
 		return RET_ERROR;
 	}
 
-	refs = references_initialize(dbdir);
-
-	if( ! refs )
-		return RET_ERROR;
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	
 	result = distribution_foreach(confdir,argc-1,argv+1,rereference_dist,refs,force);
 	r = references_done(refs);
@@ -739,7 +738,7 @@ static retvalue action_rereference(int argc,const char *argv[]) {
 	return result;
 }
 /***********************checking*************************/
-struct data_check { const struct distribution *distribution; DB *references; filesdb files;};
+struct data_check { const struct distribution *distribution; references refs; filesdb files;};
 
 static retvalue check_target(void *data,struct target *target) {
 	struct data_check *d = data;
@@ -748,7 +747,7 @@ static retvalue check_target(void *data,struct target *target) {
 	r = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	result = target_check(target,d->files,d->references,force);
+	result = target_check(target,d->files,d->refs,force);
 	r = target_closepackagesdb(target);
 	RET_ENDUPDATE(result,r);
 	return result;
@@ -780,22 +779,22 @@ static retvalue action_check(int argc,const char *argv[]) {
 		return RET_ERROR;
 	}
 
-	dat.references = references_initialize(dbdir);
+	r = references_initialize(&dat.refs,dbdir);
 
-	if( ! dat.references )
-		return RET_ERROR;
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	r = files_initialize(&dat.files,dbdir,mirrordir);
 
 	if( RET_WAS_ERROR(r) ) {
-		(void)references_done(dat.references);
+		(void)references_done(dat.refs);
 		return r;
 	}
 	
 	result = distribution_foreach(confdir,argc-1,argv+1,check_dist,&dat,force);
 	r = files_done(dat.files);
 	RET_ENDUPDATE(result,r);
-	r = references_done(dat.references);
+	r = references_done(dat.refs);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -827,7 +826,7 @@ static retvalue action_checkpool(int argc,const char *argv[]) {
 
 static retvalue action_includedeb(int argc,const char *argv[]) {
 	retvalue result,r;
-	filesdb files;DB *references;
+	filesdb files;references refs;
 	struct distribution *distribution;
 	struct overrideinfo *override;
 
@@ -845,7 +844,7 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 		return RET_ERROR;
 	}
 
-	if( architecture && !strlist_in(&distribution->architectures,architecture) ){
+	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
 		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
 		return RET_ERROR;
 	}
@@ -862,17 +861,17 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 
 	r = files_initialize(&files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) ) {
-		distribution_free(distribution);
+		(void)distribution_free(distribution);
 		return r;
 	}
-	references = references_initialize(dbdir);
-	if( !references ) {
-		files_done(files);
-		distribution_free(distribution);
-		return RET_ERROR;
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) ) {
+		(void)files_done(files);
+		(void)distribution_free(distribution);
+		return r;
 	}
 
-	result = deb_add(dbdir,references,files,component,architecture,
+	result = deb_add(dbdir,refs,files,component,architecture,
 			section,priority,"deb",distribution,argv[2],NULL,NULL,override,force,delete);
 
 	override_free(override);
@@ -884,7 +883,7 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
-	r = references_done(references);
+	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -893,7 +892,7 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 
 static retvalue action_includedsc(int argc,const char *argv[]) {
 	retvalue result,r;
-	filesdb files; DB *references;
+	filesdb files; references refs;
 	struct distribution *distribution;
 	struct overrideinfo *srcoverride;
 
@@ -902,7 +901,7 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 		return RET_ERROR;
 	}
 
-	if( architecture && strcmp(architecture,"source") != 0 ) {
+	if( architecture != NULL && strcmp(architecture,"source") != 0 ) {
 		fprintf(stderr,"Cannot put a source-package anywhere else than in architecture 'source'!\n");
 		return RET_ERROR;
 	}
@@ -927,13 +926,13 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 	r = files_initialize(&files,dbdir,mirrordir);
 	if( !files )
 		return RET_ERROR;
-	references = references_initialize(dbdir);
-	if( !files ) {
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) ) {
 		(void)files_done(files);
-		return RET_ERROR;
+		return r;
 	}
 
-	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete);
+	result = dsc_add(dbdir,refs,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete);
 	
 	override_free(srcoverride);
 	r = distribution_export(distribution,dbdir,distdir,force,FALSE);
@@ -942,7 +941,7 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
-	r = references_done(references);
+	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -950,7 +949,7 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 
 static retvalue action_include(int argc,const char *argv[]) {
 	retvalue result,r;
-	filesdb files;DB *references;
+	filesdb files;references refs;
 	struct distribution *distribution;
 	struct overrideinfo *override,*srcoverride;
 
@@ -988,11 +987,13 @@ static retvalue action_include(int argc,const char *argv[]) {
 	r = files_initialize(&files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	references = references_initialize(dbdir);
-	if( !files )
-		return RET_ERROR;
+	r = references_initialize(&refs,dbdir);
+	if( RET_WAS_ERROR(r) ) {
+		(void)files_done(files);
+		return r;
+	}
 
-	result = changes_add(dbdir,references,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete);
+	result = changes_add(dbdir,refs,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete);
 
 	override_free(override);override_free(srcoverride);
 	
@@ -1002,7 +1003,7 @@ static retvalue action_include(int argc,const char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
-	r = references_done(references);
+	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 
 	return result;

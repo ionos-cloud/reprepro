@@ -1,7 +1,7 @@
-#ifndef __MIRRORER_STRLIST_H
-#define __MIRRORER_STRLIST_H
+#ifndef REPREPRO_STRLIST_H
+#define REPREPRO_STRLIST_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif

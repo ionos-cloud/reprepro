@@ -28,7 +28,6 @@
 #include <malloc.h>
 #include <ctype.h>
 #include <zlib.h>
-#include <db.h>
 #include "error.h"
 #include "strlist.h"
 #include "md5sum.h"
@@ -280,7 +279,7 @@ static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete){
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete){
 	retvalue r,result;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -419,7 +418,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -429,7 +428,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -442,7 +441,7 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}

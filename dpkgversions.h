@@ -1,7 +1,7 @@
-#ifndef __MIRRORER_DPKGVERSIONS_H
-#define __MIRRORER_DPKGVERSIONS_H
+#ifndef REPREPRO_DPKGVERSIONS_H
+#define REPREPRO_DPKGVERSIONS_H
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning wth?
 #endif

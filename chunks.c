@@ -39,7 +39,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 	char *chunk;
 
 	f = gzopen(filename,"r");
-	if( !f ) {
+	if( f == NULL ) {
 		fprintf(stderr,"Unable to open file %s: %m\n",filename);
 		return RET_ERRNO(errno);
 	}
@@ -49,7 +49,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 
 		free(chunk);
 
-		if( RET_WAS_ERROR(ret) && !force ) {
+		if( RET_WAS_ERROR(ret) && force > 0 ) {
 			if( verbose > 0 )
 				fprintf(stderr,"Stop reading further chunks from '%s' due to privious errors.\n",filename);
 			break;
@@ -66,7 +66,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 
 /* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
 retvalue chunk_read(gzFile f,char **chunk) {
-	char *buffer,*bhead,*p;
+	char *buffer,*bhead;
 	size_t size,already,without,l;
 	bool_t afternewline = FALSE;
 
@@ -76,8 +76,9 @@ retvalue chunk_read(gzFile f,char **chunk) {
 	if( buffer == NULL )
 		return RET_ERROR_OOM;
 	while( gzgets(f,bhead,size-1-already) ) {
+		char *p;
 		p = bhead;
-		while( *p ) {
+		while( *p != '\0' ) {
 			if( *p != '\r' && *p != '\n' )
 				without = 1 + p - buffer;
 			p++;
@@ -97,13 +98,14 @@ retvalue chunk_read(gzFile f,char **chunk) {
 		already += l;
 		afternewline = bhead[l-1] == '\n';
 		if( size-already < 1024 ) {
+			char *n;
 			size *= 2;
-			p = realloc(buffer,size);
-			if( p == NULL ) {
+			n = realloc(buffer,size);
+			if( n == NULL ) {
 				free(buffer);
 				return RET_ERROR_OOM;
 			}
-			buffer = p;
+			buffer = n;
 		}
 		bhead = buffer + already;
 	}
@@ -111,15 +113,17 @@ retvalue chunk_read(gzFile f,char **chunk) {
 		free(buffer);
 		return RET_NOTHING;
 	} else {
+		char *n;
 		/* we do not want to include the final newlines */
 		buffer[without] = '\0';
-		p = realloc(buffer,without+1);
-		if( p == NULL ) {
+		n = realloc(buffer,without+1);
+		if( n == NULL ) {
 			/* guess this will not happen, but... */
 			free(buffer);
 			return RET_ERROR_OOM;
 		}
-		*chunk = p;
+		buffer = n;
+		*chunk = buffer;
 		return RET_OK;
 	}
 }
@@ -297,7 +301,7 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	f = chunk_getfield(name,chunk);
 	if( !f )
 		return RET_NOTHING;
-	for ( e = p = f ; *p ; p++ ) {
+	for ( e = p = f ; *p != '\0' ; p++ ) {
 		if( afternewline ) {
 			if( *p == ' ' || *p == '\t' )
 				afternewline = FALSE;
@@ -390,12 +394,12 @@ retvalue chunk_getname(const char *chunk,const char *name,
 	field = chunk_getfield(name,chunk);
 	if( !field )
 		return RET_NOTHING;
-	while( *field && *field != '\n' && isspace(*field) )
+	while( *field != '\0' && *field != '\n' && isspace(*field) )
 		field++;
 	name_end = field;
 	names_overpkgname(&name_end);
 	p = name_end;
-	while( *p && *p != '\n' && isspace(*p) )
+	while( *p != '\0' && *p != '\n' && isspace(*p) )
 		p++;
 	if( name_end == field || 
 		( *p != '\0' && *p != '\n' && 
@@ -417,7 +421,7 @@ retvalue chunk_getname(const char *chunk,const char *name,
 		}
 		p++;
 	}
-	while( *p && *p != '\n' && isspace(*p) )
+	while( *p != '\0' && *p != '\n' && isspace(*p) )
 		p++;
 	if( *p != '\0' && *p != '\n' ) {
 		fprintf(stderr,"Error: Field '%s' contains trailing junk starting with '%c'!\n",name,*p);
@@ -529,8 +533,10 @@ struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldt
 	assert(field != NULL && data != NULL);
 
 	n = malloc(sizeof(struct fieldtoadd));
-	if( n == NULL )
-		return n;
+ 	if( n == NULL ) {
+ 		addfield_free(next);
+ 		return NULL;
+ 	}
 	n->field = field;
 	n->len_field = strlen(field);
 	n->data = data;
@@ -544,8 +550,10 @@ struct fieldtoadd *deletefield_new(const char *field,struct fieldtoadd *next) {
 	assert(field != NULL);
 
 	n = malloc(sizeof(struct fieldtoadd));
-	if( n == NULL )
-		return n;
+ 	if( n == NULL ) {
+ 		addfield_free(next);
+ 		return NULL;
+ 	}
 	n->field = field;
 	n->len_field = strlen(field);
 	n->data = NULL;
@@ -557,8 +565,10 @@ struct fieldtoadd *addfield_newn(const char *field,const char *data,size_t len,s
 	struct fieldtoadd *n;
 
 	n = malloc(sizeof(struct fieldtoadd));
-	if( n == NULL )
-		return n;
+ 	if( n == NULL ) {
+ 		addfield_free(next);
+ 		return NULL;
+ 	}
 	n->field = field;
 	n->len_field = strlen(field);
 	n->data = data;

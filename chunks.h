@@ -1,16 +1,16 @@
-#ifndef __MIRRORER_CHUNKS_H
-#define __MIRRORER_CHUNKS_H
+#ifndef REPREPRO_CHUNKS_H
+#define REPREPRO_CHUNKS_H
 
 #include <zlib.h>
 
-#ifndef __MIRRORER_ERROR_H
+#ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
 #endif
 #include "strlist.h"
 
 /* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
-retvalue chunk_read(gzFile f,char **chunk);
+retvalue chunk_read(gzFile f,/*@out@*/char **chunk);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
@@ -37,11 +37,11 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 
 /* modifications of a chunk: */
 struct fieldtoadd {
-	struct fieldtoadd *next;
+	/*@null@*/struct fieldtoadd *next;
 	/* The name of the field: */
-	const char *field;
+	/*@dependent@*/const char *field;
 	/* The data to include: (if NULL, delete this field) */
-	const char *data;
+	/*@null@*//*@dependent@*/const char *data;
 	/* how many chars in them (the *exact* len to use
 	 *                        , no \0 allowed within!), */
 	size_t len_field,len_data;
@@ -50,13 +50,13 @@ struct fieldtoadd {
 // TODO make this return retvalue..
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
-char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis);
-struct fieldtoadd *deletefield_new(const char *field,struct fieldtoadd *next);
-struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next);
-struct fieldtoadd *addfield_newn(const char *field,const char *data,size_t len,struct fieldtoadd *next);
-void addfield_free(struct fieldtoadd *f);
+/*@null@*/ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis);
+/*@null@*/struct fieldtoadd *deletefield_new(/*@dependent@*/const char *field,/*@only@*//*@null@*/struct fieldtoadd *next);
+/*@null@*/struct fieldtoadd *addfield_new(/*@dependent@*/const char *field,/*@dependent@*//*@null@*/const char *data,/*@only@*/struct fieldtoadd *next);
+/*@null@*/struct fieldtoadd *addfield_newn(/*@dependent@*/const char *field,/*@dependent@*//*@null@*/const char *data,size_t len,/*@only@*/struct fieldtoadd *next);
+void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *f);
 
 /* that is chunk_replacefields(chunk,{fieldname,strlen,data,strlen},fieldname); */
-char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data);
+/*@null@*/char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data);
 
 #endif

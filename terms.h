@@ -1,5 +1,5 @@
-#ifndef __MIRRORER_TERMS_H
-#define __MIRRORER_TERMS_H
+#ifndef REPREPRO_TERMS_H
+#define REPREPRO_TERMS_H
 
 enum term_comparison { tc_none=0, tc_equal, tc_strictless, tc_strictmore,
 				  tc_lessorequal, tc_moreorequal,
