@@ -49,12 +49,17 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 	const char *keystart,*keyend;
 	const char *valuestart,*valueend;
 	enum term_comparison comparison = tc_none;
+	bool_t negated = FALSE;
 
 
 	overspace();
+	if( *f == '!' && options & T_NEGATION) {
+		negated = TRUE;
+		f++;
+	}
 	keystart = f;
 	// TODO: allow more strict checking again with some option?
-	while( *f != '\0' && *f != '(' && !isspace(*f) )
+	while( *f != '\0' && *f != '(' && !isspace(*f) && *f != ',' && *f != '|' && *f !='(' && *f != ')' && *f != '[' && *f != '!' )
 		f++;
 	keyend = f;
 	if( keystart == keyend ) {
@@ -144,7 +149,7 @@ static retvalue parseatom(const char **formula,struct term_atom **atom,int optio
 	a = calloc(1,sizeof(struct term_atom));
 	if( a == NULL )
 		return RET_ERROR_OOM;
-	a->negated = FALSE; // not yet supported..., what char would that be?
+	a->negated = negated;
 	a->key = strndup(keystart,keyend-keystart);
 	if( a->key == NULL ) {
 		term_free(a);

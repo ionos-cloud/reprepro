@@ -5,6 +5,9 @@
 
 	* add a listfilter command
 	* fix bug in term evaluation with non-existing fields
+	* fix another parsing bug when too few spaces where around
+	* implement T_NEGATED flag of parsing
+	* document listfilter command
 
 2005-01-22  Bernhard R. Link <brlink@debian.org>
 	* Make -T work everywhere -A works.

@@ -109,10 +109,22 @@ config\-file does the expected things.
 .TP
 .B list \fIcodename\fP \fIpackagename\fP
 List all packages (source and binary, except when
+.B \-T 
+or
 .B \-A
 is given) with the given name in all components (except when
 .B \-C
+is given) and architectures (except when
+.B \-A
 is given) of the specified distribution.
+.TP
+.B listfilter \fIcodename\fP \fIcondition\fP
+as list, but does not list a single packge, but all packages
+matching the given condition.
+
+.B reprepro \-b . \-T deb listfilter test2 'Source (==blub) | ( !Source , Package (==blub) )'
+will e.g. find all .deb Packages with Source blub. (Except those also specifying a version
+number with its Source, as binary and source version differ).
 .TP
 .B remove \fIcodename\fP \fIpackagename\fP
 same as list, but remove instead of list.
