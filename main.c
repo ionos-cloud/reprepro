@@ -1381,15 +1381,15 @@ int main(int argc,char *argv[]) {
 	if( methoddir == NULL )
 		methoddir = strdup(STD_METHOD_DIR);
 	if( distdir == NULL )
-		distdir=calc_dirconcat(optarg,"dists");
+		distdir=calc_dirconcat(mirrordir,"dists");
 	if( dbdir == NULL )
-		dbdir=calc_dirconcat(optarg,"db");
+		dbdir=calc_dirconcat(mirrordir,"db");
 	if( listdir == NULL )
-		listdir=calc_dirconcat(optarg,"lists");
+		listdir=calc_dirconcat(mirrordir,"lists");
 	if( confdir == NULL )
-		confdir=calc_dirconcat(optarg,"conf");
+		confdir=calc_dirconcat(mirrordir,"conf");
 	if( overridedir == NULL )
-		overridedir=calc_dirconcat(optarg,"override");
+		overridedir=calc_dirconcat(mirrordir,"override");
 	if( distdir == NULL || dbdir == NULL || listdir == NULL 
 			|| confdir == NULL || overridedir == NULL || methoddir == NULL) {
 		(void)fputs("Out of Memory!\n",stderr);

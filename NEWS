@@ -1,4 +1,6 @@
 Updates since 0.1.1:
 - _md5sums command got removed. New command to dump
   the contents of the files database is _listmd5sums
+- --basedir (alias -b) will no longer override prior
+  given values to --confdir, --listdir, ....
   

@@ -1,6 +1,8 @@
 2005-02-13  Bernhard R. Link <brlink@debian.org>
 	* Remove some code duplication in main.c
 	  (and renamed _md5sums to _listmd5sums)
+	* change -b to not overwrite prior given
+	--listdir --distdir ...
 
 2005-02-12  Bernhard R. Link <brlink@debian.org>
 	* Some clean up of the code and added some
