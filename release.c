@@ -218,7 +218,7 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	strlist_fprint(f,&distribution->architectures);
 	fprintf(f,"\nComponents: ");
 	strlist_fprint(f,&distribution->components);
-	fprintf(f,"\n);
+	fprintf(f,"\n");
 	if( distribution->description != NULL )
 		fprintf(f,Description: %s\n", distribution->description);
 	fprintf(f,"MD5Sum:\n");
