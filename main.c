@@ -922,6 +922,11 @@ static int includedeb(int argc,char *argv[]) {
 		return 2;
 	}
 
+	if( architecture && !strlist_in(&distribution->architectures,architecture) ){
+		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
+		return 2;
+	}
+
 	r = files_initialize(&files,dbdir,mirrordir);
 	if( RET_WAS_ERROR(r) )
 		return EXIT_RET(r);
