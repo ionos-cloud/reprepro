@@ -1236,7 +1236,7 @@ static int includedeb(int argc,char *argv[]) {
 	if( !files )
 		return 1;
 
-	result =deb_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],force);
+	result =deb_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],NULL,NULL,force);
 	distribution_free(distribution);
 
 	r = files_done(files);

@@ -12,7 +12,6 @@
 /* insert the given .deb into the mirror in <component> in the <distribution>
  * putting things with architecture of "all" into <architectures> (and also
  * causing error, if it is not one of them otherwise)
- * ([todo:]if component is NULL, using translation table <guesstable>)
  * ([todo:]using overwrite-database <overwrite>)*/
-retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,int force);
+retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force);
 #endif

@@ -92,22 +92,29 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 struct debpackage {
 	/* things to be set by deb_read: */
 	char *package,*version,*source,*architecture;
-	char *basename;
 	char *control;
 	/* things that might still be NULL then: */
 	char *section;
 	char *priority;
 	/* things that will still be NULL then: */
 	char *component; //This might be const, too and save some strdups, but...
+	/* with deb_calclocations: */
+	const char *filekey;
+	struct strlist filekeys;
+	/* with deb_copyfiles or deb_checkfiles: */
+	char *md5sum;
 };
 
 void deb_free(struct debpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->source);free(pkg->architecture);
-		free(pkg->basename);free(pkg->control);
+		free(pkg->control);
 		free(pkg->section);free(pkg->component);
 		free(pkg->priority);
+		if( pkg->filekey )
+			strlist_done(&pkg->filekeys);
+		free(pkg->md5sum);
 	}
 	free(pkg);
 }
@@ -170,12 +177,6 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 		return r;
 	}
 
-	deb->basename = calc_binary_basename(deb->package,deb->version,deb->architecture);
-	if( deb->basename == NULL ) {
-		deb_free(deb);
-		return r;
-	}
-
 	r = getvalue_n(deb->control,"Priority",&deb->priority);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
@@ -192,17 +193,17 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 }
 
 /* do overwrites, add Filename, Size and md5sum to the control-item */
-retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize) {
+retvalue deb_complete(struct debpackage *pkg) {
 	const char *size;
 	struct fieldtoadd *replace;
 	char *newchunk;
 
 	assert( pkg->section != NULL && pkg->priority != NULL);
 
-	size = md5andsize;
+	size = pkg->md5sum;
 	while( !isblank(*size) && *size )
 		size++;
-	replace = addfield_newn("MD5Sum",md5andsize, size-md5andsize,NULL);
+	replace = addfield_newn("MD5Sum",pkg->md5sum, size-pkg->md5sum,NULL);
 	if( !replace )
 		return RET_ERROR_OOM;
 	while( *size && isblank(*size) )
@@ -210,7 +211,7 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
 	replace = addfield_new("Size",size,replace);
 	if( !replace )
 		return RET_ERROR_OOM;
-	replace = addfield_new("Filename",filekey,replace);
+	replace = addfield_new("Filename",pkg->filekey,replace);
 	if( !replace )
 		return RET_ERROR_OOM;
 	replace = addfield_new("Section",pkg->section ,replace);
@@ -235,16 +236,53 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
 	return RET_OK;
 }
 
+static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfilekey) {
+	retvalue r;
+	char *basename;
+	
+	basename = calc_binary_basename(pkg->package,pkg->version,pkg->architecture);
+	if( basename == NULL )
+		return RET_ERROR_OOM;
+
+	r = binaries_calcfilekeys(pkg->component,pkg->source,basename,&pkg->filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	pkg->filekey = pkg->filekeys.values[0];
+	free(basename);
+
+	if( givenfilekey && strcmp(givenfilekey,pkg->filekey) != 0 ) {
+		fprintf(stderr,"Name mismatch, .changes indicates '%s', but the file itself says '%s'!\n",givenfilekey,pkg->filekey);
+		return RET_ERROR;
+	}
+
+	return r;
+}
+
+static retvalue deb_copyfiles(const char *mirrordir,DB *filesdb,struct debpackage *pkg,const char *debfilename) {
+	retvalue r;
+
+	r = files_checkin(mirrordir,filesdb,pkg->filekey,debfilename,&pkg->md5sum);
+	return r;
+}
+
+static retvalue deb_checkfiles(const char *mirrordir,DB *filesdb,struct debpackage *pkg,const char *md5sum) {
+	/* Not much to do here, as anything should already be done... */
+
+	pkg->md5sum = strdup(md5sum);
+	if( pkg->md5sum == NULL )
+		return RET_ERROR_OOM;
+	return RET_OK;
+}
+
 /* insert the given .deb into the mirror in <component> in the <distribution>
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,int force){
+retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
-	char *md5andsize;
-	struct strlist filekeys;
 	int i;
 
 	/* First taking a closer look to the file: */
@@ -312,9 +350,8 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 			return RET_ERROR;
 		}
 	} 
-	
-	/* calculate it's filekey */
-	binaries_calcfilekeys(pkg->component,pkg->source,pkg->basename,&filekeys);
+
+	r = deb_calclocations(pkg,givenfilekey);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -322,17 +359,17 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 
 	/* then looking if we already have this, or copy it in */
 
-	r = files_checkin(mirrordir,filesdb,filekeys.values[0],debfilename,&md5andsize);
+	if( givenfilekey && givenmd5sum )
+		r = deb_checkfiles(mirrordir,filesdb,pkg,givenmd5sum);
+	else
+		r = deb_copyfiles(mirrordir,filesdb,pkg,debfilename);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&filekeys);
 		deb_free(pkg);
 		return r;
 	} 
 
-	r = deb_complete(pkg,filekeys.values[0],md5andsize);
-	free(md5andsize);
+	r = deb_complete(pkg);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&filekeys);
 		deb_free(pkg);
 		return r;
 	} 
@@ -342,14 +379,13 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		r = binaries_addtodist(dbdir,references,distribution->codename,pkg->component,pkg->architecture,pkg->package,pkg->version,pkg->control,&filekeys);
+		r = binaries_addtodist(dbdir,references,distribution->codename,pkg->component,pkg->architecture,pkg->package,pkg->version,pkg->control,&pkg->filekeys);
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		r = binaries_addtodist(dbdir,references,distribution->codename,pkg->component,distribution->architectures.values[i],pkg->package,pkg->version,pkg->control,&filekeys);
+		r = binaries_addtodist(dbdir,references,distribution->codename,pkg->component,distribution->architectures.values[i],pkg->package,pkg->version,pkg->control,&pkg->filekeys);
 		RET_UPDATE(result,r);
 	}
 
-	strlist_done(&filekeys);
 	deb_free(pkg);
 
 	return result;
