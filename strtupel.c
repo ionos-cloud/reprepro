@@ -99,7 +99,7 @@ strtupel *strtupel_fromvalues(int count,...) {
 
 	tupel = strtupel_fromarrays(count,(const char **)strings,lengths);
 
-	va_end(count);
+	va_end(ap);
 
 	free(strings);free(lengths);
 
