@@ -169,12 +169,16 @@ Look for the files, which \fIfilekey\fP
 is given as argument or as a line of the input 
 (when run without arguments), and calculate
 their md5sum and add them to the list of known files.
+(Warning: this is a low level operation, no input validation
+ or normalisation is done.)
 .TP
 .BR _forget " [ " \fIfilekeys\fP " ]"
 Like
 .B _detect
 but remove the given \fIfilekey\fP from the list of known
 files.
+(Warning: this is a low level operation, no input validation
+ or normalisation is done.)
 .TP
 .B _md5sums
 Print a list of all known files and their md5sums.
@@ -191,6 +195,10 @@ the corresposing Packages or Sources file would get)
 .TP
 .BI "_addreference " filekey " " identifier
 Manually mark \fIfilekey\fP to be needed by \fIidentifier\fP
+.TP
+.BI "_removereferences " identifier
+Remove all references what is needed by
+.I identifier.
 .TP
 .BI __extractcontrol .deb-filename
 Look what reprepro believes to be the content of the
