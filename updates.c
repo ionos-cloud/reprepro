@@ -1,4 +1,4 @@
-/*  This file is part of "mirrorer" (TODO: find better title)
+/*  This file is part of "reprepro"
  *  Copyright (C) 2003 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

@@ -1,4 +1,4 @@
-/*  This file is part of "mirrorer" (TODO: find better title)
+/*  This file is part of "reprepro"
  *  Copyright (C) 2003 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -50,7 +50,7 @@
 
 
 #ifndef STD_BASE_DIR
-#define STD_BASE_DIR "/var/spool/mirrorer"
+#define STD_BASE_DIR "/var/spool/reprepro"
 #endif
 
 /* global options */
@@ -86,7 +86,7 @@ static int extract_control(int argc,const char *argv[]) {
 	char *control;
 
 	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer __extractcontrol <.deb-file>\n");
+		fprintf(stderr,"reprepro __extractcontrol <.deb-file>\n");
 		return 1;
 	}
 
@@ -104,7 +104,7 @@ static int addmd5sums(int argc,const char *argv[]) {
 	retvalue result,r;
 
 	if( argc != 1 ) {
-		fprintf(stderr,"mirrorer _addmd5sums < <data>\n");
+		fprintf(stderr,"reprepro _addmd5sums < <data>\n");
 		return 1;
 	}
 
@@ -144,7 +144,7 @@ static int removereferences(int argc,const char *argv[]) {
 	retvalue ret,r;
 
 	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer _removereferences <identifier>\n");
+		fprintf(stderr,"reprepro _removereferences <identifier>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
@@ -162,7 +162,7 @@ static int dumpreferences(int argc,const char *argv[]) {
 	retvalue result,r;
 
 	if( argc != 1 ) {
-		fprintf(stderr,"mirrorer dumpreferences\n");
+		fprintf(stderr,"reprepro dumpreferences\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
@@ -195,7 +195,7 @@ static int dumpunreferenced(int argc,const char *argv[]) {
 	struct fileref dist;
 
 	if( argc != 1 ) {
-		fprintf(stderr,"mirrorer dumpunreferenced\n");
+		fprintf(stderr,"reprepro dumpunreferenced\n");
 		return 1;
 	}
 	dist.refs = references_initialize(dbdir);
@@ -249,7 +249,7 @@ static int deleteunreferenced(int argc,const char *argv[]) {
 	struct fileref dist;
 
 	if( argc != 1 ) {
-		fprintf(stderr,"mirrorer deleteunreferenced\n");
+		fprintf(stderr,"reprepro deleteunreferenced\n");
 		return 1;
 	}
 	dist.refs = references_initialize(dbdir);
@@ -273,7 +273,7 @@ static int addreference(int argc,const char *argv[]) {
 	retvalue result,r;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer _addreference <reference> <referee>\n");
+		fprintf(stderr,"reprepro _addreference <reference> <referee>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
@@ -316,7 +316,7 @@ static int removepackage(int argc,const char *argv[]) {
 	struct remove_args d;
 
 	if( argc < 3  ) {
-		fprintf(stderr,"mirrorer [-C <component>] [-A <architecture>] remove <codename> <package-names>\n");
+		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] remove <codename> <package-names>\n");
 		return 1;
 	}
 	d.references = references_initialize(dbdir);
@@ -376,7 +376,7 @@ static int listpackage(int argc,const char *argv[]) {
 	struct distribution *distribution;
 
 	if( argc != 3  ) {
-		fprintf(stderr,"mirrorer [-C <component>] [-A <architecture>] list <codename> <package-name>\n");
+		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] list <codename> <package-name>\n");
 		return 1;
 	}
 	r = distribution_get(&distribution,confdir,argv[1]);
@@ -503,7 +503,7 @@ static int dumpcontents(int argc,const char *argv[]) {
 	packagesdb packages;
 
 	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer _dumpcontents <identifier>\n");
+		fprintf(stderr,"reprepro _dumpcontents <identifier>\n");
 		return 1;
 	}
 
@@ -532,7 +532,7 @@ static int export(int argc,const char *argv[]) {
 	retvalue result;
 
 	if( argc < 1 ) {
-		fprintf(stderr,"mirrorer export [<distributions>]\n");
+		fprintf(stderr,"reprepro export [<distributions>]\n");
 		return 1;
 	}
 	
@@ -551,7 +551,7 @@ static int update(int argc,const char *argv[]) {
 	filesdb files;
 
 	if( argc < 1 ) {
-		fprintf(stderr,"mirrorer update [<distributions>]\n");
+		fprintf(stderr,"reprepro update [<distributions>]\n");
 		return 1;
 	}
 
@@ -650,7 +650,7 @@ static int rereference(int argc,const char *argv[]) {
 	DB *refs;
 
 	if( argc < 1 ) {
-		fprintf(stderr,"mirrorer rereference [<distributions>]\n");
+		fprintf(stderr,"reprepro rereference [<distributions>]\n");
 		return 1;
 	}
 
@@ -702,7 +702,7 @@ static int check(int argc,const char *argv[]) {
 	struct data_check dat;
 
 	if( argc < 1 ) {
-		fprintf(stderr,"mirrorer check [<distributions>]\n");
+		fprintf(stderr,"reprepro check [<distributions>]\n");
 		return 1;
 	}
 
@@ -732,7 +732,7 @@ static int checkpool(int argc,const char *argv[]) {
 	filesdb files;
 
 	if( argc < 1 || argc > 2 || (argc == 2 && strcmp(argv[1],"fast") != 0)) {
-		fprintf(stderr,"mirrorer checkpool [fast] \n");
+		fprintf(stderr,"reprepro checkpool [fast] \n");
 		return 1;
 	}
 
@@ -758,7 +758,7 @@ static int includedeb(int argc,const char *argv[]) {
 	struct overrideinfo *override;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer includedeb <distribution> <package>\n");
+		fprintf(stderr,"reprepro includedeb <distribution> <package>\n");
 		return 1;
 	}
 
@@ -822,7 +822,7 @@ static int includedsc(int argc,const char *argv[]) {
 	struct overrideinfo *srcoverride;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer includedsc <distribution> <package>\n");
+		fprintf(stderr,"reprepro includedsc <distribution> <package>\n");
 		return 1;
 	}
 
@@ -875,7 +875,7 @@ static int includechanges(int argc,const char *argv[]) {
 	struct overrideinfo *override,*srcoverride;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer include <distribution> <package>\n");
+		fprintf(stderr,"reprepro include <distribution> <package>\n");
 		return 1;
 	}
 
@@ -988,7 +988,7 @@ int main(int argc,char *argv[]) {
 		switch( c ) {
 			case 'h':
 				printf(
-"mirrorer - Manage a debian-mirror\n\n"
+"reprepro - Produce and Manage and Debian package repository\n\n"
 "options:\n"
 " -h, --help:             Show this help\n"
 //" -l, --local:            Do only process the given file.\n"
@@ -1013,7 +1013,7 @@ int main(int argc,char *argv[]) {
 "                     (Only usefull to unregister files manually deleted)\n"
 " _detect <file>:      Add given files to the database (read stdin if none)\n"
 "  the following lines are currently wrong...\n"
-"  ('find $pooldir -type f -printf \"%%P\\n\" | mirrorer -p $pooldir inventory'\n"
+"  ('find $pooldir -type f -printf \"%%P\\n\" | reprepro -p $pooldir inventory'\n"
 "   will iventory an already existing pool-dir\n"
 "   WARNING: names relative to pool-dir in shortest possible form\n"
 " _removereferences <identifier>: Remove all marks \"Needed by <identifier>\"\n"
