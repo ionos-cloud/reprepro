@@ -38,7 +38,7 @@
 #include "binaries.h"
 #include "sources.h"
 #include "release.h"
-#include "download.h"
+#include "aptmethod.h"
 #include "updates.h"
 #include "upgradelist.h"
 #include "signature.h"
@@ -765,46 +765,45 @@ static int export(int argc,char *argv[]) {
 
 static retvalue fetchupstreamlists(void *data,const char *chunk,const struct distribution *distribution,struct update *update) {
 	retvalue result,r;
-	char *from,*method;
-	struct strlist todownload;
+	char *method;
+	struct aptmethodrun *run;
+	struct aptmethod *m;
 
 	/* * Get the data for the download backend * */
-	r = chunk_getvalue(chunk,"From",&from);
-	if( !RET_IS_OK(r) )
-		// TODO: make NOTHING to error?
-		return r;
 	r = chunk_getvalue(chunk,"Method",&method);
 	if( !RET_IS_OK(r) ) {
 		// TODO: make NOTHING to error?
-		free(from);
+		return r;
+	}
+
+	r = aptmethod_initialize_run(&run);
+	if( RET_WAS_ERROR(r) ) {
+		free(method);
+		return r;
+	}
+	r = aptmethod_newmethod(run,method,&m);
+	free(method);
+	if( RET_WAS_ERROR(r) ) {
+		aptmethod_cancel(run);
 		return r;
 	}
 
 	/* * Calculate what to download * */
 
-	r = strlist_init(&todownload);
-	if( RET_WAS_ERROR(r) ) {
-		free(from);free(method);
-		return r;
-	}
-
-	r = updates_calcliststofetch(&todownload,
+	r = updates_calcliststofetch(m,
 			listdir,distribution->codename,update->name,chunk,
 			update->suite_from,
 			&update->components_from,
 			&update->architectures);
 
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&todownload);
-		free(from);free(method);
+		aptmethod_cancel(run);
 		return r;
 	}
 
 	/* * download * */
 
-	result = download_fetchfiles(method,from,&todownload);
-	strlist_done(&todownload);
-	free(method);free(from);
+	result = aptmethod_download(run,"/usr/lib/apt/methods");
 	
 	if( RET_WAS_ERROR(result) )
 		return result;

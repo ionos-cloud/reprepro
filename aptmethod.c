@@ -71,7 +71,7 @@ struct aptmethodrun {
 	struct aptmethod *methods;
 };
 
-inline static void aptmethod_free(struct aptmethod *method) {
+static void aptmethod_free(struct aptmethod *method) {
 	if( method == NULL )
 		return;
 	free(method->name);
@@ -173,6 +173,8 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct apt
 		free(method);
 		return RET_ERROR_OOM;
 	}
+	method->next = run->methods;
+	run->methods = method;
 	*m = method;
 	return RET_OK;
 }
@@ -228,8 +230,13 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 		}
 		// TODO: close all fd but 0,1,2
 	
-		methodname = "noyetimplemented";
-		//TODO: exec method:
+		methodname = calc_dirconcat(methoddir,method->name);
+
+		if( methodname == NULL )
+			exit(255);
+
+		execl(methodname,methodname,NULL);
+		
 		fprintf(stderr,"Error while executing '%s': %d=%m\n",methodname,errno);
 		exit(255);
 	}
@@ -249,6 +256,8 @@ inline static retvalue aptmethod_startup(struct aptmethod *method,const char *me
 
 static inline retvalue sendconfig(struct aptmethod *method) {
 	struct queuedjob *job;
+
+	fprintf(stderr,"prepare to send config\n");
 
 	job = malloc(sizeof(struct queuedjob));
 
@@ -279,7 +288,8 @@ static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,
 	todo->filename = strdup(destfile);
 	if( md5sum ) {
 		todo->md5sum = strdup(md5sum);
-	}
+	} else
+		todo->md5sum = NULL;
 	if( todo->uri == NULL || todo->filename == NULL ||
 			(md5sum != NULL && todo->md5sum == NULL) ) {
 		free(todo->uri);
@@ -313,13 +323,13 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 	}
 	job->len = strlen(job->command);
 
-	if( method->lasttobedone )
+	if( method->lasttobedone == NULL )
 		method->lasttobedone = method->tobedone = todo;
 	else {
 		method->lasttobedone->next = todo;
 		method->lasttobedone = todo;
 	}
-	if( method->lastqueued )
+	if( method->lastqueued == NULL )
 		method->lastqueued = method->jobs = job;
 	else {
 		method->lastqueued->next = job;
@@ -538,7 +548,7 @@ static retvalue receivedata(struct aptmethod *method) {
 	int consecutivenewlines;
 
 	/* First look if we have enough room to read.. */
-	if( method->read + 1024 <= method->len ) {
+	if( method->read + 1024 >= method->len ) {
 		char *newptr;
 		
 		if( method->len >= 128000 ) {
@@ -566,32 +576,37 @@ static retvalue receivedata(struct aptmethod *method) {
 	}
 	method->read += r;
 
-	r = method->read; 
-	p = method->inputbuffer;
-	consecutivenewlines = 0;
+	result = RET_NOTHING;
+	while(1) {
+		retvalue res;
 
-	while( r > 0 ) {
-		if( *p == '\0' ) {
-			fprintf(stderr,"Zeros in output from method!\n");
-			method->status = ams_failed;
-			return RET_ERROR;
-		} else if( *p == '\n' ) {
-			consecutivenewlines++;
-			if( consecutivenewlines >= 2 )
-				break;
-		} else if( *p != '\r' ) {
-			consecutivenewlines = 0;
+		r = method->read; 
+		p = method->inputbuffer;
+		consecutivenewlines = 0;
+
+		while( r > 0 ) {
+			if( *p == '\0' ) {
+				fprintf(stderr,"Zeros in output from method!\n");
+				method->status = ams_failed;
+				return RET_ERROR;
+			} else if( *p == '\n' ) {
+				consecutivenewlines++;
+				if( consecutivenewlines >= 2 )
+					break;
+			} else if( *p != '\r' ) {
+				consecutivenewlines = 0;
+			}
+			p++; r--;
 		}
-		p++; r--;
+		if( r <= 0 )
+			return result;
+		*p ='\0'; p++; r--;
+		res = parsereceivedblock(method,method->inputbuffer);
+		if( r > 0 )
+			memmove(method->inputbuffer,p,r);
+		method->read = r;
+		RET_UPDATE(result,res);
 	}
-	if( r <= 0 )
-		return RET_NOTHING;
-	*p ='\0'; p++; r--;
-	result = parsereceivedblock(method,method->inputbuffer);
-	if( r > 0 )
-		memmove(method->inputbuffer,p,r);
-	method->read = r;
-	return result;
 }
 
 static retvalue senddata(struct aptmethod *method) {
@@ -617,6 +632,7 @@ static retvalue senddata(struct aptmethod *method) {
 		}
 		if( r < l ) {
 			job->alreadywritten += r;
+			fprintf(stderr,"Written %d of %d bytes\n",r,job->len);
 			break;
 		}
 
@@ -627,7 +643,7 @@ static retvalue senddata(struct aptmethod *method) {
 	return RET_OK;
 }
 
-static retvalue aptmethodrun_checkchilds(struct aptmethodrun *run) {
+static retvalue checkchilds(struct aptmethodrun *run) {
 	pid_t child;int status; 
 	retvalue result = RET_OK;
 
@@ -671,7 +687,7 @@ static retvalue aptmethodrun_checkchilds(struct aptmethodrun *run) {
 	return result;
 }
 
-static retvalue aptmethodrun_wait(struct aptmethodrun *run,int *activity) {
+static retvalue readwrite(struct aptmethodrun *run,int *activity) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;
@@ -684,10 +700,11 @@ static retvalue aptmethodrun_wait(struct aptmethodrun *run,int *activity) {
 	*activity = 0;
 	for( method = run->methods ; method ; method = method->next ) {
 		if( method->status == ams_ok && method->jobs ) {
-			FD_SET(method->stdout,&readfds);
+			FD_SET(method->stdin,&writefds);
 			if( method->stdin > maxfd )
 				maxfd = method->stdin;
 			(*activity)++;
+			fprintf(stderr,"want to write to '%s'\n",method->baseuri);
 		}
 		if( method->status == ams_waitforcapabilities ||
 				method->tobedone ) {
@@ -695,8 +712,12 @@ static retvalue aptmethodrun_wait(struct aptmethodrun *run,int *activity) {
 			if( method->stdout > maxfd )
 				maxfd = method->stdout;
 			(*activity)++;
+			fprintf(stderr,"want to read from '%s'\n",method->baseuri);
 		}
 	}
+
+	if( *activity == 0 )
+		return RET_NOTHING;
 
 	// TODO: think about a timeout...
 	v = select(maxfd+1,&readfds,&writefds,NULL,NULL);
@@ -753,9 +774,9 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir) {
 	}
 	/* waiting for them to finish: */
 	do {
-	  r = aptmethodrun_checkchilds(run);
+	  r = checkchilds(run);
 	  RET_UPDATE(result,r);
-	  r = aptmethodrun_wait(run,&activity);
+	  r = readwrite(run,&activity);
 	  RET_UPDATE(result,r);
 	} while( activity > 0 );
 

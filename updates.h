@@ -24,9 +24,9 @@ retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction
 
 /* Add to todownload (which should already be initialized) all indixes to get
  * (like Packages.gz Sources.gz Release and Release.gpg) */
-retvalue updates_calcliststofetch(struct strlist *todownload,
+retvalue updates_calcliststofetch(struct aptmethod *method,
 		/* where to save to file */
-		const char *listdir, const char *codename,const char *update,const char *updateschunk,
+		const char *listdir, const char *codename,const char *update,const char *updatechunk,
 		/* where to get it from */
 		const char *suite_from,
 		/* what parts to get */

@@ -33,6 +33,7 @@
 #include "names.h"
 #include "chunks.h"
 #include "signature.h"
+#include "aptmethod.h"
 #include "updates.h"
 
 extern int verbose;
@@ -258,27 +259,7 @@ retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction
 
 /******************* Fetch all Lists for an update **********************/
 
-inline static retvalue adddownload(struct strlist *d,char *remote,char *local) {
-	retvalue r;
-
-	// TODO: first check, if the specified file is already there,
-	// (hm, perhaps strlist is bad here and strtuplelist would be better)
-
-	if( !local || !remote ) {
-		free(remote);free(local);
-		return RET_ERROR_OOM;
-	} else {
-		r = strlist_add(d,remote);
-		if( RET_WAS_ERROR(r) ) {
-			free(local);
-			return r;
-		}
-		r = strlist_add(d,local);
-		return r;
-	}
-}
-
-retvalue updates_calcliststofetch(struct strlist *todownload,
+retvalue updates_calcliststofetch(struct aptmethod *method,
 		/* where to save to file */
 		const char *listdir, const char *codename,const char *update,const char *updatechunk,
 		/* where to get it from */
@@ -299,7 +280,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 	if( r == RET_NOTHING ) {
 		toget = mprintf("dists/%s/Release",suite_from);
 		saveas = calc_downloadedlistfile(listdir,codename,update,"Release","data");
-		r = adddownload(todownload,toget,saveas);
+		r = aptmethod_queuefile(method,toget,saveas,NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 
@@ -307,7 +288,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 
 		toget = mprintf("dists/%s/Release.gpg",suite_from);
 		saveas = calc_downloadedlistfile(listdir,codename,update,"Release","gpg");
-		r = adddownload(todownload,toget,saveas);
+		r = aptmethod_queuefile(method,toget,saveas,NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -318,7 +299,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 
 		toget = mprintf("dists/%s/%s/source/Sources.gz",suite_from,comp);
 		saveas = calc_downloadedlistfile(listdir,codename,update,comp,"source");
-		r = adddownload(todownload,toget,saveas);
+		r = aptmethod_queuefile(method,toget,saveas,NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 
@@ -328,7 +309,7 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 
 			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,comp,arch);
 			saveas = calc_downloadedlistfile(listdir,codename,update,comp,arch);
-			r = adddownload(todownload,toget,saveas);
+			r = aptmethod_queuefile(method,toget,saveas,NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
