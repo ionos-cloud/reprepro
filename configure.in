@@ -30,6 +30,6 @@ dnl
 dnl Create makefiles
 dnl
 
-AC_OUTPUT([Makefile docs/Makefile])
+AC_OUTPUT([Makefile docs/Makefile tests/Makefile])
 
 

@@ -1,4 +1,6 @@
-SUBDIRS = docs
+SUBDIRS = docs tests
+
+EXTRA_DIST += autogen.sh
 
 bin_PROGRAMS = reprepro
 
