@@ -894,7 +894,7 @@ static int upgrade(int argc,char *argv[]) {
 	upgradelist upgrade;
 	packagesdb pkgs;
 
-	if( argc < 1 ) {
+	if( argc <=1 ) {
 		fprintf(stderr,"mirrorer upgrade [<distributions>]\n");
 		return 1;
 	}
@@ -913,6 +913,9 @@ static int upgrade(int argc,char *argv[]) {
 		(void)packages_done(pkgs);
 		return EXIT_RET(result);
 	}
+
+	result = upgradelist_update(upgrade,argv[1],force);
+	upgradelist_dump(upgrade);
 
 	r = upgradelist_done(upgrade);
 	RET_ENDUPDATE(result,r);

@@ -24,6 +24,7 @@
 #include "error.h"
 #include "strlist.h"
 #include "chunks.h"
+#include "dpkgversions.h"
 #include "upgradelist.h"
 
 extern int verbose;
@@ -51,6 +52,7 @@ typedef struct s_package_data {
 	/* the list of files that will belong to this: 
 	 * same validity */
 	struct strlist new_files;
+	struct strlist new_md5sums;
 } package_data;
 
 struct s_upgradelist {
@@ -91,13 +93,14 @@ static retvalue getversion(const char *control,char **version) {
 }
 /* calculate files and control-chunk */
 //TODO: to be replaced by a call to a packagelist-specific callback.
-static retvalue getinstalldata(const char *control,char **newcontrol,struct strlist *newfiles) {
+static retvalue getinstalldata(const char *control,char **newcontrol,struct strlist *newfiles,struct strlist *newmd5sums) {
 	retvalue r;
 
 	*newcontrol = strdup(control);
 	if( *newcontrol == NULL )
 		return RET_ERROR_OOM;
-	r = strlist_init_singleton("blub",newfiles);
+	r = strlist_init_singleton(strdup("blub"),newfiles);
+	r = strlist_init_singleton(strdup("blub"),newmd5sums);
 	return r;
 }
 
@@ -110,6 +113,7 @@ static void package_data_free(package_data *data){
 	//free(data->new_from);
 	free(data->new_control);
 	strlist_done(&data->new_files);
+	strlist_done(&data->new_md5sums);
 	free(data);
 }
 
@@ -288,7 +292,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		new->new_version = version;
 		new->version = version;
 		version = NULL; //to be sure...
-		r = getinstalldata(chunk,&new->new_control,&new->new_files);
+		r = getinstalldata(chunk,&new->new_control,&new->new_files,&new->new_md5sums);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
 			return RET_ERROR_OOM;
@@ -298,12 +302,13 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 			new->next = upgrade->last->next;
 			upgrade->last->next = new;
 		} else {
-			upgrade->last = upgrade->list;
+			new->next = upgrade->list;
+			upgrade->list = new;
 		}
 	} else {
 		/* The package already exists: */
 		package_data *current = upgrade->current;
-		char *control;struct strlist files;
+		char *control;struct strlist files,md5sums;
 
 		free(packagename);
 		packagename = NULL; // to be sure...
@@ -339,7 +344,7 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 			return RET_NOTHING;
 		}
 
-		r = getinstalldata(chunk,&control,&files);
+		r = getinstalldata(chunk,&control,&files,&md5sums);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
 			return r;
@@ -348,16 +353,31 @@ retvalue upgradelist_trypackage(upgradelist upgrade,const char *chunk){
 		current->new_version = version;
 		current->version = version;
 		strlist_move(&current->new_files,&files);
+		strlist_move(&current->new_md5sums,&md5sums);
 		free(current->new_control);
 		current->new_control = control;
 	}
 	return RET_OK;
 }
 
+retvalue upgradelist_update(upgradelist upgrade,const char *filename,int force){
 
+	upgrade->current = upgrade->list;
+	upgrade->last = NULL;
 
-	
+	return chunk_foreach(filename,(void*)upgradelist_trypackage,upgrade,force,0);
+}
 
+retvalue upgradelist_dump(upgradelist upgrade){
+	package_data *pkg;
+
+	pkg = upgrade->list;
+	while( pkg ) {
+		printf("'%s': have: '%s' found: '%s' take: '%s'\n",pkg->name,pkg->version_in_use,pkg->new_version,pkg->version);
+		pkg = pkg->next;
+	}
+	return RET_OK;
+}
 
 /* standard answer function */
 upgrade_decision ud_always(const char *package,const char *old_version,const char *new_version) {

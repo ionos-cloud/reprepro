@@ -16,3 +16,4 @@ typedef struct s_upgradelist *upgradelist;
 retvalue upgradelist_initialize(upgradelist *ul,packagesdb packages,upgrade_decide_function *decide);
 retvalue upgradelist_done(upgradelist upgrade);
 
+retvalue upgradelist_update(upgradelist upgrade,const char *filename,int force);
