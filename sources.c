@@ -106,7 +106,6 @@ retvalue sources_getfile(const char **files,char **basename,char **md5andsize) {
 
 /* get the intresting information out of a "Sources.gz"-chunk */
 retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files) {
-	const char *f;
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
@@ -132,17 +131,11 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdir
 
   	if( files ) {
   
-  		f = chunk_getfield("Files",chunk);
-  		if( !f ) {
+		r = chunk_getextralines(chunk,"Files",files);
+		if( !RET_IS_OK(r) ) {
 			IFREE(packagename);
   			IFREE(origdirectory);
-  			return RET_NOTHING;
-		}
-		*files = chunk_dupextralines(f);
-		if( !*files ) {
-			IFREE(packagename);
-			IFREE(origdirectory);
-			return RET_ERROR;
+  			return r;
 		}
 	}
 

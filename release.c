@@ -43,7 +43,7 @@ extern int verbose;
 retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
 	retvalue r;
 	gzFile fi;
-	const char *f,*n;
+	const char *n;
 	char *c,*files;
 	char *filename,*md5andsize,*realmd5andsize;
 
@@ -60,16 +60,14 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 		fprintf(stderr,"Error reading %s.\n",releasefile);
 		return RET_ERROR;
 	}
-	f = chunk_getfield("MD5Sum",c);
-	if( !f ){
+	r = chunk_getextralines(c,"MD5Sum",&files);
+	free(c);
+	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing MD5Sums-field.\n");
-		free(c);
 		return RET_ERROR;
 	}
-	files = chunk_dupextralines(f);
-	free(c);
-	if( !files )
-		return RET_ERROR;
+	if( !RET_IS_OK(r) )
+		return r;
 	
 	realmd5andsize = NULL;
 	if( ! RET_IS_OK(r=md5sum_and_size(&realmd5andsize,filetocheck,0))) {

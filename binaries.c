@@ -87,7 +87,7 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 	/* get the sourcename */
 
 	if( sourcename ) {
-		r = chunk_getvalue(chunk,"Source",sourcename);
+		r = chunk_getfirstword(chunk,"Source",sourcename);
 		if( r == RET_NOTHING ) {
 			*sourcename = strdup(ppackage);
 			if( !*sourcename )

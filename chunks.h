@@ -12,10 +12,6 @@
 char *chunk_read(gzFile f);
 /* point to a specified field in a chunk */
 const char *chunk_getfield(const char *name,const char *chunk);
-/* strdup the following lines of a field */
-char *chunk_dupextralines(const char *field);
-/* strdup the first word of a field */
-char *chunk_dupword(const char *field);
 /* create a new chunk with the context of field name replaced with new,
  * prints an error when not found and adds to the end */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
@@ -27,6 +23,7 @@ retvalue chunk_worditerator_next(struct worditerator *iterator);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
+retvalue chunk_getfirstword(const char *chunk,const char *name,char **value);
 retvalue chunk_getextralines(const char *chunk,const char *name,char **value);
 /* get a word iterator for the given field */
 retvalue chunk_getworditerator(const char *chunk,const char *name,struct worditerator *iterator);

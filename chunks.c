@@ -131,61 +131,9 @@ const char *chunk_getfield(const char *name,const char *chunk) {
 	return NULL;
 }
 
-/* strdup without a leading "<prefix>/" 
-char *chunk_dupvaluecut(const char *field,const char *prefix) {
-	const char *h;
-	int l;
-
-	if( !field)
-		return NULL;
-	if( isspace(*field) )
-		field++;
-	l = strlen(prefix);
-	if( strncmp(field,prefix,l) == 0 && field[l] == '/' ) {
-		field += l+1;		
-	} else 
-		return NULL;
-	h = field;
-	while( *h != '\n' && *h != '\0' )
-		h++;
-	return strndup(field,h-field);
-} */
-
-/* strdup the following lines of a field */
-char *chunk_dupextralines(const char *field) {
-	const char *h;
-
-	if( !field)
-		return NULL;
-	while( *field && *field != '\n' )
-		field++;
-	if( *field == '\0' )
-		return NULL;
-	field++;
-	h = field;
-	while( isblank(*h) ) {
-		while( *h != '\n' && *h != '\0' )
-			h++;
-		if( *h )
-			h++;
-	}
-	return strndup(field,h-field);
-}
 
 
-/* strdup the first word of a field */
-char *chunk_dupword(const char *field) {
-	const char *h;
 
-	if( !field)
-		return NULL;
-	if( isspace(*field) )
-		field++;
-	h = field;
-	while( !isspace(*h) && *h != '\n' && *h != '\0' )
-		h++;
-	return strndup(field,h-field);
-}
 
 /*
 char *chunk_dupnextline(const char **field) {
@@ -251,7 +199,6 @@ char *chunk_replaceentry(const char *chunk,const char *name,const char *new) {
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
-	//TODO: implement this natively instead of _dupvalue and get rid of the old...
 	const char *field;
 	char *val;
 	const char *b,*e;
@@ -261,7 +208,6 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	if( !field )
 		return RET_NOTHING;
 
-	val = chunk_dupvalue(field);
 	b = field;
 	if( isspace(*b) )
 		b++;
@@ -275,15 +221,52 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	return RET_OK;
 }
 
-retvalue chunk_getextralines(const char *chunk,const char *name,char **value) {
+retvalue chunk_getfirstword(const char *chunk,const char *name,char **value) {
 	const char *field;
 	char *val;
+	const char *b,*e;
 
 	assert(value != NULL);
 	field = chunk_getfield(name,chunk);
 	if( !field )
 		return RET_NOTHING;
-	val = chunk_dupextralines(field);
+
+	b = field;
+	if( isspace(*b) )
+		b++;
+	e = b;
+	while( !isspace(*e) && *e != '\n' && *e != '\0' )
+		e++;
+	val = strndup(b,e-b);
+	if( !val )
+		return RET_ERROR_OOM;
+	*value = val;
+	return RET_OK;
+}
+
+retvalue chunk_getextralines(const char *chunk,const char *name,char **value) {
+	const char *field;
+	char *val;
+	const char *b,*e;
+
+	assert(value != NULL);
+	field = chunk_getfield(name,chunk);
+	if( !field )
+		return RET_NOTHING;
+
+	b = field;
+	while( *b && *b != '\n' )
+		b++;
+	if( *b != '\0' )
+		b++;
+	e = b;
+	while( isblank(*e) ) {
+		while( *e != '\n' && *e != '\0' )
+			e++;
+		if( *e )
+			e++;
+	}
+	val = strndup(b,e-b);
 	if( !val )
 		return RET_ERROR_OOM;
 	*value = val;
