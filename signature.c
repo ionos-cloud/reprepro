@@ -175,10 +175,18 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		case GPGME_SIG_STAT_GOOD_EXPKEY:
 #endif
 			return checksignatures(context,options,releasegpg);
-		default:
-			fprintf(stderr,"Error checking signature!\n");
+		case GPGME_SIG_STAT_NOSIG:
+			fprintf(stderr,"No signature found within '%s'!\n",releasegpg);
+			return RET_ERROR_GPGME;
+		case GPGME_SIG_STAT_NONE:
+		case GPGME_SIG_STAT_ERROR:
+			fprintf(stderr,"gpgme reported errors checking '%s'!\n",releasegpg);
 			return RET_ERROR_GPGME;
 	}
+	fprintf(stderr,"Error checking signature (gpg returned unexpected value %d)!\n"
+			"try grep 'GPGPME_SIG_STAT.*%d' /usr/include/gpgme.h\n"
+			"and do not forget to write a bugreport.\n",(int)stat,(int)stat);
+	return RET_ERROR_GPGME;
 }
 
 

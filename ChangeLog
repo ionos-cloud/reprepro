@@ -1,3 +1,6 @@
+2005-01-29  Bernhard R. Link <brlink@debian.org>
+	* Be more descriptive with missing signatures.
+
 2005-01-28  Bernhard R. Link <brlink@debian.org>
 	* readd _detect command
 	* write recovery HOWTO how to deal with database corruptions
