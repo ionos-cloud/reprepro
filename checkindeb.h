@@ -9,16 +9,6 @@
 #include "distribution.h"
 #endif
 
-/* Add <package> with filename <filekey> and chunk <chunk> (which
- * alreadycontains "Filename:"), add an reference to <referee> in 
- * <references> and overwrite/add it to <pkgs> removing
- * references to oldfilekey that will be fall out of it by this */
-
-retvalue checkindeb_insert( DB *references,const char *referee,
-		           DB *pkgs,
-		const char *package, const char *chunk,
-		const char *filekey, const char *oldfilekey);
-
 struct debpackage {
 	/* things to be set by deb_read: */
 	char *package,*version,*source,*architecture;

@@ -46,51 +46,6 @@ extern int verbose;
 // create or adopt the chunk of the Packages.gz-file and 
 // putting it in the various databases.
 
-/* Add <package> with filename <filekey> and chunk <chunk> (which
- * alreadycontains "Filename:") and characteristica <md5andsize>
- * to the <files> database, add an reference to <referee> in 
- * <references> and overwrite/add it to <pkgs> removing
- * references to oldfilekey that will be fall out of it by this */
-
-retvalue checkindeb_insert(DB *references,const char *referee,
-		           DB *pkgs,
-		const char *packagename, const char *chunk,
-		const char *filekey, const char *oldfilekey) {
-
-	retvalue result,r;
-
-
-	/* mark it as needed by this distribution */
-
-	if( oldfilekey == NULL || strcmp(filekey,oldfilekey) != 0 ) {
-		r = references_increment(references,filekey,referee);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-
-	/* Add package to distribution's database */
-
-	// Todo: do this earlier...
-	if( oldfilekey != NULL ) {
-		result = packages_replace(pkgs,packagename,chunk);
-
-	} else {
-		result = packages_add(pkgs,packagename,chunk);
-	}
-
-	if( RET_WAS_ERROR(result) )
-		return result;
-		
-	/* remove old references to files */
-	if( oldfilekey != NULL && strcmp(filekey,oldfilekey) != 0) {
-		r = references_decrement(references,oldfilekey,referee);
-		RET_UPDATE(result,r);
-	}
-
-	return result;
-}
-
-
 retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename, const char *filekey,const struct strlist *filekeys, const struct strlist *md5sums,const struct strlist *oldfilekeys){
 	char *newchunk;
 	retvalue result,r;
