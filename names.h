@@ -4,6 +4,7 @@
 char *calc_addsuffix(const char *str1,const char *str2);
 char *calc_dirconcat(const char *str1,const char *str2);
 char *calc_dirconcatn(const char *str1,const char *str2,size_t len2);
+char *calc_dirsuffixconcat(const char *str1,const char *str2,const char *suffix);
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3);
 
 

@@ -9,6 +9,12 @@
 	* add another test-case
 	* FIX the overflow bug in chunks_replacefield
 
+	* add DebIndices UDebIndices and DscIndices
+	  options for conf/distributions. This allows
+	  to change which Indices to generate for this
+	  type, or calls hook to even generate additional
+	  ones. (See docs/bzip.example).
+
 2005-02-14  Bernhard R. Link <brlink@debian.org>
 	* Some little changes to make splint
 	and valgrind happier.

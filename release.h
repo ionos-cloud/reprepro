@@ -22,7 +22,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info);
 
 /****** Generate release-files *************/
 /* Generate a "Release"-file for an arbitrary  directory */
-retvalue release_genrelease(const char *distributiondir,const struct distribution *distribution,const struct target *target,bool_t onlyifneeded, struct strlist *releasedfiles);
+retvalue release_genrelease(const char *distributiondir,const struct distribution *distribution,const struct target *target,const char *filename,bool_t onlyifneeded, struct strlist *releasedfiles);
 
 /* Generate a main "Release" file for a distribution */
 retvalue release_gen(const char *distributiondir,const struct distribution *distribution,struct strlist *releasedfiles, int force);

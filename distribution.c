@@ -259,7 +259,7 @@ NULL};
 		return ret;
 	} else if( ret == RET_NOTHING)
 		option = NULL;
-	ret = exportmode_init(&r->udeb,TRUE,FALSE,"Packages",option);
+	ret = exportmode_init(&r->udeb,TRUE,NULL,"Packages",option);
 	if(RET_WAS_ERROR(ret)) {
 		(void)distribution_free(r);
 		return ret;
@@ -271,7 +271,7 @@ NULL};
 		return ret;
 	} else if( ret == RET_NOTHING)
 		option = NULL;
-	ret = exportmode_init(&r->deb,TRUE,TRUE,"Packages",option);
+	ret = exportmode_init(&r->deb,TRUE,"Release","Packages",option);
 	if(RET_WAS_ERROR(ret)) {
 		(void)distribution_free(r);
 		return ret;
@@ -283,7 +283,7 @@ NULL};
 		return ret;
 	} else if( ret == RET_NOTHING)
 		option = NULL;
-	ret = exportmode_init(&r->dsc,FALSE,TRUE,"Sources",option);
+	ret = exportmode_init(&r->dsc,FALSE,"Release","Sources",option);
 	if(RET_WAS_ERROR(ret)) {
 		(void)distribution_free(r);
 		return ret;
@@ -440,7 +440,7 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 }
 
 retvalue distribution_export(struct distribution *distribution,
-		const char *dbdir, const char *distdir,
+		const char *confdir, const char *dbdir, const char *distdir,
 		int force, bool_t onlyneeded) {
 	struct target *target;
 	retvalue result,r;
@@ -464,12 +464,12 @@ retvalue distribution_export(struct distribution *distribution,
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
-		r = target_export(target,dbdir,dirofdist,force,onlyneeded,&releasedfiles);
+		r = target_export(target,confdir,dbdir,dirofdist,force,onlyneeded,&releasedfiles);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
-		if( target->exportmode->hasrelease ) {
-			r = release_genrelease(dirofdist,distribution,target,onlyneeded,&releasedfiles);
+		if( target->exportmode->release != NULL ) {
+			r = release_genrelease(dirofdist,distribution,target,target->exportmode->release,onlyneeded,&releasedfiles);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;
@@ -503,7 +503,7 @@ retvalue distribution_freelist(struct distribution *distributions) {
 }
 
 retvalue distribution_exportandfreelist(struct distribution *distributions,
-		const char *dbdir, const char *distdir,
+		const char *confdir,const char *dbdir, const char *distdir,
 		int force) {
 	retvalue result,r;
 
@@ -511,7 +511,7 @@ retvalue distribution_exportandfreelist(struct distribution *distributions,
 	while( distributions ) {
 		struct distribution *d = distributions->next;
 
-		r = distribution_export(distributions,dbdir,distdir,force,TRUE);
+		r = distribution_export(distributions,confdir,dbdir,distdir,force,TRUE);
 		RET_UPDATE(result,r);
 		
 		r = distribution_free(distributions);

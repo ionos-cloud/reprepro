@@ -373,7 +373,7 @@ retvalue target_check(struct target *target,filesdb filesdb,references refs,int 
 
 /* export a database */
 
-retvalue target_export(struct target *target,const char *dbdir,const char *dirofdist,int force,bool_t onlyneeded, struct strlist *releasedfiles ) {
+retvalue target_export(struct target *target,const char *confdir,const char *dbdir,const char *dirofdist,int force,bool_t onlyneeded, struct strlist *releasedfiles ) {
 	retvalue result,r;
 	bool_t onlymissing;
 
@@ -391,7 +391,7 @@ retvalue target_export(struct target *target,const char *dbdir,const char *dirof
 	/* not exporting if file is already there? */
 	onlymissing = onlyneeded && !target->wasmodified;
 
-	result = export_target(dirofdist,target->relativedirectory,
+	result = export_target(confdir,dirofdist,target->relativedirectory,
 				target->packages,
 				target->exportmode,
 				releasedfiles,

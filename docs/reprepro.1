@@ -366,6 +366,24 @@ When this field is present, it describes the binary override file.
 .TP
 .B SourceOverride
 When this field is present, it describes the source override file.
+.TP
+.B DebIndices\fR, \fBUDebIndices\fR, \fBDscIndices
+Choose what kind of Index files to export. The first
+part describes what the Index file shall be called.
+The second argument determines the name of a Release
+file to generate or not to generate if missing.
+Then one or two of "\fB.\fP" or "\fB.gz\fP"
+specifing whether to generate uncompressed output, gzipped
+output or both. If an argument not starting with dot follows,
+it will be executed after each index file is generated.
+(See the examples for what argument this gets).
+The default is:
+.br
+DebIndices Packages Release . .gz
+.br
+UDebIndices Packages . .gz
+.br
+DscIndices Sources Release .gz
 .SS conf/updates
 .TP
 .B Name

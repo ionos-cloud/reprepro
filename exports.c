@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <zlib.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/stat.h>
 #include <malloc.h>
 #include <string.h>
@@ -141,19 +142,235 @@ static char *comprconcat(const char *str2,const char *str3,indexcompression comp
 }
 
 
-retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,bool_t hasrelease,const char *indexfile,/*@null@*//*@only@*/char *options) {
-	mode->compressions[ic_uncompressed] = uncompressed;
-	mode->compressions[ic_gzip] = TRUE;
-	mode->hasrelease = hasrelease;
+retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*@null@*/const char *release,const char *indexfile,/*@null@*//*@only@*/char *options) {
 	mode->hook = NULL;
-	mode->filename = strdup(indexfile);
-	if( mode->filename == NULL )
-		return RET_ERROR_OOM;
-	//TODO: parse options
+	if( options == NULL ) {
+		mode->compressions[ic_uncompressed] = uncompressed;
+		mode->compressions[ic_gzip] = TRUE;
+		mode->filename = strdup(indexfile);
+		if( mode->filename == NULL )
+			return RET_ERROR_OOM;
+		if( release == NULL )
+			mode->release = NULL;
+		else {
+			mode->release = strdup(release);
+			if( mode->release == NULL )
+				return RET_ERROR_OOM;
+		}
+	} else {
+		const char *b;
+		b = options;
+		while( *b != '\0' && isspace(*b) )
+			b++;
+		if( *b != '\0' && *b != '.' ) {
+			const char *e = b;
+			while( *e != '\0' && !isspace(*e) )
+				e++;
+			mode->filename = strndup(b,e-b);
+			b = e;
+		} else {
+			mode->filename = strdup(indexfile);
+		}
+		if( mode->filename == NULL )
+			return RET_ERROR_OOM;
+		while( *b != '\0' && isspace(*b) )
+			b++;
+		if( *b != '\0' && *b != '.' ) {
+			const char *e = b;
+			while( *e != '\0' && !isspace(*e) )
+				e++;
+			mode->release = strndup(b,e-b);
+			if( mode->release == NULL )
+				return RET_ERROR_OOM;
+			b = e;
+		} else {
+			mode->release = NULL;
+		}
+		while( *b != '\0' && isspace(*b) )
+			b++;
+		if( *b != '.' ) {
+			if( *b == '\0' )
+				fprintf(stderr,"Expecting '.' or '.gz' in '%s'!\n",options);
+			else
+				fprintf(stderr,"Third argument is still not '.' nor '.gz' in '%s'!\n",options);
+			return RET_ERROR;
+		}
+		mode->compressions[ic_uncompressed] = FALSE;
+		mode->compressions[ic_gzip] = FALSE;
+		while( *b == '.' ) {
+			const char *e = b;
+			while( *e != '\0' && !isspace(*e) )
+				e++;
+			if( isspace(b[1]) || b[1] == '\0' )
+				mode->compressions[ic_uncompressed] = TRUE;
+			else if( b[1] == 'g' && b[2] == 'z' &&
+					(isspace(b[3]) || b[3] == '\0'))
+				mode->compressions[ic_gzip] = TRUE;
+			else {
+				fprintf(stderr,"Unsupported extension '.%c'... in '%s'!\n",b[1],options);
+				return RET_ERROR;
+			}
+			b = e;
+			while( *b != '\0' && isspace(*b) )
+				b++;
+		}
+		if( *b != '\0' ) {
+			const char *e = b;
+			while( *e != '\0' && !isspace(*e) )
+				e++;
+			mode->hook = strndup(b,e-b);
+			if( mode->hook == NULL )
+				return RET_ERROR_OOM;
+			b = e;
+		}
+		while( *b != '\0' && isspace(*b) )
+			b++;
+		if( *b != '\0' ) {
+			fprintf(stderr,"More than one hook specified(perhaps you have spaces in them?) in '%s'!\n",options);
+			return RET_ERROR;
+		}
+	}
 	return RET_OK;
 }
 
-retvalue export_target(const char *dirofdist,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct strlist *releasedfiles, bool_t onlymissing, int force) {
+static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, const char *dirofdist, const char *reltmpfilename, const char *relfilename, const char *mode, struct strlist *releasedfiles) {
+	pid_t f,c;
+	int status; 
+	int io[2];
+	char buffer[1000];
+	int already = 0;
+
+	if( hook == NULL )
+		return RET_NOTHING;
+
+	status = pipe(io);
+	if( status < 0 ) {
+		int e = errno;
+		fprintf(stderr,"Error creating pipe: %d=%m!\n",e);
+		return RET_ERRNO(e);
+	}
+
+	f = fork();
+	if( f < 0 ) {
+		int err = errno;
+		close(io[0]);close(io[1]);
+		fprintf(stderr,"Error while forking for exporthook: %d=%m\n",err);
+		return RET_ERRNO(err);
+	}
+	if( f == 0 ) {
+		long maxopen;
+
+		dup2(io[1],3);
+		/* Try to close all open fd but 0,1,2,3 */
+		maxopen = sysconf(_SC_OPEN_MAX);
+		if( maxopen > 0 ) {
+			int fd;
+			for( fd = 4 ; fd < maxopen ; fd++ )
+				close(fd);
+		} else { // otherweise we have to hope...
+			if( io[0] != 3 )
+				close(io[0]);
+			if( io[1] != 3 )
+				close(io[1]);
+		}
+		if( hook[0] == '/' )
+			execl(hook,hook,dirofdist,reltmpfilename,relfilename,mode,NULL);
+		else {
+			char *fullfilename = calc_dirconcat(confdir,hook);
+			if( fullfilename == NULL ) {
+				fprintf(stderr,"Out of Memory!\n");
+				exit(255);
+
+			}
+			execl(fullfilename,fullfilename,dirofdist,reltmpfilename,relfilename,mode,NULL);
+		}
+		fprintf(stderr,"Error while executing '%s': %d=%m\n",hook,errno);
+		exit(255);
+	}
+	close(io[1]);
+	
+	if( verbose > 5 )
+		fprintf(stderr,"Called %s '%s' '%s' '%s' '%s'\n",
+			hook,dirofdist,reltmpfilename,relfilename,mode);
+	/* read what comes from the client */
+	while(1) {
+		ssize_t r;
+		int last,j;
+
+		r = read(io[0],buffer+already,999-already);
+		if( r < 0 ) {
+			int e = errno;
+			fprintf(stderr,"Error reading from exporthook: %d=%m!\n",e);
+			break;
+		}
+
+		already += r;
+		if( r == 0 ) {
+			buffer[already] = '\0';
+			already++;
+		}
+		last = 0;
+		for( j = 0 ; j < already ; j++ ) {
+			if( buffer[j] == '\n' || buffer[j] == '\0' ) {
+				int next = j+1;
+
+				while( last<j && isspace(buffer[last]) )
+						last++;
+				while( j>last && isspace(buffer[j]) )
+					j--;
+				// This makes on character long files impossible,
+				// but who needs them?
+				if( last < j ) {
+					char *item;
+					retvalue ret;
+
+					item = strndup(buffer+last,j-last+1);
+					if( item == NULL ) {
+						close(io[0]);
+						return RET_ERROR_OOM;
+					}
+					ret = strlist_add(releasedfiles,item);
+					if( RET_WAS_ERROR(ret) ) {
+						close(io[0]);
+						return RET_ERROR_OOM;
+					}
+				}
+				last = next;
+			}
+		}
+		if( last > 0 ) {
+			if( already > last )
+				memmove(buffer,buffer+last,already-last);
+			already -= last;
+		}
+		if( r == 0 )
+			break;
+	}
+	close(io[0]);
+	do {
+		c = waitpid(f,&status,WUNTRACED);
+		if( c < 0 ) {
+			int err = errno;
+			fprintf(stderr,"Error while waiting for hook '%s' to finish: %d=%m\n",hook,err);
+			return RET_ERRNO(err);
+		}
+	} while( c != f );
+	if( WIFEXITED(status) ) {
+		if( WEXITSTATUS(status) == 0 ) {
+			if( verbose > 5 )
+				fprintf(stderr,"Exporthook successfully returned!\n");
+			return RET_OK;
+		} else {
+			fprintf(stderr,"Exporthook failed with exitcode %d!\n",(int)WEXITSTATUS(status));
+			return RET_ERROR;
+		}
+	} else {
+		fprintf(stderr,"Exporthook terminated abnormaly. (status is %x)!\n",status);
+		return RET_ERROR;
+	}
+}
+
+retvalue export_target(const char *confdir,const char *dirofdist,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct strlist *releasedfiles, bool_t onlymissing, int force) {
 	indexcompression compression;
 	retvalue result,r;
 
@@ -179,12 +396,6 @@ retvalue export_target(const char *dirofdist,const char *relativedir,packagesdb 
 			alreadyexists = isregularfile(fullfilename);
 			free(fullfilename);
 
-			if( alreadyexists && onlymissing ) {
-				r = strlist_add(releasedfiles,relfilename);
-				if( RET_WAS_ERROR(r) )
-					return r;
-				continue;
-			}
 			reltmpfilename = calc_addsuffix(relfilename,"new");
 			if( reltmpfilename == NULL ) {
 				free(relfilename);
@@ -196,6 +407,27 @@ retvalue export_target(const char *dirofdist,const char *relativedir,packagesdb 
 				free(reltmpfilename);
 				return RET_ERROR_OOM;
 			}
+			(void)unlink(fullfilename);
+
+			if( alreadyexists && onlymissing ) {
+				free(fullfilename);
+				r = callexporthook(confdir,exportmode->hook,
+						dirofdist,
+						reltmpfilename,relfilename,
+						"old",
+						releasedfiles);
+				free(reltmpfilename);
+				RET_UPDATE(result,r);
+				if( !force && RET_WAS_ERROR(r) ) {
+					free(relfilename);
+					return r;
+				}
+				r = strlist_add(releasedfiles,relfilename);
+				if( RET_WAS_ERROR(r) ) {
+					return r;
+				}
+				continue;
+			}
 			
 			r = export_writepackages(packages,
 					fullfilename,compression);
@@ -203,8 +435,20 @@ retvalue export_target(const char *dirofdist,const char *relativedir,packagesdb 
 			RET_UPDATE(result,r);
 			if( !force && RET_WAS_ERROR(r) )
 				return r;
-			// TODO: call hooks here..
+
+			// TODO: allow multiple hooks?
+			r = callexporthook(confdir,
+					exportmode->hook,dirofdist,
+					reltmpfilename,relfilename,
+					alreadyexists?"change":"new",
+					releasedfiles);
 			free(relfilename);
+			RET_UPDATE(result,r);
+			if( !force && RET_WAS_ERROR(r) ) {
+				free(reltmpfilename);
+				return r;
+			}
+
 			r = strlist_add(releasedfiles,reltmpfilename);
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -244,7 +488,11 @@ retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *released
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 
-		r = md5sum_read(fullfilename,&md5sum);
+		if( !isregularfile(fullfilename) ) {
+			fprintf(stderr,"Cannot find (or not regular file): '%s'\n",fullfilename);
+			r = RET_ERROR_MISSING;
+		} else
+			r = md5sum_read(fullfilename,&md5sum);
 		if( !RET_IS_OK(r) ) {
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Cannot find %s\n",fullfilename);

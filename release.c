@@ -115,26 +115,27 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 }
 
 /* Generate a "Release"-file for arbitrary directory */
-retvalue release_genrelease(const char *distributiondir,const struct distribution *distribution,const struct target *target,bool_t onlyifneeded,struct strlist *releasedfiles) {
+retvalue release_genrelease(const char *distributiondir,const struct distribution *distribution,const struct target *target,const char *releasename,bool_t onlyifneeded, struct strlist *releasedfiles) {
 	FILE *f;
-	char *filename;
+	char *filename,*h;
 	retvalue r;
 	int e;
 
-	filename = calc_dirconcat3(distributiondir,target->relativedirectory,"Release");
+	filename = calc_dirconcat3(distributiondir,target->relativedirectory,releasename);
 	if( filename == NULL ) {
 		return RET_ERROR_OOM;
 	}
 	if( onlyifneeded && isregularfile(filename) ) {
 		free(filename);
-		filename = calc_dirconcat(target->relativedirectory,"Release");
+		filename = calc_dirconcat(target->relativedirectory,releasename);
 		r = strlist_add(releasedfiles,filename);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		return RET_NOTHING;
 	}
-	free(filename);
-	filename = calc_dirconcat3(distributiondir,target->relativedirectory,"Release.new");
+	h = filename;
+	filename = calc_addsuffix(h,"new");
+	free(h);
 	if( filename == NULL ) {
 		return RET_ERROR_OOM;
 	}
@@ -166,7 +167,7 @@ retvalue release_genrelease(const char *distributiondir,const struct distributio
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);
 
-	filename = calc_dirconcat(target->relativedirectory,"Release.new");
+	filename = calc_dirsuffixconcat(target->relativedirectory,releasename,"new");
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 	r = strlist_add(releasedfiles,filename);

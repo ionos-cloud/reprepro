@@ -364,7 +364,7 @@ ACTION_D_U(remove) {
 	d.removedfiles = NULL;
 
 	if( d.todo < d.count ) {
-		r = distribution_export(distribution,dbdir,distdir,force,TRUE);
+		r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 		RET_ENDUPDATE(result,r);
 	}
 	r = distribution_free(distribution);
@@ -602,7 +602,7 @@ ACTION_N(export) {
 			fprintf(stderr,"Exporting %s...\n",d->codename);
 		}
 
-		r = distribution_export(d,dbdir,distdir,force,FALSE);
+		r = distribution_export(d,confdir,dbdir,distdir,force,FALSE);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force<= 0 )
 			return r;
@@ -663,7 +663,7 @@ ACTION_D(update) {
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	if( doexport )
-		r = distribution_exportandfreelist(distributions,dbdir,distdir,force);
+		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir,force);
 	else
 		r = distribution_freelist(distributions);
 	RET_ENDUPDATE(result,r);
@@ -901,7 +901,7 @@ ACTION_D(includedeb) {
 
 	override_free(override);
 
-	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
+	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 
 	r = distribution_free(distribution);
@@ -947,7 +947,7 @@ ACTION_D(includedsc) {
 	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,dereferenced,onlyacceptsigned);
 	
 	override_free(srcoverride);
-	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
+	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -992,7 +992,7 @@ ACTION_D(include) {
 
 	override_free(override);override_free(srcoverride);
 	
-	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
+	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
