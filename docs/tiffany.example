@@ -11,6 +11,9 @@
 # need to store a permanent copy of the last version.
 # This needs either python-apt installed or you have to change
 # it to use another sha1 calculation method.
+# Unlike the orginal this only works when a uncompressed
+# Index is there. (i.e. "DscIndices Sources Release . .gz tiffany" and
+# it does not work when the single dot is missing)
 # WARNING: make sure your paths contain no "'" characters.
 # WARNING: experimental, does not check very well for errors.
  
