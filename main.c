@@ -48,6 +48,35 @@ int printargs(int argc,char *argv[]) {
 	return 0;
 }
 
+int addmd5sums(int argc,char *argv[]) {
+	char buffer[2000],*c,*m;
+	DB *files;
+
+	files = files_initialize(dbdir);
+	if( !files )
+		return 1;
+	while( fgets(buffer,1999,stdin) != NULL ) {
+		c = index(buffer,'\n');
+		if( ! c ) {
+			fprintf(stderr,"Line too long\n");
+			files_done(files);
+			return 1;
+		}
+		*c = 0;
+		m = index(buffer,' ');
+		if( ! m ) {
+			fprintf(stderr,"Malformed line\n");
+			files_done(files);
+			return 1;
+		}
+		*m = 0; m++;
+		files_add(files,buffer,m);
+
+	}
+	files_done(files);
+	return 0;
+}
+
 
 int release(int argc,char *argv[]) {
 	DB *refs;
@@ -643,6 +672,7 @@ struct action {
 	{"release", release},
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
+	{"addmd5sums",addmd5sums },
 	{NULL,NULL}
 };
 
