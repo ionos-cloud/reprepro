@@ -135,7 +135,7 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 					break;
 #endif
 				default:
-					fprintf(stderr,"Error checking!\n");
+					fprintf(stderr,"Error checking (libgpgme returned %d)!\n",status);
 					break;
 			}
 		}
@@ -211,6 +211,10 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			fprintf(stderr,"No signature found within '%s'!\n",releasegpg);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_NONE:
+			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
+"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
+,releasegpg);
+			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
 			fprintf(stderr,"gpgme reported errors checking '%s'!\n",releasegpg);
 			return RET_ERROR_GPGME;
@@ -343,9 +347,22 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 			gpgme_data_release(dh);
 			break;
 		case GPGME_SIG_STAT_DIFF:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"Multiple signatures of different state, which is not yet supported in '%s'!\n",filename);
+			return RET_ERROR_BADSIG;
 		case GPGME_SIG_STAT_NOKEY:
+			if( onlyacceptsigned ) {
+				gpgme_data_release(dh_gpg);
+				gpgme_data_release(dh);
+				fprintf(stderr,"Unknown key involved in'%s'!\n",filename);
+				return RET_ERROR_BADSIG;
+			}
 			if( verbose > -1 ) 
 				fprintf(stderr,"Signature could not be checked or multiple signatures with different states, proceeding anyway...\n");
+			gpgme_data_release(dh_gpg);
+			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
+			break;
 		case GPGME_SIG_STAT_GOOD:
 			gpgme_data_release(dh_gpg);
 			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
@@ -367,10 +384,22 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 			fprintf(stderr,"Signature is valid but the key is expired!\n");
 			return RET_ERROR_BADSIG;
 #endif
+		case GPGME_SIG_STAT_NONE:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"gpgme returned an impossible condition in '%s'!\n"
+"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
+,filename);
+			return RET_ERROR_GPGME;
+		case GPGME_SIG_STAT_ERROR:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"gpgme reported errors checking '%s'!\n",filename);
+			return RET_ERROR_GPGME;
 		default:
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
-			fprintf(stderr,"Error checking the signature within '%s'!\n",filename);
+			fprintf(stderr,"Error checking the signature within '%s' (gpgme gave error code %d)!\n",filename,(int)stat);
 			return RET_ERROR_BADSIG;
 	}
 
