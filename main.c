@@ -937,51 +937,10 @@ static int export(int argc,char *argv[]) {
 }
 
 /***********************update********************************/
-static retvalue checkpackagelists(struct strlist *checksums,
-		/* where to save to file */
-		const char *listname, const char *codename,const char *update, 
-		/* where to get it from */
-		const char *suite_from,
-		/* what parts to get */
-		const struct strlist *components_from,
-		const struct strlist *architectures
-		) {
-	const char *comp,*arch;
-	retvalue result,r;
-	char *name,*totest;
-	int i,j;
-	
-	result = RET_NOTHING;
-	for( i = 0 ; i < components_from->count ; i++ ) {
-		comp = components_from->values[i];
-
-		name = mprintf("%s/source/Sources.gz",comp);
-		totest = mprintf("%s/%s_%s_%s_Sources.gz",listdir,codename,update,comp);
-		r = release_check(checksums,name,totest);
-		free(name); free(totest);
-		RET_UPDATE(result,r);
-
-		
-		for( j = 0 ; j < architectures->count ; j++ ) {
-			arch = architectures->values[j];
-
-			name = mprintf("%s/binary-%s/Packages.gz",comp,arch);
-			totest = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,codename,update,comp,arch);
-			r = release_check(checksums,name,totest);
-			free(name); free(totest);
-			RET_UPDATE(result,r);
-		}
-		
-	}
-	return result;
-}
-
 
 static retvalue fetchupstreamlists(void *data,const char *chunk,const struct distribution *distribution,struct update *update) {
 	retvalue result,r;
 	char *from,*method;
-	char *releasefile,*gpgfile;
-	struct strlist checksums;
 	struct strlist todownload;
 
 	/* * Get the data for the download backend * */
@@ -1005,7 +964,7 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct dis
 	}
 
 	r = updates_calcliststofetch(&todownload,
-			listdir,distribution->codename,update->name,
+			listdir,distribution->codename,update->name,chunk,
 			update->suite_from,
 			&update->components_from,
 			&update->architectures);
@@ -1026,26 +985,9 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct dis
 		return result;
 
 	/* check the given .gpg of Release and the md5sums therein*/
+	r = updates_checkfetchedlists(update,chunk,listdir,distribution->codename);
 
-	releasefile = mprintf("%s/%s_%s_Release",listdir,distribution->codename,update->name);
-	gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,distribution->codename,update->name);
-	r = signature_check(chunk,gpgfile,releasefile);
-	free(gpgfile);
-
-	if( RET_WAS_ERROR(r) ) {
-		free(releasefile);
-		return r;
-	}
-
-	r = release_getchecksums(releasefile,&checksums);
-	free(releasefile);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	result = checkpackagelists(&checksums,listdir,distribution->codename,update->name,update->suite_from,&update->components_from,&update->architectures);
-
-
-	strlist_done(&checksums);
+	RET_ENDUPDATE(result,r);
 	
 	return result;
 }

@@ -32,10 +32,19 @@
 #include "names.h"
 #include "chunks.h"
 #include "strlist.h"
+#include "signature.h"
 #include "updates.h"
 
 extern int verbose;
 
+/* if found in a update-chunk, do no download or check release-files */
+#define IGNORE_RELEASE "NoRelease"
+/* fieldname of the command to check Release.gpg, e.g. 'gpg --trusted-key B629A24C38C6029A --verify' */
+// Should be the same as in signature.c (TODO: where to place it?)
+#define VERIFY_RELEASE "ReleaseCheck"
+
+// TODO: what about other signatures? Is hard-coding ".gpg" sensible?
+//
 
 struct updates_data {
 	const char *updatesfile;
@@ -156,7 +165,7 @@ static retvalue processupdates(void *data,const char *chunk) {
 		return r;
 
 	if( !strlist_in(&d->upstreams,update.name) ) {
-		fprintf(stderr,"skipping '%s' in this run\n",update.name);
+//		fprintf(stderr,"skipping '%s' in this run\n",update.name);
 		free(update.name);
 		return RET_NOTHING;
 	}
@@ -272,7 +281,7 @@ inline static retvalue adddownload(struct strlist *d,char *remote,char *local) {
 
 retvalue updates_calcliststofetch(struct strlist *todownload,
 		/* where to save to file */
-		const char *listdir, const char *codename,const char *update, 
+		const char *listdir, const char *codename,const char *update,const char *updatechunk,
 		/* where to get it from */
 		const char *suite_from,
 		/* what parts to get */
@@ -285,17 +294,24 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 	retvalue r;
 	int i,j;
 
-	toget = mprintf("dists/%s/Release",suite_from);
-	saveas = mprintf("%s/%s_%s_Release",listdir,codename,update);
-	r = adddownload(todownload,toget,saveas);
+	r = chunk_gettruth(updatechunk,IGNORE_RELEASE);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	if( r == RET_NOTHING ) {
+		toget = mprintf("dists/%s/Release",suite_from);
+		saveas = mprintf("%s/%s_%s_Release",listdir,codename,update);
+		r = adddownload(todownload,toget,saveas);
+		if( RET_WAS_ERROR(r) )
+			return r;
 
-	toget = mprintf("dists/%s/Release.gpg",suite_from);
-	saveas = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update);
-	r = adddownload(todownload,toget,saveas);
-	if( RET_WAS_ERROR(r) )
-		return r;
+		// TODO: check if signatures are to be made...
+
+		toget = mprintf("dists/%s/Release.gpg",suite_from);
+		saveas = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update);
+		r = adddownload(todownload,toget,saveas);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	/* * Iterate over components to update * */
 	for( i = 0 ; i < components_from->count ; i++ ) {
@@ -320,4 +336,80 @@ retvalue updates_calcliststofetch(struct strlist *todownload,
 
 	}
 	return RET_OK;
+}
+
+/******************* Check fetched lists for update *********************/
+static retvalue checkpackagelists(struct strlist *checksums,
+		/* where to find the files to test: */
+		const char *listdir, const char *codename,const char *update, 
+		/* where to get it from */
+		const char *suite_from,
+		/* what parts to check */
+		const struct strlist *components_from,
+		const struct strlist *architectures
+		) {
+	const char *comp,*arch;
+	retvalue result,r;
+	char *name,*totest;
+	int i,j;
+	
+	result = RET_NOTHING;
+	for( i = 0 ; i < components_from->count ; i++ ) {
+		comp = components_from->values[i];
+
+		name = mprintf("%s/source/Sources.gz",comp);
+		totest = mprintf("%s/%s_%s_%s_Sources.gz",listdir,codename,update,comp);
+		r = release_check(checksums,name,totest);
+		free(name); free(totest);
+		RET_UPDATE(result,r);
+
+		
+		for( j = 0 ; j < architectures->count ; j++ ) {
+			arch = architectures->values[j];
+
+			name = mprintf("%s/binary-%s/Packages.gz",comp,arch);
+			totest = mprintf("%s/%s_%s_%s_%s_Packages.gz",listdir,codename,update,comp,arch);
+			r = release_check(checksums,name,totest);
+			free(name); free(totest);
+			RET_UPDATE(result,r);
+		}
+		
+	}
+	return result;
+}
+
+
+retvalue updates_checkfetchedlists(const struct update *update,const char *updatechunk,const char *listdir,const char *codename) {
+	char *releasefile,*gpgfile;
+	struct strlist checksums;
+	retvalue r;
+
+	r = chunk_gettruth(updatechunk,IGNORE_RELEASE);
+	if( RET_IS_OK(r) ) {
+		return RET_NOTHING;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( r == RET_NOTHING );
+
+	releasefile = mprintf("%s/%s_%s_Release",listdir,codename,update->name);
+	gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update->name);
+	r = signature_check(updatechunk,gpgfile,releasefile);
+	free(gpgfile);
+
+	if( RET_WAS_ERROR(r) ) {
+		free(releasefile);
+		return r;
+	}
+
+	r = release_getchecksums(releasefile,&checksums);
+	free(releasefile);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = checkpackagelists(&checksums,listdir,codename,update->name,update->suite_from,&update->components_from,&update->architectures);
+
+	strlist_done(&checksums);
+
+	return r;
 }

@@ -26,12 +26,16 @@ retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction
  * (like Packages.gz Sources.gz Release and Release.gpg) */
 retvalue updates_calcliststofetch(struct strlist *todownload,
 		/* where to save to file */
-		const char *listdir, const char *codename,const char *update, 
+		const char *listdir, const char *codename,const char *update,const char *updateschunk,
 		/* where to get it from */
 		const char *suite_from,
 		/* what parts to get */
 		const struct strlist *components_from,
 		const struct strlist *architectures
 		);
+
+/* Check for the files that calcListsToFetch asked to download were downloaded correctly and
+ * are correctly signed. (If the current fields in the updatechunk are available/missing) */
+retvalue updates_checkfetchedlists(const struct update *update,const char *updatechunk,const char *listdir,const char *codename);
 
 #endif
