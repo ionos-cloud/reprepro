@@ -38,35 +38,94 @@
 
 extern int verbose;
 
-/* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,
- * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
-retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
-	retvalue r;
+/* get a strlist with the md5sums of a Release-file */
+retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	gzFile fi;
+	retvalue r;
+	char *chunk;
 	struct strlist files;
-	char *c;
-	char *filename,*md5andsize,*realmd5andsize;
+	char *filename,*md5andsize;
 	int i;
 
-	/* Get the md5sums from the Release-file */
-	
 	fi = gzopen(releasefile,"r");
 	if( !fi ) {
 		fprintf(stderr,"Error opening %s: %m!\n",releasefile);
 		return RET_ERRNO(errno);
 	}
-	c = chunk_read(fi);
+	chunk = chunk_read(fi);
 	gzclose(fi);
-	if( !c ) {
+	if( !chunk ) {
 		fprintf(stderr,"Error reading %s.\n",releasefile);
 		return RET_ERROR;
 	}
-	r = chunk_getextralinelist(c,"MD5Sum",&files);
-	free(c);
+	r = chunk_getextralinelist(chunk,"MD5Sum",&files);
+	free(chunk);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing MD5Sums-field.\n");
+		fprintf(stderr,"Missing MD5Sum-field.\n");
 		return RET_ERROR;
 	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	strlist_init(info);
+	for( i = 0 ; i < files.count ; i++ ) {
+		r = sources_getfile(files.values[i],&filename,&md5andsize);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&files);
+			strlist_done(info);
+			return r;
+		}
+		r = strlist_add(info,filename);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&files);
+			strlist_done(info);
+			return r;
+		}
+		r = strlist_add(info,md5andsize);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&files);
+			strlist_done(info);
+			return r;
+		}
+	}
+	strlist_done(&files);
+	assert( info->count % 2 == 0 );
+
+	return RET_OK;
+}
+
+/* check in fileinfo for <nametocheck> to have md5sum and size <expected> *
+ * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
+retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nametocheck, const char *expected) {
+	int i;
+	const char *filename,*md5andsize;
+
+	for( i = 0 ; i+1 < fileinfos->count ; i+=2 ) {
+		filename = fileinfos->values[i];
+		md5andsize = fileinfos->values[i+1];
+		if( verbose > 20 ) 
+			fprintf(stderr,"is it %s?\n",filename);
+		if( strcmp(filename,nametocheck) == 0 ) {
+			if( verbose > 19 ) 
+				fprintf(stderr,"found. is '%s' == '%s'?\n",md5andsize,expected);
+			if( strcmp(md5andsize,expected) == 0 )
+				return RET_OK;
+			else 
+				return RET_ERROR_WRONG_MD5;
+		}
+	}
+	return RET_NOTHING;
+}
+
+/* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,
+ * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
+retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
+	retvalue r;
+	struct strlist files;
+	char *realmd5andsize;
+
+	/* Get the md5sums from the Release-file */
+	r = release_getchecksums(releasefile,&files);
 	if( !RET_IS_OK(r) )
 		return r;
 	
@@ -77,35 +136,16 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 		return r;
 	}
 
-	r = RET_NOTHING;
-	for( i = 0 ; i < files.count ; i++ ) {
-		r = sources_getfile(files.values[i],&filename,&md5andsize);
-		if( RET_WAS_ERROR(r) )
-			break;
-		if( verbose > 2 ) 
-			fprintf(stderr,"is it %s?\n",filename);
-		if( strcmp(filename,nametocheck) == 0 ) {
-			if( verbose > 1 ) 
-				fprintf(stderr,"found. is '%s' == '%s'?\n",md5andsize,realmd5andsize);
-			if( strcmp(md5andsize,realmd5andsize) == 0 ) {
-				if( verbose > 0 )
-					printf("%s ok\n",nametocheck);
-				free(md5andsize);free(filename);
-				r = RET_OK;
-				break;
-			} else {
-				if( verbose >=0 )
-					fprintf(stderr,"%s failed\n",nametocheck);
-				free(md5andsize);free(filename);
-				r = RET_ERROR_WRONG_MD5;
-				break;
-			}
-		}
-		free(md5andsize);free(filename);
-		r = RET_NOTHING;
+	r = release_searchchecksum(&files,nametocheck,realmd5andsize);
+	if( verbose >=0 ) {
+		if( RET_IS_OK(r) ) 
+			printf("%s ok\n",nametocheck);
+		else if( r == RET_NOTHING )
+			fprintf(stderr,"%s failed as missing\n",nametocheck);
+		else // if( r == RET_ERROR_WRONG_MD5 )
+			fprintf(stderr,"%s failed\n",nametocheck);
 	}
-	if( r==RET_NOTHING && verbose>=0 )
-		fprintf(stderr,"%s failed as missing\n",nametocheck);
+
 	free(realmd5andsize);
 	strlist_done(&files);
 	return r;
@@ -414,7 +454,7 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 	fprintf(f,    "\nComponents: ");
 	strlist_fprint(f,&release->components);
 	fprintf(f,    "\nDescription: %s\n"
-			"MD5Sums:\n",
+			"MD5Sum:\n",
 		release->description);
 
 	/* generate bin/source-Release-files and add md5sums */

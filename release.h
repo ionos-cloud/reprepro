@@ -7,6 +7,12 @@
 #endif
 #include "strlist.h"
 
+/* get a strlist with the md5sums of a Release-file */
+retvalue release_getchecksums(const char *releasefile,struct strlist *info);
+/* check in fileinfo for <nametocheck> to have md5sum and size <expected> *
+ * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
+retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nametocheck, const char *expected);
+	
 /* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,
  * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
 retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck);
