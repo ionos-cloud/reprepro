@@ -391,10 +391,13 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	free(fulldir);
 	if( !newchunk )
 		return RET_ERROR;
-	if( oldchunk != NULL )
+	if( oldchunk != NULL ) {
+		// TODO remove reference from old
 		r = packages_replace(dist->pkgs,package,newchunk);
-	else
+	} else {
+		// TODO: add reference?
 		r = packages_add(dist->pkgs,package,newchunk);
+	}
 	free(newchunk);
 	RET_UPDATE(ret,r);
 	return ret;
@@ -573,7 +576,6 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	/* look for needed files */
 
 	r = files_expect(dist->files,pooldir,filekey,md5andsize);
-
 	if( ! RET_IS_OK(r) ) {
 		printf("Missing file %s\n",filekey);
 		return r;
@@ -583,15 +585,18 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 
 	filewithdir = calc_fullfilename(ppooldir,filekey);
 	if( !filewithdir )
-		return RET_ERROR;
+		return RET_ERROR_OOM;
 	newchunk = chunk_replaceentry(chunk,"Filename",filewithdir);
 	free(filewithdir);
 	if( !newchunk )
 		return RET_ERROR;
-	if( oldchunk != NULL )
+	if( oldchunk != NULL ) {
+		// TODO: remove old reference?
 		r = packages_replace(dist->pkgs,package,newchunk);
-	else
+	} else {
+		// TODO: add reference?
 		r = packages_add(dist->pkgs,package,newchunk);
+	}
 	free(newchunk);
 	return r;
 }
