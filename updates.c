@@ -34,6 +34,7 @@
 #include "names.h"
 #include "chunks.h"
 #include "signature.h"
+#include "md5sum.h"
 #include "aptmethod.h"
 #include "updates.h"
 #include "upgradelist.h"
@@ -941,10 +942,16 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 
 		assert( strlen(index->upstream) > l );
 		if( strcmp(index->upstream+l,origin->checksums.values[i]) == 0 ){
+			retvalue r;
+			const char *md5sum = origin->checksums.values[i+1];
 
-			return aptmethod_queuefile(origin->download,
-				index->upstream,index->filename,
-				origin->checksums.values[i+1],NULL,NULL);
+			r = md5sum_ensure(index->filename,md5sum,FALSE);
+			if( r == RET_NOTHING ) {
+				r = aptmethod_queuefile(origin->download,
+					index->upstream,index->filename,
+					md5sum,NULL,NULL);
+			}
+			return r;
 		}
 		
 	}

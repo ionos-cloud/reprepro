@@ -210,7 +210,6 @@ static retvalue files_calcmd5(char **md5sum,const char *filename) {
 }
 static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char *md5sum) {
 	char *filename;
-	char *realmd5sum;
 	retvalue ret;
 
 	filename = calc_fullfilename(filesdb->mirrordir,filekey);
@@ -218,28 +217,9 @@ static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char
 	if( !filename )
 		return RET_ERROR_OOM;
 
-	ret = files_calcmd5(&realmd5sum,filename);
-	if( RET_IS_OK(ret) ) {
-		if( strcmp(md5sum,realmd5sum) == 0 ) {
-			free(realmd5sum);
-			free(filename);
-			return RET_OK;
-		}
-		fprintf(stderr,"Unknown file \"%s\" has other md5sum (%s) than expected(%s), deleting it!\n",filekey,realmd5sum,md5sum);
-		free(realmd5sum);
-		if( unlink(filename) == 0 ) {
-			free(filename);
-			return RET_NOTHING;
-		}
-		fprintf(stderr,"Could not delete '%s' out of the way!\n",filename);
-		free(filename);
-		return RET_ERROR_WRONG_MD5;
-	}
+	ret = md5sum_ensure(filename,md5sum,TRUE);
 	free(filename);
-	if( ret == RET_ERROR_MISSING )
-		ret = RET_NOTHING;
 	return ret;
-
 }
 
 

@@ -18,4 +18,9 @@ retvalue md5sum_copy(const char *origfilename,const char *destfilename,
 /* same as above, but delete existing files and try to hardlink first. */
 retvalue md5sum_place(const char *origfilename,const char *destfilename, 
 			/*@out@*/char **result);
+/* return RET_OK, if fullfilename is there and has md5sum md5sum,
+ * return RET_NOTHING, if it is not there,
+ * return RET_NOTHING and delete it (and warn if warnifwrong) if it has wrong */
+retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnifwrong);
+
 #endif

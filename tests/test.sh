@@ -189,7 +189,7 @@ diff -u results.expected results
 
 cat >conf/updates <<END
 Name: Test2toTest1
-Method: file:$WORKDIR
+Method: copy:$WORKDIR
 Suite: test2
 Architectures: coal>abacus abacus source
 FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
