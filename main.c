@@ -1002,7 +1002,8 @@ static retvalue fetchupstreamlists(const char *chunk,const struct release *relea
 	retvalue result,r;
 	char *keyname,*component,*destination,*origin;
 	char *config;
-	struct worditerator components;
+	struct strlist components;
+	int i;
 	struct download *download;
 
 	/* * Check which components to update * */
@@ -1011,7 +1012,7 @@ static retvalue fetchupstreamlists(const char *chunk,const struct release *relea
 	if( !keyname )
 		r = RET_ERROR_OOM;
 	else 
-		r = chunk_getworditerator(chunk,keyname,&components);
+		r = chunk_getwordlist(chunk,keyname,&components);
 	if( !RET_IS_OK(r) ) {
 		if( r== RET_NOTHING ) {
 			fprintf(stderr,"Cannot find '%s' line in '%s' specification.\n",keyname,release->codename);
@@ -1033,8 +1034,8 @@ static retvalue fetchupstreamlists(const char *chunk,const struct release *relea
 
 	/* * Iterator over components to update * */
 	result = RET_NOTHING;
-	while( RET_IS_OK(r = chunk_worditerator_get(&components,&component))){
-
+	for( i = 0 ; i < components.count ; i++ ) {
+		component = components.values[i];
 		if( !(destination = strchr(component,'>')) || !*(destination+1))
 			r = fetchupstreamcomponentlists(download,
 					chunk,release,upstream,
@@ -1052,10 +1053,8 @@ static retvalue fetchupstreamlists(const char *chunk,const struct release *relea
 		}
 
 		RET_UPDATE(result,r);
-
-		free(component);
-		chunk_worditerator_next(&components);
 	}
+	strlist_free(&components);
 
 	/* * fire up downloading * */
 
@@ -1075,9 +1074,10 @@ static retvalue fetchupstreamlists(const char *chunk,const struct release *relea
 static retvalue doupdate(void *dummy,const char *chunk,const struct release *release) {
 	retvalue result,r;
 	char *upstream;
-	struct worditerator upstreams;
+	struct strlist upstreams;
+	int i;
 
-	r = chunk_getworditerator(chunk,"Update",&upstreams);
+	r = chunk_getwordlist(chunk,"Update",&upstreams);
 	if( r == RET_NOTHING && verbose > 1 ) {
 		fprintf(stderr,"Ignoring release '%s', as it describes no update\n",release->codename);
 	}
@@ -1087,19 +1087,18 @@ static retvalue doupdate(void *dummy,const char *chunk,const struct release *rel
 	result = RET_NOTHING;
 
 	/* Iteratate over all given upstreams */
-	while( RET_IS_OK( r = chunk_worditerator_get(&upstreams,&upstream) ) ) {
+	for( i = 0 ; i < upstreams.count ; i++ ) {
+		upstream = upstreams.values[i];
 		if( verbose > 0 ) {
 			fprintf(stderr,"Updating '%s':'%s'...\n",release->codename,upstream);
 		}
 
 		r = fetchupstreamlists(chunk,release,upstream);
-		free(upstream);
+		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		
-		chunk_worditerator_next(&upstreams);
 	}
-	RET_UPDATE(result,r);
+	strlist_free(&upstreams);
 
 	return result;
 }

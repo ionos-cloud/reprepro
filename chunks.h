@@ -17,19 +17,12 @@ const char *chunk_getfield(const char *name,const char *chunk);
  * prints an error when not found and adds to the end */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new);
 
-/* worditerator (DEPRECEATED, TODO: remove)*/
-struct worditerator { const char *c; };
-retvalue chunk_worditerator_get(const struct worditerator *iterator,char **word);
-retvalue chunk_worditerator_next(struct worditerator *iterator);
-
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
 retvalue chunk_getfirstword(const char *chunk,const char *name,char **value);
 retvalue chunk_getextralines(const char *chunk,const char *name,char **value);
 retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist);
-
-/* get a word iterator for the given field. DEPRECEATED */
-retvalue chunk_getworditerator(const char *chunk,const char *name,struct worditerator *iterator);
+retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist);
 
 
 typedef retvalue chunkaction(void *data,const char *chunk);

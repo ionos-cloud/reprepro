@@ -321,46 +321,43 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	return RET_OK;
 }
 
+retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist) {
+	retvalue r;
+	const char *f,*b;
+	char *v;
 
-retvalue chunk_worditerator_get(const struct worditerator *iterator,char **word) {
-	const char *p;
-	char *w;
-
-	p = iterator->c;
-	if( !*p || *p == '\n' )
+	f = chunk_getfield(name,chunk);
+	if( !f )
 		return RET_NOTHING;
-	while( *p && !isspace(*p) ) {
-		p++;
+	r = strlist_new(strlist);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	while( *f != '\0' ) {
+		/* walk over spaces */
+		while( *f && isspace(*f) ) {
+			if( *f == '\n' ) {
+				f++;
+				if( *f != ' ' )
+					return RET_OK;
+			} else
+				f++;
+		}
+		if( *f == '\0' )
+			return RET_OK;
+		b = f;
+		/* search for end of word */
+		while( *f && !isspace(*f) )
+			f++;
+		v = strndup(b,f-b);
+		if( !v ) {
+			strlist_free(strlist);
+			return RET_ERROR_OOM;
+		}
+		r = strlist_add(strlist,v);
+		if( !RET_IS_OK(r) ) {
+			strlist_free(strlist);
+			return r;
+		}
 	}
-	w = strndup(iterator->c,p-iterator->c);
-	if( !w )
-		return RET_ERROR_OOM;
-	*word = w;
-	return RET_OK;
-}
-
-retvalue chunk_worditerator_next(struct worditerator *iterator) {
-	const char *c;
-	
-	c = iterator->c;
-	while( *c && !isspace(*c) )
-		c++;
-	while( *c && *c != '\n' && isspace(*c) )
-		c++;
-	iterator->c = c;
-	return RET_OK;
-}
-
-/* get a word iterator for the given field */
-retvalue chunk_getworditerator(const char *chunk,const char *name,struct worditerator *iterator) {
-	const char *field;
-
-	assert(iterator != NULL);
-	field = chunk_getfield(name,chunk);
-	if( !field )
-		return RET_NOTHING;
-	while( *field && isspace(*field) )
-		field++;
-	iterator->c = field;
 	return RET_OK;
 }
