@@ -25,8 +25,12 @@
 #include <assert.h>
 #include "error.h"
 #include "chunks.h"
+#include "names.h"
 
 extern int verbose;
+
+//TODO: this currently only parses \n-seperated files nicely,
+//      when there are \r\n is does stupid things...
 
 /* Call action for each chunk in <filename> */
 retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,int stopwhenok){
@@ -340,12 +344,6 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 	return RET_OK;
 }
 
-static inline int ispkgnamechar(char c) {
-	return  ( c == '+' ) || ( c == '-') || ( c == '.' )
-		|| (( c >= 'a') && ( c <= 'z' ))
-		|| (( c >= '0') && ( c <= '9' ));
-}
-
 /* Parse a package/source-field: ' *value( ?\(version\))? *',
  * where pkgname consists of [-+.a-z0-9]*/
 retvalue chunk_getname(const char *chunk,const char *name,
@@ -358,8 +356,7 @@ retvalue chunk_getname(const char *chunk,const char *name,
 	while( *field && *field != '\n' && isspace(*field) )
 		field++;
 	name_end = field;
-	while( ispkgnamechar(*name_end) )
-		name_end++;
+	names_overpkgname(&name_end);
 	p = name_end;
 	while( *p && *p != '\n' && isspace(*p) )
 		p++;

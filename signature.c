@@ -126,7 +126,7 @@ retvalue signature_sign(const char *chunk,const char *filename) {
 retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
 	char *chunk,*chunk2,*endmarker;
 	gzFile f;
-	int issigned = 0;
+	int issigned = 0, finished = 0;
 	
 	f = gzopen(filename,"r");
 	if( !f ) {
@@ -144,8 +144,10 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
 		// signed, do validations here...
 		free(chunk);
 		chunk = chunk_read(f);
-		if( !chunk )
+		if( !chunk ) {
+			fprintf(stderr,"Missing Control Information in '%s'!\n",filename);
 			return RET_ERROR;
+		}
 	}
 
 	if( issigned ) {
@@ -157,10 +159,12 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
 		}
 	}
 
-	while( (chunk2 = chunk_read(f)) != NULL ) {
+	while( !finished && (chunk2 = chunk_read(f)) != NULL ) {
 		if( strncmp(chunk2,"-----",5) == 0 ) {
 			if( !issigned ) {
 				fprintf(stderr,"Unexpected ----\n");
+			} else {
+				finished = 1;
 			}
 		} else {
 				fprintf(stderr,"Unexpected extra data: '%s'\n",chunk2);

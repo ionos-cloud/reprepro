@@ -12,8 +12,20 @@ char *calc_fullfilename(const char *mirrordir,const char *filekey);
 char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const char *filename);
 char *calc_identifier(const char *codename,const char *component,const char *architecture);
 char *calc_concatmd5andsize(const char *md5sum,const char *size);
+char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend);
 
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,struct strlist *files);
+
+/* move over a valid name of a package. (Who allowed "source(vers)" ??) */
+void names_overpkgname(const char **name_end);
+/* move over a version number */
+void names_overversion(const char **version);
+/* check for a string to be a valid package name */
+retvalue names_checkpkgname(const char *name);
+/* check for a string to be a valid version number */
+retvalue names_checkversion(const char *version);
+/* check for a string to be a valid filename */
+retvalue names_checkbasename(const char *basename);
 
 #endif

@@ -65,23 +65,222 @@ extern int verbose;
  *
  */
 
+typedef	enum { fe_UNKNOWN=0,fe_DEB,fe_UDEB,fe_DSC,fe_DIFF,fe_ORIG,fe_TAR} filetype;
+
+struct fileentry {
+	struct fileentry *next;
+	char *basename;
+	filetype type;
+	char *md5andsize;
+	char *section;
+	char *priority;
+	char *architecture;
+	char *name;
+};
+
 struct changes {
 	/* Things read by changes_read: */
-	char *distribution,*source,
-	     *version;
-	struct strlist architectures,
-		       binaries,
-		       files;
+	char *source, *version;
+	struct strlist distributions,
+		       architectures,
+		       binaries;
+	struct fileentry *files;
 	char *control;
 };
 
+static void freeentries(struct fileentry *entry) {
+	struct fileentry *h;
+
+	while( entry ) {
+		h = entry->next;
+		free(entry->basename);
+		free(entry->md5andsize);
+		free(entry->section);
+		free(entry->priority);
+		free(entry->architecture);
+		free(entry->name);
+		free(entry);
+		entry = h;
+	}
+}
+
 static void changes_free(struct changes *changes) {
 	if( changes != NULL ) {
-		free(changes->distribution);
 		free(changes->source);
 		free(changes->version);
+		strlist_done(&changes->architectures);
+		strlist_done(&changes->binaries);
+		freeentries(changes->files);
+		strlist_done(&changes->distributions);
 	}
 	free(changes);
+}
+
+
+static retvalue newentry(struct fileentry **entry,const char *fileline) {
+	struct fileentry *e;
+	const char *p,*md5start,*md5end;
+	const char *sizestart,*sizeend;
+	const char *sectionstart,*sectionend;
+	const char *priostart,*prioend;
+	const char *filestart,*nameend,*fileend;
+	const char *archstart,*archend;
+	const char *versionstart,*typestart;
+	filetype type;
+
+	p = fileline;
+	while( *p && isspace(*p) )
+		p++;
+	md5start = p;
+	while( *p && !isspace(*p) )
+		p++;
+	md5end = p;
+	while( *p && isspace(*p) )
+		p++;
+	sizestart = p;
+	while( *p && !isspace(*p) )
+		p++;
+	sizeend = p;
+	while( *p && isspace(*p) )
+		p++;
+	sectionstart = p;
+	while( *p && !isspace(*p) )
+		p++;
+	sectionend = p;
+	while( *p && isspace(*p) )
+		p++;
+	priostart = p;
+	while( *p && !isspace(*p) )
+		p++;
+	prioend = p;
+	while( *p && isspace(*p) )
+		p++;
+	filestart = p;
+	while( *p && !isspace(*p) )
+		p++;
+	fileend = p;
+	while( *p && isspace(*p) )
+		p++;
+	if( *p != '\0' ) {
+		fprintf(stderr,"Unexpected sixth argument in '%s'!\n",fileline);
+		return RET_ERROR;
+	}
+	if( *md5start == '\0' || *sizestart == '\0' || *sectionstart == '\0'
+			|| *priostart == '\0' || *filestart == '\0' ) {
+		fprintf(stderr,"Not five arguments in '%s'!\n",fileline);
+		return RET_ERROR;
+	}
+
+	p = filestart;
+	names_overpkgname(&p);
+	if( *p != '_' ) {
+		if( *p == '\0' )
+			fprintf(stderr,"No underscore in filename in '%s'!",fileline);
+		else
+			fprintf(stderr,"Unexpected character '%c' in filename in '%s'\n!",*p,fileline);
+		return RET_ERROR;
+	}
+	nameend = p;
+	p++;
+	versionstart = p;
+	// We cannot say where the version ends and the filename starts,
+	// but as the suffixes would be valid part of the version, too,
+	// this check gets the broken things. 
+	names_overversion(&p);
+	if( *p != '\0' && *p != '_' ) {
+		fprintf(stderr,"Unexpected character '%c' in filename within '%s'!\n",*p,fileline);
+		return RET_ERROR;
+	}
+	if( *p == '_' ) {
+		/* Things having a underscole will have an architecture
+		 * and be either .deb or .udeb */
+		p++;
+		archstart = p;
+		while( *p && *p != '.' )
+			p++;
+		if( *p != '.' ) {
+			fprintf(stderr,"Expect something of the vorm name_version_arch.[u]deb but got '%s'!\n",filestart);
+			return RET_ERROR;
+		}
+		archend = p;
+		p++;
+		typestart = p;
+		while( *p && !isspace(*p) )
+			p++;
+		if( p-typestart == 3 && strncmp(typestart,"deb",3) == 0 )
+			type = fe_DEB;
+		else if( p-typestart == 4 && strncmp(typestart,"udeb",4) == 0 )
+			type = fe_UDEB;
+		else {
+			fprintf(stderr,"'%s' looks neighter like .deb nor like .udeb!\n",filestart);
+			return RET_ERROR;
+		}
+		if( strncmp(archstart,"source",6) == 0 ) {
+			fprintf(stderr,"How can a .[u]deb be architecture 'source'?('%s')\n",filestart);
+			return RET_ERROR;
+		}
+	} else {
+		/* this looks like some source-package, we will have
+		 * to look for the suffix ourself... */
+		while( *p && !isspace(*p) ) {
+			p++;
+		}
+		if( p-versionstart > 12 && strncmp(p-12,".orig.tar.gz",12) == 0 )
+			type = fe_ORIG;
+		else if( p-versionstart > 7 && strncmp(p-7,".tar.gz",7) == 0 )
+			type = fe_TAR;
+		else if( p-versionstart > 8 && strncmp(p-8,".diff.gz",8) == 0 )
+			type = fe_DIFF;
+		else if( p-versionstart > 4 && strncmp(p-4,".dsc",4) == 0 )
+			type = fe_DSC;
+		else {
+			type = fe_UNKNOWN;
+			fprintf(stderr,"Unknown filetype: '%s', assuming to be source format...\n",fileline);
+		}
+		archstart = "source";
+		archend = archstart + 6;
+	}
+	/* now copy all those parts into the structure */
+	e = calloc(1,sizeof(struct fileentry));
+	if( e == NULL )
+		return RET_ERROR_OOM;
+	e->md5andsize = names_concatmd5sumandsize(md5start,md5end,sizestart,sizeend);
+	e->section = strndup(sectionstart,sectionend-sectionstart);
+	e->priority = strndup(priostart,prioend-priostart);
+	e->basename = strndup(filestart,fileend-filestart);
+	e->architecture = strndup(archstart,archend-archstart);
+	e->name = strndup(filestart,nameend-filestart);
+	e->type = type;
+
+	if( !e->basename || !e->md5andsize || !e->section || !e->priority || !e->architecture || !e->name ) {
+		freeentries(e);
+		return RET_ERROR_OOM;
+	}
+	e->next = *entry;
+	*entry = e;
+	return RET_OK;
+}
+
+/* Parse the Files-header to see what kind of files we carry around */
+static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,int force) {
+	retvalue r;
+	int i;
+
+	assert( changes->files == NULL);
+	r = RET_NOTHING;
+
+	for( i = 0 ; i < filelines->count ; i++ ) {
+		const char *fileline = filelines->values[i];
+
+		r = newentry(&changes->files,fileline);
+		if( r == RET_ERROR )
+			return r;
+	}
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"%s: Not enough files in .changes!\n",filename);
+		return RET_ERROR;
+	}
+	return r;
 }
 
 static retvalue check(const char *filename,struct changes *changes,const char *field,int force) {
@@ -99,6 +298,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 static retvalue changes_read(const char *filename,struct changes **changes,int force) {
 	retvalue r;
 	struct changes *c;
+	struct strlist filelines;
 
 #define E(err,param...) { \
 		if( r == RET_NOTHING ) { \
@@ -110,64 +310,113 @@ static retvalue changes_read(const char *filename,struct changes **changes,int f
 			return r; \
 		} \
 	}
+#define C(err,param...) { \
+		if( RET_WAS_ERROR(r) ) { \
+			if( !force ) { \
+				fprintf(stderr,"In '%s': " err "\n",filename , ## param ); \
+				changes_free(c); \
+				return r; \
+			} else { \
+				fprintf(stderr,"Ignoring " err " in '%s' due to --force:\n " err "\n" , ## param , filename); \
+			} \
+		} \
+	}
+#define R { \
+		if( RET_WAS_ERROR(r) ) { \
+			changes_free(c); \
+			return r; \
+		} \
+	}
+			
 		
 	c = calloc(1,sizeof(struct changes));
 	if( c == NULL )
 		return RET_ERROR_OOM;
-
 	r = signature_readsignedchunk(filename,&c->control);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
+	R;
 	r = check(filename,c,"Format",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	
+	R;
 	r = check(filename,c,"Date",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
+	R;
 	r = chunk_getname(c->control,"Source",&c->source,0);
 	E("Missing 'Source' field");
-
+	r = names_checkpkgname(c->source);
+	C("Malforced Source-field");
 	r = chunk_getwordlist(c->control,"Binary",&c->binaries);
 	E("Missing 'Binary' field");
-
 	r = chunk_getwordlist(c->control,"Architecture",&c->architectures);
 	E("Missing 'Architecture' field");
-
 	r = chunk_getvalue(c->control,"Version",&c->version);
 	E("Missing 'Version' field");
-
-	r = chunk_getvalue(c->control,"Distribution",&c->distribution);
+	r = names_checkversion(c->version);
+	C("Malforced Version number");
+	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field");
-
 	r = check(filename,c,"Urgency",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
+	R;
 	r = check(filename,c,"Maintainer",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
+	R;
 	r = check(filename,c,"Description",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
+	R;
 	r = check(filename,c,"Changes",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = chunk_getextralinelist(c->control,"Files",&c->files);
+	R;
+	r = chunk_getextralinelist(c->control,"Files",&filelines);
 	E("Missing 'Files' field");
-
-	r = check(filename,c,"Format",force);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	r = changes_parsefilelines(filename,c,&filelines,force);
+	strlist_done(&filelines);
+	R;
 
 	*changes = c;
 	return RET_OK;
 #undef E
+#undef C
+#undef R
+}
+
+static retvalue changes_check(const char *filename,struct changes *changes,int force) {
+	int i;
+	struct fileentry *e;
+	retvalue r = RET_OK;
+	
+	/* First check for each given architecture, if it has files: */
+	for( i = 0 ; i < changes->architectures.count ; i++ ) {
+		const char *architecture = changes->architectures.values[i];
+		
+		e = changes->files;
+		while( e && strcmp(e->architecture,architecture) != 0 )
+			e = e->next;
+		if( e == NULL ) {
+			fprintf(stderr,"Architecture-header in '%s' lists architecture '%s', but no files for this!\n",filename,architecture);
+			r = RET_ERROR;
+		}
+	}
+	/* Then check for each file, if its architecture is sensible
+	 * and listed. Also look at the section to be valid.*/
+	e = changes->files;
+	while( e ) {
+		if( !strlist_in(&changes->architectures,e->architecture) ) {
+			fprintf(stderr,"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",filename,e->architecture);
+			r = RET_ERROR;
+		}
+
+		if( strcmp(e->section,"unknown") == 0 ) {
+			fprintf(stderr,"'%s': Section is still '%s', ignoring.\n",filename,e->section);
+			free(e->section);
+			e->section = NULL;
+		}
+		if( strcmp(e->section,"-") == 0 || strcmp(e->section,"byhand" ) == 0 ) {
+			free(e->section);
+			e->section = NULL;
+		}
+		if( strcmp(e->priority,"-") == 0 ) {
+			free(e->priority);
+			e->priority = NULL;
+		}
+		
+		e = e->next;
+	}
+
+	return r;
 }
 
 /* insert the given .changes into the mirror in the <distribution>
@@ -180,7 +429,14 @@ retvalue changes_add(const char *dbdir,DB *references,DB *filesdb,const char *mi
 	r = changes_read(changesfilename,&changes,force);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	/* do some tests if values are sensible */
+	r = changes_check(changesfilename,changes,force);
+	if( RET_WAS_ERROR(r) ) {
+		changes_free(changes);
+		return r;
+	}
 
 	// TODO: implement the rest
-	return RET_ERROR;
+	printf("Got Source='%s' Version='%s' Chunk='%s'\n",changes->source,changes->version,changes->control);
+	return RET_OK;
 }

@@ -98,6 +98,21 @@ char *calc_concatmd5andsize(const char *md5sum,const char *size) {
 	return mprintf("%s %s",md5sum,size);
 }
 
+char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend) {
+	char *result;
+
+	result = malloc(2+(md5end-md5start)+(sizeend-sizestart));
+	if( !result)
+		return result;
+	memcpy(result,md5start,(md5end-md5start));
+	result[(md5end-md5start)] = ' ';
+	memcpy(result+(md5end-md5start)+1,sizestart,sizeend-sizestart);
+	result[(md5end-md5start)+1+(sizeend-sizestart)] = '\0';
+	
+	return result;
+
+}
+
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,
 						struct strlist *files) {
@@ -128,4 +143,116 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 	}
 	return r;
 
+}
+
+static inline int ispkgnamechar(char c) {
+// Policy says, only lower case letters are allowed,
+// though dak allows upper case, too. I hope nothing
+// needs them.
+
+	return  ( c == '+' ) || ( c == '-') || ( c == '.' )
+		|| (( c >= 'a') && ( c <= 'z' ))
+		|| (( c >= '0') && ( c <= '9' ));
+}
+
+void names_overpkgname(const char **name_end) {
+	const char *n = *name_end;
+
+	if( ( *n < '0' || *n > '9' ) && ( *n < 'a' || *n > 'z' ) ) {
+		return;
+	}
+	n++;
+
+	while( ispkgnamechar(*n) )
+		n++;
+
+	*name_end = n;
+}
+
+retvalue names_checkpkgname(const char *name) {
+	const char *n = name;
+
+	if( ( *n < '0' || *n > '9' ) && ( *n < 'a' || *n > 'z' ) ) {
+		fprintf(stderr,"Not starting with a lowercase alphanumeric character: '%s'!\n",name);
+		return RET_ERROR;
+	}
+	n++;
+	if( !ispkgnamechar(*n) ) {
+		fprintf(stderr,"Not at least 2 characters long: '%s'!\n",name);
+		return RET_ERROR;
+	}
+	n++;
+
+	while( ispkgnamechar(*n) )
+		n++;
+
+	if( *n != '\0' ) {
+		fprintf(stderr,"Unexpected Character '%c' in '%s'!\n",*n,name);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+void names_overversion(const char **version) {
+	const char *n = *version;
+
+	if( *n < '0' || *n > '9' )
+		return;
+	n++;
+	while( *n >= '0' && *n <= '9' )
+		n++;
+	if( *n == ':' )
+		n++;
+	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
+			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.'
+			|| *n == '-' || *n == '+' )
+		n++;
+	*version = n;
+}
+
+retvalue names_checkversion(const char *version) {
+	const char *n = version;
+// jennifer(dak) uses "^([0-9]+:)?[0-9A-Za-z\.\-\+:]+$", thus explicitly allowing
+// an epoch and having colons in the rest. As those are nasty anyway, we should
+// perhaps forbid them.
+// an epoch, when the version number may use colons seems not very efficient.
+// though also see names_checkbasename for problems with double colons...
+
+	if( *n == '\0' ) {
+		fprintf(stderr,"An empty string is no valid version number!\n");
+		return RET_ERROR;
+	}
+	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
+			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.'
+			|| *n == '-' || *n == '+' || *n == ':' )
+		n++;
+
+	if( *n != '\0' ) {
+		fprintf(stderr,"Unexpected Character '%c' in '%s'!\n",*n,version);
+		return RET_ERROR;
+	}
+	return RET_OK;
+
+}
+
+retvalue names_checkbasename(const char *basename) {
+	const char *n = basename;
+// DAK allows '~', though I do not know, where it could come from...
+// Note that while versions may have colons after the epoch, jennifier
+// rejects files having colons in them, so we do the same...
+
+	if( *n == '\0' ) {
+		fprintf(stderr,"An empty string is no valid filename!\n");
+		return RET_ERROR;
+	}
+	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
+			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.'
+			|| *n == '-' || *n == '+' )
+		n++;
+
+	if( *n != '\0' ) {
+		fprintf(stderr,"Unexpected Character '%c' in '%s'!\n",*n,basename);
+		return RET_ERROR;
+	}
+	return RET_OK;
 }
