@@ -47,6 +47,7 @@ void distribution_free(struct distribution *distribution) {
 		free(distribution->description);
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
+		strlist_done(&distribution->updates);
 		free(distribution);
 	}
 }
@@ -80,6 +81,8 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
 	checkret;
 	ret = chunk_getwordlist(chunk,"Components",&r->components);
+	checkret;
+	ret = chunk_getwordlist(chunk,"Update",&r->updates);
 	checkret;
 
 	*distribution = r;
@@ -181,6 +184,52 @@ retvalue distribution_foreach(const char *conf,int argc,char *argv[],distributio
 	result = chunk_foreach(fn,processdistribution,&mydata,force,0);
 
 	free(fn);
+	return result;
+}
+
+struct distmatch_mydata {struct distribution_filter filter; struct distribution **distributions;};
+
+static retvalue adddistribution(void *d,const char *chunk) {
+	struct distmatch_mydata *mydata = d;
+	retvalue result;
+	struct distribution *distribution;
+
+	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter);
+	if( RET_IS_OK(result) ){
+		distribution->next = *mydata->distributions;
+		*mydata->distributions = distribution;
+	}
+
+	return result;
+}
+
+/* get all dists from <conf> fitting in the filter given in <argc,argv> */
+retvalue distribution_getmatched(const char *conf,int argc,char *argv[],struct distribution **distributions) {
+	retvalue result;
+	char *fn;
+	struct distmatch_mydata mydata;
+	struct distribution *d = NULL;
+
+	mydata.filter.count = argc;
+	mydata.filter.dists = (const char**)argv;
+	mydata.distributions = &d;
+	
+	fn = calc_dirconcat(conf,"distributions");
+	if( !fn ) 
+		return RET_ERROR_OOM;
+	
+	result = chunk_foreach(fn,adddistribution,&mydata,0,0);
+	free(fn);
+
+	if( RET_IS_OK(result) ) {
+		*distributions = d;
+	} else 
+		while( d ) {
+			struct distribution *next = d->next;
+			distribution_free(d);
+			d = next;
+		}
+	
 	return result;
 }
 

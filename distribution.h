@@ -13,17 +13,16 @@
 #endif
 
 struct distribution {
+	struct distribution *next;
 	char *codename,*suite,*version;
 	char *origin,*label,*description;
-	struct strlist architectures,components;
+	struct strlist architectures,components,updates;
 };
 
 
 retvalue distribution_get(struct distribution **distribution,const char *conf,const char *name);
 void distribution_free(struct distribution *distribution);
 
-typedef retvalue distribution_each_source_action(void *data, const char *component);
-typedef retvalue distribution_each_binary_action(void *data, const char *component, const char *arch);
 typedef retvalue distribution_each_action(void *data, const target t);
 
 /* call <action> for each part of <distribution>. */
@@ -33,5 +32,8 @@ typedef retvalue distributionaction(void *data,const char *chunk,const struct di
 
 /* call <action> for each distribution-chunk from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_foreach(const char *conf,int argc,char *argv[],distributionaction action,void *data,int force);
+
+/* get all dists from <conf> fitting in the filter given in <argc,argv> */
+retvalue distribution_getmatched(const char *conf,int argc,char *argv[],struct distribution **distributions);
 
 #endif
