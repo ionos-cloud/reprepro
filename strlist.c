@@ -61,6 +61,8 @@ bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset
 retvalue strlist_init_n(int startsize,struct strlist *strlist) {
 	assert(strlist != NULL && startsize >= 0);
 
+	if( startsize == 0 )
+		startsize = 1;
 	strlist->count = 0;
 	strlist->size = startsize;
 	strlist->values = malloc(startsize*sizeof(char *));

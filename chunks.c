@@ -48,6 +48,8 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 	while( (ret = chunk_read(f,&chunk)) == RET_OK ) {
 		ret = action(data,chunk);
 
+		// in this one a segfault was reported, where did
+		// it come from?
 		free(chunk);
 
 		if( RET_WAS_ERROR(ret) && force <= 0 ) {
@@ -87,19 +89,25 @@ retvalue chunk_read(gzFile f,char **chunk) {
 		if( without == 0 ) {
 			/* ignore leading newlines... */
 			bhead = buffer;
-			already = without;
+			already = 0;
 			continue;
 		}
 		l = strlen(bhead);
 		/* if we are after a newline, and have a new newline,
 		 * and only '\r' in between, then return the chunk: */
-		if( afternewline && without < already && bhead[l-1] == '\n' ) {
+		if( afternewline && without < already && l!=0 && bhead[l-1] == '\n' ) {
 			break;
 		}
 		already += l;
-		afternewline = bhead[l-1] == '\n';
+		if( l != 0 ) // a bit of parania...
+			afternewline = bhead[l-1] == '\n';
 		if( size-already < 1024 ) {
 			char *n;
+			if( size >= 513*1024*1024 ) {
+				fprintf(stderr,"Will not process chunks larger than half a gigabyte!\n");
+				free(buffer);
+				return RET_ERROR;
+			}
 			size *= 2;
 			n = realloc(buffer,size);
 			if( n == NULL ) {
@@ -448,6 +456,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	size_t size,len_beforethis;
 	const struct fieldtoadd *f;
 	retvalue result;
+	size_t i;
 
 	assert( chunk != NULL && beforethis != NULL );
 
@@ -460,13 +469,17 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	size = 1+ strlen(c);
 	f = toadd;
 	while( f ) {
-		size += 3 + f->len_field + f->len_data;
+		if( f->data != NULL )
+			size += 3 + f->len_field + f->len_data;
 		f = f->next;
 	}
 
-	newchunk = n = malloc(size);
+	newchunk = n = malloc(size+64);
 	if( n == NULL )
 		return NULL;
+	for( i = size ; i < size+64 ; i++ ) {
+		n[i] = 3;
+	}
 
 	len_beforethis = strlen(beforethis);
 
@@ -512,6 +525,8 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 		/* copy it, if it is not to be ignored */
 
 		if( f == NULL && ce-c > 0) {
+			// There are reports this might overwrite something,
+			// though I neighter now how not why.
 			memcpy(n,c,ce-c);
 			n += ce-c;
 		}
@@ -522,6 +537,12 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	} while( *c != '\0' && *c != '\n' );
 
 	*n = '\0';
+
+	// If the problem is here, I want to know it!
+	assert( n-newchunk <= size-1 );
+	for( i = size ; i < size+64 ; i++ ) {
+		assert( newchunk[i] == 3 );
+	}
 
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,chunk);
