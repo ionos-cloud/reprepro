@@ -1,4 +1,5 @@
 TODO:
 	add adding uploads (via .changes, by .dsc and by .deb)
+	add automated updating of distributions
 	add searching for packages
 	add easier removing of single packages
