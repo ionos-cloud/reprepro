@@ -61,6 +61,7 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*dbdir = STD_BASE_DIR "/db",
 	*listdir = STD_BASE_DIR "/lists",
 	*confdir = STD_BASE_DIR "/conf",
+	*overridedir = STD_BASE_DIR "/override",
 	*methoddir = "/usr/lib/apt/methods" ,
 	*section = NULL,
 	*priority = NULL,
@@ -774,7 +775,7 @@ static int includedeb(int argc,const char *argv[]) {
 
 	override = NULL;
 	if( distribution->override != NULL ) {
-		result = override_read(distribution->override,&override);
+		result = override_read(overridedir,distribution->override,&override);
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
@@ -837,7 +838,7 @@ static int includedsc(int argc,const char *argv[]) {
 	}
 	srcoverride = NULL;
 	if( distribution->srcoverride != NULL ) {
-		result = override_read(distribution->srcoverride,&srcoverride);
+		result = override_read(overridedir,distribution->srcoverride,&srcoverride);
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
@@ -885,7 +886,7 @@ static int includechanges(int argc,const char *argv[]) {
 	}
 	override = NULL;
 	if( distribution->override != NULL ) {
-		result = override_read(distribution->override,&override);
+		result = override_read(overridedir,distribution->override,&override);
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
@@ -894,7 +895,7 @@ static int includechanges(int argc,const char *argv[]) {
 	}
 	srcoverride = NULL;
 	if( distribution->srcoverride != NULL ) {
-		result = override_read(distribution->srcoverride,&srcoverride);
+		result = override_read(overridedir,distribution->srcoverride,&srcoverride);
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
@@ -968,6 +969,7 @@ int main(int argc,char *argv[]) {
 		{"distdir", 1, 0, 'd'},
 		{"dbdir", 1, 0, 'D'},
 		{"listdir", 1, 0, 'L'},
+		{"overridedir", 1, 0, 'o'},
 		{"confdir", 1, 0, 'c'},
 		{"section", 1, 0, 'S'},
 		{"priority", 1, 0, 'P'},
@@ -999,6 +1001,7 @@ int main(int argc,char *argv[]) {
 " -D, --dbdir <dir>:      Directory to place the database in.\n"
 " -L, --listdir <dir>:    Directory to place downloaded lists in.\n"
 " -c, --confdir <dir>:    Directory to search configuration in.\n"
+" -o, --overridedir <dir>:Directory to search override files in.\n"
 " -M, --methodir <dir>:   Use instead of /usr/lib/apt/methods/\n"
 " -S, --section <section>: Force include* to set section.\n"
 " -P, --priority <priority>: Force include* to set priority.\n"
@@ -1032,6 +1035,8 @@ int main(int argc,char *argv[]) {
 "       Inlcude the given binary package.\n"
 " includedsc <distribution> <.dsc-file>\n"
 "       Inlcude the given source package.\n"
+" list <distribution> <package-name>\n"
+"       List all packages by the given name occuring in the given distribution.\n"
 "\n"
 						);
 				exit(0);
@@ -1057,6 +1062,7 @@ int main(int argc,char *argv[]) {
 				dbdir=calc_dirconcat(optarg,"db");
 				listdir=calc_dirconcat(optarg,"lists");
 				confdir=calc_dirconcat(optarg,"conf");
+				overridedir=calc_dirconcat(optarg,"override");
 				break;
 			case 'i':
 				incommingdir = strdup(optarg);
@@ -1072,6 +1078,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'L':
 				listdir = strdup(optarg);
+				break;
+			case 'o':
+				overridedir = strdup(optarg);
 				break;
 			case 'c':
 				confdir = strdup(optarg);
