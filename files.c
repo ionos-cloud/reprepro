@@ -57,7 +57,7 @@ DB *files_initialize(const char *dbpath) {
 	}
 	if ((dbret = dbp->open(dbp, filename, "md5sums", DB_BTREE, DB_CREATE, 0664)) != 0) {
 		dbp->err(dbp, dbret, "%s", filename);
-		dbp->close(dbp,0);
+		(void)dbp->close(dbp,0);
 		free(filename);
 		return NULL;
 	}

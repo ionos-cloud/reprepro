@@ -32,7 +32,7 @@ int strlist_in(const struct strlist *strlist,const char *element) {
 
 	c = strlist->count; 
 	t = strlist->values;
-	while( c-- ) {
+	while( c-- != 0 ) {
 		if( strcmp(*(t++),element) == 0 )
 			return 1;
 	}
@@ -57,9 +57,8 @@ void strlist_done(struct strlist *strlist) {
 
 	c = strlist->count; 
 	t = strlist->values;
-	while( c-- ) {
-		if( *t )
-			free(*t);
+	while( c-- != 0 ) {
+		free(*t);
 		t++;
 	}
 	free(strlist->values);
@@ -88,19 +87,21 @@ retvalue strlist_add(struct strlist *strlist, char *element) {
 retvalue strlist_fprint(FILE *file,const struct strlist *strlist) {
 	int c;
 	char **p;
+	retvalue result;
 
 	assert(strlist != NULL);
 	assert(file != NULL);
 
 	c = strlist->count;
 	p = strlist->values;
+	result = RET_OK;
 	while( c > 0 ) {
-		fputs(*(p++),file);
-		if( --c > 0 ) {
-			fputc(' ',file);
-		}
+		if( fputs(*(p++),file) == EOF )
+			result = RET_ERROR;
+		if( --c > 0 && fputc(' ',file) == EOF )
+			result = RET_ERROR;
 	}
-	return RET_OK;
+	return result;
 }
 
 /* duplicate with content */

@@ -43,18 +43,19 @@
 #endif
 
 /* global options */
+static 
 char 	*incommingdir = STD_BASE_DIR "/incomming",
 	*mirrordir = STD_BASE_DIR ,
 	*distdir = STD_BASE_DIR "/dists",
 	*dbdir = STD_BASE_DIR "/db",
 	*listdir = STD_BASE_DIR "/lists",
 	*confdir = STD_BASE_DIR "/conf";
-int 	local = 0;
-int	verbose = 0;
-int	force = 0;
-int	nothingiserror = 0;
+static int	local = 0;
+static int	force = 0;
+static int	nothingiserror = 0;
+int		verbose = 0;
 
-int printargs(int argc,char *argv[]) {
+static int printargs(int argc,char *argv[]) {
 	int i;
 
 	fprintf(stderr,"argc: %d\n",argc);
@@ -64,37 +65,48 @@ int printargs(int argc,char *argv[]) {
 	return 0;
 }
 
-int addmd5sums(int argc,char *argv[]) {
+static int addmd5sums(int argc,char *argv[]) {
 	char buffer[2000],*c,*m;
 	DB *files;
+	retvalue result,r;
+
+	if( argc != 1 ) {
+		fprintf(stderr,"mirrorer addmd5sums < <data>\n");
+		return 1;
+	}
 
 	files = files_initialize(dbdir);
 	if( !files )
 		return 1;
+
+	result = RET_NOTHING;
+	
 	while( fgets(buffer,1999,stdin) != NULL ) {
 		c = index(buffer,'\n');
 		if( ! c ) {
 			fprintf(stderr,"Line too long\n");
-			files_done(files);
+			(void)files_done(files);
 			return 1;
 		}
-		*c = 0;
+		*c = '\0';
 		m = index(buffer,' ');
 		if( ! m ) {
 			fprintf(stderr,"Malformed line\n");
-			files_done(files);
+			(void)files_done(files);
 			return 1;
 		}
-		*m = 0; m++;
-		files_add(files,buffer,m);
+		*m = '\0'; m++;
+		r = files_add(files,buffer,m);
+		RET_UPDATE(result,r);
 
 	}
-	files_done(files);
-	return 0;
+	r = files_done(files);
+	RET_ENDUPDATE(result,r);
+	return EXIT_RET(result);
 }
 
 
-int removereferences(int argc,char *argv[]) {
+static int removereferences(int argc,char *argv[]) {
 	DB *refs;
 	retvalue ret,r;
 
@@ -112,7 +124,7 @@ int removereferences(int argc,char *argv[]) {
 }
 
 
-int dumpreferences(int argc,char *argv[]) {
+static int dumpreferences(int argc,char *argv[]) {
 	DB *refs;
 	retvalue result,r;
 
@@ -131,7 +143,7 @@ int dumpreferences(int argc,char *argv[]) {
 
 struct fileref { DB *files,*refs; };
 
-retvalue checkifreferenced(void *data,const char *filekey,const char *md5andsize) {
+static retvalue checkifreferenced(void *data,const char *filekey,const char *md5andsize) {
 	struct fileref *dist = data;
 	retvalue r;
 
@@ -145,7 +157,7 @@ retvalue checkifreferenced(void *data,const char *filekey,const char *md5andsize
 		return r;
 }
 
-int dumpunreferenced(int argc,char *argv[]) {
+static int dumpunreferenced(int argc,char *argv[]) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -158,7 +170,7 @@ int dumpunreferenced(int argc,char *argv[]) {
 		return 1;
 	dist.files = files_initialize(dbdir);
 	if( ! dist.files ) {
-		references_done(dist.refs);
+		(void)references_done(dist.refs);
 		return 1;
 	}
 	result = files_foreach(dist.files,checkifreferenced,&dist);
@@ -169,7 +181,7 @@ int dumpunreferenced(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5andsize) {
+static retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5andsize) {
 	struct fileref *dist = data;
 	retvalue r;
 	char *filename;
@@ -198,7 +210,7 @@ retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5ands
 		return r;
 }
 
-int deleteunreferenced(int argc,char *argv[]) {
+static int deleteunreferenced(int argc,char *argv[]) {
 	retvalue result,r;
 	struct fileref dist;
 
@@ -211,7 +223,7 @@ int deleteunreferenced(int argc,char *argv[]) {
 		return 1;
 	dist.files = files_initialize(dbdir);
 	if( ! dist.files ) {
-		references_done(dist.refs);
+		(void)references_done(dist.refs);
 		return 1;
 	}
 	result = files_foreach(dist.files,deleteifunreferenced,&dist);
@@ -222,7 +234,7 @@ int deleteunreferenced(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-int addreference(int argc,char *argv[]) {
+static int addreference(int argc,char *argv[]) {
 	DB *refs;
 	retvalue result,r;
 
@@ -240,7 +252,7 @@ int addreference(int argc,char *argv[]) {
 }
 
 
-int exportpackages(int argc,char *argv[]) {
+static int exportpackages(int argc,char *argv[]) {
 	retvalue result;
 
 	if( argc != 3 ) {
@@ -252,7 +264,7 @@ int exportpackages(int argc,char *argv[]) {
 }
 
 
-int zexportpackages(int argc,char *argv[]) {
+static int zexportpackages(int argc,char *argv[]) {
 	retvalue result;
 
 	if( argc != 3 ) {
@@ -263,7 +275,7 @@ int zexportpackages(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-int removepackage(int argc,char *argv[]) {
+static int removepackage(int argc,char *argv[]) {
 	retvalue result,r;
 	DB *pkgs,*refs;
 	int i;
@@ -278,7 +290,7 @@ int removepackage(int argc,char *argv[]) {
 		return 1;
 	pkgs = packages_initialize(dbdir,argv[1]);
 	if( ! pkgs ) {
-		references_done(refs);
+		(void)references_done(refs);
 		return 1;
 	}
 	
@@ -320,7 +332,7 @@ struct referee {
 
 /**********************************referencebinaries**********************/
 
-retvalue reference_binary(void *data,const char *package,const char *chunk) {
+static retvalue reference_binary(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
 	char *filekey;
 	retvalue r;
@@ -338,7 +350,7 @@ retvalue reference_binary(void *data,const char *package,const char *chunk) {
 	return r;
 }
 
-int referencebinaries(int argc,char *argv[]) {
+static int referencebinaries(int argc,char *argv[]) {
 	retvalue result,r;
 	struct referee dist;
 	DB *pkgs;
@@ -347,13 +359,13 @@ int referencebinaries(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer referencebinaries <identifier>\n");
 		return 1;
 	}
-	dist.identifier = argv[1];
 	dist.refs = references_initialize(dbdir);
+	dist.identifier = argv[1];
 	if( ! dist.refs )
 		return 1;
 	pkgs = packages_initialize(dbdir,dist.identifier);
 	if( ! pkgs ) {
-		references_done(dist.refs);
+		(void)references_done(dist.refs);
 		return 1;
 	}
 	result = packages_foreach(pkgs,reference_binary,&dist,force);
@@ -368,7 +380,7 @@ int referencebinaries(int argc,char *argv[]) {
 /**********************************referencesources**********************/
 
 
-retvalue reference_source(void *data,const char *package,const char *chunk) {
+static retvalue reference_source(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
 	char *dir,*version;
 	struct strlist files;
@@ -390,7 +402,7 @@ retvalue reference_source(void *data,const char *package,const char *chunk) {
 	return r;
 }
 
-int referencesources(int argc,char *argv[]) {
+static int referencesources(int argc,char *argv[]) {
 	retvalue result,r;
 	struct referee dist;
 	DB *pkgs;
@@ -399,15 +411,15 @@ int referencesources(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer referencesources <identifier>\n");
 		return 1;
 	}
-	dist.identifier = argv[1];
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
 		return 1;
 	pkgs = packages_initialize(dbdir,argv[1]);
 	if( ! pkgs ) {
-		references_done(dist.refs);
+		(void)references_done(dist.refs);
 		return 1;
 	}
+	dist.identifier = argv[1];
 	result = packages_foreach(pkgs,reference_source,&dist,force);
 
 	r = packages_done(pkgs);
@@ -426,7 +438,7 @@ struct distribution {
 
 /***********************************addsources***************************/
 
-retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
+static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
@@ -461,7 +473,9 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	}
 
 	/* after all is there, reference it */
-	sources_reference(dist->refs,dist->referee,package,version,directory,files);
+	r = sources_reference(dist->refs,dist->referee,package,version,directory,files);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	/* Add package to distribution's database */
 
@@ -487,7 +501,7 @@ retvalue add_source(void *data,const char *chunk,const char *package,const char 
 	return result;
 }
 
-int addsources(int argc,char *argv[]) {
+static int addsources(int argc,char *argv[]) {
 	int i;
 	retvalue result,r;
 	struct distribution dist;
@@ -496,22 +510,22 @@ int addsources(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer addsources <identifier> <component> <Sources-files>\n");
 		return 1;
 	}
+
 	dist.referee = argv[1];
 	dist.component = argv[2];
-
 	dist.files = files_initialize(dbdir);
 	if( ! dist.files ) {
 		return 1;
 	}
 	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
-		files_done(dist.files);
+		(void)files_done(dist.files);
 		return 1;
 	}
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs ) {
-		files_done(dist.files);
-		packages_done(dist.pkgs);
+		(void)files_done(dist.files);
+		(void)packages_done(dist.pkgs);
 		return 1;
 	}
 	result = RET_NOTHING;
@@ -529,7 +543,7 @@ int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
+static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *olddirectory,const struct strlist *files,const char *oldchunk) {
 	retvalue r,ret;
 	struct distribution *dist = (struct distribution*)data;
 	char *dn;
@@ -568,7 +582,7 @@ retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package
 	return ret;
 }
 
-int prepareaddsources(int argc,char *argv[]) {
+static int prepareaddsources(int argc,char *argv[]) {
 	int i;
 	retvalue r,result;
 	struct distribution dist;
@@ -577,8 +591,10 @@ int prepareaddsources(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer prepareaddsources <identifier> <component> <Sources-files>\n");
 		return 1;
 	}
+
 	dist.referee = argv[1];
 	dist.component = argv[2];
+	dist.refs = NULL;
 
 	dist.files = files_initialize(dbdir);
 	if( ! dist.files ) {
@@ -586,10 +602,10 @@ int prepareaddsources(int argc,char *argv[]) {
 	}
 	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
-		files_done(dist.files);
+		(void)files_done(dist.files);
 		return 1;
 	}
-	dist.refs = NULL;
+
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
 		r = sources_add(dist.pkgs,dist.component,argv[i],showmissingsourcefiles,&dist,force);
@@ -604,7 +620,7 @@ int prepareaddsources(int argc,char *argv[]) {
 
 /****************************prepareaddpackages*******************************************/
 
-retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+static retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	retvalue r;
 	struct distribution *dist = (struct distribution*)data;
 	char *fn;
@@ -617,6 +633,7 @@ retvalue showmissing(void *data,const char *chunk,const char *package,const char
 	if( r == RET_NOTHING ) {
 		/* look for directory */
 		if( (fn = calc_fullfilename(mirrordir,filekey))) {
+			//TODO: what to do if fails?
 			make_parent_dirs(fn);
 			free(fn);
 		}
@@ -627,7 +644,7 @@ retvalue showmissing(void *data,const char *chunk,const char *package,const char
 	return RET_NOTHING;
 }
 
-int prepareaddpackages(int argc,char *argv[]) {
+static int prepareaddpackages(int argc,char *argv[]) {
 	int i;
 	retvalue r,result;
 	struct distribution dist;
@@ -636,6 +653,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer prepareaddpackages <identifier> <component> <Packages-files>\n");
 		return 1;
 	}
+
 	dist.referee = argv[1];
 	dist.component = argv[2];
 
@@ -645,10 +663,12 @@ int prepareaddpackages(int argc,char *argv[]) {
 	}
 	dist.pkgs = packages_initialize(dbdir,dist.referee);
 	if( ! dist.pkgs ) {
-		files_done(dist.files);
+		(void)files_done(dist.files);
 		return 1;
 	}
+
 	dist.refs = NULL;
+
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
 		r = binaries_add(dist.pkgs,dist.component,argv[i],showmissing,&dist,force);
@@ -663,7 +683,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 
 /***********************************addpackages*******************************************/
 
-retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+static retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
 	char *newchunk;
 	retvalue result,r;
 	struct distribution *dist = (struct distribution*)data;
@@ -713,7 +733,7 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 }
 
 
-int addpackages(int argc,char *argv[]) {
+static int addpackages(int argc,char *argv[]) {
 	int i;
 	retvalue r,result;
 	struct distribution dist;
@@ -728,13 +748,13 @@ int addpackages(int argc,char *argv[]) {
 	}
 	dist.pkgs = packages_initialize(dbdir,argv[1]);
 	if( ! dist.pkgs ) {
-		files_done(dist.files);
+		(void)files_done(dist.files);
 		return 1;
 	}
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs ) {
-		files_done(dist.files);
-		packages_done(dist.pkgs);
+		(void)files_done(dist.files);
+		(void)packages_done(dist.pkgs);
 		return 1;
 	}
 	dist.referee = argv[1];
@@ -753,7 +773,7 @@ int addpackages(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-int detect(int argc,char *argv[]) {
+static int detect(int argc,char *argv[]) {
 	DB *files;
 	char buffer[5000],*nl;
 	int i;
@@ -773,7 +793,7 @@ int detect(int argc,char *argv[]) {
 		while( fgets(buffer,4999,stdin) ) {
 			nl = index(buffer,'\n');
 			if( !nl ) {
-				files_done(files);
+				(void)files_done(files);
 				return 1;
 			}
 			*nl = '\0';
@@ -785,7 +805,7 @@ int detect(int argc,char *argv[]) {
 	return EXIT_RET(ret);
 }
 
-int forget(int argc,char *argv[]) {
+static int forget(int argc,char *argv[]) {
 	DB *files;
 	char buffer[5000],*nl;
 	int i;
@@ -805,7 +825,7 @@ int forget(int argc,char *argv[]) {
 		while( fgets(buffer,4999,stdin) ) {
 			nl = index(buffer,'\n');
 			if( !nl ) {
-				files_done(files);
+				(void)files_done(files);
 				return 1;
 			}
 			*nl = '\0';
@@ -817,7 +837,7 @@ int forget(int argc,char *argv[]) {
 	return EXIT_RET(ret);
 }
 
-int md5sums(int argc,char *argv[]) {
+static int md5sums(int argc,char *argv[]) {
 	DB *files;
 	char *filename,*md;
 	retvalue ret,r;
@@ -852,7 +872,7 @@ int md5sums(int argc,char *argv[]) {
 	}
 }
 
-int checkrelease(int argc,char *argv[]) {
+static int checkrelease(int argc,char *argv[]) {
 	retvalue result;
 	
 	if( argc != 4 ) {
@@ -959,7 +979,7 @@ static retvalue doexport(void *dummy,const char *chunk,const struct release *rel
 	return result;
 }
 
-int export(int argc,char *argv[]) {
+static int export(int argc,char *argv[]) {
 	retvalue result;
 
 	if( argc < 1 ) {
@@ -1160,7 +1180,7 @@ static retvalue fetchupstreamlists(void *data,const char *chunk,const struct rel
 	return result;
 }
 
-int update(int argc,char *argv[]) {
+static int update(int argc,char *argv[]) {
 	retvalue result;
 
 	if( argc < 1 ) {
@@ -1272,11 +1292,11 @@ static retvalue rereference_dist(void *data,const char *chunk,const struct relea
 	dat.references = data;
 
 	result = release_foreach_part(release,rerefsrc,rerefbin,&dat);
-	
+
 	return result;
 }
 
-int rereference(int argc,char *argv[]) {
+static int rereference(int argc,char *argv[]) {
 	retvalue result,r;
 	DB *refs;
 
@@ -1300,7 +1320,7 @@ int rereference(int argc,char *argv[]) {
 struct data_binsrccheck { const struct release *release; DB *references; DB *files; const char *identifier;};
 
 
-retvalue check_binary(void *data,const char *package,const char *chunk) {
+static retvalue check_binary(void *data,const char *package,const char *chunk) {
 	struct data_binsrccheck *d = data;
 	char *filekey;
 	retvalue r;
@@ -1349,7 +1369,7 @@ static retvalue checkbin(void *data,const char *component,const char *architectu
 	return result;
 }
 
-retvalue check_source(void *data,const char *package,const char *chunk) {
+static retvalue check_source(void *data,const char *package,const char *chunk) {
 	struct data_binsrccheck *d = data;
 	char *dir,*filekey,*basefilename,*md5andsize;
 	char *version,*identifier;
@@ -1455,7 +1475,7 @@ static retvalue check_dist(void *data,const char *chunk,const struct release *re
 	return result;
 }
 
-int check(int argc,char *argv[]) {
+static int check(int argc,char *argv[]) {
 	retvalue result,r;
 	struct data_binsrccheck dat;
 
@@ -1472,7 +1492,7 @@ int check(int argc,char *argv[]) {
 	dat.files = files_initialize(dbdir);
 
 	if( ! dat.files ) {
-		references_done(dat.references);
+		(void)references_done(dat.references);
 		return 1;
 	}
 	
@@ -1489,7 +1509,7 @@ int check(int argc,char *argv[]) {
 /* argument handling */
 /*********************/
 
-struct action {
+static struct action {
 	char *name;
 	int (*start)(int argc,char *argv[]);
 } actions[] = {
@@ -1586,7 +1606,6 @@ int main(int argc,char *argv[]) {
 "\n"
 						);
 				exit(0);
-				break;
 			case 'l':
 				local = 1;
 				break;
@@ -1627,12 +1646,12 @@ int main(int argc,char *argv[]) {
 				break;
 			default:
 				fprintf (stderr,"Not supported option '-%c'\n", c);
-				exit(1);
+				exit(EXIT_FAILURE);
 		}
 	}
 	if( optind >= argc ) {
 		fprintf(stderr,"No action given. (see --help for available options and actions)\n");
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	a = actions;

@@ -7,7 +7,12 @@
 #endif
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **basename,char **md5andsize);
+retvalue binaries_parse_chunk(const char *chunk,
+                    	char **packagename,
+                    	char **origfilename,
+                    	char **sourcename,
+                    	char **basename,
+                    	char **md5andsize);
 
 /* the type of a action for binaries_add */
 typedef retvalue binary_package_action(

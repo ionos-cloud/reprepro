@@ -47,7 +47,8 @@ retvalue download_initialize(struct download **download,const char *method,const
 	}
 		fprintf(stderr,"Executed '%s': %m\n",method);
 
-	if( *config ) {
+	if( *config != '\0' ) {
+		// TODO: check return
 		fputs(config,pipe);
 		fputc('\n',pipe);
 	}

@@ -11,7 +11,7 @@
 DB *files_initialize(const char *dbpath);
 
 /* release the files-database initialized got be files_initialize */
-retvalue files_done(DB *db);
+retvalue files_done( DB *db);
 
 /* Add file's md5sum to database */
 retvalue files_add(DB *filesdb,const char *filekey,const char *md5sum_and_size);

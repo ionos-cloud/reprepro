@@ -192,6 +192,7 @@ static retvalue addbinary(void *data,const char *chunk) {
 			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
 			free(md5andsize);free(origfile);free(package);
 			free(sourcename);free(basename);
+			free(oldchunk);
 			return RET_ERROR;
 		}
 	}

@@ -28,12 +28,13 @@
 #include "md5sum.h"
 #include "md5.h"
 
-static retvalue md5sumAndSize(char *result,off_t *size,const char *filename,ssize_t bufsize){
+static retvalue md5sumAndSize(char *result,off_t *size,const char *filename,size_t bufsize){
 
 	struct MD5Context context;
 	unsigned char *buffer;
 	ssize_t sizeread;
-	int fd,i;
+	int fd;
+	unsigned i;
 	struct stat stat;
 static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 
@@ -46,7 +47,7 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 
 	if( size ) {
 		if( fstat(fd,&stat) != 0) {
-			close(fd);
+			(void)close(fd);
 			return RET_ERROR;
 		}
 		*size = stat.st_size;
@@ -58,7 +59,7 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 	buffer = malloc(bufsize);
 
 	if( ! buffer ) {
-		close(fd);
+		(void)close(fd);
 		return RET_ERROR_OOM;
 	}
 	
@@ -67,7 +68,7 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 		sizeread = read(fd,buffer,bufsize);
 		if( sizeread < 0 ) {
 			free(buffer);
-			close(fd);
+			(void)close(fd);
 			return RET_ERROR;
 		}
 		if( sizeread > 0 )

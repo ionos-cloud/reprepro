@@ -26,13 +26,15 @@
 
 extern int verbose;
 
+//TODO: rewrite with retvalue return values...
+
 /* create directory dirname. returns 0 on success or if already existing, -1 otherwise */
 static int check_dir(const char *dirname) {
 	int ret;
 
 	ret = mkdir(dirname,0775);
 	if( ret == 0 ) {
-		if( verbose )
+		if( verbose > 0)
 		fprintf(stderr,"Created directory \"%s\"\n",dirname);
 		return 0;
 	} else if( ret < 0 && errno != EEXIST ) {
@@ -48,7 +50,7 @@ int make_parent_dirs(const char *filename) {
 	char *h;
 	int i;
 
-	for( p = filename+1, i = 1 ; *p ; p++,i++) {
+	for( p = filename+1, i = 1 ; *p != '\0' ; p++,i++) {
 		if( *p == '/' ) {
 			h = strndup(filename,i);
 			if( check_dir(h) < 0 ) {

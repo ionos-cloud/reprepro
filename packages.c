@@ -67,7 +67,7 @@ DB *packages_initialize(const char *dbpath,const char *dbname) {
 	}
 	if ((dbret = dbp->open(dbp, filename, dbname, DB_BTREE, DB_CREATE, 0664)) != 0) {
 		dbp->err(dbp, dbret, "%s:%s", filename,dbname);
-		dbp->close(dbp,0);
+		(void)dbp->close(dbp,0);
 		free(filename);
 		return NULL;
 	}                     
@@ -215,21 +215,25 @@ retvalue packages_foreach(DB *packagesdb,per_package_action action,void *privdat
 static retvalue printout(void *data,const char *package,const char *chunk) {
 	FILE *pf = data;
 
-	fwrite(chunk,strlen(chunk),1,pf);
-	fwrite("\n",1,1,pf);
-	return RET_OK;
+	if( fwrite(chunk,strlen(chunk),1,pf) != 1 || fwrite("\n",1,1,pf) != 1 )
+		return RET_ERROR;
+	else
+		return RET_OK;
 }
 
 static retvalue zprintout(void *data,const char *package,const char *chunk) {
 	gzFile pf = data;
+	size_t l;
 
-	gzwrite(pf,(const voidp)chunk,strlen(chunk));
-	gzwrite(pf,"\n",1);
-	return RET_OK;
+	l = strlen(chunk);
+	if( gzwrite(pf,(const voidp)chunk,l) != l || gzwrite(pf,"\n",1) != 1 )
+		return RET_ERROR;
+	else
+		return RET_OK;
 }
 
 /* print the database to a "Packages" or "Sources" file */
-retvalue packages_printout(DB *packagesdb,const char *filename) {
+static retvalue packages_printout(DB *packagesdb,const char *filename) {
 	retvalue ret;
 	int r;
 	FILE *pf;
@@ -247,7 +251,7 @@ retvalue packages_printout(DB *packagesdb,const char *filename) {
 }
 
 /* print the database to a "Packages.gz" or "Sources.gz" file */
-retvalue packages_zprintout(DB *packagesdb,const char *filename) {
+static retvalue packages_zprintout(DB *packagesdb,const char *filename) {
 	retvalue ret;
 	int r;
 	gzFile pf;

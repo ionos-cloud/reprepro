@@ -9,3 +9,6 @@ noinst_HEADERS = md5.h md5sum.h dirs.h files.h chunks.h reference.h packages.h b
 
 MAINTAINERCLEANFILES = Makefile.in configure install-sh stamp-h.in aclocal.m4 config.h.in mkinstalldirs
 
+check: $(mirrorer_SOURCES)
+#	splint -I. +posixstrictlib  main
+	splint -I. -warnposix -booltype boolean -compdestroy $(mirrorer_SOURCES)

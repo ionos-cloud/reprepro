@@ -21,6 +21,7 @@
  *
  * Changed to no longer need things from dpkg,
  * but using endian.h instead.
+ * and made MD5Transfor static...
  *  - Bernhard R. Link <brlink@debian.org>
  * Still in public domain.
  */
@@ -33,6 +34,8 @@
 #include <netinet/in.h>		/* for ntohl() */
 
 #include "md5.h"
+static void
+MD5Transform(UWORD32 buf[4], UWORD32 const in[16]);
 
 #if __BYTE_ORDER == __BIG_ENDIAN
 void
@@ -61,10 +64,10 @@ byteSwap(UWORD32 *buf, unsigned words)
 void
 MD5Init(struct MD5Context *ctx)
 {
-	ctx->buf[0] = 0x67452301;
-	ctx->buf[1] = 0xefcdab89;
-	ctx->buf[2] = 0x98badcfe;
-	ctx->buf[3] = 0x10325476;
+	ctx->buf[0] = 0x67452301U;
+	ctx->buf[1] = 0xefcdab89U;
+	ctx->buf[2] = 0x98badcfeU;
+	ctx->buf[3] = 0x10325476U;
 
 	ctx->bytes[0] = 0;
 	ctx->bytes[1] = 0;
@@ -75,7 +78,7 @@ MD5Init(struct MD5Context *ctx)
  * of bytes.
  */
 void
-MD5Update(struct MD5Context *ctx, md5byte const *buf, unsigned len)
+MD5Update(struct MD5Context *ctx, md5byte const *buf, unsigned int len)
 {
 	UWORD32 t;
 
@@ -165,7 +168,7 @@ MD5Final(md5byte digest[16], struct MD5Context *ctx)
  * reflect the addition of 16 longwords of new data.  MD5Update blocks
  * the data and converts bytes into longwords for this routine.
  */
-void
+static void
 MD5Transform(UWORD32 buf[4], UWORD32 const in[16])
 {
 	register UWORD32 a, b, c, d;

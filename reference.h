@@ -7,7 +7,7 @@
 #endif
 
 DB *references_initialize(const char *dbpath);
-retvalue references_done(DB *db);
+retvalue references_done( DB *db);
 
 /* remove all references from a given identifier */
 retvalue references_remove(DB* refdb,const char *neededby);

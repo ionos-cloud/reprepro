@@ -8,9 +8,15 @@
 #endif
 
 /* get filename and md5andsize from a files: line" */
-retvalue sources_getfile(const char *fileline,char **basename,char **md5andsize);
+retvalue sources_getfile(const char *fileline,
+		char **basename,
+		char **md5andsize);
 
-retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *files);
+retvalue sources_parse_chunk(const char *chunk,
+		char **packagename,
+		char **version,
+		char **origdirectory,
+		struct strlist *files);
 
 /* action taken by sources_add for each sourcepacke missing */
 typedef retvalue source_package_action(

@@ -54,6 +54,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 		return RET_ERRNO(errno);
 	}
 	chunk = chunk_read(fi);
+	//TODO: check returncode:
 	gzclose(fi);
 	if( !chunk ) {
 		fprintf(stderr,"Error reading %s.\n",releasefile);
@@ -68,7 +69,12 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	strlist_init(info);
+	r = strlist_init(info);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&files);
+		return r;
+	}
+
 	for( i = 0 ; i < files.count ; i++ ) {
 		r = sources_getfile(files.values[i],&filename,&md5andsize);
 		if( RET_WAS_ERROR(r) ) {
@@ -97,7 +103,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 
 /* check in fileinfo for <nametocheck> to have md5sum and size <expected> *
  * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
-retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nametocheck, const char *expected) {
+static retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nametocheck, const char *expected) {
 	int i;
 	const char *filename,*md5andsize;
 
@@ -191,7 +197,7 @@ retvalue release_parse(struct release **release,const char *chunk) {
 	struct release *r;
 	retvalue ret;
 
-	assert( chunk && release );
+	assert( chunk !=NULL && release != NULL );
 	
 	r = calloc(1,sizeof(struct release));
 	if( !r )
@@ -258,7 +264,7 @@ retvalue release_genbinary(const struct release *release,const char *arch,const 
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
-	make_parent_dirs(filename);
+	(void)make_parent_dirs(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -297,7 +303,7 @@ retvalue release_gensource(const struct release *release,const char *component,c
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
-	make_parent_dirs(filename);
+	(void)make_parent_dirs(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -426,16 +432,21 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 	char *filename;
 	char *sigfilename,*signwith,*signcommand;
 	char *dirofdist;
-	int e,ret;
+	size_t e;
+	int ret;
 	retvalue result,r;
 	char buffer[100];
 	time_t t;
+	struct tm *gmt;
 
 	struct genrel data;
 
-	time(&t);
+	(void)time(&t);
+	gmt = gmtime(&t);
+	if( gmt == NULL )
+		return RET_ERROR_OOM;
 	// e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S %z",localtime(&t));
-	e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmtime(&t));
+	e=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmt);
 	if( e == 0 || e == 99) {
 		fprintf(stderr,"strftime is doing strange things...\n");
 		return RET_ERROR;
@@ -451,7 +462,7 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 		free(dirofdist);
 		return RET_ERROR_OOM;
 	}
-	make_parent_dirs(filename);
+	(void)make_parent_dirs(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -509,6 +520,7 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 		if( !signcommand ) {
 			free(dirofdist); free(filename);
 			free(signwith); free(signcommand);
+			free(sigfilename);
 			return RET_ERROR_OOM;
 		}
 
@@ -518,6 +530,7 @@ retvalue release_gen(const struct release *release,const char *distdir,const cha
 			free(signcommand);
 			free(dirofdist);
 			free(filename);
+			free(sigfilename);
 			return RET_ERROR;
 		}
 		

@@ -64,13 +64,13 @@ DB *references_initialize(const char *dbpath) {
 	/* allow a file referenced by multiple dists: */
 	if( (ret = dbp->set_flags(dbp,DB_DUPSORT)) != 0 ) {
 		dbp->err(dbp, ret, "db_set_flags:%s", filename);
-		dbp->close(dbp,0);
+		(void)dbp->close(dbp,0);
 		free(filename);
 		return NULL;
 	}
 	if( (ret = dbp->open(dbp, filename, "references", DB_BTREE, DB_CREATE, 0664)) != 0) {
 		dbp->err(dbp, ret, "db_open:%s", filename);
-		dbp->close(dbp,0);
+		(void)dbp->close(dbp,0);
 		free(filename);
 		return NULL;
 	}
@@ -200,7 +200,7 @@ retvalue references_remove(DB* refdb,const char *neededby) {
 		const char *found_to = key.data;
 		const char *found_by = data.data;
 		if( strncmp( found_by,neededby,l) == 0 && 
-		    (found_by[l] == 0 || found_by[l] == ' ')) {
+		    (found_by[l] == '\0' || found_by[l] == ' ')) {
 			if( verbose > 5 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
 					found_to,neededby);
@@ -240,9 +240,12 @@ retvalue references_dump(DB *refdb) {
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		const char *found_to = (const char*)key.data;
 		const char *found_by = (const char*)data.data;
-		fputs(found_by,stdout);
-		putchar(' ');
-		puts(found_to);
+		if( fputs(found_by,stdout) == EOF || 
+		    putchar(' ') == EOF ||
+		    puts(found_to) == EOF ) {
+			result = RET_ERROR;
+			break;
+		}
 		result = RET_OK;
 	}
 	if( dbret != DB_NOTFOUND ) {

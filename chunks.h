@@ -12,7 +12,7 @@
 /* get the next chunk from file f */
 char *chunk_read(gzFile f);
 /* point to a specified field in a chunk */
-const char *chunk_getfield(const char *name,const char *chunk);
+// const char *chunk_getfield(const char *name,const char *chunk);
 /* create a new chunk with the context of field name replaced with new,
  * prints an error when not found and adds to the end */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new);

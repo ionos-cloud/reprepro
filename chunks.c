@@ -54,6 +54,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 			break;
 		}
 	}
+	//TODO: check result:
 	gzclose(f);
 	return result;
 }
@@ -61,16 +62,18 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 /* get the next chunk from file f */
 char *chunk_read(gzFile f) {
 	char *buffer,*bhead;
-	int m,c,l;
+	size_t m,c,l = 4096;
 
 	m = 4096;
 	c = 0;
 	bhead = (buffer = (char*)malloc(m));
+	if( buffer == NULL )
+		return NULL;
 	while( gzgets(f,bhead,m-1-c) ) {
 		c += (l = strlen(bhead));
 		if( *bhead == '\n' ) {
 			/* we do not want to include the final newline */
-			*bhead = 0; c--;
+			*bhead = '\0'; c--;
 			if( c == 0 ) {
 				bhead = buffer;
 				continue;
@@ -112,20 +115,20 @@ char *chunk_read(gzFile f) {
 }
 
 /* point to a specified field in a chunk */
-const char *chunk_getfield(const char *name,const char *chunk) {
-	int l;
+static const char *chunk_getfield(const char *name,const char *chunk) {
+	size_t l;
 
 	if( !chunk) 
 		return NULL;
 	l = strlen(name);
-	while( *chunk ) {
+	while( *chunk != '\0' ) {
 		if(strncmp(name,chunk,l) == 0 && chunk[l] == ':' ) {
 			chunk += l+1;
 			return chunk;
 		}
 		while( *chunk != '\n' && *chunk != '\0' )
 			chunk++;
-		if( ! *chunk || *(++chunk) == '\n' )
+		if( *chunk == '\0' || *(++chunk) == '\n' )
 			return NULL;
 	}
 	return NULL;
@@ -158,7 +161,7 @@ char *chunk_dupnextline(const char **field) {
 
 /* create a new chunk with the context of field name replaced with new */
 char *chunk_replaceentry(const char *chunk,const char *name,const char *new) {
-	int l;
+	size_t l;
 	const char *olddata,*rest;
 	char *result;
 
@@ -172,7 +175,7 @@ char *chunk_replaceentry(const char *chunk,const char *name,const char *new) {
 			olddata += l+1;
 			/* now search the end of the data to be replaced */
 			rest = olddata;
-			while( *rest && *rest != '\n' )
+			while( *rest != '\0' && *rest != '\n' )
 				rest++;
 			/* create a chunk with the appopiate line replaced */
 			result = malloc(2+strlen(rest)+strlen(new)+(olddata-chunk));
@@ -217,7 +220,7 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	while( *e != '\n' && *e != '\0' )
 		e++;
 	/* remove trailing spaced */
-	while( e > b && *e && isspace(*e) )
+	while( e > b && *e != '\0' && isspace(*e) )
 		e--;
 	if( !isspace(*e) )
 		val = strndup(b,e-b+1);
@@ -264,7 +267,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	if( RET_WAS_ERROR(r) )
 		return r;
 	/* walk over the first line */
-	while( *f && *f != '\n' )
+	while( *f != '\0' && *f != '\n' )
 		f++;
 	/* nothing there is an emtpy list */
 	if( *f == '\0' )
@@ -272,13 +275,13 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	f++;
 	/* while lines begin with ' ', add them */
 	while( *f == ' ' ) {
-		while( *f && isblank(*f) )
+		while( *f != '\0' && isblank(*f) )
 			f++;
 		b = f;
-		while( *f && *f != '\n' )
+		while( *f != '\0' && *f != '\n' )
 			f++;
 		e = f;
-		while( e > b && *e && isspace(*e) )
+		while( e > b && *e != '\0' && isspace(*e) )
 			e--;
 		if( !isspace(*e) )
 			v = strndup(b,e-b+1);
@@ -313,7 +316,7 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 		return r;
 	while( *f != '\0' ) {
 		/* walk over spaces */
-		while( *f && isspace(*f) ) {
+		while( *f != '\0' && isspace(*f) ) {
 			if( *f == '\n' ) {
 				f++;
 				if( *f != ' ' )
@@ -325,7 +328,7 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 			return RET_OK;
 		b = f;
 		/* search for end of word */
-		while( *f && !isspace(*f) )
+		while( *f != '\0' && !isspace(*f) )
 			f++;
 		v = strndup(b,f-b);
 		if( !v ) {

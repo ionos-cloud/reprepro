@@ -39,7 +39,7 @@ extern int verbose;
 
 // typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,struct update *update);
 
-struct mydata {
+struct myupdatesdata {
 	const char *updatesfile;
 	int force;
 	struct strlist upstreams;
@@ -49,7 +49,7 @@ struct mydata {
 };
 
 static retvalue processupdates(void *data,const char *chunk) {
-	struct mydata *d = data;
+	struct myupdatesdata *d = data;
 	retvalue r;
 	int i;
 	struct update update;
@@ -70,6 +70,10 @@ static retvalue processupdates(void *data,const char *chunk) {
 	r = RET_NOTHING;
 
 	if( strlist_in(&d->upstreams,update.name) ) {
+
+
+// TODO: the following is a mess to read, fix it...		
+		
 
 		if( verbose > 2 ) {
 			fprintf(stderr,"processing '%s' for '%s'\n",update.name,d->release->codename);
@@ -104,8 +108,10 @@ static retvalue processupdates(void *data,const char *chunk) {
 			components_need_free = 0;
 		}
 		if( !RET_WAS_ERROR(r) ) {
-			strlist_init(&update.components_from);
-			strlist_init(&update.components_into);
+			r = strlist_init(&update.components_from);
+			if( !RET_WAS_ERROR(r) ) {
+			r = strlist_init(&update.components_into);
+			if( !RET_WAS_ERROR(r) ) {
 
 			/* * Iterator over components to update * */
 			r = RET_NOTHING;
@@ -134,11 +140,12 @@ static retvalue processupdates(void *data,const char *chunk) {
 			if( !RET_WAS_ERROR(r) )
 				r = d->action(d->data,chunk,d->release,&update);
 
-			strlist_done(&update.components_from);
-			strlist_done(&update.components_into);
 			if( components_need_free )
 				strlist_done(&componentlist);
-		}
+			strlist_done(&update.components_into);
+	  	}
+			strlist_done(&update.components_from);
+		} } 
 			strlist_done(&update.architectures);
 		}
 			free(update.suite_from);
@@ -152,7 +159,7 @@ static retvalue processupdates(void *data,const char *chunk) {
 }
 
 static retvalue doupdate(void *data,const char *chunk,const struct release *release) {
-	struct mydata *d = data;
+	struct myupdatesdata *d = data;
 	retvalue r;
 
 	r = chunk_getwordlist(chunk,"Update",&d->upstreams);
@@ -173,7 +180,7 @@ static retvalue doupdate(void *data,const char *chunk,const struct release *rele
 
 
 retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction action,void *data,int force) {
-	struct mydata mydata;
+	struct myupdatesdata mydata;
 	retvalue result;
 
 	mydata.updatesfile = calc_dirconcat(confdir,"updates");
