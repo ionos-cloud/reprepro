@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -718,7 +718,7 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 	return result;
 }
 
-retvalue updates_getindices(const char *listdir,const struct update_pattern *patterns,struct distribution *distributions) {
+retvalue updates_calcindices(const char *listdir,const struct update_pattern *patterns,struct distribution *distributions) {
 	struct distribution *distribution;
 
 	for( distribution = distributions ; distribution ; distribution = distribution->next ) {
@@ -760,33 +760,68 @@ retvalue updates_getindices(const char *listdir,const struct update_pattern *pat
 	return RET_OK;
 }
 
-/******************* Fetch all Lists for an update **********************/
-static inline retvalue prepareorigin(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution) {
-	char *toget;
+/************************* Preparations *********************************/
+static inline retvalue startuporigin(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution) {
+	retvalue r;
 	struct aptmethod *method;
+
+	assert( origin != NULL && origin->pattern != NULL );
+	r = aptmethod_newmethod(run,origin->pattern->method,
+			origin->pattern->config,&method);
+	if( RET_WAS_ERROR(r) ) {
+		origin->download = NULL;
+		return r;
+	}
+	origin->download = method;
+	return RET_OK;
+}
+
+static retvalue updates_startup(struct aptmethodrun *run,struct distribution *distributions, int force) {
+	retvalue result,r;
+	struct update_origin *origin;
+	struct distribution *distribution;
+
+	result = RET_NOTHING;
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		if( distribution->override || distribution->srcoverride ) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",distribution->codename);
+		}
+		for( origin=distribution->updateorigins; origin; origin=origin->next ) {
+			if( origin->pattern == NULL)
+				continue;
+			r = startuporigin(run,origin,distribution);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 0 )
+				return r;
+		}
+	}
+	return result;
+}
+/******************* Fetch all Lists for an update **********************/
+static inline retvalue queuemetalists(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution) {
+	char *toget;
 	retvalue r;
 	const struct update_pattern *p = origin->pattern;
 
 	assert( origin != NULL && origin->pattern != NULL );
 
-	r = aptmethod_newmethod(run,p->method,p->config,&method);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
+	if( origin->download == NULL ) {
+		fprintf(stderr,"Cannot download '%s' as no method started!\n",origin->releasefile);
+		return RET_ERROR;
 	}
-	origin->download = method;
-
-	if( p->ignorerelease )
-		return RET_NOTHING;
 
 	toget = mprintf("dists/%s/Release",origin->suite_from);
-	r = aptmethod_queueindexfile(method,toget,origin->releasefile);
+	r = aptmethod_queueindexfile(origin->download,
+			toget,origin->releasefile);
 	free(toget);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	if( p->verifyrelease != NULL ) {
 		toget = mprintf("dists/%s/Release.gpg",origin->suite_from);
-		r = aptmethod_queueindexfile(method,toget,origin->releasegpgfile);
+		r = aptmethod_queueindexfile(origin->download,
+				toget,origin->releasegpgfile);
 		free(toget);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -823,6 +858,10 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 	size_t l;
 
 	assert( index != NULL && index->origin != NULL );
+	if( origin->download == NULL ) {
+		fprintf(stderr,"Cannot download '%s' as no method started!\n",index->filename);
+		return RET_ERROR;
+	}
 	if( origin->releasefile == NULL )
 		return aptmethod_queueindexfile(origin->download,
 			index->upstream,index->filename);
@@ -851,48 +890,60 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 
 
 
-static retvalue updates_prepare(struct aptmethodrun *run,struct distribution *distribution) {
+static retvalue updates_queuemetalists(struct aptmethodrun *run,struct distribution *distributions, int force) {
 	retvalue result,r;
 	struct update_origin *origin;
+	struct distribution *distribution;
 
 	result = RET_NOTHING;
-	for( origin=distribution->updateorigins;origin; origin=origin->next ) {
-		if( origin->pattern == NULL)
-			continue;
-		r = prepareorigin(run,origin,distribution);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
-			return r;
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		for( origin=distribution->updateorigins;origin; origin=origin->next ) {
+			if( origin->pattern == NULL)
+				continue;
+			if( origin->pattern->ignorerelease )
+				continue;
+			r = queuemetalists(run,origin,distribution);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 0 )
+				return r;
+		}
+
 	}
+
 	return result;
 }
 
-static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distribution,int force) {
+static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distributions,int force) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_target *target;
 	struct update_index *index;
+	struct distribution *distribution;
 
 	result = RET_NOTHING;
-	for( origin=distribution->updateorigins;origin; origin=origin->next ) {
-		if( origin->pattern == NULL)
-			continue;
-		r = readchecksums(origin);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && !force )
-			return r;
-	}
-	for( target=distribution->updatetargets;target; target=target->next ) {
-		for( index=target->indices ; index; index=index->next ) {
-			if( index->origin == NULL )
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+
+		for( origin=distribution->updateorigins;origin; origin=origin->next ) {
+			if( origin->pattern == NULL)
 				continue;
-			r = queueindex(index,force);
+			r = readchecksums(origin);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && ! force )
+			//TODO: more force needed?
+			if( RET_WAS_ERROR(r) && !force )
 				return r;
 		}
+		for( target=distribution->updatetargets;target; target=target->next ) {
+			for( index=target->indices ; index; index=index->next ) {
+				if( index->origin == NULL )
+					continue;
+				r = queueindex(index,force);
+				RET_UPDATE(result,r);
+				if( RET_WAS_ERROR(r) && ! force )
+					return r;
+			}
+		}
 	}
-	return RET_OK;;
+	return result;
 }
 
 
@@ -1050,9 +1101,9 @@ static void updates_dump(struct distribution *distribution) {
 	}
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force) {
-	struct distribution *distribution;
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force,bool_t nolistdownload) {
 	retvalue result,r;
+	struct distribution *distribution;
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 
@@ -1061,48 +1112,46 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return r;
 
 	result = RET_NOTHING;
-	/* first get all "Release" and "Release.gpg" files */
-	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		if( distribution->override || distribution->srcoverride ) {
-			if( verbose >= 0 )
-				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",distribution->codename);
+	/* preperations */
+	result = updates_startup(run,distributions,force);
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+	if( nolistdownload ) {
+		if( verbose >= 0 )
+			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
+	} else {
+		/* first get all "Release" and "Release.gpg" files */
+		r = updates_queuemetalists(run,distributions,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(result) && force <= 0 ) {
+			aptmethod_shutdown(run);
+			return result;
 		}
-		r = updates_prepare(run,distribution);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
-			break;
-	}
-	if( RET_WAS_ERROR(result) && !force ) {
-		aptmethod_shutdown(run);
-		return result;
-	}
 
-	r = aptmethod_download(run,methoddir,filesdb);
-	if( RET_WAS_ERROR(r) && !force ) {
-		RET_UPDATE(result,r);
-		aptmethod_shutdown(run);
-		return result;
-	}
+		r = aptmethod_download(run,methoddir,filesdb);
+		if( RET_WAS_ERROR(r) && !force ) {
+			RET_UPDATE(result,r);
+			aptmethod_shutdown(run);
+			return result;
+		}
 
-	/* Then get all index files (with perhaps md5sums from the above) */
-	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		//TODO: add a switch to not download them but use already existing ones
-		r = updates_queuelists(run,distribution,force);
+		/* Then get all index files (with perhaps md5sums from the above) */
+		r = updates_queuelists(run,distributions,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
-			break;
-	}
-	if( RET_WAS_ERROR(result) && !force ) {
-		RET_UPDATE(result,r);
-		aptmethod_shutdown(run);
-		return result;
-	}
+		if( RET_WAS_ERROR(result) && !force ) {
+			RET_UPDATE(result,r);
+			aptmethod_shutdown(run);
+			return result;
+		}
 
-	r = aptmethod_download(run,methoddir,filesdb);
-	if( RET_WAS_ERROR(r) && !force ) {
-		RET_UPDATE(result,r);
-		aptmethod_shutdown(run);
-		return result;
+		r = aptmethod_download(run,methoddir,filesdb);
+		if( RET_WAS_ERROR(r) && !force ) {
+			RET_UPDATE(result,r);
+			aptmethod_shutdown(run);
+			return result;
+		}
 	}
 
 	/* Then get all packages */
@@ -1154,7 +1203,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	return result;
 }
 
-retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct distribution *distributions,int force) {
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct distribution *distributions,int force,bool_t nolistdownload) {
 	struct distribution *distribution;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1163,49 +1212,47 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct dist
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = RET_NOTHING;
-	/* first get all "Release" and "Release.gpg" files */
-	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		if( distribution->override || distribution->srcoverride ) {
-			if( verbose >= 0 )
-				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",distribution->codename);
+	result = updates_startup(run,distributions,force);
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+	if( nolistdownload ) {
+		if( verbose >= 0 )
+			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
+	} else {
+		/* first get all "Release" and "Release.gpg" files */
+		if( RET_IS_OK(result) || force > 0 ) {
+			r = updates_queuemetalists(run,distributions,force);
+			RET_UPDATE(result,r);
 		}
-		r = updates_prepare(run,distribution);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
-			break;
-	}
-	if( RET_WAS_ERROR(result) && !force ) {
-		aptmethod_shutdown(run);
-		return result;
-	}
+		if( RET_WAS_ERROR(result) && force <= 0 ) {
+			aptmethod_shutdown(run);
+			return result;
+		}
 
-	r = aptmethod_download(run,methoddir,NULL);
-	if( RET_WAS_ERROR(r) && !force ) {
-		RET_UPDATE(result,r);
-		aptmethod_shutdown(run);
-		return result;
-	}
+		r = aptmethod_download(run,methoddir,NULL);
+		if( RET_WAS_ERROR(r) && !force ) {
+			RET_UPDATE(result,r);
+			aptmethod_shutdown(run);
+			return result;
+		}
 
-	/* Then get all index files (with perhaps md5sums from the above) */
-	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		//TODO: dito
-		r = updates_queuelists(run,distribution,force);
+		/* Then get all index files (with perhaps md5sums from the above) */
+		r = updates_queuelists(run,distributions,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
-			break;
-	}
-	if( RET_WAS_ERROR(result) && !force ) {
-		RET_UPDATE(result,r);
-		aptmethod_shutdown(run);
-		return result;
-	}
+		if( RET_WAS_ERROR(result) && !force ) {
+			RET_UPDATE(result,r);
+			aptmethod_shutdown(run);
+			return result;
+		}
 
-	r = aptmethod_download(run,methoddir,NULL);
-	if( RET_WAS_ERROR(r) && !force ) {
-		RET_UPDATE(result,r);
-		aptmethod_shutdown(run);
-		return result;
+		r = aptmethod_download(run,methoddir,NULL);
+		if( RET_WAS_ERROR(r) && !force ) {
+			RET_UPDATE(result,r);
+			aptmethod_shutdown(run);
+			return result;
+		}
 	}
 	if( verbose > 0 )
 		fprintf(stderr,"Shutting down aptmethods...\n");
@@ -1224,11 +1271,6 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct dist
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;
-	}
-	if( RET_WAS_ERROR(result) && !force ) {
-		return result;
-	}
-	for( distribution=distributions ; distribution ; distribution=distribution->next) {
 		updates_dump(distribution);
 	}
 

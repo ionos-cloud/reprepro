@@ -19,16 +19,9 @@ void updates_freepatterns(struct update_pattern *p);
 void updates_freeorigins(struct update_origin *o);
 void updates_freetargets(struct update_target *t);
 
-retvalue updates_getindices(const char *listdir,const struct update_pattern *patterns,struct distribution *distributions);
+retvalue updates_calcindices(const char *listdir,const struct update_pattern *patterns,struct distribution *distributions);
 
-// struct aptmethodrun;
-// struct downloadcache;
-
-// retvalue updates_prepare(struct aptmethodrun *run,struct distribution *distribution);
-// retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distribution,int force);
-// retvalue updates_readindices(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force);
-
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force);
-retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct distribution *distributions,int force);
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force,bool_t nolistdownload);
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct distribution *distributions,int force,bool_t nolistdownload);
 
 #endif

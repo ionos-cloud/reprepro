@@ -71,6 +71,7 @@ char 	*incommingdir = STD_BASE_DIR "/incomming",
 static int	delete = D_COPY;
 static int	force = 0;
 static bool_t	nothingiserror = FALSE;
+static bool_t	nolistsdownload = FALSE;
 int		verbose = 0;
 
 static retvalue action_printargs(int argc,const char *argv[]) {
@@ -602,7 +603,7 @@ static retvalue action_update(int argc,const char *argv[]) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getindices(listdir,patterns,distributions);
+	result = updates_calcindices(listdir,patterns,distributions);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
@@ -615,7 +616,7 @@ static retvalue action_update(int argc,const char *argv[]) {
 		return result;
 	}
 
-	result = updates_update(dbdir,methoddir,files,refs,distributions,force);
+	result = updates_update(dbdir,methoddir,files,refs,distributions,force,nolistsdownload);
 
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
@@ -668,11 +669,11 @@ static retvalue action_checkupdate(int argc,const char *argv[]) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getindices(listdir,patterns,distributions);
+	result = updates_calcindices(listdir,patterns,distributions);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_checkupdate(dbdir,methoddir,distributions,force);
+	result = updates_checkupdate(dbdir,methoddir,distributions,force,nolistsdownload);
 
 	while( distributions ) {
 		struct distribution *d = distributions->next;
@@ -1062,13 +1063,14 @@ int main(int argc,char *argv[]) {
 		{"help", 0, NULL, 'h'},
 		{"verbose", 0, NULL, 'v'},
 		{"nothingiserror", 0, NULL, 'e'},
+		{"nolistsdownload", 0, NULL, 'N'},
 		{"force", 0, NULL, 'f'},
 		{NULL, 0, NULL, 0}
 	};
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+feVvhlb:P:p:d:c:D:L:M:i:A:C:S:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+feNVvhlb:P:p:d:c:D:L:M:i:A:C:S:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
@@ -1124,6 +1126,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'V':
 				verbose+=5;
+				break;
+			case 'N':
+				nolistsdownload=TRUE;
 				break;
 			case 'e':
 				nothingiserror=TRUE;

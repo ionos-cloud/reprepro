@@ -143,11 +143,11 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 	*p = '_'; p++;
 	p = escapecpy(p,origin);
 	*p = '_'; p++;
+	strcpy(p,suffix); p += l_suffix;
+	*p = '_'; p++;
 	p = escapecpy(p,component);
 	*p = '_'; p++;
 	p = escapecpy(p,architecture);
-	*p = '_'; p++;
-	strcpy(p,suffix); p += l_suffix;
 	*p = '\0';
 	return result;
 }

@@ -2,6 +2,9 @@
 	* Only generate Release (and Release.gpg) files when
 	  something changed.
 
+	* Add a --nolistsdownload option to avoid update and
+	  checkupdate downloading all those lists again.
+
 2005-01-04  Bernhard R. Link <brlink@debian.org>
 	* Several code clean-ups, should not change anything....
 
