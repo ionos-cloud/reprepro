@@ -1,5 +1,5 @@
 TODO:
-	add override-support while updating (or deecide if this should be done)
+	add override-support while updating (or decide if this should be done)
 	cache search results for override file while including .changes
 	implement extractcontrol.c properly
 	add support to specify the key used for signing
