@@ -157,70 +157,109 @@ retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version
 	return RET_OK;
 }
 
-/* compare versions, 1= new is better, 0=old is better, <0 error */
-static int sources_isnewer(const char *newchunk,const char *oldchunk) {
-	char *nv,*ov;
-	int r;
-	retvalue ret;
+/* Look for an older version of the Package in the database.
+ * Set *oldversion, if there is already a newer (or equal) version to
+ * <version> and <version> is != NULL */
+retvalue sources_lookforolder(
+		DB *packages,const char *packagename,
+		const char *newversion,char **oldversion,
+		char **olddirectory,struct strlist *oldfiles) {
+	char *oldchunk,*ov;
+	retvalue r;
 
-	/* if new broken, tell it, if old broken, new is better: */
-	ret = chunk_getvalue(newchunk,"Version",&nv);
-	if( !RET_IS_OK(ret) )
-		return -1;
-	ret = chunk_getvalue(oldchunk,"Version",&ov);
-	if( !RET_IS_OK(ret) ) {
-		free(nv);
-		return 1;
+	// TODO: why does packages_get return something else than a retvalue?
+	oldchunk = packages_get(packages,packagename);
+	if( oldchunk  == NULL ) {
+		*olddirectory = NULL;
+		if( oldversion != NULL && newversion != NULL )
+			*oldversion = NULL;
+		return RET_NOTHING;
 	}
-	r = isVersionNewer(nv,ov);
-	free(nv);free(ov);
+
+	if( newversion ) {
+		assert(oldversion != NULL);
+		r = sources_parse_chunk(oldchunk,NULL,&ov,olddirectory,oldfiles);
+	} else {
+		assert( oldversion == NULL );
+		r = sources_parse_chunk(oldchunk,NULL,NULL,olddirectory,oldfiles);
+	}
+
+	if( !RET_IS_OK(r) ) {
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Does not look like source control: '%s'\n",oldchunk);
+			r = RET_ERROR;
+
+		}
+		free(oldchunk);
+		return r;
+	}
+
+	if( newversion ) {
+		r = dpkgversions_isNewer(newversion,ov);
+
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,"Parse errors processing versions of %s.\n",packagename);
+			free(ov);
+			free(*olddirectory);
+			*olddirectory = NULL;
+			strlist_done(oldfiles);
+			free(oldchunk);
+			return r;
+		}
+		if( RET_IS_OK(r) ) {
+			*oldversion = NULL;
+			free(ov);
+		} else
+			*oldversion = ov;
+	}
+
+	free(oldchunk);
 	return r;
 }
 
-//typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,const char *oldchunk);
+//typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *origdirectory,const char *files,const char *oldchunk);
 
 struct sources_add {DB *pkgs; void *data; const char *component; source_package_action *action; };
 
 static retvalue addsource(void *data,const char *chunk) {
 	retvalue r;
-	int isnewer;
 	struct sources_add *d = data;
 
-	char *package,*version,*directory,*olddirectory;
-	char *oldchunk;
-	struct strlist files;
+	char *package,*version,*directory,*origdirectory;
+	char *oldversion,*olddirectory;
+	struct strlist files,oldfiles;
 
-	r = sources_parse_chunk(chunk,&package,&version,&olddirectory,&files);
+	r = sources_parse_chunk(chunk,&package,&version,&origdirectory,&files);
 	if( r == RET_NOTHING ) {
+		// TODO: error?
 		return RET_ERROR;
 	} else if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	oldchunk = packages_get(d->pkgs,package);
-	if( oldchunk && (isnewer=sources_isnewer(chunk,oldchunk)) != 0 ) {
-		if( isnewer < 0 ) {
-			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
-			free(package);strlist_done(&files);
-			free(olddirectory);free(version);
-			free(oldchunk);
-			return RET_ERROR;
-		}
+	r = sources_lookforolder(d->pkgs,package,version,&oldversion,&olddirectory,&oldfiles);
+	if( RET_WAS_ERROR(r) ) {
+		free(version);free(origdirectory);strlist_done(&files);
+		return r;
 	}
-	if( oldchunk == NULL || isnewer > 0 ) {
+
+	if( oldversion != NULL ) {
+		if( verbose > 40 )
+			fprintf(stderr,"Ignoring '%s' with version '%s', as '%s'
+					is already there.\n",package,version,oldversion);
+		free(oldversion);
+		r = RET_NOTHING;
+	} else {
 		/* add source package */
 		directory =  calc_sourcedir(d->component,package);
 		if( !directory )
 			r = RET_ERROR_OOM;
-		else
-			r = (*d->action)(d->data,chunk,package,version,directory,olddirectory,&files,oldchunk);
+		else 
+			r = (*d->action)(d->data,chunk,package,version,directory,origdirectory,&files,olddirectory,&oldfiles);
 		free(directory);
-	} else {
-		r = RET_NOTHING;
 	}
-	free(oldchunk);
-	
+	free(olddirectory);strlist_done(&oldfiles);
 	free(package);strlist_done(&files);
-	free(olddirectory);free(version);
+	free(origdirectory);free(version);
 
 	return r;
 }

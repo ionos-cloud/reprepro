@@ -405,13 +405,12 @@ struct distributionhandles {
 
 /***********************************addsources***************************/
 
-static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *origdirectory,const struct strlist *files,const char *oldchunk) {
+static retvalue add_source(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *origdirectory,const struct strlist *files,const char *olddirectory,const struct strlist *oldfiles) {
 	char *newchunk;
 	retvalue result,r;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
 	int i;
-	struct strlist filekeys,oldfiles,oldfilekeys;
-	char *olddirectory;
+	struct strlist filekeys,oldfilekeys;
 
 	/* look for needed files */
 
@@ -451,15 +450,7 @@ static retvalue add_source(void *data,const char *chunk,const char *package,cons
 		return r;
 	}
 
-	r = sources_parse_chunk(oldchunk,NULL,NULL,&olddirectory,&oldfiles);
-	if( !RET_IS_OK(r) ) {
-		free(newchunk);
-		strlist_done(&filekeys);
-		return r;
-	}
-
-	r = sources_getfilekeys(olddirectory,&oldfiles,&oldfilekeys);
-	free(olddirectory);strlist_done(&oldfiles);
+	r = sources_getfilekeys(olddirectory,oldfiles,&oldfilekeys);
 	if( RET_WAS_ERROR(r) ) {
 		free(newchunk);
 		strlist_done(&filekeys);
@@ -519,7 +510,7 @@ static int addsources(int argc,char *argv[]) {
 }
 /****************************prepareaddsources********************************************/
 
-static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *origdirectory,const struct strlist *files,const char *oldchunk) {
+static retvalue showmissingsourcefiles(void *data,const char *chunk,const char *package,const char *version,const char *directory,const char *origdirectory,const struct strlist *files,const char *olddirectory,const struct strlist *oldfiles) {
 	retvalue r,ret;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *dn;

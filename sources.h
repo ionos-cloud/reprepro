@@ -32,11 +32,12 @@ typedef retvalue source_package_action(
 	/* the calculated directory it shall be put in (relative to mirrordir) */
 	const char *directory,
 	/* the directory specified by the chunk. (relative to dists/) */
-	const char *olddirectory,
+	const char *origdirectory,
 	/* a \n seperated list of md5sums,sizes and filenames, as parseable by sources_getfile */
 	const struct strlist *files,
 	/* !=NULL if there was a older chunk in the pkgs-database to be replaced */
-	const char *oldchunk);
+	const char *olddirectory,
+	const struct strlist *oldfiles);
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
  * <pkgs> and using <component> as subdir of pool (i.e. "main","contrib",...) for generated paths */
