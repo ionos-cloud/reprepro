@@ -104,7 +104,7 @@ static retvalue md5sum_calc(int infd,int outfd, char **result, size_t bufsize) {
 
 retvalue md5sum_read(const char *filename,char **result){
 	retvalue ret;
-	int fd;
+	int fd,i;
 
 	assert(result != NULL);
 
@@ -112,8 +112,11 @@ retvalue md5sum_read(const char *filename,char **result){
 	if( fd < 0 ) {
 		if( errno == EACCES  )
 			return RET_NOTHING;
-		else
-			return RET_ERRNO(errno);
+		else {
+			i = errno;
+			fprintf(stderr,"Error opening '%s': %d=%m\n",filename,i);
+			return RET_ERRNO(i);
+		}
 	}
 
 	ret = md5sum_calc(fd,-1,result,0);
