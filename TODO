@@ -8,6 +8,9 @@ TODO:
 		(allow it needing a passphrase)
 	implement filters for including only specific packages
 	allow to specify a keyring to use.
+	moving files between distributions
+	- only those with source in given thing...
+	switch to only include if source is present
 
 	write dokumentation, some examples
 	update for use with newer gpgpme
