@@ -31,24 +31,51 @@
 #include "chunks.h"
 #include "filterlist.h"
 
-void filterlist_free(struct filterlist *list) {
+extern int verbose;
+
+static void filterlistitems_free(struct filterlistitem *list) {
 	while( list ) {
-		struct filterlist *next = list->next;
+		struct filterlistitem *next = list->next;
 		free(list->packagename);
 		free(list);
 		list = next;
 	}
 }
 
-retvalue filterlist_load(struct filterlist **list, const char *confdir, const char *filename) {
+void filterlist_release(struct filterlist *list) {
+	assert(list != NULL);
+
+	filterlistitems_free(list->root);
+}
+	
+
+retvalue filterlist_load(struct filterlist *list, const char *confdir,const char *configline) {
 	char *fullfilename;
+	const char *filename;
 	FILE *f;
 	char line[1001];
-	struct filterlist *root,**last = &root;
+	struct filterlistitem *root,**last = &root;
 	int lineno = 0;
+	enum filterlisttype defaulttype;
 
 	root = NULL;
 
+	if( strncmp(configline,"install",7) == 0 && isspace(configline[7]) ) {
+		defaulttype = flt_install; filename = configline + 7;
+	} else if( strncmp(configline,"hold",4) == 0 && isspace(configline[4]) ) {
+		defaulttype = flt_hold; filename = configline + 4;
+	} else if( strncmp(configline,"deinstall",9) == 0 && isspace(configline[9]) ) {
+		defaulttype = flt_hold; filename = configline + 9;
+	} else if( strncmp(configline,"purge",5) == 0 && isspace(configline[5]) ) {
+		defaulttype = flt_hold; filename = configline + 5;
+	} else if( strncmp(configline,"error",5) == 0 && isspace(configline[5]) ) {
+		defaulttype = flt_error; filename = configline + 5;
+	} else {
+		fprintf(stderr,"Cannot parse '%s' into the format 'install|deinstall|purge|hold <filename>'\n",configline);
+		return RET_ERROR;
+	}
+	while( *filename != '\0' && isspace(*filename) )
+		filename++;
 	if( filename[0] != '/' ) {
 		fullfilename = calc_dirconcat(confdir,filename);
 		if( fullfilename == NULL )
@@ -67,14 +94,14 @@ retvalue filterlist_load(struct filterlist **list, const char *confdir, const ch
 		char *lineend,*namestart,*nameend,*what;
 		int cmp;
 		enum filterlisttype type;
-		struct filterlist *h;
+		struct filterlistitem *h;
 
 		lineno++;
 		lineend = strchr(line,'\n');
 		if( lineend == NULL ) {
 			fprintf(stderr,"Overlong line in '%s'!\n",filename);
 			free(fullfilename);
-			filterlist_free(root);
+			filterlistitems_free(root);
 			return RET_ERROR;
 		}
 		while( lineend >= line && isspace(*lineend) )
@@ -94,7 +121,7 @@ retvalue filterlist_load(struct filterlist **list, const char *confdir, const ch
 		if( *what == '\0' ) {
 			fprintf(stderr,"Malformed line in '%s': %d!\n",filename,lineno);
 			free(fullfilename);
-			filterlist_free(root);
+			filterlistitems_free(root);
 			return RET_ERROR;
 		}
 		if( strcmp(what,"install") == 0 ) {
@@ -105,10 +132,12 @@ retvalue filterlist_load(struct filterlist **list, const char *confdir, const ch
 			type = flt_purge;
 		} else if( strcmp(what,"hold") == 0 ) {
 			type = flt_hold;
+		} else if( strcmp(what,"error") == 0 ) {
+			type = flt_error;
 		} else {
 			fprintf(stderr,"Unknown status in '%s':%d: '%s'!\n",filename,lineno,what);
 			free(fullfilename);
-			filterlist_free(root);
+			filterlistitems_free(root);
 			return RET_ERROR;
 		}
 		if( *last == NULL || strcmp(namestart,(*last)->packagename) < 0 )
@@ -119,7 +148,7 @@ retvalue filterlist_load(struct filterlist **list, const char *confdir, const ch
 		if( cmp == 0 ) {
 			fprintf(stderr,"Two lines describing '%s' in '%s'!\n",namestart,filename);
 			free(fullfilename);
-			filterlist_free(root);
+			filterlistitems_free(root);
 			return RET_ERROR;
 		}
 		h = calloc(1,sizeof(*h));
@@ -129,36 +158,32 @@ retvalue filterlist_load(struct filterlist **list, const char *confdir, const ch
 		h->packagename = strdup(namestart);
 		if( h->packagename == NULL ) {
 			free(fullfilename);
-			filterlist_free(root);
+			filterlistitems_free(root);
 			return RET_ERROR_OOM;
 		}
 	}
-	if( root == NULL ) {
-		/* to make a empty file different from no file */
-		root = calloc(1,sizeof(*root));
-		root->next = NULL;
-		root->what = flt_deinstall;
-		root->packagename = strdup("__%%%%%%__");
-		if( root->packagename == NULL ) {
-			free(fullfilename);
-			filterlist_free(root);
-			return RET_ERROR_OOM;
-		}
-	}
-	*list = root;
+	list->root = root;
+	list->last = root;
+	list->defaulttype = defaulttype;
 	return RET_OK;
 }
 
-bool_t filterlist_find(const char *name,struct filterlist *root,const struct filterlist **last_p) {
+void filterlist_empty(struct filterlist *list, enum filterlisttype defaulttype) {
+	list->root = NULL;
+	list->last = NULL;
+	list->defaulttype = defaulttype;
+}
+
+static inline bool_t find(const char *name,struct filterlist *list) {
 	int cmp;
-	const struct filterlist *last = *last_p;
+	const struct filterlistitem *last = list->last;
 
 	assert( last != NULL );
 
 	if( last->next != NULL ) {
 		cmp = strcmp(name,last->next->packagename);
 		if( cmp == 0 ) {
-			*last_p = last->next;
+			list->last = last->next;
 			return TRUE;
 		}
 	}
@@ -168,10 +193,10 @@ bool_t filterlist_find(const char *name,struct filterlist *root,const struct fil
 			return TRUE;
 		} else if( cmp > 0 )
 			return FALSE;
-		last = root;
+		last = list->root;
 		cmp = strcmp(name,last->packagename);
 		if( cmp == 0 ) {
-			*last_p = root;
+			list->last = list->root;
 			return TRUE;
 		} else if( cmp < 0 )
 			return FALSE;
@@ -180,15 +205,26 @@ bool_t filterlist_find(const char *name,struct filterlist *root,const struct fil
 	while( last->next != NULL ) {
 		cmp = strcmp(name,last->next->packagename);
 		if( cmp == 0 ) {
-			*last_p = last->next;
+			list->last = last->next;
 			return TRUE;
 		}
 		if( cmp < 0 ) {
-			*last_p = last;
+			list->last = last;
 			return FALSE;
 		}
 		last = last->next;
 	}
-	*last_p = last;
+	list->last = last;
 	return FALSE;
+}
+
+enum filterlisttype filterlist_find(const char *name,struct filterlist *list) {
+	if( list->root && find(name,list) ) {
+		return list->last->what;
+	} else {
+		if( verbose > 4 ) {
+			fprintf(stderr, "Package not found in filterlist: '%s'\n",name);
+		}
+		return list->defaulttype;
+	}
 }

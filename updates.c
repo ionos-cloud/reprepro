@@ -111,9 +111,7 @@ struct update_pattern {
 	struct strlist udebcomponents_into;
 	// NULL means no condition
 	term *includecondition;
-	// NULL means nothing given
-	struct filterlist *filterlist;
-	const struct filterlist *filterlist_last;
+	struct filterlist filterlist;
 	// NULL means nothing to execute after lists are downloaded...
 	char *listhook;
 };
@@ -166,7 +164,7 @@ void update_pattern_free(struct update_pattern *update) {
 	strlist_done(&update->udebcomponents_from);
 	strlist_done(&update->udebcomponents_into);
 	term_free(update->includecondition);
-	filterlist_free(update->filterlist);
+	filterlist_release(&update->filterlist);
 	free(update->listhook);
 	free(update);
 }
@@ -444,15 +442,12 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 		r = filterlist_load(&update->filterlist,confdir,filename);
 		free(filename);
 		if( RET_WAS_ERROR(r) ) {
-			update->filterlist = NULL;
 			update_pattern_free(update);
 			return r;
 		}
 		assert( r != RET_NOTHING );
-		update->filterlist_last = update->filterlist;
 	} else {
-		update->filterlist = NULL;
-		update->filterlist_last = NULL;
+		filterlist_empty(&update->filterlist,flt_install);
 	}
 	/* * Check if there is a script to call * */
 	r = chunk_getvalue(chunk,"ListHook",&update->listhook);
@@ -1109,22 +1104,18 @@ upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const 
 	struct update_pattern *pattern = privdata;
 	retvalue r;
 
-	if( pattern->filterlist_last ) {
-		if( filterlist_find(package,pattern->filterlist,&pattern->filterlist_last) ) {
-			switch( pattern->filterlist_last->what ) {
-				case flt_deinstall:
-				case flt_purge:
-					return UD_NO;
-				case flt_hold:
-					return UD_HOLD;
-				case flt_install:
-					break;
-			}
-		} else {
-			if( verbose >= 4 )
-				fprintf(stderr,"Did not found '%s' in FilterList file!\n",package);
+	switch( filterlist_find(package,&pattern->filterlist) ) {
+		case flt_deinstall:
+		case flt_purge:
 			return UD_NO;
-		}
+		case flt_hold:
+			return UD_HOLD;
+		case flt_error:
+			/* cannot yet be handled! */
+			fprintf(stderr,"Error: unexpected Packagename '%s'!\n",package);
+			return UD_NO;
+		case flt_install:
+			break;
 	}
 
 	if( pattern->includecondition ) {

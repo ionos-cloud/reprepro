@@ -1,6 +1,12 @@
+2005-01-26  Bernhard R. Link <brlink@debian.org>
+	* change FilterList to need a defaultaction given
+
 2005-01-25  Bernhard R. Link <brlink@debian.org>
 	* Add ListHook keyword for external processing
 	  of the downloaded index file before updating.
+
+	* Add FilterList keyword for a list in the
+	format of dpkg --get-selections
 
 2005-01-24  Bernhard R. Link <brlink@debian.org>
 	* Make includedeb work again.

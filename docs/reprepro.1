@@ -398,10 +398,12 @@ Dependency lines. To get only architecture all packages use
 packages use "priority (==required) | priority (==important)".
 .TP
 .B FilterList
-This file in the format of dpkg \-\-get\-selections will be read
-(relative to
+This takes two arguments: The first one is the default action
+when something is not found, the second is a
+filename (relative to
 .B \-\-confdir
-, if not starting with a slash), and only packages listed in
+, if not starting with a slash), 
+in the format of dpkg \-\-get\-selections and only packages listed in
 there as 
 .B install
 will be installed. Things listed as
