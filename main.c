@@ -664,7 +664,7 @@ static int forget(int argc,char *argv[]) {
 
 static int md5sums(int argc,char *argv[]) {
 	filesdb files;
-	char *filename,*md;
+	char *filename,*md5sum;
 	retvalue ret,r;
 	int i;
 
@@ -672,14 +672,14 @@ static int md5sums(int argc,char *argv[]) {
 		ret = RET_NOTHING;
 		for( i = 1 ; i < argc ; i++ ) {
 			filename=calc_dirconcat(distdir,argv[i]);
-			r = md5sum_and_size(&md,filename,0);
+			r = md5sum_read(filename,&md5sum);
 			RET_UPDATE(ret,r);
 			if( RET_IS_OK(r) ) {
-				printf(" %s %s\n",md,argv[i]);
-				free(md);
+				printf(" %s %s\n",md5sum,argv[i]);
+				free(md5sum);
 				free(filename);
 			} else {
-				fprintf(stderr,"Error accessing file: %s: %m\n",filename);
+				fprintf(stderr,"Error accessing file: %s\n",filename);
 				free(filename);
 				if( ! force )
 					return 1;

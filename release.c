@@ -142,11 +142,12 @@ retvalue release_check(const struct strlist *fileinfos, const char *nametocheck,
 	if( !nametocheck || !filename )
 		return RET_ERROR_OOM;
 
-	r=md5sum_and_size(&realmd5sum,filename,0);
+	r=md5sum_read(filename,&realmd5sum);
 	if( !RET_IS_OK(r)) {
-		if( r == RET_NOTHING )
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Error opening %s!\n",filename);
 			r = RET_ERROR;
-		fprintf(stderr,"Error calculating checksum of %s: %m\n",filename);
+		}
 		return r;
 	}
 	r = release_searchchecksum(fileinfos,nametocheck,realmd5sum);
@@ -282,7 +283,7 @@ static retvalue printmd5sum(FILE *f,const char *dir,const char *fmt,...) {
 		return RET_ERROR_OOM;
 	}
 	
-	r = md5sum_and_size(&md,filename,0);
+	r = md5sum_read(filename,&md);
 	free(filename);
 
 	if( !RET_IS_OK(r) ) {

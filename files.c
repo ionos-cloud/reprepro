@@ -159,15 +159,12 @@ static retvalue files_calcmd5(char **md5sum,const char *filename) {
 	retvalue ret;
 
 	*md5sum = NULL;
-	ret = md5sum_and_size(md5sum,filename,0);
+	ret = md5sum_read(filename,md5sum);
 
 	if( ret == RET_NOTHING ) {
-		fprintf(stderr,"Error accessing file \"%s\": %m\n",filename);
 		return RET_ERROR;
-
 	}
 	if( RET_WAS_ERROR(ret) ) {
-		fprintf(stderr,"Error checking file \"%s\": %m\n",filename);
 		return ret;
 	}
 	if( verbose > 20 ) {
@@ -237,30 +234,12 @@ int files_expect(filesdb db,const char *filekey,const char *md5sum) {
 	if( !filename )
 		return RET_ERROR_OOM;
 
-	realmd5sum = NULL;
-	ret = md5sum_and_size(&realmd5sum,filename,0);
-
-	if( RET_WAS_ERROR(ret) ) {
-		// TODO: move this check to md5sum_and_size, should cause RET_NOTHING
-		if( ret != RET_ERRNO(EACCES) && ret != RET_ERRNO(EPERM)) {
-			fprintf(stderr,"Error accessing file \"%s\": %m(%d)\n",filename,ret);
-			free(filename);
-			free(realmd5sum);
-			return ret;
-		} else {
-			free(filename);
-			free(realmd5sum);
-			return RET_NOTHING;
-		}
-	}
+	ret = md5sum_read(filename,&realmd5sum);
 	free(filename);
-	if( ret == RET_NOTHING ) {
-		free(realmd5sum);
+	if( ret == RET_NOTHING || RET_WAS_ERROR(ret) )
 		return ret;
-	}
 
 	if( strcmp(md5sum,realmd5sum) != 0 ) {
-		fprintf(stderr,"File \"%s\" has other md5sum than expected!\n",filekey);
 		fprintf(stderr,"File \"%s\" had other md5sum (%s) than expected(%s)!\n",filekey,realmd5sum,md5sum);
 		free(realmd5sum);
 		return RET_ERROR_WRONG_MD5;

@@ -6,9 +6,13 @@
 #warning "What's hapening here?"
 #endif
 
-// give them better names, and add a calulate by copy here...
+/* Calculate the md5sum of the given file, 
+ * returns RET_NOTHING, if it does not exist.*/
+retvalue md5sum_read(const char *filename,char **result);
 
-/* returns md5sum " " size */
-retvalue md5sum_and_size(char **result,const char *filename,ssize_t bufsize);
-
+/* copy orig to dest and calculate the md5sum while dooing so.
+ * return RET_NOTHING, if does not exist, and RET_ERROR_EXIST, if dest
+ * is already existing before. */
+retvalue md5sum_copy(const char *origfilename,const char *destfilename, 
+			char **result);
 #endif
