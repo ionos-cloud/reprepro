@@ -3,6 +3,9 @@
 	values a bit more. Some more things can
 	be ignored with --ignore now.
 
+	* includedsc and includedeb only export
+	files that changed.
+
 2005-01-10  Bernhard R. Link <brlink@debian.org>
 	* Made updates using --force with failing parts
 	more graceful

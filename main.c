@@ -878,7 +878,7 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 
 	override_free(override);
 
-	r = distribution_export(distribution,dbdir,distdir,force,FALSE);
+	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 
 	r = distribution_free(distribution);
@@ -937,7 +937,7 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 	result = dsc_add(dbdir,refs,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete);
 	
 	override_free(srcoverride);
-	r = distribution_export(distribution,dbdir,distdir,force,FALSE);
+	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
