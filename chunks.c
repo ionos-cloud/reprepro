@@ -24,6 +24,7 @@
 #include <zlib.h>
 #include <assert.h>
 #include "error.h"
+#include "ignore.h"
 #include "chunks.h"
 #include "names.h"
 
@@ -598,4 +599,86 @@ char *chunk_replacefield(const char *chunk,const char *fieldname,const char *dat
 	toadd.len_data = strlen(data);
 	toadd.next = NULL;
 	return chunk_replacefields(chunk,&toadd,fieldname);
+}
+
+retvalue chunk_checkfields(const char *chunk,const char * const *allowedfieldnames,bool_t commentsallowed) {
+	const char *c = chunk;
+
+	assert( chunk != NULL );
+	assert( allowedfieldnames != NULL );
+
+	while( *c != '\0' ) {
+		const char *nameend = c;
+
+		if( *c == '#' && commentsallowed ) {
+			while( *c != '\0' && *c != '\n' )
+				c++;
+			if( *c == '\0' )
+				return RET_OK;
+			c++;
+			if( *c == ' ' ) {
+				if( !IGNORING("Ignoring","To ignore this",
+overlongcomments,"A comment is continued by a line starting with space in '%s'!\n",chunk) )
+					return RET_ERROR;
+			}
+			do {
+				while( *c != '\0' && *c != '\n' )
+					c++;
+				if( *c == '\0' )
+					return RET_OK;
+				c++;
+			} while ( *c == ' ' );
+			continue;
+		}
+		while( *nameend != '\0' && *nameend != '\n' && *nameend != ':' ) {
+			nameend++;
+		}
+		if( *nameend != ':' ) {
+			const char *p = c;
+			while( isspace(*p) && *p != '\0' && *p != '\n' ) {
+				p++;
+			}
+			if( p == nameend ) {
+				if( !IGNORING("Ignoring","To ignore this",spaceonlyline,
+				"Line only containing spaces in '%s'!\n",chunk) )
+					return RET_ERROR;
+			} else {
+				if( !IGNORING("Ignoring","To ignore this",malformedchunk,
+				"Malformed chunk! Expecting colon in '%s'!\n",c) )
+					return RET_ERROR;
+			}
+
+		} else {
+			const char * const *allowedfn = allowedfieldnames;
+
+			for( ; *allowedfn != NULL ; allowedfn++ ) {
+				const char *allowed = *allowedfn;
+				if( strncasecmp(allowed,c,nameend-c) == 0 
+				    && allowed[nameend-c] == '\0' )
+					break;
+			}
+			if( *allowedfn == NULL ) {
+				char *fieldname = strndup(c,nameend-c);
+				if( !IGNORING("Ignoring","To ignore this",
+unknownfield, "Unknown field name: '%s'\n",(fieldname!=NULL)?fieldname:c) ) {
+					free(fieldname);
+					return RET_ERROR;
+				}
+				free(fieldname);
+			}
+
+		}
+		c = nameend;
+
+		do {
+			while( *c != '\0' && *c != '\n' )
+				c++;
+			if( *c == '\0' )
+				return RET_OK;
+			c++;
+			// TODO: whitespace or any space?
+		} while ( *(c) == ' ' );
+
+	}
+	return RET_OK;
 }

@@ -9,6 +9,9 @@
 	* implement T_NEGATED flag of parsing
 	* document listfilter command
 
+	* check conf/distributions conf/updates for unknown fields
+	  (to rule out typos, lines with # are ignored)
+
 2005-01-22  Bernhard R. Link <brlink@debian.org>
 	* Make -T work everywhere -A works.
 	* rename variables from suffix to packagetype

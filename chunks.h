@@ -58,4 +58,7 @@ void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *f);
 /* that is chunk_replacefields(chunk,{fieldname,strlen,data,strlen},fieldname); */
 /*@null@*/char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data);
 
+/* check if all field names  are in allowedfieldnames */
+retvalue chunk_checkfields(const char *chunk,const char * const *allowedfieldnames,bool_t commentsallowed);
+
 #endif

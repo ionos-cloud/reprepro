@@ -10,7 +10,11 @@
 	IGN(invalid_distribution) \
 	IGN(forbiddenchar) \
 	IGN(8bit) \
-	IGN(emptyfilenamepart)
+	IGN(emptyfilenamepart) \
+	IGN(overlongcomments) \
+	IGN(spaceonlyline) \
+	IGN(malformedchunk) \
+	IGN(unknownfield)
 
 
 enum ignore { 

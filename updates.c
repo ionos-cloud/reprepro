@@ -273,6 +273,9 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 	struct strlist componentslist,architectureslist;
 	char *formula;
 	retvalue r;
+	static const char * const allowedfields[] = {"Name", "Method", 
+"Config", "Suite", "Architectures", "Components", "UDebComponents", 
+"IgnoreRelease", "VerifyRelease", "FilterFormula", NULL};
 
 	update = calloc(1,sizeof(struct update_pattern));
 	if( update == NULL )
@@ -298,6 +301,14 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 			fprintf(stderr,"No Method found in update-block!\n");
 			r = RET_ERROR_MISSING;
 		}
+		update_pattern_free(update);
+		return r;
+	}
+
+	// TODO: if those are checked anyway, there should be no reason to
+	// research them later...
+	r = chunk_checkfields(chunk,allowedfields,TRUE);
+	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;
 	}

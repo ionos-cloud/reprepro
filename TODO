@@ -1,6 +1,5 @@
 TODO:
 	check values from conf/distributions for sane values
-	check if conf/ chunks contain only allowed values...
 	add override-support while updating (or decide if this should be done)
 	implement extractcontrol.c properly
 	add support to specify the key used for signing

@@ -134,9 +134,19 @@ static retvalue createtargets(struct distribution *distribution) {
 static retvalue distribution_parse(struct distribution **distribution,const char *chunk) {
 	struct distribution *r;
 	retvalue ret;
+static const char * const allowedfields[] = {
+"Codename", "Suite", "Version", "Origin", "Label", "Description", 
+"Architectures", "Components", "Update", "SignWith", "Override", 
+"SourceOverride", "UDebComponents", NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
 	
+	// TODO: if those are checked anyway, there should be no reason to
+	// research them later...
+	ret = chunk_checkfields(chunk,allowedfields,TRUE);
+	if( RET_WAS_ERROR(ret) )
+		return ret;
+
 	r = calloc(1,sizeof(struct distribution));
 	if( !r )
 		return RET_ERROR_OOM;
