@@ -481,6 +481,7 @@ static int export(int argc,char *argv[]) {
 
 static int update(int argc,char *argv[]) {
 	retvalue result,r;
+	int doexport;
 	DB *refs;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
@@ -526,13 +527,16 @@ static int update(int argc,char *argv[]) {
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	
-	if( verbose >= 0 )
+	doexport = force || RET_IS_OK(result);
+	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	while( distributions ) {
 		struct distribution *d = distributions->next;
 
-		r = distribution_export(distributions,dbdir,distdir,force,1);
-		RET_ENDUPDATE(result,r);
+		if( doexport ) {
+			r = distribution_export(distributions,dbdir,distdir,force,1);
+			RET_ENDUPDATE(result,r);
+		}
 		
 		distribution_free(distributions);
 

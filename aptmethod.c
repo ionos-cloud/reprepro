@@ -507,6 +507,42 @@ static inline retvalue todo_done(struct aptmethod *method,const struct tobedone 
 	return RET_OK;
 }
 
+/* look which file could not be received and remove it: */
+static retvalue urierror(struct aptmethod *method,const char *uri) {
+	struct tobedone *todo,*lasttodo;
+
+	lasttodo = NULL; todo = method->tobedone;
+	while( todo ) {
+		if( strcmp(todo->uri,uri) == 0)  {
+
+			/* remove item: */
+			if( lasttodo == NULL )
+				method->tobedone = todo->next;
+			else
+				lasttodo->next = todo->next;
+			if( method->nexttosend == todo ) {
+				/* just in case some method received
+				 * files before we request them ;-) */
+				method->nexttosend = todo->next;
+			}
+			if( method->lasttobedone == todo ) {
+				method->lasttobedone = todo->next;
+			}
+			free(todo->uri);
+			free(todo->filename);
+			free(todo->md5sum);
+			free(todo->filekey);
+			free(todo);
+			return RET_OK;
+		}
+		lasttodo = todo;
+		todo = todo->next;
+	}
+	/* huh? */
+	fprintf(stderr,"Error with unexpected file '%s'!",uri);
+	return RET_ERROR;
+}
+
 /* look where a received file has to go to: */
 static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename, const char *md5sum,filesdb filesdb) {
 	struct tobedone *todo,*lasttodo;
@@ -546,6 +582,29 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 }
 
 /***************************Input and Output****************************/
+static retvalue logmessage(const struct aptmethod *method,const char *chunk,const char *type) {
+	retvalue r;
+	char *message;
+
+	r = chunk_getvalue(chunk,"Message",&message);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) ) {
+		fprintf(stderr,"aptmethod '%s': '%s'\n",method->baseuri,message);
+		free(message);
+		return RET_OK;
+	}
+	r = chunk_getvalue(chunk,"URI",&message);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) ) {
+		fprintf(stderr,"aptmethod %s '%s'\n",type,message);
+		free(message);
+		return RET_OK;
+	}
+	fprintf(stderr,"aptmethod '%s': '%s'\n",method->baseuri,type);
+	return RET_OK;
+}
 static inline retvalue gotcapabilities(struct aptmethod *method,const char *chunk) {
 	retvalue r;
 
@@ -615,6 +674,35 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,fil
 	free(md5sum);
 	return r;
 }
+
+static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
+	retvalue r;
+	char *uri,*message;
+
+	r = chunk_getvalue(chunk,"URI",&uri);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing URI-header in urierror got from method!\n");
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = chunk_getvalue(chunk,"Message",&message);
+	if( r == RET_NOTHING ) {
+		message = NULL;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(uri);
+		return r;
+	}
+
+	fprintf(stderr,"aptmethod error receiving '%s':\n'%s'\n",uri,message);
+	
+ 	r = urierror(method,uri);
+	free(uri);
+	free(message);
+	return r;
+}
 	
 static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
 	const char *p;
@@ -634,32 +722,54 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 				case '0':
 					fprintf(stderr,"Got '%s'\n",input);
 					OVERLINE;
-					return gotcapabilities(method,p);
+					return gotcapabilities(method,input);
 				/* 101 Log */
 				case '1':
-					fprintf(stderr,"Got '%s'\n",input);
+					if( verbose > 10 ) {
+						OVERLINE;
+						return logmessage(method,p,"101");
+					}
 					return RET_OK;
 				/* 102 Status */
 				case '2':
-					fprintf(stderr,"Got '%s'\n",input);
+					if( verbose > 2 ) {
+						OVERLINE;
+						return logmessage(method,p,"102");
+					}
 					return RET_OK;
 			}
 		case '2':
 			switch( *(input+2) ) {
 				/* 200 URI Start */
 				case '0':
-					fprintf(stderr,"Got '%s'\n",input);
+					if( verbose > 0 ) {
+						OVERLINE;
+						return logmessage(method,p,"start");
+					}
 					return RET_OK;
 				/* 201 URI Done */
 				case '1':
-					fprintf(stderr,"Got '%s'\n",input);
 					OVERLINE;
+					if( verbose >= 0 )
+						logmessage(method,p,"got");
 					return goturidone(method,p,filesdb);
 			}
 
 		case '4':
-			fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
-			// TODO: when 404 remove todo...
+			switch( *(input+2) ) {
+				case '0':
+					OVERLINE;
+					goturierror(method,p);
+					break;
+				case '1':
+					OVERLINE;
+					logmessage(method,p,"general error");
+					method->status = ams_failed;
+					break;
+				default:
+					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+			}
+			/* even a sucessfully handled error is a error */
 			return RET_ERROR;
 		default:
 			fprintf(stderr,"unexpected data from method: '%s'\n",input);

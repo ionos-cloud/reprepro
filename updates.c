@@ -827,6 +827,7 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 
 	r = aptmethod_download(run,methoddir,filesdb);
 	if( RET_WAS_ERROR(r) && !force ) {
+		RET_UPDATE(result,r);
 		aptmethod_shutdown(run);
 		return result;
 	}
@@ -839,12 +840,14 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 			break;
 	}
 	if( RET_WAS_ERROR(result) && !force ) {
+		RET_UPDATE(result,r);
 		aptmethod_shutdown(run);
 		return result;
 	}
 
 	r = aptmethod_download(run,methoddir,filesdb);
 	if( RET_WAS_ERROR(r) && !force ) {
+		RET_UPDATE(result,r);
 		aptmethod_shutdown(run);
 		return result;
 	}
