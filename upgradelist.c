@@ -355,17 +355,29 @@ retvalue upgradelist_dump(upgradelist upgrade){
 	pkg = upgrade->list;
 	while( pkg ) {
 		if( pkg->version == pkg->version_in_use ) {
-			if( verbose > 0 )
+			if( pkg->new_version ) {
+			if( verbose > 1 )
 				printf("'%s': '%s' will be kept " 
 				       "(best new: '%s')\n",
 				       pkg->name,pkg->version_in_use,
 				       pkg->new_version);
+			} else {
+			if( verbose > 0 )
+				printf("'%s': '%s' will be kept " 
+				       "(unavailable for reload)\n",
+				       pkg->name,pkg->version_in_use);
+			}
 
 		} else {
+			if( pkg->version_in_use ) 
 			printf("'%s': '%s' will be upgraded to '%s':\n " 
 			       "files needed: ",
 			       pkg->name,pkg->version_in_use,
 			       pkg->new_version);
+			else
+			printf("'%s': newly installed as '%s':\n " 
+			       "files needed: ",
+			       pkg->name, pkg->new_version);
 			strlist_fprint(stdout,&pkg->new_filekeys);
 			printf("\nwith md5sums: ");
 			strlist_fprint(stdout,&pkg->new_md5sums);
