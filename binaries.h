@@ -5,10 +5,6 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_PACKAGES_H
-#include "packages.h"
-#warning "What's hapening here?"
-#endif
 #ifndef __MIRRORER_TARGET_H
 #include "target.h"
 #endif

@@ -30,7 +30,6 @@
 #include <db.h>
 #include "error.h"
 #include "chunks.h"
-#include "packages.h"
 #include "sources.h"
 #include "md5sum.h"
 #include "dirs.h"

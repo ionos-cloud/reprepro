@@ -26,7 +26,6 @@
 #include "strlist.h"
 #include "names.h"
 #include "chunks.h"
-#include "packages.h"
 #include "binaries.h"
 #include "names.h"
 #include "dpkgversions.h"

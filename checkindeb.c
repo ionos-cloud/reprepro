@@ -36,7 +36,6 @@
 #include "chunks.h"
 #include "checkindeb.h"
 #include "reference.h"
-#include "packages.h"
 #include "binaries.h"
 #include "files.h"
 #include "extractcontrol.h"

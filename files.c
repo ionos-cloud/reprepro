@@ -31,7 +31,6 @@
 #include "dirs.h"
 #include "names.h"
 #include "files.h"
-#include "packages.h"
 #include "copyfile.h"
 
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}

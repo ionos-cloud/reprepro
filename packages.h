@@ -33,9 +33,9 @@ retvalue packages_init(packagesdb *pkgs,const char *dbpath,const char *codename,
 retvalue packages_done(packagesdb db);
 
 /* save a given chunk in the database */
-retvalue packages_add(packagesdb db,const char *package,const char *chunk);
+//retvalue packages_add(packagesdb db,const char *package,const char *chunk);
 /* replace a save chunk with another */
-retvalue packages_replace(packagesdb db,const char *package,const char *chunk);
+//retvalue packages_replace(packagesdb db,const char *package,const char *chunk);
 /* remove a given chunk from the database */
 retvalue packages_remove(packagesdb db,const char *package);
 /* get the saved chunk from the database,

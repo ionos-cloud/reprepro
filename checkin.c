@@ -35,7 +35,6 @@
 #include "dirs.h"
 #include "chunks.h"
 #include "reference.h"
-#include "packages.h"
 #include "signature.h"
 #include "sources.h"
 #include "files.h"
