@@ -16,6 +16,7 @@ char * mprintf(const char *fmt,...) {
 	va_start(va,fmt);
 	r = vasprintf(&p,fmt,va);
 	va_end(va);
+	/* return NULL both when r is < 0 and when NULL was returned */
 	if( r < 0 )
 		return NULL;
 	else
@@ -27,6 +28,7 @@ char * vmprintf(const char *fmt,va_list va) {
 	int r;
 
 	r = vasprintf(&p,fmt,va);
+	/* return NULL both when r is < 0 and when NULL was returned */
 	if( r < 0 )
 		return NULL;
 	else
