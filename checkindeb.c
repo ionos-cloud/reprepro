@@ -203,7 +203,7 @@ retvalue deb_complete(struct debpackage *pkg) {
 	size = pkg->md5sum;
 	while( !isblank(*size) && *size )
 		size++;
-	replace = addfield_newn("MD5Sum",pkg->md5sum, size-pkg->md5sum,NULL);
+	replace = addfield_newn("MD5sum",pkg->md5sum, size-pkg->md5sum,NULL);
 	if( !replace )
 		return RET_ERROR_OOM;
 	while( *size && isblank(*size) )
