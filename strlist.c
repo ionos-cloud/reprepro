@@ -39,6 +39,22 @@ int strlist_in(const struct strlist *strlist,const char *element) {
 	return 0;
 }
 
+int strlist_subset(const struct strlist *strlist,const struct strlist *subset) {
+	int c;
+	char **t;
+
+	assert(subset != NULL);
+
+	c = subset->count; 
+	t = subset->values;
+	while( c-- != 0 ) {
+		if( !strlist_in(strlist,*(t++)) )
+			return 0;
+	}
+	return 1;
+
+}
+
 retvalue strlist_init_n(int startsize,struct strlist *strlist) {
 	assert(strlist != NULL && startsize >= 0);
 

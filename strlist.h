@@ -30,5 +30,6 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig);
 void strlist_move(struct strlist *dest,struct strlist *orig);
 
 int strlist_in(const struct strlist *strlist,const char *element);
+int strlist_subset(const struct strlist *strlist,const struct strlist *subset);
 
 #endif
