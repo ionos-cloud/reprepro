@@ -404,7 +404,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 #undef R
 }
 
-static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcepriority,const char *forcesection,const struct overrideinfo *srcoverride,const struct overrideinfo *override,int force) {
+static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcesection,const char *forcepriority,const struct overrideinfo *srcoverride,const struct overrideinfo *override,int force) {
 	struct fileentry *e;
 
 	e = changes->files;
