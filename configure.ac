@@ -4,7 +4,7 @@ dnl
 
 AC_INIT(main.c)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(reprepro,0.2-cvs)
+AM_INIT_AUTOMAKE(reprepro,0.3)
 
 AM_MAINTAINER_MODE
 

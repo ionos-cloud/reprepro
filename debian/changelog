@@ -1,3 +1,12 @@
+reprepro (0.3-1) unstable; urgency=low
+
+  * new version:
+    - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
+    - new command reoverride to reapply override information.
+    - copied files are created without executable bit (Closes: #303195)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  5 Apr 2005 22:08:35 +0200
+
 reprepro (0.2-1) unstable; urgency=low
 
   * new version:
