@@ -19,6 +19,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
 #include "error.h"
@@ -130,7 +131,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 			 * out here */
 			fprintf(stderr,"Package-database is not sorted!!!");
 			assert(0);
-			exit(100);
+			exit(EXIT_FAILURE);
 		}
 	}
 
