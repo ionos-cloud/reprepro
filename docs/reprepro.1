@@ -352,6 +352,13 @@ If this is present, no
 .B Release
 file will be downloaded and thus the md5sums of the other
 index files will not be checked.
+.TP
+.B FilterFormula
+This can be a formula to specify which packages to accept from
+this source. The format is misusing the parser intended for
+Dependency lines. To get only architecture all packages use
+"architecture (== all)", to get only at least important
+packages use "priority (==required) | priority (==important)".
 .SH "OVERRIDE FILES"
 yet to be described
 .SH GUESSING

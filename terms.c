@@ -297,7 +297,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 		overspace();
 		if( !*formula )
 			break;
-		if( *formula != ',' && ( *formula != '|' || options & T_OR )) {
+		if( *formula != ',' && ( *formula != '|' || (options & T_OR)==0 )) {
 			fprintf(stderr,"Unexpected character '%c' within '%s'!\n",*formula,origformula);
 			term_free(first);
 			return RET_ERROR;
