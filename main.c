@@ -296,16 +296,15 @@ static int zexportpackages(int argc,char *argv[]) {
 	result = packages_dozprintout(dbdir,argv[1],argv[2]);
 	return EXIT_RET(result);
 }
-/* 
-// TODO: needs to be rewritten...
-static int removepackage(int argc,char *argv[]) {
+
+static int removesource(int argc,char *argv[]) {
 	retvalue result,r;
 	DB *pkgs,*refs;
 	int i;
-	char *filekey,*chunk;
+	struct strlist files;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer _removepackage <identifier> <package-name>\n");
+		fprintf(stderr,"mirrorer _removesource <identifier> <package-name>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
@@ -317,28 +316,22 @@ static int removepackage(int argc,char *argv[]) {
 		return 1;
 	}
 
-	// TODO: split this in binary/source and use binaries_lookforold
 	result = RET_NOTHING;
 	for( i = 2 ; i< argc ; i++ ) {
-		chunk = packages_get(pkgs,argv[i]);
-		if( verbose > 0 )
-			fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
-		r = packages_remove(pkgs,argv[i]);
+		r = sources_lookforold(pkgs,argv[i],&files);
 		if( RET_IS_OK(r) ) {
-			r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL,NULL);
+			if( verbose > 0 )
+				fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
+			r = packages_remove(pkgs,argv[i]);
 			if( RET_IS_OK(r) ) {
-				if( verbose > 1 )
-					fprintf(stderr,"unreferencing '%s' to '%s' \n",argv[1],filekey);
-				r = references_decrement(refs,filekey,argv[1]);
-				free(filekey);
-			} else if( r == RET_NOTHING ) {
-				if( verbose > 1 )
-					fprintf(stderr,"unreferencing needed srcfiles in '%s' about  '%s' \n",argv[1],argv[i]);
-				r = sources_dereference(refs,argv[1],chunk);
+				r = references_delete(refs,argv[1],&files,NULL);
 			}
+			strlist_done(&files);
+		} else if( r == RET_NOTHING ) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Could not find '%s' in '%s'...\n",argv[i],argv[1]);
+
 		}
-		if( chunk )
-			free(chunk);
 		RET_UPDATE(result,r);
 	}
 
@@ -348,7 +341,52 @@ static int removepackage(int argc,char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
 }
-*/
+
+static int removebinary(int argc,char *argv[]) {
+	retvalue result,r;
+	DB *pkgs,*refs;
+	int i;
+	struct strlist files;
+
+	if( argc < 3 ) {
+		fprintf(stderr,"mirrorer _removebinary <identifier> <package-name>\n");
+		return 1;
+	}
+	refs = references_initialize(dbdir);
+	if( ! refs )
+		return 1;
+	pkgs = packages_initialize(dbdir,argv[1]);
+	if( ! pkgs ) {
+		(void)references_done(refs);
+		return 1;
+	}
+
+	result = RET_NOTHING;
+	for( i = 2 ; i< argc ; i++ ) {
+		r = binaries_lookforold(pkgs,argv[i],&files);
+		if( RET_IS_OK(r) ) {
+			if( verbose > 0 )
+				fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
+			r = packages_remove(pkgs,argv[i]);
+			if( RET_IS_OK(r) ) {
+				r = references_delete(refs,argv[1],&files,NULL);
+			}
+			strlist_done(&files);
+		} else if( r == RET_NOTHING ) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Could not find '%s' in '%s'...\n",argv[i],argv[1]);
+
+		}
+		RET_UPDATE(result,r);
+	}
+
+	r = packages_done(pkgs);
+	RET_ENDUPDATE(result,r);
+	r = references_done(refs);
+	RET_ENDUPDATE(result,r);
+	return EXIT_RET(result);
+}
+
 /****** reference_{binary,source} *****/
 struct referee {
 	DB *refs;
@@ -1264,7 +1302,8 @@ static struct action {
 	{"addpackages", addpackages},
 	{"_genpackages", exportpackages},
 	{"_genzpackages", zexportpackages},
-/*        {"_removepackage", removepackage},*/
+        {"_removesource", removesource},
+        {"_removebinary", removebinary},
 	{"export", export},
 	{"check", check},
 	{"rereference", rereference},

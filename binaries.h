@@ -13,6 +13,10 @@
 /* get files out of a "Packages.gz"-chunk. */
 retvalue binaries_parse_getfiles(const char *chunk,struct strlist *files);
 
+/* Look for an old version of the Package in the database,
+ * returns RET_NOTHING, if there is none */
+retvalue binaries_lookforold(DB *pkgs,const char *name,struct strlist *files);
+
 /* Look for an older version of the Package in the database.
  * return RET_NOTHING if there is none, otherwise
  * Set *oldversion, if there is already a newer (or equal) version to
