@@ -1,6 +1,8 @@
 2005-01-24  Bernhard R. Link <brlink@debian.org>
 	* Make includedeb work again.
 
+	* Fix bugs in override file parsing
+
 2005-01-22  Bernhard R. Link <brlink@debian.org>
 	* Make -T work everywhere -A works.
 	* rename variables from suffix to packagetype

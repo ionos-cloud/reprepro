@@ -157,7 +157,7 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 				last = root;
 			if( strcmp(last->packagename,firstpart) < 0 ) {
 				while( last->next && 
-					strcmp(last->next->packagename,firstpart) > 0) {
+					strcmp(last->next->packagename,firstpart) < 0) {
 					last = last->next;
 				}
 				if( !last->next || strcmp(last->next->packagename,firstpart) != 0 ) {
@@ -199,9 +199,18 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 }
 
 const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package) {
-	while( overrides && strcmp(overrides->packagename,package)< 0 )
-		overrides = overrides->next;
-	return overrides;
+	int c;
+
+	while( overrides ) {
+		c = strcmp(overrides->packagename,package);
+		if( c < 0 )
+			overrides = overrides->next;
+		else if( c == 0 )
+			return overrides;
+		else
+			return NULL;
+	}
+	return NULL;
 }
 
 const char *override_get(const struct overrideinfo *override,const char *field) {

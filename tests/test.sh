@@ -26,7 +26,7 @@ Architectures: abacus source
 Components: stupid ugly
 
 Codename: test2
-Architectures: abacus source
+Architectures: abacus coal source
 Components: stupid ugly
 Origin: Brain
 Label: Only a test
@@ -67,18 +67,24 @@ Suite: broken
 Codename: test2
 Version: 9999999.02
 Date: normalized
-Architectures: abacus
+Architectures: abacus coal
 Components: stupid ugly
 Description: test with all fields set
 MD5Sum:
  e142c47c1be0c32cd120138066b73c73 146 stupid/binary-abacus/Release
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-abacus/Packages.gz
+ 10ae2f283e1abdd3facfac6ed664035d 144 stupid/binary-coal/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-coal/Packages
+ 7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-coal/Packages.gz
  b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
  7029066c27ac6f5ef18d660d5741979a 20 stupid/source/Sources.gz
  22eb57e60d3c621b8bd8461eae218b16 144 ugly/binary-abacus/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-abacus/Packages.gz
+ 7a05de3b706d08ed06779d0ec2e234e9 142 ugly/binary-coal/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-coal/Packages
+ 7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-coal/Packages.gz
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
  7029066c27ac6f5ef18d660d5741979a 20 ugly/source/Sources.gz
 END
@@ -110,30 +116,63 @@ mkdir -p override
 cat > override/srcoverride <<END
 simple Section ugly/games
 simple Priority optional
-simple Maintainer me <no.need@to.guess>
+simple Maintainer simple.source.maintainer
 bloat+-0a9z.app Section stupid/X11
-bloat+-0a9z.app Priority extra
+bloat+-0a9z.app Priority optional
 bloat+-0a9z.app X-addition totally-unsupported
+bloat+-0a9z.app Maintainer bloat.source.maintainer
 END
 cat > override/binoverride <<END
 simple Maintainer simple.maintainer
-bloat+-0a9z.app Maintainer bloat.maintainer
 simple Section ugly/base
-bloat+-0a9z.app Section stupid/base
-simple-addons Section ugly/addons
-bloat+-0a9z.app-addons Section stupid/addons
-simple-addons Maintainer simple.add.maintainer
-bloat+-0a9z.app-addons Maintainer bloat.add.maintainer
 simple Priority optional
-bloat+-0a9z.app Priority optional
+simple-addons Section ugly/addons
 simple-addons Priority optional
+simple-addons Maintainer simple.add.maintainer
+bloat+-0a9z.app Maintainer bloat.maintainer
+bloat+-0a9z.app Section stupid/base
+bloat+-0a9z.app Priority optional
+bloat+-0a9z.app-addons Section stupid/addons
+bloat+-0a9z.app-addons Maintainer bloat.add.maintainer
 bloat+-0a9z.app-addons Priority optional
 END
 
-"$REPREPRO" -b . includedsc test2 simple_123-0.dsc
-"$REPREPRO" -b . includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
-"$REPREPRO" -b . includedeb test2 simple_123-0_abacus.deb
+"$REPREPRO" -b . -Tdsc -A source includedsc test2 simple_123-0.dsc
+"$REPREPRO" -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+"$REPREPRO" -b . -Tdeb -A abacus includedeb test2 simple_123-0_abacus.deb
+"$REPREPRO" -b . -Tdeb -A coal includedeb test2 simple-addons_123-0_all.deb
+"$REPREPRO" -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
+"$REPREPRO" -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' > results
+cat >results.expected <<END
+dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
+dists/test2/stupid/binary-abacus/Packages.gz:Maintainer: bloat.maintainer
+dists/test2/stupid/binary-abacus/Packages.gz:Priority: optional
+dists/test2/stupid/binary-abacus/Packages.gz:Section: stupid/base
+dists/test2/stupid/binary-coal/Packages.gz:Package: bloat+-0a9z.app-addons
+dists/test2/stupid/binary-coal/Packages.gz:Maintainer: bloat.add.maintainer
+dists/test2/stupid/binary-coal/Packages.gz:Priority: optional
+dists/test2/stupid/binary-coal/Packages.gz:Section: stupid/addons
+dists/test2/stupid/source/Sources.gz:Package: bloat+-0a9z.app
+dists/test2/stupid/source/Sources.gz:Maintainer: bloat.source.maintainer
+dists/test2/stupid/source/Sources.gz:Priority: optional
+dists/test2/stupid/source/Sources.gz:Section: stupid/X11
+dists/test2/ugly/binary-abacus/Packages.gz:Package: simple
+dists/test2/ugly/binary-abacus/Packages.gz:Maintainer: simple.maintainer
+dists/test2/ugly/binary-abacus/Packages.gz:Priority: optional
+dists/test2/ugly/binary-abacus/Packages.gz:Section: ugly/base
+dists/test2/ugly/binary-coal/Packages.gz:Package: simple-addons
+dists/test2/ugly/binary-coal/Packages.gz:Maintainer: simple.add.maintainer
+dists/test2/ugly/binary-coal/Packages.gz:Priority: optional
+dists/test2/ugly/binary-coal/Packages.gz:Section: ugly/addons
+dists/test2/ugly/source/Sources.gz:Package: simple
+dists/test2/ugly/source/Sources.gz:Maintainer: simple.source.maintainer
+dists/test2/ugly/source/Sources.gz:Priority: optional
+dists/test2/ugly/source/Sources.gz:Section: ugly/games
+END
+diff -u results.expected results
 
+set +v
 echo
 echo "If the script is still running to show this,"
 echo "all tested cases seem to work. (Though writing some tests more can never harm)."
