@@ -891,9 +891,13 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 		fullfilename = calc_dirconcat(listdir,r->d_name);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
-		if( verbose >= 0 )
-			fprintf(stderr,"Removing apparently leftover file '%s'.\n"
-					"(Use --keepunneededlists to avoid this in the future.)\n",fullfilename);
+		if( verbose >= 0 ) {
+			size_t l = strlen(r->d_name);
+			if( l < 9 || strcmp(r->d_name+(l-8),"_changed") != 0 )
+				fprintf(stderr,
+"Removing apparently leftover file '%s'.\n"
+"(Use --keepunneededlists to avoid this in the future.)\n",fullfilename);
+		}
 		e = unlink(fullfilename);
 		if( e != 0 ) {
 			e = errno;

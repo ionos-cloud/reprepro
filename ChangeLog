@@ -3,6 +3,8 @@
 	(This caused problems when index files are already in
 	 place but still packages to be downloaded).
 
+	* Do not warn about deleting _changed files from listdir.
+
 2005-02-08  Bernhard R. Link <brlink@debian.org>
 	* Do some more checks reading signed sources.
 
