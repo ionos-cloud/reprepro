@@ -1,12 +1,13 @@
 TODO:
 	check values from conf/distributions for sane values
-	moving files between distributions
-	- only those with source in given thing...
 	write more automated test-cases
+	flag wheather manual inclusion rejects things without signature
 
 goals unlikely before the first release:
 	implement extractcontrol.c properly
 	allow to specify a keyring to use.
+	moving files between distributions
+	- only those with source in given thing...
 	add override-support while updating (or decide if this should be done)
 	add support to specify the key used for signing
 		(allow it needing a passphrase)
