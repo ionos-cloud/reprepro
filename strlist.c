@@ -197,3 +197,29 @@ void strlist_move(struct strlist *dest,struct strlist *orig) {
 	orig->size = orig->count = 0;
 	orig->values = NULL;
 }
+/* empty orig and add everything to the end of dest, in case of error, nothing
+ * was done. */
+retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig) {
+	int i;
+
+	assert(dest != NULL && orig != NULL && dest != orig);
+
+	if( dest->count+orig->count >= dest->size ) {
+		int newsize = dest->count+orig->count+8;
+		char **v = realloc(dest->values, newsize*sizeof(char *));
+		if( !v ) {
+			return RET_ERROR_OOM;
+		}
+		dest->size = newsize;
+		dest->values = v;
+	}
+
+	for( i = 0 ; i < orig->count ; i++ )
+		dest->values[dest->count+i] = orig->values[i];
+	dest->count += orig->count;
+	free(orig->values);
+	orig->size = orig->count = 0;
+	orig->values = NULL;
+
+	return RET_OK;
+}

@@ -502,7 +502,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 				break;
 		}
 		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
-			r = target_removepackage(upgrade->target,refs,pkg->name);
+			r = target_removepackage(upgrade->target,refs,pkg->name,NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )
 				break;

@@ -148,7 +148,9 @@ retvalue target_closepackagesdb(struct target *target) {
 	return r;
 }
 
-retvalue target_removepackage(struct target *target,references refs,const char *name) {
+/* Remove a package from the given target. If removedfilekeys != NULL, add there the
+ * filekeys that lost references */
+retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *removedfilekeys) {
 	char *oldchunk;
 	struct strlist files;
 	retvalue r;
@@ -176,7 +178,13 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 		target->wasmodified = TRUE;
 		r = references_delete(refs,target->identifier,&files,NULL);
 	}
-	strlist_done(&files);
+	if( removedfilekeys != NULL ) {
+		retvalue r2 = strlist_mvadd(removedfilekeys,&files);
+		if( RET_WAS_ERROR(r2) )
+			strlist_done(&files);
+	} else {
+		strlist_done(&files);
+	}
 	return r;
 }
 

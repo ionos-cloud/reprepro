@@ -220,31 +220,10 @@ static retvalue action_dumpunreferenced(int argc,const char *argv[]) {
 static retvalue deleteifunreferenced(void *data,const char *filekey,const char *md5sum) {
 	struct fileref *dist = data;
 	retvalue r;
-	char *filename;
-	int err,en;
 
 	r = references_isused(dist->refs,filekey);
 	if( r == RET_NOTHING ) {
-		if( verbose >= 0 )
-			printf("deleting and forgetting %s\n\n",filekey);
-		filename = calc_fullfilename(mirrordir,filekey);
-		if( !filename )
-			r = RET_ERROR_OOM;
-		else {
-			err = unlink(filename);
-			if( err != 0 ) {
-				en = errno;
-				r = RET_ERRNO(en);
-				if( errno == ENOENT ) {
-					fprintf(stderr,"%s not found, forgetting anyway\n",filename);
-				} else {
-					fprintf(stderr,"error while unlinking %s: %m(%d)\n",filename,en);
-				}
-			} 
-			if( err == 0 || en == ENOENT || force > 0 ) 
-				r = files_remove(dist->files,filekey);
-			free(filename);
-		}
+		r = files_deleteandremove(dist->files,filekey);
 		return r;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
@@ -294,7 +273,7 @@ static retvalue action_addreference(int argc,const char *argv[]) {
 }
 
 
-struct remove_args {references refs; int count; const char **names; bool_t *gotremoved; int todo;};
+struct remove_args {references refs; int count; const char **names; bool_t *gotremoved; int todo;struct strlist removedfiles;};
 
 static retvalue remove_from_target(void *data, struct target *target) {
 	retvalue result,r;
@@ -308,7 +287,7 @@ static retvalue remove_from_target(void *data, struct target *target) {
 
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
-		r = target_removepackage(target,d->refs,d->names[i]);
+		r = target_removepackage(target,d->refs,d->names[i],&d->removedfiles);
 		if( RET_IS_OK(r) ) {
 			if( ! d->gotremoved[i] )
 				d->todo--;
@@ -343,6 +322,13 @@ static retvalue action_remove(int argc,const char *argv[]) {
 		return r;
 	}
 
+	r = strlist_init(&d.removedfiles);
+	if( RET_WAS_ERROR(r) ) {
+		(void)references_done(d.refs);
+		distribution_free(distribution);
+		return r;
+	}
+
 	d.count = argc-2;
 	d.names = argv+2;
 	d.todo = d.count;
@@ -358,6 +344,30 @@ static retvalue action_remove(int argc,const char *argv[]) {
 	}
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
+	if( d.removedfiles.count > 0 ) {
+		filesdb files;
+
+		if( verbose >= 0 )
+			fprintf(stderr,"Deleting files no longer referenced...\n");
+
+		r = files_initialize(&files,dbdir,mirrordir);
+		RET_ENDUPDATE(result,r);
+		if( RET_IS_OK(r) ) {
+			int i;
+			for( i = 0 ; i < d.removedfiles.count ; i++ ) {
+				const char *filekey = d.removedfiles.values[i];
+
+				r = references_isused(d.refs,filekey);
+				if( r == RET_NOTHING ) {
+					r = files_deleteandremove(files,filekey);
+				}
+				RET_ENDUPDATE(result,r);
+			}
+			r = files_done(files);
+			RET_ENDUPDATE(result,r);
+		}
+	}
+	strlist_done(&d.removedfiles);
 	r = references_done(d.refs);
 	RET_ENDUPDATE(result,r);
 	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {

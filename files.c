@@ -162,6 +162,33 @@ retvalue files_remove(filesdb db,const char *filekey) {
 	}
 }
 
+/* delete the file and remove its md5sum from database */
+retvalue files_deleteandremove(filesdb filesdb,const char *filekey) {
+	int err,en;
+	char *filename;
+	retvalue r;
+
+	if( verbose >= 0 )
+		printf("deleting and forgetting %s\n",filekey);
+	filename = calc_fullfilename(filesdb->mirrordir,filekey);
+	if( !filename )
+		return RET_ERROR_OOM;
+	err = unlink(filename);
+	free(filename);
+	if( err != 0 ) {
+		en = errno;
+		r = RET_ERRNO(en);
+		if( errno == ENOENT ) {
+			fprintf(stderr,"%s not found, forgetting anyway\n",filename);
+		} else {
+			fprintf(stderr,"error while unlinking %s: %m(%d)\n",filename,en);
+			return r;
+		}
+	} 
+	r = files_remove(filesdb,filekey);
+	return r;
+}
+
 static retvalue files_calcmd5(char **md5sum,const char *filename) {
 	retvalue ret;
 

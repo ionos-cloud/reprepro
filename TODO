@@ -1,5 +1,6 @@
 TODO:
-	auto-remove files no longer needed after package remove/upgrade
+	auto-remove files no longer needed after package upgrade
+		- and think of a concept when to exactly do this
 	check values from conf/distributions for sane values
 	add override-support while updating (or decide if this should be done)
 	implement extractcontrol.c properly

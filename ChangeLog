@@ -6,6 +6,9 @@
 	* includedsc and includedeb only export
 	files that changed.
 
+	* remove now deletes files of removed packages
+	not referenced by any other package.
+
 2005-01-10  Bernhard R. Link <brlink@debian.org>
 	* Made updates using --force with failing parts
 	more graceful

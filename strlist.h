@@ -28,6 +28,8 @@ retvalue strlist_fprint(FILE *file,const struct strlist *strlist);
 retvalue strlist_dup(struct strlist *dest,const struct strlist *orig);
 /* replace the contents of dest with those from orig, which get emptied */
 void strlist_move(struct strlist *dest,struct strlist *orig);
+/* empty orig and add everything to the end of dest, on error nothing is freed */
+retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig);
 
 bool_t strlist_in(const struct strlist *strlist,const char *element);
 bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset);
