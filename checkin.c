@@ -39,6 +39,7 @@
 #include "signature.h"
 #include "sources.h"
 #include "files.h"
+#include "guesscomponent.h"
 #include "checkindsc.h"
 #include "checkindeb.h"
 #include "checkin.h"
@@ -76,6 +77,8 @@ struct fileentry {
 	char *priority;
 	char *architecture;
 	char *name;
+	/* only set after changes_includefiles */
+	char *filekey;
 };
 
 struct changes {
@@ -86,6 +89,8 @@ struct changes {
 		       binaries;
 	struct fileentry *files;
 	char *control;
+	/* Things to be set by changes_fixfields: */
+	char *component,*directory;
 };
 
 static void freeentries(struct fileentry *entry) {
@@ -93,6 +98,7 @@ static void freeentries(struct fileentry *entry) {
 
 	while( entry ) {
 		h = entry->next;
+		free(entry->filekey);
 		free(entry->basename);
 		free(entry->md5andsize);
 		free(entry->section);
@@ -112,6 +118,9 @@ static void changes_free(struct changes *changes) {
 		strlist_done(&changes->binaries);
 		freeentries(changes->files);
 		strlist_done(&changes->distributions);
+		free(changes->control);
+		free(changes->component);
+		free(changes->directory);
 	}
 	free(changes);
 }
@@ -341,7 +350,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,int f
 	r = chunk_getname(c->control,"Source",&c->source,0);
 	E("Missing 'Source' field");
 	r = names_checkpkgname(c->source);
-	C("Malforced Source-field");
+	C("Malforce Source-field");
 	r = chunk_getwordlist(c->control,"Binary",&c->binaries);
 	E("Missing 'Binary' field");
 	r = chunk_getwordlist(c->control,"Architecture",&c->architectures);
@@ -349,7 +358,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,int f
 	r = chunk_getvalue(c->control,"Version",&c->version);
 	E("Missing 'Version' field");
 	r = names_checkversion(c->version);
-	C("Malforced Version number");
+	C("Malforce Version number");
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field");
 	r = check(filename,c,"Urgency",force);
@@ -373,10 +382,91 @@ static retvalue changes_read(const char *filename,struct changes **changes,int f
 #undef R
 }
 
+static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcepriority,const char *forcesection,int force) {
+	struct fileentry *e;
+
+	e = changes->files;
+
+	if( e == NULL ) {
+		fprintf(stderr,"No files given in '%s'!\n",filename);
+		return RET_ERROR;
+	}
+	
+	while( e ) {
+		if( forcesection ) {
+			free(e->section);
+			e->section = strdup(forcesection);
+			if( e->section == NULL )
+				return RET_ERROR_OOM;
+		} else {
+		// TODO: otherwise check overwrite file...
+		}
+		if( strcmp(e->section,"unknown") == 0 ) {
+			fprintf(stderr,"Section '%s' of '%s' is not valid!\n",e->section,filename);
+			return RET_ERROR;
+		}
+		if( strcmp(e->section,"byhand" ) == 0 ) {
+			fprintf(stderr,"Cannot cope with'byhand' file '%s'!\n",e->basename);
+			return RET_ERROR;
+		}
+		if( strcmp(e->section,"-") == 0 ) {
+			fprintf(stderr,"No section specified for of '%s'!\n",filename);
+			return RET_ERROR;
+		}
+		if( forcepriority ) {
+			free(e->priority);
+			e->priority = strdup(forcepriority);
+			if( e->priority == NULL )
+				return RET_ERROR_OOM;
+		};
+		if( strcmp(e->priority,"-") == 0 ) {
+			fprintf(stderr,"No priority specified for of '%s'!\n",filename);
+			return RET_ERROR;
+		}
+
+		if( forcecomponent == NULL ) {
+			char *component;
+			retvalue r;
+
+			r = guess_component(distribution->codename,&distribution->components,changes->source,e->section,forcecomponent,&component);
+			if( RET_WAS_ERROR(r) )
+				return r;
+
+			if( changes->component ) {
+				if( strcmp(changes->component,component) != 0)  {
+					fprintf(stderr,"%s contains files guessed to be in different components ('%s' vs '%s)!\n",filename,component,changes->component);
+					free(component);
+					return RET_ERROR;
+				}
+				free(component);
+
+			} else {
+				changes->component = component;
+			}
+
+		}
+
+		e = e->next;
+	}
+	if( forcecomponent ) {
+		changes->component = strdup(forcecomponent);
+		if( changes->component == NULL )
+			return RET_ERROR_OOM;
+	} else
+		assert( changes->component != NULL);
+
+	changes->directory = calc_sourcedir(changes->component,changes->source);
+	if( changes->directory == NULL )
+		return RET_ERROR_OOM;
+
+	return RET_OK;
+}
+
 static retvalue changes_check(const char *filename,struct changes *changes,int force) {
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
+	int havedsc=0, haveorig=0, havetar=0, havediff=0;
 	
 	/* First check for each given architecture, if it has files: */
 	for( i = 0 ; i < changes->architectures.count ; i++ ) {
@@ -391,28 +481,122 @@ static retvalue changes_check(const char *filename,struct changes *changes,int f
 		}
 	}
 	/* Then check for each file, if its architecture is sensible
-	 * and listed. Also look at the section to be valid.*/
+	 * and listed. */
 	e = changes->files;
 	while( e ) {
 		if( !strlist_in(&changes->architectures,e->architecture) ) {
 			fprintf(stderr,"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",filename,e->architecture);
 			r = RET_ERROR;
 		}
+		if( e->type == fe_DSC ) {
+			if( havedsc ) {
+				fprintf(stderr,"I don't know what to do with multiple .dsc files in '%s'!\n",filename);
+				return RET_ERROR;
+			}
+			havedsc = 1;
+		} else if( e->type == fe_DIFF ) {
+			if( havediff ) {
+				fprintf(stderr,"I don't know what to do with multiple .diff files in '%s'!\n",filename);
+				return RET_ERROR;
+			}
+			havediff = 1;
+		} else if( e->type == fe_ORIG ) {
+			if( haveorig ) {
+				fprintf(stderr,"I don't know what to do with multiple .orig.tar.gz files in '%s'!\n",filename);
+				return RET_ERROR;
+			}
+			haveorig = 1;
+		} else if( e->type == fe_TAR ) {
+			if( havetar ) {
+				fprintf(stderr,"I don't know what to do with multiple .tar.gz files in '%s'!\n",filename);
+				return RET_ERROR;
+			}
+			havetar = 1;
+		}
 
-		if( strcmp(e->section,"unknown") == 0 ) {
-			fprintf(stderr,"'%s': Section is still '%s', ignoring.\n",filename,e->section);
-			free(e->section);
-			e->section = NULL;
+		e = e->next;
+	}
+
+	if( havetar && haveorig ) {
+		fprintf(stderr,"I don't know what to do having a .tar.gz and a .orig.tar.gz in '%s'!\n",filename);
+		return RET_ERROR;
+	}
+	if( havetar && havediff ) {
+		fprintf(stderr,"I don't know what to do having a .tar.gz not beeing a .orig.tar.gz and a .diff.gz in '%s'!\n",filename);
+		return RET_ERROR;
+	}
+	if( strlist_in(&changes->architectures,"source") && !havedsc ) {
+		fprintf(stderr,"I don't know what to do with a source-upload not containing a .dsc in '%s'!\n",filename);
+		return RET_ERROR;
+	}
+	if( havedsc && !havediff && !havetar ) {
+		fprintf(stderr,"I don't know what to do having a .dsc without a .diff.gz or .tar.gz in '%s'!\n",filename);
+		return RET_ERROR;
+	}
+
+	return r;
+}
+
+static retvalue changes_includefiles(const char *mirrordir,DB *filesdb,const char *component,const char *filename,struct changes *changes,int force) {
+	struct fileentry *e;
+	retvalue r;
+	char *sourcedir; 
+
+	r = dirs_getdirectory(filename,&sourcedir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = RET_NOTHING;
+
+	e = changes->files;
+	while( e ) {
+		e->filekey = calc_dirconcat(changes->directory,e->basename);
+
+		if( e->filekey == NULL ) {
+			free(sourcedir);
+			return RET_ERROR_OOM;
 		}
-		if( strcmp(e->section,"-") == 0 || strcmp(e->section,"byhand" ) == 0 ) {
-			free(e->section);
-			e->section = NULL;
+		r = files_checkinfile(mirrordir,filesdb,sourcedir,e->basename,e->filekey,e->md5andsize);
+		if( RET_WAS_ERROR(r) )
+			break;
+		e = e->next;
+	}
+
+	free(sourcedir);
+	return r;
+}
+
+static retvalue changes_includepkgs(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,struct distribution *distribution,struct changes *changes,int force) {
+	struct fileentry *e;
+	retvalue r;
+
+	r = RET_NOTHING;
+
+	e = changes->files;
+	while( e ) {
+		char *fullfilename;
+		if( e->type != fe_DEB && e->type != fe_DSC ) {
+			e = e->next;
+			continue;
 		}
-		if( strcmp(e->priority,"-") == 0 ) {
-			free(e->priority);
-			e->priority = NULL;
+		fullfilename = calc_dirconcat(mirrordir,e->filekey);
+		if( fullfilename == NULL )
+			return RET_ERROR_OOM;
+		// TODO: give directory and filekey, too, so that they
+		// do not have to be calculated again. (and the md5sums fit)
+		if( e->type == fe_DEB ) {
+			r = deb_add(dbdir,references,filesdb,mirrordir,
+				changes->component,e->section,e->priority,
+				distribution,fullfilename,force);
+		} else if( e->type == fe_DSC ) {
+			r = dsc_add(dbdir,references,filesdb,mirrordir,
+				changes->component,e->section,e->priority,
+				distribution,fullfilename,force);
 		}
 		
+		free(fullfilename);
+		if( RET_WAS_ERROR(r) )
+			break;
 		e = e->next;
 	}
 
@@ -422,21 +606,49 @@ static retvalue changes_check(const char *filename,struct changes *changes,int f
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcedsection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int force) {
+retvalue changes_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int force) {
 	retvalue r;
 	struct changes *changes;
 
 	r = changes_read(changesfilename,&changes,force);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	if( changes->distributions.count != 1 ) {
+		fprintf(stderr,"There is not exactly one distribution given!\n");
+		changes_free(changes);
+		return RET_ERROR;
+	}
+	if( !strlist_in(&changes->distributions,distribution->suite) &&
+	    !strlist_in(&changes->distributions,distribution->codename) ) {
+		fprintf(stderr,"Warning: .changes put in a distribution not listed!\n");
+	}
+	/* look for component, section and priority to be correct or guess them*/
+	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,force);
+	if( RET_WAS_ERROR(r) ) {
+		changes_free(changes);
+		return r;
+	}
 	/* do some tests if values are sensible */
 	r = changes_check(changesfilename,changes,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
 	}
+	
+	/* add files in the pool */
+	r = changes_includefiles(mirrordir,filesdb,changes->component,changesfilename,changes,force);
+	if( RET_WAS_ERROR(r) ) {
+		changes_free(changes);
+		return r;
+	}
 
-	// TODO: implement the rest
-	printf("Got Source='%s' Version='%s' Chunk='%s'\n",changes->source,changes->version,changes->control);
+	/* add the source and binary packages in the given distribution */
+	r = changes_includepkgs(dbdir,references,filesdb,mirrordir,
+		distribution,changes,force);
+	if( RET_WAS_ERROR(r) ) {
+		changes_free(changes);
+		return r;
+	}
+
 	return RET_OK;
 }
