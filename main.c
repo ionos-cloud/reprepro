@@ -209,8 +209,7 @@ int deleteunreferenced(int argc,char *argv[]) {
 	if( ! dist.files ) {
 		references_done(dist.refs);
 		return 1;
-	}
-	result = files_foreach(dist.files,deleteifunreferenced,&dist);
+deleteifunreferenced,&dist);
 	r = files_done(dist.files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dist.refs);
@@ -279,6 +278,7 @@ int removepackage(int argc,char *argv[]) {
 	
 	result = RET_NOTHING;
 	for( i = 2 ; i< argc ; i++ ) {
+		/* TODO: use version with references handled. split in source/binary? */
 		r = packages_remove(pkgs,argv[2]);
 		RET_UPDATE(result,r);
 	}
@@ -731,6 +731,8 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	/* remove old references to files */
 
 	if( oldchunk ) {
+		// TODO: make this a function of binaries.c, perhaps using filename without
+		// ppooldir instead of generating on our own...
 		r = binaries_parse_chunk(oldchunk,NULL,NULL,&oldsourcename,&oldfilename,NULL);
 		if( RET_IS_OK(r) ) {
 			oldfilekey = calc_filekey(dist->component,oldsourcename,oldfilename);
