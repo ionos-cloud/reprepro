@@ -33,82 +33,78 @@
 
 extern int verbose;
 
-/* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,char **sourcename,char **basename,struct strlist *md5sums) {
+/* get md5sums out of a "Packages.gz"-chunk. */
+static retvalue binaries_parse_md5sum(const char *chunk,struct strlist *md5sums) {
 	retvalue r;
-#define IFREE(p) if(p) free(*p);
-#define ISFREE(p) if(p) strlist_done(p);
-
 	/* collect the given md5sum and size */
 
-	if( md5sums ) {
-		char *pmd5,*psize,*md5sum;
+	char *pmd5,*psize,*md5sum;
 
-		r = chunk_getvalue(chunk,"MD5sum",&pmd5);
-		if( !RET_IS_OK(r) ) {
-			return r;
-		}
-		r = chunk_getvalue(chunk,"Size",&psize);
-		if( !RET_IS_OK(r) ) {
-			free(pmd5);
-			return r;
-		}
-		md5sum = calc_concatmd5andsize(pmd5,psize);
-		free(pmd5);free(psize);
-		if( md5sum == NULL ) {
-			return RET_ERROR_OOM;
-		}
-		r = strlist_init_singleton(md5sum,md5sums);
-		if( RET_WAS_ERROR(r) ) {
-			free(md5sum);
-			return r;
-		}
+	r = chunk_getvalue(chunk,"MD5sum",&pmd5);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'MD5sum'-line in binary control chunk:\n '%s'\n",chunk);
+		r = RET_ERROR_MISSING;
 	}
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	r = chunk_getvalue(chunk,"Size",&psize);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Size'-line in binary control chunk:\n '%s'\n",chunk);
+		r = RET_ERROR_MISSING;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(pmd5);
+		return r;
+	}
+	md5sum = calc_concatmd5andsize(pmd5,psize);
+	free(pmd5);free(psize);
+	if( md5sum == NULL ) {
+		return RET_ERROR_OOM;
+	}
+	r = strlist_init_singleton(md5sum,md5sums);
+	if( RET_WAS_ERROR(r) ) {
+		free(md5sum);
+		return r;
+	}
+	return RET_OK;
+}
+
+/* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
+static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,const char *version,char **sourcename,char **basename) {
+	retvalue r;
+	char *parch;
+	char *mysourcename,*mybasename;
+
+	assert(packagename);
 
 	/* get the sourcename */
-
-	if( sourcename ) {
-		r = chunk_getname(chunk,"Source",sourcename,1);
-		if( r == RET_NOTHING ) {
-			*sourcename = strdup(packagename);
-			if( !*sourcename )
-				r = RET_ERROR_OOM;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			ISFREE(md5sums);
-			return r;
-		}
+	r = chunk_getname(chunk,"Source",&mysourcename,1);
+	if( r == RET_NOTHING ) {
+		mysourcename = strdup(packagename);
+		if( !mysourcename )
+			r = RET_ERROR_OOM;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		return r;
 	}
 
 	/* generate a base filename based on package,version and architecture */
-
-	if( basename ) {
-		char *parch,*pversion;
-
-		// TODO combine the two looks for version...
-		r = chunk_getvalue(chunk,"Version",&pversion);
-		if( !RET_IS_OK(r) ) {
-			ISFREE(md5sums);
-			IFREE(sourcename);
-			return r;
-		}
-		r = chunk_getvalue(chunk,"Architecture",&parch);
-		if( !RET_IS_OK(r) ) {
-			ISFREE(md5sums);
-			IFREE(sourcename);
-			free(pversion);
-			return r;
-		}
-		/* TODO check parts to consist out of save charakters */
-		*basename = calc_binary_basename(packagename,pversion,parch);
-		free(pversion);free(parch);
-		if( !*basename ) {
-			ISFREE(md5sums);
-			IFREE(sourcename);
-			return RET_ERROR_OOM;
-		}
+	r = chunk_getvalue(chunk,"Architecture",&parch);
+	if( !RET_IS_OK(r) ) {
+		free(mysourcename);
+		return r;
+	}
+	/* TODO check parts to consist out of save charakters */
+	mybasename = calc_binary_basename(packagename,version,parch);
+	free(parch);
+	if( !mybasename ) {
+		free(mysourcename);
+		return RET_ERROR_OOM;
 	}
 
+	*basename = mybasename;
+	*sourcename = mysourcename;
 	return RET_OK;
 }
 
@@ -188,10 +184,15 @@ retvalue binaries_getversion(struct target *t,const char *control,char **version
 	
 retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	char *sourcename,*basename;
+	struct strlist mymd5sums;
 	retvalue r;
 
-	r = binaries_parse_chunk(chunk,packagename,&sourcename,&basename,md5sums);
+	r = binaries_parse_md5sum(chunk,&mymd5sums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = binaries_parse_chunk(chunk,packagename,version,&sourcename,&basename);
 	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&mymd5sums);
 		return r;
 	} else if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
@@ -200,13 +201,16 @@ retvalue binaries_getinstalldata(struct target *t,const char *packagename,const 
 	r = binaries_parse_getfilekeys(chunk,origfiles);
 	if( RET_WAS_ERROR(r) ) {
 		free(sourcename);free(basename);
-		strlist_done(md5sums);
+		strlist_done(&mymd5sums);
 		return r;
 	}
 
 	r = calcnewcontrol(chunk,sourcename,basename,t->component,filekeys,control);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(md5sums);
+		strlist_done(&mymd5sums);
+	} else {
+		assert( r != RET_NOTHING );
+		strlist_move(md5sums,&mymd5sums);
 	}
 	free(sourcename);free(basename);
 	return r;
@@ -219,6 +223,6 @@ retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist 
 		return r;
 	if( md5sums == NULL )
 		return r;
-	r = binaries_parse_chunk(chunk,NULL,NULL,NULL,md5sums);
+	r = binaries_parse_md5sum(chunk,md5sums);
 	return r;
 }
