@@ -5,7 +5,7 @@ First choose some directory you want your things in.
 1) Config
 
 Generate a directory named conf/
-Place a file names "distributions" there.
+Place a file named "distributions" there.
 There add things like:
 
 Origin: Debian
