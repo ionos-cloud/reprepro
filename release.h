@@ -10,4 +10,18 @@
  * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
 retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck);
 
+struct release;
+
+void release_free(struct release *release);
+retvalue release_parse(struct release **release,const char *chunk);
+
+/* Generate a "Release"-file for binary directory */
+retvalue release_genbinary(const struct release *release,const char *arch,const char *component,const char *distdir);
+
+/* Generate a "Release"-file for source directory */
+retvalue release_gensource(const struct release *release,const char *component,const char *distdir);
+
+/* Generate a main "Release" file for a distribution */
+retvalue release_gen(const struct release *release,const char *distdir);
+
 #endif

@@ -17,6 +17,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
@@ -29,6 +30,7 @@
 #include "chunks.h"
 #include "sources.h"
 #include "md5sum.h"
+#include "dirs.h"
 #include "names.h"
 #include "release.h"
 
@@ -110,6 +112,54 @@ struct release {
 	char *architectures,*components;
 };
 
+void release_free(struct release *release) {
+	if( release) {
+		free(release->codename);
+		free(release->suite);
+		free(release->version);
+		free(release->origin);
+		free(release->label);
+		free(release->description);
+		free(release->architectures);
+		free(release->components);
+		free(release);
+	}
+}
+
+retvalue release_parse(struct release **release,const char *chunk) {
+	struct release *r;
+	const char *f;
+
+	assert( chunk && release );
+	
+	r = calloc(1,sizeof(struct release));
+	if( !r )
+		return RET_ERROR_OOM;
+
+#define parse(name,target) 	f = chunk_getfield(name,chunk); \
+				if( !f ) { \
+					*release = NULL; \
+					release_free(r); \
+					return RET_NOTHING; \
+				} \
+				target = chunk_dupvalue(f); \
+				if( !target ) { \
+					release_free(r); \
+					return RET_ERROR_OOM; \
+				}
+	parse("Codename",r->codename);
+	parse("Suite",r->suite);
+	parse("Version",r->version);
+	parse("Origin",r->origin);
+	parse("Label",r->label);
+	parse("Description",r->description);
+	parse("Architectures",r->architectures);
+	parse("Components",r->components);
+
+	*release = r;
+	return RET_OK;
+}
+
 
 /* Generate a "Release"-file for binary directory */
 retvalue release_genbinary(const struct release *release,const char *arch,const char *component,const char *distdir) {
@@ -122,6 +172,7 @@ retvalue release_genbinary(const struct release *release,const char *arch,const 
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
+	make_parent_dirs(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -160,6 +211,7 @@ retvalue release_gensource(const struct release *release,const char *component,c
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
+	make_parent_dirs(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -209,6 +261,7 @@ static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...)
 	free(filename);
 
 	if( !RET_IS_OK(r) ) {
+		fprintf(stderr,"Error processing %s/%s\n",distdir,fn);
 		free(fn);
 		return r;
 	}
@@ -247,10 +300,11 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 	const char *arch,*comp;
 	char *a,*c;
 
-	asprintf(&filename,"%s/%s//Release",distdir,release->codename);
+	asprintf(&filename,"%s/%s/Release",distdir,release->codename);
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
+	make_parent_dirs(filename);
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;
@@ -276,22 +330,41 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 		release->description);
 
 	/* add md5sums */
+	// TODO: split this out to a foreach-rotine
 	result = RET_NOTHING;
-	for( comp=release->architectures ; *comp ; comp=next_word(comp) ) {
+	for( comp=release->components ; *comp ; comp=next_word(comp) ) {
 		c = first_word(comp);
 		if( !c ) {return RET_ERROR_OOM;}
 		for( arch=release->architectures ; *arch ; arch=next_word(arch) ) {
 			a = first_word(arch);
 			if( !a ) {free(c);return RET_ERROR_OOM;}
-			r = printmd5andsize(f,distdir,
+			if( strcmp(a,"source") != 0 ) {
+				r = release_genbinary(release,a,c,distdir);
+				RET_UPDATE(result,r);
+				
+				r = printmd5andsize(f,distdir,
 					"%s/%s/binary-%s/Release",
 					release->codename,c,a);
+				RET_UPDATE(result,r);
+
+				r = printmd5andsize(f,distdir,
+					"%s/%s/binary-%s/Packages.gz",
+					release->codename,c,a);
+				RET_UPDATE(result,r);
+			}
 			free(a);
 			
 		}
+		r = release_gensource(release,c,distdir);
+		RET_UPDATE(result,r);
 		r = printmd5andsize(f,distdir,
 				"%s/%s/source/Release",
 				release->codename,c);
+		RET_UPDATE(result,r);
+		r = printmd5andsize(f,distdir,
+				"%s/%s/source/Sources.gz",
+				release->codename,c);
+		RET_UPDATE(result,r);
 		free(c);
 	}
 	

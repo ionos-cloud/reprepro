@@ -37,7 +37,8 @@ char 	*incommingdir = "/var/spool/mirrorer/incomming",
 	*ppooldir = "pool",
 	*pooldir = "/var/spool/mirrorer/pool",
 	*distdir = "/var/spool/mirrorer/dists",
-	*dbdir = "/var/spool/mirrorer/db";
+	*dbdir = "/var/spool/mirrorer/db",
+	*confdir = "/var/spool/mirrorer/db";
 int 	local = 0;
 int	verbose = 0;
 int	force = 0;
@@ -743,6 +744,37 @@ int checkrelease(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
+retvalue makerelease(void *data,const char *chunk) {
+	retvalue r;
+	struct release *release;
+
+	r = release_parse(&release,chunk);
+	if( RET_IS_OK(r) ) {
+		r = release_gen(release,distdir);
+	}
+	return r;
+};
+
+int mkrelease(int argc,char *argv[]) {
+	retvalue result;
+	char *fn;
+	
+	if( argc != 2 && argc != 1 ) {
+		fprintf(stderr,"mirrorer mkrelease [<Release-description>]\n");
+		return 1;
+	}
+	if( argc == 2 ) 
+		result = chunk_foreach(argv[1],makerelease,NULL,force);
+	else {
+		fn = calc_dirconcat(confdir,"distributions");
+		if( !fn ) 
+			return 2;
+		result = chunk_foreach(fn,makerelease,NULL,force);
+		free(fn);
+	}
+	return EXIT_RET(result);
+}
+
 /*********************/
 /* argument handling */
 /*********************/
@@ -773,6 +805,7 @@ struct action {
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
 	{"addmd5sums",addmd5sums },
+	{"mkrelease",mkrelease },
 	{NULL,NULL}
 };
 
@@ -786,6 +819,7 @@ int main(int argc,char *argv[]) {
 		{"pooldir", 1, 0, 'p'},
 		{"distdir", 1, 0, 'd'},
 		{"dbdir", 1, 0, 'D'},
+		{"confdir", 1, 0, 'c'},
 		{"help", 0, 0, 'h'},
 		{"verbose", 0, 0, 'v'},
 		{"nothingiserror", 0, 0, 'e'},
@@ -795,7 +829,7 @@ int main(int argc,char *argv[]) {
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+fevhlb:P:p:d:D:i:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+fevhlb:P:p:d:c:D:i:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
@@ -810,6 +844,7 @@ int main(int argc,char *argv[]) {
 " -P, --ppooldir <dir>:   Prefix to place in generated Packages-files for pool.\n"
 " -d, --distdir <dir>:    Directory to place the \"dists\" dir in.\n"
 " -D, --dbdir <dir>:      Directory to place the database in.\n"
+" -c, --confdir <dir>:    Directory to search configuration in.\n"
 "\n"
 "actions:\n"
 " add <filename>:     Not yet implemented.\n"
@@ -855,6 +890,7 @@ int main(int argc,char *argv[]) {
 				asprintf(&pooldir,"%s/pool",optarg);
 				asprintf(&distdir,"%s/dists",optarg);
 				asprintf(&dbdir,"%s/db",optarg);
+				asprintf(&confdir,"%s/conf",optarg);
 				break;
 			case 'i':
 				incommingdir = strdup(optarg);
@@ -870,6 +906,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'D':
 				dbdir = strdup(optarg);
+				break;
+			case 'c':
+				confdir = strdup(optarg);
 				break;
 			default:
 				fprintf (stderr,"Not supported option '-%c'\n", c);
