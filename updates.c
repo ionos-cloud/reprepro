@@ -94,13 +94,13 @@ struct update_pattern {
 	//e.g. "Method: ftp://ftp.uni-freiburg.de/pub/linux/debian"
 	char *method;
 	//e.g. "Config: Dir=/"
-	char *config;
+	/*@null@*/char *config;
 	//e.g. "Suite: woody" or "Suite: <asterix>/updates" (NULL means "*")
-	char *suite_from;
+	/*@null@*/char *suite_from;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
 	bool_t ignorerelease;
 	//e.g. "VerifyRelease: B629A24C38C6029A" (NULL means not check)
-	char *verifyrelease;
+	/*@null@*/char *verifyrelease;
 	//e.g. "Architectures: i386 sparc mips" (empty means all)
 	struct strlist architectures_from;
 	struct strlist architectures_into;
@@ -113,24 +113,24 @@ struct update_pattern {
 	struct strlist udebcomponents_from;
 	struct strlist udebcomponents_into;
 	// NULL means no condition
-	term *includecondition;
+	/*@null@*/term *includecondition;
 	struct filterlist filterlist;
 	// NULL means nothing to execute after lists are downloaded...
-	char *listhook;
+	/*@null@*/char *listhook;
 };
 
 struct update_origin {
 	struct update_origin *next;
 	/* all following are NULL when this is a delete rule */
-	const struct update_pattern *pattern;
-	char *suite_from;
-	const struct distribution *distribution;
-	char *releasefile,*releasegpgfile;
+	/*@null@*/const struct update_pattern *pattern;
+	/*@null@*/char *suite_from;
+	/*@null@*/const struct distribution *distribution;
+	/*@null@*/char *releasefile,*releasegpgfile;
 	/* set when there was a error and it should no loner be used */
 	bool_t failed;
 	// is set when fetching packages..
-	struct aptmethod *download;
-	struct strlist checksums;
+	/*@null@*/struct aptmethod *download;
+	/*@null@*/struct strlist checksums;
 };
 
 struct update_index {
@@ -144,10 +144,10 @@ struct update_index {
 };
 
 struct update_target {
-	struct update_target *next;
-	struct update_index *indices;
-	struct target *target;
-	struct upgradelist *upgradelist;
+	/*@null@*/struct update_target *next;
+	/*@null@*/struct update_index *indices;
+	/*@dependent@*/struct target *target;
+	/*@null@*/struct upgradelist *upgradelist;
 	/* Ignore delete marks (as some lists were missing) */
 	bool_t ignoredelete;
 };
@@ -159,7 +159,7 @@ struct update_distribution {
 	struct update_target *targets;
 };
 
-void update_pattern_free(struct update_pattern *update) {
+static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	if( update == NULL )
 		return;
 	free(update->name);
@@ -234,7 +234,7 @@ void updates_freeupdatedistributions(struct update_distribution *d) {
 	}
 }
 
-static inline retvalue newupdatetarget(struct update_target **ts,struct target *target) {
+static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/struct target *target) {
 	struct update_target *ut;
 
 	ut = malloc(sizeof(struct update_target));

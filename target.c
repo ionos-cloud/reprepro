@@ -44,9 +44,9 @@ extern int verbose;
 
 static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
-	const char *packagetype,
+	/*@observer@*/const char *packagetype,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const struct exportmode *exportmode, struct target **d) {
+	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,/*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
 
 	struct target *t;
 
@@ -150,7 +150,7 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 	struct strlist files;
 	retvalue r;
 
-	assert(target && target->packages && name);
+	assert(target != NULL && target->packages != NULL && name != NULL );
 
 	r = packages_get(target->packages,name,&oldchunk);
 	if( RET_WAS_ERROR(r) ) {
@@ -183,7 +183,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 	char *oldcontrol;
 	retvalue r;
 
-	assert(target->packages);
+	assert(target->packages!=NULL);
 
 	r = packages_get(target->packages,name,&oldcontrol);
 	if( RET_WAS_ERROR(r) )
@@ -225,7 +225,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 			free(oldversion);
 		}
 
-		r = target->getfilekeys(target,oldcontrol,&oldfilekeys,NULL);
+		r = (*target->getfilekeys)(target,oldcontrol,&oldfilekeys,NULL);
 		free(oldcontrol);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
@@ -244,8 +244,8 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 
 /* rereference a full database */
 struct data_reref { 
-	references refs;
-	struct target *target;
+	/*@dependent@*/references refs;
+	/*@dependent@*/struct target *target;
 };
 
 static retvalue rereferencepkg(void *data,const char *package,const char *chunk) {
@@ -258,8 +258,8 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 		return r;
 	if( verbose > 10 ) {
 		fprintf(stderr,"adding references to '%s' for '%s': ",d->target->identifier,package);
-		strlist_fprint(stderr,&filekeys);
-		putc('\n',stderr);
+		(void)strlist_fprint(stderr,&filekeys);
+		(void)putc('\n',stderr);
 	}
 	r = references_insert(d->refs,d->target->identifier,&filekeys,NULL);
 	strlist_done(&filekeys);
@@ -270,7 +270,7 @@ retvalue target_rereference(struct target *target,references refs,int force) {
 	retvalue result,r;
 	struct data_reref refdata;
 
-	assert(target->packages);
+	assert(target->packages!=NULL);
 
 	if( verbose > 1 ) {
 		if( verbose > 2 )
@@ -294,9 +294,9 @@ retvalue target_rereference(struct target *target,references refs,int force) {
 
 /* check a full database */
 struct data_check { 
-	references refs;
-	filesdb filesdb;
-	struct target *target;
+	/*@dependent@*/references refs;
+	/*@dependent@*/filesdb filesdb;
+	/*@dependent@*/struct target *target;
 };
 
 static retvalue checkpkg(void *data,const char *package,const char *chunk) {
@@ -305,28 +305,28 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	char *dummy,*version;
 	retvalue result,r;
 
-	r = d->target->getversion(d->target,chunk,&version);
-	if( RET_WAS_ERROR(r) ) {
+	r = (*d->target->getversion)(d->target,chunk,&version);
+	if( !RET_IS_OK(r) ) {
 		fprintf(stderr,"Error extraction version number from package control info of '%s'!\n",package);
+		if( r == RET_NOTHING )
+			r = RET_ERROR_MISSING;
+		return r;
 	}
-	if( RET_IS_OK(r) ) {
-		r = d->target->getinstalldata(d->target,package,version,chunk,&dummy,&expectedfilekeys,&md5sums,&actualfilekeys);
-		if( RET_WAS_ERROR(r) ) {
-			fprintf(stderr,"Error extracting information of package '%s'!\n",package);
-			free(version);
-		}
+	r = (*d->target->getinstalldata)(d->target,package,version,chunk,&dummy,&expectedfilekeys,&md5sums,&actualfilekeys);
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Error extracting information of package '%s'!\n",package);
 	}
+	free(version);
 	result = r;
 	if( RET_IS_OK(r) ) {
-		free(version);
 		free(dummy);
 		if( !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) || 
 		    !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) ) {
-			fprintf(stderr,"Reparsing the package information of '%s' yields to the expectation to find:\n",package);
-			strlist_fprint(stderr,&expectedfilekeys);
-			fputs("but found:\n",stderr);
-			strlist_fprint(stderr,&actualfilekeys);
-			putc('\n',stderr);
+			(void)fprintf(stderr,"Reparsing the package information of '%s' yields to the expectation to find:\n",package);
+			(void)strlist_fprint(stderr,&expectedfilekeys);
+			(void)fputs("but found:\n",stderr);
+			(void)strlist_fprint(stderr,&actualfilekeys);
+			(void)putc('\n',stderr);
 			result = RET_ERROR;
 		}
 		strlist_done(&expectedfilekeys);
@@ -347,9 +347,9 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	}
 	RET_UPDATE(result,r);
 	if( verbose > 10 ) {
-		fprintf(stderr,"checking references to '%s' for '%s': ",d->target->identifier,package);
-		strlist_fprint(stderr,&actualfilekeys);
-		putc('\n',stderr);
+		(void)fprintf(stderr,"checking references to '%s' for '%s': ",d->target->identifier,package);
+		(void)strlist_fprint(stderr,&actualfilekeys);
+		(void)putc('\n',stderr);
 	}
 	r = references_check(d->refs,d->target->identifier,&actualfilekeys);
 	RET_UPDATE(result,r);
@@ -361,7 +361,7 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 retvalue target_check(struct target *target,filesdb filesdb,references refs,int force) {
 	struct data_check data;
 
-	assert(target->packages);
+	assert(target->packages!=NULL);
 	if( verbose > 1 ) {
 		fprintf(stderr,"Checking packages in '%s'...\n",target->identifier);
 	}

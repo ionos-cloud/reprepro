@@ -33,7 +33,7 @@
 
 extern int verbose;
 
-static void filterlistitems_free(struct filterlistitem *list) {
+static void filterlistitems_free(/*@null@*//*@only@*/struct filterlistitem *list) {
 	while( list ) {
 		struct filterlistitem *next = list->next;
 		free(list->packagename);
@@ -101,7 +101,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		if( lineend == NULL ) {
 			fprintf(stderr,"Overlong line in '%s'!\n",filename);
 			free(fullfilename);
-			fclose(f);
+			(void)fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
@@ -122,7 +122,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		if( *what == '\0' ) {
 			fprintf(stderr,"Malformed line in '%s': %d!\n",filename,lineno);
 			free(fullfilename);
-			fclose(f);
+			(void)fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
@@ -139,7 +139,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		} else {
 			fprintf(stderr,"Unknown status in '%s':%d: '%s'!\n",filename,lineno,what);
 			free(fullfilename);
-			fclose(f);
+			(void)fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
@@ -151,23 +151,30 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 		if( cmp == 0 ) {
 			fprintf(stderr,"Two lines describing '%s' in '%s'!\n",namestart,filename);
 			free(fullfilename);
-			fclose(f);
+			(void)fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
 		h = calloc(1,sizeof(*h));
+		if( h == NULL ) {
+			free(fullfilename);
+			(void)fclose(f);
+			filterlistitems_free(root);
+			return RET_ERROR_OOM;
+		}
 		h->next = *last;
 		*last = h;
 		h->what = type;
 		h->packagename = strdup(namestart);
 		if( h->packagename == NULL ) {
 			free(fullfilename);
-			fclose(f);
+			(void)fclose(f);
 			filterlistitems_free(root);
 			return RET_ERROR_OOM;
 		}
 	}
 	free(fullfilename);
+	// Can this be an error? was read-only..
 	fclose(f);
 	list->root = root;
 	list->last = root;
@@ -181,9 +188,9 @@ void filterlist_empty(struct filterlist *list, enum filterlisttype defaulttype) 
 	list->defaulttype = defaulttype;
 }
 
-static inline bool_t find(const char *name,struct filterlist *list) {
+static inline bool_t find(const char *name,/*@null@*/struct filterlist *list) {
 	int cmp;
-	const struct filterlistitem *last = list->last;
+	/*@dependent@*/const struct filterlistitem *last = list->last;
 
 	assert( last != NULL );
 
@@ -226,7 +233,7 @@ static inline bool_t find(const char *name,struct filterlist *list) {
 }
 
 enum filterlisttype filterlist_find(const char *name,struct filterlist *list) {
-	if( list->root && find(name,list) ) {
+	if( list->root != NULL && find(name,list) ) {
 		return list->last->what;
 	} else {
 		return list->defaulttype;

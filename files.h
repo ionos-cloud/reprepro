@@ -58,10 +58,10 @@ retvalue files_printmissing(filesdb filesdb,const struct strlist *filekeys,const
  *  (the original file is not deleted in that case, even if delete is positive)
  * 4) add it to the database
  */
-retvalue files_include(filesdb filesdb,const char *sourcefilename,const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete);
+retvalue files_include(filesdb filesdb,const char *sourcefilename,const char *filekey, /*@null@*/const char *md5sum, /*@null@*/char **calculatedmd5sum, int delete);
 
 /* same as above, but use sourcedir/basename instead of sourcefilename */
-retvalue files_includefile(filesdb filesdb,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete);
+retvalue files_includefile(filesdb filesdb,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, /*@null@*/char **calculatedmd5sum, int delete);
 
 /* the same, but with multiple files */
 retvalue files_includefiles(filesdb filesdb,const char *sourcedir,const struct strlist *basenames, const struct strlist *filekeys, const struct strlist *md5sums, int delete);

@@ -104,7 +104,7 @@ struct changes {
 	const char *firstcomponent;
 };
 
-static void freeentries(struct fileentry *entry) {
+static void freeentries(/*@only@*/struct fileentry *entry) {
 	struct fileentry *h;
 
 	while( entry ) {
@@ -122,7 +122,7 @@ static void freeentries(struct fileentry *entry) {
 	}
 }
 
-static void changes_free(struct changes *changes) {
+static void changes_free(/*@only@*/struct changes *changes) {
 	if( changes != NULL ) {
 		free(changes->source);
 		free(changes->version);
@@ -149,37 +149,37 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	filetype type;
 
 	p = fileline;
-	while( *p && isspace(*p) )
+	while( *p !='\0' && isspace(*p) )
 		p++;
 	md5start = p;
-	while( *p && !isspace(*p) )
+	while( *p !='\0' && !isspace(*p) )
 		p++;
 	md5end = p;
-	while( *p && isspace(*p) )
+	while( *p !='\0' && isspace(*p) )
 		p++;
 	sizestart = p;
-	while( *p && !isspace(*p) )
+	while( *p !='\0' && !isspace(*p) )
 		p++;
 	sizeend = p;
-	while( *p && isspace(*p) )
+	while( *p !='\0' && isspace(*p) )
 		p++;
 	sectionstart = p;
-	while( *p && !isspace(*p) )
+	while( *p !='\0' && !isspace(*p) )
 		p++;
 	sectionend = p;
-	while( *p && isspace(*p) )
+	while( *p !='\0' && isspace(*p) )
 		p++;
 	priostart = p;
-	while( *p && !isspace(*p) )
+	while( *p !='\0' && !isspace(*p) )
 		p++;
 	prioend = p;
-	while( *p && isspace(*p) )
+	while( *p !='\0' && isspace(*p) )
 		p++;
 	filestart = p;
-	while( *p && !isspace(*p) )
+	while( *p !='\0' && !isspace(*p) )
 		p++;
 	fileend = p;
-	while( *p && isspace(*p) )
+	while( *p !='\0' && isspace(*p) )
 		p++;
 	if( *p != '\0' ) {
 		fprintf(stderr,"Unexpected sixth argument in '%s'!\n",fileline);
@@ -217,7 +217,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		 * and be either .deb or .udeb */
 		p++;
 		archstart = p;
-		while( *p && *p != '.' )
+		while( *p !='\0' && *p != '.' )
 			p++;
 		if( *p != '.' ) {
 			fprintf(stderr,"Expect something of the form name_version_arch.[u]deb but got '%s'!\n",filestart);
@@ -226,7 +226,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		archend = p;
 		p++;
 		typestart = p;
-		while( *p && !isspace(*p) )
+		while( *p !='\0' && !isspace(*p) )
 			p++;
 		if( p-typestart == 3 && strncmp(typestart,"deb",3) == 0 )
 			type = fe_DEB;
@@ -243,7 +243,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	} else {
 		/* this looks like some source-package, we will have
 		 * to look for the packagetype ourself... */
-		while( *p && !isspace(*p) ) {
+		while( *p !='\0' && !isspace(*p) ) {
 			p++;
 		}
 		if( p-versionstart > 12 && strncmp(p-12,".orig.tar.gz",12) == 0 )
@@ -346,7 +346,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename,struct changes **changes,const char *packagetypeonly,const char *forcearchitecture,int force, bool_t onlysigned) {
+static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture,int force, bool_t onlysigned) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines;
@@ -424,7 +424,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 #undef R
 }
 
-static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,const char *forcecomponent,const char *forcesection,const char *forcepriority,const struct overrideinfo *srcoverride,const struct overrideinfo *override) {
+static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,/*@null@*/const struct overrideinfo *srcoverride,/*@null@*/const struct overrideinfo *override) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -542,7 +542,7 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 }
 
 static inline retvalue checkforarchitecture(const struct fileentry *e,const char *architecture ) {
-	while( e && strcmp(e->architecture,architecture) != 0 )
+	while( e !=NULL && strcmp(e->architecture,architecture) != 0 )
 		e = e->next;
 	if( e == NULL ) {
 		fprintf(stderr,"Architecture-header lists architecture '%s', but no files for this!\n",architecture);
@@ -551,7 +551,7 @@ static inline retvalue checkforarchitecture(const struct fileentry *e,const char
 	return RET_OK;
 }
 
-static retvalue changes_check(const char *filename,struct changes *changes,const char *forcearchitecture) {
+static retvalue changes_check(const char *filename,struct changes *changes,/*@null@*/const char *forcearchitecture) {
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
@@ -657,7 +657,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	e = changes->files;
 	while( e ) {
 		if( FE_SOURCE(e->type) ) {
-			assert(changes->srcdirectory);
+			assert(changes->srcdirectory!=NULL);
 			e->filekey = calc_dirconcat(changes->srcdirectory,e->basename);
 		} else {
 			char *directory;
@@ -687,7 +687,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force,struct strlist *dereferencedfilekeys, bool_t onlysigned) {
+static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,/*@null@*/const struct overrideinfo *srcoverride,/*@null@*/const struct overrideinfo *binoverride,int force,/*@null@*/struct strlist *dereferencedfilekeys, bool_t onlysigned) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -727,8 +727,8 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_DSC ) {
-			assert(changes->srccomponent);
-			assert(changes->srcdirectory);
+			assert(changes->srccomponent!=NULL);
+			assert(changes->srcdirectory!=NULL);
 			r = dsc_add(dbdir,refs,filesdb,
 				changes->srccomponent,e->section,e->priority,
 				distribution,fullfilename,

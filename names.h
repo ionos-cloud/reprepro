@@ -23,10 +23,10 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 char *calc_downloadedlistpattern(const char *codename);
 
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
-retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,struct strlist *files);
+retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,/*@out@*/struct strlist *files);
 
 /* split a "<md5> <size> <filename>" into md5sum and filename */
-retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum);
+retvalue calc_parsefileline(const char *fileline,/*@out@*/char **filename,/*@out@*//*@null@*/char **md5sum);
 
 /* move over a version number, if epochsuppresed is true, colons may happen even without epoch there */
 void names_overversion(const char **version,bool_t epochsuppressed);

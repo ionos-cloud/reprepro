@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
+#include <strings.h>
 #include <ctype.h>
 #include <time.h>
 #include <zlib.h>
@@ -60,6 +61,8 @@ static inline retvalue newoverrideinfo(const char *firstpart,const char *secondp
 	char *p;
 
 	last = calloc(1,sizeof(struct overrideinfo));
+	if( last == NULL )
+		return RET_ERROR_OOM;
 	last->packagename=strdup(firstpart);
 	r = strlist_init_n(6,&last->fields);
 	if( RET_WAS_ERROR(r) ) {
@@ -116,7 +119,7 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 		if( buffer[l-1] != '\n' ) {
 			if( l >= 999 ) {
 				fprintf(stderr,"Too long line in '%s'!\n",filename);
-				fclose(file);
+				(void)fclose(file);
 				return RET_ERROR;
 			}
 			fprintf(stderr,"Missing line-terminator in '%s'!\n",filename);
@@ -131,20 +134,20 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 		if( l== 0 )
 			continue;
 		p = buffer;
-		while( *p && isspace(*p) )
+		while( *p !='\0' && isspace(*p) )
 			*(p++)='\0';
 		firstpart = p;
-		while( *p && !isspace(*p) )
+		while( *p !='\0' && !isspace(*p) )
 			p++;
-		while( *p && isspace(*p) )
+		while( *p !='\0' && isspace(*p) )
 			*(p++)='\0';
 		secondpart = p;
-		while( *p && !isspace(*p) )
+		while( *p !='\0' && !isspace(*p) )
 			p++;
-		while( *p && isspace(*p) )
+		while( *p !='\0' && isspace(*p) )
 			*(p++)='\0';
 		thirdpart = p;
-		if( !last || ( strcmp(last->packagename,firstpart) > 0 &&
+		if( last == NULL || ( strcmp(last->packagename,firstpart) > 0 &&
 			       strcmp(root->packagename,firstpart) > 0 )) {
 			/* adding in front of it */
 			r = newoverrideinfo(firstpart,secondpart,thirdpart,&root);
@@ -156,7 +159,7 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 			if( strcmp(last->packagename,firstpart) > 0 )
 				last = root;
 			if( strcmp(last->packagename,firstpart) < 0 ) {
-				while( last->next && 
+				while( last->next != NULL && 
 					strcmp(last->next->packagename,firstpart) < 0) {
 					last = last->next;
 				}

@@ -71,7 +71,7 @@ retvalue add_ignore(const char *given) {
 
 	g = given;
 
-	while( 1 ) {
+	while( TRUE ) {
 		p = g;
 		while( *p != '\0' && *p !=',' )
 			p++;

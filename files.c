@@ -128,7 +128,7 @@ retvalue files_add(filesdb db,const char *filekey,const char *md5sum) {
 	}
 }
 
-static retvalue files_get(filesdb db,const char *filekey,char **md5sum) {
+static retvalue files_get(filesdb db,const char *filekey,/*@out@*/char **md5sum) {
 	int dbret;
 	DBT key,data;
 
@@ -195,7 +195,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey) {
 	return r;
 }
 
-static retvalue files_calcmd5(char **md5sum,const char *filename) {
+static retvalue files_calcmd5(/*@out@*/char **md5sum,const char *filename) {
 	retvalue ret;
 
 	*md5sum = NULL;
@@ -367,9 +367,9 @@ retvalue files_foreach(filesdb db,per_file_action action,void *privdata) {
 	return result;
 }
 
-struct checkfiledata { filesdb filesdb ; bool_t fast ; };
+struct checkfiledata { /*@temp@*/filesdb filesdb ; bool_t fast ; };
 
-static retvalue getfilesize(off_t *s,const char *md5sum) {
+static retvalue getfilesize(/*@out@*/off_t *s,const char *md5sum) {
 	const char *p;
 
 	p = md5sum;

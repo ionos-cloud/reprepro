@@ -53,10 +53,10 @@ retvalue guess_component(const char *codename,const struct strlist *components,
 	
 	if( givencomponent ) {
 		if( givencomponent && !strlist_in(components,givencomponent) ) {
-			fprintf(stderr,"Could not find '%s' in components of '%s': ",
+			(void)fprintf(stderr,"Could not find '%s' in components of '%s': ",
 					givencomponent,codename);
-			strlist_fprint(stderr,components);
-			fputs("'\n",stderr);
+			(void)strlist_fprint(stderr,components);
+			(void)fputs("'\n",stderr);
 			return RET_ERROR;
 		}
 

@@ -30,6 +30,8 @@
 
 extern int verbose;
 
+typedef unsigned char uchar;
+
 /* check if the character starting where <character> points
  * at is a overlong one */
 static inline bool_t overlongUTF8(const char *character) {
@@ -40,30 +42,34 @@ static inline bool_t overlongUTF8(const char *character) {
 	 * this out if we knew it is utf8 we arec coping
 	 * with. (Well, you should not use --ignore=validchars
 	 * anyway). */
-	unsigned char c = *character;
+	uchar c = *character;
 
-	if( (c & 0xC2 /*11000010*/) == 0xC0 /*11000000*/ ) {
-		unsigned char nextc = *(character+1);
+	if( (c & (uchar)0xC2 /*11000010*/) == (uchar)0xC0 /*11000000*/ ) {
+		uchar nextc = *(character+1);
 
-		if( (nextc & 0xC0 /*11000000*/ ) != 0x80 /*10000000*/ )
+		if( (nextc & (uchar)0xC0 /*11000000*/ ) != (uchar)0x80 /*10000000*/ )
 			return FALSE;
 
-		if( (c & 0x3E /* 00111110 */ ) == 0 )
+		if( (c & (uchar)0x3E /* 00111110 */ ) == (uchar)0 )
 			return TRUE;
-		if( c == 0xE0 /*11100000*/ && (nextc & 0x20 /*00100000*/ ) == 0) 
+		if( c == (uchar)0xE0 /*11100000*/ && 
+		    (nextc & (uchar)0x20 /*00100000*/ ) == (uchar)0) 
 			return TRUE;
-		if( c == 0xF0 /*11110000*/ && (nextc & 0x30 /*00110000*/ ) == 0) 
+		if( c == (uchar)0xF0 /*11110000*/ && 
+		    (nextc & (uchar)0x30 /*00110000*/ ) == (uchar)0) 
 			return TRUE;
-		if( c == 0xF8 /*11111000*/ && (nextc & 0x38 /*00111000*/ ) == 0) 
+		if( c == (uchar)0xF8 /*11111000*/ && 
+		    (nextc & (uchar)0x38 /*00111000*/ ) == (uchar)0) 
 			return TRUE;
-		if( c == 0xFC /*11111100*/ && (nextc & 0x3C /*00111100*/ ) == 0) 
+		if( c == (uchar)0xFC /*11111100*/ && 
+		    (nextc & (uchar)0x3C /*00111100*/ ) == (uchar)0) 
 			return TRUE;
 	}
 	return FALSE;
 }
 
 #define REJECTLOWCHARS(s,str,descr) \
-	if( (unsigned char)*s < ' ' ) { \
+	if( (uchar)*s < (uchar)' ' ) { \
 		fprintf(stderr, \
 			"Character 0x%02hhx not allowed within %s '%s'!\n", \
 			*s,descr,str); \
@@ -97,7 +103,7 @@ retvalue propersourcename(const char *string) {
 		return RET_ERROR;
 	}
 	s = string;
-	while( *s ) {
+	while( *s != '\0' ) {
 		if( (*s > 'z' || *s < 'a' ) && 
 		    (*s > '9' || *s < '0' ) && 
 		    (firstcharacter || 
@@ -596,7 +602,6 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 		}
 		r = strlist_add(files,file);
 		if( RET_WAS_ERROR(r) ) {
-			free(file);
 			strlist_done(files);
 			return r;
 		}

@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
+#include <strings.h>
 #include <malloc.h>
 #include <fcntl.h>
 #include "error.h"
@@ -69,7 +70,7 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*confdir = NULL,
 	*overridedir = NULL,
 	*methoddir = NULL;
-static char /*@null@*/ 
+static char /*@only@*/ /*@null@*/ 
 	*section = NULL,
 	*priority = NULL,
 	*component = NULL,
@@ -1370,18 +1371,23 @@ int main(int argc,char *argv[]) {
 				}
 				break;
 			case 'C':
+				free(component);
 				component = strdup(optarg);
 				break;
 			case 'A':
+				free(architecture);
 				architecture = strdup(optarg);
 				break;
 			case 'T':
+				free(packagetype);
 				packagetype = strdup(optarg);
 				break;
 			case 'S':
+				free(section);
 				section = strdup(optarg);
 				break;
 			case 'P':
+				free(priority);
 				priority = strdup(optarg);
 				break;
 			case '?':

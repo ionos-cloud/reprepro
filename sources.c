@@ -34,7 +34,7 @@
 extern int verbose;
 
 
-static retvalue getBasenames(const struct strlist *filelines,struct strlist *basenames) {
+static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct strlist *basenames) {
 	int i;
 	retvalue r;
 
@@ -54,7 +54,6 @@ static retvalue getBasenames(const struct strlist *filelines,struct strlist *bas
 
 		r = strlist_add(basenames,basename);
 		if( RET_WAS_ERROR(r) ) {
-			free(basename);
 			break;
 		}
 		r = RET_OK;
@@ -67,7 +66,7 @@ static retvalue getBasenames(const struct strlist *filelines,struct strlist *bas
 	return r;
 }
 
-static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlist *basenames,struct strlist *md5sums) {
+static retvalue getBasenamesAndMd5(const struct strlist *filelines,/*@out@*/struct strlist *basenames,/*@out@*/struct strlist *md5sums) {
 	int i;
 	retvalue r;
 
@@ -92,13 +91,11 @@ static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlis
 
 		r = strlist_add(md5sums,md5sum);
 		if( RET_WAS_ERROR(r) ) {
-			free(md5sum);
 			free(basename);
 			break;
 		}
 		r = strlist_add(basenames,basename);
 		if( RET_WAS_ERROR(r) ) {
-			free(basename);
 			break;
 		}
 		r = RET_OK;
@@ -114,18 +111,18 @@ static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlis
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-static retvalue parse_chunk(const char *chunk,char **origdirectory,struct strlist *basefiles,struct strlist *md5sums) {
+static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@out@*/struct strlist *basefiles,/*@out@*/struct strlist *md5sums) {
 	retvalue r;
-#define IFREE(p) if(p) free(*p);
+	char *od;
 
-	if( origdirectory ) {
+	if( origdirectory != NULL ) {
 		/* Read the directory given there */
-		r = chunk_getvalue(chunk,"Directory",origdirectory);
+		r = chunk_getvalue(chunk,"Directory",&od);
 		if( !RET_IS_OK(r) ) {
 			return r;
 		}
-		if( verbose > 13 ) 
-			fprintf(stderr,"got: %s\n",*origdirectory);
+		if( verbose > 33 ) 
+			fprintf(stderr,"got: %s\n",od);
 	}
 
 
@@ -136,7 +133,8 @@ static retvalue parse_chunk(const char *chunk,char **origdirectory,struct strlis
   
 		r = chunk_getextralinelist(chunk,"Files",&filelines);
 		if( !RET_IS_OK(r) ) {
-  			IFREE(origdirectory);
+			if( origdirectory != NULL )
+				free(od);
   			return r;
 		}
 		if( md5sums )
@@ -145,12 +143,15 @@ static retvalue parse_chunk(const char *chunk,char **origdirectory,struct strlis
 			r = getBasenames(&filelines,basefiles);
 		strlist_done(&filelines);
 		if( RET_WAS_ERROR(r) ) {
-  			IFREE(origdirectory);
+			if( origdirectory != NULL )
+				free(od);
   			return r;
 		}
 	} else 
 		assert(md5sums == NULL); /* only together with basefiles */
 
+	if( origdirectory != NULL )
+		*origdirectory = od;
 	return RET_OK;
 }
 
@@ -158,7 +159,7 @@ static inline retvalue calcnewcontrol(
 		const char *chunk, const char *package,
 		const struct strlist *basenames,
 		const char *component,const char *origdirectory,
-		struct strlist *filekeys,char **newchunk,struct strlist *origfiles) {
+		/*@out@*/struct strlist *filekeys,/*@out@*/char **newchunk,/*@out@*/struct strlist *origfiles) {
 	char *directory;
 	retvalue r;
 
@@ -172,7 +173,7 @@ static inline retvalue calcnewcontrol(
 	}
 
 	directory = calc_sourcedir(component,package);
-	if( !directory ) 
+	if( directory == NULL ) 
 		return RET_ERROR_OOM;
 	
 	r = calc_dirconcats(directory,basenames,filekeys);
