@@ -48,7 +48,7 @@ struct aptmethod {
 	int stdin,stdout;
 	pid_t child;
 
-	enum { ams_waitforcapabilities=0, ams_ok, ams_failed } status;
+	enum { ams_notstarted=0, ams_waitforcapabilities, ams_ok, ams_failed } status;
 	
 	struct tobedone *tobedone,*lasttobedone,*nexttosend;
 	/* what is currently read: */
@@ -175,7 +175,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 	method->stdin = -1;
 	method->stdout = -1;
 	method->child = -1;
-	method->status = ams_waitforcapabilities;
+	method->status = ams_notstarted;
 	p = uri;
 	while( *p && ( *p == '_' || *p == '-' ||
 		(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
@@ -235,11 +235,11 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	int r;
 
 	/* When there is nothing to get, there is no reason to startup
-	 * the method. (And whoever adds methods only to execute commands
-	 * will have the tough time they deserve) */
+	 * the method. */
 	if( method->tobedone == NULL ) {
 		return RET_NOTHING;
 	}
+
 	/* when we are already running, we are already ready...*/
 	if( method->child > 0 ) {
 		return RET_OK;
@@ -906,24 +906,28 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 	retvalue result = RET_OK;
 
 	while( (child = waitpid(-1,&status,WNOHANG)) > 0 ) {
-		struct aptmethod *method,*lastmethod;
+		struct aptmethod *method;
 
-		lastmethod = NULL; method = run->methods;
-		while( method ) {
+		for( method = run->methods; method != NULL ; method = method->next) {
 			if( method->child == child )
 				break;
-			lastmethod = method;
-			method = method->next;
 		}
 		if( method == NULL ) {
 			fprintf(stderr,"Unexpected child died(maybe gpg if signing/verifing was done): %d\n",(int)child);
 			continue;
 		}
-		/* remove this child out of the list: */
-		if( lastmethod ) {
-			lastmethod->next = method->next;
-		} else
-			run->methods = method->next;
+		/* Make sure we do not cope with this child any more */
+		if( method->stdin != -1 ) {
+			close(method->stdin);
+			method->stdin = -1;
+		}
+		if( method->stdout != -1 ) {
+			close(method->stdout);
+			method->stdout = -1;
+		}
+		method->child = -1;
+		if( method->status != ams_failed )
+			method->status = ams_notstarted;
 
 		/* say something if it exited unnormal: */
 		if( WIFEXITED(status) ) {
@@ -932,15 +936,14 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 			exitcode = WEXITSTATUS(status);
 			if( exitcode != 0 ) {
 				fprintf(stderr,"Method %s://%s exited with non-zero exit-code %d!\n",method->name,method->baseuri,exitcode);
+				method->status = ams_notstarted;
 				result = RET_ERROR;
 			}
 		} else {
 			fprintf(stderr,"Method %s://%s exited unnormally!\n",method->name,method->baseuri);
-				result = RET_ERROR;
+			method->status = ams_notstarted;
+			result = RET_ERROR;
 		}
-
-		/* free the data... */
-		aptmethod_free(method);
 	}
 	return result;
 }
@@ -1007,30 +1010,19 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 }
 
 retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb) {
-	struct aptmethod *method,*lastmethod;
+	struct aptmethod *method;
 	retvalue result,r;
 	int workleft;
 
 	result = RET_NOTHING;
 
 	/* fire up all methods, removing those that do not work: */
-	lastmethod = NULL; method = run->methods;
-	while( method ) {
+	for( method = run->methods; method != NULL ; method = method->next ) {
 		r = aptmethod_startup(run,method,methoddir);
-		if( !RET_IS_OK(r) ) {
-			struct aptmethod *next = method->next;
-
-			if( lastmethod ) {
-				lastmethod->next = next;
-			} else
-				run->methods = next;
-
-			aptmethod_free(method);
-			method = next;
-		} else {
-			lastmethod = method;
-			method = method->next;
-		}
+		/* do not remove failed methods here any longer,
+		 * and not remove methods having nothing to do,
+		 * as this breaks when no index files are downloaded
+		 * due to all already beeing in place... */
 		RET_UPDATE(result,r);
 	}
 	/* waiting for them to finish: */

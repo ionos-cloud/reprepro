@@ -205,6 +205,7 @@ bloat+-0a9z.app-addons	install
 END
 
 "$REPREPRO" -b . update test1
+"$REPREPRO" -b . update test1
 "$REPREPRO" --nolistsdownload -b . update test1
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1

@@ -1,3 +1,8 @@
+2005-02-10  Bernhard R. Link <brlink@debian.org>
+	* No longer shutdown aptmethods when nothing is to do.
+	(This caused problems when index files are already in
+	 place but still packages to be downloaded).
+
 2005-02-08  Bernhard R. Link <brlink@debian.org>
 	* Do some more checks reading signed sources.
 
