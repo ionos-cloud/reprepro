@@ -23,7 +23,9 @@ struct overrideinfo {
 #define SECTION_FIELDNAME "Section"
 
 void override_free(struct overrideinfo *info);
-retvalue override_read(const char *filename,struct overrideinfo **info);
+/* when filename does not start with '/' read override info from overridedir/filename,
+ * otherwise from filename directly.. */
+retvalue override_read(const char *overridedir,const char *filename,struct overrideinfo **info);
 
 const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package);
 const char *override_get(const struct overrideinfo *override,const char *field);

@@ -88,12 +88,21 @@ static inline retvalue newoverrideinfo(const char *firstpart,const char *secondp
 	return RET_OK;
 }
 
-retvalue override_read(const char *filename,struct overrideinfo **info) {
+retvalue override_read(const char *overridedir,const char *filename,struct overrideinfo **info) {
 	struct overrideinfo *root = NULL ,*last = NULL;
 	FILE *file;
 	char buffer[1001];
 
-	file = fopen(filename,"r");
+	assert(filename != NULL );
+	if( overridedir != NULL && filename[0] != '/' ) {
+		char *fn = calc_dirconcat(overridedir,filename);
+		if( fn == NULL )
+			return RET_ERROR_OOM;
+		file = fopen(fn,"r");
+		free(fn);
+	} else
+		file = fopen(filename,"r");
+
 	if( file == NULL ) {
 		int e = errno;
 		fprintf(stderr,"Error opening override file '%s': %m\n",filename);
