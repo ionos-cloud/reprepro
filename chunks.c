@@ -43,12 +43,12 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 
 		RET_UPDATE(result,ret);
 
-		if( RET_WAS_ERROR(ret) && !force ) {
-			free(chunk);
-			return result;
-		}
 		free(chunk);
+
+		if( RET_WAS_ERROR(ret) && !force )
+			break;
 	}
+	gzclose(f);
 	return result;
 }
 

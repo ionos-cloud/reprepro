@@ -182,72 +182,66 @@ static int sources_isnewer(const char *newchunk,const char *oldchunk) {
 
 //typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,int hadold);
 
+struct sources_add {DB *pkgs; void *data; const char *part; source_package_action *action; };
+
+static retvalue addsource(void *data,const char *chunk) {
+	retvalue r;
+	int isnewer;
+	struct sources_add *d = data;
+
+	char *package,*directory,*olddirectory,*files;
+	char *oldchunk;
+	int hadold=0;
+
+	r = sources_parse_chunk(chunk,&package,&olddirectory,&files);
+	if( r == RET_NOTHING ) {
+		return RET_ERROR;
+	} else if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	hadold = 0;
+	oldchunk = packages_get(d->pkgs,package);
+	if( oldchunk && (isnewer=sources_isnewer(chunk,oldchunk)) != 0 ) {
+		if( isnewer < 0 ) {
+			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
+			free(package);free(files);
+			free(olddirectory);
+			free(oldchunk);
+			return RET_ERROR;
+		}
+		/* old package may be to be removed */
+		hadold=1;
+		free(oldchunk);
+		oldchunk = NULL;
+	}
+	if( oldchunk == NULL ) {
+		/* add source package */
+		directory =  calc_sourcedir(d->part,package);
+		if( !directory )
+			r = RET_ERROR_OOM;
+		else
+			r = (*d->action)(d->data,chunk,package,directory,olddirectory,files,hadold);
+		free(directory);
+	} else {
+		r = RET_NOTHING;
+		free(oldchunk);
+	}
+	
+	free(package);free(files);
+	free(olddirectory);
+
+	return r;
+}
+
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
  * <pkgs> and using <part> as subdir of pool (i.e. "main","contrib",...) for generated paths */
 retvalue sources_add(DB *pkgs,const char *part,const char *sources_file, source_package_action action,void *data) {
-	gzFile *fi;
-	char *chunk,*oldchunk;
-	char *package,*directory,*olddirectory,*files;
-	int hadold=0;
-	retvalue r,result;
+	struct sources_add mydata;
 
-	fi = gzopen(sources_file,"r");
-	if( !fi ) {
-		fprintf(stderr,"Unable to open file %s\n",sources_file);
-		return RET_ERRNO(errno);
-	}
-	result = RET_NOTHING;
-	while( (chunk = chunk_read(fi))) {
-		package = NULL; olddirectory = NULL; files = NULL;
-		r = sources_parse_chunk(chunk,&package,&olddirectory,&files);
-		if( r == RET_NOTHING ) {
-err:
-			free(chunk);
-			free(package);free(files);
-			free(olddirectory);
-			gzclose(fi);
-			return RET_ERROR;
-		} else if( RET_WAS_ERROR(r) ) {
-			free(chunk);
-			free(package);free(files);
-			free(olddirectory);
-			gzclose(fi);
-			return r;
-		}else if( RET_IS_OK(r)) {
-			hadold = 0;
-			oldchunk = packages_get(pkgs,package);
-			if( oldchunk && (r=sources_isnewer(chunk,oldchunk)) != 0 ) {
-				if( r < 0 ) {
-					fprintf(stderr,"Omitting %s because of parse errors.\n",package);
-					goto err;
-				}
-				/* old package may be to be removed */
-				hadold=1;
-				free(oldchunk);
-				oldchunk = NULL;
-			}
-			if( oldchunk == NULL ) {
-				/* add source package */
+	mydata.data=data;
+	mydata.pkgs=pkgs;
+	mydata.part=part;
+	mydata.action=action;
 
-				directory =  calc_sourcedir(part,package);
-				if( !directory )
-					goto err;
-
-				r = (action)(data,chunk,package,directory,olddirectory,files,hadold);
-				free(directory);
-
-				if( RET_WAS_ERROR(r) && !force)
-					goto err;
-				RET_UPDATE(result,r);
-
-			} else
-				free(oldchunk);
-			
-			free(package);free(files);
-			free(olddirectory);
-		}
-		free(chunk);
-	}
-	gzclose(fi);
-	return result;
+	return chunk_foreach(sources_file,addsource,&mydata,force);
 }

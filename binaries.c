@@ -180,77 +180,72 @@ static int binaries_isnewer(const char *newchunk,const char *oldchunk) {
 	return r;
 }
 
+
+struct binaries_add {DB *pkgs; void *data; const char *part; binary_package_action *action; };
+
+static retvalue addbinary(void *data,const char *chunk) {
+	struct binaries_add *d = data;
+	retvalue r;
+	int newer,hadold;
+	char *oldchunk;
+	char *package,*filename,*oldfile,*sourcename,*filekey,*md5andsize;
+
+	r = binaries_parse_chunk(chunk,&package,&oldfile,&sourcename,&filename,&md5andsize);
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
+		return r;
+	} else if( r == RET_NOTHING ) {
+		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
+		return RET_ERROR;
+	}
+	assert(RET_IS_OK(r));
+	hadold = 0;
+	oldchunk = packages_get(d->pkgs,package);
+	if( oldchunk && (newer=binaries_isnewer(chunk,oldchunk)) != 0 ) {
+		free(oldchunk);
+		oldchunk = NULL;
+		if( newer < 0 ) {
+			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
+			free(md5andsize);free(oldfile);free(package);
+			free(sourcename);free(filename);
+			return RET_ERROR;
+		}
+		/* old package will be obsoleted */
+		hadold=1;
+	}
+	if( oldchunk == NULL ) {
+		/* add package (or whatever action wants to do) */
+
+		filekey =  calc_filekey(d->part,sourcename,filename);
+		if( !filekey )
+			r = RET_ERROR_OOM;
+		else {
+			r = (*d->action)(d->data,chunk,
+					package,sourcename,oldfile,filename,
+					filekey,md5andsize,hadold);
+			free(filekey);
+		}
+
+	} else {
+		r = RET_NOTHING;
+		free(oldchunk);
+	}
+	
+	free(package);free(md5andsize);
+	free(oldfile);free(filename);free(sourcename);
+	return r;
+}
+
+
+
 /* call action for each package in packages_file */
 retvalue binaries_add(DB *pkgs,const char *part,const char *packages_file, binary_package_action action,void *data) {
-	gzFile *fi;
-	char *chunk,*oldchunk;
-	char *package,*filename,*oldfile,*sourcename,*filekey,*md5andsize;
-	int newer,hadold=0;
-	retvalue result,ret;
+	struct binaries_add mydata;
 
-	fi = gzopen(packages_file,"r");
-	if( !fi ) {
-		fprintf(stderr,"Unable to open file %s\n",packages_file);
-		return RET_ERRNO(errno);
-	}
-	result = RET_NOTHING;
-	while( (chunk = chunk_read(fi))) {
-		ret = binaries_parse_chunk(chunk,&package,&oldfile,&sourcename,&filename,&md5andsize);
-		if( RET_WAS_ERROR(ret) ) {
-			fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
-err:
-			free(chunk);
-			gzclose(fi);
-			return ret;
-		} else if( ret == RET_NOTHING ) {
-			fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
-		} else {
-			assert(RET_IS_OK(ret));
-			hadold = 0;
-			oldchunk = packages_get(pkgs,package);
-			if( oldchunk && (newer=binaries_isnewer(chunk,oldchunk)) != 0 ) {
-				free(oldchunk);
-				oldchunk = NULL;
-				if( newer < 0 ) {
-					fprintf(stderr,"Omitting %s because of parse errors.\n",package);
-					ret = RET_ERROR;
-					free(md5andsize);free(oldfile);free(package);
-					free(sourcename);free(filename);
-					goto err;
-				}
-				/* old package will be obsoleted */
-				hadold=1;
-			}
-			if( oldchunk == NULL ) {
-				/* add package (or whatever action wants to do) */
+	mydata.data=data;
+	mydata.pkgs=pkgs;
+	mydata.part=part;
+	mydata.action=action;
 
-				filekey =  calc_filekey(part,sourcename,filename);
-				if( !filekey ) {
-					ret = RET_ERROR_OOM;
-					free(md5andsize);free(oldfile);free(package);
-					free(sourcename);free(filename);
-					goto err;
-				}
-
-				ret = (action)(data,chunk,package,sourcename,oldfile,filename,filekey,md5andsize,hadold);
-				free(filekey);
-
-				if( RET_WAS_ERROR(ret) && !force) {
-					free(md5andsize);free(oldfile);free(package);
-					free(sourcename);free(filename);
-					goto err;
-				}
-				RET_UPDATE(result,ret);
-
-			} else
-				free(oldchunk);
-			
-			free(package);free(md5andsize);
-			free(oldfile);free(filename);free(sourcename);
-		}
-		free(chunk);
-	}
-	gzclose(fi);
-	return result;
-
+	return chunk_foreach(packages_file,addbinary,&mydata,force);
 }
