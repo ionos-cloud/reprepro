@@ -60,12 +60,16 @@ struct package_data {
 
 struct upgradelist {
 	upgrade_decide_function *decide;
+	void *decide_data;
 	struct target *target;
 	struct package_data *list;
-	/* NULL or the last/next thing to test in alphabetical order */
-	struct package_data *current,*last;
+	/* package the next package will most probably be after. 
+	 * (NULL=before start of list) */
+	struct package_data *last;
 	/* internal...*/
 	struct aptmethod *currentaptmethod;
+	upgrade_decide_function *predecide;
+	void *predecide_data;
 };
 
 static void package_data_free(struct package_data *data){
@@ -82,6 +86,9 @@ static void package_data_free(struct package_data *data){
 	free(data);
 }
 
+/* This is called before any package lists are read for any package we already
+ * have in this target. upgrade->list points to the first in the sorted list,
+ * upgrade->last to the last one inserted */
 static retvalue save_package_version(void *d,const char *packagename,const char *chunk) {
 	struct upgradelist *upgrade = d;
 	char *version;
@@ -112,24 +119,25 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 	if( upgrade->list == NULL ) {
 		/* first chunk to add: */
 		upgrade->list = package;
-		upgrade->current = package;
+		upgrade->last = package;
 	} else {
-		if( strcmp(packagename,upgrade->current->name) > 0 ) {
-			upgrade->current->next = package;
-			upgrade->current = package;
+		if( strcmp(packagename,upgrade->last->name) > 0 ) {
+			upgrade->last->next = package;
+			upgrade->last = package;
 		} else {
 			/* this should only happen if the underlying
 			 * database-method get changed, so just throwing
 			 * out here */
-			fprintf(stderr,"Package-database is not sortet!!!");
+			fprintf(stderr,"Package-database is not sorted!!!");
 			assert(0);
+			exit(100);
 		}
 	}
 
 	return RET_OK;
 }
 	
-retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const char *dbdir,upgrade_decide_function *decide) {
+retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const char *dbdir,upgrade_decide_function *decide,void *decide_data) {
 	struct upgradelist *upgrade;
 	retvalue r,r2;
 
@@ -138,6 +146,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 		return RET_ERROR_OOM;
 
 	upgrade->decide = decide;
+	upgrade->decide_data = decide_data;
 	upgrade->target = t;
 
 	r = target_initpackagesdb(t,dbdir);
@@ -155,7 +164,6 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 		return r;
 	}
 
-	upgrade->current = upgrade->list;
 	upgrade->last = NULL;
 
 	*ul = upgrade;
@@ -179,10 +187,12 @@ retvalue upgradelist_free(struct upgradelist *upgrade) {
 	return RET_OK;
 }
 
-static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *chunk){
+static retvalue upgradelist_trypackage(void *data,const char *chunk){
+	struct upgradelist *upgrade = data;
 	char *packagename,*version;
 	retvalue r;
 	upgrade_decision decision;
+	struct package_data *current,*insertafter;
 
 	r = upgrade->target->getname(upgrade->target,chunk,&packagename);
 	if( RET_WAS_ERROR(r) )
@@ -193,61 +203,81 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 		return r;
 	}
 
+	/* insertafter = NULL will mean insert before list */
+	insertafter = upgrade->last;
+	/* the next one to test, current = NULL will mean not found */
+	if( insertafter != NULL ) 
+		current = insertafter->next;
+	else
+		current = upgrade->list;
+
 	/* the algorithm assumes almost all packages are feed in
 	 * alphabetically. So the next package will likely be quite
 	 * after the last one. Otherwise we walk down the long list
-	 * again and again... and again...*/
+	 * again and again... and again... and even some more...*/
 
-	if( upgrade->list == NULL ) {
-		upgrade->current = NULL;
-		upgrade->last = NULL;
-	} else while(1) {
+	while(1) {
 		int found;
 
-		assert( upgrade->current != NULL );
+		assert( insertafter == NULL || insertafter->next == current );
+		assert( insertafter != NULL || current == upgrade->list );
 
-		found = strcmp(packagename,upgrade->current->name);
+		if( current == NULL )
+			found = -1; /* every package is before the end of list */
+		else
+			found = strcmp(packagename,current->name);
 
 		if( found == 0 )
 			break;
 
 		if( found < 0 ) {
-			if( upgrade->last == NULL ) {
+			int precmp;
+
+			if( insertafter == NULL ) {
 				/* if we are before the first
 				 * package, add us there...*/
-				upgrade->current = NULL;
+				current = NULL;
 				break;
 			}
 			// I only hope noone creates indices anti-sorted:
-			if( strcmp(packagename,upgrade->last->name) <= 0 ) {
+			precmp = strcmp(packagename,insertafter->name);
+			if( precmp == 0 ) {
+				current = insertafter;
+				break;
+			} else if( precmp < 0 ) {
 				/* restart at the beginning: */
-				// == 0 has to be restarted, to calc ->last
-				upgrade->current = upgrade->list;
-				upgrade->last = NULL;
+				current = upgrade->list;
+				insertafter = NULL;
 				if( verbose > 10 ) {
 					fprintf(stderr,"restarting search...");
 				}
 				continue;
+			} else { // precmp > 0 
+				/* insert after insertafter: */
+				current = NULL;
+				break;
 			}
-			/* insert after upgrade->last: */
-			upgrade->current = NULL;
-			break;
+			assert( "This is not reached" == NULL );
 		}
 		/* found > 0 : may come later... */
-		upgrade->last = upgrade->current;
-		upgrade->current = upgrade->current->next;
-		if( upgrade->current == NULL ) {
-			/* add behind ->last at end of list */
+		assert( current != NULL );
+		insertafter = current;
+		current = current->next;
+		if( current == NULL ) {
+			/* add behind insertafter at end of list */
 			break;
 		}
 		/* otherwise repeat until place found */
 	}
-	if( upgrade->current == NULL ) {
-		/* adding a package not yet existing */
+	if( current == NULL ) {
+		/* adding a package not yet known */
 		struct package_data *new;
 
-		decision = (*upgrade->decide)(packagename,NULL,version,chunk);
+		decision = upgrade->predecide(upgrade->predecide_data,packagename,NULL,version,chunk);
+		if( decision == UD_UPGRADE )
+			decision = upgrade->decide(upgrade->decide_data,packagename,NULL,version,chunk);
 		if( decision != UD_UPGRADE ) {
+			upgrade->last = insertafter;
 			free(packagename);
 			free(version);
 			return RET_NOTHING;
@@ -271,19 +301,19 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 			package_data_free(new);
 			return RET_ERROR_OOM;
 		}
-		upgrade->current = new;
-		if( upgrade->last ) {
-			new->next = upgrade->last->next;
-			upgrade->last->next = new;
+		if( insertafter ) {
+			new->next = insertafter->next;
+			insertafter->next = new;
 		} else {
 			new->next = upgrade->list;
 			upgrade->list = new;
 		}
+		upgrade->last = new;
 	} else {
 		/* The package already exists: */
-		struct package_data *current = upgrade->current;
 		char *control;struct strlist files,md5sums,origfiles;
 
+		upgrade->last = current;
 
 		r = dpkgversions_isNewer(version,current->version);
 		if( RET_WAS_ERROR(r) ) {
@@ -316,7 +346,10 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 		if( verbose > 30 )
 			fprintf(stderr,"'%s' from '%s' is newer than '%s' currently\n",
 				version,packagename,current->version);
-		decision = upgrade->decide(current->name,
+		decision = upgrade->predecide(upgrade->predecide_data,current->name,
+				current->version,version,chunk);
+		if( decision == UD_UPGRADE )
+			decision = upgrade->decide(upgrade->decide_data,current->name,
 					current->version,version,chunk);
 		if( decision != UD_UPGRADE ) {
 			//TODO: perhaps set a flag if hold was applied...
@@ -345,13 +378,14 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 	return RET_OK;
 }
 
-retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,int force){
+retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,upgrade_decide_function *decide,void *decide_data,int force){
 
-	upgrade->current = upgrade->list;
 	upgrade->last = NULL;
 	upgrade->currentaptmethod = method;
+	upgrade->predecide = decide;
+	upgrade->predecide_data = decide_data;
 
-	return chunk_foreach(filename,(void*)upgradelist_trypackage,upgrade,force,0);
+	return chunk_foreach(filename,upgradelist_trypackage,upgrade,force,0);
 }
 
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files){
@@ -464,6 +498,6 @@ retvalue upgradelist_dump(struct upgradelist *upgrade){
 }
 
 /* standard answer function */
-upgrade_decision ud_always(const char *package,const char *old_version,const char *new_version,const char *new_controlchunk) {
+upgrade_decision ud_always(void *privdata,const char *package,const char *old_version,const char *new_version,const char *new_controlchunk) {
 	return UD_UPGRADE;
 }

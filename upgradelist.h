@@ -15,23 +15,23 @@
 
 typedef enum { UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
 
-typedef upgrade_decision upgrade_decide_function(const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk);
+typedef upgrade_decision upgrade_decide_function(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk);
 
-upgrade_decision ud_always(const char *p,const char *ov,const char *nv,const char *nc);
+upgrade_decision ud_always(void *privdata, const char *p,const char *ov,const char *nv,const char *nc);
 
 /* The main part: */
 
 struct target;
 struct upgradelist;
 
-retvalue upgradelist_initialize(struct upgradelist **ul,struct target *target,const char *dbdir,upgrade_decide_function *decide);
+retvalue upgradelist_initialize(struct upgradelist **ul,struct target *target,const char *dbdir,upgrade_decide_function *decide,void *decide_data);
 retvalue upgradelist_free(struct upgradelist *upgrade);
 
 retvalue upgradelist_dump(struct upgradelist *upgrade);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files);
 
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
-retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,int force);
+retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,upgrade_decide_function *predecide,void *decide_data,int force);
 
 //TODO add a function to reduce data-load by removing anything not needed
 //any longer. (perhaps with a flag to remove all packages that are no

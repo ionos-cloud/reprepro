@@ -105,6 +105,9 @@ struct update_pattern {
 	// (empty means all)
 	struct strlist udebcomponents_from;
 	struct strlist udebcomponents_into;
+	// NULL is not allowed!:
+	upgrade_decide_function *decide;
+	void *decide_data;
 };
 
 struct update_origin {
@@ -362,6 +365,9 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 	}
 	if( r == RET_NOTHING )
 		update->verifyrelease = NULL;
+
+	update->decide = ud_always;
+	update->decide_data = NULL;
 
 	*pattern = update;
 	return RET_OK;
@@ -775,13 +781,13 @@ static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution 
 	return RET_OK;;
 }
 
-static inline retvalue searchformissing(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct update_target *u,upgrade_decide_function *decide,int force) {
+static inline retvalue searchformissing(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct update_target *u,upgrade_decide_function *decide,void *decision_data,int force) {
 	struct update_index *index;
 	retvalue result,r;
 
 	if( verbose > 2 )
 		fprintf(stderr,"  processing updates for '%s'\n",u->target->identifier);
-	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir,decide);
+	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir,decide,decision_data);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -793,7 +799,10 @@ static inline retvalue searchformissing(const char *dbdir,struct downloadcache *
 			fprintf(stderr,"  reading '%s'\n",index->filename);
 		assert(index->origin->download);
 		r = upgradelist_update(u->upgradelist,
-				index->origin->download,index->filename,force);
+				index->origin->download,index->filename,
+				index->origin->pattern->decide,
+				index->origin->pattern->decide_data,
+				force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force)
 			return result;
@@ -813,7 +822,7 @@ static retvalue updates_readindices(const char *dbdir,struct downloadcache *cach
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = searchformissing(dbdir,cache,filesdb,u,ud_always,force);
+		r = searchformissing(dbdir,cache,filesdb,u,ud_always,NULL,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
 			break;
