@@ -117,8 +117,9 @@ same as list, but remove instead of list.
 .BR update " [ " \fIcodenames\fP " ]"
 Sync the specified distributions (all if none given) as
 specified in the config with their upstreams. See the
-.B SYNCING
-section below.
+description of
+.B conf/updates
+below.
 .TP
 .B includedeb \fIcodename\fP \fI.deb-filename\fP
 Include the given binary Debian package (.deb) in the specified
@@ -205,7 +206,8 @@ Look what reprepro believes to be the content of the
 .B control
 file of the specified .deb-file.
 .SH "CONFIG FILES"
-.B reprepo uses two config files, that are searched in
+.B reprepo 
+uses two config files, that are searched in
 the directory specified with 
 .B -c
 or in the
@@ -288,8 +290,52 @@ When this field is present, it describes the binary override file.
 .TP
 .B SourceOverride
 When this field is present, it describes the source override file.
-.SS conf/distributions
-yet to be described
+.SS conf/updates
+.TP
+.B Name
+The name of this update-upstream as it can be used in the 
+.B Update
+field in conf/distributions.
+.TP
+.B Method
+An URL as one could also give it apt, e.g.
+.I http://ftp.debian.de/debian
+.TP
+.B Suite
+The suite to update from. If this is not present, the codename
+of the distribution using this one is used. Also "*/whatever"
+is replaced by "<codename>/whatever"
+.TP
+.B Architectures
+The architectures to update. If omitted all from the distribution
+to update from.
+.TP
+.B Components
+The components to update. Each item can be either the name
+of a component or a pair of a upstream component and a local
+component seperated with ">". (e.g. "main>all contrib>all non-free>notall")
+Items with a local part are ignored. If no items are there
+all from the updated distribution are taken. (Use some nonexisting
+like "none", if you want none).
+.TP
+.B UDebComponents
+Like
+.B Components
+but for the udebs.
+.TP
+.B VerifyRelease
+Download the
+.B Release.gpg
+file and check if it is a signature of the
+.B Releasefile with the key given here. (In the Format as
+"gpg --with-colons --list-key" prints it, i.e. the last
+16 hexdigits of the fingerprint)
+.TP
+.B IgnoreRelease
+If this is present, no
+.B Release
+file will be downloaded and thus the md5sums of the other
+index files will not be checked.
 .SH "OVERRIDE FILES"
 yet to be described
 .SH GUESSING
@@ -314,8 +360,6 @@ to end up there.
 
 .B NOTE: 
 unlike in dak, non-US and non-us are different things...
-.SH SYNCING
-yet to be described
 .SH NOMENCLATURE
 .B Codename 
 is the identifier ...
