@@ -78,18 +78,23 @@ int sources_getfile(const char **files,char **filename,char **md5andsize) {
 	*files = p;
 
 	filen = strndup(fn,fnend-fn);
-	md5as = malloc((md5end-md5)+2+(sizeend-size));
-	if( !filen || !md5as ) {
-		free(filen);free(md5as);
-		return -1;
+	if( md5andsize ) {
+		md5as = malloc((md5end-md5)+2+(sizeend-size));
+		if( !filen || !md5as ) {
+			free(filen);free(md5as);
+			return -1;
+		}
+		strncpy(md5as,md5,md5end-md5);
+		md5as[md5end-md5] = ' ';
+		strncpy(md5as+1+(md5end-md5),size,sizeend-size);
+		md5as[(md5end-md5)+1+(sizeend-size)] = '\0';
+	
+		*md5andsize = md5as;
 	}
-	strncpy(md5as,md5,md5end-md5);
-	md5as[md5end-md5] = ' ';
-	strncpy(md5as+1+(md5end-md5),size,sizeend-size);
-	md5as[(md5end-md5)+1+(sizeend-size)] = '\0';
-
-	*md5andsize = md5as;
-	*filename = filen;
+	if( filename )
+		*filename = filen;
+	else
+		free(filen);
 
 //	fprintf(stderr,"'%s' -> '%s' \n",*filename,*md5andsize);
 	

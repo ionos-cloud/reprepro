@@ -68,6 +68,23 @@ int release(int argc,char *argv[]) {
 }
 
 
+int dumpreferences(int argc,char *argv[]) {
+	DB *refs;
+	int result;
+
+	if( argc != 1 ) {
+		fprintf(stderr,"mirrorer dumpreferences\n");
+		return 1;
+	}
+	refs = references_initialize(dbdir);
+	if( ! refs )
+		return 1;
+	result = references_dump(refs);
+	references_done(refs);
+	return result!=1;
+}
+
+
 int addreference(int argc,char *argv[]) {
 	DB *refs;
 	int result;
@@ -120,18 +137,26 @@ struct referee {
 	const char *identifier;
 };
 
+/**********************************referencebinaries**********************/
+
 int reference_binary(void *data,const char *package,const char *chunk) {
 	struct referee *dist = data;
 	const char *f;
 	char *filekey;
 	int r;
 
-	f = chunk_getfield(chunk,"Filename");
-	if( !f )
+	f = chunk_getfield("Filename",chunk);
+	if( !f ) {
+		fprintf(stderr,"No Filename-entry in package '%s'. Perhaps no binary entry?:\n%s\n",package,chunk);
 		return 0;
+	}
 	filekey = chunk_dupvaluecut(f,ppooldir);
-	if( !filekey )
+	if( !filekey ) {
+		fprintf(stderr,"Error extracing filename from chunk: %s\n",chunk);
 		return -1;
+	}
+	if( verbose > 10 )
+		fprintf(stderr,"referencing filekey: %s\n",filekey);
 	r = references_adddependency(dist->refs,filekey,dist->identifier);
 	free(filekey);
 	return r==0;
@@ -155,6 +180,79 @@ int referencebinaries(int argc,char *argv[]) {
 		return 1;
 	}
 	result = packages_foreach(dist.pkgs,reference_binary,&dist);
+
+	packages_done(dist.pkgs);
+	references_done(dist.refs);
+	return result;
+}
+
+/**********************************referencesources**********************/
+
+
+int reference_source(void *data,const char *package,const char *chunk) {
+	struct referee *dist = data;
+	const char *f,*nextfile;
+	char *dir,*files,*filekey,*filename;
+	int r;
+
+	f = chunk_getfield("Directory",chunk);
+	if( !f ) {
+		fprintf(stderr,"No Directory-entry in package '%s'. Perhaps no source entry?:\n%s\n",package,chunk);
+		return 0;
+	}
+	dir = chunk_dupvaluecut(f,ppooldir);
+	if( !dir ) {
+		fprintf(stderr,"Error extracing directory from chunk: %s\n",chunk);
+		return -1;
+	}
+	f = chunk_getfield("Files",chunk);
+	if( !f ) {
+		free(dir);
+		fprintf(stderr,"No Files-entry in package '%s'. Perhaps no source entry?:\n%s\n",package,chunk);
+		return 0;
+	}
+	files = chunk_dupextralines(f);
+	if( !files ) {
+		free(dir);
+		fprintf(stderr,"Error extracing files from chunk: %s\n",chunk);
+		return -1;
+	}
+	if( verbose > 10 )
+		fprintf(stderr,"referencing source package: %s\n",package);
+	nextfile = files;
+	while( (r =sources_getfile(&nextfile,&filename,NULL))>0 ){
+		filekey = calc_srcfilekey(dir,filename);
+		if( !filekey) {
+			free(dir);free(files);free(filename);
+			return -10;
+		}
+		r = references_adddependency(dist->refs,filekey,dist->identifier);
+		free(filekey);free(filename);
+		if( r != 0 )
+			break;
+	}
+	free(dir);free(files);
+	return r==0;
+}
+
+int referencesources(int argc,char *argv[]) {
+	int result;
+	struct referee dist;
+
+	if( argc != 2 ) {
+		fprintf(stderr,"mirrorer referencesources <identifier>\n");
+		return 1;
+	}
+	dist.identifier = argv[1];
+	dist.refs = references_initialize(dbdir);
+	if( ! dist.refs )
+		return 1;
+	dist.pkgs = packages_initialize(dbdir,argv[1]);
+	if( ! dist.pkgs ) {
+		references_done(dist.refs);
+		return 1;
+	}
+	result = packages_foreach(dist.pkgs,reference_source,&dist);
 
 	packages_done(dist.pkgs);
 	references_done(dist.refs);
@@ -541,8 +639,10 @@ struct action {
 	{"export", exportpackages},
 	{"zexport", zexportpackages},
 	{"addreference", addreference},
+	{"dumpreferences", dumpreferences},
 	{"release", release},
 	{"referencebinaries",referencebinaries},
+	{"referencesources",referencesources},
 	{NULL,NULL}
 };
 

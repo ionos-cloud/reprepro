@@ -6,4 +6,7 @@ int references_done(DB *db);
 int references_removedependency(DB* refdb,const char *neededby);
 int references_adddependency(DB* refdb,const char *needed,const char *neededby);
 
+/* print out all referee-referenced-pairs. return 1 if ok, -1 on error */
+int references_dump(DB *refdb);
+
 #endif

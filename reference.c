@@ -39,7 +39,7 @@ DB *references_initialize(const char *dbpath) {
 	char *filename;
 
 	
-	asprintf(&filename,"%s/files.db",dbpath);
+	asprintf(&filename,"%s/references.db",dbpath);
 	if( make_parent_dirs(filename) < 0 ) {
 		free(filename);
 		return NULL;
@@ -69,7 +69,7 @@ int references_adddependency(DB* refdb,const char *needed,const char *neededby) 
 		if( verbose > 2 )
 			fprintf(stderr,"db: %s: reference by %s added.\n", needed,neededby);
 	} else {
-		refdb->err(refdb, ret, "files.db:reference:");
+		refdb->err(refdb, ret, "references.db:reference:");
 	}
 	return ret;
 
@@ -82,7 +82,7 @@ int references_removedependency(DB* refdb,const char *neededby) {
 
 	cursor = NULL;
 	if( (ret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
-		refdb->err(refdb, ret, "files.db:reference:");
+		refdb->err(refdb, ret, "references.db:reference:");
 		return -1;
 	}
 	CLEARDBT(key);	
@@ -94,18 +94,45 @@ int references_removedependency(DB* refdb,const char *neededby) {
 					(const char *)key.data,neededby);
 			ret = cursor->c_del(cursor,0);
 			if( ret != 0 ) {
-				refdb->err(refdb, ret, "files.db:reference:");
+				refdb->err(refdb, ret, "references.db:reference:");
 				r = -1;
 			}
 		}
 	}
 	if( ret != DB_NOTFOUND ) {
-		refdb->err(refdb, ret, "files.db:reference:");
+		refdb->err(refdb, ret, "references.db:reference:");
 		return -1;
 	}
 	if( (ret = cursor->c_close(cursor)) != 0 ) {
-		refdb->err(refdb, ret, "files.db:reference:");
+		refdb->err(refdb, ret, "references.db:reference:");
 		return -1;
 	}
 	return r;
+}
+
+/* print out all referee-referenced-pairs. return 1 if ok, -1 on error */
+int references_dump(DB *refdb) {
+	DBC *cursor;
+	DBT key,data;
+	int ret;
+
+	cursor = NULL;
+	if( (ret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
+		refdb->err(refdb, ret, "references.db:reference:");
+		return -1;
+	}
+	CLEARDBT(key);	
+	CLEARDBT(data);	
+	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		printf("%s %s\n",(const char*)data.data,(const char*)key.data);
+	}
+	if( ret != DB_NOTFOUND ) {
+		refdb->err(refdb, ret, "references.db:reference:");
+		return -1;
+	}
+	if( (ret = cursor->c_close(cursor)) != 0 ) {
+		refdb->err(refdb, ret, "references.db:reference:");
+		return -1;
+	}
+	return 1;
 }
