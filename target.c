@@ -94,14 +94,19 @@ retvalue target_free(struct target *target) {
 
 	if( target == NULL )
 		return RET_OK;
+	if( target->packages ) {
+		result = target_closepackagesdb(target);
+	} else
+		result = RET_OK;
+	if( target->wasmodified ) {
+		fprintf(stderr,"Warning: database '%s' was modified but no index file was exported.\nChanges will only be visible after the next 'export'!\n",target->identifier);
+	}
+		
 	free(target->codename);
 	free(target->component);
 	free(target->architecture);
 	free(target->identifier);
 	free(target->directory);
-	if( target->packages ) {
-		result = packages_done(target->packages);
-	}
 	free(target);
 	return result;
 }
@@ -110,14 +115,32 @@ retvalue target_free(struct target *target) {
 retvalue target_initpackagesdb(struct target *target, const char *dbdir) {
 	retvalue r;
 
-	if( target->packages != NULL ) 
+	if( target->packages != NULL ) {
+		fprintf(stderr,"again2\n");
 		r = RET_OK;
-	else {
+	} else {
 		r = packages_initialize(&target->packages,dbdir,target->identifier);
 		if( RET_WAS_ERROR(r) ) {
 			target->packages = NULL;
 			return r;
 		}
+	}
+	return r;
+}
+/* this closes databases... */
+retvalue target_closepackagesdb(struct target *target) {
+	retvalue r;
+	
+	if( target->packages == NULL ) {
+		fprintf(stderr,"Internal Warning: Double close!\n");
+		r = RET_OK;
+	} else {
+		if( target->packages->wasmodified && !target->wasmodified ) {
+			fprintf(stderr,"Internal Warning: Missed change!\n");
+			target->wasmodified = 1;
+		}
+		r = packages_done(target->packages);
+		target->packages = NULL;
 	}
 	return r;
 }
@@ -147,6 +170,7 @@ retvalue target_removepackage(struct target *target,DB *references,const char *n
 		fprintf(stderr,"removing '%s' from '%s'...\n",name,target->identifier);
 	r = packages_remove(target->packages,name);
 	if( RET_IS_OK(r) ) {
+		target->wasmodified = 1;
 		r = references_delete(references,target->identifier,&files,NULL);
 	}
 	strlist_done(&files);
@@ -209,6 +233,9 @@ retvalue target_addpackage(struct target *target,DB *references,const char *name
 		}
 	}
 	r = packages_insert(references,target->packages,name,control,filekeys,ofk);
+	if( RET_IS_OK(r) )
+		target->wasmodified = 1;
+
 	if( ofk )
 		strlist_done(ofk);
 	return r;
@@ -308,7 +335,7 @@ retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int
 
 retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded) {
 	indexcompression compression;
-	retvalue result,r;
+	retvalue result,r,r2;
 
 	if( verbose > 5 ) {
 		fprintf(stderr," exporting '%s'...\n",target->identifier);
@@ -324,7 +351,7 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 					target->indexfile,compression);
 			if( filename == NULL )
 				return RET_ERROR_OOM;
-			if( onlyneeded && !(target->packages && target->packages->wasmodified)) {
+			if( onlyneeded && !target->wasmodified &&!(target->packages && target->packages->wasmodified)) {
 				struct stat s;
 				int i;
 
@@ -335,9 +362,12 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 				}
 			}
 			r = target_initpackagesdb(target,dbdir);
-			if( !RET_WAS_ERROR(r) )
+			if( !RET_WAS_ERROR(r) ) {
 				r = packages_export(target->packages,
 						filename,compression);
+				r2 = target_closepackagesdb(target);
+				RET_ENDUPDATE(r,r2);
+			}
 			free(filename);
 			RET_UPDATE(result,r);
 			if( !force && RET_WAS_ERROR(r) )

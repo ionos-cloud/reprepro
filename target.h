@@ -35,6 +35,7 @@ struct target {
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
 	get_upstreamindex *getupstreamindex;
+	int wasmodified;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
 	/* is initialized as soon as needed: */
@@ -51,6 +52,8 @@ retvalue target_printmd5sums(const struct target *target,const char *distdir,FIL
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
 retvalue target_initpackagesdb(struct target *target, const char *dbdir);
+/* this closes databases... */
+retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 

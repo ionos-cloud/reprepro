@@ -131,7 +131,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 	
 retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const char *dbdir,upgrade_decide_function *decide) {
 	struct upgradelist *upgrade;
-	retvalue r;
+	retvalue r,r2;
 
 	upgrade = calloc(1,sizeof(struct upgradelist));
 	if( upgrade == NULL )
@@ -147,6 +147,8 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 	}
 
 	r = packages_foreach(t->packages,save_package_version,upgrade,0);
+	r2 = target_closepackagesdb(t);
+	RET_UPDATE(r,r2);
 
 	if( RET_WAS_ERROR(r) ) {
 		upgradelist_free(upgrade);
@@ -290,6 +292,9 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 			return r;
 		}
 		if( r == RET_NOTHING ) {
+			if( verbose > 30 )
+				fprintf(stderr,"Ignoring '%s' from '%s' as not newer than '%s'\n",
+				version,packagename,current->version);
 			/* there already is a newer version, so
 			 * doing nothing but perhaps updating what
 			 * versions are around, when we are newer
@@ -308,6 +313,9 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade,const char *c
 			free(packagename);
 			return RET_NOTHING;
 		}
+		if( verbose > 30 )
+			fprintf(stderr,"'%s' from '%s' is newer than '%s' currently\n",
+				version,packagename,current->version);
 		decision = upgrade->decide(current->name,
 					current->version,version);
 		if( decision != UD_UPGRADE ) {
@@ -383,11 +391,17 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade,filesdb files,DB *references,int force){
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,DB *references,int force){
 	struct package_data *pkg;
 	retvalue result,r;
+
+	if( upgrade->list == NULL )
+		return RET_NOTHING;
+
+	result = target_initpackagesdb(upgrade->target,dbdir);
+	if( RET_WAS_ERROR(result) )
+		return result;
 	pkg = upgrade->list;
-	result = RET_NOTHING;
 	while( pkg ) {
 		if( pkg->version == pkg->new_version ) {
 			r = files_expectfiles(files,&pkg->new_filekeys,
@@ -404,6 +418,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade,filesdb files,DB *refer
 		}
 		pkg = pkg->next;
 	}
+	r = target_closepackagesdb(upgrade->target);
+	RET_ENDUPDATE(result,r);
 	return result;
 }
 

@@ -91,7 +91,9 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 }
 
 char *calc_identifier(const char *codename,const char *component,const char *architecture) {
-	return mprintf("%s-%s-%s",codename,component,architecture);
+	// TODO: add checks to all data possibly given into here...
+	assert( index(codename,'|') == NULL && index(component,'|') == NULL && index(architecture,'|') == NULL );
+	return mprintf("%s|%s|%s",codename,component,architecture);
 }
 
 char *calc_addsuffix(const char *str1,const char *str2) {

@@ -40,6 +40,6 @@ retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method
 /* request all wanted files refering the methods given before */
 retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb,int force);
 
-retvalue upgradelist_install(struct upgradelist *upgrade,filesdb files,DB *references,int force);
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,DB *references,int force);
 
 #endif

@@ -786,13 +786,13 @@ retvalue updates_readindices(const char *dbdir,struct downloadcache *cache,files
 }
 
 
-retvalue updates_install(filesdb filesdb,DB *refsdb,struct distribution *distribution,int force) {
+retvalue updates_install(const char *dbdir,filesdb filesdb,DB *refsdb,struct distribution *distribution,int force) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = upgradelist_install(u->upgradelist,filesdb,refsdb,force);
+		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refsdb,force);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
@@ -888,7 +888,7 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 		fprintf(stderr,"Installing packages...\n");
 
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		r = updates_install(filesdb,refsdb,distribution,force);
+		r = updates_install(dbdir,filesdb,refsdb,distribution,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;

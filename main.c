@@ -445,6 +445,32 @@ static int md5sums(int argc,char *argv[]) {
 	}
 }
 
+static retvalue printout(void *data,const char *package,const char *chunk){
+	printf("'%s' -> '%s'\n",package,chunk);
+	return RET_OK;
+}
+
+static int dumpcontents(int argc,char *argv[]) {
+	retvalue result,r;
+	packagesdb packages;
+
+	if( argc != 2 ) {
+		fprintf(stderr,"mirrorer _dumpcontents <identifier>\n");
+		return 1;
+	}
+
+	result = packages_initialize(&packages,dbdir,argv[1]);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+
+	result = packages_foreach(packages,printout,NULL,force);
+
+	r = packages_done(packages);
+	RET_ENDUPDATE(result,r);
+	
+	return EXIT_RET(result);
+}
+
 static retvalue doexport(void *dummy,const char *chunk,struct distribution *distribution) {
 
 	if( verbose > 0 ) {
@@ -516,7 +542,7 @@ static int update(int argc,char *argv[]) {
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	
-	doexport = force || RET_IS_OK(result);
+	doexport = 0; // force || RET_IS_OK(result);
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	while( distributions ) {
@@ -784,6 +810,7 @@ static struct action {
 	{"_detect", detect},
 	{"_forget", forget},
 	{"_md5sums", md5sums},
+	{"_dumpcontents", dumpcontents},
         {"remove", removepackage},
 	{"export", export},
 	{"check", check},

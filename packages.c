@@ -40,13 +40,17 @@
 
 extern int verbose;
 
+// to make sure the problems do not arise there:
+int isopen = 0;
+
 /* release the packages-database initialized got be packages_initialize */
 retvalue packages_done(packagesdb db) {
 	int r;
 
-	if( db->wasmodified ) {
-		fprintf(stderr,"Warning: database '%s' was modified but no index file was exported.\nChanges might only be visible after the next 'export'!\n",db->identifier);
-	}
+	isopen--;
+	if( isopen < 0 )
+		fprintf(stderr,"isopen: %d\n",isopen);
+
 	r = db->database->close(db->database,0);
 	free(db->identifier);
 	free(db);
@@ -104,6 +108,9 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 		free(pkgs);
 		return RET_DBERR(dbret);
 	}
+	isopen++;
+	if( isopen > 1 )
+		fprintf(stderr,"isopen: %d\n",isopen);
 	if ((dbret = pkgs->database->open(pkgs->database, filename, identifier, DB_BTREE, DB_CREATE, 0664)) != 0) {
 		pkgs->database->err(pkgs->database, dbret, "%s(%s)", filename,identifier);
 		(void)pkgs->database->close(pkgs->database,0);
@@ -118,7 +125,7 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 }
 
 /* replace a save chunk with another */
-retvalue packages_replace(packagesdb db,const char *package,const char *chunk) {
+static retvalue packages_replace(packagesdb db,const char *package,const char *chunk) {
 	int dbret;
 	DBT key,data;
 
@@ -146,7 +153,7 @@ retvalue packages_replace(packagesdb db,const char *package,const char *chunk) {
 }
 
 /* save a given chunk in the database */
-retvalue packages_add(packagesdb db,const char *package,const char *chunk) {
+static retvalue packages_add(packagesdb db,const char *package,const char *chunk) {
 	int dbret;
 	DBT key,data;
 
@@ -250,6 +257,8 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 				fprintf(stderr,"packages_foreach: Stopping procession of further packages due to privious errors\n");
 			break;
 		}
+		CLEARDBT(key);	
+		CLEARDBT(data);	
 	}
 
 	if( dbret != 0 && dbret != DB_NOTFOUND ) {
