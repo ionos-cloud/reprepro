@@ -1,0 +1,27 @@
+Source: reprepro
+Section: utils
+Priority: extra
+Maintainer: Bernhard R. Link <brlink@debian.org>
+Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb3-dev, libz-dev
+Standards-Version: 3.6.1
+
+Package: reprepro
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: debian package repository producer.
+ reprepro is a tool to manage a repository of Debian packages
+ (.deb, .udeb, .dsc, ...). It stores files either beeing
+ injected manually or downloaded from some other repository
+ (partically) mirrored into a pool/ hierarchy. 
+ Managed packages and files are stored in a libdb3 database, 
+ so no database server is needed. 
+ Checking signatures of mirrored repositories and creating
+ signatures of the generated Package indices is supported.
+ .
+ WARNING: Reprepro does not have much users yet, so not all
+ code paths are severly tested. Please report any bugs you
+ find.
+ .
+ Former working title of this program was mirrorer.
+ .
+ Homepage: http://mirrorer.alioth.debian.org/
