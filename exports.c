@@ -129,6 +129,7 @@ static retvalue export_writepackages(packagesdb packagesdb,const char *filename,
 	return RET_ERROR;
 }
 
+/*@null@*/
 static char *comprconcat(const char *str2,const char *str3,indexcompression compression) {
 
 	switch( compression ) {
@@ -193,6 +194,7 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 				fprintf(stderr,"Expecting '.' or '.gz' in '%s'!\n",options);
 			else
 				fprintf(stderr,"Third argument is still not '.' nor '.gz' in '%s'!\n",options);
+			free(options);
 			return RET_ERROR;
 		}
 		mode->compressions[ic_uncompressed] = FALSE;
@@ -208,6 +210,7 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 				mode->compressions[ic_gzip] = TRUE;
 			else {
 				fprintf(stderr,"Unsupported extension '.%c'... in '%s'!\n",b[1],options);
+				free(options);
 				return RET_ERROR;
 			}
 			b = e;
@@ -219,17 +222,21 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 			while( *e != '\0' && !isspace(*e) )
 				e++;
 			mode->hook = strndup(b,e-b);
-			if( mode->hook == NULL )
+			if( mode->hook == NULL ) {
+				free(options);
 				return RET_ERROR_OOM;
+			}
 			b = e;
 		}
 		while( *b != '\0' && isspace(*b) )
 			b++;
 		if( *b != '\0' ) {
 			fprintf(stderr,"More than one hook specified(perhaps you have spaces in them?) in '%s'!\n",options);
+			free(options);
 			return RET_ERROR;
 		}
 	}
+	free(options);
 	return RET_OK;
 }
 
@@ -253,28 +260,33 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	f = fork();
 	if( f < 0 ) {
 		int err = errno;
-		close(io[0]);close(io[1]);
+		(void)close(io[0]);
+		(void)close(io[1]);
 		fprintf(stderr,"Error while forking for exporthook: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
 		long maxopen;
 
-		dup2(io[1],3);
+		if( dup2(io[1],3) < 0 ) {
+			fprintf(stderr,"Error dup2'ing fd %d to 3: %d=%m\n",
+					io[1],errno);
+			exit(255);
+		}
 		/* Try to close all open fd but 0,1,2,3 */
 		maxopen = sysconf(_SC_OPEN_MAX);
 		if( maxopen > 0 ) {
 			int fd;
 			for( fd = 4 ; fd < maxopen ; fd++ )
-				close(fd);
+				(void)close(fd);
 		} else { // otherweise we have to hope...
 			if( io[0] != 3 )
-				close(io[0]);
+				(void)close(io[0]);
 			if( io[1] != 3 )
-				close(io[1]);
+				(void)close(io[1]);
 		}
 		if( hook[0] == '/' )
-			execl(hook,hook,dirofdist,reltmpfilename,relfilename,mode,NULL);
+			(void)execl(hook,hook,dirofdist,reltmpfilename,relfilename,mode,NULL);
 		else {
 			char *fullfilename = calc_dirconcat(confdir,hook);
 			if( fullfilename == NULL ) {
@@ -282,7 +294,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 				exit(255);
 
 			}
-			execl(fullfilename,fullfilename,dirofdist,reltmpfilename,relfilename,mode,NULL);
+			(void)execl(fullfilename,fullfilename,dirofdist,reltmpfilename,relfilename,mode,NULL);
 		}
 		fprintf(stderr,"Error while executing '%s': %d=%m\n",hook,errno);
 		exit(255);
@@ -293,7 +305,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		fprintf(stderr,"Called %s '%s' '%s' '%s' '%s'\n",
 			hook,dirofdist,reltmpfilename,relfilename,mode);
 	/* read what comes from the client */
-	while(1) {
+	while( TRUE ) {
 		ssize_t r;
 		int last,j;
 
@@ -326,12 +338,12 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 
 					item = strndup(buffer+last,j-last+1);
 					if( item == NULL ) {
-						close(io[0]);
+						(void)close(io[0]);
 						return RET_ERROR_OOM;
 					}
 					ret = strlist_add(releasedfiles,item);
 					if( RET_WAS_ERROR(ret) ) {
-						close(io[0]);
+						(void)close(io[0]);
 						return RET_ERROR_OOM;
 					}
 				}
@@ -346,7 +358,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		if( r == 0 )
 			break;
 	}
-	close(io[0]);
+	(void)close(io[0]);
 	do {
 		c = waitpid(f,&status,WUNTRACED);
 		if( c < 0 ) {
@@ -433,8 +445,11 @@ retvalue export_target(const char *confdir,const char *dirofdist,const char *rel
 					fullfilename,compression);
 			free(fullfilename);
 			RET_UPDATE(result,r);
-			if( !force && RET_WAS_ERROR(r) )
+			if( !force && RET_WAS_ERROR(r) ) {
+				free(reltmpfilename);
+				free(relfilename);
 				return r;
+			}
 
 			// TODO: allow multiple hooks?
 			r = callexporthook(confdir,
@@ -511,6 +526,7 @@ retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *released
 			free(md5sum);
 			e = -1;
 			checkwritten;
+			assert(0);
 		}
 		e = fputs(md5sum,f);
 		free(md5sum);
