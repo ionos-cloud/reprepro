@@ -4,5 +4,5 @@ set -e
 aclocal 
 autoheader
 automake -a -c
-autoconf2.50
+autoconf
 
