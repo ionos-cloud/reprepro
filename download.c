@@ -25,16 +25,89 @@
 #include "error.h"
 #include "download.h"
 
+struct download {
+	FILE *pipe;
+};
+
 retvalue download_initialize(struct download **download,const char *config) {
+	const char *m,*me,*nl;
+	char *method;
+	FILE *pipe;
+	struct download *d;
+
 	fprintf(stderr,"download_initialize: '%s'\n",config);
+	m = config;
+	while( *m && isblank(*m) )
+		m++;
+	nl = m;
+	while( *nl && *nl != '\n' )
+		nl++;
+	me = nl;
+	while( me > m && isblank(*me) )
+		me--;
+	if( me == m || !(method = strndup(m,me-m+1)) )
+		return RET_ERROR_OOM;
+
+	d = malloc(sizeof(struct download));
+	if( !d ) {
+		free(method);
+		return RET_ERROR_OOM;
+	}
+
+	pipe = popen(method,"w");
+	if( !pipe ) {
+		fprintf(stderr,"Error executing '%s': %m\n",method);
+		free(d);
+		free(method);
+		return RET_ERRNO(errno);
+	}
+		fprintf(stderr,"Executed '%s': %m\n",method);
+	free(method);
+
+	if( *nl ) {
+		nl++;
+		fwrite(nl,strlen(nl),1,pipe);
+	}
+	d->pipe = pipe;
+	*download = d;
+	
 	return RET_OK;
 }
 retvalue download_add(struct download *download,const char *orig,const char *dest) {
-	return RET_NOTHING;
+	fprintf(download->pipe,"%s %s\n",orig,dest);
+	return RET_OK;
 }
 retvalue download_run(struct download *download) {
-	return RET_NOTHING;
+	int r;
+	
+	r = pclose(download->pipe);
+	free(download);
+	if( r == -1 ) {
+		fprintf(stderr,"Error waiting for download to finish: %m\n");
+		return RET_ERROR;
+	}
+	if( r == 0 )
+		return RET_OK;
+	else {
+		fprintf(stderr,"Download-programm returned error: %d\n",r);
+		return RET_ERROR;
+	}
 }
+
 retvalue download_cancel(struct download *download) {
+	int r;
+
+	r = pclose(download->pipe);
+	free(download);
+	if( r == -1 ) {
+		fprintf(stderr,"Error waiting for download to finish: %m\n");
+		return RET_ERROR;
+	}
+	if( r == 0 )
+		return RET_OK;
+	else {
+		fprintf(stderr,"Download-programm returned error: %d\n",r);
+		return RET_ERROR;
+	}
 	return RET_NOTHING;
 }
