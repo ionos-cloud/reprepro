@@ -33,6 +33,7 @@
 #include "dirs.h"
 #include "chunks.h"
 #include "md5sum.h"
+#include "aptmethod.h"
 
 extern int verbose;
 
@@ -106,7 +107,7 @@ void aptmethod_cancel(struct aptmethodrun *run) {
 	if( run == NULL )
 		return;
 	method = run->methods;
-	while( methods ) {
+	while( method ) {
 		next = method->next;
 		aptmethod_free(method);
 		method = next;
@@ -117,9 +118,9 @@ void aptmethod_cancel(struct aptmethodrun *run) {
 /******************Initialize the data structures***********************/
 
 retvalue aptmethod_initialize_run(struct aptmethodrun **run) {
-	struct aptmethodrund *r;
+	struct aptmethodrun *r;
 
-	r = calloc(sizeof(struct aptmethodrun));
+	r = calloc(1,sizeof(struct aptmethodrun));
 	if( r == NULL )
 		return RET_ERROR_OOM;
 	else {
@@ -128,11 +129,11 @@ retvalue aptmethod_initialize_run(struct aptmethodrun **run) {
 	}
 }
 
-retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct method **m) {
+retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct aptmethod **m) {
 	struct aptmethod *method;
 	const char *p;
 
-	method = calloc(sizeof(struct aptmethod));
+	method = calloc(1,sizeof(struct aptmethod));
 	if( method == NULL )
 		return RET_ERROR_OOM;
 	method->stdin = -1;
@@ -146,17 +147,17 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,struct met
 		p++;
 	}
 	if( *p == '\0' ) {
-		fprintd(stderr,"Did not find colon in method-URI '%s'!\n",uri);
+		fprintf(stderr,"Did not find colon in method-URI '%s'!\n",uri);
 		free(method);
 		return RET_ERROR;
 	}
 	if( *p != ':' ) {
-		fprintd(stderr,"Unexpected character '%c' in method-URI '%s'!\n",*p,uri);
+		fprintf(stderr,"Unexpected character '%c' in method-URI '%s'!\n",*p,uri);
 		free(method);
 		return RET_ERROR;
 	}
 	if( p == uri ) {
-		fprintd(stderr,"Zero-length name in method-URI '%s'!\n",uri);
+		fprintf(stderr,"Zero-length name in method-URI '%s'!\n",uri);
 		free(method);
 		return RET_ERROR;
 	}
