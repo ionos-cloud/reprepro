@@ -377,7 +377,11 @@ retvalue distribution_export(struct distribution *distribution,
 
 	result = RET_NOTHING;
 	for( target=distribution->targets; target ; target = target->next ) {
-		if( strcmp(target->suffix,"udeb") != 0 ) {
+		r = target_mkdistdir(target,distdir);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force)
+			break;
+		if( target->hasrelease ) {
 			r = release_genrelease(distribution,target,distdir);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && ! force)

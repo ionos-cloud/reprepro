@@ -123,7 +123,7 @@ retvalue release_genrelease(const struct distribution *distribution,const struct
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
-	(void)dirs_make_parent(filename);
+
 	f = fopen(filename,"w");
 	if( !f ) {
 		e = errno;

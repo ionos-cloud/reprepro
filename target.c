@@ -36,6 +36,7 @@
 #include "sources.h"
 #include "names.h"
 #include "md5sum.h"
+#include "dirs.h"
 #include "dpkgversions.h"
 #include "target.h"
 
@@ -45,7 +46,7 @@ static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	const char *suffix,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, int unc ,struct target **d) {
+	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, int unc, int hasrelease, struct target **d) {
 
 	struct target *t;
 
@@ -78,19 +79,20 @@ static retvalue target_initialize(
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
 	t->getupstreamindex = getupstreamindex;
+	t->hasrelease = hasrelease;
 	*d = t;
 	return RET_OK;
 }
 
 retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",1,target);
+	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/debian-installer/binary-%s",codename,component,architecture),"Packages",1,0,target);
 }
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,target);
+	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,1,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,struct target **target) {
-	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",0,target);
+	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",0,1,target);
 }
 
 
@@ -423,10 +425,12 @@ retvalue target_printmd5sums(const struct target *target,const char *distdir,FIL
 	indexcompression compression;
 	retvalue result,r;
 
-	result = printfilemd5(target,distdir,out,"Release",ic_uncompressed);
-
-	if( RET_WAS_ERROR(result) && !force)
-		return result;
+	if( target->hasrelease ) {
+		result = printfilemd5(target,distdir,out,"Release",ic_uncompressed);
+		if( RET_WAS_ERROR(result) && !force)
+			return result;
+	} else
+		result = RET_NOTHING;
 
 	for( compression = 0 ; compression <= ic_max ; compression++) {
 		if( target->compressions[compression] ) {
@@ -438,4 +442,14 @@ retvalue target_printmd5sums(const struct target *target,const char *distdir,FIL
 		}
 	}
 	return result;
+}
+retvalue target_mkdistdir(struct target *target,const char *distdir) {
+	char *dirname;retvalue r;
+
+	dirname = calc_dirconcat(distdir,target->directory);
+	if( dirname == NULL )
+		return RET_ERROR_OOM;
+	r = dirs_make_recursive(dirname);
+	free(dirname);
+	return r;
 }

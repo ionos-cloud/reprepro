@@ -31,6 +31,7 @@ struct target {
 	const char *suffix;
 	char *directory;
 	int compressions[ic_max+1];
+	int hasrelease;
 	const char *indexfile;
 	get_name *getname;
 	get_version *getversion;
@@ -49,6 +50,7 @@ retvalue target_initialize_binary(const char *codename,const char *component,con
 retvalue target_initialize_source(const char *codename,const char *component,struct target **target);
 retvalue target_free(struct target *target);
 
+retvalue target_mkdistdir(struct target *target,const char *distdir);
 retvalue target_export(struct target *target,const char *dbdir,const char *distdir,int force,int onlyneeded);
 
 retvalue target_printmd5sums(const struct target *target,const char *distdir,FILE *out,int force);
