@@ -24,6 +24,7 @@
 #include <string.h>
 #include <db.h>
 #include "error.h"
+#include "mprintf.h"
 #include "md5sum.h"
 #include "dirs.h"
 #include "reference.h"
@@ -48,7 +49,9 @@ DB *references_initialize(const char *dbpath) {
 	char *filename;
 
 	
-	asprintf(&filename,"%s/references.db",dbpath);
+	filename = mprintf("%s/references.db",dbpath);
+	if( !filename )
+		return NULL;
 	if( make_parent_dirs(filename) < 0 ) {
 		free(filename);
 		return NULL;

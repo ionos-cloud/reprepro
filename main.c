@@ -21,6 +21,7 @@
 #include <string.h>
 #include <malloc.h>
 #include "error.h"
+#include "mprintf.h"
 #include "dirs.h"
 #include "names.h"
 #include "files.h"
@@ -180,7 +181,7 @@ int exportpackages(int argc,char *argv[]) {
 	retvalue result,r;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer export <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer genpackages <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	pkgs = packages_initialize(dbdir,argv[1]);
@@ -196,7 +197,7 @@ int zexportpackages(int argc,char *argv[]) {
 	retvalue result,r;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer zexport <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer genzpackages <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	pkgs = packages_initialize(dbdir,argv[1]);
@@ -744,34 +745,50 @@ int checkrelease(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-retvalue makerelease(void *data,const char *chunk) {
+struct data_export {int count; char **dists; };
+
+static retvalue doexport(void *data,const char *chunk) {
+	struct data_export *d = data;
 	retvalue r;
 	struct release *release;
+	int i;
 
 	r = release_parse(&release,chunk);
 	if( RET_IS_OK(r) ) {
+		if( d->count > 0 ) {
+			i = d->count;
+			while( i-- > 0 && strcmp((d->dists)[i],release->codename) != 0 ) {
+			}
+			if( i == 0 ) {
+				free(release);
+				return RET_NOTHING;
+			}
+		}
 		r = release_gen(release,distdir);
+		free(release);
 	}
 	return r;
 };
 
-int mkrelease(int argc,char *argv[]) {
+int export(int argc,char *argv[]) {
 	retvalue result;
 	char *fn;
-	
-	if( argc != 2 && argc != 1 ) {
-		fprintf(stderr,"mirrorer mkrelease [<Release-description>]\n");
+	struct data_export data;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"mirrorer export [<distributions>]\n");
 		return 1;
 	}
-	if( argc == 2 ) 
-		result = chunk_foreach(argv[1],makerelease,NULL,force);
-	else {
-		fn = calc_dirconcat(confdir,"distributions");
-		if( !fn ) 
-			return 2;
-		result = chunk_foreach(fn,makerelease,NULL,force);
-		free(fn);
-	}
+	data.count = argc-1;
+	data.dists = argv+1;
+	
+	fn = calc_dirconcat(confdir,"distributions");
+	if( !fn ) 
+		return EXIT_RET(RET_ERROR_OOM);
+	
+	result = chunk_foreach(fn,doexport,&data,force);
+
+	free(fn);
 	return EXIT_RET(result);
 }
 
@@ -794,8 +811,7 @@ struct action {
 	{"addpackages", addpackages},
 	{"genpackages", exportpackages},
 	{"genzpackages", zexportpackages},
-	{"export", exportpackages},
-	{"zexport", zexportpackages},
+	{"export", export},
 	{"addreference", addreference},
 	{"printreferences", dumpreferences},
 	{"printunreferenced", dumpunreferenced},
@@ -805,7 +821,6 @@ struct action {
 	{"referencebinaries",referencebinaries},
 	{"referencesources",referencesources},
 	{"addmd5sums",addmd5sums },
-	{"mkrelease",mkrelease },
 	{NULL,NULL}
 };
 
@@ -861,6 +876,7 @@ int main(int argc,char *argv[]) {
 "       Mark everything in dist <identifier> to be needed by <identifier>\n"
 " printreferences:    Print all saved references\n"
 " printunreferenced:  Print registered files withour reference\n"
+" export              generate Packages.gz/Packages/Sources.gz/Release\n"
 " addpackages <identifier> <part> <files>:\n"
 "       Add the contents of Packages-files <files> to dist <identifier>\n"
 " prepareaddpackages <identifier> <part> <files>:\n"
@@ -886,11 +902,11 @@ int main(int argc,char *argv[]) {
 				force++;
 				break;
 			case 'b':
-				asprintf(&incommingdir,"%s/incomming",optarg);
-				asprintf(&pooldir,"%s/pool",optarg);
-				asprintf(&distdir,"%s/dists",optarg);
-				asprintf(&dbdir,"%s/db",optarg);
-				asprintf(&confdir,"%s/conf",optarg);
+				incommingdir=mprintf("%s/incomming",optarg);
+				pooldir=mprintf("%s/pool",optarg);
+				distdir=mprintf("%s/dists",optarg);
+				dbdir=mprintf("%s/db",optarg);
+				confdir=mprintf("%s/conf",optarg);
 				break;
 			case 'i':
 				incommingdir = strdup(optarg);

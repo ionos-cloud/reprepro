@@ -28,6 +28,7 @@
 #include <zlib.h>
 #include <db.h>
 #include "error.h"
+#include "mprintf.h"
 #include "chunks.h"
 #include "sources.h"
 #include "md5sum.h"
@@ -107,11 +108,6 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 	return r;
 }
 
-struct release {
-	char *codename,*suite,*version;
-	char *origin,*label,*description;
-	char *architectures,*components;
-};
 
 void release_free(struct release *release) {
 	if( release) {
@@ -169,7 +165,7 @@ retvalue release_genbinary(const struct release *release,const char *arch,const 
 	int e;
 
 
-	asprintf(&filename,"%s/%s/%s/binary-%s/Release",distdir,release->codename,component,arch);
+	filename = mprintf("%s/%s/%s/binary-%s/Release",distdir,release->codename,component,arch);
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
@@ -208,7 +204,7 @@ retvalue release_gensource(const struct release *release,const char *component,c
 	int e;
 
 
-	asprintf(&filename,"%s/%s/%s/source/Release",distdir,release->codename,component);
+	filename = mprintf("%s/%s/%s/source/Release",distdir,release->codename,component);
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}
@@ -247,7 +243,7 @@ static retvalue printmd5andsize(FILE *f,const char *distdir,const char *fmt,...)
 	retvalue r;
 
 	va_start(ap,fmt);
-	vasprintf(&fn,fmt,ap);
+	fn = vmprintf(fmt,ap);
 	va_end(ap);
 	if( !fn )
 		return RET_ERROR_OOM;
@@ -383,7 +379,7 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 		return RET_ERROR;
 	}
 
-	asprintf(&filename,"%s/%s/Release",distdir,release->codename);
+	filename =mprintf("%s/%s/Release",distdir,release->codename);
 	if( !filename ) {
 		return RET_ERROR_OOM;
 	}

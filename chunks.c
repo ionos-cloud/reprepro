@@ -24,6 +24,7 @@
 #include <zlib.h>
 #include <assert.h>
 #include "error.h"
+#include "mprintf.h"
 #include "chunks.h"
 
 /* Call action for each chunk in <filename> */
@@ -254,6 +255,5 @@ char *chunk_replaceentry(const char *chunk,const char *name,const char *new) {
 	} while( *olddata );
 	fprintf(stderr,"not finding '%s', so appending setting to '%s'\n",name,new);
 	/* not found, so append */
-	asprintf(&result,"%s\n%s: %s",chunk,name,new);
-	return result;
+	return mprintf("%s\n%s: %s",chunk,name,new);
 }

@@ -24,6 +24,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include "error.h"
+#include "mprintf.h"
 #include "md5sum.h"
 #include "md5.h"
 
@@ -91,7 +92,7 @@ retvalue md5sum_and_size(char **result,const char *filename,ssize_t bufsize){
 	assert(result != NULL);
 	ret = md5sumAndSize(md5Sum,&size,filename,bufsize);
 	if( RET_IS_OK(ret) ) {
-		asprintf(result,"%s %ld",md5Sum,size);
+		*result = mprintf("%s %ld",md5Sum,size);
 		if( ! *result )
 			return RET_ERROR_OOM;
 		return RET_OK;

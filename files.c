@@ -24,6 +24,7 @@
 #include <string.h>
 #include <db.h>
 #include "error.h"
+#include "mprintf.h"
 #include "md5sum.h"
 #include "dirs.h"
 #include "packages.h"
@@ -42,7 +43,9 @@ DB *files_initialize(const char *dbpath) {
 	char *filename;
 
 	
-	asprintf(&filename,"%s/files.db",dbpath);
+	filename = mprintf("%s/files.db",dbpath);
+	if( !filename )
+		return NULL;
 	if( make_parent_dirs(filename) < 0 ) {
 		free(filename);
 		return NULL;

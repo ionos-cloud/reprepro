@@ -10,7 +10,11 @@
  * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
 retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck);
 
-struct release;
+struct release {
+	char *codename,*suite,*version;
+	char *origin,*label,*description;
+	char *architectures,*components;
+};
 
 void release_free(struct release *release);
 retvalue release_parse(struct release **release,const char *chunk);
