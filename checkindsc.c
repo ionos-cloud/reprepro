@@ -447,8 +447,12 @@ retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	if( !RET_WAS_ERROR(r) ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,"source");
 		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) )
-		r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+		if( !RET_WAS_ERROR(r) ) {
+			retvalue r2;
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r,r2);
+		}
 	}
 	dsc_free(pkg);
 

@@ -390,20 +390,32 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 	if( strcmp(pkg->architecture,"all") != 0 ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,pkg->architecture);
 		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) )
-		r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+		if( !RET_WAS_ERROR(r) ) {
+			retvalue r2;
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r,r2);
+		}
 		RET_UPDATE(result,r);
 	} else if( forcearchitecture ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture);
 		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) )
-		r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+		if( !RET_WAS_ERROR(r) ) {
+			retvalue r2;
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r,r2);
+		}
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i]);
 		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) )
-		r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+		if( !RET_WAS_ERROR(r) ) {
+			retvalue r2;
+			r = target_addpackage(t,references,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,0);
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r,r2);
+		}
 		RET_UPDATE(result,r);
 	}
 
