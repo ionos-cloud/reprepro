@@ -169,7 +169,7 @@ retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 			e++;
 		if( *e != '\0' )
 			e++;
-	} while( *e != ' ' && *e != '\0' );
+	} while( *e != ' ' && *e != '\t' && *e != '\0' );
 
 	if( e > b && *e == '\0' )
 		e--;
@@ -259,8 +259,8 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	if( *f == '\0' )
 		return RET_OK;
 	f++;
-	/* while lines begin with ' ', add them */
-	while( *f == ' ' ) {
+	/* while lines begin with ' ' or '\t', add them */
+	while( *f == ' ' || *f == '\t' ) {
 		while( *f != '\0' && isblank(*f) )
 			f++;
 		b = f;
@@ -299,7 +299,7 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 		return RET_NOTHING;
 	for ( e = p = f ; *p ; p++ ) {
 		if( afternewline ) {
-			if( *p == ' ' )
+			if( *p == ' ' || *p == '\t' )
 				afternewline = 0;
 			else if( *p != '\r' )
 				break;
@@ -335,7 +335,7 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 		while( *f != '\0' && isspace(*f) ) {
 			if( *f == '\n' ) {
 				f++;
-				if( *f != ' ' )
+				if( *f != ' ' && *f != '\t' )
 					return RET_OK;
 			} else
 				f++;
@@ -499,7 +499,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 			if( *ce == '\0' )
 				break;
 			ce++;
-		} while( *ce == ' ' );
+		} while( *ce == ' ' || *ce == '\t' );
 
 		/* copy it, if it is not to be ignored */
 
