@@ -280,30 +280,6 @@ static int addreference(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-
-static int exportpackages(int argc,char *argv[]) {
-	retvalue result;
-
-	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer _genpackages <identifier> <Packages-file to create>\n");
-		return 1;
-	}
-	result = packages_doprintout(dbdir,argv[1],argv[2]);
-	return EXIT_RET(result);
-}
-
-
-static int zexportpackages(int argc,char *argv[]) {
-	retvalue result;
-
-	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer _genzpackages <identifier> <Packages-file to create>\n");
-		return 1;
-	}
-	result = packages_dozprintout(dbdir,argv[1],argv[2]);
-	return EXIT_RET(result);
-}
-
 static int removesource(int argc,char *argv[]) {
 	retvalue result,r;
 	packagesdb pkgs;
@@ -1090,8 +1066,6 @@ static struct action {
 	{"addsources", addsources},
 	{"prepareaddpackages", prepareaddpackages},
 	{"addpackages", addpackages},
-	{"_genpackages", exportpackages},
-	{"_genzpackages", zexportpackages},
         {"_removesource", removesource},
         {"_removebinary", removebinary},
 	{"export", export},

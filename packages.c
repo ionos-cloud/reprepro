@@ -35,8 +35,6 @@
 #include "target.h"
 #include "packages.h"
 
-
-
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
 #define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
 
@@ -45,7 +43,10 @@ extern int verbose;
 /* release the packages-database initialized got be packages_initialize */
 retvalue packages_done(packagesdb db) {
 	int r;
-	/* just in case we want something here later */
+
+	if( db->wasmodified ) {
+		fprintf(stderr,"Warning: database '%s' was modified but no index file was exported.\nChanges might only be visible after the next 'export'!\n",db->identifier);
+	}
 	r = db->database->close(db->database,0);
 	free(db->identifier);
 	free(db);
@@ -94,6 +95,7 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 		free(pkgs);
 		return RET_ERROR_OOM;
 	}
+	pkgs->wasmodified = 0;
 	
 	if ((dbret = db_create(&pkgs->database, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s:%s %s\n", filename,identifier,db_strerror(dbret));
@@ -122,6 +124,7 @@ retvalue packages_replace(packagesdb db,const char *package,const char *chunk) {
 
 	SETDBT(key,package);
 	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
+		db->wasmodified = 1;
 		if( verbose > 2 )
 			printf("db: removed old '%s' from '%s'.\n", (const char *)key.data,db->identifier);
 	} else {
@@ -132,6 +135,7 @@ retvalue packages_replace(packagesdb db,const char *package,const char *chunk) {
 	SETDBT(key,package);
 	SETDBT(data,chunk);
 	if ((dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
+		db->wasmodified = 1;
 		if( verbose > 2 )
 			printf("db: '%s' added to '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -149,6 +153,7 @@ retvalue packages_add(packagesdb db,const char *package,const char *chunk) {
 	SETDBT(key,package);
 	SETDBT(data,chunk);
 	if ((dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
+		db->wasmodified = 1;
 		if( verbose > 2 )
 			printf("db: '%s' added to '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -190,6 +195,7 @@ retvalue packages_remove(packagesdb db,const char *package) {
 
 	SETDBT(key,package);
 	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
+		db->wasmodified = 1;
 		if( verbose > 2 )
 			printf("db: '%s' removed from '%s'.\n", (const char *)key.data,db->identifier);
 		return RET_OK;
@@ -294,6 +300,8 @@ static retvalue packages_printout(packagesdb packagesdb,const char *filename) {
 	r = fclose(pf);
 	if( r != 0 )
 		RET_ENDUPDATE(ret,RET_ERRNO(errno));
+	if( RET_IS_OK(ret) ) 
+		packagesdb->wasmodified = 0;
 	return ret;
 }
 
@@ -313,6 +321,9 @@ static retvalue packages_zprintout(packagesdb packagesdb,const char *filename) {
 	r = gzclose(pf);
 	if( r < 0 )
 		RET_ENDUPDATE(ret,RET_ZERRNO(r));
+	// TODO move this to packages_export to avoid problems when one is exported and the other is not?
+	if( RET_IS_OK(ret) ) 
+		packagesdb->wasmodified = 0;
 	return ret;
 }
 
@@ -328,35 +339,6 @@ retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompres
 			assert(0);
 			return RET_ERROR;
 	}
-}
-
-
-/* like packages_printout, but open and close database yourself */
-retvalue packages_doprintout(const char *dbpath,const char *dbname,const char *filename){
-	packagesdb pkgs;
-	retvalue result,r;
-
-	r = packages_initialize(&pkgs,dbpath,dbname);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	result = packages_printout(pkgs,filename);
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-	return result;
-}
-
-/* like packages_zprintout, but open and close database yourself */
-retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *filename){
-	packagesdb pkgs;
-	retvalue result,r;
-
-	r = packages_initialize(&pkgs,dbpath,dbname);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	result = packages_zprintout(pkgs,filename);
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-	return result;
 }
 
 retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,
