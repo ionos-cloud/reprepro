@@ -113,6 +113,7 @@ struct update_pattern {
 
 struct update_origin {
 	struct update_origin *next;
+	/* all following are NULL when this is a delete rule */
 	const struct update_pattern *pattern;
 	char *suite_from;
 	const struct distribution *distribution;
@@ -124,6 +125,7 @@ struct update_origin {
 
 struct update_index {
 	struct update_index *next;
+	/* all following are NULL when this is a delete rule */
 	struct update_origin *origin;
 	char *filename;
 	char *upstream;
@@ -409,6 +411,17 @@ inline static retvalue parse_pattern(const char *chunk, struct update_pattern **
 	return RET_OK;
 }
 
+static retvalue new_deleterule(struct update_origin **origins) {
+
+	struct update_origin *update;
+
+	update = calloc(1,sizeof(struct update_origin));
+	if( update == NULL )
+		return RET_ERROR_OOM;
+
+	*origins = update;
+	return RET_OK;
+}
 
 static retvalue instance_pattern(const char *listdir,
 		const struct update_pattern *pattern,
@@ -503,6 +516,18 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 		struct update_origin *update;
 		retvalue r;
 
+		if( strcmp(name,"-") == 0 ) {
+			r = new_deleterule(&update);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				break;
+			if( RET_IS_OK(r) ) {
+				update->next = updates;
+				updates = update;
+			}
+			continue;
+		}
+
 		for( pattern = patterns ; pattern ; pattern = pattern->next ) {
 			if( strcmp(name,pattern->name) == 0 )
 				break;
@@ -542,6 +567,8 @@ static inline retvalue newindex(struct update_index **indices,
 	if( index == NULL )
 		return RET_ERROR_OOM;
 
+	assert( origin != NULL && origin->pattern != NULL);
+
 	index->filename = calc_downloadedlistfile(listdir,
 			target->codename,origin->pattern->name,
 			component_from,architecture_from,
@@ -573,6 +600,8 @@ static retvalue addorigintotarget(const char *listdir,struct update_origin *orig
 	const struct strlist *a_from,*a_into;
 	int ai,ci;
 	retvalue r;
+
+	assert( origin != NULL && origin->pattern != NULL);
 
 	if( p->architectures_into.count == 0 ) {
 		a_from = &distribution->architectures;
@@ -616,6 +645,17 @@ static retvalue addorigintotarget(const char *listdir,struct update_origin *orig
 	return RET_OK;
 }
 
+static retvalue adddeleteruletotarget(struct update_target *updatetargets ) {
+	struct update_index *index;
+
+	index = calloc(1,sizeof(struct update_index));
+	if( index == NULL )
+		return RET_ERROR_OOM;
+	index->next = updatetargets->indices;
+	updatetargets->indices = index;
+	return RET_OK;
+}
+
 static retvalue gettargets(const char *listdir,struct update_origin *origins,struct distribution *distribution,struct update_target **ts) {
 	struct target *target;
 	struct update_origin *origin;
@@ -632,7 +672,11 @@ static retvalue gettargets(const char *listdir,struct update_origin *origins,str
 		}
 
 		for( origin = origins ; origin ; origin=origin->next ) {
-			r=addorigintotarget(listdir,origin,target,distribution,updatetargets);
+			if( origin->pattern == NULL )
+				r = adddeleteruletotarget(updatetargets);
+			else
+				r = addorigintotarget(listdir,origin,target,
+						distribution,updatetargets);
 			if( RET_WAS_ERROR(r) ) {
 				updates_freetargets(updatetargets);
 				return r;
@@ -724,6 +768,8 @@ static inline retvalue prepareorigin(struct aptmethodrun *run,struct update_orig
 	retvalue r;
 	const struct update_pattern *p = origin->pattern;
 
+	assert( origin != NULL && origin->pattern != NULL );
+
 	r = aptmethod_newmethod(run,p->method,p->config,&method);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -752,6 +798,8 @@ static inline retvalue prepareorigin(struct aptmethodrun *run,struct update_orig
 static inline retvalue readchecksums(struct update_origin *origin) {
 	retvalue r;
 
+	assert( origin != NULL && origin->pattern != NULL );
+
 	if( origin->releasefile == NULL )
 		return RET_NOTHING;
 
@@ -775,6 +823,7 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 	int i;
 	size_t l;
 
+	assert( index != NULL && index->origin != NULL );
 	if( origin->releasefile == NULL )
 		return aptmethod_queueindexfile(origin->download,
 			index->upstream,index->filename);
@@ -809,6 +858,8 @@ static retvalue updates_prepare(struct aptmethodrun *run,struct distribution *di
 
 	result = RET_NOTHING;
 	for( origin=distribution->updateorigins;origin; origin=origin->next ) {
+		if( origin->pattern == NULL)
+			continue;
 		r = prepareorigin(run,origin,distribution);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -825,6 +876,8 @@ static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution 
 
 	result = RET_NOTHING;
 	for( origin=distribution->updateorigins;origin; origin=origin->next ) {
+		if( origin->pattern == NULL)
+			continue;
 		r = readchecksums(origin);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
@@ -832,6 +885,8 @@ static retvalue updates_queuelists(struct aptmethodrun *run,struct distribution 
 	}
 	for( target=distribution->updatetargets;target; target=target->next ) {
 		for( index=target->indices ; index; index=index->next ) {
+			if( index->origin == NULL )
+				continue;
 			r = queueindex(index,force);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && ! force )
@@ -900,7 +955,7 @@ upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const 
 	return UD_UPGRADE;
 }
 
-static inline retvalue searchformissing(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct update_target *u,upgrade_decide_function *decide,void *decision_data,int force) {
+static inline retvalue searchformissing(const char *dbdir,struct update_target *u,upgrade_decide_function *decide,void *decision_data,int force) {
 	struct update_index *index;
 	retvalue result,r;
 
@@ -913,6 +968,16 @@ static inline retvalue searchformissing(const char *dbdir,struct downloadcache *
 	result = RET_NOTHING;
 
 	for( index=u->indices ; index ; index=index->next ) {
+
+		if( index->origin == NULL ) {
+			if( verbose > 4 )
+				fprintf(stderr,"  marking everything to be deleted\n");
+			r = upgradelist_deleteall(u->upgradelist);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && !force)
+				return result;
+			continue;
+		}
 
 		if( verbose > 4 )
 			fprintf(stderr,"  reading '%s'\n",index->filename);
@@ -929,19 +994,30 @@ static inline retvalue searchformissing(const char *dbdir,struct downloadcache *
 	//TODO: when upgradelist supports removing unavail packages,
 	//do not forget to disable this here in case of error and force...
 	
-	r = upgradelist_enqueue(u->upgradelist,cache,filesdb,force);
-	RET_UPDATE(result,r);
-
 	return result;
 }
 
-static retvalue updates_readindices(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force) {
+static retvalue updates_readindices(const char *dbdir,struct distribution *distribution,int force) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = searchformissing(dbdir,cache,filesdb,u,ud_always,NULL,force);
+		r = searchformissing(dbdir,u,ud_always,NULL,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && !force )
+			break;
+	}
+	return result;
+}
+
+static retvalue updates_enqueue(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force) {
+	retvalue result,r;
+	struct update_target *u;
+
+	result = RET_NOTHING;
+	for( u=distribution->updatetargets ; u ; u=u->next ) {
+		r = upgradelist_enqueue(u->upgradelist,cache,filesdb,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
 			break;
@@ -966,7 +1042,16 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,DB *refsdb,str
 	return result;
 }
 
-retvalue updates_update(const char *dbdir,const char *listdir,const char *methoddir,filesdb filesdb,DB *refsdb,struct distribution *distributions,int force) {
+static void updates_dump(struct distribution *distribution) {
+	struct update_target *u;
+
+	for( u=distribution->updatetargets ; u ; u=u->next ) {
+		printf("Updates needed for '%s':\n",u->target->identifier);
+		upgradelist_dump(u->upgradelist);
+	}
+}
+
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,DB *refsdb,struct distribution *distributions,int force) {
 	struct distribution *distribution;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1002,6 +1087,7 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 
 	/* Then get all index files (with perhaps md5sums from the above) */
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		//TODO: add a switch to not download them but use already existing ones
 		r = updates_queuelists(run,distribution,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
@@ -1031,7 +1117,11 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 	}
 	
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		r = updates_readindices(dbdir,cache,filesdb,distribution,force);
+		r = updates_readindices(dbdir,distribution,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+		r = updates_enqueue(dbdir,cache,filesdb,distribution,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;
@@ -1060,6 +1150,87 @@ retvalue updates_update(const char *dbdir,const char *listdir,const char *method
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;
+	}
+
+	return result;
+}
+
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct distribution *distributions,int force) {
+	struct distribution *distribution;
+	retvalue result,r;
+	struct aptmethodrun *run;
+
+	r = aptmethod_initialize_run(&run);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = RET_NOTHING;
+	/* first get all "Release" and "Release.gpg" files */
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		if( distribution->override || distribution->srcoverride ) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",distribution->codename);
+		}
+		r = updates_prepare(run,distribution);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+	}
+	if( RET_WAS_ERROR(result) && !force ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	r = aptmethod_download(run,methoddir,NULL);
+	if( RET_WAS_ERROR(r) && !force ) {
+		RET_UPDATE(result,r);
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	/* Then get all index files (with perhaps md5sums from the above) */
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		//TODO: dito
+		r = updates_queuelists(run,distribution,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+	}
+	if( RET_WAS_ERROR(result) && !force ) {
+		RET_UPDATE(result,r);
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	r = aptmethod_download(run,methoddir,NULL);
+	if( RET_WAS_ERROR(r) && !force ) {
+		RET_UPDATE(result,r);
+		aptmethod_shutdown(run);
+		return result;
+	}
+	if( verbose > 0 )
+		fprintf(stderr,"Shutting down aptmethods...\n");
+	r = aptmethod_shutdown(run);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) && !force ) {
+		return result;
+	}
+
+	/* Then look what packages to get */
+	if( verbose >= 0 )
+		fprintf(stderr,"Calculating packages to get...\n");
+	
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		r = updates_readindices(dbdir,distribution,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+	}
+	if( RET_WAS_ERROR(result) && !force ) {
+		return result;
+	}
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		updates_dump(distribution);
 	}
 
 	return result;

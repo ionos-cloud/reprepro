@@ -1,6 +1,11 @@
 2004-12-30  Bernhard R. Link <brlink@debian.org>
 	* Tidy up (introduce bool_t and replace dpkgversion_isNewer)
 
+	* add a magic rule minus ("-") to mark all packages to be
+	  deleted.
+
+	* add a checkupdate command to show what would be done.
+
 2004-12-24  Bernhard R. Link <brlink@debian.org>
 	* Fixed a boolean inversion in the check if | is allowed
 	  in formulas.

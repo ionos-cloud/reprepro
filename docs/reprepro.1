@@ -121,6 +121,11 @@ description of
 .B conf/updates
 below.
 .TP
+.BR checkupdate " [ " \fIcodenames\fP " ]"
+Same like
+.B update,
+but will show what it will change instead of actually changing it.
+.TP
 .B includedeb \fIcodename\fP \fI.deb-filename\fP
 Include the given binary Debian package (.deb) in the specified
 distribution, applying override information and guessing all 
@@ -277,8 +282,9 @@ Components with a debian\-installer subhirachy containing .udebs.
 (E.g. simply "main")
 .TP
 .B Update
-When this field is present, it describes which update rules apply
-for this distribution.
+When this field is present, it describes which update rules are used
+for this distribution. There also can be a magic rule minus ("\-"),
+see below.
 .TP
 .B SignWith
 When this field is present, a Relese.gpg file will be generated.
@@ -428,6 +434,55 @@ Things like
 .B md5sum
 The checksum of a file, beeing in the format
 "\fI<md5sum of file>\fP \fI<length of file>\fP"
+.SH Some note on updates
+.SS A version is not overwritten with the same version.
+.B reprepro
+will never update a package with a version it already has. This would
+be equivalent to rebuilding the whole database with every single upgrade.
+To force the new same version in, remove it and then update. (If you
+do no 
+.B deleteunreferenced 
+inbetween, it will not need to reget the
+Packages files themselves. If those change, better to a 
+.B deleteunreferenced
+in between or a 
+.B __forget 
+on the specific files.
+.SS The magic delete rule ("\-").
+A minus as a single word in the
+.B Updates:
+line of an distribution marks everything to be deleted. The mark causes later rules
+to get packages even if they have (strict) lower versions. The mark will
+get removed if a later rule sets the package on hold (hold is not yet implemented,
+in case you might wonder) or would get a package with the same version 
+(Which it will not, see above). If the mark is still there at the end of the processing,
+the package will get removed.
+.P
+Thus the line "Updates: - 
+.I rules
+" will cause all packages to be exactly the
+highest Version found in 
+.I rules.
+The line "Updates: 
+.I near 
+- 
+.I rules
+" will do the same, except if it needs to download packages, it might download
+it from
+.I near
+except when too confused. (It will get too confused e.g. when 
+.I near
+or 
+.I rules
+have multiple versions of the package and the highest in
+.I near
+is not the first one in
+.I rules,
+as it never remember more than one possible spring for a package.
+.P
+Warning: This rule applies to all type/component/architecture tripples
+of a distribution, not only those some other update rule applies to.
+(That means it will delete everthing in those!)
 .SH BUGS
 The
 .B \-\-force

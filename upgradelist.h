@@ -27,11 +27,14 @@ struct upgradelist;
 retvalue upgradelist_initialize(struct upgradelist **ul,struct target *target,const char *dbdir,upgrade_decide_function *decide,void *decide_data);
 retvalue upgradelist_free(struct upgradelist *upgrade);
 
-retvalue upgradelist_dump(struct upgradelist *upgrade);
+void upgradelist_dump(struct upgradelist *upgrade);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files);
 
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
 retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method,const char *filename,upgrade_decide_function *predecide,void *decide_data,int force);
+
+/* mark all packages as deleted, so they will vanis unless readded or reholded */
+retvalue upgradelist_deleteall(struct upgradelist *upgrade);
 
 //TODO add a function to reduce data-load by removing anything not needed
 //any longer. (perhaps with a flag to remove all packages that are no

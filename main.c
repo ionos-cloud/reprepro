@@ -615,7 +615,7 @@ static int action_update(int argc,const char *argv[]) {
 		return EXIT_RET(result);
 	}
 
-	result = updates_update(dbdir,listdir,methoddir,files,refs,distributions,force);
+	result = updates_update(dbdir,methoddir,files,refs,distributions,force);
 
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
@@ -637,6 +637,49 @@ static int action_update(int argc,const char *argv[]) {
 	}
 
 	references_done(refs);
+
+	return EXIT_RET(result);
+}
+
+static int action_checkupdate(int argc,const char *argv[]) {
+	retvalue result;
+	struct update_pattern *patterns;
+	struct distribution *distributions;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro checkupdate [<distributions>]\n");
+		return EXIT_FAILURE;
+	}
+
+	result = dirs_make_recursive(listdir);	
+	if( RET_WAS_ERROR(result) ) {
+		return EXIT_RET(result);
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+	if( result == RET_NOTHING ) {
+		fprintf(stderr,"Nothing to do found!\n");
+		return EXIT_RET(RET_NOTHING);
+	}
+
+	result = updates_getpatterns(confdir,&patterns,0);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+
+	result = updates_getindices(listdir,patterns,distributions);
+	if( RET_WAS_ERROR(result) )
+		return EXIT_RET(result);
+
+	result = updates_checkupdate(dbdir,methoddir,distributions,force);
+
+	while( distributions ) {
+		struct distribution *d = distributions->next;
+
+		distribution_free(distributions);
+		distributions = d;
+	}
 
 	return EXIT_RET(result);
 }
@@ -992,6 +1035,7 @@ static struct action {
 	{"dumpunreferenced", 	action_dumpunreferenced},
 	{"deleteunreferenced", 	action_deleteunreferenced},
 	{"update",		action_update},
+	{"checkupdate",		action_checkupdate},
 	{"includedeb",		action_includedeb},
 	{"includedsc",		action_includedsc},
 	{"include",		action_include},
