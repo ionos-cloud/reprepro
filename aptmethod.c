@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
+#include <ctype.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -328,17 +329,61 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 /************************Sending Configuration**************************/
 
 static inline retvalue sendconfig(struct aptmethod *method) {
+#define CONF601 "601 Configuration"
+#define CONFITEM "\nConfig-Item: "
+	size_t l;
+	const char *p;
+	char *c;
+	int wasnewline;
 
 	assert(method->command == NULL);
 
 	method->alreadywritten = 0;
-	//TODO: get some real config...
-	method->command = mprintf("601 Configuration\nConfig-Item: Dir=/\n\n");
+
+	if( method->config == NULL ) {
+		method->command = mprintf(CONF601 "Config-Item: Dir=/\n\n");
+		if( method->command == NULL ) {
+			return RET_ERROR_OOM;
+		}
+		method->output_length = strlen(method->command);
+		return RET_OK;
+	}
+
+	l = sizeof(CONF601)+sizeof(CONFITEM)+1;
+	for( p = method->config; *p ; p++ ) {
+		if( *p == '\n' )
+			l += sizeof(CONFITEM)-1;
+		else 
+			l++;
+	}
+	c = method->command = malloc(l);
 	if( method->command == NULL ) {
 		return RET_ERROR_OOM;
 	}
-	method->output_length = strlen(method->command);
 
+	strcpy(c,CONF601 CONFITEM);
+	c += sizeof(CONF601)+sizeof(CONFITEM)-2;
+	wasnewline = 1;
+	for( p = method->config; *p ; p++ ) {
+		if( *p != '\n' ) {
+			if( !wasnewline || !isspace(*p) )
+				*(c++) = *p;
+			wasnewline = 0;
+		} else {
+			strcpy(c,CONFITEM);
+			c += sizeof(CONFITEM)-1;
+			wasnewline = 1;
+		}
+	}
+	*(c++) = '\n';
+	*(c++) = '\n';
+	*c = '\0';
+
+	if( verbose > 10 ) {
+		fprintf(stderr,"Sending config: '%s'\n",method->command);
+	}
+
+	method->output_length = strlen(method->command);
 	return RET_OK;
 }
 
