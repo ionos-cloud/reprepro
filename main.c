@@ -284,7 +284,6 @@ int removepackage(int argc,char *argv[]) {
 			fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
 		r = packages_remove(pkgs,argv[i]);
 		if( RET_IS_OK(r) ) {
-			// TODO: also check for source-packages...
 			r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL);
 			if( RET_IS_OK(r) ) {
 				if( verbose > 1 )
