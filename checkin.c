@@ -547,7 +547,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,int f
 	return r;
 }
 
-static retvalue changes_includefiles(const char *mirrordir,DB *filesdb,const char *component,const char *filename,struct changes *changes,int force) {
+static retvalue changes_includefiles(filesdb filesdb,const char *component,const char *filename,struct changes *changes,int force) {
 	struct fileentry *e;
 	retvalue r;
 	char *sourcedir; 
@@ -566,7 +566,7 @@ static retvalue changes_includefiles(const char *mirrordir,DB *filesdb,const cha
 			free(sourcedir);
 			return RET_ERROR_OOM;
 		}
-		r = files_checkinfile(mirrordir,filesdb,sourcedir,e->basename,e->filekey,e->md5andsize);
+		r = files_checkinfile(filesdb,sourcedir,e->basename,e->filekey,e->md5andsize);
 		if( RET_WAS_ERROR(r) )
 			break;
 		e = e->next;
@@ -576,7 +576,7 @@ static retvalue changes_includefiles(const char *mirrordir,DB *filesdb,const cha
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,struct distribution *distribution,struct changes *changes,int force) {
+static retvalue changes_includepkgs(const char *dbdir,DB *references,filesdb filesdb,struct distribution *distribution,struct changes *changes,int force) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -589,19 +589,19 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,DB *filesdb
 			e = e->next;
 			continue;
 		}
-		fullfilename = calc_dirconcat(mirrordir,e->filekey);
+		fullfilename = calc_dirconcat(filesdb->mirrordir,e->filekey);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		// TODO: give directory and filekey, too, so that they
 		// do not have to be calculated again. (and the md5sums fit)
 		if( e->type == fe_DEB ) {
-			r = deb_add(dbdir,references,filesdb,mirrordir,
+			r = deb_add(dbdir,references,filesdb,
 				changes->component,e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->md5andsize,
 				force);
 		} else if( e->type == fe_DSC ) {
-			r = dsc_add(dbdir,references,filesdb,mirrordir,
+			r = dsc_add(dbdir,references,filesdb,
 				changes->component,e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->basename,
@@ -621,7 +621,7 @@ static retvalue changes_includepkgs(const char *dbdir,DB *references,DB *filesdb
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int force) {
+retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int force) {
 	retvalue r;
 	struct changes *changes;
 
@@ -651,14 +651,14 @@ retvalue changes_add(const char *dbdir,DB *references,DB *filesdb,const char *mi
 	}
 	
 	/* add files in the pool */
-	r = changes_includefiles(mirrordir,filesdb,changes->component,changesfilename,changes,force);
+	r = changes_includefiles(filesdb,changes->component,changesfilename,changes,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
 	}
 
 	/* add the source and binary packages in the given distribution */
-	r = changes_includepkgs(dbdir,references,filesdb,mirrordir,
+	r = changes_includepkgs(dbdir,references,filesdb,
 		distribution,changes,force);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);

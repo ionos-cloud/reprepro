@@ -29,9 +29,9 @@
 #include "names.h"
 #include "md5sum.h"
 #include "dirs.h"
-#include "packages.h"
 #include "names.h"
 #include "files.h"
+#include "packages.h"
 #include "copyfile.h"
 
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
@@ -40,41 +40,59 @@
 extern int verbose;
 
 /* initalize "md5sum and size"-database */
-DB *files_initialize(const char *dbpath) {
-	DB *dbp;
+retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir) {
+	filesdb db;
 	int dbret;
 	char *filename;
 	retvalue r;
 
-	
+	db = malloc(sizeof(struct s_filesdb));
+	if( db == NULL )
+		return RET_ERROR_OOM;
+	db->mirrordir = strdup(mirrordir);
+	if( db->mirrordir == NULL ) {
+		free(db);
+		return RET_ERROR_OOM;
+	}
+
 	filename = calc_dirconcat(dbpath,"files.db");
-	if( !filename )
-		return NULL;
+	if( !filename ) {
+		free(db->mirrordir);
+		free(db);
+		return RET_ERROR_OOM;
+	}
 	r = dirs_make_parent(filename);
 	if( RET_WAS_ERROR(r) ) {
 		free(filename);
-		return NULL;
+		free(db->mirrordir);
+		free(db);
+		return r;
 	}
-	if ((dbret = db_create(&dbp, NULL, 0)) != 0) {
+	if ((dbret = db_create(&db->database, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
 		free(filename);
-		return NULL;
+		free(db->mirrordir);
+		free(db);
+		return RET_DBERR(dbret);
 	}
-	if ((dbret = dbp->open(dbp, filename, "md5sums", DB_BTREE, DB_CREATE, 0664)) != 0) {
-		dbp->err(dbp, dbret, "%s", filename);
-		(void)dbp->close(dbp,0);
+	if ((dbret = db->database->open(db->database, filename, "md5sums", DB_BTREE, DB_CREATE, 0664)) != 0) {
+		db->database->err(db->database, dbret, "%s", filename);
+		(void)db->database->close(db->database,0);
 		free(filename);
-		return NULL;
+		free(db->mirrordir);
+		free(db);
+		return RET_DBERR(dbret);
 	}
 	free(filename);
-	return dbp;
+	*fdb = db;
+	return RET_OK;
 }
 
 /* release the files-database initialized got be files_initialize */
-retvalue files_done(DB *db) {
+retvalue files_done(filesdb db) {
 	int dberr;
 	/* just in case we want something here later */
-	dberr = db->close(db,0);
+	dberr = db->database->close(db->database,0);
 	if( dberr != 0 )
 		return RET_DBERR(dberr);
 	else
@@ -82,48 +100,48 @@ retvalue files_done(DB *db) {
 }
 
 /* Add file's md5sum to database */
-retvalue files_add(DB *filesdb,const char *filekey,const char *md5sum_and_size) {
+retvalue files_add(filesdb db,const char *filekey,const char *md5sum_and_size) {
 	int dbret;
 	DBT key,data;
 
 	SETDBT(key,filekey);
 	SETDBT(data,md5sum_and_size);
-	if( (dbret = filesdb->put(filesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
+	if( (dbret = db->database->put(db->database, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
 		if( verbose>1)
 			printf("db: %s: file added.\n", (const char *)key.data);
 		return RET_OK;
 	} else {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 }
 
 /* remove file's md5sum from database */
-retvalue files_remove(DB *filesdb,const char *filekey) {
+retvalue files_remove(filesdb db,const char *filekey) {
 	int dbret;
 	DBT key;
 
 	SETDBT(key,filekey);
-	if ((dbret = filesdb->del(filesdb, NULL, &key, 0)) == 0) {
+	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
 		if( verbose>1 )
 			printf("db: %s: file forgotten.\n", (const char *)key.data);
 		return RET_OK;
 	} else {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 }
 
 /* look for file in database
  * returns: -2 wrong md5sum, -1: error, 0 not existant, 1 exists*/
-retvalue files_check(DB *filesdb,const char *filekey,const char *md5sum_and_size) {
+retvalue files_check(filesdb db,const char *filekey,const char *md5sum_and_size) {
 	int dbret;
 	DBT key,data;
 
 	SETDBT(key,filekey);
 	CLEARDBT(data);
 
-	if( (dbret = filesdb->get(filesdb, NULL, &key, &data, 0)) == 0){
+	if( (dbret = db->database->get(db->database, NULL, &key, &data, 0)) == 0){
 		if( strcmp(md5sum_and_size,data.data) != 0 ) {
 			fprintf(stderr,"File \"%s\" is already registered with other md5sum!\n(expect: '%s', database:'%s')!\n",filekey,md5sum_and_size,(char*)data.data);
 			return RET_ERROR_WRONG_MD5;
@@ -132,7 +150,7 @@ retvalue files_check(DB *filesdb,const char *filekey,const char *md5sum_and_size
 	} else if( dbret == DB_NOTFOUND ){
 		return RET_NOTHING;
 	} else {
-		 filesdb->err(filesdb, dbret, "files.db:");
+		 db->database->err(db->database, dbret, "files.db:");
 		 return RET_DBERR(dbret);
 	}
 }
@@ -174,11 +192,11 @@ static retvalue files_calcmd5sum(char **md5andsize,const char *mirrordir,const c
 }
 
 /* look for file, calculate its md5sum and add it */
-retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey) {
+retvalue files_detect(filesdb filesdb,const char *filekey) {
 	char *md5andsize;	
 	retvalue ret;
 
-	ret = files_calcmd5sum(&md5andsize,mirrordir,filekey);
+	ret = files_calcmd5sum(&md5andsize,filesdb->mirrordir,filekey);
 	if( RET_WAS_ERROR(ret) )
 		return ret;
 
@@ -201,13 +219,13 @@ retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey) {
 }
 
 /* check for file in the database and if not found there, if it can be detected */
-int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const char *md5andsize) {
+int files_expect(filesdb db,const char *filekey,const char *md5andsize) {
 	char *filename;
 	retvalue ret;
 	char *realmd5andsize;
 
 	/* check in database */
-	ret = files_check(filesdb,filekey,md5andsize);
+	ret = files_check(db,filekey,md5andsize);
 	if( ret != RET_NOTHING ) {
 		/* if error or already in database, nothing to do */
 		return ret;
@@ -215,7 +233,7 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 
 	/* look for the file */
 	
-	filename = calc_fullfilename(mirrordir,filekey);
+	filename = calc_fullfilename(db->mirrordir,filekey);
 	if( !filename )
 		return RET_ERROR_OOM;
 
@@ -251,12 +269,12 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 
 	/* add file to database */
 
-	ret = files_add(filesdb,filekey,md5andsize);
+	ret = files_add(db,filekey,md5andsize);
 	return ret;
 }
 
 /* check for several files in the database and in the pool if missing */
-retvalue files_expectfiles(const char *mirrordir,DB *filesdb,const struct strlist *filekeys,const struct strlist *md5sums) {
+retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const struct strlist *md5sums) {
 	int i;
 	retvalue r;
 
@@ -264,7 +282,7 @@ retvalue files_expectfiles(const char *mirrordir,DB *filesdb,const struct strlis
 		const char *filekey = filekeys->values[i];
 		const char *md5sum = md5sums->values[i];
 
-		r = files_expect(filesdb,mirrordir,filekey,md5sum);
+		r = files_expect(filesdb,filekey,md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			return r;
 		}
@@ -278,7 +296,7 @@ retvalue files_expectfiles(const char *mirrordir,DB *filesdb,const struct strlis
 }
 
 /* print missing files */
-retvalue files_printmissing(const char *mirrordir,DB *filesdb,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles) {
+retvalue files_printmissing(filesdb db,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles) {
 	int i;
 	retvalue ret,r;
 
@@ -288,13 +306,13 @@ retvalue files_printmissing(const char *mirrordir,DB *filesdb,const struct strli
 		const char *md5sum = md5sums->values[i];
 		const char *origfile = origfiles->values[i];
 
-		r = files_expect(filesdb,mirrordir,filekey,md5sum);
+		r = files_expect(db,filekey,md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			return r;
 		}
 		if( r == RET_NOTHING ) {
 			/* File missing */
-			printf("%s %s/%s\n",origfile,mirrordir,filekey);
+			printf("%s %s/%s\n",origfile,db->mirrordir,filekey);
 			RET_UPDATE(ret,RET_OK);
 		} else
 			RET_UPDATE(ret,r);
@@ -303,15 +321,15 @@ retvalue files_printmissing(const char *mirrordir,DB *filesdb,const struct strli
 }
 
 /* dump out all information */
-int files_printmd5sums(DB* filesdb) {
+int files_printmd5sums(filesdb db) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
 	retvalue result;
 
 	cursor = NULL;
-	if( (dbret = filesdb->cursor(filesdb,NULL,&cursor,0)) != 0 ) {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+	if( (dbret = db->database->cursor(db->database,NULL,&cursor,0)) != 0 ) {
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 	CLEARDBT(key);	
@@ -322,11 +340,11 @@ int files_printmd5sums(DB* filesdb) {
 		result = RET_OK;
 	}
 	if( dbret != DB_NOTFOUND ) {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 	return result;
@@ -335,15 +353,15 @@ int files_printmd5sums(DB* filesdb) {
 // retvalue files_foreach(DB* filesdb,per_file_action action,void *data);
 
 /* callback for each registered file */
-retvalue files_foreach(DB* filesdb,per_file_action action,void *privdata) {
+retvalue files_foreach(filesdb db,per_file_action action,void *privdata) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
 	retvalue result,r;
 
 	cursor = NULL;
-	if( (dbret = filesdb->cursor(filesdb,NULL,&cursor,0)) != 0 ) {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+	if( (dbret = db->database->cursor(db->database,NULL,&cursor,0)) != 0 ) {
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 	CLEARDBT(key);	
@@ -354,11 +372,11 @@ retvalue files_foreach(DB* filesdb,per_file_action action,void *privdata) {
 		RET_UPDATE(result,r);
 	}
 	if( dbret != DB_NOTFOUND ) {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
 	return result;
@@ -370,7 +388,7 @@ retvalue files_foreach(DB* filesdb,per_file_action action,void *privdata) {
  * or the database had an error. return RET_NOTHING, if already there
  * with correct md5sum. Return <md5andsize> with the data of this file,
  * if no error (that is if RET_OK or RET_NOTHING) */
-retvalue files_checkin(const char *mirrordir,DB *filesdb,const char *filekey,
+retvalue files_checkin(filesdb db,const char *filekey,
 		const char *origfilename, char **md5andsize) {
 
 	int dbret;
@@ -382,7 +400,7 @@ retvalue files_checkin(const char *mirrordir,DB *filesdb,const char *filekey,
 	SETDBT(key,filekey);
 	CLEARDBT(data);
 
-	if( (dbret = filesdb->get(filesdb, NULL, &key, &data, 0)) == 0){
+	if( (dbret = db->database->get(db->database, NULL, &key, &data, 0)) == 0){
 		if( verbose > 10 ) {
 			fprintf(stderr,"Database says: '%s' already here as '%s'!\n",filekey,(const char *)data.data);
 		}
@@ -399,7 +417,7 @@ retvalue files_checkin(const char *mirrordir,DB *filesdb,const char *filekey,
 			return RET_NOTHING;
 		}
 	} else if( dbret != DB_NOTFOUND ){
-		 filesdb->err(filesdb, dbret, "files.db:");
+		 db->database->err(db->database, dbret, "files.db:");
 		 return RET_DBERR(dbret);
 	}
 
@@ -409,13 +427,13 @@ retvalue files_checkin(const char *mirrordir,DB *filesdb,const char *filekey,
 	
 	/* copy file in and calculate it's md5sum */
 	
-	r = copyfile_getmd5(mirrordir,filekey,origfilename,md5andsize);
+	r = copyfile_getmd5(db->mirrordir,filekey,origfilename,md5andsize);
 	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Error copying file %s to %s/%s\n",origfilename,mirrordir,filekey);
+		fprintf(stderr,"Error copying file %s to %s/%s\n",origfilename,db->mirrordir,filekey);
 		return r;
 	}
 
-	r = files_add(filesdb,filekey,*md5andsize);
+	r = files_add(db,filekey,*md5andsize);
 	if( RET_WAS_ERROR(r) ) {
 		free(*md5andsize);
 		*md5andsize = NULL;
@@ -428,7 +446,7 @@ retvalue files_checkin(const char *mirrordir,DB *filesdb,const char *filekey,
 // changed in near future to use this. (When update is rewritten
 // anyways). Problem is some things know the md5sum and other need
 // it, this is for things that know it...
-retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourcedir,const char *basename,const char *filekey,const char *md5sum) {
+retvalue files_checkinfile(filesdb db,const char *sourcedir,const char *basename,const char *filekey,const char *md5sum) {
 	DBT key,data;
 	int dbret;
 	retvalue r;
@@ -437,7 +455,7 @@ retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourced
 	SETDBT(key,filekey);
 	CLEARDBT(data);
 
-	if( (dbret = filesdb->get(filesdb, NULL, &key, &data, 0)) == 0){
+	if( (dbret = db->database->get(db->database, NULL, &key, &data, 0)) == 0){
 		if( verbose > 10 ) {
 			fprintf(stderr,"Database says: '%s' already here as '%s'!\n",filekey,(const char *)data.data);
 		}
@@ -454,23 +472,23 @@ retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourced
 			return RET_ERROR_OOM;
 
 		//TODO: replace thiswith a copyfile, that checks for the md5sum...
-		r = copyfile_md5known(mirrordir,filekey,origfilename,md5sum);
+		r = copyfile_md5known(db->mirrordir,filekey,origfilename,md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			fprintf(stderr,"Error copying file %s to %s/%s\n",
-					origfilename,mirrordir,filekey);
+					origfilename,db->mirrordir,filekey);
 			free(origfilename);
 			return r;
 		}
 		free(origfilename);
 
-		r = files_add(filesdb,filekey,md5sum);
+		r = files_add(db,filekey,md5sum);
 		return r;
 	}
 }
 
 /* Make sure filekeys with md5sums are in the pool. If not take from
  * sourcedir/file where file is the entry from files */
-retvalue files_checkinfiles(const char *mirrordir,DB *filesdb,const char *sourcedir,
+retvalue files_checkinfiles(filesdb db,const char *sourcedir,
 		const struct strlist *basefilenames,
 		const struct strlist *filekeys,
 		const struct strlist *md5sums) {
@@ -478,7 +496,7 @@ retvalue files_checkinfiles(const char *mirrordir,DB *filesdb,const char *source
 	retvalue result,r;
 	int i;
 
-	assert( mirrordir && filesdb && sourcedir && basefilenames && filekeys && md5sums);
+	assert( sourcedir && basefilenames && filekeys && md5sums);
 	assert( basefilenames->count == filekeys->count && filekeys->count == md5sums->count );
 
 	result = RET_NOTHING;
@@ -487,7 +505,7 @@ retvalue files_checkinfiles(const char *mirrordir,DB *filesdb,const char *source
 		const char *filekey = filekeys->values[i];	
 		const char *md5sum = md5sums->values[i];	
 
-		r = files_checkinfile(mirrordir,filesdb,sourcedir,basename,filekey,md5sum);
+		r = files_checkinfile(db,sourcedir,basename,filekey,md5sum);
 		RET_UPDATE(result,r);
 		
 	}

@@ -446,7 +446,7 @@ retvalue packages_rereference(const char *dbdir,DB *referencesdb,extractfilekeys
 struct data_check { 
 	packagesdb packagesdb;
 	DB *referencesdb;
-	DB *filesdb;
+	filesdb filesdb;
 	extractfilekeys *extractfilekeys;
 };
 
@@ -473,7 +473,7 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	return r;
 }
 
-retvalue packages_check(const char *dbdir,DB *filesdb,DB *referencesdb,extractfilekeys *extractfilekeys,const char *codename,const char *component,const char *architecture,int force) {
+retvalue packages_check(const char *dbdir,filesdb filesdb,DB *referencesdb,extractfilekeys *extractfilekeys,const char *codename,const char *component,const char *architecture,int force) {
 	retvalue result,r;
 	struct data_check data;
 	packagesdb pkgs;

@@ -259,14 +259,14 @@ static retvalue deb_calclocations(struct debpackage *pkg,const char *givenfileke
 	return r;
 }
 
-static retvalue deb_copyfiles(const char *mirrordir,DB *filesdb,struct debpackage *pkg,const char *debfilename) {
+static retvalue deb_copyfiles(filesdb filesdb,struct debpackage *pkg,const char *debfilename) {
 	retvalue r;
 
-	r = files_checkin(mirrordir,filesdb,pkg->filekey,debfilename,&pkg->md5sum);
+	r = files_checkin(filesdb,pkg->filekey,debfilename,&pkg->md5sum);
 	return r;
 }
 
-static retvalue deb_checkfiles(const char *mirrordir,DB *filesdb,struct debpackage *pkg,const char *md5sum) {
+static retvalue deb_checkfiles(filesdb filesdb,struct debpackage *pkg,const char *md5sum) {
 	/* Not much to do here, as anything should already be done... */
 
 	pkg->md5sum = strdup(md5sum);
@@ -280,7 +280,7 @@ static retvalue deb_checkfiles(const char *mirrordir,DB *filesdb,struct debpacka
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
 
-retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force){
+retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
 	int i;
@@ -360,9 +360,9 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	/* then looking if we already have this, or copy it in */
 
 	if( givenfilekey && givenmd5sum )
-		r = deb_checkfiles(mirrordir,filesdb,pkg,givenmd5sum);
+		r = deb_checkfiles(filesdb,pkg,givenmd5sum);
 	else
-		r = deb_copyfiles(mirrordir,filesdb,pkg,debfilename);
+		r = deb_copyfiles(filesdb,pkg,debfilename);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;

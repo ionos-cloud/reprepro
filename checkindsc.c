@@ -327,12 +327,12 @@ static retvalue dsc_complete(struct dscpackage *pkg) {
 
 /* Get the files from the directory dscfilename is residing it, and copy
  * them into the pool, also setting pkg->dscmd5sum */
-static retvalue dsc_copyfiles(const char *mirrordir,DB *filesdb,
+static retvalue dsc_copyfiles(filesdb filesdb,
 			struct dscpackage *pkg,const char *dscfilename) {
 	char *sourcedir;
 	retvalue r;
 
-	r = files_checkin(mirrordir,filesdb,pkg->dscfilekey,dscfilename,&pkg->dscmd5sum);
+	r = files_checkin(filesdb,pkg->dscfilekey,dscfilename,&pkg->dscmd5sum);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -340,7 +340,7 @@ static retvalue dsc_copyfiles(const char *mirrordir,DB *filesdb,
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = files_checkinfiles(mirrordir,filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums);
+	r = files_checkinfiles(filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums);
 
 	free(sourcedir);
 
@@ -348,7 +348,7 @@ static retvalue dsc_copyfiles(const char *mirrordir,DB *filesdb,
 }
 
 /* Check the files needed and set the required fields */
-static retvalue dsc_checkfiles(const char *mirrordir,DB *filesdb,
+static retvalue dsc_checkfiles(filesdb filesdb,
 			struct dscpackage *pkg,const char *dscmd5sum) {
 	retvalue r;
 
@@ -358,7 +358,7 @@ static retvalue dsc_checkfiles(const char *mirrordir,DB *filesdb,
 	if( pkg->dscmd5sum == NULL )
 		return RET_ERROR_OOM;
 
-	r = files_expectfiles(mirrordir,filesdb,&pkg->filekeys,&pkg->md5sums);
+	r = files_expectfiles(filesdb,&pkg->filekeys,&pkg->md5sums);
 
 	return r;
 }
@@ -369,7 +369,7 @@ static retvalue dsc_checkfiles(const char *mirrordir,DB *filesdb,
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
 
-retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int force){
+retvalue dsc_add(const char *dbdir,DB *references,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int force){
 	retvalue r;
 	struct dscpackage *pkg;
 
@@ -431,9 +431,9 @@ retvalue dsc_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 
 	if( !RET_WAS_ERROR(r) ) {
 		if( filekey && basename && directory && md5sum)
-			r = dsc_checkfiles(mirrordir,filesdb,pkg,md5sum);
+			r = dsc_checkfiles(filesdb,pkg,md5sum);
 		else
-			r = dsc_copyfiles(mirrordir,filesdb,pkg,dscfilename);
+			r = dsc_copyfiles(filesdb,pkg,dscfilename);
 	}
 
 	/* Calculate the chunk to include: */

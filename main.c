@@ -94,7 +94,7 @@ static int extract_control(int argc,char *argv[]) {
 
 static int addmd5sums(int argc,char *argv[]) {
 	char buffer[2000],*c,*m;
-	DB *files;
+	filesdb files;
 	retvalue result,r;
 
 	if( argc != 1 ) {
@@ -102,9 +102,9 @@ static int addmd5sums(int argc,char *argv[]) {
 		return 1;
 	}
 
-	files = files_initialize(dbdir);
-	if( !files )
-		return 1;
+	r = files_initialize(&files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) )
+		return EXIT_RET(r);
 
 	result = RET_NOTHING;
 	
@@ -168,7 +168,7 @@ static int dumpreferences(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-struct fileref { DB *files,*refs; };
+struct fileref { filesdb files; DB *refs; };
 
 static retvalue checkifreferenced(void *data,const char *filekey,const char *md5andsize) {
 	struct fileref *dist = data;
@@ -195,10 +195,10 @@ static int dumpunreferenced(int argc,char *argv[]) {
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
 		return 1;
-	dist.files = files_initialize(dbdir);
-	if( ! dist.files ) {
+	r = files_initialize(&dist.files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(dist.refs);
-		return 1;
+		return EXIT_RET(r);
 	}
 	result = files_foreach(dist.files,checkifreferenced,&dist);
 	r = files_done(dist.files);
@@ -248,10 +248,10 @@ static int deleteunreferenced(int argc,char *argv[]) {
 	dist.refs = references_initialize(dbdir);
 	if( ! dist.refs )
 		return 1;
-	dist.files = files_initialize(dbdir);
-	if( ! dist.files ) {
+	r = files_initialize(&dist.files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(dist.refs);
-		return 1;
+		return EXIT_RET(r);
 	}
 	result = files_foreach(dist.files,deleteifunreferenced,&dist);
 	r = files_done(dist.files);
@@ -403,7 +403,7 @@ struct referee {
 /****** common for [prepare]add{sources,packages} *****/
 
 struct distributionhandles {
-	DB *files;packagesdb pkgs;DB *refs;
+	filesdb files;packagesdb pkgs;DB *refs;
 	const char *referee,*component;
 };
 
@@ -415,7 +415,7 @@ static retvalue add(void *data,const char *chunk,const char *package,const char 
 
 	/* Add package to distribution's database */
 
-	result = files_expectfiles(mirrordir,dist->files,filekeys,md5sums);
+	result = files_expectfiles(dist->files,filekeys,md5sums);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
@@ -437,9 +437,9 @@ static int addsources(int argc,char *argv[]) {
 
 	dist.referee = argv[1];
 	dist.component = argv[2];
-	dist.files = files_initialize(dbdir);
-	if( ! dist.files ) {
-		return 1;
+	r = files_initialize(&dist.files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) ) {
+		return EXIT_RET(r);
 	}
 	r = packages_initialize(&dist.pkgs,dbdir,dist.referee);
 	if( RET_WAS_ERROR(r) ) {
@@ -477,7 +477,7 @@ static retvalue showmissing(void *data,const char *chunk,const char *package,con
 	r = dirs_make_parents(mirrordir,filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	ret = files_printmissing(mirrordir,dist->files,filekeys,md5sums,origfiles);
+	ret = files_printmissing(dist->files,filekeys,md5sums,origfiles);
 	return ret;
 }
 
@@ -495,9 +495,9 @@ static int prepareaddsources(int argc,char *argv[]) {
 	dist.component = argv[2];
 	dist.refs = NULL;
 
-	dist.files = files_initialize(dbdir);
-	if( ! dist.files ) {
-		return 1;
+	r = files_initialize(&dist.files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) ) {
+		return EXIT_RET(r);
 	}
 	r = packages_initialize(&dist.pkgs,dbdir,dist.referee);
 	if( RET_WAS_ERROR(r) ) {
@@ -532,9 +532,9 @@ static int prepareaddpackages(int argc,char *argv[]) {
 	dist.referee = argv[1];
 	dist.component = argv[2];
 
-	dist.files = files_initialize(dbdir);
-	if( ! dist.files ) {
-		return 1;
+	r = files_initialize(&dist.files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) ) {
+		return EXIT_RET(r);
 	}
 	r = packages_initialize(&dist.pkgs,dbdir,dist.referee);
 	if( RET_WAS_ERROR(r) ) {
@@ -567,9 +567,9 @@ static int addpackages(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer addpackages <identifier> <component> <Packages-files>\n");
 		return 1;
 	}
-	dist.files = files_initialize(dbdir);
-	if( ! dist.files ) {
-		return 1;
+	r = files_initialize(&dist.files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) ) {
+		return EXIT_RET(r);
 	}
 	r = packages_initialize(&dist.pkgs,dbdir,argv[1]);
 	if( RET_WAS_ERROR(r) ) {
@@ -599,18 +599,18 @@ static int addpackages(int argc,char *argv[]) {
 }
 
 static int detect(int argc,char *argv[]) {
-	DB *files;
+	filesdb files;
 	char buffer[5000],*nl;
 	int i;
 	retvalue r,ret;
 
 	ret = RET_NOTHING;
-	files = files_initialize(dbdir);
-	if( !files )
-		return 1;
+	r = files_initialize(&files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) )
+		return EXIT_RET(r);
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
-			r = files_detect(files,mirrordir,argv[i]);
+			r = files_detect(files,argv[i]);
 			RET_UPDATE(ret,r);
 		}
 
@@ -622,7 +622,7 @@ static int detect(int argc,char *argv[]) {
 				return 1;
 			}
 			*nl = '\0';
-			r = files_detect(files,mirrordir,buffer);
+			r = files_detect(files,buffer);
 			RET_UPDATE(ret,r);
 		} 
 	r = files_done(files);
@@ -631,14 +631,14 @@ static int detect(int argc,char *argv[]) {
 }
 
 static int forget(int argc,char *argv[]) {
-	DB *files;
+	filesdb files;
 	char buffer[5000],*nl;
 	int i;
 	retvalue r,ret;
 
-	files = files_initialize(dbdir);
-	if( !files )
-		return 1;
+	r = files_initialize(&files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) )
+		return EXIT_RET(r);
 	ret = RET_NOTHING;
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
@@ -663,7 +663,7 @@ static int forget(int argc,char *argv[]) {
 }
 
 static int md5sums(int argc,char *argv[]) {
-	DB *files;
+	filesdb files;
 	char *filename,*md;
 	retvalue ret,r;
 	int i;
@@ -687,9 +687,9 @@ static int md5sums(int argc,char *argv[]) {
 		}
 		return EXIT_RET(ret);
 	} else {
-		files = files_initialize(dbdir);
-		if( !files )
-			return 1;
+		r = files_initialize(&files,dbdir,mirrordir);
+		if( RET_WAS_ERROR(r) )
+			return EXIT_RET(r);
 		ret = files_printmd5sums(files);
 		r = files_done(files);
 		RET_ENDUPDATE(ret,r);
@@ -945,7 +945,7 @@ static int rereference(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 /***********************checking*************************/
-struct data_binsrccheck { const struct distribution *distribution; DB *references; DB *files;};
+struct data_binsrccheck { const struct distribution *distribution; DB *references; filesdb files;};
 
 
 static retvalue checkbin(void *data,const char *component,const char *architecture) {
@@ -991,15 +991,15 @@ static int check(int argc,char *argv[]) {
 	if( ! dat.references )
 		return 1;
 
-	dat.files = files_initialize(dbdir);
+	r = files_initialize(&dat.files,dbdir,mirrordir);
 
-	if( ! dat.files ) {
+	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(dat.references);
-		return 1;
+		return EXIT_RET(r);
 	}
 	
 	result = distribution_foreach(confdir,argc-1,argv+1,check_dist,&dat,force);
-	r = references_done(dat.files);
+	r = files_done(dat.files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dat.references);
 	RET_ENDUPDATE(result,r);
@@ -1011,7 +1011,7 @@ static int check(int argc,char *argv[]) {
 
 static int includedeb(int argc,char *argv[]) {
 	retvalue result,r;
-	DB *files,*references;
+	filesdb files;DB *references;
 	struct distribution *distribution;
 
 	if( argc < 3 ) {
@@ -1025,14 +1025,14 @@ static int includedeb(int argc,char *argv[]) {
 		return 2;
 	}
 
-	files = files_initialize(dbdir);
-	if( !files )
-		return 1;
+	r = files_initialize(&files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) )
+		return EXIT_RET(r);
 	references = references_initialize(dbdir);
-	if( !files )
+	if( !references )
 		return 1;
 
-	result =deb_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],NULL,NULL,force);
+	result = deb_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,force);
 	distribution_free(distribution);
 
 	r = files_done(files);
@@ -1046,7 +1046,7 @@ static int includedeb(int argc,char *argv[]) {
 
 static int includedsc(int argc,char *argv[]) {
 	retvalue result,r;
-	DB *files,*references;
+	filesdb files; DB *references;
 	struct distribution *distribution;
 
 	if( argc < 3 ) {
@@ -1060,14 +1060,14 @@ static int includedsc(int argc,char *argv[]) {
 		return 2;
 	}
 
-	files = files_initialize(dbdir);
+	r = files_initialize(&files,dbdir,mirrordir);
 	if( !files )
 		return 1;
 	references = references_initialize(dbdir);
 	if( !files )
 		return 1;
 
-	result =dsc_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,force);
+	result = dsc_add(dbdir,references,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,force);
 	distribution_free(distribution);
 
 	r = files_done(files);
@@ -1080,7 +1080,7 @@ static int includedsc(int argc,char *argv[]) {
 
 static int includechanges(int argc,char *argv[]) {
 	retvalue result,r;
-	DB *files,*references;
+	filesdb files;DB *references;
 	struct distribution *distribution;
 
 	if( argc < 3 ) {
@@ -1094,14 +1094,14 @@ static int includechanges(int argc,char *argv[]) {
 		return 2;
 	}
 
-	files = files_initialize(dbdir);
-	if( !files )
-		return 1;
+	r = files_initialize(&files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(r) )
+		return EXIT_RET(r);
 	references = references_initialize(dbdir);
 	if( !files )
 		return 1;
 
-	result =changes_add(dbdir,references,files,mirrordir,component,section,priority,distribution,argv[2],force);
+	result = changes_add(dbdir,references,files,component,section,priority,distribution,argv[2],force);
 	distribution_free(distribution);
 
 	r = files_done(files);
