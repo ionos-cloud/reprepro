@@ -44,10 +44,8 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 		return RET_ERRNO(errno);
 	}
 	result = RET_NOTHING;
-	while( (chunk = chunk_read(f))) {
+	while( (ret = chunk_read(f,&chunk)) == RET_OK ) {
 		ret = action(data,chunk);
-
-		RET_UPDATE(result,ret);
 
 		free(chunk);
 
@@ -58,64 +56,71 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 		}
 		if( stopwhenok && RET_IS_OK(ret) )
 			break;
+		RET_UPDATE(result,ret);
 	}
+	RET_UPDATE(result,ret);
 	//TODO: check result:
 	gzclose(f);
 	return result;
 }
 
-/* get the next chunk from file f */
-char *chunk_read(gzFile f) {
-	char *buffer,*bhead;
-	size_t m,c,l = 4096;
+/* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
+retvalue chunk_read(gzFile f,char **chunk) {
+	char *buffer,*bhead,*p;
+	size_t size,already,without,l;
+	int afternewline = 0;
 
-	m = 4096;
-	c = 0;
-	bhead = (buffer = (char*)malloc(m));
+	size = 4096;
+	already = 0; without = 0;
+	bhead = buffer = (char*)malloc(size);
 	if( buffer == NULL )
-		return NULL;
-	while( gzgets(f,bhead,m-1-c) ) {
-		c += (l = strlen(bhead));
-		if( *bhead == '\n' ) {
-			/* we do not want to include the final newline */
-			*bhead = '\0'; c--;
-			if( c == 0 ) {
-				bhead = buffer;
-				continue;
-			}
-			buffer = realloc(buffer,c+1);
-			return buffer;
+		return RET_ERROR_OOM;
+	while( gzgets(f,bhead,size-1-already) ) {
+		p = bhead;
+		while( *p ) {
+			if( *p != '\r' && *p != '\n' )
+				without = 1 + p - buffer;
+			p++;
 		}
-		while( bhead[l-1] != '\n' ) {
-			if( m-c < 100 ) {
-				m *= 2;
-				buffer = realloc(buffer,m);
-				if( !buffer )
-					return NULL;
-				
-			}
-			bhead = buffer + c;
-			if( !gzgets(f,bhead,m-1-c)) {
-				buffer = realloc(buffer,c+1);
-				return buffer;
-			}
-			c += (l = strlen(bhead));
+		if( without == 0 ) {
+			/* ignore leading newlines... */
+			bhead = buffer;
+			already = without;
+			continue;
 		}
-		if( m-c < 100 ) {
-			m *= 2;
-			buffer = realloc(buffer,m);
-			if( !buffer )
-				return NULL;
-
+		l = strlen(bhead);
+		/* if we are after a newline, and have a new newline,
+		 * and only '\r' in between, then return the chunk: */
+		if( afternewline && without < already && bhead[l-1] == '\n' ) {
+			break;
 		}
-		bhead = buffer + c;
+		already += l;
+		afternewline = bhead[l-1] == '\n';
+		if( size-already < 1024 ) {
+			size *= 2;
+			p = realloc(buffer,size);
+			if( p == NULL ) {
+				free(buffer);
+				return RET_ERROR_OOM;
+			}
+			buffer = p;
+		}
+		bhead = buffer + already;
 	}
-	if( c == 0 ) {
+	if( without == 0 ) {
 		free(buffer);
-		return NULL;
+		return RET_NOTHING;
 	} else {
-		buffer = realloc(buffer,c+1);
-		return buffer;
+		/* we do not want to include the final newlines */
+		buffer[without] = '\0';
+		p = realloc(buffer,without+1);
+		if( p == NULL ) {
+			/* guess this will not happen, but... */
+			free(buffer);
+			return RET_ERROR_OOM;
+		}
+		*chunk = p;
+		return RET_OK;
 	}
 }
 
@@ -133,8 +138,9 @@ static const char *chunk_getfield(const char *name,const char *chunk) {
 		}
 		while( *chunk != '\n' && *chunk != '\0' )
 			chunk++;
-		if( *chunk == '\0' || *(++chunk) == '\n' )
+		if( *chunk == '\0' )
 			return NULL;
+		chunk++;
 	}
 	return NULL;
 }
@@ -163,7 +169,7 @@ retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 			e++;
 		if( *e != '\0' )
 			e++;
-	} while( *e != ' ' && *e != '\n' && *e != '\0' );
+	} while( *e != ' ' && *e != '\0' );
 
 	if( e > b && *e == '\0' )
 		e--;
@@ -360,6 +366,7 @@ retvalue chunk_gettruth(const char *chunk,const char *name) {
 	field = chunk_getfield(name,chunk);
 	if( !field )
 		return RET_NOTHING;
+	// TODO: check for things like Yes and No...
 
 	return RET_OK;
 }
