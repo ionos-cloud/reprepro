@@ -197,6 +197,86 @@ Look what reprepro believes to be the content of the
 .B control
 file of the specified .deb-file.
 .SH "CONFIG FILES"
+.B reprepo uses two config files, that are searched in
+the directory specified with 
+.B -c
+or in the
+.B conf/
+subdirectory of the directory given by
+.B -b
+ . The file
+.B distributions
+is always needed and describes what distributions
+to manage, while
+.B updates
+is only needed when syncing with external repositories.
+
+Both are in the format control files in Debian are in,
+i.e. paragraphs seperated by blank lines consisting of
+fields. Each field consists of an fieldname, followed
+by a colon, possible whitespace and the data. A field
+ends with a newline not followed by a space or tab.
+.SS conf/distributions
+.TP
+.B Codename
+This required field is the unique identifier of a distribution
+and used as directory name within 
+.B dists/
+It is also copied into the Release files.
+.TP
+.B Suite
+This required field is simply copied into the
+Release files. In Debian it contains names like
+stable, testing or unstable. It is not used otherwise
+currently, there are no symlinks created. (though that
+might change in the future)
+.TP
+.B Version
+This required field is simply copied into the
+Release files.
+.TP
+.B Origin
+This required field is simply copied into the
+Release files.
+.TP
+.B Label
+This required field is simply copied into the
+Release files.
+.TP
+.B Description
+This required field is simply copied into the
+Release files.
+.TP
+.B Components
+This required field lists the component of a
+distribution. See 
+.B GUESSING
+for rules which component packages are included into
+by default. This will also be copied into the Release files.
+.TP
+.B Architectures
+This requiered field lists the binary architectures within
+this distribution.
+.B source
+is always implicit implied and is not needed to be given. (May change
+in the future.)
+This will also be copied into the Release files.
+.TP
+.B Update
+When this field is present, it describes which update rules apply
+for this distribution.
+.TP
+.B SignWith
+When this field is present, a Relese.gpg file will be generated.
+The content will be used by future version to choose the key used
+to sign.
+.TP
+.B Override
+When this field is present, it describes the binary override file.
+.TP
+.B SourceOverride
+When this field is present, it describes the source override file.
+.SS conf/distributions
 yet to be described
 .SH "OVERRIDE FILES"
 yet to be described
