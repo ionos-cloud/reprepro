@@ -143,14 +143,14 @@ static void dsc_free(struct dscpackage *pkg) {
 	free(pkg);
 }
 
-static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
+static retvalue dsc_read(struct dscpackage **pkg, const char *filename, bool_t onlysigned) {
 	retvalue r;
 	struct dscpackage *dsc;
 
 
 	dsc = calloc(1,sizeof(struct dscpackage));
 
-	r = signature_readsignedchunk(filename,&dsc->control);
+	r = signature_readsignedchunk(filename,&dsc->control,onlysigned);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
@@ -374,7 +374,7 @@ static retvalue dsc_checkfiles(filesdb filesdb,
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
 
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -392,7 +392,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 
 	/* Then take a closer look to the file: */
 
-	r = dsc_read(&pkg,dscfilename);
+	r = dsc_read(&pkg,dscfilename,onlysigned);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}

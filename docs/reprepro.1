@@ -189,11 +189,19 @@ given them via
 .B \-S
 and
 .B \-P
+
+Unsigned files are accepted, except when \fB\-\-onlyacceptsigned\fP
+is given. Then the .dsc files has
+to be signed with a key found in the local keyring.
 .TP
 .B include  \fIcodename\fP \fI.changes-filename\fP
 Include in the specified distribution all packages found and suitable
 in the \fI.changes\fP file, applying override information guessing all 
 values not given and guessable.
+
+Unsigned files are accepted, except when \fB\-\-onlyacceptsigned\fP
+is given. Then the .changes file and all contained .dsc files have
+to be signed with a key found in the local keyring.
 .TP
 .BR check " [ " \fIcodenames\fP " ]"
 Check if all packages in the specified distributions have all files

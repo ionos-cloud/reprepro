@@ -77,6 +77,7 @@ static bool_t	nothingiserror = FALSE;
 static bool_t	nolistsdownload = FALSE;
 static bool_t	keepunreferenced = FALSE;
 static bool_t	keepunneededlists = FALSE;
+static bool_t	onlyacceptsigned = FALSE;
 int		verbose = 0;
 
 static inline retvalue removeunreferencedfiles(references refs,filesdb files,struct strlist *dereferencedfilekeys) {
@@ -963,6 +964,10 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 		fprintf(stderr,"reprepro [--delete] include[u]deb <distribution> <package>\n");
 		return RET_ERROR;
 	}
+	if( onlyacceptsigned ) {
+		fprintf(stderr,"include[u]deb together with --onlyacceptsigned is not yet possible,\n as .[u]deb files cannot be signed yet.\n");
+		return RET_ERROR;
+	}
 	if( strcmp(argv[0],"includeudeb") == 0 ) {
 		binarytype="udeb";
 		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
@@ -1097,7 +1102,7 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 		return r;
 	}
 
-	result = dsc_add(dbdir,refs,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
+	result = dsc_add(dbdir,refs,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,keepunreferenced?NULL:&dereferencedfilekeys,onlyacceptsigned);
 	
 	override_free(srcoverride);
 	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
@@ -1166,7 +1171,7 @@ static retvalue action_include(int argc,const char *argv[]) {
 		return r;
 	}
 
-	result = changes_add(dbdir,refs,files,packagetype,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
+	result = changes_add(dbdir,refs,files,packagetype,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete,keepunreferenced?NULL:&dereferencedfilekeys,onlyacceptsigned);
 
 	override_free(override);override_free(srcoverride);
 	
@@ -1282,6 +1287,7 @@ static struct action {
 #define LO_KEEPUNNEEDEDLISTS 3
 #define LO_NOHTINGISERROR 4
 #define LO_NOLISTDOWNLOAD 5
+#define LO_ONLYACCEPTSIGNED 6
 #define LO_DISTDIR 10
 #define LO_DBDIR 11
 #define LO_LISTDIR 12
@@ -1312,6 +1318,7 @@ int main(int argc,char *argv[]) {
 		{"nolistsdownload", 0, &longoption, LO_NOLISTDOWNLOAD},
 		{"keepunreferencedfiles", 0, &longoption, LO_KEEPUNREFERENCED},
 		{"keepunneededlists", 0, &longoption, LO_KEEPUNNEEDEDLISTS},
+		{"onlyacceptsigned", 0, &longoption, LO_ONLYACCEPTSIGNED},
 		{"force", 0, NULL, 'f'},
 		{NULL, 0, NULL, 0}
 	};
@@ -1377,6 +1384,9 @@ int main(int argc,char *argv[]) {
 				switch( longoption ) {
 					case LO_DELETE:
 						delete++;
+						break;
+					case LO_ONLYACCEPTSIGNED:
+						onlyacceptsigned = TRUE;
 						break;
 					case LO_KEEPUNREFERENCED:
 						keepunreferenced=TRUE;

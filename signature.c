@@ -300,7 +300,7 @@ retvalue signature_sign(const char *options,const char *filename) {
 
 /* Read a single chunk from a file, that may be signed. */
 // TODO: Think about ways to check the signature...
-retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
+retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned) {
 	const char *startofchanges,*endofchanges;
 	char *chunk;
 	GpgmeError err;
@@ -331,6 +331,12 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
 	}
 	switch( stat ) {
 		case GPGME_SIG_STAT_NOSIG:
+			if( onlyacceptsigned ) {
+				gpgme_data_release(dh_gpg);
+				gpgme_data_release(dh);
+				fprintf(stderr,"No signature found in '%s'!\n",filename);
+				return RET_ERROR_BADSIG;
+			}
 			if( verbose > -1 ) 
 				fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
 			plain_data = gpgme_data_release_and_get_mem(dh_gpg,&plain_len);

@@ -10,6 +10,6 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 retvalue signature_sign(const char *options, const char *filename);
 
 /* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, char **chunkread);
+retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned);
 
 #endif

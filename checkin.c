@@ -346,7 +346,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename,struct changes **changes,const char *packagetypeonly,const char *forcearchitecture,int force) {
+static retvalue changes_read(const char *filename,struct changes **changes,const char *packagetypeonly,const char *forcearchitecture,int force, bool_t onlysigned) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines;
@@ -383,7 +383,7 @@ static retvalue changes_read(const char *filename,struct changes **changes,const
 	c = calloc(1,sizeof(struct changes));
 	if( c == NULL )
 		return RET_ERROR_OOM;
-	r = signature_readsignedchunk(filename,&c->control);
+	r = signature_readsignedchunk(filename,&c->control,onlysigned);
 	R;
 	r = check(filename,c,"Format",force);
 	R;
@@ -687,7 +687,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force,struct strlist *dereferencedfilekeys) {
+static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,int force,struct strlist *dereferencedfilekeys, bool_t onlysigned) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -735,7 +735,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
 				srcoverride,
-				force,D_INPLACE,dereferencedfilekeys);
+				force,D_INPLACE,dereferencedfilekeys,onlysigned);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		}
@@ -755,11 +755,11 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys) {
+retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
 	retvalue r;
 	struct changes *changes;
 
-	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,force);
+	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,force,onlysigned);
 	if( RET_WAS_ERROR(r) )
 		return r;
 //	if( changes->distributions.count != 1 ) {
@@ -795,7 +795,8 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 
 	/* add the source and binary packages in the given distribution */
 	r = changes_includepkgs(dbdir,refs,filesdb,
-		distribution,changes,srcoverride,binoverride,force,dereferencedfilekeys);
+		distribution,changes,srcoverride,binoverride,force,
+		dereferencedfilekeys, onlysigned);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
