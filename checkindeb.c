@@ -37,6 +37,7 @@
 #include "checkindeb.h"
 #include "reference.h"
 #include "packages.h"
+#include "binaries.h"
 #include "files.h"
 #include "extractcontrol.h"
 
@@ -126,6 +127,45 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 	free(oldfilekey);
 	return result;
 }*/
+
+static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *component,const char *architecture,struct debpackage *package,const char *filekey) {
+	retvalue result,r;
+	char *identifier,*oldfilekey,*oldversion;
+	DB *packages;
+
+	identifier = calc_identifier(distribution->codename,component,architecture);
+	if( ! identifier )
+		return RET_ERROR_OOM;
+
+	packages = packages_initialize(dbpath,identifier);
+	if( ! packages ) {
+		free(identifier);
+		return RET_ERROR;
+	}
+
+	r = binaries_lookforolder(packages,package->package,package->version,&oldversion,&oldfilekey);
+	if( RET_WAS_ERROR(r) ) {
+		(void)packages_done(packages);
+		free(identifier);
+		return r;
+	}
+
+	if( oldversion ) {
+		fprintf(stderr,"Version '%s' already in the archive, skipping '%s'\n",oldversion,package->version);
+		free(oldversion);
+		result = RET_NOTHING;
+	} else
+		result = checkindeb_insert(references,identifier,packages,
+			package->package, package->control,
+			filekey, oldfilekey);
+
+	r = packages_done(packages);
+	RET_ENDUPDATE(result,r);
+
+	free(identifier);
+	free(oldfilekey);
+	return result;
+}
 
 /* things to do with .deb's checkin by hand: (by comparison with apt-ftparchive)
 - extract the control file (that's the hard part -> extractcontrol.c )
@@ -286,19 +326,14 @@ retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *m
 
 	return RET_OK;
 }
-retvalue deb_addtodist(const char *distribution,const char *architecture,struct debpackage *package) {
-
-	// TODO: implement this one..
-	return RET_NOTHING;
-}
 
 /* insert the given .deb into the mirror in <component> in the <distribution>
- * putting things with architecture of "all" into <architectures> (and also
+ * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * ([todo:]if component is NULL, using translation table <guesstable>)
  * ([todo:]using overwrite-database <overwrite>)*/
 
-retvalue deb_add(DB *filesdb,const char *mirrordir,const char *component,const char *distribution,const struct strlist *architectures,const char *debfilename,int force){
+retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *component,struct distribution *distribution,const char *debfilename,int force){
 	retvalue r,result;
 	struct debpackage *pkg;
 	char *filekey,*md5andsize;
@@ -315,13 +350,28 @@ retvalue deb_add(DB *filesdb,const char *mirrordir,const char *component,const c
 
 	// TODO: look for overwrites and things like this here...
 	
+	/* decide where it has to go */
+
+	// TODO: decide what component is, if not yet set...
+
 	/* some sanity checks: */
 
+	if( component && !strlist_in(&distribution->components,component) ) {
+		fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
+				debfilename,component);
+		strlist_fprint(stderr,&distribution->components);
+		fputs("'\n",stderr);
+		if( force <= 0 ) {
+			deb_free(pkg);
+			return RET_ERROR;
+		}
+	}
+
 	if( strcmp(pkg->architecture,"all") != 0 &&
-	    !strlist_in( architectures, pkg->architecture )) {
+	    !strlist_in( &distribution->architectures, pkg->architecture )) {
 		fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
 				debfilename,pkg->architecture);
-		strlist_fprint(stderr,architectures);
+		strlist_fprint(stderr,&distribution->architectures);
 		fputs("'\n",stderr);
 		if( force <= 0 ) {
 			deb_free(pkg);
@@ -329,9 +379,7 @@ retvalue deb_add(DB *filesdb,const char *mirrordir,const char *component,const c
 		}
 	} 
 	
-	/* decide where it has to go */
-
-	// TODO: decide what component is, if not yet set...
+	/* calculate it's filekey */
 	filekey = calc_filekey(component,pkg->source,pkg->basename);
 
 	/* then looking if we already have this, or copy it in */
@@ -351,20 +399,20 @@ retvalue deb_add(DB *filesdb,const char *mirrordir,const char *component,const c
 		return r;
 	} 
 	free(md5andsize);
-	free(filekey);
 	
 	/* finaly put it into one or more distributions */
 
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		r = deb_addtodist(distribution,pkg->architecture,pkg);
+		r = deb_addtodist(dbdir,references,distribution,component,pkg->architecture,pkg,filekey);
 		RET_UPDATE(result,r);
-	} else for( i = 0 ; i < architectures->count ; i++ ) {
-		r = deb_addtodist(distribution,architectures->values[i],pkg);
+	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+		r = deb_addtodist(dbdir,references,distribution,component,distribution->architectures.values[i],pkg,filekey);
 		RET_UPDATE(result,r);
 	}
 
+	free(filekey);
 	deb_free(pkg);
 
 	return result;

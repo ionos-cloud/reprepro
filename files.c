@@ -135,7 +135,28 @@ retvalue files_check(DB *filesdb,const char *filekey,const char *md5sum_and_size
 	}
 }
 
-static retvalue files_calcmd5(char **md5andsize,const char *mirrordir,const char *filekey) {
+static retvalue files_calcmd5(char **md5andsize,const char *filename) {
+	retvalue ret;
+
+	*md5andsize = NULL;
+	ret = md5sum_and_size(md5andsize,filename,0);
+
+	if( ret == RET_NOTHING ) {
+		fprintf(stderr,"Error accessing file \"%s\": %m\n",filename);
+		return RET_ERROR;
+
+	}
+	if( RET_WAS_ERROR(ret) ) {
+		fprintf(stderr,"Error checking file \"%s\": %m\n",filename);
+		return ret;
+	}
+	if( verbose > 20 ) {
+		fprintf(stderr,"Md5sum of '%s' is '%s'.\n",filename,*md5andsize);
+	}
+	return ret;
+
+}
+static retvalue files_calcmd5sum(char **md5andsize,const char *mirrordir,const char *filekey) {
 	char *filename;
 	retvalue ret;
 
@@ -144,24 +165,8 @@ static retvalue files_calcmd5(char **md5andsize,const char *mirrordir,const char
 	if( !filename )
 		return RET_ERROR_OOM;
 
-	*md5andsize = NULL;
-	ret = md5sum_and_size(md5andsize,filename,0);
-
-	if( ret == RET_NOTHING ) {
-		fprintf(stderr,"Error accessing file \"%s\": %m\n",filename);
-		free(filename);
-		return RET_ERROR;
-
-	}
-	if( RET_WAS_ERROR(ret) ) {
-		fprintf(stderr,"Error checking file \"%s\": %m\n",filename);
-		free(filename);
-		return ret;
-	}
+	ret = files_calcmd5(md5andsize,filename);
 	free(filename);
-	if( verbose > 20 ) {
-		fprintf(stderr,"Md5sum of '%s' is '%s'.\n",filename,*md5andsize);
-	}
 	return ret;
 
 }
@@ -171,7 +176,7 @@ retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey) {
 	char *md5andsize;	
 	retvalue ret;
 
-	ret = files_calcmd5(&md5andsize,mirrordir,filekey);
+	ret = files_calcmd5sum(&md5andsize,mirrordir,filekey);
 	if( RET_WAS_ERROR(ret) )
 		return ret;
 
@@ -332,7 +337,7 @@ retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
 		if( verbose > 10 ) {
 			fprintf(stderr,"Database says: '%s' already here as '%s'!\n",filekey,(const char *)data.data);
 		}
-		r = files_calcmd5(md5andsize,mirrordir,filekey);
+		r = files_calcmd5(md5andsize,origfilename);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( strcmp(*md5andsize,data.data) != 0 ) {
@@ -361,7 +366,7 @@ retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
 		return r;
 	}
 
-	r = files_calcmd5(md5andsize,mirrordir,filekey);
+	r = files_calcmd5sum(md5andsize,mirrordir,filekey);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

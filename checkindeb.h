@@ -5,6 +5,9 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef __MIRRORER_DISTRIBUTION_H
+#include "distribution.h"
+#endif
 
 /* Add <package> with filename <filekey> and chunk <chunk> (which
  * alreadycontains "Filename:"), add an reference to <referee> in 
@@ -33,6 +36,5 @@ void deb_free(struct debpackage *pkg);
  * causing error, if it is not one of them otherwise)
  * ([todo:]if component is NULL, using translation table <guesstable>)
  * ([todo:]using overwrite-database <overwrite>)*/
-retvalue deb_add(DB *filesdb,const char *mirrordir,const char *component,const char *distribution,const struct strlist *architectures,const char *debfilename,int force);
-
+retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirrordir,const char *component,struct distribution *distribution,const char *debfilename,int force);
 #endif

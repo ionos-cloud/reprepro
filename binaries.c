@@ -33,7 +33,7 @@
 extern int verbose;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **basename,char **md5andsize) {
+retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **basename,char **md5andsize,char **version) {
 	char *pmd5,*psize,*ppackage;
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
@@ -101,11 +101,24 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 		}
 	}
 
+	/* get the version */
+	if( version ) {
+		r = chunk_getvalue(chunk,"Version",version);
+		if( !RET_IS_OK(r) ) {
+			free(ppackage);
+			IFREE(origfilename);
+			IFREE(md5andsize);
+			IFREE(sourcename);
+			return r;
+		}
+	}
+
 	/* generate a base filename based on package,version and architecture */
 
 	if( basename ) {
 		char *parch,*pversion,*v;
 
+		// TODO combine the two looks for version...
 		r = chunk_getvalue(chunk,"Version",&pversion);
 		if( !RET_IS_OK(r) ) {
 			free(ppackage);
@@ -146,24 +159,62 @@ retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfi
 	return RET_OK;
 }
 
-/* check if one chunk describes a packages superseded by another
- * return 1=new is better, 0=old is better, <0 error */
-static int binaries_isnewer(const char *newchunk,const char *oldchunk) {
-	char *nv,*ov;
-	retvalue ret;
-	int r;
+/* Look for an older version of the Package in the database.
+ * Set *oldversion, if there is already a newer (or equal) version to
+ * <version> and <version> is != NULL */
+retvalue binaries_lookforolder(
+		DB *packages,const char *packagename,
+		const char *newversion,char **oldversion,
+		char **oldfilekey) {
+	char *oldchunk,*ov;
+	retvalue r;
 
-	/* if new broken, old is better, if old broken, new is better: */
-	ret = chunk_getvalue(newchunk,"Version",&nv);
-	if( !RET_IS_OK(ret) )
-		return -1;
-	ret = chunk_getvalue(oldchunk,"Version",&ov);
-	if( !RET_IS_OK(ret) ) {
-		free(nv);
-		return 1;
+	// TODO: why does packages_get return something else than a retvalue?
+	oldchunk = packages_get(packages,packagename);
+	if( oldchunk  == NULL ) {
+		*oldfilekey = NULL;
+		if( oldversion != NULL && newversion != NULL )
+			*oldversion = NULL;
+		return RET_NOTHING;
 	}
-	r = isVersionNewer(nv,ov);
-	free(nv);free(ov);
+
+	if( newversion ) {
+		assert(oldversion != NULL);
+		r = binaries_parse_chunk(oldchunk,NULL,oldfilekey,NULL,NULL,NULL,&ov);
+	} else {
+		assert( oldversion == NULL );
+		r = binaries_parse_chunk(oldchunk,NULL,oldfilekey,NULL,NULL,NULL,NULL);
+	}
+
+	if( !RET_IS_OK(r) ) {
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Does not look like binary control: '%s'\n",oldchunk);
+			r = RET_ERROR;
+
+		}
+		free(oldchunk);
+		return r;
+	}
+
+	if( newversion ) {
+		r = dpkgversions_isNewer(newversion,ov);
+
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,"Parse errors processing versions of %s.\n",packagename);
+			free(ov);
+			free(*oldfilekey);
+			*oldfilekey = NULL;
+			free(oldchunk);
+			return r;
+		}
+		if( RET_IS_OK(r) ) {
+			*oldversion = NULL;
+			free(ov);
+		} else
+			*oldversion = ov;
+	}
+
+	free(oldchunk);
 	return r;
 }
 
@@ -173,11 +224,10 @@ struct binaries_add {DB *pkgs; void *data; const char *component; binary_package
 static retvalue addbinary(void *data,const char *chunk) {
 	struct binaries_add *d = data;
 	retvalue r;
-	int newer;
-	char *oldchunk;
-	char *package,*basename,*origfile,*sourcename,*filekey,*md5andsize;
+	char *oldfilekey,*oldversion;
+	char *package,*basename,*origfile,*sourcename,*filekey,*md5andsize,*version;
 
-	r = binaries_parse_chunk(chunk,&package,&origfile,&sourcename,&basename,&md5andsize);
+	r = binaries_parse_chunk(chunk,&package,&origfile,&sourcename,&basename,&md5andsize,&version);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
 		return r;
@@ -186,17 +236,19 @@ static retvalue addbinary(void *data,const char *chunk) {
 		return RET_ERROR;
 	}
 	assert(RET_IS_OK(r));
-	oldchunk = packages_get(d->pkgs,package);
-	if( oldchunk && (newer=binaries_isnewer(chunk,oldchunk)) != 0 ) {
-		if( newer < 0 ) {
-			fprintf(stderr,"Omitting %s because of parse errors.\n",package);
-			free(md5andsize);free(origfile);free(package);
-			free(sourcename);free(basename);
-			free(oldchunk);
-			return RET_ERROR;
-		}
+	r = binaries_lookforolder(d->pkgs,package,version,&oldversion,&oldfilekey);
+	if( RET_WAS_ERROR(r) ) {
+		free(version); free(package);free(md5andsize);
+		free(origfile);free(basename);free(sourcename);
+		return r;
 	}
-	if( oldchunk==NULL || newer > 0 ) {
+	
+	if( oldversion != NULL ) {
+		if( verbose > 40 )
+			fprintf(stderr,"Ignoring '%s' with version '%s', as '%s' is already there.\n",package,version,oldversion);
+		free(oldversion);
+		r = RET_NOTHING;
+	} else {
 		/* add package (or whatever action wants to do) */
 
 		filekey =  calc_filekey(d->component,sourcename,basename);
@@ -205,16 +257,12 @@ static retvalue addbinary(void *data,const char *chunk) {
 		else {
 			r = (*d->action)(d->data,chunk,
 					package,sourcename,origfile,basename,
-					filekey,md5andsize,oldchunk);
+					filekey,md5andsize,oldfilekey);
 			free(filekey);
 		}
-
-	} else {
-		r = RET_NOTHING;
 	}
-	free(oldchunk);
-	
-	free(package);free(md5andsize);
+	free(oldfilekey);
+	free(version); free(package);free(md5andsize);
 	free(origfile);free(basename);free(sourcename);
 	return r;
 }

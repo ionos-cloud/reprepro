@@ -12,7 +12,16 @@ retvalue binaries_parse_chunk(const char *chunk,
                     	char **origfilename,
                     	char **sourcename,
                     	char **basename,
-                    	char **md5andsize);
+                    	char **md5andsize,
+			char **version);
+
+/* Look for an older version of the Package in the database.
+ * Set *oldversion, if there is already a newer (or equal) version to
+ * <version> and <version> is != NULL */
+retvalue binaries_lookforolder(
+		DB *packages,const char *packagename,
+		const char *newversion,char **oldversion,
+		char **oldfilekey);
 
 /* the type of a action for binaries_add */
 typedef retvalue binary_package_action(
@@ -34,7 +43,7 @@ typedef retvalue binary_package_action(
 	const char *md5andsize,
 	/* the pkgs database had an entry of the same name already
 	   (which was considered older), NULL otherwise */
-	const char *oldchunk);
+	const char *oldfilekey);
 
 /* call action for each package in packages_file */
 retvalue binaries_add(

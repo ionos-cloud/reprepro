@@ -313,7 +313,8 @@ static int removepackage(int argc,char *argv[]) {
 		(void)references_done(refs);
 		return 1;
 	}
-	
+
+	// TODO: split this in binary/source and use binaries_lookforold
 	result = RET_NOTHING;
 	for( i = 2 ; i< argc ; i++ ) {
 		chunk = packages_get(pkgs,argv[i]);
@@ -321,7 +322,7 @@ static int removepackage(int argc,char *argv[]) {
 			fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
 		r = packages_remove(pkgs,argv[i]);
 		if( RET_IS_OK(r) ) {
-			r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL);
+			r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL,NULL);
 			if( RET_IS_OK(r) ) {
 				if( verbose > 1 )
 					fprintf(stderr,"unreferencing '%s' to '%s' \n",argv[1],filekey);
@@ -355,7 +356,7 @@ static retvalue reference_binary(void *data,const char *package,const char *chun
 	char *filekey;
 	retvalue r;
 
-	r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL);
+	r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL,NULL);
 	if( verbose >= 0 && r == RET_NOTHING ) {
 		fprintf(stderr,"Package does not look binary: '%s'\n",chunk);
 	}
@@ -582,7 +583,7 @@ static int prepareaddsources(int argc,char *argv[]) {
 
 /****************************prepareaddpackages*******************************************/
 
-static retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+static retvalue showmissing(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldfilechunk) {
 	retvalue r;
 	struct distributionhandles *dist = (struct distributionhandles*)data;
 	char *fn;
@@ -647,10 +648,9 @@ static int prepareaddpackages(int argc,char *argv[]) {
 
 /***********************************addpackages*******************************************/
 
-retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldfilekey) {
 	char *newchunk;
 	retvalue result,r;
-	char *oldfilekey;
 	struct distributionhandles *d = data;
 
 	/* look for needed files */
@@ -668,19 +668,9 @@ retvalue add_package(void *data,const char *chunk,const char *package,const char
 		return RET_ERROR;
 	/* remove old references to files */
 
-	if( oldchunk ) {
-		r = binaries_parse_chunk(oldchunk,NULL,&oldfilekey,NULL,NULL,NULL);
-		if( RET_WAS_ERROR(r) ) {
-			free(newchunk);
-			return r;
-		}
-	} else 
-		oldfilekey = NULL;
-
 	result = checkindeb_insert(d->refs,d->referee,d->pkgs,package,newchunk,filekey,oldfilekey);
 
 	free(newchunk);
-	free(oldfilekey);
 	return result;
 }
 
@@ -843,7 +833,7 @@ static retvalue exportbin(void *data,const char *component,const char *architect
 	char *dbname,*filename;
 
 	result = release_genbinary(d->distribution,architecture,component,distdir);
-	dbname = mprintf("%s-%s-%s",d->distribution->codename,component,architecture);
+	dbname = calc_identifier(d->distribution->codename,component,architecture);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -1025,7 +1015,7 @@ static retvalue rerefbin(void *data,const char *component,const char *architectu
 	struct referee refdata;
 	DB *pkgs;
 
-	dbname = mprintf("%s-%s-%s",d->distribution->codename,component,architecture);
+	dbname = calc_identifier(d->distribution->codename,component,architecture);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -1148,7 +1138,7 @@ static retvalue check_binary(void *data,const char *package,const char *chunk) {
 	char *filekey;
 	retvalue r;
 
-	r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL);
+	r = binaries_parse_chunk(chunk,NULL,&filekey,NULL,NULL,NULL,NULL);
 	if( verbose >= 0 && r == RET_NOTHING ) {
 		fprintf(stderr,"Package does not look binary: '%s'\n",chunk);
 	}
@@ -1167,7 +1157,7 @@ static retvalue checkbin(void *data,const char *component,const char *architectu
 	char *dbname;
 	DB *pkgs;
 
-	dbname = mprintf("%s-%s-%s",d->distribution->codename,component,architecture);
+	dbname = calc_identifier(d->distribution->codename,component,architecture);
 	if( !dbname ) {
 		return RET_ERROR_OOM;
 	}
@@ -1332,21 +1322,33 @@ static int check(int argc,char *argv[]) {
 
 static int adddeb(int argc,char *argv[]) {
 	retvalue result,r;
-	DB *files;
+	DB *files,*references;
+	struct distribution *distribution;
 
 	if( argc < 4 ) {
 		fprintf(stderr,"mirrorer _adddeb <distribution> <part> <package>\n");
 		return 1;
 	}
 
+	result = distribution_get(&distribution,confdir,argv[1]);
+	if( result == RET_NOTHING ) {
+		fprintf(stderr,"Could not find '%s' in '%s/distributions'!",argv[1],confdir);
+		return 2;
+	}
+
 	files = files_initialize(dbdir);
 	if( !files )
 		return 1;
+	references = references_initialize(dbdir);
+	if( !files )
+		return 1;
 
-	//TODO check if distribution is valid and get's its architecture list
-	result =deb_add(files,mirrordir,argv[2],argv[1],NULL,argv[3],force);
+	result =deb_add(dbdir,references,files,mirrordir,argv[2],distribution,argv[3],force);
+	distribution_free(distribution);
 
 	r = files_done(files);
+	RET_ENDUPDATE(result,r);
+	r = references_done(references);
 	RET_ENDUPDATE(result,r);
 
 	return EXIT_RET(result);

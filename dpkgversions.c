@@ -149,3 +149,25 @@ int isVersionNewer(const char *first,const char *second) {
 	free((char*)v2.version);
 	return r>0;
 }
+
+retvalue dpkgversions_isNewer(const char *first,const char *second) {
+	struct versionrevision v1,v2;
+	const char *m;
+	int r;
+
+	if( (m = parseversion(&v1,first)) != NULL ) {
+	   fprintf(stderr,"Error while parsing '%s' as version: %s\n",first,m);
+	   return RET_ERROR;
+	}
+	if( (m = parseversion(&v2,second)) != NULL ) {
+	   fprintf(stderr,"Error while parsing '%s' as version: %s\n",second,m);
+	   return RET_ERROR;
+	}
+	r = versioncompare(&v1,&v2);
+	free((char*)v1.version);
+	free((char*)v2.version);
+	if( r > 0 )
+		return RET_OK;
+	else
+		return RET_NOTHING;
+}
