@@ -39,7 +39,7 @@
 #include "release.h"
 #include "download.h"
 #include "updates.h"
-#include "upgrade.h"
+#include "upgradelist.h"
 #include "signature.h"
 #include "extractcontrol.h"
 #include "checkindeb.h"
@@ -891,7 +891,7 @@ static int update(int argc,char *argv[]) {
 
 static int upgrade(int argc,char *argv[]) {
 	retvalue result,r;
-	upgradedb upgrade;
+	upgradelist upgrade;
 	packagesdb pkgs;
 
 	if( argc < 1 ) {
@@ -908,42 +908,18 @@ static int upgrade(int argc,char *argv[]) {
 	if( RET_WAS_ERROR(r) ) {
 		return EXIT_RET(r);
 	}
-	result = upgrade_initialize(&upgrade,dbdir,"woody-main-source",1);
+	result = upgradelist_initialize(&upgrade,pkgs,ud_always);
 	if( RET_WAS_ERROR(result) ) {
 		(void)packages_done(pkgs);
 		return EXIT_RET(result);
 	}
 
-	result = upgrade_start(upgrade,pkgs);
-	
-	r = upgrade_done(upgrade);
+	r = upgradelist_done(upgrade);
 	RET_ENDUPDATE(result,r);
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
 	
 //	result = updates_foreach(confdir,argc-1,argv+1,fetchupstreamlists,NULL,force);
-	return EXIT_RET(result);
-}
-
-static int dumpupgrade(int argc,char *argv[]) {
-	retvalue result,r;
-	upgradedb upgrade;
-
-	if( argc != 2 ) {
-		fprintf(stderr,"mirrorer upgrade <identifier>\n");
-		return 1;
-	}
-
-	result = upgrade_initialize(&upgrade,dbdir,argv[1],0);
-	if( RET_WAS_ERROR(result) ) {
-		return EXIT_RET(result);
-	}
-
-	result = upgrade_dump(upgrade);
-	
-	r = upgrade_done(upgrade);
-	RET_ENDUPDATE(result,r);
-	
 	return EXIT_RET(result);
 }
 
@@ -1203,7 +1179,6 @@ static struct action {
 	{"_addmd5sums",addmd5sums},
 	{"update",update},
 	{"upgrade",upgrade},
-	{"_dumpupgrade",dumpupgrade},
 	{"__extractcontrol",extract_control},
 	{"includedeb",includedeb},
 	{"includedsc",includedsc},
