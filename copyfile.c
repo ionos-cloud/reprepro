@@ -230,3 +230,14 @@ retvalue copyfile_copy(const char *mirrordir,const char *filekey,const char *ori
 	free(fullfilename);
 	return r;
 }
+
+retvalue regularfileexists(const char *fullfilename) {
+	struct stat s;
+	int i;
+
+	i = stat(fullfilename,&s);
+	if( i == 0 && S_ISREG(s.st_mode) )
+		return RET_OK;
+	else
+		return RET_ERROR_MISSING;
+}

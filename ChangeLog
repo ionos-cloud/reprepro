@@ -5,6 +5,8 @@
 
 	* --ignore= allows multiple options seperated by comas.
 
+	* Tell about -b if conf/distributions cannot be found
+
 2005-01-29  Bernhard R. Link <brlink@debian.org>
 	* Be more descriptive with missing signatures.
 

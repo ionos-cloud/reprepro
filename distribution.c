@@ -35,6 +35,7 @@
 #include "names.h"
 #include "release.h"
 #include "updates.h"
+#include "copyfile.h"
 #include "distribution.h"
 
 retvalue distribution_free(struct distribution *distribution) {
@@ -306,6 +307,14 @@ retvalue distribution_foreach(const char *conf,int argc,const char *argv[],distr
 	fn = calc_dirconcat(conf,"distributions");
 	if( !fn ) 
 		return RET_ERROR_OOM;
+
+	result = regularfileexists(fn);
+	if( RET_WAS_ERROR(result) ) {
+		fprintf(stderr,"Could not find '%s'!\n"
+"(Have you forgotten to specify a basedir by -b?\n"
+"To only set the conf/ dir use --confdir)\n",fn);
+		return RET_ERROR_MISSING;
+	}
 	
 	result = chunk_foreach(fn,processdistribution,&mydata,force,FALSE);
 
@@ -343,6 +352,14 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	fn = calc_dirconcat(conf,"distributions");
 	if( !fn ) 
 		return RET_ERROR_OOM;
+
+	result = regularfileexists(fn);
+	if( RET_WAS_ERROR(result) ) {
+		fprintf(stderr,"Could not find '%s'!\n"
+"(Have you forgotten to specify a basedir by -b?\n"
+"To only set the conf/ dir use --confdir)\n",fn);
+		return RET_ERROR_MISSING;
+	}
 	
 	result = chunk_foreach(fn,adddistribution,&mydata,0,FALSE);
 	free(fn);
@@ -381,6 +398,14 @@ retvalue distribution_get(struct distribution **distribution,const char *conf,co
 	fn = calc_dirconcat(conf,"distributions");
 	if( !fn ) 
 		return RET_ERROR_OOM;
+
+	result = regularfileexists(fn);
+	if( RET_WAS_ERROR(result) ) {
+		fprintf(stderr,"Could not find '%s'!\n"
+"(Have you forgotten to specify a basedir by -b?\n"
+"To only set the conf/ dir use --confdir)\n",fn);
+		return RET_ERROR_MISSING;
+	}
 	
 	result = chunk_foreach(fn,processgetdistribution,&mydata,0,TRUE);
 
