@@ -969,7 +969,7 @@ static retvalue doexport(void *dummy,const char *chunk,const struct release *rel
 
 	result = release_foreach_part(release,exportsource,exportbin,&dat);
 	
-	r = release_gen(release,distdir);
+	r = release_gen(release,distdir,chunk);
 	RET_UPDATE(result,r);
 
 	free(dirofdist);

@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
 #include <ctype.h>
@@ -420,12 +421,13 @@ static retvalue printsource(void *data,const char *component) {
 }
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct release *release,const char *distdir) {
+retvalue release_gen(const struct release *release,const char *distdir,const char *chunk) {
 	FILE *f;
 	char *filename;
+	char *sigfilename,*signwith,*signcommand;
 	char *dirofdist;
-	int e;
-	retvalue result;
+	int e,ret;
+	retvalue result,r;
 	char buffer[100];
 	time_t t;
 
@@ -458,7 +460,6 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 		free(dirofdist);
 		return RET_ERRNO(e);
 	}
-	free(filename);
 
 	fprintf(f,	
 			"Origin: %s\n"
@@ -483,10 +484,58 @@ retvalue release_gen(const struct release *release,const char *distdir) {
 	data.dirofdist = dirofdist;
 	result = release_foreach_part(release,printsource,printbin,&data);
 
-	free(dirofdist);
-	
-	if( fclose(f) != 0 )
+	if( fclose(f) != 0 ) {
+		free(dirofdist);
+		free(filename);
 		return RET_ERRNO(errno);
+	}
+
+	r = chunk_getvalue(chunk,"SignWith",&signwith);
+	if( RET_WAS_ERROR(r) ) {
+		free(dirofdist);
+		free(filename);
+		return RET_ERRNO(errno);
+	}
+
+	if( r != RET_NOTHING ) {
+		sigfilename = calc_dirconcat(dirofdist,"Release.gpg");
+		if( !sigfilename ) {
+			free(dirofdist);
+			free(signwith);
+			free(filename);
+			return RET_ERROR_OOM;
+		}
+		signcommand = mprintf("%s %s %s",signwith,sigfilename,filename);
+		if( !signcommand ) {
+			free(dirofdist); free(filename);
+			free(signwith); free(signcommand);
+			return RET_ERROR_OOM;
+		}
+
+		ret = unlink(sigfilename);
+		if( ret != 0 ) {
+			fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",sigfilename);
+			free(signcommand);
+			free(dirofdist);
+			free(filename);
+			return RET_ERROR;
+		}
+		
+		free(sigfilename);
+		free(signwith);
+
+		ret = system(signcommand);
+		if( ret != 0 ) {
+			fprintf(stderr,"Executing '%s' returned: %d\n",signcommand,ret);
+			result = RET_ERROR;
+		}
+
+		free(signcommand);
+	}
+	
+	free(dirofdist);
+	free(filename);
+	
 
 	return result;
 }

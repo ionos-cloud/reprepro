@@ -40,7 +40,7 @@ retvalue release_genbinary(const struct release *release,const char *arch,const 
 retvalue release_gensource(const struct release *release,const char *component,const char *distdir);
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_gen(const struct release *release,const char *distdir);
+retvalue release_gen(const struct release *release,const char *distdir,const char *chunk);
 
 typedef retvalue release_each_source_action(void *data, const char *component);
 typedef retvalue release_each_binary_action(void *data, const char *component, const char *arch);
