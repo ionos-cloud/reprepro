@@ -26,6 +26,9 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,struct strlist *files);
 
+/* split a "<md5> <size> <filename>" into md5sum and filename */
+retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum);
+
 /* move over a valid name of a package. (Who allowed "source(vers)" ??) */
 void names_overpkgname(const char **name_end);
 /* move over a version number */

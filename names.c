@@ -19,6 +19,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <string.h>
 #include <malloc.h>
 #include "error.h"
@@ -335,5 +336,72 @@ retvalue names_checkbasename(const char *basename) {
 		fprintf(stderr,"Unexpected Character '%c' in '%s'!\n",*n,basename);
 		return RET_ERROR;
 	}
+	return RET_OK;
+}
+
+/* split a "<md5> <size> <filename>" into md5sum and filename */
+retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) {
+	const char *md5,*md5end,*size,*sizeend,*fn,*fnend;
+	char *md5as,*filen;
+
+	assert( fileline != NULL );
+	if( *fileline == '\0' )
+		return RET_NOTHING;
+
+	/* the md5sums begins after the (perhaps) heading spaces ...  */
+	md5 = fileline;
+	while( isspace(*md5) )
+		md5++;
+	if( *md5 == '\0' )
+		return RET_NOTHING;
+
+	/* ... and ends with the following spaces. */
+	md5end = md5;
+	while( *md5end != '\0' && !isspace(*md5end) )
+		md5end++;
+	if( !isspace(*md5end) ) {
+		fprintf(stderr,"Expecting more data after md5sum!\n");
+		return RET_ERROR;
+	}
+	/* Then the size of the file is expected: */
+	size = md5end;
+	while( isspace(*size) )
+		size++;
+	sizeend = size;
+	while( isdigit(*sizeend) )
+		sizeend++;
+	if( !isspace(*sizeend) ) {
+		fprintf(stderr,"Error in parsing size or missing space afterwards!\n");
+		return RET_ERROR;
+	}
+	/* Then the filename */
+	fn = sizeend;
+	while( isspace(*fn) )
+		fn++;
+	fnend = fn;
+	while( *fnend != '\0' && !isspace(*fnend) )
+		fnend++;
+
+	filen = strndup(fn,fnend-fn);
+	if( !filen )
+		return RET_ERROR_OOM;
+	if( md5sum ) {
+		md5as = malloc((md5end-md5)+2+(sizeend-size));
+		if( !md5as ) {
+			free(filen);
+			return RET_ERROR_OOM;
+		}
+		strncpy(md5as,md5,md5end-md5);
+		md5as[md5end-md5] = ' ';
+		strncpy(md5as+1+(md5end-md5),size,sizeend-size);
+		md5as[(md5end-md5)+1+(sizeend-size)] = '\0';
+	
+		*md5sum = md5as;
+	}
+	if( filename )
+		*filename = filen;
+	else
+		free(filen);
+
 	return RET_OK;
 }

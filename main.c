@@ -445,17 +445,6 @@ static int md5sums(int argc,char *argv[]) {
 	}
 }
 
-static int checkrelease(int argc,char *argv[]) {
-	retvalue result;
-	
-	if( argc != 4 ) {
-		fprintf(stderr,"mirrorer checkrelease <Release-file> <name to look up> <Packages or Sources-files to check>\n");
-		return 1;
-	}
-	result = release_checkfile(argv[1],argv[2],argv[3]);
-	return EXIT_RET(result);
-}
-
 static retvalue doexport(void *dummy,const char *chunk,struct distribution *distribution) {
 
 	if( verbose > 0 ) {
@@ -795,7 +784,6 @@ static struct action {
 	{"_detect", detect},
 	{"_forget", forget},
 	{"_md5sums", md5sums},
-	{"checkrelease",checkrelease},
         {"remove", removepackage},
 	{"export", export},
 	{"check", check},

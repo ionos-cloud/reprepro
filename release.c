@@ -32,8 +32,6 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "chunks.h"
-#include "packages.h"
-#include "sources.h"
 #include "md5sum.h"
 #include "dirs.h"
 #include "names.h"
@@ -88,7 +86,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	}
 
 	for( i = 0 ; i < files.count ; i++ ) {
-		r = sources_getfile(files.values[i],&filename,&md5sum);
+		r = calc_parsefileline(files.values[i],&filename,&md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			strlist_done(&files);
 			strlist_done(&checksuminfo);
@@ -112,84 +110,6 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 
 	strlist_move(info,&checksuminfo);
 	return RET_OK;
-}
-
-/* check in fileinfo for <nametocheck> to have md5sum and size <expected> *
- * returns RET_OK if ok, == RET_NOTHING if not found, error otherwise     */
-static retvalue release_searchchecksum(const struct strlist *fileinfos, const char *nametocheck, const char *expected) {
-	int i;
-	const char *filename,*md5sum;
-
-	for( i = 0 ; i+1 < fileinfos->count ; i+=2 ) {
-		filename = fileinfos->values[i];
-		md5sum = fileinfos->values[i+1];
-		if( verbose > 20 ) 
-			fprintf(stderr,"is it %s?\n",filename);
-		if( strcmp(filename,nametocheck) == 0 ) {
-			if( verbose > 19 ) 
-				fprintf(stderr,"found. is '%s' == '%s'?\n",md5sum,expected);
-			if( strcmp(md5sum,expected) == 0 )
-				return RET_OK;
-			else 
-				return RET_ERROR_WRONG_MD5;
-		}
-	}
-	return RET_NOTHING;
-}
-
-/* check in fileinfo for <nametocheck> to have md5sum and size of <filename> *
- * returns RET_OK if ok, error otherwise     */
-retvalue release_check(const struct strlist *fileinfos, const char *nametocheck, const char *filename) {
-	char *realmd5sum;
-	retvalue r;
-
-	/* this does not really belong here, but makes live easier... */
-	if( !nametocheck || !filename )
-		return RET_ERROR_OOM;
-
-	r=md5sum_read(filename,&realmd5sum);
-	if( !RET_IS_OK(r)) {
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Error opening %s!\n",filename);
-			r = RET_ERROR;
-		}
-		return r;
-	}
-	r = release_searchchecksum(fileinfos,nametocheck,realmd5sum);
-	free(realmd5sum);
-	if( r == RET_NOTHING ) {
-		r = RET_ERROR;
-		fprintf(stderr,"Can't find authenticity '%s' for '%s'\n",nametocheck,filename);
-	} else if( !RET_IS_OK(r)) 
-		fprintf(stderr,"Error checking authenticity of %s\n",filename);
-	return r;
-}
-
-/* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,
- * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
-retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
-	retvalue r;
-	struct strlist files;
-
-	/* Get the md5sums from the Release-file */
-	r = release_getchecksums(releasefile,&files);
-	if( !RET_IS_OK(r) )
-		return r;
-	
-	r = release_check(&files,nametocheck,filetocheck);
-
-	if( verbose >=0 ) {
-		if( RET_IS_OK(r) ) 
-			printf("%s ok\n",nametocheck);
-		else if( r == RET_NOTHING )
-			fprintf(stderr,"%s failed as missing\n",nametocheck);
-		else // if( r == RET_ERROR_WRONG_MD5 )
-			fprintf(stderr,"%s failed\n",nametocheck);
-	}
-
-
-	strlist_done(&files);
-	return r;
 }
 
 /* Generate a "Release"-file for arbitrary directory */

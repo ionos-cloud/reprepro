@@ -26,8 +26,6 @@
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
-#include "packages.h"
-#include "reference.h"
 #include "chunks.h"
 #include "sources.h"
 #include "names.h"
@@ -35,79 +33,6 @@
 
 extern int verbose;
 
-/* traverse through a '\n' sepeated lit of "<md5sum> <size> <filename>" 
- * > 0 while entires found, ==0 when not, <0 on error */
-retvalue sources_getfile(const char *fileline,char **basename,char **md5sum) {
-	const char *md5,*md5end,*size,*sizeend,*fn,*fnend;
-	char *md5as,*filen;
-
-	assert( fileline != NULL );
-	if( *fileline == '\0' )
-		return RET_NOTHING;
-
-	/* the md5sums begins after the (perhaps) heading spaces ...  */
-	md5 = fileline;
-	while( isspace(*md5) )
-		md5++;
-	if( *md5 == '\0' )
-		return RET_NOTHING;
-
-	/* ... and ends with the following spaces. */
-	md5end = md5;
-	while( *md5end != '\0' && !isspace(*md5end) )
-		md5end++;
-	if( !isspace(*md5end) ) {
-		if( verbose >= 0 ) {
-			fprintf(stderr,"Expecting more data after md5sum!\n");
-		}
-		return RET_ERROR;
-	}
-	/* Then the size of the file is expected: */
-	size = md5end;
-	while( isspace(*size) )
-		size++;
-	sizeend = size;
-	while( isdigit(*sizeend) )
-		sizeend++;
-	if( !isspace(*sizeend) ) {
-		if( verbose >= 0 ) {
-			fprintf(stderr,"Error in parsing size or missing space afterwards!\n");
-		}
-		return RET_ERROR;
-	}
-	/* Then the filename */
-	fn = sizeend;
-	while( isspace(*fn) )
-		fn++;
-	fnend = fn;
-	while( *fnend != '\0' && !isspace(*fnend) )
-		fnend++;
-
-	filen = strndup(fn,fnend-fn);
-	if( !filen )
-		return RET_ERROR_OOM;
-	if( md5sum ) {
-		md5as = malloc((md5end-md5)+2+(sizeend-size));
-		if( !md5as ) {
-			free(filen);
-			return RET_ERROR_OOM;
-		}
-		strncpy(md5as,md5,md5end-md5);
-		md5as[md5end-md5] = ' ';
-		strncpy(md5as+1+(md5end-md5),size,sizeend-size);
-		md5as[(md5end-md5)+1+(sizeend-size)] = '\0';
-	
-		*md5sum = md5as;
-	}
-	if( basename )
-		*basename = filen;
-	else
-		free(filen);
-
-//	fprintf(stderr,"'%s' -> '%s' \n",*filename,*md5sum);
-	
-	return RET_OK;
-}
 
 static retvalue getBasenames(const struct strlist *filelines,struct strlist *basenames) {
 	int i;
@@ -123,7 +48,7 @@ static retvalue getBasenames(const struct strlist *filelines,struct strlist *bas
 		char *basename;
 		const char *fileline=filelines->values[i];
 
-		r = sources_getfile(fileline,&basename,NULL);
+		r = calc_parsefileline(fileline,&basename,NULL);
 		if( RET_WAS_ERROR(r) )
 			break;
 
@@ -161,7 +86,7 @@ static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlis
 		char *basename,*md5sum;
 		const char *fileline=filelines->values[i];
 
-		r = sources_getfile(fileline,&basename,&md5sum);
+		r = calc_parsefileline(fileline,&basename,&md5sum);
 		if( RET_WAS_ERROR(r) )
 			break;
 

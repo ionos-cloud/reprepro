@@ -6,18 +6,9 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef __MIRRORER_PACKAGES_H
-#include "packages.h"
-#warning "What's hapening here?"
-#endif
 #ifndef __MIRRORER_TARGET_H
 #include "target.h"
 #endif
-
-/* get filename and md5sum from a files: line" */
-retvalue sources_getfile(const char *fileline,
-		char **basename,
-		char **md5sum);
 
 retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums);
 
