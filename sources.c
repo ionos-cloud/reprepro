@@ -14,11 +14,13 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <errno.h>
 #include <string.h>
 #include <strings.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <malloc.h>
+#include "error.h"
 #include "packages.h"
 #include "reference.h"
 #include "chunks.h"
@@ -31,12 +33,12 @@ extern int force;
 
 /* traverse through a '\n' sepeated lit of "<md5sum> <size> <filename>" 
  * > 0 while entires found, ==0 when not, <0 on error */
-int sources_getfile(const char **files,char **filename,char **md5andsize) {
+retvalue sources_getfile(const char **files,char **filename,char **md5andsize) {
 	const char *md5,*md5end,*size,*sizeend,*fn,*fnend,*p;
 	char *md5as,*filen;
 
 	if( !files || !*files || !**files )
-		return 0;
+		return RET_NOTHING;
 
 	md5 = *files;
 	while( isspace(*md5) )
@@ -48,7 +50,7 @@ int sources_getfile(const char **files,char **filename,char **md5andsize) {
 		if( verbose >= 0 ) {
 			fprintf(stderr,"Expecting more data after md5sum!\n");
 		}
-		return -1;
+		return RET_ERROR;
 	}
 	size = md5end;
 	while( isspace(*size) )
@@ -60,7 +62,7 @@ int sources_getfile(const char **files,char **filename,char **md5andsize) {
 		if( verbose >= 0 ) {
 			fprintf(stderr,"Error in parsing size or missing space afterwards!\n");
 		}
-		return -1;
+		return RET_ERROR;
 	}
 	fn = sizeend;
 	while( isspace(*fn) )
@@ -69,7 +71,7 @@ int sources_getfile(const char **files,char **filename,char **md5andsize) {
 	while( *fnend && !isspace(*fnend) )
 		fnend++;
 	if( *fnend && !isspace(*fnend) )
-		return -1;
+		return RET_ERROR;
 	p = fnend;
 	while( *p && *p != '\n' )
 		p++;
@@ -82,7 +84,7 @@ int sources_getfile(const char **files,char **filename,char **md5andsize) {
 		md5as = malloc((md5end-md5)+2+(sizeend-size));
 		if( !filen || !md5as ) {
 			free(filen);free(md5as);
-			return -1;
+			return RET_ERROR_OOM;
 		}
 		strncpy(md5as,md5,md5end-md5);
 		md5as[md5end-md5] = ' ';
@@ -98,11 +100,11 @@ int sources_getfile(const char **files,char **filename,char **md5andsize) {
 
 //	fprintf(stderr,"'%s' -> '%s' \n",*filename,*md5andsize);
 	
-	return 1;
+	return RET_OK;
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-static int sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files) {
+static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **origdirectory,char **files) {
 	const char *f;
 #define IFREE(p) if(p) free(*p);
 
@@ -111,11 +113,11 @@ static int sources_parse_chunk(const char *chunk,char **packagename,char **origd
 		if( !f ) {
 			if( verbose > 3 )
 				fprintf(stderr,"Source-Chunk without Package-field!\n");
-			return 0;
+			return RET_NOTHING;
 		}
 		*packagename = chunk_dupvalue(f);	
 		if( !*packagename ) {
-			return -1;
+			return RET_ERROR;
 		}
 	}
 
@@ -124,12 +126,12 @@ static int sources_parse_chunk(const char *chunk,char **packagename,char **origd
 		f = chunk_getfield("Directory",chunk);
 		if( ! f ) {
 			IFREE(packagename);
-			return 0;
+			return RET_NOTHING;
 		}
 		*origdirectory = chunk_dupvalue(f);
 		if( !*origdirectory ) {
 			IFREE(packagename);
-			return -1;
+			return RET_ERROR;
 		}
 		if( verbose > 13 ) 
 			fprintf(stderr,"got: %s\n",*origdirectory);
@@ -144,17 +146,17 @@ static int sources_parse_chunk(const char *chunk,char **packagename,char **origd
   		if( !f ) {
 			IFREE(packagename);
   			IFREE(origdirectory);
-  			return 0;
+  			return RET_NOTHING;
 		}
 		*files = chunk_dupextralines(f);
 		if( !*files ) {
 			IFREE(packagename);
 			IFREE(origdirectory);
-			return -1;
+			return RET_ERROR;
 		}
 	}
 
-	return 1;
+	return RET_OK;
 }
 
 /* compare versions, 1= new is better, 0=old is better, <0 error */
@@ -176,23 +178,40 @@ static int sources_isnewer(const char *newchunk,const char *oldchunk) {
 	return r;
 }
 
-//typedef int source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,int hadold);
+//typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *olddirectory,const char *files,int hadold);
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
  * <pkgs> and using <part> as subdir of pool (i.e. "main","contrib",...) for generated paths */
-int sources_add(DB *pkgs,const char *part,const char *sources_file, source_package_action action,void *data) {
+retvalue sources_add(DB *pkgs,const char *part,const char *sources_file, source_package_action action,void *data) {
 	gzFile *fi;
 	char *chunk,*oldchunk;
 	char *package,*directory,*olddirectory,*files;
-	int r,hadold=0;
+	int hadold=0;
+	retvalue r,result;
 
 	fi = gzopen(sources_file,"r");
 	if( !fi ) {
 		fprintf(stderr,"Unable to open file %s\n",sources_file);
-		return -1;
+		return RET_ERRNO(errno);
 	}
+	result = RET_NOTHING;
 	while( (chunk = chunk_read(fi))) {
-		if( sources_parse_chunk(chunk,&package,&olddirectory,&files) > 0) {
+		package = NULL; olddirectory = NULL; files = NULL;
+		r = sources_parse_chunk(chunk,&package,&olddirectory,&files);
+		if( r == RET_NOTHING ) {
+err:
+			free(chunk);
+			free(package);free(files);
+			free(olddirectory);
+			gzclose(fi);
+			return RET_ERROR;
+		} else if( RET_WAS_ERROR(r) ) {
+			free(chunk);
+			free(package);free(files);
+			free(olddirectory);
+			gzclose(fi);
+			return r;
+		}else if( RET_IS_OK(r)) {
 			hadold = 0;
 			oldchunk = packages_get(pkgs,package);
 			if( oldchunk && (r=sources_isnewer(chunk,oldchunk)) != 0 ) {
@@ -215,23 +234,18 @@ int sources_add(DB *pkgs,const char *part,const char *sources_file, source_packa
 				r = (action)(data,chunk,package,directory,olddirectory,files,hadold);
 				free(directory);
 
-				if( (r < 0 && !force) || r< -1 )
+				if( RET_WAS_ERROR(r) && !force)
 					goto err;
+				RET_UPDATE(result,r);
 
 			} else
 				free(oldchunk);
 			
 			free(package);free(files);
 			free(olddirectory);
-		} /* noch keine else, damit auch available geht... */
+		}
 		free(chunk);
 	}
 	gzclose(fi);
-	return 0;
-err:
-	free(package);free(files);
-	free(olddirectory);
-	gzclose(fi);
-	return -1;
-
+	return result;
 }

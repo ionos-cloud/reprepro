@@ -20,9 +20,12 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <assert.h>
+#include "error.h"
+#include "md5sum.h"
 #include "md5.h"
 
-int md5sumAndSize(char *result,off_t *size,const char *filename,ssize_t bufsize){
+static retvalue md5sumAndSize(char *result,off_t *size,const char *filename,ssize_t bufsize){
 
 	struct MD5Context context;
 	unsigned char *buffer;
@@ -36,12 +39,12 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 	 * a stat after an open failed might be the way to go. */
 	fd = open(filename,O_RDONLY);
 	if( fd < 0 ) 
-		return fd;
+		return RET_ERRNO(-fd);
 
 	if( size ) {
 		if( fstat(fd,&stat) != 0) {
 			close(fd);
-			return 3;
+			return RET_ERROR;
 		}
 		*size = stat.st_size;
 	}
@@ -53,7 +56,7 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 
 	if( ! buffer ) {
 		close(fd);
-		return 1;
+		return RET_ERROR_OOM;
 	}
 	
 	MD5Init(&context);
@@ -62,7 +65,7 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 		if( sizeread < 0 ) {
 			free(buffer);
 			close(fd);
-			return 2;
+			return RET_ERROR;
 		}
 		if( sizeread > 0 )
 			MD5Update(&context,buffer,sizeread);
@@ -75,25 +78,28 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 	}
 	free(buffer);
 	result[32] = '\0';
-	return 0;
+	return RET_OK;
 }
 
-int md5sum_and_size(char **result,const char *filename,ssize_t bufsize){
+retvalue md5sum_and_size(char **result,const char *filename,ssize_t bufsize){
 	char md5Sum[33];
 	off_t size;
-	int ret;
+	retvalue ret;
 
+	assert(result != NULL);
 	ret = md5sumAndSize(md5Sum,&size,filename,bufsize);
-	if( ret != 0 ) {
+	if( RET_IS_OK(ret) ) {
+		asprintf(result,"%s %ld",md5Sum,size);
+		if( ! *result )
+			return RET_ERROR_OOM;
+		return RET_OK;
+	} else {
 		*result = NULL;
 		return ret;
-	} else {
-		asprintf(result,"%s %ld",md5Sum,size);
-		return 0;
 	}
 }
 
-int md5sum(char *result,const char *filename,ssize_t bufsize){
+retvalue md5sum(char *result,const char *filename,ssize_t bufsize){
 
 	return md5sumAndSize(result,NULL,filename,bufsize);
 }

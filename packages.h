@@ -10,14 +10,14 @@
 DB *packages_initialize(const char *dbpath,const char *identifier);
 
 /* release the packages-database initialized got be packages_initialize */
-int packages_done(DB *db);
+retvalue packages_done(DB *db);
 
 /* save a given chunk in the database */
-int packages_add(DB *packagsdb,const char *package,const char *chunk);
+retvalue packages_add(DB *packagsdb,const char *package,const char *chunk);
 /* replace a save chunk with another */
-int packages_replace(DB *packagsdb,const char *package,const char *chunk);
+retvalue packages_replace(DB *packagsdb,const char *package,const char *chunk);
 /* remove a given chunk from the database */
-int packages_remove(DB *filesdb,const char *package);
+retvalue packages_remove(DB *filesdb,const char *package);
 /* get the saved chunk from the database */
 char *packages_get(DB *packagesdb,const char *package);
 

@@ -14,11 +14,13 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#include <errno.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <malloc.h>
 #include <zlib.h>
 #include <db.h>
+#include "error.h"
 #include "chunks.h"
 #include "sources.h"
 #include "md5sum.h"
@@ -28,47 +30,46 @@ extern int verbose;
 
 /* check for a <filetocheck> to be have same md5sum and size as <nametocheck> in <releasefile>,
  * returns 1 if ok, == 0 if <nametocheck> not specified, != 1 on error */
-int release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
-	int r;
+retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck) {
+	retvalue r;
 	gzFile fi;
 	const char *f,*n;
 	char *c,*files;
 	char *filename,*md5andsize,*realmd5andsize;
-
 
 	/* Get the md5sums from the Release-file */
 	
 	fi = gzopen(releasefile,"r");
 	if( !fi ) {
 		fprintf(stderr,"Error opening %s: %m!\n",releasefile);
-		return 10;
+		return RET_ERRNO(errno);
 	}
 	c = chunk_read(fi);
 	gzclose(fi);
 	if( !c ) {
 		fprintf(stderr,"Error reading %s.\n",releasefile);
-		return 20;
+		return RET_ERROR;
 	}
 	f = chunk_getfield("MD5Sum",c);
 	if( !f ){
 		fprintf(stderr,"Missing MD5Sums-field.\n");
 		free(c);
-		return 5;
+		return RET_ERROR;
 	}
 	files = chunk_dupextralines(f);
 	free(c);
 	if( !files )
-		return 30;
+		return RET_ERROR;
 	
 	realmd5andsize = NULL;
-	if( (r=md5sum_and_size(&realmd5andsize,filetocheck,0)) != 0 ) {
+	if( ! RET_IS_OK(r=md5sum_and_size(&realmd5andsize,filetocheck,0))) {
 		fprintf(stderr,"Error checking %s: %m\n",filetocheck);
 		free(files);
-		return 4;
+		return r;
 	}
 
 	n = files;
-	while( ( r = sources_getfile(&n,&filename,&md5andsize) ) > 0 ) {
+	while( RET_IS_OK( r = sources_getfile(&n,&filename,&md5andsize) ) ) {
 		if( verbose > 2 ) 
 			fprintf(stderr,"is it %s?\n",filename);
 		if( strcmp(filename,nametocheck) == 0 ) {
@@ -78,19 +79,19 @@ int release_checkfile(const char *releasefile,const char *nametocheck,const char
 				if( verbose > 0 )
 					printf("%s ok\n",nametocheck);
 				free(md5andsize);free(filename);
-				r = 1;
+				r = RET_OK;
 				break;
 			} else {
 				if( verbose >=0 )
 					fprintf(stderr,"%s failed\n",nametocheck);
 				free(md5andsize);free(filename);
-				r = -1;
+				r = RET_ERROR_WRONG_MD5;
 				break;
 			}
 		}
 		free(md5andsize);free(filename);
 	}
-	if( r==0 && verbose>=0 )
+	if( r==RET_NOTHING && verbose>=0 )
 		fprintf(stderr,"%s failed as missing\n",nametocheck);
 	free(realmd5andsize);
 	free(files);

@@ -21,6 +21,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <db.h>
+#include "error.h"
 #include "md5sum.h"
 #include "dirs.h"
 #include "packages.h"
@@ -35,7 +36,7 @@ extern int verbose;
 /* initalize "md5sum and size"-database */
 DB *files_initialize(const char *dbpath) {
 	DB *dbp;
-	int ret;
+	int dbret;
 	char *filename;
 
 	
@@ -44,128 +45,143 @@ DB *files_initialize(const char *dbpath) {
 		free(filename);
 		return NULL;
 	}
-	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
+	if ((dbret = db_create(&dbp, NULL, 0)) != 0) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
 		free(filename);
 		return NULL;
 	}
-	if ((ret = dbp->open(dbp, filename, "md5sums", DB_BTREE, DB_CREATE, 0664)) != 0) {
-		dbp->err(dbp, ret, "%s", filename);
+	if ((dbret = dbp->open(dbp, filename, "md5sums", DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp->err(dbp, dbret, "%s", filename);
 		dbp->close(dbp,0);
 		free(filename);
 		return NULL;
-	}                     
+	}
 	free(filename);
 	return dbp;
 }
 
 /* release the files-database initialized got be files_initialize */
-int files_done(DB *db) {
+retvalue files_done(DB *db) {
+	int dberr;
 	/* just in case we want something here later */
-	return db->close(db,0);
+	dberr = db->close(db,0);
+	if( dberr != 0 )
+		return RET_DBERR(dberr);
+	else
+		return RET_OK;
 }
 
 /* Add file's md5sum to database */
-int files_add(DB *filesdb,const char *filekey,const char *md5sum_and_size) {
-	int ret;
+retvalue files_add(DB *filesdb,const char *filekey,const char *md5sum_and_size) {
+	int dbret;
 	DBT key,data;
 
 	SETDBT(key,filekey);
 	SETDBT(data,md5sum_and_size);
-	if ((ret = filesdb->put(filesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
+	if( (dbret = filesdb->put(filesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
 		if( verbose>1)
 			printf("db: %s: file added.\n", (const char *)key.data);
+		return RET_OK;
 	} else {
-		filesdb->err(filesdb, ret, "files.db:md5sums:");
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
 	}
-	return ret;
 }
 
 /* remove file's md5sum from database */
-int files_remove(DB *filesdb,const char *filekey) {
-	int ret;
+retvalue files_remove(DB *filesdb,const char *filekey) {
+	int dbret;
 	DBT key;
 
 	SETDBT(key,filekey);
-	if ((ret = filesdb->del(filesdb, NULL, &key, 0)) == 0) {
+	if ((dbret = filesdb->del(filesdb, NULL, &key, 0)) == 0) {
 		if( verbose>1 )
 			printf("db: %s: file forgotten.\n", (const char *)key.data);
+		return RET_OK;
 	} else {
-		filesdb->err(filesdb, ret, "files.db:md5sums:");
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
 	}
-	return ret;
 }
 
-/* look for file in database 
+/* look for file in database
  * returns: -2 wrong md5sum, -1: error, 0 not existant, 1 exists*/
-int files_check(DB *filesdb,const char *filekey,const char *md5sum_and_size) {
-	int ret;
+retvalue files_check(DB *filesdb,const char *filekey,const char *md5sum_and_size) {
+	int dbret;
 	DBT key,data;
 
 	SETDBT(key,filekey);
 	CLEARDBT(data);
 
-	if( (ret = filesdb->get(filesdb, NULL, &key, &data, 0)) == 0){
+	if( (dbret = filesdb->get(filesdb, NULL, &key, &data, 0)) == 0){
 		if( strcmp(md5sum_and_size,data.data) != 0 ) {
 			fprintf(stderr,"File \"%s\" is already registered with other md5sum!\n",filekey);
-			return -2;
+			return RET_ERROR_WRONG_MD5;
 		}
-		return 1;
-	} else if( ret == DB_NOTFOUND ){
-		return 0;
+		return RET_OK;
+	} else if( dbret == DB_NOTFOUND ){
+		return RET_NOTHING;
 	} else {
-		 filesdb->err(filesdb, ret, "files.db:");
-		 return -1;
+		 filesdb->err(filesdb, dbret, "files.db:");
+		 return RET_DBERR(dbret);
 	}
 }
 
 /* look for file, calculate its md5sum and add it */
-int files_detect(DB *filesdb,const char *mirrordir,const char *filekey) {
+retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey) {
 	char *filename,*md5andsize;	
-	int ret;
+	retvalue ret;
 
 	filename = calc_fullfilename(mirrordir,filekey);
 
 	if( !filename )
 		return -1;
 
+	md5andsize = NULL;
 	ret = md5sum_and_size(&md5andsize,filename,0);
 
-	if( ret != 0 ) {
+	if( ret == RET_NOTHING ) {
 		fprintf(stderr,"Error accessing file \"%s\": %m\n",filename);
 		free(filename);
 		free(md5andsize);
-		return -1;
+		return ret;
+
+	}
+	if( RET_WAS_ERROR(ret) ) {
+		fprintf(stderr,"Error checking file \"%s\": %m\n",filename);
+		free(filename);
+		free(md5andsize);
+		return ret;
 	}
 	free(filename);
 
 	ret = files_check(filesdb,filekey,md5andsize);
 
-	if( ret < 0 ) {
+	if( RET_WAS_ERROR(ret) ) {
 		free(md5andsize);
 		return ret;
 	}
 
-	if( ret == 0 ) {
+	if( ret == RET_NOTHING ) {
 		ret = files_add(filesdb,filekey,md5andsize);
 		free(md5andsize);
-		if( ret != 0 )
-			return -1;
-		return 1;
+		if( RET_WAS_ERROR(ret) )
+			return ret;
+		return RET_OK;
 	}
 
-	return 0;
+	return ret;
 }
 
 /* check for file in the database and if not found there, if it can be detected */
 int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const char *md5andsize) {
 	char *filename;
-	int ret;
+	retvalue ret;
 	char *realmd5andsize;
 
 	/* check in database */
 	ret = files_check(filesdb,filekey,md5andsize);
-	if( ret != 0 ) {
+	if( RET_WAS_ERROR(ret) ) {
 		return ret;
 	}
 
@@ -173,60 +189,69 @@ int files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const cha
 	
 	filename = calc_fullfilename(mirrordir,filekey);
 	if( !filename )
-		return -120;
+		return RET_ERROR_OOM;
 
+	realmd5andsize = NULL;
 	ret = md5sum_and_size(&realmd5andsize,filename,0);
 
-	if( ret != 0 ) {
-		if( ret != -EACCES && ret != -EPERM)
+	if( RET_WAS_ERROR(ret) ) {
+		// TODO: move this check to md5sum_and_size, should cause RET_NOTHING
+		if( ret != RET_ERRNO(EACCES) && ret != RET_ERRNO(EPERM)) {
 			fprintf(stderr,"Error accessing file \"%s\": %m(%d)\n",filename,ret);
-		free(filename);
-		free(realmd5andsize);
-		return (ret==-EACCES||ret==-EPERM)?0:-1;
+			free(filename);
+			free(realmd5andsize);
+			return RET_NOTHING;
+		} else {
+			free(filename);
+			free(realmd5andsize);
+			return ret;
+		}
 	}
 	free(filename);
+	if( ret == RET_NOTHING ) {
+		free(realmd5andsize);
+		return ret;
+	}
 
 	if( strcmp(md5andsize,realmd5andsize) != 0 ) {
 		fprintf(stderr,"File \"%s\" has other md5sum than expected!\n",filekey);
 		free(realmd5andsize);
-		return -2;
+		return RET_ERROR_WRONG_MD5;
 	}
 	free(realmd5andsize);
 
 	/* add file to database */
 
 	ret = files_add(filesdb,filekey,md5andsize);
-	if( ret != 0 )
-		return ret;
-	return 1;
+	return ret;
 }
 
 /* dump out all information */
 int files_printmd5sums(DB* filesdb) {
 	DBC *cursor;
 	DBT key,data;
-	int ret;
+	int dbret;
+	retvalue result;
 
 	cursor = NULL;
-	if( (ret = filesdb->cursor(filesdb,NULL,&cursor,0)) != 0 ) {
-		filesdb->err(filesdb, ret, "files.db:md5sums:");
-		return -1;
+	if( (dbret = filesdb->cursor(filesdb,NULL,&cursor,0)) != 0 ) {
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
 	}
 	CLEARDBT(key);	
 	CLEARDBT(data);	
-	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		printf("%s %s\n",(const char*)key.data,(const char*)data.data);		
-		
+	result = RET_NOTHING;
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		printf("%s %s\n",(const char*)key.data,(const char*)data.data);
+		result = RET_OK;
 	}
-	if( ret != DB_NOTFOUND ) {
-		filesdb->err(filesdb, ret, "files.db:md5sums:");
-		return -1;
+	if( dbret != DB_NOTFOUND ) {
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
 	}
-	if( (ret = cursor->c_close(cursor)) != 0 ) {
-		filesdb->err(filesdb, ret, "files.db:md5sums:");
-		return -1;
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		filesdb->err(filesdb, dbret, "files.db:md5sums:");
+		return RET_DBERR(dbret);
 	}
-	return 0;
+	return result;
 }
-
-

@@ -21,16 +21,23 @@
 #include <malloc.h>
 #include <string.h>
 #include <db.h>
+#include "error.h"
 #include "md5sum.h"
 #include "dirs.h"
+#include "reference.h"
 
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
 #define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
 
 extern int verbose;
 
-int references_done(DB *db) {
-	return db->close(db,0);
+retvalue references_done(DB *db) {
+	int r;
+	r = db->close(db,0);
+	if( r == 0 )
+		return RET_OK;
+	else
+		return RET_DBERR(r);
 }
 	
 DB *references_initialize(const char *dbpath) {
@@ -59,80 +66,85 @@ DB *references_initialize(const char *dbpath) {
 	return dbp;
 }
 
-int references_adddependency(DB* refdb,const char *needed,const char *neededby) {
-	int ret;
+retvalue references_adddependency(DB* refdb,const char *needed,const char *neededby) {
+	int dbret;
 	DBT key,data;
 
 	SETDBT(key,needed);
 	SETDBT(data,neededby);
-	if ((ret = refdb->put(refdb, NULL, &key, &data, 0)) == 0) {
+	if ((dbret = refdb->put(refdb, NULL, &key, &data, 0)) == 0) {
 		if( verbose > 2 )
 			fprintf(stderr,"db: %s: reference by %s added.\n", needed,neededby);
+		return RET_OK;
 	} else {
-		refdb->err(refdb, ret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
 	}
-	return ret;
-
 }
 
-int references_removedependency(DB* refdb,const char *neededby) {
+retvalue references_removedependency(DB* refdb,const char *neededby) {
 	DBC *cursor;
 	DBT key,data;
-	int ret, r = 0;
+	int dbret;
+	retvalue r;
 
+	r = RET_NOTHING;
 	cursor = NULL;
-	if( (ret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
-		refdb->err(refdb, ret, "references.db:reference:");
-		return -1;
+	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
 	}
 	CLEARDBT(key);	
 	CLEARDBT(data);	
-	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		if( strcmp( (const char*)data.data,neededby) == 0 ) {
 			if( verbose > 0 )
 				fprintf(stderr,"Removing mark from file '%s' to be needed by '%s'\n",
 					(const char *)key.data,neededby);
-			ret = cursor->c_del(cursor,0);
-			if( ret != 0 ) {
-				refdb->err(refdb, ret, "references.db:reference:");
-				r = -1;
+			dbret = cursor->c_del(cursor,0);
+			if( dbret != 0 ) {
+				refdb->err(refdb, dbret, "references.db:reference:");
+				RET_UPDATE(r,RET_DBERR(dbret));
 			}
 		}
 	}
-	if( ret != DB_NOTFOUND ) {
-		refdb->err(refdb, ret, "references.db:reference:");
-		return -1;
+	if( dbret != DB_NOTFOUND ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
 	}
-	if( (ret = cursor->c_close(cursor)) != 0 ) {
-		refdb->err(refdb, ret, "references.db:reference:");
-		return -1;
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
 	}
 	return r;
 }
 
 /* print out all referee-referenced-pairs. return 1 if ok, -1 on error */
-int references_dump(DB *refdb) {
+retvalue references_dump(DB *refdb) {
 	DBC *cursor;
 	DBT key,data;
-	int ret;
+	int dbret;
+	retvalue result;
 
 	cursor = NULL;
-	if( (ret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
-		refdb->err(refdb, ret, "references.db:reference:");
-		return -1;
+	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
 	}
 	CLEARDBT(key);	
-	CLEARDBT(data);	
-	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+	CLEARDBT(data);
+	result = RET_NOTHING;
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		printf("%s %s\n",(const char*)data.data,(const char*)key.data);
+		result = RET_OK;
 	}
-	if( ret != DB_NOTFOUND ) {
-		refdb->err(refdb, ret, "references.db:reference:");
-		return -1;
+	if( dbret != DB_NOTFOUND ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
 	}
-	if( (ret = cursor->c_close(cursor)) != 0 ) {
-		refdb->err(refdb, ret, "references.db:reference:");
-		return -1;
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		refdb->err(refdb, dbret, "references.db:reference:");
+		return RET_DBERR(dbret);
 	}
-	return 1;
+	return result;
 }

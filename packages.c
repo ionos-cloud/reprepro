@@ -33,9 +33,14 @@
 extern int verbose;
 
 /* release the packages-database initialized got be packages_initialize */
-int packages_done(DB *db) {
+retvalue packages_done(DB *db) {
+	int r;
 	/* just in case we want something here later */
-	return db->close(db,0);
+	r = db->close(db,0);
+	if( r < 0 )
+		return RET_DBERR(r);
+	else
+		return RET_OK;
 }
 
 /* initialize the packages-database for <identifier> */
@@ -66,7 +71,7 @@ DB *packages_initialize(const char *dbpath,const char *identifier) {
 }
 
 /* replace a save chunk with another */
-int packages_replace(DB *packagesdb,const char *package,const char *chunk) {
+retvalue packages_replace(DB *packagesdb,const char *package,const char *chunk) {
 	int dbret;
 	DBT key,data;
 
@@ -77,21 +82,22 @@ int packages_replace(DB *packagesdb,const char *package,const char *chunk) {
 	} else {
 		packagesdb->err(packagesdb, dbret, "packages.db, while removing old %s:",package);
 		if( dbret != DB_NOTFOUND )
-			return dbret;
+			return RET_DBERR(dbret);
 	}
 	SETDBT(key,package);
 	SETDBT(data,chunk);
 	if ((dbret = packagesdb->put(packagesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
 		if( verbose > 2 )
 			printf("db: %s: package-chunk added.\n", (const char *)key.data);
+		return RET_OK;
 	} else {
 		packagesdb->err(packagesdb, dbret, "packages.db:");
+		return RET_DBERR(dbret);
 	}
-	return dbret;
 }
 
 /* save a given chunk in the database */
-int packages_add(DB *packagesdb,const char *package,const char *chunk) {
+retvalue packages_add(DB *packagesdb,const char *package,const char *chunk) {
 	int dbret;
 	DBT key,data;
 
@@ -100,10 +106,11 @@ int packages_add(DB *packagesdb,const char *package,const char *chunk) {
 	if ((dbret = packagesdb->put(packagesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
 		if( verbose > 2 )
 			printf("db: %s: package-chunk added.\n", (const char *)key.data);
+		return RET_OK;
 	} else {
 		packagesdb->err(packagesdb, dbret, "packages.db:");
+		return RET_DBERR(dbret);
 	}
-	return dbret;
 }
 
 /* get the saved chunk from the database */
@@ -125,7 +132,7 @@ char *packages_get(DB *packagesdb,const char *package) {
 }
 
 /* remove a given chunk from the database */
-int packages_remove(DB *packagesdb,const char *package) {
+retvalue packages_remove(DB *packagesdb,const char *package) {
 	int dbret;
 	DBT key;
 
@@ -133,10 +140,11 @@ int packages_remove(DB *packagesdb,const char *package) {
 	if ((dbret = packagesdb->del(packagesdb, NULL, &key, 0)) == 0) {
 		if( verbose > 2 )
 			printf("db: %s: package forgotten.\n", (const char *)key.data);
+		return RET_OK;
 	} else {
 		packagesdb->err(packagesdb, dbret, "packages.db:");
+		return RET_DBERR(dbret);
 	}
-	return dbret;
 }
 
 /* check for existance of the given version of a package in the arch, */
@@ -158,7 +166,7 @@ retvalue package_check(DB *packagesdb,const char *package) {
 }
 
 /* action to be called by packages_forall */
-//typedef int per_package_action(void *data,const char *package,const char *chunk);
+//typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
 
 /* call action once for each saved chunk: */
 retvalue packages_foreach(DB *packagesdb,per_package_action action,void *privdata) {
@@ -179,17 +187,17 @@ retvalue packages_foreach(DB *packagesdb,per_package_action action,void *privdat
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		r = action(privdata,(const char*)key.data,(const char*)data.data);
 		RET_UPDATE(ret,r);
-		if( r < 0 ) 
+		if( RET_WAS_ERROR(r)) 
 			break;
 	}
 
 	if( dbret != 0 && dbret != DB_NOTFOUND ) {
 		packagesdb->err(packagesdb, dbret, "packages.db:");
-		return RET_ERROR;
+		return RET_DBERR(dbret);
 	}
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
 		packagesdb->err(packagesdb, dbret, "packages.db:");
-		return RET_ERROR;
+		return RET_DBERR(dbret);
 	}
 
 	return ret;
@@ -226,7 +234,7 @@ retvalue packages_printout(DB *packagesdb,const char *filename) {
 	ret = packages_foreach(packagesdb,printout,pf);
 	r = fclose(pf);
 	if( r != 0 )
-		RET_UPDATE(ret,RET_ERRNO(errno));
+		RET_ENDUPDATE(ret,RET_ERRNO(errno));
 	return ret;
 }
 
@@ -245,7 +253,7 @@ retvalue packages_zprintout(DB *packagesdb,const char *filename) {
 	ret = packages_foreach(packagesdb,zprintout,pf);
 	r = gzclose(pf);
 	if( r < 0 )
-		RET_UPDATE(ret,RET_ZERRNO(r));
+		RET_ENDUPDATE(ret,RET_ZERRNO(r));
 	return ret;
 }
 
