@@ -101,7 +101,7 @@ retvalue references_increment(DB* refdb,const char *needed,const char *neededby)
 			fprintf(stderr,"db: %s: reference by %s added.\n", needed,neededby);
 		return RET_OK;
 	} else {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_increment dberror:");
 		return RET_DBERR(dbret);
 	}
 }
@@ -116,7 +116,7 @@ retvalue references_decrement(DB* refdb,const char *needed,const char *neededby)
 	r = RET_NOTHING;
 	cursor = NULL;
 	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_decrement dberror:");
 		return RET_DBERR(dbret);
 	}
 	SETDBT(key,needed);	
@@ -127,16 +127,16 @@ retvalue references_decrement(DB* refdb,const char *needed,const char *neededby)
 					(const char *)key.data,neededby);
 			dbret = cursor->c_del(cursor,0);
 			if( dbret != 0 ) {
-				refdb->err(refdb, dbret, "references.db:reference:");
+				refdb->err(refdb, dbret, "references_decrement dberror(del):");
 				RET_UPDATE(r,RET_DBERR(dbret));
 			}
-	}
+	} else 
 	if( dbret != DB_NOTFOUND ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_decrement dberror(get):");
 		return RET_DBERR(dbret);
 	}
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_decrement dberror(cl):");
 		return RET_DBERR(dbret);
 	}
 	return r;
@@ -152,7 +152,7 @@ retvalue references_remove(DB* refdb,const char *neededby) {
 	r = RET_NOTHING;
 	cursor = NULL;
 	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_remove dberror(cursor):");
 		return RET_DBERR(dbret);
 	}
 	CLEARDBT(key);	
@@ -164,17 +164,17 @@ retvalue references_remove(DB* refdb,const char *neededby) {
 					(const char *)key.data,neededby);
 			dbret = cursor->c_del(cursor,0);
 			if( dbret != 0 ) {
-				refdb->err(refdb, dbret, "references.db:reference:");
+				refdb->err(refdb, dbret, "references_remove dberror(del):");
 				RET_UPDATE(r,RET_DBERR(dbret));
 			}
 		}
 	}
 	if( dbret != DB_NOTFOUND ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_remove dberror(get):");
 		return RET_DBERR(dbret);
 	}
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_remove dberror(cl):");
 		return RET_DBERR(dbret);
 	}
 	return r;
@@ -189,7 +189,7 @@ retvalue references_dump(DB *refdb) {
 
 	cursor = NULL;
 	if( (dbret = refdb->cursor(refdb,NULL,&cursor,0)) != 0 ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_dump dberror(cursor):");
 		return RET_DBERR(dbret);
 	}
 	CLEARDBT(key);	
@@ -200,11 +200,11 @@ retvalue references_dump(DB *refdb) {
 		result = RET_OK;
 	}
 	if( dbret != DB_NOTFOUND ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_dump dberror(get):");
 		return RET_DBERR(dbret);
 	}
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		refdb->err(refdb, dbret, "references.db:reference:");
+		refdb->err(refdb, dbret, "references_dump dberror:");
 		return RET_DBERR(dbret);
 	}
 	return result;
