@@ -202,7 +202,7 @@ static retvalue getfilekeys(const char *directory,const struct strlist *files,st
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *files) {
+static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *files) {
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
 
@@ -396,7 +396,7 @@ static inline retvalue callaction(new_package_action *action, void *data,
 
 struct sources_add {DB *pkgs; void *data; const char *component; new_package_action *action; };
 
-static retvalue addsource(void *data,const char *chunk) {
+static retvalue callsaction(void *data,const char *chunk) {
 	retvalue r;
 	struct sources_add *d = data;
 
@@ -448,5 +448,5 @@ retvalue sources_findnew(DB *pkgs,const char *component,const char *sources_file
 	mydata.component=component;
 	mydata.action=action;
 
-	return chunk_foreach(sources_file,addsource,&mydata,force,0);
+	return chunk_foreach(sources_file,callsaction,&mydata,force,0);
 }

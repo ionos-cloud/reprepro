@@ -33,7 +33,7 @@
 extern int verbose;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **sourcename,char **basename,struct strlist *md5sums,char **version) {
+static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **sourcename,char **basename,struct strlist *md5sums,char **version) {
 	char *ppackage;
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
