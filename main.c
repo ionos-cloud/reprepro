@@ -895,7 +895,7 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 			return RET_ERROR;
 		}
 	} else if( strcmp(argv[0],"includedeb") == 0 ) {
-		binarytype="udeb";
+		binarytype="deb";
 		if( packagetype != NULL && strcmp(packagetype,"deb") != 0 ) {
 			fprintf(stderr,"Calling includedeb with -T something where something is not 'deb' makes no sense!\n");
 			return RET_ERROR;
