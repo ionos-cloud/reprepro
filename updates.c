@@ -39,7 +39,7 @@ extern int verbose;
 
 // typedef retvalue updatesaction(void *data,const char *chunk,const struct release *release,struct update *update);
 
-struct myupdatesdata {
+struct updates_data {
 	const char *updatesfile;
 	int force;
 	struct strlist upstreams;
@@ -48,46 +48,136 @@ struct myupdatesdata {
 	void *data;
 };
 
-static retvalue processupdates(void *data,const char *chunk) {
-	struct myupdatesdata *d = data;
+static retvalue splitComponents(struct strlist *components_from,
+				struct strlist *components_into,
+				const struct strlist *components,
+				const struct strlist *released) {
 	retvalue r;
 	int i;
-	struct update update;
-	struct strlist componentlist;
-	const struct strlist *components;
-	int components_need_free;
-	const char *component;
+	const char *component,*dest;
 	char *origin,*destination;
+
+	/* * Iterator over components to update * */
+	r = RET_NOTHING;
+	for( i = 0 ; i < components->count ; i++ ) {
+		component = components->values[i];
+		if( !(dest = strchr(component,'>')) || !*(dest+1)) {
+			destination = strdup(component);
+			origin = strdup(component);
+		} else {
+			origin = strndup(component,dest-component);
+			destination = strdup(dest+1);
+		}
+		if( !origin || ! destination ) {
+			free(origin);free(destination);
+			return RET_ERROR_OOM;
+		}
+		//TODO: check if in release.compoents 
+		r = strlist_add(components_from,origin);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = strlist_add(components_into,destination);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = RET_OK;
+	}
+	return r;
+}
+
+static retvalue calcComponentsToUpdate(struct strlist *components_from,
+					struct strlist *components_into,
+					const char *updatechunk,
+					const struct strlist *releasedcomponents) {
+	retvalue r;
+	struct strlist componentlist;
+
+	assert( components_from != NULL && components_into != NULL );
+
+	/* First look what is to do, otherwise it's easy... */
+	r = chunk_getwordlist(updatechunk,"Components",&componentlist);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	} else
+	if( r == RET_NOTHING ) {
+		/* if nothing given, we just do everything... */
+		r = strlist_dup(components_from,releasedcomponents);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = strlist_dup(components_into,releasedcomponents);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(components_from);
+			return r;
+		}
+		return RET_OK;
+	}
+
+	/* initializing components_from,components_into and getting components: */
+	r = strlist_init(components_from);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&componentlist);
+		return r;
+	}
+	r = strlist_init(components_into);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(components_from);
+		strlist_done(&componentlist);
+		return r;
+	}
+
+	r = strlist_init(components_from);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = strlist_init(components_into);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(components_from);
+		return r;
+	}
+
+	/* * Iterator over components to update * */
+	r = splitComponents(components_from,components_into,&componentlist,releasedcomponents);
+
+	if( !RET_IS_OK(r) ) {
+		strlist_done(components_into);
+		strlist_done(components_from);
+	}
+	strlist_done(&componentlist);
+	return r;
+}
+
+static retvalue processupdates(void *data,const char *chunk) {
+	struct updates_data *d = data;
+	retvalue r;
+	struct update update;
 
 	r = chunk_getvalue(chunk,"Name",&update.name);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Unexpected chunk in updates-file: '%s'.\n",chunk);
-		return r;
+		return RET_ERROR;
 	}
 	if( !RET_IS_OK(r) )
 		return r;
 
-	r = RET_NOTHING;
+	if( !strlist_in(&d->upstreams,update.name) ) {
+		fprintf(stderr,"skipping '%s' in this run\n",update.name);
+		free(update.name);
+		return RET_NOTHING;
+	}
 
-	if( strlist_in(&d->upstreams,update.name) ) {
-
-
-// TODO: the following is a mess to read, fix it...		
-		
-
-		if( verbose > 2 ) {
-			fprintf(stderr,"processing '%s' for '%s'\n",update.name,d->release->codename);
-		}
-		/* * Check which suite to update from * */
-		r = chunk_getvalue(chunk,"Suite",&update.suite_from);
-		if( r == RET_NOTHING ) {
-			/* if nothing given, try the one we know */
-			update.suite_from = strdup(d->release->codename);
-			if( !update.suite_from )
-				r = RET_ERROR_OOM;
-		} // TODO: check for some token to be repaced by the codename?
-		  // i.e. */updates gets stable/updates unstable/updates ...
-		if( !RET_WAS_ERROR(r) ) {
+	if( verbose > 2 ) {
+		fprintf(stderr,"processing '%s' for '%s'\n",
+				update.name,d->release->codename);
+	}
+	/* * Check which suite to update from * */
+	r = chunk_getvalue(chunk,"Suite",&update.suite_from);
+	if( r == RET_NOTHING ) {
+		/* if nothing given, try the one we know */
+		update.suite_from = strdup(d->release->codename);
+		if( !update.suite_from )
+			r = RET_ERROR_OOM;
+	} 
+	// TODO: check for some token to be repaced by the codename?
+	// i.e. */updates gets stable/updates unstable/updates ...
+	if( !RET_WAS_ERROR(r) ) {
 
 		/* * Check which architectures to update from * */
 		r = chunk_getwordlist(chunk,"Architectures",&update.architectures);
@@ -97,69 +187,30 @@ static retvalue processupdates(void *data,const char *chunk) {
 		}
 		if( !RET_WAS_ERROR(r) ) {
 
-		/* * Check which components to update from * */
+			/* * Check which components to update from * */
 
-		components_need_free = 1;
-		components = &componentlist;
-		r = chunk_getwordlist(chunk,"Components",&componentlist);
-		if( r == RET_NOTHING ) {
-			/* if nothing given, try to get all the distribution knows */
-			components = &d->release->components;
-			components_need_free = 0;
-		}
-		if( !RET_WAS_ERROR(r) ) {
-			r = strlist_init(&update.components_from);
-			if( !RET_WAS_ERROR(r) ) {
-			r = strlist_init(&update.components_into);
-			if( !RET_WAS_ERROR(r) ) {
+			r = calcComponentsToUpdate(
+					&update.components_from,
+					&update.components_into,
+					chunk,&d->release->components);
 
-			/* * Iterator over components to update * */
-			r = RET_NOTHING;
-			for( i = 0 ; i < components->count ; i++ ) {
-				component = components->values[i];
-				if( !(destination = strchr(component,'>')) || !*(destination+1)) {
-					destination = strdup(component);
-					origin = strdup(component);
-				} else {
-					origin = strndup(component,destination-component);
-					destination = strdup(destination+1);
-				}
-				if( !origin || ! destination ) {
-					r = RET_ERROR_OOM;
-					break;
-				}
-				//TODO: check if in release.compoents 
-				r = strlist_add(&update.components_from,origin);
-				if( RET_WAS_ERROR(r) )
-					break;
-				r = strlist_add(&update.components_into,destination);
-				if( RET_WAS_ERROR(r) )
-					break;
-			}
-
-			if( !RET_WAS_ERROR(r) )
+			if( RET_IS_OK(r) ) {
 				r = d->action(d->data,chunk,d->release,&update);
 
-			if( components_need_free )
-				strlist_done(&componentlist);
-			strlist_done(&update.components_into);
-	  	}
-			strlist_done(&update.components_from);
-		} } 
+				strlist_done(&update.components_into);
+				strlist_done(&update.components_from);
+			} 
 			strlist_done(&update.architectures);
 		}
-			free(update.suite_from);
-		}
-
-	} else if( verbose > 5 ) {
-		fprintf(stderr,"skipping '%s' in this run\n",update.name);
+		free(update.suite_from);
 	}
+
 	free(update.name);
 	return r;
 }
 
 static retvalue doupdate(void *data,const char *chunk,const struct release *release) {
-	struct myupdatesdata *d = data;
+	struct updates_data *d = data;
 	retvalue r;
 
 	r = chunk_getwordlist(chunk,"Update",&d->upstreams);
@@ -180,7 +231,7 @@ static retvalue doupdate(void *data,const char *chunk,const struct release *rele
 
 
 retvalue updates_foreach(const char *confdir,int argc,char *argv[],updatesaction action,void *data,int force) {
-	struct myupdatesdata mydata;
+	struct updates_data mydata;
 	retvalue result;
 
 	mydata.updatesfile = calc_dirconcat(confdir,"updates");

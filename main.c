@@ -1187,7 +1187,9 @@ static int update(int argc,char *argv[]) {
 		fprintf(stderr,"mirrorer update [<distributions>]\n");
 		return 1;
 	}
-	
+
+	// TODO: check for resturn-value
+	make_dir_recursive(listdir);	
 	result = updates_foreach(confdir,argc-1,argv+1,fetchupstreamlists,NULL,force);
 	return EXIT_RET(result);
 }
