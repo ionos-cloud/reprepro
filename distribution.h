@@ -19,7 +19,7 @@ typedef retvalue distribution_each_source_action(void *data, const char *compone
 typedef retvalue distribution_each_binary_action(void *data, const char *component, const char *arch);
 
 /* call <sourceaction> for each source part of <distribution> and <binaction> for each binary part of it. */
-retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_source_action sourceaction,distribution_each_binary_action binaction,void *data);
+retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_source_action sourceaction,distribution_each_binary_action binaction,void *data,int force);
 
 
 typedef retvalue distributionaction(void *data,const char *chunk,const struct distribution *distribution);

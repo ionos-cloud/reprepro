@@ -110,7 +110,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 	
 
 /* call <sourceaction> for each source part of <distribution> and <binaction> for each binary part of it. */
-retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_source_action sourceaction,distribution_each_binary_action binaction,void *data) {
+retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_source_action sourceaction,distribution_each_binary_action binaction,void *data,int force) {
 	retvalue result,r;
 	int i,j;
 	const char *arch,*comp;
@@ -123,13 +123,15 @@ retvalue distribution_foreach_part(const struct distribution *distribution,distr
 			if( strcmp(arch,"source") != 0 ) {
 				r = binaction(data,comp,arch);
 				RET_UPDATE(result,r);
-				//TODO: decide if break on error/introduce a force-flag
+				if( RET_WAS_ERROR(r) && force <= 0 )
+					return result;
 			}
 			
 		}
 		r = sourceaction(data,comp);
 		RET_UPDATE(result,r);
-		//TODO: dito
+		if( RET_WAS_ERROR(r) && force <= 0 )
+			return result;
 	}
 	return result;
 }
@@ -137,14 +139,14 @@ retvalue distribution_foreach_part(const struct distribution *distribution,distr
 struct dist_mydata {struct distribution_filter filter; distributionaction *action; void *data;};
 
 static retvalue processdistribution(void *d,const char *chunk) {
-	struct dist_mydata *dist_mydata = d;
+	struct dist_mydata *mydata = d;
 	retvalue result;
 	struct distribution *distribution;
 
-	result = distribution_parse_and_filter(&distribution,chunk,dist_mydata->filter);
+	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter);
 	if( RET_IS_OK(result) ){
 
-		result = dist_mydata->action(dist_mydata->data,chunk,distribution);
+		result = mydata->action(mydata->data,chunk,distribution);
 		distribution_free(distribution);
 	}
 
@@ -154,18 +156,18 @@ static retvalue processdistribution(void *d,const char *chunk) {
 retvalue distribution_foreach(const char *conf,int argc,char *argv[],distributionaction action,void *data,int force) {
 	retvalue result;
 	char *fn;
-	struct dist_mydata dist_mydata;
+	struct dist_mydata mydata;
 
-	dist_mydata.filter.count = argc;
-	dist_mydata.filter.dists = argv;
-	dist_mydata.data = data;
-	dist_mydata.action = action;
+	mydata.filter.count = argc;
+	mydata.filter.dists = argv;
+	mydata.data = data;
+	mydata.action = action;
 	
 	fn = calc_dirconcat(conf,"distributions");
 	if( !fn ) 
 		return RET_ERROR_OOM;
 	
-	result = chunk_foreach(fn,processdistribution,&dist_mydata,force);
+	result = chunk_foreach(fn,processdistribution,&mydata,force);
 
 	free(fn);
 	return result;

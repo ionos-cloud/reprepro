@@ -397,7 +397,8 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 
 	data.f = f;
 	data.dirofdist = dirofdist;
-	result = distribution_foreach_part(distribution,printsource,printbin,&data);
+	//TODO: get a force from above?
+	result = distribution_foreach_part(distribution,printsource,printbin,&data,0);
 
 	if( fclose(f) != 0 ) {
 		free(dirofdist);

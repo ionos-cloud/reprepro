@@ -828,7 +828,7 @@ static int checkrelease(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-struct data_binsrcexport { const struct distribution *distribution; const char *dirofdist;};
+struct data_binsrcexport { const struct distribution *distribution; const char *dirofdist;int force;};
 
 static retvalue exportbin(void *data,const char *component,const char *architecture) {
 	retvalue result,r;
@@ -915,7 +915,7 @@ static retvalue doexport(void *dummy,const char *chunk,const struct distribution
 	dat.distribution = distribution;
 	dat.dirofdist = dirofdist;
 
-	result = distribution_foreach_part(distribution,exportsource,exportbin,&dat);
+	result = distribution_foreach_part(distribution,exportsource,exportbin,&dat,force);
 	
 	r = release_gen(distribution,distdir,chunk);
 	RET_UPDATE(result,r);
@@ -1165,7 +1165,7 @@ static retvalue rereference_dist(void *data,const char *chunk,const struct distr
 	dat.distribution = distribution;
 	dat.references = data;
 
-	result = distribution_foreach_part(distribution,rerefsrc,rerefbin,&dat);
+	result = distribution_foreach_part(distribution,rerefsrc,rerefbin,&dat,force);
 
 	return result;
 }
@@ -1344,7 +1344,7 @@ static retvalue check_dist(void *data,const char *chunk,const struct distributio
 
 	dat->distribution = distribution;
 
-	result = distribution_foreach_part(distribution,checksrc,checkbin,dat);
+	result = distribution_foreach_part(distribution,checksrc,checkbin,dat,force);
 	
 	return result;
 }
