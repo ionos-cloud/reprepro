@@ -24,6 +24,7 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "error.h"
 #include "strlist.h"
