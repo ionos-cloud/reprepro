@@ -42,6 +42,10 @@ retvalue packages_get(packagesdb db,const char *package,char **chunk);
  */
 retvalue packages_check(packagesdb db,const char *package);
 
+/* rereference a full database */
+typedef retvalue extractfilekeys(const char *,struct strlist *);
+retvalue packages_rereference(const char *dbdir,DB *referencesdb,extractfilekeys *extractfilekeys,const char *codename,const char *component,const char *architecture,int force);
+
 /* insert a chunk in the packages database, adding and deleting
  * references and insert files while that. */
 retvalue packages_insert(DB *referencesdb, packagesdb packagesdb,

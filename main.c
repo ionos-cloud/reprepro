@@ -400,50 +400,6 @@ struct referee {
 	const char *identifier;
 };
 
-static retvalue reference_binary(void *data,const char *package,const char *chunk) {
-	struct referee *dist = data;
-	struct strlist filekeys;
-	retvalue r;
-
-	r = binaries_parse_getfiles(chunk,&filekeys);
-	if( verbose >= 0 && r == RET_NOTHING ) {
-		fprintf(stderr,"Package does not look binary: '%s'\n",chunk);
-	}
-	if( !RET_IS_OK(r) )
-		return r;
-	if( verbose > 10 ) {
-		fprintf(stderr,"referencing filekeys: ");
-		strlist_fprint(stderr,&filekeys);
-		putc('\n',stderr);
-	}
-	r = references_insert(dist->refs,dist->identifier,&filekeys,NULL);
-	strlist_done(&filekeys);
-	return r;
-}
-
-static retvalue reference_source(void *data,const char *package,const char *chunk) {
-	struct referee *dist = data;
-	struct strlist filekeys;
-	retvalue r;
-
-	r = sources_parse_getfilekeys(chunk,&filekeys);
-	if( verbose >= 0 && r == RET_NOTHING ) {
-		fprintf(stderr,"Package does not look like source: '%s'\n",chunk);
-	}
-	if( !RET_IS_OK(r) )
-		return r;
-
-	if( verbose > 10 )
-		fprintf(stderr,"referencing source package: %s\n",package);
-
-	r = references_insert(dist->refs,dist->identifier,&filekeys,NULL);
-
-	strlist_done(&filekeys);
-
-	return r;
-}
-
-
 /****** common for [prepare]add{sources,packages} *****/
 
 struct distributionhandles {
@@ -936,86 +892,18 @@ static int update(int argc,char *argv[]) {
 struct data_binsrcreref { const struct distribution *distribution; DB *references;};
 
 static retvalue rerefbin(void *data,const char *component,const char *architecture) {
-	retvalue result,r;
+	retvalue result;
 	struct data_binsrcreref *d = data;
-	char *dbname;
-	struct referee refdata;
-	packagesdb pkgs;
 
-	dbname = calc_identifier(d->distribution->codename,component,architecture);
-	if( !dbname ) {
-		return RET_ERROR_OOM;
-	}
-	if( verbose > 1 ) {
-		if( verbose > 2 )
-			fprintf(stderr,"Unlocking depencies of %s...\n",dbname);
-		else
-			fprintf(stderr,"Rereferencing %s...\n",dbname);
-	}
-
-	r = packages_initialize(&pkgs,dbdir,dbname);
-	if( RET_WAS_ERROR(r) ) {
-		free(dbname);
-		return r;
-	}
-
-	result = references_remove(d->references,dbname);
-
-	if( verbose > 2 )
-		fprintf(stderr,"Referencing %s...\n",dbname);
-
-	refdata.refs = d->references;
-	refdata.identifier = dbname;
-	r = packages_foreach(pkgs,reference_binary,&refdata,force);
-	RET_UPDATE(result,r);
-	
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-
-	free(dbname);
-
+	result = packages_rereference(dbdir,d->references,binaries_parse_getfiles,d->distribution->codename,component,architecture,force);
 	return result;
 }
 
 static retvalue rerefsrc(void *data,const char *component) {
-	retvalue result,r;
+	retvalue result;
 	struct data_binsrcreref *d = data;
-	char *dbname;
-	struct referee refdata;
-	packagesdb pkgs;
 
-	dbname = calc_identifier(d->distribution->codename,component,"source");
-	if( !dbname ) {
-		return RET_ERROR_OOM;
-	}
-	if( verbose > 1 ) {
-		if( verbose > 2 )
-			fprintf(stderr,"Unlocking depencies of %s...\n",dbname);
-		else
-			fprintf(stderr,"Rereferencing %s...\n",dbname);
-	}
-
-	r = packages_initialize(&pkgs,dbdir,dbname);
-	if( RET_WAS_ERROR(r) ) {
-		free(dbname);
-		return r;
-	}
-
-	result = references_remove(d->references,dbname);
-
-	if( verbose > 2 )
-		fprintf(stderr,"Referencing %s...\n",dbname);
-
-	refdata.refs = d->references;
-	refdata.identifier = dbname;
-	r = packages_foreach(pkgs,reference_source,&refdata,force);
-	RET_UPDATE(result,r);
-	
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-
-	free(dbname);
-
+	result = packages_rereference(dbdir,d->references,sources_parse_getfilekeys,d->distribution->codename,component,"source",force);
 	return result;
 }
 
