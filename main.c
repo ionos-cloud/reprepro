@@ -946,19 +946,11 @@ static int upgrade(int argc,char *argv[]) {
 /***********************rereferencing*************************/
 struct data_binsrcreref { const struct distribution *distribution; DB *references;};
 
-static retvalue rerefbin(void *data,const char *component,const char *architecture) {
+static retvalue reref(void *data,const target target) {
 	retvalue result;
 	struct data_binsrcreref *d = data;
 
-	result = packages_rereference(dbdir,d->references,binaries_parse_getfilekeys,d->distribution->codename,component,architecture,force);
-	return result;
-}
-
-static retvalue rerefsrc(void *data,const char *component) {
-	retvalue result;
-	struct data_binsrcreref *d = data;
-
-	result = packages_rereference(dbdir,d->references,sources_parse_getfilekeys,d->distribution->codename,component,"source",force);
+	result = target_rereference(dbdir,d->references,target,force);
 	return result;
 }
 
@@ -974,7 +966,7 @@ static retvalue rereference_dist(void *data,const char *chunk,const struct distr
 	dat.distribution = distribution;
 	dat.references = data;
 
-	result = distribution_foreach_part(distribution,rerefsrc,rerefbin,&dat,force);
+	result = distribution_foreach_part_t(distribution,reref,&dat,force);
 
 	return result;
 }
@@ -1000,24 +992,16 @@ static int rereference(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 /***********************checking*************************/
-struct data_binsrccheck { const struct distribution *distribution; DB *references; filesdb files;};
+struct data_check { const struct distribution *distribution; DB *references; filesdb files;};
 
+static retvalue check_target(void *data,const target target) {
+	struct data_check *d = data;
 
-static retvalue checkbin(void *data,const char *component,const char *architecture) {
-	struct data_binsrccheck *d = data;
-
-	return packages_check(dbdir,d->files,d->references,binaries_parse_getfilekeys,d->distribution->codename,component,architecture,force);
+	return target_check(dbdir,d->files,d->references,target,force);
 }
-
-static retvalue checksrc(void *data,const char *component) {
-	struct data_binsrccheck *d = data;
-
-	return packages_check(dbdir,d->files,d->references,sources_parse_getfilekeys,d->distribution->codename,component,"source",force);
-}
-
 
 static retvalue check_dist(void *data,const char *chunk,const struct distribution *distribution) {
-	struct data_binsrccheck *dat=data;
+	struct data_check *dat=data;
 	retvalue result;
 
 	if( verbose > 0 ) {
@@ -1027,14 +1011,14 @@ static retvalue check_dist(void *data,const char *chunk,const struct distributio
 
 	dat->distribution = distribution;
 
-	result = distribution_foreach_part(distribution,checksrc,checkbin,dat,force);
+	result = distribution_foreach_part_t(distribution,check_target,dat,force);
 	
 	return result;
 }
 
 static int check(int argc,char *argv[]) {
 	retvalue result,r;
-	struct data_binsrccheck dat;
+	struct data_check dat;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"mirrorer check [<distributions>]\n");

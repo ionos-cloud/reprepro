@@ -187,6 +187,45 @@ retvalue release_checkfile(const char *releasefile,const char *nametocheck,const
 	return r;
 }
 
+/* Generate a "Release"-file for arbitrary directory */
+retvalue release_genrelease(const struct distribution *distribution,const target target,const char *distdir) {
+	FILE *f;
+	char *filename;
+	int e;
+
+
+	filename = calc_dirconcat3(distdir,target->directory,"Release");
+	if( !filename ) {
+		return RET_ERROR_OOM;
+	}
+	(void)dirs_make_parent(filename);
+	f = fopen(filename,"w");
+	if( !f ) {
+		e = errno;
+		fprintf(stderr,"Error (re)writing file %s: %m\n",filename);
+		free(filename);
+		return RET_ERRNO(e);
+	}
+	free(filename);
+
+	fprintf(f,	"Archive: %s\n"
+			"Version: %s\n"
+			"Component: %s\n"
+			"Origin: %s\n"
+			"Label: %s\n"
+			"Architecture: %s\n"
+			"Description: %s\n",
+		distribution->suite,distribution->version,target->component,
+		distribution->origin,distribution->label,target->architecture,
+		distribution->description);
+
+	if( fclose(f) != 0 )
+		return RET_ERRNO(errno);
+
+	return RET_OK;
+	
+}
+
 /* Generate a "Release"-file for binary directory */
 retvalue release_genbinary(const struct distribution *distribution,const char *arch,const char *component,const char *distdir) {
 	FILE *f;

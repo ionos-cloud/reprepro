@@ -5,8 +5,15 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef __MIRRORER_STRLIST_H
 #include "strlist.h"
+#endif
+#ifndef __MIRRORER_DISTRIBUTION_H
 #include "distribution.h"
+#endif
+#ifndef __MIRRORER_TARGET_H
+#include "target.h"
+#endif
 
 /******* Checking contents of release-files ***********/
 
@@ -25,6 +32,8 @@ retvalue release_check(const struct strlist *fileinfos, const char *nametocheck,
 retvalue release_checkfile(const char *releasefile,const char *nametocheck,const char *filetocheck);
 
 /****** Generate release-files *************/
+/* Generate a "Release"-file for an arbitrary  directory */
+retvalue release_genrelease(const struct distribution *distribution,const target target,const char *distdir);
 
 /* Generate a "Release"-file for binary directory */
 retvalue release_genbinary(const struct distribution *distribution,const char *arch,const char *component,const char *distdir);

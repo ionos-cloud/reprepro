@@ -101,6 +101,10 @@ char *calc_dirconcat(const char *str1,const char *str2) {
 	return mprintf("%s/%s",str1,str2);
 }
 
+char *calc_dirconcat3(const char *str1,const char *str2,const char *str3) {
+	return mprintf("%s/%s/%s",str1,str2,str3);
+}
+
 char *calc_srcfilekey(const char *sourcedir,const char *filename){
 	return calc_dirconcat(sourcedir,filename);
 }

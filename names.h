@@ -3,6 +3,7 @@
 
 char *calc_addsuffix(const char *str1,const char *str2);
 char *calc_dirconcat(const char *str1,const char *str2);
+char *calc_dirconcat3(const char *str1,const char *str2,const char *str3);
 char *calc_binary_basename(const char *package,const char *version,const char *architecture);
 char *calc_source_basename(const char *name,const char *version);
 char *calc_sourcedir(const char *component,const char *sourcename);

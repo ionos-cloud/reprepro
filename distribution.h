@@ -5,7 +5,12 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef __MIRRORER_STRLIST_H
 #include "strlist.h"
+#endif
+#ifndef __MIRRORER_TARGET_H
+#include "target.h"
+#endif
 
 struct distribution {
 	char *codename,*suite,*version;
@@ -19,10 +24,13 @@ void distribution_free(struct distribution *distribution);
 
 typedef retvalue distribution_each_source_action(void *data, const char *component);
 typedef retvalue distribution_each_binary_action(void *data, const char *component, const char *arch);
+typedef retvalue distribution_each_action(void *data, const target t);
 
 /* call <sourceaction> for each source part of <distribution> and <binaction> for each binary part of it. */
 retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_source_action sourceaction,distribution_each_binary_action binaction,void *data,int force);
 
+/* call <action> for each part of <distribution>. */
+retvalue distribution_foreach_part_t(const struct distribution *distribution,distribution_each_action action,void *data,int force);
 
 typedef retvalue distributionaction(void *data,const char *chunk,const struct distribution *distribution);
 

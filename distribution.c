@@ -111,6 +111,41 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 	return result;
 }
 	
+/* call <action> for each part of <distribution>. */
+retvalue distribution_foreach_part_t(const struct distribution *distribution,distribution_each_action action,void *data,int force) {
+	retvalue result,r;
+	int i,j;
+	const char *arch,*comp;
+	target t;
+
+	result = RET_NOTHING;
+	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		comp = distribution->components.values[i];
+		for( j = 0 ; j < distribution->architectures.count ; j++ ) {
+			arch = distribution->architectures.values[j];
+			if( strcmp(arch,"source") != 0 ) {
+				r = target_initialize_binary(distribution->codename,comp,arch,&t);
+				if( RET_IS_OK(r) ) {
+					r = action(data,t);
+					target_done(t);
+				}
+				RET_UPDATE(result,r);
+				if( RET_WAS_ERROR(r) && force <= 0 )
+					return result;
+			}
+			
+		}
+		r = target_initialize_source(distribution->codename,comp,&t);
+		if( RET_IS_OK(r) ) {
+			r = action(data,t);
+			target_done(t);
+		}
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 )
+			return result;
+	}
+	return result;
+}
 
 /* call <sourceaction> for each source part of <distribution> and <binaction> for each binary part of it. */
 retvalue distribution_foreach_part(const struct distribution *distribution,distribution_each_source_action sourceaction,distribution_each_binary_action binaction,void *data,int force) {

@@ -20,6 +20,7 @@ struct s_target {
 	char *component;
 	char *architecture;
 	char *identifier;
+	char *directory;
 	get_name *getname;
 	get_version *getversion;
 	get_installdata *getinstalldata;
@@ -31,4 +32,6 @@ retvalue target_initialize_source(const char *distribution,const char *component
 void target_done(target target);
 
 retvalue target_addpackage(target target,packagesdb packages,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force);
+retvalue target_rereference(const char *dbdir,DB *referencesdb,target target,int force);
+retvalue target_check(const char *dbdir,filesdb filesdb,DB *referencesdb,target target,int force);
 #endif
