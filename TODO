@@ -5,6 +5,7 @@ TODO:
 		(allow it needing a passphrase)
 	add support for removing packages automatically
 		when removed upstream. (downgrade too?)
+	switch to delete files after having included them.
 
 	write dokumentation, some examples
 
