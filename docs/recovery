@@ -1,0 +1,61 @@
+Some tipps what to do if (hopefully never), your database gets
+corrupted:
+
+First there are three different databases used, residing in three
+files in your --dbdir (normaly db/): 
+
+1) references.db
+This file only contains the information which file in the pool/
+is needed by which target (i.e. which type/distribution/
+component/architecture quadrupple). This is simply repairable by 
+deleting references.db and running "rereference".
+
+The current state of this database can be seen with "dumpreferences".
+All references from some specific target can be removed with
+"_removereferences".
+
+2) files.db
+This file contains the information which files in the pool/ dir
+are known. Files not in here will not be deleted with 
+"deleteunreferenced". Files beeing wrong here will not realized
+(and thus not corrected even if told to be newly included)
+
+To get this database in textform use "_md5sums" without argument,
+to add items manualy pipe it into "_addmd5sums". (Filenames
+are handled as strings, so be careful).
+
+If the database is completely lost, you can regain it by moving
+files.db out of the way and running:
+find $BASEDIR/pool -type f -printf "pool/%P\n" | reprepro -b $BASEDIR _detect  
+(or cd $BASEDIR && find pool -type f -print | reprepro -b . _detect)
+
+Also single files can be removed or added by "_forget" and "_detect".
+(Again note filekeys will be handled as strings, so leading "./", double
+ slashes, "/./", symlinks  and the like make them differ).
+
+3) packages.db
+This file contains multiple databases, one for each target, containing
+the chunks from the Packages or Sources files, indixed by package name.
+
+This one is the hardest to reconstruct. If you have still an uncorrupted
+"dists/" directory around, (e.g. you just deleted db/ accidentially),
+it can be reconstructed by moving your dists/ directory to some other place, 
+moving the packages.db file (if still existant) away, and set every distribution 
+in conf/distributions a "Update: localreadd" with localreadd in conf/updates like:
+Name: localreadd
+Suite: *
+Method: copy:/<otherplace>
+
+with otherplace beeing the place you moved the dists/ directory too.
+
+If the packages-database is corrupt, the described way can at least reconstruct
+the Packages still landing in the the Packages.gz and Sources.gz files.
+If references.db is still accessable via dumpreferences, it can give hints
+where the other files belong to. Otherwise removing references.db and calling
+"rereference" and then "dumpunreferenced" will give you a list of files not
+yet anywhere.
+
+
+Last but not least, there are also the "check" and "checkpool" commands, which
+can give some hints about inconsitencies. (Check will also readd files missing
+from files.db if they are needed by packages)
