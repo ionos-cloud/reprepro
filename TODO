@@ -12,3 +12,9 @@ TODO:
 
 	write dokumentation, some examples
 	update for use with newer gpgpme
+
+far goals:
+	check for source of package, 
+	      for sources without packages.
+	      for unmeet Dependencies
+	      for unmeet Build-dependencies.
