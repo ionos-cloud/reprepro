@@ -76,6 +76,44 @@ static bool_t	nolistsdownload = FALSE;
 static bool_t	keepunreferenced = FALSE;
 int		verbose = 0;
 
+static inline retvalue removeunreferencedfiles(references refs,filesdb files,struct strlist *dereferencedfilekeys) {
+	int i;
+	retvalue result,r;
+	result = RET_OK;
+
+	for( i = 0 ; i < dereferencedfilekeys->count ; i++ ) {
+		const char *filekey = dereferencedfilekeys->values[i];
+
+		r = references_isused(refs,filekey);
+		if( r == RET_NOTHING ) {
+			r = files_deleteandremove(files,filekey);
+		}
+		RET_UPDATE(result,r);
+	}
+	return result;
+}
+
+static inline retvalue possiblyremoveunreferencedfilekeys(retvalue result,
+		references refs,filesdb files,struct strlist *dereferencedfilekeys) {
+	retvalue r;
+
+	if( !keepunreferenced && dereferencedfilekeys->count > 0 ) {
+		if( RET_IS_OK(result) ) {
+			if( verbose >= 0 )
+				fprintf(stderr,"Deleting files no longer referenced...\n");
+			r = removeunreferencedfiles(refs,files,dereferencedfilekeys);
+			RET_UPDATE(result,r);
+		} else {
+			fprintf(stderr,
+"Not deleting possibly left over files due to previous errors.\n"
+"(To avoid the files in the still existing index files vanishing)\n"
+"Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
+		}
+	}
+	strlist_done(dereferencedfilekeys);
+	return result;
+}
+
 static retvalue action_printargs(int argc,const char *argv[]) {
 	int i;
 
@@ -358,21 +396,14 @@ static retvalue action_remove(int argc,const char *argv[]) {
 		r = files_initialize(&files,dbdir,mirrordir);
 		RET_ENDUPDATE(result,r);
 		if( RET_IS_OK(r) ) {
-			int i;
-			for( i = 0 ; i < d.removedfiles.count ; i++ ) {
-				const char *filekey = d.removedfiles.values[i];
-
-				r = references_isused(d.refs,filekey);
-				if( r == RET_NOTHING ) {
-					r = files_deleteandremove(files,filekey);
-				}
-				RET_ENDUPDATE(result,r);
-			}
+			r = removeunreferencedfiles(d.refs,files,&d.removedfiles);
+			RET_ENDUPDATE(result,r);
 			r = files_done(files);
 			RET_ENDUPDATE(result,r);
+		} else {
+			strlist_done(&d.removedfiles);
 		}
 	}
-	strlist_done(&d.removedfiles);
 	r = references_done(d.refs);
 	RET_ENDUPDATE(result,r);
 	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {
@@ -596,6 +627,7 @@ static retvalue action_update(int argc,const char *argv[]) {
 	struct update_pattern *patterns;
 	struct distribution *distributions;
 	filesdb files;
+	struct strlist dereferencedfilekeys;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro update [<distributions>]\n");
@@ -603,6 +635,10 @@ static retvalue action_update(int argc,const char *argv[]) {
 	}
 
 	result = dirs_make_recursive(listdir);	
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = strlist_init(&dereferencedfilekeys);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -632,11 +668,8 @@ static retvalue action_update(int argc,const char *argv[]) {
 		return result;
 	}
 
-	result = updates_update(dbdir,methoddir,files,refs,distributions,force,nolistsdownload);
+	result = updates_update(dbdir,methoddir,files,refs,distributions,force,nolistsdownload,keepunreferenced?NULL:&dereferencedfilekeys);
 
-	r = files_done(files);
-	RET_ENDUPDATE(result,r);
-	
 	doexport = force>0 || RET_IS_OK(result);
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
@@ -651,8 +684,11 @@ static retvalue action_update(int argc,const char *argv[]) {
 		(void)distribution_free(distributions);
 		distributions = d;
 	}
+	result = possiblyremoveunreferencedfilekeys(result,refs,files,&dereferencedfilekeys);
 
 	r = references_done(refs);
+	RET_ENDUPDATE(result,r);
+	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -846,10 +882,15 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 	filesdb files;references refs;
 	struct distribution *distribution;
 	struct overrideinfo *override;
+	struct strlist dereferencedfilekeys;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] includedeb <distribution> <package>\n");
 		return RET_ERROR;
+	}
+	result = strlist_init(&dereferencedfilekeys);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
@@ -889,12 +930,14 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 	}
 
 	result = deb_add(dbdir,refs,files,component,architecture,
-			section,priority,"deb",distribution,argv[2],NULL,NULL,override,force,delete);
+			section,priority,"deb",distribution,argv[2],NULL,NULL,override,force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
 
 	override_free(override);
 
 	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
+
+	result = possiblyremoveunreferencedfilekeys(result,refs,files,&dereferencedfilekeys);
 
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -912,6 +955,7 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 	filesdb files; references refs;
 	struct distribution *distribution;
 	struct overrideinfo *srcoverride;
+	struct strlist dereferencedfilekeys;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] includedsc <distribution> <package>\n");
@@ -921,6 +965,11 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 	if( architecture != NULL && strcmp(architecture,"source") != 0 ) {
 		fprintf(stderr,"Cannot put a source-package anywhere else than in architecture 'source'!\n");
 		return RET_ERROR;
+	}
+
+	result = strlist_init(&dereferencedfilekeys);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
@@ -949,13 +998,16 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 		return r;
 	}
 
-	result = dsc_add(dbdir,refs,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete);
+	result = dsc_add(dbdir,refs,files,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
 	
 	override_free(srcoverride);
 	r = distribution_export(distribution,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
+
+	result = possiblyremoveunreferencedfilekeys(result,refs,files,&dereferencedfilekeys);
+	
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(refs);
@@ -969,10 +1021,15 @@ static retvalue action_include(int argc,const char *argv[]) {
 	filesdb files;references refs;
 	struct distribution *distribution;
 	struct overrideinfo *override,*srcoverride;
+	struct strlist dereferencedfilekeys;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] include <distribution> <.changes-file>\n");
 		return RET_ERROR;
+	}
+	result = strlist_init(&dereferencedfilekeys);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
@@ -1010,7 +1067,7 @@ static retvalue action_include(int argc,const char *argv[]) {
 		return r;
 	}
 
-	result = changes_add(dbdir,refs,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete);
+	result = changes_add(dbdir,refs,files,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete,keepunreferenced?NULL:&dereferencedfilekeys);
 
 	override_free(override);override_free(srcoverride);
 	
@@ -1018,6 +1075,9 @@ static retvalue action_include(int argc,const char *argv[]) {
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
+
+	result = possiblyremoveunreferencedfilekeys(result,refs,files,&dereferencedfilekeys);
+	
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(refs);

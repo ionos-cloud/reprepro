@@ -62,8 +62,8 @@ retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade);
-retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *removedfilekeys);
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade,struct strlist *dereferencedfilekeys);
+retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *dereferencedfilekeys);
 retvalue target_writeindices(struct target *target,const char *distdir, int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
 retvalue target_rereference(struct target *target,references refs,int force);

@@ -148,9 +148,9 @@ retvalue target_closepackagesdb(struct target *target) {
 	return r;
 }
 
-/* Remove a package from the given target. If removedfilekeys != NULL, add there the
+/* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
  * filekeys that lost references */
-retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *removedfilekeys) {
+retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *dereferencedfilekeys) {
 	char *oldchunk;
 	struct strlist files;
 	retvalue r;
@@ -158,8 +158,9 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 	assert(target && target->packages && name);
 
 	r = packages_get(target->packages,name,&oldchunk);
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
 		return r;
+	}
 	else if( r == RET_NOTHING ) {
 		if( verbose >= 10 )
 			fprintf(stderr,"Could not find '%s' in '%s'...\n",
@@ -176,19 +177,13 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 	r = packages_remove(target->packages,name);
 	if( RET_IS_OK(r) ) {
 		target->wasmodified = TRUE;
-		r = references_delete(refs,target->identifier,&files,NULL);
-	}
-	if( removedfilekeys != NULL ) {
-		retvalue r2 = strlist_mvadd(removedfilekeys,&files);
-		if( RET_WAS_ERROR(r2) )
-			strlist_done(&files);
-	} else {
+		r = references_delete(refs,target->identifier,&files,NULL,dereferencedfilekeys);
+	} else
 		strlist_done(&files);
-	}
 	return r;
 }
 
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade) {
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade, struct strlist *dereferencedfilekeys) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol;
 	retvalue r;
@@ -245,12 +240,10 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 				return r;
 		}
 	}
-	r = packages_insert(refs,target->packages,name,control,filekeys,ofk);
+	r = packages_insert(refs,target->packages,name,control,filekeys,ofk,dereferencedfilekeys);
 	if( RET_IS_OK(r) )
 		target->wasmodified = TRUE;
 
-	if( ofk )
-		strlist_done(ofk);
 	return r;
 }
 

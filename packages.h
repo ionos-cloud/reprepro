@@ -41,11 +41,13 @@ retvalue packages_remove(packagesdb db,const char *package);
 retvalue packages_get(packagesdb db,const char *package,char **chunk);
 
 /* insert a chunk in the packages database, adding and deleting
- * references and insert files while that. */
+ * references and insert files while that.
+ * free oldfiles, if != NULL, add filekeys losing reference to derferencedfilekeys*/
 retvalue packages_insert(references refs, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
-		const struct strlist *oldfiles);
+		struct strlist *oldfiles,
+		struct strlist *dereferencedfilekeys);
 
 retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompression compression);
 

@@ -26,9 +26,12 @@ retvalue references_insert(references ref,const char *identifer,
 		const struct strlist *files,const struct strlist *exclude);
 
 /* Remove reference by <identifer> for the given <oldfiles>,
- * excluding <exclude>, if it is nonNULL. */
+ * excluding <exclude>, if it is nonNULL.
+ * if dereferencedfilekeys is != NULL, add those losing one reference,
+ * files will be freed (or moved to dereferencedfilekeys) */
 retvalue references_delete(references ref,const char *identifer,
-		const struct strlist *files,const struct strlist *exclude);
+		struct strlist *files,const struct strlist *exclude,
+		struct strlist *dereferencedfilekeys);
 
 /* add an reference to a file for an identifier. multiple calls
  * will add multiple references to allow source packages to share

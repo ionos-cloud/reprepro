@@ -20,6 +20,7 @@
  * causing error, if it is not one of them otherwise)
  * if overwrite is not NULL, it will be search for fields to reset for this
  * package. (forcesection and forcepriority have higher priority than the
- * information there) */
-retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *override,int force,int delete);
+ * information there),
+ * if dereferencedfilekeys is != NULL, add there filekeys that lost a reference */
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *suffix,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys);
 #endif

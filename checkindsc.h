@@ -19,7 +19,8 @@
  * if component is NULL, guess it from the section.
  * If basename, filekey and directory are != NULL, then they are used instead 
  * of beeing newly calculated. 
- * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete);
+ * (And all files are expected to already be in the pool),
+ * if dereferenced_filekeys is != NULL, add there the filekeys that lost a reference*/
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *derefencedfilekeys);
 
 #endif

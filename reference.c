@@ -16,6 +16,7 @@
  */
 #include <config.h>
 
+#include <assert.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -235,20 +236,31 @@ retvalue references_insert(references refs,const char *identifier,
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
 retvalue references_delete(references refs,const char *identifier,
-		const struct strlist *files,const struct strlist *exclude) {
+		struct strlist *files,const struct strlist *exclude,
+		struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	int i;
+
+	assert( files != NULL );
 
 	result = RET_NOTHING;
 
 	for( i = 0 ; i < files->count ; i++ ) {
-		const char *filename = files->values[i];
+		char *filekey = files->values[i];
+		files->values[i] = NULL;
 
-		if( exclude == NULL || !strlist_in(exclude,filename) ) {
-			r = references_decrement(refs,filename,identifier);
+		if( exclude == NULL || !strlist_in(exclude,filekey) ) {
+			r = references_decrement(refs,filekey,identifier);
 			RET_UPDATE(result,r);
-		}
+			if( RET_IS_OK(r) && dereferencedfilekeys ) {
+				r = strlist_adduniq(dereferencedfilekeys, filekey);
+				RET_UPDATE(result,r);
+			} else
+				free(filekey);
+		} else
+			free(filekey);
 	}
+	strlist_done(files);
 	return result;
 	
 }

@@ -1099,13 +1099,13 @@ static retvalue updates_enqueue(const char *dbdir,struct downloadcache *cache,fi
 }
 
 
-static retvalue updates_install(const char *dbdir,filesdb filesdb,references refs,struct distribution *distribution,int force) {
+static retvalue updates_install(const char *dbdir,filesdb filesdb,references refs,struct distribution *distribution,int force,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=distribution->updatetargets ; u ; u=u->next ) {
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete);
+		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
@@ -1154,7 +1154,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	return result;
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force,bool_t nolistdownload) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct distribution *distributions,int force,bool_t nolistdownload,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct aptmethodrun *run;
@@ -1223,7 +1223,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
 
 	for( distribution=distributions ; distribution ; distribution=distribution->next) {
-		r = updates_install(dbdir,filesdb,refs,distribution,force);
+		r = updates_install(dbdir,filesdb,refs,distribution,force,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && ! force )
 			break;

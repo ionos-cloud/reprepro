@@ -362,7 +362,8 @@ retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompres
 retvalue packages_insert(references refs, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
-		const struct strlist *oldfiles) {
+		struct strlist *oldfiles,
+		struct strlist *dereferencedfilekeys) {
 		
 
 	retvalue result,r;
@@ -371,8 +372,11 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 
 	r = references_insert(refs,packagesdb->identifier,files,oldfiles);
 
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		if( oldfiles )
+			strlist_done(oldfiles);
 		return r;
+	}
 
 	/* Add package to the distribution's database */
 
@@ -383,14 +387,17 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 		result = packages_add(packagesdb,packagename,controlchunk);
 	}
 
-	if( RET_WAS_ERROR(result) )
+	if( RET_WAS_ERROR(result) ) {
+		if( oldfiles )
+			strlist_done(oldfiles);
 		return result;
+	}
 
 	/* remove old references to files */
 
 	if( oldfiles != NULL ) {
 		r = references_delete(refs,packagesdb->identifier,
-				oldfiles,files);
+				oldfiles,files,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 	}
 

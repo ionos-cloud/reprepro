@@ -174,7 +174,6 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey) {
 	if( !filename )
 		return RET_ERROR_OOM;
 	err = unlink(filename);
-	free(filename);
 	if( err != 0 ) {
 		en = errno;
 		r = RET_ERRNO(en);
@@ -182,9 +181,11 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey) {
 			fprintf(stderr,"%s not found, forgetting anyway\n",filename);
 		} else {
 			fprintf(stderr,"error while unlinking %s: %m(%d)\n",filename,en);
+			free(filename);
 			return r;
 		}
 	} 
+	free(filename);
 	r = files_remove(filesdb,filekey);
 	return r;
 }

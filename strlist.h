@@ -20,6 +20,8 @@ void strlist_done(struct strlist *strlist);
 retvalue strlist_add(struct strlist *strlist,char *element);
 /* include a string at the beginning, otherwise like strlist_add */
 retvalue strlist_include(struct strlist *strlist,char *element);
+/* add a string alphabetically, discarding if already there. */
+retvalue strlist_adduniq(struct strlist *strlist,char *element);
 
 /* print a space seperated list of elements */
 retvalue strlist_fprint(FILE *file,const struct strlist *strlist);

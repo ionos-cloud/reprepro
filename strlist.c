@@ -223,3 +223,13 @@ retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig) {
 
 	return RET_OK;
 }
+
+retvalue strlist_adduniq(struct strlist *strlist,char *element) {
+	// TODO: is there something better feasible?
+	if( strlist_in(strlist,element) ) {
+		free(element);
+		return RET_OK;
+	} else
+		return strlist_add(strlist,element);
+		
+}

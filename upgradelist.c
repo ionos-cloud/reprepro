@@ -478,7 +478,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force, bool_t ignoredelete){
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force, bool_t ignoredelete, struct strlist *dereferencedfilekeys){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -496,13 +496,13 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 				/* upgrade (or possibly downgrade) */
 				r = target_addpackage(upgrade->target,refs,
 				pkg->name,pkg->new_version,pkg->new_control,
-				&pkg->new_filekeys,force,TRUE);
+				&pkg->new_filekeys,force,TRUE,dereferencedfilekeys);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )
 				break;
 		}
 		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
-			r = target_removepackage(upgrade->target,refs,pkg->name,NULL);
+			r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && !force )
 				break;
