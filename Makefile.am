@@ -5,7 +5,7 @@ CPPFLAGS = @CPPFLAGS@ -D_GNU_SOURCE=1 -DPKGDATADIR=\"$(pkgdatadir)\" -Wall
 
 mirrorer_SOURCES = main.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c names.c dpkgversions.c release.c
 mirrorer_LDFLAGS += -ldb3
-noinst_HEADERS = md5.h md5sum.h dirs.h files.h chunks.h reference.h packages.h binaries.h sources.h names.h release.h
+noinst_HEADERS = md5.h md5sum.h dirs.h files.h chunks.h reference.h packages.h binaries.h sources.h names.h release.h error.h
 
 MAINTAINERCLEANFILES = Makefile.in configure install-sh stamp-h.in aclocal.m4 config.h.in mkinstalldirs
 

@@ -2,6 +2,9 @@
 #define __MIRRORER_PACKAGES_H
 
 #include <db.h>
+#ifndef __MIRRORER_ERROR_H
+#include "error.h"
+#endif
 
 /* initialize the packages-database for <identifier> */
 DB *packages_initialize(const char *dbpath,const char *identifier);
@@ -23,16 +26,16 @@ char *packages_get(DB *packagesdb,const char *package);
  * = 0 not-found
  * < 0 error
  */
-int packages_check(DB *packagesdb,const char *package);
+retvalue packages_check(DB *packagesdb,const char *package);
 
 /* print the database to a "Packages" or "Sources" file */
-int packages_printout(DB *packagesdb,const char *filename);
-int packages_zprintout(DB *packagesdb,const char *filename);
+retvalue packages_printout(DB *packagesdb,const char *filename);
+retvalue packages_zprintout(DB *packagesdb,const char *filename);
 
 /* action to be called by packages_forall */
-typedef int per_package_action(void *data,const char *package,const char *chunk);
+typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
 
 /* call action once for each saved chunk: */
-int packages_foreach(DB *packagesdb,per_package_action action,void *data);
+retvalue packages_foreach(DB *packagesdb,per_package_action action,void *data);
 	
 #endif

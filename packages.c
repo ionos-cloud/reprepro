@@ -22,6 +22,7 @@
 #include <string.h>
 #include <db.h>
 #include <zlib.h>
+#include "error.h"
 #include "md5sum.h"
 #include "dirs.h"
 #include "packages.h"
@@ -40,7 +41,7 @@ int packages_done(DB *db) {
 /* initialize the packages-database for <identifier> */
 DB *packages_initialize(const char *dbpath,const char *identifier) {
 	DB *dbp;
-	int ret;
+	int dbret;
 	char *filename;
 
 	
@@ -49,13 +50,13 @@ DB *packages_initialize(const char *dbpath,const char *identifier) {
 		free(filename);
 		return NULL;
 	}
-	if ((ret = db_create(&dbp, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
+	if ((dbret = db_create(&dbp, NULL, 0)) != 0) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
 		free(filename);
 		return NULL;
 	}
-	if ((ret = dbp->open(dbp, filename, identifier, DB_BTREE, DB_CREATE, 0664)) != 0) {
-		dbp->err(dbp, ret, "%s", filename);
+	if ((dbret = dbp->open(dbp, filename, identifier, DB_BTREE, DB_CREATE, 0664)) != 0) {
+		dbp->err(dbp, dbret, "%s", filename);
 		dbp->close(dbp,0);
 		free(filename);
 		return NULL;
@@ -66,93 +67,93 @@ DB *packages_initialize(const char *dbpath,const char *identifier) {
 
 /* replace a save chunk with another */
 int packages_replace(DB *packagesdb,const char *package,const char *chunk) {
-	int ret;
+	int dbret;
 	DBT key,data;
 
 	SETDBT(key,package);
-	if ((ret = packagesdb->del(packagesdb, NULL, &key, 0)) == 0) {
+	if ((dbret = packagesdb->del(packagesdb, NULL, &key, 0)) == 0) {
 		if( verbose > 2 )
 			printf("db: %s: old package forgotten.\n", (const char *)key.data);
 	} else {
-		packagesdb->err(packagesdb, ret, "packages.db, while removing old %s:",package);
-		if( ret != DB_NOTFOUND )
-			return ret;
+		packagesdb->err(packagesdb, dbret, "packages.db, while removing old %s:",package);
+		if( dbret != DB_NOTFOUND )
+			return dbret;
 	}
 	SETDBT(key,package);
 	SETDBT(data,chunk);
-	if ((ret = packagesdb->put(packagesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
+	if ((dbret = packagesdb->put(packagesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
 		if( verbose > 2 )
 			printf("db: %s: package-chunk added.\n", (const char *)key.data);
 	} else {
-		packagesdb->err(packagesdb, ret, "packages.db:");
+		packagesdb->err(packagesdb, dbret, "packages.db:");
 	}
-	return ret;
+	return dbret;
 }
 
 /* save a given chunk in the database */
 int packages_add(DB *packagesdb,const char *package,const char *chunk) {
-	int ret;
+	int dbret;
 	DBT key,data;
 
 	SETDBT(key,package);
 	SETDBT(data,chunk);
-	if ((ret = packagesdb->put(packagesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
+	if ((dbret = packagesdb->put(packagesdb, NULL, &key, &data, DB_NOOVERWRITE)) == 0) {
 		if( verbose > 2 )
 			printf("db: %s: package-chunk added.\n", (const char *)key.data);
 	} else {
-		packagesdb->err(packagesdb, ret, "packages.db:");
+		packagesdb->err(packagesdb, dbret, "packages.db:");
 	}
-	return ret;
+	return dbret;
 }
 
 /* get the saved chunk from the database */
 char *packages_get(DB *packagesdb,const char *package) {
-	int ret;
+	int dbret;
 	DBT key,data;
 
 	SETDBT(key,package);
 	CLEARDBT(data);
 
-	if( (ret = packagesdb->get(packagesdb, NULL, &key, &data, 0)) == 0){
+	if( (dbret = packagesdb->get(packagesdb, NULL, &key, &data, 0)) == 0){
 		return strdup(data.data);
-	} else if( ret == DB_NOTFOUND ){
+	} else if( dbret == DB_NOTFOUND ){
 		return NULL;
 	} else {
-		 packagesdb->err(packagesdb, ret, "packages.db:");
+		 packagesdb->err(packagesdb, dbret, "packages.db:");
 		 return NULL;
 	}
 }
 
 /* remove a given chunk from the database */
 int packages_remove(DB *packagesdb,const char *package) {
-	int ret;
+	int dbret;
 	DBT key;
 
 	SETDBT(key,package);
-	if ((ret = packagesdb->del(packagesdb, NULL, &key, 0)) == 0) {
+	if ((dbret = packagesdb->del(packagesdb, NULL, &key, 0)) == 0) {
 		if( verbose > 2 )
 			printf("db: %s: package forgotten.\n", (const char *)key.data);
 	} else {
-		packagesdb->err(packagesdb, ret, "packages.db:");
+		packagesdb->err(packagesdb, dbret, "packages.db:");
 	}
-	return ret;
+	return dbret;
 }
 
 /* check for existance of the given version of a package in the arch, */
-int package_check(DB *packagesdb,const char *package) {
-	int ret;
+retvalue package_check(DB *packagesdb,const char *package) {
+	int dbret;
 	DBT key,data;
 
 	SETDBT(key,package);
 	CLEARDBT(data);
 
-	if( (ret = packagesdb->get(packagesdb, NULL, &key, &data, 0)) == 0){
-		return 1;
-	} else if( ret == DB_NOTFOUND ){
-		return 0;
+	if( (dbret = packagesdb->get(packagesdb, NULL, &key, &data, 0)) == 0){
+		return RET_OK;
+	} else if( dbret == DB_NOTFOUND ){
+		return RET_NOTHING;
 	} else {
-		 packagesdb->err(packagesdb, ret, "packages.db:");
-		 return -2;
+		 packagesdb->err(packagesdb, dbret, "packages.db:");
+		 return RET_DBERR(dbret);
 	}
 }
 
@@ -160,82 +161,91 @@ int package_check(DB *packagesdb,const char *package) {
 //typedef int per_package_action(void *data,const char *package,const char *chunk);
 
 /* call action once for each saved chunk: */
-int packages_foreach(DB *packagesdb,per_package_action action,void *privdata) {
+retvalue packages_foreach(DB *packagesdb,per_package_action action,void *privdata) {
 	DBC *cursor;
 	DBT key,data;
-	int ret,r;
+	int dbret;
+	retvalue ret,r;
 
 	cursor = NULL;
-	if( (ret = packagesdb->cursor(packagesdb,NULL,&cursor,0)) != 0 ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
+	if( (dbret = packagesdb->cursor(packagesdb,NULL,&cursor,0)) != 0 ) {
+		packagesdb->err(packagesdb, dbret, "packages.db:");
 		return -1;
 	}
 	CLEARDBT(key);	
 	CLEARDBT(data);	
 
-
-	while( (ret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+	ret = RET_NOTHING;
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		r = action(privdata,(const char*)key.data,(const char*)data.data);
+		RET_UPDATE(ret,r);
 		if( r < 0 ) 
 			break;
 	}
 
-	if( ret != 0 && ret != DB_NOTFOUND ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
-		return -1;
+	if( dbret != 0 && dbret != DB_NOTFOUND ) {
+		packagesdb->err(packagesdb, dbret, "packages.db:");
+		return RET_ERROR;
 	}
-	if( (ret = cursor->c_close(cursor)) != 0 ) {
-		packagesdb->err(packagesdb, ret, "packages.db:");
-		return -1;
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		packagesdb->err(packagesdb, dbret, "packages.db:");
+		return RET_ERROR;
 	}
 
-	return 1;
+	return ret;
 }
 
 
-static int printout(void *data,const char *package,const char *chunk) {
+static retvalue printout(void *data,const char *package,const char *chunk) {
 	FILE *pf = data;
 
 	fwrite(chunk,strlen(chunk),1,pf);
 	fwrite("\n",1,1,pf);
-	return 1;
+	return RET_OK;
 }
 
-static int zprintout(void *data,const char *package,const char *chunk) {
+static retvalue zprintout(void *data,const char *package,const char *chunk) {
 	gzFile pf = data;
 
 	gzwrite(pf,(const voidp)chunk,strlen(chunk));
 	gzwrite(pf,"\n",1);
-	return 1;
+	return RET_OK;
 }
 
 /* print the database to a "Packages" or "Sources" file */
-int packages_printout(DB *packagesdb,const char *filename) {
-	int ret;
+retvalue packages_printout(DB *packagesdb,const char *filename) {
+	retvalue ret;
+	int r;
 	FILE *pf;
 
 	pf = fopen(filename,"wb");
 	if( !pf ) {
 		fprintf(stderr,"Error creating '%s': %m\n",filename);
-		return -1;
+		return RET_ERRNO(errno);
 	}
 	ret = packages_foreach(packagesdb,printout,pf);
-	fclose(pf);
+	r = fclose(pf);
+	if( r != 0 )
+		RET_UPDATE(ret,RET_ERRNO(errno));
 	return ret;
 }
 
 /* print the database to a "Packages.gz" or "Sources.gz" file */
-int packages_zprintout(DB *packagesdb,const char *filename) {
-	int ret;
+retvalue packages_zprintout(DB *packagesdb,const char *filename) {
+	retvalue ret;
+	int r;
 	gzFile pf;
 
 	pf = gzopen(filename,"wb");
 	if( !pf ) {
 		fprintf(stderr,"Error creating '%s': %m\n",filename);
-		return -1;
+		/* if errno is zero, it's a memory error: */
+		return RET_ERRNO(errno);
 	}
 	ret = packages_foreach(packagesdb,zprintout,pf);
-	gzclose(pf);
+	r = gzclose(pf);
+	if( r < 0 )
+		RET_UPDATE(ret,RET_ZERRNO(r));
 	return ret;
 }
 

@@ -37,6 +37,7 @@ char 	*incommingdir = "/var/spool/mirrorer/incomming",
 int 	local = 0;
 int	verbose = 0;
 int	force = 0;
+int	nothingiserror = 0;
 
 int printargs(int argc,char *argv[]) {
 	int i;
@@ -134,7 +135,7 @@ int exportpackages(int argc,char *argv[]) {
 	int result;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer printout <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer export <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	pkgs = packages_initialize(dbdir,argv[1]);
@@ -142,14 +143,14 @@ int exportpackages(int argc,char *argv[]) {
 		return 1;
 	result = packages_printout(pkgs,argv[2]);
 	packages_done(pkgs);
-	return result;
+	return EXIT_RET(result);
 }
 int zexportpackages(int argc,char *argv[]) {
 	DB *pkgs;
 	int result;
 
 	if( argc != 3 ) {
-		fprintf(stderr,"mirrorer zprintout <identifier> <Packages-file to create>\n");
+		fprintf(stderr,"mirrorer zexport <identifier> <Packages-file to create>\n");
 		return 1;
 	}
 	pkgs = packages_initialize(dbdir,argv[1]);
@@ -157,7 +158,7 @@ int zexportpackages(int argc,char *argv[]) {
 		return 1;
 	result = packages_zprintout(pkgs,argv[2]);
 	packages_done(pkgs);
-	return result;
+	return EXIT_RET(result);
 }
 
 /****** common for reference{binaries,sources} *****/
@@ -688,13 +689,14 @@ int main(int argc,char *argv[]) {
 		{"dbdir", 1, 0, 'D'},
 		{"help", 0, 0, 'h'},
 		{"verbose", 0, 0, 'v'},
+		{"nothingiserror", 0, 0, 'e'},
 		{"force", 0, 0, 'f'},
 		{0, 0, 0, 0}
 	};
 	int c;struct action *a;
 
 
-	while( (c = getopt_long(argc,argv,"+fvhlb:P:p:d:D:i:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+fevhlb:P:p:d:D:i:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
@@ -740,6 +742,9 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'v':
 				verbose++;
+				break;
+			case 'e':
+				nothingiserror=1;
 				break;
 			case 'f':
 				force++;
