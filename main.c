@@ -360,10 +360,7 @@ static retvalue action_remove(int argc,const char *argv[]) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 	r = distribution_get(&distribution,confdir,argv[1]);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find matching distributions!\n");
-		return RET_NOTHING;
-	}
+	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(d.refs);
 		return r;
@@ -460,10 +457,7 @@ static retvalue action_list(int argc,const char *argv[]) {
 		return RET_ERROR;
 	}
 	r = distribution_get(&distribution,confdir,argv[1]);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find matching distributions!\n");
-		return RET_NOTHING;
-	}
+	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -522,10 +516,7 @@ static retvalue action_listfilter(int argc,const char *argv[]) {
 		return RET_ERROR;
 	}
 	r = distribution_get(&distribution,confdir,argv[1]);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find matching distributions!\n");
-		return RET_NOTHING;
-	}
+	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -667,24 +658,32 @@ static retvalue action_dumpcontents(int argc,const char *argv[]) {
 	return result;
 }
 
-static retvalue export(void *dummy UNUSED,struct distribution *distribution) {
-
-	if( verbose > 0 ) {
-		fprintf(stderr,"Exporting %s...\n",distribution->codename);
-	}
-
-	return distribution_export(distribution,dbdir,distdir,force,FALSE);
-}
-
 static retvalue action_export(int argc,const char *argv[]) {
-	retvalue result;
+	retvalue result,r;
+	struct distribution *distributions,*d;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro export [<distributions>]\n");
 		return RET_ERROR;
 	}
 	
-	result = distribution_foreach(confdir,argc-1,argv+1,export,NULL,force);
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING);
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		if( verbose > 0 ) {
+			fprintf(stderr,"Exporting %s...\n",d->codename);
+		}
+
+		r = distribution_export(d,dbdir,distdir,force,FALSE);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force<= 0 )
+			return r;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
 	return result;
 }
 
@@ -714,12 +713,9 @@ static retvalue action_update(int argc,const char *argv[]) {
 	}
 
 	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Nothing to do found!\n");
-		return RET_NOTHING;
-	}
 
 	result = updates_getpatterns(confdir,&patterns);
 	if( RET_WAS_ERROR(result) )
@@ -749,18 +745,13 @@ static retvalue action_update(int argc,const char *argv[]) {
 	doexport = force>0 || RET_IS_OK(result);
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
-	while( distributions ) {
-		struct distribution *d = distributions->next;
-
-		if( doexport ) {
-			r = distribution_export(distributions,dbdir,distdir,force,TRUE);
-			RET_ENDUPDATE(result,r);
-		}
-		
-		(void)distribution_free(distributions);
-		distributions = d;
-	}
-	result = possiblyremoveunreferencedfilekeys(result,refs,files,&dereferencedfilekeys);
+	if( doexport )
+		r = distribution_exportandfreelist(distributions,dbdir,distdir,force);
+	else
+		r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+	r = possiblyremoveunreferencedfilekeys(result,refs,files,&dereferencedfilekeys);
+	RET_ENDUPDATE(result,r);
 
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
@@ -771,7 +762,7 @@ static retvalue action_update(int argc,const char *argv[]) {
 }
 
 static retvalue action_checkupdate(int argc,const char *argv[]) {
-	retvalue result;
+	retvalue result,r;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
 
@@ -786,12 +777,9 @@ static retvalue action_checkupdate(int argc,const char *argv[]) {
 	}
 
 	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
-	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Nothing to do found!\n");
-		return RET_NOTHING;
-	}
 
 	result = updates_getpatterns(confdir,&patterns);
 	if( RET_WAS_ERROR(result) )
@@ -803,12 +791,8 @@ static retvalue action_checkupdate(int argc,const char *argv[]) {
 
 	result = updates_checkupdate(dbdir,methoddir,distributions,force,nolistsdownload);
 
-	while( distributions ) {
-		struct distribution *d = distributions->next;
-
-		(void)distribution_free(distributions);
-		distributions = d;
-	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
 
 	return result;
 }
@@ -831,25 +815,10 @@ static retvalue reref(void *data,struct target *target) {
 }
 
 
-static retvalue rereference_dist(void *data,struct distribution *distribution) {
-	struct data_binsrcreref dat;
-	retvalue result;
-
-	if( verbose > 0 ) {
-		fprintf(stderr,"Referencing %s...\n",distribution->codename);
-	}
-
-	dat.distribution = distribution;
-	dat.refs = data;
-
-	result = distribution_foreach_part(distribution,NULL,NULL,NULL,reref,&dat,force);
-
-	return result;
-}
-
 static retvalue action_rereference(int argc,const char *argv[]) {
 	retvalue result,r;
 	references refs;
+	struct distribution *distributions,*d;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro rereference [<distributions>]\n");
@@ -860,7 +829,31 @@ static retvalue action_rereference(int argc,const char *argv[]) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 	
-	result = distribution_foreach(confdir,argc-1,argv+1,rereference_dist,refs,force);
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		r = references_done(refs);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		struct data_binsrcreref dat;
+
+		if( verbose > 0 ) {
+			fprintf(stderr,"Referencing %s...\n",d->codename);
+		}
+		dat.distribution = d;
+		dat.refs = refs;
+
+		r = distribution_foreach_part(d,component,architecture,packagetype,
+				reref,&dat,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 
@@ -882,25 +875,10 @@ static retvalue check_target(void *data,struct target *target) {
 	return result;
 }
 
-static retvalue check_dist(void *data,struct distribution *distribution) {
-	struct data_check *dat=data;
-	retvalue result;
-
-	if( verbose > 0 ) {
-		fprintf(stderr,"Checking %s...\n",distribution->codename);
-	}
-
-
-	dat->distribution = distribution;
-
-	result = distribution_foreach_part(distribution,component,architecture,packagetype,check_target,dat,force);
-	
-	return result;
-}
-
 static retvalue action_check(int argc,const char *argv[]) {
 	retvalue result,r;
 	struct data_check dat;
+	struct distribution *distributions,*d;
 
 	if( argc < 1 ) {
 		fprintf(stderr,"reprepro check [<distributions>]\n");
@@ -919,7 +897,29 @@ static retvalue action_check(int argc,const char *argv[]) {
 		return r;
 	}
 	
-	result = distribution_foreach(confdir,argc-1,argv+1,check_dist,&dat,force);
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		(void)files_done(dat.files);
+		(void)references_done(dat.refs);
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+
+		if( verbose > 0 ) {
+			fprintf(stderr,"Checking %s...\n",d->codename);
+		}
+
+		dat.distribution = d;
+
+		r = distribution_foreach_part(d,component,architecture,packagetype,check_target,&dat,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
 	r = files_done(dat.files);
 	RET_ENDUPDATE(result,r);
 	r = references_done(dat.refs);
@@ -991,12 +991,9 @@ static retvalue action_includedeb(int argc,const char *argv[]) {
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
+	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
-	}
-	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
-		return RET_ERROR;
 	}
 
 	// TODO: same for component? (depending on type?)
@@ -1077,12 +1074,9 @@ static retvalue action_includedsc(int argc,const char *argv[]) {
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
+	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
-		return RET_ERROR;
-	}
 	srcoverride = NULL;
 	if( distribution->srcoverride != NULL ) {
 		result = override_read(overridedir,distribution->srcoverride,&srcoverride);
@@ -1137,12 +1131,9 @@ static retvalue action_include(int argc,const char *argv[]) {
 	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
+	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Could not find '%s' in '%s/distributions'!\n",argv[1],confdir);
-		return RET_ERROR;
-	}
 	override = NULL;
 	if( distribution->override != NULL ) {
 		result = override_read(overridedir,distribution->override,&override);

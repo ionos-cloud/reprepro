@@ -211,6 +211,10 @@ find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xarg
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
 diff -u test2 test1
 
+"$REPREPRO" -b . check test1 test2
+"$REPREPRO" -b . checkpool
+"$REPREPRO" -b . rereference test1 test2
+"$REPREPRO" -b . check test1 test2
 
 set +v
 echo

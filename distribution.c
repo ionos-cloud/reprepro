@@ -132,9 +132,9 @@ static retvalue createtargets(struct distribution *distribution) {
 	return RET_OK;
 }
 
-struct distribution_filter {int count; const char **dists; };
+struct distribution_filter {int count; const char **dists; bool_t *found;};
 
-static inline bool_t isinfilter(const char *codename, const struct distribution_filter filter){
+static inline retvalue isinfilter(const char *codename, const struct distribution_filter filter){
 	int i;
 
 	/* nothing given means all */
@@ -142,10 +142,17 @@ static inline bool_t isinfilter(const char *codename, const struct distribution_
 		return TRUE;
 
 	for( i = 0 ; i < filter.count ; i++ ) {
-		if( strcmp((filter.dists)[i],codename) == 0 )
-			return TRUE;
+		if( strcmp((filter.dists)[i],codename) == 0 ) {
+			if( filter.found[i] ) {
+				fprintf(stderr,"Multiple distribution definitions with the common codename: '%s'!\n",codename);
+				return RET_ERROR;
+
+			}
+			filter.found[i] = TRUE;
+			return RET_OK;
+		}
 	}
-	return FALSE;
+	return RET_NOTHING;
 }
 
 static retvalue distribution_parse_and_filter(struct distribution **distribution,const char *chunk,struct distribution_filter filter) {
@@ -180,9 +187,10 @@ static const char * const allowedfields[] = {
 		return ret;
 	}
 
-	if( !isinfilter(r->codename,filter) ) {
+	ret = isinfilter(r->codename,filter);
+	if( !RET_IS_OK(ret) ) {
 		(void)distribution_free(r);
-		return RET_NOTHING;
+		return ret;
 	}
 
 #define getpossibleemptyfield(key,fieldname) \
@@ -290,54 +298,6 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 	return t;
 }
 
-
-
-struct dist_mydata {struct distribution_filter filter; distributionaction *action; void *data;};
-
-static retvalue processdistribution(void *d,const char *chunk) {
-	struct dist_mydata *mydata = d;
-	retvalue result,r;
-	struct distribution *distribution;
-
-	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter);
-	if( RET_IS_OK(result) ){
-
-		result = mydata->action(mydata->data,distribution);
-		r = distribution_free(distribution);
-		RET_ENDUPDATE(result,r);
-	}
-
-	return result;
-}
-
-retvalue distribution_foreach(const char *conf,int argc,const char *argv[],distributionaction action,void *data,int force) {
-	retvalue result;
-	char *fn;
-	struct dist_mydata mydata;
-
-	mydata.filter.count = argc;
-	mydata.filter.dists = argv;
-	mydata.data = data;
-	mydata.action = action;
-	
-	fn = calc_dirconcat(conf,"distributions");
-	if( !fn ) 
-		return RET_ERROR_OOM;
-
-	result = regularfileexists(fn);
-	if( RET_WAS_ERROR(result) ) {
-		fprintf(stderr,"Could not find '%s'!\n"
-"(Have you forgotten to specify a basedir by -b?\n"
-"To only set the conf/ dir use --confdir)\n",fn);
-		return RET_ERROR_MISSING;
-	}
-	
-	result = chunk_foreach(fn,processdistribution,&mydata,force,FALSE);
-
-	free(fn);
-	return result;
-}
-
 struct distmatch_mydata {struct distribution_filter filter; struct distribution *distributions;};
 
 static retvalue adddistribution(void *d,const char *chunk) {
@@ -369,6 +329,9 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 
 	mydata.filter.count = argc;
 	mydata.filter.dists = (const char**)argv;
+	mydata.filter.found = calloc(argc,sizeof(bool_t));
+	if( mydata.filter.found == NULL )
+		return RET_ERROR_OOM;
 	mydata.distributions = NULL;
 	
 	fn = calc_dirconcat(conf,"distributions");
@@ -380,63 +343,63 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 		fprintf(stderr,"Could not find '%s'!\n"
 "(Have you forgotten to specify a basedir by -b?\n"
 "To only set the conf/ dir use --confdir)\n",fn);
+		free(mydata.filter.found);
 		return RET_ERROR_MISSING;
 	}
 	
 	result = chunk_foreach(fn,adddistribution,&mydata,0,FALSE);
+
+	if( !RET_WAS_ERROR(result) ) {
+		int i;
+		for( i = 0 ; i < argc ; i++ ) {
+			if( !mydata.filter.found[i] ) {
+				fprintf(stderr,"No distribution definition of '%s' found in '%s'!\n",mydata.filter.dists[i],fn);
+				result = RET_ERROR_MISSING;
+			}
+		}
+	}
 	free(fn);
+	if( result == RET_NOTHING ) {
+		/* if argc==0 and no definition in conf/distributions */
+		fprintf(stderr,"No distribution definitons found!\n");
+		result = RET_ERROR_MISSING;
+	}
 
 	if( RET_IS_OK(result) ) {
 		*distributions = mydata.distributions;
-	} else 
+	} else  {
 		while( mydata.distributions ) {
 			struct distribution *next = mydata.distributions->next;
 			(void)distribution_free(mydata.distributions);
 			mydata.distributions = next;
 		}
-	
+	}
+	free(mydata.filter.found);
 	return result;
 }
 
-struct getdist_mydata {struct distribution_filter filter; struct distribution *distribution;};
-
-static retvalue processgetdistribution(void *d,const char *chunk) {
-	struct getdist_mydata *mydata = d;
+retvalue distribution_get(struct distribution **distribution,const char *confdir,const char *name) {
 	retvalue result;
+	struct distribution *d;
 
-	result = distribution_parse_and_filter(&mydata->distribution,chunk,mydata->filter);
-	return result;
-}
+	/* This is a bit overkill, as it does not stop when it finds the
+	 * definition of the distribution. But this way we can warn
+	 * about emtpy lines in the definition (as this would split
+	 * it in two definitions, the second one no valid one). 
+	 */
+	result = distribution_getmatched(confdir,1,&name,&d);
 
-retvalue distribution_get(struct distribution **distribution,const char *conf,const char *name) {
-	retvalue result;
-	char *fn;
-	struct getdist_mydata mydata;
+	if( RET_WAS_ERROR(result) )
+		return result;
 
-	mydata.filter.count = 1;
-	mydata.filter.dists = &name;
-	mydata.distribution = NULL;
-	
-	fn = calc_dirconcat(conf,"distributions");
-	if( !fn ) 
-		return RET_ERROR_OOM;
-
-	result = regularfileexists(fn);
-	if( RET_WAS_ERROR(result) ) {
-		fprintf(stderr,"Could not find '%s'!\n"
-"(Have you forgotten to specify a basedir by -b?\n"
-"To only set the conf/ dir use --confdir)\n",fn);
+	if( result == RET_NOTHING ) {
+		fprintf(stderr,"Cannot find definition of distribution '%s' in %s/distributions!\n",name,confdir);
 		return RET_ERROR_MISSING;
 	}
-	
-	result = chunk_foreach(fn,processgetdistribution,&mydata,0,TRUE);
+	assert( d != NULL && d->next == NULL );
 
-	free(fn);
-
-	if( !RET_WAS_ERROR(result) )
-		*distribution = mydata.distribution;
-	
-	return result;
+	*distribution = d;
+	return RET_OK;
 }
 
 retvalue distribution_export(struct distribution *distribution,
@@ -468,6 +431,38 @@ retvalue distribution_export(struct distribution *distribution,
 
 		r = release_gen(distribution,distdir,force);
 		RET_UPDATE(result,r);
+	}
+	return result;
+}
+
+retvalue distribution_freelist(struct distribution *distributions) {
+	retvalue result,r;
+
+	result = RET_NOTHING;
+	while( distributions ) {
+		struct distribution *d = distributions->next;
+		r = distribution_free(distributions);
+		RET_UPDATE(result,r);
+		distributions = d;
+	}
+	return result;
+}
+
+retvalue distribution_exportandfreelist(struct distribution *distributions,
+		const char *dbdir, const char *distdir,
+		int force) {
+	retvalue result,r;
+
+	result = RET_NOTHING;
+	while( distributions ) {
+		struct distribution *d = distributions->next;
+
+		r = distribution_export(distributions,dbdir,distdir,force,TRUE);
+		RET_UPDATE(result,r);
+		
+		r = distribution_free(distributions);
+		RET_ENDUPDATE(result,r);
+		distributions = d;
 	}
 	return result;
 }
