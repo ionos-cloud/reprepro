@@ -102,10 +102,10 @@ retvalue downloadlist_free(struct downloadlist *list) {
 }
 
 /* try to fetch and register all queued files */
-retvalue downloadlist_run(struct downloadlist *list,const char *methoddir,int force) {
+retvalue downloadlist_run(struct downloadlist *list,const char *methoddir) {
 	struct aptmethodrun *run;
 	struct download_upstream *upstream;
-	retvalue result,r;
+	retvalue r;
 
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
@@ -116,41 +116,29 @@ retvalue downloadlist_run(struct downloadlist *list,const char *methoddir,int fo
 
 		r = aptmethod_newmethod(run,upstream->method,upstream->config,&method);
 		if( RET_WAS_ERROR(r) ) {
-			aptmethod_cancel(run);
+			aptmethod_shutdown(run);
 			return r;
 		}
 		for( item=upstream->items;item;item=item->nextinupstream) {
 			char *fullfilename;
 			fullfilename = calc_dirconcat(list->filesdb->mirrordir,item->filekey);
 			if( fullfilename == NULL ) {
-				aptmethod_cancel(run);
+				aptmethod_shutdown(run);
 				return r;
 			}
 			(void)dirs_make_parent(fullfilename);
 			r = aptmethod_queuefile(method,item->origfile,
-					fullfilename,item->md5sum);
+					fullfilename,item->md5sum,item->filekey);
 			free(fullfilename);
 			if( RET_WAS_ERROR(r) ) {
-				aptmethod_cancel(run);
+				aptmethod_shutdown(run);
 				return r;
 			}
 		}
 	}
-	r = aptmethod_download(run,methoddir);
-	if( RET_WAS_ERROR(r) && !force )
-		return r;
-
-	result = RET_NOTHING;
-	for( upstream = list->upstreams ;upstream; upstream = upstream->next) {
-		struct downloaditem *item;
-
-		for( item=upstream->items;item;item=item->nextinupstream) {
-			r = files_expect(list->filesdb,item->filekey,item->md5sum);
-			RET_UPDATE(result,r);
-		}
-	}
-
-	return result;
+	r = aptmethod_download(run,methoddir,list->filesdb);
+	aptmethod_shutdown(run);
+	return r;
 }
 
 retvalue downloadlist_newupstream(struct downloadlist *list,

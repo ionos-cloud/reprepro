@@ -24,7 +24,7 @@ filesdb downloadlist_filesdb(struct downloadlist *list);
 retvalue downloadlist_free(struct downloadlist *downloadlist);
 
 /* try to fetch and register all queued files */
-retvalue downloadlist_run(struct downloadlist *list,const char *methodir,int force);
+retvalue downloadlist_run(struct downloadlist *list,const char *methodir);
 
 /* add a new origin to download files from */
 retvalue downloadlist_newupstream(struct downloadlist *list,

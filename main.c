@@ -693,6 +693,10 @@ static int update(int argc,char *argv[]) {
 	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
+	if( result == RET_NOTHING ) {
+		fprintf(stderr,"Nothing to do found!\n");
+		return EXIT_RET(RET_NOTHING);
+	}
 
 	result = updates_getpatterns(confdir,&patterns,0);
 	if( RET_WAS_ERROR(result) )
@@ -710,13 +714,15 @@ static int update(int argc,char *argv[]) {
 	for( d=distributions; d ; d = d->next ) {
 		r = updates_queuelists(run,listdir,d->upstreams);
 		if( RET_WAS_ERROR(r) ) {
-			aptmethod_cancel(run);
+			aptmethod_shutdown(run);
 			return EXIT_RET(r);
 		}
 	}
 
 
-	result = aptmethod_download(run,"/usr/lib/apt/methods");
+	result = aptmethod_download(run,"/usr/lib/apt/methods",NULL);
+	r = aptmethod_shutdown(run);
+	RET_UPDATE(result,r);
 	
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
@@ -724,7 +730,7 @@ static int update(int argc,char *argv[]) {
 	for( d=distributions; d ; d = d->next ) {
 		r = updates_checklists(listdir,d->upstreams,force);
 		if( RET_WAS_ERROR(r) ) {
-			aptmethod_cancel(run);
+			aptmethod_shutdown(run);
 			return EXIT_RET(r);
 		}
 	}
@@ -759,7 +765,7 @@ static int update(int argc,char *argv[]) {
 			}
 		}
 	}
-	result = downloadlist_run(download,"/usr/lib/apt/methods",force);
+	result = downloadlist_run(download,"/usr/lib/apt/methods");
 
 	refs = references_initialize(dbdir);
 	if( ! refs )
@@ -773,7 +779,19 @@ static int update(int argc,char *argv[]) {
 					downloadlist_filesdb(download),
 					refs,force);
 			RET_UPDATE(result,r);
+			upgradelist_free(t->upgradelist);
+			t->upgradelist = NULL;
+			RET_UPDATE(result,r);
 		}
+		r = distribution_export(d,dbdir,distdir,force,1);
+		RET_ENDUPDATE(result,r);
+	}
+	downloadlist_free(download);
+	
+	while( distributions ) {
+		d = distributions->next;
+		distribution_free(distributions);
+		distributions = d;
 	}
 
 	references_done(refs);

@@ -33,6 +33,7 @@
 #include "dirs.h"
 #include "chunks.h"
 #include "md5sum.h"
+#include "files.h"
 #include "aptmethod.h"
 
 extern int verbose;
@@ -50,6 +51,8 @@ struct tobedone {
 	char *filename;
 	/* if non-NULL, what is expected...*/
 	char *md5sum;
+	/* if non-NULL, add to the database after found (only if md5sum != NULL) */
+	char *filekey;
 };
 
 struct aptmethod {
@@ -98,22 +101,66 @@ static void aptmethod_free(struct aptmethod *method) {
 		free(todo->uri);
 		free(todo->filename);
 		free(todo->md5sum);
+		free(todo->filekey);
 		free(todo);
 	}
 }
 
-void aptmethod_cancel(struct aptmethodrun *run) {
-	struct aptmethod *method,*next;
+retvalue aptmethod_shutdown(struct aptmethodrun *run) {
+	struct aptmethod *method,*lastmethod;
 
-	if( run == NULL )
-		return;
-	method = run->methods;
+	/* first get rid of everything not running: */
+	method = run->methods; lastmethod = NULL;
 	while( method ) {
-		next = method->next;
-		aptmethod_free(method);
-		method = next;
+		struct aptmethod *h;
+
+		if( method->child > 0 ) {
+			lastmethod = method;
+			method = method->next;
+			continue;
+		} else {
+			h = method->next;
+			if( lastmethod )
+				lastmethod->next = h;
+			else
+				run->methods = h;
+			aptmethod_free(method);
+			method = h;
+		}
 	}
-	free(run);
+
+	/* finally get rid of all the processes: */
+	for( method = run->methods ; method ; method = method->next ) {
+		if( method->stdin >= 0 )
+			(void)close(method->stdin);
+		method->stdin = -1;
+		if( method->stdout >= 0 )
+			(void)close(method->stdout);
+		method->stdout = -1;
+	}
+	while( run->methods ) {
+		pid_t pid;int status;
+		
+		pid = wait(&status);
+		lastmethod = NULL; method = run->methods;
+		while( method ) {
+			if( method->child == pid ) {
+				struct aptmethod *next = method->next;
+
+				if( lastmethod ) {
+					lastmethod->next = next;
+				} else
+					run->methods = next;
+
+				aptmethod_free(method);
+				method = next;
+			} else {
+				lastmethod = method;
+				method = method->next;
+			}
+		}
+	}
+	return RET_OK;
 }
 
 /******************Initialize the data structures***********************/
@@ -289,7 +336,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 
 /**************************how to add files*****************************/
 
-static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,const char *md5sum) {
+static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
 	struct tobedone *todo;
 
 	todo = malloc(sizeof(struct tobedone));
@@ -299,12 +346,18 @@ static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,
 	todo->next = NULL;
 	todo->uri = calc_dirconcat(baseuri,origfile);
 	todo->filename = strdup(destfile);
+	if( filekey )
+		todo->filekey = strdup(filekey);
+	else
+		todo->filekey = NULL;
 	if( md5sum ) {
 		todo->md5sum = strdup(md5sum);
 	} else
 		todo->md5sum = NULL;
 	if( todo->uri == NULL || todo->filename == NULL ||
-			(md5sum != NULL && todo->md5sum == NULL) ) {
+			(md5sum != NULL && todo->md5sum == NULL) ||
+			(filekey != NULL && todo->filekey == NULL) ) {
+		free(todo->md5sum);
 		free(todo->uri);
 		free(todo->filename);
 		free(todo);
@@ -313,17 +366,18 @@ static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum) {
+retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey) {
 	struct tobedone *todo;
 	struct queuedjob *job;
 
 	job = malloc(sizeof(struct queuedjob));
-	todo = newtodo(method->baseuri,origfile,destfile,md5sum);
+	todo = newtodo(method->baseuri,origfile,destfile,md5sum,filekey);
 	if( job == NULL || todo == NULL ) {
 		free(job);
 		return RET_ERROR_OOM;
 	}
 
+	// TODO: think of a method to generate those on-the-fly...
 	job->next = NULL;
 	job->alreadywritten = 0;
 	job->command = mprintf("600 URI Acquire\nURI: %s\nFilename: %s\n\n",todo->uri,todo->filename);
@@ -355,7 +409,7 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(struct aptmethod *method,const struct tobedone *todo,const char *filename,const char *md5sum) {
+static inline retvalue todo_done(struct aptmethod *method,const struct tobedone *todo,const char *filename,const char *md5sum,filesdb filesdb) {
 	char *calculatedmd5;
 
 	/* if the file is somewhere else, copy it: */
@@ -399,20 +453,30 @@ static inline retvalue todo_done(struct aptmethod *method,const struct tobedone 
 		}
 	}
 
-	//TODO: call some function here to tell the file is here?
+	if( todo->filekey ) {
+		retvalue r;
+
+		assert(filesdb);
+		assert(todo->md5sum);
+		
+		r = files_add(filesdb,todo->filekey,todo->md5sum);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
 	  
 	return RET_OK;
 }
 
 /* look where a received file has to go to: */
-static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename, const char *md5sum) {
+static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename, const char *md5sum,filesdb filesdb) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
 	while( todo ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
-			r = todo_done(method,todo,filename,md5sum);
+			r = todo_done(method,todo,filename,md5sum,filesdb);
 
 			/* remove item: */
 			if( lasttodo == NULL )
@@ -455,7 +519,7 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 	return RET_OK;
 }
 
-static inline retvalue goturidone(struct aptmethod *method,const char *chunk) {
+static inline retvalue goturidone(struct aptmethod *method,const char *chunk,filesdb filesdb) {
 	retvalue r;
 	char *uri,*filename,*md5,*size,*md5sum;
 
@@ -497,14 +561,14 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk) {
 		return r;
 	}
 
- 	r = uridone(method,uri,filename,md5sum);
+ 	r = uridone(method,uri,filename,md5sum,filesdb);
 	free(uri);
 	free(filename);
 	free(md5sum);
 	return r;
 }
 	
-static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input) {
+static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
 	const char *p;
 #define OVERLINE {while( *p && *p != '\n') p++; if(*p == '\n') p++; }
 
@@ -542,7 +606,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 				case '1':
 					fprintf(stderr,"Got '%s'\n",input);
 					OVERLINE;
-					return goturidone(method,p);
+					return goturidone(method,p,filesdb);
 			}
 
 		case '4':
@@ -555,7 +619,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 	}
 }
 
-static retvalue receivedata(struct aptmethod *method) {
+static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	retvalue result;
 	size_t r;
 	char *p;
@@ -615,7 +679,7 @@ static retvalue receivedata(struct aptmethod *method) {
 		if( r <= 0 )
 			return result;
 		*p ='\0'; p++; r--;
-		res = parsereceivedblock(method,method->inputbuffer);
+		res = parsereceivedblock(method,method->inputbuffer,filesdb);
 		if( r > 0 )
 			memmove(method->inputbuffer,p,r);
 		method->read = r;
@@ -703,7 +767,7 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 	return result;
 }
 
-static retvalue readwrite(struct aptmethodrun *run,int *activity) {
+static retvalue readwrite(struct aptmethodrun *run,int *activity,filesdb filesdb) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;
@@ -750,7 +814,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity) {
 	maxfd = 0;
 	for( method = run->methods ; method ; method = method->next ) {
 		if( FD_ISSET(method->stdout,&readfds) ) {
-			r = receivedata(method);
+			r = receivedata(method,filesdb);
 			RET_UPDATE(result,r);
 		}
 		if( FD_ISSET(method->stdin,&writefds) ) {
@@ -761,7 +825,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *activity) {
 	return result;
 }
 
-retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir) {
+retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb) {
 	struct aptmethod *method,*lastmethod;
 	retvalue result,r;
 	int activity;
@@ -792,37 +856,10 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir) {
 	do {
 	  r = checkchilds(run);
 	  RET_UPDATE(result,r);
-	  r = readwrite(run,&activity);
+	  r = readwrite(run,&activity,filesdb);
 	  RET_UPDATE(result,r);
 	} while( activity > 0 );
 
-	/* finally get rid of all the processes: */
-	for( method = run->methods ; method ; method = method->next ) {
-		close(method->stdin);method->stdin = -1;
-		close(method->stdout);method->stdout = -1;
-	}
-	while( run->methods ) {
-		pid_t pid;int status;
-		
-		pid = wait(&status);
-		lastmethod = NULL; method = run->methods;
-		while( method ) {
-			if( method->child == pid ) {
-				struct aptmethod *next = method->next;
-
-				if( lastmethod ) {
-					lastmethod->next = next;
-				} else
-					run->methods = next;
-
-				aptmethod_free(method);
-				method = next;
-			} else {
-				lastmethod = method;
-				method = method->next;
-			}
-		}
-	}
 	return result;
 }
 

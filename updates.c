@@ -497,14 +497,14 @@ retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct up
 	if( !upstream->ignorerelease ) {
 		toget = mprintf("dists/%s/Release",upstream->suite_from);
 		saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","data");
-		r = aptmethod_queuefile(method,toget,saveas,NULL);
+		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 
 		if( upstream->verifyrelease != NULL ) {
 			toget = mprintf("dists/%s/Release.gpg",upstream->suite_from);
 			saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","gpg");
-			r = aptmethod_queuefile(method,toget,saveas,NULL);
+			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -516,7 +516,7 @@ retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct up
 
 		toget = mprintf("dists/%s/%s/source/Sources.gz",upstream->suite_from,comp);
 		saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,comp,"source");
-		r = aptmethod_queuefile(method,toget,saveas,NULL);
+		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 
@@ -525,7 +525,7 @@ retvalue queuelists(struct aptmethodrun *run,const char *listdir,const struct up
 
 			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",upstream->suite_from,comp,arch);
 			saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,comp,arch);
-			r = aptmethod_queuefile(method,toget,saveas,NULL);
+			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}

@@ -98,8 +98,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 		return RET_ERROR_OOM;
 	}
 
-	assert(upgrade->currentupstream);
-	package->upstream = upgrade->currentupstream;
+	package->upstream = NULL;
 	package->name = strdup(packagename);
 	if( package->name == NULL ) {
 		free(package);
