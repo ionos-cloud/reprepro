@@ -119,3 +119,33 @@ size_t strtupel_len(const strtupel *tupel) {
 
 	return (p-tupel);
 }
+
+const strtupel *strtupel_next(const strtupel *tupel) {
+	const char *p;
+
+	p = tupel;
+	if( *p == '\0' )
+		return tupel;
+	while( *p ) {
+		p++;
+	}
+	p++;
+	return p;
+}
+
+int strtupel_empty(const strtupel *tupel) {
+
+	return (*tupel == '\0');
+}
+
+retvalue strtupel_print(FILE *file,const strtupel *tupel) {
+	const strtupel *p;
+
+	p = tupel;
+
+	while( !strtupel_empty(p) ){
+		fprintf(file,"'%s' ",p);
+		p = strtupel_next(p);
+	}
+	return RET_OK;
+}

@@ -14,5 +14,6 @@ strtupel *strtupel_fromvalues(int count,...);
 
 size_t strtupel_len(const strtupel *tupel);
 
+retvalue strtupel_print(FILE *file,const strtupel *tupel);
 
 #endif
