@@ -21,9 +21,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <getopt.h>
+#include <ctype.h>
 #include <string.h>
 #include <malloc.h>
+#include <fcntl.h>
+#include <gpgme.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -36,50 +38,115 @@
 
 extern int verbose;
 
+static GpgmeCtx context = NULL;
+
+static retvalue gpgerror(GpgmeError err){
+	if( err ) {
+		fprintf(stderr,"gpgme gave error: %s\n",gpgme_strerror(err));
+		return RET_ERROR_GPGME;
+	} else
+		return RET_OK;
+}
+
+static retvalue signature_init(){
+	GpgmeError err;
+
+	if( context != NULL )
+		return RET_NOTHING;
+	err = gpgme_engine_check_version(GPGME_PROTOCOL_OpenPGP);
+	if( err )
+		return gpgerror(err);
+	err = gpgme_new(&context);
+	if( err )
+		return gpgerror(err);
+	err = gpgme_set_protocol(context,GPGME_PROTOCOL_OpenPGP);
+	if( err )
+		return gpgerror(err);
+	gpgme_set_armor(context,1);
+	return RET_OK;
+}
+
 retvalue signature_check(const char *chunk, const char *releasegpg, const char *release) {
 	retvalue r;
-	char *releasecheck,*command;
-	int ret;
+	GpgmeError err;
+	GpgmeData dh,dh_gpg;
+	GpgmeSigStat stat;
 
 	if( !release || !releasegpg )
 		return RET_ERROR_OOM;
 
-	r = chunk_getvalue(chunk,"ReleaseCheck",&releasecheck);
+	r = signature_init();
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = chunk_gettruth(chunk,"ReleaseCheck");
 	/* if there is no command, then there is nothing to check... */
 	if( RET_WAS_ERROR(r) || r == RET_NOTHING)
 		return r;
 
-	//TODO: note in documentation, that names should not contain
-	// shell active characters...
-	command = mprintf("%s %s %s",releasecheck,releasegpg,release);
-	if( !command ) {
-		free(releasecheck);
-		return RET_ERROR_OOM;
+	//TODO: choose which key to check against?
+
+	/* Read the file and its signature into memory: */
+
+	//TODO: Use callbacks for file-reading to have readable errormessages?
+	err = gpgme_data_new_from_file(&dh_gpg,releasegpg,1);
+	if( err ) {
+		return gpgerror(err);
+	}
+	err = gpgme_data_new_from_file(&dh,release,1);
+	if( err ) {
+		gpgme_data_release(dh_gpg);
+		return gpgerror(err);
 	}
 
-	//TODO: think about possible problems with spaces...
-	ret = system(command);
-	if( ret != 0 ) {
-		fprintf(stderr,"Calling '%s' gave returncode %d!\n",command,ret);
-		r = RET_ERROR;
-	} else
-		r = RET_OK;
+	/* Verify the signature */
+	
+	err = gpgme_op_verify(context,dh_gpg,dh,&stat);
+	gpgme_data_release(dh_gpg);
+	gpgme_data_release(dh);
+	if( err )
+		return gpgerror(err);
 
-	free(releasecheck);free(command);
-	return r;
+	switch( stat ) {
+		case GPGME_SIG_STAT_GOOD:
+			if( verbose > 0 ) {
+				fprintf(stderr,"Good signature '%s' of '%s'!\n",releasegpg,release);
+			}
+			return RET_OK;
+		case GPGME_SIG_STAT_BAD:
+			fprintf(stderr,"BAD SIGNATURE!\n");
+			return RET_ERROR_BADSIG;
+		case GPGME_SIG_STAT_NOKEY:
+			fprintf(stderr,"Signature could not be checked due to missing key!\n");
+			return RET_ERROR_BADSIG;
+		case GPGME_SIG_STAT_DIFF:
+			fprintf(stderr,"Multiple differen signatures, not yet implemented!\n");
+			return RET_ERROR;
+		default:
+			fprintf(stderr,"Error checking signature!\n");
+			return RET_ERROR_GPGME;
+	}
 }
 
 
 retvalue signature_sign(const char *chunk,const char *filename) {
 	retvalue r;
-	char *signwith,*sigfilename,*signcommand;
+	char *signwith,*sigfilename;
+	GpgmeError err;
+	GpgmeData dh,dh_gpg;
 	int ret;
+
+	r = signature_init();
+	if( RET_WAS_ERROR(r) )
+		return r;
 	
 	r = chunk_getvalue(chunk,"SignWith",&signwith);
 	/* in case of error or nothing to do there is nothing to do... */
 	if( !RET_IS_OK(r) ) { 
 		return r;
 	}
+	//TODO: speifiy which key to use...
+	free(signwith);
 
 	/* First calculate the filename of the signature */
 
@@ -98,82 +165,129 @@ retvalue signature_sign(const char *chunk,const char *filename) {
 		return RET_ERROR;
 	}
 
-	/* calculate what to call to create it */
-	
-	signcommand = mprintf("%s %s %s",signwith,sigfilename,filename);
-	free(signwith);
+	// TODO: Supply our own read functions to get sensible error messages.
+	err = gpgme_data_new(&dh_gpg);
+	if( err ) {
+		free(sigfilename);
+		return gpgerror(err);
+	}
+	err = gpgme_data_new_from_file(&dh,filename,1);
+	if( err ) {
+		gpgme_data_release(dh_gpg);
+		free(sigfilename);
+		return gpgerror(err);
+	}
+
+	err = gpgme_op_sign(context,dh,dh_gpg,GPGME_SIG_MODE_DETACH);
+	gpgme_data_release(dh);
+	if( err ) {
+		gpgme_data_release(dh_gpg);
+		free(sigfilename);
+		return gpgerror(err);
+	} else {
+		char *signature_data;
+		size_t signature_len;
+		int fd;
+
+		signature_data = gpgme_data_release_and_get_mem(dh_gpg,&signature_len);
+		if( signature_data == NULL ) {
+			return RET_ERROR_OOM;
+		}
+		fd = creat(sigfilename,0777);
+		if( fd < 0 ) {
+			free(signature_data);
+			free(sigfilename);
+			return RET_ERRNO(errno);
+		}
+		ret = write(fd,signature_data,signature_len);
+		free(signature_data);
+		ret = close(fd);
+		//TODO check return values...
+	}
+	if( verbose > 1 ) {
+		fprintf(stderr,"Successfully created '%s'\n",sigfilename);
+	}
 	free(sigfilename);
 
-	if( !signcommand ) {
-		return RET_ERROR_OOM;
-	}
-
-	//TODO: think about possible problems ...
-	ret = system(signcommand);
-	if( ret != 0 ) {
-		fprintf(stderr,"Executing '%s' returned: %d\n",signcommand,ret);
-		r = RET_ERROR;
-	} else { 
-		r = RET_OK;
-	}
-		
-	free(signcommand);
 	return r;
 }
 
 /* Read a single chunk from a file, that may be signed. */
 // TODO: Think about ways to check the signature...
 retvalue signature_readsignedchunk(const char *filename, char **chunkread) {
-	char *chunk,*chunk2,*endmarker;
-	gzFile f;
-	int issigned = 0, finished = 0;
+	const char *startofchanges,*endofchanges;
+	char *chunk;
+	GpgmeError err;
+	GpgmeData dh,dh_gpg;
+	GpgmeSigStat stat;
+	size_t plain_len;
+	char *plain_data;
+	retvalue r;
 	
-	f = gzopen(filename,"r");
-	if( !f ) {
-		fprintf(stderr,"Unable to open file %s: %m\n",filename);
-		return RET_ERRNO(errno);
+	r = signature_init();
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	err = gpgme_data_new_from_file(&dh_gpg,filename,1);
+	if( err ) {
+		return gpgerror(err);
+	}
+	err = gpgme_data_new(&dh);
+	if( err ) {
+		gpgme_data_release(dh_gpg);
+		return gpgerror(err);
+	}
+	err = gpgme_op_verify(context,dh_gpg,dh,&stat); 
+	if( err ) {
+		gpgme_data_release(dh_gpg);
+		gpgme_data_release(dh);
+		return gpgerror(err);
+	}
+	switch( stat ) {
+		case GPGME_SIG_STAT_NOSIG:
+			if( verbose > -1 ) 
+				fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
+			plain_data = gpgme_data_release_and_get_mem(dh_gpg,&plain_len);
+			gpgme_data_release(dh);
+			break;
+		case GPGME_SIG_STAT_DIFF:
+		case GPGME_SIG_STAT_NOKEY:
+			if( verbose > -1 ) 
+				fprintf(stderr,"Signature could not be checked or multiple signatures with different states, proceeding anyway...\n");
+		case GPGME_SIG_STAT_GOOD:
+			gpgme_data_release(dh_gpg);
+			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
+			break;
+		case GPGME_SIG_STAT_BAD:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"Signature is bad!\n");
+			return RET_ERROR_BADSIG;
+		default:
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			fprintf(stderr,"Error checking the signature within '%s'!\n",filename);
+			return RET_ERROR_BADSIG;
 	}
 
-	//TODO: why doesn't return this retvalue?
-	chunk = chunk_read(f);
-	if( !chunk )
+	startofchanges = plain_data;
+	while( startofchanges < plain_data+plain_len && 
+			*startofchanges && isspace(*startofchanges)) {
+		startofchanges++;
+	}
+	if( startofchanges >= plain_data+plain_len ) {
+		fprintf(stderr,"Could only find spaces within '%s'!\n",filename);
+		free(plain_data);
 		return RET_ERROR;
-
-	if( strncmp(chunk,"-----BEGIN",10) == 0 ) {
-		issigned = 1;
-		// signed, do validations here...
-		free(chunk);
-		chunk = chunk_read(f);
-		if( !chunk ) {
-			fprintf(stderr,"Missing Control Information in '%s'!\n",filename);
-			return RET_ERROR;
-		}
 	}
+	endofchanges = startofchanges;
+	// TODO check for double newline and complain if there are things after it, that are not spaces...
+	// TODO: check that the len is finaly reached and no \0 before...
 
-	if( issigned ) {
-		endmarker = strstr(chunk,"-----");
-		if( endmarker != NULL ) {
-			if( verbose > 0 ) 
-				fprintf(stderr,"Truncating at ----\n");
-			*endmarker ='\0';
-		}
-	}
-
-	while( !finished && (chunk2 = chunk_read(f)) != NULL ) {
-		if( strncmp(chunk2,"-----",5) == 0 ) {
-			if( !issigned ) {
-				fprintf(stderr,"Unexpected ----\n");
-			} else {
-				finished = 1;
-			}
-		} else {
-				fprintf(stderr,"Unexpected extra data: '%s'\n",chunk2);
-		}
-		free(chunk2);
-	}
-	//TODO: check result:
-	gzclose(f);
-
+	chunk = strndup(startofchanges,plain_len-(startofchanges-plain_data));
+	free(plain_data);
+	if( chunk == NULL )
+		return RET_ERROR_OOM;
 	*chunkread = chunk;
 	return RET_OK;
 }
