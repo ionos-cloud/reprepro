@@ -101,7 +101,7 @@ retvalue copyfile_md5known(const char *mirrordir,const char *filekey,const char 
 		return RET_ERROR_OOM;
 
 	r = copyfile(origfile,fullfilename,&md5sum);
-	if( r == RET_ERROR_EXIST ) {
+	if( r == RET_ERROR_EXIST || r == RET_NOTHING ) {
 		r = copyfile_force(origfile,fullfilename,md5expected);
 	} else if( RET_IS_OK(r) ) {
 		if( strcmp(md5sum,md5expected) == 0 ) {
@@ -126,7 +126,7 @@ retvalue copyfile_getmd5(const char *mirrordir,const char *filekey,const char *o
 		return RET_ERROR_OOM;
 
 	r = copyfile(origfile,fullfilename,md5sum);
-	if( r == RET_ERROR_EXIST ) {
+	if( r == RET_ERROR_EXIST || r == RET_NOTHING ) {
 		r = md5sum_read(origfile,md5sum);
 		if( r == RET_NOTHING ) {
 			/* where did it go? */
