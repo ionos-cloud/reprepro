@@ -1208,13 +1208,13 @@ static int check(int argc,char *argv[]) {
 
 /***********************adddeb******************************************/
 
-static int adddeb(int argc,char *argv[]) {
+static int includedeb(int argc,char *argv[]) {
 	retvalue result,r;
 	DB *files,*references;
 	struct distribution *distribution;
 
 	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer _adddeb <distribution> <package>\n");
+		fprintf(stderr,"mirrorer includedeb <distribution> <package>\n");
 		return 1;
 	}
 
@@ -1274,7 +1274,7 @@ static struct action {
 	{"_addmd5sums",addmd5sums},
 	{"update",update},
 	{"__extractcontrol",extract_control},
-	{"_adddeb",adddeb},
+	{"includedeb",includedeb},
 	{NULL,NULL}
 };
 
@@ -1355,11 +1355,11 @@ int main(int argc,char *argv[]) {
 				break;
 			case 'b':
 				mirrordir=strdup(optarg);
-				incommingdir=mprintf("%s/incomming",optarg);
-				distdir=mprintf("%s/dists",optarg);
-				dbdir=mprintf("%s/db",optarg);
-				listdir=mprintf("%s/lists",optarg);
-				confdir=mprintf("%s/conf",optarg);
+				incommingdir=calc_dirconcat(optarg,"incomming");
+				distdir=calc_dirconcat(optarg,"dists");
+				dbdir=calc_dirconcat(optarg,"db");
+				listdir=calc_dirconcat(optarg,"lists");
+				confdir=calc_dirconcat(optarg,"conf");
 				break;
 			case 'i':
 				incommingdir = strdup(optarg);

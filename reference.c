@@ -24,8 +24,8 @@
 #include <string.h>
 #include <db.h>
 #include "error.h"
-#include "mprintf.h"
 #include "strlist.h"
+#include "names.h"
 #include "md5sum.h"
 #include "dirs.h"
 #include "reference.h"
@@ -50,7 +50,7 @@ DB *references_initialize(const char *dbpath) {
 	char *filename;
 	retvalue r;
 	
-	filename = mprintf("%s/references.db",dbpath);
+	filename = calc_dirconcat(dbpath,"references.db");
 	if( !filename )
 		return NULL;
 	r = dirs_make_parent(filename);

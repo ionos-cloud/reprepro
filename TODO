@@ -7,4 +7,5 @@ TODO:
 	write README
 
 	search for nicer call of gpg within signature.c
+	implement extractcontrol.c properly
 	find a name for this project

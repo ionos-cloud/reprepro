@@ -30,7 +30,6 @@
 #include "chunks.h"
 #include "sources.h"
 #include "names.h"
-#include "mprintf.h"
 #include "dpkgversions.h"
 
 extern int verbose;
@@ -396,9 +395,6 @@ static inline retvalue callaction(new_package_action *action, void *data,
 //typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *origdirectory,const char *files,const char *oldchunk);
 
 struct sources_add {DB *pkgs; void *data; const char *component; new_package_action *action; };
-
-
-
 
 static retvalue addsource(void *data,const char *chunk) {
 	retvalue r;
