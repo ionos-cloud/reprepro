@@ -73,6 +73,7 @@ static int	delete = D_COPY;
 static int	force = 0;
 static bool_t	nothingiserror = FALSE;
 static bool_t	nolistsdownload = FALSE;
+static bool_t	keepunreferenced = FALSE;
 int		verbose = 0;
 
 static retvalue action_printargs(int argc,const char *argv[]) {
@@ -239,6 +240,10 @@ static retvalue action_deleteunreferenced(int argc,const char *argv[]) {
 		fprintf(stderr,"reprepro deleteunreferenced\n");
 		return RET_ERROR;
 	}
+	if( keepunreferenced ) {
+		fprintf(stderr,"Calling deleteunreferenced with --keepunreferencedfiles does not really make sense, does it?\n");
+		return RET_ERROR;
+	}
 	r = references_initialize(&dist.refs,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -344,7 +349,7 @@ static retvalue action_remove(int argc,const char *argv[]) {
 	}
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
-	if( d.removedfiles.count > 0 ) {
+	if( !keepunreferenced && d.removedfiles.count > 0 ) {
 		filesdb files;
 
 		if( verbose >= 0 )
@@ -1055,26 +1060,39 @@ static struct action {
 	{NULL,NULL}
 };
 
+#define LO_DELETE 1
+#define LO_KEEPUNREFERENCED 2
+#define LO_NOHTINGISERROR 3
+#define LO_NOLISTDOWNLOAD 4
+#define LO_DISTDIR 10
+#define LO_DBDIR 11
+#define LO_LISTDIR 12
+#define LO_OVERRIDEDIR 13
+#define LO_CONFDIR 14
+#define LO_METHODDIR 15
+int longoption = 0;
 
 int main(int argc,char *argv[]) {
 	static struct option longopts[] = {
-		{"delete", 0, NULL, 'r'},
+		{"delete", 0, &longoption,LO_DELETE},
 		{"basedir", 1, NULL, 'b'},
 		{"ignore", 1, NULL, 'i'},
-		{"methoddir", 1, NULL, 'M'},
-		{"distdir", 1, NULL, 'd'},
-		{"dbdir", 1, NULL, 'D'},
-		{"listdir", 1, NULL, 'L'},
-		{"overridedir", 1, NULL, 'o'},
-		{"confdir", 1, NULL, 'c'},
+		{"methoddir", 1, &longoption, LO_METHODDIR},
+		{"distdir", 1, &longoption, LO_DISTDIR},
+		{"dbdir", 1, &longoption, LO_DBDIR},
+		{"listdir", 1, &longoption, LO_LISTDIR},
+		{"overridedir", 1, &longoption, LO_OVERRIDEDIR},
+		{"confdir", 1, &longoption, LO_CONFDIR},
 		{"section", 1, NULL, 'S'},
 		{"priority", 1, NULL, 'P'},
 		{"component", 1, NULL, 'C'},
 		{"architecture", 1, NULL, 'A'},
+		{"type", 1, NULL, 'T'},
 		{"help", 0, NULL, 'h'},
 		{"verbose", 0, NULL, 'v'},
-		{"nothingiserror", 0, NULL, 'e'},
-		{"nolistsdownload", 0, NULL, 'N'},
+		{"nothingiserror", 0, &longoption, LO_NOHTINGISERROR},
+		{"nolistsdownload", 0, &longoption, LO_NOLISTDOWNLOAD},
+		{"keepunreferencedfiles", 0, &longoption, LO_KEEPUNREFERENCED},
 		{"force", 0, NULL, 'f'},
 		{NULL, 0, NULL, 0}
 	};
@@ -1084,22 +1102,24 @@ int main(int argc,char *argv[]) {
 	init_ignores();
 
 
-	while( (c = getopt_long(argc,argv,"+feNVvhlb:P:p:d:c:D:L:M:i:A:C:S:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+fVvhb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				printf(
 "reprepro - Produce and Manage and Debian package repository\n\n"
 "options:\n"
 " -h, --help:                        Show this help\n"
-" -r, --delete:                       Delete included files if reasonable.\n"
+" -i  --ignore <flag>:               Ignore errors of type <flag>.\n"
+"     --keepunreferencedfiles:       Do not delete files no longer needed.\n"
+"     --delete:                      Delete included files if reasonable.\n"
 " -b, --basedir <dir>:               Base-dir (will overwrite prior given\n"
 "                                                        -d, -D, -L, -c).\n"
-" -d, --distdir <dir>:               Directory to place the \"dists\" dir in.\n"
-" -D, --dbdir <dir>:                 Directory to place the database in.\n"
-" -L, --listdir <dir>:               Directory to place downloaded lists in.\n"
-" -c, --confdir <dir>:               Directory to search configuration in.\n"
-" -o, --overridedir <dir>:           Directory to search override files in.\n"
-" -M, --methodir <dir>:              Use instead of /usr/lib/apt/methods/\n"
+"     --distdir <dir>:               Directory to place the \"dists\" dir in.\n"
+"     --dbdir <dir>:                 Directory to place the database in.\n"
+"     --listdir <dir>:               Directory to place downloaded lists in.\n"
+"     --confdir <dir>:               Directory to search configuration in.\n"
+"     --overridedir <dir>:           Directory to search override files in.\n"
+"     --methodir <dir>:              Use instead of /usr/lib/apt/methods/\n"
 " -S, --section <section>:           Force include* to set section.\n"
 " -P, --priority <priority>:         Force include* to set priority.\n"
 " -C, --component <component>: 	     Add or delete only in component.\n"
@@ -1130,20 +1150,49 @@ int main(int argc,char *argv[]) {
 "\n"
 						);
 				exit(EXIT_SUCCESS);
-			case 'r':
-				delete++;
+			case '\0':
+				switch( longoption ) {
+					case LO_DELETE:
+						delete++;
+						break;
+					case LO_KEEPUNREFERENCED:
+						keepunreferenced=TRUE;
+						break;
+					case LO_NOHTINGISERROR:
+						nothingiserror=TRUE;
+						break;
+					case LO_NOLISTDOWNLOAD:
+						nolistsdownload=TRUE;
+						break;
+					case LO_DISTDIR:
+						distdir = strdup(optarg);
+						break;
+					case LO_DBDIR:
+						dbdir = strdup(optarg);
+						break;
+					case LO_LISTDIR:
+						listdir = strdup(optarg);
+						break;
+					case LO_OVERRIDEDIR:
+						overridedir = strdup(optarg);
+						break;
+					case LO_CONFDIR:
+						confdir = strdup(optarg);
+						break;
+					case LO_METHODDIR:
+						methoddir = strdup(optarg);
+						break;
+					default:
+						fprintf (stderr,"Error parsing arguments!\n");
+						exit(EXIT_FAILURE);
+				}
+				longoption = 0;
 				break;
 			case 'v':
 				verbose++;
 				break;
 			case 'V':
 				verbose+=5;
-				break;
-			case 'N':
-				nolistsdownload=TRUE;
-				break;
-			case 'e':
-				nothingiserror=TRUE;
 				break;
 			case 'f':
 				force++;
@@ -1162,24 +1211,6 @@ int main(int argc,char *argv[]) {
 					exit(EXIT_FAILURE);
 				}
 				break;
-			case 'M':
-				methoddir = strdup(optarg);
-				break;
-			case 'd':
-				distdir = strdup(optarg);
-				break;
-			case 'D':
-				dbdir = strdup(optarg);
-				break;
-			case 'L':
-				listdir = strdup(optarg);
-				break;
-			case 'o':
-				overridedir = strdup(optarg);
-				break;
-			case 'c':
-				confdir = strdup(optarg);
-				break;
 			case 'C':
 				component = strdup(optarg);
 				break;
@@ -1195,6 +1226,9 @@ int main(int argc,char *argv[]) {
 			case 'P':
 				priority = strdup(optarg);
 				break;
+			case '?':
+				/* getopt_long should have already given an error msg */
+				exit(EXIT_FAILURE);
 			default:
 				fprintf (stderr,"Not supported option '-%c'\n", c);
 				exit(EXIT_FAILURE);

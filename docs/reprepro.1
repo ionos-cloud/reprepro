@@ -41,10 +41,10 @@ subdirectory resides. Also sets
 .B \-\-overridedir \fIbasedir\fP/override
 (that means especially: use those options afterwards if you want to use them).
 .TP
-.B \-c, \-\-confdir \fIconfdir\fP
+.B \-\-confdir \fIconfdir\fP
 Sets the directory where the configuration is searched in.
 .TP
-.B \-d, \-\-distdir \fIdistdir\fP
+.B \-\-distdir \fIdistdir\fP
 Sets the directory to generate index files relatively to. (i.e. things like
 Packages.gz Sources.gz and Release.gpg)
 
@@ -54,23 +54,23 @@ apt has
 hardcoded in it, so this is only useful for testing or when your webserver
 pretends another directory structure than your physical layout.
 .TP
-.B \-D, \-\-dbdir \fIdbdir\fP
+.B \-\-dbdir \fIdbdir\fP
 Sets the directory where reprepro keeps its databases.
 
 .B Note:
 This is permanent data, no cache. One has almost to regenerate the whole
 repository when this is lost.
 .TP
-.B \-L, \-\-listdir \fIlistdir\fP
+.B \-\-listdir \fIlistdir\fP
 Sets the directory where downloads it downloads indices to when importing
 from other repositories. This is temporary data and can be safely deleted
 when not in an update run.
 .TP
-.B \-o, \-\-overridedir \fIoverridedir\fP
+.B \-\-overridedir \fIoverridedir\fP
 Sets the directory where specified override\-files will be searched in if
 they do not start with a slash.
 .TP
-.B \-M, \-\-methoddir \fImethoddir\fP
+.B \-\-methoddir \fImethoddir\fP
 Look in \fImethoddir\fP instead of
 .B /usr/lib/apt/methods
 for methods to call when importing from other repositories.
@@ -87,6 +87,9 @@ but will restrict effect to this architecture. This allows e.g. different
 versions of an
 .B Architecture: all
 \-package in different architectures of the same distribution.
+.TP
+.B \-T, \-\-type \fRdsc|deb|udeb
+Specify which type of files to delete only.
 .TP
 .B \-S, \-\-section \fIsection\fP
 Overrides the section of inclusions. (Also override possible override files)
@@ -108,7 +111,7 @@ config\-file does the expected things.
 List all packages (source and binary, except when
 .B \-A
 is given) with the given name in all components (except when
-.B \-c
+.B \-C
 is given) of the specified distribution.
 .TP
 .B remove \fIcodename\fP \fIpackagename\fP
@@ -136,6 +139,13 @@ Include the given Debian source package (.dsc, including other files
 like .orig.tar.gz, .tar.gz and/or .diff.gz) in the specified
 distribution, applying override information and guessing all values 
 not given and guessable.
+
+Note that as .dsc files do not contain section or priorty, but the
+Sources.gz file does, you have to either specify a SrcOverride or
+given them via
+.B -S
+and
+.B -P
 .TP
 .B include  \fIcodename\fP \fI.changes-filename\fP
 Include in the specified distribution all packages found and suitable
@@ -214,7 +224,7 @@ file of the specified .deb-file.
 .B reprepo 
 uses two config files, that are searched in
 the directory specified with 
-.B \-c
+.B \-\-confdir
 or in the
 .B conf/
 subdirectory of the directory given by
@@ -269,7 +279,7 @@ this distribution and if it contains
 (i.e. if there is an item
 .B source
 in this line this Distribution has source. All other items
-specify things to be put after "binary-" to form directory names
+specify things to be put after "binary\-" to form directory names
 and be checked against "Architecture:" fields.)
 
 This will also be copied into the Release files. (With exception
@@ -318,7 +328,7 @@ which is simply given to the corresponding
 .B apt\-get
 method. (So either
 .B apt\-get has to be installed, or you have to point with
-.B \-M
+.B \-\-methoddir
 to a place where such methods are found.
 .TP
 .B Config
@@ -467,14 +477,14 @@ in case you might wonder) or would get a package with the same version
 (Which it will not, see above). If the mark is still there at the end of the processing,
 the package will get removed.
 .P
-Thus the line "Updates: - 
+Thus the line "Updates: \- 
 .I rules
 " will cause all packages to be exactly the
 highest Version found in 
 .I rules.
 The line "Updates: 
 .I near 
-- 
+\- 
 .I rules
 " will do the same, except if it needs to download packages, it might download
 it from
