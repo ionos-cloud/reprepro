@@ -507,7 +507,7 @@ static retvalue action_md5sums(int argc,const char *argv[]) {
 			} else {
 				fprintf(stderr,"Error accessing file: %s\n",filename);
 				free(filename);
-				if( force > 0 )
+				if( force <= 0 )
 					return RET_ERROR;
 			}
 		}

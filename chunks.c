@@ -49,7 +49,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 
 		free(chunk);
 
-		if( RET_WAS_ERROR(ret) && force > 0 ) {
+		if( RET_WAS_ERROR(ret) && force <= 0 ) {
 			if( verbose > 0 )
 				fprintf(stderr,"Stop reading further chunks from '%s' due to privious errors.\n",filename);
 			break;
