@@ -1423,22 +1423,47 @@ int main(int argc,char *argv[]) {
 				}
 				break;
 			case 'C':
+				if( component != NULL && 
+						strcmp(component,optarg) != 0) {
+					fprintf(stderr,"Multiple '-C' are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(component);
 				component = strdup(optarg);
 				break;
 			case 'A':
+				if( architecture != NULL && 
+						strcmp(architecture,optarg) != 0) {
+					fprintf(stderr,"Multiple '-A's are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(architecture);
 				architecture = strdup(optarg);
 				break;
 			case 'T':
+				if( packagetype != NULL && 
+						strcmp(packagetype,optarg) != 0) {
+					fprintf(stderr,"Multiple '-T's are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(packagetype);
 				packagetype = strdup(optarg);
 				break;
 			case 'S':
+				if( section != NULL && 
+						strcmp(section,optarg) != 0) {
+					fprintf(stderr,"Multiple '-S' are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(section);
 				section = strdup(optarg);
 				break;
 			case 'P':
+				if( priority != NULL && 
+						strcmp(priority,optarg) != 0) {
+					fprintf(stderr,"Multiple '-P's are mpt supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(priority);
 				priority = strdup(optarg);
 				break;
