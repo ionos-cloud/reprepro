@@ -1,3 +1,6 @@
+2005-01-04  Bernhard R. Link <brlink@debian.org>
+	* Several code clean-ups, should not change anything....
+
 2004-12-30  Bernhard R. Link <brlink@debian.org>
 	* Tidy up (introduce bool_t and replace dpkgversion_isNewer)
 
