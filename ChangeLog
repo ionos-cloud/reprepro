@@ -1,3 +1,10 @@
+2005-02-01  Bernhard R. Link <brlink@debian.org>
+	* Add some missing files in Makefile.am so they end up in dist
+	* Add some #includes so that it also compiles without
+	warnings on sarge/i386
+
+	* --ignore= allows multiple options seperated by comas.
+
 2005-01-29  Bernhard R. Link <brlink@debian.org>
 	* Be more descriptive with missing signatures.
 
