@@ -34,7 +34,7 @@
 extern int verbose;
 
 /* get md5sums out of a "Packages.gz"-chunk. */
-static retvalue binaries_parse_md5sum(const char *chunk,struct strlist *md5sums) {
+static retvalue binaries_parse_md5sum(const char *chunk,/*@out@*/struct strlist *md5sums) {
 	retvalue r;
 	/* collect the given md5sum and size */
 
@@ -64,19 +64,18 @@ static retvalue binaries_parse_md5sum(const char *chunk,struct strlist *md5sums)
 	}
 	r = strlist_init_singleton(md5sum,md5sums);
 	if( RET_WAS_ERROR(r) ) {
-		free(md5sum);
 		return r;
 	}
 	return RET_OK;
 }
 
 /* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
-static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,const char *packagetype,const char *version,char **sourcename,char **basename) {
+static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,const char *packagetype,const char *version,/*@out@*/char **sourcename,/*@out@*/char **basename) {
 	retvalue r;
 	char *parch;
 	char *mysourcename,*mybasename;
 
-	assert(packagename);
+	assert(packagename!=NULL);
 
 	/* get the sourcename */
 	r = chunk_getname(chunk,"Source",&mysourcename,TRUE);
@@ -131,8 +130,6 @@ static retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *fil
 		return r;
 	}
 	r = strlist_init_singleton(filename,files);
-	if( !RET_IS_OK(r) )
-		free(filename);
 	return r;
 }
 
@@ -148,9 +145,6 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 	if( !filekey )
 		return RET_ERROR_OOM;
 	r = strlist_init_singleton(filekey,filekeys);
-	if( RET_WAS_ERROR(r) ) {
-		free(filekey);
-	}
 	return r;
 }
 
@@ -163,7 +157,7 @@ static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,c
 
 	assert( filekeys->count == 1 );
 	*newchunk = chunk_replacefield(chunk,"Filename",filekeys->values[0]);
-	if( !*newchunk ) {
+	if( *newchunk == NULL ) {
 		strlist_done(filekeys);
 		return RET_ERROR_OOM;
 	}

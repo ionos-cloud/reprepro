@@ -13,7 +13,7 @@ struct strlist {
 
 retvalue strlist_init(/*@out@*/struct strlist *strlist);
 retvalue strlist_init_n(int startsize,/*@out@*/struct strlist *strlist);
-retvalue strlist_init_singleton(char *value,/*@out@*/struct strlist *strlist);
+retvalue strlist_init_singleton(/*@only@*/char *value,/*@out@*/struct strlist *strlist);
 void strlist_done(struct strlist *strlist);
 
 /* add a string, will get property of the strlist and free'd by it */
@@ -29,7 +29,7 @@ retvalue strlist_fprint(FILE *file,const struct strlist *strlist);
 /* duplicate with content */
 retvalue strlist_dup(struct strlist *dest,const struct strlist *orig);
 /* replace the contents of dest with those from orig, which get emptied */
-void strlist_move(struct strlist *dest,struct strlist *orig);
+void strlist_move(/*@out@*/struct strlist *dest,struct strlist *orig);
 /* empty orig and add everything to the end of dest, on error nothing is freed */
 retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig);
 

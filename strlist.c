@@ -77,8 +77,10 @@ retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
 	strlist->count = 1;
 	strlist->size = 1;
 	strlist->values = malloc(sizeof(char *));
-	if( strlist->values == NULL )
+	if( strlist->values == NULL ) {
+		free(value);
 		return RET_ERROR_OOM;
+	}
 	strlist->values[0] = value;
 
 	return RET_OK;
@@ -180,7 +182,7 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
 	if( !dest->values )
 		return RET_ERROR_OOM;
 	for( i = 0 ; i < dest->count ; i++ ) {
-		if( !(dest->values[i] = strdup(orig->values[i])) ) {
+		if( (dest->values[i] = strdup(orig->values[i])) == NULL ) {
 			strlist_done(dest);
 			return RET_ERROR_OOM;
 		}
