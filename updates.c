@@ -39,12 +39,11 @@ extern int verbose;
 
 /* if found in a update-chunk, do no download or check release-files */
 #define IGNORE_RELEASE "NoRelease"
-/* fieldname of the command to check Release.gpg, e.g. 'gpg --trusted-key B629A24C38C6029A --verify' */
-// Should be the same as in signature.c (TODO: where to place it?)
+/* FORMERLY: fieldname of the command to check Release.gpg, e.g. 'gpg --trusted-key B629A24C38C6029A --verify' */
+/* not yet used yet, will be used for key-id or something like this */
 #define VERIFY_RELEASE "ReleaseCheck"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
-//
 
 struct updates_data {
 	const char *updatesfile;
@@ -380,7 +379,7 @@ static retvalue checkpackagelists(struct strlist *checksums,
 
 
 retvalue updates_checkfetchedlists(const struct update *update,const char *updatechunk,const char *listdir,const char *codename) {
-	char *releasefile,*gpgfile;
+	char *releasefile,*checkoptions;
 	struct strlist checksums;
 	retvalue r;
 
@@ -392,10 +391,32 @@ retvalue updates_checkfetchedlists(const struct update *update,const char *updat
 		return r;
 	assert( r == RET_NOTHING );
 
+	r = chunk_getvalue(updatechunk,VERIFY_RELEASE,&checkoptions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING )
+		checkoptions = NULL;
+
 	releasefile = mprintf("%s/%s_%s_Release",listdir,codename,update->name);
-	gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update->name);
-	r = signature_check(updatechunk,gpgfile,releasefile);
-	free(gpgfile);
+	if( releasefile == NULL ) {
+		free(checkoptions);
+		return RET_ERROR_OOM;
+	}
+
+	/* if there is nothing said, then there is nothing to check... */
+	if( checkoptions != NULL ) {
+		char *gpgfile;
+
+		gpgfile = mprintf("%s/%s_%s_Release.gpg",listdir,codename,update->name);
+		if( gpgfile == NULL ) {
+			free(releasefile);
+			free(checkoptions);
+			return RET_ERROR_OOM;
+		}
+		r = signature_check(checkoptions,gpgfile,releasefile);
+		free(gpgfile);
+		free(checkoptions);
+	}
 
 	if( RET_WAS_ERROR(r) ) {
 		free(releasefile);

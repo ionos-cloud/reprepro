@@ -340,6 +340,7 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	FILE *f;
 	char *filename;
 	char *dirofdist;
+	char *signoptions;
 	size_t e;
 	retvalue result,r;
 	char buffer[100];
@@ -402,20 +403,31 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	data.dirofdist = dirofdist;
 	//TODO: get a force from above?
 	result = distribution_foreach_part(distribution,printsource,printbin,&data,0);
+	free(dirofdist);
 
 	if( fclose(f) != 0 ) {
-		free(dirofdist);
 		free(filename);
 		return RET_ERRNO(errno);
 	}
 
-	r = signature_sign(chunk,filename);
-	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) ){
+		free(filename);
+		return result;
+	}
 
-	free(dirofdist);
+	r = chunk_getvalue(chunk,"SignWith",&signoptions);
+	if( RET_WAS_ERROR(r) ) {
+		free(dirofdist);
+		free(filename);
+		return r;
+	}
+	/* in case of error or nothing to do there is nothing to do... */
+	if( RET_IS_OK(r) ) { 
+		r = signature_sign(signoptions,filename);
+		RET_UPDATE(result,r);
+		free(signoptions);
+	}
 	free(filename);
-	
-
 	return result;
 }
 

@@ -66,7 +66,7 @@ static retvalue signature_init(){
 	return RET_OK;
 }
 
-retvalue signature_check(const char *chunk, const char *releasegpg, const char *release) {
+retvalue signature_check(const char *options, const char *releasegpg, const char *release) {
 	retvalue r;
 	GpgmeError err;
 	GpgmeData dh,dh_gpg;
@@ -77,11 +77,6 @@ retvalue signature_check(const char *chunk, const char *releasegpg, const char *
 
 	r = signature_init();
 	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = chunk_gettruth(chunk,"ReleaseCheck");
-	/* if there is no command, then there is nothing to check... */
-	if( RET_WAS_ERROR(r) || r == RET_NOTHING)
 		return r;
 
 	//TODO: choose which key to check against?
@@ -129,9 +124,9 @@ retvalue signature_check(const char *chunk, const char *releasegpg, const char *
 }
 
 
-retvalue signature_sign(const char *chunk,const char *filename) {
+retvalue signature_sign(const char *options,const char *filename) {
 	retvalue r;
-	char *signwith,*sigfilename;
+	char *sigfilename;
 	GpgmeError err;
 	GpgmeData dh,dh_gpg;
 	int ret;
@@ -139,20 +134,13 @@ retvalue signature_sign(const char *chunk,const char *filename) {
 	r = signature_init();
 	if( RET_WAS_ERROR(r) )
 		return r;
-	
-	r = chunk_getvalue(chunk,"SignWith",&signwith);
-	/* in case of error or nothing to do there is nothing to do... */
-	if( !RET_IS_OK(r) ) { 
-		return r;
-	}
+
 	//TODO: speifiy which key to use...
-	free(signwith);
 
 	/* First calculate the filename of the signature */
 
 	sigfilename = calc_addsuffix(filename,"gpg");
 	if( !sigfilename ) {
-		free(signwith);
 		return RET_ERROR_OOM;
 	}
 
