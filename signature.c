@@ -80,7 +80,7 @@ retvalue signature_sign(const char *chunk,const char *filename) {
 
 	/* First calculate the filename of the signature */
 
-	sigfilename = calc_addsuffix(filename,"Release");
+	sigfilename = calc_addsuffix(filename,"gpg");
 	if( !sigfilename ) {
 		free(signwith);
 		return RET_ERROR_OOM;
