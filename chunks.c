@@ -401,3 +401,132 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 	return RET_OK;
 }
 
+/* Add this the <fields to add> to <chunk> before <beforethis> field,
+ * replacing older fields of this name, if they are already there. */
+
+retvalue chunk_replacefields(char **chunk,const struct fieldtoadd *toadd,const char *beforethis) {
+	const char *c,*ce;
+	char *newchunk,*n;
+	size_t size,len_beforethis;
+	const struct fieldtoadd *f;
+	retvalue result;
+
+	assert( chunk != NULL && *chunk != NULL && beforethis != NULL );
+
+	if( toadd == NULL )
+		return RET_NOTHING;
+
+	c = *chunk;
+
+	/* calculate the maximal size we might end up with */
+	size = 1+ strlen(c);
+	f = toadd;
+	while( f ) {
+		size += 3 + f->len_field + f->len_data;
+		f = f->next;
+	}
+
+	newchunk = n = malloc(size);
+	if( n == NULL )
+		return RET_ERROR_OOM;
+
+	len_beforethis = strlen(beforethis);
+
+	result = RET_NOTHING;
+	do {
+		/* are we at the place to add the fields yet? */
+		if(strncmp(c,beforethis,len_beforethis) == 0 
+				&& c[len_beforethis] == ':' ) {
+			/* add them now: */
+			f = toadd;
+			while( f ) {
+				memcpy(n,f->field,f->len_field);
+				n += f->len_field;
+				*n = ':'; n++;
+				*n = ' '; n++;
+				memcpy(n,f->data,f->len_data);
+				n += f->len_data;
+				*n = '\n'; n++;
+				f = f->next;
+			}
+			result = RET_OK;
+		}
+		/* is this one of the fields we added/will add? */
+		f = toadd;
+		while( f ) {
+			if(strncmp(c,f->field,f->len_field) == 0 
+					&& c[f->len_field] == ':' )
+				break;
+			f = f->next;
+		}
+		/* search the end of the field */
+		ce = c;
+		do {
+			while( *ce != '\n' && *ce != '\0' )
+				ce++;
+			if( *ce == '\0' )
+				break;
+			ce++;
+		} while( *ce == ' ' );
+
+		/* copy it, if it is not to be ignored */
+
+		if( f == NULL ) {
+			memcpy(n,c,ce-c);
+			n += ce-c;
+		}
+
+		/* and proceed with the next */
+		c = ce;
+
+	} while( *c != '\0' );
+
+	*n = '\0';
+
+	if( result == RET_NOTHING ) {
+		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,*chunk);
+		assert(0);
+	}
+
+	free(*chunk);
+	*chunk = newchunk;
+	return RET_OK;
+}
+
+struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next) {
+	struct fieldtoadd *n;
+
+	n = malloc(sizeof(struct fieldtoadd));
+	if( n == NULL )
+		return n;
+	n->field = field;
+	n->len_field = strlen(field);
+	n->data = data;
+	n->len_data = strlen(data);
+	n->next = next;
+	return n;
+}
+struct fieldtoadd *addfield_newn(const char *field,const char *data,size_t len,struct fieldtoadd *next) {
+	struct fieldtoadd *n;
+
+	n = malloc(sizeof(struct fieldtoadd));
+	if( n == NULL )
+		return n;
+	n->field = field;
+	n->len_field = strlen(field);
+	n->data = data;
+	n->len_data = len;
+	n->next = next;
+	return n;
+}
+void addfield_free(struct fieldtoadd *f) {
+	struct fieldtoadd *g;
+
+	while( f ) {
+		g = f->next;
+		free(f);
+		f = g;
+	}
+}
+
+

@@ -35,4 +35,23 @@ typedef retvalue chunkaction(void *data,const char *chunk);
 /* Call action for each chunk in <filename> */
 retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force);
 
+/* modifications of a chunk: */
+struct fieldtoadd {
+	struct fieldtoadd *next;
+	/* The name of the field: */
+	const char *field;
+	/* The data to include: */
+	const char *data;
+	/* how many chars in them (the *exact* len to use
+	 *                        , no \0 allowed within!), */
+	size_t len_field,len_data;
+};
+
+/* Add this the <fields to add> to <chunk> before <beforethis> field,
+ * replacing older fields of this name, if they are already there. */
+retvalue chunk_replacefields(char **chunk,const struct fieldtoadd *toadd,const char *beforethis);
+struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next);
+struct fieldtoadd *addfield_newn(const char *field,const char *data,size_t len,struct fieldtoadd *next);
+void addfield_free(struct fieldtoadd *f);
+
 #endif
