@@ -435,7 +435,10 @@ retvalue deb_add(const char *dbdir,DB *references,filesdb filesdb,const char *fo
 		}
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i],suffix);
+		struct target *t;
+		if( strcmp(distribution->architectures.values[i],"source") == 0 )
+			continue;
+		t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i],suffix);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
