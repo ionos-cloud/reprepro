@@ -46,41 +46,38 @@
 
 extern int verbose;
 
-// This file shall include the code to include sources, i.e.
-// create the chunk of the Sources.gz-file and 
-// putting it in the various databases.
+/* This file includes the code to include sources, i.e.
+ to create the chunk for the Sources.gz-file and 
+ to put it in the various databases.
 
-// should superseed the add_source from main.c for inclusion
-// of downloaded packages from main.c
-
-/* things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
-Get all from .dsc (search the chunk with
-the Source:-field. end the chunk artifical
-before the pgp-end-block.(in case someone
-missed the newline there))
+things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
+* Get all from .dsc (search the chunk with
+  the Source:-field. end the chunk artifical
+  before the pgp-end-block.(in case someone
+  missed the newline there))
 
 * check to have source,version,maintainer,
   standards-version, files. And also look
   at binary,architecture and build*, as
   described in policy 5.4
 
-Get overwrite information, ecspecially
-the priority(if there is a binaries field,
-check the one with the highest) and the section 
-(...what else...?)
+* Get overwrite information, ecspecially
+  the priority(if there is a binaries field,
+  check the one with the highest) and the section 
+  (...what else...?)
 
-- Rename Source-Field to Package-Field
+* Rename Source-Field to Package-Field
 
-- add dsc to files-list. (check other files md5sum and size)
+* add dsc to files-list. (check other files md5sum and size)
 
-- add Directory-field
+* add Directory-field
 
-- Add Priority and Statues
+* Add Priority and Status
 
-- apply possible maintainer-updates from the overwrite-file
+* apply possible maintainer-updates from the overwrite-file
   or arbitrary tag changes from the extra-overwrite-file
 
-- keep rest (perhaps sort alphabetical)
+* keep rest (perhaps sort alphabetical)
 
 */
 
@@ -159,7 +156,7 @@ static void dsc_free(struct dscpackage *pkg) {
 	free(pkg);
 }
 
-static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
+static static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 	retvalue r;
 	struct dscpackage *dsc;
 
@@ -187,6 +184,9 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 		dsc_free(dsc);
 		return r;
 	}
+	/* only recommended, so ignore errors with this: */
+	(void) checkvalue(filename,dsc->control,"Standards-Version");
+
 	r = getvalue(filename,dsc->control,"Version",&dsc->version);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
@@ -213,7 +213,7 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 	return RET_OK;
 }
 
-retvalue dsc_calclocations(struct dscpackage *pkg) {
+static retvalue dsc_calclocations(struct dscpackage *pkg) {
 	retvalue r;
 
 	assert( pkg != NULL && pkg->package != NULL && pkg->version != NULL );
