@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -95,7 +95,15 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 		free(mysourcename);
 		return r;
 	}
-	/* TODO check parts to consist out of save charakters */
+	r = properpackagename(packagename);
+	if( !RET_WAS_ERROR(r) )
+		r = propername(version);
+	if( !RET_WAS_ERROR(r) )
+		r = propername(parch);
+	if( RET_WAS_ERROR(r) ) {
+		free(parch);
+		return r;
+	}
 	mybasename = calc_binary_basename(packagename,version,parch,suffix);
 	free(parch);
 	if( !mybasename ) {

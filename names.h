@@ -40,4 +40,8 @@ retvalue names_checkversion(const char *version);
 /* check for a string to be a valid filename */
 retvalue names_checkbasename(const char *basename);
 
+/* check for forbidden characters */
+retvalue propername(const char *string);
+retvalue properpackagename(const char *string);
+
 #endif

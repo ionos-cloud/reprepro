@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -27,6 +27,47 @@
 #include "strlist.h"
 #include "names.h"
 
+retvalue propername(const char *string) {
+	const unsigned char *s;
+	assert( string != NULL );
+
+	if( string[0] == '.' && string[1] == '.' ) {
+		fprintf(stderr,"Names may not start with two dots!\n");
+		return RET_ERROR;
+	}
+	s = string;
+	while( *s ) {
+		if( *s < ' ' || (*s & 128) != 0 ||
+		    *s == '/' || *s == '|' ) {
+			fprintf(stderr,"Character 0x%2x not allowed here! (='%c')\n", (unsigned int)*s,*s);
+			return RET_ERROR;
+		}
+		s++;
+	}
+	return RET_OK;
+	
+}
+
+retvalue properpackagename(const char *string) {
+	const unsigned char *s;
+	assert( string != NULL );
+
+	if( string[0] == '.' ) {
+		fprintf(stderr,"Packagenames may not start with a dot!\n");
+		return RET_ERROR;
+	}
+	s = string;
+	while( *s ) {
+		if( (*s > 'z' || *s < 'a' ) && 
+		    (*s > '9' || *s < '0' ) && 
+		    *s != '+' && *s != '-' && *s != '.') {
+			fprintf(stderr,"Character 0x%2x not allowed in package names! (='%c')\n", (unsigned int)*s,*s);
+			return RET_ERROR;
+		}
+		s++;
+	}
+	return RET_OK;
+}
 
 // This escaping is quite harsh, but so nothing bad can happen...
 static inline size_t escapedlen(const char *p) {
