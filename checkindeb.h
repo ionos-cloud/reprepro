@@ -18,12 +18,13 @@ retvalue checkindeb_insert( DB *references,const char *referee,
 
 struct debpackage {
 	char *package,*version,*source,*arch;
-	char *filekey;
-	char *md5andsize;
+	char *basename;
 	char *control;
 };
-/* read the data from a .deb, add Filename, Size and md5sum to the control-item */
-retvalue deb_read(struct debpackage **pkg, const char *component, const char *filename);
+/* read the data from a .deb, make some checks and extract some data */
+retvalue deb_read(struct debpackage **pkg, const char *filename);
+/* do overwrites, add Filename, Size and md5sum to the control-item */
+retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize);
 void deb_free(struct debpackage *pkg);
 
 #endif

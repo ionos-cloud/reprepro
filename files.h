@@ -29,6 +29,15 @@ retvalue files_detect(DB *filesdb,const char *mirrordir,const char *filekey);
 /* check for file in the database and if not found there, if it can be detected */
 retvalue files_expect(DB *filesdb,const char *mirrordir,const char *filekey,const char *md5andsize);
 
+/* Copy file <origfilename> to <mirrordir>/<filekey> and add it to
+ * the database <filesdb>. Return RET_ERROR_WRONG_MD5 if already there 
+ * with other md5sum, return other error when the file does not exists
+ * or the database had an error. return RET_NOTHING, if already there
+ * with correct md5sum. Return <md5andsize> with the data of this file,
+ * if no error (that is if RET_OK or RET_NOTHING) */
+retvalue files_checkin(DB *filesdb,const char *mirrordir,const char *filekey,
+		const char *origfilename, char **md5andsize);
+
 typedef retvalue per_file_action(void *data,const char *filekey,const char *md5andsize);
 
 /* callback for each registered file */

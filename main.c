@@ -40,7 +40,6 @@
 #include "signature.h"
 #include "extractcontrol.h"
 #include "checkindeb.h"
-#include "copyfile.h"
 
 
 #ifndef STD_BASE_DIR
@@ -1335,6 +1334,7 @@ static int adddeb(int argc,char *argv[]) {
 	retvalue r;
 	struct debpackage *pkg;
 	DB *files;
+	char *filekey,*md5andsize;
 
 	if( argc < 4 ) {
 		fprintf(stderr,"mirrorer _adddeb <distribution> <part> <package>\n");
@@ -1343,12 +1343,17 @@ static int adddeb(int argc,char *argv[]) {
 
 	/* First taking a closer look to the file: */
 
-	r = deb_read(&pkg,argv[2],argv[3]);	
+	r = deb_read(&pkg,argv[3]);	
 	if( RET_WAS_ERROR(r) ) {
 		return EXIT_RET(r);
 	}
 
 	fprintf(stderr,"%s,%s,%s,%s\n%s",pkg->package,pkg->source,pkg->version,pkg->arch,pkg->control);
+	// TODO: look for overwrites and things like this here...
+	
+	/* decide where it has to go */
+
+	filekey = calc_filekey(argv[2],pkg->source,pkg->basename);
 
 	/* then looking if we already have this, or copy it in */
 
@@ -1356,30 +1361,25 @@ static int adddeb(int argc,char *argv[]) {
 	if( !files )
 		return 1;
 
-	r = files_expect(files,mirrordir,pkg->filekey,pkg->md5andsize);
-	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Error looking for file %s in archive\n",pkg->filekey);
-		deb_free(pkg);
-		return r;
-	} 
-	if( r == RET_NOTHING ) {
-		if( verbose > 1 ) {
-			fprintf(stderr,"Trying to add as '%s'\n",pkg->filekey);
-		}
-		r = copyfile(mirrordir,pkg->filekey,argv[3]);
-		if( RET_WAS_ERROR(r) ) {
-			fprintf(stderr,"Error moving file %s to %s/%s\n",argv[3],mirrordir,pkg->filekey);
-			deb_free(pkg);
-			return r;
-		}
-		// TODO: add it to database here.
-		// (hm, how to handle md5sum?)
-	}
-
+	r = files_checkin(files,mirrordir,filekey,argv[3],&md5andsize);
 	files_done(files);
+	if( RET_WAS_ERROR(r) ) {
+		deb_free(pkg);
+		return EXIT_RET(r);
+	} 
 
-	/* Finaly add it to the database */
+	r = deb_complete(pkg,filekey,md5andsize);
+	if( RET_WAS_ERROR(r) ) {
+		deb_free(pkg);
+		return EXIT_RET(r);
+	} 
+	
+	/* finaly put it into a distribution */
 
+	fprintf(stderr,"\n%s\n",pkg->control);
+	//TODO...
+
+	free(md5andsize);
 	deb_free(pkg);
 
 	return 0;

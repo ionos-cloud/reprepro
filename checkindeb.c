@@ -26,6 +26,7 @@
 #include <getopt.h>
 #include <string.h>
 #include <malloc.h>
+#include <ctype.h>
 #include <zlib.h>
 #include <db.h>
 #include "error.h"
@@ -169,65 +170,21 @@ static inline retvalue getvalue_d(const char *defaul,const char *chunk,const cha
 	return r;
 }
 
-
-static inline char *calcfilekey(const char *component,const char *package,
-		const char *source,const char *version,const char *arch) {
-	char *basename,*filekey;
-	//TODO: the following is anything but in-situ. 
-	// think about if this has to be changed or is good the way it is.
-	
-	basename = calc_package_basename(package,version,arch);
-	if( basename == NULL )
-		return NULL;
-	filekey = calc_filekey(component,source,basename);
-	free(basename);
-	return filekey;
-}
-
-
-static inline char *addfiledata(const char *chunk,const char *filekey,
-		int pkgsize,const char*pkgmd5) {
-	char *fieldstoadd,*newchunk;
-	//TODO: the following is anything but in-situ. 
-	// think about if this has to be changed or is good the way it is.
-	
-	fieldstoadd =  mprintf("Filename: %s\nSize: %d\nMD5Sum: %s", 
-				filekey,pkgsize,pkgmd5);
-	if( fieldstoadd == NULL )
-		return NULL;
-	newchunk = chunk_insertdata(chunk,"Description",fieldstoadd);
-	free(fieldstoadd);
-	return newchunk;
-}
-
-
 void deb_free(struct debpackage *pkg) {
 	if( pkg ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->source);free(pkg->arch);
-		free(pkg->filekey);free(pkg->control);
+		free(pkg->basename);free(pkg->control);
 	}
 	free(pkg);
 }
 
-retvalue deb_read(struct debpackage **pkg, const char *component, const char *filename) {
-	char *newchunk;
+retvalue deb_read(struct debpackage **pkg, const char *filename) {
 	retvalue r;
-	char pkgmd5[33];off_t pkgsize;
 	struct debpackage *deb;
 
-	r = md5sum(pkgmd5,&pkgsize,filename,0);
-	// TODO: is RETNOTHING pssoible here?
-	if( !RET_IS_OK(r) )
-		return r;
 
 	deb = calloc(1,sizeof(struct debpackage));
-
-	deb->md5andsize = mprintf("%s %lu",pkgmd5,(long)pkgsize);
-	if( deb->md5andsize == NULL ) {
-		deb_free(deb);
-		return r;
-	}
 
 	r = extractcontrol(&deb->control,filename);
 	if( RET_WAS_ERROR(r) ) {
@@ -270,6 +227,12 @@ retvalue deb_read(struct debpackage **pkg, const char *component, const char *fi
 		return r;
 	}
 
+	deb->basename = calc_package_basename(deb->package,deb->version,deb->arch);
+	if( deb->basename == NULL ) {
+		deb_free(deb);
+		return r;
+	}
+
 	/* check for priority and section, compare with defaults
 	 * and overrides */
 
@@ -285,27 +248,38 @@ retvalue deb_read(struct debpackage **pkg, const char *component, const char *fi
 		deb_free(deb);
 		return r;
 	}
-
-	//TODO: add checks here if section implies another component or
-	// do it another place??
-	
-	/* Add Filename, md5sum and size-headers... */
-
-	deb->filekey = calcfilekey(component,deb->package,deb->source,deb->version,deb->arch);
-	if( deb->filekey == NULL ) {
-		deb_free(deb);
-		return r;
-	}
-
-	newchunk = addfiledata(deb->control,deb->filekey,pkgsize,pkgmd5);
-	if( newchunk == NULL ) {
-		deb_free(deb);
-		return r;
-	}
-	free(deb->control);
-	deb->control = newchunk;
-
 	*pkg = deb;
+
+	return RET_OK;
+}
+
+retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize) {
+	retvalue r;
+	const char *size;
+	struct fieldtoadd *file;
+
+	size = md5andsize;
+	while( !isblank(*size) && *size )
+		size++;
+	file = addfield_newn("MD5Sum",md5andsize, size-md5andsize,NULL);
+	if( !file )
+		return RET_ERROR_OOM;
+	while( *size && isblank(*size) )
+		size++;
+	file = addfield_new("Size",size,file);
+	if( !file )
+		return RET_ERROR_OOM;
+	file = addfield_new("Filename",filekey,file);
+	if( !file )
+		return RET_ERROR_OOM;
+
+	// TODO: add overwriting of other fields here, (before the rest)
+	
+	r  = chunk_replacefields(&pkg->control,file,"Description");
+	addfield_free(file);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
 
 	return RET_OK;
 }
