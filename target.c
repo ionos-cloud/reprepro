@@ -374,8 +374,11 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 				return r;
 		}
 	}
-	if( !RET_WAS_ERROR(result) )
-		target->packages->wasmodified = 0;
+	if( !RET_WAS_ERROR(result) ) {
+		if( target->packages )
+			target->packages->wasmodified = 0;
+		target->wasmodified = 0;
+	}
 	return result;
 }
 
