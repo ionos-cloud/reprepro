@@ -46,50 +46,6 @@ extern int verbose;
 // create  the chunk of the Packages.gz-file and 
 // putting it in the various databases.
 
-static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *architecture,struct debpackage *package,const struct strlist *filekeys) {
-	retvalue result,r;
-	char *identifier,*oldversion;
-	DB *packages;
-	struct strlist oldfilekeys,*o;
-
-	identifier = calc_identifier(distribution->codename,package->component,architecture);
-	if( ! identifier )
-		return RET_ERROR_OOM;
-
-	packages = packages_initialize(dbpath,identifier);
-	if( ! packages ) {
-		free(identifier);
-		return RET_ERROR;
-	}
-
-	r = binaries_lookforolder(packages,package->package,package->version,&oldversion,&oldfilekeys);
-	if( RET_WAS_ERROR(r) ) {
-		(void)packages_done(packages);
-		free(identifier);
-		return r;
-	}
-	if( RET_IS_OK(r) )
-		o = &oldfilekeys;
-	else
-		o = NULL;
-
-	if( RET_IS_OK(r) && oldversion ) {
-		fprintf(stderr,"Version '%s' already in the archive, skipping '%s'\n",oldversion,package->version);
-		free(oldversion);
-		result = RET_NOTHING;
-	} else
-		result = packages_insert(identifier,references,packages,
-			package->package, package->control,
-			filekeys, o);
-
-	r = packages_done(packages);
-	RET_ENDUPDATE(result,r);
-
-	free(identifier);
-	if( o )
-		strlist_done(&oldfilekeys);
-	return result;
-}
 
 /* things to do with .deb's checkin by hand: (by comparison with apt-ftparchive)
 - extract the control file (that's the hard part -> extractcontrol.c )
@@ -413,10 +369,10 @@ retvalue deb_add(const char *dbdir,DB *references,DB *filesdb,const char *mirror
 	result = RET_NOTHING;
 
 	if( strcmp(pkg->architecture,"all") != 0 ) {
-		r = deb_addtodist(dbdir,references,distribution,pkg->architecture,pkg,&filekeys);
+		r = binaries_addtodist(dbdir,references,distribution->codename,pkg->component,pkg->architecture,pkg->package,pkg->version,pkg->control,&filekeys);
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		r = deb_addtodist(dbdir,references,distribution,distribution->architectures.values[i],pkg,&filekeys);
+		r = binaries_addtodist(dbdir,references,distribution->codename,pkg->component,distribution->architectures.values[i],pkg->package,pkg->version,pkg->control,&filekeys);
 		RET_UPDATE(result,r);
 	}
 

@@ -336,3 +336,49 @@ retvalue binaries_findnew(DB *pkgs,const char *component,const char *packages_fi
 
 	return chunk_foreach(packages_file,processbinary,&mydata,force,0);
 }
+
+/* Add a binary package to a distribution, removing previous versions
+ * of it, if necesary. */
+retvalue binaries_addtodist(const char *dbpath,DB *references,const char *codename,const char *component,const char *architecture,const char *package,const char *version,const char *controlchunk,const struct strlist *filekeys) {
+	retvalue result,r;
+	char *identifier,*oldversion;
+	DB *packages;
+	struct strlist oldfilekeys,*o;
+
+	identifier = calc_identifier(codename,component,architecture);
+	if( ! identifier )
+		return RET_ERROR_OOM;
+
+	packages = packages_initialize(dbpath,identifier);
+	if( ! packages ) {
+		free(identifier);
+		return RET_ERROR;
+	}
+
+	r = binaries_lookforolder(packages,package,version,&oldversion,&oldfilekeys);
+	if( RET_WAS_ERROR(r) ) {
+		(void)packages_done(packages);
+		free(identifier);
+		return r;
+	}
+	if( RET_IS_OK(r) )
+		o = &oldfilekeys;
+	else
+		o = NULL;
+
+	if( RET_IS_OK(r) && oldversion ) {
+		fprintf(stderr,"Version '%s' already in the archive, skipping '%s'\n",oldversion,version);
+		free(oldversion);
+		result = RET_NOTHING;
+	} else
+		result = packages_insert(identifier,references,packages,
+			package, controlchunk, filekeys, o);
+
+	r = packages_done(packages);
+	RET_ENDUPDATE(result,r);
+
+	free(identifier);
+	if( o )
+		strlist_done(&oldfilekeys);
+	return result;
+}
