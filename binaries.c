@@ -34,21 +34,10 @@
 extern int verbose;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
-static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **sourcename,char **basename,struct strlist *md5sums,char **version) {
-	char *ppackage;
+static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,char **sourcename,char **basename,struct strlist *md5sums) {
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
 #define ISFREE(p) if(p) strlist_done(p);
-
-	r  = chunk_getname(chunk,"Package", &ppackage,0);
-	if( !RET_IS_OK(r) )
-		return r;
-	if( !ppackage ) {
-		return RET_ERROR_OOM;
-	}
-	if( packagename ) {
-		*packagename = ppackage;
-	}
 
 	/* collect the given md5sum and size */
 
@@ -57,25 +46,21 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 
 		r = chunk_getvalue(chunk,"MD5sum",&pmd5);
 		if( !RET_IS_OK(r) ) {
-			free(ppackage);
 			return r;
 		}
 		r = chunk_getvalue(chunk,"Size",&psize);
 		if( !RET_IS_OK(r) ) {
-			free(ppackage);
 			free(pmd5);
 			return r;
 		}
 		md5sum = calc_concatmd5andsize(pmd5,psize);
 		free(pmd5);free(psize);
 		if( md5sum == NULL ) {
-			free(ppackage);
 			return RET_ERROR_OOM;
 		}
 		r = strlist_init_singleton(md5sum,md5sums);
 		if( RET_WAS_ERROR(r) ) {
 			free(md5sum);
-			free(ppackage);
 			return r;
 		}
 	}
@@ -85,23 +70,12 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 	if( sourcename ) {
 		r = chunk_getname(chunk,"Source",sourcename,1);
 		if( r == RET_NOTHING ) {
-			*sourcename = strdup(ppackage);
+			*sourcename = strdup(packagename);
 			if( !*sourcename )
 				r = RET_ERROR_OOM;
 		}
 		if( RET_WAS_ERROR(r) ) {
-			free(ppackage);
 			ISFREE(md5sums);
-			return r;
-		}
-	}
-
-	/* get the version */
-	if( version ) {
-		r = chunk_getvalue(chunk,"Version",version);
-		if( !RET_IS_OK(r) ) {
-			free(ppackage);
-			IFREE(sourcename);
 			return r;
 		}
 	}
@@ -114,38 +88,32 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 		// TODO combine the two looks for version...
 		r = chunk_getvalue(chunk,"Version",&pversion);
 		if( !RET_IS_OK(r) ) {
-			free(ppackage);
 			ISFREE(md5sums);
 			IFREE(sourcename);
 			return r;
 		}
 		r = chunk_getvalue(chunk,"Architecture",&parch);
 		if( !RET_IS_OK(r) ) {
-			free(ppackage);
 			ISFREE(md5sums);
 			IFREE(sourcename);
 			free(pversion);
 			return r;
 		}
 		/* TODO check parts to consist out of save charakters */
-		*basename = calc_binary_basename(ppackage,pversion,parch);
+		*basename = calc_binary_basename(packagename,pversion,parch);
 		free(pversion);free(parch);
 		if( !*basename ) {
-			free(ppackage);
 			ISFREE(md5sums);
 			IFREE(sourcename);
 			return RET_ERROR_OOM;
 		}
 	}
 
-	if( packagename == NULL)
-		free(ppackage);
-
 	return RET_OK;
 }
 
 /* get files out of a "Packages.gz"-chunk. */
-retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files) {
+static retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files) {
 	retvalue r;
 	char *filename;
 	
@@ -161,58 +129,6 @@ retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files) {
 	r = strlist_init_singleton(filename,files);
 	if( !RET_IS_OK(r) )
 		free(filename);
-	return r;
-}
-
-/* Look for an older version of the Package in the database.
- * return RET_NOTHING if there is none, otherwise
- * Set *oldversion, if there is already a newer (or equal) version to
- * <version>  */
-static retvalue binaries_lookforolder(
-		packagesdb packages,const char *packagename,
-		const char *newversion,char **oldversion,
-		struct strlist *oldfilekeys) {
-	char *oldchunk,*ov;
-	retvalue r;
-
-	assert( packages != NULL && packagename != NULL
-			&& newversion != NULL && oldversion != NULL
-			&& oldfilekeys != NULL );
-
-	r = packages_get(packages,packagename,&oldchunk);
-	if( !RET_IS_OK(r) ) {
-		return r;
-	}
-
-	r = binaries_parse_chunk(oldchunk,NULL,NULL,NULL,NULL,&ov);
-	if( !RET_IS_OK(r) ) {
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Does not look like binary control: '%s'\n",oldchunk);
-			r = RET_ERROR;
-
-		}
-		free(oldchunk);
-		return r;
-	}
-	r = dpkgversions_isNewer(newversion,ov);
-
-	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Parse errors processing versions of %s.\n",packagename);
-		free(ov);
-		free(oldchunk);
-		return r;
-	}
-	if( RET_IS_OK(r) ) {
-		*oldversion = NULL;
-		free(ov);
-	} else
-		*oldversion = ov;
-
-	r = binaries_parse_getfilekeys(oldchunk,oldfilekeys);
-	free(oldchunk);
-	if( !RET_IS_OK(r) && oldversion )
-		free(*oldversion);
-
 	return r;
 }
 
@@ -245,90 +161,6 @@ static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,c
 	return RET_OK;
 }
 
-static inline retvalue callaction(new_package_action *action,void *data,
-		const char *chunk,const char *packagename,const char *version,
-		const char *sourcename,const char *basename, 
-		const char *component,
-		const struct strlist *md5sums,
-		const struct strlist *origfiles,
-		const struct strlist *oldfiles) {
-	retvalue r;
-	char *newchunk;
-	struct strlist filekeys;
-
-	r = calcnewcontrol(chunk,sourcename,basename,component,&filekeys,&newchunk);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = (*action)(data,newchunk,packagename,version,
-			&filekeys,origfiles,md5sums,oldfiles);
-	free(newchunk);
-	strlist_done(&filekeys);
-	return r;
-}
-
-struct binaries_add {packagesdb pkgs; void *data; const char *component; new_package_action *action; };
-
-static retvalue processbinary(void *data,const char *chunk) {
-	struct binaries_add *d = data;
-	retvalue r;
-	char *oldversion;
-	struct strlist origfiles,oldfilekeys,md5sums;
-	char *package,*basename,*sourcename,*version;
-
-	r = binaries_parse_chunk(chunk,&package,&sourcename,&basename,&md5sums,&version);
-	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Cannot parse chunk: '%s'!\n",chunk);
-		return r;
-	} else if( r == RET_NOTHING ) {
-		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
-		return RET_ERROR;
-	}
-	assert(RET_IS_OK(r));
-
-	r = binaries_parse_getfilekeys(chunk,&origfiles);
-
-	if( RET_IS_OK(r) )
-		r = binaries_lookforolder(d->pkgs,package,version,
-				&oldversion,&oldfilekeys);
-
-	if( RET_IS_OK(r) ) {
-		if( oldversion != NULL ) {
-			if( verbose > 40 )
-				fprintf(stderr,
-"Ignoring '%s' with version '%s', as '%s' is already there.\n",
-					package,version,oldversion);
-			free(oldversion);
-			r = RET_NOTHING;
-		} else 
-			r = callaction(d->action,d->data,chunk,package,version,
-				sourcename,basename,d->component,&md5sums,
-				&origfiles,&oldfilekeys);
-		strlist_done(&oldfilekeys);
-	} else if( r == RET_NOTHING ) {
-		r = callaction(d->action,d->data,chunk,package,version,
-				sourcename,basename,d->component,
-				&md5sums,&origfiles,NULL);
-	}
-	
-	strlist_done(&origfiles);
-	free(version); free(package);strlist_done(&md5sums);
-	free(basename);free(sourcename);
-	return r;
-}
-
-/* call action for each package in packages_file */
-retvalue binaries_findnew(packagesdb pkgs,const char *component,const char *packages_file, new_package_action action,void *data,int force) {
-	struct binaries_add mydata;
-
-	mydata.data=data;
-	mydata.pkgs=pkgs;
-	mydata.component=component;
-	mydata.action=action;
-
-	return chunk_foreach(packages_file,processbinary,&mydata,force,0);
-}
-
 retvalue binaries_getname(struct target *t,const char *control,char **packagename){
 	retvalue r;
 
@@ -358,8 +190,7 @@ retvalue binaries_getinstalldata(struct target *t,const char *packagename,const 
 	char *sourcename,*basename;
 	retvalue r;
 
-	//TODO replace this with code doing only the needed work...
-	r = binaries_parse_chunk(chunk,NULL,&sourcename,&basename,md5sums,NULL);
+	r = binaries_parse_chunk(chunk,packagename,&sourcename,&basename,md5sums);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	} else if( r == RET_NOTHING ) {

@@ -19,14 +19,7 @@ retvalue sources_getfile(const char *fileline,
 		char **basename,
 		char **md5sum);
 
-retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys);
 retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums);
-
-	
-/* call <action> for each package in the "Sources.gz"-style file <source_file> 
- * missing in <pkgs> and using <component> as subdir of pool 
- * (i.e. "main","contrib",...) for generated paths */
-retvalue sources_findnew(packagesdb pkgs,const char *component,const char *sources_file,new_package_action action,void *data,int force);
 
 /* Calculate the filelines in a form suitable for chunk_replacefields: */
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item);

@@ -189,30 +189,14 @@ static retvalue getBasenamesAndMd5(const struct strlist *filelines,struct strlis
 }
 
 /* get the intresting information out of a "Sources.gz"-chunk */
-static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **version,char **origdirectory,struct strlist *basefiles,struct strlist *md5sums) {
+static retvalue sources_parse_chunk(const char *chunk,char **origdirectory,struct strlist *basefiles,struct strlist *md5sums) {
 	retvalue r;
 #define IFREE(p) if(p) free(*p);
-
-	if( packagename ) {
-		r = chunk_getname(chunk,"Package",packagename,0);
-		if( !RET_IS_OK(r) )
-			return r;
-	}
-	
-	if( version ) {
-		r = chunk_getvalue(chunk,"Version",version);
-		if( !RET_IS_OK(r) ) {
-			IFREE(packagename);
-			return r;
-		}
-	}
 
 	if( origdirectory ) {
 		/* Read the directory given there */
 		r = chunk_getvalue(chunk,"Directory",origdirectory);
 		if( !RET_IS_OK(r) ) {
-			IFREE(packagename);
-			IFREE(version);
 			return r;
 		}
 		if( verbose > 13 ) 
@@ -227,8 +211,6 @@ static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **
   
 		r = chunk_getextralinelist(chunk,"Files",&filelines);
 		if( !RET_IS_OK(r) ) {
-			IFREE(packagename);
-			IFREE(version);
   			IFREE(origdirectory);
   			return r;
 		}
@@ -238,8 +220,6 @@ static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **
 			r = getBasenames(&filelines,basefiles);
 		strlist_done(&filelines);
 		if( RET_WAS_ERROR(r) ) {
-			IFREE(packagename);
-			IFREE(version);
   			IFREE(origdirectory);
   			return r;
 		}
@@ -249,12 +229,12 @@ static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **
 	return RET_OK;
 }
 
-retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys) {
+static retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys) {
 	char *origdirectory;
 	struct strlist basenames;
 	retvalue r;
 	
-	r = sources_parse_chunk(chunk,NULL,NULL,&origdirectory,&basenames,NULL);
+	r = sources_parse_chunk(chunk,&origdirectory,&basenames,NULL);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;
@@ -269,57 +249,6 @@ retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys) 
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return r;
-}
-
-/* Look for an older version of the Package in the database.
- * Set *oldversion, if there is already a newer (or equal) version to
- * <version>, return RET_NOTHING, if there is none at all. */
-static retvalue sources_lookforolder(
-		packagesdb packages,const char *packagename,
-		const char *newversion,char **oldversion,
-		struct strlist *oldfiles) {
-	char *oldchunk,*ov;
-	retvalue r;
-
-	assert(oldversion != NULL && newversion != NULL);
-
-	r = packages_get(packages,packagename,&oldchunk);
-	if( !RET_IS_OK(r) ) {
-		return r;
-	}
-
-	r = sources_parse_chunk(oldchunk,NULL,&ov,NULL,NULL,NULL);
-
-	if( !RET_IS_OK(r) ) {
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Does not look like source control: '%s'\n",oldchunk);
-			r = RET_ERROR;
-
-		}
-		free(oldchunk);
-		return r;
-	}
-
-	r = dpkgversions_isNewer(newversion,ov);
-
-	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Parse errors processing versions of %s.\n",packagename);
-		free(ov);
-		free(oldchunk);
-		return r;
-	}
-	if( RET_IS_OK(r) ) {
-		*oldversion = NULL;
-		free(ov);
-	} else
-		*oldversion = ov;
-
-	r = sources_parse_getfilekeys(oldchunk,oldfiles);
-	free(oldchunk);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	return RET_OK;
 }
 
 static inline retvalue calcnewcontrol(
@@ -354,99 +283,11 @@ static inline retvalue calcnewcontrol(
 	return RET_OK;
 }
 
-static inline retvalue callaction(new_package_action *action, void *data,
-		const char *chunk, const char *package, const char *version,
-		const char *origdirectory, const struct strlist *basenames,
-		const struct strlist *md5sums,
-		const char *component, const struct strlist *oldfilekeys) {
-	char *newchunk;
-	struct strlist origfiles,filekeys;
-	retvalue r;
-
-	r = calcnewcontrol(chunk,package,basenames,component,origdirectory,&filekeys,&newchunk,&origfiles);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	
-
-// Calculating origfiles and newchunk will both not be needed in half of the
-// cases. This could be avoided by pushing flags to sources_findnew which
-// to generete. (doing replace_field here makes handling in main.c so
-// nicely type-independent.)
-
-	r = (*action)(data,newchunk,package,version,
-			&filekeys,&origfiles,md5sums,oldfilekeys);
-	free(newchunk);
-	strlist_done(&filekeys);
-	strlist_done(&origfiles);
-
-	return r;
-}
-
-
-//typedef retvalue source_package_action(void *data,const char *chunk,const char *package,const char *directory,const char *origdirectory,const char *files,const char *oldchunk);
-
-struct sources_add {packagesdb pkgs; void *data; const char *component; new_package_action *action; };
-
-static retvalue processsource(void *data,const char *chunk) {
-	retvalue r;
-	struct sources_add *d = data;
-
-	char *package,*version,*origdirectory;
-	char *oldversion;
-	struct strlist basenames,md5sums,oldfilekeys;
-
-	r = sources_parse_chunk(chunk,&package,&version,&origdirectory,&basenames,&md5sums);
-	if( r == RET_NOTHING ) {
-		// TODO: error?
-		return RET_ERROR;
-	} else if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-
-	r = sources_lookforolder(d->pkgs,package,version,&oldversion,&oldfilekeys);
-	if( r == RET_NOTHING )
-		r = callaction(d->action,d->data,
-				chunk,package,version,
-				origdirectory,&basenames,&md5sums,
-				d->component,NULL);
-	else if( RET_IS_OK(r) ) {
-		if( oldversion != NULL ) {
-			if( verbose > 40 )
-				fprintf(stderr,
-"Ignoring '%s' with version '%s', as '%s' is already there.\n"
-					,package,version,oldversion);
-			free(oldversion);
-			r = RET_NOTHING;
-		} else 
-			r = callaction(d->action,d->data,
-					chunk,package,version,
-					origdirectory,&basenames,&md5sums,
-					d->component,&oldfilekeys);
-		strlist_done(&oldfilekeys);
-	}
-	free(package);free(version);free(origdirectory);
-	strlist_done(&basenames);strlist_done(&md5sums);
-	return r;
-}
-
-/* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
- * <pkgs> and using <component> as subdir of pool (i.e. "main","contrib",...) for generated paths */
-retvalue sources_findnew(packagesdb pkgs,const char *component,const char *sources_file, new_package_action action,void *data,int force) {
-	struct sources_add mydata;
-
-	mydata.data=data;
-	mydata.pkgs=pkgs;
-	mydata.component=component;
-	mydata.action=action;
-
-	return chunk_foreach(sources_file,processsource,&mydata,force,0);
-}
-
 /* Get the files and their expected md5sums */
 retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums) {
 	retvalue r;
 
-	r = sources_parse_chunk(chunk,NULL,NULL,NULL,basenames,md5sums);
+	r = sources_parse_chunk(chunk,NULL,basenames,md5sums);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;

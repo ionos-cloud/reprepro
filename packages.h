@@ -57,25 +57,4 @@ typedef retvalue per_package_action(void *data,const char *package,const char *c
 /* call action once for each saved chunk: */
 retvalue packages_foreach(packagesdb packagesdb,per_package_action action,void *data, int force);
 
-/* The action-type supplied to binary.c and source.c when looking
- * for things to update: */
-typedef retvalue new_package_action(
-	/* the private data passed to {binaries,sources}_add */
-	void *data,
-	/* the chunk to be added */
-	const char *chunk,
-	/* the name of the {binary-,source-}package */
-	const char *packagename,
-	/* the version */
-	const char *version,
-	/* the files (relative to mirrordir) it contains */
-	const struct strlist *filekeys,
-	/* the original files the chunk describes: */
-	const struct strlist *origfiles,
-	/* the md5sum of theese files requested: */
-	const struct strlist *md5sums,
-	/* files (r.t. mirrordir) the previous version needed: */
-	const struct strlist *oldfilekeys
-	);
-	
 #endif
