@@ -121,7 +121,7 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 		}
 	}
 	if( result == RET_ERROR_BADSIG ) {
-		fprintf(stderr,"NO VALID SIGNATURE with key '%s' found!\n",key);
+		fprintf(stderr,"NO VALID SIGNATURE with key '%s' found in '%s'!\n",key,releasegpg);
 	} else if( result == RET_OK ) {
 		if( verbose > 0 )
 			fprintf(stderr,"Valid Signature within '%s' found.\n",releasegpg);

@@ -7,6 +7,8 @@
 
 	* Tell about -b if conf/distributions cannot be found
 
+	* Tell which release.gpg file is missing the signature.
+
 2005-01-29  Bernhard R. Link <brlink@debian.org>
 	* Be more descriptive with missing signatures.
 
