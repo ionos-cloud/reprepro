@@ -193,7 +193,7 @@ static retvalue sources_parse_chunk(const char *chunk,char **packagename,char **
 #define IFREE(p) if(p) free(*p);
 
 	if( packagename ) {
-		r = chunk_getvalue(chunk,"Package",packagename);
+		r = chunk_getname(chunk,"Package",packagename,0);
 		if( !RET_IS_OK(r) )
 			return r;
 	}

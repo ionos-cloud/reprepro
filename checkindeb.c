@@ -79,18 +79,6 @@ static inline retvalue checkvalue(const char *filename,const char *chunk,const c
 	return r;
 }
 
-static inline retvalue getvalue_d(const char *defaul,const char *chunk,const char *field,char **value) {
-	retvalue r;
-
-	r = chunk_getvalue(chunk,field,value);
-	if( r == RET_NOTHING ) {
-		*value = strdup(defaul);
-		if( *value == NULL )
-			r = RET_ERROR_OOM;
-	}
-	return r;
-}
-
 static inline retvalue getvalue_n(const char *chunk,const char *field,char **value) {
 	retvalue r;
 
@@ -140,7 +128,11 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 
 	/* first look for fields that should be there */
 
-	r = getvalue(filename,deb->control,"Package",&deb->package);
+	r = chunk_getname(deb->control,"Package",&deb->package,0);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Package' field in %s!\n",filename);
+		r = RET_ERROR;
+	}
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
@@ -167,7 +159,12 @@ retvalue deb_read(struct debpackage **pkg, const char *filename) {
 	}
 
 	/* can be there, otherwise we also know what it is */
-	r = getvalue_d(deb->package,deb->control,"Source",&deb->source);
+	r = chunk_getname(deb->control,"Source",&deb->source,1);
+	if( r == RET_NOTHING ) {
+		deb->source = strdup(deb->package);
+		if( deb->source == NULL )
+			r = RET_ERROR_OOM;
+	}
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;

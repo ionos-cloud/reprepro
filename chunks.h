@@ -17,6 +17,11 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value);
 retvalue chunk_getfirstword(const char *chunk,const char *name,char **value);
 retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlist *strlist);
 retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *strlist);
+
+/* Parse a package/source-field: ' *value( ?\(version\))? *',
+ * where pkgname consists of [-+.a-z0-9]*/
+retvalue chunk_getname(const char *chunk,const char *name,char **pkgname,int allowversion);
+
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 
 retvalue chunk_gettruth(const char *chunk,const char *name);
 /* return RET_OK, if field is found, RET_NOTHING, if not */ 

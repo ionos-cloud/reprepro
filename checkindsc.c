@@ -86,7 +86,7 @@ static inline retvalue getvalue(const char *filename,const char *chunk,const cha
 
 	r = chunk_getvalue(chunk,field,value);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find %s-header in control file of %s!\n",field,filename);
+		fprintf(stderr,"Missing '%s'-header in %s!\n",field,filename);
 		r = RET_ERROR;
 	}
 	return r;
@@ -97,20 +97,8 @@ static inline retvalue checkvalue(const char *filename,const char *chunk,const c
 
 	r = chunk_checkfield(chunk,field);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find %s-header in control file of %s!\n",field,filename);
+		fprintf(stderr,"Cannot find '%s'-header in %s!\n",field,filename);
 		r = RET_ERROR;
-	}
-	return r;
-}
-
-static inline retvalue getvalue_d(const char *defaul,const char *chunk,const char *field,char **value) {
-	retvalue r;
-
-	r = chunk_getvalue(chunk,field,value);
-	if( r == RET_NOTHING ) {
-		*value = strdup(defaul);
-		if( *value == NULL )
-			r = RET_ERROR_OOM;
 	}
 	return r;
 }
@@ -174,7 +162,11 @@ static retvalue dsc_read(struct dscpackage **pkg, const char *filename) {
 
 	/* first look for fields that should be there */
 
-	r = getvalue(filename,dsc->control,"Source",&dsc->package);
+	r = chunk_getname(dsc->control,"Source",&dsc->package,0);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
+		r = RET_ERROR;
+	}
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;

@@ -40,7 +40,7 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 #define IFREE(p) if(p) free(*p);
 #define ISFREE(p) if(p) strlist_done(p);
 
-	r  = chunk_getvalue(chunk,"Package", &ppackage);
+	r  = chunk_getname(chunk,"Package", &ppackage,0);
 	if( !RET_IS_OK(r) )
 		return r;
 	if( !ppackage ) {
@@ -83,7 +83,7 @@ static retvalue binaries_parse_chunk(const char *chunk,char **packagename,char *
 	/* get the sourcename */
 
 	if( sourcename ) {
-		r = chunk_getfirstword(chunk,"Source",sourcename);
+		r = chunk_getname(chunk,"Source",sourcename,1);
 		if( r == RET_NOTHING ) {
 			*sourcename = strdup(ppackage);
 			if( !*sourcename )

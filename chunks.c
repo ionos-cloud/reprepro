@@ -340,6 +340,62 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 	return RET_OK;
 }
 
+static inline int ispkgnamechar(char c) {
+	return  ( c == '+' ) || ( c == '-') || ( c == '.' )
+		|| (( c >= 'a') && ( c <= 'z' ))
+		|| (( c >= '0') && ( c <= '9' ));
+}
+
+/* Parse a package/source-field: ' *value( ?\(version\))? *',
+ * where pkgname consists of [-+.a-z0-9]*/
+retvalue chunk_getname(const char *chunk,const char *name,
+		char **pkgname,int allowversion) {
+	const char *field,*name_end,*p;
+
+	field = chunk_getfield(name,chunk);
+	if( !field )
+		return RET_NOTHING;
+	while( *field && *field != '\n' && isspace(*field) )
+		field++;
+	name_end = field;
+	while( ispkgnamechar(*name_end) )
+		name_end++;
+	p = name_end;
+	while( *p && *p != '\n' && isspace(*p) )
+		p++;
+	if( name_end == field || 
+		( *p != '\0' && *p != '\n' && 
+		  ( !allowversion || *p != '('))) {
+		if( *field == '\n' || *field == 0 ) {
+			fprintf(stderr,"Error: Field '%s' is empty!\n",name);
+		} else {
+			fprintf(stderr,"Error: Field '%s' contains unexpected character '%c'!\n",name,*p);
+		}
+		return RET_ERROR;
+	}
+	if( *p == '(' ) {
+		while( *p != '\0' && *p != '\n' && *p != ')' )
+			// TODO: perhaps check for wellformed version
+			p++;
+		if( *p != ')' ) {
+			fprintf(stderr,"Error: Field '%s' misses closing parathesis!\n",name);
+			return RET_ERROR;
+		}
+	}
+	while( *p && *p != '\n' && isspace(*p) )
+		p++;
+	if( *p != '\0' && *p != '\n' ) {
+		fprintf(stderr,"Error: Field '%s' contains trailing junk starting with '%c'!\n",name,*p);
+		return RET_ERROR;
+	}
+
+	*pkgname = strndup(field,name_end-field);
+	if( *pkgname == NULL )
+		return RET_ERROR_OOM;
+	return RET_OK;
+
+}
+
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
 
