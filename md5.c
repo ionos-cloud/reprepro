@@ -18,15 +18,21 @@
  * definitions; now uses stuff from dpkg's config.h.
  *  - Ian Jackson <ijackson@nyx.cs.du.edu>.
  * Still in the public domain.
+ *
+ * Changed to no longer need things from dpkg,
+ * but using endian.h instead.
+ *  - Bernhard R. Link <brlink@debian.org>
+ * Still in public domain.
  */
 
+#include <endian.h>		/* for __BYTE_ORDER */
 #include <string.h>		/* for memcpy() */
 #include <sys/types.h>		/* for stupid systems */
 #include <netinet/in.h>		/* for ntohl() */
 
 #include "md5.h"
 
-#ifdef WORDS_BIGENDIAN
+#if __BYTE_ORDER == __BIG_ENDIAN
 void
 byteSwap(UWORD32 *buf, unsigned words)
 {
@@ -39,7 +45,11 @@ byteSwap(UWORD32 *buf, unsigned words)
 	} while (--words);
 }
 #else
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 #define byteSwap(buf,words)
+#else
+#error "only supporting little or big endian currently"
+#endif
 #endif
 
 /*
