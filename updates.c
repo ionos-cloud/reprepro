@@ -1099,7 +1099,6 @@ static retvalue updates_calllisthooks(struct distribution *distributions,int for
 	return result;
 }
 
-
 upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
 	retvalue r;
@@ -1262,13 +1261,6 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 		return result;
 	}
 
-	/* Call ListHooks (if given) on the downloaded index files */
-	r = updates_calllisthooks(distributions,force);
-	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && !force ) {
-		return result;
-	}
-
 	return result;
 }
 
@@ -1298,6 +1290,14 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 			aptmethod_shutdown(run);
 			return result;
 		}
+	}
+	/* Call ListHooks (if given) on the downloaded index files.
+	 * (This is done even when nolistsdownload is given, as otherwise
+	 *  the filename to look in is not changed) */
+	r = updates_calllisthooks(distributions,force);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) && !force ) {
+		return result;
 	}
 
 	/* Then get all packages */
@@ -1377,6 +1377,14 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct dist
 			aptmethod_shutdown(run);
 			return result;
 		}
+	}
+	/* Call ListHooks (if given) on the downloaded index files.
+	 * (This is done even when nolistsdownload is given, as otherwise
+	 *  the filename to look in is not changed) */
+	r = updates_calllisthooks(distributions,force);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) && !force ) {
+		return result;
 	}
 	if( verbose > 0 )
 		fprintf(stderr,"Shutting down aptmethods...\n");

@@ -3,6 +3,8 @@
 
 	* tidy up upgradelist.c and report errors properly
 
+	* ListHook is also called when --nolistsdownload is given
+
 2005-01-25  Bernhard R. Link <brlink@debian.org>
 	* Add ListHook keyword for external processing
 	  of the downloaded index file before updating.
