@@ -14,9 +14,17 @@
 
 struct distribution {
 	struct distribution *next;
-	char *codename,*suite,*version;
+	/* the primary name to access this distribution: */
+	char *codename;
+	/* additional information for the Release-file to be
+	 * generated, may be NULL. only suite is sometimes used
+	 * (and only for sanity checks) */
+	char *suite,*version;
 	char *origin,*label,*description;
-	struct strlist architectures,components,updates;
+	/* What architectures and components are there */
+	struct strlist architectures,components;
+	/* which update rules to use */
+	struct strlist updates;
 	/* the key to sign with, may be NULL: */
 	char *signwith;
 	/* the override file to use by default */

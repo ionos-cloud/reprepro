@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -137,51 +137,52 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 	if( !r )
 		return RET_ERROR_OOM;
 
-#define checkret		 if(!RET_IS_OK(ret)) { \
+#define fieldrequired(name)	if( ret == RET_NOTHING ) { fputs("While parsing distribution definition, required field " name " not found!\n",stderr); ret = RET_ERROR_MISSING; }
+
+	ret = chunk_getvalue(chunk,"Codename",&r->codename);
+	fieldrequired("Codename");
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
+#define nullifnone(a)		if(RET_WAS_ERROR(ret)) { \
 					(void)distribution_free(r); \
 					return ret; \
-				}
-	// TODO: give some message here instead of silently ignoring,
-	// and/or make some fields optional (like Version)
-	ret = chunk_getvalue(chunk,"Codename",&r->codename);
-	checkret;
-	ret = chunk_getvalue(chunk,"Suite",&r->suite);
-	checkret;
-	ret = chunk_getvalue(chunk,"Version",&r->version);
-	checkret;
-	ret = chunk_getvalue(chunk,"Origin",&r->origin);
-	checkret;
-	ret = chunk_getvalue(chunk,"Label",&r->label);
-	checkret;
-	ret = chunk_getvalue(chunk,"Description",&r->description);
-	checkret;
+				} else r->a = NULL;
+#define getpossibleemptyfield(key,fieldname) \
+		ret = chunk_getvalue(chunk,key,&r->fieldname); \
+		if(RET_WAS_ERROR(ret)) { \
+			(void)distribution_free(r); \
+			return ret; \
+		} else if( ret == RET_NOTHING) \
+			r->fieldname = NULL;
+		
+	getpossibleemptyfield("Suite",suite);
+	getpossibleemptyfield("Version",version);
+	getpossibleemptyfield("Origin",origin);
+	getpossibleemptyfield("Label",label);
+	getpossibleemptyfield("Description",description);
 	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
-	checkret;
+	fieldrequired("Architectures");
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
 	ret = chunk_getwordlist(chunk,"Components",&r->components);
-	checkret;
+	fieldrequired("Components");
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
 	ret = chunk_getwordlist(chunk,"Update",&r->updates);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
 	}
-	ret = chunk_getvalue(chunk,"SignWith",&r->signwith);
-	if( RET_WAS_ERROR(ret) ) {
-		(void)distribution_free(r);
-		return ret;
-	} else if( ret == RET_NOTHING )
-		r->signwith = NULL;
-	ret = chunk_getvalue(chunk,"Override",&r->override);
-	if( RET_WAS_ERROR(ret) ) {
-		(void)distribution_free(r);
-		return ret;
-	} else if( ret == RET_NOTHING )
-		r->override = NULL;
-	ret = chunk_getvalue(chunk,"SourceOverride",&r->srcoverride);
-	if( RET_WAS_ERROR(ret) ) {
-		(void)distribution_free(r);
-		return ret;
-	} else if( ret == RET_NOTHING )
-		r->srcoverride = NULL;
+	getpossibleemptyfield("SignWith",signwith);
+	getpossibleemptyfield("Override",override);
+	getpossibleemptyfield("SourceOverride",srcoverride);
 	ret = chunk_getwordlist(chunk,"UDebComponents",&r->udebcomponents);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
@@ -189,10 +190,16 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 	}
 
 	ret = createtargets(r);
-	checkret;
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
 
 	*distribution = r;
 	return RET_OK;
+
+#undef fieldrequired
+#undef getpossibleemptyfield
 }
 
 struct distribution_filter {int count; const char **dists; };

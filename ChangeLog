@@ -1,3 +1,10 @@
+2004-12-19  Bernhard R. Link <brlink@debian.org>
+
+	* change parsing of conf/distributions, the fields only
+	  copied to Release files can be omitted now. Additional
+	  it warns if required fields are missing intead of
+	  silently ignoring this block...
+
 2004-12-18  Bernhard R. Link <brlink@debian.org>
 
 	* remove now tells which packages were removed (with -v)

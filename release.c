@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003 Bernhard R. Link
+ *  Copyright (C) 2003,2004 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation; either version 2 of the License, or
@@ -133,16 +133,18 @@ retvalue release_genrelease(const struct distribution *distribution,const struct
 	}
 	free(filename);
 
-	fprintf(f,	"Archive: %s\n"
-			"Version: %s\n"
-			"Component: %s\n"
-			"Origin: %s\n"
-			"Label: %s\n"
-			"Architecture: %s\n"
-			"Description: %s\n",
-		distribution->suite,distribution->version,target->component,
-		distribution->origin,distribution->label,target->architecture,
-		distribution->description);
+	if( distribution->suite != NULL )
+		fprintf(f,	"Archive: %s\n",distribution->suite);
+	if( distribution->version != NULL )
+		fprintf(f,	"Version: %s\n",distribution->version);
+	fprintf(f,		"Component: %s\n",target->component);
+	if( distribution->origin != NULL )
+		fprintf(f,	"Origin: %s\n",distribution->origin);
+	if( distribution->label != NULL )
+		fprintf(f,	"Label: %s\n",distribution->label);
+	fprintf(f,		"Architecture: %s\n",target->architecture);
+	if( distribution->description != NULL )
+		fprintf(f,	"Description: %s\n",distribution->description);
 
 	if( fclose(f) != 0 )
 		return RET_ERRNO(errno);
@@ -202,22 +204,24 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 		return RET_ERRNO(e);
 	}
 
-	fprintf(f,	
-			"Origin: %s\n"
-			"Label: %s\n"
-			"Suite: %s\n"
-			"Codename: %s\n"
-			"Version: %s\n"
-			"Date: %s\n"
-			"Architectures: ",
-		distribution->origin, distribution->label, distribution->suite,
-		distribution->codename, distribution->version, buffer);
+	if( distribution->origin != NULL )
+		fprintf(f,"Origin: %s\n", distribution->origin);
+	if( distribution->label != NULL )
+		fprintf(f,"Label: %s\n", distribution->label);
+	if( distribution->suite != NULL )
+		fprintf(f,"Suite: %s\n", distribution->suite);
+	fprintf(f,"Codename: %s\n", distribution->codename);
+	if( distribution->version != NULL )
+		fprintf(f,"Version: %s\n", distribution->version);
+	fprintf(f,"Date: %s\n",buffer);
+	fprintf(f,"Architectures: ");
 	strlist_fprint(f,&distribution->architectures);
-	fprintf(f,    "\nComponents: ");
+	fprintf(f,"\nComponents: ");
 	strlist_fprint(f,&distribution->components);
-	fprintf(f,    "\nDescription: %s\n"
-			"MD5Sum:\n",
-		distribution->description);
+	fprintf(f,"\n);
+	if( distribution->description != NULL )
+		fprintf(f,Description: %s\n", distribution->description);
+	fprintf(f,"MD5Sum:\n");
 
 	/* generate bin/source-Release-files and add md5sums */
 

@@ -746,7 +746,8 @@ retvalue changes_add(const char *dbdir,DB *references,filesdb filesdb,const char
 //		changes_free(changes);
 //		return RET_ERROR;
 //	}
-	if( !strlist_in(&changes->distributions,distribution->suite) &&
+	if( (distribution->suite == NULL || 
+		!strlist_in(&changes->distributions,distribution->suite)) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
