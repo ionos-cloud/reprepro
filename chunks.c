@@ -219,7 +219,7 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 	/* remove trailing spaced */
 	while( e > b && *e && isspace(*e) )
 		e--;
-	if( e != b )
+	if( !isspace(*e) )
 		val = strndup(b,e-b+1);
 	else 
 		val = strdup("");
@@ -280,7 +280,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 		e = f;
 		while( e > b && *e && isspace(*e) )
 			e--;
-		if( e != b )
+		if( !isspace(*e) )
 			v = strndup(b,e-b+1);
 		else 
 			v = strdup("");
