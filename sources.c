@@ -271,29 +271,9 @@ retvalue sources_parse_getfilekeys(const char *chunk, struct strlist *filekeys) 
 }
 
 /* Look for an older version of the Package in the database.
- * return RET_NOTHING, if there is none at all. */
-retvalue sources_lookforold(
-		packagesdb packages,const char *packagename,
-		struct strlist *oldfiles) {
-	char *oldchunk;
-	retvalue r;
-
-	r = packages_get(packages,packagename,&oldchunk);
-	if( !RET_IS_OK(r) ) {
-		return r;
-	}
-	r = sources_parse_getfilekeys(oldchunk,oldfiles);
-	free(oldchunk);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	return RET_OK;
-}
-
-/* Look for an older version of the Package in the database.
  * Set *oldversion, if there is already a newer (or equal) version to
  * <version>, return RET_NOTHING, if there is none at all. */
-retvalue sources_lookforolder(
+static retvalue sources_lookforolder(
 		packagesdb packages,const char *packagename,
 		const char *newversion,char **oldversion,
 		struct strlist *oldfiles) {
@@ -562,6 +542,6 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 	return r;
 }
 
-retvalue sources_getfilekeys(struct target *t,const char *name,const char *chunk,struct strlist *filekeys) {
+retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys) {
 	return sources_parse_getfilekeys(chunk,filekeys);
 }

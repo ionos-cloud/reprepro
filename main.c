@@ -280,93 +280,51 @@ static int addreference(int argc,char *argv[]) {
 	return EXIT_RET(result);
 }
 
-static int removesource(int argc,char *argv[]) {
+static int removepackage(int argc,char *argv[]) {
 	retvalue result,r;
-	packagesdb pkgs;
 	DB *refs;
 	int i;
-	struct strlist files;
+	struct distribution *distribution;
+	struct target *target;
 
-	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer _removesource <identifier> <package-name>\n");
+	//TODO: add architecture-selector...
+
+	if( argc < 3 || component == NULL ) {
+		fprintf(stderr,"mirrorer -C <component> -A <architecture> removebinary <codename> <package-names>\n");
 		return 1;
 	}
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-	r = packages_initialize(&pkgs,dbdir,argv[1]);
+	r = distribution_get(&distribution,confdir,argv[1]);
 	if( RET_WAS_ERROR(r) ) {
 		(void)references_done(refs);
 		return EXIT_RET(r);
 	}
 
-	result = RET_NOTHING;
-	for( i = 2 ; i< argc ; i++ ) {
-		r = sources_lookforold(pkgs,argv[i],&files);
-		if( RET_IS_OK(r) ) {
-			if( verbose > 0 )
-				fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
-			r = packages_remove(pkgs,argv[i]);
-			if( RET_IS_OK(r) ) {
-				r = references_delete(refs,argv[1],&files,NULL);
-			}
-			strlist_done(&files);
-		} else if( r == RET_NOTHING ) {
-			if( verbose >= 0 )
-				fprintf(stderr,"Could not find '%s' in '%s'...\n",argv[i],argv[1]);
-
-		}
-		RET_UPDATE(result,r);
-	}
-
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
-	r = references_done(refs);
-	RET_ENDUPDATE(result,r);
-	return EXIT_RET(result);
-}
-
-static int removebinary(int argc,char *argv[]) {
-	retvalue result,r;
-	packagesdb pkgs;
-	DB *refs;
-	int i;
-	struct strlist files;
-
-	if( argc < 3 ) {
-		fprintf(stderr,"mirrorer _removebinary <identifier> <package-name>\n");
-		return 1;
-	}
-	refs = references_initialize(dbdir);
-	if( ! refs )
-		return 1;
-	r = packages_initialize(&pkgs,dbdir,argv[1]);
-	if( RET_WAS_ERROR(r) ) {
+	if( !strlist_in(&distribution->components,component) ) {
+		fprintf(stderr,"No component '%s' in '%s'!\n",component,distribution->codename);
 		(void)references_done(refs);
-		return EXIT_RET(r);
+		distribution_free(distribution);
+		return 1;
+	}
+
+	target = distribution_getpart(distribution,component,"source");
+
+	result = target_initpackagesdb(target,dbdir,NULL);
+	if( RET_WAS_ERROR(result) ) {
+		(void)references_done(refs);
+		distribution_free(distribution);
+		return 1;
 	}
 
 	result = RET_NOTHING;
 	for( i = 2 ; i< argc ; i++ ) {
-		r = binaries_lookforold(pkgs,argv[i],&files);
-		if( RET_IS_OK(r) ) {
-			if( verbose > 0 )
-				fprintf(stderr,"removing '%s' from '%s'...\n",argv[i],argv[1]);
-			r = packages_remove(pkgs,argv[i]);
-			if( RET_IS_OK(r) ) {
-				r = references_delete(refs,argv[1],&files,NULL);
-			}
-			strlist_done(&files);
-		} else if( r == RET_NOTHING ) {
-			if( verbose >= 0 )
-				fprintf(stderr,"Could not find '%s' in '%s'...\n",argv[i],argv[1]);
-
-		}
+		r = target_removepackage(target,refs,argv[i]);
 		RET_UPDATE(result,r);
 	}
 
-	r = packages_done(pkgs);
-	RET_ENDUPDATE(result,r);
+	distribution_free(distribution);
 	r = references_done(refs);
 	RET_ENDUPDATE(result,r);
 	return EXIT_RET(result);
@@ -1065,8 +1023,7 @@ static struct action {
 	{"addsources", addsources},
 	{"prepareaddpackages", prepareaddpackages},
 	{"addpackages", addpackages},
-        {"_removesource", removesource},
-        {"_removebinary", removebinary},
+        {"remove", removepackage},
 	{"export", export},
 	{"check", check},
 	{"rereference", rereference},

@@ -16,19 +16,6 @@
 /* get files out of a "Packages.gz"-chunk. */
 retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files);
 
-/* Look for an old version of the Package in the database,
- * returns RET_NOTHING, if there is none */
-retvalue binaries_lookforold(packagesdb pkgs,const char *name,struct strlist *files);
-
-/* Look for an older version of the Package in the database.
- * return RET_NOTHING if there is none, otherwise
- * Set *oldversion, if there is already a newer (or equal) version to
- * <version>  */
-retvalue binaries_lookforolder(
-		packagesdb packages,const char *packagename,
-		const char *newversion,char **oldversion,
-		struct strlist *oldfilekeys);
-
 retvalue binaries_calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys);
 
 /* call action for each package in packages_file, not already in pkgs. */
@@ -51,6 +38,6 @@ retvalue binaries_findnew(
 retvalue binaries_getname(struct target *t,const char *chunk,char **packagename);
 retvalue binaries_getversion(struct target *t,const char *chunk,char **version);
 retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-retvalue binaries_getfilekeys(struct target *t,const char *name,const char *chunk,struct strlist *filekeys);
+retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys);
 
 #endif

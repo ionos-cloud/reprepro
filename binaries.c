@@ -164,28 +164,11 @@ retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files) {
 	return r;
 }
 
-
-/* Look for an old version of the Package in the database,
- * returns RET_NOTHING, if there is none */
-retvalue binaries_lookforold(packagesdb pkgs,const char *name, struct strlist *files) {
-	char *oldchunk;
-	retvalue r;
-
-	r = packages_get(pkgs,name,&oldchunk);
-	if( !RET_IS_OK(r) ) {
-		return r;
-	}
-	r = binaries_parse_getfilekeys(oldchunk,files);
-	free(oldchunk);
-
-	return r;
-}
-
 /* Look for an older version of the Package in the database.
  * return RET_NOTHING if there is none, otherwise
  * Set *oldversion, if there is already a newer (or equal) version to
  * <version>  */
-retvalue binaries_lookforolder(
+static retvalue binaries_lookforolder(
 		packagesdb packages,const char *packagename,
 		const char *newversion,char **oldversion,
 		struct strlist *oldfilekeys) {
@@ -398,6 +381,6 @@ retvalue binaries_getinstalldata(struct target *t,const char *packagename,const 
 	return r;
 }
 
-retvalue binaries_getfilekeys(struct target *t,const char *name,const char *chunk,struct strlist *filekeys) {
+retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys) {
 	return binaries_parse_getfilekeys(chunk,filekeys);
 }

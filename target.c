@@ -114,6 +114,37 @@ retvalue target_initpackagesdb(struct target *target, const char *dbdir, package
 	return r;
 }
 
+retvalue target_removepackage(struct target *target,DB *references,const char *name) {
+	char *oldchunk;
+	struct strlist files;
+	retvalue r;
+
+	assert(target && target->packages && name);
+
+	r = packages_get(target->packages,name,&oldchunk);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	else if( r == RET_NOTHING ) {
+		if( verbose >= 0 )
+			fprintf(stderr,"Could not find '%s' in '%s'...\n",
+					name,target->identifier);
+		return RET_ERROR_MISSING;
+	}
+	r = target->getfilekeys(target,oldchunk,&files);
+	free(oldchunk);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	if( verbose > 0 )
+		fprintf(stderr,"removing '%s' from '%s'...\n",name,target->identifier);
+	r = packages_remove(target->packages,name);
+	if( RET_IS_OK(r) ) {
+		r = references_delete(references,target->identifier,&files,NULL);
+	}
+	strlist_done(&files);
+	return r;
+}
+
 retvalue target_addpackage(struct target *target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol;
@@ -164,7 +195,7 @@ retvalue target_addpackage(struct target *target,DB *references,filesdb files,co
 			free(oldversion);
 		}
 
-		r = target->getfilekeys(target,name,oldcontrol,&oldfilekeys);
+		r = target->getfilekeys(target,oldcontrol,&oldfilekeys);
 		free(oldcontrol);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
@@ -174,7 +205,7 @@ retvalue target_addpackage(struct target *target,DB *references,filesdb files,co
 				return r;
 		}
 	}
-	r = packages_insert(references,target->packages,name,control,filekeys,&oldfilekeys);
+	r = packages_insert(references,target->packages,name,control,filekeys,ofk);
 	if( ofk )
 		strlist_done(ofk);
 	return r;
@@ -191,7 +222,7 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 	struct strlist filekeys;
 	retvalue r;
 
-	r = (*d->target->getfilekeys)(d->target,package,chunk,&filekeys);
+	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( verbose > 10 ) {
@@ -242,7 +273,7 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	struct strlist filekeys;
 	retvalue r;
 
-	r = (*d->target->getfilekeys)(d->target,package,chunk,&filekeys);
+	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( verbose > 10 ) {

@@ -16,7 +16,7 @@ struct target;
 typedef retvalue get_name(struct target *,const char *,char **);
 typedef retvalue get_version(struct target *,const char *,char **);
 typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,char **,struct strlist *,struct strlist *,struct strlist *);
-typedef retvalue get_filekeys(struct target *,const char *,const char *,struct strlist *);
+typedef retvalue get_filekeys(struct target *,const char *,struct strlist *);
 
 struct target {
 	char *codename;
@@ -49,6 +49,7 @@ retvalue target_initpackagesdb(struct target *target, const char *dbdir, package
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
 retvalue target_addpackage(struct target *target,DB *references,filesdb files,const char *name,const char *version,const char *control,const struct strlist *filekeys,const struct strlist *md5sums,int force,int downgrade);
+retvalue target_removepackage(struct target *target,DB *references,const char *name);
 retvalue target_export(struct target *target,const char *distdir, int force);
 retvalue target_check(struct target *target,filesdb filesdb,DB *referencesdb,int force);
 retvalue target_rereference(struct target *target,DB *referencesdb,int force);
