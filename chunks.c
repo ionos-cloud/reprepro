@@ -343,3 +343,13 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 	}
 	return RET_OK;
 }
+
+retvalue chunk_gettruth(const char *chunk,const char *name) {
+	const char *field;
+
+	field = chunk_getfield(name,chunk);
+	if( !field )
+		return RET_NOTHING;
+
+	return RET_OK;
+}
