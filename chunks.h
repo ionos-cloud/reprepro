@@ -7,7 +7,9 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
+#endif
 
 /* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
 retvalue chunk_read(gzFile f,/*@out@*/char **chunk);
