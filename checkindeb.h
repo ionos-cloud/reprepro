@@ -31,6 +31,10 @@ retvalue deb_read(struct debpackage **pkg, const char *filename);
 retvalue deb_complete(struct debpackage *pkg, const char *filekey, const char *md5andsize);
 void deb_free(struct debpackage *pkg);
 
+/* Insert the given control-chunk in the database, including all
+ * files in the database and registering them */
+retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename,const char *filekey,const char *md5andsize,const char *oldfilekey);
+
 /* insert the given .deb into the mirror in <component> in the <distribution>
  * putting things with architecture of "all" into <architectures> (and also
  * causing error, if it is not one of them otherwise)

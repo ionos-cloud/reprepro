@@ -649,28 +649,15 @@ static int prepareaddpackages(int argc,char *argv[]) {
 /***********************************addpackages*******************************************/
 
 retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldfilekey) {
-	char *newchunk;
-	retvalue result,r;
+	retvalue result;
 	struct distributionhandles *d = data;
 
-	/* look for needed files */
+	result = checkindeb_addChunk(d->pkgs,d->refs,d->files,
+			d->referee, mirrordir,
+			chunk, package,
+			filekey,md5andsize,
+			oldfilekey);
 
-	r = files_expect(d->files,mirrordir,filekey,md5andsize);
-	if( ! RET_IS_OK(r) ) {
-		printf("Missing file %s\n",filekey);
-		return r;
-	} 
-
-	/* Calculate new chunk, file to replace and checking */
-	
-	newchunk = chunk_replacefield(chunk,"Filename",filekey);
-	if( !newchunk )
-		return RET_ERROR;
-	/* remove old references to files */
-
-	result = checkindeb_insert(d->refs,d->referee,d->pkgs,package,newchunk,filekey,oldfilekey);
-
-	free(newchunk);
 	return result;
 }
 

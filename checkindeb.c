@@ -92,41 +92,31 @@ retvalue checkindeb_insert(DB *references,const char *referee,
 // should superseed the add_package from main.c for inclusion
 // of downloaded packages from main.c
 //
-/*
-retvalue add_package(void *data,const char *chunk,const char *package,const char *sourcename,const char *oldfile,const char *basename,const char *filekey,const char *md5andsize,const char *oldchunk) {
+
+retvalue checkindeb_addChunk(DB *packagesdb, DB *referencesdb,DB *filesdb, const char *identifier,const char *mirrordir,const char *chunk,const char *packagename, const char *filekey, const char *md5andsize,const char *oldfilekey){
 	char *newchunk;
 	retvalue result,r;
-	char *oldfilekey;
 
-	* look for needed files *
+	/* look for needed files */
 
-	r = files_expect(files,mirrordir,filekey,md5andsize);
+	r = files_expect(filesdb,mirrordir,filekey,md5andsize);
 	if( ! RET_IS_OK(r) ) {
 		printf("Missing file %s\n",filekey);
 		return r;
 	} 
 	
-	* calculate the needed and check it in *
+	/* write in its position and check it in */
 
-	newchunk = chunk_replaceentry(chunk,"Filename",filekey);
+	newchunk = chunk_replacefield(chunk,"Filename",filekey);
 	if( !newchunk )
 		return RET_ERROR;
 
-	oldfilekey = NULL;
-	if( oldchunk ) {
-		r = binaries_parse_chunk(oldchunk,NULL,&oldfilekey,NULL,NULL,NULL);
-		if( RET_WAS_ERROR(r) ) {
-			free(newchunk);
-			return r;
-		}
-	}
-
-	result = insert_package(files,mirrordir,references,referee,pkgs,package,newchunk,filekey,md5andsize,oldfilekey);
+	result = checkindeb_insert(referencesdb,identifier,packagesdb,
+			packagename,newchunk,filekey,oldfilekey);
 
 	free(newchunk);
-	free(oldfilekey);
 	return result;
-}*/
+}
 
 static retvalue deb_addtodist(const char *dbpath,DB *references,struct distribution *distribution,const char *component,const char *architecture,struct debpackage *package,const char *filekey) {
 	retvalue result,r;
