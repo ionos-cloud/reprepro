@@ -63,8 +63,8 @@ retvalue distribution_free(struct distribution *distribution) {
 			RET_UPDATE(result,r);
 			distribution->targets = next;
 		}
-		if( distribution->upstreams )
-			update_freeupstreams(distribution->upstreams);
+		updates_freetargets(distribution->updatetargets);
+		updates_freeorigins(distribution->updateorigins);
 		free(distribution);
 		return result;
 	} else
@@ -149,7 +149,6 @@ static retvalue distribution_parse(struct distribution **distribution,const char
 		return ret;
 	} else if( ret == RET_NOTHING )
 		r->signwith = NULL;
-	r->upstreams = NULL;
 
 	ret = createtargets(r);
 	checkret;

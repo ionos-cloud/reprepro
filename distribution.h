@@ -23,7 +23,8 @@ struct distribution {
 	struct target *targets;
 	/* list of all update_upstreams for this ditribution,
 	 * only set when update_getupstreams was called for this*/
-	struct update_upstream *upstreams;
+	struct update_origin *updateorigins;
+	struct update_target *updatetargets;
 };
 
 

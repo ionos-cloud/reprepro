@@ -24,6 +24,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 
 /* md5sum can be NULL(filekey then, too): if todo != NULL, then *todo will be set */
 retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,const char *md5sum,const char *filekey,struct tobedone **todo);
+retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,const char *destfile);
 
 retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb);
 retvalue aptmethod_shutdown(struct aptmethodrun *run);

@@ -42,18 +42,47 @@
 
 extern int verbose;
 
-/* if found in a update-chunk, do no download or check release-files */
-#define IGNORE_RELEASE "IgnoreRelease"
-/* defined if release.gpg should be checked, 
- * value not yet used, will be key-id or something like this */
-#define VERIFY_RELEASE "VerifyRelease"
+/* The data structures of this one: ("u_" is short for "update_")
 
-/* the data for some upstream part to get updates from, this can
- * happen in two versions, either as pattern with some fields NULL,
- * or empty, and the other is filled out with the values for an actual
- * upstream used for a specific suite... */
-struct update_upstream {
-	struct update_upstream *next;
+updates_getpatterns read a list of patterns from <confdir>/updates:
+
+   u_pattern --> u_pattern --> u_pattern --> NULL
+       / \           / \          / \ / \
+        |             \            |   |
+	 \             ----\       |   |
+	  ------------     |       |   |
+	               \   .       |   .
+                        |          |
+updates_getupstreams instances them for a given distribution:
+                        |          |
+   distribution --> u_origin -> u_origin --> NULL
+      |   |          / \ / \    / \ / \
+      |  \ /          |   |      |   |
+      | u_target -> u_index -> u_index -> NULL
+      |   |              |        |
+      |  \ /             |        |
+      | u_target -> u_index -> u_index -> NULL
+      |   |
+      |  \ /                     
+      |  NULL              .           .
+     \ /                   |           |
+   distribution ---> u_origin -> u_origin -> NULL
+      |   |            / \          / \
+      |  \ /            |            |
+      | u_target --> u_index ---> u_index -> NULL
+      |   |
+      |  \ /
+      |  NULL
+      |
+     \ /
+     NULL
+
+*/
+
+/* the data for some upstream part to get updates from, some
+ * some fields can be NULL or empty */
+struct update_pattern {
+	struct update_pattern *next;
 	//e.g. "Name: woody"
 	char *name;
 	//e.g. "Method: ftp://ftp.uni-freiburg.de/pub/linux/debian"
@@ -72,13 +101,34 @@ struct update_upstream {
 	// (empty means all)
 	struct strlist components_from;
 	struct strlist components_into;
-	// distribution to go into (NULL for pattern)
-	const struct distribution *distribution;
-	// is set for non-pattern when fetching packages..
-	struct aptmethod *download;
 };
 
-void update_upstream_free(struct update_upstream *update) {
+struct update_origin {
+	struct update_origin *next;
+	const struct update_pattern *pattern;
+	char *suite_from;
+	const struct distribution *distribution;
+	char *releasefile,*releasegpgfile;
+	// is set when fetching packages..
+	struct aptmethod *download;
+	struct strlist checksums;
+};
+
+struct update_index {
+	struct update_index *next;
+	struct update_origin *origin;
+	char *filename;
+	char *upstream;
+};
+
+struct update_target {
+	struct update_target *next;
+	struct update_index *indices;
+	struct target *target;
+	struct upgradelist *upgradelist;
+};
+
+void update_pattern_free(struct update_pattern *update) {
 	if( update == NULL )
 		return;
 	free(update->name);
@@ -92,14 +142,49 @@ void update_upstream_free(struct update_upstream *update) {
 	free(update);
 }
 
-void update_freeupstreams(struct update_upstream *u) {
-	while( u ) {
-		struct update_upstream *update;
+void updates_freepatterns(struct update_pattern *p) {
+	while( p ) {
+		struct update_pattern *pattern;
 
-		update = u;
-		u = update->next;
-		update_upstream_free(update);
+		pattern = p;
+		p = pattern->next;
+		update_pattern_free(pattern);
 	}
+}
+void updates_freeorigins(struct update_origin *o) {
+	while( o ) {
+		struct update_origin *origin;
+
+		origin = o;
+		o = origin->next;
+		free(origin->suite_from);
+		free(origin->releasefile);
+		free(origin->releasegpgfile);
+		strlist_done(&origin->checksums);
+		free(origin);
+	}
+}
+void updates_freetargets(struct update_target *t) {
+	while( t ) {
+		struct update_target *ut;
+
+		ut = t;
+		t = ut->next;
+		free(ut);
+	}
+}
+static inline retvalue newupdatetarget(struct update_target **ts,struct target *target) {
+	struct update_target *ut;
+
+	ut = malloc(sizeof(struct update_target));
+	if( ut == NULL )
+		return RET_ERROR_OOM;
+	ut->target = target;
+	ut->next = *ts;
+	ut->indices = NULL;
+	ut->upgradelist = NULL;
+	*ts = ut;
+	return RET_OK;
 }
 
 static retvalue splitcomponents(struct strlist *components_from,
@@ -155,12 +240,12 @@ static retvalue splitcomponents(struct strlist *components_from,
 	return r;
 }
 
-inline static retvalue parse_pattern(const char *chunk, struct update_upstream **upstream) {
-	struct update_upstream *update;
+inline static retvalue parse_pattern(const char *chunk, struct update_pattern **pattern) {
+	struct update_pattern *update;
 	struct strlist componentslist;
 	retvalue r;
 
-	update = calloc(1,sizeof(struct update_upstream));
+	update = calloc(1,sizeof(struct update_pattern));
 	if( update == NULL )
 		return RET_ERROR_OOM;
 	r = chunk_getvalue(chunk,"Name",&update->name);
@@ -184,14 +269,14 @@ inline static retvalue parse_pattern(const char *chunk, struct update_upstream *
 			fprintf(stderr,"No Method found in update-block!\n");
 			r = RET_ERROR_MISSING;
 		}
-		update_upstream_free(update);
+		update_pattern_free(update);
 		return r;
 	}
 
 	/* * Is there config for the method? * */
 	r = chunk_getwholedata(chunk,"Config",&update->config);
 	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
+		update_pattern_free(update);
 		return r;
 	}
 	if( r == RET_NOTHING )
@@ -200,7 +285,7 @@ inline static retvalue parse_pattern(const char *chunk, struct update_upstream *
 	/* * Check which suite to update from * */
 	r = chunk_getvalue(chunk,"Suite",&update->suite_from);
 	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
+		update_pattern_free(update);
 		return r;
 	}
 	if( r == RET_NOTHING )
@@ -209,7 +294,7 @@ inline static retvalue parse_pattern(const char *chunk, struct update_upstream *
 	/* * Check which architectures to update from * */
 	r = chunk_getwordlist(chunk,"Architectures",&update->architectures);
 	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
+		update_pattern_free(update);
 		return r;
 	}
 	if( r == RET_NOTHING ) {
@@ -219,7 +304,7 @@ inline static retvalue parse_pattern(const char *chunk, struct update_upstream *
 	/* * Check which components to update from * */
 	r = chunk_getwordlist(chunk,"Components",&componentslist);
 	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
+		update_pattern_free(update);
 		return r;
 	}
 	if( r == RET_NOTHING ) {
@@ -230,73 +315,43 @@ inline static retvalue parse_pattern(const char *chunk, struct update_upstream *
 				&update->components_into,&componentslist);
 		strlist_done(&componentslist);
 		if( RET_WAS_ERROR(r) ) {
-			update_upstream_free(update);
+			update_pattern_free(update);
 			return r;
 		}
 	}
 
 	/* * Check if we should get the Release-file * */
-	r = chunk_gettruth(chunk,IGNORE_RELEASE);
+	r = chunk_gettruth(chunk,"IgnoreRelease");
 	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
+		update_pattern_free(update);
 		return r;
 	}
 	update->ignorerelease = (r == RET_OK);
 
 	/* * Check if we should get the Release.gpg file * */
-	r = chunk_getvalue(chunk,VERIFY_RELEASE,&update->verifyrelease);
+	r = chunk_getvalue(chunk,"VerifyRelease",&update->verifyrelease);
 	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
+		update_pattern_free(update);
 		return r;
 	}
 	if( r == RET_NOTHING )
 		update->verifyrelease = NULL;
 
-	*upstream = update;
+	*pattern = update;
 	return RET_OK;
 }
 
 
-static retvalue instance_pattern(const struct update_upstream *pattern,
+static retvalue instance_pattern(const char *listdir,
+		const struct update_pattern *pattern,
 		const struct distribution *distribution,
-		struct update_upstream **upstream) {
+		struct update_origin **origins) {
 
-	struct update_upstream *update;
-	retvalue r;
+	struct update_origin *update;
 
-	update = calloc(1,sizeof(struct update_upstream));
+	update = calloc(1,sizeof(struct update_origin));
 	if( update == NULL )
 		return RET_ERROR_OOM;
-
-	update->name = strdup(pattern->name);
-	if( update->name == NULL ) {
-		update_upstream_free(update);
-		return RET_ERROR_OOM;
-	}
-	update->method = strdup(pattern->method);
-	if( update->method == NULL ) {
-		update_upstream_free(update);
-		return RET_ERROR_OOM;
-	}
-	if( pattern->method == NULL )
-		update->method = NULL;
-	else {
-		update->method = strdup(pattern->method);
-		if( update->method == NULL ) {
-			update_upstream_free(update);
-			return RET_ERROR_OOM;
-		}
-	}
-	if( pattern->verifyrelease == NULL )
-		update->verifyrelease = NULL;
-	else {
-		update->verifyrelease = strdup(pattern->verifyrelease);
-		if( update->verifyrelease == NULL ) {
-			update_upstream_free(update);
-			return RET_ERROR_OOM;
-		}
-	}
-	update->ignorerelease = pattern->ignorerelease;
 
 	if( pattern->suite_from == NULL || strcmp(pattern->suite_from,"*")== 0)
 		update->suite_from = strdup(distribution->codename);
@@ -309,67 +364,53 @@ static retvalue instance_pattern(const struct update_upstream *pattern,
 		else {
 			//TODO: implement this...
 			fprintf(stderr,"Unsupported pattern '%s'\n",pattern->suite_from);
-			update_upstream_free(update);
+			free(update);
 			return RET_ERROR;
 		}
 	}
 	if( update->suite_from == NULL ) {
-		update_upstream_free(update);
+		free(update);
 		return RET_ERROR_OOM;
 	}
 
-	if( pattern->architectures.count == 0 )
-		r = strlist_dup(&update->architectures,&distribution->architectures);
-	else
-		r = strlist_dup(&update->architectures,&pattern->architectures);
-	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
-		return r;
-	}
-	if( pattern->components_from.count == 0 )
-		r = strlist_dup(&update->components_from,&distribution->components);
-	else {
-		if( !strlist_subset(&distribution->components,&pattern->components_from) ) {
-			fprintf(stderr,"Cannot add from '%s' to a component in '%s' not existing!\n",pattern->name,distribution->codename);
-			r = RET_ERROR;
-		} else
-			r = strlist_dup(&update->components_from,&pattern->components_from);
-	}
-	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
-		return r;
-	}
-	if( pattern->components_into.count == 0 )
-		r = strlist_dup(&update->components_into,&distribution->components);
-	else
-		r = strlist_dup(&update->components_into,&pattern->components_into);
-	if( RET_WAS_ERROR(r) ) {
-		update_upstream_free(update);
-		return r;
-	}
 	update->distribution = distribution;
+	update->pattern = pattern;
+
+	if( !pattern->ignorerelease ) {
+		update->releasefile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","data");
+		if( update->releasefile == NULL ) {
+			updates_freeorigins(update);
+			return RET_ERROR_OOM;
+		}
+		if( pattern->verifyrelease ) {
+			update->releasegpgfile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","gpg");
+			if( update->releasegpgfile == NULL ) {
+				updates_freeorigins(update);
+				return RET_ERROR_OOM;
+			}
+		}
+	}
 	
-	
-	*upstream = update;
+	*origins = update;
 	return RET_OK;
 }
 
 static retvalue parsechunk(void *data,const char *chunk) {
-	struct update_upstream *update;
-	struct update_upstream **upstreams = data;
+	struct update_pattern *update;
+	struct update_pattern **patterns = data;
 	retvalue r;
 
 	r = parse_pattern(chunk,&update);
 	if( RET_IS_OK(r) ) {
-		update->next = *upstreams;
-		*upstreams = update;
+		update->next = *patterns;
+		*patterns = update;
 	}
 	return r;
 }
 
-retvalue updates_getpatterns(const char *confdir,struct update_upstream **patterns,int force) {
+retvalue updates_getpatterns(const char *confdir,struct update_pattern **patterns,int force) {
 	char *updatesfile;
-	struct update_upstream *update = NULL;
+	struct update_pattern *update = NULL;
 	retvalue r;
 
 	updatesfile = calc_dirconcat(confdir,"updates");
@@ -382,20 +423,20 @@ retvalue updates_getpatterns(const char *confdir,struct update_upstream **patter
 	return r;
 }
 
-static retvalue getupstreams(const struct update_upstream *patterns,const struct distribution *distribution,struct update_upstream **upstreams) {
-	const struct update_upstream *pattern;
-	struct update_upstream *updates = NULL;
+static retvalue getorigins(const char *listdir,const struct update_pattern *patterns,const struct distribution *distribution,struct update_origin **origins) {
+	const struct update_pattern *pattern;
+	struct update_origin *updates = NULL;
 	retvalue result;
 
 	result = RET_NOTHING;
 
 	for( pattern = patterns ; pattern ; pattern = pattern->next ) {
-		struct update_upstream *update;
+		struct update_origin *update;
 		retvalue r;
 
 		if( !strlist_in(&distribution->updates,pattern->name) )
 			continue;
-		r = instance_pattern(pattern,distribution,&update);
+		r = instance_pattern(listdir,pattern,distribution,&update);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -405,14 +446,89 @@ static retvalue getupstreams(const struct update_upstream *patterns,const struct
 		}
 	}
 	if( RET_WAS_ERROR(result) ) {
-		update_freeupstreams(updates);
+		updates_freeorigins(updates);
 	} else {
-		*upstreams = updates;
+		*origins = updates;
 	}
 	return result;
 }
 
-static inline retvalue findmissingupdate(int count,const struct distribution *distribution,struct update_upstream *updates) {
+static inline retvalue newindex(struct update_index **indices,
+		const char *listdir,
+		struct update_origin *origin,struct target *target,
+		const char *component_from) {
+	struct update_index *index;
+
+	index = malloc(sizeof(struct update_index));
+	if( index == NULL )
+		return RET_ERROR_OOM;
+
+	index->filename = calc_downloadedlistfile(listdir,
+			target->codename,origin->pattern->name,
+			component_from,
+			target->architecture);
+	if( index->filename == NULL ) {
+		free(index);
+		return RET_ERROR_OOM;
+	}
+	index->upstream = (*target->getupstreamindex)(target,
+		origin->suite_from,component_from,target->architecture);
+	if( index->upstream == NULL ) {
+		free(index->filename);
+		free(index);
+		return RET_ERROR_OOM;
+	}
+	index->origin = origin;
+	index->next = *indices;
+	*indices = index;
+	return RET_OK;
+}
+
+static retvalue gettargets(const char *listdir,struct update_origin *origins,struct distribution *distribution,struct update_target **ts) {
+	struct target *target;
+	struct update_origin *origin;
+	struct update_target *updatetargets;
+	retvalue r;
+	int i;
+
+	updatetargets = NULL;
+
+	for( target = distribution->targets ; target ; target = target->next) {
+		r = newupdatetarget(&updatetargets,target);
+		if( RET_WAS_ERROR(r) ) {
+			updates_freetargets(updatetargets);
+			return r;
+		}
+
+		for( origin = origins ; origin ; origin=origin->next ) {
+			const struct update_pattern *p = origin->pattern;
+
+			if( !strlist_in(&p->architectures,target->architecture))
+				continue;
+
+			for( i = 0 ; i < p->components_into.count ; i++ ) {
+				if( strcmp(p->components_into.values[i],
+						target->component) == 0 ) { 
+					r = newindex(&updatetargets->indices,
+						listdir,origin,target,
+						p->components_from.values[i]);
+
+					if( RET_WAS_ERROR(r) ) {
+						updates_freetargets(
+							updatetargets);
+						return r;
+					}
+				}
+			}
+		}
+	}
+
+	*ts = updatetargets;
+
+	return RET_OK;
+}
+
+static inline retvalue findmissingupdate(int count,const struct distribution *distribution,struct update_origin *updates) {
 	retvalue result;
 
 	result = RET_OK;
@@ -422,10 +538,10 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 
 		for( i=0;i<distribution->updates.count;i++ ){
 			const char *update = distribution->updates.values[i];
-			struct update_upstream *u;
+			struct update_origin *u;
 
 			u = updates;
-			while( u && strcmp(u->name,update) != 0 ) 
+			while( u && strcmp(u->pattern->name,update) != 0 ) 
 				u = u->next;
 			if( u == NULL ) {
 				fprintf(stderr,"Update '%s' is listed in distribution '%s', but was not found!\n",update,distribution->codename);
@@ -442,23 +558,20 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 	return result;
 }
 
-retvalue updates_getupstreams(const struct update_upstream *patterns,struct distribution *distributions) {
+retvalue updates_getindices(const char *listdir,const struct update_pattern *patterns,struct distribution *distributions) {
 	struct distribution *distribution;
-	retvalue result;
-
-	result = RET_NOTHING;
 
 	for( distribution = distributions ; distribution ; distribution = distribution->next ) {
-		struct update_upstream *update;
+		struct update_origin *update;
+		struct update_target *targets;
 		retvalue r;
 
-		r = getupstreams(patterns,distribution,&update);
+		r = getorigins(listdir,patterns,distribution,&update);
 
-		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
-			break;
+			return r;
 		if( RET_IS_OK(r) ) {
-			struct update_upstream *last;
+			struct update_origin *last;
 			int count;
 
 			assert(update);
@@ -471,220 +584,283 @@ retvalue updates_getupstreams(const struct update_upstream *patterns,struct dist
 			/* Check if we got all: */
 			r = findmissingupdate(count,distribution,update);
 			if( RET_WAS_ERROR(r) ) {
-				update_freeupstreams(update);
-				result = r;
-				continue;
+				updates_freeorigins(update);
+				return r;
 			}
 
-			distribution->upstreams = update;
-		}
-	}
-	return result;
-}
-
-/******************* Fetch all Lists for an update **********************/
-retvalue queuelists(struct aptmethodrun *run,const char *listdir,struct update_upstream *upstream) {
-	char *toget,*saveas;
-	int i,j;
-	struct aptmethod *method;
-	retvalue r;
-
-	r = aptmethod_newmethod(run,upstream->method,upstream->config,&method);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	upstream->download = method;
-
-	if( !upstream->ignorerelease ) {
-		toget = mprintf("dists/%s/Release",upstream->suite_from);
-		saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","data");
-		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
-		if( RET_WAS_ERROR(r) )
-			return r;
-
-		if( upstream->verifyrelease != NULL ) {
-			toget = mprintf("dists/%s/Release.gpg",upstream->suite_from);
-			saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","gpg");
-			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
-			if( RET_WAS_ERROR(r) )
+			r = gettargets(listdir,update,distribution,&targets);
+			if( RET_WAS_ERROR(r) ) {
+				updates_freeorigins(update);
 				return r;
+			}
+			distribution->updateorigins = update;
+			distribution->updatetargets = targets;
 		}
-	}
-
-	/* * Iterate over components to update * */
-	for( i = 0 ; i < upstream->components_from.count ; i++ ) {
-		const char *comp = upstream->components_from.values[i];
-
-		toget = mprintf("dists/%s/%s/source/Sources.gz",upstream->suite_from,comp);
-		saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,comp,"source");
-		r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
-		if( RET_WAS_ERROR(r) )
-			return r;
-
-		for( j = 0 ; j < upstream->architectures.count ; j++ ) {
-			const char *arch = upstream->architectures.values[j];
-
-			toget = mprintf("dists/%s/%s/binary-%s/Packages.gz",upstream->suite_from,comp,arch);
-			saveas = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,comp,arch);
-			r = aptmethod_queuefile(method,toget,saveas,NULL,NULL,NULL);
-			if( RET_WAS_ERROR(r) )
-				return r;
-		}
-
 	}
 	return RET_OK;
 }
 
-retvalue updates_queuelists(struct aptmethodrun *run,const char *listdir,struct update_upstream *upstreams) {
-	retvalue result,r;
-	struct update_upstream *upstream;
-
-	result = RET_NOTHING;
-	for( upstream=upstreams ; upstream ; upstream=upstream->next ) {
-		r = queuelists(run,listdir,upstream);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
-	return result;
-}
-
-
-/******************* Check fetched lists for update *********************/
-static retvalue checkpackagelists(struct strlist *checksums,
-		/* where to find the files to test: */
-		const char *listdir, const char *codename,const char *update, 
-		/* where to get it from */
-		const char *suite_from,
-		/* what parts to check */
-		const struct strlist *components_from,
-		const struct strlist *architectures
-		) {
-	const char *comp,*arch;
-	retvalue result,r;
-	char *name,*totest;
-	int i,j;
-	
-	result = RET_NOTHING;
-	for( i = 0 ; i < components_from->count ; i++ ) {
-		comp = components_from->values[i];
-
-		name = mprintf("%s/source/Sources.gz",comp);
-		totest = calc_downloadedlistfile(listdir,codename,update,comp,"source");
-		r = release_check(checksums,name,totest);
-		free(name); free(totest);
-		RET_UPDATE(result,r);
-
-		
-		for( j = 0 ; j < architectures->count ; j++ ) {
-			arch = architectures->values[j];
-
-			name = mprintf("%s/binary-%s/Packages.gz",comp,arch);
-			totest = calc_downloadedlistfile(listdir,codename,update,comp,arch);
-			r = release_check(checksums,name,totest);
-			free(name); free(totest);
-			RET_UPDATE(result,r);
-		}
-		
-	}
-	return result;
-}
-
-static retvalue checklists(const char *listdir,const struct update_upstream *upstream) {
-	char *releasefile;
-	struct strlist checksums;
+/******************* Fetch all Lists for an update **********************/
+static inline retvalue prepareorigin(struct aptmethodrun *run,struct update_origin *origin,struct distribution *distribution) {
+	char *toget;
+	struct aptmethod *method;
 	retvalue r;
+	const struct update_pattern *p = origin->pattern;
 
-	if( upstream->ignorerelease )
+	r = aptmethod_newmethod(run,p->method,p->config,&method);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	origin->download = method;
+
+	if( p->ignorerelease )
 		return RET_NOTHING;
 
-	releasefile = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","data");
-	if( releasefile == NULL ) {
-		return RET_ERROR_OOM;
-	}
-
-	/* if there is nothing said, then there is nothing to check... */
-	if( upstream->verifyrelease != NULL ) {
-		char *gpgfile;
-
-		gpgfile = calc_downloadedlistfile(listdir,upstream->distribution->codename,upstream->name,"Release","gpg");
-		if( gpgfile == NULL ) {
-			free(releasefile);
-			return RET_ERROR_OOM;
-		}
-		r = signature_check(upstream->verifyrelease,gpgfile,releasefile);
-		free(gpgfile);
-		if( RET_WAS_ERROR(r) ) {
-			free(releasefile);
-			return r;
-		}
-	}
-
-	r = release_getchecksums(releasefile,&checksums);
-	free(releasefile);
+	toget = mprintf("dists/%s/Release",origin->suite_from);
+	r = aptmethod_queueindexfile(method,toget,origin->releasefile);
+	free(toget);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = checkpackagelists(&checksums,listdir,upstream->distribution->codename,upstream->name,upstream->suite_from,&upstream->components_from,&upstream->architectures);
+	if( p->verifyrelease != NULL ) {
+		toget = mprintf("dists/%s/Release.gpg",origin->suite_from);
+		r = aptmethod_queueindexfile(method,toget,origin->releasegpgfile);
+		free(toget);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
 
-	strlist_done(&checksums);
+static inline retvalue readchecksums(struct update_origin *origin) {
+	retvalue r;
 
+	if( origin->releasefile == NULL )
+		return RET_NOTHING;
+
+	/* if there is nothing said, then there is nothing to check... */
+	if( origin->releasegpgfile != NULL ) {
+
+		r = signature_check(origin->pattern->verifyrelease,
+				origin->releasegpgfile,
+				origin->releasefile);
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+	}
+	r = release_getchecksums(origin->releasefile,&origin->checksums);
+	assert( r != RET_NOTHING );
 	return r;
 }
 
-retvalue updates_checklists(const char *listdir,const struct update_upstream *upstreams,int force) {
+static inline retvalue queueindex(struct update_index *index,int force) {
+	const struct update_origin *origin = index->origin;
+	int i;
+	size_t l;
+
+	if( origin->releasefile == NULL )
+		return aptmethod_queueindexfile(origin->download,
+			index->upstream,index->filename);
+
+	//TODO: this is a very crude hack, think of something better...
+	l = 7 + strlen(origin->suite_from); // == strlen("dists/%s/")
+
+	for( i = 0 ; i+1 < origin->checksums.count ; i+=2 ) {
+
+		assert( strlen(index->upstream) > l );
+		if( strcmp(index->upstream+l,origin->checksums.values[i]) == 0 ){
+
+			return aptmethod_queuefile(origin->download,
+				index->upstream,index->filename,
+				origin->checksums.values[i+1],NULL,NULL);
+		}
+		
+	}
+	fprintf(stderr,"Could not find '%s' within the Releasefile of '%s':\n'%s'\n",index->upstream,origin->pattern->name,origin->releasefile);
+	if( force > 2 ) {
+		aptmethod_queueindexfile(origin->download,
+				index->upstream,index->filename);
+	}
+	return RET_ERROR_WRONG_MD5;
+}
+
+
+
+retvalue updates_prepare(struct aptmethodrun *run,struct distribution *distribution) {
 	retvalue result,r;
-	const struct update_upstream *upstream;
+	struct update_origin *origin;
 
 	result = RET_NOTHING;
-	for( upstream=upstreams ; upstream ; upstream=upstream->next ) {
-		r = checklists(listdir,upstream);
+	for( origin=distribution->updateorigins;origin; origin=origin->next ) {
+		r = prepareorigin(run,origin,distribution);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && !force )
-			break;
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	return result;
 }
 
-static inline retvalue readlists(struct upgradelist *list,struct target *target,const char *listdir,const struct update_upstream *upstream,int force) {
-	int i;
+retvalue updates_queuelists(struct aptmethodrun *run,struct distribution *distribution,int force) {
 	retvalue result,r;
-	char *name;
+	struct update_origin *origin;
+	struct update_target *target;
+	struct update_index *index;
 
 	result = RET_NOTHING;
-
-	if( !strlist_in(&upstream->architectures,target->architecture))
-		return result;
-
-	for( i = 0 ; i < upstream->components_into.count ; i++ ) {
-		if( strcmp(upstream->components_into.values[i],
-					target->component) == 0 ) { 
-			name = calc_downloadedlistfile(listdir,
-					target->codename,upstream->name,
-					upstream->components_from.values[i],
-					target->architecture);
-			if( name == NULL )
-				return RET_ERROR_OOM;
-			assert(upstream->download);
-			r = upgradelist_update(list,upstream->download,
-					name,force);
-			free(name);
+	for( origin=distribution->updateorigins;origin; origin=origin->next ) {
+		r = readchecksums(origin);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && !force )
+			return r;
+	}
+	for( target=distribution->updatetargets;target; target=target->next ) {
+		for( index=target->indices ; index; index=index->next ) {
+			r = queueindex(index,force);
 			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && ! force )
+				return r;
 		}
 	}
+	return RET_OK;;
+}
+
+static inline retvalue searchformissing(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct update_target *u,int force) {
+	struct update_index *index;
+	retvalue result,r;
+
+	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir,ud_always);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = RET_NOTHING;
+
+	for( index=u->indices ; index ; index=index->next ) {
+
+		assert(index->origin->download);
+		r = upgradelist_update(u->upgradelist,
+				index->origin->download,index->filename,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && !force)
+			return result;
+	}
+	//TODO: when upgradelist supports removing unavail packages,
+	//do not forget to disable this here in case of error and force...
+	
+	r = upgradelist_enqueue(u->upgradelist,cache,filesdb,force);
+	RET_UPDATE(result,r);
+
 	return result;
 }
 
-retvalue updates_readlistsfortarget(struct upgradelist *list,struct target *target,const char *listdir,const struct update_upstream *upstreams,int force) {
+retvalue updates_readindices(const char *dbdir,struct downloadcache *cache,filesdb filesdb,struct distribution *distribution,int force) {
 	retvalue result,r;
-	const struct update_upstream *upstream;
+	struct update_target *u;
 
 	result = RET_NOTHING;
-	for( upstream=upstreams ; upstream ; upstream=upstream->next ) {
-		r = readlists(list,target,listdir,upstream,force);
+	for( u=distribution->updatetargets ; u ; u=u->next ) {
+		r = searchformissing(dbdir,cache,filesdb,u,force);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && !force )
 			break;
 	}
+	return result;
+}
+
+
+retvalue updates_install(filesdb filesdb,DB *refsdb,struct distribution *distribution,int force) {
+	retvalue result,r;
+	struct update_target *u;
+
+	result = RET_NOTHING;
+	for( u=distribution->updatetargets ; u ; u=u->next ) {
+		r = upgradelist_install(u->upgradelist,filesdb,refsdb,force);
+		RET_UPDATE(result,r);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
+		if( RET_WAS_ERROR(r) && !force )
+			break;
+	}
+	return result;
+}
+
+retvalue updates_update(const char *dbdir,const char *listdir,const char *methoddir,filesdb filesdb,DB *refsdb,struct distribution *distributions,int force) {
+	struct distribution *distribution;
+	retvalue result,r;
+	struct aptmethodrun *run;
+	struct downloadcache *cache;
+
+	r = aptmethod_initialize_run(&run);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = RET_NOTHING;
+	/* first get all "Release" and "Release.gpg" files */
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		r = updates_prepare(run,distribution);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+	}
+	if( RET_WAS_ERROR(result) && !force ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	r = aptmethod_download(run,methoddir,filesdb);
+	if( RET_WAS_ERROR(r) && !force ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	/* Then get all index files (with perhaps md5sums from the above) */
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		r = updates_queuelists(run,distribution,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+	}
+	if( RET_WAS_ERROR(result) && !force ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	r = aptmethod_download(run,methoddir,filesdb);
+	if( RET_WAS_ERROR(r) && !force ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	/* Then get all packages */
+	r = downloadcache_initialize(&cache);
+	if( !RET_IS_OK(r) ) {
+		aptmethod_shutdown(run);
+		RET_UPDATE(result,r);
+		return result;
+	}
+	
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		r = updates_readindices(dbdir,cache,filesdb,distribution,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+	}
+	r = aptmethod_download(run,methoddir,filesdb);
+	RET_UPDATE(result,r);
+	r = downloadcache_free(cache);
+	RET_UPDATE(result,r);
+	r = aptmethod_shutdown(run);
+	RET_UPDATE(result,r);
+
+	if( RET_WAS_ERROR(result) && !force ) {
+		return result;
+	}
+
+	for( distribution=distributions ; distribution ; distribution=distribution->next) {
+		r = updates_install(filesdb,refsdb,distribution,force);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && ! force )
+			break;
+	}
+
 	return result;
 }

@@ -18,8 +18,9 @@ typedef retvalue get_name(struct target *,const char *,char **);
 typedef retvalue get_version(struct target *,const char *,char **);
 typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,char **,struct strlist *,struct strlist *,struct strlist *);
 typedef retvalue get_filekeys(struct target *,const char *,struct strlist *);
+typedef char *get_upstreamindex(struct target *,const char *suite_from,
+		const char *component_from,const char *architecture);
 
-struct upgradelist;
 struct target {
 	char *codename;
 	char *component;
@@ -32,12 +33,11 @@ struct target {
 	get_version *getversion;
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
+	get_upstreamindex *getupstreamindex;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
 	/* is initialized as soon as needed: */
 	packagesdb packages;
-	/* set when upgrading: */
-	struct upgradelist *upgradelist;
 };
 
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target);

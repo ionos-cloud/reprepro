@@ -368,6 +368,12 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 	
 }
 
+retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,const char *destfile) {
+	if( origfile == NULL || destfile == NULL )
+		return RET_ERROR_OOM;
+	return aptmethod_queuefile(method,origfile,destfile,NULL,NULL,NULL);
+}
+
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */

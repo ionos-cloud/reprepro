@@ -12,9 +12,6 @@
 #ifndef __MIRRORER_FILES_H
 #include "files.h"
 #endif
-#ifndef __MIRRORER_DOWNLOADCACHE_H
-#include "downloadcache.h"
-#endif
 #ifndef __MIRRORER_APTMETHOD_H
 #include "aptmethod.h"
 #endif

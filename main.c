@@ -681,11 +681,8 @@ static int export(int argc,char *argv[]) {
 static int update(int argc,char *argv[]) {
 	retvalue result,r;
 	DB *refs;
-	struct update_upstream *patterns;
-	struct distribution *distributions,*d;
-	struct aptmethodrun *run;
-	struct downloadcache *download;
-	struct target *t;
+	struct update_pattern *patterns;
+	struct distribution *distributions;
 	filesdb files;
 
 	if( argc < 1 ) {
@@ -710,96 +707,32 @@ static int update(int argc,char *argv[]) {
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
 
-	result = updates_getupstreams(patterns,distributions);
+	result = updates_getindices(listdir,patterns,distributions);
 	if( RET_WAS_ERROR(result) )
 		return EXIT_RET(result);
-
-	r = aptmethod_initialize_run(&run);
-	if( RET_WAS_ERROR(r) ) {
-		return EXIT_RET(r);
-	}
-
-	for( d=distributions; d ; d = d->next ) {
-		r = updates_queuelists(run,listdir,d->upstreams);
-		if( RET_WAS_ERROR(r) ) {
-			aptmethod_shutdown(run);
-			return EXIT_RET(r);
-		}
-	}
-
-	result = aptmethod_download(run,"/usr/lib/apt/methods",NULL);
-	
-	if( RET_WAS_ERROR(result) ) {
-		r = aptmethod_shutdown(run);
-		return EXIT_RET(result);
-	}
-
-	for( d=distributions; d ; d = d->next ) {
-		r = updates_checklists(listdir,d->upstreams,force);
-		if( RET_WAS_ERROR(r) ) {
-			aptmethod_shutdown(run);
-			return EXIT_RET(r);
-		}
-	}
-	
-	result = downloadcache_initialize(&download);
-	if( RET_WAS_ERROR(result) )
-		return EXIT_RET(result);
-	result = files_initialize(&files,dbdir,mirrordir);
-	if( RET_WAS_ERROR(result) )
-		return EXIT_RET(result);
-	
-	for( d=distributions; d ; d = d->next ) {
-
-		for( t = d->targets; t ; t = t->next ) {
-			r = upgradelist_initialize(&t->upgradelist,
-					t,dbdir,ud_always);
-			if( RET_WAS_ERROR(r) )
-				continue;
-			r = updates_readlistsfortarget(t->upgradelist,
-					t,listdir,d->upstreams,force);
-			if( RET_WAS_ERROR(r) ) {
-				upgradelist_free(t->upgradelist);
-				t->upgradelist = NULL;
-				continue;
-			}
-			r = upgradelist_enqueue(t->upgradelist,download,files,force);
-			if( RET_WAS_ERROR(r) ) {
-				upgradelist_free(t->upgradelist);
-				t->upgradelist = NULL;
-				continue;
-			}
-		}
-	}
-	downloadcache_free(download);
-	result = aptmethod_download(run,"/usr/lib/apt/methods",files);
-	r = aptmethod_shutdown(run);
-	RET_UPDATE(result,r);
 
 	refs = references_initialize(dbdir);
 	if( ! refs )
 		return 1;
-
-	for( d=distributions; d ; d = d->next ) {
-		for( t = d->targets; t ; t = t->next ) {
-			if( t->upgradelist == NULL )
-				continue;
-			r = upgradelist_install(t->upgradelist,files,
-					refs,force);
-			RET_UPDATE(result,r);
-			upgradelist_free(t->upgradelist);
-			t->upgradelist = NULL;
-			RET_UPDATE(result,r);
-		}
-		r = distribution_export(d,dbdir,distdir,force,1);
-		RET_ENDUPDATE(result,r);
+	result = files_initialize(&files,dbdir,mirrordir);
+	if( RET_WAS_ERROR(result) ) {
+		references_done(refs);
+		return EXIT_RET(result);
 	}
+
+	result = updates_update(dbdir,listdir,"/usr/lib/apt/methods",files,refs,distributions,force);
+
 	r = files_done(files);
 	RET_ENDUPDATE(result,r);
 	
 	while( distributions ) {
-		d = distributions->next;
+		struct distribution *d = distributions->next;
+
+		r = distribution_export(distributions,dbdir,distdir,force,1);
+		RET_ENDUPDATE(result,r);
+		
 		distribution_free(distributions);
+
 		distributions = d;
 	}
 

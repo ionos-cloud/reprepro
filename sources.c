@@ -24,6 +24,7 @@
 #include <ctype.h>
 #include <malloc.h>
 #include "error.h"
+#include "mprintf.h"
 #include "strlist.h"
 #include "packages.h"
 #include "reference.h"
@@ -544,4 +545,12 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 
 retvalue sources_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys) {
 	return sources_parse_getfilekeys(chunk,filekeys);
+}
+char *binaries_getupstreamindex(struct target *target,const char *suite_from,
+		const char *component_from,const char *architecture) {
+	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
+}
+char *sources_getupstreamindex(struct target *target,const char *suite_from,
+		const char *component_from,const char *architecture) {
+	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
 }

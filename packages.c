@@ -325,7 +325,7 @@ static retvalue packages_zprintout(packagesdb packagesdb,const char *filename) {
 retvalue packages_export(packagesdb packagesdb,const char *filename,indexcompression compression) {
 	assert( compression >= 0 && compression <= ic_max );
 
-	if( verbose > 5 ) {
+	if( verbose > 4 ) {
 		fprintf(stderr,"  writing to '%s'...\n",filename);
 	}
 

@@ -37,7 +37,6 @@
 #include "names.h"
 #include "md5sum.h"
 #include "dpkgversions.h"
-#include "upgradelist.h"
 #include "target.h"
 
 extern int verbose;
@@ -45,7 +44,7 @@ extern int verbose;
 static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, char *directory, const char *indexfile, int unc ,struct target **d) {
+	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,char *directory, const char *indexfile, int unc ,struct target **d) {
 
 	struct target *t;
 
@@ -76,16 +75,17 @@ static retvalue target_initialize(
 	t->getversion = getversion;
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
+	t->getupstreamindex = getupstreamindex;
 	*d = t;
 	return RET_OK;
 }
 
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,struct target **target) {
-	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,target);
+	return target_initialize(codename,component,architecture,binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/%s/binary-%s",codename,component,architecture),"Packages",1,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,struct target **target) {
-	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,mprintf("%s/%s/source",codename,component),"Sources",0,target);
+	return target_initialize(codename,component,"source",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/%s/source",codename,component),"Sources",0,target);
 }
 
 
@@ -101,9 +101,6 @@ retvalue target_free(struct target *target) {
 	free(target->directory);
 	if( target->packages ) {
 		result = packages_done(target->packages);
-	}
-	if( target->upgradelist) {
-		upgradelist_free(target->upgradelist);
 	}
 	free(target);
 	return result;
@@ -311,7 +308,7 @@ retvalue target_export(struct target *target,const char *dbdir,const char *distd
 	indexcompression compression;
 	retvalue result,r;
 
-	if( verbose > 2 ) {
+	if( verbose > 5 ) {
 		fprintf(stderr," exporting '%s'...\n",target->identifier);
 	}
 

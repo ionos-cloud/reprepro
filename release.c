@@ -52,7 +52,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	gzFile fi;
 	retvalue r;
 	char *chunk;
-	struct strlist files;
+	struct strlist files,checksuminfo;
 	char *filename,*md5sum;
 	int i;
 
@@ -78,7 +78,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = strlist_init(info);
+	r = strlist_init(&checksuminfo);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&files);
 		return r;
@@ -88,25 +88,26 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 		r = sources_getfile(files.values[i],&filename,&md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			strlist_done(&files);
-			strlist_done(info);
+			strlist_done(&checksuminfo);
 			return r;
 		}
-		r = strlist_add(info,filename);
+		r = strlist_add(&checksuminfo,filename);
 		if( RET_WAS_ERROR(r) ) {
 			strlist_done(&files);
-			strlist_done(info);
+			strlist_done(&checksuminfo);
 			return r;
 		}
-		r = strlist_add(info,md5sum);
+		r = strlist_add(&checksuminfo,md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			strlist_done(&files);
-			strlist_done(info);
+			strlist_done(&checksuminfo);
 			return r;
 		}
 	}
 	strlist_done(&files);
-	assert( info->count % 2 == 0 );
+	assert( checksuminfo.count % 2 == 0 );
 
+	strlist_move(info,&checksuminfo);
 	return RET_OK;
 }
 
