@@ -99,7 +99,6 @@ retvalue target_free(struct target *target) {
 	free(target->identifier);
 	free(target->directory);
 	if( target->packages ) {
-		//TODO: report downwards, if error!!!
 		result = packages_done(target->packages);
 	}
 	free(target);

@@ -62,8 +62,9 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 		return RET_ERRNO(errno);
 	}
 	chunk = chunk_read(fi);
-	//TODO: check returncode:
-	gzclose(fi);
+	i = gzclose(fi);
+	if( i < 0)
+		return RET_ZERRNO(i);
 	if( !chunk ) {
 		fprintf(stderr,"Error reading %s.\n",releasefile);
 		return RET_ERROR;
@@ -299,7 +300,6 @@ retvalue release_gen(const struct distribution *distribution,const char *distdir
 	data.f = f;
 	data.distdir = distdir;
 	data.force = force;
-	//TODO: get a force from above?
 	result = distribution_foreach_part(distribution,printmd5,&data,force);
 
 	if( fclose(f) != 0 ) {

@@ -288,8 +288,6 @@ static int removepackage(int argc,char *argv[]) {
 	struct distribution *distribution;
 	struct target *target;
 
-	//TODO: add architecture-selector...
-
 	if( argc < 3 || component == NULL || architecture == NULL ) {
 		fprintf(stderr,"mirrorer -C <component> -A <architecture> removebinary <codename> <package-names>\n");
 		return 1;
