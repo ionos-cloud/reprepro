@@ -457,6 +457,7 @@ retvalue files_checkinfile(const char *mirrordir,DB *filesdb,const char *sourced
 		if( origfilename == NULL )
 			return RET_ERROR_OOM;
 
+		//TODO: replace thiswith a copyfile, that checks for the md5sum...
 		r = copyfile(mirrordir,filekey,origfilename);
 		if( RET_WAS_ERROR(r) ) {
 			fprintf(stderr,"Error copying file %s to %s/%s\n",

@@ -31,6 +31,12 @@
 #include "dirs.h"
 #include "copyfile.h"
 
+
+//TODO: split this in parts: one static part that copy directly,
+// one part doing the mirrordir-calculation and calculates the md5sum
+// and one part which gets a md5sum and checks for the generated file
+// to have this one.
+
 retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile) {
 	char *destfullfilename;
 	int ret,fd,fdw;
@@ -90,9 +96,10 @@ retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile
 	if( written < stat.st_size ) {
 		ret = errno;
 		fprintf(stderr,"Error while writing to '%s': %m\n",destfullfilename);
-		free(destfullfilename);
 		close(fd);
 		close(fdw);
+		unlink(destfullfilename);
+		free(destfullfilename);
 		return RET_ERRNO(ret);
 	}
 
@@ -100,8 +107,9 @@ retvalue copyfile(const char *mirrordir,const char *filekey,const char *origfile
 	if( ret < 0 ) {
 		ret = errno;
 		fprintf(stderr,"Error writing to '%s': %m\n",destfullfilename);
-		free(destfullfilename);
 		close(fd);
+		unlink(destfullfilename);
+		free(destfullfilename);
 		return RET_ERRNO(ret);
 	}
 	free(destfullfilename);
