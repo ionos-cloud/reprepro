@@ -75,4 +75,35 @@ To see in which architectures/components a packages exists and which version it 
 
 mirrorer -b . list pcpool zoggy
 
+5) importing from upstream represetories
+
+In conf/updates can be entries like this:	
+
+Name: debian
+Method: http://ftp.debian.de/debian 
+VerifyRelease: 6FFA8EF91DB114E0
+
+Name: non-US
+Method: http://ftp.debian.de/debian-non-US 
+Suite: */non-US
+Architectures: i386 sparc mips source
+Components: main>main non-free>non-free contrib>contrib
+VerifyRelease: B629A24C38C6029A
+
+Name: security
+Method: http://security.debian.org/debian-security 
+Suite: */updates 
+VerifyRelease: 6FFA8EF91DB114E0
+
+Which of those are used is determined by the "Update:" line
+in the description in conf/distributions. When "Suite:"
+"Architecture:" or "Components" are not given, those of the
+distribution to be added are used. The suite of the target
+can be used as "*" in the Suite here. "VerifyRelease:" tells
+which gpgkey to use checking the Release.gpg. 
+(Add a "IgnoreRelease: yes" to ignore any Release files)
+To import components in other components, use the source>target
+syntax.
+"Method:" describes a apt-method, for which the programs
+from /usr/lib/apt/methods are used...
 
