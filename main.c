@@ -351,7 +351,7 @@ int referencebinaries(int argc,char *argv[]) {
 		references_done(dist.refs);
 		return 1;
 	}
-	result = packages_foreach(pkgs,reference_binary,&dist);
+	result = packages_foreach(pkgs,reference_binary,&dist,force);
 
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
@@ -415,7 +415,7 @@ int referencesources(int argc,char *argv[]) {
 		references_done(dist.refs);
 		return 1;
 	}
-	result = packages_foreach(pkgs,reference_source,&dist);
+	result = packages_foreach(pkgs,reference_source,&dist,force);
 
 	r = packages_done(pkgs);
 	RET_ENDUPDATE(result,r);
@@ -522,7 +522,7 @@ int addsources(int argc,char *argv[]) {
 	}
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = sources_add(dist.pkgs,dist.component,argv[i],add_source,&dist);
+		r = sources_add(dist.pkgs,dist.component,argv[i],add_source,&dist,force);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -596,7 +596,7 @@ int prepareaddsources(int argc,char *argv[]) {
 	dist.refs = NULL;
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = sources_add(dist.pkgs,dist.component,argv[i],showmissingsourcefiles,&dist);
+		r = sources_add(dist.pkgs,dist.component,argv[i],showmissingsourcefiles,&dist,force);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -655,7 +655,7 @@ int prepareaddpackages(int argc,char *argv[]) {
 	dist.refs = NULL;
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = binaries_add(dist.pkgs,dist.component,argv[i],showmissing,&dist);
+		r = binaries_add(dist.pkgs,dist.component,argv[i],showmissing,&dist,force);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -745,7 +745,7 @@ int addpackages(int argc,char *argv[]) {
 	dist.component = argv[2];
 	result = RET_NOTHING;
 	for( i=3 ; i < argc ; i++ ) {
-		r = binaries_add(dist.pkgs,dist.component,argv[i],add_package,&dist);
+		r = binaries_add(dist.pkgs,dist.component,argv[i],add_package,&dist,force);
 		RET_UPDATE(result,r);
 	}
 	r = files_done(dist.files);
@@ -1009,7 +1009,7 @@ static retvalue rerefbin(void *data,const char *component,const char *architectu
 
 	refdata.refs = d->references;
 	refdata.identifier = dbname;
-	r = packages_foreach(pkgs,reference_binary,&refdata);
+	r = packages_foreach(pkgs,reference_binary,&refdata,force);
 	RET_UPDATE(result,r);
 	
 	r = packages_done(pkgs);
@@ -1051,7 +1051,7 @@ static retvalue rerefsrc(void *data,const char *component) {
 
 	refdata.refs = d->references;
 	refdata.identifier = dbname;
-	r = packages_foreach(pkgs,reference_source,&refdata);
+	r = packages_foreach(pkgs,reference_source,&refdata,force);
 	RET_UPDATE(result,r);
 	
 	r = packages_done(pkgs);

@@ -32,7 +32,7 @@ typedef retvalue source_package_action(
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
  * <pkgs> and using <component> as subdir of pool (i.e. "main","contrib",...) for generated paths */
-retvalue sources_add(DB *pkgs,const char *component,const char *sources_file,source_package_action action,void *data);
+retvalue sources_add(DB *pkgs,const char *component,const char *sources_file,source_package_action action,void *data,int force);
 
 /* remove all references by the given chunk */
 retvalue sources_dereference(DB *refs,const char *referee,const char *chunk);

@@ -27,6 +27,8 @@
 #include "mprintf.h"
 #include "chunks.h"
 
+extern int verbose;
+
 /* Call action for each chunk in <filename> */
 retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force){
 	gzFile f;
@@ -46,8 +48,11 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 
 		free(chunk);
 
-		if( RET_WAS_ERROR(ret) && !force )
+		if( RET_WAS_ERROR(ret) && !force ) {
+			if( verbose > 0 )
+				fprintf(stderr,"Stop reading further chunks from '%s' due to privious errors.\n",filename);
 			break;
+		}
 	}
 	gzclose(f);
 	return result;

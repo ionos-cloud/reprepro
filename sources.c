@@ -31,7 +31,6 @@
 #include "dpkgversions.h"
 
 extern int verbose;
-extern int force;
 
 /* traverse through a '\n' sepeated lit of "<md5sum> <size> <filename>" 
  * > 0 while entires found, ==0 when not, <0 on error */
@@ -229,7 +228,7 @@ static retvalue addsource(void *data,const char *chunk) {
 
 /* call <data> for each package in the "Sources.gz"-style file <source_file> missing in
  * <pkgs> and using <component> as subdir of pool (i.e. "main","contrib",...) for generated paths */
-retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, source_package_action action,void *data) {
+retvalue sources_add(DB *pkgs,const char *component,const char *sources_file, source_package_action action,void *data,int force) {
 	struct sources_add mydata;
 
 	mydata.data=data;

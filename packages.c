@@ -174,7 +174,7 @@ retvalue package_check(DB *packagesdb,const char *package) {
 //typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
 
 /* call action once for each saved chunk: */
-retvalue packages_foreach(DB *packagesdb,per_package_action action,void *privdata) {
+retvalue packages_foreach(DB *packagesdb,per_package_action action,void *privdata, int force) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -192,8 +192,11 @@ retvalue packages_foreach(DB *packagesdb,per_package_action action,void *privdat
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		r = action(privdata,(const char*)key.data,(const char*)data.data);
 		RET_UPDATE(ret,r);
-		if( RET_WAS_ERROR(r)) 
+		if( RET_WAS_ERROR(r) && !force ) {
+			if( verbose > 0 )
+				fprintf(stderr,"packages_foreach: Stopping procession of further packages due to privious errors\n");
 			break;
+		}
 	}
 
 	if( dbret != 0 && dbret != DB_NOTFOUND ) {
@@ -236,7 +239,7 @@ retvalue packages_printout(DB *packagesdb,const char *filename) {
 		fprintf(stderr,"Error creating '%s': %m\n",filename);
 		return RET_ERRNO(errno);
 	}
-	ret = packages_foreach(packagesdb,printout,pf);
+	ret = packages_foreach(packagesdb,printout,pf,0);
 	r = fclose(pf);
 	if( r != 0 )
 		RET_ENDUPDATE(ret,RET_ERRNO(errno));
@@ -255,7 +258,7 @@ retvalue packages_zprintout(DB *packagesdb,const char *filename) {
 		/* if errno is zero, it's a memory error: */
 		return RET_ERRNO(errno);
 	}
-	ret = packages_foreach(packagesdb,zprintout,pf);
+	ret = packages_foreach(packagesdb,zprintout,pf,0);
 	r = gzclose(pf);
 	if( r < 0 )
 		RET_ENDUPDATE(ret,RET_ZERRNO(r));

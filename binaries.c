@@ -31,7 +31,6 @@
 #include "dpkgversions.h"
 
 extern int verbose;
-extern int force;
 
 /* get somefields out of a "Packages.gz"-chunk. returns 1 on success, 0 if incomplete, -1 on error */
 retvalue binaries_parse_chunk(const char *chunk,char **packagename,char **origfilename,char **sourcename,char **basename,char **md5andsize) {
@@ -235,7 +234,7 @@ static retvalue addbinary(void *data,const char *chunk) {
 
 
 /* call action for each package in packages_file */
-retvalue binaries_add(DB *pkgs,const char *component,const char *packages_file, binary_package_action action,void *data) {
+retvalue binaries_add(DB *pkgs,const char *component,const char *packages_file, binary_package_action action,void *data,int force) {
 	struct binaries_add mydata;
 
 	mydata.data=data;

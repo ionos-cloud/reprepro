@@ -40,6 +40,6 @@ retvalue packages_dozprintout(const char *dbpath,const char *dbname,const char *
 typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
 
 /* call action once for each saved chunk: */
-retvalue packages_foreach(DB *packagesdb,per_package_action action,void *data);
+retvalue packages_foreach(DB *packagesdb,per_package_action action,void *data, int force);
 	
 #endif

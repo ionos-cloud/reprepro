@@ -42,6 +42,9 @@ retvalue binaries_add(
 	/* the action to take for each package to add */
 	binary_package_action action,
 	/* some data to pass to the action */
-	void *data);
+	void *data,
+	/* == 0 to stop process at first error. */
+	int force
+	);
 
 #endif
