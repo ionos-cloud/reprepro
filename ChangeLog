@@ -1,3 +1,8 @@
+2005-04-07  Bernhard R. Link <brlink@debian.org>	
+	* fix wrong handling of bugs in update specifications
+	* adopt short-howto to present
+	* fix typo in manpage
+
 2005-04-05  Bernhard R. Link <brlink@debian.org>	
 	* create files without executeable bit set
 	when copying files.

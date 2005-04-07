@@ -15,9 +15,8 @@ Codename: woody
 Version: 3.0
 Architectures: i386 sparc mips source
 Components: main non-free contrib
-UDebComponents: main
 Description: Debian woody + woody/non-US + woody/updates
-#Update: security woody swoody
+#Update: debian non-US security
 #SignWith: yes
 
 or: 
@@ -29,15 +28,17 @@ Codename: pcpool
 Version: 3.0
 Architectures: i386 source
 Components: main non-free contrib bad protected server
+UDebComponents: main
 Description: PCPool specific (or backported) packages
 SignWith: yes
-Override: override
-SourceOverride: srcoverride
+DebOverride: override
+UDebOverride: override
+DscOverride: srcoverride
 
 Multiple such entries are seperated with an empty line.
 The codename is used to determine the directory to create,
 the Update line is described later, when SignWith is there,
-it will try to sign it. (It cannot yet be use to tell which
+it will try to sign it. (It cannot yet be used to tell which
 key to use).
 The other fields are copies into the appropiate Release files
 generated.
@@ -47,7 +48,7 @@ generated.
 
 To add a .deb manually:
 
-reprepro -Vb . includedeb pcpool /lhome/aptcache/zoggy_0.91-3_i386.deb
+reprepro -Vb . includedeb pcpool /var/cache/apt/archives/libc6_2.2.5-11.8_i386.deb
 
 to add a .changes file:
 
@@ -62,30 +63,30 @@ each binary version needs a fitting version of the Arch:all package))
 
 3) to remove files:
 	
-reprepro -Vb . remove pcpool zoggy
+reprepro -Vb . remove pcpool libc6
 
 to only delete in a specific component or architecture:
 
-reprepro -Vb . -C main -A i386 remove pcpool zoggy
-
-Note: this only removes it out of the database for this distribution.
-To delete the physical files, try:
-
-reprepro -Vb . deleteunrefereced
+reprepro -Vb . -C main -A i386 remove pcpool libc6
 
 4) getting informations:
 To see in which architectures/components a packages exists and which version it uses.
 
-reprepro -b . list pcpool zoggy
+reprepro -b . list pcpool libc6
 
 5) Override-Files
 When including packages via includedeb, includedsc or include
 the applicaple override file from the distribution it is placed
-into is used. The file given by Override for .deb's the file
-given by SourceOverride for .dsc's. If the filename starts with
+into is used. The file given by DebOverride for ".deb"s, the
+file given by UDebOverride for ".udeb"s and the file given by 
+DscOverride for ".dsc"s. If the filename starts with
 a slash (/) it is not relative to the override directory given
-with -o. Note that the Format is those of apt-ftparchive's
-ExtraOverride, not the old format.
+with --override (Default is basedir + "override"). 
+
+Note that the Format is those of apt-ftparchive's ExtraOverride, not the old format.
+An (stupid) example line for that file would be:
+libc6 Priority extra
+
 
 6) importing from upstream represetories
 
@@ -93,7 +94,7 @@ In conf/updates can be entries like this:
 
 Name: debian
 Method: http://ftp.debian.de/debian 
-VerifyRelease: 6FFA8EF91DB114E0
+VerifyRelease: F1D53D8C4F368D5D
 
 Name: non-US
 Method: http://ftp.debian.de/debian-non-US 
@@ -107,7 +108,7 @@ Name: security
 Method: http://security.debian.org/debian-security 
 Suite: */updates 
 UDebComponents: none
-VerifyRelease: 6FFA8EF91DB114E0
+VerifyRelease: F1D53D8C4F368D5D
 
 Which of those are used is determined by the "Update:" line
 in the description in conf/distributions. When "Suite:",
