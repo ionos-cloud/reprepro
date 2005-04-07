@@ -865,7 +865,7 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 		*update_distributions = u_ds;
 	else
 		updates_freeupdatedistributions(u_ds);
-	return RET_OK;
+	return r;
 }
 
 static bool_t foundinorigins(struct update_origin *origins,size_t nameoffset,const char *name) {
