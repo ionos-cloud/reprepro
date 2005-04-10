@@ -48,7 +48,6 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	int ret;
 	pid_t ar,tar,pid;
 	int status;
-	gzFile f;
 	char *controlchunk;
 
 	retvalue result,r;
@@ -112,6 +111,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 
 	/* read data: */
 	if( RET_IS_OK(result) ) {
+		gzFile f;
 		//TODO: making a gzdopen here is kinda stupid...
 		f = gzdopen(pipe2[0],"r");
 		if( f == NULL ) {
@@ -140,14 +140,14 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		} else {
 			if( pid == ar ) {
 				ar = -1;
-				if( WIFEXITED(status) == 0 || 
+				if( !WIFEXITED(status) || 
 						WEXITSTATUS(status) != 0) {
 					fprintf(stderr,"Error from ar: %d\n",WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else if( pid == tar ) {
 				tar = -1;
-				if( WIFEXITED(status) == 0 || 
+				if( !WIFEXITED(status) || 
 						WEXITSTATUS(status) != 0 ) {
 					fprintf(stderr,"Error from tar: %d\n",WEXITSTATUS(status));
 					result = RET_ERROR;
