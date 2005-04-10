@@ -129,7 +129,7 @@ struct dscpackage {
 };
 
 static void dsc_free(/*@only@*/struct dscpackage *pkg) {
-	if( pkg ) {
+	if( pkg != NULL ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->control);
 		strlist_done(&pkg->basenames);strlist_done(&pkg->md5sums);
@@ -139,8 +139,8 @@ static void dsc_free(/*@only@*/struct dscpackage *pkg) {
 		free(pkg->dscmd5sum);
 		free(pkg->directory);free(pkg->dscbasename);free(pkg->dscfilekey);
 		strlist_done(&pkg->filekeys);
+		free(pkg);
 	}
-	free(pkg);
 }
 
 static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename, bool_t onlysigned) {
@@ -283,10 +283,10 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 
 	/* first replace the "Source" with a "Package": */
 	name = addfield_new("Package",pkg->package,NULL);
-	if( !name )
+	if( name == NULL )
 		return RET_ERROR_OOM;
 	name = deletefield_new("Source",name);
-	if( !name )
+	if( name == NULL )
 		return RET_ERROR_OOM;
 	newchunk2  = chunk_replacefields(pkg->control,name,"Format");
 	addfield_free(name);
@@ -300,17 +300,17 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 		return RET_ERROR_OOM;
 	}
 	replace = addfield_new("Files",newfilelines,NULL);
-	if( replace )
+	if( replace != NULL )
 		replace = addfield_new("Directory",pkg->directory,replace);
-	if( replace )
+	if( replace != NULL )
 		replace = deletefield_new("Status",replace);
-	if( replace )
+	if( replace != NULL )
 		replace = addfield_new(SECTION_FIELDNAME,pkg->section,replace);
-	if( replace )
+	if( replace != NULL )
 		replace = addfield_new(PRIORITY_FIELDNAME,pkg->priority,replace);
-	if( replace )
+	if( replace != NULL )
 		replace = override_addreplacefields(override,replace);
-	if( !replace ) {
+	if( replace == NULL ) {
 		free(newfilelines);
 		free(newchunk2);
 		return RET_ERROR_OOM;
@@ -405,7 +405,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
 	}
 
-	if( forcesection ) {
+	if( forcesection != NULL ) {
 		free(pkg->section);
 		pkg->section = strdup(forcesection);
 		if( pkg->section == NULL ) {
@@ -413,7 +413,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 			return RET_ERROR_OOM;
 		}
 	}
-	if( forcepriority ) {
+	if( forcepriority != NULL ) {
 		free(pkg->priority);
 		pkg->priority = strdup(forcepriority);
 		if( pkg->priority == NULL ) {

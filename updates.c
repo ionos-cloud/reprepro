@@ -180,7 +180,7 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 }
 
 void updates_freepatterns(struct update_pattern *p) {
-	while( p ) {
+	while( p != NULL ) {
 		struct update_pattern *pattern;
 
 		pattern = p;
@@ -190,7 +190,7 @@ void updates_freepatterns(struct update_pattern *p) {
 }
 
 static void updates_freeorigins(/*@only@*/struct update_origin *o) {
-	while( o ) {
+	while( o != NULL ) {
 		struct update_origin *origin;
 
 		origin = o;
@@ -204,12 +204,12 @@ static void updates_freeorigins(/*@only@*/struct update_origin *o) {
 }
 
 static void updates_freetargets(/*@only@*/struct update_target *t) {
-	while( t ) {
+	while( t != NULL ) {
 		struct update_target *ut;
 
 		ut = t;
 		t = ut->next;
-		while( ut->indices ) {
+		while( ut->indices != NULL ) {
 			struct update_index *ui;
 
 			ui = ut->indices;
@@ -223,7 +223,7 @@ static void updates_freetargets(/*@only@*/struct update_target *t) {
 }
 
 void updates_freeupdatedistributions(struct update_distribution *d) {
-	while( d ) {
+	while( d != NULL ) {
 		struct update_distribution *next;
 
 		next = d->next;
@@ -273,7 +273,7 @@ static retvalue splitlist(struct strlist *from,
 
 		item = list->values[i];
 		// TODO: isn't this broken for the !*(dest+1) case ?
-		if( !(seperator = strchr(item,'>')) ) {
+		if( (seperator = strchr(item,'>')) == NULL ) {
 			destination = strdup(item);
 			origin = strdup(item);
 		} else if( seperator == item ) {
@@ -286,7 +286,7 @@ static retvalue splitlist(struct strlist *from,
 			origin = strndup(item,seperator-item);
 			destination = strdup(seperator+1);
 		}
-		if( !origin || ! destination ) {
+		if( origin == NULL || destination == NULL ) {
 			free(origin);free(destination);
 			strlist_done(from);
 			strlist_done(into);
@@ -550,7 +550,7 @@ static retvalue instance_pattern(const char *listdir,
 			updates_freeorigins(update);
 			return RET_ERROR_OOM;
 		}
-		if( pattern->verifyrelease ) {
+		if( pattern->verifyrelease != NULL ) {
 			update->releasegpgfile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","gpg","rel");
 			if( update->releasegpgfile == NULL ) {
 				updates_freeorigins(update);
@@ -588,7 +588,7 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 	retvalue r;
 
 	updatesfile = calc_dirconcat(confdir,"updates");
-	if( !updatesfile ) 
+	if( updatesfile == NULL ) 
 		return RET_ERROR_OOM;
 	data.patterns = &update;
 	data.confdir = confdir;
@@ -623,7 +623,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 			continue;
 		}
 
-		for( pattern = patterns ; pattern ; pattern = pattern->next ) {
+		for( pattern = patterns ; pattern != NULL ; pattern = pattern->next ) {
 			if( strcmp(name,pattern->name) == 0 )
 				break;
 		}
@@ -760,14 +760,14 @@ static retvalue gettargets(const char *listdir,struct update_origin *origins,str
 
 	updatetargets = NULL;
 
-	for( target = distribution->targets ; target ; target = target->next) {
+	for( target = distribution->targets ; target != NULL ; target = target->next) {
 		r = newupdatetarget(&updatetargets,target);
 		if( RET_WAS_ERROR(r) ) {
 			updates_freetargets(updatetargets);
 			return r;
 		}
 
-		for( origin = origins ; origin ; origin=origin->next ) {
+		for( origin = origins ; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL )
 				r = adddeleteruletotarget(updatetargets);
 			else
@@ -798,7 +798,7 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 			struct update_origin *u;
 
 			u = updates;
-			while( u && strcmp(u->pattern->name,update) != 0 ) 
+			while( u != NULL && strcmp(u->pattern->name,update) != 0 ) 
 				u = u->next;
 			if( u == NULL ) {
 				fprintf(stderr,"Update '%s' is listed in distribution '%s', but was not found!\n",update,distribution->codename);
@@ -823,7 +823,8 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 	u_ds = NULL;
 	r = RET_OK;
 
-	for( distribution = distributions ; distribution ; distribution = distribution->next ) {
+	for( distribution = distributions ; distribution != NULL ; 
+			       distribution = distribution->next ) {
 		struct update_distribution *u_d;
 
 		u_d = calloc(1,sizeof(struct update_distribution));
@@ -846,7 +847,7 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 			assert( u_d->origins != NULL );
 			last = u_d->origins;
 			count = 1;
-			while( last->next ) {
+			while( last->next != NULL ) {
 				last = last->next;
 				count++;
 			}
@@ -910,7 +911,7 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 	size_t patternlen = strlen(pattern);
 	size_t nameoffset = strlen(listdir)+1;
 
-	while( 1 ) {
+	while( TRUE ) {
 		int namelen;
 		char *fullfilename;
 
@@ -1007,12 +1008,13 @@ static retvalue updates_startup(struct aptmethodrun *run,struct update_distribut
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
-		if( d->distribution->deb_override || d->distribution->dsc_override 
-				|| d->distribution->udeb_override) {
+		if( d->distribution->deb_override != NULL || 
+		    d->distribution->dsc_override != NULL ||
+		    d->distribution->udeb_override != NULL ) {
 			if( verbose >= 0 )
 				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
 		}
-		for( origin=d->origins; origin; origin=origin->next ) {
+		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL)
 				continue;
 			r = startuporigin(run,origin);
@@ -1132,7 +1134,7 @@ static retvalue updates_queuemetalists(struct update_distribution *distributions
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
-		for( origin=d->origins;origin; origin=origin->next ) {
+		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL)
 				continue;
 			if( origin->pattern->ignorerelease )
@@ -1158,7 +1160,7 @@ static retvalue updates_queuelists(struct update_distribution *distributions,int
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
 
-		for( origin=d->origins;origin; origin=origin->next ) {
+		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL)
 				continue;
 			r = readchecksums(origin);
@@ -1177,7 +1179,7 @@ static retvalue updates_queuelists(struct update_distribution *distributions,int
 					continue;
 				r = queueindex(index,force);
 				RET_UPDATE(result,r);
-				if( RET_WAS_ERROR(r) && ! force )
+				if( RET_WAS_ERROR(r) && force <= 0 )
 					return r;
 			}
 		}
@@ -1250,7 +1252,8 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions,
 	for( d=distributions ; d != NULL ; d=d->next) {
 
 		for( target=d->targets; target!=NULL ; target=target->next ) {
-			for( index=target->indices ; index; index=index->next ) {
+			for( index=target->indices ; index != NULL ; 
+						     index=index->next ) {
 				if( index->origin == NULL )
 					continue;
 				if( index->origin->pattern->listhook == NULL )
@@ -1259,7 +1262,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions,
 					continue;
 				}
 				r = calllisthook(index->origin->pattern->listhook,index);
-				if( RET_WAS_ERROR(r) && ! force ) {
+				if( RET_WAS_ERROR(r) && force <= 0 ) {
 					index->failed = TRUE;
 					return r;
 				}
@@ -1288,7 +1291,7 @@ upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,UNUSED
 			break;
 	}
 
-	if( pattern->includecondition ) {
+	if( pattern->includecondition != NULL ) {
 		r = term_decidechunk(pattern->includecondition,newcontrolchunk);
 		if( RET_WAS_ERROR(r) )
 			return UD_ERROR;
@@ -1312,14 +1315,14 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 
 	result = RET_NOTHING;
 
-	for( index=u->indices ; index ; index=index->next ) {
+	for( index=u->indices ; index != NULL ; index=index->next ) {
 
 		if( index->origin == NULL ) {
 			if( verbose > 4 )
 				fprintf(stderr,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && !force)
+			if( RET_WAS_ERROR(r) && force <= 0 )
 				return result;
 			u->ignoredelete = FALSE;
 			continue;
@@ -1334,7 +1337,7 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 
 		if( verbose > 4 )
 			fprintf(stderr,"  reading '%s'\n",index->filename);
-		assert(index->origin->download);
+		assert(index->origin->download!= NULL);
 		r = upgradelist_update(u->upgradelist,
 				index->origin->download,index->filename,
 				ud_decide_by_pattern,
@@ -1343,7 +1346,7 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 		if( RET_WAS_ERROR(r) )
 			u->ignoredelete = TRUE;
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && !force)
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			return result;
 	}
 	
@@ -1355,10 +1358,10 @@ static retvalue updates_readindices(const char *dbdir,struct update_distribution
 	struct update_target *u;
 
 	result = RET_NOTHING;
-	for( u=d->targets ; u ; u=u->next ) {
+	for( u=d->targets ; u != NULL ; u=u->next ) {
 		r = searchformissing(dbdir,u,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && !force )
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 	}
 	return result;
@@ -1369,10 +1372,10 @@ static retvalue updates_enqueue(struct downloadcache *cache,filesdb filesdb,stru
 	struct update_target *u;
 
 	result = RET_NOTHING;
-	for( u=distribution->targets ; u ; u=u->next ) {
+	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_enqueue(u->upgradelist,cache,filesdb,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && !force )
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 	}
 	return result;
@@ -1384,12 +1387,12 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 	struct update_target *u;
 
 	result = RET_NOTHING;
-	for( u=distribution->targets ; u ; u=u->next ) {
+	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
-		if( RET_WAS_ERROR(r) && !force )
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 	}
 	return result;
@@ -1398,7 +1401,7 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 static void updates_dump(struct update_distribution *distribution) {
 	struct update_target *u;
 
-	for( u=distribution->targets ; u ; u=u->next ) {
+	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		printf("Updates needed for '%s':\n",u->target->identifier);
 		upgradelist_dump(u->upgradelist);
 	}
@@ -1415,20 +1418,20 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 
 	r = aptmethod_download(run,methoddir,NULL);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(r) && !force ) {
+	if( RET_WAS_ERROR(r) && force <= 0 ) {
 		return result;
 	}
 
 	/* Then get all index files (with perhaps md5sums from the above) */
 	r = updates_queuelists(distributions,force);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && !force ) {
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		return result;
 	}
 
 	r = aptmethod_download(run,methoddir,NULL);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(r) && !force ) {
+	if( RET_WAS_ERROR(r) && force <= 0 ) {
 		return result;
 	}
 
@@ -1467,7 +1470,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	 *  the filename to look in is not changed) */
 	r = updates_calllisthooks(distributions,force);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && !force ) {
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		return result;
 	}
 
@@ -1481,17 +1484,17 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	
-	for( d=distributions ; d ; d=d->next) {
+	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_readindices(dbdir,d,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 		r = updates_enqueue(cache,filesdb,d,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 	}
-	if( RET_WAS_ERROR(result) && ! force ) {
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		aptmethod_shutdown(run);
 		return result;
 	}
@@ -1508,16 +1511,16 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
 
-	if( RET_WAS_ERROR(result) && !force ) {
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		return result;
 	}
 	if( verbose >= 0 )
 		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
 
-	for( d=distributions ; d ; d=d->next) {
+	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_install(dbdir,filesdb,refs,d,force,dereferencedfilekeys);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 	}
 
@@ -1554,14 +1557,14 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	 *  the filename to look in is not changed) */
 	r = updates_calllisthooks(distributions,force);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && !force ) {
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		return result;
 	}
 	if( verbose > 0 )
 		fprintf(stderr,"Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && !force ) {
+	if( RET_WAS_ERROR(result) && force <= 0 ) {
 		return result;
 	}
 
@@ -1569,10 +1572,10 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	if( verbose >= 0 )
 		fprintf(stderr,"Calculating packages to get...\n");
 	
-	for( d=distributions ; d ; d=d->next) {
+	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_readindices(dbdir,d,force);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && ! force )
+		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 		updates_dump(d);
 	}
@@ -1594,7 +1597,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		return r;
 
 	/* preperations */
-	for( origin=d->origins; origin; origin=origin->next ) {
+	for( origin=d->origins; origin != NULL ; origin=origin->next ) {
 		if( origin->pattern == NULL)
 			continue;
 		r = startuporigin(run,origin);
@@ -1605,7 +1608,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		}
 	}
 	if( !nolistsdownload ) {
-		for( origin=d->origins;origin; origin=origin->next ) {
+		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL)
 				continue;
 			if( origin->pattern->ignorerelease )
@@ -1622,11 +1625,11 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		}
 		r = aptmethod_download(run,methoddir,NULL);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && !force ) {
+		if( RET_WAS_ERROR(r) && force <= 0 ) {
 			aptmethod_shutdown(run);
 			return r;
 		}
-		for( origin=d->origins;origin; origin=origin->next ) {
+		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL)
 				continue;
 			r = readchecksums(origin);
@@ -1665,7 +1668,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			}
 		}
 
-		for( index=target->indices ; index; index=index->next ) {
+		for( index=target->indices ; index != NULL ; index=index->next ) {
 			if( index->origin == NULL )
 				continue;
 			if( index->origin->pattern->listhook == NULL )
@@ -1754,8 +1757,9 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
-		if( d->distribution->deb_override || d->distribution->dsc_override 
-				|| d->distribution->udeb_override) {
+		if( d->distribution->deb_override != NULL || 
+		    d->distribution->dsc_override != NULL ||
+		    d->distribution->udeb_override!= NULL ) {
 			if( verbose >= 0 )
 				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
 		}

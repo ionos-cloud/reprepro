@@ -1,3 +1,9 @@
+2005-04-10  Bernhard R. Link <brlink@debian.org>
+	* apply some clean ups:
+	  - distinguish between boolean and non-boolean values
+	  - split globals from error.h in globals.h
+	* fix bug in signature.c to not treat config error like valid key.
+
 2005-04-07  Bernhard R. Link <brlink@debian.org>	
 	* fix wrong handling of bugs in update specifications
 	* adopt short-howto to present

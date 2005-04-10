@@ -5,6 +5,10 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef REPREPRO_GLOBALS_H
+#include "globals.h"
+#warning "What's hapening here?"
+#endif
 
 struct strlist {
 	char **values;

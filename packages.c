@@ -70,7 +70,7 @@ retvalue packages_init(packagesdb *db,const char *dbpath,const char *codename,co
 	retvalue r;
 
 	identifier = calc_identifier(codename,component,architecture,packagetype);
-	if( ! identifier )
+	if( identifier == NULL )
 		return RET_ERROR_OOM;
 
 	r = packages_initialize(db,dbpath,identifier);
@@ -86,7 +86,7 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 	retvalue r;
 
 	filename=calc_dirconcat(dbpath,"packages.db");
-	if( !filename )
+	if( filename == NULL )
 		return RET_ERROR_OOM;
 	r = dirs_make_parent(filename);
 	if( RET_WAS_ERROR(r) ) {
@@ -252,7 +252,7 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		r = action(privdata,(const char*)key.data,(const char*)data.data);
 		RET_UPDATE(ret,r);
-		if( RET_WAS_ERROR(r) && !force ) {
+		if( RET_WAS_ERROR(r) && force <= 0 ) {
 			if( verbose > 0 )
 				fprintf(stderr,"packages_foreach: Stopping procession of further packages due to privious errors\n");
 			break;
@@ -342,7 +342,7 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 	r = references_insert(refs,packagesdb->identifier,files,oldfiles);
 
 	if( RET_WAS_ERROR(r) ) {
-		if( oldfiles )
+		if( oldfiles != NULL )
 			strlist_done(oldfiles);
 		return r;
 	}
@@ -357,7 +357,7 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 	}
 
 	if( RET_WAS_ERROR(result) ) {
-		if( oldfiles )
+		if( oldfiles != NULL )
 			strlist_done(oldfiles);
 		return result;
 	}

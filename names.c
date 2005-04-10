@@ -118,7 +118,7 @@ retvalue propersourcename(const char *string) {
 "Not rejecting","To ignore this",forbiddenchar,"Character 0x%02hhx not allowed in sourcename: '%s'!\n",*s,string) ) {
 				return RET_ERROR;
 			}
-			if( *s & 0x80 ) {
+			if( ISSET(*s,0x80) ) {
 				if( !IGNORING(
 "Not rejecting","To ignore this",8bit,"8bit character in sourcename: '%s'!\n",string) ) {
 					return RET_ERROR;
@@ -144,10 +144,10 @@ retvalue properfilename(const char *string) {
 		fprintf(stderr,"Filename not allowed: '%s'!\n",string);
 		return RET_ERROR;
 	}
-	for( s = string ; *s ; s++ ) {
+	for( s = string ; *s != '\0'  ; s++ ) {
 		REJECTLOWCHARS(s,string,"filename");
 		REJECTCHARIF( *s == '/' ,s,string,"filename");
-		if( *s & 0x80 ) {
+		if( ISSET(*s,0x80) ) {
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filename '%s'!\n",string);
 				return RET_ERROR;
@@ -168,7 +168,7 @@ static retvalue properidentifierpart(const char *string,const char *description)
 "Ignoring","To ignore this",emptyfilenamepart,"A string to be used of an filename is empty!\n") ) {
 		return RET_ERROR;
 	}
-	for( s = string; *s ; s++ ) {
+	for( s = string; *s != '\0' ; s++ ) {
 		REJECTLOWCHARS(s,string,description);
 		REJECTCHARIF( *s == '|' || *s == '/' ,s,string,description);
 	}
@@ -202,7 +202,7 @@ static retvalue properdirectoryandidentifier(const char *string, const char *des
 		return RET_ERROR;
 	}
 	s = string;
-	while( *s ) {
+	while( *s != '\0' ) {
 		REJECTLOWCHARS(s,string,description);
 		REJECTCHARIF( *s == '|' ,s,string,description);
 		if( *s == '/' && 
@@ -216,7 +216,7 @@ static retvalue properdirectoryandidentifier(const char *string, const char *des
 			fprintf(stderr,"%s '%s' should have only single '/'!\n",description,string);
 			return RET_ERROR;
 		}
-		if( *s & 0x80 ) {
+		if( ISSET(*s,0x80) ) {
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting %s '%s'!\n",description,string);
 				return RET_ERROR;
@@ -250,10 +250,10 @@ retvalue propercodename(const char *codename) {
 retvalue properfilenamepart(const char *string) {
 	const char *s;
 
-	for( s = string ; *s ; s++ ) {
+	for( s = string ; *s != '\0' ; s++ ) {
 		REJECTLOWCHARS(s,string,"filenamepart");
 		REJECTCHARIF( *s == '/' ,s,string,"filenamepart");
-		if( *s & 0x80 ) {
+		if( ISSET(*s,0x80) ) {
 			if( overlongUTF8(s) ) {
 				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filenamepart '%s'!\n",string);
 				return RET_ERROR;
@@ -312,7 +312,7 @@ retvalue properversion(const char *string) {
 "Not rejecting","To ignore this",forbiddenchar,"Character '%c' not allowed in version: '%s'!\n",*s,string) ) {
 				return RET_ERROR;
 			}
-			if( *s & 0x80 ) {
+			if( ISSET(*s,0x80) ) {
 				if( !IGNORING(
 "Not rejecting","To ignore this",8bit,"8bit character in version: '%s'!\n",string) ) {
 					return RET_ERROR;
@@ -349,7 +349,7 @@ retvalue properpackagename(const char *string) {
 		return RET_ERROR;
 	}
 	s = string;
-	while( *s ) {
+	while( *s != '\0' ) {
 		/* DAK also allowed upper case letters last I looked, policy
 		 * does not, so they are not allowed without --ignore=forbiddenchar */
 		// perhaps some extra ignore-rule for upper case?
@@ -367,7 +367,7 @@ retvalue properpackagename(const char *string) {
 "Not rejecting","To ignore this",forbiddenchar,"Character 0x%02hhx not allowed in package name: '%s'!\n",*s,string) ) {
 				return RET_ERROR;
 			}
-			if( *s & 0x80 ) {
+			if( ISSET(*s,0x80) ) {
 				if( !IGNORING(
 "Not rejecting","To ignore this",8bit,"8bit character in package name: '%s'!\n",string) ) {
 					return RET_ERROR;
@@ -387,7 +387,7 @@ static inline size_t escapedlen(const char *p) {
 		l = 3;
 		p++;
 	}
-	while( *p ) {
+	while( *p != '\0' ) {
 		if( (*p < 'A' || *p > 'Z' ) && (*p < 'a' || *p > 'z' ) && ( *p < '0' || *p > '9') && *p != '-' )
 			l +=3;
 		else
@@ -405,7 +405,7 @@ static inline char *escapecpy(char *dest,const char *orig) {
 		*dest = '2'; dest++;
 		*dest = 'D'; dest++;
 	}
-	while( *orig ) {
+	while( *orig != '\0' ) {
 		if( (*orig < 'A' || *orig > 'Z' ) && (*orig < 'a' || *orig > 'z' ) && ( *orig < '0' || *orig > '9') && *orig != '-' ) {
 			*dest = '%'; dest++;
 			*dest = hex[(*orig >> 4)& 0xF ]; dest++;
@@ -462,7 +462,8 @@ char *calc_downloadedlistpattern(const char *codename) {
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	// TODO: add checks to all data possibly given into here...
 	assert( strchr(codename,'|') == NULL && strchr(component,'|') == NULL && strchr(architecture,'|') == NULL );
-	assert( codename && component && architecture && packagetype );
+	assert( codename != NULL ); assert( component != NULL );
+	assert( architecture != NULL ); assert( packagetype != NULL );
 	if( packagetype[0] == 'u' ) 
 		return mprintf("u|%s|%s|%s",codename,component,architecture);
 	else
@@ -540,9 +541,9 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 
 char *calc_binary_basename(const char *name,const char *version,const char *arch,const char *packagetype) {
 	const char *v;
-	assert( name && version && arch && packagetype );
+	assert( name != NULL && version != NULL && arch != NULL && packagetype != NULL );
 	v = strchr(version,':');
-	if( v )
+	if( v != NULL )
 		v++;
 	else
 		v = version;
@@ -551,7 +552,7 @@ char *calc_binary_basename(const char *name,const char *version,const char *arch
 
 char *calc_source_basename(const char *name,const char *version) {
 	const char *v = strchr(version,':');
-	if( v )
+	if( v != NULL )
 		v++;
 	else
 		v = version;
@@ -568,7 +569,7 @@ char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const ch
 	char *result;
 
 	result = malloc(2+(md5end-md5start)+(sizeend-sizestart));
-	if( !result)
+	if( result== NULL )
 		return result;
 	memcpy(result,md5start,(md5end-md5start));
 	result[(md5end-md5start)] = ' ';
@@ -652,44 +653,44 @@ retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) 
 
 	/* the md5sums begins after the (perhaps) heading spaces ...  */
 	md5 = fileline;
-	while( isspace(*md5) )
+	while( xisspace(*md5) )
 		md5++;
 	if( *md5 == '\0' )
 		return RET_NOTHING;
 
 	/* ... and ends with the following spaces. */
 	md5end = md5;
-	while( *md5end != '\0' && !isspace(*md5end) )
+	while( *md5end != '\0' && !xisspace(*md5end) )
 		md5end++;
-	if( !isspace(*md5end) ) {
+	if( !xisspace(*md5end) ) {
 		fprintf(stderr,"Expecting more data after md5sum!\n");
 		return RET_ERROR;
 	}
 	/* Then the size of the file is expected: */
 	size = md5end;
-	while( isspace(*size) )
+	while( xisspace(*size) )
 		size++;
 	sizeend = size;
-	while( isdigit(*sizeend) )
+	while( xisdigit(*sizeend) )
 		sizeend++;
-	if( !isspace(*sizeend) ) {
+	if( !xisspace(*sizeend) ) {
 		fprintf(stderr,"Error in parsing size or missing space afterwards!\n");
 		return RET_ERROR;
 	}
 	/* Then the filename */
 	fn = sizeend;
-	while( isspace(*fn) )
+	while( xisspace(*fn) )
 		fn++;
 	fnend = fn;
-	while( *fnend != '\0' && !isspace(*fnend) )
+	while( *fnend != '\0' && !xisspace(*fnend) )
 		fnend++;
 
 	filen = strndup(fn,fnend-fn);
-	if( !filen )
+	if( filen == NULL )
 		return RET_ERROR_OOM;
-	if( md5sum ) {
+	if( md5sum != NULL ) {
 		md5as = malloc((md5end-md5)+2+(sizeend-size));
-		if( !md5as ) {
+		if( md5as == NULL ) {
 			free(filen);
 			return RET_ERROR_OOM;
 		}
@@ -700,7 +701,7 @@ retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) 
 	
 		*md5sum = md5as;
 	}
-	if( filename )
+	if( filename != NULL )
 		*filename = filen;
 	else
 		free(filen);

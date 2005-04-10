@@ -127,24 +127,24 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 			l--;
 			buffer[l] = '\0';
 		}
-		while( l>0 && isspace(buffer[l])) {
+		while( l>0 && xisspace(buffer[l])) {
 			buffer[l] = '\0';
 			l--;
 		}
 		if( l== 0 )
 			continue;
 		p = buffer;
-		while( *p !='\0' && isspace(*p) )
+		while( *p !='\0' && xisspace(*p) )
 			*(p++)='\0';
 		firstpart = p;
-		while( *p !='\0' && !isspace(*p) )
+		while( *p !='\0' && !xisspace(*p) )
 			p++;
-		while( *p !='\0' && isspace(*p) )
+		while( *p !='\0' && xisspace(*p) )
 			*(p++)='\0';
 		secondpart = p;
-		while( *p !='\0' && !isspace(*p) )
+		while( *p !='\0' && !xisspace(*p) )
 			p++;
-		while( *p !='\0' && isspace(*p) )
+		while( *p !='\0' && xisspace(*p) )
 			*(p++)='\0';
 		thirdpart = p;
 		if( last == NULL || ( strcmp(last->packagename,firstpart) > 0 &&
@@ -163,7 +163,8 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 					strcmp(last->next->packagename,firstpart) < 0) {
 					last = last->next;
 				}
-				if( !last->next || strcmp(last->next->packagename,firstpart) != 0 ) {
+				if( last->next == NULL || 
+				    strcmp(last->next->packagename,firstpart) != 0 ) {
 					/* add it after last and before last->next */
 					r = newoverrideinfo(firstpart,secondpart,thirdpart,&last->next);
 					last = last->next;
@@ -204,7 +205,7 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package) {
 	int c;
 
-	while( overrides ) {
+	while( overrides != NULL ) {
 		c = strcmp(overrides->packagename,package);
 		if( c < 0 )
 			overrides = overrides->next;

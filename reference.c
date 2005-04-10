@@ -252,7 +252,7 @@ retvalue references_delete(references refs,const char *identifier,
 		if( exclude == NULL || !strlist_in(exclude,filekey) ) {
 			r = references_decrement(refs,filekey,identifier);
 			RET_UPDATE(result,r);
-			if( RET_IS_OK(r) && dereferencedfilekeys ) {
+			if( RET_IS_OK(r) && dereferencedfilekeys != NULL ) {
 				r = strlist_adduniq(dereferencedfilekeys, filekey);
 				RET_UPDATE(result,r);
 			} else

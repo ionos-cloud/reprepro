@@ -104,13 +104,13 @@ struct debpackage {
 };
 
 static void deb_free(/*@only@*/struct debpackage *pkg) {
-	if( pkg ) {
+	if( pkg != NULL ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->source);free(pkg->architecture);
 		free(pkg->control);
 		free(pkg->section);free(pkg->component);
 		free(pkg->priority);
-		if( pkg->filekey )
+		if( pkg->filekey != NULL )
 			strlist_done(&pkg->filekeys);
 		free(pkg->md5sum);
 	}
@@ -214,28 +214,28 @@ static retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *o
 	assert( pkg->section != NULL && pkg->priority != NULL);
 
 	size = pkg->md5sum;
-	while( !isblank(*size) && *size )
+	while( !xisblank(*size) && *size != '\0' )
 		size++;
 	replace = addfield_newn("MD5sum",pkg->md5sum, size-pkg->md5sum,NULL);
-	if( !replace )
+	if( replace == NULL )
 		return RET_ERROR_OOM;
-	while( *size && isblank(*size) )
+	while( *size != '\0' && xisblank(*size) )
 		size++;
 	replace = addfield_new("Size",size,replace);
-	if( !replace )
+	if( replace == NULL )
 		return RET_ERROR_OOM;
 	replace = addfield_new("Filename",pkg->filekey,replace);
-	if( !replace )
+	if( replace == NULL )
 		return RET_ERROR_OOM;
 	replace = addfield_new(SECTION_FIELDNAME,pkg->section ,replace);
-	if( !replace )
+	if( replace == NULL )
 		return RET_ERROR_OOM;
 	replace = addfield_new(PRIORITY_FIELDNAME,pkg->priority, replace);
-	if( !replace )
+	if( replace == NULL )
 		return RET_ERROR_OOM;
 
 	replace = override_addreplacefields(override,replace);
-	if( !replace )
+	if( replace == NULL )
 		return RET_ERROR_OOM;
 
 	newchunk  = chunk_replacefields(pkg->control,replace,"Description");
@@ -323,7 +323,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
 	}
 
-	if( forcesection ) {
+	if( forcesection != NULL ) {
 		free(pkg->section);
 		pkg->section = strdup(forcesection);
 		if( pkg->section == NULL ) {
@@ -331,7 +331,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 			return RET_ERROR_OOM;
 		}
 	}
-	if( forcepriority ) {
+	if( forcepriority != NULL ) {
 		free(pkg->priority);
 		pkg->priority = strdup(forcepriority);
 		if( pkg->priority == NULL ) {
@@ -442,7 +442,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 			RET_ENDUPDATE(r,r2);
 		}
 		RET_UPDATE(result,r);
-	} else if( forcearchitecture ) {
+	} else if( forcearchitecture != NULL ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture,packagetype);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {

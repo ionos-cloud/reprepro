@@ -52,7 +52,7 @@ static retvalue add(const char *given,size_t len) {
 	}
 	if( i == IGN_COUNT ) {
 		char *str = strndup(given,len);
-		if( IGNORING("Ignoring","To Ignore",ignore,"Unknown --ignore value: '%s'!\n",str?str:given)) {
+		if( IGNORING("Ignoring","To Ignore",ignore,"Unknown --ignore value: '%s'!\n",(str!=NULL)?str:given)) {
 			free(str);
 			return RET_NOTHING;
 		} else {

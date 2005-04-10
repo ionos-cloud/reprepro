@@ -107,7 +107,7 @@ struct changes {
 static void freeentries(/*@only@*/struct fileentry *entry) {
 	struct fileentry *h;
 
-	while( entry ) {
+	while( entry != NULL ) {
 		h = entry->next;
 		free(entry->filekey);
 		free(entry->component);
@@ -149,37 +149,37 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	filetype type;
 
 	p = fileline;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	md5start = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	md5end = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	sizestart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	sizeend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	sectionstart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	sectionend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	priostart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	prioend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	filestart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	fileend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	if( *p != '\0' ) {
 		fprintf(stderr,"Unexpected sixth argument in '%s'!\n",fileline);
@@ -192,7 +192,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	}
 
 	p = filestart;
-	while( *p != '\0' && *p != '_' && !isspace(*p) )
+	while( *p != '\0' && *p != '_' && !xisspace(*p) )
 		p++;
 	if( *p != '_' ) {
 		if( *p == '\0' )
@@ -226,7 +226,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		archend = p;
 		p++;
 		typestart = p;
-		while( *p !='\0' && !isspace(*p) )
+		while( *p !='\0' && !xisspace(*p) )
 			p++;
 		if( p-typestart == 3 && strncmp(typestart,"deb",3) == 0 )
 			type = fe_DEB;
@@ -243,7 +243,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	} else {
 		/* this looks like some source-package, we will have
 		 * to look for the packagetype ourself... */
-		while( *p !='\0' && !isspace(*p) ) {
+		while( *p !='\0' && !xisspace(*p) ) {
 			p++;
 		}
 		if( p-versionstart > 12 && strncmp(p-12,".orig.tar.gz",12) == 0 )
@@ -283,11 +283,12 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	e->name = strndup(filestart,nameend-filestart);
 	e->type = type;
 
-	if( !e->basename || !e->md5sum || !e->section || !e->priority || !e->architecture || !e->name ) {
+	if( e->basename == NULL || e->md5sum == NULL || e->section == NULL || 
+	    e->priority == NULL || e->architecture == NULL || e->name == NULL ) {
 		freeentries(e);
 		return RET_ERROR_OOM;
 	}
-	if( forcearchitecture ) {
+	if( forcearchitecture != NULL ) {
 		if( strcmp(forcearchitecture,"source") != 0 && 
 				strcmp(e->architecture,"all") == 0 ) {
 			if( verbose > 2 )
@@ -340,7 +341,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	r = chunk_checkfield(changes->control,field);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"In '%s': Missing '%s' field!\n",filename,field);
-		if( !force )
+		if( force <= 0 )
 			return RET_ERROR;
 	}
 	return r;
@@ -438,20 +439,20 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		return RET_ERROR;
 	}
 	
-	while( e ) {
+	while( e != NULL ) {
 		const struct overrideinfo *oinfo = NULL;
 		const char *force = NULL;
-		if( !forcesection || !forcepriority ) {
+		if( forcesection == NULL || forcepriority == NULL ) {
 			oinfo = override_search(
 			FE_BINARY(e->type)?(e->type==fe_UDEB?ao->udeb:ao->deb):ao->dsc,
 					e->name);
 		}
 		
-		if( forcesection ) 
+		if( forcesection != NULL ) 
 			force = forcesection;
 		else
 			force = override_get(oinfo,SECTION_FIELDNAME);
-		if( force ) {
+		if( force != NULL ) {
 			free(e->section);
 			e->section = strdup(force);
 			if( e->section == NULL )
@@ -469,11 +470,11 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			fprintf(stderr,"No section specified for '%s'!\n",filename);
 			return RET_ERROR;
 		}
-		if( forcepriority )
+		if( forcepriority != NULL )
 			force = forcepriority;
 		else
 			force = override_get(oinfo,PRIORITY_FIELDNAME);
-		if( force ) {
+		if( force != NULL ) {
 			free(e->priority);
 			e->priority = strdup(force);
 			if( e->priority == NULL )
@@ -558,7 +559,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	bool_t havedsc=FALSE, haveorig=FALSE, havetar=FALSE, havediff=FALSE;
 	
 	/* First check for each given architecture, if it has files: */
-	if( forcearchitecture ) {
+	if( forcearchitecture != NULL ) {
 		if( !strlist_in(&changes->architectures,forcearchitecture) ){
 			fprintf(stderr,"Architecture-header does not list the"
 				     " architecture '%s' to be forced in!\n",
@@ -579,7 +580,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	/* Then check for each file, if its architecture is sensible
 	 * and listed. */
 	e = changes->files;
-	while( e ) {
+	while( e != NULL ) {
 		if( !strlist_in(&changes->architectures,e->architecture) ) {
 			fprintf(stderr,"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",filename,e->architecture);
 			r = RET_ERROR;
@@ -655,7 +656,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	r = RET_NOTHING;
 
 	e = changes->files;
-	while( e ) {
+	while( e != NULL ) {
 		if( FE_SOURCE(e->type) ) {
 			assert(changes->srcdirectory!=NULL);
 			e->filekey = calc_dirconcat(changes->srcdirectory,e->basename);
@@ -695,7 +696,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 	r = RET_NOTHING;
 
 	e = changes->files;
-	while( e ) {
+	while( e != NULL ) {
 		char *fullfilename;
 		if( e->type != fe_DEB && e->type != fe_DSC && e->type != fe_UDEB) {
 			e = e->next;

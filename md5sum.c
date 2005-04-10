@@ -48,7 +48,7 @@ static char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','
 	result[32] = '\0';
 
 	md5sum = mprintf("%s %lld",result,(long long)filesize);
-	if( ! md5sum )
+	if( md5sum == NULL )
 		return RET_ERROR_OOM;
 	*md5 = md5sum;
 	return RET_OK;

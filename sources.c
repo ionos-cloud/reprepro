@@ -129,7 +129,7 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 
 	/* collect the given md5sum and size */
 
-  	if( basefiles ) {
+  	if( basefiles != NULL ) {
 		struct strlist filelines;
   
 		r = chunk_getextralinelist(chunk,"Files",&filelines);
@@ -138,7 +138,7 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 				free(od);
   			return r;
 		}
-		if( md5sums )
+		if( md5sums != NULL )
 			r = getBasenamesAndMd5(&filelines,basefiles,md5sums);
 		else
 			r = getBasenames(&filelines,basefiles);
@@ -184,7 +184,7 @@ static inline retvalue calcnewcontrol(
 	}
 	*newchunk = chunk_replacefield(chunk,"Directory",directory);
 	free(directory);
-	if( !newchunk ) {
+	if( newchunk == NULL ) {
 		strlist_done(filekeys);
 		return RET_ERROR_OOM;
 	}
@@ -221,7 +221,7 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 		len += 3+strlen(basenames->values[i])+strlen(md5sums->values[i]);
 	}
 	result = malloc(len*sizeof(char));
-	if( !result )
+	if( result == NULL )
 		return RET_ERROR_OOM;
 	*item = result;
 	*(result++) = '\n';
@@ -311,7 +311,7 @@ retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct s
 	struct strlist basenames,mymd5sums;
 	retvalue r;
 	
-	if( md5sums )
+	if( md5sums != NULL )
 		r = parse_chunk(chunk,&origdirectory,&basenames,&mymd5sums);
 	else
 		r = parse_chunk(chunk,&origdirectory,&basenames,NULL);
@@ -329,11 +329,11 @@ retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct s
 	free(origdirectory);
 	strlist_done(&basenames);
 	if( RET_WAS_ERROR(r) ) {
-		if( md5sums )
+		if( md5sums != NULL )
 			strlist_done(&mymd5sums);
 		return r;
 	}
-	if( md5sums )
+	if( md5sums != NULL )
 		strlist_move(md5sums,&mymd5sums);
 	return r;
 }

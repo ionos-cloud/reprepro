@@ -114,7 +114,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	if( RET_IS_OK(result) ) {
 		//TODO: making a gzdopen here is kinda stupid...
 		f = gzdopen(pipe2[0],"r");
-		if( !f ) {
+		if( f == NULL ) {
 			fprintf(stderr,"Error opening gzip-stream for pipe!\n");
 			RET_UPDATE(result,RET_ERROR);
 		} else {
@@ -140,13 +140,15 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		} else {
 			if( pid == ar ) {
 				ar = -1;
-				if( !WIFEXITED(status) || WEXITSTATUS(status)) {
+				if( WIFEXITED(status) == 0 || 
+						WEXITSTATUS(status) != 0) {
 					fprintf(stderr,"Error from ar: %d\n",WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else if( pid == tar ) {
 				tar = -1;
-				if( !WIFEXITED(status) || WEXITSTATUS(status)) {
+				if( WIFEXITED(status) == 0 || 
+						WEXITSTATUS(status) != 0 ) {
 					fprintf(stderr,"Error from tar: %d\n",WEXITSTATUS(status));
 					result = RET_ERROR;
 				}

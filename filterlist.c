@@ -34,7 +34,7 @@
 extern int verbose;
 
 static void filterlistitems_free(/*@null@*//*@only@*/struct filterlistitem *list) {
-	while( list ) {
+	while( list != NULL ) {
 		struct filterlistitem *next = list->next;
 		free(list->packagename);
 		free(list);
@@ -60,21 +60,21 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 
 	root = NULL;
 
-	if( strncmp(configline,"install",7) == 0 && isspace(configline[7]) ) {
+	if( strncmp(configline,"install",7) == 0 && xisspace(configline[7]) ) {
 		defaulttype = flt_install; filename = configline + 7;
-	} else if( strncmp(configline,"hold",4) == 0 && isspace(configline[4]) ) {
+	} else if( strncmp(configline,"hold",4) == 0 && xisspace(configline[4]) ) {
 		defaulttype = flt_hold; filename = configline + 4;
-	} else if( strncmp(configline,"deinstall",9) == 0 && isspace(configline[9]) ) {
+	} else if( strncmp(configline,"deinstall",9) == 0 && xisspace(configline[9]) ) {
 		defaulttype = flt_hold; filename = configline + 9;
-	} else if( strncmp(configline,"purge",5) == 0 && isspace(configline[5]) ) {
+	} else if( strncmp(configline,"purge",5) == 0 && xisspace(configline[5]) ) {
 		defaulttype = flt_hold; filename = configline + 5;
-	} else if( strncmp(configline,"error",5) == 0 && isspace(configline[5]) ) {
+	} else if( strncmp(configline,"error",5) == 0 && xisspace(configline[5]) ) {
 		defaulttype = flt_error; filename = configline + 5;
 	} else {
 		fprintf(stderr,"Cannot parse '%s' into the format 'install|deinstall|purge|hold <filename>'\n",configline);
 		return RET_ERROR;
 	}
-	while( *filename != '\0' && isspace(*filename) )
+	while( *filename != '\0' && xisspace(*filename) )
 		filename++;
 	if( filename[0] != '/' ) {
 		fullfilename = calc_dirconcat(confdir,filename);
@@ -105,19 +105,19 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 			filterlistitems_free(root);
 			return RET_ERROR;
 		}
-		while( lineend >= line && isspace(*lineend) )
+		while( lineend >= line && xisspace(*lineend) )
 			*(lineend--) = '\0';
 		/* Ignore line only containing whitespace */
 		if( line[0] == '\0' )
 			continue;
 		namestart = line;
-		while( *namestart != '\0' && isspace(*namestart) )
+		while( *namestart != '\0' && xisspace(*namestart) )
 			namestart++;
 		nameend=namestart;
-		while( *nameend != '\0' && !isspace(*nameend) )
+		while( *nameend != '\0' && !xisspace(*nameend) )
 			nameend++;
 		what = nameend;
-		while( *what != '\0' && isspace(*what) )
+		while( *what != '\0' && xisspace(*what) )
 			*(what++)='\0';
 		if( *what == '\0' ) {
 			fprintf(stderr,"Malformed line in '%s': %d!\n",filename,lineno);

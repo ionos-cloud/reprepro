@@ -42,7 +42,7 @@ extern int verbose;
 static GpgmeCtx context = NULL;
 
 static retvalue gpgerror(GpgmeError err){
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		fprintf(stderr,"gpgme gave error: %s\n",gpgme_strerror(err));
 		return RET_ERROR_GPGME;
 	} else
@@ -55,13 +55,13 @@ static retvalue signature_init(void){
 	if( context != NULL )
 		return RET_NOTHING;
 	err = gpgme_engine_check_version(GPGME_PROTOCOL_OpenPGP);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
 	err = gpgme_new(&context);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
 	err = gpgme_set_protocol(context,GPGME_PROTOCOL_OpenPGP);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
 	gpgme_set_armor(context,1);
 	return RET_OK;
@@ -82,14 +82,14 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 	fl = strlen(fingerprint);
 
 	keypart = key;
-	while( 1 ) {
-		while( *keypart != '\0' && isspace(*keypart) )
+	while( TRUE ) {
+		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
 			/* nothing more to check, so nothing fullfilled */
 			return RET_NOTHING;
 		p = keypart;
-		while( *p != '\0' && !isspace(*p) && *p != '|' )
+		while( *p != '\0' && !xisspace(*p) && *p != '|' )
 			p++;
 		kl = p-keypart;
 		if( kl < 8 && !IGNORING("Ignoring","To ignore this",shortkeyid,"Too short keyid specified (less than 8 characters) in '%s'!\n",key)) {
@@ -98,7 +98,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		if( kl < fl && strncmp(fingerprint+fl-kl,keypart,kl) == 0 )
 			return RET_OK;
 		keypart = p;
-		while( *keypart != '\0' && isspace(*keypart) )
+		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
 			return RET_NOTHING;
@@ -152,9 +152,11 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 #else
 		if( status == GPGME_SIG_STAT_GOOD ) {
 #endif
-
-			if( key == NULL || containskey(key,fingerprint) ) {
-				result = RET_OK;
+			retvalue r = (key==NULL) ? 
+					RET_OK : 
+					containskey(key,fingerprint);
+			RET_UPDATE(result,r);
+			if( RET_IS_OK(r) ) {
 				if( verbose <= 3 )
 					break;
 				continue;
@@ -176,7 +178,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	GpgmeData dh,dh_gpg;
 	GpgmeSigStat stat;
 
-	if( !release || !releasegpg )
+	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
 
 	r = signature_init();
@@ -187,11 +189,11 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 
 	//TODO: Use callbacks for file-reading to have readable errormessages?
 	err = gpgme_data_new_from_file(&dh_gpg,releasegpg,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_file(&dh,release,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
@@ -201,7 +203,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	err = gpgme_op_verify(context,dh_gpg,dh,&stat);
 	gpgme_data_release(dh_gpg);
 	gpgme_data_release(dh);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
 
 	switch( stat ) {
@@ -255,18 +257,18 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 
 	// TODO: Supply our own read functions to get sensible error messages.
 	err = gpgme_data_new(&dh_gpg);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_file(&dh,filename,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
 
 	err = gpgme_op_sign(context,dh,dh_gpg,GPGME_SIG_MODE_DETACH);
 	gpgme_data_release(dh);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	} else {
@@ -312,16 +314,16 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 		return r;
 
 	err = gpgme_data_new_from_file(&dh_gpg,filename,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new(&dh);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
 	err = gpgme_op_verify(context,dh_gpg,dh,&stat); 
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		gpgme_data_release(dh);
 		return gpgerror(err);
@@ -398,7 +400,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 
 	startofchanges = plain_data;
 	while( startofchanges - plain_data < plain_len && 
-			*startofchanges && isspace(*startofchanges)) {
+			*startofchanges != '\0' && xisspace(*startofchanges)) {
 		startofchanges++;
 	}
 	if( startofchanges - plain_data >= plain_len ) {
@@ -408,12 +410,13 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 	}
 	endofchanges = startofchanges;
 	while( endofchanges - plain_data < plain_len && 
-		*endofchanges && ( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
+		*endofchanges != '\0' && 
+		( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
 		endofchanges++;
 	}
 	afterchanges = endofchanges;
 	while( afterchanges - plain_data < plain_len && 
-		*afterchanges && isspace(*afterchanges)) {
+		*afterchanges != '\0' && xisspace(*afterchanges)) {
 		afterchanges++;
 	}
 	if( afterchanges - plain_data != plain_len ) {

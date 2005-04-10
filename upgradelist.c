@@ -133,7 +133,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 			 * database-method get changed, so just throwing
 			 * out here */
 			fprintf(stderr,"Package-database is not sorted!!!");
-			assert(0);
+			assert(FALSE);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -180,7 +180,7 @@ retvalue upgradelist_free(struct upgradelist *upgrade) {
 		return RET_NOTHING;
 
 	l = upgrade->list;
-	while( l ) {
+	while( l != NULL ) {
 		struct package_data *n = l->next;
 		package_data_free(l);
 		l = n;
@@ -219,7 +219,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	 * after the last one. Otherwise we walk down the long list
 	 * again and again... and again... and even some more...*/
 
-	while(1) {
+	while( TRUE ) {
 		int cmp;
 
 		assert( insertafter == NULL || insertafter->next == current );
@@ -290,7 +290,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			free(version);
 			return RET_ERROR_OOM;
 		}
-		assert(upgrade->currentaptmethod);
+		assert(upgrade->currentaptmethod!=NULL);
 		new->deleted = FALSE; //to be sure...
 		new->aptmethod = upgrade->currentaptmethod;
 		new->name = packagename;
@@ -303,7 +303,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			package_data_free(new);
 			return RET_ERROR_OOM;
 		}
-		if( insertafter ) {
+		if( insertafter != NULL ) {
 			new->next = insertafter->next;
 			insertafter->next = new;
 		} else {
@@ -403,7 +403,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
-		assert(upgrade->currentaptmethod);
+		assert(upgrade->currentaptmethod!=NULL);
 		current->aptmethod = upgrade->currentaptmethod;
 		strlist_move(&current->new_filekeys,&files);
 		strlist_move(&current->new_md5sums,&md5sums);
@@ -428,7 +428,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method
 retvalue upgradelist_deleteall(struct upgradelist *upgrade) {
 	struct package_data *pkg;
 
-	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
+	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		pkg->deleted = TRUE;
 	}
 
@@ -438,7 +438,7 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade) {
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files){
 	struct package_data *pkg;
 
-	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
+	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version ) {
 			retvalue r;
 			r = files_printmissing(files,
@@ -458,7 +458,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
-	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
+	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted) {
 			assert(pkg->aptmethod != NULL);
 			r = downloadcache_addfiles(cache,filesdb,pkg->aptmethod,
@@ -466,7 +466,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 				&pkg->new_filekeys,
 				&pkg->new_md5sums);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && !force )
+			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;
 		}
 	}
@@ -483,7 +483,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 	result = target_initpackagesdb(upgrade->target,dbdir);
 	if( RET_WAS_ERROR(result) )
 		return result;
-	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
+	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted ) {
 			r = files_expectfiles(files,&pkg->new_filekeys,
 					&pkg->new_md5sums);
@@ -493,13 +493,13 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 				pkg->name,pkg->new_version,pkg->new_control,
 				&pkg->new_filekeys,force,TRUE,dereferencedfilekeys);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && !force )
+			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;
 		}
 		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
 			r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && !force )
+			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;
 		}
 	}
@@ -511,7 +511,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 void upgradelist_dump(struct upgradelist *upgrade){
 	struct package_data *pkg;
 
-	for( pkg = upgrade->list ; pkg ; pkg = pkg->next ) {
+	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->deleted ) {
 			if( pkg->version_in_use != NULL && 
 					pkg->new_version != NULL ) {
@@ -519,7 +519,7 @@ void upgradelist_dump(struct upgradelist *upgrade){
 				       " (best new: '%s')\n",
 				       pkg->name,pkg->version_in_use,
 				       pkg->new_version);
-			} else if( pkg->version_in_use ) {
+			} else if( pkg->version_in_use != NULL ) {
 				printf("'%s': '%s' will be deleted"
 					" (no longer available)\n",
 					pkg->name,pkg->version_in_use);
@@ -529,7 +529,7 @@ void upgradelist_dump(struct upgradelist *upgrade){
 			}
 		} else {
 			if( pkg->version == pkg->version_in_use ) {
-				if( pkg->new_version ) {
+				if( pkg->new_version != NULL ) {
 					if( verbose > 1 )
 					printf("'%s': '%s' will be kept"
 					       " (best new: '%s')\n",
@@ -543,7 +543,7 @@ void upgradelist_dump(struct upgradelist *upgrade){
 				}
 
 			} else {
-				if( pkg->version_in_use ) 
+				if( pkg->version_in_use != NULL ) 
 					(void)printf("'%s': '%s' will be upgraded"
 					       " to '%s':\n files needed: ",
 						pkg->name,pkg->version_in_use,

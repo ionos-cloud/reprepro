@@ -195,13 +195,13 @@ ACTION_U_F(addmd5sums) {
 	
 	while( fgets(buffer,1999,stdin) != NULL ) {
 		c = strchr(buffer,'\n');
-		if( ! c ) {
+		if( c == NULL ) {
 			fprintf(stderr,"Line too long\n");
 			return RET_ERROR;
 		}
 		*c = '\0';
 		m = strchr(buffer,' ');
-		if( ! m ) {
+		if( m == NULL ) {
 			fprintf(stderr,"Malformed line\n");
 			return RET_ERROR;
 		}
@@ -513,9 +513,9 @@ ACTION_F(detect) {
 		}
 
 	} else
-		while( fgets(buffer,4999,stdin) ) {
+		while( fgets(buffer,4999,stdin) != NULL ) {
 			nl = strchr(buffer,'\n');
-			if( !nl ) {
+			if( nl == NULL ) {
 				return RET_ERROR;
 			}
 			*nl = '\0';
@@ -538,9 +538,9 @@ ACTION_F(forget) {
 		}
 
 	} else
-		while( fgets(buffer,4999,stdin) ) {
+		while( fgets(buffer,4999,stdin) != NULL ) {
 			nl = strchr(buffer,'\n');
-			if( !nl ) {
+			if( nl == NULL ) {
 				return RET_ERROR;
 			}
 			*nl = '\0';
@@ -1562,7 +1562,7 @@ int main(int argc,char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	a = all_actions;
-	while( a->name ) {
+	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
 			r = callaction(a,argc-optind,(const char**)argv+optind);
 			/* yeah, freeing all this stuff before exiting is

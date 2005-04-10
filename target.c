@@ -69,7 +69,8 @@ static retvalue target_initialize(
 	t->architecture = strdup(architecture);
 	t->packagetype = packagetype;
 	t->identifier = calc_identifier(codename,component,architecture,packagetype);
-	if( !t->codename|| !t->component|| !t->architecture|| !t->identifier) {
+	if( t->codename == NULL || t->component == NULL || 
+			t->architecture == NULL || t->identifier == NULL ) {
 		(void)target_free(t);
 		return RET_ERROR_OOM;
 	}
@@ -100,7 +101,7 @@ retvalue target_free(struct target *target) {
 
 	if( target == NULL )
 		return RET_OK;
-	if( target->packages ) {
+	if( target->packages != NULL ) {
 		result = target_closepackagesdb(target);
 	} else
 		result = RET_OK;
@@ -198,7 +199,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 		char *oldversion;
 
 		r = target->getversion(target,oldcontrol,&oldversion);
-		if( RET_WAS_ERROR(r) && !force ) {
+		if( RET_WAS_ERROR(r) && force <= 0) {
 			free(oldcontrol);
 			return r;
 		}
@@ -208,7 +209,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 			r = dpkgversions_cmp(version,oldversion,&versioncmp);
 			if( RET_WAS_ERROR(r) ) {
 				fprintf(stderr,"Parse errors processing versions of %s.\n",name);
-				if( !force ) {
+				if( force <= 0 ) {
 					free(oldversion);
 					free(oldcontrol);
 					return r;
@@ -233,7 +234,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 		free(oldcontrol);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
-			if( force )
+			if( force > 0 )
 				ofk = NULL;
 			else
 				return r;

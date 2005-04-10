@@ -34,8 +34,8 @@
 #include "dpkgversions.h"
 
 #define _(a) a
-#define cisalpha isalpha
-#define cisdigit isdigit
+#define cisalpha(a) (isalpha(a)!=0)
+#define cisdigit(a) (isdigit(a)!=0)
 
 /* from dpkg-db.h.in: */
 

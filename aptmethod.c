@@ -72,7 +72,7 @@ static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 	free(method->inputbuffer);
 	free(method->command);
 
-	while( method->tobedone ) {
+	while( method->tobedone != NULL ) {
 		struct tobedone *todo;
 
 		todo = method->tobedone;
@@ -92,7 +92,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 
 	/* first get rid of everything not running: */
 	method = run->methods; lastmethod = NULL;
-	while( method ) {
+	while( method != NULL ) {
 		struct aptmethod *h;
 
 		if( method->child > 0 ) {
@@ -103,7 +103,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 			continue;
 		} else {
 			h = method->next;
-			if( lastmethod )
+			if( lastmethod != NULL )
 				lastmethod->next = h;
 			else
 				run->methods = h;
@@ -113,7 +113,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 	}
 
 	/* finally get rid of all the processes: */
-	for( method = run->methods ; method ; method = method->next ) {
+	for( method = run->methods ; method != NULL ; method = method->next ) {
 		if( method->stdin >= 0 ) {
 			(void)close(method->stdin);
 			if( verbose > 30 )
@@ -127,16 +127,16 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 		}
 		method->stdout = -1;
 	}
-	while( run->methods ) {
+	while( run->methods != NULL ) {
 		pid_t pid;int status;
 		
 		pid = wait(&status);
 		lastmethod = NULL; method = run->methods;
-		while( method ) {
+		while( method != NULL ) {
 			if( method->child == pid ) {
 				struct aptmethod *next = method->next;
 
-				if( lastmethod ) {
+				if( lastmethod != NULL ) {
 					lastmethod->next = next;
 				} else
 					run->methods = next;
@@ -211,7 +211,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 		free(method);
 		return RET_ERROR_OOM;
 	}
-	if( config ) {
+	if( config != NULL ) {
 		method->config = strdup(config);
 		if( method->config == NULL ) {
 			free(method->baseuri);
@@ -294,7 +294,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		} else {
 			/* closeat least the ones definitly causing problems*/
 			const struct aptmethod *m;
-			for( m = run->methods; m ; m = m->next ) {
+			for( m = run->methods; m != NULL ; m = m->next ) {
 				if( m != method ) {
 					(void)close(m->stdin);
 					(void)close(m->stdout);
@@ -369,7 +369,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	wasnewline = TRUE;
 	for( p = method->config; *p != '\0'  ; p++ ) {
 		if( *p != '\n' ) {
-			if( !wasnewline || !isspace(*p) )
+			if( !wasnewline || !xisspace(*p) )
 				*(c++) = *p;
 			wasnewline = FALSE;
 		} else {
@@ -402,11 +402,11 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	todo->next = NULL;
 	todo->uri = calc_dirconcat(baseuri,origfile);
 	todo->filename = strdup(destfile);
-	if( filekey )
+	if( filekey != NULL )
 		todo->filekey = strdup(filekey);
 	else
 		todo->filekey = NULL;
-	if( md5sum ) {
+	if( md5sum != NULL ) {
 		todo->md5sum = strdup(md5sum);
 	} else
 		todo->md5sum = NULL;
@@ -436,7 +436,7 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 		method->lasttobedone->next = todo;
 		method->lasttobedone = todo;
 	}
-	if( t )
+	if( t != NULL )
 		*t = todo;
 	return RET_OK;
 	
@@ -487,14 +487,14 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	}
 	
 	/* if we know what it should be, check it: */
-	if( todo->md5sum ) {
+	if( todo->md5sum != NULL ) {
 		if( md5sum == NULL || strcmp(md5sum,todo->md5sum) != 0) {
 			fprintf(stderr,"Receiving '%s' wrong md5sum: got '%s' expected '%s'!\n",todo->uri,md5sum,todo->md5sum);
 			return RET_ERROR_WRONG_MD5;
 		}
 	}
 
-	if( todo->filekey ) {
+	if( todo->filekey != NULL ) {
 		retvalue r;
 
 		assert(filesdb != NULL);
@@ -514,7 +514,7 @@ static retvalue urierror(struct aptmethod *method,const char *uri) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
-	while( todo ) {
+	while( todo != NULL ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 
 			/* remove item: */
@@ -550,7 +550,7 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
-	while( todo ) {
+	while( todo != NULL ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
 			r = todo_done(todo,filename,md5sum,filesdb);
@@ -793,7 +793,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	char *p;
 	int consecutivenewlines;
 
-	assert( method->status != ams_ok || method->tobedone );
+	assert( method->status != ams_ok || method->tobedone != NULL );
 	if( method->status != ams_waitforcapabilities && method->status != ams_ok )
 		return RET_NOTHING;
 
@@ -972,8 +972,9 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 	FD_ZERO(&writefds);
 	maxfd = 0;
 	*workleft = 0;
-	for( method = run->methods ; method ; method = method->next ) {
-		if( method->status == ams_ok && ( method->command || method->nexttosend)) {
+	for( method = run->methods ; method != NULL ; method = method->next ) {
+		if( method->status == ams_ok && 
+		    ( method->command != NULL || method->nexttosend != NULL )) {
 			FD_SET(method->stdin,&writefds);
 			if( method->stdin > maxfd )
 				maxfd = method->stdin;
@@ -983,7 +984,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 		}
 		if( method->status == ams_waitforcapabilities ||
 				(method->status == ams_ok &&
-				method->tobedone) ) {
+				method->tobedone != NULL ) ) {
 			FD_SET(method->stdout,&readfds);
 			if( method->stdout > maxfd )
 				maxfd = method->stdout;
@@ -1009,7 +1010,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 	result = RET_NOTHING;
 
 	maxfd = 0;
-	for( method = run->methods ; method ; method = method->next ) {
+	for( method = run->methods ; method != NULL ; method = method->next ) {
 		if( FD_ISSET(method->stdout,&readfds) ) {
 			r = receivedata(method,filesdb);
 			RET_UPDATE(result,r);

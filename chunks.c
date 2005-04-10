@@ -78,7 +78,7 @@ retvalue chunk_read(gzFile f,char **chunk) {
 	bhead = buffer = (char*)malloc(size);
 	if( buffer == NULL )
 		return RET_ERROR_OOM;
-	while( gzgets(f,bhead,size-1-already) ) {
+	while( gzgets(f,bhead,size-1-already) != NULL ) {
 		char *p;
 		p = bhead;
 		while( *p != '\0' ) {
@@ -141,7 +141,7 @@ retvalue chunk_read(gzFile f,char **chunk) {
 static const char *chunk_getfield(const char *name,const char *chunk) {
 	size_t l;
 
-	if( !chunk) 
+	if( chunk == NULL ) 
 		return NULL;
 	l = strlen(name);
 	while( *chunk != '\0' ) {
@@ -167,12 +167,12 @@ retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 
 	assert(value != NULL);
 	field = chunk_getfield(name,chunk);
-	if( !field )
+	if( field == NULL )
 		return RET_NOTHING;
 
 	b = field;
 	/* jump over spaces at the beginning */
-	if( isspace(*b) )
+	if( xisspace(*b) )
 		b++;
 
 	/* search for the end */
@@ -193,7 +193,7 @@ retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 		val = strndup(b,e-b+1);
 	else 
 		val = strdup("");
-	if( !val )
+	if( val == NULL )
 		return RET_ERROR_OOM;
 	*value = val;
 	return RET_OK;
@@ -207,25 +207,25 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 
 	assert(value != NULL);
 	field = chunk_getfield(name,chunk);
-	if( !field )
+	if( field == NULL )
 		return RET_NOTHING;
 
 	b = field;
 	/* jump over spaces at the beginning */
-	if( isspace(*b) )
+	if( xisspace(*b) )
 		b++;
 	/* search for the end */
 	e = b;
 	while( *e != '\n' && *e != '\0' )
 		e++;
 	/* remove trailing spaces */
-	while( e > b && isspace(*e) )
+	while( e > b && xisspace(*e) )
 		e--;
-	if( !isspace(*e) )
+	if( !xisspace(*e) )
 		val = strndup(b,e-b+1);
 	else 
 		val = strdup("");
-	if( !val )
+	if( val == NULL )
 		return RET_ERROR_OOM;
 	*value = val;
 	return RET_OK;
@@ -238,17 +238,17 @@ retvalue chunk_getfirstword(const char *chunk,const char *name,char **value) {
 
 	assert(value != NULL);
 	field = chunk_getfield(name,chunk);
-	if( !field )
+	if( field == NULL )
 		return RET_NOTHING;
 
 	b = field;
-	if( isspace(*b) )
+	if( xisspace(*b) )
 		b++;
 	e = b;
-	while( !isspace(*e) && *e != '\n' && *e != '\0' )
+	while( !xisspace(*e) && *e != '\n' && *e != '\0' )
 		e++;
 	val = strndup(b,e-b);
-	if( !val )
+	if( val == NULL )
 		return RET_ERROR_OOM;
 	*value = val;
 	return RET_OK;
@@ -260,7 +260,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	char *v;
 
 	f = chunk_getfield(name,chunk);
-	if( !f )
+	if( f == NULL )
 		return RET_NOTHING;
 	r = strlist_init(strlist);
 	if( RET_WAS_ERROR(r) )
@@ -274,19 +274,19 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	f++;
 	/* while lines begin with ' ' or '\t', add them */
 	while( *f == ' ' || *f == '\t' ) {
-		while( *f != '\0' && isblank(*f) )
+		while( *f != '\0' && xisblank(*f) )
 			f++;
 		b = f;
 		while( *f != '\0' && *f != '\n' )
 			f++;
 		e = f;
-		while( e > b && *e != '\0' && isspace(*e) )
+		while( e > b && *e != '\0' && xisspace(*e) )
 			e--;
-		if( !isspace(*e) )
+		if( !xisspace(*e) )
 			v = strndup(b,e-b+1);
 		else 
 			v = strdup("");
-		if( !v ) {
+		if( v == NULL ) {
 			strlist_done(strlist);
 			return RET_ERROR_OOM;
 		}
@@ -308,7 +308,7 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	char *v;
 
 	f = chunk_getfield(name,chunk);
-	if( !f )
+	if( f == NULL )
 		return RET_NOTHING;
 	for ( e = p = f ; *p != '\0' ; p++ ) {
 		if( afternewline ) {
@@ -338,14 +338,14 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 	char *v;
 
 	f = chunk_getfield(name,chunk);
-	if( !f )
+	if( f == NULL )
 		return RET_NOTHING;
 	r = strlist_init(strlist);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	while( *f != '\0' ) {
 		/* walk over spaces */
-		while( *f != '\0' && isspace(*f) ) {
+		while( *f != '\0' && xisspace(*f) ) {
 			if( *f == '\n' ) {
 				f++;
 				if( *f != ' ' && *f != '\t' )
@@ -357,10 +357,10 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 			return RET_OK;
 		b = f;
 		/* search for end of word */
-		while( *f != '\0' && !isspace(*f) )
+		while( *f != '\0' && !xisspace(*f) )
 			f++;
 		v = strndup(b,f-b);
-		if( !v ) {
+		if( v == NULL ) {
 			strlist_done(strlist);
 			return RET_ERROR_OOM;
 		}
@@ -377,7 +377,7 @@ retvalue chunk_gettruth(const char *chunk,const char *name) {
 	const char *field;
 
 	field = chunk_getfield(name,chunk);
-	if( !field )
+	if( field == NULL )
 		return RET_NOTHING;
 	// TODO: check for things like Yes and No...
 
@@ -388,7 +388,7 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 	const char *field;
 
 	field = chunk_getfield(name,chunk);
-	if( !field )
+	if( field == NULL )
 		return RET_NOTHING;
 
 	return RET_OK;
@@ -400,18 +400,18 @@ retvalue chunk_getname(const char *chunk,const char *name,
 	const char *field,*name_end,*p;
 
 	field = chunk_getfield(name,chunk);
-	if( !field )
+	if( field == NULL )
 		return RET_NOTHING;
-	while( *field != '\0' && *field != '\n' && isspace(*field) )
+	while( *field != '\0' && *field != '\n' && xisspace(*field) )
 		field++;
 	name_end = field;
 	/* this has now checked somewhere else for correctness and
 	 * is only a pure seperation process: 
 	 * (as package(version) is possible, '(' must be checked) */
-	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !isspace(*name_end) )
+	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !xisspace(*name_end) )
 		name_end++;
 	p = name_end;
-	while( *p != '\0' && *p != '\n' && isspace(*p) )
+	while( *p != '\0' && *p != '\n' && xisspace(*p) )
 		p++;
 	if( name_end == field || 
 		( *p != '\0' && *p != '\n' && 
@@ -433,7 +433,7 @@ retvalue chunk_getname(const char *chunk,const char *name,
 		}
 		p++;
 	}
-	while( *p != '\0' && *p != '\n' && isspace(*p) )
+	while( *p != '\0' && *p != '\n' && xisspace(*p) )
 		p++;
 	if( *p != '\0' && *p != '\n' ) {
 		fprintf(stderr,"Error: Field '%s' contains trailing junk starting with '%c'!\n",name,*p);
@@ -456,7 +456,6 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	size_t size,len_beforethis;
 	const struct fieldtoadd *f;
 	retvalue result;
-	size_t i;
 	bool_t fieldsadded = FALSE;
 
 	assert( chunk != NULL && beforethis != NULL );
@@ -469,18 +468,15 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	/* calculate the maximal size we might end up with */
 	size = 1+ strlen(c);
 	f = toadd;
-	while( f ) {
+	while( f != NULL ) {
 		if( f->data != NULL )
 			size += 3 + f->len_field + f->len_data;
 		f = f->next;
 	}
 
-	newchunk = n = malloc(size+64);
+	newchunk = n = malloc(size);
 	if( n == NULL )
 		return NULL;
-	for( i = size ; i < size+64 ; i++ ) {
-		n[i] = 3;
-	}
 
 	len_beforethis = strlen(beforethis);
 
@@ -491,8 +487,8 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 				&& c[len_beforethis] == ':' ) {
 			/* add them now: */
 			f = toadd;
-			while( f ) {
-				if( f->data ) {
+			while( f != NULL ) {
+				if( f->data != NULL ) {
 					memcpy(n,f->field,f->len_field);
 					n += f->len_field;
 					*n = ':'; n++;
@@ -508,7 +504,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 		}
 		/* is this one of the fields we added/will add? */
 		f = toadd;
-		while( f ) {
+		while( f != NULL ) {
 			if(strncmp(c,f->field,f->len_field) == 0 
 					&& c[f->len_field] == ':' )
 				break;
@@ -540,15 +536,12 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 
 	*n = '\0';
 
-	// If the problem is here, I want to know it!
+	// If the problem still exists, I want to know it!
 	assert( n-newchunk <= size-1 );
-	for( i = size ; i < size+64 ; i++ ) {
-		assert( newchunk[i] == 3 );
-	}
 
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,chunk);
-		assert(0);
+		assert(FALSE);
 	}
 
 	return newchunk;
@@ -606,7 +599,7 @@ struct fieldtoadd *addfield_newn(const char *field,const char *data,size_t len,s
 void addfield_free(struct fieldtoadd *f) {
 	struct fieldtoadd *g;
 
-	while( f ) {
+	while( f != NULL ) {
 		g = f->next;
 		free(f);
 		f = g;
@@ -658,7 +651,7 @@ overlongcomments,"A comment is continued by a line starting with space in '%s'!\
 		}
 		if( *nameend != ':' ) {
 			const char *p = c;
-			while( isspace(*p) && *p != '\0' && *p != '\n' ) {
+			while( xisspace(*p) && *p != '\0' && *p != '\n' ) {
 				p++;
 			}
 			if( p == nameend ) {

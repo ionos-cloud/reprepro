@@ -63,7 +63,7 @@ retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir)
 	}
 
 	filename = calc_dirconcat(dbpath,"files.db");
-	if( !filename ) {
+	if( filename == NULL ) {
 		free(db->mirrordir);
 		free(db);
 		return RET_ERROR_OOM;
@@ -176,7 +176,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey) {
 	if( verbose >= 0 )
 		printf("deleting and forgetting %s\n",filekey);
 	filename = calc_fullfilename(filesdb->mirrordir,filekey);
-	if( !filename )
+	if( filename == NULL )
 		return RET_ERROR_OOM;
 	err = unlink(filename);
 	if( err != 0 ) {
@@ -219,7 +219,7 @@ static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char
 
 	filename = calc_fullfilename(filesdb->mirrordir,filekey);
 
-	if( !filename )
+	if( filename == NULL )
 		return RET_ERROR_OOM;
 
 	ret = md5sum_ensure(filename,md5sum,TRUE);
@@ -373,13 +373,13 @@ static retvalue getfilesize(/*@out@*/off_t *s,const char *md5sum) {
 	const char *p;
 
 	p = md5sum;
-	while( *p && !isspace(*p) ) {
+	while( *p != '\0' && !xisspace(*p) ) {
 		p++;
 	}
-	if( *p ) {
-		while( *p && isspace(*p) )
+	if( *p != '\0' ) {
+		while( *p != '\0' && xisspace(*p) )
 			p++;
-		if( *p ) {
+		if( *p != '\0' ) {
 			*s = (off_t)atoll(p);
 			return RET_OK;
 		}
@@ -581,8 +581,10 @@ retvalue files_includefiles(filesdb db,const char *sourcedir,const struct strlis
 	retvalue result,r;
 	int i;
 
-	assert( sourcedir && basefilenames && filekeys && md5sums);
-	assert( basefilenames->count == filekeys->count && filekeys->count == md5sums->count );
+	assert( sourcedir != NULL ); assert( basefilenames != NULL );
+	assert( filekeys != NULL ); assert( md5sums != NULL );
+	assert( basefilenames->count == filekeys->count );
+	assert( filekeys->count == md5sums->count );
 
 	result = RET_NOTHING;
 	for( i = 0 ; i < filekeys->count ; i++ ) {

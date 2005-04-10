@@ -82,7 +82,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	r = chunk_getname(chunk,"Source",&mysourcename,TRUE);
 	if( r == RET_NOTHING ) {
 		mysourcename = strdup(packagename);
-		if( !mysourcename )
+		if( mysourcename == NULL )
 			r = RET_ERROR_OOM;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -106,7 +106,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	}
 	mybasename = calc_binary_basename(packagename,version,parch,packagetype);
 	free(parch);
-	if( !mybasename ) {
+	if( mybasename == NULL ) {
 		free(mysourcename);
 		return RET_ERROR_OOM;
 	}
@@ -143,7 +143,7 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 		return r;
 	}
 	filekey =  calc_filekey(component,sourcename,basename);
-	if( !filekey )
+	if( filekey == NULL )
 		return RET_ERROR_OOM;
 	r = strlist_init_singleton(filekey,filekeys);
 	return r;
