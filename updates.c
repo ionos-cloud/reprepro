@@ -912,7 +912,7 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 	size_t nameoffset = strlen(listdir)+1;
 
 	while( TRUE ) {
-		int namelen;
+		size_t namelen;
 		char *fullfilename;
 
 		e = readdir_r(dir,&entry,&r);

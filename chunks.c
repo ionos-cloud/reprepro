@@ -537,7 +537,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	*n = '\0';
 
 	// If the problem still exists, I want to know it!
-	assert( n-newchunk <= size-1 );
+	assert( n-newchunk < 0 || (size_t)(n-newchunk) <= size-1 );
 
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,chunk);

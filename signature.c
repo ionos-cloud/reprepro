@@ -399,27 +399,27 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 	}
 
 	startofchanges = plain_data;
-	while( startofchanges - plain_data < plain_len && 
+	while( (size_t)(startofchanges - plain_data) < plain_len && 
 			*startofchanges != '\0' && xisspace(*startofchanges)) {
 		startofchanges++;
 	}
-	if( startofchanges - plain_data >= plain_len ) {
+	if( (size_t)(startofchanges - plain_data) >= plain_len ) {
 		fprintf(stderr,"Could only find spaces within '%s'!\n",filename);
 		free(plain_data);
 		return RET_ERROR;
 	}
 	endofchanges = startofchanges;
-	while( endofchanges - plain_data < plain_len && 
+	while( (size_t)(endofchanges - plain_data) < plain_len && 
 		*endofchanges != '\0' && 
 		( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
 		endofchanges++;
 	}
 	afterchanges = endofchanges;
-	while( afterchanges - plain_data < plain_len && 
+	while( (size_t)(afterchanges - plain_data) < plain_len && 
 		*afterchanges != '\0' && xisspace(*afterchanges)) {
 		afterchanges++;
 	}
-	if( afterchanges - plain_data != plain_len ) {
+	if( (size_t)(afterchanges - plain_data) != plain_len ) {
 		if( *afterchanges == '\0' ) {
 			fprintf(stderr,"Unexpected \\0 character within '%s'!\n",filename);
 			free(plain_data);
