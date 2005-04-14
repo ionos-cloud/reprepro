@@ -902,8 +902,7 @@ static retvalue senddata(struct aptmethod *method) {
 		//TODO: disable the whole method??
 		method->status = ams_failed;
 		return RET_ERRNO(err);
-	}
-	if( r < l ) {
+	} else if( (size_t)r < l ) {
 		method->alreadywritten += r;
 		return RET_OK;
 	}
