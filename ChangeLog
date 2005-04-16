@@ -1,5 +1,7 @@
 2005-04-16  Bernhard R. Link <brlink@debian.org>
 	* fix broken fix in signature.c from 2005-04-10
+	* fix bug when after a delete rule the second
+	  origin has the version already in an archive
 
 2005-04-12  Bernhard R. Link <brlink@debian.org>
 	* fix same more warnings

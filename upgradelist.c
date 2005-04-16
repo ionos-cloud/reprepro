@@ -372,11 +372,12 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			free(packagename);
 			return RET_NOTHING;
 		}
-		if( versioncmp <= 0 && current->version == current->new_version 
+		if( versioncmp != 0 && current->version == current->new_version 
 				&& current->version_in_use != NULL ) {
-			/* The version to include is less than the newest 
-			 * version we found, but it is also not the same like
-			 * the version we already have? */
+			/* The version to include is not the newest after the
+			 * last deletion round), but maybe older, maybe newer.
+			 * So we get to the question: it is also not the same 
+			 * like the version we already have? */
 			int vcmp = 1;
 			(void)dpkgversions_cmp(version,current->version_in_use,&vcmp);
 			if( vcmp == 0 ) {
