@@ -155,8 +155,8 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 			retvalue r = (key==NULL) ? 
 					RET_OK : 
 					containskey(key,fingerprint);
-			RET_UPDATE(result,r);
 			if( RET_IS_OK(r) ) {
+				result = RET_OK;
 				if( verbose <= 3 )
 					break;
 				continue;
