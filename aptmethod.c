@@ -44,6 +44,7 @@ struct aptmethod {
 	struct aptmethod *next;
 	char *name;
 	char *baseuri;
+	/*@null@*/char *fallbackbaseuri;
 	/*@null@*/char *config;
 	int stdin,stdout;
 	pid_t child;
@@ -52,38 +53,48 @@ struct aptmethod {
 	
 	struct tobedone *tobedone,*lasttobedone;
 	/*@dependent@*/const struct tobedone *nexttosend;
+	struct tobedone *failed;
 	/* what is currently read: */
 	/*@null@*/char *inputbuffer;
 	size_t input_size,alreadyread;
 	/* What is currently written: */
 	/*@null@*/char *command;
 	size_t alreadywritten,output_length;
+	/* true when we are already trying the fallbacks */
+	bool_t fallenback;
 };
 
 struct aptmethodrun {
 	struct aptmethod *methods;
 };
 
+
+static void free_todolist(/*@only@*/ struct tobedone *todo) {
+
+	while( todo != NULL ) {
+		struct tobedone *h = todo->next;
+
+		free(todo->filekey);
+		free(todo->filename);
+		free(todo->md5sum);
+		free(todo->uri);
+		free(todo);
+		todo = h;
+	}
+}
+
 static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 	if( method == NULL )
 		return;
 	free(method->name);
 	free(method->baseuri);
+	free(method->fallbackbaseuri);
 	free(method->inputbuffer);
 	free(method->command);
 
-	while( method->tobedone != NULL ) {
-		struct tobedone *todo;
+	free_todolist(method->tobedone);
+	free_todolist(method->failed);
 
-		todo = method->tobedone;
-		method->tobedone = todo->next;
-
-		free(todo->uri);
-		free(todo->filename);
-		free(todo->md5sum);
-		free(todo->filekey);
-		free(todo);
-	}
 	free(method);
 }
 
@@ -167,7 +178,7 @@ retvalue aptmethod_initialize_run(struct aptmethodrun **run) {
 	}
 }
 
-retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *config,struct aptmethod **m) {
+retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *fallbackuri,const char *config,struct aptmethod **m) {
 	struct aptmethod *method;
 	const char *p;
 
@@ -211,9 +222,21 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 		free(method);
 		return RET_ERROR_OOM;
 	}
+	if( fallbackuri == NULL )
+		method->fallbackbaseuri = NULL;
+	else {
+		method->fallbackbaseuri = strdup(fallbackuri);
+		if( method->fallbackbaseuri == NULL ) {
+			free(method->baseuri);
+			free(method->name);
+			free(method);
+			return RET_ERROR_OOM;
+		}
+	}
 	if( config != NULL ) {
 		method->config = strdup(config);
 		if( method->config == NULL ) {
+			free(method->fallbackbaseuri);
 			free(method->baseuri);
 			free(method->name);
 			free(method);
@@ -236,6 +259,9 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	int stdout[2];
 	int r;
 
+	/* new try, new luck */
+	method->fallenback = FALSE;
+	
 	/* When there is nothing to get, there is no reason to startup
 	 * the method. */
 	if( method->tobedone == NULL ) {
@@ -509,8 +535,45 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	return RET_OK;
 }
 
+/* shuffle files from failed to tobedone and nexttosend, if an
+ * alternate baseuri to try too is given. */
+retvalue requeue_failed(struct aptmethod *method){
+	struct tobedone *todo;
+	size_t old_len,new_len;
+
+	if( method->failed == NULL )
+		return RET_OK;
+	if( method->fallbackbaseuri == NULL || method->fallenback )
+		return RET_ERROR;
+	method->tobedone = method->failed;
+	method->nexttosend = method->failed;
+	method->failed = NULL;
+
+	old_len = strlen(method->baseuri);
+	new_len = strlen(method->fallbackbaseuri);
+
+	/* try at most once */
+	method->fallenback = 1;
+
+	for( todo = method->tobedone; todo != NULL ; todo = todo->next ) {
+		size_t l;
+		char *s;
+
+		l = strlen(todo->uri);
+		s = malloc(l+new_len+1-old_len);
+		if( s != NULL ) {
+			memcpy(s,method->fallbackbaseuri,new_len);
+			strcpy(s+new_len,todo->uri + old_len);
+			free(todo->uri);
+			todo->uri = s;
+		}
+	}
+
+	return RET_OK;
+}
+
 /* look which file could not be received and remove it: */
-static retvalue urierror(struct aptmethod *method,const char *uri) {
+static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char *message) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
@@ -530,18 +593,24 @@ static retvalue urierror(struct aptmethod *method,const char *uri) {
 			if( method->lasttobedone == todo ) {
 				method->lasttobedone = todo->next;
 			}
-			free(todo->uri);
-			free(todo->filename);
-			free(todo->md5sum);
-			free(todo->filekey);
-			free(todo);
+			fprintf(stderr,"aptmethod error receiving '%s':\n'%s'\n",uri,message);
+			/* put message in failed items to show it later? */
+			free(message);
+			/* put it in failed list to cope with it later */
+			todo->next = method->failed;
+			method->failed = todo;
+			/* if everything has answered, redo failed */
+			if( method->tobedone == NULL ) {
+				return requeue_failed(method);
+			}
 			return RET_OK;
 		}
 		lasttodo = todo;
 		todo = todo->next;
 	}
-	/* huh? */
-	fprintf(stderr,"Error with unexpected file '%s'!",uri);
+	/* huh? If if have not asked for it, how can there be errors? */
+	fprintf(stderr,"Error with unexpected file '%s':\n'%s'!",uri,message);
+	free(message);
 	return RET_ERROR;
 }
 
@@ -573,6 +642,12 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 			free(todo->md5sum);
 			free(todo->filekey);
 			free(todo);
+			/* if everything is done, redo failed */
+			if( method->tobedone == NULL ) {
+				retvalue rr;
+				rr = requeue_failed(method);
+				RET_UPDATE(r,rr);
+			}
 			return r;
 		}
 		lasttodo = todo;
@@ -698,16 +773,14 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 		return r;
 	}
 
-	fprintf(stderr,"aptmethod error receiving '%s':\n'%s'\n",uri,message);
-	
- 	r = urierror(method,uri);
+ 	r = urierror(method,uri,message);
 	free(uri);
-	free(message);
 	return r;
 }
 	
 static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
 	const char *p;
+	retvalue r;
 #define OVERLINE {while( *p != '\0' && *p != '\n') p++; if(*p == '\n') p++; }
 
 	while( *input == '\n' || *input == '\r' )
@@ -769,18 +842,21 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 			switch( *(input+2) ) {
 				case '0':
 					OVERLINE;
-					goturierror(method,p);
+					r = goturierror(method,p);
 					break;
 				case '1':
 					OVERLINE;
 					logmessage(method,p,"general error");
 					method->status = ams_failed;
+					r = RET_ERROR;
 					break;
 				default:
 					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					r = RET_ERROR;
 			}
-			/* even a sucessfully handled error is a error */
-			return RET_ERROR;
+			/* a failed download is not a error yet, as it might
+			 * be redone from another source later */
+			return r;
 		default:
 			fprintf(stderr,"unexpected data from method: '%s'\n",input);
 			return RET_ERROR;

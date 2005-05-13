@@ -93,6 +93,8 @@ struct update_pattern {
 	char *name;
 	//e.g. "Method: ftp://ftp.uni-freiburg.de/pub/linux/debian"
 	char *method;
+	//e.g. "Fallback: ftp://ftp.debian.org/pub/linux/debian"
+	char *fallback; // can be other server or dir, but must be same method
 	//e.g. "Config: Dir=/"
 	/*@null@*/char *config;
 	//e.g. "Suite: woody" or "Suite: <asterix>/updates" (NULL means "*")
@@ -165,6 +167,7 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	free(update->name);
 	free(update->config);
 	free(update->method);
+	free(update->fallback);
 	free(update->suite_from);
 	free(update->verifyrelease);
 	strlist_done(&update->architectures_from);
@@ -318,7 +321,7 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 	static const char * const allowedfields[] = {"Name", "Method", 
 "Config", "Suite", "Architectures", "Components", "UDebComponents", 
 "IgnoreRelease", "VerifyRelease", "FilterFormula", "FilterList",
-"ListHook", NULL};
+"ListHook", "Fallback", NULL};
 
 	update = calloc(1,sizeof(struct update_pattern));
 	if( update == NULL )
@@ -344,6 +347,15 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 			fprintf(stderr,"No Method found in update-block!\n");
 			r = RET_ERROR_MISSING;
 		}
+		update_pattern_free(update);
+		return r;
+	}
+
+	/* * Look for alternate server: * */
+	r = chunk_getvalue(chunk,"Fallback",&update->fallback);
+	if( r == RET_NOTHING )
+		update->fallback = NULL;
+	else if( !RET_IS_OK(r) ) {
 		update_pattern_free(update);
 		return r;
 	}
@@ -991,6 +1003,7 @@ static inline retvalue startuporigin(struct aptmethodrun *run,struct update_orig
 
 	assert( origin != NULL && origin->pattern != NULL );
 	r = aptmethod_newmethod(run,origin->pattern->method,
+			origin->pattern->fallback,
 			origin->pattern->config,&method);
 	if( RET_WAS_ERROR(r) ) {
 		origin->download = NULL;

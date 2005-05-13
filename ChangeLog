@@ -1,3 +1,6 @@
+2004-05-13  Bernhard R. Link <brlink@debian.org>
+	* add Fallback option to update-methods.
+
 2005-04-16  Bernhard R. Link <brlink@debian.org>
 	* fix broken fix in signature.c from 2005-04-10
 	* fix bug when after a delete rule the second

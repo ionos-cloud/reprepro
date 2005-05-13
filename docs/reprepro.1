@@ -412,7 +412,7 @@ The name of this update\-upstream as it can be used in the
 field in conf/distributions.
 .TP
 .B Method
-An URL as one could also give it apt, e.g.
+An URI as one could also give it apt, e.g.
 .I http://ftp.debian.de/debian
 which is simply given to the corresponding
 .B apt\-get
@@ -421,6 +421,13 @@ method. (So either
 .B \-\-methoddir
 to a place where such methods are found.
 .TP
+.B Fallback
+(Still experimental:) A fallback URI, where all files are
+tried that failed the first one. They are given to the
+same method as the previous URI (e.g. both http://), and
+the fallback-server must have everything at the same place.
+No recalculation is done, but single files are just retried from
+this location.
 .B Config
 This can contain any number of lines, each in the format
 .B apt\-get \-\-option
