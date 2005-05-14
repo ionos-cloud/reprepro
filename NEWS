@@ -3,6 +3,7 @@ Updates since 0.3:
   a old package was found first.
 - adopt short-howto to changes in keywords.
 - many tidy ups
+- add Fallback option to specify another host to get mirrored files from
 
 Updates since 0.2:
 - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
