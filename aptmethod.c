@@ -553,7 +553,7 @@ retvalue requeue_failed(struct aptmethod *method){
 	new_len = strlen(method->fallbackbaseuri);
 
 	/* try at most once */
-	method->fallenback = 1;
+	method->fallenback = TRUE;
 
 	for( todo = method->tobedone; todo != NULL ; todo = todo->next ) {
 		size_t l;
