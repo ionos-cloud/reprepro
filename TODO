@@ -20,3 +20,5 @@ far goals:
 		source of this package would be left.
 	write dokumentation, some examples
 	update for use with newer gpgpme
+	allow multiple versions in a distribution (needs major rewrite I fear)
+	option to keep source to each binary (needs mutliple source versions)
