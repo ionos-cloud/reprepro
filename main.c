@@ -992,7 +992,6 @@ ACTION_D(includedeb) {
 	result = distribution_get(&distribution,confdir,argv[1]);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
-		override_free(override);
 		return result;
 	}
 
@@ -1010,6 +1009,7 @@ ACTION_D(includedeb) {
 	// TODO: same for component? (depending on type?)
 	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
 		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
+		override_free(override);
 		(void)distribution_free(distribution);
 		return RET_ERROR;
 	}
