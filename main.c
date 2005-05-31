@@ -963,7 +963,7 @@ ACTION_D(includedeb) {
 	bool_t isudeb;
 	const char *overridefile;
 
-	if( argc < 3 ) {
+	if( argc != 3 ) {
 		fprintf(stderr,"reprepro [--delete] include[u]deb <distribution> <package>\n");
 		return RET_ERROR;
 	}
@@ -1036,7 +1036,7 @@ ACTION_D(includedsc) {
 	struct distribution *distribution;
 	struct overrideinfo *srcoverride;
 
-	if( argc < 3 ) {
+	if( argc != 3 ) {
 		fprintf(stderr,"reprepro [--delete] includedsc <distribution> <package>\n");
 		return RET_ERROR;
 	}
@@ -1080,7 +1080,7 @@ ACTION_D(include) {
 	struct distribution *distribution;
 	struct alloverrides ao;
 
-	if( argc < 3 ) {
+	if( argc != 3 ) {
 		fprintf(stderr,"reprepro [--delete] include <distribution> <.changes-file>\n");
 		return RET_ERROR;
 	}

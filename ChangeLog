@@ -1,5 +1,6 @@
 2004-05-31  Bernhard R. Link <brlink@debian.org>
 	* Fix bogus free causing segfaults
+	* No longer silently ignore additional arguments with include*
 	
 2004-05-13  Bernhard R. Link <brlink@debian.org>
 	* add Fallback option to update-methods.
