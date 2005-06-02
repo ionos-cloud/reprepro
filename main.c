@@ -55,7 +55,7 @@
 
 
 #ifndef STD_BASE_DIR
-#define STD_BASE_DIR "/var/spool/reprepro"
+#define STD_BASE_DIR "."
 #endif
 #ifndef STD_METHOD_DIR
 #define STD_METHOD_DIR "/usr/lib/apt/methods"

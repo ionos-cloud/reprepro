@@ -1,3 +1,6 @@
+2004-06-02  Bernhard R. Link <brlink@debian.org>
+	* Change default basedir to "."
+
 2004-05-31  Bernhard R. Link <brlink@debian.org>
 	* Fix bogus free causing segfaults
 	* No longer silently ignore additional arguments with include*
