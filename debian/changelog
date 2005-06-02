@@ -1,3 +1,12 @@
+reprepro (0.4-1) unstable; urgency=low
+
+  * new version
+    - add Fallback mirror for updates
+    - fix bug that readded packages in some update-scenarios
+    - many tidy ups
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  2 Jun 2005 10:28:45 +0200
+
 reprepro (0.3-1) unstable; urgency=low
 
   * new version:
