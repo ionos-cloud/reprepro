@@ -104,7 +104,7 @@ echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test2/Relea
 diff -u dists/test1/Release.expected dists/test1/Release || exit 1
 diff -u dists/test2/Release.expected dists/test2/Release || exit 1
 
-PACKAGE=simple EPOCH="" VERSION=123 REVISION=-0 SECTION="stupid/base" genpackage.sh
+PACKAGE=simple EPOCH="" VERSION=1 REVISION="" SECTION="stupid/base" genpackage.sh
 "$REPREPRO" -b . include test1 test.changes
 echo returned: $?
 
@@ -148,10 +148,10 @@ bloat+-0a9z.app-addons Maintainer bloat.add.maintainer
 bloat+-0a9z.app-addons Priority optional
 END
 
-"$REPREPRO" -b . -Tdsc -A source includedsc test2 simple_123-0.dsc
+"$REPREPRO" -b . -Tdsc -A source includedsc test2 simple_1.dsc
 "$REPREPRO" -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
-"$REPREPRO" -b . -Tdeb -A abacus includedeb test2 simple_123-0_abacus.deb
-"$REPREPRO" -b . -Tdeb -A coal includedeb test2 simple-addons_123-0_all.deb
+"$REPREPRO" -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb
+"$REPREPRO" -b . -Tdeb -A coal includedeb test2 simple-addons_1_all.deb
 "$REPREPRO" -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
 "$REPREPRO" -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' > results
@@ -184,9 +184,9 @@ END
 diff -u results.expected results
 "$REPREPRO" -b . listfilter test2 'Source(==simple)|(!Source,Package(==simple))' > results
 cat > results.expected << END
-test2|ugly|abacus: simple 123-0
-test2|ugly|coal: simple-addons 123-0
-test2|ugly|source: simple 123-0
+test2|ugly|abacus: simple 1
+test2|ugly|coal: simple-addons 1
+test2|ugly|source: simple 1
 END
 diff -u results.expected results
 "$REPREPRO" -b . listfilter test2 'Source(==bloat+-0a9z.app)|(!Source,Package(==bloat+-0a9z.app))' > results
