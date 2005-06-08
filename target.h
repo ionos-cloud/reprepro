@@ -10,6 +10,9 @@
 #ifndef REPREPRO_PACKAGES_H
 #include "packages.h"
 #endif
+#ifndef REPREPRO_TRACKING_H
+#include "tracking.h"
+#endif
 #ifndef REPREPRO_EXPORTS_H
 #include "exports.h"
 #endif
@@ -25,6 +28,7 @@ typedef retvalue get_filekeys(struct target *,const char *,/*@out@*/struct strli
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 typedef retvalue do_reoverride(const struct alloverrides *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+typedef retvalue do_retrack(struct target *,const char *packagename,const char *controlchunk,trackingdb,references);
 
 struct target {
 	char *codename;
@@ -44,6 +48,7 @@ struct target {
 	get_filekeys *getfilekeys;
 	get_upstreamindex *getupstreamindex;
 	do_reoverride *doreoverride;
+	do_retrack *doretrack;
 	bool_t wasmodified;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
@@ -73,6 +78,7 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 retvalue target_writeindices(const char *dirofdist,struct target *target,int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
 retvalue target_rereference(struct target *target,references refs,int force);
+retvalue target_retrack(struct target *target,trackingdb tracks,references refs,int force);
 retvalue target_reoverride(struct target *target,const struct alloverrides *ao);
 
 #endif

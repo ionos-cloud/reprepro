@@ -708,3 +708,7 @@ retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) 
 
 	return RET_OK;
 }
+
+char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion) {
+	return	mprintf("%s %s %s",codename,sourcename,sourceversion);
+}

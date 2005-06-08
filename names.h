@@ -1,6 +1,10 @@
 #ifndef REPREPRO_NAMES_H
 #define REPREPRO_NAMES_H
 
+#ifndef REPREPRO_STRLIST_H
+#include "strlist.h"
+#endif
+
 char *calc_addsuffix(const char *str1,const char *str2);
 char *calc_dirconcat(const char *str1,const char *str2);
 char *calc_dirconcatn(const char *str1,const char *str2,size_t len2);
@@ -18,6 +22,7 @@ char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const cha
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype);
 char *calc_concatmd5andsize(const char *md5sum,const char *size);
 char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend);
+char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion);
 
 char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype);
 char *calc_downloadedlistpattern(const char *codename);

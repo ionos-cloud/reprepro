@@ -26,6 +26,7 @@ Codename: test1
 Architectures: abacus source
 Components: stupid ugly
 Update: Test2toTest1
+Tracking: keep
 
 Codename: test2
 Architectures: abacus coal source

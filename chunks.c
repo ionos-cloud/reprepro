@@ -447,6 +447,81 @@ retvalue chunk_getname(const char *chunk,const char *name,
 
 }
 
+/* Parse a package/source-field: ' *value( ?\(version\))? *' */
+retvalue chunk_getnameandversion(const char *chunk,const char *name,
+		char **pkgname,char **version) {
+	const char *field,*name_end,*p;
+	char *v;
+
+	field = chunk_getfield(name,chunk);
+	if( field == NULL )
+		return RET_NOTHING;
+	while( *field != '\0' && *field != '\n' && xisspace(*field) )
+		field++;
+	name_end = field;
+	/* this has now checked somewhere else for correctness and
+	 * is only a pure seperation process: 
+	 * (as package(version) is possible, '(' must be checked) */
+	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !xisspace(*name_end) )
+		name_end++;
+	p = name_end;
+	while( *p != '\0' && *p != '\n' && xisspace(*p) )
+		p++;
+	if( name_end == field || 
+		( *p != '\0' && *p != '\n' && 
+		   *p != '(')) {
+		if( *field == '\n' || *field == '\0' ) {
+			fprintf(stderr,"Error: Field '%s' is empty!\n",name);
+		} else {
+			fprintf(stderr,"Error: Field '%s' contains unexpected character '%c'!\n",name,*p);
+		}
+		return RET_ERROR;
+	}
+	if( *p == '(' ) {
+		const char *version_begin;
+
+		p++;
+		while( *p != '\0' && *p != '\n' && xisspace(*p) )
+			p++;
+		version_begin = p;
+		while( *p != '\0' && *p != '\n' && *p != ')'  && !xisspace(*p) )
+			// TODO: perhaps check for wellformed version
+			p++;
+		v = strndup(version_begin,p-version_begin);
+		if( v == NULL )
+			return RET_ERROR_OOM;
+		while( *p != '\0' && *p != '\n' && *p != ')'  && xisspace(*p) )
+			p++;
+		if( *p != ')' ) {
+			free(v);
+			if( *p == '\0' || *p == '\n' )
+				fprintf(stderr,"Error: Field '%s' misses closing parathesis!\n",name);
+			else
+				fprintf(stderr,"Error: Field '%s' has multipe words after '('!\n",name);
+			return RET_ERROR;
+		}
+		p++;
+	} else {
+		v = NULL;
+	}
+	while( *p != '\0' && *p != '\n' && xisspace(*p) )
+		p++;
+	if( *p != '\0' && *p != '\n' ) {
+		free(v);
+		fprintf(stderr,"Error: Field '%s' contains trailing junk starting with '%c'!\n",name,*p);
+		return RET_ERROR;
+	}
+
+	*pkgname = strndup(field,name_end-field);
+	if( *pkgname == NULL ) {
+		free(v);
+		return RET_ERROR_OOM;
+	}
+	*version = v;
+	return RET_OK;
+
+}
+
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
 

@@ -17,4 +17,6 @@ retvalue dirs_make_recursive(const char *directory);
 
 /* Behave like dirname(3) */
 retvalue dirs_getdirectory(const char *filename,/*@out@*/char **directory);
+
+const char *dirs_basename(const char *filename);
 #endif

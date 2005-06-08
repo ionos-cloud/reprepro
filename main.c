@@ -52,6 +52,7 @@
 #include "checkin.h"
 #include "downloadcache.h"
 #include "terms.h"
+#include "tracking.h"
 
 
 #ifndef STD_BASE_DIR
@@ -830,6 +831,180 @@ ACTION_R(rereference) {
 
 	return result;
 }
+/***************************retrack****************************/
+struct data_binsrctrack { /*@temp@*/const struct distribution *distribution; /*@temp@*/references refs; trackingdb tracks;};
+
+static retvalue retrack(void *data,struct target *target) {
+	retvalue result,r;
+	struct data_binsrctrack *d = data;
+
+	result = target_initpackagesdb(target,dbdir);
+	if( !RET_WAS_ERROR(result) ) {
+		result = target_retrack(target,d->tracks,d->refs,force);
+		r = target_closepackagesdb(target);
+		RET_ENDUPDATE(result,r);
+	}
+	return result;
+}
+
+ACTION_R(retrack) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro retrack [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		struct data_binsrctrack dat;
+
+		if( verbose > 0 ) {
+			fprintf(stderr,"Chasing %s...\n",d->codename);
+		}
+		dat.distribution = d;
+		dat.refs = references;
+		r = tracking_initialize(&dat.tracks,dbdir,d);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 0 )
+				break;
+			continue;
+		}
+		r = tracking_clearall(dat.tracks);
+		RET_UPDATE(result,r);
+		r = references_remove(references,d->codename);
+		RET_UPDATE(result,r);
+
+		r = distribution_foreach_part(d,component,architecture,packagetype,
+				retrack,&dat,force);
+		RET_UPDATE(result,r);
+		dat.refs = NULL;
+		dat.distribution = NULL;
+		r = tracking_done(dat.tracks);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(result) && force <= 0 )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(removetrack) {
+	retvalue result,r;
+	struct distribution *distribution;
+	trackingdb tracks;
+
+	if( argc != 4 ) {
+		fprintf(stderr,"reprepro removetrack <distribution> <sourcename> <version>\n");
+		return RET_ERROR;
+	}
+	result = distribution_get(&distribution,confdir,argv[1]);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	r = tracking_initialize(&tracks,dbdir,distribution);
+	if( RET_WAS_ERROR(r) ) {
+		distribution_free(distribution);
+		return r;
+	}
+
+	result = tracking_remove(tracks,argv[2],argv[3],references,dereferenced);
+
+	r = tracking_done(tracks);
+	RET_ENDUPDATE(result,r);
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+	
+ACTION_R(cleartracks) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro cleartracks [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		trackingdb tracks;
+
+		if( verbose > 0 ) {
+			fprintf(stderr,"Deleting all tracks for %s...\n",d->codename);
+		}
+		r = tracking_initialize(&tracks,dbdir,d);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 0 )
+				break;
+			continue;
+		}
+		r = tracking_clearall(tracks);
+		RET_UPDATE(result,r);
+		r = references_remove(references,d->codename);
+		RET_UPDATE(result,r);
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(result) && force <= 0 )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+ACTION_N(printtracks) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro printtracks [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		trackingdb tracks;
+
+		r = tracking_initialize(&tracks,dbdir,d);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) && force <= 0 )
+				break;
+			continue;
+		}
+		r = tracking_printall(tracks);
+		RET_UPDATE(result,r);
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(result) && force <= 0 )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
 /***********************checking*************************/
 struct data_check { /*@temp@*/const struct distribution *distribution; /*@temp@*/references references; /*@temp@*/filesdb filesdb;};
 
@@ -1079,6 +1254,7 @@ ACTION_D(include) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct alloverrides ao;
+	trackingdb tracks;
 
 	if( argc != 3 ) {
 		fprintf(stderr,"reprepro [--delete] include <distribution> <.changes-file>\n");
@@ -1097,10 +1273,24 @@ ACTION_D(include) {
 		return result;
 	}
 
-	result = changes_add(dbdir,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],force,delete,dereferenced,onlyacceptsigned);
+	if( distribution->tracking != dt_NONE ) {
+		result = tracking_initialize(&tracks,dbdir,distribution);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
+			return result;
+		}
+	} else {
+		tracks = NULL;
+	}
+
+	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],force,delete,dereferenced,onlyacceptsigned);
 
 	override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
-	
+
+	r = tracking_done(tracks);
+	RET_ENDUPDATE(result,r);
 	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
@@ -1208,6 +1398,10 @@ static const struct action {
 	{"dumpreferences", 	A_R(dumpreferences)},
 	{"dumpunreferenced", 	A_RF(dumpunreferenced)},
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
+	{"retrack",	 	A_R(retrack)},
+	{"printtracks",	 	A_N(printtracks)},
+	{"cleartracks",	 	A_R(cleartracks)},
+	{"removetrack",		A_D(removetrack)},
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},
 	{"checkupdate",		A_N(checkupdate)},

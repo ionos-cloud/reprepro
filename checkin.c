@@ -37,6 +37,7 @@
 #include "signature.h"
 #include "sources.h"
 #include "files.h"
+#include "tracking.h"
 #include "guesscomponent.h"
 #include "override.h"
 #include "checkindsc.h"
@@ -102,6 +103,8 @@ struct changes {
 	char *srcdirectory;
 	/* (only to warn if multiple are used) */
 	const char *firstcomponent;
+	/* if tracks != NULL, the package to track, otherwise NULL*/
+	struct trackedpackage *trackedpkg;
 };
 
 static void freeentries(/*@only@*/struct fileentry *entry) {
@@ -132,6 +135,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 		strlist_done(&changes->distributions);
 		free(changes->control);
 		free(changes->srcdirectory);
+		trackedpackage_free(changes->trackedpkg);
 	}
 	free(changes);
 }
@@ -537,6 +541,23 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		changes->srcdirectory = calc_sourcedir(changes->srccomponent,changes->source);
 		if( changes->srcdirectory == NULL )
 			return RET_ERROR_OOM;
+	} else if( distribution->trackingoptions.includechanges ) {
+		const char *component = forcecomponent;
+		if( forcecomponent == NULL ) {
+			for( e = changes->files ; e != NULL ; e = e->next ) {
+				if( FE_BINARY(e->type) ){
+					component = e->component;
+					break;
+				}
+			}
+		}
+		if( component == NULL ) {
+			fprintf(stderr,"No component found to place .changes or byhand files in. Aborting.\n");
+			return RET_ERROR;
+		}
+		changes->srcdirectory = calc_sourcedir(component,changes->source);
+		if( changes->srcdirectory == NULL )
+			return RET_ERROR_OOM;
 	}
 
 	return RET_OK;
@@ -756,23 +777,37 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
-	retvalue r;
+retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
+	retvalue result,r;
 	struct changes *changes;
+	bool_t newtrack;
 
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,force,onlysigned);
 	if( RET_WAS_ERROR(r) )
 		return r;
-//	if( changes->distributions.count != 1 ) {
-//		fprintf(stderr,"There is not exactly one distribution given!\n");
-//		changes_free(changes);
-//		return RET_ERROR;
-//	}
+
 	if( (distribution->suite == NULL || 
 		!strlist_in(&changes->distributions,distribution->suite)) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
+
+	if( tracks != NULL ) {
+		newtrack = FALSE;
+		r = tracking_get(tracks,changes->source,changes->version,&changes->trackedpkg);
+		if( r == RET_NOTHING ) {
+			newtrack = TRUE;
+			r = tracking_new(tracks,changes->source,changes->version,&changes->trackedpkg);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			changes_free(changes);
+			return r;
+		}
+	}
+#ifndef GCCHASLEARNEDIT
+	else newtrack = FALSE;
+#endif
+
 	/* look for component, section and priority to be correct or guess them*/
 	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,ao);
 	if( RET_WAS_ERROR(r) ) {
@@ -795,7 +830,7 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 	}
 
 	/* add the source and binary packages in the given distribution */
-	r = changes_includepkgs(dbdir,refs,filesdb,
+	result = changes_includepkgs(dbdir,refs,filesdb,
 		distribution,changes,ao,force,
 		dereferencedfilekeys, onlysigned);
 	if( RET_WAS_ERROR(r) ) {
@@ -803,8 +838,40 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 		return r;
 	}
 
-	if( delete >= D_MOVE ) {
-		if( r == RET_NOTHING && delete < D_DELETE ) {
+	if( tracks != NULL ) {
+		if( distribution->trackingoptions.includechanges ) {
+			char *filekey;const char *basename;
+			assert( changes->srcdirectory != NULL );
+
+			basename = dirs_basename(changesfilename);
+			filekey = calc_dirconcat(changes->srcdirectory,basename);
+			if( filekey == NULL ) {
+				changes_free(changes);
+				return RET_ERROR_OOM;
+			}
+			r = files_include(filesdb,changesfilename,filekey,
+					NULL,NULL,
+					(result==RET_NOTHING)?D_COPY:delete);
+			if( !RET_WAS_ERROR(r) ) {
+				r = trackedpackage_addfilekey(tracks,changes->trackedpkg,ft_CHANGES,filekey,refs);
+			}
+			free(filekey);
+			changesfilename = NULL;
+			RET_ENDUPDATE(result,r);
+		}
+		if( newtrack ) {
+			r = tracking_put(tracks,changes->trackedpkg);
+		} else {
+			r = tracking_replace(tracks,changes->trackedpkg);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			changes_free(changes);
+			return r;
+		}
+	}
+
+	if( delete >= D_MOVE && changesfilename != NULL ) {
+		if( result == RET_NOTHING && delete < D_DELETE ) {
 			if( verbose >= 0 ) {
 				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use --delete --delete to delete anyway in such cases)\n",changesfilename);
 			}
@@ -817,6 +884,7 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 			}
 		}
 	}
+	//TODO: why is here no changes_free?
 
 	return RET_OK;
 }

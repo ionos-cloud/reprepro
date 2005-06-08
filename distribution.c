@@ -163,7 +163,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 static const char * const allowedfields[] = {
 "Codename", "Suite", "Version", "Origin", "Label", "Description", 
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
-"UDebOverride", "DscOverride", 
+"UDebOverride", "DscOverride", "Tracking",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 NULL};
 
@@ -291,6 +291,19 @@ NULL};
 		(void)distribution_free(r);
 		return ret;
 	}
+
+	ret = chunk_getvalue(chunk,"Tracking",&option);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING)
+		option = NULL;
+	ret = tracking_parse(option,r);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
 
 	ret = createtargets(r);
 	if( RET_WAS_ERROR(ret) ) {

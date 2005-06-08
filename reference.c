@@ -158,9 +158,7 @@ retvalue references_check(references refs,const char *referee,const struct strli
 	return ret;
 }
 
-/* add an reference to a file for an identifier. multiple calls
- * will add multiple references to allow source packages to share
- * files over versions. (as first the new is added, then the old removed) */
+/* add an reference to a file for an identifier. multiple calls */
 retvalue references_increment(references refs,const char *needed,const char *neededby) {
 	int dbret;
 	DBT key,data;
@@ -177,7 +175,7 @@ retvalue references_increment(references refs,const char *needed,const char *nee
 	}
 }
 
-/* remove *one* reference for a file from a given reference */
+/* remove reference for a file from a given reference */
 retvalue references_decrement(references refs,const char *needed,const char *neededby) {
 	DBC *cursor;
 	DBT key,data;
