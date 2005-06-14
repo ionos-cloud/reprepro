@@ -7,11 +7,11 @@
 #ifndef REPREPRO_NAMES_H
 #include "names.h"
 #endif
+#ifndef REPREPRO_TRACKINGT_H
+#include "trackingt.h"
+#endif
 #ifndef REPREPRO_PACKAGES_H
 #include "packages.h"
-#endif
-#ifndef REPREPRO_TRACKING_H
-#include "tracking.h"
 #endif
 #ifndef REPREPRO_EXPORTS_H
 #include "exports.h"
@@ -29,6 +29,7 @@ typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 typedef retvalue do_reoverride(const struct alloverrides *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 typedef retvalue do_retrack(struct target *,const char *packagename,const char *controlchunk,trackingdb,references);
+typedef retvalue get_sourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
 struct target {
 	char *codename;
@@ -47,6 +48,7 @@ struct target {
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
 	get_upstreamindex *getupstreamindex;
+	get_sourceandversion *getsourceandversion;
 	do_reoverride *doreoverride;
 	do_retrack *doretrack;
 	bool_t wasmodified;
@@ -73,8 +75,8 @@ retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys);
-retvalue target_removepackage(struct target *target,references refs,const char *name, /*@null@*/struct strlist *dereferencedfilekeys);
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/struct trackingdata *,enum filetype);
+retvalue target_removepackage(struct target *target,references refs,const char *name, /*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
 retvalue target_writeindices(const char *dirofdist,struct target *target,int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
 retvalue target_rereference(struct target *target,references refs,int force);

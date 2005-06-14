@@ -18,6 +18,9 @@
 #ifndef REPREPRO_REFERENCE_H
 #include "reference.h"
 #endif
+#ifndef REPREPRO_TRACKINGT_H
+#include "trackingt.h"
+#endif
 
 typedef struct s_packagesdb *packagesdb;
 
@@ -48,7 +51,11 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
 		/*@null@*/struct strlist *oldfiles,
-		/*@null@*/struct strlist *dereferencedfilekeys);
+		/*@null@*/struct strlist *dereferencedfilekeys,
+		/*@null@*/struct trackingdata *,
+		enum filetype filetype,
+		/*@null@*//*@only@*/char *oldsource,
+		/*@null@*//*@only@*/char *oldsversion);
 
 /* action to be called by packages_forall */
 typedef retvalue per_package_action(void *data,const char *package,/*@temp@*/const char *chunk);

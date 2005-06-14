@@ -103,7 +103,7 @@ struct debpackage {
 	char *md5sum;
 };
 
-static void deb_free(/*@only@*/struct debpackage *pkg) {
+void deb_free(/*@only@*/struct debpackage *pkg) {
 	if( pkg != NULL ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->source);free(pkg->architecture);
@@ -275,33 +275,11 @@ static retvalue deb_calclocations(struct debpackage *pkg,/*@null@*/const char *g
 	return r;
 }
 
-static retvalue deb_copyfiles(filesdb filesdb,struct debpackage *pkg,const char *debfilename, int delete) {
+retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,const struct overrideinfo *binoverride,int delete){
 	retvalue r;
-
-	r = files_include(filesdb,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
-	return r;
-}
-
-static retvalue deb_checkfiles(struct debpackage *pkg,const char *md5sum) {
-	/* Not much to do here, as anything should already be done... */
-
-	pkg->md5sum = strdup(md5sum);
-	if( pkg->md5sum == NULL )
-		return RET_ERROR_OOM;
-	return RET_OK;
-}
-
-/* insert the given .deb into the mirror in <component> in the <distribution>
- * putting things with architecture of "all" into <d->architectures> (and also
- * causing error, if it is not one of them otherwise)
- * if component is NULL, guessing it from the section. */
-
-retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys){
-	retvalue r,result;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
 	const struct strlist *components;
-	int i;
 
 	assert( (givenmd5sum!=NULL && givenfilekey!=NULL ) ||
 		(givenmd5sum==NULL && givenfilekey==NULL ) );
@@ -370,15 +348,13 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	
 	/* some sanity checks: */
 
-	if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") == 0 )
-		forcearchitecture = NULL;
-
-	if( forcearchitecture != NULL && 
+	if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 &&
 			strcmp(pkg->architecture,forcearchitecture) != 0 &&
 			strcmp(pkg->architecture,"all") != 0 ) {
 		fprintf(stderr,"Cannot checking in '%s' into architecture '%s', as it is '%s'!",
 				debfilename,forcearchitecture,pkg->architecture);
 		deb_free(pkg);
+/* TODO: this should be moved upwards...
 		if( delete >= D_DELETE ) {
 			if( verbose >= 0 )
 				fprintf(stderr,"Deleting '%s' as requested!\n",debfilename);
@@ -386,6 +362,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 				fprintf(stderr,"Error deleting '%s': %m\n",debfilename);
 			}
 		}
+*/
 		return RET_ERROR;
 	} else if( strcmp(pkg->architecture,"all") != 0 &&
 	    !strlist_in( &distribution->architectures, pkg->architecture )) {
@@ -393,10 +370,8 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 				debfilename,pkg->architecture);
 		(void)strlist_fprint(stderr,&distribution->architectures);
 		(void)fputs("'\n",stderr);
-		if( force <= 0 ) {
-			deb_free(pkg);
-			return RET_ERROR;
-		}
+		deb_free(pkg);
+		return RET_ERROR;
 	}
 	if( !strlist_in(components,pkg->component) ) {
 		fprintf(stderr,"While checking in '%s': Would put in component '%s', but that is not available!\n",debfilename,pkg->component);
@@ -409,25 +384,44 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		deb_free(pkg);
 		return r;
 	}
-
 	/* then looking if we already have this, or copy it in */
+	if( givenfilekey != NULL ) {
+		assert(givenmd5sum != NULL);
 
-	if( givenfilekey != NULL && givenmd5sum != NULL ) {
-		assert( delete == D_INPLACE );
-		r = deb_checkfiles(pkg,givenmd5sum);
-	} else
-		r = deb_copyfiles(filesdb,pkg,debfilename,delete);
-	if( RET_WAS_ERROR(r) ) {
-		deb_free(pkg);
-		return r;
-	} 
+		pkg->md5sum = strdup(givenmd5sum);
+		if( pkg->md5sum == NULL ) {
+			deb_free(pkg);
+			return RET_ERROR_OOM;
+		} 
+	} else {
+		assert(givenmd5sum == NULL);
+		r = files_include(filesdb,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"File '%s' vanished unexpectedly.\n",debfilename);
+			r = RET_ERROR;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			deb_free(pkg);
+			return r;
+		}
 
+	}
+	assert( pkg->md5sum != NULL );
+	/* Prepare everything that can be prepared beforehand */
 	r = deb_complete(pkg,oinfo);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
 	} 
+	*deb = pkg;
+	return RET_OK;
+}
+
 	
+retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,int force,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata){
+	retvalue r,result;
+	int i;
+
 	/* finaly put it into one or more architectures of the distribution */
 
 	result = RET_NOTHING;
@@ -437,17 +431,17 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_ARCH_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
 		RET_UPDATE(result,r);
-	} else if( forcearchitecture != NULL ) {
+	} else if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 ) {
 		struct target *t = distribution_getpart(distribution,pkg->component,forcearchitecture,packagetype);
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -460,14 +454,35 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
 		RET_UPDATE(result,r);
 	}
 
-	deb_free(pkg);
+//	deb_free(pkg);
 
 	return result;
+}
+
+/* insert the given .deb into the mirror in <component> in the <distribution>
+ * putting things with architecture of "all" into <d->architectures> (and also
+ * causing error, if it is not one of them otherwise)
+ * if component is NULL, guessing it from the section. */
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys){
+	struct debpackage *pkg;
+	retvalue r;
+
+	if( givenfilekey != NULL && givenmd5sum != NULL ) {
+		assert( delete == D_INPLACE );
+	}
+	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,binoverride,delete);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+
+	r = deb_addprepared(pkg,dbdir,refs,forcearchitecture,packagetype,distribution,force, dereferencedfilekeys,NULL);
+	deb_free(pkg);
+	return r;
 }

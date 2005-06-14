@@ -23,6 +23,7 @@ char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,
 retvalue binaries_doreoverride(const struct alloverrides *alloverrides,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue ubinaries_doreoverride(const struct alloverrides *alloverrides,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue binaries_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,references refs);
+retvalue binaries_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 	
 
 

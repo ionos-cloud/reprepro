@@ -1027,6 +1027,10 @@ static retvalue updates_startup(struct aptmethodrun *run,struct update_distribut
 			if( verbose >= 0 )
 				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
 		}
+		if( d->distribution->tracking != dt_NONE ) {
+			fprintf(stderr,"Error(%s): Coping with trackingdata while updating not yet implemented!\n",d->distribution->codename);
+			return RET_ERROR;
+		}
 		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL)
 				continue;

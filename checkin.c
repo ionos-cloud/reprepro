@@ -86,6 +86,8 @@ struct fileentry {
 	char *component;
 	/* only set after changes_includefiles */
 	char *filekey;
+	/* set between checkpkg and includepkg */
+	union { struct dscpackage *dsc; struct debpackage *deb;} pkg;
 };
 
 struct changes {
@@ -99,12 +101,12 @@ struct changes {
 	/* Things to be set by changes_fixfields: */
 	/* the component source files are put into */
 	const char *srccomponent;
+	/* != NULL if changesfile was put into pool/ */
+	/*@null@*/ char *changesfilekey;
 	/* the directory where source files are put into */
 	char *srcdirectory;
 	/* (only to warn if multiple are used) */
 	const char *firstcomponent;
-	/* if tracks != NULL, the package to track, otherwise NULL*/
-	struct trackedpackage *trackedpkg;
 };
 
 static void freeentries(/*@only@*/struct fileentry *entry) {
@@ -135,7 +137,8 @@ static void changes_free(/*@only@*/struct changes *changes) {
 		strlist_done(&changes->distributions);
 		free(changes->control);
 		free(changes->srcdirectory);
-		trackedpackage_free(changes->trackedpkg);
+		free(changes->changesfilekey);
+//		trackedpackage_free(changes->trackedpkg);
 	}
 	free(changes);
 }
@@ -709,7 +712,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao,int force,/*@null@*/struct strlist *dereferencedfilekeys, bool_t onlysigned) {
+static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, bool_t onlysigned) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -727,42 +730,81 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {
-			r = deb_add(dbdir,refs,filesdb,
+			r = deb_prepare(&e->pkg.deb,filesdb,
 				e->component,e->architecture,
 				e->section,e->priority,
 				"deb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->deb,
-				force,D_INPLACE,dereferencedfilekeys);
+				ao->deb,D_INPLACE);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_UDEB ) {
-			r = deb_add(dbdir,refs,filesdb,
+			r = deb_prepare(&e->pkg.deb,filesdb,
 				e->component,e->architecture,
 				e->section,e->priority,
 				"udeb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->udeb,
-				force,D_INPLACE,dereferencedfilekeys);
+				ao->udeb,D_INPLACE);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_DSC ) {
 			assert(changes->srccomponent!=NULL);
 			assert(changes->srcdirectory!=NULL);
-			r = dsc_add(dbdir,refs,filesdb,
+			r = dsc_prepare(&e->pkg.dsc,filesdb,
 				changes->srccomponent,e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
-				ao->dsc,
-				force,D_INPLACE,dereferencedfilekeys,onlysigned);
+				ao->dsc,D_INPLACE,onlysigned);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		}
 		
 		free(fullfilename);
+		if( RET_WAS_ERROR(r) )
+			break;
+		e = e->next;
+	}
+
+	if( RET_IS_OK(r) && somethingwasmissed ) {
+		return RET_NOTHING;
+	}
+	return r;
+}
+static retvalue changes_includepkgs(const char *dbdir,references refs,struct distribution *distribution,struct changes *changes,int force,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata) {
+	struct fileentry *e;
+	retvalue r;
+	bool_t somethingwasmissed = FALSE;
+
+	r = RET_NOTHING;
+
+	e = changes->files;
+	while( e != NULL ) {
+		if( e->type != fe_DEB && e->type != fe_DSC && e->type != fe_UDEB) {
+			e = e->next;
+			continue;
+		}
+		if( e->type == fe_DEB ) {
+			r = deb_addprepared(e->pkg.deb,dbdir,refs,
+				e->architecture,"deb",
+				distribution,force,dereferencedfilekeys,trackingdata);
+			if( r == RET_NOTHING )
+				somethingwasmissed = TRUE;
+		} else if( e->type == fe_UDEB ) {
+			r = deb_addprepared(e->pkg.deb,dbdir,refs,
+				e->architecture,"udeb",
+				distribution,force,dereferencedfilekeys,trackingdata);
+			if( r == RET_NOTHING )
+				somethingwasmissed = TRUE;
+		} else if( e->type == fe_DSC ) {
+			r = dsc_addprepared(e->pkg.dsc,dbdir,refs,
+				distribution,force,dereferencedfilekeys,trackingdata);
+			if( r == RET_NOTHING )
+				somethingwasmissed = TRUE;
+		}
+		
 		if( RET_WAS_ERROR(r) )
 			break;
 		e = e->next;
@@ -780,7 +822,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
 	retvalue result,r;
 	struct changes *changes;
-	bool_t newtrack;
+	struct trackingdata trackingdata;
 
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,force,onlysigned);
 	if( RET_WAS_ERROR(r) )
@@ -792,86 +834,93 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
 
+	/* look for component, section and priority to be correct or guess them*/
+	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,ao);
+
+	/* do some tests if values are sensible */
+	if( !RET_WAS_ERROR(r) )
+		r = changes_check(changesfilename,changes,forcearchitecture);
+
+	/* add files in the pool */
+	//TODO: D_DELETE would fail here, what to do?
+	if( !RET_WAS_ERROR(r) )
+		r = changes_includefiles(filesdb,changesfilename,changes,delete);
+
+	if( !RET_WAS_ERROR(r) )
+		r = changes_checkpkgs(filesdb,distribution,changes,ao,delete);
+
+
+	if( RET_WAS_ERROR(r) ) {
+		changes_free(changes);
+		return r;
+	}
+
 	if( tracks != NULL ) {
-		newtrack = FALSE;
-		r = tracking_get(tracks,changes->source,changes->version,&changes->trackedpkg);
-		if( r == RET_NOTHING ) {
-			newtrack = TRUE;
-			r = tracking_new(tracks,changes->source,changes->version,&changes->trackedpkg);
-		}
+		r = trackingdata_summon(tracks,changes->source,changes->version,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
 			changes_free(changes);
 			return r;
 		}
-	}
-#ifndef GCCHASLEARNEDIT
-	else newtrack = FALSE;
-#endif
-
-	/* look for component, section and priority to be correct or guess them*/
-	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,ao);
-	if( RET_WAS_ERROR(r) ) {
-		changes_free(changes);
-		return r;
-	}
-	/* do some tests if values are sensible */
-	r = changes_check(changesfilename,changes,forcearchitecture);
-	if( RET_WAS_ERROR(r) ) {
-		changes_free(changes);
-		return r;
-	}
-	
-	/* add files in the pool */
-	//TODO: D_DELETE would fail here, what to do?
-	r = changes_includefiles(filesdb,changesfilename,changes,delete);
-	if( RET_WAS_ERROR(r) ) {
-		changes_free(changes);
-		return r;
-	}
-
-	/* add the source and binary packages in the given distribution */
-	result = changes_includepkgs(dbdir,refs,filesdb,
-		distribution,changes,ao,force,
-		dereferencedfilekeys, onlysigned);
-	if( RET_WAS_ERROR(r) ) {
-		changes_free(changes);
-		return r;
-	}
-
-	if( tracks != NULL ) {
 		if( distribution->trackingoptions.includechanges ) {
-			char *filekey;const char *basename;
+			const char *basename;
 			assert( changes->srcdirectory != NULL );
 
 			basename = dirs_basename(changesfilename);
-			filekey = calc_dirconcat(changes->srcdirectory,basename);
-			if( filekey == NULL ) {
+			changes->changesfilekey = 
+				calc_dirconcat(changes->srcdirectory,basename);
+			if( changes->changesfilekey == NULL ) {
 				changes_free(changes);
+				trackingdata_done(&trackingdata);
 				return RET_ERROR_OOM;
 			}
-			r = files_include(filesdb,changesfilename,filekey,
-					NULL,NULL,
-					(result==RET_NOTHING)?D_COPY:delete);
-			if( !RET_WAS_ERROR(r) ) {
-				r = trackedpackage_addfilekey(tracks,changes->trackedpkg,ft_CHANGES,filekey,refs);
+			/* always D_COPY, and only delete it afterwards... */
+			r = files_include(filesdb,changesfilename,
+					changes->changesfilekey,
+					NULL,NULL,D_COPY);
+			if( RET_WAS_ERROR(r) ) {
+				changes_free(changes);
+				trackingdata_done(&trackingdata);
+				return r;
 			}
-			free(filekey);
-			changesfilename = NULL;
+		}
+	}
+
+	/* add the source and binary packages in the given distribution */
+	result = changes_includepkgs(dbdir,refs,
+		distribution,changes,force,dereferencedfilekeys,
+		(tracks!=NULL)?&trackingdata:NULL);
+
+	if( RET_WAS_ERROR(r) ) {
+		if( tracks != NULL ) {
+			trackingdata_done(&trackingdata);
+		}
+		changes_free(changes);
+		return r;
+	}
+
+	if( tracks != NULL ) {
+		if( changes->changesfilekey != NULL ) {
+			assert( changes->srcdirectory != NULL );
+
+			r = trackedpackage_addfilekey(tracks,trackingdata.pkg,ft_CHANGES,changes->changesfilekey,refs);
 			RET_ENDUPDATE(result,r);
 		}
-		if( newtrack ) {
-			r = tracking_put(tracks,changes->trackedpkg);
+		if( trackingdata.isnew ) {
+			r = tracking_put(tracks,trackingdata.pkg);
 		} else {
-			r = tracking_replace(tracks,changes->trackedpkg);
+			r = tracking_replace(tracks,trackingdata.pkg);
 		}
-		if( RET_WAS_ERROR(r) ) {
+		trackingdata_done(&trackingdata);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(result) ) {
 			changes_free(changes);
-			return r;
+			return result;
 		}
 	}
 
 	if( delete >= D_MOVE && changesfilename != NULL ) {
-		if( result == RET_NOTHING && delete < D_DELETE ) {
+		if( result == RET_NOTHING && delete < D_DELETE && 
+				changes->changesfilekey == NULL) {
 			if( verbose >= 0 ) {
 				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use --delete --delete to delete anyway in such cases)\n",changesfilename);
 			}

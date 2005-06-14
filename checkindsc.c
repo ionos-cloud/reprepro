@@ -128,7 +128,7 @@ struct dscpackage {
 	struct strlist filekeys;
 };
 
-static void dsc_free(/*@only@*/struct dscpackage *pkg) {
+void dsc_free(/*@only@*/struct dscpackage *pkg) {
 	if( pkg != NULL ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->control);
@@ -368,13 +368,8 @@ static retvalue dsc_checkfiles(filesdb filesdb,
 	return r;
 }
 
-/* insert the given .dsc into the mirror in <component> in the <distribution>
- * if component is NULL, guessing it from the section.
- * If basename, filekey and directory are != NULL, then they are used instead 
- * of beeing newly calculated. 
- * (And all files are expected to already be in the pool). */
 
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned){
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, bool_t onlysigned){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -390,7 +385,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		return RET_ERROR;
 	}
 
-	/* Then take a closer look to the file: */
+	/* Then take a closer look in the file: */
 
 	r = dsc_read(&pkg,dscfilename,onlysigned);
 	if( RET_WAS_ERROR(r) ) {
@@ -467,18 +462,44 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( !RET_WAS_ERROR(r) )
 		r = dsc_complete(pkg,oinfo);
 
-	/* finaly put it into the source distribution */
-	if( !RET_WAS_ERROR(r) ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
-		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) ) {
-			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys);
-			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
-		}
-	}
-	dsc_free(pkg);
+	if( RET_IS_OK(r) )
+		*dsc = pkg;
+	else
+		dsc_free(pkg);
 
 	return r;
+}
+
+retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,references refs,struct distribution *distribution,int force,struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
+	retvalue r;
+	struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
+
+	/* finaly put it into the source distribution */
+	r = target_initpackagesdb(t,dbdir);
+	if( !RET_WAS_ERROR(r) ) {
+		retvalue r2;
+		r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
+		r2 = target_closepackagesdb(t);
+		RET_ENDUPDATE(r,r2);
+	}
+	return r;
+}
+
+/* insert the given .dsc into the mirror in <component> in the <distribution>
+ * if component is NULL, guessing it from the section.
+ * If basename, filekey and directory are != NULL, then they are used instead 
+ * of beeing newly calculated. 
+ * (And all files are expected to already be in the pool). */
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned){
+	retvalue r;
+	struct dscpackage *pkg;
+
+	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscfilename,filekey,basename,directory,md5sum,srcoverride,delete,onlysigned);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = dsc_addprepared(pkg,dbdir,refs,distribution,force,dereferencedfilekeys,NULL);
+	dsc_free(pkg);
+	return r;
+
 }

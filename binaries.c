@@ -31,6 +31,7 @@
 #include "names.h"
 #include "dpkgversions.h"
 #include "override.h"
+#include "tracking.h"
 
 extern int verbose;
 
@@ -283,7 +284,7 @@ retvalue ubinaries_doreoverride(const struct alloverrides *ao,const char *packag
 	return RET_OK;
 }
 
-retvalue binaries_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,references refs) {
+retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const char *chunk, trackingdb tracks,references refs) {
 	retvalue r;
 	const char *sourcename;
 	char *fsourcename,*sourceversion,*arch,*filekey;
@@ -380,3 +381,36 @@ retvalue binaries_retrack(struct target *t,const char *packagename,const char *c
 	return r;
 }
 
+retvalue binaries_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {
+	retvalue r;
+	char *sourcename,*sourceversion;
+
+	//TODO: elliminate duplicate code!
+	assert(packagename!=NULL);
+
+	/* is there a sourcename */
+	r = chunk_getnameandversion(chunk,"Source",&sourcename,&sourceversion);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		sourceversion = NULL;
+		sourcename = strdup(packagename);
+		if( sourcename == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( sourceversion == NULL ) {
+		r = chunk_getvalue(chunk,"Version",&sourceversion);
+		if( RET_WAS_ERROR(r) ) {
+			free(sourcename);
+			return r;
+		}
+		if( r == RET_NOTHING ) {
+			free(sourcename);
+			fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+			return RET_ERROR;
+		}
+	}
+	*source = sourcename;
+	*version = sourceversion;
+	return RET_OK;
+}

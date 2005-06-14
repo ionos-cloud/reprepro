@@ -4,6 +4,11 @@ set -e -v
 
 WORKDIR="`pwd`/testdir"
 
+if [ "x$1" == "x--delete" ] ; then
+	rm -r "$WORKDIR" || true
+	shift
+fi
+
 mkdir "$WORKDIR"
 cd "$WORKDIR"
 
@@ -26,7 +31,7 @@ Codename: test1
 Architectures: abacus source
 Components: stupid ugly
 Update: Test2toTest1
-Tracking: keep
+Tracking: keep includechanges needsources includebyhand embargoalls
 
 Codename: test2
 Architectures: abacus coal source
@@ -226,6 +231,62 @@ diff -u test2 test1
 "$REPREPRO" -b . checkpool
 "$REPREPRO" -b . rereference test1 test2
 "$REPREPRO" -b . check test1 test2
+
+"$REPREPRO" -b . dumptracks > results
+cat >results.expected <<END
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
+ pool/ugly/b/bloat+-0a9z.app/test.changes c 1
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple-addons_1_all.deb a 0
+ pool/stupid/s/simple/simple_1_abacus.deb b 0
+ pool/stupid/s/simple/simple_1.dsc s 0
+ pool/stupid/s/simple/simple_1.tar.gz s 0
+ pool/stupid/s/simple/test.changes c 1
+
+END
+diff -u results.expected results
+
+"$REPREPRO" -b . cleartracks
+"$REPREPRO" -b . include test1 test.changes
+OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
+"$REPREPRO" -VVVVVb . include test1 test2.changes
+echo returned: $?
+
+"$REPREPRO" -b . dumptracks > results
+cat >results.expected <<END
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
+ pool/ugly/b/bloat+-0a9z.app/test.changes c 1
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/test2.changes c 1
+
+END
+diff -u results.expected results
 
 set +v
 echo

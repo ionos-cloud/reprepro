@@ -39,10 +39,12 @@ struct distribution {
 	/* what kind of index files to generate */
 	struct exportmode dsc,deb,udeb;
 	/* is tracking enabled for this distribution? */
-	enum trackingtype { dt_NONE=0, dt_KEEP, dt_NEEDED } tracking;
+	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
 	struct { bool_t includechanges:1; 
+		bool_t includebyhand:1;
 		bool_t needsources:1;
-		bool_t inlcudebyhand:1;} trackingoptions;
+		bool_t embargoalls:1;
+		} trackingoptions;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 };

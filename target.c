@@ -39,6 +39,7 @@
 #include "dirs.h"
 #include "dpkgversions.h"
 #include "override.h"
+#include "tracking.h"
 #include "target.h"
 
 extern int verbose;
@@ -48,6 +49,7 @@ static retvalue target_initialize(
 	/*@observer@*/const char *packagetype,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
 	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,
+	get_sourceandversion getsourceandversion,
 	do_reoverride doreoverride,do_retrack doretrack,
 	/*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
 
@@ -79,6 +81,7 @@ static retvalue target_initialize(
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
 	t->getupstreamindex = getupstreamindex;
+	t->getsourceandversion = getsourceandversion;
 	t->doreoverride = doreoverride;
 	t->doretrack = doretrack;
 	*d = t;
@@ -86,14 +89,14 @@ static retvalue target_initialize(
 }
 
 retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,ubinaries_doreoverride,binaries_retrack,mprintf("%s/debian-installer/binary-%s",component,architecture),exportmode,target);
+	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,binaries_getsourceandversion,ubinaries_doreoverride,binaries_retrack,mprintf("%s/debian-installer/binary-%s",component,architecture),exportmode,target);
 }
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,binaries_doreoverride,binaries_retrack,mprintf("%s/binary-%s",component,architecture),exportmode,target);
+	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,binaries_getsourceandversion,binaries_doreoverride,binaries_retrack,mprintf("%s/binary-%s",component,architecture),exportmode,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,sources_doreoverride,sources_retrack,mprintf("%s/source",component),exportmode,target);
+	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,sources_getsourceandversion,sources_doreoverride,sources_retrack,mprintf("%s/source",component),exportmode,target);
 }
 
 
@@ -151,10 +154,11 @@ retvalue target_closepackagesdb(struct target *target) {
 
 /* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
  * filekeys that lost references */
-retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *dereferencedfilekeys) {
+retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
 	char *oldchunk;
 	struct strlist files;
-	retvalue r;
+	retvalue result,r;
+	char *oldsource,*oldversion;
 
 	assert(target != NULL && target->packages != NULL && name != NULL );
 
@@ -169,24 +173,38 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 		return RET_NOTHING;
 	}
 	r = target->getfilekeys(target,oldchunk,&files,NULL);
-	free(oldchunk);
 	if( RET_WAS_ERROR(r) ) {
+		free(oldchunk);
 		return r;
 	}
+	if( trackingdata != NULL ) {
+		r = (*target->getsourceandversion)(target,oldchunk,name,&oldsource,&oldversion);
+		if( !RET_IS_OK(r) ) {
+			oldsource = oldversion = NULL;
+		}
+	} else {
+		oldsource = oldversion = NULL;
+	}
+	free(oldchunk);
 	if( verbose > 0 )
 		fprintf(stderr,"removing '%s' from '%s'...\n",name,target->identifier);
-	r = packages_remove(target->packages,name);
-	if( RET_IS_OK(r) ) {
+	result = packages_remove(target->packages,name);
+	if( RET_IS_OK(result) ) {
 		target->wasmodified = TRUE;
+		if( oldsource!= NULL && oldversion != NULL ) {
+			r = trackingdata_remove(trackingdata,oldsource,oldversion,&files);
+			RET_UPDATE(result,r);
+		}
 		r = references_delete(refs,target->identifier,&files,NULL,dereferencedfilekeys);
+		RET_UPDATE(result,r);
 	} else
 		strlist_done(&files);
-	return r;
+	return result;
 }
 
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade, struct strlist *dereferencedfilekeys) {
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
-	char *oldcontrol;
+	char *oldcontrol,*oldsource,*oldsversion;
 	retvalue r;
 
 	assert(target->packages!=NULL);
@@ -194,12 +212,14 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 	r = packages_get(target->packages,name,&oldcontrol);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( r == RET_NOTHING )
+	if( r == RET_NOTHING ) {
 		ofk = NULL;
-	else {
-		char *oldversion;
+		oldsource = NULL;
+		oldsversion = NULL;
+	} else {
+		char *oldpversion;
 
-		r = target->getversion(target,oldcontrol,&oldversion);
+		r = target->getversion(target,oldcontrol,&oldpversion);
 		if( RET_WAS_ERROR(r) && force <= 0) {
 			free(oldcontrol);
 			return r;
@@ -207,11 +227,11 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 		if( RET_IS_OK(r) ) {
 			int versioncmp;
 
-			r = dpkgversions_cmp(version,oldversion,&versioncmp);
+			r = dpkgversions_cmp(version,oldpversion,&versioncmp);
 			if( RET_WAS_ERROR(r) ) {
 				fprintf(stderr,"Parse errors processing versions of %s.\n",name);
 				if( force <= 0 ) {
-					free(oldversion);
+					free(oldpversion);
 					free(oldcontrol);
 					return r;
 				}
@@ -219,31 +239,47 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 				if( versioncmp <= 0 ) {
 					/* new Version is not newer than old version */
 					if( downgrade ) {
-						fprintf(stderr,"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n",name,oldversion,version,target->identifier);
+						fprintf(stderr,"Warning: downgrading '%s' from '%s' to '%s' in '%s'!\n",name,oldpversion,version,target->identifier);
 					} else {
-						fprintf(stderr,"Skipping inclusion of '%s' '%s' in '%s', as it has already '%s'.\n",name,version,target->identifier,oldversion);
-						free(oldversion);
+						fprintf(stderr,"Skipping inclusion of '%s' '%s' in '%s', as it has already '%s'.\n",name,version,target->identifier,oldpversion);
+						free(oldpversion);
 						free(oldcontrol);
 						return RET_NOTHING;
 					}
 				}
 			}
-			free(oldversion);
+			free(oldpversion);
 		}
-
 		r = (*target->getfilekeys)(target,oldcontrol,&oldfilekeys,NULL);
-		free(oldcontrol);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
-			if( force > 0 )
+			free(oldcontrol);
+			if( force > 0 ) {
 				ofk = NULL;
-			else
+				oldsversion = oldsource = NULL;
+			} else
 				return r;
+		} else if(trackingdata != NULL) {
+			r = (*target->getsourceandversion)(target,oldcontrol,name,&oldsource,&oldsversion);
+			free(oldcontrol);
+			if( RET_WAS_ERROR(r) ) {
+				strlist_done(ofk);
+				if( force > 0 ) {
+					ofk = NULL;
+					oldsversion = oldsource = NULL;
+				} else
+					return r;
+			}
+		} else {
+			free(oldcontrol);
+			oldsversion = oldsource = NULL;
 		}
+
 	}
-	r = packages_insert(refs,target->packages,name,control,filekeys,ofk,dereferencedfilekeys);
-	if( RET_IS_OK(r) )
+	r = packages_insert(refs,target->packages,name,control,filekeys,ofk,dereferencedfilekeys,trackingdata,filetype,oldsource,oldsversion);
+	if( RET_IS_OK(r) ) {
 		target->wasmodified = TRUE;
+	}
 
 	return r;
 }

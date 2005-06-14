@@ -490,15 +490,16 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 					&pkg->new_md5sums);
 			if( ! RET_WAS_ERROR(r) )
 				/* upgrade (or possibly downgrade) */
+// TODO: trackingdata?
 				r = target_addpackage(upgrade->target,refs,
 				pkg->name,pkg->new_version,pkg->new_control,
-				&pkg->new_filekeys,force,TRUE,dereferencedfilekeys);
+				&pkg->new_filekeys,force,TRUE,dereferencedfilekeys,NULL,0);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;
 		}
 		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
-			r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys);
+			r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;

@@ -35,6 +35,7 @@
 #include "names.h"
 #include "release.h"
 #include "copyfile.h"
+#include "tracking.h"
 #include "distribution.h"
 
 retvalue distribution_free(struct distribution *distribution) {

@@ -34,6 +34,7 @@
 #include "files.h"
 #include "target.h"
 #include "packages.h"
+#include "tracking.h"
 
 struct s_packagesdb {
 	char *identifier;
@@ -332,7 +333,10 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 		const char *packagename, const char *controlchunk,
 		const struct strlist *files,
 		struct strlist *oldfiles,
-		struct strlist *dereferencedfilekeys) {
+		struct strlist *dereferencedfilekeys,
+		struct trackingdata *trackingdata,
+		enum filetype filetype,
+		/*@only@*/char *oldsource,/*@only@*/char *oldsversion) {
 		
 
 	retvalue result,r;
@@ -361,6 +365,9 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 			strlist_done(oldfiles);
 		return result;
 	}
+
+	r = trackingdata_insert(trackingdata,filetype,files,oldsource,oldsversion,oldfiles,refs);
+	RET_UPDATE(result,r);
 
 	/* remove old references to files */
 

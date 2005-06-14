@@ -310,7 +310,7 @@ ACTION_R(addreference) {
 }
 
 
-struct remove_args {/*@temp@*/references refs; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;};
+struct remove_args {/*@temp@*/references refs; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;};
 
 static retvalue remove_from_target(/*@temp@*/void *data, struct target *target) {
 	retvalue result,r;
@@ -324,7 +324,7 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target) 
 
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
-		r = target_removepackage(target,d->refs,d->names[i],d->removedfiles);
+		r = target_removepackage(target,d->refs,d->names[i],d->removedfiles,d->trackingdata);
 		if( RET_IS_OK(r) ) {
 			if( ! d->gotremoved[i] )
 				d->todo--;
@@ -341,6 +341,8 @@ ACTION_D_U(remove) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct remove_args d;
+	trackingdb tracks;
+	struct trackingdata trackingdata;
 
 	if( argc < 3  ) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>\n");
@@ -350,6 +352,23 @@ ACTION_D_U(remove) {
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
+	}
+
+	if( distribution->tracking != dt_NONE ) {
+		r = tracking_initialize(&tracks,dbdir,distribution);
+		if( RET_WAS_ERROR(r) ) {
+			(void)distribution_free(distribution);
+			return r;
+		}
+		r = trackingdata_new(tracks,&trackingdata);
+		if( RET_WAS_ERROR(r) ) {
+			(void)distribution_free(distribution);
+			(void)tracking_done(tracks);
+			return r;
+		}
+		d.trackingdata = &trackingdata;
+	} else {
+		d.trackingdata = NULL;
 	}
 
 	d.count = argc-2;
@@ -367,6 +386,11 @@ ACTION_D_U(remove) {
 
 	if( d.todo < d.count ) {
 		r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
+		RET_ENDUPDATE(result,r);
+	}
+	if( d.trackingdata != NULL ) {
+		trackingdata_done(d.trackingdata);
+		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
 	r = distribution_free(distribution);
@@ -898,7 +922,7 @@ ACTION_R(retrack) {
 	return result;
 }
 
-ACTION_D(removetrack) {
+ACTION_D_U(removetrack) {
 	retvalue result,r;
 	struct distribution *distribution;
 	trackingdb tracks;
@@ -968,12 +992,12 @@ ACTION_R(cleartracks) {
 
 	return result;
 }
-ACTION_N(printtracks) {
+ACTION_N(dumptracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 
 	if( argc < 1 ) {
-		fprintf(stderr,"reprepro printtracks [<distributions>]\n");
+		fprintf(stderr,"reprepro dumptracks [<distributions>]\n");
 		return RET_ERROR;
 	}
 
@@ -1399,7 +1423,7 @@ static const struct action {
 	{"dumpunreferenced", 	A_RF(dumpunreferenced)},
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
 	{"retrack",	 	A_R(retrack)},
-	{"printtracks",	 	A_N(printtracks)},
+	{"dumptracks",	 	A_N(dumptracks)},
 	{"cleartracks",	 	A_R(cleartracks)},
 	{"removetrack",		A_D(removetrack)},
 	{"update",		A_D(update)},

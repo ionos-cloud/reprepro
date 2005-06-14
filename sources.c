@@ -31,6 +31,7 @@
 #include "names.h"
 #include "dpkgversions.h"
 #include "override.h"
+#include "tracking.h"
 
 extern int verbose;
 
@@ -423,3 +424,28 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 	return r;
 }
 
+retvalue sources_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {
+	retvalue r;
+	char *sourceversion;
+	char *sourcename;
+
+	//TODO: elliminate duplicate code!
+	assert(packagename!=NULL);
+
+	r = chunk_getvalue(chunk,"Version",&sourceversion);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	sourcename = strdup(packagename);
+	if( sourcename == NULL ) {
+		free(sourceversion);
+		return RET_ERROR_OOM;
+	}
+	*source = sourcename;
+	*version = sourceversion;
+	return RET_OK;
+}
