@@ -288,7 +288,18 @@ Files:
 END
 diff -u results.expected results
 
-set +v
+echo "now testing some error messages:"
+ERRORCODE=0
+"$REPREPRO" -b . include unknown || ERRORCODE=$?
+[ $ERRORCODE == 255 ]
+ERRORCODE=0
+"$REPREPRO" -b . include unknown test.changes test2.changes || ERRORCODE=$?
+[ $ERRORCODE == 255 ]
+ERRORCODE=0
+"$REPREPRO" -b . include unknown test.changes || ERRORCODE=$?
+[ $ERRORCODE == 249 ]
+
+set +v 
 echo
 echo "If the script is still running to show this,"
 echo "all tested cases seem to work. (Though writing some tests more can never harm)."
