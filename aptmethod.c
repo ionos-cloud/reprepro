@@ -516,9 +516,11 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	if( todo->md5sum != NULL ) {
 		if( md5sum == NULL || strcmp(md5sum,todo->md5sum) != 0) {
 			fprintf(stderr,"Receiving '%s' wrong md5sum: got '%s' expected '%s'!\n",todo->uri,md5sum,todo->md5sum);
+			free(calculatedmd5);
 			return RET_ERROR_WRONG_MD5;
 		}
 	}
+	free(calculatedmd5);md5sum=NULL;
 
 	if( todo->filekey != NULL ) {
 		retvalue r;

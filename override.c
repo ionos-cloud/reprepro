@@ -151,8 +151,10 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 			       strcmp(root->packagename,firstpart) > 0 )) {
 			/* adding in front of it */
 			r = newoverrideinfo(firstpart,secondpart,thirdpart,&root);
-			if( RET_WAS_ERROR(r) )
+			if( RET_WAS_ERROR(r) ) {
+				(void)fclose(file);
 				return r;
+			}
 			last = root;
 			continue;
 		} else {
@@ -168,8 +170,10 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 					/* add it after last and before last->next */
 					r = newoverrideinfo(firstpart,secondpart,thirdpart,&last->next);
 					last = last->next;
-					if( RET_WAS_ERROR(r) )
+					if( RET_WAS_ERROR(r) ) {
+						(void)fclose(file);
 						return r;
+					}
 					continue;
 				} else
 					last = last->next;
@@ -192,9 +196,11 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 		}
 		if( RET_WAS_ERROR(r) ) {
 			override_free(root);
+			(void)fclose(file);
 			return r;
 		}
-	}
+	}	
+	(void)fclose(file);
 	*info = root;
 	if( root == NULL )
 		return RET_NOTHING;

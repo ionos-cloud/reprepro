@@ -520,6 +520,7 @@ ACTION_N(listfilter) {
 	}
 
 	result = distribution_foreach_part(distribution,component,architecture,packagetype,listfilter_in_target,condition,force);
+	term_free(condition);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
 	return result;

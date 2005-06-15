@@ -479,13 +479,13 @@ retvalue tracking_put(trackingdb t,struct trackedpackage *pkg) {
 	 * not yet one of the same version in there. This will not
 	 * give an error now, but strange behaviour later */
 
-	if ((dbret = t->db->put(t->db, NULL, &key, &data, 0)) == 0) {
-		free(data.data);
+	dbret = t->db->put(t->db, NULL, &key, &data, 0);
+	free(data.data);
+	if( dbret == 0 ) {
 		if( verbose > 18 )
 			fprintf(stderr,"Adding tracked package '%s'_'%s' to '%s'\n",pkg->sourcename,pkg->sourceversion,t->codename);
 		return RET_OK;
 	} else {
-		free(data.data);
 		t->db->err(t->db, dbret, "tracking_put dberror:%s:",t->codename);
 		return RET_DBERR(dbret);
 	}
@@ -526,7 +526,9 @@ retvalue tracking_replace(trackingdb t,struct trackedpackage *pkg) {
 		return r;
 	}
 
-	if( (dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT)) != 0 ) {
+	dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT);
+	free(data.data);
+	if( dbret != 0 ) {
 		(void)cursor->c_close(cursor);
 		t->db->err(t->db, dbret, "tracking_replace dberror(get):");
 		return RET_DBERR(dbret);
@@ -767,6 +769,7 @@ retvalue trackingdata_summon(trackingdb tracks,const char *name,const char *vers
 		data->tracks = tracks;
 		data->pkg = pkg;
 		data->isnew = FALSE;
+		data->remembered = NULL;
 		return r;
 	}
 	if( RET_WAS_ERROR(r) )
@@ -776,6 +779,7 @@ retvalue trackingdata_summon(trackingdb tracks,const char *name,const char *vers
 		data->tracks = tracks;
 		data->pkg = pkg;
 		data->isnew = TRUE;
+		data->remembered = NULL;
 		return r;
 	}
 	return r;
@@ -785,6 +789,7 @@ retvalue trackingdata_new(trackingdb tracks,struct trackingdata *data) {
 
 	data->tracks = tracks;
 	data->pkg = NULL;
+	data->remembered = NULL;
 	return RET_OK;
 }
 
@@ -874,4 +879,12 @@ void trackingdata_done(struct trackingdata *d) {
 	trackedpackage_free(d->pkg);
 	d->pkg = NULL;
 	d->tracks = NULL;
+	while( d->remembered != NULL ) {
+		struct trackingdata_remember *h = d->remembered;
+		d->remembered = h->next;
+		free(h->name);
+		free(h->version);
+		free(h);
+	}
+
 }

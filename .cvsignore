@@ -9,7 +9,8 @@ missing
 Makefile
 config.h
 config.log
-stamp-h
+depcomp
+stamp-h*
 config.cache
 config.status
 config.guess

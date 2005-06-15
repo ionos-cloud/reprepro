@@ -478,6 +478,7 @@ void exportmode_done(struct exportmode *mode) {
 	assert( mode != NULL);
 	free(mode->filename);
 	free(mode->hook);
+	free(mode->release);
 }
 
 retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *releasedfiles, int force) {

@@ -122,6 +122,10 @@ static void freeentries(/*@only@*/struct fileentry *entry) {
 		free(entry->priority);
 		free(entry->architecture);
 		free(entry->name);
+		if( entry->type == fe_DEB || entry->type == fe_UDEB)
+			deb_free(entry->pkg.deb);
+		 else if( entry->type == fe_DSC )
+			dsc_free(entry->pkg.dsc);
 		free(entry);
 		entry = h;
 	}
@@ -933,7 +937,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			}
 		}
 	}
-	//TODO: why is here no changes_free?
+	(void)changes_free(changes);
 
 	return RET_OK;
 }
