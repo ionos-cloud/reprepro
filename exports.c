@@ -60,7 +60,7 @@ static retvalue zprintout(void *data,UNUSED(const char *package),const char *chu
 	size_t l;
 
 	l = strlen(chunk);
-	if( gzwrite(pf,(const voidp)chunk,l) != l || gzwrite(pf,"\n",1) != 1 )
+	if( gzwrite(pf,(const voidp)chunk,l) != (ssize_t)l || gzwrite(pf,"\n",1) != 1 )
 		return RET_ERROR;
 	else {
 		if( chunk[l-1] != '\n' )

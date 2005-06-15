@@ -847,7 +847,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		r = changes_includefiles(filesdb,changesfilename,changes,delete);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkpkgs(filesdb,distribution,changes,ao,delete);
+		r = changes_checkpkgs(filesdb,distribution,changes,ao,onlysigned);
 
 
 	if( RET_WAS_ERROR(r) ) {
