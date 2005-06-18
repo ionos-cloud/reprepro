@@ -149,7 +149,7 @@ static inline char filetypechar(enum filetype filetype) {
 	return 'x';
 }
 
-retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,const char *filekey,references refs) {
+retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,const char *filekey,bool_t used,references refs) {
 	char *annotatedfilekey,*id;
 	size_t len;
 	char ft = filetypechar(filetype);
@@ -162,7 +162,8 @@ retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,
 				fprintf(stderr,"Filekey '%s' already registered for '%s_%s' as type '%c' is tried to be reregistered as type '%c'!\n",filekey,pkg->sourcename,pkg->sourceversion,pkg->filekeys.values[i][0],ft);
 				return RET_ERROR;
 			}
-			pkg->refcounts[i]++;
+			if( used )
+				pkg->refcounts[i]++;
 			return RET_OK;
 		}
 	}
@@ -182,7 +183,10 @@ retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,
 		free(annotatedfilekey);
 		return RET_ERROR_OOM;
 	}
-	newrefcounts[pkg->filekeys.count]=1;
+	if( used )
+		newrefcounts[pkg->filekeys.count]=1;
+	else
+		newrefcounts[pkg->filekeys.count]=0;
 	pkg->refcounts = newrefcounts;
 
 	r = strlist_add(&pkg->filekeys,annotatedfilekey);
@@ -197,14 +201,14 @@ retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,
 	return r;
 }
 
-retvalue trackedpackage_addfilekeys(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,const struct strlist *filekeys,references refs) {
+retvalue trackedpackage_addfilekeys(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,const struct strlist *filekeys,bool_t used,references refs) {
 	int i;
 	retvalue result,r;
 	assert( filekeys != NULL );
 
 	result = RET_OK;
 	for( i = 0 ; i < filekeys->count ; i++ ) {
-		r = trackedpackage_addfilekey(tracks,pkg,filetype,filekeys->values[i],refs);
+		r = trackedpackage_addfilekey(tracks,pkg,filetype,filekeys->values[i],used,refs);
 		RET_UPDATE(result,r);
 	}
 	return result;
@@ -804,7 +808,7 @@ retvalue trackingdata_insert(struct trackingdata *data,enum filetype filetype,co
 		return RET_OK;
 	}
 	assert(data->pkg != NULL);
-	result = trackedpackage_addfilekeys(data->tracks,data->pkg,filetype,filekeys,refs);
+	result = trackedpackage_addfilekeys(data->tracks,data->pkg,filetype,filekeys,TRUE,refs);
 	if( RET_WAS_ERROR(result) ) {
 		free(oldsource);free(oldversion);
 		return result;

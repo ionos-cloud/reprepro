@@ -249,7 +249,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/test.changes c 1
+ pool/ugly/b/bloat+-0a9z.app/test.changes c 0
 
 Distribution: test1
 Source: simple
@@ -259,7 +259,7 @@ Files:
  pool/stupid/s/simple/simple_1_abacus.deb b 0
  pool/stupid/s/simple/simple_1.dsc s 0
  pool/stupid/s/simple/simple_1.tar.gz s 0
- pool/stupid/s/simple/test.changes c 1
+ pool/stupid/s/simple/test.changes c 0
 
 END
 diff -u results.expected results
@@ -286,7 +286,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/test.changes c 1
+ pool/ugly/b/bloat+-0a9z.app/test.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -296,7 +296,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/test2.changes c 1
+ pool/ugly/b/bloat+-0a9z.app/test2.changes c 0
 
 Distribution: test1
 Source: simple

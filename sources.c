@@ -405,7 +405,7 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 			strlist_done(&filekeys);
 			return r;
 		}
-		r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,refs);
+		r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,TRUE,refs);
 		strlist_done(&filekeys);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -415,7 +415,7 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 	}
 	free(sourceversion);
 
-	r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,refs);
+	r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,TRUE,refs);
 	strlist_done(&filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;

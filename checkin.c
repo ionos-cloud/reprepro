@@ -906,7 +906,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		if( changes->changesfilekey != NULL ) {
 			assert( changes->srcdirectory != NULL );
 
-			r = trackedpackage_addfilekey(tracks,trackingdata.pkg,ft_CHANGES,changes->changesfilekey,refs);
+			r = trackedpackage_addfilekey(tracks,trackingdata.pkg,ft_CHANGES,changes->changesfilekey,FALSE,refs);
 			RET_ENDUPDATE(result,r);
 		}
 		if( trackingdata.isnew ) {

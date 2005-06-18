@@ -361,7 +361,7 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 			free(filekey);
 			return r;
 		}
-		r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,refs);
+		r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
 		free(filekey);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -372,7 +372,7 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 	free(fsourcename);
 	free(sourceversion);
 
-	r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,refs);
+	r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
 	free(filekey);
 	if( RET_WAS_ERROR(r) )
 		return r;
