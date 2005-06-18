@@ -1162,6 +1162,7 @@ ACTION_D(includedeb) {
 	struct overrideinfo *override;
 	bool_t isudeb;
 	const char *overridefile;
+	trackingdb tracks;
 
 	if( argc != 3 ) {
 		fprintf(stderr,"reprepro [--delete] include[u]deb <distribution> <package>\n");
@@ -1214,12 +1215,27 @@ ACTION_D(includedeb) {
 		return RET_ERROR;
 	}
 
+	if( distribution->tracking != dt_NONE ) {
+		result = tracking_initialize(&tracks,dbdir,distribution);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			override_free(override);
+			return result;
+		}
+	} else {
+		tracks = NULL;
+	}
+
 	result = deb_add(dbdir,references,filesdb,component,architecture,
 			section,priority,isudeb?"udeb":"deb",distribution,argv[2],
 			NULL,NULL,override,force,delete,
-			dereferenced);
+			dereferenced,tracks);
 
 	override_free(override);
+
+	r = tracking_done(tracks);
+	RET_ENDUPDATE(result,r);
 
 	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
@@ -1235,6 +1251,7 @@ ACTION_D(includedsc) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct overrideinfo *srcoverride;
+	trackingdb tracks;
 
 	if( argc != 3 ) {
 		fprintf(stderr,"reprepro [--delete] includedsc <distribution> <package>\n");
@@ -1264,9 +1281,23 @@ ACTION_D(includedsc) {
 		}
 	}
 
-	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,dereferenced,onlyacceptsigned);
+	if( distribution->tracking != dt_NONE ) {
+		result = tracking_initialize(&tracks,dbdir,distribution);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			override_free(srcoverride);
+			return result;
+		}
+	} else {
+		tracks = NULL;
+	}
+
+	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,dereferenced,onlyacceptsigned,tracks);
 	
 	override_free(srcoverride);
+	r = tracking_done(tracks);
+	RET_ENDUPDATE(result,r);
 	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);

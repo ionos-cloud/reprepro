@@ -41,6 +41,7 @@
 #include "sources.h"
 #include "files.h"
 #include "guesscomponent.h"
+#include "tracking.h"
 
 extern int verbose;
 
@@ -490,16 +491,37 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
  * If basename, filekey and directory are != NULL, then they are used instead 
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
+	struct trackingdata trackingdata;
 
 	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscfilename,filekey,basename,directory,md5sum,srcoverride,delete,onlysigned);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = dsc_addprepared(pkg,dbdir,refs,distribution,force,dereferencedfilekeys,NULL);
-	dsc_free(pkg);
-	return r;
+	if( tracks != NULL ) {
+		r = trackingdata_summon(tracks,pkg->package,pkg->version,&trackingdata);
+		if( RET_WAS_ERROR(r) ) {
+			dsc_free(pkg);
+			return r;
+		}
+	}
 
+	r = dsc_addprepared(pkg,dbdir,refs,distribution,force,
+			dereferencedfilekeys,
+			(tracks!=NULL)?&trackingdata:NULL);
+	dsc_free(pkg);
+
+	if( tracks != NULL ) {
+		retvalue r2;
+		if( trackingdata.isnew ) {
+			r2 = tracking_put(tracks,trackingdata.pkg);
+		} else {
+			r2 = tracking_replace(tracks,trackingdata.pkg);
+		}
+		trackingdata_done(&trackingdata);
+		RET_ENDUPDATE(r,r2);
+	}
+	return r;
 }

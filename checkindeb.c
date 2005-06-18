@@ -39,6 +39,7 @@
 #include "files.h"
 #include "extractcontrol.h"
 #include "guesscomponent.h"
+#include "tracking.h"
 
 extern int verbose;
 
@@ -91,6 +92,8 @@ struct debpackage {
 	/* things to be set by deb_read: */
 	char *package,*version,*source,*architecture;
 	char *control;
+	/* only used when tracking */
+	/*@null@*/char *sourceversion;
 	/* things that might still be NULL then: */
 	char *section;
 	char *priority;
@@ -106,7 +109,8 @@ struct debpackage {
 void deb_free(/*@only@*/struct debpackage *pkg) {
 	if( pkg != NULL ) {
 		free(pkg->package);free(pkg->version);
-		free(pkg->source);free(pkg->architecture);
+		free(pkg->source);free(pkg->sourceversion);
+		free(pkg->architecture);
 		free(pkg->control);
 		free(pkg->section);free(pkg->component);
 		free(pkg->priority);
@@ -118,10 +122,11 @@ void deb_free(/*@only@*/struct debpackage *pkg) {
 }
 
 /* read the data from a .deb, make some checks and extract some data */
-static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename) {
+static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename, bool_t needssourceversion) {
 	retvalue r;
 	struct debpackage *deb;
 
+	//TODO: this smells like code-duplication with binaries.c
 
 	deb = calloc(1,sizeof(struct debpackage));
 
@@ -163,7 +168,10 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename)
 		return r;
 	}
 	/* can be there, otherwise we also know what it is */
-	r = chunk_getname(deb->control,"Source",&deb->source,TRUE);
+	if( needssourceversion )
+		r = chunk_getnameandversion(deb->control,"Source",&deb->source,&deb->sourceversion);
+	else
+		r = chunk_getname(deb->control,"Source",&deb->source,TRUE);
 	if( RET_IS_OK(r) ) {
 		// As package-check is strict subset of source-check
 		// this has only be done, if it is not also sourcename:
@@ -180,6 +188,21 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename)
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
+	}
+	if( needssourceversion ) {
+		if( deb->sourceversion == NULL ) {
+			deb->sourceversion = strdup(deb->version);
+			if( deb->sourceversion == NULL )
+				r = RET_ERROR_OOM;
+			else 
+				r = RET_OK;
+
+		} else
+			r = properversion(deb->sourceversion);
+		if( RET_WAS_ERROR(r) ) {
+			deb_free(deb);
+			return r;
+		}
 	}
 
 	r = getvalue_n(deb->control,PRIORITY_FIELDNAME,&deb->priority);
@@ -275,7 +298,7 @@ static retvalue deb_calclocations(struct debpackage *pkg,/*@null@*/const char *g
 	return r;
 }
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,const struct overrideinfo *binoverride,int delete){
+retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,const struct overrideinfo *binoverride,int delete,bool_t needsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -288,7 +311,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 
 	/* First taking a closer look to the file: */
 
-	r = deb_read(&pkg,debfilename);
+	r = deb_read(&pkg,debfilename,needsourceversion);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -396,10 +419,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	} else {
 		assert(givenmd5sum == NULL);
 		r = files_include(filesdb,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"File '%s' vanished unexpectedly.\n",debfilename);
-			r = RET_ERROR;
-		}
 		if( RET_WAS_ERROR(r) ) {
 			deb_free(pkg);
 			return r;
@@ -470,19 +489,40 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys){
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
 	struct debpackage *pkg;
 	retvalue r;
+	struct trackingdata trackingdata;
 
 	if( givenfilekey != NULL && givenmd5sum != NULL ) {
 		assert( delete == D_INPLACE );
 	}
-	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,binoverride,delete);
+	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,binoverride,delete,tracks!=NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
+	if( tracks != NULL ) {
+		assert(pkg->sourceversion != NULL);
+		r = trackingdata_summon(tracks,pkg->source,pkg->sourceversion,&trackingdata);
+		if( RET_WAS_ERROR(r) ) {
+			deb_free(pkg);
+			return r;
+		}
+	}
 
-	r = deb_addprepared(pkg,dbdir,refs,forcearchitecture,packagetype,distribution,force, dereferencedfilekeys,NULL);
+	r = deb_addprepared(pkg,dbdir,refs,forcearchitecture,packagetype,distribution,force, dereferencedfilekeys,(tracks!=NULL)?&trackingdata:NULL);
 	deb_free(pkg);
+
+	if( tracks != NULL ) {
+		retvalue r2;
+		if( trackingdata.isnew ) {
+			r2 = tracking_put(tracks,trackingdata.pkg);
+		} else {
+			r2 = tracking_replace(tracks,trackingdata.pkg);
+		}
+		trackingdata_done(&trackingdata);
+		RET_ENDUPDATE(r,r2);
+	}
+	
 	return r;
 }

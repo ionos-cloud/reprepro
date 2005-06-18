@@ -265,9 +265,15 @@ END
 diff -u results.expected results
 
 $HELPER "$REPREPRO" -b . cleartracks
+echo returned: $?
 $HELPER "$REPREPRO" -b . include test1 test.changes
+echo returned: $?
 OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
-$HELPER "$REPREPRO" -VVVVVb . include test1 test2.changes
+$HELPER "$REPREPRO" -b . include test1 test2.changes
+echo returned: $?
+$HELPER "$REPREPRO" -b . -S test -P test includedeb test1 simple_1_abacus.deb
+echo returned: $?
+$HELPER "$REPREPRO" -b . -S test -P test includedsc test1 simple_1.dsc
 echo returned: $?
 
 $HELPER "$REPREPRO" -b . dumptracks > results
@@ -291,6 +297,14 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
  pool/ugly/b/bloat+-0a9z.app/test2.changes c 1
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
 
 END
 diff -u results.expected results
