@@ -1,11 +1,14 @@
-2004-06-02  Bernhard R. Link <brlink@debian.org>
+2005-07-03  Bernhard R. Link <brlink@debian.org>
+	* add --ask-passphrase option
+
+2005-06-02  Bernhard R. Link <brlink@debian.org>
 	* Change default basedir to "."
 
-2004-05-31  Bernhard R. Link <brlink@debian.org>
+2005-05-31  Bernhard R. Link <brlink@debian.org>
 	* Fix bogus free causing segfaults
 	* No longer silently ignore additional arguments with include*
 	
-2004-05-13  Bernhard R. Link <brlink@debian.org>
+2005-05-13  Bernhard R. Link <brlink@debian.org>
 	* add Fallback option to update-methods.
 
 2005-04-16  Bernhard R. Link <brlink@debian.org>

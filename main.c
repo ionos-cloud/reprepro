@@ -84,6 +84,7 @@ static bool_t	nolistsdownload = FALSE;
 static bool_t	keepunreferenced = FALSE;
 static bool_t	keepunneededlists = FALSE;
 static bool_t	onlyacceptsigned = FALSE;
+static bool_t	askforpassphrase = FALSE;
 int		verbose = 0;
 
 static inline retvalue removeunreferencedfiles(references refs,filesdb files,struct strlist *dereferencedfilekeys) {
@@ -1563,6 +1564,7 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 #define LO_NOHTINGISERROR 4
 #define LO_NOLISTDOWNLOAD 5
 #define LO_ONLYACCEPTSIGNED 6
+#define LO_ASKPASSPHRASE 7
 #define LO_DISTDIR 10
 #define LO_DBDIR 11
 #define LO_LISTDIR 12
@@ -1596,6 +1598,7 @@ int main(int argc,char *argv[]) {
 		{"keepunreferencedfiles", 0, &longoption, LO_KEEPUNREFERENCED},
 		{"keepunneededlists", 0, &longoption, LO_KEEPUNNEEDEDLISTS},
 		{"onlyacceptsigned", 0, &longoption, LO_ONLYACCEPTSIGNED},
+		{"ask-passphrase", 0, &longoption, LO_ASKPASSPHRASE},
 		{"force", 0, NULL, 'f'},
 		{NULL, 0, NULL, 0}
 	};
@@ -1677,6 +1680,9 @@ int main(int argc,char *argv[]) {
 						break;
 					case LO_NOLISTDOWNLOAD:
 						nolistsdownload=TRUE;
+						break;
+					case LO_ASKPASSPHRASE:
+						askforpassphrase=TRUE;
 						break;
 					case LO_DISTDIR:
 						free(distdir);
@@ -1814,9 +1820,10 @@ int main(int argc,char *argv[]) {
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
+			signature_init(askforpassphrase);
 			r = callaction(a,argc-optind,(const char**)argv+optind);
 			/* yeah, freeing all this stuff before exiting is
-			 * stupid, but it keeps valgrind logs easier 
+			 * stupid, but it makes valgrind logs easier 
 			 * readable */
 			signatures_done();
 			free(dbdir);

@@ -128,6 +128,12 @@ some Update: rule or changed Components/Architectures/... .
 This is mostly only useful if you want to temporarily disable some update
 rule and want to avoid downloading their index files again when you readd
 it later.
+.TP 
+.B \-\-ask-passphrase
+Ask for passphrases when signing things and one is needed. This is a quick
+and dirty implementation using the obsolete \fBgetpass(3)\fP function
+with the description gpgme is supplying. So the prompt will look quite
+funny and passphrases with more than 8 chars depend on your libc.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"

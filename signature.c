@@ -49,7 +49,35 @@ static retvalue gpgerror(GpgmeError err){
 		return RET_OK;
 }
 
-static retvalue signature_init(void){
+/* Quick&dirty passphrase asking */
+static const char *signature_getpassphrase(void *hook,const char*descr,void **r_hd) {
+	if( descr != NULL ) {
+		const char *p;
+		char *passphrase;
+
+		if( hook != NULL )
+			return hook;
+
+		p = getpass(descr);
+		if( p == NULL ) {
+			*r_hd = NULL;
+			return NULL;
+		}
+		passphrase = strdup(p);
+		if( passphrase == NULL ) {
+			*r_hd = NULL;
+			return NULL;
+		}
+		*r_hd = passphrase;
+		return passphrase;
+	} else {
+		if( r_hd != NULL )
+			free(*r_hd);
+		return NULL;
+	}
+}
+
+retvalue signature_init(bool_t allowpassphrase){
 	GpgmeError err;
 
 	if( context != NULL )
@@ -63,6 +91,8 @@ static retvalue signature_init(void){
 	err = gpgme_set_protocol(context,GPGME_PROTOCOL_OpenPGP);
 	if( err != GPGME_No_Error )
 		return gpgerror(err);
+	if( allowpassphrase )
+		gpgme_set_passphrase_cb(context,signature_getpassphrase,NULL);
 	gpgme_set_armor(context,1);
 	return RET_OK;
 }
@@ -181,7 +211,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
 
-	r = signature_init();
+	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -241,7 +271,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	GpgmeData dh,dh_gpg;
 	int ret;
 
-	r = signature_init();
+	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -309,7 +339,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 	char *plain_data;
 	retvalue r;
 	
-	r = signature_init();
+	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
