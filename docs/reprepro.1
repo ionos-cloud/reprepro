@@ -247,6 +247,25 @@ thereof given by \fB\-Af\fP,\fB\-C\fP or \fB\-T\fP).
 Note: only the control information is changed. Changing a section
 to a value, that would cause an other component to be guessed, will
 not cause any warning.
+.TP
+.BR dumptracks " [ " \fIcodenames\fP " ]"
+Print out all information about tracked source packages in the
+given distributions.
+.TP
+.BR retrack " [ " \fIcodenames\fP " ]"
+Recreate a tracking database for the specified distributions.
+As this only takes information from the Indices into account,
+this will loose all information about older packages or
+changes files.
+.TP
+.BR cleartracks " [ " \fIcodenames\fP " ]"
+Removes all source package tracking information for the
+given distributions.
+.TP
+.BR removetrack \fIcodename\fP \fIsourcename\fP \fIversion\fP
+Remove the trackingdata of the given version of a given sourcepackage
+from a given distribution. This also removes the references for all
+used files.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -410,6 +429,32 @@ DebIndices Packages Release . .gz
 UDebIndices Packages . .gz
 .br
 DscIndices Sources Release .gz
+.TP
+.B Tracking
+Enable the (experimental) tracking of source packages.
+The argument is a list of the following:
+.br
+.B keep
+Keeps all files of a given source package, until that
+is deleted explicitly via \fBremovetrack\fP. This is
+currently the only possibility to keep older packages
+around when all indicies contain newer files.
+.br
+.B all
+Not yet implemented
+.br
+.B minimal
+Not yet implemented
+.br
+.B includechanges
+Add the .changes file to the tracked files of an source
+package. Thus it is also put into the pool.
+.br
+.B includebyhand
+Not yet implemented.
+.br
+.B ambargoalls
+Not yet implemented.
 .SS conf/updates
 .TP
 .B Name

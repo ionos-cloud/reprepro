@@ -1,5 +1,16 @@
+2005-07-05  Bernhard R. Link <brlink@debian.org>
+	* Document tracking
+
 2005-07-03  Bernhard R. Link <brlink@debian.org>
-	* add --ask-passphrase option
+	* add quick&dirty --ask-passphrase option
+
+2005-06-18  Bernhard R. Link <brlink@debian.org>
+	* add tracking.c and some starting functionality
+	* therefor refactored .deb and .dsc inclusion
+	  so that .changes includsion can check those
+	  better before doing anything.
+	* some little tidy ups (freeing more memory,
+	  fixing bad english 
 
 2005-06-02  Bernhard R. Link <brlink@debian.org>
 	* Change default basedir to "."
