@@ -71,8 +71,13 @@ static const char *signature_getpassphrase(void *hook,const char*descr,void **r_
 		*r_hd = passphrase;
 		return passphrase;
 	} else {
-		if( r_hd != NULL )
-			free(*r_hd);
+		if( r_hd != NULL ) {
+			char *p = *r_hd;
+			if( p != NULL ) {
+				memset(p,0,strlen(p));
+			}
+			free(p);
+		}
 		return NULL;
 	}
 }
