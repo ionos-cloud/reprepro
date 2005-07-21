@@ -6,6 +6,7 @@ Updates since 0.3:
 - add Fallback option to specify another host to get mirrored files from
 - default basedir is now "." i.e. the current directory.
 - add quick&dirty --ask-passphrase option
+- SignWith's argument is now used, use "yes" or "default" to get old behaviour
 
 Updates since 0.2:
 - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override

@@ -133,7 +133,8 @@ it later.
 Ask for passphrases when signing things and one is needed. This is a quick
 and dirty implementation using the obsolete \fBgetpass(3)\fP function
 with the description gpgme is supplying. So the prompt will look quite
-funny and passphrases with more than 8 chars depend on your libc.
+funny and support for passphrases with more than 8 characters depend on your libc.
+I suggest using gpg-agent or something like that instead.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -397,8 +398,11 @@ see below.
 .TP
 .B SignWith
 When this field is present, a Relese.gpg file will be generated.
-The content will be used by future version to choose the key used
-to sign.
+If the value is "yes" and "default", the default key
+is used.
+Otherwise the value will be given to libgpgme to determine to key to 
+use.
+(That should be roughly the one \fBgpg --list-secret-keys\fP \fIvalue\fP would output).
 .TP
 .B DebOverride
 When this field is present, it describes the override file used

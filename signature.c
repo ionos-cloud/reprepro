@@ -290,6 +290,37 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		return RET_ERROR;
 	}
 
+	assert(options != NULL);
+	while( *options != '\0' && xisspace(*options) )
+		options++;
+	if( *options == '!' ) {
+		// TODO: allow external programs, too
+		fprintf(stderr,"'!' not allowed at start of signing options yet.\n");
+		return RET_ERROR;
+	} else if( strcasecmp(options,"yes") == 0 || strcasecmp(options,"default") == 0 ) {
+		gpgme_signers_clear(context);
+	} else {
+		GpgmeKey key;
+
+		gpgme_signers_clear(context);
+		err = gpgme_op_keylist_start(context,options,TRUE);
+		if( err != GPGME_No_Error )
+			return gpgerror(err);
+		err = gpgme_op_keylist_next(context,&key);
+		if( err == GPGME_EOF ) {
+			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
+			return RET_ERROR;
+		}
+		if( err != GPGME_No_Error )
+			return gpgerror(err);
+		err = gpgme_op_keylist_end(context);
+		if( err != GPGME_No_Error && err != GPGME_No_Request )
+			return gpgerror(err);
+		err = gpgme_signers_add(context,key);
+		if( err != GPGME_No_Error )
+			return gpgerror(err);
+	}
+
 	// TODO: Supply our own read functions to get sensible error messages.
 	err = gpgme_data_new(&dh_gpg);
 	if( err != GPGME_No_Error ) {

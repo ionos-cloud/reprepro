@@ -1,3 +1,7 @@
+2005-07-20  Bernhard R. Link <brlink@debian.org>
+	* read SignWith:-argument and give it to
+	libgpgme to decide which key to use.
+
 2005-07-05  Bernhard R. Link <brlink@debian.org>
 	* Document tracking
 
