@@ -1,4 +1,5 @@
 TODO:
+	make sure version ordering is still the same as in dpkg
 	write more automated test-cases
 	implement extractcontrol.c properly
 	allow to specify a keyring to use.

@@ -636,7 +636,7 @@ void names_overversion(const char **version,bool_t epochsuppressed) {
 //TODO: more corectly another check should be here to also look for a digit...
 	}
 	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
-			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.'
+			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.' || *n == '~'
 			|| *n == '-' || *n == '+' || (hadepoch && *n == ':') )
 		n++;
 	*version = n;
