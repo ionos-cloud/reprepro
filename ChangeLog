@@ -1,5 +1,7 @@
 2005-08-02  Bernhard R. Link <brlink@debian.org>
 	* allow ~ in versions listed within .changes
+	* changed spacing in dpkgversions.c to make
+	  comparing to originals in dpkg easier.
 
 2005-07-20  Bernhard R. Link <brlink@debian.org>
 	* read SignWith:-argument and give it to

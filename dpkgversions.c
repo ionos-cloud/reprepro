@@ -88,10 +88,10 @@ const char *parseversion(struct versionrevision *rversion, const char *string) {
 
 /* assume ascii; warning: evaluates x multiple times! */
 #define order(x) ((x) == '~' ? -1 \
-                : cisdigit((x)) ? 0 \
-                : !(x) ? 0 \
-                : cisalpha((x)) ? (x) \
-                : (x) + 256)
+		: cisdigit((x)) ? 0 \
+		: !(x) ? 0 \
+		: cisalpha((x)) ? (x) \
+		: (x) + 256)
 
 static int verrevcmp(const char *val, const char *ref) {
   if (!val) val= "";
