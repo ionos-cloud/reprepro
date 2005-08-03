@@ -1,3 +1,17 @@
+reprepro (0.5-1) unstable; urgency=low
+
+  * new version
+  - add quick&dirty --ask-passphrase option
+  - SignWith's argument is now used
+  - allow ~ in versions of filenames listed in .changes files
+  - starts to track source packages, which yet mostly only:
+    + allow to include .changes files into the pool (Closes: 309703)
+    + keep no longer used files of one distribution (Closes: 309414)
+  - include english-fixes and new parts about apache2 
+    to short-howto from V. Stanley Jaddoe (Closes: 319708)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  3 Aug 2005 20:22:37 +0200
+
 reprepro (0.4-1) unstable; urgency=low
 
   * new version
