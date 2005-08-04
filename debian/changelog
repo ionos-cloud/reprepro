@@ -9,6 +9,7 @@ reprepro (0.5-1) unstable; urgency=low
     + keep no longer used files of one distribution (Closes: 309414)
   - include english-fixes and new parts about apache2 
     to short-howto from V. Stanley Jaddoe (Closes: 319708)
+  - include example from Goswin Brederlow (Closes: 306982)
 
  -- Bernhard R. Link <brlink@debian.org>  Wed,  3 Aug 2005 20:22:37 +0200
 

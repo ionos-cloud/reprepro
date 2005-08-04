@@ -1,0 +1,5 @@
+Name: debian
+Architectures: sparc i386
+Method: http://ftp.de.debian.org/debian
+#VerifyRelease: FBC60EA91B67D3C0
+ListHook: /mnt/mirror/DI/DI-filter.sh
