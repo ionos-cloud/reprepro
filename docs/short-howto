@@ -1,12 +1,12 @@
-This is a short how to setup a repository.
+This short HOW-TO describes how to setup a repository using reprepro.
 
-First choose some directory you want your things in.
+First choose a directory where you want to store your repository,
 
-1) Config
+1) Configuration:
 
 Generate a directory named conf/
-Place a file named "distributions" there.
-There add things like:
+Create a file named "distributions" there.
+Add entries such as:
 
 Origin: Debian
 Label: Debian-All
@@ -35,16 +35,16 @@ DebOverride: override
 UDebOverride: override
 DscOverride: srcoverride
 
-Multiple such entries are seperated with an empty line.
-The codename is used to determine the directory to create,
-the Update line is described later, when SignWith is there,
-it will try to sign it. (It cannot yet be used to tell which
-key to use).
-The other fields are copies into the appropiate Release files
+Multiple entries are seperated with an empty line.
+The codename is used to determine the directory to create.
+The Update line is described later. If SignWith is there,
+it will try to sign it. (Either use "yes" or give something
+gpg can use to identify the key you want to use).
+The other fields are copied into the appropriate Release files
 generated.
 
 
-2) Add files
+2) Adding files to the repository:
 
 To add a .deb manually:
 
@@ -57,26 +57,28 @@ reprepro -Vb . include pcpool test.changes
 Hint: you can add -C component, -A architecture, -S section, -P priority
 to give additional hints where it should go. (Note -A will not overwrite
 something to go into another architecture, but simply ignore those not
-fitting, only "Architecture: all" packages are placed exactly in theese
+fitting, only "Architecture: all" packages are placed exactly in these
 architecture. (Helps when it is not available for all architectures and
 each binary version needs a fitting version of the Arch:all package))
 
-3) to remove files:
+3) Removing files from the repository:
 	
 reprepro -Vb . remove pcpool libc6
 
-to only delete in a specific component or architecture:
+to only remove from a specific component or architecture:
 
 reprepro -Vb . -C main -A i386 remove pcpool libc6
 
-4) getting informations:
+4) Getting information about a package:
+
 To see in which architectures/components a packages exists and which version it uses.
 
 reprepro -b . list pcpool libc6
 
-5) Override-Files
+5) Override-Files:
+
 When including packages via includedeb, includedsc or include
-the applicaple override file from the distribution it is placed
+the applicable override file from the distribution it is placed
 into is used. The file given by DebOverride for ".deb"s, the
 file given by UDebOverride for ".udeb"s and the file given by 
 DscOverride for ".dsc"s. If the filename starts with
@@ -87,10 +89,9 @@ Note that the Format is those of apt-ftparchive's ExtraOverride, not the old for
 An (stupid) example line for that file would be:
 libc6 Priority extra
 
+6) importing from upstream repositories:
 
-6) importing from upstream represetories
-
-In conf/updates can be entries like this:	
+The file conf/updates can contain entries like this:
 
 Name: debian
 Method: http://ftp.debian.de/debian 
@@ -114,14 +115,14 @@ Which of those are used is determined by the "Update:" line
 in the description in conf/distributions. When "Suite:",
 "Architecture:", "Components" or "UDebComponents" are not given
 or empty, those of the distribution to be added are used.
-(Place some irreal component like "none" there if you want
+(Place a not existing component like "none" there if you want
  only the other of Components or UDebComponents). The suite of 
 the target can be used as "*" in the Suite here. "VerifyRelease:" 
 tells which gpgkey to use checking the Release.gpg. 
 (Add a "IgnoreRelease: yes" to ignore any Release files)
 To import components in other components, use the source>target
 syntax.
-"Method:" describes a apt-method, for which the programs
+"Method:" describes an apt-method, for which the programs
 from /usr/lib/apt/methods are used...
 
 To update everything possible do:
@@ -135,6 +136,66 @@ reprepro -b . update woody
 (There is no support for updating a distribution from only specific
  upstreams yet. You will have to edit conf/distributions for that)
 
-The value for VerifyRelease can be get by 
+The value for VerifyRelease can be retrieved using:
 
 gpg --with-colons --list-keys <whatever>
+
+===============================================================================
+[The following is from V. Stanley Jaddoe (debian@terabytemusic.cjb.net).
+I think I'd be too paranoid for "AllowOverride All". Also make sure
+to include all sources when allowing everyone access to software only
+available under GPL to you. (Well, you should always supply sources,
+but in some cases not doing so might cause you trouble.)]
+
+Using reprepro with apache2 (sarge, etch, sid)
+
+This example assumes the reprepro repository is under /srv/reprepro/ and that
+apache2 has been correctly installed and configured
+
+The first step is to create a virtual directory called debian/.
+Assuming your server runs the host http://www.example.com/, the web repository
+will be placed at http://www.example.com/debian/
+
+Create an apache2 config file in the conf dir of your reprepro repository, 
+using the following command:
+
+cat > /srv/reprepro/conf/apache.conf << EOF
+Alias /debian /srv/reprepro/
+<Directory /srv/reprepro>
+        Options +Indexes
+        AllowOverride All
+        order allow,deny
+        allow from all
+</Directory>
+EOF
+
+
+To enable this virtual directory, a symlink has to be created. This can be done 
+using the following command:
+
+ln -s /srv/reprepro/conf/apache.conf /etc/apache2/conf.d/reprepro.conf
+
+The second step is setting the permissions in such a way that web users can 
+browse the repository, but cannot view the reprepro specific configuration.
+This can be done using the following commands:
+
+chown -R root:root /srv/reprepro/
+chmod 755 /srv/reprepro/
+chown -R root:www-data /srv/reprepro/dists/ /srv/reprepro/pool/
+chmod 750 /srv/reprepro/*
+
+Reload apache2:
+
+/etc/init.d/apache2 reload
+
+Check if the repository is viewable by web-users, by pointing your browser to
+
+http://www.example.com/debian/
+
+If there are no problems with your reprepro repository and the apache2 
+configuration, you should see two directories, dists/ and pool/.
+
+The last step is to add this new repository to your sources.list
+This is as easy as:
+
+echo "deb http://www.example.com/debian pcpool main non-free contrib" >> /etc/apt/sources.list
