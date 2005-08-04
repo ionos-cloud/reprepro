@@ -7,7 +7,7 @@ reprepro (0.5-1) unstable; urgency=low
   - starts to track source packages, which yet mostly only:
     + allow to include .changes files into the pool (Closes: 309703)
     + keep no longer used files of one distribution (Closes: 309414)
-  - include english-fixes and new parts about apache2 
+  - include English-fixes and new parts about apache2 
     to short-howto from V. Stanley Jaddoe (Closes: 319708)
   - include example from Goswin Brederlow (Closes: 306982)
 

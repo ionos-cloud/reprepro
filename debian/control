@@ -3,7 +3,7 @@ Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
 Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb3-dev, libz-dev
-Standards-Version: 3.6.1
+Standards-Version: 3.6.2
 
 Package: reprepro
 Architecture: any
