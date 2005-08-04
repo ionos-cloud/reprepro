@@ -29,6 +29,10 @@ typos and bad english in the same file are from:
 V. Stanley Jaddoe (debian@terabytemusic.cjb.net)
 and under GPL as the rest of the file.
 
+The files in docs/di.example are written
+by Goswin Brederlow <brederlo@informatik.uni-tuebingen.de>
+and fall under the same license.
+
 The file dpkgversions.c is derived from files
 Copyright (C) 1995 Ian Jackson <ian@chiark.greenend.org.uk>
 also under GPL as above.
