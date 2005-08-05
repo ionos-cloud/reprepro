@@ -346,7 +346,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		if( signature_data == NULL ) {
 			return RET_ERROR_OOM;
 		}
-		fd = creat(signaturename,0777);
+		fd = creat(signaturename,0666);
 		if( fd < 0 ) {
 			free(signature_data);
 			return RET_ERRNO(errno);
