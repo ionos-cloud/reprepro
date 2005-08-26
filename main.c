@@ -53,6 +53,7 @@
 #include "downloadcache.h"
 #include "terms.h"
 #include "tracking.h"
+#include "optionsfile.h"
 
 
 #ifndef STD_BASE_DIR
@@ -86,6 +87,26 @@ static bool_t	keepunneededlists = FALSE;
 static bool_t	onlyacceptsigned = FALSE;
 static bool_t	askforpassphrase = FALSE;
 int		verbose = 0;
+
+/* define for each config value an owner, and only higher owners are allowed
+ * to change something owned by lower owners. */
+enum config_option_owner { CONFIG_OWNER_DEFAULT=0, CONFIG_OWNER_FILE, CONFIG_OWNER_ENVIRONMENT,
+		           CONFIG_OWNER_CMDLINE} config_state,
+#define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(onlyacceptsigned),O(askforpassphrase);
+#undef O
+	
+#define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
+					owner_ ## variable = config_state; \
+					variable = value; }
+#define CONFIGDUP(variable,value) if(owner_ ## variable <= config_state) { \
+					owner_ ## variable = config_state; \
+					free(variable); \
+					variable = strdup(value); \
+					if( variable == NULL ) { \
+						fputs("Out of Memory!",stderr); \
+						exit(EXIT_FAILURE); \
+					} }
 
 static inline retvalue removeunreferencedfiles(references refs,filesdb files,struct strlist *dereferencedfilekeys) {
 	int i;
@@ -1561,10 +1582,17 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 #define LO_DELETE 1
 #define LO_KEEPUNREFERENCED 2
 #define LO_KEEPUNNEEDEDLISTS 3
-#define LO_NOHTINGISERROR 4
+#define LO_NOTHINGISERROR 4
 #define LO_NOLISTDOWNLOAD 5
 #define LO_ONLYACCEPTSIGNED 6
 #define LO_ASKPASSPHRASE 7
+#define LO_NODELETE 21
+#define LO_NOKEEPUNREFERENCED 22
+#define LO_NOKEEPUNNEEDEDLISTS 23
+#define LO_NONOTHINGISERROR 24
+#define LO_LISTDOWNLOAD 25
+#define LO_NOONLYACCEPTSIGNED 26
+#define LO_NOASKPASSPHRASE 27
 #define LO_DISTDIR 10
 #define LO_DBDIR 11
 #define LO_LISTDIR 12
@@ -1573,46 +1601,14 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 #define LO_METHODDIR 15
 #define LO_VERSION 20
 static int longoption = 0;
+const char *programname;
 
-int main(int argc,char *argv[]) {
-	static struct option longopts[] = {
-		{"delete", 0, &longoption,LO_DELETE},
-		{"basedir", 1, NULL, 'b'},
-		{"ignore", 1, NULL, 'i'},
-		{"methoddir", 1, &longoption, LO_METHODDIR},
-		{"distdir", 1, &longoption, LO_DISTDIR},
-		{"dbdir", 1, &longoption, LO_DBDIR},
-		{"listdir", 1, &longoption, LO_LISTDIR},
-		{"overridedir", 1, &longoption, LO_OVERRIDEDIR},
-		{"confdir", 1, &longoption, LO_CONFDIR},
-		{"section", 1, NULL, 'S'},
-		{"priority", 1, NULL, 'P'},
-		{"component", 1, NULL, 'C'},
-		{"architecture", 1, NULL, 'A'},
-		{"type", 1, NULL, 'T'},
-		{"help", 0, NULL, 'h'},
-		{"verbose", 0, NULL, 'v'},
-		{"version", 0, &longoption, LO_VERSION},
-		{"nothingiserror", 0, &longoption, LO_NOHTINGISERROR},
-		{"nolistsdownload", 0, &longoption, LO_NOLISTDOWNLOAD},
-		{"keepunreferencedfiles", 0, &longoption, LO_KEEPUNREFERENCED},
-		{"keepunneededlists", 0, &longoption, LO_KEEPUNNEEDEDLISTS},
-		{"onlyacceptsigned", 0, &longoption, LO_ONLYACCEPTSIGNED},
-		{"ask-passphrase", 0, &longoption, LO_ASKPASSPHRASE},
-		{"force", 0, NULL, 'f'},
-		{NULL, 0, NULL, 0}
-	};
-	const struct action *a;
+static void handle_option(int c,const char *optarg) {
 	retvalue r;
-	int c;
 
-	init_ignores();
-
-
-	while( (c = getopt_long(argc,argv,"+fVvhb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
-		switch( c ) {
-			case 'h':
-				printf(
+	switch( c ) {
+		case 'h':
+			printf(
 "reprepro - Produce and Manage and Debian package repository\n\n"
 "options:\n"
 " -h, --help:                        Show this help\n"
@@ -1658,141 +1654,208 @@ int main(int argc,char *argv[]) {
 "       List all packages by the given name occuring in the given distribution.\n"
 " listfilter <distribution> <condition>\n"
 "       List all packages in the given distribution matching the condition.\n"
-"\n"
-						);
-				exit(EXIT_SUCCESS);
-			case '\0':
-				switch( longoption ) {
-					case LO_DELETE:
-						delete++;
-						break;
-					case LO_ONLYACCEPTSIGNED:
-						onlyacceptsigned = TRUE;
-						break;
-					case LO_KEEPUNREFERENCED:
-						keepunreferenced=TRUE;
-						break;
-					case LO_KEEPUNNEEDEDLISTS:
-						keepunneededlists=TRUE;
-						break;
-					case LO_NOHTINGISERROR:
-						nothingiserror=TRUE;
-						break;
-					case LO_NOLISTDOWNLOAD:
-						nolistsdownload=TRUE;
-						break;
-					case LO_ASKPASSPHRASE:
-						askforpassphrase=TRUE;
-						break;
-					case LO_DISTDIR:
-						free(distdir);
-						distdir = strdup(optarg);
-						break;
-					case LO_DBDIR:
-						free(dbdir);
-						dbdir = strdup(optarg);
-						break;
-					case LO_LISTDIR:
-						free(listdir);
-						listdir = strdup(optarg);
-						break;
-					case LO_OVERRIDEDIR:
-						free(overridedir);
-						overridedir = strdup(optarg);
-						break;
-					case LO_CONFDIR:
-						free(confdir);
-						confdir = strdup(optarg);
-						break;
-					case LO_METHODDIR:
-						free(methoddir);
-						methoddir = strdup(optarg);
-						break;
-					case LO_VERSION:
-						fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",argv[0]);
-						exit(EXIT_SUCCESS);
-					default:
-						fprintf (stderr,"Error parsing arguments!\n");
-						exit(EXIT_FAILURE);
-				}
-				longoption = 0;
-				break;
-			case 'v':
-				verbose++;
-				break;
-			case 'V':
-				verbose+=5;
-				break;
-			case 'f':
-				force++;
-				break;
-			case 'b':
-				free(mirrordir);
-				mirrordir=strdup(optarg);
-				break;
-			case 'i':
-				r = add_ignore(optarg);
-				if( RET_WAS_ERROR(r) ) {
+"\n");
+			exit(EXIT_SUCCESS);
+		case '\0':
+			switch( longoption ) {
+				case LO_DELETE:
+					delete++;
+					break;
+				case LO_NODELETE:
+					delete--;
+					break;
+				case LO_ONLYACCEPTSIGNED:
+					CONFIGSET(onlyacceptsigned,TRUE);
+					break;
+				case LO_NOONLYACCEPTSIGNED:
+					CONFIGSET(onlyacceptsigned,FALSE);
+					break;
+				case LO_KEEPUNREFERENCED:
+					CONFIGSET(keepunreferenced,TRUE);
+					break;
+				case LO_NOKEEPUNREFERENCED:
+					CONFIGSET(keepunreferenced,FALSE);
+					break;
+				case LO_KEEPUNNEEDEDLISTS:
+					CONFIGSET(keepunneededlists,TRUE);
+					break;
+				case LO_NOKEEPUNNEEDEDLISTS:
+					CONFIGSET(keepunneededlists,FALSE);
+					break;
+				case LO_NOTHINGISERROR:
+					CONFIGSET(nothingiserror,TRUE);
+					break;
+				case LO_NONOTHINGISERROR:
+					CONFIGSET(nothingiserror,FALSE);
+					break;
+				case LO_NOLISTDOWNLOAD:
+					CONFIGSET(nolistsdownload,TRUE);
+					break;
+				case LO_LISTDOWNLOAD:
+					CONFIGSET(nolistsdownload,FALSE);
+					break;
+				case LO_ASKPASSPHRASE:
+					CONFIGSET(askforpassphrase,TRUE);
+					break;
+				case LO_NOASKPASSPHRASE:
+					CONFIGSET(askforpassphrase,FALSE);
+					break;
+				case LO_DISTDIR:
+					CONFIGDUP(distdir,optarg);
+					break;
+				case LO_DBDIR:
+					CONFIGDUP(dbdir,optarg);
+					break;
+				case LO_LISTDIR:
+					CONFIGDUP(listdir,optarg);
+					break;
+				case LO_OVERRIDEDIR:
+					CONFIGDUP(overridedir,optarg);
+					break;
+				case LO_CONFDIR:
+					CONFIGDUP(confdir,optarg);
+					break;
+				case LO_METHODDIR:
+					CONFIGDUP(methoddir,optarg);
+					break;
+				case LO_VERSION:
+					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
+					exit(EXIT_SUCCESS);
+				default:
+					fprintf (stderr,"Error parsing arguments!\n");
 					exit(EXIT_FAILURE);
-				}
-				break;
-			case 'C':
-				if( component != NULL && 
-						strcmp(component,optarg) != 0) {
-					fprintf(stderr,"Multiple '-C' are not supported!\n");
-					exit(EXIT_FAILURE);
-				}
-				free(component);
-				component = strdup(optarg);
-				break;
-			case 'A':
-				if( architecture != NULL && 
-						strcmp(architecture,optarg) != 0) {
-					fprintf(stderr,"Multiple '-A's are not supported!\n");
-					exit(EXIT_FAILURE);
-				}
-				free(architecture);
-				architecture = strdup(optarg);
-				break;
-			case 'T':
-				if( packagetype != NULL && 
-						strcmp(packagetype,optarg) != 0) {
-					fprintf(stderr,"Multiple '-T's are not supported!\n");
-					exit(EXIT_FAILURE);
-				}
-				free(packagetype);
-				packagetype = strdup(optarg);
-				break;
-			case 'S':
-				if( section != NULL && 
-						strcmp(section,optarg) != 0) {
-					fprintf(stderr,"Multiple '-S' are not supported!\n");
-					exit(EXIT_FAILURE);
-				}
-				free(section);
-				section = strdup(optarg);
-				break;
-			case 'P':
-				if( priority != NULL && 
-						strcmp(priority,optarg) != 0) {
-					fprintf(stderr,"Multiple '-P's are mpt supported!\n");
-					exit(EXIT_FAILURE);
-				}
-				free(priority);
-				priority = strdup(optarg);
-				break;
-			case '?':
-				/* getopt_long should have already given an error msg */
+			}
+			longoption = 0;
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case 'V':
+			verbose+=5;
+			break;
+		case 'f':
+			force++;
+			break;
+		case 'b':
+			CONFIGDUP(mirrordir,optarg);
+			break;
+		case 'i':
+			r = add_ignore(optarg);
+			if( RET_WAS_ERROR(r) ) {
 				exit(EXIT_FAILURE);
-			default:
-				fprintf (stderr,"Not supported option '-%c'\n", c);
+			}
+			break;
+		case 'C':
+			if( component != NULL && 
+					strcmp(component,optarg) != 0) {
+				fprintf(stderr,"Multiple '-C' are not supported!\n");
 				exit(EXIT_FAILURE);
-		}
+			}
+			CONFIGDUP(component,optarg);
+			break;
+		case 'A':
+			if( architecture != NULL && 
+					strcmp(architecture,optarg) != 0) {
+				fprintf(stderr,"Multiple '-A's are not supported!\n");
+				exit(EXIT_FAILURE);
+			}
+			CONFIGDUP(architecture,optarg);
+			break;
+		case 'T':
+			if( packagetype != NULL && 
+					strcmp(packagetype,optarg) != 0) {
+				fprintf(stderr,"Multiple '-T's are not supported!\n");
+				exit(EXIT_FAILURE);
+			}
+			CONFIGDUP(packagetype,optarg);
+			break;
+		case 'S':
+			if( section != NULL && 
+					strcmp(section,optarg) != 0) {
+				fprintf(stderr,"Multiple '-S' are not supported!\n");
+				exit(EXIT_FAILURE);
+			}
+			CONFIGDUP(section,optarg);
+			break;
+		case 'P':
+			if( priority != NULL && 
+					strcmp(priority,optarg) != 0) {
+				fprintf(stderr,"Multiple '-P's are mpt supported!\n");
+				exit(EXIT_FAILURE);
+			}
+			CONFIGDUP(priority,optarg);
+			break;
+		case '?':
+			/* getopt_long should have already given an error msg */
+			exit(EXIT_FAILURE);
+		default:
+			fprintf (stderr,"Not supported option '-%c'\n", c);
+			exit(EXIT_FAILURE);
+	}
+}
+
+
+int main(int argc,char *argv[]) {
+	static struct option longopts[] = {
+		{"delete", 0, &longoption,LO_DELETE},
+		{"nodelete", 0, &longoption,LO_NODELETE},
+		{"basedir", 1, NULL, 'b'},
+		{"ignore", 1, NULL, 'i'},
+		{"methoddir", 1, &longoption, LO_METHODDIR},
+		{"distdir", 1, &longoption, LO_DISTDIR},
+		{"dbdir", 1, &longoption, LO_DBDIR},
+		{"listdir", 1, &longoption, LO_LISTDIR},
+		{"overridedir", 1, &longoption, LO_OVERRIDEDIR},
+		{"confdir", 1, &longoption, LO_CONFDIR},
+		{"section", 1, NULL, 'S'},
+		{"priority", 1, NULL, 'P'},
+		{"component", 1, NULL, 'C'},
+		{"architecture", 1, NULL, 'A'},
+		{"type", 1, NULL, 'T'},
+		{"help", 0, NULL, 'h'},
+		{"verbose", 0, NULL, 'v'},
+		{"version", 0, &longoption, LO_VERSION},
+		{"nothingiserror", 0, &longoption, LO_NOTHINGISERROR},
+		{"nolistsdownload", 0, &longoption, LO_NOLISTDOWNLOAD},
+		{"keepunreferencedfiles", 0, &longoption, LO_KEEPUNREFERENCED},
+		{"keepunneededlists", 0, &longoption, LO_KEEPUNNEEDEDLISTS},
+		{"onlyacceptsigned", 0, &longoption, LO_ONLYACCEPTSIGNED},
+		{"ask-passphrase", 0, &longoption, LO_ASKPASSPHRASE},
+		{"nonothingiserror", 0, &longoption, LO_NONOTHINGISERROR},
+		{"nonolistsdownload", 0, &longoption, LO_LISTDOWNLOAD},
+		{"listsdownload", 0, &longoption, LO_LISTDOWNLOAD},
+		{"nokeepunreferencedfiles", 0, &longoption, LO_NOKEEPUNREFERENCED},
+		{"nokeepunneededlists", 0, &longoption, LO_NOKEEPUNNEEDEDLISTS},
+		{"noonlyacceptsigned", 0, &longoption, LO_NOONLYACCEPTSIGNED},
+		{"noask-passphrase", 0, &longoption, LO_NOASKPASSPHRASE},
+		{"force", 0, NULL, 'f'},
+		{NULL, 0, NULL, 0}
+	};
+	const struct action *a;
+	retvalue r;
+	int c;
+
+	programname = argv[0];
+
+	init_ignores();
+
+	config_state = CONFIG_OWNER_CMDLINE;
+
+	while( (c = getopt_long(argc,argv,"+fVvhb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
+		handle_option(c,optarg);
 	}
 	if( optind >= argc ) {
 		fprintf(stderr,"No action given. (see --help for available options and actions)\n");
 		exit(EXIT_FAILURE);
 	}
+
+	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
+	 * but perhaps it gets more... */
+	config_state = CONFIG_OWNER_ENVIRONMENT;
+	if( mirrordir == NULL && getenv("REPREPRO_BASE_DIR") ) {
+		CONFIGDUP(mirrordir,getenv("REPREPRO_BASE_DIR"));
+	}
+
 	if( mirrordir == NULL ) {
 		mirrordir=strdup(STD_BASE_DIR);
 		if( mirrordir == NULL ) {
@@ -1800,6 +1863,18 @@ int main(int argc,char *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 	}
+	if( confdir == NULL )
+		confdir=calc_dirconcat(mirrordir,"conf");
+
+	config_state = CONFIG_OWNER_FILE;
+	optionsfile_parse(confdir,longopts,handle_option);
+
+	/* basedir might have changed, so recalculate */
+	if( owner_confdir == CONFIG_OWNER_DEFAULT ) {
+		free(confdir);
+		confdir=calc_dirconcat(mirrordir,"conf");
+	}
+
 	if( methoddir == NULL )
 		methoddir = strdup(STD_METHOD_DIR);
 	if( distdir == NULL )
@@ -1808,8 +1883,6 @@ int main(int argc,char *argv[]) {
 		dbdir=calc_dirconcat(mirrordir,"db");
 	if( listdir == NULL )
 		listdir=calc_dirconcat(mirrordir,"lists");
-	if( confdir == NULL )
-		confdir=calc_dirconcat(mirrordir,"conf");
 	if( overridedir == NULL )
 		overridedir=calc_dirconcat(mirrordir,"override");
 	if( distdir == NULL || dbdir == NULL || listdir == NULL 

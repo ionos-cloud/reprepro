@@ -15,17 +15,15 @@ reprepro \- produce, manage and sync a local repository of debian packages
 .SH DESCRIPTION
 reprepro is a tool to manage a repository of Debian packages
 (.deb, .udeb, .dsc, ...). 
-It stores files either beeing injected manually or 
-downloaded from some other repository (partically) mirrored 
+It stores files either being injected manually or 
+downloaded from some other repository (partially) mirrored 
 into a pool/ hierarchy. 
 Managed packages and files are stored in a libdb3 database, 
 so no database server is needed. 
 Checking signatures of mirrored repositories and creating
 signatures of the generated Package indices is supported.
 
-\fBWARNING: Reprepro does not have much users yet, so not all
-code paths are severly tested. Please report any bugs you
-find.\fP
+.B WARNING: Some functions are still quite experimental and not very heavily tested. Be careful.
 
 Former working title of this program was mirrorer.
 .SH "GLOBAL OPTIONS"
@@ -47,28 +45,33 @@ Do things nevertheless. Might be dangerous and destructive.
 .B \-b, \-\-basedir \fIbasedir\fP
 Sets the base\-dir of the repository to manage, i.e. where the
 .B pool/
-subdirectory resides. If no prior or later command
-sets other values, that also means
-.B \-\-distdir \fIbasedir\fP/dists \-\-dbdir \fIbasedir\fP/db 
-.B \-\-listdir \fIbasedir\fP/lists \-\-confdir \fIbasedir\fP/conf 
-.B \-\-overridedir \fIbasedir\fP/override
-\&.
+subdirectory resides.
+If none is supplied and the
+.B REPREPRO_BASE_DIR
+environment variable is not set either, the current directory
+will be used.
 .TP
 .B \-\-confdir \fIconfdir\fP
 Sets the directory where the configuration is searched in.
+
+If none is given, \fIbasedir\fP\fB/conf\fP will be used.
 .TP
 .B \-\-distdir \fIdistdir\fP
 Sets the directory to generate index files relatively to. (i.e. things like
 Packages.gz Sources.gz and Release.gpg)
 
+If none is given, \fIbasedir\fP\fB/dists\fP is used.
+
 .B Note: 
 apt has 
 .B dists
-hardcoded in it, so this is only useful for testing or when your webserver
+hardcoded in it, so this is mostly only useful for testing or when your webserver
 pretends another directory structure than your physical layout.
 .TP
 .B \-\-dbdir \fIdbdir\fP
 Sets the directory where reprepro keeps its databases.
+
+If none is given, \fIbasedir\fP\fB/db\fP is used.
 
 .B Note:
 This is permanent data, no cache. One has almost to regenerate the whole
@@ -78,10 +81,13 @@ repository when this is lost.
 Sets the directory where downloads it downloads indices to when importing
 from other repositories. This is temporary data and can be safely deleted
 when not in an update run.
+
+If none is given, \fIbasedir\fP\fB/lists\fP is used.
 .TP
 .B \-\-overridedir \fIoverridedir\fP
 Sets the directory where specified override\-files will be searched in if
 they do not start with a slash.
+If none is given, \fIbasedir\fP\fB/override\fP is used.
 .TP
 .B \-\-methoddir \fImethoddir\fP
 Look in \fImethoddir\fP instead of
@@ -126,20 +132,20 @@ belong to one of the updated distributions but will not be needed.
 Those file may happen to exist when you removed 
 some Update: rule or changed Components/Architectures/... .
 This is mostly only useful if you want to temporarily disable some update
-rule and want to avoid downloading their index files again when you readd
+rule and want to avoid downloading their index files again when you read
 it later.
 .TP 
-.B \-\-ask-passphrase
+.B \-\-ask\-passphrase
 Ask for passphrases when signing things and one is needed. This is a quick
 and dirty implementation using the obsolete \fBgetpass(3)\fP function
 with the description gpgme is supplying. So the prompt will look quite
 funny and support for passphrases with more than 8 characters depend on your libc.
-I suggest using gpg-agent or something like that instead.
+I suggest using gpg\-agent or something like that instead.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
 Generate all index files for the specified distributions. (For all if none
-is specified). This will normaly be done automatically and more
+is specified). This will normally be done automatically and more
 fine\-tuned when including or removing packages, so seldom needed; but is nevertheless 
 a good way to see if
 a new 
@@ -158,7 +164,7 @@ is given) and architectures (except when
 is given) of the specified distribution.
 .TP
 .B listfilter \fIcodename\fP \fIcondition\fP
-as list, but does not list a single packge, but all packages
+as list, but does not list a single package, but all packages
 matching the given condition.
 
 .B reprepro \-b . \-T deb listfilter test2 'Source (==blub) | ( !Source , Package (==blub) )'
@@ -197,7 +203,7 @@ like .orig.tar.gz, .tar.gz and/or .diff.gz) in the specified
 distribution, applying override information and guessing all values 
 not given and guessable.
 
-Note that as .dsc files do not contain section or priorty, but the
+Note that as .dsc files do not contain section or priority, but the
 Sources.gz file does, you have to either specify a DscOverride or
 given them via
 .B \-S
@@ -278,7 +284,7 @@ is given as argument or as a line of the input
 (when run without arguments), and calculate
 their md5sum and add them to the list of known files.
 (Warning: this is a low level operation, no input validation
- or normalisation is done.)
+ or normalization is done.)
 .TP
 .BR _forget " [ " \fIfilekeys\fP " ]"
 Like
@@ -286,7 +292,7 @@ Like
 but remove the given \fIfilekey\fP from the list of known
 files.
 (Warning: this is a low level operation, no input validation
- or normalisation is done.)
+ or normalization is done.)
 .TP
 .B _listmd5sums
 Print a list of all known files and their md5sums.
@@ -299,7 +305,7 @@ use a single space anywhere more than needed).
 .BI _dumpcontents " identifier"
 Printout all the stored information of the specified
 part of the repository. (Or in other words, the content
-the corresposing Packages or Sources file would get)
+the corresponding Packages or Sources file would get)
 .TP
 .BI "_addreference " filekey " " identifier
 Manually mark \fIfilekey\fP to be needed by \fIidentifier\fP
@@ -314,22 +320,39 @@ Look what reprepro believes to be the content of the
 file of the specified .deb-file.
 .SH "CONFIG FILES"
 .B reprepo 
-uses two config files, that are searched in
+uses three config files, which are searched in
 the directory specified with 
 .B \-\-confdir
 or in the
 .B conf/
-subdirectory of the directory given by
-.B \-b
- . The file
+subdirectory of the \fIbasedir\fP.
+
+If an file
+.B options
+exists, it is parsed line by line. 
+Each line can be the long
+name of an command line option (without the \-\-) 
+plus an argument, where possible.
+Those are handled as if they were command line options given before
+(and thus lower priority than) any other command line option.
+(and also lower priority than any environment variable).
+
+To allow command line options to override options file options,
+most boolean options also have a corresponding form starting with \fB\-\-no\fP.
+
+(The only exception is when the path to look for config files
+ changes, the options file will only opened once and of course
+ before any options within the options file are parsed.)
+
+The file
 .B distributions
 is always needed and describes what distributions
 to manage, while
 .B updates
 is only needed when syncing with external repositories.
 
-Both are in the format control files in Debian are in,
-i.e. paragraphs seperated by blank lines consisting of
+The last both are in the format control files in Debian are in,
+i.e. paragraphs separated by blank lines consisting of
 fields. Each field consists of an fieldname, followed
 by a colon, possible whitespace and the data. A field
 ends with a newline not followed by a space or tab.
@@ -377,7 +400,7 @@ and be checked against "Architecture:" fields.)
 This will also be copied into the Release files. (With exception
 of the
 .B source
-item, which will not occour in the topmost Release file wheather
+item, which will not occur in the topmost Release file whether
 it is present here or not)
 .TP
 .B Components
@@ -388,7 +411,7 @@ for rules which component packages are included into
 by default. This will also be copied into the Release files.
 .TP
 .B UDebComponents
-Components with a debian\-installer subhirachy containing .udebs.
+Components with a debian\-installer subhierachy containing .udebs.
 (E.g. simply "main")
 .TP
 .B Update
@@ -397,12 +420,12 @@ for this distribution. There also can be a magic rule minus ("\-"),
 see below.
 .TP
 .B SignWith
-When this field is present, a Relese.gpg file will be generated.
+When this field is present, a Release.gpg file will be generated.
 If the value is "yes" and "default", the default key
 is used.
 Otherwise the value will be given to libgpgme to determine to key to 
 use.
-(That should be roughly the one \fBgpg --list-secret-keys\fP \fIvalue\fP would output).
+(That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
@@ -422,7 +445,7 @@ part describes what the Index file shall be called.
 The second argument determines the name of a Release
 file to generate or not to generate if missing.
 Then one or two of "\fB.\fP" or "\fB.gz\fP"
-specifing whether to generate uncompressed output, gzipped
+specifying whether to generate uncompressed output, gzipped
 output or both. If an argument not starting with dot follows,
 it will be executed after each index file is generated.
 (See the examples for what argument this gets).
@@ -442,7 +465,7 @@ The argument is a list of the following:
 Keeps all files of a given source package, until that
 is deleted explicitly via \fBremovetrack\fP. This is
 currently the only possibility to keep older packages
-around when all indicies contain newer files.
+around when all indices contain newer files.
 .br
 .B all
 Not yet implemented
@@ -497,7 +520,7 @@ is replaced by "<codename>/whatever"
 .B Components
 The components to update. Each item can be either the name
 of a component or a pair of a upstream component and a local
-component seperated with ">". (e.g. "main>all contrib>all non\-free>notall")
+component separated with ">". (e.g. "main>all contrib>all non\-free>notall")
 Items with a local part are ignored. If no items are there
 all from the updated distribution are taken. (Use some nonexisting
 like "none", if you want none).
@@ -506,9 +529,9 @@ like "none", if you want none).
 The architectures to update. If omitted all from the distribution
 to update from. (As with components, you can use ">" to download
 from one Architecture and add into an other one. (This only determine
-in which Package list they land, it neighter overwrites the Architecture
+in which Package list they land, it neither overwrites the Architecture
 line in its description, nor the one in the filename determined from this
-one. In other words, it is no really usefull without additional things)
+one. In other words, it is no really useful without additional things)
 .TP
 .B UDebComponents
 Like
@@ -522,8 +545,8 @@ file and check if it is a signature of the
 .B Releasefile 
 with the key given here. (In the Format as
 "gpg \-\-with\-colons \-\-list\-key" prints it, i.e. the last
-16 hexdigits of the fingerprint) Multiple keys can be specified
-by seperating them with a "|" sign. Then finding a signature
+16 hex digits of the fingerprint) Multiple keys can be specified
+by separating them with a "|" sign. Then finding a signature
 from one of the will suffice.
 .TP
 .B IgnoreRelease
@@ -552,13 +575,13 @@ will be installed. Things listed as
 .B deinstall
 or 
 .B purge
-or nonexistent will be treated like not beeing known.
-A package beeing
+or nonexistent will be treated like not being known.
+A package being
 .B hold
 will not be upgraded but also not downgraded or removed.
 .TP
 .B ListHook
-If this is given, it es executed for all downloaded index files
+If this is given, it is executed for all downloaded index files
 with the downloaded list as first and a filename that will
 be used instead of this. (e.g. "ListHook: /bin/cp" works
 but does nothing.)
@@ -569,11 +592,11 @@ When including a binary or source package without explicitly
 declaring a component with
 .B \-C
 it will take the
-first component with the name of the section, beeing
-prefix to the section, beeing suffix to the section
+first component with the name of the section, being
+prefix to the section, being suffix to the section
 or having the section as prefix or any. (In this order)
 
-Thus having specifiend the components:
+Thus having specified the components:
 "main non\-free contrib non\-US/main non\-US/non\-free non\-US/contrib"
 should map e.g.
 "non\-US" to "non\-US/main" and "contrib/editors" to "contrib",
@@ -619,7 +642,7 @@ Things like
 .B non\-free 
 and
 .B contrib
-  (somtimes also called sections)
+  (sometimes also called sections)
 .TP
 .B section
 Things like 
@@ -629,7 +652,7 @@ Things like
   (sometimes also called subsections)
 .TP
 .B md5sum
-The checksum of a file, beeing in the format
+The checksum of a file, being in the format
 "\fI<md5sum of file>\fP \fI<length of file>\fP"
 .SH Some note on updates
 .SS A version is not overwritten with the same version.
@@ -639,7 +662,7 @@ be equivalent to rebuilding the whole database with every single upgrade.
 To force the new same version in, remove it and then update. (If you
 do no 
 .B deleteunreferenced 
-inbetween, it will not need to reget the
+in between, it will not need to reget the
 Packages files themselves. If those change, better to a 
 .B deleteunreferenced
 in between or a 
@@ -677,17 +700,24 @@ is not the first one in
 .I rules,
 as it never remember more than one possible spring for a package.
 .P
-Warning: This rule applies to all type/component/architecture tripples
+Warning: This rule applies to all type/component/architecture triplets
 of a distribution, not only those some other update rule applies to.
-(That means it will delete everthing in those!)
+(That means it will delete everything in those!)
+.SH ENVIRONMENT VARIABLES
+.TP 
+.B REPREPRO_BASE_DIR
+The directory in this variable is used instead of the current directory,
+if no \fB\-b\fP or \fB\-\-basedir\fP options are supplied.
+(If both the the environment and the config are set, the value from 
+ environment is taken.)
 .SH BUGS
 The
 .B \-\-force
 option needs to be replaced by something superior so that one can allow
-stupid things but not descructive things.
+stupid things but not destructive things.
 
 Increased verbosity always shows those things one does not want to know.
-(Though this might be inevitable and a corrolary to Murphy)
+(Though this might be inevitable and a corollary to Murphy)
 
 While the source part is mostly considered as the architecture
 .B source
