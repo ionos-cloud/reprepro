@@ -1,3 +1,8 @@
+2005-08-26  Bernhard R. Link <brlink@debian.org>
+	* read conf/options for default command line options,
+	use REPREPRO_BASE_DIR for default -b value, add --no
+	options to disable previously enabled options again,
+
 2005-08-05  Bernhard R. Link <brlink@debian.org>
 	* do not set execute bit of signed files
 

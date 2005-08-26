@@ -1,4 +1,8 @@
 Updates since 0.5:
+- no longer set execute bit of generated Release.gpg files
+- use REPREPRO_BASE_DIR for default basedir, parse conf/options
+  for further default options. (and add --no options to disable
+  boolean options again)
 
 Updates since 0.4:
 - starts of source package tracking
