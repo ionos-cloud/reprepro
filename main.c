@@ -1377,6 +1377,122 @@ ACTION_D(include) {
 	return result;
 }
 
+/***********************createsymlinks***********************************/
+
+ACTION_N(createsymlinks) {
+	retvalue result,r;
+	struct distribution *distributions,*d,*d2;
+
+	r = dirs_make_recursive(distdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		char *linkname,*buffer;
+		size_t bufsize;
+		int ret;
+		
+		if( d->suite == NULL )
+			continue;
+		r = RET_NOTHING;
+		for( d2 = distributions ; d2 != NULL ; d2 = d2->next ) {
+			if( d!=d2 && d2->suite!=NULL &&strcmp(d->suite,d2->suite)==0) {
+				fprintf(stderr,
+"Not linking %s->%s due to conflict with %s->%s\n",
+					d->suite,d->codename,
+					d2->suite,d2->codename);
+				r = RET_ERROR;
+			} else if( strcmp(d->suite,d2->codename)==0) {
+				fprintf(stderr,
+"Not linking %s->%s due to conflict with %s\n",
+					d->suite,d->codename,d2->codename);
+				r = RET_ERROR;
+			}
+		}
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			continue;
+		}
+
+		linkname = calc_dirconcat(distdir,d->suite);
+		bufsize = strlen(d->codename)+10;
+		buffer = calloc(1,bufsize);
+		if( linkname == NULL || buffer == NULL ) {
+			free(linkname);free(buffer);
+			fputs("Out of Memory!\n",stderr);
+			return RET_ERROR_OOM;
+		}
+
+		ret = readlink(linkname,buffer,bufsize-4);
+		if( ret < 0 && errno == ENOENT ) {
+			ret = symlink(d->codename,linkname);
+			if( ret != 0 ) {
+				r = RET_ERRNO(errno);
+				fprintf(stderr,"Error creating symlink %s->%s: %d=%m\n",linkname,d->codename,errno);
+				RET_UPDATE(result,r);
+			} else {
+				if( verbose > 0 ) {
+					printf("Created %s->%s\n",linkname,d->codename);
+				}
+				RET_UPDATE(result,RET_OK);
+			}
+		} else if( ret >= 0 ) {
+			buffer[ret] = '\0';
+			if( ret >= bufsize-4 ) {
+				buffer[bufsize-4]='.';
+				buffer[bufsize-3]='.';
+				buffer[bufsize-2]='.';
+				buffer[bufsize-1]='\0';
+			}
+			if( strcmp(buffer,d->codename) == 0 ) {
+				if( verbose > 2 ) {
+					printf("Already ok: %s->%s\n",linkname,d->codename);
+				}
+				RET_UPDATE(result,RET_OK);
+			} else {
+				if( delete <= 0 ) {
+					fprintf(stderr,"Cannot create %s as already pointing to %s instead of %s,\n use --delete to delete the old link before creating an new one.\n",linkname,buffer,d->codename);
+					RET_UPDATE(result,RET_ERROR);
+				} else {
+					unlink(linkname);
+					ret = symlink(d->codename,linkname);
+					if( ret != 0 ) {
+						r = RET_ERRNO(errno);
+						fprintf(stderr,"Error creating symlink %s->%s: %d=%m\n",linkname,d->codename,errno);
+						RET_UPDATE(result,r);
+					} else {
+						if( verbose > 0 ) {
+							printf("Replaced %s->%s\n",linkname,d->codename);
+						}
+						RET_UPDATE(result,RET_OK);
+					}
+
+				}
+			}
+		} else {
+			r = RET_ERRNO(errno);
+			fprintf(stderr,"Error checking %s, perhaps not a symlink?: %d=%m\n",linkname,errno);
+			RET_UPDATE(result,r);
+		}
+
+		RET_UPDATE(result,r);
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+
+/**********************/
+/* lock file handling */
+/**********************/
+
 static retvalue acquirelock(const char *dbdir) {
 	char *lockfile;
 	int fd;
@@ -1468,6 +1584,7 @@ static const struct action {
 	{"remove", 		A_D(remove)},
 	{"list", 		A_N(list)},
 	{"listfilter", 		A_N(listfilter)},
+	{"createsymlinks", 	A_N(createsymlinks)},
 	{"export", 		A_N(export)},
 	{"check", 		A_RF(check)},
 	{"reoverride", 		A_N(reoverride)},

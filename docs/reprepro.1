@@ -152,6 +152,15 @@ a new
 .B distributions
 config\-file does the expected things.
 .TP
+.BR createsymlinks " [ " \-\-delete " ] [ " \fIcodenames\fP " ]"
+Creates \fIsuite\fP symbolic links in the \fBdists/\fP-directory pointing
+to the corresponding \fIcodename\fP.
+
+It will not create links, when multiple of the given codenames
+would be linked from the same suite name, or if the link
+already exists (though when \fB\-\-delete\fP is given it
+will delete already existing symlinks)
+.TP
 .B list \fIcodename\fP \fIpackagename\fP
 List all packages (source and binary, except when
 .B \-T 

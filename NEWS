@@ -3,6 +3,7 @@ Updates since 0.5:
 - use REPREPRO_BASE_DIR for default basedir, parse conf/options
   for further default options. (and add --no options to disable
   boolean options again)
+- new command createsymlinks (for symlinks like "stable"->"sarge")
 
 Updates since 0.4:
 - starts of source package tracking

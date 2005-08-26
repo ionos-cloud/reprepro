@@ -1,6 +1,8 @@
-reprepro (0.5-2) NOWHERE; urgency=low
+reprepro (0.6-0) UNRELEASED; urgency=low
 
   * add suggest for gnupg-agent (Closes: 324151)
+  * new version
+  - adds createsymlinks command (Closes: 324155)
 
  -- Bernhard R. Link <brl@pcpool00.mathematik.uni-freiburg.de>  Sun, 21 Aug 2005 16:32:03 +0200
 
