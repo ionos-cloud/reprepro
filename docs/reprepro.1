@@ -713,12 +713,18 @@ Warning: This rule applies to all type/component/architecture triplets
 of a distribution, not only those some other update rule applies to.
 (That means it will delete everything in those!)
 .SH ENVIRONMENT VARIABLES
+Environment variables are always overwritten by command line options,
+but overwrite options set in the \fBoptions\fP file. (Even when the
+options file is obiously parsed after the environment variables as
+the environment may determine the place of the options file).
 .TP 
 .B REPREPRO_BASE_DIR
 The directory in this variable is used instead of the current directory,
 if no \fB\-b\fP or \fB\-\-basedir\fP options are supplied.
-(If both the the environment and the config are set, the value from 
- environment is taken.)
+.TP
+.B REPREPRO_CONFIG_DIR
+The directory in this variable is used when no \fB\-\-confdir\fP is
+supplied.
 .SH BUGS
 The
 .B \-\-force

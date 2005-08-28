@@ -1972,16 +1972,20 @@ int main(int argc,char *argv[]) {
 	if( mirrordir == NULL && getenv("REPREPRO_BASE_DIR") ) {
 		CONFIGDUP(mirrordir,getenv("REPREPRO_BASE_DIR"));
 	}
+	if( confdir == NULL && getenv("REPREPRO_CONFIG_DIR") ) {
+		CONFIGDUP(confdir,getenv("REPREPRO_CONFIG_DIR"));
+	}
 
 	if( mirrordir == NULL ) {
 		mirrordir=strdup(STD_BASE_DIR);
-		if( mirrordir == NULL ) {
-			(void)fputs("Out of Memory!\n",stderr);
-			exit(EXIT_FAILURE);
-		}
 	}
-	if( confdir == NULL )
+	if( confdir == NULL && mirrordir != NULL )
 		confdir=calc_dirconcat(mirrordir,"conf");
+
+	if( mirrordir == NULL || confdir == NULL ) {
+		(void)fputs("Out of Memory!\n",stderr);
+		exit(EXIT_FAILURE);
+	}
 
 	config_state = CONFIG_OWNER_FILE;
 	optionsfile_parse(confdir,longopts,handle_option);
