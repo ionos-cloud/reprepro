@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "22 July, 2004" "reprepro" REPREPRO
+.TH REPREPRO 1 "28 August, 2005" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -376,9 +376,9 @@ It is also copied into the Release files.
 .B Suite
 This optional field is simply copied into the
 Release files. In Debian it contains names like
-stable, testing or unstable. It is not used otherwise
-currently, there are no symlinks created. (though that
-might change in the future)
+stable, testing or unstable. To create symlinks
+from the Suite to the Codename, use the
+\fBcreatesymlinks\fP command of reprepro.
 .TP
 .B Version
 This optional field is simply copied into the
