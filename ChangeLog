@@ -1,3 +1,7 @@
+2005-09-06  Bernhard R. Link <brlink@debian.org>
+	* fix error in parsing FilterList default action
+	  (thanks to Sergio Talens-Oliag for finding that)
+
 2005-08-28  Bernhard R. Link <brlink@debian.org>
 	* add REPREPRO_CONFIG_DIR
 

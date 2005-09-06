@@ -4,6 +4,7 @@ Updates since 0.5:
   for further default options. (and add --no options to disable
   boolean options again)
 - new command createsymlinks (for symlinks like "stable"->"sarge")
+- parse FilterList default action correctly
 
 Updates since 0.4:
 - starts of source package tracking
