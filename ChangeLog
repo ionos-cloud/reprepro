@@ -1,3 +1,7 @@
+2005-09-22  Bernhard R. Link <brlink@debian.org>
+	* add --unignore (with alias --noignore)
+	to allow overwriting ignore in config.
+
 2005-09-06  Bernhard R. Link <brlink@debian.org>
 	* fix error in parsing FilterList default action
 	  (thanks to Sergio Talens-Oliag for finding that)

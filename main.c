@@ -90,8 +90,7 @@ int		verbose = 0;
 
 /* define for each config value an owner, and only higher owners are allowed
  * to change something owned by lower owners. */
-enum config_option_owner { CONFIG_OWNER_DEFAULT=0, CONFIG_OWNER_FILE, CONFIG_OWNER_ENVIRONMENT,
-		           CONFIG_OWNER_CMDLINE} config_state,
+enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
 O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(onlyacceptsigned),O(askforpassphrase);
 #undef O
@@ -1717,6 +1716,7 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 #define LO_CONFDIR 14
 #define LO_METHODDIR 15
 #define LO_VERSION 20
+#define LO_UNIGNORE 30
 static int longoption = 0;
 const char *programname;
 
@@ -1775,6 +1775,12 @@ static void handle_option(int c,const char *optarg) {
 			exit(EXIT_SUCCESS);
 		case '\0':
 			switch( longoption ) {
+				case LO_UNIGNORE:
+					r = set_ignore(optarg,FALSE,config_state);
+					if( RET_WAS_ERROR(r) ) {
+						exit(EXIT_FAILURE);
+					}
+					break;
 				case LO_DELETE:
 					delete++;
 					break;
@@ -1857,7 +1863,7 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(mirrordir,optarg);
 			break;
 		case 'i':
-			r = add_ignore(optarg);
+			r = set_ignore(optarg,TRUE,config_state);
 			if( RET_WAS_ERROR(r) ) {
 				exit(EXIT_FAILURE);
 			}
@@ -1918,6 +1924,8 @@ int main(int argc,char *argv[]) {
 		{"nodelete", no_argument, &longoption,LO_NODELETE},
 		{"basedir", required_argument, NULL, 'b'},
 		{"ignore", required_argument, NULL, 'i'},
+		{"unignore", required_argument, &longoption, LO_UNIGNORE},
+		{"noignore", required_argument, &longoption, LO_UNIGNORE},
 		{"methoddir", required_argument, &longoption, LO_METHODDIR},
 		{"distdir", required_argument, &longoption, LO_DISTDIR},
 		{"dbdir", required_argument, &longoption, LO_DBDIR},

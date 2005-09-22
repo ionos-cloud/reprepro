@@ -25,16 +25,18 @@
 
 int ignored[IGN_COUNT];
 bool_t ignore[IGN_COUNT];
+enum config_option_owner owner_ignore[IGN_COUNT];
 
 void init_ignores(void) {
 	int i;
 	for( i = 0 ; i < IGN_COUNT ; i++ ) {
 		ignored[i] = 0;
 		ignore[i] = FALSE;
+		owner_ignore[i] = CONFIG_OWNER_DEFAULT;
 	}
 }
 
-static retvalue add(const char *given,size_t len) {
+static retvalue set(const char *given,size_t len, bool_t newvalue, enum config_option_owner newowner) {
 	int i;
 	static const char * const ignores[] = {
 #define IGN(what) #what ,
@@ -46,7 +48,10 @@ static retvalue add(const char *given,size_t len) {
 
 	for( i = 0 ; i < IGN_COUNT ; i++) {
 		if( strncmp(given,ignores[i],len) == 0 && ignores[i][len] == '\0' ) {
-			ignore[i] = TRUE;
+			if( owner_ignore[i] <= newowner  ) {
+				ignore[i] = newvalue;
+				owner_ignore[i] = newowner;
+			}
 			break;
 		}
 	}
@@ -63,7 +68,7 @@ static retvalue add(const char *given,size_t len) {
 		return RET_OK;
 }
 
-retvalue add_ignore(const char *given) {
+retvalue set_ignore(const char *given,bool_t newvalue, enum config_option_owner newowner) {
 	const char *g,*p;
 	retvalue r;
 
@@ -79,7 +84,7 @@ retvalue add_ignore(const char *given) {
 			fprintf(stderr,"Empty ignore option in --ignore='%s'!\n",given);
 			return RET_ERROR_MISSING;
 		}
-		r = add(g,p-g);
+		r = set(g,p-g,newvalue,newowner);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( *p == '\0' )
