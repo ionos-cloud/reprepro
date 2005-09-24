@@ -28,6 +28,7 @@
 #include <malloc.h>
 #include <ctype.h>
 #include "error.h"
+#include "ignore.h"
 #include "strlist.h"
 #include "md5sum.h"
 #include "names.h"
@@ -835,7 +836,8 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( (distribution->suite == NULL || 
 		!strlist_in(&changes->distributions,distribution->suite)) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
-		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
+		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") )
+			return RET_ERROR;
 	}
 
 	/* look for component, section and priority to be correct or guess them*/

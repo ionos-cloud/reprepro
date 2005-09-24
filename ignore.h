@@ -15,7 +15,8 @@
 	IGN(spaceonlyline) \
 	IGN(malformedchunk) \
 	IGN(shortkeyid) \
-	IGN(unknownfield)
+	IGN(unknownfield) \
+	IGN(wrongdistribution)
 
 
 enum ignore { 

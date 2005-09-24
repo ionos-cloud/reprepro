@@ -5,6 +5,9 @@ Updates since 0.5:
   boolean options again, same for ignore)
 - new command createsymlinks (for symlinks like "stable"->"sarge")
 - parse FilterList default action correctly
+- putting .changes in a distribution not listed is now an error
+  without --ignore=wrongdistribution (and without
+  "ignore wrongdistributions" in conf/options)
 
 Updates since 0.4:
 - starts of source package tracking
