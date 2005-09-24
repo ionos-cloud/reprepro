@@ -1,6 +1,8 @@
 2005-09-24  Bernhard R. Link <brlink@debian.org>
 	* putting a .changes in the wrong distribution
 	is an error now without --ignore=wrongdistribution
+	* puttin new address in GPL notices, redownload
+	  COPYING (fixing some typos and addresses)
 
 2005-09-22  Bernhard R. Link <brlink@debian.org>
 	* add --unignore (with alias --noignore)
