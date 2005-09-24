@@ -8,7 +8,7 @@ reprepro (0.6-1) unstable; urgency=low
   - putting .changes in wrong distribution is
     now an (--ignoreable) error.
 
- -- Bernhard R. Link <brl@pcpool09.mathematik.uni-freiburg.de>  Sat, 24 Sep 2005 17:11:42 +0200
+ -- Bernhard R. Link <brlnk@debian.org>  Sat, 24 Sep 2005 17:11:42 +0200
 
 reprepro (0.5-1) unstable; urgency=low
 
