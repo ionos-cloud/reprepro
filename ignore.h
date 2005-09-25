@@ -7,7 +7,6 @@
 
 #define VALID_IGNORES \
 	IGN(ignore) \
-	IGN(invalid_distribution) \
 	IGN(forbiddenchar) \
 	IGN(8bit) \
 	IGN(emptyfilenamepart) \
