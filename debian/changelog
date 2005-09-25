@@ -1,3 +1,7 @@
+reprepro (0.7-1) UNRELEASED; urgency=low
+
+  * ...
+
 reprepro (0.6-1) unstable; urgency=low
 
   * add suggest for gnupg-agent (Closes: 324151)
