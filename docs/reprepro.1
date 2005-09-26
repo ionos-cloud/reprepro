@@ -599,7 +599,35 @@ with the downloaded list as first and a filename that will
 be used instead of this. (e.g. "ListHook: /bin/cp" works
 but does nothing.)
 .SH "OVERRIDE FILES"
-yet to be described
+Override files are yet only used when things are manually added,
+not when imported while updating from an external source.
+The format should resemble the extended ftp-archive format,
+to be specific it is:
+
+.B \fIpackagename\fP \fIfieldname\fP \fInewvalue\fP
+
+For example:
+.br
+.B kernel-image-2.4.31-yourorga Section protected/base
+.br
+.B kernel-image-2.4.31-yourorga Priority standard
+.br
+.B kernel-image-2.4.31-yourorga Maintainer That's me <me@localhost>
+.br
+.B reprepro Priority required
+
+All fields of a given package will be replaced by the new value specified
+in the override file.
+While the fieldname is compared case-insensitive, it is copied in
+exactly the form in the override file there.
+(Thus I suggest to keep to the exact case it is normaly found in 
+index files in case some other tool confuses them.)
+More than copied is the Section header (unless \fB\-S\fP is supplied),
+which is also used to guess the component (unless \fB\-C\fP is there).
+There is no protection against changing headers like \fBPackage\fP, 
+\fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
+fields may give the most curious results.
+(Most likely reprepro may error out in future invocations).
 .SH "ERROR IGNORING"
 With \fB\-\-ignore\fP on the command line or an \fIignore\fP
 line in the options file, the following type of errors can be

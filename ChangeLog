@@ -1,3 +1,10 @@
+2005-09-26  Bernhard R. Link <brlink@debian.org>
+	* Document override files' format in manpage
+
+2005-09-25  Bernhard R. Link <brlink@debian.org>
+	* Documenting --ignore in manpage
+	* some clarifications in manpage
+
 2005-09-24  Bernhard R. Link <brlink@debian.org>
 	* putting a .changes in the wrong distribution
 	is an error now without --ignore=wrongdistribution
