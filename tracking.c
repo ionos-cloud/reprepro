@@ -319,27 +319,28 @@ static inline int search(DBC *cursor,DBT *key,DBT *data,const char *version, siz
 
 static inline retvalue parsedata(const char *name,const char *version,size_t versionlen,DBT data,/*@out@*/struct trackedpackage **pkg) {
 	struct trackedpackage *p;
-	const char *d;
+	const char *d = data.data;
+	size_t size = data.size;
 	int i;
 
-	d = data.data;
 	p = calloc(1,sizeof(struct trackedpackage));
 	if( p == NULL )
 		return RET_ERROR_OOM;
 	p->sourcename = strdup(name);
 	p->sourceversion = strdup(version);
+	assert( size >= versionlen+1 );
 	d += versionlen+1;
-	data.size -= versionlen+1;
+	size -= versionlen+1;
 	if( p->sourcename == NULL || p->sourceversion == NULL /*||
 				     p->sourcedir == NULL */ ) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
 	}
-	while( *d != '\0' && data.size > 0 ) {
+	while( *d != '\0' && size > 0 ) {
 		char *filekey;
 		retvalue r;
 
-		filekey = strndup(d,data.size-1);
+		filekey = strndup(d,size-1);
 		if( filekey == NULL ) {
 			trackedpackage_free(p);
 			return RET_ERROR_OOM;
@@ -350,23 +351,23 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 			return r;
 		}
 		d += strlen(filekey)+1;
-		data.size -= strlen(filekey)+1;
+		size -= strlen(filekey)+1;
 	}
-	d++,data.size--;
+	d++,size--;
 	p->refcounts = calloc(p->filekeys.count,sizeof(int));
 	if( p->refcounts == NULL ) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
 	}
 	for( i = 0 ; i < p->filekeys.count ; i++ ) {
-		if( (p->refcounts[i] = parsenumber(&d,&data.size)) < 0 ) {
+		if( (p->refcounts[i] = parsenumber(&d,&size)) < 0 ) {
 			fprintf(stderr,"Internal Error: Corrupt tracking data for %s %s\n",name,version);
 			trackedpackage_free(p);
 			return RET_ERROR;
 		}
 	}
-	if( data.size > 1 ) {
-		fprintf(stderr,"Internal Error: Trailing garbage in tracking data for %s %s\n (%ld bytes)",name,version,(long)data.size);
+	if( size > 1 ) {
+		fprintf(stderr,"Internal Error: Trailing garbage in tracking data for %s %s\n (%ld bytes)",name,version,(long)size);
 		trackedpackage_free(p);
 		return RET_ERROR;
 	}

@@ -1,5 +1,6 @@
 2005-09-26  Bernhard R. Link <brlink@debian.org>
 	* Document override files' format in manpage
+	* Fix integer size in tracking data handling
 
 2005-09-25  Bernhard R. Link <brlink@debian.org>
 	* Documenting --ignore in manpage
