@@ -19,12 +19,16 @@ fi
 mkdir "$WORKDIR"
 cd "$WORKDIR"
 
-if [ "$#" != "1" ] ; then
-	echo "Syntax: test.sh <src-dir>" >&2
+if [ "1" -gt "$#" ] || [ "2" -lt "$#" ] ; then
+	echo "Syntax: test.sh <src-dir> [<reprepro-binary>]" >&2
 	exit 1
 fi
 SRCDIR="$1"
-REPREPRO="$SRCDIR/reprepro"
+if [ "2" -le "$#" ] ; then
+	REPREPRO="$2"
+else
+	REPREPRO="$SRCDIR/reprepro"
+fi
 TESTS="$SRCDIR/tests"
 UPDATETYPE=iteratedupdate
 export PATH="$TESTS:$PATH"
@@ -319,6 +323,28 @@ $HELPER "$REPREPRO" -b . include unknown test.changes test2.changes || ERRORCODE
 ERRORCODE=0
 $HELPER "$REPREPRO" -b . include unknown test.changes || ERRORCODE=$?
 [ $ERRORCODE == 249 ]
+mkdir conf2
+ERRORMSG="`$HELPER "$REPREPRO" -b . --confdir conf2 update 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "Could not find 'conf2/distributions'!"
+echo $ERRORMSG | grep -q "error:249"
+touch conf2/distributions
+ERRORMSG="`$HELPER "$REPREPRO" -b . --confdir conf2 update 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "No distribution definitons found!"
+echo $ERRORMSG | grep -q "error:249"
+echo -e 'Codename: foo' > conf2/distributions
+ERRORMSG="`$HELPER "$REPREPRO" -b . --confdir conf2 update 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "required field Architectures not found"
+echo $ERRORMSG | grep -q "error:249"
+echo -e 'Architectures: abacus fingers' >> conf2/distributions
+ERRORMSG="`$HELPER "$REPREPRO" -b . --confdir conf2 update 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "required field Components not found"
+echo $ERRORMSG | grep -q "error:249"
+echo -e 'Components: unneeded bloated i386' >> conf2/distributions
+ERRORMSG="`$HELPER "$REPREPRO" -b . --confdir conf2 update 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "conf2/updates: No such file or directory"
+echo $ERRORMSG | grep -q "error:254"
+touch conf2/updates
+$HELPER "$REPREPRO" -b . --confdir conf2 update
 
 set +v 
 echo

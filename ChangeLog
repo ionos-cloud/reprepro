@@ -1,3 +1,7 @@
+2005-09-28  Bernhard R. Link <brlink@debian.org>
+	* Fix segfault when update file is empty.
+	  (Thanks to Gianluigi Tiesi for noticing this.)
+
 2005-09-26  Bernhard R. Link <brlink@debian.org>
 	* Document override files' format in manpage
 	* Fix integer size in tracking data handling

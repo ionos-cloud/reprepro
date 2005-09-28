@@ -608,6 +608,10 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 	free(updatesfile);
 	if( RET_IS_OK(r) )
 		*patterns = update;
+	else if( r == RET_NOTHING ) {
+		*patterns = NULL;
+		r = RET_OK;
+	}
 	return r;
 }
 

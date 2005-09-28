@@ -690,6 +690,7 @@ ACTION_D(update) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
+	assert( RET_IS_OK(result) );
 
 	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
@@ -698,6 +699,7 @@ ACTION_D(update) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
+	assert( RET_IS_OK(result) );
 
 	if( !keepunneededlists ) {
 		result = updates_clearlists(listdir,u_distributions);
