@@ -1,3 +1,7 @@
+2005-10-02  Bernhard R. Link <brlink@debian.org>
+	* some cleanups (strict truthvalue-typing
+	  and some integer signednesses...)
+
 2005-09-28  Bernhard R. Link <brlink@debian.org>
 	* Fix segfault when update file is empty.
 	  (Thanks to Gianluigi Tiesi for noticing this.)

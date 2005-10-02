@@ -1445,7 +1445,7 @@ ACTION_N(createsymlinks) {
 			}
 		} else if( ret >= 0 ) {
 			buffer[ret] = '\0';
-			if( ret >= bufsize-4 ) {
+			if( ret >= ((int)bufsize)-4 ) {
 				buffer[bufsize-4]='.';
 				buffer[bufsize-3]='.';
 				buffer[bufsize-2]='.';
@@ -1979,10 +1979,10 @@ int main(int argc,char *argv[]) {
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
 	config_state = CONFIG_OWNER_ENVIRONMENT;
-	if( mirrordir == NULL && getenv("REPREPRO_BASE_DIR") ) {
+	if( mirrordir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
 		CONFIGDUP(mirrordir,getenv("REPREPRO_BASE_DIR"));
 	}
-	if( confdir == NULL && getenv("REPREPRO_CONFIG_DIR") ) {
+	if( confdir == NULL && getenv("REPREPRO_CONFIG_DIR") != NULL ) {
 		CONFIGDUP(confdir,getenv("REPREPRO_CONFIG_DIR"));
 	}
 
