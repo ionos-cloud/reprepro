@@ -922,24 +922,25 @@ static bool_t foundinindices(struct update_target *targets,size_t nameoffset,con
 static retvalue listclean_distribution(const char *listdir,DIR *dir, const char *pattern,
 		struct update_origin *origins,
 		struct update_target *targets) {
-	struct dirent entry, *r;
-	int e;
+	struct dirent *r;
 	size_t patternlen = strlen(pattern);
 	size_t nameoffset = strlen(listdir)+1;
 
 	while( TRUE ) {
 		size_t namelen;
 		char *fullfilename;
+		int e;
 
-		e = readdir_r(dir,&entry,&r);
-		if( e != 0 ) {
+		r = readdir(dir);
+		if( r == NULL ) {
+			e = errno;
+			if( e == 0 )
+				return RET_OK;
 			/* this should not happen... */
 			e = errno;
 			fprintf(stderr,"Error reading dir '%s': %d=%m!\n",listdir,e);
 			return RET_ERRNO(e);
 		}
-		if( r == NULL || r != &entry )
-			return RET_OK;
 		namelen = _D_EXACT_NAMLEN(r);
 		if( namelen < patternlen || strncmp(pattern,r->d_name,patternlen) != 0)
 			continue;
