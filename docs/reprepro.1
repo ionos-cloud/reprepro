@@ -633,11 +633,19 @@ With \fB\-\-ignore\fP on the command line or an \fIignore\fP
 line in the options file, the following type of errors can be
 ignored:
 .TP
-.B emptyfilenamepart
+.B brokenold \fR(hopefully never seen)
+If there are errors parsing an installed version of package, do not 
+error out, but assume it is older than anything else, has not files
+or no source name.
+.TP
+.B brokenversioncmp \fR(hopefully never seen)
+If comparing an old and a new version fails, assume the new one is newer.
+.TP
+.B emptyfilenamepart \fR(insecure)
 Allow strings to be empty that are used to construct filenames.
 (like versions, architectures, ...)
 .TP
-.B forbiddenchar
+.B forbiddenchar \fR(insecure)
 Do not insist on Debian policy for package and source names
 and versions.
 Thus allowing all 7-bit characters but slashes (as they would
@@ -646,7 +654,7 @@ break the file storage) and things syntactically active
  parantheses in source names of binary packages).
 To allow some 8-bit chars additionally, use \fB8but\fP additionally.
 .TP
-.B 8bit
+.B 8bit \fR(more insecure)
 Allow 8-bit characters not looking like overlong UTF-8 sequences
 in filenames and things used as parts of filenames.
 Though it hopefully rejects overlong UTF-8 sequences, there might
@@ -658,33 +666,42 @@ or simply overwriting your conf/distributions file adding some commands
 in there. So do not use this if you are paranoid, unless you are paranoid
 enough to have checked the code of your libs, kernel and filesystems.
 .TP
-.B ignore
+.B ignore \fR(for forward compatibility)
 Ignore unknown ignore types given to \fI\-\-ignore\fP.
 .TP
-.B malformedchunk
+.B malformedchunk \fR(I hope you know what you do)
 Do not stop when finding a line not starting with a space but
 no colon(:) in it. These are otherwise rejected as they have no
 defined meaning.
 .TP
-.B overlongcomments
+.B missingfield \fR(save to ignore)
+Ignore missing fields in a .changes file that are only checked but
+not procesed. 
+Those include: Format, Date, Urgency, Maintainer, Description, Changes
+.TP
+.B overlongcomments \fR(I hope you know what you do)
 Allow overlong comments. That is a line started with a hash(#)
 followed by lines starting with spaces. By default reprepro errors
 out in that case, as marking every line as comment is as easy and
 people might try to comment a single line within a multi-line
 header (which does not work but makes all the rest a comment).
 .TP
-.B spaceonlyline
+.B spaceonlyline \fR(I hope you know what you do)
 Allow lines containing only (but non-zero) spaces. As these
 do not seperate chunks as thus will cause reprepro to behave
 unexpected, they cause error messages by default.
 .TP
-.B wrongdistribution
+.B wrongdistribution \fR(save to ignore)
 Do not error out if a .changes file is to be placed in a
 distribution not listed in that files' Distributions: header.
 .TP
-.B unknownfield
+.B unknownfield \fR(for forward compatibility)
 Ignore unknown fields in the config files, instead of refusing to run
 then.
+.TP
+.B unusedarch \fR(save to ignore)
+No longer rejct a .changes file containing not files for any of the
+architectured listed in the Architecture-header within it.
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with

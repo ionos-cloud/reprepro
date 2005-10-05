@@ -1252,7 +1252,7 @@ ACTION_D(includedeb) {
 
 	result = deb_add(dbdir,references,filesdb,component,architecture,
 			section,priority,isudeb?"udeb":"deb",distribution,argv[2],
-			NULL,NULL,override,force,delete,
+			NULL,NULL,override,delete,
 			dereferenced,tracks);
 
 	override_free(override);
@@ -1316,7 +1316,7 @@ ACTION_D(includedsc) {
 		tracks = NULL;
 	}
 
-	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,dereferenced,onlyacceptsigned,tracks);
+	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,delete,dereferenced,onlyacceptsigned,tracks);
 	
 	override_free(srcoverride);
 	r = tracking_done(tracks);
@@ -1364,7 +1364,7 @@ ACTION_D(include) {
 		tracks = NULL;
 	}
 
-	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],force,delete,dereferenced,onlyacceptsigned);
+	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],delete,dereferenced,onlyacceptsigned);
 
 	override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
 

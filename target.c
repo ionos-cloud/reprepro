@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <malloc.h>
 #include "error.h"
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
@@ -202,7 +203,7 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 	return result;
 }
 
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,int force,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
+retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
 	retvalue r;
@@ -220,7 +221,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 		char *oldpversion;
 
 		r = target->getversion(target,oldcontrol,&oldpversion);
-		if( RET_WAS_ERROR(r) && force <= 0) {
+		if( RET_WAS_ERROR(r) && !IGNORING_(brokenold,"Error parsing old version!\n") ) {
 			free(oldcontrol);
 			return r;
 		}
@@ -229,8 +230,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 
 			r = dpkgversions_cmp(version,oldpversion,&versioncmp);
 			if( RET_WAS_ERROR(r) ) {
-				fprintf(stderr,"Parse errors processing versions of %s.\n",name);
-				if( force <= 0 ) {
+				if( !IGNORING_(brokenversioncmp,"Parse errors processing versions of %s.\n",name) ) {
 					free(oldpversion);
 					free(oldcontrol);
 					return r;
@@ -254,7 +254,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
 			free(oldcontrol);
-			if( force > 0 ) {
+			if( IGNORING_(brokenold,"Error parsing files belonging to installed version of %s!\n",name)) {
 				ofk = NULL;
 				oldsversion = oldsource = NULL;
 			} else
@@ -264,7 +264,8 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 			free(oldcontrol);
 			if( RET_WAS_ERROR(r) ) {
 				strlist_done(ofk);
-				if( force > 0 ) {
+				if( IGNORING_(brokenold,"Error searching for source name of installed version of %s!\n",name)) {
+					// TODO: free something of oldfilekeys?
 					ofk = NULL;
 					oldsversion = oldsource = NULL;
 				} else

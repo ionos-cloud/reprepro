@@ -493,7 +493,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 // TODO: trackingdata?
 				r = target_addpackage(upgrade->target,refs,
 				pkg->name,pkg->new_version,pkg->new_control,
-				&pkg->new_filekeys,force,TRUE,dereferencedfilekeys,NULL,0);
+				&pkg->new_filekeys,TRUE,dereferencedfilekeys,NULL,0);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				break;

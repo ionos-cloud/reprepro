@@ -347,19 +347,22 @@ static retvalue changes_parsefilelines(const char *filename,struct changes *chan
 	return result;
 }
 
-static retvalue check(const char *filename,struct changes *changes,const char *field,int force) {
+static retvalue check(const char *filename,struct changes *changes,const char *field) {
 	retvalue r;
 
 	r = chunk_checkfield(changes->control,field);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"In '%s': Missing '%s' field!\n",filename,field);
-		if( force <= 0 )
+		if( IGNORING("Ignoring","To Ignore",missingfield,
+				"In '%s': Missing '%s' field!\n",filename,field) ) {
+			return RET_OK;
+		} else {
 			return RET_ERROR;
+		} 
 	}
 	return r;
 }
 
-static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture,int force, bool_t onlysigned) {
+static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture, bool_t onlysigned) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines;
@@ -372,17 +375,6 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 		if( RET_WAS_ERROR(r) ) { \
 			changes_free(c); \
 			return r; \
-		} \
-	}
-#define C(err,param...) { \
-		if( RET_WAS_ERROR(r) ) { \
-			if( !force ) { \
-				fprintf(stderr,"In '%s': " err "\n",filename , ## param ); \
-				changes_free(c); \
-				return r; \
-			} else { \
-				fprintf(stderr,"Ignoring " err " in '%s' due to --force:\n " err "\n" , ## param , filename); \
-			} \
 		} \
 	}
 #define R { \
@@ -398,9 +390,9 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 		return RET_ERROR_OOM;
 	r = signature_readsignedchunk(filename,&c->control,onlysigned);
 	R;
-	r = check(filename,c,"Format",force);
+	r = check(filename,c,"Format");
 	R;
-	r = check(filename,c,"Date",force);
+	r = check(filename,c,"Date");
 	R;
 	r = chunk_getname(c->control,"Source",&c->source,FALSE);
 	E("Missing 'Source' field");
@@ -416,13 +408,13 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	E("Malforce Version number");
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field");
-	r = check(filename,c,"Urgency",force);
+	r = check(filename,c,"Urgency");
 	R;
-	r = check(filename,c,"Maintainer",force);
+	r = check(filename,c,"Maintainer");
 	R;
-	r = check(filename,c,"Description",force);
+	r = check(filename,c,"Description");
 	R;
-	r = check(filename,c,"Changes",force);
+	r = check(filename,c,"Changes");
 	R;
 	r = chunk_getextralinelist(c->control,"Files",&filelines);
 	E("Missing 'Files' field");
@@ -433,7 +425,6 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	*changes = c;
 	return RET_OK;
 #undef E
-#undef C
 #undef R
 }
 
@@ -575,8 +566,8 @@ static inline retvalue checkforarchitecture(const struct fileentry *e,const char
 	while( e !=NULL && strcmp(e->architecture,architecture) != 0 )
 		e = e->next;
 	if( e == NULL ) {
-		fprintf(stderr,"Architecture-header lists architecture '%s', but no files for this!\n",architecture);
-		return RET_ERROR;
+		if( !IGNORING_(unusedarch,"Architecture-header lists architecture '%s', but no files for this!\n",architecture))
+			return RET_ERROR;
 	}
 	return RET_OK;
 }
@@ -590,10 +581,12 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	/* First check for each given architecture, if it has files: */
 	if( forcearchitecture != NULL ) {
 		if( !strlist_in(&changes->architectures,forcearchitecture) ){
-			fprintf(stderr,"Architecture-header does not list the"
+			// TODO: check if this is sensible
+			if( !IGNORING_(surprisingarch,
+				     "Architecture-header does not list the"
 				     " architecture '%s' to be forced in!\n",
-					forcearchitecture);
-			return RET_ERROR_MISSING;
+					forcearchitecture))
+				return RET_ERROR_MISSING;
 		}
 		r = checkforarchitecture(changes->files,forcearchitecture);
 		if( RET_WAS_ERROR(r) )
@@ -611,8 +604,9 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	e = changes->files;
 	while( e != NULL ) {
 		if( !strlist_in(&changes->architectures,e->architecture) ) {
-			fprintf(stderr,"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",filename,e->architecture);
-			r = RET_ERROR;
+			if( !IGNORING_(surprisingarch,
+			"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",filename,e->architecture))
+				r = RET_ERROR;
 		}
 		if( e->type == fe_DSC ) {
 			char *calculatedname;
@@ -778,7 +772,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 	}
 	return r;
 }
-static retvalue changes_includepkgs(const char *dbdir,references refs,struct distribution *distribution,struct changes *changes,int force,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata) {
+static retvalue changes_includepkgs(const char *dbdir,references refs,struct distribution *distribution,struct changes *changes,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -794,18 +788,18 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 		if( e->type == fe_DEB ) {
 			r = deb_addprepared(e->pkg.deb,dbdir,refs,
 				e->architecture,"deb",
-				distribution,force,dereferencedfilekeys,trackingdata);
+				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_addprepared(e->pkg.deb,dbdir,refs,
 				e->architecture,"udeb",
-				distribution,force,dereferencedfilekeys,trackingdata);
+				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_DSC ) {
 			r = dsc_addprepared(e->pkg.dsc,dbdir,refs,
-				distribution,force,dereferencedfilekeys,trackingdata);
+				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		}
@@ -824,12 +818,12 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
+retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
 
-	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,force,onlysigned);
+	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,onlysigned);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -893,7 +887,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 
 	/* add the source and binary packages in the given distribution */
 	result = changes_includepkgs(dbdir,refs,
-		distribution,changes,force,dereferencedfilekeys,
+		distribution,changes,dereferencedfilekeys,
 		(tracks!=NULL)?&trackingdata:NULL);
 
 	if( RET_WAS_ERROR(r) ) {

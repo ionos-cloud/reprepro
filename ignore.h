@@ -15,7 +15,12 @@
 	IGN(malformedchunk) \
 	IGN(shortkeyid) \
 	IGN(unknownfield) \
-	IGN(wrongdistribution)
+	IGN(wrongdistribution) \
+	IGN(missingfield) \
+	IGN(brokenold) \
+	IGN(brokenversioncmp) \
+	IGN(unusedarch) \
+	IGN(surprisingarch)
 
 
 enum ignore { 
@@ -39,6 +44,7 @@ extern bool_t ignore[IGN_COUNT];
 		} \
 		ignore[IGN_ ## what]; \
 	})
+#define IGNORING_(what,msg_fmt, ...) IGNORING("Ignoring","To ignore",what,msg_fmt , ##__VA_ARGS__ )
 #define IGNORABLE(what) ignore[IGN_ ## what]
 
 #define RETURN_IF_ERROR_UNLESS_IGNORED(r,what,msg_fmt, ...) \

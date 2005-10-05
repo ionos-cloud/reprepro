@@ -345,6 +345,65 @@ echo $ERRORMSG | grep -q "conf2/updates: No such file or directory"
 echo $ERRORMSG | grep -q "error:254"
 touch conf2/updates
 $HELPER "$REPREPRO" -b . --confdir conf2 update
+echo "Format: 2.0" > broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Date' field!"
+echo "Date: today" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Source' field"
+echo "Source: nowhere" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Binary' field"
+echo "Binary: phantom" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Architecture' field"
+echo "Architecture: brain" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Version' field"
+echo "Version: old" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Distribution' field"
+echo "Distribution: old" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Urgency' field"
+echo "Distribution: old" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Urgency' field"
+echo $ERRORMSG | grep -q "Missing 'Maintainer' field"
+echo $ERRORMSG | grep -q "Missing 'Description' field"
+echo $ERRORMSG | grep -q "Missing 'Changes' field"
+echo $ERRORMSG | grep -q "Missing 'Files' field"
+echo "Files:" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "Missing 'Urgency' field"
+echo $ERRORMSG | grep -q "Missing 'Maintainer' field"
+echo $ERRORMSG | grep -q "Missing 'Description' field"
+echo $ERRORMSG | grep -q "Missing 'Changes' field"
+echo $ERRORMSG | grep -q "Not enough files in .changes"
+echo " d41d8cd98f00b204e9800998ecf8427e 0 section priority filename_version.tar.gz" >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
+echo $ERRORMSG | grep -q ".changes put in a distribution not listed within"
+ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:249"
+echo $ERRORMSG | grep -q "Could not open './filename_version.tar.gz"
+touch filename_version.tar.gz
+ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q -v "error"
+echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
+echo $ERRORMSG | grep -q "but no files for this"
+echo $ERRORMSG | grep -q "put in a distribution not listed within"
+echo $ERRORMSG | grep -q "but this is not listed in the Architecture-Header!"
 
 set +v 
 echo
