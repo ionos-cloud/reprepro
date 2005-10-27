@@ -1,6 +1,8 @@
 reprepro (0.7-1) UNRELEASED; urgency=low
 
-  * ...
+  * fix example config lines in bzip.example (Closes: 335959)
+  * new version
+  - ...
 
 reprepro (0.6-1) unstable; urgency=low
 

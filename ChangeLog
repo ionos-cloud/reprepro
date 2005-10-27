@@ -1,3 +1,7 @@
+2005-10-27  Bernhard R. Link <brlink@debian.org>
+	* add colons in description within bzip.example
+	(thanks to Steve Kemp for finding this)
+
 2005-10-05  Bernhard R. Link <brlink@debian.org>
 	* add --ignore=missingfield,brokenold,brokenversioncmp,
 	unusedarch,surpisingarch

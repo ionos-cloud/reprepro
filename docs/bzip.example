@@ -1,9 +1,9 @@
 #!/bin/sh
 # Copy this script to your conf/ dir as bzip2.sh, make it executable
 # and add to some definition in conf/distributions
-# DscIndices Sources Release . .gz bzip2.sh
-# DebIndices Packages Release . .gz bzip2.sh
-# UDebIndices Packages . .gz bzip2.sh
+# DscIndices: Sources Release . .gz bzip2.sh
+# DebIndices: Packages Release . .gz bzip2.sh
+# UDebIndices: Packages . .gz bzip2.sh
 # and you have .bz2'd Packages and Sources.
 # (alternatively, if you are very brave, put the full path to this file in there)
 
