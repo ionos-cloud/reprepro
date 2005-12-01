@@ -1,4 +1,4 @@
-reprepro (0.7-1) UNRELEASED; urgency=low
+reprepro (0.7-1) unstable; urgency=low
 
   * fix example config lines in bzip.example (Closes: 335959)
   * new version
@@ -8,7 +8,7 @@ reprepro (0.7-1) UNRELEASED; urgency=low
     update file and others)
   - documentation updates and improves
 
- -- Bernhard R. Link <brlink@debian.org>  Wed,  2 Nov 2005 10:37:51 +0100
+ -- Bernhard R. Link <brl@pcpool09.mathematik.uni-freiburg.de>  Thu,  1 Dec 2005 20:40:34 +0100
 
 reprepro (0.6-1) unstable; urgency=low
 
