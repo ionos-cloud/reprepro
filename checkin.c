@@ -367,9 +367,9 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	struct changes *c;
 	struct strlist filelines;
 
-#define E(err,param...) { \
+#define E(err) { \
 		if( r == RET_NOTHING ) { \
-			fprintf(stderr,"In '%s': " err "\n",filename , ## param ); \
+			fprintf(stderr,"In '%s': " err "\n",filename); \
 			r = RET_ERROR; \
 	  	} \
 		if( RET_WAS_ERROR(r) ) { \

@@ -34,8 +34,8 @@ enum ignore {
 extern int ignored[IGN_COUNT];
 extern bool_t ignore[IGN_COUNT];
 
-#define IGNORING(ignoring,toignore,what,msg_fmt, ...) \
-	({ 	fprintf(stderr, msg_fmt , ## __VA_ARGS__); \
+#define IGNORING(ignoring,toignore,what, ...) \
+	({ 	fprintf(stderr, __VA_ARGS__); \
 		ignored[IGN_ ## what] ++; \
 		if( ignore[IGN_ ## what] ) { \
 			fputs(ignoring " as --ignore=" #what " given.\n",stderr); \
@@ -44,7 +44,7 @@ extern bool_t ignore[IGN_COUNT];
 		} \
 		ignore[IGN_ ## what]; \
 	})
-#define IGNORING_(what,msg_fmt, ...) IGNORING("Ignoring","To ignore",what,msg_fmt , ##__VA_ARGS__ )
+#define IGNORING_(what, ...) IGNORING("Ignoring","To ignore",what, __VA_ARGS__ )
 #define IGNORABLE(what) ignore[IGN_ ## what]
 
 #define RETURN_IF_ERROR_UNLESS_IGNORED(r,what,msg_fmt, ...) \

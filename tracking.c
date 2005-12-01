@@ -465,7 +465,7 @@ static retvalue gendata(DBT *data,struct trackedpackage *pkg) {
 		data->size -= j;
 	}
 	*d ='\0';
-	assert( (size_t)(((void*)d)-(data->data)) == data->size-1 );
+	assert( (size_t)(d-((char*)data->data)) == data->size-1 );
 	return RET_OK;
 }
 

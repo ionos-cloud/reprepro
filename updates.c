@@ -1209,7 +1209,7 @@ static retvalue updates_queuelists(struct update_distribution *distributions,int
 	return result;
 }
 
-retvalue calllisthook(const char *listhook,struct update_index *index) {
+static retvalue calllisthook(const char *listhook,struct update_index *index) {
 	char *newfilename;
 	pid_t f,c;
 	int status; 
@@ -1295,7 +1295,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions,
 	return result;
 }
 
-upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,UNUSED(const char *old_version),UNUSED(const char *new_version),const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,UNUSED(const char *old_version),UNUSED(const char *new_version),const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
 	retvalue r;
 
