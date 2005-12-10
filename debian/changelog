@@ -1,3 +1,11 @@
+reprepro (0.7.1-1) UNRELEASED; urgency=low
+
+  * new version
+  - rmdir directories after something was removed from them (Closes: 342772)
+  - new --keepdirectories option
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 10 Dec 2005 14:40:41 +0100
+
 reprepro (0.7-1) unstable; urgency=low
 
   * fix example config lines in bzip.example (Closes: 335959)
@@ -8,7 +16,7 @@ reprepro (0.7-1) unstable; urgency=low
     update file and others)
   - documentation updates and improves
 
- -- Bernhard R. Link <brl@pcpool09.mathematik.uni-freiburg.de>  Thu,  1 Dec 2005 20:40:34 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  1 Dec 2005 20:40:34 +0100
 
 reprepro (0.6-1) unstable; urgency=low
 

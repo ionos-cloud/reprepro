@@ -139,6 +139,13 @@ This is mostly only useful if you want to temporarily disable some update
 rule and want to avoid downloading their index files again when you read
 it later.
 .TP 
+.B \-\-keepdirectories
+Do not try to rmdir parent directories after files or directories
+have been removed from them.
+(Do this if your directories have special permissions you want keep,
+do not want to be pestered with warnings about errors to remove them,
+or have a buggy rmdir call deleting non-empty directories.)
+.TP 
 .B \-\-ask\-passphrase
 Ask for passphrases when signing things and one is needed. This is a quick
 and dirty implementation using the obsolete \fBgetpass(3)\fP function

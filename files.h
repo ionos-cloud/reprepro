@@ -20,8 +20,9 @@ retvalue files_add(filesdb filesdb,const char *filekey,const char *md5sum);
 /* remove file's md5sum from database */
 retvalue files_remove(filesdb filesdb,const char *filekey);
 
-/* delete the file and remove its md5sum from database */
-retvalue files_deleteandremove(filesdb filesdb,const char *filekey);
+/* delete the file and remove its md5sum from database,
+ * also try to rmdir empty directories it is in if rmdirs is true */
+retvalue files_deleteandremove(filesdb filesdb,const char *filekey, bool_t rmdirs);
 
 /* check for file in the database and if not found there in the pool */
 retvalue files_expect(filesdb filesdb,const char *filekey,const char *md5sum);

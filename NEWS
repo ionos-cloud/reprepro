@@ -1,3 +1,9 @@
+Updates since 0.7:
+- unless the new --keepdirectories option is given,
+  try to remove pool/ directories that got empty by 
+  removing things from them. (To be exact, try to rmdir(2) 
+  them every time, which will only work if they are empty).
+
 Updates since 0.6:
 - new --ignore=missingfield,brokenold,brokenversioncmp, 
 	unusedarch,surpisingarch

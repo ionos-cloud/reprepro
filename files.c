@@ -168,7 +168,7 @@ retvalue files_remove(filesdb db,const char *filekey) {
 }
 
 /* delete the file and remove its md5sum from database */
-retvalue files_deleteandremove(filesdb filesdb,const char *filekey) {
+retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs) {
 	int err,en;
 	char *filename;
 	retvalue r;
@@ -189,7 +189,42 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey) {
 			free(filename);
 			return r;
 		}
-	} 
+	} else if(rmdirs) {
+		/* try to delete parent directories, until one gives
+		 * errors (hopefully because it still contains files) */
+		size_t fixedpartlen = strlen(filesdb->mirrordir);
+		char *p;
+
+		while( (p = strrchr(filename,'/')) != NULL ) {
+			/* do not try to remove parts of the mirrordir */
+			if( p-filename <= fixedpartlen+1 )
+				break;
+			*p ='\0';
+			/* try to rmdir the directory, this will
+			 * fail if there are still other files or directories
+			 * in it: */
+			err = rmdir(filename);
+			if( err == 0 ) {
+				if( verbose >= 1 ) {
+					printf("removed now empty directory %s\n",filename);
+				}
+			} else {
+				en = errno;
+				if( en != ENOTEMPTY ) {
+					//TODO: check here if only some
+					//other error was first and it
+					//is not empty so we do not have
+					//to remove it anyway...
+					fprintf(stderr,"ignoring error trying to rmdir %s: %m(%d)\n",filename,en);
+				}
+				/* parent directories will contain this one 
+				 * thus not be empty, in other words: 
+				 * everything's done */
+				break;
+			}
+		}
+
+	}
 	free(filename);
 	r = files_remove(filesdb,filekey);
 	return r;

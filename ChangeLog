@@ -1,3 +1,8 @@
+2005-12-10  Bernhard R. Link <brlink@debian.org>
+	* remove pool-directories gotten empty
+	(thanks to Julien Valroff for suggesting this)
+	* new --keepdirectories option to not try this
+
 2005-10-27  Bernhard R. Link <brlink@debian.org>
 	* add colons in description within bzip.example
 	(thanks to Steve Kemp for finding this)
