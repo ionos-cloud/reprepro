@@ -2,9 +2,11 @@ reprepro (0.7.1-1) UNRELEASED; urgency=low
 
   * new version
   - rmdir directories after something was removed from them (Closes: 342772)
-  - new --keepdirectories option
+  - new --keepdirectories option to get old behaviour
+  - skip updating targets when no new index files were downloaded
+  - new --noskipold option to get old behaviour
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 10 Dec 2005 14:40:41 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 11 Dec 2005 17:29:41 +0100
 
 reprepro (0.7-1) unstable; urgency=low
 

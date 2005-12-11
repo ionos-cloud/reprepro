@@ -1,3 +1,8 @@
+2005-12-11  Bernhard R. Link <brlink@debian.org>
+	* Unless the new --noskipold is used, 
+	only targets with newly downloaded index
+	files are updated.
+
 2005-12-10  Bernhard R. Link <brlink@debian.org>
 	* remove pool-directories gotten empty
 	(thanks to Julien Valroff for suggesting this)

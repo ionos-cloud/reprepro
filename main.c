@@ -87,13 +87,14 @@ static bool_t	keepunneededlists = FALSE;
 static bool_t	keepdirectories = FALSE;
 static bool_t	onlyacceptsigned = FALSE;
 static bool_t	askforpassphrase = FALSE;
+static bool_t	skipold = TRUE;
 int		verbose = 0;
 
 /* define for each config value an owner, and only higher owners are allowed
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(onlyacceptsigned),O(askforpassphrase);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(onlyacceptsigned),O(askforpassphrase), O(skipold);
 #undef O
 	
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -706,7 +707,7 @@ ACTION_D(update) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,dereferenced);
+		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,skipold,dereferenced);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -763,7 +764,7 @@ ACTION_D(iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,dereferenced);
+		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,skipold,dereferenced);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -815,7 +816,7 @@ ACTION_N(checkupdate) {
 		return result;
 	}
 
-	result = updates_checkupdate(dbdir,methoddir,u_distributions,force,nolistsdownload);
+	result = updates_checkupdate(dbdir,methoddir,u_distributions,force,nolistsdownload,skipold);
 
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
@@ -1706,6 +1707,7 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 #define LO_ONLYACCEPTSIGNED 6
 #define LO_ASKPASSPHRASE 7
 #define LO_KEEPDIRECTORIES 8
+#define LO_SKIPOLD 9
 #define LO_NODELETE 21
 #define LO_NOKEEPUNREFERENCED 22
 #define LO_NOKEEPUNNEEDEDLISTS 23
@@ -1714,6 +1716,7 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 #define LO_NOONLYACCEPTSIGNED 26
 #define LO_NOASKPASSPHRASE 27
 #define LO_NOKEEPDIRECTORIES 28
+#define LO_NOSKIPOLD 29
 #define LO_DISTDIR 10
 #define LO_DBDIR 11
 #define LO_LISTDIR 12
@@ -1833,6 +1836,12 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NOASKPASSPHRASE:
 					CONFIGSET(askforpassphrase,FALSE);
+					break;
+				case LO_SKIPOLD:
+					CONFIGSET(skipold,TRUE);
+					break;
+				case LO_NOSKIPOLD:
+					CONFIGSET(skipold,FALSE);
 					break;
 				case LO_DISTDIR:
 					CONFIGDUP(distdir,optarg);
@@ -1966,6 +1975,9 @@ int main(int argc,char *argv[]) {
 		{"nokeepdirectories", no_argument, &longoption, LO_NOKEEPDIRECTORIES},
 		{"noonlyacceptsigned", no_argument, &longoption, LO_NOONLYACCEPTSIGNED},
 		{"noask-passphrase", no_argument, &longoption, LO_NOASKPASSPHRASE},
+		{"skipold", no_argument, &longoption, LO_SKIPOLD},
+		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
+		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
 		{"force", no_argument, NULL, 'f'},
 		{NULL, 0, NULL, 0}
 	};

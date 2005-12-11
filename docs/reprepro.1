@@ -152,6 +152,15 @@ and dirty implementation using the obsolete \fBgetpass(3)\fP function
 with the description gpgme is supplying. So the prompt will look quite
 funny and support for passphrases with more than 8 characters depend on your libc.
 I suggest using gpg\-agent or something like that instead.
+.TP 
+.B \-\-noskipold
+When updating do not skip targets where no new index files are available.
+Since version 0.8 reprepro by default skips update of targets where no
+index file had to be downloaded as it was already there. 
+(Assuming that if the file is already there, everything is most likely already done.)
+
+Thus if you only change an script to preprocess downloaded index files or
+changed a Listfilter, you most likely want to add \-\-noskipold.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
