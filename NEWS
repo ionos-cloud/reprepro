@@ -6,6 +6,11 @@ Updates since 0.7:
 - Unless the new --noskipold is used, only targets with newly 
   downloaded index files are updated. (new = downloaded
   by the instance of reprepro currently running)
+- The default was changed to generate uncompressed sources/Source
+  index files. That is the easiest way to get their md5sum into
+  the Release file, which newer apt versions are needing. This
+  may change back in future versions. (Take a look at the DscIndices
+  option on how to specify what to generate)
 
 Updates since 0.6:
 - new --ignore=missingfield,brokenold,brokenversioncmp, 

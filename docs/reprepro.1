@@ -484,7 +484,15 @@ DebIndices Packages Release . .gz
 .br
 UDebIndices Packages . .gz
 .br
+DscIndices Sources Release . .gz
+.br
+.B NOTE
+until repreprepo 0.7 the default for sources was
+.br
 DscIndices Sources Release .gz
+.br
+and this might change back once I implemented a better
+way to get the md5sum of the Sources file into the Release file.
 .TP
 .B Tracking
 Enable the (experimental) tracking of source packages.

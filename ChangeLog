@@ -1,3 +1,6 @@
+2005-12-15  Bernhard R. Link <brlink@debian.org>
+	* Generate uncompressed source/Sources by default.
+
 2005-12-11  Bernhard R. Link <brlink@debian.org>
 	* Unless the new --noskipold is used, 
 	only targets with newly downloaded index

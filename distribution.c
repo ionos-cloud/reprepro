@@ -287,7 +287,7 @@ NULL};
 		return ret;
 	} else if( ret == RET_NOTHING)
 		option = NULL;
-	ret = exportmode_init(&r->dsc,FALSE,"Release","Sources",option);
+	ret = exportmode_init(&r->dsc,TRUE,"Release","Sources",option);
 	if(RET_WAS_ERROR(ret)) {
 		(void)distribution_free(r);
 		return ret;
