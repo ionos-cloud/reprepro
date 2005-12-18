@@ -549,7 +549,7 @@ retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *released
 				checkwritten;
 			}
 		} else {
-			fputs(relname,f);
+			e = fputs(relname,f);
 			checkwritten;
 		}
 		e = fputc('\n',f) - 1;
