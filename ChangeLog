@@ -1,3 +1,6 @@
+2005-12-18  Bernhard R. Link <brlink@debian.org>
+	* split Release reading from release.c to readrelease.c
+
 2005-12-15  Bernhard R. Link <brlink@debian.org>
 	* Generate uncompressed source/Sources by default.
 

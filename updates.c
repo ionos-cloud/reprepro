@@ -43,6 +43,7 @@
 #include "distribution.h"
 #include "terms.h"
 #include "filterlist.h"
+#include "readrelease.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 

@@ -15,12 +15,6 @@
 #include "target.h"
 #endif
 
-/******* Checking contents of release-files ***********/
-
-/* get a strlist with the md5sums of a Release-file */
-retvalue release_getchecksums(const char *releasefile,struct strlist *info);
-
-/****** Generate release-files *************/
 /* Generate a "Release"-file for an arbitrary  directory */
 retvalue release_genrelease(const char *distributiondir,const struct distribution *distribution,const struct target *target,const char *filename,bool_t onlyifneeded, struct strlist *releasedfiles);
 
