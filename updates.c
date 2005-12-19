@@ -1782,6 +1782,10 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			continue;
 		}
 		r = searchformissing(dbdir,target,force);
+		if( r == RET_NOTHING ) {
+			(void)downloadcache_free(cache);
+			continue;
+		}
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 ) {
 			(void)downloadcache_free(cache);

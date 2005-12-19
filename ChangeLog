@@ -1,3 +1,7 @@
+2005-12-19  Bernhard R. Link <brlink@debian.org>
+	* fix segfault introduced into interatedupdate
+	by --skipold.
+
 2005-12-18  Bernhard R. Link <brlink@debian.org>
 	* split Release reading from release.c to readrelease.c
 
