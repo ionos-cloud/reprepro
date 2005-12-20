@@ -1,3 +1,14 @@
+2005-12-20  Bernhard R. Link <brlink@debian.org>
+	* refactor index exporting/release generation
+	so that is always puts the uncompressed checksums
+	in the Release file.
+	* reverting the changes from 2005-12-15
+          (i.e. again not writing uncompressed Sources
+	   by default, as the checksum now shows up
+	   in the Release file anyway, as apt needs it)
+	* {Dsc,Deb,UDeb}Indices' external programs
+	are now only called with the uncompressed files.
+
 2005-12-19  Bernhard R. Link <brlink@debian.org>
 	* fix segfault introduced into interatedupdate
 	by --skipold.

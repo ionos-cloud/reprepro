@@ -1850,7 +1850,7 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,skipold,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		if( RET_IS_OK(r) ) {
-			r = distribution_export(d->distribution,confdir,dbdir,distdir,force,TRUE);
+			r = distribution_export(d->distribution,confdir,dbdir,distdir,TRUE);
 			RET_UPDATE(result,r);
 		}
 	}

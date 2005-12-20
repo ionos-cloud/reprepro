@@ -5,10 +5,10 @@ reprepro (0.7.1-1) UNRELEASED; urgency=low
   - new --keepdirectories option to get old behaviour
   - skip updating targets when no new index files were downloaded
   - new --noskipold option to get old behaviour
-  - change default to generate uncompressed Sources indices,
-    so that their md5sum shows up in the Release file to please newer apt.
+  - always place the checksum of the uncompressed file in the Release
+    file, even if not generated. (Fixing problems newer apts have).
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 15 Dec 2005 18:54:41 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 20 Dec 2005 10:37:41 +0100
 
 reprepro (0.7-1) unstable; urgency=low
 

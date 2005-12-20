@@ -408,7 +408,7 @@ ACTION_D_U(remove) {
 	d.removedfiles = NULL;
 
 	if( d.todo < d.count ) {
-		r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
+		r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
 		RET_ENDUPDATE(result,r);
 	}
 	if( d.trackingdata != NULL ) {
@@ -652,7 +652,7 @@ ACTION_N(export) {
 			fprintf(stderr,"Exporting %s...\n",d->codename);
 		}
 
-		r = distribution_export(d,confdir,dbdir,distdir,force,FALSE);
+		r = distribution_export(d,confdir,dbdir,distdir,FALSE);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force<= 0 )
 			return r;
@@ -715,7 +715,7 @@ ACTION_D(update) {
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	if( doexport )
-		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir,force);
+		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir);
 	else
 		r = distribution_freelist(distributions);
 	RET_ENDUPDATE(result,r);
@@ -772,7 +772,7 @@ ACTION_D(iteratedupdate) {
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	if( doexport )
-		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir,force);
+		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir);
 	else
 		r = distribution_freelist(distributions);
 	RET_ENDUPDATE(result,r);
@@ -1171,7 +1171,7 @@ ACTION_N(reoverride) {
 			break;
 	}
 	if( RET_IS_OK(result) )
-		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir,force);
+		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir);
 	else
 		r = distribution_freelist(distributions);
 	RET_ENDUPDATE(result,r);
@@ -1262,7 +1262,7 @@ ACTION_D(includedeb) {
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
 
-	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
+	r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
 	RET_ENDUPDATE(result,r);
 
 	r = distribution_free(distribution);
@@ -1323,7 +1323,7 @@ ACTION_D(includedsc) {
 	override_free(srcoverride);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
+	r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -1372,7 +1372,7 @@ ACTION_D(include) {
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
+	r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);

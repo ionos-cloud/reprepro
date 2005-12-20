@@ -287,7 +287,7 @@ NULL};
 		return ret;
 	} else if( ret == RET_NOTHING)
 		option = NULL;
-	ret = exportmode_init(&r->dsc,TRUE,"Release","Sources",option);
+	ret = exportmode_init(&r->dsc,FALSE,"Release","Sources",option);
 	if(RET_WAS_ERROR(ret)) {
 		(void)distribution_free(r);
 		return ret;
@@ -459,51 +459,42 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 
 retvalue distribution_export(struct distribution *distribution,
 		const char *confdir, const char *dbdir, const char *distdir,
-		int force, bool_t onlyneeded) {
+		bool_t onlyneeded) {
 	struct target *target;
 	retvalue result,r;
-	char *dirofdist;
-	struct strlist releasedfiles;
+	struct release *release;
 
 	assert( distribution != NULL );
 
-	r = strlist_init(&releasedfiles);
+	r = release_init(dbdir,distdir,distribution->codename,&release);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	dirofdist = calc_dirconcat(distdir,distribution->codename);
-	if( dirofdist == NULL ) {
-		strlist_done(&releasedfiles);
-		return RET_ERROR_OOM;
-	}
 
 	result = RET_NOTHING;
 	for( target=distribution->targets; target != NULL ; target = target->next ) {
 		r = target_mkdistdir(target,distdir);
 		RET_ENDUPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
-		r = target_export(target,confdir,dbdir,dirofdist,force,onlyneeded,&releasedfiles);
+		r = target_export(target,confdir,dbdir,onlyneeded,release);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 		if( target->exportmode->release != NULL ) {
-			r = release_genrelease(dirofdist,distribution,target,target->exportmode->release,onlyneeded,&releasedfiles);
+			r = release_directorydescription(release,distribution,target,target->exportmode->release,onlyneeded);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				break;
 		}
 	}
-	if( (!RET_WAS_ERROR(result) || force > 0 ) && 
-			!(onlyneeded && result == RET_NOTHING)  ) {
+	if( RET_WAS_ERROR(result) )
+		release_free(release);
+	else {
 		retvalue r;
 
-		//TODO: move onlyneeded in and emit warnings about things with .new?
-
-		r = release_gen(dirofdist,distribution,&releasedfiles,force);
+		r = release_write(release,distribution,onlyneeded);
 		RET_UPDATE(result,r);
 	}
-	strlist_done(&releasedfiles);
-	free(dirofdist);
 	return result;
 }
 
@@ -521,15 +512,14 @@ retvalue distribution_freelist(struct distribution *distributions) {
 }
 
 retvalue distribution_exportandfreelist(struct distribution *distributions,
-		const char *confdir,const char *dbdir, const char *distdir,
-		int force) {
+		const char *confdir,const char *dbdir, const char *distdir) {
 	retvalue result,r;
 
 	result = RET_NOTHING;
 	while( distributions != NULL ) {
 		struct distribution *d = distributions->next;
 
-		r = distribution_export(distributions,confdir,dbdir,distdir,force,TRUE);
+		r = distribution_export(distributions,confdir,dbdir,distdir,TRUE);
 		RET_UPDATE(result,r);
 		
 		r = distribution_free(distributions);

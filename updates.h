@@ -5,9 +5,15 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-
+#ifndef REPREPRO_REFERENCES_H
+#include "reference.h"
+#endif
+#ifndef REPREPRO_RELEASE_H
 #include "release.h"
+#endif
+#ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
+#endif
 
 struct update_pattern;
 struct update_origin;

@@ -61,11 +61,11 @@ retvalue distribution_foreach_part(const struct distribution *distribution,/*@nu
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
-retvalue distribution_export(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,int force,bool_t onlyneeded);
+retvalue distribution_export(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,bool_t onlyneeded);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(/*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, int force);
+retvalue distribution_exportandfreelist(/*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir);
 #endif
