@@ -72,11 +72,13 @@ MD5Sum:
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-abacus/Packages.gz
  d9f0fad5d54ad09dd4ecee86c73b64d4 39 stupid/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
  7029066c27ac6f5ef18d660d5741979a 20 stupid/source/Sources.gz
  e38c7da133734e1fd68a7e344b94fe96 39 stupid/source/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-abacus/Packages.gz
  236fcd9339b1813393819d464e37c7c6 37 ugly/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
  7029066c27ac6f5ef18d660d5741979a 20 ugly/source/Sources.gz
  ed4ee9aa5d080f67926816133872fd02 37 ugly/source/Release
 END
@@ -91,29 +93,29 @@ Architectures: abacus coal
 Components: stupid ugly
 Description: test with all fields set
 MD5Sum:
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-abacus/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-abacus/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-abacus/Packages.bz2
  e142c47c1be0c32cd120138066b73c73 146 stupid/binary-abacus/Release
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-coal/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-coal/Packages
  7029066c27ac6f5ef18d660d5741979a 20 stupid/binary-coal/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-coal/Packages.bz2
  10ae2f283e1abdd3facfac6ed664035d 144 stupid/binary-coal/Release
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/source/Sources.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
  7029066c27ac6f5ef18d660d5741979a 20 stupid/source/Sources.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/source/Sources.bz2
  b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-abacus/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
  7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-abacus/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-abacus/Packages.bz2
  22eb57e60d3c621b8bd8461eae218b16 144 ugly/binary-abacus/Release
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-coal/Packages.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-coal/Packages
  7029066c27ac6f5ef18d660d5741979a 20 ugly/binary-coal/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-coal/Packages.bz2
  7a05de3b706d08ed06779d0ec2e234e9 142 ugly/binary-coal/Release
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/source/Sources.bz2
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
  7029066c27ac6f5ef18d660d5741979a 20 ugly/source/Sources.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/source/Sources.bz2
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
 END
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
