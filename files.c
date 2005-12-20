@@ -197,7 +197,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 
 		while( (p = strrchr(filename,'/')) != NULL ) {
 			/* do not try to remove parts of the mirrordir */
-			if( p-filename <= fixedpartlen+1 )
+			if( (size_t)(p-filename) <= fixedpartlen+1 )
 				break;
 			*p ='\0';
 			/* try to rmdir the directory, this will
