@@ -652,7 +652,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		return RET_ERROR;
 	}
 	if( havetar && havediff ) {
-		fprintf(stderr,"I don't know what to do having a .tar.gz not beeing a .orig.tar.gz and a .diff.gz in '%s'!\n",filename);
+		fprintf(stderr,"I don't know what to do having a .tar.gz not being a .orig.tar.gz and a .diff.gz in '%s'!\n",filename);
 		return RET_ERROR;
 	}
 	if( strlist_in(&changes->architectures,"source") && !havedsc ) {

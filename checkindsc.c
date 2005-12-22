@@ -489,7 +489,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 /* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guessing it from the section.
  * If basename, filekey and directory are != NULL, then they are used instead 
- * of beeing newly calculated. 
+ * of being newly calculated. 
  * (And all files are expected to already be in the pool). */
 retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
 	retvalue r;

@@ -5,7 +5,7 @@
 #define FALSE (0==42)
 #ifdef AVOID_CHECKPROBLEMS
 #define bool_t _Bool
-/* avoid problems with __builtin_expect beeing long instead of boolean */
+/* avoid problems with __builtin_expect being long instead of boolean */
 #define __builtin_expect(a,b) (a)
 #define __builtin_constant_p(a) (__builtin_constant_p(a) != 0)
 #else

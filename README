@@ -38,7 +38,7 @@ See the file TODO for things I plan to do.
 		for type deb and "u|<codename>|<component>|<architecture>"
 		for type udeb.
 
-	md5sum: The checksum of a file, beeing in the format
+	md5sum: The checksum of a file, being in the format
 		"<md5sum of file> <length of file>"
 
 
@@ -81,8 +81,8 @@ See the file TODO for things I plan to do.
  	If inserting a binary or source package without naming
 	an component, this program has to guess of course.
 	This will done the following way: It will take the
-	first component with the name of the section, beeing
-	prefix to the section, beeing suffix to the section
+	first component with the name of the section, being
+	prefix to the section, being suffix to the section
 	or having the section as prefix or any.
 	Thus having specifiend the components:
 	"main non-free contrib non-US/main non-US/non-free non-US/contrib"

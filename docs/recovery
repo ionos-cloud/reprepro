@@ -17,7 +17,7 @@ All references from some specific target can be removed with
 2) files.db
 This file contains the information which files in the pool/ dir
 are known. Files not in here will not be deleted with 
-"deleteunreferenced". Files beeing wrong here will not realized
+"deleteunreferenced". Files being wrong here will not realized
 (and thus not corrected even if told to be newly included)
 
 To get this database in textform use "_listmd5sums" without argument,
@@ -46,7 +46,7 @@ Name: localreadd
 Suite: *
 Method: copy:/<otherplace>
 
-with otherplace beeing the place you moved the dists/ directory too.
+with otherplace being the place you moved the dists/ directory too.
 
 If the packages-database is corrupt, the described way can at least reconstruct
 the Packages still landing in the the Packages.gz and Sources.gz files.

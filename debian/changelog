@@ -1,5 +1,6 @@
 reprepro (0.7.1-1) UNRELEASED; urgency=low
 
+  * fix some spelling errors in description (Closes: #344331)
   * new version
   - rmdir directories after something was removed from them (Closes: 342772)
   - new --keepdirectories option to get old behaviour

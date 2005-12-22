@@ -1113,7 +1113,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,files
 		/* do not remove failed methods here any longer,
 		 * and not remove methods having nothing to do,
 		 * as this breaks when no index files are downloaded
-		 * due to all already beeing in place... */
+		 * due to all already being in place... */
 		RET_UPDATE(result,r);
 	}
 	/* waiting for them to finish: */

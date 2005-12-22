@@ -11,7 +11,7 @@ Depends: apt, binutils, ${shlibs:Depends}
 Suggests: gnupg-agent
 Description: debian package repository producer
  reprepro is a tool to manage a repository of Debian packages
- (.deb, .udeb, .dsc, ...). It stores files either beeing
+ (.deb, .udeb, .dsc, ...). It stores files either being
  injected manually or downloaded from some other repository
  (partically) mirrored into a pool/ hierarchy. 
  Managed packages and files are stored in a libdb3 database, 
@@ -20,7 +20,7 @@ Description: debian package repository producer
  signatures of the generated Package indices is supported.
  .
  WARNING: Reprepro does not have much users yet, so not all
- code paths are severly tested. Please report any bugs you
+ code paths are thoroughly tested. Please report any bugs you
  find.
  .
  Former working title of this program was mirrorer.
