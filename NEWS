@@ -14,6 +14,8 @@ Updates since 0.7:
 - The export hooks (the programs specified as DebIndices,
   UDebIndices and DscIndices) are now always called once
   with the uncompressed names.
+- to compile reprepro with woody without a backported zlib
+  use the -DOLDZLIB switch.
 
 Updates since 0.6:
 - new --ignore=missingfield,brokenold,brokenversioncmp, 

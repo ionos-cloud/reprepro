@@ -11,7 +11,8 @@
 
 struct release;
 
-typedef enum {ic_uncompressed=0, ic_gzip} indexcompression;
+enum indexcompression {ic_uncompressed=0, ic_gzip};
+#define ic_count (ic_gzip+1)
 typedef unsigned int compressionset; /* 1 << indexcompression */
 #define IC_FLAG(a) (1<<(a))
 

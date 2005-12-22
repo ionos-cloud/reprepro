@@ -1,6 +1,10 @@
 2005-12-22  Bernhard R. Link <brlink@debian.org>
 	* fix some spelling errors
-	(thanks to Guilherme de S. Pastore for notifing me)
+	(thanks to Guilherme de S. Pastore for notifying me)
+
+	* make index exportion code more low level, allowing
+	in-place md5sum calculation without needing to reread
+	the generated files.
 
 2005-12-20  Bernhard R. Link <brlink@debian.org>
 	* refactor index exporting/release generation

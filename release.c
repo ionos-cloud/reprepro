@@ -27,6 +27,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include <time.h>
 #include <zlib.h>
 #include "error.h"
@@ -112,7 +113,7 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 	return RET_OK;
 }
 
-retvalue release_init(const char *dbdir, const char *distdir, const char *codename, struct release **release) {
+retvalue release_init(UNUSED(const char *dbdir), const char *distdir, const char *codename, struct release **release) {
 	struct release *n;
 	n = calloc(1,sizeof(struct release));
 	n->dirofdist = calc_dirconcat(distdir,codename);
@@ -251,44 +252,179 @@ static retvalue release_usecached(struct release *release,
 }
 
 struct filetorelease {
-	char *relativefilename;
-	/* those are NULL if not written to a file */
-	char *fullfinalfilename;
-	char *fulltemporaryfilename;
-	/* all NULL if no compression set */
-	char *relativegzfilename;
-	char *fullfinalgzfilename;
-	char *fulltemporarygzfilename;
-	FILE *f;
-	gzFile gzf;
-	struct MD5Context context;off_t filesize;
+	retvalue state;
+	struct openfile {
+		int fd;
+		struct MD5Context context;
+		off_t filesize;
+		char *relativefilename;
+		char *fullfinalfilename;
+		char *fulltemporaryfilename;
+	} f[ic_count];
+	/* output buffer for gzip compression */
+	unsigned char *gzoutputbuffer; size_t gz_waiting_bytes;
+	z_stream gzstream;
+#ifdef OLDZLIB
+	uLong crc;
+#endif
 };
 
 void release_abortfile(struct filetorelease *file) {
-	free(file->relativefilename);
-	free(file->relativegzfilename);
-	free(file->fullfinalfilename);
-	free(file->fulltemporaryfilename);
-	free(file->fullfinalgzfilename);
-	free(file->fulltemporarygzfilename);
-	if( file->f != NULL )
-		(void)fclose(file->f);
-	if( file->gzf != NULL )
-		(void)gzclose(file->gzf);
+	enum indexcompression i;
+
+	for( i = ic_uncompressed ; i < ic_count ; i++ ) {
+		if( file->f[i].fd >= 0 ) {
+			close(file->f[i].fd);
+			if( file->f[i].fulltemporaryfilename != NULL )
+				(void)unlink(file->f[i].fulltemporaryfilename);
+		}
+		free(file->f[i].relativefilename);
+		free(file->f[i].fullfinalfilename);
+		free(file->f[i].fulltemporaryfilename);
+	}
+	free(file->gzoutputbuffer);
+	if( file->gzstream.next_out != NULL ) {
+		deflateEnd(&file->gzstream);
+	}
 }
 
 bool_t release_oldexists(struct filetorelease *file) {
-	if( file->fullfinalfilename != NULL ) {
-		if( file->fullfinalgzfilename != NULL ) {
-			return isregularfile(file->fullfinalgzfilename) &&
-			       isregularfile(file->fullfinalfilename);
+	if( file->f[ic_uncompressed].fullfinalfilename != NULL ) {
+		if( file->f[ic_gzip].fullfinalfilename != NULL ) {
+			return isregularfile(file->f[ic_gzip].fullfinalfilename) &&
+			       isregularfile(file->f[ic_uncompressed].fullfinalfilename);
 		} else {
-			return isregularfile(file->fullfinalfilename);
+			return isregularfile(file->f[ic_uncompressed].fullfinalfilename);
 		}
 	} else {
-		assert( file->fullfinalgzfilename != NULL );
-		return isregularfile(file->fullfinalgzfilename);
+		assert( file->f[ic_gzip].fullfinalfilename != NULL );
+		return isregularfile(file->f[ic_gzip].fullfinalfilename);
 	}
+}
+
+static retvalue openfile(const char *dirofdist, struct openfile *f) {
+
+	f->fullfinalfilename = calc_dirconcat(dirofdist,f->relativefilename);
+	if( f->fullfinalfilename == NULL )
+		return RET_ERROR_OOM;
+	f->fulltemporaryfilename = calc_addsuffix(f->fullfinalfilename,"new");
+	if( f->fulltemporaryfilename == NULL )
+		return RET_ERROR_OOM;
+	(void)unlink(f->fulltemporaryfilename);
+	f->fd = open(f->fulltemporaryfilename,O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY,0666);
+	if( f->fd < 0 ) {
+		int e = errno;
+		fprintf(stderr,"Error opening file %s for writing: %m\n",
+				f->fulltemporaryfilename);
+		return RET_ERRNO(e);
+	}
+	return RET_OK;
+}
+
+static retvalue writetofile(struct openfile *file, const char *data, size_t len) {
+
+	file->filesize += len;
+	MD5Update(&file->context,data,len);
+
+	if( file->fd < 0 )
+		return RET_NOTHING;
+
+	while( len > 0 ) {
+		ssize_t written = write(file->fd,data,len);
+		if( written >= 0 ) {
+			len -= written;
+			data += written;
+		} else {
+			int e = errno;
+			if( e == EAGAIN || e == EINTR )
+				continue;
+			fprintf(stderr,"Error writing to %s: %d=%m\n",
+					file->fullfinalfilename,e);
+			return RET_ERRNO(e);
+		}
+	}
+	return RET_OK;
+}
+
+#define GZBUFSIZE 40960
+
+static retvalue	initgzcompression(struct filetorelease *f) {
+	int zret;
+
+#ifndef OLDZLIB
+	if( (zlibCompileFlags() & (1<<17)) !=0 ) {
+		fprintf(stderr,"libz compiled without .gz supporting code\n");
+		return RET_ERROR;
+	}
+#else
+	unsigned char header[10] = {
+		31,139, Z_DEFLATED, 
+		/* flags */
+		0, 
+		/* time */
+		0, 0, 0, 0,
+		/* xtra-flags */
+		0, 	
+		/* os (3 = unix, 255 = unknown)
+		 * using unknown to generate the same file
+		 * with or without OLDZLIB */
+		255};
+	retvalue r = writetofile(&f->f[ic_gzip],header,10);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	/* we have to calculate the crc ourself */
+	f->crc = crc32(0L, NULL, 0);
+#endif
+	f->gzoutputbuffer = malloc(GZBUFSIZE);
+	if( f->gzoutputbuffer == NULL )
+		return RET_ERROR_OOM;
+	f->gzstream.next_in = NULL;
+	f->gzstream.avail_in = 0;
+	f->gzstream.next_out = f->gzoutputbuffer;
+	f->gzstream.avail_out = GZBUFSIZE;
+	f->gzstream.zalloc = NULL;
+	f->gzstream.zfree = NULL;
+	f->gzstream.opaque = NULL;
+#ifndef OLDZLIB
+	zret = deflateInit2(&f->gzstream,
+			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */ 
+			Z_DEFAULT_COMPRESSION,
+			/* only possibility yet: */
+			Z_DEFLATED,
+			/* +16 to generate gzip header */
+			16 + MAX_WBITS,
+			/* how much memory to use 1-9 */
+			8,
+			/* default or Z_FILTERED or Z_HUFFMAN_ONLY or Z_RLE */
+			Z_DEFAULT_STRATEGY
+			);
+#else
+	zret = deflateInit2(&f->gzstream,
+			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */ 
+			Z_DEFAULT_COMPRESSION,
+			/* only possibility yet: */
+			Z_DEFLATED,
+			/* negative to no generate zlib header */
+			-MAX_WBITS,
+			/* how much memory to use 1-9 */
+			8,
+			/* default or Z_FILTERED or Z_HUFFMAN_ONLY or Z_RLE */
+			Z_DEFAULT_STRATEGY
+			);
+#endif
+	if( zret == Z_MEM_ERROR )
+		return RET_ERROR_OOM;
+	if( zret != Z_OK ) {
+		if( f->gzstream.msg == NULL ) {
+			fprintf(stderr,"Error from zlib's deflateInit2: "
+					"unknown(%d)\n", zret);
+		} else {
+			fprintf(stderr,"Error from zlib's deflateInit2: %s\n",
+					f->gzstream.msg);
+		}
+		return RET_ERROR;
+	}
+	return RET_OK;
 }
 
 static retvalue startfile(struct release *release, 
@@ -296,6 +432,7 @@ static retvalue startfile(struct release *release,
 		bool_t usecache,
 		struct filetorelease **file) {
 	struct filetorelease *n;
+	enum indexcompression i;
 
 	if( usecache ) {
 		retvalue r = release_usecached(release,filename,compressions);
@@ -312,61 +449,42 @@ static retvalue startfile(struct release *release,
 		free(filename);
 		return RET_ERROR_OOM;
 	}
-	n->relativefilename = filename;
-	if( n->relativefilename == NULL ) {
+	for( i = ic_uncompressed ; i < ic_count ; i ++ ) {
+		n->f[i].fd = -1;
+	}
+	n->f[ic_uncompressed].relativefilename = filename;
+	if( n->f[ic_uncompressed].relativefilename == NULL ) {
 		release_abortfile(n);
 		return RET_ERROR_OOM;
 	}
 	if( (compressions & IC_FLAG(ic_uncompressed)) != 0 ) {
-		n->fullfinalfilename = calc_dirconcat(release->dirofdist,n->relativefilename);
-		if( n->fullfinalfilename == NULL ) {
+		retvalue r;
+		r = openfile(release->dirofdist,&n->f[ic_uncompressed]);
+		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(n);
-			return RET_ERROR_OOM;
+			return r;
 		}
-		n->fulltemporaryfilename = calc_addsuffix(n->fullfinalfilename,"new");
-		if( n->fulltemporaryfilename == NULL ) {
-			release_abortfile(n);
-			return RET_ERROR_OOM;
-		}
-		(void)unlink(n->fulltemporaryfilename);
-		n->f = fopen(n->fulltemporaryfilename,"wb");
-		if( n->f == NULL ) {
-			int e = errno;
-			fprintf(stderr,"Error opening file %s for writing: %m\n",
-					n->fulltemporaryfilename);
-			release_abortfile(n);
-			return RET_ERRNO(e);
-		}
-	} else
-		n->f = NULL;
+	}
 	if( (compressions & IC_FLAG(ic_gzip)) != 0 ) {
-		n->relativegzfilename = calc_addsuffix(filename,"gz");
-		if( n->relativegzfilename == NULL ) {
+		retvalue r;
+		n->f[ic_gzip].relativefilename = calc_addsuffix(filename,"gz");
+		if( n->f[ic_gzip].relativefilename == NULL ) {
 			release_abortfile(n);
 			return RET_ERROR_OOM;
 		}
-		n->fullfinalgzfilename = calc_dirconcat(release->dirofdist,n->relativegzfilename);
-		if( n->fullfinalgzfilename == NULL ) {
+		r = openfile(release->dirofdist,&n->f[ic_gzip]);
+		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(n);
-			return RET_ERROR_OOM;
+			return r;
 		}
-		n->fulltemporarygzfilename = calc_addsuffix(n->fullfinalgzfilename,"new");
-		if( n->fulltemporarygzfilename == NULL ) {
+		MD5Init(&n->f[ic_gzip].context);
+		r = initgzcompression(n);
+		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(n);
-			return RET_ERROR_OOM;
+			return r;
 		}
-		(void)unlink(n->fulltemporarygzfilename);
-		n->gzf = gzopen(n->fulltemporarygzfilename,"wb");
-		if( n->gzf == NULL ) {
-			int e = errno;
-			fprintf(stderr,"Error opening file %s for writing: %m\n",
-					n->fulltemporarygzfilename);
-			release_abortfile(n);
-			return RET_ERRNO(e);
-		}
-	} else
-		n->gzf = NULL;
-	MD5Init(&n->context);
+	}
+	MD5Init(&n->f[ic_uncompressed].context);
 	*file = n;
 	return RET_OK;
 }
@@ -394,104 +512,240 @@ retvalue release_startfile(struct release *release,
 	return startfile(release,relfilename,compressions,usecache,file);
 }
 
+static retvalue releasefile(struct release *release, struct openfile *f) {
+	char *md5sum;
+	retvalue r;
+
+	if( f->relativefilename == NULL ) {
+		assert( f->fullfinalfilename == NULL);
+		assert( f->fulltemporaryfilename == NULL);
+		return RET_NOTHING;
+	}
+	assert((f->fullfinalfilename == NULL 
+		  && f->fulltemporaryfilename == NULL)
+	  	|| (f->fullfinalfilename != NULL 
+		  && f->fulltemporaryfilename != NULL));
+
+	r = md5sum_genstring(&md5sum,&f->context,f->filesize);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = newreleaseentry(release,f->relativefilename,md5sum,
+			f->fullfinalfilename, 
+			f->fulltemporaryfilename);
+	f->relativefilename = NULL;
+	f->fullfinalfilename = NULL;
+	f->fulltemporaryfilename = NULL;
+	return RET_OK;
+}
+
+static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
+	int zret;
+
+	assert( f->f[ic_gzip].fd >= 0  );
+
+	if( len == 0 )
+		return RET_NOTHING;
+
+#ifdef OLDZLIB
+	f->crc = crc32(f->crc,data,len);
+#endif
+	
+	f->gzstream.next_in = (char*)data;
+	f->gzstream.avail_in = len;
+
+	do {
+		f->gzstream.next_out = f->gzoutputbuffer + f->gz_waiting_bytes;
+		f->gzstream.avail_out = GZBUFSIZE - f->gz_waiting_bytes;
+
+		zret = deflate(&f->gzstream,Z_NO_FLUSH);
+		f->gz_waiting_bytes = GZBUFSIZE - f->gzstream.avail_out;
+
+		if( (zret == Z_OK && f->gz_waiting_bytes >= GZBUFSIZE / 2 )
+		     || zret == Z_BUF_ERROR ) {
+			retvalue r;
+			/* there should be anything to write, otherwise
+			 * better break to avoid an infinite loop */
+			if( f->gz_waiting_bytes == 0 )
+				break;
+			r = writetofile(&f->f[ic_gzip],
+					f->gzoutputbuffer, f->gz_waiting_bytes);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) )
+				return r;
+			f->gz_waiting_bytes = 0;
+		}
+		/* as we start with some data to process, Z_BUF_ERROR
+		 * should only happend when no output is possible, as that
+		 * gets possible again it should finaly produce more output
+		 * and return Z_OK and always terminate. Hopefully... */
+	} while( zret == Z_BUF_ERROR 
+			|| ( zret == Z_OK && f->gzstream.avail_in != 0));
+
+	f->gzstream.next_in = NULL;
+	f->gzstream.avail_in = 0;
+
+	if( zret != Z_OK ) {
+		if( f->gzstream.msg == NULL ) {
+			fprintf(stderr,"Error from zlib's deflate: "
+					"unknown(%d)\n", zret);
+		} else {
+			fprintf(stderr,"Error from zlib's deflate: %s\n",
+					f->gzstream.msg);
+		}
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static retvalue finishgz(struct filetorelease *f) {
+	int zret;
+	char dummy;
+#ifdef OLDZLIB
+	unsigned char buffer[4];
+	retvalue r;
+#endif
+
+	assert( f->f[ic_gzip].fd >= 0  );
+
+	f->gzstream.next_in = &dummy;
+	f->gzstream.avail_in = 0;
+
+	do {
+		f->gzstream.next_out = f->gzoutputbuffer + f->gz_waiting_bytes;
+		f->gzstream.avail_out = GZBUFSIZE - f->gz_waiting_bytes;
+
+		zret = deflate(&f->gzstream,Z_FINISH);
+		f->gz_waiting_bytes = GZBUFSIZE - f->gzstream.avail_out;
+
+		if( zret == Z_OK || zret == Z_STREAM_END
+		     || zret == Z_BUF_ERROR ) {
+			retvalue r;
+			if( f->gz_waiting_bytes == 0 ) {
+				if( zret != Z_STREAM_END )  {
+					fprintf(stderr,
+"Unexpected buffer error after deflate (%d)\n",zret);
+					return RET_ERROR;
+				}
+				break;
+			}
+			r = writetofile(&f->f[ic_gzip],
+					f->gzoutputbuffer, f->gz_waiting_bytes);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) )
+				return r;
+			f->gz_waiting_bytes = 0;
+		}
+		/* see above */
+	} while( zret == Z_BUF_ERROR || zret == Z_OK );
+
+	if( zret != Z_STREAM_END ) {
+		if( f->gzstream.msg == NULL ) {
+			fprintf(stderr,"Error from zlib's deflate: "
+					"unknown(%d)\n", zret);
+		} else {
+			fprintf(stderr,"Error from zlib's deflate: %s\n",
+					f->gzstream.msg);
+		}
+		return RET_ERROR;
+	}
+
+	zret = deflateEnd(&f->gzstream);
+	if( zret != Z_OK ) {
+		if( f->gzstream.msg == NULL ) {
+			fprintf(stderr,"Error from zlib's deflateEnd: "
+					"unknown(%d)\n", zret);
+		} else {
+			fprintf(stderr,"Error from zlib's deflateEnd: %s\n",
+					f->gzstream.msg);
+		}
+		return RET_ERROR;
+	}
+	/* to avoid deflateEnd called again */
+	f->gzstream.next_out = NULL;
+
+#ifdef OLDZLIB
+	buffer[0] = f->crc & 0xFF;
+	buffer[1] = (f->crc >> (8*1)) & 0xFF;
+	buffer[2] = (f->crc >> (8*2)) & 0xFF;
+	buffer[3] = (f->crc >> (8*3)) & 0xFF;
+	r = writetofile(&f->f[ic_gzip],buffer,4);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	buffer[0] = f->f[ic_uncompressed].filesize & 0xFF;
+	buffer[1] = (f->f[ic_uncompressed].filesize >> (8*1)) & 0xFF;
+	buffer[2] = (f->f[ic_uncompressed].filesize >> (8*2)) & 0xFF;
+	buffer[3] = (f->f[ic_uncompressed].filesize >> (8*3)) & 0xFF;
+	r = writetofile(&f->f[ic_gzip],buffer,4);
+	if( RET_WAS_ERROR(r) )
+		return r;
+#endif
+
+	return RET_OK;
+}
+
 retvalue release_finishfile(struct release *release, struct filetorelease *file) {
 	retvalue result,r;
-	char *md5sum;
+	enum indexcompression i;
 
-	//TODO: use ferror
-
-	if( file->f != NULL ) {
-		if( fclose(file->f) != 0 ) {
-			file->f = NULL;
-			release_abortfile(file);
-			return RET_ERRNO(errno);
-		}
-		file->f = NULL;
-	}
-	if( file->gzf != NULL ) {
-		int ret;
-		ret = gzclose(file->gzf);
-		file->gzf = NULL;
-		if( ret < 0 ) {
-			release_abortfile(file);
-			return RET_ZERRNO(ret);
-		}
-	}
-	release->new = TRUE;
-	result = RET_OK;
-	assert((file->fullfinalfilename == NULL && file->fulltemporaryfilename == NULL)||
-	       (file->fullfinalfilename != NULL && file->fulltemporaryfilename != NULL));
-
-	r = md5sum_genstring(&md5sum,&file->context,file->filesize);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) ) {
+	if( RET_WAS_ERROR( file->state ) ) {
+		r = file->state;
 		release_abortfile(file);
 		return r;
 	}
-	r = newreleaseentry(release,file->relativefilename,md5sum,
-			file->fullfinalfilename, file->fulltemporaryfilename);
-	RET_UPDATE(result,r);
-	if( file->fullfinalgzfilename != NULL 
-			&& file->fulltemporarygzfilename != NULL 
-			&& file->relativegzfilename != NULL ) {
-		/* todo: use the calculated values instead */
-		r = md5sum_read(file->fulltemporarygzfilename,&md5sum);
+
+	if( file->f[ic_uncompressed].fd >= 0 ) {
+		if( close(file->f[ic_uncompressed].fd) != 0 ) {
+			int e = errno;
+			file->f[ic_uncompressed].fd = -1;
+			release_abortfile(file);
+			return RET_ERRNO(e);
+		}
+		file->f[ic_uncompressed].fd = -1;
+	}
+	if( file->f[ic_gzip].fd >= 0 ) {
+		r = finishgz(file);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			return r;
 		}
-		assert( r != RET_NOTHING );
-		r = newreleaseentry(release,file->relativegzfilename,md5sum,
-			file->fullfinalgzfilename, file->fulltemporarygzfilename);
-		RET_UPDATE(result,r);
-	} else {
-		assert( file->fullfinalgzfilename == NULL && file->fulltemporarygzfilename == NULL && file->relativegzfilename == NULL);
+		if( close(file->f[ic_gzip].fd) != 0 ) {
+			int e = errno;
+			file->f[ic_gzip].fd = -1;
+			release_abortfile(file);
+			return RET_ERRNO(e);
+		}
+		file->f[ic_gzip].fd = -1;
 	}
+	release->new = TRUE;
+	result = RET_OK;
+
+	for( i = ic_uncompressed ; i < ic_count ; i++ ) {
+		r = releasefile(release,&file->f[i]);
+		if( RET_WAS_ERROR(r) ) {
+			release_abortfile(file);
+			return r;
+		}
+		RET_UPDATE(result,r);
+	}
+	free(file->gzoutputbuffer);
 	free(file);
 	return result;
 }
 
-static retvalue writeuncompressed(struct filetorelease *file, const char *data, size_t len) {
-	size_t written;
 
-	file->filesize += len;
-	MD5Update(&file->context,data,len);
-
-	if( file->f == NULL )
-		return RET_NOTHING;
-
-	while( len > 0 ) {
-		written = fwrite(data,1,len,file->f);
-		len -= written;
-		data += written;
-		if( ferror(file->f) )
-			return RET_ERROR;
-	}
-	return RET_OK;
-}
-static retvalue writegz(struct filetorelease *file, const char *data, size_t len) {
-	size_t written;
-
-	if( file->gzf == NULL )
-		return RET_NOTHING;
-
-	while( len > 0 ) {
-		written = gzwrite(file->gzf,data,len);
-		if( written != len )
-			return RET_ERROR;
-		len -= written;
-		data += written;
-	}
-	return RET_OK;
-}
 retvalue release_writedata(struct filetorelease *file, const char *data, size_t len) {
 	retvalue result,r;
  
 	result = RET_OK;
-	r = writeuncompressed(file,data,len);
+	/* always call this so that md5sum is calculated */
+	r = writetofile(&file->f[ic_uncompressed],data,len);
 	RET_UPDATE(result,r);
-	r = writegz(file,data,len);
-	RET_UPDATE(result,r);
+	if( file->f[ic_gzip].relativefilename != NULL ) {
+		r = writegz(file,data,len);
+		RET_UPDATE(result,r);
+	}
+	RET_UPDATE(file->state,result);
 	return result;
 }
 
