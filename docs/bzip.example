@@ -17,8 +17,13 @@ BASENAME="`basename "$OLDNAME"`"
 # with reprepro <= 0.7 this could also be Packages.gz or Sources.gz,
 # but now only the uncompressed name is given. (even if not generated)
 if [ "xPackages" = "x$BASENAME" ] || [ "xSources" = "x$BASENAME" ] ; then
-	if [ "x$STATUS" == "xold" ] && [ -f "$DIROFDIST/$OLDNAME.bz2" ] ; then
-		echo "$OLDNAME.bz2" >&3
+	if [ "x$STATUS" == "xold" ] ; then
+		if [ -f "$DIROFDIST/$OLDNAME.bz2" ] ; then
+			echo "$OLDNAME.bz2" >&3
+		else
+			bzip2 -c -- "$DIROFDIST/$OLDNAME" >"$DIROFDIST/$OLDNAME.bz2.new" 3>/dev/null
+			echo "$OLDNAME.bz2.new" >&3
+		fi
 	else
 		bzip2 -c -- "$DIROFDIST/$NEWNAME" >"$DIROFDIST/$OLDNAME.bz2.new" 3>/dev/null
 		echo "$OLDNAME.bz2.new" >&3

@@ -6,6 +6,8 @@
 	in-place md5sum calculation without needing to reread
 	the generated files.
 
+	* fix problem of bzip2.example script
+
 2005-12-20  Bernhard R. Link <brlink@debian.org>
 	* refactor index exporting/release generation
 	so that is always puts the uncompressed checksums
