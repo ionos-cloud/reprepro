@@ -18,7 +18,7 @@
 /* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guess it from the section.
  * If basename, filekey and directory are != NULL, then they are used instead 
- * of beeing newly calculated. 
+ * of being newly calculated. 
  * (And all files are expected to already be in the pool),
  * if dereferenced_filekeys is != NULL, add there the filekeys that lost a reference*/
 retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,const char *dscfilename,/*@null@*/const char *filekey,/*@null@*/const char *basename,/*@null@*/const char *directory,/*@null@*/const char *md5sum,/*@null@*/const struct overrideinfo *srcoverride,int delete,/*@null@*/struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb);
