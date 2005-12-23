@@ -58,7 +58,7 @@ If none is given, \fIbasedir\fP\fB/conf\fP will be used.
 .TP
 .B \-\-distdir \fIdistdir\fP
 Sets the directory to generate index files relatively to. (i.e. things like
-Packages.gz Sources.gz and Release.gpg)
+Packages.gz, Sources.gz and Release.gpg)
 
 If none is given, \fIbasedir\fP\fB/dists\fP is used.
 
@@ -473,10 +473,14 @@ Choose what kind of Index files to export. The first
 part describes what the Index file shall be called.
 The second argument determines the name of a Release
 file to generate or not to generate if missing.
-Then one or two of "\fB.\fP" or "\fB.gz\fP"
+Then at least one of "\fB.\fP", "\fB.gz\fP"  or "\fB.bz2\fP"
 specifying whether to generate uncompressed output, gzipped
-output or both. If an argument not starting with dot follows,
-it will be executed after each index file is generated.
+output, bzip2ed output or any combination.
+(bzip2 is only available when compiled with bzip2 support,
+so it might not be available when you compiled it on your
+own).
+If an argument not starting with dot follows,
+it will be executed after all index files are generated.
 (See the examples for what argument this gets).
 The default is:
 .br

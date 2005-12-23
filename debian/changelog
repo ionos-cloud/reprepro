@@ -8,8 +8,9 @@ reprepro (0.7.1-1) UNRELEASED; urgency=low
   - new --noskipold option to get old behaviour
   - always place the checksum of the uncompressed file in the Release
     file, even if not generated. (Fixing problems newer apts have).
+  - add native .bz2 compression support
 
- -- Bernhard R. Link <brlink@debian.org>  Tue, 20 Dec 2005 10:37:41 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 23 Dec 2005 16:15:41 +0100
 
 reprepro (0.7-1) unstable; urgency=low
 

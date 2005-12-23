@@ -42,6 +42,9 @@ Codename: test1
 Architectures: abacus source
 Components: stupid ugly
 Update: Test2toTest1
+DebIndices: Packages Release . .gz .bz2
+UDebIndices: Packages .gz .bz2
+DscIndices: Sources Release . .gz .bz2
 Tracking: keep includechanges needsources includebyhand embargoalls
 
 Codename: test2
