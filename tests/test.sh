@@ -68,6 +68,7 @@ test -f dists/test2/Release
 # previous was
 # EMPTYGZMD5SUM=7029066c27ac6f5ef18d660d5741979a
 EMPTYGZMD5SUM=163be0a88c70ca629fd516dbaadad96a
+EMPTYBZ2MD5SUM=4059d198768f9f8dc9372dc1c54bc3c3
 cat > dists/test1/Release.expected <<END
 Codename: test1
 Date: normalized
@@ -76,15 +77,19 @@ Components: stupid ugly
 MD5Sum:
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
  $EMPTYGZMD5SUM 20 stupid/binary-abacus/Packages.gz
+ $EMPTYBZ2MD5SUM 14 stupid/binary-abacus/Packages.bz2
  d9f0fad5d54ad09dd4ecee86c73b64d4 39 stupid/binary-abacus/Release
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
  $EMPTYGZMD5SUM 20 stupid/source/Sources.gz
+ $EMPTYBZ2MD5SUM 14 stupid/source/Sources.bz2
  e38c7da133734e1fd68a7e344b94fe96 39 stupid/source/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
  $EMPTYGZMD5SUM 20 ugly/binary-abacus/Packages.gz
+ $EMPTYBZ2MD5SUM 14 ugly/binary-abacus/Packages.bz2
  236fcd9339b1813393819d464e37c7c6 37 ugly/binary-abacus/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
  $EMPTYGZMD5SUM 20 ugly/source/Sources.gz
+ $EMPTYBZ2MD5SUM 14 ugly/source/Sources.bz2
  ed4ee9aa5d080f67926816133872fd02 37 ugly/source/Release
 END
 cat > dists/test2/Release.expected <<END

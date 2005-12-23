@@ -16,6 +16,9 @@ Updates since 0.7:
   with the uncompressed names.
 - to compile reprepro with woody without a backported zlib
   use the -DOLDZLIB switch.
+- reprepro now supports bzip2 output natively. (You can
+  still use the example if you want to call bzip2 yourself
+  instead of using the libbz2 library)
 
 Updates since 0.6:
 - new --ignore=missingfield,brokenold,brokenversioncmp, 

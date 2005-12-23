@@ -117,6 +117,11 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 			else if( b[1] == 'g' && b[2] == 'z' &&
 					(xisspace(b[3]) || b[3] == '\0'))
 				mode->compressions |= IC_FLAG(ic_gzip);
+#ifdef HAVE_LIBBZ2
+			else if( b[1] == 'b' && b[2] == 'z' && b[3] == '2' &&
+					(xisspace(b[4]) || b[4] == '\0'))
+				mode->compressions |= IC_FLAG(ic_bzip2);
+#endif
 			else {
 				fprintf(stderr,"Unsupported extension '.%c'... in '%s'!\n",b[1],options);
 				free(options);

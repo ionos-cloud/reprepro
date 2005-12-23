@@ -2,7 +2,7 @@ Source: reprepro
 Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb3-dev, libz-dev
+Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb3-dev, libz-dev, libbz2-dev
 Standards-Version: 3.6.2
 
 Package: reprepro
@@ -18,11 +18,5 @@ Description: debian package repository producer
  so no database server is needed. 
  Checking signatures of mirrored repositories and creating
  signatures of the generated Package indices is supported.
- .
- WARNING: Reprepro does not have much users yet, so not all
- code paths are thoroughly tested. Please report any bugs you
- find.
- .
- Former working title of this program was mirrorer.
  .
  Homepage: http://mirrorer.alioth.debian.org/

@@ -30,6 +30,9 @@
 #include <fcntl.h>
 #include <time.h>
 #include <zlib.h>
+#ifdef HAVE_LIBBZ2
+#include <bzlib.h>
+#endif
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -190,6 +193,9 @@ static retvalue release_usecached(struct release *release,
 	retvalue r;
 	char *filename;
 	char *gzfilename;
+#ifdef HAVE_LIBBZ2
+	char *bzfilename;
+#endif
 
 	filename = calc_dirconcat(release->dirofdist,relfilename);
 	if( filename == NULL ) {
@@ -203,15 +209,33 @@ static retvalue release_usecached(struct release *release,
 		}
 	} else
 		gzfilename = NULL;
+#ifdef HAVE_LIBBZ2
+	if( (compressions & IC_FLAG(ic_bzip2)) != 0 ) {
+		bzfilename = calc_addsuffix(filename,"bz");
+		if( bzfilename == NULL ) {
+			free(filename);
+			free(gzfilename);
+			return RET_ERROR_OOM;
+		}
+	} else
+		bzfilename = NULL;
+#endif
 
 	/* todo: get md5sum from cache database here instead */
 	if( isregularfile(filename) && 
-			(gzfilename == NULL || isregularfile(gzfilename)) ) {
-		char *md5sum,*gzmd5sum;
+			(gzfilename == NULL || isregularfile(gzfilename)) 
+#ifdef HAVE_LIBBZ2
+			&& (bzfilename == NULL || isregularfile(bzfilename)) 
+#endif
+			) {
+		char *md5sum;
 		r = md5sum_read(filename,&md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			free(filename);
 			free(gzfilename);
+#ifdef HAVE_LIBBZ2
+			free(bzfilename);
+#endif
 			return r;
 		}
 		assert( r != RET_NOTHING );
@@ -220,34 +244,69 @@ static retvalue release_usecached(struct release *release,
 		if( filename == NULL ) {
 			free(md5sum);
 			free(gzfilename);
+#ifdef HAVE_LIBBZ2
+			free(bzfilename);
+#endif
 			return RET_ERROR_OOM;
 		}
 		r = newreleaseentry(release,filename,md5sum,NULL,NULL);
 		if( RET_WAS_ERROR(r) ) {
 			free(gzfilename);
+#ifdef HAVE_LIBBZ2
+			free(bzfilename);
+#endif
 			return r;
 		}
-		if( gzfilename == NULL )
-			return r;
+		if( gzfilename != NULL ) {
+			char *gzmd5sum;
 
-		r = md5sum_read(gzfilename,&gzmd5sum);
-		if( RET_WAS_ERROR(r) ) {
+			r = md5sum_read(gzfilename,&gzmd5sum);
+			if( RET_WAS_ERROR(r) ) {
+				free(gzfilename);
+				return r;
+			}
+			assert( r != RET_NOTHING );
 			free(gzfilename);
-			return r;
+			gzfilename = calc_addsuffix(relfilename,"gz");
+			if( gzfilename == NULL ) {
+				free(gzmd5sum);
+				return RET_ERROR_OOM;
+			}
+			r = newreleaseentry(release,gzfilename,gzmd5sum,NULL,NULL);
+			if( RET_WAS_ERROR(r) ) {
+#ifdef HAVE_LIBBZ2
+				free(bzfilename);
+#endif
+				return r;
+			}
 		}
-		assert( r != RET_NOTHING );
-		free(gzfilename);
-		gzfilename = calc_addsuffix(relfilename,"gz");
-		if( gzfilename == NULL ) {
-			free(gzmd5sum);
-			return RET_ERROR_OOM;
+#ifdef HAVE_LIBBZ2
+		if( bzfilename != NULL ) {
+			char *bzmd5sum;
+
+			r = md5sum_read(bzfilename,&bzmd5sum);
+			if( RET_WAS_ERROR(r) ) {
+				free(bzfilename);
+				return r;
+			}
+			assert( r != RET_NOTHING );
+			free(bzfilename);
+			bzfilename = calc_addsuffix(relfilename,"bz");
+			if( bzfilename == NULL ) {
+				free(bzmd5sum);
+				return RET_ERROR_OOM;
+			}
+			r = newreleaseentry(release,bzfilename,bzmd5sum,NULL,NULL);
 		}
-		r = newreleaseentry(release,gzfilename,gzmd5sum,NULL,NULL);
+#endif
 
 		return r;
 	}
 	free(filename);
 	free(gzfilename);
+#ifdef HAVE_LIBBZ2
+	free(bzfilename);
+#endif
 	return RET_NOTHING;
 }
 
@@ -266,6 +325,11 @@ struct filetorelease {
 	z_stream gzstream;
 #ifdef OLDZLIB
 	uLong crc;
+#endif
+#ifdef HAVE_LIBBZ2
+	/* output buffer for bzip2 compression */
+	unsigned char *bzoutputbuffer; size_t bz_waiting_bytes;
+	bz_stream bzstream;
 #endif
 };
 
@@ -286,6 +350,12 @@ void release_abortfile(struct filetorelease *file) {
 	if( file->gzstream.next_out != NULL ) {
 		deflateEnd(&file->gzstream);
 	}
+#ifdef HAVE_LIBBZ2
+	free(file->bzoutputbuffer);
+	if( file->bzstream.next_out != NULL ) {
+		BZ2_bzCompressEnd(&file->bzstream);
+	}
+#endif
 }
 
 bool_t release_oldexists(struct filetorelease *file) {
@@ -427,6 +497,42 @@ static retvalue	initgzcompression(struct filetorelease *f) {
 	return RET_OK;
 }
 
+#ifdef HAVE_LIBBZ2
+
+#define BZBUFSIZE 40960
+
+static retvalue	initbzcompression(struct filetorelease *f) {
+	int bzret;
+
+	f->bzoutputbuffer = malloc(BZBUFSIZE);
+	if( f->bzoutputbuffer == NULL )
+		return RET_ERROR_OOM;
+	f->bzstream.next_in = NULL;
+	f->bzstream.avail_in = 0;
+	f->bzstream.next_out = f->bzoutputbuffer;
+	f->bzstream.avail_out = BZBUFSIZE;
+	f->bzstream.bzalloc = NULL;
+	f->bzstream.bzfree = NULL;
+	f->bzstream.opaque = NULL;
+	bzret = BZ2_bzCompressInit(&f->bzstream,
+			/* blocksize (1-9) */
+			9,
+			/* verbosity */
+			0,
+			/* workFaktor (1-250, 0 = default(30)) */
+			0
+			);
+	if( bzret == BZ_MEM_ERROR )
+		return RET_ERROR_OOM;
+	if( bzret != BZ_OK ) {
+		fprintf(stderr,"Error from libbz2's bzCompressInit: "
+				"%d\n", bzret);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+#endif
+
 static retvalue startfile(struct release *release, 
 		char *filename, compressionset compressions, 
 		bool_t usecache,
@@ -484,6 +590,27 @@ static retvalue startfile(struct release *release,
 			return r;
 		}
 	}
+#ifdef HAVE_LIBBZ2
+	if( (compressions & IC_FLAG(ic_bzip2)) != 0 ) {
+		retvalue r;
+		n->f[ic_bzip2].relativefilename = calc_addsuffix(filename,"bz2");
+		if( n->f[ic_bzip2].relativefilename == NULL ) {
+			release_abortfile(n);
+			return RET_ERROR_OOM;
+		}
+		r = openfile(release->dirofdist,&n->f[ic_bzip2]);
+		if( RET_WAS_ERROR(r) ) {
+			release_abortfile(n);
+			return r;
+		}
+		MD5Init(&n->f[ic_bzip2].context);
+		r = initbzcompression(n);
+		if( RET_WAS_ERROR(r) ) {
+			release_abortfile(n);
+			return r;
+		}
+	}
+#endif
 	MD5Init(&n->f[ic_uncompressed].context);
 	*file = n;
 	return RET_OK;
@@ -651,6 +778,8 @@ static retvalue finishgz(struct filetorelease *f) {
 	}
 
 	zret = deflateEnd(&f->gzstream);
+	/* to avoid deflateEnd called again */
+	f->gzstream.next_out = NULL;
 	if( zret != Z_OK ) {
 		if( f->gzstream.msg == NULL ) {
 			fprintf(stderr,"Error from zlib's deflateEnd: "
@@ -661,8 +790,6 @@ static retvalue finishgz(struct filetorelease *f) {
 		}
 		return RET_ERROR;
 	}
-	/* to avoid deflateEnd called again */
-	f->gzstream.next_out = NULL;
 
 #ifdef OLDZLIB
 	buffer[0] = f->crc & 0xFF;
@@ -683,6 +810,97 @@ static retvalue finishgz(struct filetorelease *f) {
 
 	return RET_OK;
 }
+
+#ifdef HAVE_LIBBZ2
+
+static retvalue writebz(struct filetorelease *f, const char *data, size_t len) {
+	int bzret;
+
+	assert( f->f[ic_bzip2].fd >= 0  );
+
+	if( len == 0 )
+		return RET_NOTHING;
+
+	f->bzstream.next_in = (char*)data;
+	f->bzstream.avail_in = len;
+
+	do {
+		f->bzstream.next_out = f->bzoutputbuffer + f->bz_waiting_bytes;
+		f->bzstream.avail_out = BZBUFSIZE - f->bz_waiting_bytes;
+
+		bzret = BZ2_bzCompress(&f->bzstream,BZ_RUN);
+		f->bz_waiting_bytes = BZBUFSIZE - f->bzstream.avail_out;
+
+		if( bzret == BZ_RUN_OK && 
+				f->bz_waiting_bytes >= BZBUFSIZE / 2 ) {
+			retvalue r;
+			assert( f->bz_waiting_bytes > 0 );
+			r = writetofile(&f->f[ic_bzip2],
+					f->bzoutputbuffer, f->bz_waiting_bytes);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) )
+				return r;
+			f->bz_waiting_bytes = 0;
+		}
+	} while( bzret == BZ_RUN_OK && f->bzstream.avail_in != 0 );
+
+	f->bzstream.next_in = NULL;
+	f->bzstream.avail_in = 0;
+
+	if( bzret != BZ_RUN_OK ) {
+		fprintf(stderr,"Error from libbz2's bzCompress: "
+					"%d\n", bzret);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static retvalue finishbz(struct filetorelease *f) {
+	int bzret;
+	char dummy;
+
+	assert( f->f[ic_bzip2].fd >= 0  );
+
+	f->bzstream.next_in = &dummy;
+	f->bzstream.avail_in = 0;
+
+	do {
+		f->bzstream.next_out = f->bzoutputbuffer + f->bz_waiting_bytes;
+		f->bzstream.avail_out = BZBUFSIZE - f->bz_waiting_bytes;
+
+		bzret = BZ2_bzCompress(&f->bzstream,BZ_FINISH);
+		f->bz_waiting_bytes = BZBUFSIZE - f->bzstream.avail_out;
+
+		if( bzret == BZ_RUN_OK || bzret == BZ_STREAM_END ) {
+			retvalue r;
+			assert( f->bz_waiting_bytes != 0 );
+			r = writetofile(&f->f[ic_bzip2],
+					f->bzoutputbuffer, f->bz_waiting_bytes);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) )
+				return r;
+			f->bz_waiting_bytes = 0;
+		}
+	} while( bzret == BZ_RUN_OK );
+
+	if( bzret != BZ_STREAM_END ) {
+		fprintf(stderr,"Error from bzlib's bzCompress: "
+				"%d\n", bzret);
+		return RET_ERROR;
+	}
+
+	bzret = BZ2_bzCompressEnd(&f->bzstream);
+	/* to avoid bzCompressEnd called again */
+	f->bzstream.next_out = NULL;
+	if( bzret != BZ_OK ) {
+		fprintf(stderr,"Error from libbz2's bzCompressEnd: "
+				"%d\n", bzret);
+		return RET_ERROR;
+	}
+
+	return RET_OK;
+}
+#endif
 
 retvalue release_finishfile(struct release *release, struct filetorelease *file) {
 	retvalue result,r;
@@ -717,6 +935,22 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 		}
 		file->f[ic_gzip].fd = -1;
 	}
+#ifdef HAVE_LIBBZ2
+	if( file->f[ic_bzip2].fd >= 0 ) {
+		r = finishbz(file);
+		if( RET_WAS_ERROR(r) ) {
+			release_abortfile(file);
+			return r;
+		}
+		if( close(file->f[ic_bzip2].fd) != 0 ) {
+			int e = errno;
+			file->f[ic_bzip2].fd = -1;
+			release_abortfile(file);
+			return RET_ERRNO(e);
+		}
+		file->f[ic_bzip2].fd = -1;
+	}
+#endif
 	release->new = TRUE;
 	result = RET_OK;
 
@@ -729,6 +963,9 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 		RET_UPDATE(result,r);
 	}
 	free(file->gzoutputbuffer);
+#ifdef HAVE_LIBBZ2
+	free(file->bzoutputbuffer);
+#endif
 	free(file);
 	return result;
 }
@@ -746,6 +983,13 @@ retvalue release_writedata(struct filetorelease *file, const char *data, size_t 
 		RET_UPDATE(result,r);
 	}
 	RET_UPDATE(file->state,result);
+#ifdef HAVE_LIBBZ2
+	if( file->f[ic_bzip2].relativefilename != NULL ) {
+		r = writebz(file,data,len);
+		RET_UPDATE(result,r);
+	}
+	RET_UPDATE(file->state,result);
+#endif
 	return result;
 }
 
