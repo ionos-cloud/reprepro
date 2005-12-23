@@ -406,7 +406,7 @@ echo $ERRORMSG | grep -q "error:249"
 echo $ERRORMSG | grep -q "Could not open './filename_version.tar.gz"
 touch filename_version.tar.gz
 ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
-echo $ERRORMSG | grep -q -v "error"
+echo $ERRORMSG | grep -q -v "error:"
 echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
 echo $ERRORMSG | grep -q "but no files for this"
 echo $ERRORMSG | grep -q "put in a distribution not listed within"
