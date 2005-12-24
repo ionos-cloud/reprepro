@@ -67,6 +67,16 @@ apt has
 .B dists
 hardcoded in it, so this is mostly only useful for testing or when your webserver
 pretends another directory structure than your physical layout.
+
+.B Warning:
+Beware when changing this forth and back between two values not ending
+in the same directory.
+Reprepro only looks if files it wants are there. If nothing of the content
+changed and there is a file it will not touch it, assuming it is the one it
+wrote last time, assuming any different \fB\-\-distdir\fP ended in the same
+directory.
+So either clean a directory before setting \fB\-\-distdir\fP to it or
+do an \fBexport\fP with the new one first to have a consistent state.
 .TP
 .B \-\-dbdir \fIdbdir\fP
 Sets the directory where reprepro keeps its databases.
