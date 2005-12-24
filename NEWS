@@ -19,6 +19,13 @@ Updates since 0.7:
 - reprepro now supports bzip2 output natively. (You can
   still use the example if you want to call bzip2 yourself
   instead of using the libbz2 library)
+- new db/release.cache.db file storing md5sums of written
+  index and Release files there. (This can cause Release
+  file give old md5sums when the files are not what it
+  expects, but unless you manually changed them that is
+  a good way to find errors, and manually changing if
+  fragile anyway, so better do not do it but ask me
+  if some feature is missing overrides cannot offer yet).
 
 Updates since 0.6:
 - new --ignore=missingfield,brokenold,brokenversioncmp, 

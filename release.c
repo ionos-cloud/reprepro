@@ -33,6 +33,7 @@
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
+#include <db.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -63,6 +64,8 @@ struct release {
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
 	} *files;
+	/* the cache database for old files */
+	DB *cachedb;
 	/* some more things, only here to make
 	 * free'ing them in case of error easier */
 	char *newreleasefilename,*releasefilename;
@@ -85,6 +88,9 @@ void release_free(struct release *release) {
 	free(release->releasefilename);
 	free(release->newsignfilename);
 	free(release->signfilename);
+	if( release->cachedb != NULL ) {
+		release->cachedb->close(release->cachedb,0);
+	}
 	free(release);
 }
 
@@ -116,15 +122,42 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 	return RET_OK;
 }
 
-retvalue release_init(UNUSED(const char *dbdir), const char *distdir, const char *codename, struct release **release) {
+retvalue release_init(const char *dbdir, const char *distdir, const char *codename, struct release **release) {
 	struct release *n;
+	int dbret;
+	char *filename;
+
 	n = calloc(1,sizeof(struct release));
 	n->dirofdist = calc_dirconcat(distdir,codename);
 	if( n->dirofdist == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;
 	}
-	// TODO: open checksum cache database here
+	dbret = db_create(&n->cachedb,NULL,0);
+	if( dbret < 0 ) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
+		n->cachedb = NULL;
+		free(n->dirofdist);
+		free(n);
+		return RET_DBERR(dbret);
+	}
+	filename = calc_dirconcat(dbdir,"release.cache.db");
+	if( filename == NULL ) {
+		(void)n->cachedb->close(n->cachedb,0);
+		return RET_ERROR_OOM;
+	}
+	dbret = n->cachedb->open(n->cachedb,filename,codename,
+			DB_HASH, DB_CREATE, 0664);
+	if( dbret < 0 ) {
+		n->cachedb->err(n->cachedb, dbret, "%s(%s)",
+				filename,codename);
+		(void)n->cachedb->close(n->cachedb,0);
+		free(filename);
+		free(n->dirofdist);
+		free(n);
+		return RET_DBERR(dbret);
+	}
+	free(filename);
 	*release = n;
 	return RET_OK;
 }
@@ -179,135 +212,137 @@ retvalue release_addold(struct release *release,/*@only@*/char *relfilename) {
 		return RET_ERROR_OOM;
 	}
 	r = md5sum_read(filename,&md5sum);
+	free(filename);
 	if( !RET_IS_OK(r) ) {
 		free(relfilename);
-		free(filename);
 		return r;
 	}
-	return newreleaseentry(release,relfilename,md5sum,filename,NULL);
+	return newreleaseentry(release,relfilename,md5sum,NULL,NULL);
 }
 
+static retvalue getcachevalue(struct release *,const char *, char **);
 static retvalue release_usecached(struct release *release,
 				const char *relfilename,
 				compressionset compressions) {
-	retvalue r;
-	char *filename;
-	char *gzfilename;
+	retvalue result,r;
+	char *filename,*md5sum;
+	char *gzrelfilename,*gzmd5sum;
 #ifdef HAVE_LIBBZ2
-	char *bzfilename;
+	char *bzrelfilename,*bzmd5sum;
 #endif
 
+	/* first look if the there are actual files, in case
+	 * the cache still lists them but they got lost */
 	filename = calc_dirconcat(release->dirofdist,relfilename);
 	if( filename == NULL ) {
 		return RET_ERROR_OOM;
 	}
+	if( (compressions & IC_FLAG(ic_uncompressed)) != 0 ) {
+		if( !isregularfile(filename) ) {
+			free(filename);
+			return RET_NOTHING;
+		}
+	}
 	if( (compressions & IC_FLAG(ic_gzip)) != 0 ) {
+		char *gzfilename;
 		gzfilename = calc_addsuffix(filename,"gz");
 		if( gzfilename == NULL ) {
 			free(filename);
 			return RET_ERROR_OOM;
 		}
-	} else
-		gzfilename = NULL;
+		if( !isregularfile(gzfilename) ) {
+			free(filename);
+			free(gzfilename);
+			return RET_NOTHING;
+		}
+		free(gzfilename);
+	}
 #ifdef HAVE_LIBBZ2
 	if( (compressions & IC_FLAG(ic_bzip2)) != 0 ) {
+		char *bzfilename;
 		bzfilename = calc_addsuffix(filename,"bz");
 		if( bzfilename == NULL ) {
 			free(filename);
-			free(gzfilename);
 			return RET_ERROR_OOM;
+		}
+		if( !isregularfile(bzfilename) ) {
+			free(filename);
+			free(bzfilename);
+			return RET_NOTHING;
+		}
+		free(bzfilename);
+	}
+#endif
+	free(filename);
+
+	/* now that the files are there look into the cache
+	 * what md5sum they have. */
+
+	filename = strdup(relfilename);
+	if( filename == NULL )
+		return RET_ERROR_OOM;
+
+	if( (compressions & IC_FLAG(ic_uncompressed)) != 0 ) {
+		r = getcachevalue(release,relfilename,&md5sum);
+		if( !RET_IS_OK(r) ) {
+			free(filename);
+			return r;
 		}
 	} else
-		bzfilename = NULL;
-#endif
-
-	/* todo: get md5sum from cache database here instead */
-	if( isregularfile(filename) && 
-			(gzfilename == NULL || isregularfile(gzfilename)) 
-#ifdef HAVE_LIBBZ2
-			&& (bzfilename == NULL || isregularfile(bzfilename)) 
-#endif
-			) {
-		char *md5sum;
-		r = md5sum_read(filename,&md5sum);
-		if( RET_WAS_ERROR(r) ) {
+		md5sum = NULL;
+	if( (compressions & IC_FLAG(ic_gzip)) != 0 ) {
+		gzrelfilename = calc_addsuffix(relfilename,"gz");
+		if( gzrelfilename == NULL ) {
 			free(filename);
-			free(gzfilename);
-#ifdef HAVE_LIBBZ2
-			free(bzfilename);
-#endif
-			return r;
-		}
-		assert( r != RET_NOTHING );
-		free(filename);
-		filename = strdup(relfilename);
-		if( filename == NULL ) {
 			free(md5sum);
-			free(gzfilename);
-#ifdef HAVE_LIBBZ2
-			free(bzfilename);
-#endif
 			return RET_ERROR_OOM;
 		}
-		r = newreleaseentry(release,filename,md5sum,NULL,NULL);
-		if( RET_WAS_ERROR(r) ) {
-			free(gzfilename);
-#ifdef HAVE_LIBBZ2
-			free(bzfilename);
-#endif
+		r = getcachevalue(release,gzrelfilename,&gzmd5sum);
+		if( !RET_IS_OK(r) ) {
+			free(filename);
+			free(md5sum);
 			return r;
 		}
-		if( gzfilename != NULL ) {
-			char *gzmd5sum;
-
-			r = md5sum_read(gzfilename,&gzmd5sum);
-			if( RET_WAS_ERROR(r) ) {
-				free(gzfilename);
-				return r;
-			}
-			assert( r != RET_NOTHING );
-			free(gzfilename);
-			gzfilename = calc_addsuffix(relfilename,"gz");
-			if( gzfilename == NULL ) {
-				free(gzmd5sum);
-				return RET_ERROR_OOM;
-			}
-			r = newreleaseentry(release,gzfilename,gzmd5sum,NULL,NULL);
-			if( RET_WAS_ERROR(r) ) {
-#ifdef HAVE_LIBBZ2
-				free(bzfilename);
-#endif
-				return r;
-			}
-		}
-#ifdef HAVE_LIBBZ2
-		if( bzfilename != NULL ) {
-			char *bzmd5sum;
-
-			r = md5sum_read(bzfilename,&bzmd5sum);
-			if( RET_WAS_ERROR(r) ) {
-				free(bzfilename);
-				return r;
-			}
-			assert( r != RET_NOTHING );
-			free(bzfilename);
-			bzfilename = calc_addsuffix(relfilename,"bz");
-			if( bzfilename == NULL ) {
-				free(bzmd5sum);
-				return RET_ERROR_OOM;
-			}
-			r = newreleaseentry(release,bzfilename,bzmd5sum,NULL,NULL);
-		}
-#endif
-
-		return r;
+	} else {
+		gzrelfilename = NULL;
+		gzmd5sum = NULL;
 	}
-	free(filename);
-	free(gzfilename);
 #ifdef HAVE_LIBBZ2
-	free(bzfilename);
+	if( (compressions & IC_FLAG(ic_bzip2)) != 0 ) {
+		bzrelfilename = calc_addsuffix(relfilename,"bz2");
+		if( bzrelfilename == NULL ) {
+			free(filename);
+			free(md5sum);
+			free(gzmd5sum);
+			free(gzrelfilename);
+			return RET_ERROR_OOM;
+		}
+		r = getcachevalue(release,bzrelfilename,&bzmd5sum);
+		if( !RET_IS_OK(r) ) {
+			free(filename);
+			free(md5sum);
+			free(gzmd5sum);
+			free(gzrelfilename);
+			return r;
+		}
+	} else {
+		bzrelfilename = NULL;
+		bzmd5sum = NULL;
+	}
 #endif
-	return RET_NOTHING;
+
+	result = newreleaseentry(release,filename,md5sum,NULL,NULL);
+	if( gzrelfilename != NULL ) {
+		r = newreleaseentry(release,gzrelfilename,gzmd5sum,NULL,NULL);
+		RET_UPDATE(result,r);
+	}
+#ifdef HAVE_LIBBZ2
+	if( bzrelfilename != NULL ) {
+		r = newreleaseentry(release,bzrelfilename,bzmd5sum,NULL,NULL);
+		RET_UPDATE(result,r);
+	}
+#endif
+	return result;
 }
 
 struct filetorelease {
@@ -1023,6 +1058,66 @@ retvalue release_directorydescription(struct release *release, const struct dist
 	return r;
 }
 
+#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
+#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
+
+static retvalue getcachevalue(struct release *r,const char *relfilename, char **md5sum) {
+	int dbret;
+	DBT key,data;
+
+	SETDBT(key,relfilename);
+	CLEARDBT(data);
+	dbret = r->cachedb->get(r->cachedb, NULL, &key, &data, 0);
+	if( dbret == 0 ) {
+		char *c;
+		c = strdup(data.data);
+		if( c == NULL )
+			return RET_ERROR_OOM;
+		else {
+			*md5sum = c;
+			return RET_OK;
+		}
+	} else if( dbret == DB_NOTFOUND ) {
+		return RET_NOTHING;
+	} else {
+		r->cachedb->err(r->cachedb, dbret, "release.cache.db:");
+		return RET_DBERR(dbret);
+	}
+}
+
+static retvalue storechecksums(struct release *r) {
+
+	struct release_entry *file;
+
+	for( file = r->files ; file != NULL ; file = file->next ) {
+		int dbret;
+		DBT key,data;
+
+		if( file->md5sum == NULL || file->relativefilename == NULL )
+			continue;
+
+		SETDBT(key,file->relativefilename);
+
+		dbret = r->cachedb->del(r->cachedb, NULL, &key, 0);
+		if( dbret < 0 && dbret != DB_NOTFOUND ) {
+			r->cachedb->err(r->cachedb, dbret, "release.cache.db:");
+			return RET_DBERR(dbret);
+		}
+		SETDBT(key,file->relativefilename);
+		SETDBT(data,file->md5sum);
+
+		dbret = r->cachedb->put(r->cachedb,NULL,&key,&data,DB_NOOVERWRITE);
+		if( dbret < 0 ) {
+			r->cachedb->err(r->cachedb, dbret, "release.cache.db:");
+			return RET_DBERR(dbret);
+		}
+	}
+	return RET_OK;
+}
+#undef CLEARDBT
+#undef SETDBT
+
+
 /* Generate a main "Release" file for a distribution */
 retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool_t onlyifneeded) {
 	FILE *f;
@@ -1259,6 +1354,22 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		RET_UPDATE(result,r);
 	}
 
+	/* now update the cache database, do we find those the next time */
+
+	r = storechecksums(release);
+	RET_UPDATE(result,r);
+
+	if( release->cachedb != NULL ) {
+	 	int dbret;
+		/* check for an possible error in the cachedb,
+		 * release_free return no error */
+		dbret = release->cachedb->close(release->cachedb,0);
+		if( dbret < 0 ) {
+			release_free(release);
+			return RET_DBERR(dbret);
+		}
+		release->cachedb = NULL;
+	}
 	/* free everything */
 	release_free(release);
 	return result;
