@@ -1,0 +1,18 @@
+{
+   stupid-db3
+   Memcheck:Param
+   pwrite64(buf)
+   obj:/lib/libc-2.3.2.so
+   fun:__os_io
+   fun:__memp_pgwrite
+   obj:/usr/lib/libdb3.so.3.0.2
+   fun:memp_fsync
+}
+{
+   libz-looking-far
+   Memcheck:Cond
+   obj:/usr/lib/libz.so.1.2.2
+   obj:/usr/lib/libz.so.1.2.2
+   fun:deflate
+   fun:finishgz
+}
