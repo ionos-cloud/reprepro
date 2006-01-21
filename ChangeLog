@@ -1,6 +1,9 @@
 2005-01-21  Bernhard R. Link <brlink@debian.org>
 	* fix typesetting error in ratpoison.1
 	  and add an example for update's Config option.
+	* fix segfault of FD_ISSET(-1,&...) when
+	  method is not used (i.e. --nolistsdownload
+	  and only need to get from other sources)
 
 2005-12-24  Bernhard R. Link <brlink@debian.org>
 	* add cache database to store md5sums
