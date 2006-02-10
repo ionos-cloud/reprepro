@@ -1,3 +1,9 @@
+Updates since 0.8:
+- some bugfixes (segfault, memmory leak, manpage typos)
+- enforcement of extensions of include{,dsc,deb,udeb} files
+  to .changes,.dsc,.deb,.udeb and new --ignore=extension to
+  circumvent it.
+
 Updates since 0.7:
 - unless the new --keepdirectories option is given,
   try to remove pool/ directories that got empty by 

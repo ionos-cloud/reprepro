@@ -19,6 +19,7 @@
 	IGN(missingfield) \
 	IGN(brokenold) \
 	IGN(brokenversioncmp) \
+	IGN(extension) \
 	IGN(unusedarch) \
 	IGN(surprisingarch)
 
