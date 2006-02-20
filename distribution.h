@@ -25,7 +25,7 @@ struct distribution {
 	 * generated, may be NULL. only suite is sometimes used
 	 * (and only for sanity checks) */
 	/*@null@*/char *suite,*version;
-	/*@null@*/char *origin,*label,*description;
+	/*@null@*/char *origin,*label,*description,*notautomatic;
 	/* What architectures and components are there */
 	struct strlist architectures,components;
 	/* which update rules to use */

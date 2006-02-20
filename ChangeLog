@@ -1,3 +1,7 @@
+2005-02-20  Bernhard R. Link <brlink@debian.org>
+	* add optional "NotAutomatic" field for the
+	distribution specification.
+
 2005-02-10  Bernhard R. Link <brlink@debian.org>
 	* add new --ignore=extension, without which
 	it refuses to 'include' files not ending in '.changes',
