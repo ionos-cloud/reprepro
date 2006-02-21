@@ -472,6 +472,8 @@ is used.
 Otherwise the value will be given to libgpgme to determine to key to 
 use.
 (That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
+This key should either have no passphrase, you need to specify
+\fB--ask-passphrase\fP or use gpg-agent.
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
