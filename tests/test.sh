@@ -66,11 +66,7 @@ $HELPER "$REPREPRO" -b . export
 test -f dists/test1/Release
 test -f dists/test2/Release
 
-# the md5sums of empty .gz files change between 0.7 and 0.8 because
-# of other generationg (and now being os unknown(255) instead os unix(3)
-# previous was
-# EMPTYGZMD5SUM=7029066c27ac6f5ef18d660d5741979a
-EMPTYGZMD5SUM=163be0a88c70ca629fd516dbaadad96a
+EMPTYGZMD5SUM=7029066c27ac6f5ef18d660d5741979a
 EMPTYBZ2MD5SUM=4059d198768f9f8dc9372dc1c54bc3c3
 cat > dists/test1/Release.expected <<END
 Codename: test1
@@ -131,8 +127,8 @@ MD5Sum:
  4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/source/Sources.bz2
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
 END
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test2/Release
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test2/Release
 diff -u dists/test1/Release.expected dists/test1/Release || exit 1
 diff -u dists/test2/Release.expected dists/test2/Release || exit 1
 
@@ -151,7 +147,7 @@ $HELPER "$REPREPRO" -b . -A abacus remove test1 simple
 $HELPER "$REPREPRO" -b . -C ugly remove test1 bloat+-0a9z.app-addons
 $HELPER "$REPREPRO" -b . -C stupid remove test1 simple-addons
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
-echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
+echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
 
 diff dists/test1/Release.expected dists/test1/Release || exit 1
 
