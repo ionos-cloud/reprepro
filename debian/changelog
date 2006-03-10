@@ -1,6 +1,6 @@
-reprepro (0.9-0) UNRELEASED; urgency=low
+reprepro (0.8.1-1) unstable; urgency=low
 
-  * new version:
+  * patch release as new version may need some time
   - some bugfixes (segfault, memmory leak, manpage typos)
   - enforcement of extensions of include{,dsc,deb,udeb}
   - support generation of the NotAutomatic field. (Closes: 353534)
