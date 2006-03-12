@@ -43,7 +43,6 @@ _reprepro()
 				;;
 		esac
 	done
-	echo "a($i,$COMP_CWORD,$prev,$cmd,$cur)" >> ~/log
 	cur=${COMP_WORDS[COMP_CWORD]}
 	if [[ $i -gt $COMP_CWORD && -n "$prev" ]]; then
 		case "$prev" in
@@ -82,7 +81,6 @@ _reprepro()
 	fi
 
 	if [[ "XYZnoneyetXYZ" = "$cmd" ]] ; then
-		echo "bla $cur" >> ~/log
 		commands='remove list listfilter createsymlinks export\
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
