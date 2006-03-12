@@ -1,28 +1,173 @@
 _reprepro()
 {
-    local cur prev commands options
+	local cur prev commands options noargoptions i state cmd ignores hiddencommands distributions
 
-    options='-h -i -b -S -P -C -A -T \
-             --help --ignore --delete --basedir --distdir --dbdir \
-             --listdir --confdir --overridedir --methodir --section \
-             --priority --component --architecture --type'
+	COMPREPLY=()
 
-    commands='dumpreferences dumpunreferenced deleteunreferenced \
-          checkpool check export update remove include includedeb \
-          includeudeb includedsc list listfilter'
+	ignores='ignore forbiddenchar 8bit emptyfilenamepart overlongcomments\
+		spaceonlyline malformedchunk shortkeyid unknownfield\
+		wrongdistribution missingfield brokenold brokenversioncmp\
+		extension unusedarch surprisingarch'
+	noargoptions='--delete --nodelete --help -h --verbose -v\
+	--nothingiserror --nolistsdownload --keepunreferencedfiles\
+	--keepunneededlists --keepdirectories --onlyacceptsigned\
+	--ask-passphrase --nonothingiserror --listsdownload\
+	--nokeepunreferencesfiles --nokeepunneededfiles --nokeepdirectories\
+	--noonlyacceptsigned --noask-passphrase --skipold --noskipold --force'
+	options='-b -i --basedir --ignore --unignore --methoddir --distdir --dbdir\
+	--listdir --overridedir --confdir --section -S --priority -P --component -C\
+	--architecture -A --type -T'
 
-    COMPREPLY=()
-    cur=${COMP_WORDS[COMP_CWORD]}
-    prev=${COMP_WORDS[COMP_CWORD-1]}
+	i=1
+	prev=""
+	cmd="XYZnoneyetXYZ"
+	while [[ $i -lt $COMP_CWORD ]] ; do
+		cur=${COMP_WORDS[i]}
+		prev=""
+		case "$cur" in
+			--*=*)
+				i=$((i+1))
+				;;
+			-b|-i|--basedir|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--confdir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T)
 
+				prev="$cur"
+				i=$((i+2))
+				;;
+			--*|-*)
+				i=$((i+1))
+				;;
+			*)
+				cmd="$cur"
+				i=$((i+1))
+				break
+				;;
+		esac
+	done
+	echo "a($i,$COMP_CWORD,$prev,$cmd,$cur)" >> ~/log
+	cur=${COMP_WORDS[COMP_CWORD]}
+	if [[ $i -gt $COMP_CWORD && -n "$prev" ]]; then
+		case "$prev" in
+			-b|--basedir|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--confdir)
+        			COMPREPLY=( $( compgen -d  -- $cur ) )
 
-    if [[ "$cur" == -* ]]; then
-        COMPREPLY=( $( compgen -W "$options" -- $cur ) )
-    else
-        COMPREPLY=( $( compgen -W "$commands" -- $cur ) )
-    fi
+				return 0
+				;;
+			-T|--type)
+        			COMPREPLY=( $( compgen -W "source deb udeb"  -- $cur ) )
+				return 0
+				;;
+			-i|--ignore)
+        			COMPREPLY=( $( compgen -W "$ignores"  -- $cur ) )
+				return 0
+				;;
+			-P|--priority)
+        			COMPREPLY=( $( compgen -W "required important standard optional extra" -- $cur ) )
+				return 0
+				;;
+			-S|--section)
+        			COMPREPLY=( $( compgen -W "admin base comm contrib devel doc editors electronics embedded games gnome graphics hamradio interpreters kde libs libdevel mail math misc net news non-free oldlibs otherosfs perl python science shells sound tex text utils web x11 contrib/admin contrib/base contrib/comm contrib/contrib contrib/devel contrib/doc contrib/editors contrib/electronics contrib/embedded contrib/games contrib/gnome contrib/graphics contrib/hamradio contrib/interpreters contrib/kde contrib/libs contrib/libdevel contrib/mail contrib/math contrib/misc contrib/net contrib/news contrib/non-free contrib/oldlibs contrib/otherosfs contrib/perl contrib/python contrib/science contrib/shells contrib/sound contrib/tex contrib/text contrib/utils contrib/web contrib/x11 non-free/admin non-free/base non-free/comm non-free/contrib non-free/devel non-free/doc non-free/editors non-free/electronics non-free/embedded non-free/games non-free/gnome non-free/graphics non-free/hamradio non-free/interpreters non-free/kde non-free/libs non-free/libdevel non-free/mail non-free/math non-free/misc non-free/net non-free/news non-free/non-free non-free/oldlibs non-free/otherosfs non-free/perl non-free/python non-free/science non-free/shells non-free/sound non-free/tex non-free/text non-free/utils non-free/web non-free/x11"  -- $cur ) )
+				return 0
+				;;
+			-A|--architecture)
+# perhaps parse the config file instead?
+        			COMPREPLY=( $( compgen -W "source i386 sparc abacus whatever-you-have-defined" -- $cur ) )
+				return 0
+				;;
+			-C|--component)
+# perhaps parse the config file instead?
+        			COMPREPLY=( $( compgen -W "main contrib non-free whatever-you-have-defined" -- $cur ) )
+				return 0
+				;;
+		esac
+	fi
 
-    return 0
+	if [[ "XYZnoneyetXYZ" = "$cmd" ]] ; then
+		echo "bla $cur" >> ~/log
+		commands='remove list listfilter createsymlinks export\
+			check reoverride checkpool rereference dumpreferences\
+			dumpunreferenced deleteunreferenced retrack dumptracks\
+			cleartracks removetrack update iteratedupdate\
+			checkupdate includedeb includeudeb includedsc include'
+		hiddencommands='__d __extractcontrol _detect _forget\
+			_listmd5sums _addmd5sum _dumpcontents\
+			_removereferences _addreference'
+
+		prev=${COMP_WORDS[COMP_CWORD-1]}
+		if [[ "$cur" == -* ]]; then
+			case "$cur" in 
+				--ignore=*)
+					COMPREPLY=( $( compgen -W "$ignores"  -- ${cur#--ignore=} ) )
+					;;
+				--component=*)
+        				COMPREPLY=( $( compgen -W "main contrib non-free whatever-you-have-defined" -- {cur#--component=} ) )
+					;;
+
+				*)
+					COMPREPLY=( $( compgen -W "$options $noargoptions" -- $cur ) )
+					;;
+			esac
+		elif [[ "$cur" == _* ]]; then
+			COMPREPLY=( $( compgen -W "$hiddencommands" -- $cur ) )
+		else
+			COMPREPLY=( $( compgen -W "$commands" -- $cur ) )
+		fi
+		return 0
+	fi
+# get them from config file instead?
+	distributions="stable unstable testing woody sarge etach whatever-you-defined"
+
+	case "$cmd" in
+		remove|list|listfilter|removetrack)
+			# first argument is the codename
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				return 0
+			fi
+			# these later could also look for stuff, but
+			# that might become a bit slow
+			;;
+		export|update|iteratedupdate|checkupdate|rereference|retrack|cleartracks|dumptracks|check|reoverride)
+			# all arguments are codenames
+			COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+			return 0
+			;;
+
+		includedeb)
+			# first argument is the codename
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				return 0
+			fi
+			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
+				_filedir "!*.deb"
+			fi
+			return 0
+			;;
+		includedsc)
+			# first argument is the codename
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				return 0
+			fi
+			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
+				_filedir "!*.dsc"
+			fi
+			return 0
+			;;
+		include)
+			# first argument is the codename
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				return 0
+			fi
+			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
+				_filedir "!*.changes"
+			fi
+			return 0
+			;;
+	esac
+	COMPREPLY=( $( compgen -f -- $cur ) )
+	return 0
 }
 complete -F _reprepro reprepro
 
