@@ -1,0 +1,28 @@
+_reprepro()
+{
+    local cur prev commands options
+
+    options='-h -i -b -S -P -C -A -T \
+             --help --ignore --delete --basedir --distdir --dbdir \
+             --listdir --confdir --overridedir --methodir --section \
+             --priority --component --architecture --type'
+
+    commands='dumpreferences dumpunreferenced deleteunreferenced \
+          checkpool check export update remove include includedeb \
+          includeudeb includedsc list listfilter'
+
+    COMPREPLY=()
+    cur=${COMP_WORDS[COMP_CWORD]}
+    prev=${COMP_WORDS[COMP_CWORD-1]}
+
+
+    if [[ "$cur" == -* ]]; then
+        COMPREPLY=( $( compgen -W "$options" -- $cur ) )
+    else
+        COMPREPLY=( $( compgen -W "$commands" -- $cur ) )
+    fi
+
+    return 0
+}
+complete -F _reprepro reprepro
+
