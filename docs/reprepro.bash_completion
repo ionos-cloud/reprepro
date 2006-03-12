@@ -1,6 +1,39 @@
 _reprepro()
 {
-	local cur prev commands options noargoptions i state cmd ignores hiddencommands distributions
+	local cur prev commands options noargoptions i state cmd ignores hiddencommands commands codenames confdir basedir architectures components
+
+	confdir=""
+	basedir=""
+
+	function parse_config() {
+		local conffile distfile
+		if [[ -n "$confdir" ]] ; then
+			conffile="$confdir/options"
+			distfile="$confdir/distributions"
+		elif [[ -n "$basedir" ]] ; then
+			conffile="$basedir/conf/options"
+			distfile="$basedir/conf/distributions"
+		else
+			conffile="./conf/options"
+			distfile="./conf/distributions"
+		fi
+		if [[ -e "$conffile" ]] ; then
+			if grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
+				distfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir //')/distributions"
+			elif [ -z "$confdir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
+				distfile="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir //')/conf/distributions"
+			fi
+		fi
+		if [[ -e "$distfile" ]] ; then
+			codenames="$(awk -- '/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {$1="";print}' "$distfile")"
+			architectures="$(awk -- '/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {$1="";print}' "$distfile")"
+			components="$(awk -- '/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {$1="";print}' "$distfile")"
+		else
+			codenames="experimental woody sarge sid etch whatever-you-defined"
+			architectures="source i386 abacus whatever-you-defined"
+			components="main contrib non-free whatever-you-defined"
+		fi
+	}
 
 	COMPREPLY=()
 
@@ -25,10 +58,29 @@ _reprepro()
 		cur=${COMP_WORDS[i]}
 		prev=""
 		case "$cur" in
+			--basedir=*)
+				basedir="${cur#--basedir=}"
+				i=$((i+1))
+				;;
+			--confdir=*)
+				confdir="${cur#--confdir=}"
+				i=$((i+1))
+				;;
 			--*=*)
 				i=$((i+1))
 				;;
-			-b|-i|--basedir|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--confdir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T)
+			-b|--basedir)
+				prev="$cur"
+				basedir="${COMP_WORDS[i+1]}"
+				i=$((i+2))
+				;;
+			--confdir)
+				prev="$cur"
+				confdir="${COMP_WORDS[i+1]}"
+				i=$((i+2))
+				;;
+			
+			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T)
 
 				prev="$cur"
 				i=$((i+2))
@@ -52,10 +104,10 @@ _reprepro()
 				return 0
 				;;
 			-T|--type)
-        			COMPREPLY=( $( compgen -W "source deb udeb"  -- $cur ) )
+        			COMPREPLY=( $( compgen -W "dsc deb udeb"  -- $cur ) )
 				return 0
 				;;
-			-i|--ignore)
+			-i|--ignore|--unignore)
         			COMPREPLY=( $( compgen -W "$ignores"  -- $cur ) )
 				return 0
 				;;
@@ -68,13 +120,13 @@ _reprepro()
 				return 0
 				;;
 			-A|--architecture)
-# perhaps parse the config file instead?
-        			COMPREPLY=( $( compgen -W "source i386 sparc abacus whatever-you-have-defined" -- $cur ) )
+				parse_config
+        			COMPREPLY=( $( compgen -W "$architectures" -- $cur ) )
 				return 0
 				;;
 			-C|--component)
-# perhaps parse the config file instead?
-        			COMPREPLY=( $( compgen -W "main contrib non-free whatever-you-have-defined" -- $cur ) )
+				parse_config
+        			COMPREPLY=( $( compgen -W "$components" -- $cur ) )
 				return 0
 				;;
 		esac
@@ -90,14 +142,21 @@ _reprepro()
 			_listmd5sums _addmd5sum _dumpcontents\
 			_removereferences _addreference'
 
-		prev=${COMP_WORDS[COMP_CWORD-1]}
 		if [[ "$cur" == -* ]]; then
 			case "$cur" in 
 				--ignore=*)
 					COMPREPLY=( $( compgen -W "$ignores"  -- ${cur#--ignore=} ) )
 					;;
+				--unignore=*)
+					COMPREPLY=( $( compgen -W "$ignores"  -- ${cur#--unignore=} ) )
+					;;
 				--component=*)
-        				COMPREPLY=( $( compgen -W "main contrib non-free whatever-you-have-defined" -- {cur#--component=} ) )
+					parse_config
+        				COMPREPLY=( $( compgen -W "$components" -- {cur#--component=} ) )
+					;;
+				--architectures=*)
+					parse_config
+        				COMPREPLY=( $( compgen -W "$architectures" -- {cur#--architectures=} ) )
 					;;
 
 				*)
@@ -111,14 +170,13 @@ _reprepro()
 		fi
 		return 0
 	fi
-# get them from config file instead?
-	distributions="stable unstable testing woody sarge etach whatever-you-defined"
 
 	case "$cmd" in
 		remove|list|listfilter|removetrack)
 			# first argument is the codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
-				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
 				return 0
 			fi
 			# these later could also look for stuff, but
@@ -126,16 +184,19 @@ _reprepro()
 			;;
 		export|update|iteratedupdate|checkupdate|rereference|retrack|cleartracks|dumptracks|check|reoverride)
 			# all arguments are codenames
-			COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+			parse_config
+			COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
 			return 0
 			;;
 
 		includedeb)
 			# first argument is the codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
-				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
 				return 0
 			fi
+			# then one .deb file follows
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
 				_filedir "!*.deb"
 			fi
@@ -144,9 +205,11 @@ _reprepro()
 		includedsc)
 			# first argument is the codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
-				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
 				return 0
 			fi
+			# then one .dsc file follows
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
 				_filedir "!*.dsc"
 			fi
@@ -155,9 +218,11 @@ _reprepro()
 		include)
 			# first argument is the codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
-				COMPREPLY=( $( compgen -W "$distributions" -- $cur ) )
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
 				return 0
 			fi
+			# then one .changes file follows
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
 				_filedir "!*.changes"
 			fi
