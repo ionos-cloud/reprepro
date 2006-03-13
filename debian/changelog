@@ -1,6 +1,6 @@
 reprepro (0.8.1-2) UNRELEASED; urgency=low
 
-  * install bash_completion script
+  * install bash_completion script (Closes: #356340)
 
  -- Bernhard R. Link <brlink@debian.org>  Sun, 12 Mar 2006 19:53:26 +0100
 
