@@ -307,8 +307,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	assert( (givenmd5sum!=NULL && givenfilekey!=NULL ) ||
 		(givenmd5sum==NULL && givenfilekey==NULL ) );
 
-	//TODO: add some check here to make sure it is really a .deb file...
-
 	/* First taking a closer look to the file: */
 
 	r = deb_read(&pkg,debfilename,needsourceversion);

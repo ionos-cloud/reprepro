@@ -42,6 +42,7 @@
 #include "files.h"
 #include "guesscomponent.h"
 #include "tracking.h"
+#include "ignore.h"
 
 extern int verbose;
 
@@ -375,14 +376,12 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
 
-	//TODO: add some check here to make sure it is really a .dsc file...
-
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
 	if( !strlist_in(&distribution->architectures,"source") ) {
 		fprintf(stderr,"Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",distribution->codename);
-		// nota bene: this cannot be forced or ignored, as no target has
-		// been created for this..
+		/* nota bene: this cannot be forced or ignored, as no target has
+		   been created for this. */
 		return RET_ERROR;
 	}
 
@@ -444,7 +443,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 
 	r = dsc_calclocations(pkg,filekey,basename,directory);
 
-	/* then looking if we already have this, or copy it in */
+	/* then look if we already have this, or copy it in */
 
 	if( !RET_WAS_ERROR(r) ) {
 		if( filekey != NULL && basename != NULL && 
