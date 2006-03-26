@@ -859,6 +859,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( !RET_WAS_ERROR(r) )
 		r = changes_checkpkgs(filesdb,distribution,changes,ao,onlysigned,directory);
 
+	free(directory);
 
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
