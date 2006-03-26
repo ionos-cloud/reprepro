@@ -104,7 +104,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 
 	/* first get rid of everything not running: */
 	method_ptr = &run->methods;
-	while( method_ptr != NULL ) {
+	while( *method_ptr != NULL ) {
 
 		if( (*method_ptr)->child > 0 ) {
 			if( verbose > 5 )
