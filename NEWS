@@ -4,6 +4,9 @@ Updates since 0.8:
   to .changes,.dsc,.deb,.udeb and new --ignore=extension to
   circumvent it.
 - support generation of the NotAutomatic field.
+- added --ignore=missingfile to ignore files missing in 
+  a .changes file, but lying around and requested by
+  a .dsc file.
 
 Updates since 0.7:
 - unless the new --keepdirectories option is given,

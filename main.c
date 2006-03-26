@@ -1337,7 +1337,7 @@ ACTION_D(includedsc) {
 		tracks = NULL;
 	}
 
-	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,delete,dereferenced,onlyacceptsigned,tracks);
+	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],srcoverride,delete,dereferenced,onlyacceptsigned,tracks);
 	
 	override_free(srcoverride);
 	r = tracking_done(tracks);

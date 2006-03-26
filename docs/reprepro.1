@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "21 January, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "25 March, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -725,6 +725,13 @@ defined meaning.
 Ignore missing fields in a .changes file that are only checked but
 not procesed. 
 Those include: Format, Date, Urgency, Maintainer, Description, Changes
+.TP
+.B missingfile \fR(might be insecure)
+When including a .dsc file from a .changes file,
+try to get files needed but not listed in the .changes file
+(e.g. when someone forgot to specify -sa to dpkg-buildpackage)
+from the directory the .changes file is in instead of erroring out.
+(\fB\-\-delete\fP will not work with those files, though.)
 .TP
 .B overlongcomments \fR(I hope you know what you do)
 Allow overlong comments. That is a line started with a hash(#)

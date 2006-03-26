@@ -123,7 +123,7 @@ struct dscpackage {
 	char *priority;
 	/* things that will still be NULL then: */
 	char *component; //This might be const, too and save some strdups, but...
-	/* calculated by dsc_copyfiles or set by dsc_checkfiles */
+	/* calculated or set by files_include of the dsc */
 	char *dscmd5sum;
 	/* Things that may be calculated by dsc_calclocations: */
 	char *directory, *dscbasename, *dscfilekey;
@@ -332,46 +332,7 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 	return RET_OK;
 }
 
-/* Get the files from the directory dscfilename is residing it, and copy
- * them into the pool, also setting pkg->dscmd5sum */
-static retvalue dsc_copyfiles(filesdb filesdb,
-			struct dscpackage *pkg,const char *dscfilename,int delete) {
-	char *sourcedir;
-	retvalue r;
-
-	r = files_include(filesdb,dscfilename,pkg->dscfilekey,NULL,&pkg->dscmd5sum,delete);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = dirs_getdirectory(dscfilename,&sourcedir);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = files_includefiles(filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums,delete);
-
-	free(sourcedir);
-
-	return r;
-}
-
-/* Check the files needed and set the required fields */
-static retvalue dsc_checkfiles(filesdb filesdb,
-			struct dscpackage *pkg,/*@null@*/const char *dscmd5sum) {
-	retvalue r;
-
-	/* The code we got should have already put the .dsc in the pool
-	 * and calculated its md5sum, so we just use it here: */
-	pkg->dscmd5sum = strdup(dscmd5sum);
-	if( pkg->dscmd5sum == NULL )
-		return RET_ERROR_OOM;
-
-	r = files_expectfiles(filesdb,&pkg->filekeys,&pkg->md5sums);
-
-	return r;
-}
-
-
-retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, bool_t onlysigned){
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, bool_t onlysigned){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -446,12 +407,13 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	/* then look if we already have this, or copy it in */
 
 	if( !RET_WAS_ERROR(r) ) {
-		if( filekey != NULL && basename != NULL && 
-				directory != NULL && md5sum != NULL) {
-			assert( delete == D_INPLACE );
-			r = dsc_checkfiles(filesdb,pkg,md5sum);
-		} else
-			r = dsc_copyfiles(filesdb,pkg,dscfilename,delete);
+		/* evil things will hapen if delete is not D_INPLACE when
+		 * called from includechanges */
+		r = files_include(filesdb,dscfilename,pkg->dscfilekey,md5sum,&pkg->dscmd5sum,delete);
+	}
+
+	if( !RET_WAS_ERROR(r) ) {
+		r = files_includefiles(filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums,delete);
 	}
 
 	/* Calculate the chunk to include: */
@@ -490,12 +452,18 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
  * If basename, filekey and directory are != NULL, then they are used instead 
  * of being newly calculated. 
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
+	char *dscdirectory;
 
-	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscfilename,filekey,basename,directory,md5sum,srcoverride,delete,onlysigned);
+	r = dirs_getdirectory(dscfilename,&dscdirectory);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,srcoverride,delete,onlysigned);
+	free(dscdirectory);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

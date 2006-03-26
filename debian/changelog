@@ -1,8 +1,9 @@
-reprepro (0.8.1-2) UNRELEASED; urgency=low
+reprepro (0.8.2-1) UNRELEASED; urgency=low
 
   * install bash_completion script (Closes: #356340)
+  * add --ignore=missingfile (Closes: #357803)
 
- -- Bernhard R. Link <brlink@debian.org>  Sun, 12 Mar 2006 19:53:26 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 26 Mar 2006 15:38:09 +0200
 
 reprepro (0.8.1-1) unstable; urgency=low
 

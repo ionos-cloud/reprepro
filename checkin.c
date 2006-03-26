@@ -711,7 +711,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	return r;
 }
 
-static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, bool_t onlysigned) {
+static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, bool_t onlysigned, const char *sourcedirectory) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -753,7 +753,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 			assert(changes->srcdirectory!=NULL);
 			r = dsc_prepare(&e->pkg.dsc,filesdb,
 				changes->srccomponent,e->section,e->priority,
-				distribution,fullfilename,
+				distribution,sourcedirectory,fullfilename,
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
 				ao->dsc,D_INPLACE,onlysigned);
@@ -822,16 +822,26 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
+	char *directory;
 
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,onlysigned);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
+	if( IGNORABLE(missingfile) ) {
+		r = dirs_getdirectory(changesfilename,&directory);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	} else
+		directory = NULL;
+
 	if( (distribution->suite == NULL || 
 		!strlist_in(&changes->distributions,distribution->suite)) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
-		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") )
+		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") ) {
+			free(directory);
 			return RET_ERROR;
+		}
 	}
 
 	/* look for component, section and priority to be correct or guess them*/
@@ -847,7 +857,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		r = changes_includefiles(filesdb,changesfilename,changes,delete);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkpkgs(filesdb,distribution,changes,ao,onlysigned);
+		r = changes_checkpkgs(filesdb,distribution,changes,ao,onlysigned,directory);
 
 
 	if( RET_WAS_ERROR(r) ) {

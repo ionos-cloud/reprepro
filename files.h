@@ -49,7 +49,7 @@ retvalue files_printmissing(filesdb filesdb,const struct strlist *filekeys,const
  *    return n RET_ERROR_WRONG_MD5 if wrong md5sum.
  * 2) Look if there is already a file in the pool with correct md5sum.
  * and add it to the database if yes.
- * return RET_NOTHING, if done,
+ * return RET_OK, if done, (and set *calculatedmd5sum)
  * 3) copy or move file (depending on delete) file to destination,
  * making sure it has the correct <md5sum> if given, 
  * or computing it, if <claculatemd5sum> is given.

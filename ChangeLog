@@ -1,3 +1,8 @@
+2005-02-25  Bernhard R. Link <brlink@debian.org>
+	* add --ignore=missingfile to look for .orig.tar.gz
+	files of broken .changes (no -sa though needed) files
+	in the directory of the .changes file.
+
 2005-02-20  Bernhard R. Link <brlink@debian.org>
 	* add optional "NotAutomatic" field for the
 	distribution specification.

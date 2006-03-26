@@ -324,7 +324,29 @@ Files:
 END
 diff -u results.expected results
 
+echo "now testing .orig.tar.gz handling"
+tar -czf test_1.orig.tar.gz test.changes
+PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh -si
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test1 test.changes || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:249"
+$HELPER "$REPREPRO" -b . --ignore=missingfile include test1 test.changes
+grep test_1-2.dsc dists/test1/stupid/source/Sources
+
+tar -czf testb_2.orig.tar.gz test.changes
+PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-2" SECTION="stupid/base" genpackage.sh -sa
+$HELPER "$REPREPRO" -b . include test1 test.changes
+grep testb_2-2.dsc dists/test1/stupid/source/Sources
+rm -r testb-2 test2.changes
+PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="test2.changes" genpackage.sh -sd
+$HELPER "$REPREPRO" -b . include test1 test2.changes
+grep testb_2-3.dsc dists/test1/stupid/source/Sources
+
 echo "now testing some error messages:"
+PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpackage.sh
+ERRORMSG="`$HELPER "$REPREPRO" -b . include test1 test.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -v "error:"
+echo $ERRORMSG | grep -q "Warning: Package version 'b.1-1.dsc' does not start with a digit"
+
 ERRORCODE=0
 $HELPER "$REPREPRO" -b . include unknown || ERRORCODE=$?
 [ $ERRORCODE == 255 ]
