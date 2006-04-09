@@ -1,3 +1,6 @@
+2005-04-09  Bernhard R. Link <brlink@debian.org>
+	* remove the woody reference in signature.c
+
 2005-03-30  Bernhard R. Link <brlink@debian.org>
 	* warn about architectures called 'all'
 	

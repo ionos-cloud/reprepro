@@ -255,7 +255,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_NONE:
 			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
-"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
+"If there was no ~/.gnupg yet, try repeating the last command.\n"
 ,releasegpg);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
@@ -448,7 +448,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
 			fprintf(stderr,"gpgme returned an impossible condition in '%s'!\n"
-"If you are using woody and there was no ~/.gnupg yet, try repeating the last command.\n"
+"If there was no ~/.gnupg yet, try repeating the last command.\n"
 ,filename);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
