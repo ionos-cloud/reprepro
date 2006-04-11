@@ -2,6 +2,7 @@
 	* tell the user running gpg manually sometimes
 	resolves problems while calling it through libgpgme
 	does not help.
+	* add a WORKAROUND part to the manpage
 
 2005-04-09  Bernhard R. Link <brlink@debian.org>
 	* remove the woody reference in signature.c

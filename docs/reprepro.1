@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "25 March, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "11 April, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -888,10 +888,57 @@ Increased verbosity always shows those things one does not want to know.
 While the source part is mostly considered as the architecture
 .B source
 some parts may still not use this notation.
+.SH "WORK-AROUNDS TO COMMON PROBLEMS"
+.TP
+.B gpgme returned an impossible condition
+With the woody version this normaly meant that there was no .gnupg
+directory in $HOME, but it created one and reprepro succeeds when called
+again with the same command.
+Since sarge the problem sometimes shows up, too. But it is no longer
+reproducible and it does not fix itself, neighter. Try running
+\fBgpg --verify \fP\fIfile-you-had-problems-with\fP manually as the
+user reprepro is running and with the same $HOME. This alone might
+fix the problem. It should not print any messages except perhaps
+.br
+gpg: no valid OpenPGP data found.
+.br
+gpg: the signature could not be verified.
+.br
+if it was an unsigned file.
+.TP
+.B not including .orig.tar.gz when a .changes file's version does not end in -0 or -1
+If dpkg-buildpackage is run without the \fB\-sa\fP option to build a version with
+a Debian revision not being -0 or -1, it does not list the \fB.orig.tar.gz\fP file
+in the \fB.changes\fP file.
+If you want to \fBinclude\fP such a file with repepro
+when the .orig.tar.gz file does not already exist in the pool, reprepro will report
+an error.
+This can be worked around by:
+.br
+call \fBdpkg-buildpackage\fP with \fB\-sa\fP (recommended)
+.br
+copy the .orig.tar.gz file to the proper place in the pool before
+.br
+call reprepro with --ignore=missingfile (discouraged)
+.TP
+.B leftover files in the pool directory.
+reprepro is sometimes a bit too timid of deleting stuff. When things
+go wrong and there have been errors it sometimes just leaves everything
+where it is.
+To see what files reprepro rememberes to be in your pool directory but
+does not know anything needing them right know, you can use
+.br
+\fBreprepro dumpunreferenced\fP
+.br
+To delete them:
+.br
+\fBreprepro deleteunreferenced\fP
 .SH "REPORTING BUGS"
-Report bugs to <brlink@debian.org> or the Debian BTS.
+Report bugs or wishlist requests to <brlink@debian.org>
+.br
+or the Debian BTS (e.g. by using \fBreportbug reperepro\fP)
 .SH COPYRIGHT
-Copyright \(co 2004,2005 Bernhard R. Link
+Copyright \(co 2004,2005,2006 Bernhard R. Link
 .br 
 This is free software; see the source for copying conditions. There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
