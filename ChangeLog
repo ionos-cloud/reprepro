@@ -1,3 +1,8 @@
+2005-04-11  Bernhard R. Link <brlink@debian.org>
+	* tell the user running gpg manually sometimes
+	resolves problems while calling it through libgpgme
+	does not help.
+
 2005-04-09  Bernhard R. Link <brlink@debian.org>
 	* remove the woody reference in signature.c
 

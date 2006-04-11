@@ -255,8 +255,9 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_NONE:
 			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
-"If there was no ~/.gnupg yet, try repeating the last command.\n"
-,releasegpg);
+"This means gpg is utterly confused. Sometimes running the same command again helps,\n"
+"sometimes calling gpg --verify '%s' manually helps.\n"
+,releasegpg,releasegpg);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
 			fprintf(stderr,"gpgme reported errors checking '%s'!\n",releasegpg);
@@ -447,9 +448,10 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 		case GPGME_SIG_STAT_NONE:
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
-			fprintf(stderr,"gpgme returned an impossible condition in '%s'!\n"
-"If there was no ~/.gnupg yet, try repeating the last command.\n"
-,filename);
+			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
+"This means gpg is utterly confused. Sometimes running the same command again helps,\n"
+"sometimes calling gpg --verify '%s' manually helps.\n"
+,filename,filename);
 			return RET_ERROR_GPGME;
 		case GPGME_SIG_STAT_ERROR:
 			gpgme_data_release(dh_gpg);
