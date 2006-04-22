@@ -30,7 +30,7 @@ else
 	REPREPRO="$SRCDIR/reprepro"
 fi
 TESTS="$SRCDIR/tests"
-UPDATETYPE=iteratedupdate
+UPDATETYPE=update
 export PATH="$TESTS:$PATH"
 if ! [ -x "$REPREPRO" ] ; then
 	echo "Could not find $REPREPRO!" >&2

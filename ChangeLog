@@ -1,31 +1,35 @@
-2005-04-11  Bernhard R. Link <brlink@debian.org>
+2006-04-22  Bernhard R. Link <brlink@debian.org>
+	* explicitly save which files are already
+	processed and to be skipped by --skipold.
+
+2006-04-11  Bernhard R. Link <brlink@debian.org>
 	* tell the user running gpg manually sometimes
 	resolves problems while calling it through libgpgme
 	does not help.
 	* add a WORKAROUND part to the manpage
 
-2005-04-09  Bernhard R. Link <brlink@debian.org>
+2006-04-09  Bernhard R. Link <brlink@debian.org>
 	* remove the woody reference in signature.c
 
-2005-03-30  Bernhard R. Link <brlink@debian.org>
+2006-03-30  Bernhard R. Link <brlink@debian.org>
 	* warn about architectures called 'all'
 	
-2005-02-25  Bernhard R. Link <brlink@debian.org>
+2006-02-25  Bernhard R. Link <brlink@debian.org>
 	* add --ignore=missingfile to look for .orig.tar.gz
 	files of broken .changes (no -sa though needed) files
 	in the directory of the .changes file.
 
-2005-02-20  Bernhard R. Link <brlink@debian.org>
+2006-02-20  Bernhard R. Link <brlink@debian.org>
 	* add optional "NotAutomatic" field for the
 	distribution specification.
 
-2005-02-10  Bernhard R. Link <brlink@debian.org>
+2006-02-10  Bernhard R. Link <brlink@debian.org>
 	* add new --ignore=extension, without which
 	it refuses to 'include' files not ending in '.changes',
 	to 'include[u]deb' files not ending in '.[u]deb' or to
 	'includedsc' files not ending '.dsc'.
 
-2005-01-21  Bernhard R. Link <brlink@debian.org>
+2006-01-21  Bernhard R. Link <brlink@debian.org>
 	* fix typesetting error in ratpoison.1
 	  and add an example for update's Config option.
 	* fix segfault of FD_ISSET(-1,&...) when

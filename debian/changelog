@@ -1,9 +1,13 @@
 reprepro (0.8.2-1) UNRELEASED; urgency=low
 
-  * install bash_completion script (Closes: #356340)
-  * add --ignore=missingfile (Closes: #357803)
+  * install bash_completion script (Closes: 356340)
+  * patch release with some bugfixes
+  - add --ignore=missingfile (Closes: 357803)
+  - explicitly remember which list files were already
+    successfully processed for --skipold  (Closes: 363411)
+  - some more warnings
 
- -- Bernhard R. Link <brlink@debian.org>  Sun, 26 Mar 2006 15:38:09 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 22 Apr 2006 20:32:58 +0200
 
 reprepro (0.8.1-1) unstable; urgency=low
 
