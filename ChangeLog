@@ -1,3 +1,6 @@
+2006-04-23  Bernhard R. Link <brlink@debian.org>
+	* unbreak new skipold for delete rules
+	
 2006-04-22  Bernhard R. Link <brlink@debian.org>
 	* explicitly save which files are already
 	processed and to be skipped by --skipold.

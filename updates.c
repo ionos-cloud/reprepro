@@ -1396,10 +1396,11 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 			if( verbose > 4 )
 				fprintf(stderr,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
+			if( RET_WAS_ERROR(r) )
+				u->incomplete = TRUE;
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				return result;
-			u->incomplete = TRUE;
 			u->ignoredelete = FALSE;
 			continue;
 		}
