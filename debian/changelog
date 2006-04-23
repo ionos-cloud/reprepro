@@ -1,3 +1,9 @@
+reprepro (0.8.3-1) UNRELEASED; urgency=low
+
+  * ...
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 23 Apr 2006 14:52:00 +0200
+
 reprepro (0.8.2-1) unstable; urgency=low
 
   * install bash_completion script (Closes: 356340)
