@@ -1,4 +1,4 @@
-reprepro (0.8.2-1) UNRELEASED; urgency=low
+reprepro (0.8.2-1) unstable; urgency=low
 
   * install bash_completion script (Closes: 356340)
   * patch release with some bugfixes
