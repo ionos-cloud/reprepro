@@ -471,7 +471,7 @@ Otherwise the value will be given to libgpgme to determine to key to
 use.
 (That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
 This key should either have no passphrase, you need to specify
-\fB--ask-passphrase\fP or use gpg-agent.
+\fB\-\-ask\-passphrase\fP or use gpg\-agent.
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
@@ -641,18 +641,18 @@ but does nothing.)
 .SH "OVERRIDE FILES"
 Override files are yet only used when things are manually added,
 not when imported while updating from an external source.
-The format should resemble the extended ftp-archive format,
+The format should resemble the extended ftp\-archive format,
 to be specific it is:
 
 .B \fIpackagename\fP \fIfieldname\fP \fInewvalue\fP
 
 For example:
 .br
-.B kernel-image-2.4.31-yourorga Section protected/base
+.B kernel\-image\-2.4.31\-yourorga Section protected/base
 .br
-.B kernel-image-2.4.31-yourorga Priority standard
+.B kernel\-image\-2.4.31\-yourorga Priority standard
 .br
-.B kernel-image-2.4.31-yourorga Maintainer That's me <me@localhost>
+.B kernel\-image\-2.4.31\-yourorga Maintainer That's me <me@localhost>
 .br
 .B reprepro Priority required
 
@@ -727,7 +727,7 @@ Those include: Format, Date, Urgency, Maintainer, Description, Changes
 .B missingfile \fR(might be insecure)
 When including a .dsc file from a .changes file,
 try to get files needed but not listed in the .changes file
-(e.g. when someone forgot to specify -sa to dpkg-buildpackage)
+(e.g. when someone forgot to specify \-sa to dpkg\-buildpackage)
 from the directory the .changes file is in instead of erroring out.
 (\fB\-\-delete\fP will not work with those files, though.)
 .TP
@@ -808,7 +808,7 @@ Things like \fBmain\fP, \fBnon\-free\fP and \fBcontrib\fP
 the naming scheme of apt here.)
 .TP
 .B section
-Things like \fBbase\fP, \fBinterpreters\fP, \fBoldlibs\fP and \fBnon-free/math\fP
+Things like \fBbase\fP, \fBinterpreters\fP, \fBoldlibs\fP and \fBnon\-free/math\fP
 (by policy and some other programs also called subsections).
 .TP
 .B md5sum
@@ -894,7 +894,7 @@ directory in $HOME, but it created one and reprepro succeeds when called
 again with the same command.
 Since sarge the problem sometimes shows up, too. But it is no longer
 reproducible and it does not fix itself, neighter. Try running
-\fBgpg --verify \fP\fIfile-you-had-problems-with\fP manually as the
+\fBgpg \-\-verify \fP\fIfile-you-had-problems-with\fP manually as the
 user reprepro is running and with the same $HOME. This alone might
 fix the problem. It should not print any messages except perhaps
 .br
@@ -904,20 +904,20 @@ gpg: the signature could not be verified.
 .br
 if it was an unsigned file.
 .TP
-.B not including .orig.tar.gz when a .changes file's version does not end in -0 or -1
-If dpkg-buildpackage is run without the \fB\-sa\fP option to build a version with
-a Debian revision not being -0 or -1, it does not list the \fB.orig.tar.gz\fP file
+.B not including .orig.tar.gz when a .changes file's version does not end in \-0 or \-1
+If dpkg\-buildpackage is run without the \fB\-sa\fP option to build a version with
+a Debian revision not being \-0 or \-1, it does not list the \fB.orig.tar.gz\fP file
 in the \fB.changes\fP file.
 If you want to \fBinclude\fP such a file with repepro
 when the .orig.tar.gz file does not already exist in the pool, reprepro will report
 an error.
 This can be worked around by:
 .br
-call \fBdpkg-buildpackage\fP with \fB\-sa\fP (recommended)
+call \fBdpkg\-buildpackage\fP with \fB\-sa\fP (recommended)
 .br
 copy the .orig.tar.gz file to the proper place in the pool before
 .br
-call reprepro with --ignore=missingfile (discouraged)
+call reprepro with \-\-ignore=missingfile (discouraged)
 .TP
 .B leftover files in the pool directory.
 reprepro is sometimes a bit too timid of deleting stuff. When things
