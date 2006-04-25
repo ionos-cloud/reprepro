@@ -1597,7 +1597,10 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		if( !anythingtodo ) {
 			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
 			aptmethod_shutdown(run);
-			return result;
+			if( RET_IS_OK(result) )
+				return RET_NOTHING;
+			else
+				return result;
 		}
 	}
 	/* Call ListHooks (if given) on the downloaded index files.

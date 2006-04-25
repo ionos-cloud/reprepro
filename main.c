@@ -710,7 +710,10 @@ ACTION_D(update) {
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	doexport = force>0 || RET_IS_OK(result);
+	if( force > 0 )
+		doexport = result != RET_NOTHING;
+	else
+		doexport = RET_IS_OK(result);
 	if( doexport && verbose >= 0 )
 		fprintf(stderr,"Exporting indices...\n");
 	if( doexport )

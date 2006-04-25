@@ -1,3 +1,7 @@
+2006-04-25  Bernhard R. Link <brlink@debian.org>
+	* do not say "Exporting indicies..." after updating
+	if there is no chance anything changed.
+
 2006-04-23  Bernhard R. Link <brlink@debian.org>
 	* unbreak new skipold for delete rules
 	
