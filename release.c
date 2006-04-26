@@ -1360,7 +1360,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		RET_UPDATE(result,r);
 	}
 
-	/* now update the cache database, do we find those the next time */
+	/* now update the cache database, so we find those the next time */
 
 	r = storechecksums(release);
 	RET_UPDATE(result,r);
