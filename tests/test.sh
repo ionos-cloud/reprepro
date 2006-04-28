@@ -9,7 +9,7 @@ if [ "x$1" == "x--delete" ] ; then
 	shift
 fi
 HELPER=""
-#HELPER="valgrind -v --leak-check=full"
+#HELPER="valgrind -v --leak-check=full --suppressions=../valgrind.supp --log-fd=5"
 if [ "x$1" == "x--helper" ] ; then
 	shift
 	HELPER="$1"
