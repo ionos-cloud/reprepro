@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e -v
+set -e
 
 WORKDIR="`pwd`/testdir"
 
@@ -37,6 +37,9 @@ if ! [ -x "$REPREPRO" ] ; then
 	exit 1
 fi
 mkdir -p conf
+cat > conf/options <<CONFEND
+export changed
+CONFEND
 cat > conf/distributions <<CONFEND
 Codename: test1
 Architectures: abacus source
@@ -62,6 +65,7 @@ DebOverride: binoverride
 DscOverride: srcoverride
 CONFEND
 
+set -v
 $HELPER "$REPREPRO" -b . export
 test -f dists/test1/Release
 test -f dists/test2/Release

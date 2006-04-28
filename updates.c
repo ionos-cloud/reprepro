@@ -1477,6 +1477,7 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 		if( u->nothingnew )
 			continue;
 		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete,dereferencedfilekeys);
+		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
@@ -1922,7 +1923,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -1947,11 +1948,10 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
 		}
 		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,skipold,dereferencedfilekeys);
+		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
-		if( RET_IS_OK(r) ) {
-			r = distribution_export(d->distribution,confdir,dbdir,distdir,TRUE);
-			RET_UPDATE(result,r);
-		}
+		r = distribution_export(export,d->distribution,confdir,dbdir,distdir);
+		RET_UPDATE(result,r);
 	}
 	return result;
 }

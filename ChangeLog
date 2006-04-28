@@ -1,3 +1,10 @@
+2006-04-28  Bernhard R. Link <brlink@debian.org>
+	* rewrite decision for exporting distributions a bit:
+	export all distributions that did not have errors by default
+	(it did not export anything when an error occured)
+	added new --export option with possible values
+	   never, changed, normal and forced.
+
 2006-04-25  Bernhard R. Link <brlink@debian.org>
 	* do not export indices if all upgrades were skipped
 

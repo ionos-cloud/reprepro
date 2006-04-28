@@ -65,7 +65,7 @@ If none is given, \fIbasedir\fP\fB/dists\fP is used.
 .B Note: 
 apt has 
 .B dists
-hardcoded in it, so this is mostly only useful for testing or when your webserver
+hard-coded in it, so this is mostly only useful for testing or when your webserver
 pretends another directory structure than your physical layout.
 
 .B Warning:
@@ -125,6 +125,34 @@ Overrides the section of inclusions. (Also override possible override files)
 .TP
 .B \-P, \-\-priority \fIpriority\fP
 Overrides the priority of inclusions. (Also override possible override files)
+.TP 
+.BR \-\-export= ( never | changed | normal | force )
+This option specify weather and how the high level actions
+(e.g. install, update, delete)
+should export the index files of the distributions they work with.
+.TP
+.BR \-\-export=normal " (default)"
+In this mode every distribution the action handled without error
+will be exported.
+.br
+\fINote\fP that only missing files and files whose intended content changed
+between before and after the action will be written.
+To get a guaranteed current export, use the \fBexport\fP action.
+.TP
+.BR \-\-export=changed
+Like \fBnormal\fP but do not look for missing files in distributions where
+nothing changed.
+.TP
+.BR \-\-export=force
+Like \fBnormal\rP, but exporting also happens for distributions where
+some error occurred.
+.TP
+.BR \-\-export=never
+No index files are exported. You will have to call \fBexport\fP later.
+.br
+\fINote\fP that you most likely additionally need the \fB\-\-keepunreferenced\fP
+option, if you do want some of the files pointed to by the untouched index
+files to vanish.
 .TP
 .B \-\-ignore=\fIwhat\fP
 Ignore errors of type \fIwhat\fP. See the section \fBERROR IGNORING\fP
@@ -208,7 +236,7 @@ matching the given condition.
 will e.g. find all .deb Packages with Source blub. (Except those also specifying a version
 number with its Source, as binary and source version differ).
 .TP
-.B remove \fIcodename\fP \fIpackagename\fP
+.B remove \fIcodename\fP \fIpackage name\fP
 same as list, but remove instead of list.
 .TP
 .BR update " [ " \fIcodenames\fP " ]"
@@ -455,7 +483,7 @@ for rules which component packages are included into
 by default. This will also be copied into the Release files.
 .TP
 .B UDebComponents
-Components with a debian\-installer subhierachy containing .udebs.
+Components with a debian\-installer subhierarchy containing .udebs.
 (E.g. simply "main")
 .TP
 .B Update
@@ -479,7 +507,7 @@ when including .deb files.
 .TP
 .B UDebOverride
 When this field is present, it describes the override file used
-when including .ddeb files.
+when including .deb files.
 .TP
 .B DscOverride
 When this field is present, it describes the override file used
@@ -575,7 +603,7 @@ The components to update. Each item can be either the name
 of a component or a pair of a upstream component and a local
 component separated with ">". (e.g. "main>all contrib>all non\-free>notall")
 Items with a local part are ignored. If no items are there
-all from the updated distribution are taken. (Use some nonexisting
+all from the updated distribution are taken. (Use some non existing
 like "none", if you want none).
 .TP
 .B Architectures
@@ -644,7 +672,7 @@ not when imported while updating from an external source.
 The format should resemble the extended ftp\-archive format,
 to be specific it is:
 
-.B \fIpackagename\fP \fIfieldname\fP \fInewvalue\fP
+.B \fIpackagename\fP \fIfield name\fP \fInew value\fP
 
 For example:
 .br
@@ -658,9 +686,9 @@ For example:
 
 All fields of a given package will be replaced by the new value specified
 in the override file.
-While the fieldname is compared case-insensitive, it is copied in
+While the field name is compared case-insensitive, it is copied in
 exactly the form in the override file there.
-(Thus I suggest to keep to the exact case it is normaly found in 
+(Thus I suggest to keep to the exact case it is normally found in 
 index files in case some other tool confuses them.)
 More than copied is the Section header (unless \fB\-S\fP is supplied),
 which is also used to guess the component (unless \fB\-C\fP is there).
@@ -696,7 +724,7 @@ and versions.
 Thus allowing all 7-bit characters but slashes (as they would
 break the file storage) and things syntactically active
 (spaces, underscores in filenames in .changes files, opening
-parantheses in source names of binary packages).
+parentheses in source names of binary packages).
 To allow some 8-bit chars additionally, use \fB8bit\fP additionally.
 .TP
 .B 8bit \fR(more insecure)
@@ -721,7 +749,7 @@ defined meaning.
 .TP
 .B missingfield \fR(save to ignore)
 Ignore missing fields in a .changes file that are only checked but
-not procesed. 
+not processed. 
 Those include: Format, Date, Urgency, Maintainer, Description, Changes
 .TP
 .B missingfile \fR(might be insecure)
@@ -743,11 +771,11 @@ Allow gpg-keys to be specified with less than 8 hexdigits of their fingerprint.
 .TP
 .B spaceonlyline \fR(I hope you know what you do)
 Allow lines containing only (but non-zero) spaces. As these
-do not seperate chunks as thus will cause reprepro to behave
+do not separate chunks as thus will cause reprepro to behave
 unexpected, they cause error messages by default.
 .TP
 .B surprisingarch
-No longer rejct a .changes file containing files for a
+No longer reject a .changes file containing files for a
 architecture not listed in the Architecture-header within it.
 .TP
 .B unknownfield \fR(for forward compatibility)
@@ -755,7 +783,7 @@ Ignore unknown fields in the config files, instead of refusing to run
 then.
 .TP
 .B unusedarch \fR(save to ignore)
-No longer rejct a .changes file containing no files for any of the
+No longer reject a .changes file containing no files for any of the
 architectures listed in the Architecture-header within it.
 .TP
 .B wrongdistribution \fR(save to ignore)
@@ -785,7 +813,7 @@ to end up there.
 unlike in dak, non\-US and non\-us are different things...
 .SH NOMENCLATURE
 .B Codename 
-the primary identifier of a given distribution. This are normaly
+the primary identifier of a given distribution. This are normally
 things like \fBsarge\fP, \fBetch\fP or \fBsid\fP.
 .TP
 .B basename
@@ -864,7 +892,7 @@ of a distribution, not only those some other update rule applies to.
 .SH ENVIRONMENT VARIABLES
 Environment variables are always overwritten by command line options,
 but overwrite options set in the \fBoptions\fP file. (Even when the
-options file is obiously parsed after the environment variables as
+options file is obviously parsed after the environment variables as
 the environment may determine the place of the options file).
 .TP 
 .B REPREPRO_BASE_DIR
@@ -889,11 +917,11 @@ some parts may still not use this notation.
 .SH "WORK-AROUNDS TO COMMON PROBLEMS"
 .TP
 .B gpgme returned an impossible condition
-With the woody version this normaly meant that there was no .gnupg
+With the woody version this normally meant that there was no .gnupg
 directory in $HOME, but it created one and reprepro succeeds when called
 again with the same command.
 Since sarge the problem sometimes shows up, too. But it is no longer
-reproducible and it does not fix itself, neighter. Try running
+reproducible and it does not fix itself, neither. Try running
 \fBgpg \-\-verify \fP\fIfile-you-had-problems-with\fP manually as the
 user reprepro is running and with the same $HOME. This alone might
 fix the problem. It should not print any messages except perhaps
@@ -923,7 +951,7 @@ call reprepro with \-\-ignore=missingfile (discouraged)
 reprepro is sometimes a bit too timid of deleting stuff. When things
 go wrong and there have been errors it sometimes just leaves everything
 where it is.
-To see what files reprepro rememberes to be in your pool directory but
+To see what files reprepro remembers to be in your pool directory but
 does not know anything needing them right know, you can use
 .br
 \fBreprepro dumpunreferenced\fP

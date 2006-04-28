@@ -484,6 +484,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 	result = target_initpackagesdb(upgrade->target,dbdir);
 	if( RET_WAS_ERROR(result) )
 		return result;
+	result = RET_NOTHING;
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted ) {
 			r = files_expectfiles(files,&pkg->new_filekeys,

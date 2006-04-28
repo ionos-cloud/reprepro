@@ -87,13 +87,14 @@ static bool_t	keepdirectories = FALSE;
 static bool_t	onlyacceptsigned = FALSE;
 static bool_t	askforpassphrase = FALSE;
 static bool_t	skipold = TRUE;
+static enum exportwhen export = EXPORT_NORMAL;
 int		verbose = 0;
 
 /* define for each config value an owner, and only higher owners are allowed
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(onlyacceptsigned),O(askforpassphrase), O(skipold);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(onlyacceptsigned),O(askforpassphrase), O(skipold), O(export);
 #undef O
 	
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -334,13 +335,15 @@ ACTION_R(addreference) {
 
 struct remove_args {/*@temp@*/references refs; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;};
 
-static retvalue remove_from_target(/*@temp@*/void *data, struct target *target) {
+static retvalue remove_from_target(/*@temp@*/void *data, struct target *target, 
+		struct distribution *distribution) {
 	retvalue result,r;
 	int i;
 	struct remove_args *d = data;
 
 	result = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(result) ) {
+		RET_UPDATE(distribution->status,result);
 		return result;
 	}
 
@@ -356,6 +359,7 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target) 
 	}
 	r = target_closepackagesdb(target);
 	RET_ENDUPDATE(result,r);
+	RET_UPDATE(distribution->status,result);
 	return result;
 }
 
@@ -406,10 +410,9 @@ ACTION_D_U(remove) {
 	d.refs = NULL;
 	d.removedfiles = NULL;
 
-	if( d.todo < d.count ) {
-		r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
-		RET_ENDUPDATE(result,r);
-	}
+	r = distribution_export(export, distribution,confdir,dbdir,distdir);
+	RET_ENDUPDATE(result,r);
+
 	if( d.trackingdata != NULL ) {
 		trackingdata_done(d.trackingdata);
 		r = tracking_done(tracks);
@@ -435,7 +438,8 @@ ACTION_D_U(remove) {
 	return result;
 }
 
-static retvalue list_in_target(void *data, struct target *target) {
+static retvalue list_in_target(void *data, struct target *target, 
+		UNUSED(struct distribution *distribution)) {
 	retvalue r,result;
 	const char *packagename = data;
 	char *control,*version;
@@ -501,7 +505,8 @@ static retvalue listfilterprint(/*@temp@*/void *data,const char *packagename,con
 	return r;
 }
 
-static retvalue listfilter_in_target(/*@temp@*/void *data, /*@temp@*/struct target *target) {
+static retvalue listfilter_in_target(/*@temp@*/void *data, /*@temp@*/struct target *target,
+		UNUSED(struct distribution *distribution)) {
 	retvalue r,result;
 	/*@temp@*/ struct listfilter d;
 
@@ -640,6 +645,11 @@ ACTION_N(export) {
 		fprintf(stderr,"reprepro export [<distributions>]\n");
 		return RET_ERROR;
 	}
+
+	if( export == EXPORT_NEVER ) {
+		fprintf(stderr, "Error: reprepro export incompatible with --export=never\n");
+		return RET_ERROR;
+	}
 	
 	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
 	assert( result != RET_NOTHING);
@@ -651,9 +661,9 @@ ACTION_N(export) {
 			fprintf(stderr,"Exporting %s...\n",d->codename);
 		}
 
-		r = distribution_export(d,confdir,dbdir,distdir,FALSE);
+		r = distribution_fullexport(d,confdir,dbdir,distdir);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force<= 0 )
+		if( RET_WAS_ERROR(r) && force<= 0 && export != EXPORT_FORCE)
 			return r;
 	}
 	r = distribution_freelist(distributions);
@@ -665,7 +675,6 @@ ACTION_N(export) {
 
 ACTION_D(update) {
 	retvalue result,r;
-	bool_t doexport;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
 	struct update_distribution *u_distributions;
@@ -710,16 +719,8 @@ ACTION_D(update) {
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	if( force > 0 )
-		doexport = result != RET_NOTHING;
-	else
-		doexport = RET_IS_OK(result);
-	if( doexport && verbose >= 0 )
-		fprintf(stderr,"Exporting indices...\n");
-	if( doexport )
-		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir);
-	else
-		r = distribution_freelist(distributions);
+	r = distribution_exportandfreelist(export,distributions,
+			confdir,dbdir,distdir);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -727,7 +728,6 @@ ACTION_D(update) {
 
 ACTION_D(iteratedupdate) {
 	retvalue result,r;
-	bool_t doexport;
 	struct update_pattern *patterns;
 	struct distribution *distributions;
 	struct update_distribution *u_distributions;
@@ -766,17 +766,11 @@ ACTION_D(iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,skipold,dereferenced);
+		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,skipold,dereferenced,export);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	doexport = force>0 || RET_IS_OK(result);
-	if( doexport && verbose >= 0 )
-		fprintf(stderr,"Exporting indices...\n");
-	if( doexport )
-		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir);
-	else
-		r = distribution_freelist(distributions);
+	r = distribution_freelist(distributions);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -832,7 +826,7 @@ ACTION_N(checkupdate) {
 /***********************rereferencing*************************/
 struct data_binsrcreref { /*@temp@*/const struct distribution *distribution; /*@temp@*/references refs;};
 
-static retvalue reref(void *data,struct target *target) {
+static retvalue reref(void *data,struct target *target,UNUSED(struct distribution *di)) {
 	retvalue result,r;
 	struct data_binsrcreref *d = data;
 
@@ -886,7 +880,7 @@ ACTION_R(rereference) {
 /***************************retrack****************************/
 struct data_binsrctrack { /*@temp@*/const struct distribution *distribution; /*@temp@*/references refs; trackingdb tracks;};
 
-static retvalue retrack(void *data,struct target *target) {
+static retvalue retrack(void *data,struct target *target,UNUSED(struct distribution *di)) {
 	retvalue result,r;
 	struct data_binsrctrack *d = data;
 
@@ -1058,9 +1052,9 @@ ACTION_N(dumptracks) {
 	return result;
 }
 /***********************checking*************************/
-struct data_check { /*@temp@*/const struct distribution *distribution; /*@temp@*/references references; /*@temp@*/filesdb filesdb;};
+struct data_check { /*@temp@*/references references; /*@temp@*/filesdb filesdb;};
 
-static retvalue check_target(void *data,struct target *target) {
+static retvalue check_target(void *data,struct target *target,UNUSED(struct distribution *di)) {
 	struct data_check *d = data;
 	retvalue result,r;
 
@@ -1095,14 +1089,12 @@ ACTION_RF(check) {
 			fprintf(stderr,"Checking %s...\n",d->codename);
 		}
 
-		dat.distribution = d;
 		dat.references = references;
 		dat.filesdb = filesdb;
 
 		r = distribution_foreach_part(d,component,architecture,packagetype,check_target,&dat,force);
 		dat.references = NULL;
 		dat.filesdb = NULL;
-		dat.distribution = NULL;
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
@@ -1124,7 +1116,7 @@ ACTION_F(checkpool) {
 }
 /*****************reapplying override info***************/
 
-static retvalue reoverride_target(void *data,struct target *target) {
+static retvalue reoverride_target(void *data,struct target *target,struct distribution *distribution) {
 	const struct alloverrides *ao = data;
 	retvalue result,r;
 
@@ -1134,6 +1126,7 @@ static retvalue reoverride_target(void *data,struct target *target) {
 	result = target_reoverride(target,ao);
 	r = target_closepackagesdb(target);
 	RET_ENDUPDATE(result,r);
+	RET_UPDATE(distribution->status, result);
 	return result;
 }
 
@@ -1172,10 +1165,7 @@ ACTION_N(reoverride) {
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 	}
-	if( RET_IS_OK(result) )
-		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir);
-	else
-		r = distribution_freelist(distributions);
+	r = distribution_exportandfreelist(export,distributions,confdir,dbdir,distdir);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1274,13 +1264,14 @@ ACTION_D(includedeb) {
 			section,priority,isudeb?"udeb":"deb",distribution,argv[2],
 			NULL,NULL,override,delete,
 			dereferenced,tracks);
+	RET_UPDATE(distribution->status, result);
 
 	override_free(override);
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
 
-	r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
+	r = distribution_export(export,distribution,confdir,dbdir,distdir);
 	RET_ENDUPDATE(result,r);
 
 	r = distribution_free(distribution);
@@ -1344,7 +1335,7 @@ ACTION_D(includedsc) {
 	override_free(srcoverride);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
+	r = distribution_export(export,distribution,confdir,dbdir,distdir);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -1397,7 +1388,7 @@ ACTION_D(include) {
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(distribution,confdir,dbdir,distdir,TRUE);
+	r = distribution_export(export,distribution,confdir,dbdir,distdir);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -1723,35 +1714,56 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 	return result;
 }
 
-
-#define LO_DELETE 1
-#define LO_KEEPUNREFERENCED 2
-#define LO_KEEPUNNEEDEDLISTS 3
-#define LO_NOTHINGISERROR 4
-#define LO_NOLISTDOWNLOAD 5
-#define LO_ONLYACCEPTSIGNED 6
-#define LO_ASKPASSPHRASE 7
-#define LO_KEEPDIRECTORIES 8
-#define LO_SKIPOLD 9
-#define LO_NODELETE 21
-#define LO_NOKEEPUNREFERENCED 22
-#define LO_NOKEEPUNNEEDEDLISTS 23
-#define LO_NONOTHINGISERROR 24
-#define LO_LISTDOWNLOAD 25
-#define LO_NOONLYACCEPTSIGNED 26
-#define LO_NOASKPASSPHRASE 27
-#define LO_NOKEEPDIRECTORIES 28
-#define LO_NOSKIPOLD 29
-#define LO_DISTDIR 10
-#define LO_DBDIR 11
-#define LO_LISTDIR 12
-#define LO_OVERRIDEDIR 13
-#define LO_CONFDIR 14
-#define LO_METHODDIR 15
-#define LO_VERSION 20
-#define LO_UNIGNORE 30
+enum { LO_DELETE=1,
+LO_KEEPUNREFERENCED,
+LO_KEEPUNNEEDEDLISTS,
+LO_NOTHINGISERROR,
+LO_NOLISTDOWNLOAD,
+LO_ONLYACCEPTSIGNED,
+LO_ASKPASSPHRASE,
+LO_KEEPDIRECTORIES,
+LO_SKIPOLD,
+LO_NODELETE,
+LO_NOKEEPUNREFERENCED,
+LO_NOKEEPUNNEEDEDLISTS,
+LO_NONOTHINGISERROR,
+LO_LISTDOWNLOAD,
+LO_NOONLYACCEPTSIGNED,
+LO_NOASKPASSPHRASE,
+LO_NOKEEPDIRECTORIES,
+LO_NOSKIPOLD,
+LO_EXPORT,
+LO_DISTDIR,
+LO_DBDIR,
+LO_LISTDIR,
+LO_OVERRIDEDIR,
+LO_CONFDIR,
+LO_METHODDIR,
+LO_VERSION,
+LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
+
+static void setexport(const char *optarg) {
+	if( strcasecmp(optarg, "never") == 0 ) {
+		CONFIGSET(export, EXPORT_NEVER);
+		return;
+	}
+	if( strcasecmp(optarg, "changed") == 0 ) {
+		CONFIGSET(export, EXPORT_CHANGED);
+		return;
+	}
+	if( strcasecmp(optarg, "normal") == 0 ) {
+		CONFIGSET(export, EXPORT_NORMAL);
+		return;
+	}
+	if( strcasecmp(optarg, "force") == 0 ) {
+		CONFIGSET(export, EXPORT_FORCE);
+		return;
+	}
+	fprintf(stderr,"Error: --export needs an argument of 'never', 'normal' or 'force', but got '%s'\n", optarg);
+	exit(EXIT_FAILURE);
+}
 
 static void handle_option(int c,const char *optarg) {
 	retvalue r;
@@ -1867,6 +1879,9 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NOSKIPOLD:
 					CONFIGSET(skipold,FALSE);
+					break;
+				case LO_EXPORT:
+					setexport(optarg);
 					break;
 				case LO_DISTDIR:
 					CONFIGDUP(distdir,optarg);
@@ -2004,6 +2019,7 @@ int main(int argc,char *argv[]) {
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
 		{"force", no_argument, NULL, 'f'},
+		{"export", required_argument, &longoption, LO_EXPORT},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;

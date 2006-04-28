@@ -49,7 +49,7 @@ _reprepro()
 	--noonlyacceptsigned --noask-passphrase --skipold --noskipold --force'
 	options='-b -i --basedir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\
-	--architecture -A --type -T'
+	--architecture -A --type -T --export'
 
 	i=1
 	prev=""
@@ -80,7 +80,7 @@ _reprepro()
 				i=$((i+2))
 				;;
 			
-			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T)
+			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export)
 
 				prev="$cur"
 				i=$((i+2))
@@ -127,6 +127,10 @@ _reprepro()
 			-C|--component)
 				parse_config
         			COMPREPLY=( $( compgen -W "$components" -- $cur ) )
+				return 0
+				;;
+			--export)
+        			COMPREPLY=( $( compgen -W "never changed normal force" -- $cur ) )
 				return 0
 				;;
 		esac

@@ -476,6 +476,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		}
 		RET_UPDATE(result,r);
 	}
+	RET_UPDATE(distribution->status, result);
 
 //	deb_free(pkg);
 
