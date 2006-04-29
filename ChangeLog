@@ -1,3 +1,6 @@
+2006-04-29  Bernhard R. Link <brlink@debian.org>
+	* fix some minor memory leaks
+
 2006-04-28  Bernhard R. Link <brlink@debian.org>
 	* rewrite decision for exporting distributions a bit:
 	export all distributions that did not have errors by default

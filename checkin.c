@@ -829,8 +829,10 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 
 	if( IGNORABLE(missingfile) ) {
 		r = dirs_getdirectory(changesfilename,&directory);
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			changes_free(changes);
 			return r;
+		}
 	} else
 		directory = NULL;
 
@@ -839,6 +841,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
 		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") ) {
 			free(directory);
+			changes_free(changes);
 			return RET_ERROR;
 		}
 	}

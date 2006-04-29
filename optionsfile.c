@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005 Bernhard R. Link
+ *  Copyright (C) 2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -109,4 +109,17 @@ void optionsfile_parse(const char *confdir,const struct option *longopts,
 			handle_option(0,argument);
 		}
 	}
+	if( ferror(f) != 0 ) {
+		int e = ferror(f);
+		fprintf(stderr,"%s: error while reading config file: %d=%s\n",
+				filename, e, strerror(e));
+		exit(EXIT_FAILURE);
+	}
+	if( fclose(f) != 0 ) {
+		int e = errno;
+		fprintf(stderr,"%s: error while reading config file: %d=%s\n",
+				filename, e, strerror(e));
+		exit(EXIT_FAILURE);
+	}
+	free(filename);
 }
