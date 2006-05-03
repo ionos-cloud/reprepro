@@ -1,5 +1,8 @@
 2006-05-03  Bernhard R. Link <brlink@debian.org>
 	* add new pull and checkpull actions
+	* repair checkupdate statistics of newest available
+	  version of checkupdate when using delete rules.
+	  (Showed 'unavailable for reload').
 
 2006-04-29  Bernhard R. Link <brlink@debian.org>
 	* fix some minor memory leaks

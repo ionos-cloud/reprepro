@@ -365,10 +365,14 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		if( versioncmp == 0 ) {
 		/* we are replacing a package with the same version,
 		 * so we keep the old one for sake of speed. */
-		// TODO: add switch to force reimport of everything...
+			if( current->deleted && 
+				current->version != current->new_version) {
+				/* remember the version for checkupdate/pull */
+				free(current->new_version);
+				current->new_version = version;
+			} else
+					free(version);
 			current->deleted = FALSE;
-			// TODO: if it was deleted, set new_version here
-			free(version);
 			free(packagename);
 			return RET_NOTHING;
 		}
@@ -381,10 +385,12 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			int vcmp = 1;
 			(void)dpkgversions_cmp(version,current->version_in_use,&vcmp);
 			if( vcmp == 0 ) {
-				current->deleted = FALSE;
 				current->version = current->version_in_use;
-				// TODO: if it was deleted, set new_version here
-				free(version);
+				if( current->deleted )
+					current->new_version = version;
+				else
+					free(version);
+				current->deleted = FALSE;
 				free(packagename);
 				return RET_NOTHING;
 			}
