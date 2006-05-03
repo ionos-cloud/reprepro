@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -711,3 +711,65 @@ retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) 
 char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion) {
 	return	mprintf("%s %s %s",codename,sourcename,sourceversion);
 }
+
+retvalue splitlist(struct strlist *from,
+				struct strlist *into,
+				const struct strlist *list) {
+	retvalue r;
+	int i;
+
+	r = strlist_init(from);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	r = strlist_init(into);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(from);
+		return r;
+	}
+
+	/* * Iterator over components to update * */
+	r = RET_NOTHING;
+	for( i = 0 ; i < list->count ; i++ ) {
+		const char *item,*seperator;
+		char *origin,*destination;
+
+		item = list->values[i];
+		// TODO: isn't this broken for the !*(dest+1) case ?
+		if( (seperator = strchr(item,'>')) == NULL ) {
+			destination = strdup(item);
+			origin = strdup(item);
+		} else if( seperator == item ) {
+			destination = strdup(seperator+1);
+			origin = strdup(seperator+1);
+		} else if( *(seperator+1) == '\0' ) {
+			destination = strndup(item,seperator-item);
+			origin = strndup(item,seperator-item);
+		} else {
+			origin = strndup(item,seperator-item);
+			destination = strdup(seperator+1);
+		}
+		if( origin == NULL || destination == NULL ) {
+			free(origin);free(destination);
+			strlist_done(from);
+			strlist_done(into);
+			return RET_ERROR_OOM;
+		}
+		r = strlist_add(from,origin);
+		if( RET_WAS_ERROR(r) ) {
+			free(destination);
+			strlist_done(from);
+			strlist_done(into);
+			return r;
+		}
+		r = strlist_add(into,destination);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(from);
+			strlist_done(into);
+			return r;
+		}
+		r = RET_OK;
+	}
+	return r;
+}
+

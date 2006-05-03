@@ -3,6 +3,10 @@ Updates since 0.8.2:
   distributions. (Now every distribution processed
   without errors is exported by default, with options
   for always, never or only export it when changed)
+- added pull and checkpull actions.
+  Those are roughly equivalent to upgrade rules with
+  file:/path/to/basedir Method, but faster and a bit
+  more limited (files cannot change components)
 
 Updates since 0.8.1:
 - mark process list files and only skip those not marked

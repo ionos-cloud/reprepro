@@ -264,67 +264,6 @@ static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/
 	return RET_OK;
 }
 
-static retvalue splitlist(struct strlist *from,
-				struct strlist *into,
-				const struct strlist *list) {
-	retvalue r;
-	int i;
-
-	r = strlist_init(from);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	r = strlist_init(into);
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(from);
-		return r;
-	}
-
-	/* * Iterator over components to update * */
-	r = RET_NOTHING;
-	for( i = 0 ; i < list->count ; i++ ) {
-		const char *item,*seperator;
-		char *origin,*destination;
-
-		item = list->values[i];
-		// TODO: isn't this broken for the !*(dest+1) case ?
-		if( (seperator = strchr(item,'>')) == NULL ) {
-			destination = strdup(item);
-			origin = strdup(item);
-		} else if( seperator == item ) {
-			destination = strdup(seperator+1);
-			origin = strdup(seperator+1);
-		} else if( *(seperator+1) == '\0' ) {
-			destination = strndup(item,seperator-item);
-			origin = strndup(item,seperator-item);
-		} else {
-			origin = strndup(item,seperator-item);
-			destination = strdup(seperator+1);
-		}
-		if( origin == NULL || destination == NULL ) {
-			free(origin);free(destination);
-			strlist_done(from);
-			strlist_done(into);
-			return RET_ERROR_OOM;
-		}
-		r = strlist_add(from,origin);
-		if( RET_WAS_ERROR(r) ) {
-			free(destination);
-			strlist_done(from);
-			strlist_done(into);
-			return r;
-		}
-		r = strlist_add(into,destination);
-		if( RET_WAS_ERROR(r) ) {
-			strlist_done(from);
-			strlist_done(into);
-			return r;
-		}
-		r = RET_OK;
-	}
-	return r;
-}
-
 inline static retvalue parse_pattern(const char *confdir,const char *chunk, struct update_pattern **pattern) {
 	struct update_pattern *update;
 	struct strlist componentslist,architectureslist;

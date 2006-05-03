@@ -30,6 +30,8 @@ struct distribution {
 	struct strlist architectures,components;
 	/* which update rules to use */
 	struct strlist updates;
+	/* which rules to use to pull packages from other distributions */
+	struct strlist pulls;
 	/* the key to sign with, may be NULL: */
 	/*@null@*/char *signwith;
 	/* the override file to use by default */

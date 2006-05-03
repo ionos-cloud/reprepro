@@ -1,3 +1,6 @@
+2006-05-03  Bernhard R. Link <brlink@debian.org>
+	* add new pull and checkpull actions
+
 2006-04-29  Bernhard R. Link <brlink@debian.org>
 	* fix some minor memory leaks
 

@@ -43,6 +43,7 @@
 #include "release.h"
 #include "aptmethod.h"
 #include "updates.h"
+#include "pull.h"
 #include "upgradelist.h"
 #include "signature.h"
 #include "extractcontrol.h"
@@ -821,7 +822,100 @@ ACTION_N(checkupdate) {
 
 	return result;
 }
+/***********************migrate*******************************/
 
+ACTION_D(pull) {
+	retvalue result,r;
+	struct pull_rule *rules;
+	struct pull_distribution *p;
+	struct distribution *distributions,
+	/* list of distributions only source but not target of a replication: */
+		*sourceonly = NULL;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro pull [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = pull_getrules(confdir,&rules);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	assert( RET_IS_OK(result) );
+
+	result = pull_prepare(confdir,rules,distributions,&p,&sourceonly);
+	if( RET_WAS_ERROR(result) ) {
+		pull_freerules(rules);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	result = pull_update(dbdir,filesdb,references,p,force,dereferenced);
+	
+	pull_freerules(rules);
+	pull_freedistributions(p);
+	r = distribution_freelist(sourceonly);
+	RET_ENDUPDATE(result,r);
+
+	r = distribution_exportandfreelist(export,distributions,
+			confdir,dbdir,distdir);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_N(checkpull) {
+	retvalue result,r;
+	struct pull_rule *rules;
+	struct pull_distribution *p;
+	struct distribution *distributions,
+	/* list of distributions only source but not target of a replication: */
+		*sourceonly = NULL;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro checkpull [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = pull_getrules(confdir,&rules);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	assert( RET_IS_OK(result) );
+
+	result = pull_prepare(confdir,rules,distributions,&p,&sourceonly);
+	if( RET_WAS_ERROR(result) ) {
+		pull_freerules(rules);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	result = pull_checkupdate(dbdir,p,force);
+	
+	pull_freerules(rules);
+	pull_freedistributions(p);
+	r = distribution_freelist(sourceonly);
+	RET_ENDUPDATE(result,r);
+
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
 
 /***********************rereferencing*************************/
 struct data_binsrcreref { /*@temp@*/const struct distribution *distribution; /*@temp@*/references refs;};
@@ -1619,6 +1713,8 @@ static const struct action {
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},
 	{"checkupdate",		A_N(checkupdate)},
+	{"pull",		A_D(pull)},
+	{"checkpull",		A_N(checkpull)},
 	{"includedeb",		A_D(includedeb)},
 	{"includeudeb",		A_D(includedeb)},
 	{"includedsc",		A_D(includedsc)},

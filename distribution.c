@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -58,6 +58,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
+		strlist_done(&distribution->pulls);
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
@@ -174,6 +175,7 @@ static const char * const allowedfields[] = {
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
 "UDebOverride", "DscOverride", "Tracking", "NotAutomatic",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
+"Pull",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
@@ -245,6 +247,11 @@ NULL};
 		return ret;
 	}
 	ret = chunk_getwordlist(chunk,"Update",&r->updates);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
+	ret = chunk_getwordlist(chunk,"Pull",&r->pulls);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
