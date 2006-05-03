@@ -719,8 +719,12 @@ static void pull_dump(struct pull_distribution *distribution) {
 	struct pull_target *u;
 
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->upgradelist == NULL )
+			continue;
 		printf("Updates needed for '%s':\n",u->target->identifier);
 		upgradelist_dump(u->upgradelist);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
 	}
 }
 

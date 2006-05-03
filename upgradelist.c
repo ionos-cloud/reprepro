@@ -386,9 +386,10 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			(void)dpkgversions_cmp(version,current->version_in_use,&vcmp);
 			if( vcmp == 0 ) {
 				current->version = current->version_in_use;
-				if( current->deleted )
+				if( current->deleted ) {
+					free(current->new_version);
 					current->new_version = version;
-				else
+				} else
 					free(version);
 				current->deleted = FALSE;
 				free(packagename);
@@ -543,6 +544,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 
 void upgradelist_dump(struct upgradelist *upgrade){
 	struct package_data *pkg;
+	
+	assert(upgrade != NULL);
 
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->deleted ) {

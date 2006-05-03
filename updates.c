@@ -1460,8 +1460,12 @@ static void updates_dump(struct update_distribution *distribution) {
 	struct update_target *u;
 
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->nothingnew )
+			continue;
 		printf("Updates needed for '%s':\n",u->target->identifier);
 		upgradelist_dump(u->upgradelist);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
 	}
 }
 

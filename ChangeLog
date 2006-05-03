@@ -3,6 +3,7 @@
 	* repair checkupdate statistics of newest available
 	  version of checkupdate when using delete rules.
 	  (Showed 'unavailable for reload').
+	* fix segfault and memory leak in checkupdate
 
 2006-04-29  Bernhard R. Link <brlink@debian.org>
 	* fix some minor memory leaks
