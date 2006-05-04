@@ -1286,6 +1286,10 @@ ACTION_D(includedeb) {
 		fprintf(stderr,"reprepro [--delete] include[u]deb <distribution> <package>\n");
 		return RET_ERROR;
 	}
+	if( architecture != NULL && strcmp(architecture,"source") == 0 ) {
+		fprintf(stderr,"Error: -A source is not possible with includedeb!\n");
+		return RET_ERROR;
+	}
 	if( onlyacceptsigned ) {
 		fprintf(stderr,"include[u]deb together with --onlyacceptsigned is not yet possible,\n as .[u]deb files cannot be signed yet.\n");
 		return RET_ERROR;
@@ -1451,6 +1455,20 @@ ACTION_D(include) {
 				"include called with a file not ending with '.change'\n"
 				"(Did you mean includedeb or includedsc?)\n") )
 		return RET_ERROR;
+
+	if( architecture != NULL && packagetype != NULL ) {
+		if( strcmp(packagetype,"dsc") == 0 ) {
+			if( strcmp(architecture,"source") != 0 ) {
+				fprintf(stderr,"Error: Only -A source is possible with -T dsc!\n");
+				return RET_ERROR;
+			}
+		} else {
+			if( strcmp(architecture,"source") == 0 ) {
+				fprintf(stderr,"Error: -A source is not possible with -T deb or -T udeb!\n");
+				return RET_ERROR;
+			}
+		}
+	}
 
 	result = distribution_get(&distribution,confdir,argv[1]);
 	assert( result != RET_NOTHING );

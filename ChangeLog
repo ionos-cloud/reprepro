@@ -4,6 +4,9 @@
 	  version of checkupdate when using delete rules.
 	  (Showed 'unavailable for reload').
 	* fix segfault and memory leak in checkupdate
+	* fix including a changes file with source and restricting
+	  to some binary distribution or to binary package type.
+	* add some warnings against impossible combinations of -T and -A
 
 2006-04-29  Bernhard R. Link <brlink@debian.org>
 	* fix some minor memory leaks
