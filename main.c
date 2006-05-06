@@ -46,7 +46,7 @@
 #include "pull.h"
 #include "upgradelist.h"
 #include "signature.h"
-#include "extractcontrol.h"
+#include "debfile.h"
 #include "checkindeb.h"
 #include "checkindsc.h"
 #include "checkin.h"

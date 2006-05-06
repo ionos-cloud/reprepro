@@ -36,7 +36,7 @@
 #include "reference.h"
 #include "binaries.h"
 #include "files.h"
-#include "extractcontrol.h"
+#include "debfile.h"
 #include "guesscomponent.h"
 #include "tracking.h"
 

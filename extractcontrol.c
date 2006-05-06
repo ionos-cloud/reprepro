@@ -29,17 +29,16 @@
 #include "error.h"
 #include "md5sum.h"
 #include "chunks.h"
-#include "extractcontrol.h"
+#include "debfile.h"
 
-extern int verbose;
-
+#ifdef HAVE_LIBARCHIVE
+#error Why did this file got compiled instead of debfile.c?
+#endif
 // **********************************************************************
-// * This is simply a ugly prototype until I have time to get something
-// * correct (perhaps borrowing code from dpkg2.0). Until then its just
-// * a quick and dirty hack to make it running.
+// * This is a very simple implementation calling ar and tar, which
+// * is only used with --without-libarchive or when no libarchive was 
+// * found.
 // **********************************************************************
-//TODO: write this properly.
-
 
 retvalue extractcontrol(char **control,const char *debfile) {
 	int pipe1[2];
