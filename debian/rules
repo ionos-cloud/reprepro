@@ -22,7 +22,7 @@ config.status: configure
 	dh_testdir
 	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
-		    --without-libarchive \
+		    --without-libarchive --with-libbz2 \
 		    CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,syms"
 
 build: build-stamp

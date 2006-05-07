@@ -12,12 +12,31 @@ AC_PROG_CC
 AC_PROG_INSTALL
 
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
-AC_CHECK_LIB(bz2,BZ2_bzCompressInit,,[AC_MSG_WARN(["no libbz2 found, compiling without"])],)
 AC_CHECK_LIB(db3,db_create,,[AC_MSG_ERROR(["no libdb3 found"])],)
 AC_CHECK_LIB(gpgme,gpgme_check_version,,[AC_MSG_ERROR(["no libgpgme found"])],)
 AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found"])])
 AH_TEMPLATE([HASGPGMEGOODEXP],[Defined if libgpgme contains GPGME_SIG_STAT_GOOD_EXP])
 CHECK_ENUM(GPGME_SIG_STAT_GOOD_EXP,[gpgme.h],[AC_DEFINE_UNQUOTED(AS_TR_CPP(HASGPGMEGOODEXP))],[],)
+
+AC_ARG_WITH(libbz2,
+[  --with-libbz2=path|yes|no	Give path to prefix libbz2 was installed with],[dnl
+	case "$withval" in
+	no)
+	;;
+	yes)
+	AC_CHECK_LIB(bz2,BZ2_bzCompressInit,,[AC_MSG_ERROR(["no libbz2 found, despite being told to use it"])],)
+	;;
+	*)
+	AC_CHECK_LIB(bz2,BZ2_bzCompressInit,[dnl
+		AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBBZ2))
+		LIBS="$LIBS -L$withval/lib -lbz2"
+		CPPFLAGS="$CPPFLAGS -I$withval/include"
+	],[AC_MSG_ERROR(["no libbz2 found, despite being told to use it"])],[-L$withval/lib])
+	;;
+	esac
+],[dnl without --with-libbz2 we look for it but not finding it is no error:
+	AC_CHECK_LIB(bz2,BZ2_bzCompressInit,,[AC_MSG_WARN(["no libbz2 found, compiling without"])],)
+])
 
 ARCHIVELIBS=""
 ARCHIVECPP=""
