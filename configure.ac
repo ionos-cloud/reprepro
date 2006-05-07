@@ -53,8 +53,25 @@ AC_ARG_WITH(libarchive,
 		AC_CHECK_HEADER(archive.h,[dnl
 			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE))
 			ARCHIVELIBS="-larchive"
-		],[AC_MSG_WARN([Compiling without libarchive])])
-	],[AC_MSG_WARN([Compiling without libarchive])])
+		],)
+	],)
+])
+AC_ARG_WITH(static-libarchive,
+[  --with-static-libarchive=.a-file  static libarchive library to be linked against],
+[	case "$withval" in
+	no|yes) AC_MSG_ERROR([--with-static-libarchive needs an .a file as parameter])
+	;;
+	*)
+	AC_CHECK_LIB(c,archive_read_new,[dnl
+		mysave_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$ARCHIVECPP $CPPFLAGS"
+		AC_CHECK_HEADER(archive.h,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE))
+			ARCHIVELIBS="$withval"
+		],[AC_MSG_ERROR([Could not find archive.h])])
+		CPPFLAGS="$mysave_CPPFLAGS"
+	],[AC_MSG_ERROR([Error linking against $withval])],[$withval])
+	esac
 ])
 AM_CONDITIONAL([HAVE_LIBARCHIVE],[test -n "$ARCHIVELIBS"])
 AC_SUBST([ARCHIVELIBS])
