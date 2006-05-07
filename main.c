@@ -205,6 +205,29 @@ ACTION_N(extractcontrol) {
 		printf("%s\n",control);
 	return result;
 }
+ACTION_N(extractfilelist) {
+#ifdef HAVE_LIBARCHIVE
+	retvalue result;
+	struct strlist list;
+
+	if( argc != 2 ) {
+		fprintf(stderr,"reprepro __extractfilelist <.deb-file>\n");
+		return RET_ERROR;
+	}
+
+	result = getfilelist(&list,argv[1]);
+	
+	if( RET_IS_OK(result) ) {
+		strlist_fprint(stdout,&list);
+		putchar('\n');
+		strlist_done(&list);
+	}
+	return result;
+#else
+	fprintf(stderr,"__extractfilelist not supported as compiled without libarchive!\n");
+	return RET_ERROR;
+#endif
+}
 
 
 ACTION_U_F(addmd5sums) {
@@ -1705,6 +1728,7 @@ static const struct action {
 } all_actions[] = {
 	{"__d", 		A_N(printargs)},
 	{"__extractcontrol",	A_N(extractcontrol)},
+	{"__extractfilelist",	A_N(extractfilelist)},
 	{"_detect", 		A_F(detect)},
 	{"_forget", 		A_F(forget)},
 	{"_listmd5sums",	A_F(listmd5sums)},

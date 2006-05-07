@@ -18,6 +18,8 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <malloc.h>
 #include <string.h>
 #include <ctype.h>
@@ -183,5 +185,110 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	} while( RET_IS_OK(r) );
 	ar_close(ar);
 	fprintf(stderr,"Could not find a control.tar.gz file within '%s'!\n",debfile);
+	return RET_ERROR_MISSING;
+}
+
+static retvalue read_data_tar(/*@out@*/struct strlist *list, const char *debfile, struct ar_archive *ar, struct archive *tar) {
+	struct archive_entry *entry;
+	struct strlist filelist;
+	int a;
+	retvalue r;
+
+	r = strlist_init(&filelist);
+	if( RET_WAS_ERROR(r) ) {
+		return r;	
+	}
+	archive_read_support_format_tar(tar);
+	a = archive_read_open(tar,ar,
+			ar_archivemember_open,
+			ar_archivemember_read,
+			ar_archivemember_close);
+	if( a != ARCHIVE_OK ) {
+		strlist_done(&filelist);
+		fprintf(stderr,"open data.tar.gz within '%s' failed: %d:%d:%s\n",
+				debfile, 
+				a,archive_errno(tar),
+				archive_error_string(tar));
+		return RET_ERROR;
+	}
+	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
+		const char *name = archive_entry_pathname(entry);
+		mode_t mode;
+		char *n;
+
+		if( name[0] == '.' )
+			name++;
+		if( name[0] == '/' )
+			name++;
+		if( name[0] == '\0' )
+			continue;
+		mode = archive_entry_mode(entry);
+		if( !S_ISDIR(mode) ) {
+			n = strdup(name);
+			if( n == NULL ) {
+				strlist_done(&filelist);
+				return RET_ERROR_OOM;
+			}
+			r = strlist_add(&filelist, n);
+			if( RET_WAS_ERROR(r) ) {
+				strlist_done(&filelist);
+				return r;
+			}
+		}
+		a = archive_read_data_skip(tar);
+		if( a != ARCHIVE_OK ) {
+			int e = archive_errno(tar);
+			printf("Error skipping %s within control.tar.gz from %s: %d=%s\n",
+					archive_entry_pathname(entry),
+					debfile,
+					e, archive_error_string(tar));
+			strlist_done(&filelist);
+			return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
+		}
+	}
+	if( a != ARCHIVE_EOF ) {
+		int e = archive_errno(tar);
+		printf("Error reading data.tar.gz from %s: %d=%s\n",
+				debfile,
+				e, archive_error_string(tar));
+		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
+	}
+	strlist_move(list,&filelist);
+	return RET_OK;
+}
+
+
+retvalue getfilelist(/*@out@*/struct strlist *filelist, const char *debfile) {
+	struct ar_archive *ar;
+	retvalue r;
+
+	r = ar_open(&ar,debfile);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( r != RET_NOTHING);
+	do {
+		char *filename;
+
+		r = ar_nextmember(ar, &filename);
+		if( RET_IS_OK(r) ) {
+			if( strcmp(filename,"data.tar.gz") == 0 ) {
+				struct archive *tar;
+
+				tar = archive_read_new();
+				archive_read_support_compression_gzip(tar);
+				r = read_data_tar(filelist, debfile, ar, tar);
+				archive_read_finish(tar);
+				if( r != RET_NOTHING ) {
+					ar_close(ar);
+					free(filename);
+					return r;
+				}
+				
+			}
+			free(filename);
+		}
+	} while( RET_IS_OK(r) );
+	ar_close(ar);
+	fprintf(stderr,"Could not find a data.tar.gz file within '%s'!\n",debfile);
 	return RET_ERROR_MISSING;
 }

@@ -1,3 +1,9 @@
+2006-05-07  Bernhard R. Link <brlink@debian.org>
+	* add support for extracting filelists from
+	Debian packages for future usage and a
+	__extractfilelist action. (only available when
+	compiled with libarchive)
+
 2006-05-06  Bernhard R. Link <brlink@debian.org>
 	* add support for using libarchive to get the
 	control file out of a .deb instead of calling
