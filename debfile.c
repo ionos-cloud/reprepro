@@ -180,6 +180,24 @@ retvalue extractcontrol(char **control,const char *debfile) {
 				}
 				
 			}
+/* see below for a discussion about this #ifdef */
+#ifdef HAVE_LIBBZ2
+			if( strcmp(filename,"control.tar.bz2") == 0 ) {
+				struct archive *tar;
+
+				tar = archive_read_new();
+				archive_read_support_compression_gzip(tar);
+				archive_read_support_compression_bzip2(tar);
+				r = read_control_tar(control, debfile, ar, tar);
+				archive_read_finish(tar);
+				if( r != RET_NOTHING ) {
+					ar_close(ar);
+					free(filename);
+					return r;
+				}
+				
+			}
+#endif
 			free(filename);
 		}
 	} while( RET_IS_OK(r) );
@@ -285,6 +303,29 @@ retvalue getfilelist(/*@out@*/struct strlist *filelist, const char *debfile) {
 				}
 				
 			}
+/* TODO: here some better heuristic would be nice,
+ * but when compiling against the static libarchive this is what needed,
+ * and when libarchive is compiled locally it will have bz2 support
+ * essentially when we have it, too.
+ * Thus this ifdef is quite a good choice, especially as no offical
+ * files should have this member, anyway */
+#ifdef HAVE_LIBBZ2
+			if( strcmp(filename,"data.tar.bz2") == 0 ) {
+				struct archive *tar;
+
+				tar = archive_read_new();
+				archive_read_support_compression_gzip(tar);
+				archive_read_support_compression_bzip2(tar);
+				r = read_data_tar(filelist, debfile, ar, tar);
+				archive_read_finish(tar);
+				if( r != RET_NOTHING ) {
+					ar_close(ar);
+					free(filename);
+					return r;
+				}
+				
+			}
+#endif
 			free(filename);
 		}
 	} while( RET_IS_OK(r) );
