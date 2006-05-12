@@ -16,6 +16,9 @@ struct distribution;
 #ifndef REPREPRO_EXPORTS_H
 #include "exports.h"
 #endif
+#ifndef REPREPRO_CONTENTS_H
+#include "contents.h"
+#endif
 
 struct distribution {
 	struct distribution *next;
@@ -47,6 +50,8 @@ struct distribution {
 		bool_t needsources:1;
 		bool_t embargoalls:1;
 		} trackingoptions;
+	/* what content files to generate */
+	struct contentsoptions contents;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
@@ -67,14 +72,14 @@ retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/c
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
-retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir);
+retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
 
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir);
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir);
+retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, filesdb);
 #endif

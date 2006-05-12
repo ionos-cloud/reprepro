@@ -15,7 +15,7 @@ retvalue extractcontrol(/*@out@*/char **control,const char *debfile);
 /* The following are only in debfile.c and not in extractcontrol.c,
  * thus only available when compiled with libarchive */
 
-retvalue getfilelist(/*@out@*/struct strlist *filelist, const char *debfile);
+retvalue getfilelist(/*@out@*/char **filelist, const char *debfile);
 
 #endif
 

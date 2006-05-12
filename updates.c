@@ -1893,7 +1893,7 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,skipold,dereferencedfilekeys);
 		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
-		r = distribution_export(export,d->distribution,confdir,dbdir,distdir);
+		r = distribution_export(export,d->distribution,confdir,dbdir,distdir,filesdb);
 		RET_UPDATE(result,r);
 	}
 	return result;

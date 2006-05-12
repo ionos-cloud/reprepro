@@ -51,7 +51,7 @@ struct target {
 	get_sourceandversion *getsourceandversion;
 	do_reoverride *doreoverride;
 	do_retrack *doretrack;
-	bool_t wasmodified;
+	bool_t wasmodified, saved_wasmodified;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
 	/* is initialized as soon as needed: */

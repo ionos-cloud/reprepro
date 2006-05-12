@@ -16,6 +16,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -27,6 +28,7 @@
 #include <time.h>
 #include <zlib.h>
 #include "error.h"
+#include "mprintf.h"
 #include "chunks.h"
 #include "sources.h"
 #include "md5sum.h"
@@ -62,6 +64,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
+		contentsoptions_done(&distribution->contents);
 		result = RET_OK;
 
 		while( distribution->targets != NULL ) {
@@ -175,7 +178,8 @@ static const char * const allowedfields[] = {
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
 "UDebOverride", "DscOverride", "Tracking", "NotAutomatic",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
-"Pull",
+"Pull", "Contents", "ContentsArchitectures",
+"ContentsComponents", "ContentsUComponents",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
@@ -317,6 +321,12 @@ NULL};
 		option = NULL;
 	ret = tracking_parse(option,r);
 	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
+	ret = contentsoptions_parse(r, chunk);
+	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
 	}
@@ -475,7 +485,7 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 
 static retvalue export(struct distribution *distribution,
 		const char *confdir, const char *dbdir, const char *distdir,
-		bool_t onlyneeded) {
+		filesdb files, bool_t onlyneeded) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
@@ -503,6 +513,9 @@ static retvalue export(struct distribution *distribution,
 				break;
 		}
 	}
+	if( !RET_WAS_ERROR(result) && distribution->contents.rate > 0 ) {
+		r = contents_generate(files, distribution, dbdir, release, onlyneeded);
+	}
 	if( RET_WAS_ERROR(result) )
 		release_free(release);
 	else {
@@ -516,8 +529,8 @@ static retvalue export(struct distribution *distribution,
 	return result;
 }
 
-retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir) {
-	return export(distribution,confdir,dbdir,distdir,FALSE);
+retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
+	return export(distribution,confdir,dbdir,distdir,files,FALSE);
 }
 
 retvalue distribution_freelist(struct distribution *distributions) {
@@ -535,7 +548,8 @@ retvalue distribution_freelist(struct distribution *distributions) {
 
 retvalue distribution_exportandfreelist(enum exportwhen when,
 		struct distribution *distributions,
-		const char *confdir,const char *dbdir, const char *distdir) {
+		const char *confdir,const char *dbdir, const char *distdir,
+		filesdb files) {
 	retvalue result,r;
 	bool_t todo = FALSE;
 	struct distribution *d;
@@ -585,7 +599,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						d->codename);
-					r = export(d,confdir,dbdir,distdir,TRUE);
+					r = export(d,confdir,dbdir,distdir,files,TRUE);
 					RET_UPDATE(result,r);
 					break;
 				}
@@ -595,7 +609,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 					( d->status == RET_NOTHING && 
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
-			r = export(d,confdir,dbdir,distdir,TRUE);
+			r = export(d,confdir,dbdir,distdir,files, TRUE);
 			RET_UPDATE(result,r);
 		}
 		
@@ -605,7 +619,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 	return result;
 }
 
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir) {
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
 	if( when == EXPORT_NEVER ) {
 		if( verbose >= 10 )
 			fprintf(stderr, 
@@ -639,7 +653,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Doing a export despite --export=changed....\n",
 						distribution->codename);
 				return export(distribution,
-						confdir,dbdir,distdir,TRUE);
+						confdir,dbdir,distdir,files,TRUE);
 				break;
 			}
 		}
@@ -648,6 +662,6 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	}
 	if( verbose >= 0 )
 		fprintf(stderr, "Exporting indices...\n");
-	return export(distribution,confdir,dbdir,distdir,TRUE);
+	return export(distribution,confdir,dbdir,distdir,files, TRUE);
 }
 

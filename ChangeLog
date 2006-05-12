@@ -1,3 +1,6 @@
+2006-05-12  Bernhard R. Link <brlink@debian.org>
+	* add content file generation
+
 2006-05-07  Bernhard R. Link <brlink@debian.org>
 	* add support for extracting filelists from
 	Debian packages for future usage and a

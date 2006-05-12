@@ -208,23 +208,42 @@ ACTION_N(extractcontrol) {
 ACTION_N(extractfilelist) {
 #ifdef HAVE_LIBARCHIVE
 	retvalue result;
-	struct strlist list;
+	char *filelist;
 
 	if( argc != 2 ) {
 		fprintf(stderr,"reprepro __extractfilelist <.deb-file>\n");
 		return RET_ERROR;
 	}
 
-	result = getfilelist(&list,argv[1]);
+	result = getfilelist(&filelist,argv[1]);
 	
 	if( RET_IS_OK(result) ) {
-		strlist_fprint(stdout,&list);
-		putchar('\n');
-		strlist_done(&list);
+		const char *p = filelist;
+		while( *p != '\0' ) {
+			puts(p);
+			p += strlen(p)+1;
+		}
+		free(filelist);
 	}
 	return result;
 #else
 	fprintf(stderr,"__extractfilelist not supported as compiled without libarchive!\n");
+	return RET_ERROR;
+#endif
+}
+
+
+ACTION_F(generatefilelists) {
+#ifdef HAVE_LIBARCHIVE
+
+	if( argc < 1 || argc > 2 || (argc == 2 && strcmp(argv[1],"reread") != 0) ) {
+		fprintf(stderr,"reprepro generatefilelists [reread]\n");
+		return RET_ERROR;
+	}
+
+	return files_regenerate_filelist(filesdb, argc == 2);
+#else
+	fprintf(stderr,"generatefilelist not supported as compiled without libarchive!\n");
 	return RET_ERROR;
 #endif
 }
@@ -387,7 +406,7 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 	return result;
 }
 
-ACTION_D_U(remove) {
+ACTION_D(remove) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct remove_args d;
@@ -434,7 +453,7 @@ ACTION_D_U(remove) {
 	d.refs = NULL;
 	d.removedfiles = NULL;
 
-	r = distribution_export(export, distribution,confdir,dbdir,distdir);
+	r = distribution_export(export, distribution,confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 
 	if( d.trackingdata != NULL ) {
@@ -661,7 +680,7 @@ ACTION_N(dumpcontents) {
 	return result;
 }
 
-ACTION_N(export) {
+ACTION_F(export) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 
@@ -685,7 +704,7 @@ ACTION_N(export) {
 			fprintf(stderr,"Exporting %s...\n",d->codename);
 		}
 
-		r = distribution_fullexport(d,confdir,dbdir,distdir);
+		r = distribution_fullexport(d,confdir,dbdir,distdir,filesdb);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force<= 0 && export != EXPORT_FORCE)
 			return r;
@@ -744,7 +763,7 @@ ACTION_D(update) {
 	updates_freepatterns(patterns);
 
 	r = distribution_exportandfreelist(export,distributions,
-			confdir,dbdir,distdir);
+			confdir,dbdir,distdir, filesdb);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -888,7 +907,7 @@ ACTION_D(pull) {
 	RET_ENDUPDATE(result,r);
 
 	r = distribution_exportandfreelist(export,distributions,
-			confdir,dbdir,distdir);
+			confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1247,7 +1266,7 @@ static retvalue reoverride_target(void *data,struct target *target,struct distri
 	return result;
 }
 
-ACTION_N(reoverride) {
+ACTION_F(reoverride) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 
@@ -1282,7 +1301,7 @@ ACTION_N(reoverride) {
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			break;
 	}
-	r = distribution_exportandfreelist(export,distributions,confdir,dbdir,distdir);
+	r = distribution_exportandfreelist(export,distributions,confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1392,7 +1411,7 @@ ACTION_D(includedeb) {
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
 
-	r = distribution_export(export,distribution,confdir,dbdir,distdir);
+	r = distribution_export(export,distribution,confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 
 	r = distribution_free(distribution);
@@ -1456,7 +1475,7 @@ ACTION_D(includedsc) {
 	override_free(srcoverride);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export,distribution,confdir,dbdir,distdir);
+	r = distribution_export(export,distribution,confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -1523,7 +1542,7 @@ ACTION_D(include) {
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export,distribution,confdir,dbdir,distdir);
+	r = distribution_export(export,distribution,confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -1740,9 +1759,9 @@ static const struct action {
 	{"list", 		A_N(list)},
 	{"listfilter", 		A_N(listfilter)},
 	{"createsymlinks", 	A_N(createsymlinks)},
-	{"export", 		A_N(export)},
+	{"export", 		A_F(export)},
 	{"check", 		A_RF(check)},
-	{"reoverride", 		A_N(reoverride)},
+	{"reoverride", 		A_F(reoverride)},
 	{"checkpool", 		A_F(checkpool)},
 	{"rereference", 	A_R(rereference)},
 	{"dumpreferences", 	A_R(dumpreferences)},
@@ -1761,6 +1780,7 @@ static const struct action {
 	{"includeudeb",		A_D(includedeb)},
 	{"includedsc",		A_D(includedsc)},
 	{"include",		A_D(include)},
+	{"generatefilelists",	A_F(generatefilelists)},
 	{NULL,NULL,0}
 };
 #undef A_N

@@ -206,23 +206,24 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	return RET_ERROR_MISSING;
 }
 
-static retvalue read_data_tar(/*@out@*/struct strlist *list, const char *debfile, struct ar_archive *ar, struct archive *tar) {
+static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct ar_archive *ar, struct archive *tar) {
 	struct archive_entry *entry;
-	struct strlist filelist;
+	char *filelist;
+	size_t size,len;
 	int a;
-	retvalue r;
 
-	r = strlist_init(&filelist);
-	if( RET_WAS_ERROR(r) ) {
-		return r;	
-	}
+	size = 2000; len = 0;
+	filelist = malloc(size);
+	if( filelist == NULL )
+		return RET_ERROR_OOM;
+
 	archive_read_support_format_tar(tar);
 	a = archive_read_open(tar,ar,
 			ar_archivemember_open,
 			ar_archivemember_read,
 			ar_archivemember_close);
 	if( a != ARCHIVE_OK ) {
-		strlist_done(&filelist);
+		free(filelist);
 		fprintf(stderr,"open data.tar.gz within '%s' failed: %d:%d:%s\n",
 				debfile, 
 				a,archive_errno(tar),
@@ -232,7 +233,6 @@ static retvalue read_data_tar(/*@out@*/struct strlist *list, const char *debfile
 	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
 		const char *name = archive_entry_pathname(entry);
 		mode_t mode;
-		char *n;
 
 		if( name[0] == '.' )
 			name++;
@@ -242,16 +242,27 @@ static retvalue read_data_tar(/*@out@*/struct strlist *list, const char *debfile
 			continue;
 		mode = archive_entry_mode(entry);
 		if( !S_ISDIR(mode) ) {
-			n = strdup(name);
-			if( n == NULL ) {
-				strlist_done(&filelist);
-				return RET_ERROR_OOM;
+			size_t n_len = strlen(name);
+
+			if( len + n_len + 2 > size ) {
+				char *n;
+
+				if( size > 1024*1024*1024 ) {
+					fprintf(stderr, "Ridicilous long filelist for %s!",debfile);
+					free(filelist);
+					return RET_ERROR;
+				}
+				size = len + n_len + 2048;
+				n = realloc(filelist, size);
+				if( n == NULL ) {
+					free(filelist);
+					return RET_ERROR_OOM;
+				}
+				filelist = n;
+
 			}
-			r = strlist_add(&filelist, n);
-			if( RET_WAS_ERROR(r) ) {
-				strlist_done(&filelist);
-				return r;
-			}
+			memcpy(filelist + len, name, n_len+1);
+			len += n_len+1;
 		}
 		a = archive_read_data_skip(tar);
 		if( a != ARCHIVE_OK ) {
@@ -260,7 +271,7 @@ static retvalue read_data_tar(/*@out@*/struct strlist *list, const char *debfile
 					archive_entry_pathname(entry),
 					debfile,
 					e, archive_error_string(tar));
-			strlist_done(&filelist);
+			free(filelist);
 			return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 		}
 	}
@@ -269,14 +280,20 @@ static retvalue read_data_tar(/*@out@*/struct strlist *list, const char *debfile
 		printf("Error reading data.tar.gz from %s: %d=%s\n",
 				debfile,
 				e, archive_error_string(tar));
+		free(filelist);
 		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 	}
-	strlist_move(list,&filelist);
+	filelist[len] = '\0';
+	*list = realloc(filelist, len+1);
+	if( *list == NULL ) {
+		free(filelist);
+		return RET_ERROR_OOM;
+	}
 	return RET_OK;
 }
 
 
-retvalue getfilelist(/*@out@*/struct strlist *filelist, const char *debfile) {
+retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 	struct ar_archive *ar;
 	retvalue r;
 

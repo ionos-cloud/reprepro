@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "03 May, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "12 May, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -553,6 +553,45 @@ DebIndices Packages Release . .gz
 UDebIndices Packages . .gz
 .br
 DscIndices Sources Release .gz
+.TP
+.B Contents
+Enable the creation of Contents files listing all the files
+within the binary packages of a distribution.
+(Which is quite slow, you have been warned).
+
+The first argument is the rate at which to extract the files
+from packages.
+If it is 1, every file will be processed.
+If it is 2, at least half of the uncached files and at most half
+of all files are read to extract their filelist.
+If it is 3, at least a third of yet uncached files and at most a
+third of all files is read.
+And so on...
+
+After that a space seperated list of options can be given.
+If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
+(in a file called \fBuContents-\fP\fIarchitecture\fP.)
+If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
+(Only usefull together with \fBudebs\fP)
+If there is at least one of the keywords \fB.\fP, \fB.gz\fP and/or \fB.bz2\fP,
+the Contents files are written uncompressed, gzipped and/or bzip2ed instead
+of only gzipped.
+.TP
+.B ContentsArchitectures
+Limit generation of Contents files to the architectures given.
+If this field is not there or empty, all architectures are processed.
+.TP
+.B ContentsComponents
+Limit what components are processed for the Contents files to
+the components given.
+If this field is not there or empty, all components are processed.
+.TP
+.B ContentsUComponents
+Limit what components are processed for the uContents files to
+the components given.
+If this field is not there or empty, all components are processed.
+(Note unless you specify \fBudebs\fP in the \fBContents:\fP line,
+no udeb Components are processed at all.)
 .TP
 .B Tracking
 Enable the (experimental) tracking of source packages.
