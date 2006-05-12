@@ -19,9 +19,9 @@ struct filelist_package {
 
 struct dirlist;
 struct filelist {
-	struct filelist *next;
+	struct filelist *nextl;
+	struct filelist *nextr;
 	char *name;
-	struct dirlist *dir;
 	size_t count;
 	const char *packages[];
 };
@@ -53,9 +53,19 @@ retvalue filelist_init(struct filelist_list **list) {
 	*list = filelist;
 	return RET_OK;
 };
+static void files_free(/*@only@*/struct filelist *list) {
+	if( list == NULL )
+		return;
+	files_free(list->nextl);
+	files_free(list->nextr);
+	free(list->name);
+	free(list);
+}
 static void dirlist_free(/*@only@*/struct dirlist *list) {
 	while( list != NULL ) {
 		struct dirlist *h = list->next;
+		files_free(list->files);
+/*
 		struct filelist *f = list->files;
 
 		while( f != NULL ) {
@@ -64,6 +74,7 @@ static void dirlist_free(/*@only@*/struct dirlist *list) {
 			free(fh->name);
 			free(fh);
 		}
+*/
 		free(list->name);
 		dirlist_free(list->subdirs);
 		free(list);
@@ -105,10 +116,10 @@ findfile(const char *basefilename, struct dirlist *parent,
 		const struct filelist_package *package) {
 	struct filelist *file,*n,**p;
 
-	if( parent->lastfile != NULL && 
+/*	if( parent->lastfile != NULL && 
 			strcmp(basefilename,parent->lastfile->name) > 0 )
 		p = &parent->lastfile->next;
-	else
+	else */
 		p = &parent->files;
 	file = *p;
 
@@ -125,18 +136,29 @@ findfile(const char *basefilename, struct dirlist *parent,
 			*p = n;
 			return 1;
 		} else if ( c > 0 ) {
-			p = &file->next;
+			/* Sorted lists give us a right shift,
+			 * go a bit more left to reduce that */
+			if( file->nextl == NULL && 
+					file->nextr != NULL &&
+					file->nextr->nextl == NULL ) {
+				file->nextr->nextl = file;
+				*p = file->nextr;
+				file->nextr = NULL;
+			} else 
+				p = &file->nextr;
 			file = *p;
-		} else 
-			break;
+		} else  {
+			p = &file->nextl;
+			file = *p;
+		}
 	}
 	n = malloc(sizeof(struct filelist)+sizeof(const char*));
 	if( n == NULL ) {
 		return -1;
 	}
 	n->name = strdup(basefilename);
-	n->next = file;
-	n->dir = parent;
+	n->nextl = NULL;
+	n->nextr = NULL;
 	n->count = 1;
 	n->packages[0] = package->name;
 	if( n->name == NULL ) {
@@ -220,7 +242,9 @@ static void filelist_writefiles(char *dir, size_t len,
 	unsigned int i;
 	bool_t first;
 
-	while( files != NULL ) {
+	if( files == NULL )
+		return;
+	filelist_writefiles(dir,len,files->nextl,file);
 		(void)release_writedata(file,dir,len);
 		(void)release_writestring(file,files->name);
 		(void)release_writedata(file,seperator,sizeof(seperator)-1);
@@ -232,8 +256,7 @@ static void filelist_writefiles(char *dir, size_t len,
 			(void)release_writestring(file,files->packages[i]);
 		}
 		(void)release_writestring(file,"\n");
-		files = files->next;
-	}
+	filelist_writefiles(dir,len,files->nextr,file);
 }
 
 static retvalue filelist_writedirs(char **buffer_p, size_t *size_p, char *start,
