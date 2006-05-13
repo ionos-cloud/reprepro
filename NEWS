@@ -10,6 +10,7 @@ Updates since 0.8.2:
 - fix segfault of checkupdate
 - fix including a changes file with source and restricting
   to some binary distribution or to binary package type.
+- add support to use libarchive instead of calling ar and tar
 - added Contents file generation support
 
 Updates since 0.8.1:

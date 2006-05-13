@@ -206,7 +206,6 @@ ACTION_N(extractcontrol) {
 	return result;
 }
 ACTION_N(extractfilelist) {
-#ifdef HAVE_LIBARCHIVE
 	retvalue result;
 	char *filelist;
 
@@ -226,15 +225,10 @@ ACTION_N(extractfilelist) {
 		free(filelist);
 	}
 	return result;
-#else
-	fprintf(stderr,"__extractfilelist not supported as compiled without libarchive!\n");
-	return RET_ERROR;
-#endif
 }
 
 
 ACTION_F(generatefilelists) {
-#ifdef HAVE_LIBARCHIVE
 
 	if( argc < 1 || argc > 2 || (argc == 2 && strcmp(argv[1],"reread") != 0) ) {
 		fprintf(stderr,"reprepro generatefilelists [reread]\n");
@@ -242,10 +236,6 @@ ACTION_F(generatefilelists) {
 	}
 
 	return files_regenerate_filelist(filesdb, argc == 2);
-#else
-	fprintf(stderr,"generatefilelist not supported as compiled without libarchive!\n");
-	return RET_ERROR;
-#endif
 }
 
 

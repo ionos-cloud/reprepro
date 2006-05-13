@@ -711,8 +711,6 @@ char *files_calcfullfilename(const filesdb filesdb,const char *filekey) {
 	return calc_dirconcat(filesdb->mirrordir,filekey);
 }
 
-#ifdef HAVE_LIBARCHIVE
-
 static retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist) {
 	int dbret;
 	DBT key,data;
@@ -876,5 +874,3 @@ retvalue files_regenerate_filelist(filesdb db, bool_t reread) {
 	}
 	return result;
 }
-
-#endif

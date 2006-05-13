@@ -8,10 +8,6 @@
 #include "error.h"
 #include "filelist.h"
 
-#ifndef HAVE_LIBARCHIVE
-#error Why is this included?
-#endif
-
 struct filelist_package {
 	struct filelist_package *next;
 	char name[];

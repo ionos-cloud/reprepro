@@ -85,10 +85,8 @@ char *files_calcfullfilename(const filesdb filesdb,const char *filekey);
 /* look for the given filekey and add it into the filesdatabase */
 retvalue files_detect(filesdb db,const char *filekey);
 
-#ifdef HAVE_LIBARCHIVE
 retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_regenerate_filelist(filesdb db, bool_t redo);
-#endif
 
 #endif

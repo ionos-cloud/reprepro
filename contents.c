@@ -186,7 +186,6 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 	return RET_OK;
 }
 
-#ifdef HAVE_LIBARCHIVE
 struct addcontentsdata {
 	int rate;
 	size_t work, leisure;
@@ -380,10 +379,8 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 	filelist_free(data.contents);
 	return r;
 }
-#endif
 
 retvalue contents_generate(filesdb files, struct distribution *distribution, const char *dbdir, struct release *release, bool_t onlyneeded) {
-#ifdef HAVE_LIBARCHIVE
 	retvalue result,r;
 	int i;
 	const struct strlist *architectures;
@@ -411,10 +408,6 @@ retvalue contents_generate(filesdb files, struct distribution *distribution, con
 		}
 	}
 	return result;
-#else
-	fprintf(stderr, "Warning: Generation of Contents files not possible when compiled without libarchive!\n");
-	return RET_NOTHING;
-#endif
 }
 		
 
