@@ -20,4 +20,10 @@ In theory (meaning the db4.4-doc upgrade instructions) the database format
 should not have changed, but I stronly discourage running any reprepro
 linked against an older libdb over a database touched by any newer libdb.
 
+Another information: reprepro can now also use libarchive instead of calling
+ar and tar, making some things considerably faster, especially the new
+Contents file generation code. But the Debian package is not yet linked against
+it, so if you want this speed improvement, you have to compile it your own
+using --with-libarchive.
+
  -- Bernhard R. Link <brlink@debian.org>, Sun, 14 May 2005 17:26:29 +0200
