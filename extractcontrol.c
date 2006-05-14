@@ -313,6 +313,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 			list[len] = '\0';
 		}
 	}
+	close(pipe2[0]);
 	
 	while( ar != -1 || tar != -1 ) {
 		pid=wait(&status);
