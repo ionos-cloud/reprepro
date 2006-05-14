@@ -280,8 +280,10 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 	free(contentsfilename);
 
 	r = filelist_init(&data.contents);
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		release_abortfile(file);
 		return r;
+	}
 	for( target=distribution->targets;target!=NULL;target=target->next ) {
 		if( strcmp(target->packagetype,"deb") != 0 ) 
 			continue;
