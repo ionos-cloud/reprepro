@@ -10,6 +10,7 @@ AM_MAINTAINER_MODE
 
 AC_PROG_CC
 AC_PROG_INSTALL
+AC_SYS_LARGEFILE
 
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
 AC_CHECK_LIB(gpgme,gpgme_check_version,,[AC_MSG_ERROR(["no libgpgme found"])],)
