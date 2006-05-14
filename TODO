@@ -1,6 +1,5 @@
 TODO:
 	write more automated test-cases
-	implement extractcontrol.c properly
 	allow to specify a keyring to use.
 	allow to specify which keys are accepted for include and includedsc.
 	moving files between distributions
