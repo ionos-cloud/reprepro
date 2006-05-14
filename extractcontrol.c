@@ -54,18 +54,24 @@ retvalue extractcontrol(char **control,const char *debfile) {
 
 	ret = pipe(pipe1);
 	if( ret < 0 ) {
-		return RET_ERRNO(errno);
+		int e = errno;
+		fprintf(stderr, "Error while creating pipe: %d=%s\n",e,strerror(e));
+		return RET_ERRNO(e);
 	}
 
 	ret = pipe(pipe2);
 	if( ret < 0 ) {
+		int e = errno;
 		close(pipe1[0]);close(pipe1[1]);
-		return RET_ERRNO(errno);
+		fprintf(stderr, "Error while creating pipe: %d=%s\n",e,strerror(e));
+		return RET_ERRNO(e);
 	}
 	
 	ar = fork();
 	if( ar < 0 ) {
-		result = RET_ERRNO(errno);
+		int e = errno;
+		fprintf(stderr, "Error while forking: %d=%s\n",e,strerror(e));
+		result = RET_ERRNO(e);
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		return result;
@@ -85,7 +91,9 @@ retvalue extractcontrol(char **control,const char *debfile) {
 
 	tar = fork();
 	if( tar < 0 ) {
-		result = RET_ERRNO(errno);
+		int e = errno;
+		result = RET_ERRNO(e);
+		fprintf(stderr, "Error while forking: %d=%s\n",e,strerror(e));
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		tar = -1;
@@ -179,18 +187,24 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 
 	ret = pipe(pipe1);
 	if( ret < 0 ) {
-		return RET_ERRNO(errno);
+		int e = errno;
+		fprintf(stderr, "Error while creating pipe: %d=%s\n",e,strerror(e));
+		return RET_ERRNO(e);
 	}
 
 	ret = pipe(pipe2);
 	if( ret < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error while creating pipe: %d=%s\n",e,strerror(e));
 		close(pipe1[0]);close(pipe1[1]);
-		return RET_ERRNO(errno);
+		return RET_ERRNO(e);
 	}
 	
 	ar = fork();
 	if( ar < 0 ) {
-		result = RET_ERRNO(errno);
+		int e = errno;
+		fprintf(stderr, "Error while forking: %d=%s\n",e,strerror(e));
+		result = RET_ERRNO(e);
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		return result;
@@ -210,7 +224,9 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 
 	tar = fork();
 	if( tar < 0 ) {
-		result = RET_ERRNO(errno);
+		int e = errno;
+		result = RET_ERRNO(e);
+		fprintf(stderr, "Error while forking: %d=%s\n",e,strerror(e));
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		tar = -1;
