@@ -12,8 +12,8 @@ ARCHIVE_USED = extractcontrol.c
 ARCHIVE_UNUSED = ar.c debfile.c
 endif
 
-AM_CPPFLAGS = -D_GNU_SOURCE=1 -Wall $(ARCHIVECPP)
-reprepro_LDADD = $(ARCHIVELIBS)
+AM_CPPFLAGS = -D_GNU_SOURCE=1 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
+reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 
 reprepro_SOURCES = guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED)
 EXTRA_reprepro_SOURCE = $(ARCHIVE_UNUSED)

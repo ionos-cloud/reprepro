@@ -85,7 +85,8 @@ retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir)
 		free(db);
 		return RET_DBERR(dbret);
 	}
-	if ((dbret = db->database->open(db->database, filename, "md5sums", DB_BTREE, DB_CREATE, 0664)) != 0) {
+	dbret = DB_OPEN(db->database, filename, "md5sums", DB_BTREE,DB_CREATE);
+	if (dbret != 0) {
 		db->database->err(db->database, dbret, "%s", filename);
 		(void)db->database->close(db->database,0);
 		free(filename);
@@ -109,8 +110,7 @@ retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir)
 		free(db);
 		return RET_DBERR(dbret);
 	}
-	dbret = db->contents->open(db->contents, filename, "filelists", DB_BTREE, 
-			DB_CREATE, 0664);
+	dbret = DB_OPEN(db->contents,filename,"filelists",DB_BTREE,DB_CREATE);
 	if( dbret != 0 ) {
 		db->contents->err(db->contents, dbret, "%s", filename);
 		(void)db->contents->close(db->contents,0);

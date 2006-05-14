@@ -1,3 +1,7 @@
+2006-05-14  Bernhard R. Link <brlink@debian.org>
+	* add support for libdb4.3 and libdb4.4,
+	default is libdb4.4 now.
+
 2006-05-13  Bernhard R. Link <brlink@debian.org>
 	* add support for contents file when compiled
 	without libarchive.

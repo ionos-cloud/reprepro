@@ -12,11 +12,66 @@ AC_PROG_CC
 AC_PROG_INSTALL
 
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
-AC_CHECK_LIB(db3,db_create,,[AC_MSG_ERROR(["no libdb3 found"])],)
 AC_CHECK_LIB(gpgme,gpgme_check_version,,[AC_MSG_ERROR(["no libgpgme found"])],)
 AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found"])])
 AH_TEMPLATE([HASGPGMEGOODEXP],[Defined if libgpgme contains GPGME_SIG_STAT_GOOD_EXP])
 CHECK_ENUM(GPGME_SIG_STAT_GOOD_EXP,[gpgme.h],[AC_DEFINE_UNQUOTED(AS_TR_CPP(HASGPGMEGOODEXP))],[],)
+
+DBLIBS=""
+DBCPPFLAGS=""
+AH_TEMPLATE([LIBDB_VERSION],[variant of libdb used])
+AC_ARG_WITH(libdb,
+[  --with-libdb=path|4.4|4.3|3 Give prefix of libdb-4.4 or older version to use],[dnl
+	case "$withval" in
+	no)
+	AC_MSG_ERROR(["Cannot compile without libdb"]);
+	;;
+	3)
+	AC_CHECK_LIB(db3,db_create,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),3)
+			DBLIBS="-ldb3"
+	],[AC_MSG_ERROR(["no libdb3 found"])],)
+	;;
+	4.3)
+	AC_CHECK_LIB(db-4.3,db_create,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),43)
+			DBLIBS="-ldb-4.3"
+	],[AC_MSG_ERROR(["no libdb-4.3 found"])],)
+	;;
+	yes|4.4)
+	AC_CHECK_LIB(db-4.4,db_create,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),44)
+			DBLIBS="-ldb-4.4"
+	],[AC_MSG_ERROR(["no libdb-4.4 found"])],)
+	;;
+	*)
+	AC_CHECK_LIB(db-4.4,db_create,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),44)
+			DBLIBS="-ldb-4.4 -L$withval/lib"
+			DBCPPFLAGS="-I$withval/include"
+	],[AC_MSG_ERROR(["no libdb-4.4 found in $withval/lib"])],[-L$withval/lib])
+	;;
+	esac
+],[dnl without --with-libdb-4.4 we look for first for libdb-4.4 then for libdb3
+	AC_CHECK_LIB(db-4.4,db_create,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),44)
+			DBLIBS="-ldb-4.4"
+	],[AC_CHECK_LIB(db-4.3,db_create,[dnl
+			AC_MSG_WARN([using libdb3 instead of libdb-4.3])
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),43)
+			DBLIBS="-ldb-4.3"
+	],[AC_CHECK_LIB(db3,db_create,[dnl
+			AC_MSG_WARN([using libdb3 instead of libdb-4.4])
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),3)
+			DBLIBS="-ldb3"
+	],[AC_MSG_ERROR(["no libdb-4.4 or libdb3 found"])],)],)],)
+])
+mysave_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $DBCPPFLAGS"
+AC_CHECK_HEADER(db.h,,[AC_MSG_ERROR(["no db.h found"])])
+CPPFLAGS="$mysave_CPPFLAGS"
+AC_SUBST([DBLIBS])
+AC_SUBST([DBCPPFLAGS])
 
 AC_ARG_WITH(libbz2,
 [  --with-libbz2=path|yes|no	Give path to prefix libbz2 was installed with],[dnl
@@ -49,7 +104,7 @@ AC_ARG_WITH(libarchive,
 	yes)
 	AC_CHECK_LIB(archive,archive_read_new,[dnl
 		AC_CHECK_HEADER(archive.h,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE))
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE),1)
 			ARCHIVELIBS="-larchive"
 		],[AC_MSG_ERROR([Could not find archive.h])])
 	],[AC_MSG_ERROR([Could not find libarchive])])
@@ -59,7 +114,7 @@ AC_ARG_WITH(libarchive,
 		mysave_CPPFLAGS="$CPPFLAGS"
 		CPPFLAGS="-I$withval/include $CPPFLAGS"
 		AC_CHECK_HEADER(archive.h,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE))
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE),1)
 			ARCHIVELIBS="-L$withval/lib -larchive"
 			ARCHIVECPP="-I$withval/include"
 		],[AC_MSG_ERROR([Could not find archive.h])])
@@ -70,7 +125,7 @@ AC_ARG_WITH(libarchive,
 ],[dnl without --with-libarchive we look for it but not finding it is no error:
 	AC_CHECK_LIB(archive,archive_read_new,[dnl
 		AC_CHECK_HEADER(archive.h,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE))
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(HAVE_LIBARCHIVE),1)
 			ARCHIVELIBS="-larchive"
 		],)
 	],)

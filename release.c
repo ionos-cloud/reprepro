@@ -145,8 +145,7 @@ retvalue release_init(const char *dbdir, const char *distdir, const char *codena
 		(void)n->cachedb->close(n->cachedb,0);
 		return RET_ERROR_OOM;
 	}
-	dbret = n->cachedb->open(n->cachedb,filename,codename,
-			DB_HASH, DB_CREATE, 0664);
+	dbret = DB_OPEN(n->cachedb,filename,codename, DB_HASH, DB_CREATE);
 	if( dbret < 0 ) {
 		n->cachedb->err(n->cachedb, dbret, "%s(%s)",
 				filename,codename);

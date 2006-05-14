@@ -32,5 +32,16 @@ enum config_option_owner { 	CONFIG_OWNER_DEFAULT=0,
 				CONFIG_OWNER_FILE, 
 				CONFIG_OWNER_ENVIRONMENT,
 		           	CONFIG_OWNER_CMDLINE};
+#if LIBDB_VERSION == 44
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#elif LIBDB_VERSION == 43
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#else
+#if LIBDB_VERSION == 3
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,filename,name,type,flags,0664)
+#else
+#error Unexpected LIBDB_VERSION!
+#endif
+#endif
 
 #endif

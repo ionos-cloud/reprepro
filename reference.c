@@ -87,7 +87,8 @@ retvalue references_initialize(references *refs,const char *dbpath) {
 		free(ref);
 		return RET_DBERR(ret);
 	}
-	if( (ret = ref->db->open(ref->db, filename, "references", DB_BTREE, DB_CREATE, 0664)) != 0) {
+	ret = DB_OPEN(ref->db, filename, "references", DB_BTREE, DB_CREATE);
+	if( ret != 0) {
 		ref->db->err(ref->db, ret, "db_open:%s", filename);
 		(void)ref->db->close(ref->db,0);
 		free(filename);
