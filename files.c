@@ -200,6 +200,9 @@ retvalue files_remove(filesdb db,const char *filekey) {
 		if( verbose > 6 )
 			printf("db: %s: file forgotten.\n", (const char *)key.data);
 		return RET_OK;
+	} else if( dbret == DB_NOTFOUND ) {
+		fprintf(stderr, "To be forgotten filekey '%s' was not known.\n", filekey);
+		return RET_ERROR_MISSING;
 	} else {
 		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);

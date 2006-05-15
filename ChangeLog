@@ -1,6 +1,8 @@
 2006-05-15  Bernhard R. Link <brlink@debian.org>
 	* warn against dobuled fields in 
 	config files. (ignorable with --ignore=doublefield)
+	* better error message when trying to forget
+	filekey not existing
 
 2006-05-14  Bernhard R. Link <brlink@debian.org>
 	* add support for libdb4.3 and libdb4.4,
