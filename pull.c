@@ -402,10 +402,11 @@ static retvalue pull_loadmissingsourcedistributions(const char *confdir,
 	r = distribution_getmatched(confdir,count,names, extradistributions);
 	free(names);
 	assert( r != RET_NOTHING );
-	if( RET_IS_OK(r) )
+	if( RET_IS_OK(r) ) { 
 		pull_addsourcedistributions(rules, *extradistributions);
-	for( rule = rules ; rule != NULL ; rule = rule->next ) {
-		assert( !rule->used || rule->distribution != NULL );
+		for( rule = rules ; rule != NULL ; rule = rule->next ) {
+			assert( !rule->used || rule->distribution != NULL );
+		}
 	}
 	return r;
 }
