@@ -17,6 +17,7 @@
 	IGN(unknownfield) \
 	IGN(wrongdistribution) \
 	IGN(missingfield) \
+	IGN(doublefield) \
 	IGN(brokenold) \
 	IGN(brokenversioncmp) \
 	IGN(extension) \

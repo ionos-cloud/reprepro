@@ -694,6 +694,7 @@ char *chunk_replacefield(const char *chunk,const char *fieldname,const char *dat
 
 retvalue chunk_checkfields(const char *chunk,const char * const *allowedfieldnames,bool_t commentsallowed) {
 	const char *c = chunk;
+	long long alreadyfound = 0;
 
 	assert( chunk != NULL );
 	assert( allowedfieldnames != NULL );
@@ -741,12 +742,21 @@ overlongcomments,"A comment is continued by a line starting with space in '%s'!\
 
 		} else {
 			const char * const *allowedfn = allowedfieldnames;
+			long long i = 1;
 
-			for( ; *allowedfn != NULL ; allowedfn++ ) {
+			for( ; *allowedfn != NULL ; allowedfn++,i = i << 1 ) {
 				const char *allowed = *allowedfn;
 				if( strncasecmp(allowed,c,nameend-c) == 0 
-				    && allowed[nameend-c] == '\0' )
+				    && allowed[nameend-c] == '\0' ) {
+					if( (i&alreadyfound) != 0 ) {
+						if( !IGNORING("Ignoring","To ignore this",
+doublefield, "Doubled field name: %s (only first will be used)\n",allowed) ) {
+							return RET_ERROR;
+						}
+					}
+					alreadyfound |= i;
 					break;
+				}
 			}
 			if( *allowedfn == NULL ) {
 				char *fieldname = strndup(c,nameend-c);

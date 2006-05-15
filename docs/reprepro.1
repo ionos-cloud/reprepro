@@ -807,6 +807,13 @@ or no source name.
 .B brokenversioncmp \fR(hopefully never seen)
 If comparing an old and a new version fails, assume the new one is newer.
 .TP
+.B doublefield \fR(better comment the second one)
+Ignore doubled fields in the config files,
+instead of refusing to run then.
+In general the second one should be ignored then, but
+perhaps sometimes the first one.
+So I hope you know what you do.
+.TP
 .B emptyfilenamepart \fR(insecure)
 Allow strings to be empty that are used to construct filenames.
 (like versions, architectures, ...)
