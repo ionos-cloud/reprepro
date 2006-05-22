@@ -1,11 +1,12 @@
 reprepro (0.9-1) UNRELEASED; urgency=low
 
   * new release
-  - now build-depends on and builds against libdb4.4-dev (Closes: #367015)
   - new --export= option
   - new pull action to update one local distribion from another local one
   - new Contents file generation support
   - some minor bugfixes
+  * now build-depends on and links against libdb4.3-dev (Closes: #367015)
+  * now build-depends on and links against libarchive-dev
 
  -- Bernhard R. Link <brlink@debian.org>  Sun, 14 May 2006 16:22:59 +0200
 
