@@ -2,7 +2,7 @@ Source: reprepro
 Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb4.4-dev, libz-dev, libbz2-dev
+Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb4.3-dev, libz-dev, libbz2-dev
 Standards-Version: 3.6.2
 
 Package: reprepro
