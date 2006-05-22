@@ -2,12 +2,12 @@ Source: reprepro
 Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb4.3-dev, libz-dev, libbz2-dev
-Standards-Version: 3.6.2
+Build-Depends: debhelper (>= 4.0.0), libgpgme-dev, libdb4.3-dev, libz-dev, libbz2-dev, libarchive-dev
+Standards-Version: 3.7.2
 
 Package: reprepro
 Architecture: any
-Depends: apt, binutils, ${shlibs:Depends}
+Depends: apt, ${shlibs:Depends}, ${reprepro:Depends}, ${misc:Depends}
 Suggests: gnupg-agent
 Description: debian package repository producer
  reprepro is a tool to manage a repository of Debian packages

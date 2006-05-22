@@ -18,11 +18,27 @@ else
 	CFLAGS += -O2
 endif
 
+ifneq (,$(findstring reprepro:libdb3,$(DEB_BUILD_OPTIONS)))
+	DBFLAGS = --with-libdb=3
+else
+ifneq (,$(findstring reprepro:libdb4.4,$(DEB_BUILD_OPTIONS)))
+	DBFLAGS = --with-libdb=4.4
+else
+	DBFLAGS = --with-libdb=4.3
+endif
+endif
+ifneq (,$(findstring reprepro:nolibarchive,$(DEB_BUILD_OPTIONS)))
+	ARCHIVEFLAGS= --without-libarchive
+else
+	ARCHIVEFLAGS= --with-libarchive=/tmp/rt/LA
+endif
+
 config.status: configure
 	dh_testdir
 	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
-		    --without-libarchive --with-libbz2 --with-libdb=4.3 \
+		    --with-libbz2 $(DBFLAGS) $(ARCHIVEFLAGS) \
+		    --disable-dependency-tracking \
 		    CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,syms"
 
 build: build-stamp
@@ -78,6 +94,21 @@ binary-arch: build install
 	dh_fixperms
 	dh_installdeb
 	dh_shlibdeps
+	grep -v '^reprepro:.*=' debian/reprepro.substvars > debian/reprepro.substvars.new
+	mv debian/reprepro.substvars.new debian/reprepro.substvars
+#	# if compile without libarchive, we need the program ar from binutils available
+	if test -f ar.o && grep -q libarchive debian/reprepro.substvars ; then \
+		echo "reprepro:Depends=" >> debian/reprepro.substvars ; \
+	else \
+		echo "reprepro:Depends=binutils" >> debian/reprepro.substvars ; \
+	fi
+#	# warn if some dh_start to add some new dependencies, otherwise quiet
+#	# the error about an unknown variable...
+	@if grep -s "^misc:Depends=" debian/reprepro.substvars ; then \
+		echo "Warning: new misc:Depends found in substvars" ; \
+	else \
+		echo "misc:Depends=" >> debian/reprepro.substvars ; \
+	fi
 	dh_gencontrol
 	dh_md5sums
 	dh_builddeb
