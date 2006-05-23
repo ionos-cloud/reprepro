@@ -36,6 +36,9 @@ AC_CACHE_CHECK([for $1], get_Define,
 	fi
 	rm -f conftest.err conftest.out conftest.$ac_ext
 ])
-AS_IF([test AS_VAR_GET(get_Define) = $1], [$3], [$1=AS_VAR_GET(get_Define)])[]dnl
+TMP_GET_DEFINE=AS_VAR_GET(get_Define)
+TMP_GET_DEFINE=${TMP_GET_DEFINE% }
+TMP_GET_DEFINE=${TMP_GET_DEFINE% }
+AS_IF([test "$TMP_GET_DEFINE" = $1], [$3], [$1="$TMP_GET_DEFINE"])[]dnl
 AS_VAR_POPDEF([get_Define])dnl
 ])dnl GET_DEFINE
