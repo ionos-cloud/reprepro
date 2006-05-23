@@ -30,7 +30,7 @@ endif
 ifneq (,$(findstring reprepro:nolibarchive,$(DEB_BUILD_OPTIONS)))
 	ARCHIVEFLAGS= --without-libarchive
 else
-	ARCHIVEFLAGS= --with-libarchive=/tmp/rt/LA
+	ARCHIVEFLAGS= --with-libarchive
 endif
 
 config.status: configure
