@@ -163,7 +163,7 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 			return RET_ERROR_OOM;
 		return release_adddel(release,filename);
 
-	} if( l > 4 || strcmp(relname+(l-4),".new") == 0 ) {
+	} else if( l > 4 || strcmp(relname+(l-4),".new") == 0 ) {
 		char *filename,*tmpfilename;
 
 		filename = strndup(relname,l-4);
@@ -287,7 +287,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 				if( last < j ) {
 					retvalue ret;
 
-					ret = gotfilename(buffer+last,j-last+1,release);
+					ret = gotfilename(buffer+last,j-last,release);
 					if( RET_WAS_ERROR(ret) ) {
 						(void)close(io[0]);
 						return ret;
