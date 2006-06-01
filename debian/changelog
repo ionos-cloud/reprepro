@@ -1,3 +1,11 @@
+reprepro (0.9.1-1) unstable; urgency=low
+
+  * fix bug in post-export script handling
+    (so that tiffany.example now generate diffs apt-get can parse)
+  * fix typo in description (Closes: 368813)
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  1 Jun 2006 10:29:02 +0200
+
 reprepro (0.9.0-1) unstable; urgency=low
 
   * new release
