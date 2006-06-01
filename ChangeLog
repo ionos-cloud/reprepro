@@ -2,6 +2,7 @@
 	* fix bug in communication with Index file preprocessor
 	(so the .diff directories tiffany.example creates are
 	 properly advertised so that apt-get can use them)
+	* better usage description in tiffany.example
 
 2006-05-15  Bernhard R. Link <brlink@debian.org>
 	* warn against dobuled fields in 

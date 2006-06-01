@@ -2,7 +2,7 @@
 
 #############################################################################
 # generates partial package updates list as reprepro hook
-# (to be used by apt-qupdate or things compatible with that)
+# (to be used by apt-get >= 0.6.44, apt-qupdate or things compatible with that)
 
 # changes Copyright 2005 Bernhard R. Link <brlink@debian.org>
 # as this is used as hook, it does not need any parsing of
@@ -11,13 +11,26 @@
 # need to store a permanent copy of the last version.
 # This needs either python-apt installed or you have to change
 # it to use another sha1 calculation method.
-# Unlike the orginal this only works when a uncompressed
-# Index is there. (i.e. "DscIndices: Sources Release . .gz tiffany" and
-# it does not work when the single dot is missing)
-# WARNING: make sure your paths contain no "'" characters.
-# WARNING: experimental, does not check very well for errors.
- 
-# This file is a heavily adopted version of apt-qupdate's tiffany,
+
+# HOW TO USE:
+# - install python-apt
+# - make sure your paths contain no ' characters.
+# - be aware this is still quite experimental and might not
+#   report some errors properly
+# - copy this file to your conf/ directory
+# - uncompress this file if it is compressed
+# - make it executeable
+# - add something like the following to the every distribution
+#   in conf/distributions you want to have diffs for:
+#
+# DscIndices: Sources Release . .gz tiffany
+# DebIndices: Packages Release . .gz tiffany
+# 
+# The first line is for source indices, the second for binary indices.
+# Make sure uncompressed index files are generated (the single dot in those
+# lines), as this version only diffs the uncompressed files.
+
+# This file is a heavily modified version of apt-qupdate's tiffany,
 # (downloaded from http://ftp-master.debian.org/~ajt/tiffani/tiffany
 #  2005-02-20)which says:
 #--------------------------------------------------------------------
