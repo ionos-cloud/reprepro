@@ -217,7 +217,7 @@ def main():
     if newsizesha1 == oldsizesha1:
         print "file unchanged, not generating diff"
     	if os.path.isfile(outdir + "/Index"):
-		os.write(3,oldrelfile + ".diff/Index")
+		os.write(3,oldrelfile + ".diff/Index\n")
     else:
         if not os.path.isdir(outdir): os.mkdir(outdir)
         print "generating diff"
@@ -244,7 +244,7 @@ def main():
         upd.dump(f)
         f.close()
 # Specifing the index should be enough, it contains checksums for the diffs
-	os.write(3,oldrelfile + ".diff/Index.new")
+	os.write(3,oldrelfile + ".diff/Index.new\n")
 
 ################################################################################
 
