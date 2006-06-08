@@ -1,3 +1,9 @@
+reprepro (0.9.1-2) UNRELEASED; urgency=low
+
+  * fixed typos in --help output (Closes: 372024)
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  8 Jun 2006 10:40:53 +0200
+
 reprepro (0.9.1-1) unstable; urgency=low
 
   * fix bug in post-export script handling

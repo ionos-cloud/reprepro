@@ -1919,7 +1919,7 @@ static void handle_option(int c,const char *optarg) {
 	switch( c ) {
 		case 'h':
 			printf(
-"reprepro - Produce and Manage and Debian package repository\n\n"
+"reprepro - Produce and Manage a Debian package repository\n\n"
 "options:\n"
 " -h, --help:                        Show this help\n"
 " -i  --ignore <flag>:               Ignore errors of type <flag>.\n"
@@ -1941,7 +1941,7 @@ static void handle_option(int c,const char *optarg) {
 "\n"
 "actions (selection, for more see manpage):\n"
 " dumpreferences:    Print all saved references\n"
-" dumpunreferenced:   Print registered files withour reference\n"
+" dumpunreferenced:   Print registered files without reference\n"
 " deleteunreferenced: Delete and forget all unreferenced files\n"
 " checkpool:          Check if all files in the pool are still in proper shape.\n"
 " check [<distributions>]\n"
@@ -1953,15 +1953,15 @@ static void handle_option(int c,const char *optarg) {
 " remove <distribution> <packagename>\n"
 "       Remove the given package from the specified distribution.\n"
 " include <distribution> <.changes-file>\n"
-"       Inlcude the given upload.\n"
+"       Include the given upload.\n"
 " includedeb <distribution> <.deb-file>\n"
-"       Inlcude the given binary package.\n"
+"       Include the given binary package.\n"
 " includeudeb <distribution> <.udeb-file>\n"
-"       Inlcude the given installer binary package.\n"
+"       Include the given installer binary package.\n"
 " includedsc <distribution> <.dsc-file>\n"
-"       Inlcude the given source package.\n"
+"       Include the given source package.\n"
 " list <distribution> <package-name>\n"
-"       List all packages by the given name occuring in the given distribution.\n"
+"       List all packages by the given name occurring in the given distribution.\n"
 " listfilter <distribution> <condition>\n"
 "       List all packages in the given distribution matching the condition.\n"
 "\n");
