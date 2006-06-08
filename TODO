@@ -9,6 +9,7 @@ TODO:
 	switch to only include if source is present
 	action to redownload missing pool/ files from some update-rules (looking for md5sum)
 	rewrite error handling, caching error messages and handling Ctrl-C gracefully.
+	ways to minimize disk space when doing large scale updates. (#371197)
 
 far goals:
 	check for source of package, 
