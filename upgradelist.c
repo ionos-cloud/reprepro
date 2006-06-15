@@ -506,20 +506,26 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 }
 
 /* delete all packages that will not be kept (i.e. either deleted or upgraded) */
-retvalue upgradelist_predelete(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb,int force) {
+retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,references refs,struct strlist *dereferencedfilekeys) {
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
 	assert(upgrade != NULL);
+
+	result = target_initpackagesdb(upgrade->target,dbdir);
+	if( RET_WAS_ERROR(result) )
+		return result;
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
-		if( !ignoredelete && pkg->version_in_use != NULL & 
+		if( pkg->version_in_use != NULL &&
 				(pkg->version == pkg->new_version || pkg->deleted)) {
 			r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r))
 				break;
 		}
 	}
+	r = target_closepackagesdb(upgrade->target);
+	RET_ENDUPDATE(result,r);
 	return result;
 }
 
