@@ -157,7 +157,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 	}
 
 	/* Beginn with the packages currently in the archive */
-	r = packages_foreach(t->packages,save_package_version,upgrade,0);
+	r = packages_foreach(t->packages,save_package_version,upgrade);
 	r2 = target_closepackagesdb(t);
 	RET_UPDATE(r,r2);
 
@@ -449,7 +449,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	r =  target_initpackagesdb(source,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	result = packages_foreach(source->packages,try,upgrade,FALSE);
+	result = packages_foreach(source->packages,try,upgrade);
 	r = target_closepackagesdb(source);
 	RET_UPDATE(result,r);
 	return result;
@@ -485,7 +485,7 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files){
 }
 
 /* request all wanted files in the downloadlists given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb,int force) {
+retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb) {
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
@@ -498,7 +498,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 				&pkg->new_filekeys,
 				&pkg->new_md5sums);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				break;
 		}
 	}
@@ -529,7 +529,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,ref
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force, bool_t ignoredelete, struct strlist *dereferencedfilekeys){
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs, bool_t ignoredelete, struct strlist *dereferencedfilekeys){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -558,7 +558,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 						dereferencedfilekeys, NULL, 0);
 			}
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				break;
 		}
 		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
@@ -567,7 +567,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 			else
 				r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				break;
 		}
 	}

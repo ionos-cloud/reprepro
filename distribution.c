@@ -347,7 +347,7 @@ NULL};
 }
 	
 /* call <action> for each part of <distribution>. */
-retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data,int force) {
+retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
 	retvalue result,r;
 	struct target *t;
 
@@ -361,7 +361,7 @@ retvalue distribution_foreach_part(struct distribution *distribution,const char 
 			continue;
 		r = action(data,t,distribution);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			return result;
 	}
 	return result;

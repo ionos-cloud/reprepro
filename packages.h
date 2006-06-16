@@ -61,7 +61,7 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 typedef retvalue per_package_action(void *data,const char *package,/*@temp@*/const char *chunk);
 
 /* call action once for each saved chunk: */
-retvalue packages_foreach(packagesdb packagesdb,per_package_action *action,/*@temp@*/ /*@null@*/void *data, int force);
+retvalue packages_foreach(packagesdb packagesdb,per_package_action *action,/*@temp@*/ /*@null@*/void *data);
 
 /* action to be called by packages_modifyall */
 struct alloverrides;

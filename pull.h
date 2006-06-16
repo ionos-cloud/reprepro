@@ -27,7 +27,7 @@ void pull_freerules(/*@only@*/struct pull_rule *p);
 void pull_freedistributions(/*@only@*/struct pull_distribution *p);
 
 retvalue pull_prepare(const char *confdir,struct pull_rule *rules,struct distribution *,/*@out@*/struct pull_distribution **,struct distribution **alsoneeded);
-retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distributions,int force,struct strlist *dereferencedfilekeys);
-retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributions,int force);
+retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys);
+retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributions);
 
 #endif

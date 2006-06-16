@@ -977,7 +977,7 @@ static inline retvalue startuporigin(struct aptmethodrun *run,struct update_orig
 	return RET_OK;
 }
 
-static retvalue updates_startup(struct aptmethodrun *run,struct update_distribution *distributions, int force) {
+static retvalue updates_startup(struct aptmethodrun *run,struct update_distribution *distributions) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_distribution *d;
@@ -998,7 +998,7 @@ static retvalue updates_startup(struct aptmethodrun *run,struct update_distribut
 				continue;
 			r = startuporigin(run,origin);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				return r;
 		}
 	}
@@ -1064,7 +1064,7 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 }
 
 /* returns RET_NOTHING when nothing new will be there */
-static inline retvalue queueindex(struct update_index *index,int force) {
+static inline retvalue queueindex(struct update_index *index) {
 	const struct update_origin *origin = index->origin;
 	int i;
 	size_t l;
@@ -1113,17 +1113,12 @@ static inline retvalue queueindex(struct update_index *index,int force) {
 		
 	}
 	fprintf(stderr,"Could not find '%s' within the Releasefile of '%s':\n'%s'\n",index->upstream,origin->pattern->name,origin->releasefile);
-	if( force > 2 ) {
-		donefile_delete(index->filename);
-		aptmethod_queueindexfile(origin->download,
-				index->upstream,index->filename);
-	}
 	return RET_ERROR_WRONG_MD5;
 }
 
 
 
-static retvalue updates_queuemetalists(struct update_distribution *distributions, int force) {
+static retvalue updates_queuemetalists(struct update_distribution *distributions) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_distribution *d;
@@ -1137,7 +1132,7 @@ static retvalue updates_queuemetalists(struct update_distribution *distributions
 				continue;
 			r = queuemetalists(origin);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				return r;
 		}
 
@@ -1146,7 +1141,7 @@ static retvalue updates_queuemetalists(struct update_distribution *distributions
 	return result;
 }
 
-static retvalue updates_queuelists(struct update_distribution *distributions,bool_t skipold,bool_t *anythingtodo,int force) {
+static retvalue updates_queuelists(struct update_distribution *distributions,bool_t skipold,bool_t *anythingtodo) {
 	retvalue result,r;
 	struct update_origin *origin;
 	struct update_target *target;
@@ -1161,11 +1156,7 @@ static retvalue updates_queuelists(struct update_distribution *distributions,boo
 				continue;
 			r = readchecksums(origin);
 			RET_UPDATE(result,r);
-			//TODO: more force needed?
-			if( RET_WAS_ERROR(r) && force <= 1 ) {
-				if( force == 1 ) {
-					fprintf(stderr,"To ignore errors checking Release files specify --force two times.\n");
-				}
+			if( RET_WAS_ERROR(r) ) {
 				return r;
 			}
 		}
@@ -1175,7 +1166,7 @@ static retvalue updates_queuelists(struct update_distribution *distributions,boo
 			for( index=target->indices ; index!=NULL ; index=index->next ) {
 				if( index->origin == NULL )
 					continue;
-				r = queueindex(index,force);
+				r = queueindex(index);
 				if( RET_IS_OK(r) ) {
 					target->nothingnew = FALSE;
 					*anythingtodo = TRUE;
@@ -1183,7 +1174,7 @@ static retvalue updates_queuelists(struct update_distribution *distributions,boo
 				if( RET_WAS_ERROR(r) )
 					index->failed = TRUE;
 				RET_UPDATE(result,r);
-				if( RET_WAS_ERROR(r) && force <= 0 )
+				if( RET_WAS_ERROR(r) )
 					return r;
 			}
 		}
@@ -1247,7 +1238,7 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 	}
 }
 
-static retvalue updates_calllisthooks(struct update_distribution *distributions,int force) {
+static retvalue updates_calllisthooks(struct update_distribution *distributions) {
 	retvalue result,r;
 	struct update_target *target;
 	struct update_index *index;
@@ -1271,8 +1262,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions,
 				r = calllisthook(index->origin->pattern->listhook,index);
 				if( RET_WAS_ERROR(r) ) {
 					index->failed = TRUE;
-					if( force <= 0 )
-						return r;
+					return r;
 				}
 				RET_UPDATE(result,r);
 			}
@@ -1311,7 +1301,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 	return UD_UPGRADE;
 }
 
-static inline retvalue searchformissing(const char *dbdir,struct update_target *u,int force) {
+static inline retvalue searchformissing(const char *dbdir,struct update_target *u) {
 	struct update_index *index;
 	retvalue result,r;
 
@@ -1338,7 +1328,7 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = TRUE;
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				return result;
 			u->ignoredelete = FALSE;
 			continue;
@@ -1364,30 +1354,30 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 			u->ignoredelete = TRUE;
 		}
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			return result;
 	}
 	
 	return result;
 }
 
-static retvalue updates_readindices(const char *dbdir,struct update_distribution *d,int force) {
+static retvalue updates_readindices(const char *dbdir,struct update_distribution *d) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
-		r = searchformissing(dbdir,u,force);
+		r = searchformissing(dbdir,u);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
 	return result;
 }
 
-static retvalue updates_enqueue(struct downloadcache *cache,filesdb filesdb,struct update_distribution *distribution,int force) {
+static retvalue updates_enqueue(struct downloadcache *cache,filesdb filesdb,struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
 
@@ -1395,18 +1385,18 @@ static retvalue updates_enqueue(struct downloadcache *cache,filesdb filesdb,stru
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->nothingnew )
 			continue;
-		r = upgradelist_enqueue(u->upgradelist,cache,filesdb,force);
+		r = upgradelist_enqueue(u->upgradelist,cache,filesdb);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
 	return result;
 }
 
 
-static retvalue updates_install(const char *dbdir,filesdb filesdb,references refs,struct update_distribution *distribution,int force,struct strlist *dereferencedfilekeys) {
+static retvalue updates_install(const char *dbdir,filesdb filesdb,references refs,struct update_distribution *distribution,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_target *u;
 
@@ -1414,14 +1404,14 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->nothingnew )
 			continue;
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,u->ignoredelete,dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
 	return result;
@@ -1468,38 +1458,38 @@ static void updates_dump(struct update_distribution *distribution) {
 	}
 }
 
-static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun *run,struct update_distribution *distributions, bool_t skipold, bool_t *anythingtodo, int force) {
+static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun *run,struct update_distribution *distributions, bool_t skipold, bool_t *anythingtodo) {
 	retvalue r,result;
 
 	/* first get all "Release" and "Release.gpg" files */
-	result = updates_queuemetalists(distributions,force);
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	result = updates_queuemetalists(distributions);
+	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 
 	r = aptmethod_download(run,methoddir,NULL);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(r) && force <= 0 ) {
+	if( RET_WAS_ERROR(r) ) {
 		return result;
 	}
 
 	/* Then get all index files (with perhaps md5sums from the above) */
-	r = updates_queuelists(distributions,skipold,anythingtodo,force);
+	r = updates_queuelists(distributions,skipold,anythingtodo);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 
 	r = aptmethod_download(run,methoddir,NULL);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(r) && force <= 0 ) {
+	if( RET_WAS_ERROR(r) ) {
 		return result;
 	}
 
 	return result;
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1517,8 +1507,8 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	}
 
 	/* preperations */
-	result = updates_startup(run,distributions,force);
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	result = updates_startup(run,distributions);
+	if( RET_WAS_ERROR(result) ) {
 		aptmethod_shutdown(run);
 		return result;
 	}
@@ -1528,9 +1518,9 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	} else {
 		bool_t anythingtodo = !skipold;
 
-		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo,force);
+		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(result) && force <= 0 ) {
+		if( RET_WAS_ERROR(result) ) {
 			aptmethod_shutdown(run);
 			return result;
 		}
@@ -1549,9 +1539,9 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	/* Call ListHooks (if given) on the downloaded index files.
 	 * (This is done even when nolistsdownload is given, as otherwise
 	 *  the filename to look in is not changed) */
-	r = updates_calllisthooks(distributions,force);
+	r = updates_calllisthooks(distributions);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	if( RET_WAS_ERROR(result) ) {
 		aptmethod_shutdown(run);
 		return result;
 	}
@@ -1567,16 +1557,16 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	}
 	
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(dbdir,d,force);
+		r = updates_readindices(dbdir,d);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
-		r = updates_enqueue(cache,filesdb,d,force);
+		r = updates_enqueue(cache,filesdb,d);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	if( RET_WAS_ERROR(result) ) {
 		aptmethod_shutdown(run);
 		return result;
 	}
@@ -1593,16 +1583,16 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
 
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	if( verbose >= 0 )
 		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_install(dbdir,filesdb,refs,d,force,dereferencedfilekeys);
+		r = updates_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
 
@@ -1617,7 +1607,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	return result;
 }
 
-retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold) {
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold) {
 	struct update_distribution *d;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1633,8 +1623,8 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 		skipold = FALSE;
 	}
 
-	result = updates_startup(run,distributions,force);
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	result = updates_startup(run,distributions);
+	if( RET_WAS_ERROR(result) ) {
 		aptmethod_shutdown(run);
 		return result;
 	}
@@ -1643,9 +1633,9 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
 		bool_t anythingtodo = !skipold;
-		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo,force);
+		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(result) && force <= 0 ) {
+		if( RET_WAS_ERROR(result) ) {
 			aptmethod_shutdown(run);
 			return result;
 		}
@@ -1657,16 +1647,16 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	/* Call ListHooks (if given) on the downloaded index files.
 	 * (This is done even when nolistsdownload is given, as otherwise
 	 *  the filename to look in is not changed) */
-	r = updates_calllisthooks(distributions,force);
+	r = updates_calllisthooks(distributions);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	if( verbose > 0 )
 		fprintf(stderr,"Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
-	if( RET_WAS_ERROR(result) && force <= 0 ) {
+	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 
@@ -1675,9 +1665,9 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 		fprintf(stderr,"Calculating packages to get...\n");
 	
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(dbdir,d,force);
+		r = updates_readindices(dbdir,d);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 		updates_dump(d);
 	}
@@ -1685,7 +1675,7 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	return result;
 }
 
-static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,int force,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys) {
+static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys) {
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 	struct update_origin *origin;
@@ -1704,7 +1694,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			continue;
 		r = startuporigin(run,origin);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 ) {
+		if( RET_WAS_ERROR(r) ) {
 			aptmethod_shutdown(run);
 			return r;
 		}
@@ -1718,16 +1708,14 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			r = queuemetalists(origin);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) ) {
-				if( force <= 0 ) {
-					aptmethod_shutdown(run);
-					return r;
-				}
+				aptmethod_shutdown(run);
 				origin->failed = TRUE;
+				return r;
 			}
 		}
 		r = aptmethod_download(run,methoddir,NULL);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 ) {
+		if( RET_WAS_ERROR(r) ) {
 			aptmethod_shutdown(run);
 			return r;
 		}
@@ -1736,10 +1724,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 				continue;
 			r = readchecksums(origin);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 1 ) {
-				if( force == 1 ) {
-					fprintf(stderr,"To ignore errors checking Release files specify --force two times.\n");
-				}
+			if( RET_WAS_ERROR(r) ) {
 				aptmethod_shutdown(run);
 				return r;
 			}
@@ -1754,14 +1739,12 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			for( index=target->indices ; index!=NULL ; index=index->next ) {
 				if( index->origin == NULL || index->origin->failed )
 					continue;
-				r = queueindex(index,force);
+				r = queueindex(index);
 				if( RET_WAS_ERROR(r) ) {
 					RET_UPDATE(result,r);
-					if( force <= 0 ) {
-						aptmethod_shutdown(run);
-						return r;
-					}
+					aptmethod_shutdown(run);
 					index->failed = TRUE;
+					return r;
 				} else if( RET_IS_OK(r) ) {
 					target->nothingnew = FALSE;
 				}
@@ -1770,7 +1753,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 				continue;
 			r = aptmethod_download(run,methoddir,NULL);
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 ) {
+			if( RET_WAS_ERROR(r) ) {
 				aptmethod_shutdown(run);
 				return r;
 			}
@@ -1789,10 +1772,8 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			if( RET_WAS_ERROR(r) ) {
 				index->failed = TRUE;
 				RET_UPDATE(result,r);
-				if( force <= 0) {
-					aptmethod_shutdown(run);
-					return r;
-				}
+				aptmethod_shutdown(run);
+				return r;
 			}
 
 		}
@@ -1803,13 +1784,13 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		RET_UPDATE(result,r);	
 		if( !RET_IS_OK(r) ) {
 			(void)downloadcache_free(cache);
-			if( RET_WAS_ERROR(r) && force <= 0 ) {
+			if( RET_WAS_ERROR(r) ) {
 				aptmethod_shutdown(run);
 				return result;
 			}
 			continue;
 		}
-		r = searchformissing(dbdir,target,force);
+		r = searchformissing(dbdir,target);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		else if( r == RET_NOTHING ) {
@@ -1817,16 +1798,16 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			continue;
 		}
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 ) {
+		if( RET_WAS_ERROR(r) ) {
 			(void)downloadcache_free(cache);
 			aptmethod_shutdown(run);
 			return result;
 		}
-		r = upgradelist_enqueue(target->upgradelist,cache,filesdb,force);
+		r = upgradelist_enqueue(target->upgradelist,cache,filesdb);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 ) {
+		if( RET_WAS_ERROR(r) ) {
 			(void)downloadcache_free(cache);
 			aptmethod_shutdown(run);
 			return result;
@@ -1835,7 +1816,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			fprintf(stderr,"Getting packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
 		r = aptmethod_download(run,methoddir,filesdb);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 ) {
+		if( RET_WAS_ERROR(r) ) {
 			(void)downloadcache_free(cache);
 			aptmethod_shutdown(run);
 			return result;
@@ -1845,13 +1826,13 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 
 		if( verbose >= 0 )
 			fprintf(stderr,"Installing/removing packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = upgradelist_install(target->upgradelist,dbdir,filesdb,refs,force,target->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(target->upgradelist,dbdir,filesdb,refs,target->ignoredelete,dereferencedfilekeys);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		RET_UPDATE(result,r);
 		upgradelist_free(target->upgradelist);
 		target->upgradelist = NULL;
-		if( RET_WAS_ERROR(r) && force <= 0 ) {
+		if( RET_WAS_ERROR(r) ) {
 			aptmethod_shutdown(run);
 			return result;
 		}
@@ -1865,7 +1846,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -1889,7 +1870,7 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 		if( d->distribution->tracking != dt_NONE ) {
 			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
 		}
-		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,skipold,dereferencedfilekeys);
+		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,nolistsdownload,skipold,dereferencedfilekeys);
 		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
 		r = distribution_export(export,d->distribution,confdir,dbdir,distdir,filesdb);

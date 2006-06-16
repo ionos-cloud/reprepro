@@ -308,7 +308,7 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 	return r;
 }
 
-retvalue target_rereference(struct target *target,references refs,int force) {
+retvalue target_rereference(struct target *target,references refs) {
 	retvalue result,r;
 	struct data_reref refdata;
 
@@ -328,7 +328,7 @@ retvalue target_rereference(struct target *target,references refs,int force) {
 
 	refdata.refs = refs;
 	refdata.target = target;
-	r = packages_foreach(target->packages,rereferencepkg,&refdata,force);
+	r = packages_foreach(target->packages,rereferencepkg,&refdata);
 	RET_UPDATE(result,r);
 	
 	return result;
@@ -349,7 +349,7 @@ static retvalue retrackpkg(void *data,const char *package,const char *chunk) {
 	return r;
 }
 
-retvalue target_retrack(struct target *target,trackingdb tracks,references refs,int force) {
+retvalue target_retrack(struct target *target,trackingdb tracks,references refs) {
 	struct data_retrack trackdata;
 
 	assert(target->packages!=NULL);
@@ -361,7 +361,7 @@ retvalue target_retrack(struct target *target,trackingdb tracks,references refs,
 	trackdata.refs = refs;
 	trackdata.tracks = tracks;
 	trackdata.target = target;
-	return packages_foreach(target->packages,retrackpkg,&trackdata,force);
+	return packages_foreach(target->packages,retrackpkg,&trackdata);
 }
 
 
@@ -431,7 +431,7 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	return result;
 }
 
-retvalue target_check(struct target *target,filesdb filesdb,references refs,int force) {
+retvalue target_check(struct target *target,filesdb filesdb,references refs) {
 	struct data_check data;
 
 	assert(target->packages!=NULL);
@@ -441,7 +441,7 @@ retvalue target_check(struct target *target,filesdb filesdb,references refs,int 
 	data.refs = refs;
 	data.filesdb = filesdb;
 	data.target = target;
-	return packages_foreach(target->packages,checkpkg,&data,force);
+	return packages_foreach(target->packages,checkpkg,&data);
 }
 
 /* Reapply override information */

@@ -351,7 +351,7 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 			status = "change";
 		else
 			status = "new";
-		r = packages_foreach(packages,printout,file,0);
+		r = packages_foreach(packages,printout,file);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			free(relfilename);
