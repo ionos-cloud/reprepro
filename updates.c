@@ -555,7 +555,7 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 		return RET_ERROR_OOM;
 	data.patterns = &update;
 	data.confdir = confdir;
-	r = chunk_foreach(updatesfile,parsechunk,&data,0,FALSE);
+	r = chunk_foreach(updatesfile,parsechunk,&data,FALSE);
 	free(updatesfile);
 	if( RET_IS_OK(r) )
 		*patterns = update;
@@ -1358,8 +1358,7 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 		r = upgradelist_update(u->upgradelist,
 				index->origin->download,index->filename,
 				ud_decide_by_pattern,
-				(void*)index->origin->pattern,
-				force);
+				(void*)index->origin->pattern);
 		if( RET_WAS_ERROR(r) ) {
 			u->incomplete = TRUE;
 			u->ignoredelete = TRUE;

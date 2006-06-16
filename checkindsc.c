@@ -439,7 +439,10 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
-		r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
+		if( interupted() ) 
+			r = RET_ERROR_INTERUPTED;
+		else
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}
@@ -466,6 +469,11 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	free(dscdirectory);
 	if( RET_WAS_ERROR(r) )
 		return r;
+
+	if( interupted() ) {
+		dsc_free(pkg);
+		return RET_ERROR_INTERUPTED;
+	}
 
 	if( tracks != NULL ) {
 		r = trackingdata_summon(tracks,pkg->package,pkg->version,&trackingdata);

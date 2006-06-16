@@ -806,6 +806,9 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 			e = e->next;
 			continue;
 		}
+		if( interupted() ) {
+			return RET_ERROR_INTERUPTED;
+		}
 		if( e->type == fe_DEB ) {
 			r = deb_addprepared(e->pkg.deb,dbdir,refs,
 				e->architecture,"deb",
@@ -875,6 +878,9 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( !RET_WAS_ERROR(r) )
 		r = changes_check(changesfilename,changes,forcearchitecture,packagetypeonly);
 
+	if( interupted() )
+		RET_UPDATE(r,RET_ERROR_INTERUPTED);
+
 	/* add files in the pool */
 	//TODO: D_DELETE would fail here, what to do?
 	if( !RET_WAS_ERROR(r) )
@@ -908,8 +914,11 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 				trackingdata_done(&trackingdata);
 				return RET_ERROR_OOM;
 			}
+			if( interupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
 			/* always D_COPY, and only delete it afterwards... */
-			r = files_include(filesdb,changesfilename,
+				r = files_include(filesdb,changesfilename,
 					changes->changesfilekey,
 					NULL,NULL,D_COPY);
 			if( RET_WAS_ERROR(r) ) {
@@ -925,12 +934,12 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		distribution,changes,dereferencedfilekeys,
 		(tracks!=NULL)?&trackingdata:NULL);
 
-	if( RET_WAS_ERROR(r) ) {
+	if( RET_WAS_ERROR(result) ) {
 		if( tracks != NULL ) {
 			trackingdata_done(&trackingdata);
 		}
 		changes_free(changes);
-		return r;
+		return result;
 	}
 
 	if( tracks != NULL ) {

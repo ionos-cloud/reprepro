@@ -33,7 +33,7 @@ extern int verbose;
 // of only \n terminated oned. Though this has still to be tested properly...
 
 /* Call action for each chunk in <filename> */
-retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int force,bool_t stopwhenok){
+retvalue chunk_foreach(const char *filename,chunkaction action,void *data,bool_t stopwhenok){
 	gzFile f;
 	retvalue result,ret;
 	char *chunk;
@@ -45,20 +45,24 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,int fo
 	}
 	result = RET_NOTHING;
 	while( (ret = chunk_read(f,&chunk)) == RET_OK ) {
+		if( interupted() ) {
+			RET_UPDATE(result,RET_ERROR_INTERUPTED);
+			break;
+		}
 		ret = action(data,chunk);
 
 		// in this one a segfault was reported, where did
 		// it come from?
 		free(chunk);
 
-		if( RET_WAS_ERROR(ret) && force <= 0 ) {
+		if( RET_WAS_ERROR(ret) ) {
 			if( verbose > 0 )
-				fprintf(stderr,"Stop reading further chunks from '%s' due to privious errors.\n",filename);
+				fprintf(stderr,"Stop reading further chunks from '%s' due to previous errors.\n",filename);
 			break;
 		}
+		RET_UPDATE(result,ret);
 		if( stopwhenok && RET_IS_OK(ret) )
 			break;
-		RET_UPDATE(result,ret);
 	}
 	RET_UPDATE(result,ret);
 	//TODO: check result:

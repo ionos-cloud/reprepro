@@ -65,6 +65,10 @@ static ssize_t readwait(int fd, void *buf, size_t count) {
 		s = read(fd,buf,count);
 		if( s < 0 )
 			return s;
+		if( interupted() ) {
+			errno = EINTR;
+			return -1;
+		}
 		if( (size_t)s > count ) {
 			errno = EINVAL;
 			return -1;
@@ -83,6 +87,8 @@ retvalue ar_open(/*@out@*/struct ar_archive **n, const char *filename) {
 	char buffer[sizeof(AR_MAGIC)];
 	ssize_t bytesread;
 
+	if( interupted() )
+		return RET_ERROR_INTERUPTED;
 	ar = calloc(1,sizeof(struct ar_archive));
 	if( ar == NULL )
 		return RET_ERROR_OOM;
@@ -153,6 +159,9 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 		}
 	}
 	/* read the next header from the file */
+
+	if( interupted() )
+		return RET_ERROR_INTERUPTED;
 
 	bytesread = readwait(ar->fd,&ar->currentheader,sizeof(ar->currentheader));
 	if( bytesread == 0 )

@@ -428,7 +428,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 		return RET_ERROR_MISSING;
 	}
 	
-	result = chunk_foreach(fn,adddistribution,&mydata,0,FALSE);
+	result = chunk_foreach(fn,adddistribution,&mydata,FALSE);
 
 	if( !RET_WAS_ERROR(result) ) {
 		int i;
@@ -576,7 +576,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		d = distributions;
 		distributions = d->next;
 
-		if( RET_WAS_ERROR(d->status) && when != EXPORT_FORCE ) {
+		if( (RET_WAS_ERROR(d->status)||interupted()) && when != EXPORT_FORCE ) {
 			if( verbose >= 10 )
 				fprintf(stderr, 
 " Not exporting %s because there have been errors and no --export=force.\n",
@@ -627,7 +627,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
 	}
-	if( when != EXPORT_FORCE && RET_WAS_ERROR(distribution->status) ) {
+	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interupted()) ) {
 		if( verbose >= 10 )
 			fprintf(stderr, 
 "Not exporting %s because there have been errors and no --export=force.\n"

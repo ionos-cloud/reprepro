@@ -52,7 +52,8 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 	}
 	buffer = malloc(size+2);
 	len = 0;
-	while( (got = archive_read_data(tar, buffer+len, ((size_t)size+1)-len)) > 0 ) {
+	while( (got = archive_read_data(tar, buffer+len, ((size_t)size+1)-len)) > 0
+			&& !interupted() ) {
 		len += got;
 		if( len > size ) {
 			fprintf(stderr, "Internal Error: libarchive miscalculated length of the control file within '%s',\n"
@@ -60,6 +61,15 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 			free(buffer);
 			return RET_ERROR;
 		}
+	}
+	if( interupted() ) {
+		free(buffer);
+		return RET_ERROR_INTERUPTED;
+	}
+	if( got < 0 ) {
+		free(buffer);
+		fprintf(stderr, "Error reading control file from %s\n", debfile);
+		return RET_ERROR;
 	}
 	if( len < size ) 
 		fprintf(stderr, "Warning: libarchive overcalculated length of the control file within '%s',\n"
@@ -136,6 +146,8 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 						e, archive_error_string(tar));
 				return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 			}
+			if( interupted() ) 
+				return RET_ERROR_INTERUPTED;
 		} else {
 			r = read_control_file(control, debfile, tar, entry);
 			if( r != RET_NOTHING )
@@ -263,6 +275,10 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 			}
 			memcpy(filelist + len, name, n_len+1);
 			len += n_len+1;
+		}
+		if( interupted() ) {
+			free(filelist);
+			return RET_ERROR_INTERUPTED;
 		}
 		a = archive_read_data_skip(tar);
 		if( a != ARCHIVE_OK ) {

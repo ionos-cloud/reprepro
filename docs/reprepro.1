@@ -1067,6 +1067,27 @@ does not know anything needing them right know, you can use
 To delete them:
 .br
 \fBreprepro deleteunreferenced\fP
+.SH INTERUPTING
+Interupting reprepro has its problems.
+Some things (like speaking with apt methods, database stuff) can cause
+problems when interupted at the wrong time.
+Then there are design problems of the code making it hard to destinguish
+if the current state is dangerous or non-dangerous to interupt.
+Thus if reprepro receives a signal normaly sent to tell a process to
+terminate itself softly,
+it continues its operation, but does not start any new operations.
+(I.e. it will not tell the apt-methods any new file to download, it will
+not replace a package in a target, unless it already had started with it,
+it will not delete any files gotten dereferenced, and so on).
+
+\fBIt only catches the first signal of each type. The second signal of a
+given type will terminate reprepro. You will risk database corruption
+and have to remove the lockfile manually.\fP
+
+Also note that even normal interuption leads to code-paths mostly untested
+and thus expose a multitude of bugs including those leading to data corruption.
+Better think a second more before issuing a command than risking the need
+for interuption.
 .SH "REPORTING BUGS"
 Report bugs or wishlist requests to <brlink@debian.org>
 .br

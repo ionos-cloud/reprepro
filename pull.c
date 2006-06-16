@@ -241,7 +241,7 @@ retvalue pull_getrules(const char *confdir,struct pull_rule **rules) {
 		return RET_ERROR_OOM;
 	data.rules = &pull;
 	data.confdir = confdir;
-	r = chunk_foreach(pullfile,pull_parsechunk,&data,0,FALSE);
+	r = chunk_foreach(pullfile,pull_parsechunk,&data,FALSE);
 	free(pullfile);
 	if( RET_IS_OK(r) )
 		*rules = pull;
@@ -662,7 +662,7 @@ static inline retvalue pull_searchformissing(const char *dbdir,struct pull_targe
 		r = upgradelist_pull(p->upgradelist,
 				source->source,
 				ud_decide_by_rule, source->rule,
-				force, dbdir);
+				dbdir);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			return result;

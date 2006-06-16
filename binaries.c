@@ -268,6 +268,9 @@ retvalue ubinaries_doreoverride(const struct alloverrides *ao,const char *packag
 	struct fieldtoadd *fields;
 	char *newchunk;
 
+	if( interupted() )
+		return RET_ERROR_INTERUPTED;
+
 	o = override_search(ao->udeb, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
@@ -292,6 +295,9 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 
 	//TODO: elliminate duplicate code!
 	assert(packagename!=NULL);
+
+	if( interupted() )
+		return RET_ERROR_INTERUPTED;
 
 	/* is there a sourcename */
 	r = chunk_getnameandversion(chunk,"Source",&fsourcename,&sourceversion);

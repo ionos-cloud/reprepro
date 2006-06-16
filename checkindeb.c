@@ -438,7 +438,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 	retvalue r,result;
 	int i;
 
-	/* finaly put it into one or more architectures of the distribution */
+	/* finally put it into one or more architectures of the distribution */
 
 	result = RET_NOTHING;
 
@@ -447,7 +447,10 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ARCH_BINARY);
+			if( interupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
+				r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ARCH_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -457,7 +460,10 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
+			if( interupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
+				r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -470,15 +476,16 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
+			if( interupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
+				r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
 		RET_UPDATE(result,r);
 	}
 	RET_UPDATE(distribution->status, result);
-
-//	deb_free(pkg);
 
 	return result;
 }
