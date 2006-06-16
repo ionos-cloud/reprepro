@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "12 May, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "16 June, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -10,7 +10,7 @@ reprepro \- produce, manage and sync a local repository of debian packages
 ]
 \fIcommand\fP
 [ 
-\fIper\-command\-options\fP 
+\fIper\-command\-arguments\fP 
 ]
 .SH DESCRIPTION
 reprepro is a tool to manage a repository of Debian packages
@@ -27,8 +27,8 @@ signatures of the generated Package indices is supported.
 
 Former working title of this program was mirrorer.
 .SH "GLOBAL OPTIONS"
-Global options can be specified before the command. They effect
-some subset of commands and are ignored otherwise.
+Options can be specified before the command. Each affects a different
+subset of commands and is ignored by other commands.
 .TP
 .B \-h \-\-help
 Displays a short list of options and commands with description.

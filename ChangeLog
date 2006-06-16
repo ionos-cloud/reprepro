@@ -1,5 +1,6 @@
 2006-06-16  Bernhard R. Link <brlink@debian.org>
 	* manpage mentions includeudeb now. (Thanks to Jordi Mallach for noting)
+	* changed manpage to make clear options are before the command (dito)
 
 2006-06-12  Bernhard R. Link <brlink@debian.org>
 	* some prework for predelete action
