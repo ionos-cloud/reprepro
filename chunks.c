@@ -47,12 +47,11 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,bool_t
 	while( (ret = chunk_read(f,&chunk)) == RET_OK ) {
 		if( interupted() ) {
 			RET_UPDATE(result,RET_ERROR_INTERUPTED);
+			free(chunk);
 			break;
 		}
 		ret = action(data,chunk);
 
-		// in this one a segfault was reported, where did
-		// it come from?
 		free(chunk);
 
 		if( RET_WAS_ERROR(ret) ) {

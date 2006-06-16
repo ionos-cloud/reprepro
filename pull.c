@@ -746,6 +746,13 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 		// TODO: make already here sure the files are ready?
 	}
 	if( RET_WAS_ERROR(result) ) {
+		for( d=distributions ; d != NULL ; d=d->next) {
+			struct pull_target *u;
+			for( u=d->targets ; u != NULL ; u=u->next ) {
+				upgradelist_free(u->upgradelist);
+				u->upgradelist = NULL;
+			}
+		}
 		return result;
 	}
 	if( verbose >= 0 )

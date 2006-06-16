@@ -2132,7 +2132,7 @@ bool_t interupted(void) {
 	if( was_interupted ) {
 		if( !interuption_printed ) {
 			interuption_printed = TRUE;
-			fprintf(stderr, "\n\nInteruption in progress, interupt again to force-stop it risking database corruption\n\n");
+			fprintf(stderr, "\n\nInteruption in progress, interupt again to force-stop it (and risking database corruption!)\n\n");
 		}
 		return TRUE;
 	} else
