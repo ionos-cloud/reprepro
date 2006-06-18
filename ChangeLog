@@ -3,6 +3,8 @@
 	.changes files before copying/moving files into the pool
 	(Files missing in .dsc and files having the wrong md5sum
 	 are still only noticed after/while moving them in the pool)
+	* delete files from the pool when checks after including
+	the files but before including the packages failed.
 
 2006-06-16  Bernhard R. Link <brlink@debian.org>
 	* manpage mentions includeudeb now. (Thanks to Jordi Mallach for noting)

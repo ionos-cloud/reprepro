@@ -89,6 +89,7 @@ struct fileentry {
 	char *filekey;
 	/* was already found in the pool before */
 	bool_t wasalreadythere;
+	bool_t included;
 	/* set between checkpkg and includepkg */
 	union { struct dscpackage *dsc; struct debpackage *deb;} pkg;
 };
@@ -758,15 +759,66 @@ static retvalue changes_includefiles(filesdb filesdb,struct changes *changes,int
 	for( e = changes->files; e != NULL ; e = e->next ) {
 		assert( e->filekey != NULL );
 
-		// not yet checking for e->wasalreadythere here as then it does not
-		// get deleted when delete is >= _MOVE
+		if( e->wasalreadythere )
+			continue;
 
-		r = files_includefile(filesdb,changes->incomingdirectory,e->basename,e->filekey,e->md5sum,NULL,delete);
+		r = files_includefile(filesdb,changes->incomingdirectory,
+				e->basename,e->filekey,e->md5sum,NULL,
+				/* do not delete, we do that later outself */
+				(delete>=D_MOVE)?D_COPY:delete);
+		if( RET_IS_OK(r) )
+			e->included = TRUE;
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
 
 	return r;
+}
+/* run if packages are not all includeable and the stuff put into the
+ * pool shall be removed again */
+static void changes_unincludefiles(filesdb filesdb,struct changes *changes) {
+	struct fileentry *e;
+
+	for( e = changes->files; e != NULL ; e = e->next ) {
+
+		if( e->filekey == NULL || e->wasalreadythere || !e->included )
+			continue;
+
+		(void)files_deleteandremove(filesdb,e->filekey,TRUE);
+	}
+}
+/* delete the files included */
+static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) {
+	struct fileentry *e;
+	retvalue result,r;
+
+	if( delete < D_MOVE )
+		return RET_OK;
+
+	result = RET_OK;
+	// TODO: we currently only see files included here, so D_DELETE
+	// only affacts the .changes file.
+
+	for( e = changes->files; e != NULL ; e = e->next ) {
+		char *fullorigfilename;
+
+		if( delete < D_DELETE && e->filekey == NULL )
+			continue;
+
+		fullorigfilename = calc_dirconcat(changes->incomingdirectory,
+					e->basename);
+
+		if( unlink(fullorigfilename) != 0 ) {
+			int e = errno;
+			fprintf(stderr, "Error deleting '%s': %d=%s\n",
+					fullorigfilename, e, strerror(e));
+			r = RET_ERRNO(e);
+			RET_UPDATE(result,r);
+		} 
+		free(fullorigfilename);
+	}
+
+	return result;
 }
 
 static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, bool_t onlysigned, const char *sourcedirectory) {
@@ -925,7 +977,6 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		RET_UPDATE(r,RET_ERROR_INTERUPTED);
 
 	/* add files in the pool */
-	//TODO: D_DELETE would fail here, what to do?
 	if( !RET_WAS_ERROR(r) )
 		r = changes_includefiles(filesdb,changes,delete);
 
@@ -935,6 +986,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	free(directory);
 
 	if( RET_WAS_ERROR(r) ) {
+		changes_unincludefiles(filesdb,changes);
 		changes_free(changes);
 		return r;
 	}
@@ -971,6 +1023,11 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			}
 		}
 	}
+	if( interupted() ) {
+		trackingdata_done(&trackingdata);
+		changes_free(changes);
+		return RET_ERROR_INTERUPTED;
+	}
 
 	/* add the source and binary packages in the given distribution */
 	result = changes_includepkgs(dbdir,refs,
@@ -1005,9 +1062,9 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		}
 	}
 
-	if( delete >= D_MOVE && changesfilename != NULL ) {
-		if( result == RET_NOTHING && delete < D_DELETE && 
-				changes->changesfilekey == NULL) {
+	if( (delete >= D_MOVE && changes->changesfilekey != NULL) ||
+			delete >= D_DELETE ) {
+		if( result == RET_NOTHING && delete < D_DELETE ) {
 			if( verbose >= 0 ) {
 				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use --delete --delete to delete anyway in such cases)\n",changesfilename);
 			}
@@ -1020,7 +1077,8 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			}
 		}
 	}
+	result = changes_deleteleftoverfiles(changes, delete);
 	(void)changes_free(changes);
 
-	return RET_OK;
+	return result;
 }

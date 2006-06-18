@@ -1,3 +1,10 @@
+Updates since 0.9.1:
+- reject some .changes earlier, delete added files
+  when checks after copying files to the pool failed.
+- handle some signals (TERM, ABRT, INT and QUIT) a bit
+  more gracefully
+- some little fixes in the documentation
+
 Updates since 0.9.0:
 - fix bug in post-export script handling.
 - fixed documentation in tiffany.example how to generate
