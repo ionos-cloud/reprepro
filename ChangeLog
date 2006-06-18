@@ -1,3 +1,9 @@
+2006-06-18  Bernhard R. Link <brlink@debian.org>
+	* check for file conflicts and missing files when including
+	.changes files before copying/moving files into the pool
+	(Files missing in .dsc and files having the wrong md5sum
+	 are still only noticed after/while moving them in the pool)
+
 2006-06-16  Bernhard R. Link <brlink@debian.org>
 	* manpage mentions includeudeb now. (Thanks to Jordi Mallach for noting)
 	* changed manpage to make clear options are before the command (dito)

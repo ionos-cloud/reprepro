@@ -30,6 +30,7 @@
 #include "ignore.h"
 #include "strlist.h"
 #include "md5sum.h"
+#include "copyfile.h"
 #include "names.h"
 #include "dirs.h"
 #include "chunks.h"
@@ -86,6 +87,8 @@ struct fileentry {
 	char *component;
 	/* only set after changes_includefiles */
 	char *filekey;
+	/* was already found in the pool before */
+	bool_t wasalreadythere;
 	/* set between checkpkg and includepkg */
 	union { struct dscpackage *dsc; struct debpackage *deb;} pkg;
 };
@@ -107,6 +110,8 @@ struct changes {
 	char *srcdirectory;
 	/* (only to warn if multiple are used) */
 	const char *firstcomponent;
+	/* the directory the .changes file resides in */
+	char *incomingdirectory;
 };
 
 static void freeentries(/*@only@*/struct fileentry *entry) {
@@ -143,6 +148,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 		free(changes->srcdirectory);
 		free(changes->changesfilekey);
 //		trackedpackage_free(changes->trackedpkg);
+		free(changes->incomingdirectory);
 	}
 	free(changes);
 }
@@ -420,6 +426,8 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture);
 	strlist_done(&filelines);
 	R;
+	r = dirs_getdirectory(filename,&c->incomingdirectory);
+	R;
 
 	*changes = c;
 	return RET_OK;
@@ -688,19 +696,14 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	return r;
 }
 
-static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct changes *changes,int delete) {
+static retvalue changes_checkfiles(filesdb filesdb,const char *filename,struct changes *changes) {
 	struct fileentry *e;
 	retvalue r;
-	char *sourcedir; 
-
-	r = dirs_getdirectory(filename,&sourcedir);
-	if( RET_WAS_ERROR(r) )
-		return r;
 
 	r = RET_NOTHING;
 
-	e = changes->files;
-	while( e != NULL ) {
+	for( e = changes->files; e != NULL ; e = e->next ) {
+		//TODO: decide earlier which files to include
 		if( FE_SOURCE(e->type) ) {
 			assert(changes->srcdirectory!=NULL);
 			e->filekey = calc_dirconcat(changes->srcdirectory,e->basename);
@@ -713,22 +716,56 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 			directory = calc_sourcedir(e->component,changes->source);
 			if( directory == NULL )
 				return RET_ERROR_OOM;
-
 			e->filekey = calc_dirconcat(directory,e->basename);
 			free(directory);
 		}
 
-		if( e->filekey == NULL ) {
-			free(sourcedir);
+		if( e->filekey == NULL )
 			return RET_ERROR_OOM;
-		}
-		r = files_includefile(filesdb,sourcedir,e->basename,e->filekey,e->md5sum,NULL,delete);
+		/* do not copy yet, but only check if it could be included */
+		r = files_expect(filesdb,e->filekey,e->md5sum);
 		if( RET_WAS_ERROR(r) )
-			break;
-		e = e->next;
+			return r;
+		/* If is was already there, remember that */
+		if( RET_IS_OK(r) ) {
+			e->wasalreadythere = TRUE;
+		} else {
+		/* and if it needs inclusion check if there is a file */
+			char *fullfilename;
+
+			assert( r == RET_NOTHING );
+			// TODO: add a --paranoid to also check md5sums before copying?
+
+			fullfilename = calc_dirconcat(changes->incomingdirectory,e->basename);
+			if( fullfilename == NULL )
+				return RET_ERROR_OOM;
+			if( !isregularfile(fullfilename) ) {
+				fprintf(stderr, "Cannot find file '%s' needed by '%s'!\n", fullfilename,filename);
+				return RET_ERROR_MISSING;
+			}
+		}
 	}
 
-	free(sourcedir);
+	return RET_OK;
+}
+
+static retvalue changes_includefiles(filesdb filesdb,struct changes *changes,int delete) {
+	struct fileentry *e;
+	retvalue r;
+
+	r = RET_NOTHING;
+
+	for( e = changes->files; e != NULL ; e = e->next ) {
+		assert( e->filekey != NULL );
+
+		// not yet checking for e->wasalreadythere here as then it does not
+		// get deleted when delete is >= _MOVE
+
+		r = files_includefile(filesdb,changes->incomingdirectory,e->basename,e->filekey,e->md5sum,NULL,delete);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
 	return r;
 }
 
@@ -881,10 +918,16 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( interupted() )
 		RET_UPDATE(r,RET_ERROR_INTERUPTED);
 
+	if( !RET_WAS_ERROR(r) )
+		r = changes_checkfiles(filesdb,changesfilename,changes);
+
+	if( interupted() )
+		RET_UPDATE(r,RET_ERROR_INTERUPTED);
+
 	/* add files in the pool */
 	//TODO: D_DELETE would fail here, what to do?
 	if( !RET_WAS_ERROR(r) )
-		r = changes_includefiles(filesdb,changesfilename,changes,delete);
+		r = changes_includefiles(filesdb,changes,delete);
 
 	if( !RET_WAS_ERROR(r) )
 		r = changes_checkpkgs(filesdb,distribution,changes,ao,onlysigned,directory);

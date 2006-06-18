@@ -433,7 +433,7 @@ echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
 echo $ERRORMSG | grep -q ".changes put in a distribution not listed within"
 ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
 echo $ERRORMSG | grep -q "error:249"
-echo $ERRORMSG | grep -q "Could not open './filename_version.tar.gz"
+echo $ERRORMSG | grep -q "Cannot find file './filename_version.tar.gz' needed by 'broken.changes'"
 touch filename_version.tar.gz
 ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
 echo $ERRORMSG | grep -q -v "error:"
