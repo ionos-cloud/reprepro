@@ -741,9 +741,11 @@ static retvalue changes_checkfiles(filesdb filesdb,const char *filename,struct c
 			if( fullfilename == NULL )
 				return RET_ERROR_OOM;
 			if( !isregularfile(fullfilename) ) {
+				free(fullfilename);
 				fprintf(stderr, "Cannot find file '%s' needed by '%s'!\n", fullfilename,filename);
 				return RET_ERROR_MISSING;
 			}
+			free(fullfilename);
 		}
 	}
 
