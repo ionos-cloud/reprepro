@@ -2,11 +2,13 @@
    stupid-db3
    Memcheck:Param
    pwrite64(buf)
-   obj:/lib/libc-2.3.2.so
+   fun:pwrite64
    fun:__os_io
-   fun:__memp_pgwrite
-   obj:/usr/lib/libdb3.so.3.0.2
-   fun:memp_fsync
+   obj:/usr/lib/libdb-4.3.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+   fun:__memp_fsync
+   fun:__db_sync
 }
 {
    libz-looking-far

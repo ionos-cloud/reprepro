@@ -759,6 +759,59 @@ ACTION_D(update) {
 	return result;
 }
 
+ACTION_D(predelete) {
+	retvalue result,r;
+	struct update_pattern *patterns;
+	struct distribution *distributions;
+	struct update_distribution *u_distributions;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro predelete [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = dirs_make_recursive(listdir);	
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = updates_getpatterns(confdir,&patterns);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	assert( RET_IS_OK(result) );
+
+	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	if( RET_WAS_ERROR(result) ) {
+		updates_freepatterns(patterns);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	assert( RET_IS_OK(result) );
+
+	if( !keepunneededlists ) {
+		result = updates_clearlists(listdir,u_distributions);
+	}
+	if( !RET_WAS_ERROR(result) )
+		result = updates_predelete(dbdir,methoddir,references,u_distributions,nolistsdownload,skipold,dereferenced);
+	updates_freeupdatedistributions(u_distributions);
+	updates_freepatterns(patterns);
+
+	r = distribution_exportandfreelist(export,distributions,
+			confdir,dbdir,distdir,filesdb);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
 ACTION_D(iteratedupdate) {
 	retvalue result,r;
 	struct update_pattern *patterns;
@@ -1764,6 +1817,7 @@ static const struct action {
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},
 	{"checkupdate",		A_N(checkupdate)},
+	{"predelete",		A_D(predelete)},
 	{"pull",		A_D(pull)},
 	{"checkpull",		A_N(checkpull)},
 	{"includedeb",		A_D(includedeb)},

@@ -1,9 +1,14 @@
-reprepro (0.9.1-2) UNRELEASED; urgency=low
+reprepro (1.0.0-0) UNRELEASED; urgency=low
 
-  * fixed typos in --help output (Closes: 372024)
-  * catch Ctrl-C (Closes: 315162)
+  * new release
+  - fixed typos in --help output (Closes: 372024)
+  - catch Ctrl-C (Closes: 315162)
+  - adding a .changes files will copy files later
+    and delete the copies in the pool again if
+    an error is found before including any package (Closes: 359644)
+  - add predelete action (Closes: 371197)
 
- -- Bernhard R. Link <brlink@debian.org>  Thu,  8 Jun 2006 10:40:53 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 18 Jun 2006 18:43:25 +0200
 
 reprepro (0.9.1-1) unstable; urgency=low
 

@@ -1,3 +1,8 @@
+2006-06-19  Bernhard R. Link <brlink@debian.org>
+	* add predelete action to remove packages from
+	a distribution that would be deleted or replaced
+	by a command.
+
 2006-06-18  Bernhard R. Link <brlink@debian.org>
 	* check for file conflicts and missing files when including
 	.changes files before copying/moving files into the pool

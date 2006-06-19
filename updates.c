@@ -1691,6 +1691,102 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	return result;
 }
 
+retvalue updates_predelete(const char *dbdir,const char *methoddir,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
+	retvalue result,r;
+	struct update_distribution *d;
+	struct aptmethodrun *run;
+
+	r = aptmethod_initialize_run(&run);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( nolistsdownload ) {
+		if( skipold && verbose >= 0 ) {
+			fprintf(stderr,"Ignoring --skipold because of --nolistsdownload\n");
+		}
+		skipold = FALSE;
+	}
+
+	/* preperations */
+	result = updates_startup(run,distributions);
+	if( RET_WAS_ERROR(result) ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+	if( nolistsdownload ) {
+		if( verbose >= 0 )
+			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
+	} else {
+		bool_t anythingtodo = !skipold;
+
+		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(result) ) {
+			aptmethod_shutdown(run);
+			return result;
+		}
+		/* TODO: 
+		 * add a check if some of the upstreams without Release files
+		 * are unchanged and if this changes anything? */
+		if( !anythingtodo ) {
+			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
+			aptmethod_shutdown(run);
+			if( RET_IS_OK(result) )
+				return RET_NOTHING;
+			else
+				return result;
+		}
+	}
+	/* Call ListHooks (if given) on the downloaded index files.
+	 * (This is done even when nolistsdownload is given, as otherwise
+	 *  the filename to look in is not changed) */
+	r = updates_calllisthooks(distributions);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) ) {
+		aptmethod_shutdown(run);
+		return result;
+	}
+
+	if( verbose > 0 )
+		fprintf(stderr,"Shutting down aptmethods...\n");
+
+	r = aptmethod_shutdown(run);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	
+	if( verbose >= 0 )
+		fprintf(stderr,"Removing obsolete or to be replaced packages...\n");
+	for( d=distributions ; d != NULL ; d=d->next) {
+		struct update_target *u;
+
+		for( u=d->targets ; u != NULL ; u=u->next ) {
+			r = searchformissing(dbdir,u);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) ) {
+				u->incomplete = TRUE;
+				continue;
+			}
+			if( u->nothingnew || u->ignoredelete ) {
+				upgradelist_free(u->upgradelist);
+				u->upgradelist = NULL;
+				continue;
+			}
+			r = upgradelist_predelete(u->upgradelist,dbdir,refs,dereferencedfilekeys);
+			RET_UPDATE(d->distribution->status, r);
+			if( RET_WAS_ERROR(r) )
+				u->incomplete = TRUE;
+			RET_UPDATE(result,r);
+			upgradelist_free(u->upgradelist);
+			u->upgradelist = NULL;
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+	}
+	return result;
+}
+
 static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys) {
 	struct aptmethodrun *run;
 	struct downloadcache *cache;

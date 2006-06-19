@@ -572,8 +572,31 @@ test ! -f ab_3-1.dsc
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
 test -f pool/all/a/ab/ab_3-1_abacus.deb
 test -f pool/all/a/ab/ab_3-1.dsc
-
-
+DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
+$HELPER "$REPREPRO" -b . -A abacus --delete --delete --ignore=missingfile include b test.changes
+grep -q '^Package: aa$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ab$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ac$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+echo "Update: - froma" >> conf/distributions
+cat >conf/updates <<END
+Name: froma
+Method: copy:$WORKDIR
+Suite: a
+ListHook: /bin/cp
+END
+$HELPER "$REPREPRO" -VVVb . predelete b
+grep -q '^Package: aa$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ab$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ac$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+test ! -f pool/all/a/ac/ac-addons_1-1_all.deb
+test ! -f pool/all/a/ab/ab_2-1_abacus.deb
+test -f pool/all/a/aa/aa_1-3_abacus.deb
 set +v 
 echo
 echo "If the script is still running to show this,"

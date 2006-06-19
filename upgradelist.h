@@ -48,4 +48,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 
 retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs, bool_t ignoredelete, struct strlist *dereferencedfilekeys);
 
+/* remove all packages that would either be removed or upgraded by an upgrade */
+retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,references refs,struct strlist *dereferencedfilekeys);
+
 #endif

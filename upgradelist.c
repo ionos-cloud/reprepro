@@ -518,7 +518,10 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,ref
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version_in_use != NULL &&
 				(pkg->version == pkg->new_version || pkg->deleted)) {
-			r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
+			if( interupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
+				r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r))
 				break;
