@@ -1211,7 +1211,7 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 		exit(255);
 	}
 	if( verbose > 5 )
-		fprintf(stderr,"Called %s '%s# '%s'\n",listhook,index->filename,newfilename);
+		fprintf(stderr,"Called %s '%s' '%s'\n",listhook,index->filename,newfilename);
 	assert(index->original_filename == NULL);
 	index->original_filename = index->filename;
 	index->filename=newfilename;
