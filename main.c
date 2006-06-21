@@ -1002,6 +1002,139 @@ ACTION_N(checkpull) {
 	return result;
 }
 
+struct copy_data {
+	struct distribution *destination;
+	/*@temp@*/references refs; 
+	/*@temp@*/const char *name; 
+	/*@temp@*/struct strlist *removedfiles;
+};
+
+static retvalue copy(/*@temp@*/void *data, struct target *origtarget, 
+		struct distribution *distribution) {
+	retvalue result,r;
+	struct copy_data *d = data;
+	char *chunk,*version;
+	struct strlist filekeys;
+	struct target *dsttarget;
+
+	result = target_initpackagesdb(origtarget,dbdir);
+	if( RET_WAS_ERROR(result) ) {
+		RET_UPDATE(distribution->status,result);
+		return result;
+	}
+
+	dsttarget = distribution_gettarget(d->destination, origtarget->component,
+					origtarget->architecture,
+					origtarget->packagetype);
+	if( dsttarget == NULL ) {
+		if( verbose > 2 )
+			fprintf(stderr, "Not looking into '%s' as no matching target in '%s'!\n",
+					origtarget->identifier,
+					d->destination->codename);
+		result = RET_NOTHING;
+	} else
+		result = packages_get(origtarget->packages, d->name, &chunk);
+	if( result == RET_NOTHING && verbose > 2 )
+		fprintf(stderr, "No instance of '%s' found in '%s'!\n",
+				d->name, origtarget->identifier);
+	r = target_closepackagesdb(origtarget);
+	RET_ENDUPDATE(result,r);
+	if( !RET_IS_OK(result) ) {
+		return result;
+	}
+
+	result = origtarget->getversion(origtarget, chunk, &version);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		free(chunk);
+		return result;
+	}
+
+	result = origtarget->getfilekeys(origtarget, chunk, &filekeys, NULL);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		free(chunk);
+		free(version);
+		return result;
+	}
+	if( verbose >= 1 ) {
+		fprintf(stderr, "Moving '%s' from '%s' to '%s'.\n",
+					d->name,
+					origtarget->identifier,
+					dsttarget->identifier);
+	}
+
+	result = target_initpackagesdb(dsttarget,dbdir);
+	if( RET_WAS_ERROR(result) ) {
+		RET_UPDATE(d->destination->status,result);
+		free(chunk);
+		free(version);
+		strlist_done(&filekeys);
+		return result;
+	}
+
+	result = target_addpackage(dsttarget, d->refs, d->name, version, chunk,
+			&filekeys, TRUE, d->removedfiles,
+			NULL, '?');
+	free(version);
+	free(chunk);
+	strlist_done(&filekeys);
+
+	r = target_closepackagesdb(dsttarget);
+	RET_ENDUPDATE(result,r);
+	RET_UPDATE(d->destination->status,result);
+	return result;
+}
+
+ACTION_D(copy) {
+	struct distribution *destination,*source;
+	retvalue result, r;
+	struct copy_data d;
+	int i;
+
+	if( argc < 3 ) {
+		fprintf(stderr,"reprepro [-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>\n");
+		return RET_ERROR;
+	}
+	result = distribution_get(&destination,confdir,argv[1]);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_get(&source,confdir,argv[2]);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		distribution_free(destination);
+		return result;
+	}
+
+	if( destination->tracking != dt_NONE ) {
+		fprintf(stderr, "WARNING: copy does not yet support trackingdata and will ignore trackingdata in '%s'!\n", destination->codename);
+	}
+	
+	d.destination = destination;
+	d.refs = references;
+	d.removedfiles = dereferenced;
+	for( i = 3; i < argc ; i++ ) {
+		d.name = argv[i];
+		if( verbose > 0 )
+			printf("Looking for '%s' in '%s' to be copied to '%s'...\n",
+					d.name, source->codename,
+					destination->codename);
+		result = distribution_foreach_part(source,component,architecture,packagetype,copy,&d);
+	}
+	d.refs = NULL;
+	d.removedfiles = NULL;
+	d.destination = NULL;
+
+	r = distribution_export(export,destination,confdir,dbdir,distdir,filesdb);
+	RET_ENDUPDATE(result,r);
+
+	distribution_free(source);
+	distribution_free(destination);
+	return result;
+	
+}
+
 /***********************rereferencing*************************/
 struct data_binsrcreref { /*@temp@*/const struct distribution *distribution; /*@temp@*/references refs;};
 
@@ -1819,6 +1952,7 @@ static const struct action {
 	{"checkupdate",		A_N(checkupdate)},
 	{"predelete",		A_D(predelete)},
 	{"pull",		A_D(pull)},
+	{"copy",		A_D(copy)},
 	{"checkpull",		A_N(checkpull)},
 	{"includedeb",		A_D(includedeb)},
 	{"includeudeb",		A_D(includedeb)},

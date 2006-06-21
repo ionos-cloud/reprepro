@@ -432,6 +432,7 @@ echo $ERRORMSG | grep -q "error:255"
 echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
 echo $ERRORMSG | grep -q ".changes put in a distribution not listed within"
 ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG
 echo $ERRORMSG | grep -q "error:249"
 echo $ERRORMSG | grep -q "Cannot find file './filename_version.tar.gz' needed by 'broken.changes'"
 touch filename_version.tar.gz
@@ -597,6 +598,7 @@ grep -q '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
 test ! -f pool/all/a/ac/ac-addons_1-1_all.deb
 test ! -f pool/all/a/ab/ab_2-1_abacus.deb
 test -f pool/all/a/aa/aa_1-3_abacus.deb
+$HELPER "$REPREPRO" -VVVb . copy b a ab ac
 set +v 
 echo
 echo "If the script is still running to show this,"

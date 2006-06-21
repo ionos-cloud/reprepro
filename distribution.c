@@ -367,6 +367,15 @@ retvalue distribution_foreach_part(struct distribution *distribution,const char 
 	return result;
 }
 
+struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
+	struct target *t = distribution->targets;
+
+	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
+		t = t->next;
+	}
+	return t;
+}
+
 struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
 	struct target *t = distribution->targets;
 

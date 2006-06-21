@@ -72,6 +72,9 @@ retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/c
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
+/* like distribtion_getpart, but returns NULL if there is no such target */
+/*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
+
 retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
 
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };

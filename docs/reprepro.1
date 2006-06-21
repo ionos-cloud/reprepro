@@ -257,6 +257,20 @@ Same like
 .BR update ,
 but will show what it will change instead of actually changing it.
 .TP
+.BR predelete " [ " \fIcodenames\fP " ]"
+This will determine which packages a \fBupdate\fP would delete or
+replace and remove those packages.
+This can be useful for reducing space needed while upgrading, but
+there will be some time where packages are vanished from the
+lists so clients will mark them as obsolete.
+Plus if you cannot
+download a updated package in the (hopefully) following update
+run, you will end up with no package at all instead of an old one.
+This will also blow up pindex files if you are using the tiffany
+example or somethine similar.
+So be careful when using this option or better get some more space so
+that update works.
+.TP
 .BR pull " [ " \fIcodenames\fP " ]"
 pull in newer packages into the specified distributions (all if none given)
 from other distributions in the same repository.
@@ -353,6 +367,10 @@ given distributions.
 Remove the trackingdata of the given version of a given sourcepackage
 from a given distribution. This also removes the references for all
 used files.
+.TP
+.B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
+Copy the given packages from one distribution to another. No overrides
+are read, nothing is changed.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
