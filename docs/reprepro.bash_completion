@@ -141,7 +141,7 @@ _reprepro()
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
 			cleartracks removetrack update checkupdate pull \
-			checkpull includedeb includeudeb includedsc include'
+			checkpull includedeb includeudeb includedsc include copy'
 		hiddencommands='__d __extractcontrol _detect _forget\
 			_listmd5sums _addmd5sum _dumpcontents\
 			_removereferences _addreference'
@@ -231,6 +231,22 @@ _reprepro()
 				_filedir "!*.changes"
 			fi
 			return 0
+			;;
+		copy)
+			# first argument is a codename
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
+				return 0
+			fi
+			# second argument is a codename
+			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
+				return 0
+			fi
+			# here we could look for package names existing in
+			# that distribution, but that would be slow...
 			;;
 	esac
 	COMPREPLY=( $( compgen -f -- $cur ) )
