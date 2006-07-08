@@ -1,3 +1,6 @@
+Updates since 1.0.0:
+- add clearvanished command
+
 Updates since 0.9.1:
 - reject some .changes earlier, delete added files
   when checks after copying files to the pool failed.
