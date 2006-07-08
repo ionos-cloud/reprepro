@@ -321,7 +321,7 @@ retvalue target_rereference(struct target *target,references refs) {
 			fprintf(stderr,"Rereferencing %s...\n",target->identifier);
 	}
 
-	result = references_remove(refs,target->identifier);
+	result = references_remove(refs,target->identifier, NULL);
 
 	if( verbose > 2 )
 		fprintf(stderr,"Referencing %s...\n",target->identifier);

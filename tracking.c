@@ -612,7 +612,7 @@ retvalue tracking_remove(trackingdb t,const char *sourcename,const char *version
 		} else {
 			RET_UPDATE(result,r);
 			fprintf(stderr,"Could not parse data, removing all references blindly...\n");
-			r = references_remove(refs,id);
+			r = references_remove(refs, id, NULL);
 			RET_UPDATE(result,r);
 		}
 		free(id);

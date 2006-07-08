@@ -264,7 +264,8 @@ retvalue references_delete(references refs,const char *identifier,
 }
 
 /* remove all references from a given identifier */
-retvalue references_remove(references refs,const char *neededby) {
+retvalue references_remove(references refs,const char *neededby,
+		struct strlist *dereferenced) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -289,7 +290,20 @@ retvalue references_remove(references refs,const char *neededby) {
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
 					found_to,neededby);
 			dbret = cursor->c_del(cursor,0);
-			if( dbret != 0 ) {
+			if( dbret == 0 ) {
+				if( dereferenced != NULL ) {
+					char *f = strndup(key.data,key.size-1);
+					retvalue r2;
+					if( f == NULL ) {
+						r = RET_ERROR_OOM;
+						continue;
+					}
+					r2 = strlist_add(dereferenced, f);
+					if( RET_WAS_ERROR(r2) ) {
+						r = r2;
+					}
+				}
+			} else {
 				refs->db->err(refs->db, dbret, "references_remove dberror(del):");
 				RET_UPDATE(r,RET_DBERR(dbret));
 			}
