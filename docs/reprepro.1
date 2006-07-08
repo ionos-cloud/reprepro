@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "16 June, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "8 July, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -371,6 +371,17 @@ used files.
 .B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
 Copy the given packages from one distribution to another. No overrides
 are read, nothing is changed.
+.TP
+.B clearvanished
+Remove all package databases that no longer appear in \fBconf/distributions\fP.
+If \fB\-\-delete\fP is specified, it will not stop if there are still
+packages left.
+Even without \fB\-\-delete\fP it will unreference
+files still marked as needed by this target.
+(Use \fB\-\-keepunreferenced\fP to not delete them if that was the last
+reference.)
+
+Do not forget to remove all exported package indices manually.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:

@@ -1,3 +1,6 @@
+2006-07-08  Bernhard R. Link <brlink@debian.org>
+	* add clearvanished command
+
 2006-06-21  Bernhard R. Link <brlink@debian.org>
 	* add copy command to pull only a specific package
 	without having to add FilterFormulas to conf/pulls
