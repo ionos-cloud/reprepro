@@ -283,7 +283,7 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 		a = archive_read_data_skip(tar);
 		if( a != ARCHIVE_OK ) {
 			int e = archive_errno(tar);
-			printf("Error skipping %s within control.tar.gz from %s: %d=%s\n",
+			printf("Error skipping %s within data.tar.gz from %s: %d=%s\n",
 					archive_entry_pathname(entry),
 					debfile,
 					e, archive_error_string(tar));
