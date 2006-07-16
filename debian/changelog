@@ -1,3 +1,11 @@
+reprepro (1.0.0-2) unstable; urgency=low
+
+  * new release
+  - new clearvanished command to clean database files a bit
+  - cope with GNU ar style .deb files (Closes: 378237)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 16 Jul 2006 11:20:01 +0200
+
 reprepro (1.0.0-1) unstable; urgency=low
 
   * new release
