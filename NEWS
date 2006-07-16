@@ -1,6 +1,7 @@
 Updates since 1.0.0:
 - add clearvanished command
-- cope with GNU ar style .deb files
+- cope with GNU ar style .deb files (when using libarchive)
+- cope with strange control.tar.gz files (when not using libarchive)
 
 Updates since 0.9.1:
 - reject some .changes earlier, delete added files
