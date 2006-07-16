@@ -1,4 +1,4 @@
-reprepro (1.1.0-1) UNRELEASED; urgency=low
+reprepro (1.0.1-1) unstable; urgency=low
 
   * new release
   - new clearvanished command to clean database files a bit
