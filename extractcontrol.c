@@ -127,6 +127,7 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 		} else {
 			r = chunk_read(f,&controlchunk);
 			if( r == RET_NOTHING ) {
+				controlchunk = NULL;
 				fprintf(stderr,"Got no control information from .deb!\n");
 				/* only report error now if we haven't try everything yet */
 				if( brokentar )

@@ -1,3 +1,7 @@
+2006-07-18  Bernhard R. Link <brlink@debian.org>
+	* fix segfault in non-libarchive control extraction code
+	  introduced with the last change
+
 2006-07-16  Bernhard R. Link <brlink@debian.org>
 	* cope with control.tar.gz files without leading ./
 	  when not using libarchive.

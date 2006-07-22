@@ -1,3 +1,6 @@
+Updates since 1.0.1:
+- fix segfault in non-libarchive code introduced with 1.0.0
+
 Updates since 1.0.0:
 - add clearvanished command
 - cope with GNU ar style .deb files (when using libarchive)
