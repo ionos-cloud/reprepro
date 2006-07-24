@@ -45,9 +45,10 @@ struct distribution {
 	struct exportmode dsc,deb,udeb;
 	/* is tracking enabled for this distribution? */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
-	struct { bool_t includechanges:1; 
+	struct trackingoptions { bool_t includechanges:1; 
 		bool_t includebyhand:1;
 		bool_t needsources:1;
+		bool_t keepsources:1;
 		bool_t embargoalls:1;
 		} trackingoptions;
 	/* what content files to generate */

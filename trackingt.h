@@ -5,25 +5,28 @@
 #include "reference.h"
 #endif
 
-struct trackedpackage {
-	char *sourcename;
-	char *sourceversion;
-/*	char *sourcedir; */
-	struct strlist filekeys;
-	int *refcounts;
-};
-typedef struct s_tracking *trackingdb;
-
 enum filetype { ft_ALL_BINARY='a',
 		ft_ARCH_BINARY='b', 
 		ft_CHANGES = 'c',  
 		ft_SOURCE='s',
 		ft_XTRA_DATA='x'};
 
+struct trackedpackage {
+	char *sourcename;
+	char *sourceversion;
+	struct strlist filekeys;
+	int *refcounts;
+	enum filetype *filetypes;
+	struct {
+		bool_t isnew:1;
+		bool_t deleted:1;
+	} flags;
+};
+typedef struct s_tracking *trackingdb;
+
 struct trackingdata {
 	/*@temp@*/trackingdb tracks;
 	struct trackedpackage *pkg;
-	bool_t isnew;
 	/*@null@*/ struct trackingdata_remember {
 		/*@null@*/struct trackingdata_remember *next;
 		char *name;

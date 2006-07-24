@@ -1,3 +1,7 @@
+2006-07-23  Bernhard R. Link <brlink@debian.org>
+	* rewrite some parts of tracking support, implement
+	  "minimal" and "all" methods...
+
 2006-07-18  Bernhard R. Link <brlink@debian.org>
 	* fix segfault in non-libarchive control extraction code
 	  introduced with the last change

@@ -1046,17 +1046,18 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 
 	if( tracks != NULL ) {
 		if( changes->changesfilekey != NULL ) {
+			char *changesfilekey = strdup(changes->changesfilekey);
 			assert( changes->srcdirectory != NULL );
+			if( changesfilekey == NULL ) {
+				trackingdata_done(&trackingdata);
+				changes_free(changes);
+				return RET_ERROR_OOM;
+			}
 
-			r = trackedpackage_addfilekey(tracks,trackingdata.pkg,ft_CHANGES,changes->changesfilekey,FALSE,refs);
+			r = trackedpackage_addfilekey(tracks,trackingdata.pkg,ft_CHANGES,changesfilekey,FALSE,refs);
 			RET_ENDUPDATE(result,r);
 		}
-		if( trackingdata.isnew ) {
-			r = tracking_put(tracks,trackingdata.pkg);
-		} else {
-			r = tracking_replace(tracks,trackingdata.pkg);
-		}
-		trackingdata_done(&trackingdata);
+		r = trackingdata_finish(tracks, &trackingdata, refs, dereferencedfilekeys);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) ) {
 			changes_free(changes);

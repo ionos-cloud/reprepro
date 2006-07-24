@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "8 July, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "23 July, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -627,7 +627,7 @@ no udeb Components are processed at all.)
 .TP
 .B Tracking
 Enable the (experimental) tracking of source packages.
-The argument is a list of the following:
+The argument list needs to contain exactly one of the following:
 .br
 .B keep
 Keeps all files of a given source package, until that
@@ -636,10 +636,16 @@ currently the only possibility to keep older packages
 around when all indices contain newer files.
 .br
 .B all
-Not yet implemented
+Keep all files belonging to a given source package until
+the last file of it is no longer used within that
+distribution.
 .br
 .B minimal
-Not yet implemented
+Remove files no longer included in the tracked distribution.
+(Remove changes and includebyhand files once no file is
+in any part of the distribution).
+.br
+And any number of the following (or none):
 .br
 .B includechanges
 Add the .changes file to the tracked files of an source
@@ -649,6 +655,11 @@ package. Thus it is also put into the pool.
 Not yet implemented.
 .br
 .B ambargoalls
+Not yet implemented.
+.B keepsources
+Even when using minimal mode, do not remove source files
+until no file is needed any more.
+.B needsources
 Not yet implemented.
 .SS conf/updates
 .TP

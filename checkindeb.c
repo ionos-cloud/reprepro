@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -520,12 +520,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 
 	if( tracks != NULL ) {
 		retvalue r2;
-		if( trackingdata.isnew ) {
-			r2 = tracking_put(tracks,trackingdata.pkg);
-		} else {
-			r2 = tracking_replace(tracks,trackingdata.pkg);
-		}
-		trackingdata_done(&trackingdata);
+		r2 = trackingdata_finish(tracks, &trackingdata, refs, dereferencedfilekeys);
 		RET_ENDUPDATE(r,r2);
 	}
 	
