@@ -1,3 +1,7 @@
+2006-07-26  Bernhard R. Link <brlink@debian.org>
+	* do not error out if one file gets unreferenced by two different
+	reasons at the same time.
+
 2006-07-23  Bernhard R. Link <brlink@debian.org>
 	* rewrite some parts of tracking support, implement
 	  "minimal" and "all" methods...

@@ -120,7 +120,20 @@ static inline retvalue removeunreferencedfiles(references refs,filesdb files,str
 
 		r = references_isused(refs,filekey);
 		if( r == RET_NOTHING ) {
-			r = files_deleteandremove(files,filekey,!keepdirectories);
+			r = files_deleteandremove(files,filekey,!keepdirectories,TRUE);
+			if( r == RET_NOTHING ) {
+				/* not found, check if it was us removing it */
+				int j;
+				for( j = i-1 ; j >= 0 ; j-- ) {
+					if( strcmp(dereferencedfilekeys->values[i],
+					    dereferencedfilekeys->values[j]) == 0 )
+						break;
+				}
+				if( j < 0 ) {
+					fprintf(stderr, "To be forgotten filekey '%s' was not known.\n", dereferencedfilekeys->values[i]);
+					r = RET_ERROR_MISSING;
+				}
+			}
 		}
 		RET_UPDATE(result,r);
 	}
@@ -333,7 +346,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,UNUSED(const
 
 	r = references_isused(dist->references,filekey);
 	if( r == RET_NOTHING ) {
-		r = files_deleteandremove(dist->filesdb,filekey,!keepdirectories);
+		r = files_deleteandremove(dist->filesdb,filekey,!keepdirectories,FALSE);
 		return r;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
@@ -624,7 +637,7 @@ ACTION_F(forget) {
 	ret = RET_NOTHING;
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
-			r = files_remove(filesdb,argv[i]);
+			r = files_remove(filesdb, argv[i], FALSE);
 			RET_UPDATE(ret,r);
 		}
 
@@ -635,7 +648,7 @@ ACTION_F(forget) {
 				return RET_ERROR;
 			}
 			*nl = '\0';
-			r = files_remove(filesdb,buffer);
+			r = files_remove(filesdb, buffer, FALSE);
 			RET_UPDATE(ret,r);
 		} 
 	return ret;

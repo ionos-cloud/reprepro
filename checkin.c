@@ -786,7 +786,7 @@ static void changes_unincludefiles(filesdb filesdb,struct changes *changes) {
 		if( e->filekey == NULL || e->wasalreadythere || !e->included )
 			continue;
 
-		(void)files_deleteandremove(filesdb,e->filekey,TRUE);
+		(void)files_deleteandremove(filesdb,e->filekey,TRUE,FALSE);
 	}
 }
 /* delete the files included */
