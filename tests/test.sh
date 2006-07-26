@@ -485,6 +485,23 @@ test ! -f aa_1-1_abacus.deb
 test ! -f aa_1-1.dsc 
 test ! -f aa_1-1.tar.gz
 test ! -f aa-addons_1-1_all.deb
+test -f pool/all/a/aa/aa-addons_1-1_all.deb
+test -f pool/all/a/aa/aa_1-1_abacus.deb
+test -f pool/all/a/aa/aa_1-1.dsc
+test -f pool/all/a/aa/aa_1-1.tar.gz
+$HELPER "$REPREPRO" -b . dumptracks a > results
+cat >results.expected <<END
+Distribution: a
+Source: aa
+Version: 1-1
+Files:
+ pool/all/a/aa/aa-addons_1-1_all.deb a 1
+ pool/all/a/aa/aa_1-1_abacus.deb b 1
+ pool/all/a/aa/aa_1-1.dsc s 1
+ pool/all/a/aa/aa_1-1.tar.gz s 1
+
+END
+diff results.expected results
 $HELPER "$REPREPRO" -b . export a
 grep -q "Version: 1-1" dists/a/all/binary-abacus/Packages
 rm -r dists/a
@@ -502,6 +519,19 @@ test ! -f aa-addons_1-2_all.deb
 test -d dists/a
 grep -q "Version: 1-2" dists/a/all/binary-abacus/Packages
 grep -q "Version: 1-1" dists/b/all/binary-abacus/Packages
+$HELPER "$REPREPRO" -b . dumptracks a > results
+cat >results.expected <<END
+Distribution: a
+Source: aa
+Version: 1-2
+Files:
+ pool/all/a/aa/aa-addons_1-2_all.deb a 1
+ pool/all/a/aa/aa_1-2_abacus.deb b 1
+ pool/all/a/aa/aa_1-2.dsc s 1
+ pool/all/a/aa/aa_1-2.tar.gz s 1
+
+END
+diff results.expected results
 rm -r dists/a dists/b
 $HELPER "$REPREPRO" -b . --export=changed pull a b
 test ! -d dists/a
@@ -516,6 +546,19 @@ test -f aa_1-3.tar.gz
 test -f aa-addons_1-3_all.deb
 test ! -f pool/all/a/aa/aa_1-2.dsc
 test -f pool/all/a/aa/aa_1-2_abacus.deb # still in b
+$HELPER "$REPREPRO" -b . dumptracks a > results
+cat >results.expected <<END
+Distribution: a
+Source: aa
+Version: 1-3
+Files:
+ pool/all/a/aa/aa-addons_1-3_all.deb a 1
+ pool/all/a/aa/aa_1-3_abacus.deb b 1
+ pool/all/a/aa/aa_1-3.dsc s 1
+ pool/all/a/aa/aa_1-3.tar.gz s 1
+
+END
+diff results.expected results
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpackage.sh
 $HELPER "$REPREPRO" -b . --delete --delete --export=never include a test.changes
 $HELPER "$REPREPRO" -b . --export=changed pull b
@@ -552,6 +595,33 @@ test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
 test -f pool/all/a/ab/ab_3-1_abacus.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
+$HELPER "$REPREPRO" -b . dumptracks a > results
+cat >results.expected <<END
+Distribution: a
+Source: aa
+Version: 1-3
+Files:
+ pool/all/a/aa/aa-addons_1-3_all.deb a 1
+ pool/all/a/aa/aa_1-3_abacus.deb b 1
+ pool/all/a/aa/aa_1-3.dsc s 1
+ pool/all/a/aa/aa_1-3.tar.gz s 1
+
+Distribution: a
+Source: ab
+Version: 2-1
+Files:
+ pool/all/a/ab/ab_2-1.dsc s 1
+ pool/all/a/ab/ab_2-1.tar.gz s 1
+
+Distribution: a
+Source: ab
+Version: 3-1
+Files:
+ pool/all/a/ab/ab-addons_3-1_all.deb a 1
+ pool/all/a/ab/ab_3-1_abacus.deb b 1
+
+END
+diff results.expected results
 ERRORMSG="`$HELPER "$REPREPRO" -b . --delete --delete include a broken.changes 2>&1 || echo "error:$?"`"
 test -f broken.changes
 test -f ab_3-1.diff.gz
