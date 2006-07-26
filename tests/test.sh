@@ -454,6 +454,7 @@ cat >> conf/distributions <<EOF
 Codename: a
 Architectures: abacus source
 Components: all
+Tracking: minimal
 
 Codename: b
 Architectures: abacus
@@ -513,10 +514,10 @@ test -f aa_1-3_abacus.deb
 test -f aa_1-3.dsc 
 test -f aa_1-3.tar.gz
 test -f aa-addons_1-3_all.deb
+test ! -f pool/all/a/aa/aa_1-2.dsc
+test -f pool/all/a/aa/aa_1-2_abacus.deb # still in b
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpackage.sh
 $HELPER "$REPREPRO" -b . --delete --delete --export=never include a test.changes
-test ! -f pool/all/a/aa/aa_1-2.dsc
-test -f pool/all/a/aa/aa_1-2_abacus.deb
 $HELPER "$REPREPRO" -b . --export=changed pull b
 grep -q "Version: 1-3" dists/b/all/binary-abacus/Packages
 grep -q "Version: 2-1" dists/b/all/binary-abacus/Packages

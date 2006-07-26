@@ -293,12 +293,13 @@ static retvalue tracking_new(trackingdb t,const char *sourcename,const char *ver
 	struct trackedpackage *p;
 	assert( pkg != NULL && sourcename != NULL && version != NULL );
 
-	printf("[tracing_new %s %s %s]\n",t->codename,sourcename,version);
+	printf("[tracking_new %s %s %s]\n",t->codename,sourcename,version);
 	p = calloc(1,sizeof(struct trackedpackage));
 	if( p == NULL )
 		return RET_ERROR_OOM;
 	p->sourcename = strdup(sourcename);
 	p->sourceversion = strdup(version);
+	p->flags.isnew = TRUE;
 	if( p->sourcename == NULL || p->sourceversion == NULL ) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
@@ -413,7 +414,7 @@ static retvalue tracking_get(trackingdb t,const char *sourcename,const char *ver
 
 
 	assert( pkg != NULL && sourcename != NULL && version != NULL );
-	printf("[tracing_get %s %s %s]\n",t->codename,sourcename,version);
+	printf("[tracking_get %s %s %s]\n",t->codename,sourcename,version);
 
 	cursor = NULL;
 	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
@@ -433,7 +434,7 @@ static retvalue tracking_get(trackingdb t,const char *sourcename,const char *ver
 		}
 	}
 
-	printf("[tracing_get found %s %s %s]\n",t->codename,sourcename,version);
+	printf("[tracking_get found %s %s %s]\n",t->codename,sourcename,version);
 	/* we have found it, now parse it */
 	r = parsedata(sourcename,version,versionlen,data,pkg);
 	(void)cursor->c_close(cursor);
@@ -513,7 +514,7 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 	retvalue r;
 
 	assert( pkg != NULL );
-	printf("[tracing_save %s %s %s]\n", t->codename,
+	printf("[tracking_save %s %s %s]\n", t->codename,
 			pkg->sourcename, pkg->sourceversion);
 
 	SETDBT(key,pkg->sourcename);
@@ -944,6 +945,7 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 	char *id;
 	int i;
 
+	printf("[trackedpackage_removeall %s %s %s]\n",tracks->codename,pkg->sourcename,pkg->sourceversion);
 	id = calc_trackreferee(tracks->codename, pkg->sourcename, pkg->sourceversion);
 	if( id == NULL )
 		return RET_ERROR_OOM;
@@ -1001,6 +1003,7 @@ static inline retvalue trackedpackage_removeunneeded(trackingdb tracks, struct t
 				if( id == NULL )
 					result = RET_ERROR_OOM;
 			}
+			printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
 			r = references_decrement(refs, filekey, id);
 			RET_UPDATE(result,r);
 			r = strlist_add(dereferenced, filekey);
@@ -1038,10 +1041,25 @@ static inline retvalue trackedpackage_tidy(trackingdb tracks, struct trackedpack
 retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, references refs, struct strlist *dereferenced) {
 	
 	retvalue r;
+	assert( d->tracks == tracks );
 	r = trackedpackage_tidy(tracks, d->pkg, refs, dereferenced);
-	r = tracking_saveonly(tracks, d->pkg);
-	// TODO: call for all rememebered actions...
-	trackingdata_done(d);
+	r = tracking_save(tracks, d->pkg);
 	d->pkg = NULL;
+	/* call for all rememebered actions... */
+	while( d->remembered != NULL ) {
+		struct trackingdata_remember *h = d->remembered;
+		struct trackedpackage *pkg;
+		d->remembered = h->next;
+		r = tracking_get(tracks, h->name, h->version, &pkg);
+		free(h->name);
+		free(h->version);
+		free(h);
+		if( RET_IS_OK(r) ) {
+			r = trackedpackage_tidy(tracks, pkg, refs, dereferenced);
+			r = tracking_save(tracks, pkg);
+		}
+	}
+	d->tracks = NULL;
 	return r;
+
 }

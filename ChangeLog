@@ -1,6 +1,8 @@
 2006-07-26  Bernhard R. Link <brlink@debian.org>
 	* do not error out if one file gets unreferenced by two different
 	reasons at the same time.
+	* implement "minimal" and "all" tracking support for packages losing
+	files because of getting replaced by newer ones...
 
 2006-07-23  Bernhard R. Link <brlink@debian.org>
 	* rewrite some parts of tracking support, implement
