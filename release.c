@@ -280,14 +280,11 @@ static retvalue release_usecached(struct release *release,
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 
-	if( (compressions & IC_FLAG(ic_uncompressed)) != 0 ) {
-		r = getcachevalue(release,relfilename,&md5sum);
-		if( !RET_IS_OK(r) ) {
-			free(filename);
-			return r;
-		}
-	} else
-		md5sum = NULL;
+	r = getcachevalue(release,relfilename,&md5sum);
+	if( !RET_IS_OK(r) ) {
+		free(filename);
+		return r;
+	}
 	if( (compressions & IC_FLAG(ic_gzip)) != 0 ) {
 		gzrelfilename = calc_addsuffix(relfilename,"gz");
 		if( gzrelfilename == NULL ) {
