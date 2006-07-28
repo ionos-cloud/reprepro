@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -e 
 
 WORKDIR="`pwd`/testdir"
 
@@ -36,6 +36,7 @@ if ! [ -x "$REPREPRO" ] ; then
 	echo "Could not find $REPREPRO!" >&2
 	exit 1
 fi
+touch results.empty
 mkdir -p conf
 cat > conf/options <<CONFEND
 export changed
@@ -65,7 +66,7 @@ DebOverride: binoverride
 DscOverride: srcoverride
 CONFEND
 
-set -v
+set -v -x
 $HELPER "$REPREPRO" -b . export
 test -f dists/test1/Release
 test -f dists/test2/Release
@@ -283,8 +284,11 @@ Files:
 END
 diff -u results.expected results
 
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 $HELPER "$REPREPRO" -b . cleartracks
 echo returned: $?
+diff results.empty results 
 $HELPER "$REPREPRO" -b . include test1 test.changes
 echo returned: $?
 OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
@@ -327,6 +331,8 @@ Files:
 
 END
 diff -u results.expected results
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 
 echo "now testing .orig.tar.gz handling"
 tar -czf test_1.orig.tar.gz test.changes
@@ -345,6 +351,9 @@ PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="t
 $HELPER "$REPREPRO" -b . include test1 test2.changes
 grep testb_2-3.dsc dists/test1/stupid/source/Sources
 
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
+
 echo "now testing some error messages:"
 PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 ERRORMSG="`$HELPER "$REPREPRO" -b . include test1 test.changes 2>&1 || echo "error:$?"`"
@@ -360,6 +369,8 @@ $HELPER "$REPREPRO" -b . include unknown test.changes test2.changes || ERRORCODE
 ERRORCODE=0
 $HELPER "$REPREPRO" -b . include unknown test.changes || ERRORCODE=$?
 [ $ERRORCODE == 249 ]
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 mkdir conf2
 ERRORMSG="`$HELPER "$REPREPRO" -b . --confdir conf2 update 2>&1 || echo "error:$?"`"
 echo $ERRORMSG | grep -q "Could not find 'conf2/distributions'!"
@@ -420,6 +431,8 @@ echo $ERRORMSG | grep -q "Missing 'Changes' field"
 echo $ERRORMSG | grep -q "Missing 'Files' field"
 echo "Files:" >> broken.changes
 ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 echo $ERRORMSG | grep -q "error:255"
 echo $ERRORMSG | grep -q "Missing 'Urgency' field"
 echo $ERRORMSG | grep -q "Missing 'Maintainer' field"
@@ -442,13 +455,35 @@ echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
 echo $ERRORMSG | grep -q "but no files for this"
 echo $ERRORMSG | grep -q "put in a distribution not listed within"
 echo $ERRORMSG | grep -q "but this is not listed in the Architecture-Header!"
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+cat >results.expected <<EOF
+pool/stupid/n/nowhere/filename_version.tar.gz
+EOF
+diff results.expected results 
+$HELPER "$REPREPRO" -b . deleteunreferenced
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 # first remove file, then try to remove the package
 $HELPER "$REPREPRO" -b . _forget pool/ugly/s/simple/simple_1_abacus.deb
 $HELPER "$REPREPRO" -b . remove test1 simple
 ERRORMSG="`$HELPER "$REPREPRO" -b . remove test2 simple 2>&1 || echo "error:$?"`"
 echo $ERRORMSG | grep -q "error:249"
 echo $ERRORMSG | grep -q "To be forgotten filekey 'pool/ugly/s/simple/simple_1_abacus.deb' was not known"
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 
+for tracking in true false ; do
+cat > conf/distributions <<EOF
+Codename: X
+Architectures: none
+Components: test
+EOF
+$HELPER "$REPREPRO" -b . --delete clearvanished
+echo returned $?
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
+
+if $tracking ; then
 cat >> conf/distributions <<EOF
 
 Codename: a
@@ -461,11 +496,30 @@ Architectures: abacus
 Components: all
 Pull: froma
 EOF
+else
+cat >> conf/distributions <<EOF
+
+Codename: a
+Architectures: abacus source
+Components: all
+
+Codename: b
+Architectures: abacus
+Components: all
+Pull: froma
+EOF
+fi
 cat > conf/pulls <<EOF
 Name: froma
 From: a
 EOF
 
+rm -r dists
+$HELPER "$REPREPRO" -b . cleartracks a
+$HELPER "$REPREPRO" -b . dumptracks a > results
+diff results.empty results 
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 $HELPER "$REPREPRO" -b . --export=changed pull a b
 test ! -d dists/a
 test ! -d dists/b
@@ -501,7 +555,7 @@ Files:
  pool/all/a/aa/aa_1-1.tar.gz s 1
 
 END
-diff results.expected results
+if $tracking; then diff results.expected results ; else diff results.empty results ; fi
 $HELPER "$REPREPRO" -b . export a
 grep -q "Version: 1-1" dists/a/all/binary-abacus/Packages
 rm -r dists/a
@@ -531,7 +585,7 @@ Files:
  pool/all/a/aa/aa_1-2.tar.gz s 1
 
 END
-diff results.expected results
+if $tracking; then diff results.expected results ; else diff results.empty results ; fi
 rm -r dists/a dists/b
 $HELPER "$REPREPRO" -b . --export=changed pull a b
 test ! -d dists/a
@@ -558,7 +612,9 @@ Files:
  pool/all/a/aa/aa_1-3.tar.gz s 1
 
 END
-diff results.expected results
+if $tracking; then diff results.expected results ; else diff results.empty results ; fi
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpackage.sh
 $HELPER "$REPREPRO" -b . --delete --delete --export=never include a test.changes
 $HELPER "$REPREPRO" -b . --export=changed pull b
@@ -586,6 +642,8 @@ test ! -f pool/all/a/ab/ab_3-1_abacus.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 touch ab_3-1.diff.gz
 $HELPER "$REPREPRO" -b . --delete -T deb include a broken.changes
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 test -f broken.changes
 test -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
@@ -621,7 +679,9 @@ Files:
  pool/all/a/ab/ab_3-1_abacus.deb b 1
 
 END
-diff results.expected results
+if $tracking; then diff results.expected results ; else diff results.empty results ; fi
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+diff results.empty results 
 ERRORMSG="`$HELPER "$REPREPRO" -b . --delete --delete include a broken.changes 2>&1 || echo "error:$?"`"
 test -f broken.changes
 test -f ab_3-1.diff.gz
@@ -634,16 +694,24 @@ test -f pool/all/a/ab/ab_3-1_abacus.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 echo $ERRORMSG | grep -q "error:249"
 echo $ERRORMSG | grep -q "Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!"
+cat broken.changes
 $HELPER "$REPREPRO" -b . -T dsc --delete --delete --ignore=missingfile include a broken.changes
 test ! -f broken.changes
 test ! -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
 test ! -f ab_3-1_abacus.deb
 test ! -f ab_3-1.dsc
-# test ! -f pool/all/a/ab/ab_3-1.diff.gz # decide later
+# test ! -f pool/all/a/ab/ab_3-1.diff.gz # decide later (TODO: let reprepro check for those)
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
 test -f pool/all/a/ab/ab_3-1_abacus.deb
 test -f pool/all/a/ab/ab_3-1.dsc
+$HELPER "$REPREPRO" -b . dumpunreferenced > results
+cat > results.expected << EOF
+pool/all/a/ab/ab_3-1.diff.gz
+EOF
+diff results.empty results || diff results.expected results
+$HELPER "$REPREPRO" -b . deleteunreferenced
+
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 $HELPER "$REPREPRO" -b . -A abacus --delete --delete --ignore=missingfile include b test.changes
 grep -q '^Package: aa$' dists/b/all/binary-abacus/Packages
@@ -670,7 +738,8 @@ test ! -f pool/all/a/ac/ac-addons_1-1_all.deb
 test ! -f pool/all/a/ab/ab_2-1_abacus.deb
 test -f pool/all/a/aa/aa_1-3_abacus.deb
 $HELPER "$REPREPRO" -VVVb . copy b a ab ac
-set +v 
+done
+set +v +x
 echo
 echo "If the script is still running to show this,"
 echo "all tested cases seem to work. (Though writing some tests more can never harm)."
