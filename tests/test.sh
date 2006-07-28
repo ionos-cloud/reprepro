@@ -48,7 +48,7 @@ Components: stupid ugly
 Update: Test2toTest1
 DebIndices: Packages Release . .gz .bz2
 UDebIndices: Packages .gz .bz2
-DscIndices: Sources Release . .gz .bz2
+DscIndices: Sources Release .gz .bz2
 Tracking: keep includechanges needsources includebyhand embargoalls
 
 Codename: test2
@@ -340,16 +340,16 @@ PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.s
 ERRORMSG="`$HELPER "$REPREPRO" -b . include test1 test.changes || echo "error:$?"`"
 echo $ERRORMSG | grep -q "error:249"
 $HELPER "$REPREPRO" -b . --ignore=missingfile include test1 test.changes
-grep test_1-2.dsc dists/test1/stupid/source/Sources
+zgrep test_1-2.dsc dists/test1/stupid/source/Sources.gz
 
 tar -czf testb_2.orig.tar.gz test.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-2" SECTION="stupid/base" genpackage.sh -sa
 $HELPER "$REPREPRO" -b . include test1 test.changes
-grep testb_2-2.dsc dists/test1/stupid/source/Sources
+zgrep testb_2-2.dsc dists/test1/stupid/source/Sources.gz
 rm test2.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="test2.changes" genpackage.sh -sd
 $HELPER "$REPREPRO" -b . include test1 test2.changes
-grep testb_2-3.dsc dists/test1/stupid/source/Sources
+zgrep testb_2-3.dsc dists/test1/stupid/source/Sources.gz
 
 $HELPER "$REPREPRO" -b . dumpunreferenced > results
 diff results.empty results 
