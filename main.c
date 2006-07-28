@@ -1936,6 +1936,7 @@ ACTION_D_UU(clearvanished) {
 		/* remove the database */
 		packages_drop(dbdir, identifier);
 	}
+	free(inuse);
 
 	strlist_done(&identifiers);
 	r = distribution_freelist(distributions);

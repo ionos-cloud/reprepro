@@ -4,6 +4,7 @@
 	  Release files when only exporting changed values and
 	  the source part changed not. (Thanks to Alexander Kuehn
 	  for finding this one).
+	* fix tiny memory in clearvanished
 
 2006-07-26  Bernhard R. Link <brlink@debian.org>
 	* do not error out if one file gets unreferenced by two different
