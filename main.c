@@ -1302,7 +1302,7 @@ ACTION_D_U(removetrack) {
 	return result;
 }
 	
-ACTION_R(cleartracks) {
+ACTION_D(cleartracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 
@@ -1332,7 +1332,7 @@ ACTION_R(cleartracks) {
 		}
 		r = tracking_clearall(tracks);
 		RET_UPDATE(result,r);
-		r = references_remove(references, d->codename, NULL);
+		r = references_remove(references, d->codename, dereferenced);
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
@@ -2050,7 +2050,7 @@ static const struct action {
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
 	{"retrack",	 	A_R(retrack)},
 	{"dumptracks",	 	A_N(dumptracks)},
-	{"cleartracks",	 	A_R(cleartracks)},
+	{"cleartracks",	 	A_D(cleartracks)},
 	{"removetrack",		A_D(removetrack)},
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},
