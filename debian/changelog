@@ -1,3 +1,9 @@
+reprepro (1.1.0-2) UNRELEASED; urgency=low
+
+  * ...
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 29 Jul 2006 14:33:54 +0200
+
 reprepro (1.1.0-1) unstable; urgency=low
 
   * new release
