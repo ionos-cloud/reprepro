@@ -4,6 +4,7 @@ reprepro (1.1.0-1) unstable; urgency=low
   - add "minimal" and "all" modes to the (still experimental) source
     package tracking
   - clarify manpage that tracking needs exactly one of minimal all or keep.
+  	(Closes: #378968)
   - cleartracks removes now unnecessary files unless --keepunreferenced given
   - fix bug of uncompressed Sources file sometimes not showing up in Release
     files when the file is not generated.
