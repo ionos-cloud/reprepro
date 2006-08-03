@@ -641,9 +641,12 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 	}
 	if( sourcefilename == NULL ) {
 		fprintf(stderr,"Unable to find %s/%s!\n",db->mirrordir,filekey);
+		if( delete == D_INPLACE ) {
+			fprintf(stderr,"Perhaps you forgot to give dpkg-buildpackage the -sa option,\n or you cound try --ignore=missingfile\n");
+		}
 		return RET_ERROR_MISSING;
 	} if( delete == D_INPLACE ) {
-		if( IGNORING("Make sure your .changes file is correct (perhaps you need to spcify -sa or to ignore it","looking around if it is elsewhere as",missingfile,"Unable to find %s/%s!\n",db->mirrordir,filekey))
+		if( IGNORING("Looking around if it is elsewhere", "To look around harder, ",missingfile,"Unable to find %s/%s!\n",db->mirrordir,filekey))
 			r = copyfile_copy(db->mirrordir,filekey,sourcefilename,md5sum,&md5sumfound);
 		else
 			r = RET_ERROR_MISSING;

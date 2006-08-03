@@ -1,3 +1,6 @@
+2006-08-03  Bernhard R. Link <brlink@debian.org>
+	* improve messages when missing files (.tar.gz most likely)
+
 2006-07-28  Bernhard R. Link <brlink@debian.org>
 	* remove unreferenced files when doing removetracks
 	* fix bug omitting an uncompressed Sources entry in

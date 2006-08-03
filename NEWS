@@ -1,3 +1,6 @@
+Updates since 1.1.0:
+- improve message of missing files
+
 Updates since 1.0.2:
 - extended the (experimental) package tracking feature
 - cleartracks removes files losing their last reference (unless --keepunreferenced as usual)
