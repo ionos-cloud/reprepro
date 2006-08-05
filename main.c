@@ -1046,14 +1046,14 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 					origtarget->packagetype);
 	if( dsttarget == NULL ) {
 		if( verbose > 2 )
-			fprintf(stderr, "Not looking into '%s' as no matching target in '%s'!\n",
+			printf("Not looking into '%s' as no matching target in '%s'!\n",
 					origtarget->identifier,
 					d->destination->codename);
 		result = RET_NOTHING;
 	} else
 		result = packages_get(origtarget->packages, d->name, &chunk);
 	if( result == RET_NOTHING && verbose > 2 )
-		fprintf(stderr, "No instance of '%s' found in '%s'!\n",
+		printf("No instance of '%s' found in '%s'!\n",
 				d->name, origtarget->identifier);
 	r = target_closepackagesdb(origtarget);
 	RET_ENDUPDATE(result,r);
@@ -1076,10 +1076,10 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 		return result;
 	}
 	if( verbose >= 1 ) {
-		fprintf(stderr, "Moving '%s' from '%s' to '%s'.\n",
-					d->name,
-					origtarget->identifier,
-					dsttarget->identifier);
+		printf("Moving '%s' from '%s' to '%s'.\n",
+				d->name,
+				origtarget->identifier,
+				dsttarget->identifier);
 	}
 
 	result = target_initpackagesdb(dsttarget,dbdir);

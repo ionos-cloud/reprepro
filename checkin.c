@@ -423,7 +423,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	r = check(filename,c,"Changes");
 	R;
 	r = chunk_getextralinelist(c->control,"Files",&filelines);
-	E("Missing 'Files' field");
+	E("Missing 'Files' field!");
 	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture);
 	strlist_done(&filelines);
 	R;
@@ -630,7 +630,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	while( e != NULL ) {
 		if( !strlist_in(&changes->architectures,e->architecture) ) {
 			if( !IGNORING_(surprisingarch,
-			"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",filename,e->architecture))
+			"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",e->basename,e->architecture))
 				r = RET_ERROR;
 		}
 		if( e->type == fe_DSC ) {
