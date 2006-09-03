@@ -1,3 +1,6 @@
+2006-08-22  Bernhard R. Link <brlink@debian.org>
+	* fix db3 mention in reprepro.1
+
 2006-08-05  Bernhard R. Link <brlink@debian.org>
 	* some error/status/debug messages improved a little
 
