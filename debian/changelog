@@ -1,8 +1,9 @@
 reprepro (1.1.0-2) UNRELEASED; urgency=low
 
+  * some debug/warning/errormessages improved
   * no longer ignore make distclean errors
 
- -- Bernhard R. Link <brlink@debian.org>  Sun,  3 Sep 2006 11:15:45 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  3 Sep 2006 11:21:02 +0200
 
 reprepro (1.1.0-1) unstable; urgency=low
 
