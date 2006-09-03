@@ -55,7 +55,7 @@ clean:
 	rm -f build-stamp 
 
 	# clean up after the build process.
-	-$(MAKE) distclean
+	if [ -e config.status ] ; then $(MAKE) distclean ; fi
 
 	dh_clean 
 
