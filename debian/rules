@@ -80,7 +80,10 @@ binary-arch: build install
 	dh_testroot
 	dh_installchangelogs ChangeLog
 	dh_installdocs
-	dh_installexamples
+	# I really discourage building packages directly from CVS
+	# but in case anyone insists in creating local packages that
+	# way, do not include the CVS subdirs...
+	dh_installexamples -XCVS
 	dh_link
 	dh_strip
 	dh_compress
