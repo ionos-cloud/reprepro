@@ -730,8 +730,7 @@ static retvalue files_addfilelist(filesdb db,const char *filekey,const char *fil
 	const char *e;
 
 	SETDBT(key,filekey);
-	SETDBT(data,filelist);
-        memset(&data,0,sizeof(data));
+	memset(&data,0,sizeof(data));
 	e = filelist;
 	while( *e != '\0' ) {
 		while( *e != '\0' )
@@ -787,6 +786,7 @@ retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_
 retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
 	char *debfilename = calc_dirconcat(db->mirrordir, filekey);
 	char *contents;
+	const char *p;
 	retvalue result,r;
 
 	if( debfilename == NULL ) {
@@ -797,9 +797,11 @@ retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_
 	if( !RET_IS_OK(r) )
 		return r;
 	result = files_addfilelist(db, filekey, contents);
-	r = filelist_add(filelist, package, contents);
+	for( p = contents; *p != '\0'; p += strlen(p)+1 ) {
+		r = filelist_add(filelist, package, p);
+		RET_UPDATE(result,r);
+	}
 	free(contents);
-	RET_UPDATE(result,r);
 	return result;
 }
 

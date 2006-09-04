@@ -1,11 +1,13 @@
 reprepro (1.2.0-1) UNRELEASED; urgency=low
 
-  * some debug/warning/errormessages improved
-  * no longer ignore make distclean errors
-  * manpage no longer claims using libdb3 (Closes: 384075)
-  * support .changes files referencing .tar.bz2 and/or .diff.bz2
+  * new release
+  - some debug/warning/errormessages improved
+  - no longer ignore make distclean errors
+  - manpage no longer claims using libdb3 (Closes: 384075)
+  - support .changes files referencing .tar.bz2 and/or .diff.bz2
+  - fix bug dalaying full Contents-* file generation
 
- -- Bernhard R. Link <brlink@debian.org>  Mon,  4 Sep 2006 16:26:01 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Mon,  4 Sep 2006 17:08:10 +0200
 
 reprepro (1.1.0-1) unstable; urgency=low
 

@@ -1,5 +1,7 @@
 2006-09-04  Bernhard R. Link <brlink@debian.org>
 	* support .orig.tar.bz2 .tar.bz2 and .diff.bz2 in source packages
+	* fix bug, causing  Contents-* files containing only the first file
+	  of a package when this is the first time this package is accessed
 
 2006-08-22  Bernhard R. Link <brlink@debian.org>
 	* fix db3 mention in reprepro.1
