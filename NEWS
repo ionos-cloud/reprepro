@@ -1,5 +1,8 @@
 Updates since 1.1.0:
 - improve message of missing files
+- checkin now support .tar.bz2, .diff.bz2 and .tar.bz2
+  (checkindsc did not care, binaries may contain tar.bz2 if reprepro
+   is compiled with libarchive and libbz2)
 
 Updates since 1.0.2:
 - extended the (experimental) package tracking feature

@@ -272,6 +272,12 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 			type = fe_DIFF;
 		else if( p-versionstart > 4 && strncmp(p-4,".dsc",4) == 0 )
 			type = fe_DSC;
+		else if( p-versionstart > 13 && strncmp(p-13,".orig.tar.bz2",13) == 0 )
+			type = fe_ORIG;
+		else if( p-versionstart > 8 && strncmp(p-8,".tar.bz2",8) == 0 )
+			type = fe_TAR;
+		else if( p-versionstart > 9 && strncmp(p-9,".diff.bz2",9) == 0 )
+			type = fe_DIFF;
 		else {
 			type = fe_UNKNOWN;
 			fprintf(stderr,"Unknown filetype: '%s', assuming to be source format...\n",fileline);

@@ -1,3 +1,6 @@
+2006-09-04  Bernhard R. Link <brlink@debian.org>
+	* support .orig.tar.bz2 .tar.bz2 and .diff.bz2 in source packages
+
 2006-08-22  Bernhard R. Link <brlink@debian.org>
 	* fix db3 mention in reprepro.1
 
