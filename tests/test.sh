@@ -6,22 +6,22 @@ testrun() {
 rules=$1
 shift
 if test "x$rules" = "x" ; then
-	/home/brl/src/testtool/testtool $TESTOPTIONS "$REPREPRO" "$@"
+	"$TESTTOOL" $TESTOPTIONS "$REPREPRO" "$@"
 elif test "x$rules" = "x-" ; then
-	/home/brl/src/testtool/testtool -r $TESTOPTIONS "$REPREPRO" "$@"
+	"$TESTTOOL" -r $TESTOPTIONS "$REPREPRO" "$@"
 else
-	/home/brl/src/testtool/testtool -r $TESTOPTIONS "$REPREPRO" "$@" 3<"$rules".rules
+	"$TESTTOOL" -r $TESTOPTIONS "$REPREPRO" "$@" 3<"$rules".rules
 fi
 }
 testout() {
 rules=$1
 shift
 if test "x$rules" = "x" ; then
-	/home/brl/src/testtool/testtool -o results $TESTOPTIONS "$REPREPRO" "$@"
+	"$TESTTOOL" -o results $TESTOPTIONS "$REPREPRO" "$@"
 elif test "x$rules" = "x-" ; then
-	/home/brl/src/testtool/testtool -o results -r $TESTOPTIONS "$REPREPRO" "$@"
+	"$TESTTOOL" -o results -r $TESTOPTIONS "$REPREPRO" "$@"
 else
-	/home/brl/src/testtool/testtool -o results -r $TESTOPTIONS "$REPREPRO" "$@" 3<"$rules".rules
+	"$TESTTOOL" -o results -r $TESTOPTIONS "$REPREPRO" "$@" 3<"$rules".rules
 fi
 }
 dogrep() {
