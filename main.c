@@ -2112,14 +2112,14 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 			}
 
 			assert( result != RET_NOTHING );
-			if( RET_IS_OK(result) && !interupted() ) {
+			if( RET_IS_OK(result) && !interrupted() ) {
 				result = action->start(references,filesdb,
 					deletederef?&dereferencedfilekeys:NULL,
 					argc,argv);
 
 				if( deletederef ) {
 					if( dereferencedfilekeys.count > 0 ) {
-					    if( RET_IS_OK(result) && !interupted() ) {
+					    if( RET_IS_OK(result) && !interrupted() ) {
 						retvalue r;
 
 						assert(filesdb!=NULL);
@@ -2422,23 +2422,23 @@ static void handle_option(int c,const char *optarg) {
 	}
 }
 
-static volatile bool_t was_interupted = FALSE;
-static bool_t interuption_printed = FALSE;
+static volatile bool_t was_interrupted = FALSE;
+static bool_t interruption_printed = FALSE;
 
-bool_t interupted(void) {
-	if( was_interupted ) {
-		if( !interuption_printed ) {
-			interuption_printed = TRUE;
-			fprintf(stderr, "\n\nInteruption in progress, interupt again to force-stop it (and risking database corruption!)\n\n");
+bool_t interrupted(void) {
+	if( was_interrupted ) {
+		if( !interruption_printed ) {
+			interruption_printed = TRUE;
+			fprintf(stderr, "\n\nInterruption in progress, interrupt again to force-stop it (and risking database corruption!)\n\n");
 		}
 		return TRUE;
 	} else
 		return FALSE;
 }
 
-static void interupt_signaled(int signal) /*__attribute__((signal))*/;
-static void interupt_signaled(UNUSED(int signal)) {
-	was_interupted = TRUE;
+static void interrupt_signaled(int signal) /*__attribute__((signal))*/;
+static void interrupt_signaled(UNUSED(int signal)) {
+	was_interrupted = TRUE;
 }
 
 int main(int argc,char *argv[]) {
@@ -2492,7 +2492,7 @@ int main(int argc,char *argv[]) {
 
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = SA_ONESHOT;
-	sa.sa_handler = interupt_signaled;
+	sa.sa_handler = interrupt_signaled;
 	(void)sigaction(SIGTERM, &sa, NULL);
 	(void)sigaction(SIGABRT, &sa, NULL);
 	(void)sigaction(SIGINT, &sa, NULL);
@@ -2504,7 +2504,7 @@ int main(int argc,char *argv[]) {
 
 	config_state = CONFIG_OWNER_CMDLINE;
 
-	if( interupted() ) 
+	if( interrupted() ) 
 		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 
 	while( (c = getopt_long(argc,argv,"+fVvhb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
@@ -2514,7 +2514,7 @@ int main(int argc,char *argv[]) {
 		fprintf(stderr,"No action given. (see --help for available options and actions)\n");
 		exit(EXIT_FAILURE);
 	}
-	if( interupted() ) 
+	if( interrupted() ) 
 		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
@@ -2562,7 +2562,7 @@ int main(int argc,char *argv[]) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
-	if( interupted() ) 
+	if( interrupted() ) 
 		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 	a = all_actions;
 	while( a->name != NULL ) {

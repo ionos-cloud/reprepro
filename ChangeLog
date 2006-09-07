@@ -1,3 +1,6 @@
+2006-09-07  Bernhard R. Link <brlink@debian.org>
+	* fix some typos (thanks to Jordi Mallach for noting)
+
 2006-09-04  Bernhard R. Link <brlink@debian.org>
 	* support .orig.tar.bz2 .tar.bz2 and .diff.bz2 in source packages
 	* fix bug, causing  Contents-* files containing only the first file

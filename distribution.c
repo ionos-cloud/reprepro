@@ -585,7 +585,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		d = distributions;
 		distributions = d->next;
 
-		if( (RET_WAS_ERROR(d->status)||interupted()) && when != EXPORT_FORCE ) {
+		if( (RET_WAS_ERROR(d->status)||interrupted()) && when != EXPORT_FORCE ) {
 			if( verbose >= 10 )
 				fprintf(stderr, 
 " Not exporting %s because there have been errors and no --export=force.\n",
@@ -636,7 +636,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
 	}
-	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interupted()) ) {
+	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interrupted()) ) {
 		if( verbose >= 10 )
 			fprintf(stderr, 
 "Not exporting %s because there have been errors and no --export=force.\n"

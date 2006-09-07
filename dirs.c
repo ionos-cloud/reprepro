@@ -70,7 +70,7 @@ retvalue dirs_make_parent(const char *filename) {
 retvalue dirs_make_recursive(const char *directory) {
 	retvalue r,result;
 	
-	if( interupted() ) {
+	if( interrupted() ) {
 		return RET_ERROR_INTERUPTED;
 	}
 	r = dirs_make_parent(directory);

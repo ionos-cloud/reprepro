@@ -903,7 +903,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 			e = e->next;
 			continue;
 		}
-		if( interupted() ) {
+		if( interrupted() ) {
 			return RET_ERROR_INTERUPTED;
 		}
 		if( e->type == fe_DEB ) {
@@ -975,13 +975,13 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( !RET_WAS_ERROR(r) )
 		r = changes_check(changesfilename,changes,forcearchitecture,packagetypeonly);
 
-	if( interupted() )
+	if( interrupted() )
 		RET_UPDATE(r,RET_ERROR_INTERUPTED);
 
 	if( !RET_WAS_ERROR(r) )
 		r = changes_checkfiles(filesdb,changesfilename,changes);
 
-	if( interupted() )
+	if( interrupted() )
 		RET_UPDATE(r,RET_ERROR_INTERUPTED);
 
 	/* add files in the pool */
@@ -1017,7 +1017,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 				trackingdata_done(&trackingdata);
 				return RET_ERROR_OOM;
 			}
-			if( interupted() )
+			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
 			/* always D_COPY, and only delete it afterwards... */
@@ -1031,7 +1031,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			}
 		}
 	}
-	if( interupted() ) {
+	if( interrupted() ) {
 		trackingdata_done(&trackingdata);
 		changes_free(changes);
 		return RET_ERROR_INTERUPTED;

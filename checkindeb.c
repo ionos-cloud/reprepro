@@ -447,7 +447,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			if( interupted() )
+			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
 				r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ARCH_BINARY);
@@ -460,7 +460,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			if( interupted() )
+			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
 				r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
@@ -476,7 +476,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			if( interupted() )
+			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
 				r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
