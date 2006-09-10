@@ -56,7 +56,7 @@ if [ "1" -gt "$#" ] || [ "3" -lt "$#" ] ; then
 	exit 1
 fi
 SRCDIR="$1"
-if [ test -z "$TESTOPTIONS" ] ; then
+if [ -z "$TESTOPTIONS" ] ; then
 	TESTOPTIONS="-e -a"
 #	TESTOPTIONS="-e -a --debug --suppressions=$SRCDIR/valgrind.supp"
 fi
