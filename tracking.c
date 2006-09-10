@@ -1003,15 +1003,18 @@ static inline retvalue trackedpackage_removeunneeded(trackingdb tracks, struct t
 				if( id == NULL )
 					result = RET_ERROR_OOM;
 			}
-			printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
-			r = references_decrement(refs, filekey, id);
-			RET_UPDATE(result,r);
-			r = strlist_add(dereferenced, filekey);
-			RET_UPDATE(result,r);
+			if( id != NULL ) {
+				printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
+				r = references_decrement(refs, filekey, id);
+				RET_UPDATE(result,r);
+				r = strlist_add(dereferenced, filekey);
+				RET_UPDATE(result,r);
+			}
 		}
 	}
 	assert( j <= pkg->filekeys.count );
 	pkg->filekeys.count = j;
+	free(id);
 	return result;
 }
 
