@@ -47,25 +47,28 @@ if [ "x$1" == "x--delete" ] ; then
 	rm -r "$WORKDIR" || true
 	shift
 fi
-TESTOPTIONS="-e -a"
 
 mkdir "$WORKDIR"
 cd "$WORKDIR"
 
 if [ "1" -gt "$#" ] || [ "3" -lt "$#" ] ; then
-	echo "Syntax: test.sh <src-dir> [<reprepro-binary>] [<testtool-binary>]" >&2
+	echo "Syntax: test.sh <src-dir> [<testtool-binary>] [<reprepro-binary>]" >&2
 	exit 1
 fi
 SRCDIR="$1"
-if [ "2" -le "$#" ] ; then
-	REPREPRO="$2"
-else
-	REPREPRO="$SRCDIR/reprepro"
+if [ test -z "$TESTOPTIONS" ] ; then
+	TESTOPTIONS="-e -a"
+#	TESTOPTIONS="-e -a --debug --suppressions=$SRCDIR/valgrind.supp"
 fi
-if [ "3" -le "$#" ] ; then
-	TESTTOOL="$3"
+if [ "2" -le "$#" ] ; then
+	TESTTOOL="$2"
 else
 	TESTTOOL=testtool
+fi
+if [ "3" -le "$#" ] ; then
+	REPREPRO="$3"
+else
+	REPREPRO="$SRCDIR/reprepro"
 fi
 TESTS="$SRCDIR/tests"
 UPDATETYPE=update
