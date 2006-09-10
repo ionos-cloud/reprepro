@@ -1,5 +1,7 @@
 Updates since 1.2.0:
-
+- Do not reject package with broken signatures or signatures where
+  a key is missing. When using --onlyacceptsigned one valid signature
+  (i.e. from a known and not expired key and not expired) suffices.
 
 Updates since 1.1.0:
 - improve message of missing files

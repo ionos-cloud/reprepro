@@ -151,7 +151,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename,
 
 	dsc = calloc(1,sizeof(struct dscpackage));
 
-	r = signature_readsignedchunk(filename,&dsc->control,onlysigned);
+	r = signature_readsignedchunk(filename,&dsc->control,onlysigned,NULL);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;

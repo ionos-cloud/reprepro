@@ -144,6 +144,14 @@ retvalue strlist_add(struct strlist *strlist, char *element) {
 	return RET_OK;
 }
 
+retvalue strlist_add_dup(struct strlist *strlist, const char *todup) {
+	char *element = strdup(todup);
+
+	if( element == NULL )
+		return RET_ERROR_OOM;
+	return strlist_add(strlist, element);
+}
+
 retvalue strlist_include(struct strlist *strlist, char *element) {
 	char **v;
 

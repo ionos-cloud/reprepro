@@ -363,9 +363,76 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	return r;
 }
 
+static retvalue checksigs(/*@null@*/ /*@out@*/struct strlist *validkeys) {
+	int idx; GpgmeSigStat sigstat;
+	struct strlist fingerprints;
+	const char *fingerprint;
+	retvalue r;
+	bool_t goodsignature = FALSE;
+
+	if( validkeys != NULL ) {
+		r = strlist_init(&fingerprints);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	idx = 0;
+	while( (fingerprint = gpgme_get_sig_status(context,idx,&sigstat,NULL)) != NULL ) {
+		
+		if( sigstat == GPGME_SIG_STAT_GOOD ) {
+			if( validkeys != NULL ) {
+				r = strlist_add_dup(validkeys, fingerprint);
+				if( RET_WAS_ERROR(r) ) {
+					strlist_done(&fingerprints);
+					return r;
+				}
+			}
+			goodsignature = TRUE;
+			if( verbose > 5 )
+				fprintf(stderr, "Valid signature with %s.\n",
+						fingerprint);
+		} else {
+			if( verbose > 5 ) {
+				switch( sigstat ) {
+					case GPGME_SIG_STAT_NOKEY:
+						fprintf(stderr,
+"Unknown key %s, signature cannot be checked!\n", fingerprint);
+						break;
+					case GPGME_SIG_STAT_BAD:
+						fprintf(stderr,
+"Bad signature with %s!\n", fingerprint);
+						break;
+#ifdef HASGPGMEGOODEXP
+					case GPGME_SIG_STAT_GOOD_EXP:
+						fprintf(stderr,
+"Expired signature with %s!\n", fingerprint);
+						break;
+					case GPGME_SIG_STAT_GOOD_EXPKEY:
+						fprintf(stderr,
+"Signature with expired key %s!\n", fingerprint);
+						break;
+#endif
+					case GPGME_SIG_STAT_ERROR:
+					default:
+						fprintf(stderr,
+"Error verifying signature with %s!\n", fingerprint);
+						break;
+				}
+			}
+
+		}
+		idx++;
+	}
+	if( goodsignature ) {
+		if( validkeys != NULL )
+			strlist_move(validkeys, &fingerprints);
+		return RET_OK;
+	} else
+		return RET_NOTHING;
+}
+
 /* Read a single chunk from a file, that may be signed. */
 // TODO: Think about ways to check the signature...
-retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned) {
+retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned, /*@null@*/ /*@out@*/struct strlist *validkeys) {
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	GpgmeError err;
@@ -408,43 +475,39 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 			gpgme_data_release(dh);
 			break;
 		case GPGME_SIG_STAT_DIFF:
-			gpgme_data_release(dh_gpg);
-			gpgme_data_release(dh);
-			fprintf(stderr,"Multiple signatures of different state, which is not yet supported in '%s'!\n",filename);
-			return RET_ERROR_BADSIG;
 		case GPGME_SIG_STAT_NOKEY:
-			if( onlyacceptsigned ) {
-				gpgme_data_release(dh_gpg);
-				gpgme_data_release(dh);
-				fprintf(stderr,"Unknown key involved in'%s'!\n",filename);
-				return RET_ERROR_BADSIG;
-			}
-			if( verbose > -1 ) 
-				fprintf(stderr,"Signature with unknown key, proceeding anyway...\n");
-			gpgme_data_release(dh_gpg);
-			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
-			break;
 		case GPGME_SIG_STAT_GOOD:
-			gpgme_data_release(dh_gpg);
-			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
-			break;
 		case GPGME_SIG_STAT_BAD:
-			gpgme_data_release(dh_gpg);
-			gpgme_data_release(dh);
-			fprintf(stderr,"Signature is bad!\n");
-			return RET_ERROR_BADSIG;
 #ifdef HASGPGMEGOODEXP
 		case GPGME_SIG_STAT_GOOD_EXP:
-			gpgme_data_release(dh_gpg);
-			gpgme_data_release(dh);
-			fprintf(stderr,"Signature is valid but expired!\n");
-			return RET_ERROR_BADSIG;
 		case GPGME_SIG_STAT_GOOD_EXPKEY:
-			gpgme_data_release(dh_gpg);
-			gpgme_data_release(dh);
-			fprintf(stderr,"Signature is valid but the key is expired!\n");
-			return RET_ERROR_BADSIG;
 #endif
+			r = checksigs(validkeys);
+			if( RET_IS_OK(r) &&
+					( stat == GPGME_SIG_STAT_BAD ||
+#ifdef HASGPGMEGOODEXP
+					  stat == GPGME_SIG_STAT_GOOD_EXP || 
+					  stat == GPGME_SIG_STAT_GOOD_EXPKEY || 
+#endif
+					  stat == GPGME_SIG_STAT_NOKEY ) ) {
+				fprintf(stderr, "WARNING: Inconsistent data from gpgme for '%s', ignoring all found signatures!\n", filename);
+				if( validkeys )
+					strlist_done(validkeys);
+				r = RET_NOTHING;
+			}
+			if( r == RET_NOTHING ) {
+				if( onlyacceptsigned ) {
+					gpgme_data_release(dh_gpg);
+					gpgme_data_release(dh);
+					fprintf(stderr,"No valid signature found in '%s'!\n",filename);
+					return RET_ERROR_BADSIG;
+				}
+				if( validkeys )
+					strlist_init(validkeys);
+			}
+			gpgme_data_release(dh_gpg);
+			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
+			break;
 		case GPGME_SIG_STAT_NONE:
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
@@ -462,7 +525,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 			gpgme_data_release(dh_gpg);
 			gpgme_data_release(dh);
 			fprintf(stderr,"Error checking the signature within '%s' (gpgme gave error code %d)!\n",filename,(int)stat);
-			return RET_ERROR_BADSIG;
+			return RET_ERROR_GPGME;
 	}
 
 	startofchanges = plain_data;

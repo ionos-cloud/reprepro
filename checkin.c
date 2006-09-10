@@ -102,6 +102,7 @@ struct changes {
 		       binaries;
 	struct fileentry *files;
 	char *control;
+	struct strlist fingerprints;
 	/* Things to be set by changes_fixfields: */
 	/* the component source files are put into */
 	const char *srccomponent;
@@ -150,6 +151,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 		free(changes->changesfilekey);
 //		trackedpackage_free(changes->trackedpkg);
 		free(changes->incomingdirectory);
+		strlist_done(&changes->fingerprints);
 	}
 	free(changes);
 }
@@ -400,7 +402,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	c = calloc(1,sizeof(struct changes));
 	if( c == NULL )
 		return RET_ERROR_OOM;
-	r = signature_readsignedchunk(filename,&c->control,onlysigned);
+	r = signature_readsignedchunk(filename,&c->control,onlysigned,&c->fingerprints);
 	R;
 	r = check(filename,c,"Format");
 	R;
