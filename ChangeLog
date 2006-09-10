@@ -1,3 +1,6 @@
+2006-09-10  Bernhard R. Link <brlink@debian.org>
+	* new strlist_add_dup
+
 2006-09-07  Bernhard R. Link <brlink@debian.org>
 	* fix some typos (thanks to Jordi Mallach for noting)
 
