@@ -2,6 +2,14 @@ Updates since 1.2.0:
 - Do not reject package with broken signatures or signatures where
   a key is missing. When using --onlyacceptsigned one valid signature
   (i.e. from a known and not expired key and not expired) suffices.
+- Now looks at the Binary: and Version: fields of a .changes file.
+  Unless the new --ignore=wrongversion is specified, a dsc must
+  have the same version, and a .deb must have this source version
+  unless --ignore=wrongsourceversion is given. A .deb must also
+  contain a package listed in the Binary: header unless 
+  --ignore=surprisingbinary is given. (A .dsc with an other name
+  or a .deb with an other Source than the Source-header if the
+  .changes file is still not ignoreable due to file naming issues)
 
 Updates since 1.1.0:
 - improve message of missing files

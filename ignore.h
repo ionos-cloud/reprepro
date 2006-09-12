@@ -23,6 +23,9 @@
 	IGN(extension) \
 	IGN(unusedarch) \
 	IGN(surprisingarch) \
+	IGN(surprisingbinary) \
+	IGN(wrongsourceversion) \
+	IGN(wrongversion) \
 	IGN(missingfile)
 
 

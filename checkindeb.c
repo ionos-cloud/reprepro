@@ -28,6 +28,7 @@
 #include <ctype.h>
 #include <zlib.h>
 #include "error.h"
+#include "ignore.h"
 #include "strlist.h"
 #include "md5sum.h"
 #include "names.h"
@@ -297,7 +298,7 @@ static retvalue deb_calclocations(struct debpackage *pkg,/*@null@*/const char *g
 	return r;
 }
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,const struct overrideinfo *binoverride,int delete,bool_t needsourceversion){
+retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,const struct overrideinfo *binoverride,int delete,bool_t needsourceversion,const struct strlist *allowed_binaries,const char *expectedsourcepackage,const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -308,9 +309,38 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 
 	/* First taking a closer look to the file: */
 
-	r = deb_read(&pkg,debfilename,needsourceversion);
+	r = deb_read(&pkg,debfilename,
+			needsourceversion || expectedsourceversion != NULL);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
+	}
+	if( allowed_binaries != NULL &&
+	    !strlist_in(allowed_binaries, pkg->package) &&
+	    !IGNORING_(surprisingbinary,
+"'%s' has packagename '%s' not listed in the .changes file!\n",
+					debfilename, pkg->package)) {
+		deb_free(pkg);
+		return RET_ERROR;
+	}
+	if( expectedsourcepackage != NULL &&
+	    strcmp(pkg->source, expectedsourcepackage) != 0 ) {
+		/* this cannot ne ignored easily, as it determines
+		 * the directory this file is stored into */
+	    fprintf(stderr,
+"'%s' lists source package '%s', but .changes says it is '%s'!\n",
+				debfilename, pkg->source,
+				expectedsourcepackage);
+		deb_free(pkg);
+		return RET_ERROR;
+	}
+	if( expectedsourceversion != NULL &&
+	    strcmp(pkg->sourceversion, expectedsourceversion) != 0 &&
+	    !IGNORING_(wrongsourceversion,
+"'%s' lists source version '%s', but .changes says it is '%s'!\n",
+				debfilename, pkg->sourceversion,
+				expectedsourceversion)) {
+		deb_free(pkg);
+		return RET_ERROR;
 	}
 
 	oinfo = override_search(binoverride,pkg->package);
@@ -395,7 +425,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	}
 	if( !strlist_in(components,pkg->component) ) {
 		fprintf(stderr,"While checking in '%s': Would put in component '%s', but that is not available!\n",debfilename,pkg->component);
-		/* this cannot be ignored on force as there is not data structure available*/
+		/* this cannot be ignored as there is not data structure available*/
 		return RET_ERROR;
 	}
 
@@ -502,7 +532,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( givenfilekey != NULL && givenmd5sum != NULL ) {
 		assert( delete == D_INPLACE );
 	}
-	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,binoverride,delete,tracks!=NULL);
+	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,binoverride,delete,tracks!=NULL,NULL,NULL,NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

@@ -855,7 +855,9 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				"deb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->deb,D_INPLACE,FALSE);
+				ao->deb,D_INPLACE,FALSE,
+				&changes->binaries,
+				changes->source,changes->version);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_UDEB ) {
@@ -865,7 +867,9 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				"udeb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->udeb,D_INPLACE,FALSE);
+				ao->udeb,D_INPLACE,FALSE,
+				&changes->binaries,
+				changes->source,changes->version);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_DSC ) {
@@ -876,7 +880,8 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				distribution,sourcedirectory,fullfilename,
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
-				ao->dsc,D_INPLACE,onlysigned);
+				ao->dsc,D_INPLACE,onlysigned,
+				changes->source,changes->version);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		}

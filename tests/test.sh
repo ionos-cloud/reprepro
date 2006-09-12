@@ -697,6 +697,136 @@ EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results 
 
+cat > broken.changes <<EOF
+Format: -1.0
+Date: yesterday
+Source: differently
+Version: 0another
+Architecture: source abacus
+Urgency: super-hyper-duper-important
+Maintainer: still me <guess@who>
+Description: missing
+Changes: missing
+Binary: none and nothing
+Distribution: test2
+Files:
+ `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b differently_0another.dsc
+ `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
+EOF
+#todo: make it work without this..
+cp 4test_b.1-1.dsc differently_0another.dsc
+testrun - -b . include test2 broken.changes 3<<EOF
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Strange file '4test_b.1-1.dsc'!
+=Looks like source but does not start with 'differently_' as I would have guessed!
+=I hope you know what you do.
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=I don't know what to do having a .dsc without a .diff.gz or .tar.gz in 'broken.changes'!
+*=There have been errors!
+returns 255
+EOF
+cat >> broken.changes <<EOF
+ `md5sum 4test_b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_b.1-1.tar.gz` a b 4test_b.1-1.tar.gz
+EOF
+testrun - -b . include test2 broken.changes 3<<EOF
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Strange file '4test_b.1-1.dsc'!
+=Warning: Strange file '4test_b.1-1.tar.gz'!
+=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Looks like source but does not start with 'differently_' as I would have guessed!
+=I hope you know what you do.
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*=To ignore use --ignore=surprisingbinary.
+*=There have been errors!
+returns 255
+EOF
+testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Strange file '4test_b.1-1.dsc'!
+=Warning: Strange file '4test_b.1-1.tar.gz'!
+=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Looks like source but does not start with 'differently_' as I would have guessed!
+=I hope you know what you do.
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*=Ignoring as --ignore=surprisingbinary given.
+*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' lists source package '4test', but .changes says it is 'differently'!
+*=There have been errors!
+returns 255
+EOF
+cat > broken.changes <<EOF
+Format: -1.0
+Date: yesterday
+Source: 4test
+Version: 0orso
+Architecture: source abacus
+Urgency: super-hyper-duper-important
+Maintainer: still me <guess@who>
+Description: missing
+Changes: missing
+Binary: 4test
+Distribution: test2
+Files:
+ `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b 4test_0orso.dsc
+ `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
+ `md5sum 4test_b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_b.1-1.tar.gz` a b 4test_b.1-1.tar.gz
+EOF
+cp 4test_b.1-1.dsc 4test_0orso.dsc
+testrun - -b . include test2 broken.changes 3<<EOF
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Strange file '4test_b.1-1.dsc'!
+=Looks like source but does not start with 'differently_' as I would have guessed!
+=I hope you know what you do.
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*=To ignore use --ignore=wrongsourceversion.
+*=There have been errors!
+returns 255
+EOF
+testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Strange file '4test_b.1-1.dsc'!
+=Looks like source but does not start with 'differently_' as I would have guessed!
+=I hope you know what you do.
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*=Ignoring as --ignore=wrongsourceversion given.
+*='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
+*=To ignore use --ignore=wrongversion.
+*=There have been errors!
+returns 255
+EOF
+testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 broken.changes 3<<EOF
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Strange file '4test_b.1-1.dsc'!
+=Looks like source but does not start with 'differently_' as I would have guessed!
+=I hope you know what you do.
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*=Ignoring as --ignore=wrongsourceversion given.
+*='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
+*=Ignoring as --ignore=wrongversion given.
+=Exporting indices...
+EOF
+testrun - -b . remove test2 4test 3<<EOF
+=Exporting indices...
+=Deleting files no longer referenced...
+stdout
+*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results 
+
 for tracking in true false ; do
 cat > conf/distributions <<EOF
 Codename: X

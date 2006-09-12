@@ -1,4 +1,11 @@
-2006-09-10  Bernhard R. Link <brlink@debian.org>
+2006-09-12  Bernhard R. Link <brlink@debian.org>
+	* reject .changes with binaries not listed, unless --ignore=surprisingbinary
+	* reject .changes with .dsc or .deb with wrong source version
+	  unless --ignore=wrongversion or --ignore=wrongsourceversion
+	* earlier and better error message if source name differs from the one
+	  given in the .changes file.
+	
+2006-09-11  Bernhard R. Link <brlink@debian.org>
 	* new strlist_add_dup
 	* more fine tuned signature checking (one valid signature suffices)
 	* fix a little memory hole in tracking code

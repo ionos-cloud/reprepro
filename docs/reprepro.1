@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "23 July, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "11 September, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -924,8 +924,13 @@ do not separate chunks as thus will cause reprepro to behave
 unexpected, they cause error messages by default.
 .TP
 .B surprisingarch
-No longer reject a .changes file containing files for a
+Do not reject a .changes file containing files for a
 architecture not listed in the Architecture-header within it.
+.TP
+.B surprisingbinary
+Do not reject a .changes file containing .deb files containing
+packages whose name is not listed in the "Binary:" header
+of that changes file.
 .TP
 .B unknownfield \fR(for forward compatibility)
 Ignore unknown fields in the config files, instead of refusing to run
@@ -938,6 +943,18 @@ architectures listed in the Architecture-header within it.
 .B wrongdistribution \fR(save to ignore)
 Do not error out if a .changes file is to be placed in a
 distribution not listed in that files' Distributions: header.
+.TP
+.B wrongsourceversion
+Do not reject a .changes file containing .deb files with
+a different opinion on what the version of the source package is.
+.br
+(Note: reprepro only compares literally here, not by meaning.)
+.TP
+.B wrongversion
+Do not reject a .changes file containing .dsc files with
+a different version.
+.br
+(Note: reprepro only compares literally here, not by meaning.)
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with

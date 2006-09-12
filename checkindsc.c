@@ -331,7 +331,7 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 	return RET_OK;
 }
 
-retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, bool_t onlysigned){
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, bool_t onlysigned, const char *expectedname, const char *expectedversion){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -350,6 +350,23 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	r = dsc_read(&pkg,dscfilename,onlysigned);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
+	}
+	if( expectedname != NULL &&
+	    strcmp(expectedname, pkg->package) != 0 ) {
+		/* This cannot be ignored, as too much depends on it yet */
+		fprintf(stderr,
+"'%s' says it is '%s', while .changes file said it is '%s'\n", 
+				basename, pkg->package, expectedname);
+		dsc_free(pkg);
+		return RET_ERROR;
+	}
+	if( expectedversion != NULL &&
+	    strcmp(expectedversion, pkg->version) != 0 &&
+	    !IGNORING_(wrongversion, 
+"'%s' says it is version '%s', while .changes file said it is '%s'\n", 
+				basename, pkg->version, expectedversion)) {
+		dsc_free(pkg);
+		return RET_ERROR;
 	}
 
 	oinfo = override_search(srcoverride,pkg->package);
@@ -465,7 +482,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,srcoverride,delete,onlysigned);
+	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,srcoverride,delete,onlysigned,NULL,NULL);
 	free(dscdirectory);
 	if( RET_WAS_ERROR(r) )
 		return r;
