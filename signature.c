@@ -380,7 +380,7 @@ static retvalue checksigs(/*@null@*/ /*@out@*/struct strlist *validkeys) {
 		
 		if( sigstat == GPGME_SIG_STAT_GOOD ) {
 			if( validkeys != NULL ) {
-				r = strlist_add_dup(validkeys, fingerprint);
+				r = strlist_add_dup(&fingerprints, fingerprint);
 				if( RET_WAS_ERROR(r) ) {
 					strlist_done(&fingerprints);
 					return r;
