@@ -1,6 +1,7 @@
 2006-09-17  Bernhard R. Link <brlink@debian.org>
 	* fix return of fingerprints in new signature handling code
 	* move endswith from main.c to names.h
+	* add modifychanges helper program (yet only validating some stuff)
 
 2006-09-12  Bernhard R. Link <brlink@debian.org>
 	* reject .changes with binaries not listed, unless --ignore=surprisingbinary
