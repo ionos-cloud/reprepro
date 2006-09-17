@@ -1503,13 +1503,6 @@ ACTION_F(reoverride) {
 
 /***********************include******************************************/
 
-static inline bool_t endswith(const char *name, const char *suffix) {
-	size_t ln,ls;
-	ln = strlen(name);
-	ls = strlen(suffix);
-	return ln > ls && strcmp(name+(ln-ls),suffix) == 0;
-}
-
 ACTION_D(includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
@@ -1688,7 +1681,7 @@ ACTION_D(include) {
 		return RET_ERROR;
 	}
 	if( !endswith(argv[2],".changes") && !IGNORING_(extension,
-				"include called with a file not ending with '.change'\n"
+				"include called with a file not ending with '.changes'\n"
 				"(Did you mean includedeb or includedsc?)\n") )
 		return RET_ERROR;
 

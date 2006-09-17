@@ -54,4 +54,12 @@ retvalue propercomponents(const struct strlist *components);
 retvalue splitlist(/*@out@*/struct strlist *from,
 				/*@out@*/struct strlist *into,
 				const struct strlist *list);
+
+static inline bool_t endswith(const char *name, const char *suffix) {
+	size_t ln,ls;
+	ln = strlen(name);
+	ls = strlen(suffix);
+	return ln > ls && strcmp(name+(ln-ls),suffix) == 0;
+}
+
 #endif
