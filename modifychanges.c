@@ -37,6 +37,7 @@
 #include "md5sum.h"
 #include "chunks.h"
 #include "signature.h"
+#include "debfile.h"
 
 /* for compatibility with used code */
 int verbose=0;
@@ -62,21 +63,23 @@ struct binaryfile {
 	struct binaryfile *next; // in binaries.files list
 	struct binary *binary; // parent
 	struct fileentry *file;
-	/* everything NULL if file parsed is false */
-	char *name, *version;
+	char *controlchunk;
+	char *name, *version, *architecture;
 	char *sourcename, *sourceversion;
 	char *maintainer;
 	char *section, *priority;
 	char *shortdescription;
-	bool_t parsed, hasmd5sums;
+	bool_t hasmd5sums;
 };
 
 static void binaryfile_free(struct binaryfile *p) {
 	if( p == NULL )
 		return;
 
+	free(p->controlchunk);
 	free(p->name);
 	free(p->version);
+	free(p->architecture);
 	free(p->sourcename);
 	free(p->sourceversion);
 	free(p->maintainer);
@@ -130,10 +133,12 @@ static void dscfile_free(struct dscfile *p) {
 	strlist_done(&p->keys);
 	free(p->section);
 	free(p->priority);
-	for( i = 0 ; i < p->filecount ; i++ ) {
-		free(p->files[i].basename);
-		free(p->files[i].expectedmd5sum);
-	}
+	if( p->files != NULL )
+		for( i = 0 ; i < p->filecount ; i++ ) {
+			free(p->files[i].basename);
+			free(p->files[i].expectedmd5sum);
+		}
+	free(p->files);
 	free(p);
 }
 
@@ -450,8 +455,79 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 	dscfile->dsc = n;
 	return RET_OK;
 }
-static retvalue parse_deb(struct fileentry *dscfile, struct changes *changes) {
-	return RET_NOTHING;
+
+static retvalue parse_deb(struct fileentry *debfile, struct changes *changes) {
+	retvalue r;
+	struct binaryfile *n;
+
+	if( debfile->fullfilename == NULL )
+		return RET_NOTHING;
+	n = calloc(1,sizeof(struct binaryfile));
+	if( n == NULL )
+		return RET_ERROR_OOM;
+
+	r = extractcontrol(&n->controlchunk, debfile->fullfilename);
+	if( !RET_IS_OK(r)) {
+		free(n);
+		if( r == RET_ERROR_OOM )
+			return r;
+		else
+			return RET_NOTHING;
+	}
+
+	r = chunk_getname(n->controlchunk, "Package", &n->name, FALSE);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	r = chunk_getvalue(n->controlchunk, "Version", &n->version);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	r = chunk_getnameandversion(n->controlchunk, "Source",
+			&n->sourcename, &n->sourceversion);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	r = chunk_getvalue(n->controlchunk, "Maintainer", &n->maintainer);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	r = chunk_getvalue(n->controlchunk, "Architecture", &n->architecture);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	r = chunk_getvalue(n->controlchunk, "Section",&n->section);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	r = chunk_getvalue(n->controlchunk, "Priority",&n->priority);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	r = chunk_getvalue(n->controlchunk, "Description",&n->shortdescription);
+	if( RET_WAS_ERROR(r) ) {
+		binaryfile_free(n);
+		return r;
+	}
+	if( n->name != NULL ) {
+		n->binary = get_binary(changes, n->name, strlen(n->name));
+		if( n->binary == NULL ) {
+			binaryfile_free(n);
+			return RET_ERROR_OOM;
+		}
+		n->next = n->binary->files;
+		n->binary->files = n;
+	}
+
+	debfile->deb = n;
+	return RET_OK;
 }
 
 static retvalue processfiles(const char *changesfilename, struct changes *changes,
@@ -644,6 +720,37 @@ static void verify_sourcefile_md5sums(struct sourcefile *f, const char *dscfile)
 	}
 }
 
+static void verify_binary_name(const char *basename, const char *name, const char *version, const char *architecture, enum filetype type) {
+	size_t nlen, vlen, alen;
+	if( name == NULL )
+		return;
+	nlen = strlen(name);
+	if( strncmp(basename, name, nlen) != 0 || basename[nlen] != '_' ) {
+		fprintf(stderr,
+"ERROR: '%s' does not start with '%s_' as expected!\n",
+					basename, name);
+		return;
+	}
+	if( version == NULL )
+		return;
+	vlen = strlen(version);
+	if( strncmp(basename+nlen+1, version, vlen) != 0
+	|| basename[nlen+1+vlen] != '_' ) {
+		fprintf(stderr,
+"ERROR: '%s' does not start with '%s_%s_' as expected!\n",
+			basename, name, version);
+		return;
+	}
+	if( architecture == NULL )
+		return;
+	alen = strlen(architecture);
+	if( strncmp(basename+nlen+1+vlen+1, architecture, alen) != 0
+	|| strcmp(basename+nlen+1+vlen+1+alen, typesuffix[type]) != 0 )
+		fprintf(stderr,
+"ERROR: '%s' is not called '%s_%s_%s%s' as expected!\n",
+			basename, name, version, architecture, typesuffix[type]);
+}
+
 static retvalue verify(const char *changesfilename, const char *chunk, struct changes *changes) {
 	retvalue r;
 	struct fileentry *file;
@@ -657,6 +764,11 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 
 		if( file->type != ft_DSC )
 			continue;
+		if( !strlist_in(&changes->architectures, "source") ) {
+			fprintf(stderr,
+"ERROR: '%s' contains a .dsc, but does not list Architecture 'source'!\n",
+				changesfilename);
+		}
 		if( file->fullfilename == NULL ) {
 			fprintf(stderr,
 "ERROR: Could not find '%s'!\n", file->basename);
@@ -691,7 +803,7 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 		else if( changes->maintainer != NULL && 
 				strcmp(changes->maintainer, file->dsc->maintainer) != 0 )
 			fprintf(stderr,
-"ERROR: '%s' lists Maintainer '%s' while .changes lists '%s'!\n", 
+"Warning: '%s' lists Maintainer '%s' while .changes lists '%s'!\n", 
 				file->fullfilename,
 				file->dsc->maintainer, changes->maintainer);
 		if( file->dsc->section != NULL && file->section != NULL &&
@@ -894,26 +1006,128 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 "ERROR: '%s' has unexpected Binary: '%s'\n",
 					changesfilename, b->name);
 			}
-		} else if( b->files != NULL ) {
-			/* files are there, make sure they are listed and
-			 * have a description*/
+		}
+		if( b->files == NULL )
+			continue;
+		/* files are there, make sure they are listed and
+		 * have a description*/
 
-			if( b->description == NULL ) {
-				fprintf(stderr,
+		if( b->description == NULL ) {
+			fprintf(stderr,
 "ERROR: '%s' has no description for '%s'\n",
-					changesfilename, b->name);
-			} else {
-				// check if the description is the same for the files
-			}
-			if( b->missedinheader ) {
+				changesfilename, b->name);
+		}
+		if( b->missedinheader ) {
 				fprintf(stderr,
 "ERROR: '%s' does not list '%s' in its Binary-header!\n",
 					changesfilename, b->name);
-			}
-			// TODO: check if the files have the names they should
-			// have an architectures as they are listed...
 		}
+		// TODO: check if the files have the names they should
+		// have an architectures as they are listed...
 	}
+	for( file = changes->files; file != NULL ; file = file->next ) {
+		const struct binary *b;
+		const struct binaryfile *deb;
+
+		if( file->type != ft_DEB && file->type != ft_UDEB )
+			continue;
+		if( file->fullfilename == NULL ) {
+			fprintf(stderr,
+"ERROR: Could not find '%s'!\n", file->basename);
+			continue;
+		}
+		if( file->deb == NULL ) {
+			fprintf(stderr,
+"WARNING: Could not read '%s', thus it cannot be checked!\n", file->fullfilename);
+			continue;
+		}
+		deb = file->deb;
+		b = deb->binary;
+
+		if( deb->shortdescription == NULL )
+			fprintf(stderr,
+"Warning: '%s' contains no description!\n",
+				file->fullfilename);
+		else if( b->description != NULL &&
+			 strcmp( b->description, deb->shortdescription) != 0 ) 
+				fprintf(stderr,
+"Warning: '%s' says '%s' has description '%s' while '%s' has '%s'!\n",
+					changesfilename, b->name,
+					b->description,
+					file->fullfilename, 
+					deb->shortdescription);
+		if( deb->name == NULL )
+			fprintf(stderr,
+"ERROR: '%s' does not contain a 'Package:'-header!\n", file->fullfilename);
+		if( deb->sourcename != NULL ) {
+			if( strcmp(changes->name, deb->sourcename) != 0 )
+				fprintf(stderr,
+"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n", 
+					file->fullfilename,
+					deb->sourcename, changes->name);
+		} else if( deb->name != NULL &&
+				strcmp(changes->name, deb->name) != 0 ) {
+			fprintf(stderr,
+"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n", 
+				file->fullfilename,
+				deb->name, changes->name);
+		}
+		if( deb->version == NULL )
+			fprintf(stderr, 
+"ERROR: '%s' does not contain a 'Version:'-header!\n", file->fullfilename);
+		if( deb->sourceversion != NULL ) {
+			if( strcmp(changes->version, deb->sourceversion) != 0 )
+				fprintf(stderr,
+"ERROR: '%s' lists Source version '%s' while .changes lists '%s'!\n", 
+					file->fullfilename,
+					deb->sourceversion, changes->version);
+		} else if( deb->version != NULL &&
+				strcmp(changes->version, deb->version) != 0 ) {
+			fprintf(stderr,
+"ERROR: '%s' lists Source version '%s' while .changes lists '%s'!\n", 
+				file->fullfilename,
+				deb->version, changes->name);
+		}
+
+		if( deb->maintainer == NULL )
+			fprintf(stderr, 
+"ERROR: No maintainer specified in '%s'!\n", file->fullfilename);
+		else if( changes->maintainer != NULL && 
+				strcmp(changes->maintainer, deb->maintainer) != 0 )
+			fprintf(stderr,
+"Warning: '%s' lists Maintainer '%s' while .changes lists '%s'!\n", 
+				file->fullfilename,
+				deb->maintainer, changes->maintainer);
+		if( deb->section == NULL )
+			fprintf(stderr, 
+"ERROR: No section specified in '%s'!\n", file->fullfilename);
+		else if( file->section != NULL && 
+				strcmp(file->section, deb->section) != 0 )
+			fprintf(stderr,
+"Warning: '%s' has Section '%s' while .changes says it is '%s'!\n", 
+				file->fullfilename,
+				deb->section, file->section);
+		if( deb->priority == NULL )
+			fprintf(stderr, 
+"ERROR: No priority specified in '%s'!\n", file->fullfilename);
+		else if( file->priority != NULL && 
+				strcmp(file->priority, deb->priority) != 0 )
+			fprintf(stderr,
+"Warning: '%s' has Priority '%s' while .changes says it is '%s'!\n", 
+				file->fullfilename,
+				deb->priority, file->priority);
+		verify_binary_name(file->basename, deb->name, deb->version,
+				deb->architecture, file->type);
+		if( deb->architecture != NULL
+		&& !strlist_in(&changes->architectures,  deb->architecture) ) {
+			fprintf(stderr,
+"ERROR: '%s' does not list Architecture: '%s' needed for '%s'!\n",
+				changesfilename, deb->architecture,
+				file->fullfilename);
+		}
+		// todo: check for md5sums file, verify it...
+	}
+
 	printf("Checking md5sums...\n");
 	r = getmd5sums(changesfilename, changes);
 	if( RET_WAS_ERROR(r) )
@@ -991,6 +1205,8 @@ int main(int argc,char *argv[]) {
 	if( argc <= 2 ) {
 		about(FALSE);
 	}
+	signature_init(FALSE);
+
 	changesfilename = argv[1];
 	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes")
 			&& !IGNORING_(extension,
@@ -1024,8 +1240,10 @@ int main(int argc,char *argv[]) {
 		}
 	}
 	changes_free(changesdata);
+	strlist_done(&keys);
 	free(changes);
 
+	signatures_done();
 	if( RET_IS_OK(r) )
 		exit(EXIT_SUCCESS);
 	if( r == RET_ERROR_OOM )

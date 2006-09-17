@@ -426,8 +426,11 @@ static retvalue checksigs(/*@null@*/ /*@out@*/struct strlist *validkeys) {
 		if( validkeys != NULL )
 			strlist_move(validkeys, &fingerprints);
 		return RET_OK;
-	} else
+	} else {
+		if( validkeys != NULL )
+			strlist_done(&fingerprints);
 		return RET_NOTHING;
+	}
 }
 
 /* Read a single chunk from a file, that may be signed. */
