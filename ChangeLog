@@ -1,3 +1,6 @@
+2006-09-19  Bernhard R. Link <brlink@debian.org>
+	* rename modifychanges to changestool
+
 2006-09-17  Bernhard R. Link <brlink@debian.org>
 	* fix return of fingerprints in new signature handling code
 	* move endswith from main.c to names.h
