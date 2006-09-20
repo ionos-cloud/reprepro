@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <zlib.h>
 #include "error.h"
 #include "names.h"
@@ -62,11 +63,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = strlist_init(&checksuminfo);
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&files);
-		return r;
-	}
+	strlist_init(&checksuminfo);
 
 	for( i = 0 ; i < files.count ; i++ ) {
 		r = calc_parsefileline(files.values[i],&filename,&md5sum);

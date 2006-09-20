@@ -15,7 +15,7 @@ struct strlist {
 	int count,size;
 };
 
-retvalue strlist_init(/*@out@*/struct strlist *strlist);
+void strlist_init(/*@out@*/struct strlist *strlist);
 retvalue strlist_init_n(int startsize,/*@out@*/struct strlist *strlist);
 retvalue strlist_init_singleton(/*@only@*/char *value,/*@out@*/struct strlist *strlist);
 void strlist_done(struct strlist *strlist);

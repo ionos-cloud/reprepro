@@ -718,15 +718,8 @@ retvalue splitlist(struct strlist *from,
 	retvalue r;
 	int i;
 
-	r = strlist_init(from);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	r = strlist_init(into);
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(from);
-		return r;
-	}
+	strlist_init(from);
+	strlist_init(into);
 
 	/* * Iterator over components to update * */
 	r = RET_NOTHING;

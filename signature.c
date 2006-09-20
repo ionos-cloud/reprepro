@@ -371,9 +371,7 @@ static retvalue checksigs(/*@null@*/ /*@out@*/struct strlist *validkeys) {
 	bool_t goodsignature = FALSE;
 
 	if( validkeys != NULL ) {
-		r = strlist_init(&fingerprints);
-		if( RET_WAS_ERROR(r) )
-			return r;
+		strlist_init(&fingerprints);
 	}
 	idx = 0;
 	while( (fingerprint = gpgme_get_sig_status(context,idx,&sigstat,NULL)) != NULL ) {

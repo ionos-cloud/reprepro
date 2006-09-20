@@ -265,9 +265,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 	f = chunk_getfield(name,chunk);
 	if( f == NULL )
 		return RET_NOTHING;
-	r = strlist_init(strlist);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	strlist_init(strlist);
 	/* walk over the first line */
 	while( *f != '\0' && *f != '\n' )
 		f++;
@@ -343,9 +341,7 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 	f = chunk_getfield(name,chunk);
 	if( f == NULL )
 		return RET_NOTHING;
-	r = strlist_init(strlist);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	strlist_init(strlist);
 	while( *f != '\0' ) {
 		/* walk over spaces */
 		while( *f != '\0' && xisspace(*f) ) {

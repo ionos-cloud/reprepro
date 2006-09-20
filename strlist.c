@@ -99,14 +99,12 @@ retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
 	return RET_OK;
 }
 
-retvalue strlist_init(struct strlist *strlist) {
+void strlist_init(struct strlist *strlist) {
 	assert(strlist != NULL);
 	
 	strlist->count = 0;
 	strlist->size = 0;
 	strlist->values = NULL;
-
-	return RET_OK;
 }
 
 void strlist_done(struct strlist *strlist) {

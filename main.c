@@ -2101,11 +2101,10 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 			if( deletederef ) {
 				assert( ISSET(action->needs,NEED_REFERENCES) );
 				assert( ISSET(action->needs,NEED_REFERENCES) );
-				result = strlist_init(&dereferencedfilekeys);
+				strlist_init(&dereferencedfilekeys);
 			}
 
-			assert( result != RET_NOTHING );
-			if( RET_IS_OK(result) && !interrupted() ) {
+			if( !interrupted() ) {
 				result = action->start(references,filesdb,
 					deletederef?&dereferencedfilekeys:NULL,
 					argc,argv);

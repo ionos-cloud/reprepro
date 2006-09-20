@@ -1,3 +1,6 @@
+2006-09-20  Bernhard R. Link <brlink@debian.org>
+	* make strlist_init void
+
 2006-09-19  Bernhard R. Link <brlink@debian.org>
 	* rename modifychanges to changestool
 
