@@ -1215,25 +1215,33 @@ int main(int argc,char *argv[]) {
 	file_exists = isregularfile(changesfilename);
 	if( file_exists ) {
 		r = signature_readsignedchunk(changesfilename, &changes, FALSE, &keys);
+		if( !RET_IS_OK(r) ) {
+			signatures_done();
+			if( r == RET_ERROR_OOM )
+				fprintf(stderr, "Out of memory!\n");
+			exit(EXIT_FAILURE);
+		}
+		r = parse_changes(changesfilename, changes, &changesdata, NULL);
 	} else {
 		changes = NULL;
-		r = strlist_init(&keys);
-	}
-	
-	if( !RET_WAS_ERROR(r) ) {
-		if( file_exists ) {
-			r = parse_changes(changesfilename, changes, &changesdata, NULL);
-		} else {
-			changesdata = calloc(1,sizeof(struct changes));
-			if( changesdata == NULL )
-				r = RET_ERROR_OOM;
-		}
+		strlist_init(&keys);
+		changesdata = calloc(1,sizeof(struct changes));
+		if( changesdata == NULL )
+			r = RET_ERROR_OOM;
+		else
+			r = RET_OK;
 	}
 
 	if( !RET_WAS_ERROR(r) ) {
 		const char *command = argv[2];
 		if( argc > 2 && strcasecmp(command, "verify") == 0 ) {
-			r = verify(changesfilename, changes, changesdata);
+			if( file_exists )
+				r = verify(changesfilename, changes, changesdata);
+			else {
+				fprintf(stderr, "No such file '%s'!\n",
+						changesfilename);
+				r = RET_ERROR;
+			}
 		} else {
 			fprintf(stderr, "Unknown command '%s'\n", command);
 			r = RET_ERROR;
