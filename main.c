@@ -85,7 +85,6 @@ static bool_t	nolistsdownload = FALSE;
 static bool_t	keepunreferenced = FALSE;
 static bool_t	keepunneededlists = FALSE;
 static bool_t	keepdirectories = FALSE;
-static bool_t	onlyacceptsigned = FALSE;
 static bool_t	askforpassphrase = FALSE;
 static bool_t	skipold = TRUE;
 static enum exportwhen export = EXPORT_NORMAL;
@@ -95,7 +94,7 @@ int		verbose = 0;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(onlyacceptsigned),O(askforpassphrase), O(skipold), O(export);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export);
 #undef O
 	
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -1519,10 +1518,6 @@ ACTION_D(includedeb) {
 		fprintf(stderr,"Error: -A source is not possible with includedeb!\n");
 		return RET_ERROR;
 	}
-	if( onlyacceptsigned ) {
-		fprintf(stderr,"include[u]deb together with --onlyacceptsigned is not yet possible,\n as .[u]deb files cannot be signed yet.\n");
-		return RET_ERROR;
-	}
 	if( strcmp(argv[0],"includeudeb") == 0 ) {
 		isudeb = TRUE;
 		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
@@ -1657,7 +1652,7 @@ ACTION_D(includedsc) {
 		tracks = NULL;
 	}
 
-	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],srcoverride,delete,dereferenced,onlyacceptsigned,tracks);
+	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],srcoverride,delete,dereferenced,tracks);
 	
 	override_free(srcoverride);
 	r = tracking_done(tracks);
@@ -1723,7 +1718,7 @@ ACTION_D(include) {
 		tracks = NULL;
 	}
 
-	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],delete,dereferenced,onlyacceptsigned);
+	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],delete,dereferenced);
 
 	override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
 
@@ -2154,7 +2149,6 @@ LO_KEEPUNREFERENCED,
 LO_KEEPUNNEEDEDLISTS,
 LO_NOTHINGISERROR,
 LO_NOLISTDOWNLOAD,
-LO_ONLYACCEPTSIGNED,
 LO_ASKPASSPHRASE,
 LO_KEEPDIRECTORIES,
 LO_SKIPOLD,
@@ -2163,7 +2157,6 @@ LO_NOKEEPUNREFERENCED,
 LO_NOKEEPUNNEEDEDLISTS,
 LO_NONOTHINGISERROR,
 LO_LISTDOWNLOAD,
-LO_NOONLYACCEPTSIGNED,
 LO_NOASKPASSPHRASE,
 LO_NOKEEPDIRECTORIES,
 LO_NOSKIPOLD,
@@ -2268,12 +2261,6 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NODELETE:
 					delete--;
-					break;
-				case LO_ONLYACCEPTSIGNED:
-					CONFIGSET(onlyacceptsigned,TRUE);
-					break;
-				case LO_NOONLYACCEPTSIGNED:
-					CONFIGSET(onlyacceptsigned,FALSE);
 					break;
 				case LO_KEEPUNREFERENCED:
 					CONFIGSET(keepunreferenced,TRUE);
@@ -2460,7 +2447,6 @@ int main(int argc,char *argv[]) {
 		{"keepunreferencedfiles", no_argument, &longoption, LO_KEEPUNREFERENCED},
 		{"keepunneededlists", no_argument, &longoption, LO_KEEPUNNEEDEDLISTS},
 		{"keepdirectories", no_argument, &longoption, LO_KEEPDIRECTORIES},
-		{"onlyacceptsigned", no_argument, &longoption, LO_ONLYACCEPTSIGNED},
 		{"ask-passphrase", no_argument, &longoption, LO_ASKPASSPHRASE},
 		{"nonothingiserror", no_argument, &longoption, LO_NONOTHINGISERROR},
 		{"nonolistsdownload", no_argument, &longoption, LO_LISTDOWNLOAD},
@@ -2468,7 +2454,6 @@ int main(int argc,char *argv[]) {
 		{"nokeepunreferencedfiles", no_argument, &longoption, LO_NOKEEPUNREFERENCED},
 		{"nokeepunneededlists", no_argument, &longoption, LO_NOKEEPUNNEEDEDLISTS},
 		{"nokeepdirectories", no_argument, &longoption, LO_NOKEEPDIRECTORIES},
-		{"noonlyacceptsigned", no_argument, &longoption, LO_NOONLYACCEPTSIGNED},
 		{"noask-passphrase", no_argument, &longoption, LO_NOASKPASSPHRASE},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},

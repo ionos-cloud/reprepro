@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <time.h>
 #include <string.h>
 #include <malloc.h>
 #include <fcntl.h>
@@ -38,62 +39,51 @@
 
 extern int verbose;
 
-static GpgmeCtx context = NULL;
+static gpgme_ctx_t context = NULL;
 
-static retvalue gpgerror(GpgmeError err){
-	if( err != GPGME_No_Error ) {
-		fprintf(stderr,"gpgme gave error: %s\n",gpgme_strerror(err));
-		return RET_ERROR_GPGME;
+static retvalue gpgerror(gpgme_error_t err) {
+	if( err != 0 ) {
+		fprintf(stderr,"gpgme gave %s error: %s\n",
+				gpgme_strsource(err), gpgme_strerror(err));
+		if( gpgme_err_code(err) == GPG_ERR_ENOMEM )
+			return RET_ERROR_OOM;
+		else
+			return RET_ERROR_GPGME;
 	} else
 		return RET_OK;
 }
 
 /* Quick&dirty passphrase asking */
-static const char *signature_getpassphrase(void *hook,const char*descr,void **r_hd) {
-	if( descr != NULL ) {
-		const char *p;
-		char *passphrase;
+static gpgme_error_t signature_getpassphrase(void *hook, const char *uid_hint, const char *info, int prev_was_bad, int fd) {
+	char *msg;
+	const char *p;
 
-		if( hook != NULL )
-			return hook;
-
-		p = getpass(descr);
-		if( p == NULL ) {
-			*r_hd = NULL;
-			return NULL;
-		}
-		passphrase = strdup(p);
-		if( passphrase == NULL ) {
-			*r_hd = NULL;
-			return NULL;
-		}
-		*r_hd = passphrase;
-		return passphrase;
-	} else {
-		if( r_hd != NULL ) {
-			char *p = *r_hd;
-			if( p != NULL ) {
-				memset(p,0,strlen(p));
-			}
-			free(p);
-		}
-		return NULL;
-	}
+	msg = mprintf("Please insecurely enter passphrase for %s%s%s%s%s:",
+			(uid_hint!=NULL)?uid_hint:"key",
+			(info!=NULL)?" (":"",
+			(info!=NULL)?info:"",
+			(info!=NULL)?")":"",
+			(prev_was_bad!=0)?" again":"");
+	if( msg == NULL )
+		return gpgme_err_make(GPG_ERR_SOURCE_USER_1, GPG_ERR_ENOMEM);
+	p = getpass(msg);
+	write(fd, p, strlen(p));
+	return GPG_ERR_NO_ERROR;
 }
 
 retvalue signature_init(bool_t allowpassphrase){
-	GpgmeError err;
+	gpgme_error_t err;
 
 	if( context != NULL )
 		return RET_NOTHING;
 	err = gpgme_engine_check_version(GPGME_PROTOCOL_OpenPGP);
-	if( err != GPGME_No_Error )
+	if( err != 0 )
 		return gpgerror(err);
 	err = gpgme_new(&context);
-	if( err != GPGME_No_Error )
+	if( err != 0 )
 		return gpgerror(err);
 	err = gpgme_set_protocol(context,GPGME_PROTOCOL_OpenPGP);
-	if( err != GPGME_No_Error )
+	if( err != 0 )
 		return gpgerror(err);
 	if( allowpassphrase )
 		gpgme_set_passphrase_cb(context,signature_getpassphrase,NULL);
@@ -145,72 +135,13 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 	}
 }
 
-static inline retvalue checksignatures(GpgmeCtx context,const char *key,const char *releasegpg) {
-	int idx;
-	GpgmeSigStat status;
-	retvalue result = RET_ERROR_BADSIG;
-
-	for( idx = 0 ; ; idx++){
-		const char *fingerprint;
-		fingerprint = gpgme_get_sig_status(context,idx,&status,NULL);
-		if( fingerprint == NULL )
-			break;
-		if( verbose > 3 ) {
-			fprintf(stderr,"gpgme '%s': ",fingerprint);
-			switch( status ) {
-				case GPGME_SIG_STAT_BAD:
-					fprintf(stderr,"BAD SIGNATURE!\n");
-					break;
-				case GPGME_SIG_STAT_NOKEY:
-					fprintf(stderr,"Unknown key!\n");
-					break;
-				case GPGME_SIG_STAT_GOOD:
-					fprintf(stderr,"Good signature!\n");
-					break;
-#ifdef HASGPGMEGOODEXP
-				case GPGME_SIG_STAT_GOOD_EXP:
-					fprintf(stderr,"Valid but expired signature!\n");
-					break;
-				case GPGME_SIG_STAT_GOOD_EXPKEY:
-					fprintf(stderr,"Valid signature with expired key!\n");
-					break;
-#endif
-				default:
-					fprintf(stderr,"Error checking (libgpgme returned %d)!\n",status);
-					break;
-			}
-		}
-#ifdef HASGPGMEGOODEXP
-		/* The key is explicitly given, so we do not care for its age! */
-		if( status == GPGME_SIG_STAT_GOOD || status == GPGME_SIG_STAT_GOOD_EXPKEY) {
-#else
-		if( status == GPGME_SIG_STAT_GOOD ) {
-#endif
-			retvalue r = (key==NULL) ? 
-					RET_OK : 
-					containskey(key,fingerprint);
-			if( RET_IS_OK(r) ) {
-				result = RET_OK;
-				if( verbose <= 3 )
-					break;
-				continue;
-			}
-		}
-	}
-	if( result == RET_ERROR_BADSIG ) {
-		fprintf(stderr,"NO VALID SIGNATURE with key '%s' found in '%s'!\n",key,releasegpg);
-	} else if( result == RET_OK ) {
-		if( verbose > 0 )
-			fprintf(stderr,"Valid Signature within '%s' found.\n",releasegpg);
-	}
-	return result;
-}
-
 retvalue signature_check(const char *options, const char *releasegpg, const char *release) {
 	retvalue r;
-	GpgmeError err;
-	GpgmeData dh,dh_gpg;
-	GpgmeSigStat stat;
+	gpgme_error_t err;
+	int fd,gpgfd;
+	gpgme_data_t dh,dh_gpg;
+	gpgme_verify_result_t result;
+	gpgme_signature_t s;
 
 	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
@@ -221,59 +152,124 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 
 	/* Read the file and its signature into memory: */
 
-	//TODO: Use callbacks for file-reading to have readable errormessages?
-	err = gpgme_data_new_from_file(&dh_gpg,releasegpg,1);
-	if( err != GPGME_No_Error ) {
+	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
+	if( gpgfd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error opening '%s': %s\n", releasegpg, strerror(e));
+		return RET_ERRNO(e);
+	}
+	fd = open(release, O_RDONLY|O_NOCTTY);
+	if( fd < 0 ) {
+		int e = errno;
+		close(gpgfd);
+		fprintf(stderr, "Error opening '%s': %s\n", release, strerror(e));
+		return RET_ERRNO(e);
+	}
+	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
+	if( err != 0 ) {
+		close(gpgfd);close(fd);
 		return gpgerror(err);
 	}
-	err = gpgme_data_new_from_file(&dh,release,1);
-	if( err != GPGME_No_Error ) {
+	err = gpgme_data_new_from_fd(&dh, fd);
+	if( err != 0 ) {
 		gpgme_data_release(dh_gpg);
+		close(gpgfd);close(fd);
 		return gpgerror(err);
 	}
 
 	/* Verify the signature */
 	
-	err = gpgme_op_verify(context,dh_gpg,dh,&stat);
+	err = gpgme_op_verify(context,dh_gpg,dh,NULL);
 	gpgme_data_release(dh_gpg);
 	gpgme_data_release(dh);
-	if( err != GPGME_No_Error )
+	close(gpgfd);close(fd);
+	if( err != 0 )
 		return gpgerror(err);
 
-	switch( stat ) {
-		case GPGME_SIG_STAT_BAD:
-		case GPGME_SIG_STAT_NOKEY:
-		case GPGME_SIG_STAT_DIFF:
-		case GPGME_SIG_STAT_GOOD:
-#ifdef HASGPGMEGOODEXP
-		case GPGME_SIG_STAT_GOOD_EXP:
-		case GPGME_SIG_STAT_GOOD_EXPKEY:
-#endif
-			return checksignatures(context,options,releasegpg);
-		case GPGME_SIG_STAT_NOSIG:
-			fprintf(stderr,"No signature found within '%s'!\n",releasegpg);
-			return RET_ERROR_GPGME;
-		case GPGME_SIG_STAT_NONE:
-			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
-"This means gpg is utterly confused. Sometimes running the same command again helps,\n"
-"sometimes calling gpg --verify '%s' manually helps.\n"
-,releasegpg,releasegpg);
-			return RET_ERROR_GPGME;
-		case GPGME_SIG_STAT_ERROR:
-			fprintf(stderr,"gpgme reported errors checking '%s'!\n",releasegpg);
-			return RET_ERROR_GPGME;
+	result = gpgme_op_verify_result(context);
+	if( result == NULL ) {
+		fprintf(stderr,"Internal error communicating with libgpgme: no result record!\n\n");
+		return RET_ERROR_GPGME;
 	}
-	fprintf(stderr,"Error checking signature (gpg returned unexpected value %d)!\n"
-			"try grep 'GPGPME_SIG_STAT.*%d' /usr/include/gpgme.h\n"
-			"and do not forget to write a bugreport.\n",(int)stat,(int)stat);
-	return RET_ERROR_GPGME;
-}
+	for( s = result->signatures ; s != NULL ; s = s->next ) {
+		r = containskey(options, s->fpr);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING )
+			/* there's no use in checking signatures not sufficient */
+			continue;
+		assert( RET_IS_OK(r) );
+		switch( gpgme_err_code(s->status) ) {
+			case GPG_ERR_NO_ERROR:
+				return RET_OK;
+			case GPG_ERR_KEY_EXPIRED:
+				fprintf(stderr,
+"WARNING: valid signature in '%s' with '%s', which has been expired.\n"
+"         as the key was manually specified it is still accepted!\n",
+						releasegpg, s->fpr);
+				return RET_OK;
+			case GPG_ERR_CERT_REVOKED:
+				if( verbose >= 0 ) {
+					fprintf(stderr,
+"WARNING\n"
+"WARNING: valid signature in '%s' with '%s', which has been revoked.\n"
+"WARNING: as the key was manually specified it is still accepted!\n"
+"WARNING\n", releasegpg, s->fpr);
+				}
+				return RET_OK;
+			case GPG_ERR_SIG_EXPIRED:
+				if( verbose > 0 ) {
+					fprintf(stderr,
+"'%s' has a valid but expired signature with '%s'\n"
+" signature created %s, expired %s\n", 
+						releasegpg, s->fpr, 
+						ctime(&s->timestamp),
+						ctime(&s->exp_timestamp));
+				}
+				// not accepted:
+				continue;
+			case GPG_ERR_BAD_SIGNATURE:
+				if( verbose > 0 ) {
+					fprintf(stderr,
+"WARNING: '%s' has a invalid signature with '%s'\n", releasegpg, s->fpr);
+				}
+				// not accepted:
+				continue;
+			case GPG_ERR_NO_PUBKEY:
+				if( verbose > 0 ) {
+					fprintf(stderr,
+"Could not check validity of signature with '%s' in '%s' as public key missing!\n",
+						s->fpr, releasegpg);
+				}
+				// not accepted:
+				continue;
+			case GPG_ERR_GENERAL:
+				fprintf(stderr,
+"gpgme returned an general error verifing signature with '%s' in '%s'!\n"
+"Try running gpg --verify '%s' '%s' manually for hints what is happening.\n"
+"If this does not print any errors, retry the command causing this message.\n",
+						s->fpr, releasegpg,
+						releasegpg, release);
+				continue;
+			/* there sadly no more is a way to make sure we have
+			 * all possible ones handled */
+			default:
+				break;
+		}
+		fprintf(stderr,
+"Error checking signature (gpgme returned unexpected value %d)!\n"
+"Please file a bug report, so reprepro can handle this in the future.\n",
+			gpgme_err_code(s->status));
+		return RET_ERROR_GPGME;
+	}
 
+	return RET_NOTHING;
+}
 
 retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
 	retvalue r;
-	GpgmeError err;
-	GpgmeData dh,dh_gpg;
+	gpgme_error_t err;
+	gpgme_data_t dh,dh_gpg;
 	int ret;
 
 	r = signature_init(FALSE);
@@ -300,61 +296,77 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	} else if( strcasecmp(options,"yes") == 0 || strcasecmp(options,"default") == 0 ) {
 		gpgme_signers_clear(context);
 	} else {
-		GpgmeKey key;
+		gpgme_key_t key;
 
 		gpgme_signers_clear(context);
-		err = gpgme_op_keylist_start(context,options,TRUE);
-		if( err != GPGME_No_Error )
+		err = gpgme_get_key(context, options, &key, 1);
+		if( err != 0 )
 			return gpgerror(err);
-		err = gpgme_op_keylist_next(context,&key);
-		if( err == GPGME_EOF ) {
+		if( key == NULL ) {
 			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
 			return RET_ERROR;
 		}
-		if( err != GPGME_No_Error )
-			return gpgerror(err);
-		err = gpgme_op_keylist_end(context);
-		if( err != GPGME_No_Error && err != GPGME_No_Request )
-			return gpgerror(err);
+		// TODO: does this need to be freed after this?
 		err = gpgme_signers_add(context,key);
-		if( err != GPGME_No_Error )
+		if( err != 0 )
 			return gpgerror(err);
 	}
 
 	// TODO: Supply our own read functions to get sensible error messages.
 	err = gpgme_data_new(&dh_gpg);
-	if( err != GPGME_No_Error ) {
+	if( err != 0 ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_file(&dh,filename,1);
-	if( err != GPGME_No_Error ) {
+	if( err != 0 ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
 
 	err = gpgme_op_sign(context,dh,dh_gpg,GPGME_SIG_MODE_DETACH);
 	gpgme_data_release(dh);
-	if( err != GPGME_No_Error ) {
+	if( err != 0 ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	} else {
 		char *signature_data;
+		const char *p;
 		size_t signature_len;
+		ssize_t written;
 		int fd;
 
 		signature_data = gpgme_data_release_and_get_mem(dh_gpg,&signature_len);
 		if( signature_data == NULL ) {
 			return RET_ERROR_OOM;
 		}
-		fd = creat(signaturename,0666);
+		fd = open(signaturename, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY|O_NOFOLLOW, 0666);
 		if( fd < 0 ) {
 			free(signature_data);
 			return RET_ERRNO(errno);
 		}
-		ret = write(fd,signature_data,signature_len);
+		p = signature_data;
+		while( signature_len > 0 ) {
+			written = write(fd,p,signature_len);
+			if( written < 0 ) {
+				int e = errno;
+				fprintf(stderr, "Error writing to %s: %s\n",
+						signaturename,
+						strerror(e));
+				free(signature_data);
+				return RET_ERRNO(e);
+			}
+			signature_len -= written;
+			p += written;
+		}
 		free(signature_data);
 		ret = close(fd);
-		//TODO check return values...
+		if( ret < 0 ) {
+			int e = errno;
+			fprintf(stderr, "Error writing to %s: %s\n",
+					signaturename,
+					strerror(e));
+			return RET_ERRNO(e);
+		}
 	}
 	if( verbose > 1 ) {
 		fprintf(stderr,"Successfully created '%s'\n",signaturename);
@@ -363,208 +375,228 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	return r;
 }
 
-static retvalue checksigs(/*@null@*/ /*@out@*/struct strlist *validkeys) {
-	int idx; GpgmeSigStat sigstat;
-	struct strlist fingerprints;
-	const char *fingerprint;
-	retvalue r;
-	bool_t goodsignature = FALSE;
+/* retrieve a list of fingerprints of keys having signed (valid) or
+ * which are mentioned in the signature (all). set broken if all signatures
+ * was broken (hints to a broken file, as opposed to expired or whatever
+ * else may make a signature invalid)). */
+static retvalue checksigs(const char *filename, struct strlist *valid, struct strlist *all, bool_t *broken) {
+	gpgme_verify_result_t result;
+	gpgme_signature_t s;
+	bool_t had_valid=FALSE, had_broken=FALSE;
 
-	if( validkeys != NULL ) {
-		strlist_init(&fingerprints);
+	result = gpgme_op_verify_result(context);
+	if( result == NULL ) {
+		fprintf(stderr,"Internal error communicating with libgpgme: no result record!\n\n");
+		return RET_ERROR_GPGME;
 	}
-	idx = 0;
-	while( (fingerprint = gpgme_get_sig_status(context,idx,&sigstat,NULL)) != NULL ) {
-		
-		if( sigstat == GPGME_SIG_STAT_GOOD ) {
-			if( validkeys != NULL ) {
-				r = strlist_add_dup(&fingerprints, fingerprint);
-				if( RET_WAS_ERROR(r) ) {
-					strlist_done(&fingerprints);
-					return r;
-				}
-			}
-			goodsignature = TRUE;
-			if( verbose > 5 )
-				fprintf(stderr, "Valid signature with %s.\n",
-						fingerprint);
-		} else {
-			if( verbose > 5 ) {
-				switch( sigstat ) {
-					case GPGME_SIG_STAT_NOKEY:
-						fprintf(stderr,
-"Unknown key %s, signature cannot be checked!\n", fingerprint);
-						break;
-					case GPGME_SIG_STAT_BAD:
-						fprintf(stderr,
-"Bad signature with %s!\n", fingerprint);
-						break;
-#ifdef HASGPGMEGOODEXP
-					case GPGME_SIG_STAT_GOOD_EXP:
-						fprintf(stderr,
-"Expired signature with %s!\n", fingerprint);
-						break;
-					case GPGME_SIG_STAT_GOOD_EXPKEY:
-						fprintf(stderr,
-"Signature with expired key %s!\n", fingerprint);
-						break;
-#endif
-					case GPGME_SIG_STAT_ERROR:
-					default:
-						fprintf(stderr,
-"Error verifying signature with %s!\n", fingerprint);
-						break;
-				}
-			}
-
+	for( s = result->signatures ; s != NULL ; s = s->next ) {
+		if( all != NULL ) {
+			retvalue r = strlist_add_dup(all, s->fpr);
+			if( RET_WAS_ERROR(r) )
+				return r;
 		}
-		idx++;
+		switch( gpgme_err_code(s->status) ) {
+			case GPG_ERR_NO_ERROR:
+				had_valid = TRUE;
+				if( valid != NULL ) {
+					retvalue r = strlist_add_dup(valid,
+								s->fpr);
+					if( RET_WAS_ERROR(r) )
+						return r;
+				}
+				continue;
+			case GPG_ERR_KEY_EXPIRED:
+				had_valid = TRUE;
+				if( verbose > 0 ) 
+					fprintf(stderr,
+"Ignoring signature with '%s' on '%s', as the key has expired.\n",
+						s->fpr, filename);
+				continue;
+			case GPG_ERR_CERT_REVOKED:
+				had_valid = TRUE;
+				if( verbose > 0 ) 
+					fprintf(stderr,
+"Ignoring signature with '%s' on '%s', as the key is revoked.\n",
+						s->fpr, filename);
+				continue;
+			case GPG_ERR_SIG_EXPIRED:
+				had_valid = TRUE;
+				if( verbose > 0 ) {
+					fprintf(stderr,
+"Ignoring signature with '%s' on '%s', as the signature has expired.\n"
+" signature created %s, expired %s\n", 
+						s->fpr, filename,
+						ctime(&s->timestamp),
+						ctime(&s->exp_timestamp));
+				}
+				continue;
+			case GPG_ERR_BAD_SIGNATURE:
+				had_broken = TRUE;
+				if( verbose > 0 ) {
+					fprintf(stderr,
+"WARNING: '%s' has a invalid signature with '%s'\n", filename, s->fpr);
+				}
+				continue;
+			case GPG_ERR_NO_PUBKEY:
+				if( verbose > 0 ) {
+					fprintf(stderr,
+"Could not check validity of signature with '%s' in '%s' as public key missing!\n",
+						s->fpr, filename);
+				}
+				continue;
+			case GPG_ERR_GENERAL:
+				fprintf(stderr,
+"gpgme returned an general error verifing signature with '%s' in '%s'!\n"
+"Try running gpg --verify '%s' manually for hints what is happening.\n"
+"If this does not print any errors, retry the command causing this message.\n",
+						s->fpr, filename,
+						filename);
+				continue;
+			/* there sadly no more is a way to make sure we have
+			 * all possible ones handled */
+			default:
+				break;
+		}
+		fprintf(stderr,
+"Error checking signature (gpgme returned unexpected value %d)!\n"
+"Please file a bug report, so reprepro can handle this in the future.\n",
+			gpgme_err_code(s->status));
+		return RET_ERROR_GPGME;
 	}
-	if( goodsignature ) {
-		if( validkeys != NULL )
-			strlist_move(validkeys, &fingerprints);
-		return RET_OK;
-	} else {
-		if( validkeys != NULL )
-			strlist_done(&fingerprints);
-		return RET_NOTHING;
-	}
+	if( had_broken && ! had_valid ) 
+		*broken = TRUE;
+	return RET_OK;
 }
 
 /* Read a single chunk from a file, that may be signed. */
-// TODO: Think about ways to check the signature...
-retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_t onlyacceptsigned, /*@null@*/ /*@out@*/struct strlist *validkeys) {
+retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature) {
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
-	GpgmeError err;
-	GpgmeData dh,dh_gpg;
-	GpgmeSigStat stat;
+	gpgme_error_t err;
+	gpgme_data_t dh,dh_gpg;
 	size_t plain_len;
 	char *plain_data;
 	retvalue r;
+	struct strlist validfingerprints, allfingerprints;
+	bool_t foundbroken = FALSE;
+
+	strlist_init(&validfingerprints);
+	strlist_init(&allfingerprints);
 	
 	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	err = gpgme_data_new_from_file(&dh_gpg,filename,1);
-	if( err != GPGME_No_Error ) {
+	/* I wished from_fd would actually read the data like this one does... */
+	err = gpgme_data_new_from_file(&dh_gpg, filename, 1);
+	if( err != 0 ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new(&dh);
-	if( err != GPGME_No_Error ) {
+	if( err != 0 ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
-	err = gpgme_op_verify(context,dh_gpg,dh,&stat); 
-	if( err != GPGME_No_Error ) {
-		gpgme_data_release(dh_gpg);
+	err = gpgme_op_verify(context,dh_gpg,NULL,dh); 
+	if( gpgme_err_code(err) == GPG_ERR_NO_DATA ) {
+		if( verbose > -1 ) 
+			fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
 		gpgme_data_release(dh);
-		return gpgerror(err);
-	}
-	switch( stat ) {
-		case GPGME_SIG_STAT_NOSIG:
-			if( onlyacceptsigned ) {
+		plain_data = gpgme_data_release_and_get_mem(dh_gpg,&plain_len);
+	} else {
+		if( err != 0 ) {
+			gpgme_data_release(dh_gpg);
+			gpgme_data_release(dh);
+			return gpgerror(err);
+		}
+		if( validkeys != NULL || allkeys != NULL || brokensignature != NULL ) {
+			r = checksigs(filename,
+				(validkeys!=NULL)?&validfingerprints:NULL,
+				(allkeys!=NULL)?&allfingerprints:NULL,
+				(brokensignature!=NULL)?&foundbroken:NULL);
+			if( RET_WAS_ERROR(r) ) {
 				gpgme_data_release(dh_gpg);
 				gpgme_data_release(dh);
-				fprintf(stderr,"No signature found in '%s'!\n",filename);
-				return RET_ERROR_BADSIG;
+				return r;
 			}
-			if( verbose > -1 ) 
-				fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
-			plain_data = gpgme_data_release_and_get_mem(dh_gpg,&plain_len);
-			gpgme_data_release(dh);
-			break;
-		case GPGME_SIG_STAT_DIFF:
-		case GPGME_SIG_STAT_NOKEY:
-		case GPGME_SIG_STAT_GOOD:
-		case GPGME_SIG_STAT_BAD:
-#ifdef HASGPGMEGOODEXP
-		case GPGME_SIG_STAT_GOOD_EXP:
-		case GPGME_SIG_STAT_GOOD_EXPKEY:
-#endif
-			r = checksigs(validkeys);
-			if( RET_IS_OK(r) &&
-					( stat == GPGME_SIG_STAT_BAD ||
-#ifdef HASGPGMEGOODEXP
-					  stat == GPGME_SIG_STAT_GOOD_EXP || 
-					  stat == GPGME_SIG_STAT_GOOD_EXPKEY || 
-#endif
-					  stat == GPGME_SIG_STAT_NOKEY ) ) {
-				fprintf(stderr, "WARNING: Inconsistent data from gpgme for '%s', ignoring all found signatures!\n", filename);
-				if( validkeys )
-					strlist_done(validkeys);
-				r = RET_NOTHING;
-			}
-			if( r == RET_NOTHING ) {
-				if( onlyacceptsigned ) {
-					gpgme_data_release(dh_gpg);
-					gpgme_data_release(dh);
-					fprintf(stderr,"No valid signature found in '%s'!\n",filename);
-					return RET_ERROR_BADSIG;
-				}
-				if( validkeys )
-					strlist_init(validkeys);
-			}
-			gpgme_data_release(dh_gpg);
-			plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
-			break;
-		case GPGME_SIG_STAT_NONE:
-			gpgme_data_release(dh_gpg);
-			gpgme_data_release(dh);
-			fprintf(stderr,"gpgme returned an impossible condition for '%s'!\n"
-"This means gpg is utterly confused. Sometimes running the same command again helps,\n"
-"sometimes calling gpg --verify '%s' manually helps.\n"
-,filename,filename);
-			return RET_ERROR_GPGME;
-		case GPGME_SIG_STAT_ERROR:
-			gpgme_data_release(dh_gpg);
-			gpgme_data_release(dh);
-			fprintf(stderr,"gpgme reported an error checking '%s'!\n",filename);
-			return RET_ERROR_GPGME;
-		default:
-			gpgme_data_release(dh_gpg);
-			gpgme_data_release(dh);
-			fprintf(stderr,"Error checking the signature within '%s' (gpgme gave error code %d)!\n",filename,(int)stat);
-			return RET_ERROR_GPGME;
-	}
-
-	startofchanges = plain_data;
-	while( (size_t)(startofchanges - plain_data) < plain_len && 
-			*startofchanges != '\0' && xisspace(*startofchanges)) {
-		startofchanges++;
-	}
-	if( (size_t)(startofchanges - plain_data) >= plain_len ) {
-		fprintf(stderr,"Could only find spaces within '%s'!\n",filename);
-		free(plain_data);
-		return RET_ERROR;
-	}
-	endofchanges = startofchanges;
-	while( (size_t)(endofchanges - plain_data) < plain_len && 
-		*endofchanges != '\0' && 
-		( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
-		endofchanges++;
-	}
-	afterchanges = endofchanges;
-	while( (size_t)(afterchanges - plain_data) < plain_len && 
-		*afterchanges != '\0' && xisspace(*afterchanges)) {
-		afterchanges++;
-	}
-	if( (size_t)(afterchanges - plain_data) != plain_len ) {
-		if( *afterchanges == '\0' ) {
-			fprintf(stderr,"Unexpected \\0 character within '%s'!\n",filename);
-			free(plain_data);
-			return RET_ERROR;
 		}
-		fprintf(stderr,"Unexpected data after ending empty line in '%s'!\n",filename);
-		free(plain_data);
-		return RET_ERROR;
+		gpgme_data_release(dh_gpg);
+		plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
+		if( plain_data == NULL ) {
+			fprintf(stderr,
+"gpgme failed to extract the plain data out of '%s'.\n"
+"While it did so in a way indicating running out of memory, experience says\n"
+"this also happens when gpg returns a error code it does not understand.\n"
+"To check this please try running gpg --output '%s' manually.\n",
+					filename, filename);
+			return RET_ERROR_GPGME;
+		}
 	}
 
-	chunk = strndup(startofchanges,endofchanges-startofchanges);
+	if( plain_data == NULL )
+		r = RET_ERROR_OOM;
+	else {
+		startofchanges = plain_data;
+		while( (size_t)(startofchanges - plain_data) < plain_len && 
+				*startofchanges != '\0' && xisspace(*startofchanges)) {
+			startofchanges++;
+		}
+		if( (size_t)(startofchanges - plain_data) >= plain_len ) {
+			fprintf(stderr,
+"Could only find spaces within '%s'!\n",
+					filename);
+			r = RET_ERROR;
+		} else
+			r = RET_OK;
+	}
+	if( RET_IS_OK(r) ) {
+		endofchanges = startofchanges;
+		while( (size_t)(endofchanges - plain_data) < plain_len && 
+				*endofchanges != '\0' && 
+				( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
+			endofchanges++;
+		}
+		afterchanges = endofchanges;
+		while( (size_t)(afterchanges - plain_data) < plain_len && 
+				*afterchanges != '\0' && xisspace(*afterchanges)) {
+			afterchanges++;
+		}
+		if( (size_t)(afterchanges - plain_data) != plain_len ) {
+			if( *afterchanges == '\0' )
+				fprintf(stderr,
+"Unexpected \\0 character within '%s'!\n",
+					filename);
+			else
+				fprintf(stderr,
+"Unexpected data after ending empty line in '%s'!\n",
+					filename);
+			r = RET_ERROR;
+		}
+	}
+	if( RET_IS_OK(r) ) {
+		chunk = strndup(startofchanges,endofchanges-startofchanges);
+		if( chunk == NULL )
+			r = RET_ERROR_OOM;
+		else
+			*chunkread = chunk;
+	}
+#ifdef HAVE_GPGPME_FREE
+	gpgme_free(plain_data);
+#else
 	free(plain_data);
-	if( chunk == NULL )
-		return RET_ERROR_OOM;
-	*chunkread = chunk;
-	return RET_OK;
+#endif
+	if( RET_IS_OK(r) ) {
+		if( validkeys != NULL )
+			strlist_move(validkeys, &validfingerprints);
+		if( allkeys != NULL )
+			strlist_move(allkeys, &allfingerprints);
+		if( brokensignature != NULL )
+			*brokensignature = foundbroken;
+	} else {
+		if( validkeys != NULL )
+			strlist_done(&validfingerprints);
+		if( allkeys != NULL )
+			strlist_done(&allfingerprints);
+	}
+	return r;
 }

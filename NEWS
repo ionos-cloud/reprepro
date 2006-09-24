@@ -1,7 +1,12 @@
 Updates since 1.2.0:
-- Do not reject package with broken signatures or signatures where
-  a key is missing. When using --onlyacceptsigned one valid signature
-  (i.e. from a known and not expired key and not expired) suffices.
+- now uses libgpgme11 instead of libgpgme6.
+- remove --onlyacceptsigned switch (soon to be be replaced by something
+    useable, hopefully)
+- only reject a package because of signatures if it only has bad signatures
+  and no good one. (Rejecting a package because of a missing key when
+  it would have processed without signature did not really make sense)
+- new --ignore=brokensignatures to also accept packages with broken signatures
+  without any valid signature.
 - Now looks at the Binary: and Version: fields of a .changes file.
   Unless the new --ignore=wrongversion is specified, a dsc must
   have the same version, and a .deb must have this source version

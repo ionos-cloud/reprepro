@@ -1,3 +1,7 @@
+2006-09-24  Bernhard R. Link <brlink@debian.org>
+	* ported to libgpgme11
+	* removed --onlyacceptsigned
+
 2006-09-20  Bernhard R. Link <brlink@debian.org>
 	* make strlist_init void
 

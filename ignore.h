@@ -26,6 +26,7 @@
 	IGN(surprisingbinary) \
 	IGN(wrongsourceversion) \
 	IGN(wrongversion) \
+	IGN(brokensignatures) \
 	IGN(missingfile)
 
 

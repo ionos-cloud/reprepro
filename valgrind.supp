@@ -18,3 +18,13 @@
    fun:deflate
    fun:finishgz
 }
+{
+   gpgme11-gpgme_data_release_and_get_mem_leak
+   Memcheck:Leak
+   fun:calloc
+   obj:/usr/lib/libgpgme.so.11.3.3
+   fun:gpgme_data_new
+   fun:gpgme_data_new_from_filepart
+   fun:gpgme_data_new_from_file
+   fun:signature_readsignedchunk
+}

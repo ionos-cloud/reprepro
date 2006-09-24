@@ -376,10 +376,11 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture, bool_t onlysigned) {
+static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines;
+	bool_t broken;
 
 #define E(err) { \
 		if( r == RET_NOTHING ) { \
@@ -402,8 +403,15 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	c = calloc(1,sizeof(struct changes));
 	if( c == NULL )
 		return RET_ERROR_OOM;
-	r = signature_readsignedchunk(filename,&c->control,onlysigned,&c->fingerprints);
+	r = signature_readsignedchunk(filename,&c->control,&c->fingerprints, NULL, &broken);
 	R;
+	if( broken && !IGNORING_(brokensignatures, 
+"'%s' contains only broken signatures.\n"
+"This most likely means the file was damaged (or edited improperly)\n",
+				filename) ) {
+		r = RET_ERROR;
+		R;
+	}
 	r = check(filename,c,"Format");
 	R;
 	r = check(filename,c,"Date");
@@ -831,7 +839,7 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 	return result;
 }
 
-static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, bool_t onlysigned, const char *sourcedirectory) {
+static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, const char *sourcedirectory) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -880,7 +888,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				distribution,sourcedirectory,fullfilename,
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
-				ao->dsc,D_INPLACE,onlysigned,
+				ao->dsc,D_INPLACE,
 				changes->source,changes->version);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
@@ -946,13 +954,13 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
+retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
 	char *directory;
 
-	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,onlysigned);
+	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -996,7 +1004,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		r = changes_includefiles(filesdb,changes,delete);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkpkgs(filesdb,distribution,changes,ao,onlysigned,directory);
+		r = changes_checkpkgs(filesdb,distribution,changes,ao,directory);
 
 	free(directory);
 

@@ -103,10 +103,9 @@ AC_SUBST([DBLIBS])
 AC_SUBST([DBCPPFLAGS])
 
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
-AC_CHECK_LIB(gpgme,gpgme_check_version,,[AC_MSG_ERROR(["no libgpgme found"])],)
+AC_CHECK_LIB(gpg-error,gpg_strsource,,[AC_MSG_ERROR(["no libgpg-error found"])],)
+AC_CHECK_LIB(gpgme,gpgme_get_protocol_name,,[AC_MSG_ERROR(["no libgpgme found (need at least 0.4.1)"])],)
 AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found"])])
-AH_TEMPLATE([HASGPGMEGOODEXP],[Defined if libgpgme contains GPGME_SIG_STAT_GOOD_EXP])
-CHECK_ENUM(GPGME_SIG_STAT_GOOD_EXP,[gpgme.h],[AC_DEFINE_UNQUOTED(AS_TR_CPP(HASGPGMEGOODEXP))],[],)
 
 AC_ARG_WITH(libbz2,
 [  --with-libbz2=path|yes|no	Give path to prefix libbz2 was installed with],[dnl

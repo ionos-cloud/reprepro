@@ -30,7 +30,7 @@ maintainer-clean-local:
 
 # Some things for my private laziness
 strictbooleancheck:
-	/home/brl/gcc/b/gcc/cc1 -DHAVE_CONFIG_H -I/home/brl/gcc/b/gcc/include -I/usr/include -I.  -D_GNU_SOURCE=1 -Wall -DHASGPGMEGOODEXP  -DAVOID_CHECKPROBLEMS=1 -g -W -O2 *.c
+	/home/brl/gcc/b/gcc/cc1 -DHAVE_CONFIG_H -I/home/brl/gcc/b/gcc/include -I/usr/include -I.  -D_GNU_SOURCE=1 -Wall -DAVOID_CHECKPROBLEMS=1 -g -W -O2 *.c
 
 SPLINT=splint
 SPLITFLAGSFORVIM= -linelen 10000 -locindentspaces 0

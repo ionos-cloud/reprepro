@@ -107,7 +107,7 @@ struct dscfile {
 	struct strlist binaries;
 	char *maintainer;
 	char *controlchunk;
-	struct strlist keys;
+	struct strlist validkeys,keys;
 	// hard to get:
 	char *section, *priority;
 	// TODO: check Architectures?
@@ -131,6 +131,7 @@ static void dscfile_free(struct dscfile *p) {
 	free(p->maintainer);
 	free(p->controlchunk);
 	strlist_done(&p->keys);
+	strlist_done(&p->validkeys);
 	free(p->section);
 	free(p->priority);
 	if( p->files != NULL )
@@ -385,7 +386,7 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	r = signature_readsignedchunk(dscfile->fullfilename, 
-			&n->controlchunk, FALSE, &n->keys);
+			&n->controlchunk, &n->validkeys, &n->keys, NULL);
 	assert( r != RET_NOTHING );
 	// TODO: can this be ignored sometimes?
 	if( RET_WAS_ERROR(r) ) {
@@ -1185,7 +1186,7 @@ int main(int argc,char *argv[]) {
 	int c;
 	const char *changesfilename;
 	bool_t file_exists;
-	struct strlist keys;
+	struct strlist validkeys,keys;
 	char *changes;
 	struct changes *changesdata;
 	retvalue r;
@@ -1214,7 +1215,7 @@ int main(int argc,char *argv[]) {
 		exit(EXIT_FAILURE);
 	file_exists = isregularfile(changesfilename);
 	if( file_exists ) {
-		r = signature_readsignedchunk(changesfilename, &changes, FALSE, &keys);
+		r = signature_readsignedchunk(changesfilename, &changes, &validkeys, &keys, NULL);
 		if( !RET_IS_OK(r) ) {
 			signatures_done();
 			if( r == RET_ERROR_OOM )
@@ -1225,6 +1226,7 @@ int main(int argc,char *argv[]) {
 	} else {
 		changes = NULL;
 		strlist_init(&keys);
+		strlist_init(&validkeys);
 		changesdata = calloc(1,sizeof(struct changes));
 		if( changesdata == NULL )
 			r = RET_ERROR_OOM;
