@@ -19,7 +19,7 @@ autom4te.cache
 debug.log
 .deps
 reprepro
-modifychanges
+changestool
 *.o
 .deps
 old
