@@ -55,6 +55,7 @@
 #include "terms.h"
 #include "tracking.h"
 #include "optionsfile.h"
+#include "dpkgversions.h"
 
 
 #ifndef STD_BASE_DIR
@@ -1932,6 +1933,35 @@ ACTION_D_UU(clearvanished) {
 	return result;
 }
 
+ACTION_N(versioncompare) {
+	retvalue r;
+	int i;
+
+	if( argc != 3 ) {
+		fprintf(stderr,"reprepro versioncompare <version> <version>\n");
+		return RET_ERROR;
+	}
+	r = properversion(argv[1]);
+	if( RET_WAS_ERROR(r) )
+		fprintf(stderr, "'%s' is not a proper version!\n", argv[1]);
+	r = properversion(argv[2]);
+	if( RET_WAS_ERROR(r) )
+		fprintf(stderr, "'%s' is not a proper version!\n", argv[2]);
+	r = dpkgversions_cmp(argv[1],argv[2],&i);
+	if( RET_IS_OK(r) ) {
+		if( i < 0 ) {
+			fprintf(stderr, "'%s' is smaller than '%s'.\n",
+						argv[1], argv[2]);
+		} else if( i > 0 ) {
+			fprintf(stderr, "'%s' is larger than '%s'.\n",
+					argv[1], argv[2]);
+		} else
+			fprintf(stderr, "'%s' is the same as '%s'.\n",
+					argv[1], argv[2]);
+	}
+	return r;
+}
+
 /**********************/
 /* lock file handling */
 /**********************/
@@ -2025,6 +2055,7 @@ static const struct action {
 	{"_dumpcontents", 	A_N(dumpcontents)},
 	{"_removereferences", 	A_R(removereferences)},
 	{"_addreference", 	A_R(addreference)},
+	{"_versioncompare",	A_N(versioncompare)},
 	{"remove", 		A_D(remove)},
 	{"list", 		A_N(list)},
 	{"listfilter", 		A_N(listfilter)},
