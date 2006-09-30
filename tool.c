@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -26,6 +26,7 @@
 #include <malloc.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <time.h>
 #define DEFINE_IGNORE_VARIABLES
 #include "error.h"
 #include "ignore.h"
@@ -36,6 +37,7 @@
 #include "copyfile.h"
 #include "md5sum.h"
 #include "chunks.h"
+#include "chunkedit.h"
 #include "signature.h"
 #include "debfile.h"
 
@@ -44,7 +46,7 @@ int verbose=0;
 bool_t interrupted(void) {return FALSE;}
 
 static void about(bool_t help) {
-	fprintf(help?stdout:stderr, 
+	fprintf(help?stdout:stderr,
 "modifychanges: Modify a Debian style .changes file\n"
 "Syntax: modifychanges <changesfile> <commands>\n"
 "Possible commands include:\n"
@@ -121,7 +123,7 @@ struct dscfile {
 };
 
 static void dscfile_free(struct dscfile *p) {
-	int i;
+	unsigned int i;
 
 	if( p == NULL )
 		return;
@@ -164,6 +166,7 @@ struct changes {
 	char *name;
 	char *version;
 	char *maintainer;
+	char *control;
 	struct strlist architectures;
 	struct strlist distributions;
 	size_t binarycount;
@@ -178,7 +181,7 @@ struct changes {
 };
 
 static void changes_free(struct changes *c) {
-	int i;
+	unsigned int i;
 
 	if( c == NULL )
 		return;
@@ -186,6 +189,7 @@ static void changes_free(struct changes *c) {
 	free(c->name);
 	free(c->version);
 	free(c->maintainer);
+	free(c->control);
 	strlist_done(&c->architectures);
 	strlist_done(&c->distributions);
 	for( i = 0 ; i < c->binarycount ; i++ ) {
@@ -219,7 +223,7 @@ static struct fileentry *add_fileentry(struct changes *c, const char *basename, 
 	while( (f=*fp) != NULL ) {
 		if( f->namelen == len &&
 				strncmp(basename,f->basename,len) == 0 )
-			break;			
+			break;
 		fp = &f->next;
 	}
 	if( f == NULL ) {
@@ -243,7 +247,7 @@ static struct fileentry *add_fileentry(struct changes *c, const char *basename, 
 
 
 static struct binary *get_binary(struct changes *c, const char *p, size_t len) {
-	int j;
+	unsigned int j;
 
 	for( j = 0 ; j < c->binarycount ; j++ ) {
 		if( strncmp(c->binaries[j].name, p, len) == 0 &&
@@ -371,7 +375,7 @@ static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 				return RET_ERROR_OOM;
 		}
 	}
-	
+
 	return RET_OK;
 }
 
@@ -385,7 +389,7 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 	n = calloc(1,sizeof(struct dscfile));
 	if( n == NULL )
 		return RET_ERROR_OOM;
-	r = signature_readsignedchunk(dscfile->fullfilename, 
+	r = signature_readsignedchunk(dscfile->fullfilename,
 			&n->controlchunk, &n->validkeys, &n->keys, NULL);
 	assert( r != RET_NOTHING );
 	// TODO: can this be ignored sometimes?
@@ -454,6 +458,66 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 		return r;
 	}
 	dscfile->dsc = n;
+	return RET_OK;
+}
+
+#define DSC_WRITE_FILES 1
+#define DSC_WRITE_ALL 0xFFFF
+#define flagset(a) (flags & a) != 0
+
+static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
+	struct dscfile *dsc = dscfile->dsc;
+	unsigned int i;
+	struct chunkeditfield *cef;
+	retvalue r;
+	char *control; size_t controllen;
+	char *md5sum;
+	char *destfilename;
+
+	if( flagset(DSC_WRITE_FILES) ) {
+		cef = cef_newfield("Files", CEF_ADD, CEF_LATE, dsc->filecount, NULL);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+		for( i = 0 ; i < dsc->filecount ; i++ ) {
+			struct sourcefile *f = &dsc->files[i];
+			cef_setline(cef, i, 2,
+					f->expectedmd5sum, f->basename, NULL);
+		}
+	} else
+		cef = NULL;
+
+	r = chunk_edit(dsc->controlchunk, &control, &controllen, cef);
+	cef_free(cef);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( RET_IS_OK(r) );
+
+	// TODO: try to add the signatures to it again...
+
+	// TODO: add options to place changed files in different directory...
+	if( dscfile->fullfilename != NULL ) {
+		destfilename = strdup(dscfile->fullfilename);
+	} else
+		destfilename = strdup(dscfile->basename);
+	if( destfilename == NULL ) {
+		free(control);
+		return RET_ERROR_OOM;
+	}
+
+	r = md5sum_replace(destfilename, control, controllen, &md5sum);
+	if( RET_WAS_ERROR(r) ) {
+		free(destfilename);
+		free(control);
+		return r;
+	}
+	assert( RET_IS_OK(r) );
+
+	free(dscfile->fullfilename);
+	dscfile->fullfilename = destfilename;
+	free(dscfile->realmd5sum);
+	dscfile->realmd5sum = md5sum;
+	free(dsc->controlchunk);
+	dsc->controlchunk = control;
 	return RET_OK;
 }
 
@@ -655,7 +719,7 @@ static retvalue parse_changes(const char *changesfile, const char *chunk, struct
 			return RET_ERROR_OOM;
 		}
 	}
-	
+
 	r = chunk_getextralinelist(chunk, "Files", &tmp);
 	R;
 	if( RET_IS_OK(r) ) {
@@ -672,7 +736,223 @@ static retvalue parse_changes(const char *changesfile, const char *chunk, struct
 	return RET_OK;
 }
 
-static retvalue getmd5sums(const char *changesfilename, struct changes *changes) {
+#define CHANGES_WRITE_FILES		0x01
+#define CHANGES_WRITE_BINARIES		0x02
+#define CHANGES_WRITE_SOURCE		0x04
+#define CHANGES_WRITE_VERSION		0x08
+#define CHANGES_WRITE_ARCHITECTURES	0x10
+#define CHANGES_WRITE_MAINTAINER 	0x20
+#define CHANGES_WRITE_ALL 	      0xFFFF
+
+static retvalue write_changes_file(const char *changesfilename,struct changes *c, unsigned int flags) {
+	struct chunkeditfield *cef;
+	char datebuffer[100];
+	retvalue r;
+	char *control; size_t controllen;
+	unsigned int filecount = 0;
+	struct fileentry *f;
+	struct tm *tm; time_t t;
+	unsigned int i;
+	struct strlist binaries;
+
+	strlist_init(&binaries);
+
+	for( f = c->files; f != NULL ; f = f->next ) {
+		if( f->changesmd5sum != NULL )
+			filecount++;
+	}
+
+	if( flagset(CHANGES_WRITE_FILES) ) {
+		cef = cef_newfield("Files", CEF_ADD, CEF_LATE, filecount, NULL);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+		for( i=0,f = c->files; f != NULL ; i++,f = f->next ) {
+			if( f->changesmd5sum == NULL )
+				continue;
+			cef_setline(cef, i, 4,
+					f->changesmd5sum,
+					f->section?f->section:"-",
+					f->priority?f->priority:"-",
+					f->basename, NULL);
+		}
+		assert( i == filecount );
+	} else {
+		cef = cef_newfield("Files", CEF_KEEP, CEF_LATE, 0, NULL);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
+	cef = cef_newfield("Changes", CEF_KEEP, CEF_LATE, 0, cef);
+	if( cef == NULL )
+			return RET_ERROR_OOM;
+	cef = cef_newfield("Closes", CEF_KEEP, CEF_LATE, 0, cef);
+	if( cef == NULL )
+			return RET_ERROR_OOM;
+	if( flagset(CHANGES_WRITE_BINARIES) ) {
+		unsigned int count = 0;
+		for( i = 0 ; i < c->binarycount ; i++ ) {
+			const struct binary *b = c->binaries + i;
+			if( b->description != NULL )
+				count++;
+		}
+		cef = cef_newfield("Description", CEF_ADD, CEF_LATE,
+				count, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+		count = 0;
+		for( i = 0 ; i < c->binarycount ; i++ ) {
+			const struct binary *b = c->binaries + i;
+			if( b->description == NULL )
+				continue;
+			cef_setline(cef, count++, 3,
+					b->name,
+					"-",
+					b->description,
+					NULL);
+		}
+
+	}
+	// Changed-by: line
+	if( flagset(CHANGES_WRITE_MAINTAINER) ) {
+		cef = cef_newfield("Maintainer", CEF_ADD, CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+		cef_setdata(cef, c->maintainer);
+	} else {
+		cef = cef_newfield("Maintainer", CEF_KEEP, CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
+	cef = cef_newfield("Urgency", CEF_KEEP, CEF_EARLY, 0, cef);
+	if( cef == NULL )
+			return RET_ERROR_OOM;
+	cef = cef_newfield("Distribution", CEF_KEEP, CEF_EARLY, 0, cef);
+	if( cef == NULL )
+			return RET_ERROR_OOM;
+	if( c->version != NULL ) {
+		if( flagset(CHANGES_WRITE_VERSION) )
+			cef = cef_newfield("Version", CEF_ADD,
+					CEF_EARLY, 0, cef);
+		else
+			cef = cef_newfield("Version", CEF_ADDMISSED,
+					CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+		cef_setdata(cef, c->version);
+	} else if( flagset(CHANGES_WRITE_VERSION) ) {
+		cef = cef_newfield("Version", CEF_DELETE,
+				CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( flagset(CHANGES_WRITE_ARCHITECTURES) ) {
+		cef = cef_newfield("Architecture", CEF_ADD, CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+		cef_setwordlist(cef, &c->architectures);
+	} else {
+		cef = cef_newfield("Architecture", CEF_KEEP, CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( flagset(CHANGES_WRITE_BINARIES) ) {
+		r = strlist_init_n(c->binarycount, &binaries);
+		if( RET_WAS_ERROR(r) ) {
+			cef_free(cef);
+			return r;
+		}
+		assert( RET_IS_OK(r) );
+		for( i = 0 ; i < c->binarycount ; i++ ) {
+			const struct binary *b = c->binaries + i;
+			if( !b->missedinheader ) {
+				r = strlist_add_dup(&binaries, b->name);
+				if( RET_WAS_ERROR(r) ) {
+					strlist_done(&binaries);
+					cef_free(cef);
+					return r;
+				}
+			}
+		}
+		cef = cef_newfield("Binary", CEF_ADD, CEF_EARLY, 0, cef);
+		if( cef == NULL ) {
+			strlist_done(&binaries);
+			return RET_ERROR_OOM;
+		}
+		cef_setwordlist(cef, &binaries);
+	} else {
+		cef = cef_newfield("Binary", CEF_KEEP, CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( c->name != NULL ) {
+		if( flagset(CHANGES_WRITE_SOURCE) )
+			cef = cef_newfield("Source", CEF_ADD,
+					CEF_EARLY, 0, cef);
+		else
+			cef = cef_newfield("Source", CEF_ADDMISSED,
+					CEF_EARLY, 0, cef);
+		if( cef == NULL ) {
+			strlist_done(&binaries);
+			return RET_ERROR_OOM;
+		}
+		cef_setdata(cef, c->name);
+	} else if( flagset(CHANGES_WRITE_SOURCE) ) {
+		cef = cef_newfield("Source", CEF_DELETE,
+				CEF_EARLY, 0, cef);
+		if( cef == NULL ) {
+			strlist_done(&binaries);
+			return RET_ERROR_OOM;
+		}
+	}
+	// TODO: if localized make sure this uses C locale....
+	t = time(NULL);
+        if( (tm = localtime(&t)) != NULL &&
+	    strftime(datebuffer, sizeof(datebuffer)-1,
+		    "%a, %e %b %Y %H:%M:%S %Z", tm) > 0 ) {
+		cef = cef_newfield("Date", CEF_ADD, CEF_EARLY, 0, cef);
+		if( cef == NULL ) {
+			strlist_done(&binaries);
+			return RET_ERROR_OOM;
+		}
+		cef_setdata(cef, datebuffer);
+	} else {
+		cef = cef_newfield("Date", CEF_DELETE,
+				CEF_EARLY, 0, cef);
+		if( cef == NULL ) {
+			strlist_done(&binaries);
+			return RET_ERROR_OOM;
+		}
+	}
+	cef = cef_newfield("Format", CEF_ADDMISSED, CEF_EARLY, 0, cef);
+	if( cef == NULL ) {
+		strlist_done(&binaries);
+		return RET_ERROR_OOM;
+	}
+	cef_setdata(cef, "1.7");
+
+	r = chunk_edit(c->control, &control, &controllen, cef);
+	strlist_done(&binaries);
+	cef_free(cef);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( RET_IS_OK(r) );
+
+	// TODO: try to add the signatures to it again...
+
+	// TODO: add options to place changed files in different directory...
+
+	r = md5sum_replace(changesfilename, control, controllen, NULL);
+	if( RET_WAS_ERROR(r) ) {
+		free(control);
+		return r;
+	}
+	assert( RET_IS_OK(r) );
+
+	free(c->control);
+	c->control = control;
+	return RET_OK;
+}
+
+static retvalue getmd5sums(struct changes *changes) {
 	struct fileentry *file;
 	retvalue r;
 
@@ -709,14 +989,14 @@ static void verify_sourcefile_md5sums(struct sourcefile *f, const char *dscfile)
 		return;
 	}
 	if( strcmp(f->expectedmd5sum, f->file->realmd5sum) != 0 ) {
-		if( strcmp(f->expectedmd5sum, f->file->changesmd5sum) == 0 ) 
+		if( strcmp(f->expectedmd5sum, f->file->changesmd5sum) == 0 )
 			fprintf(stderr,
 "ERROR: '%s' lists the same wrong md5sum for '%s' like the .changes file!\n",
 				dscfile, f->basename);
 		else
 			fprintf(stderr,
 "ERROR: '%s' says '%s' has md5sum %s but it has %s!\n",
-				dscfile, f->basename, 
+				dscfile, f->basename,
 				f->expectedmd5sum, f->file->realmd5sum);
 	}
 }
@@ -752,10 +1032,10 @@ static void verify_binary_name(const char *basename, const char *name, const cha
 			basename, name, version, architecture, typesuffix[type]);
 }
 
-static retvalue verify(const char *changesfilename, const char *chunk, struct changes *changes) {
+static retvalue verify(const char *changesfilename, struct changes *changes) {
 	retvalue r;
 	struct fileentry *file;
-	int j;
+	unsigned int j;
 
 	printf("Checking Source packages...\n");
 	for( file = changes->files; file != NULL ; file = file->next ) {
@@ -784,39 +1064,39 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 			fprintf(stderr,
 "ERROR: '%s' does not contain a 'Source:'-header!\n", file->fullfilename);
 		else if( changes->name != NULL &&
-				strcmp(changes->name, file->dsc->name) != 0 ) 
+				strcmp(changes->name, file->dsc->name) != 0 )
 			fprintf(stderr,
-"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n", 
+"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n",
 				file->fullfilename,
 				file->dsc->name, changes->name);
 		if( file->dsc->version == NULL )
-			fprintf(stderr, 
-"ERROR: '%s' does not contain a 'Version:'-header!\n", file->fullfilename);
-		else if( changes->version != NULL && 
-				strcmp(changes->version, file->dsc->version) != 0 ) 
 			fprintf(stderr,
-"ERROR: '%s' lists Version '%s' while .changes lists '%s'!\n", 
+"ERROR: '%s' does not contain a 'Version:'-header!\n", file->fullfilename);
+		else if( changes->version != NULL &&
+				strcmp(changes->version, file->dsc->version) != 0 )
+			fprintf(stderr,
+"ERROR: '%s' lists Version '%s' while .changes lists '%s'!\n",
 				file->fullfilename,
 				file->dsc->version, changes->version);
 		if( file->dsc->maintainer == NULL )
-			fprintf(stderr, 
+			fprintf(stderr,
 "ERROR: No maintainer specified in '%s'!\n", file->fullfilename);
-		else if( changes->maintainer != NULL && 
+		else if( changes->maintainer != NULL &&
 				strcmp(changes->maintainer, file->dsc->maintainer) != 0 )
 			fprintf(stderr,
-"Warning: '%s' lists Maintainer '%s' while .changes lists '%s'!\n", 
+"Warning: '%s' lists Maintainer '%s' while .changes lists '%s'!\n",
 				file->fullfilename,
 				file->dsc->maintainer, changes->maintainer);
 		if( file->dsc->section != NULL && file->section != NULL &&
 				strcmp(file->section, file->dsc->section) != 0 )
 			fprintf(stderr,
-"Warning: '%s' has Section '%s' while .changes says it is '%s'!\n", 
+"Warning: '%s' has Section '%s' while .changes says it is '%s'!\n",
 				file->fullfilename,
 				file->dsc->section, file->section);
 		if( file->dsc->priority != NULL && file->priority != NULL &&
 				strcmp(file->priority, file->dsc->priority) != 0 )
 			fprintf(stderr,
-"Warning: '%s' has Priority '%s' while .changes says it is '%s'!\n", 
+"Warning: '%s' has Priority '%s' while .changes says it is '%s'!\n",
 				file->fullfilename,
 				file->dsc->priority, file->priority);
 		// Todo: check types of files it contains...
@@ -845,7 +1125,7 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 					name = NULL;
 					namelen = 0;
 					fprintf(stderr,
-"Warning: '%s' does not contain a '_' seperating name and version!\n", 
+"Warning: '%s' does not contain a '_' seperating name and version!\n",
 						file->basename);
 				}else {
 					name = file->basename;
@@ -869,7 +1149,7 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 #endif
 					if( name != NULL )
 						fprintf(stderr,
-"ERROR: '%s' does not contain a '_' seperating name and version!\n", 
+"ERROR: '%s' does not contain a '_' seperating name and version!\n",
 							file->basename);
 				} else {
 					version = p+1;
@@ -879,11 +1159,11 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 		}
 		if( name != NULL && version != NULL ) {
 			if( *p != '_'
-			|| (p-file->basename) != namelen || l-4 != versionlen
+			|| (size_t)(p-file->basename) != namelen || l-4 != versionlen
 			|| strncmp(p+1, version, versionlen) != 0
 			|| strncmp(file->basename, name, namelen) != 0 )
 				fprintf(stderr,
-"ERROR: '%s' is not called '%*s_%*s.dsc' as expected!\n", 
+"ERROR: '%s' is not called '%*s_%*s.dsc' as expected!\n",
 					file->basename,
 					(unsigned int)namelen, name,
 					(unsigned int)versionlen, version);
@@ -898,28 +1178,28 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 			switch( f->file->type ) {
 				case ft_UNKNOWN:
 					fprintf(stderr,
-"ERROR: '%s' lists a file '%s' with unrecognized suffix!\n", 
+"ERROR: '%s' lists a file '%s' with unrecognized suffix!\n",
 						file->fullfilename,
 						f->basename);
 					break;
 				case ft_TAR_GZ: case ft_TAR_BZ2:
 					if( has_tar || has_orig )
 						fprintf(stderr,
-"ERROR: '%s' lists multiple .tar files!\n", 
+"ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
 					has_tar = TRUE;
 					break;
 				case ft_ORIG_TAR_GZ: case ft_ORIG_TAR_BZ2:
 					if( has_tar || has_orig )
 						fprintf(stderr,
-"ERROR: '%s' lists multiple .tar files!\n", 
+"ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
 					has_orig = TRUE;
 					break;
 				case ft_DIFF_GZ: case ft_DIFF_BZ2:
 					if( has_diff )
 						fprintf(stderr,
-"ERROR: '%s' lists multiple .diff files!\n", 
+"ERROR: '%s' lists multiple .diff files!\n",
 						file->fullfilename);
 					has_diff = TRUE;
 					break;
@@ -932,13 +1212,13 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 			if( strncmp(f->file->basename, name, namelen) != 0
 					|| f->file->basename[namelen] != '_' )
 				fprintf(stderr,
-"ERROR: '%s' does not begin with '%*s_' as expected!\n", 
+"ERROR: '%s' does not begin with '%*s_' as expected!\n",
 					f->file->basename,
 					(unsigned int)namelen, name);
 
 			if( version == NULL )
 				continue;
-						
+
 			if(f->file->type == ft_ORIG_TAR_GZ
 					|| f->file->type == ft_ORIG_TAR_BZ2) {
 				const char *p, *revision;
@@ -961,7 +1241,7 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 						+expectedversionlen,
 					typesuffix[f->file->type]) != 0 ))
 				fprintf(stderr,
-"ERROR: '%s' is not called '%*s_%*s%s' as expected!\n", 
+"ERROR: '%s' is not called '%*s_%*s%s' as expected!\n",
 					f->file->basename,
 					(unsigned int)namelen, name,
 					(unsigned int)expectedversionlen,
@@ -971,19 +1251,19 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 		if( !has_tar && !has_orig )
 			if( has_diff )
 				fprintf(stderr,
-"ERROR: '%s' lists only a .diff, but no .orig.tar!\n", 
+"ERROR: '%s' lists only a .diff, but no .orig.tar!\n",
 						file->fullfilename);
 			else
 				fprintf(stderr,
-"ERROR: '%s' lists no source files!\n", 
+"ERROR: '%s' lists no source files!\n",
 						file->fullfilename);
 		else if( has_diff && !has_orig )
 			fprintf(stderr,
-"ERROR: '%s' lists a .diff, but the .tar is not called .orig.tar!\n", 
+"ERROR: '%s' lists a .diff, but the .tar is not called .orig.tar!\n",
 					file->fullfilename);
 		else if( !has_diff && has_orig )
 			fprintf(stderr,
-"ERROR: '%s' lists a .orig.tar, but no .diff!\n", 
+"ERROR: '%s' lists a .orig.tar, but no .diff!\n",
 					file->fullfilename);
 	}
 	printf("Checking Binary consistency...\n");
@@ -1050,12 +1330,12 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 "Warning: '%s' contains no description!\n",
 				file->fullfilename);
 		else if( b->description != NULL &&
-			 strcmp( b->description, deb->shortdescription) != 0 ) 
+			 strcmp( b->description, deb->shortdescription) != 0 )
 				fprintf(stderr,
 "Warning: '%s' says '%s' has description '%s' while '%s' has '%s'!\n",
 					changesfilename, b->name,
 					b->description,
-					file->fullfilename, 
+					file->fullfilename,
 					deb->shortdescription);
 		if( deb->name == NULL )
 			fprintf(stderr,
@@ -1063,58 +1343,58 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 		if( deb->sourcename != NULL ) {
 			if( strcmp(changes->name, deb->sourcename) != 0 )
 				fprintf(stderr,
-"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n", 
+"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n",
 					file->fullfilename,
 					deb->sourcename, changes->name);
 		} else if( deb->name != NULL &&
 				strcmp(changes->name, deb->name) != 0 ) {
 			fprintf(stderr,
-"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n", 
+"ERROR: '%s' lists Source '%s' while .changes lists '%s'!\n",
 				file->fullfilename,
 				deb->name, changes->name);
 		}
 		if( deb->version == NULL )
-			fprintf(stderr, 
+			fprintf(stderr,
 "ERROR: '%s' does not contain a 'Version:'-header!\n", file->fullfilename);
 		if( deb->sourceversion != NULL ) {
 			if( strcmp(changes->version, deb->sourceversion) != 0 )
 				fprintf(stderr,
-"ERROR: '%s' lists Source version '%s' while .changes lists '%s'!\n", 
+"ERROR: '%s' lists Source version '%s' while .changes lists '%s'!\n",
 					file->fullfilename,
 					deb->sourceversion, changes->version);
 		} else if( deb->version != NULL &&
 				strcmp(changes->version, deb->version) != 0 ) {
 			fprintf(stderr,
-"ERROR: '%s' lists Source version '%s' while .changes lists '%s'!\n", 
+"ERROR: '%s' lists Source version '%s' while .changes lists '%s'!\n",
 				file->fullfilename,
 				deb->version, changes->name);
 		}
 
 		if( deb->maintainer == NULL )
-			fprintf(stderr, 
+			fprintf(stderr,
 "ERROR: No maintainer specified in '%s'!\n", file->fullfilename);
-		else if( changes->maintainer != NULL && 
+		else if( changes->maintainer != NULL &&
 				strcmp(changes->maintainer, deb->maintainer) != 0 )
 			fprintf(stderr,
-"Warning: '%s' lists Maintainer '%s' while .changes lists '%s'!\n", 
+"Warning: '%s' lists Maintainer '%s' while .changes lists '%s'!\n",
 				file->fullfilename,
 				deb->maintainer, changes->maintainer);
 		if( deb->section == NULL )
-			fprintf(stderr, 
+			fprintf(stderr,
 "ERROR: No section specified in '%s'!\n", file->fullfilename);
-		else if( file->section != NULL && 
+		else if( file->section != NULL &&
 				strcmp(file->section, deb->section) != 0 )
 			fprintf(stderr,
-"Warning: '%s' has Section '%s' while .changes says it is '%s'!\n", 
+"Warning: '%s' has Section '%s' while .changes says it is '%s'!\n",
 				file->fullfilename,
 				deb->section, file->section);
 		if( deb->priority == NULL )
-			fprintf(stderr, 
+			fprintf(stderr,
 "ERROR: No priority specified in '%s'!\n", file->fullfilename);
-		else if( file->priority != NULL && 
+		else if( file->priority != NULL &&
 				strcmp(file->priority, deb->priority) != 0 )
 			fprintf(stderr,
-"Warning: '%s' has Priority '%s' while .changes says it is '%s'!\n", 
+"Warning: '%s' has Priority '%s' while .changes says it is '%s'!\n",
 				file->fullfilename,
 				deb->priority, file->priority);
 		verify_binary_name(file->basename, deb->name, deb->version,
@@ -1130,7 +1410,7 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 	}
 
 	printf("Checking md5sums...\n");
-	r = getmd5sums(changesfilename, changes);
+	r = getmd5sums(changes);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( file = changes->files; file != NULL ; file = file->next ) {
@@ -1156,7 +1436,7 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 		}
 
 		if( file->type == ft_DSC ) {
-			int i;
+			unsigned int i;
 
 			if( file->dsc == NULL ) {
 				fprintf(stderr,
@@ -1177,17 +1457,163 @@ static retvalue verify(const char *changesfilename, const char *chunk, struct ch
 	return RET_OK;
 }
 
+static bool_t isarg(int argc, char **argv, const char *name) {
+	while( argc > 0 ) {
+		if( strcmp(*argv, name) == 0 )
+			return TRUE;
+		argc--;
+		argv++;
+	}
+	return FALSE;
+}
+
+static retvalue updatemd5sums(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	retvalue r;
+	struct fileentry *file;
+
+	r = getmd5sums(c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	/* first update all .dsc files and perhaps recalculate their md5sums */
+	for( file = c->files; file != NULL ; file = file->next ) {
+		unsigned int i;
+
+		if( file->type != ft_DSC )
+			continue;
+
+		if( file->dsc == NULL ) {
+			fprintf(stderr,
+"WARNING: Could not read '%s', hopeing the content and its md5sum are correct!\n",
+					file->basename);
+			continue;
+		}
+		assert( file->fullfilename != NULL );
+		for( i = 0 ; i < file->dsc->filecount ; i++ ) {
+			struct sourcefile *f = &file->dsc->files[i];
+			bool_t doit;
+			char *md5sum = NULL;
+			const char *realmd5;
+
+			assert( f->expectedmd5sum != NULL );
+			assert( f->basename != NULL );
+
+			doit = isarg(argc,argv,f->basename);
+			if( argc > 0 && !doit )
+				continue;
+
+			if( f->file == NULL ) {
+				if( !doit ) {
+					fprintf(stderr,
+"Not checking '%s' as not in .changes and not specified on command line.\n",
+						f->basename);
+					continue;
+				}
+				// ... get md5sum ..;
+				realmd5 = md5sum;
+			} else {
+				if( f->file->realmd5sum == NULL ) {
+					fprintf(stderr, "WARNING: Could not check md5sum of '%s'!\n", f->basename);
+					continue;
+				}
+				realmd5 = f->file->realmd5sum;
+			}
+
+			if( strcmp(f->expectedmd5sum, realmd5) == 0 ) {
+				/* already correct */
+				free(md5sum);
+				continue;
+			}
+			fprintf(stderr,
+"Going to update '%s' in '%s'\nfrom '%s'\nto   '%s'.\n",
+					f->basename, file->fullfilename,
+					realmd5, f->expectedmd5sum);
+			free(f->expectedmd5sum);
+			if( md5sum != NULL )
+				f->expectedmd5sum = md5sum;
+			else {
+				free(md5sum);
+				f->expectedmd5sum = strdup(realmd5);
+				if( f->expectedmd5sum == NULL )
+					return RET_ERROR_OOM;
+			}
+			file->dsc->modified = TRUE;
+		}
+		if( file->dsc->modified ) {
+			r = write_dsc_file(file, DSC_WRITE_FILES);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+	}
+	for( file = c->files; file != NULL ; file = file->next ) {
+
+		if( file->changesmd5sum == NULL )
+			/* nothing to check here */
+			continue;
+		if( file->realmd5sum == NULL ) {
+			fprintf(stderr, "WARNING: Could not check md5sum of '%s'! Leaving it as it is.\n", file->basename);
+			continue;
+		}
+		if( strcmp(file->realmd5sum, file->changesmd5sum) == 0 ) {
+			continue;
+		}
+		fprintf(stderr,
+"Going to update '%s' in '%s'\nfrom '%s'\nto   '%s'.\n",
+					file->basename, changesfilename,
+					file->realmd5sum, file->changesmd5sum);
+		free(file->changesmd5sum);
+		file->changesmd5sum = strdup(file->realmd5sum);
+		if( file->changesmd5sum == NULL )
+			return RET_ERROR_OOM;
+		c->modified = TRUE;
+	}
+	if( c->modified ) {
+		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
+	} else
+		return RET_NOTHING;
+}
+
+static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, struct changes *changesdata) {
+	const char *command = argv[0];
+	retvalue r;
+
+	assert( argc > 0 );
+
+	if( strcasecmp(command, "verify") == 0 ) {
+		if( argc > 1 ) {
+			fprintf(stderr, "Too many argument!\n");
+			r = RET_ERROR;
+		} else if( file_exists )
+			r = verify(changesfilename, changesdata);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "updatechecksums") == 0 ) {
+		if( file_exists )
+			r = updatemd5sums(changesfilename, changesdata, argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else {
+		fprintf(stderr, "Unknown command '%s'\n", command);
+		r = RET_ERROR;
+	}
+	return r;
+}
+
 int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"ignore", required_argument, NULL, 'i'},
-		{},
+		{NULL, 0, NULL, 0},
 	};
 	int c;
 	const char *changesfilename;
 	bool_t file_exists;
 	struct strlist validkeys,keys;
-	char *changes;
 	struct changes *changesdata;
 	retvalue r;
 
@@ -1215,6 +1641,8 @@ int main(int argc,char *argv[]) {
 		exit(EXIT_FAILURE);
 	file_exists = isregularfile(changesfilename);
 	if( file_exists ) {
+		char *changes;
+
 		r = signature_readsignedchunk(changesfilename, &changes, &validkeys, &keys, NULL);
 		if( !RET_IS_OK(r) ) {
 			signatures_done();
@@ -1223,35 +1651,28 @@ int main(int argc,char *argv[]) {
 			exit(EXIT_FAILURE);
 		}
 		r = parse_changes(changesfilename, changes, &changesdata, NULL);
+		if( RET_IS_OK(r) )
+			changesdata->control = changes;
+		else
+			free(changes);
 	} else {
-		changes = NULL;
 		strlist_init(&keys);
 		strlist_init(&validkeys);
 		changesdata = calloc(1,sizeof(struct changes));
 		if( changesdata == NULL )
 			r = RET_ERROR_OOM;
-		else
+		else {
 			r = RET_OK;
+		}
 	}
 
 	if( !RET_WAS_ERROR(r) ) {
-		const char *command = argv[2];
-		if( argc > 2 && strcasecmp(command, "verify") == 0 ) {
-			if( file_exists )
-				r = verify(changesfilename, changes, changesdata);
-			else {
-				fprintf(stderr, "No such file '%s'!\n",
-						changesfilename);
-				r = RET_ERROR;
-			}
-		} else {
-			fprintf(stderr, "Unknown command '%s'\n", command);
-			r = RET_ERROR;
-		}
+		argc -= 2;
+		argv += 2;
+		r = execute_command(argc,argv, changesfilename, file_exists, changesdata);
 	}
 	changes_free(changesdata);
 	strlist_done(&keys);
-	free(changes);
 
 	signatures_done();
 	if( RET_IS_OK(r) )

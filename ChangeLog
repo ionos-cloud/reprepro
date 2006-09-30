@@ -1,3 +1,6 @@
+2006-09-30  Bernhard R. Link <brlink@debian.org>
+	* new updatechecksums command for changestool 
+
 2006-09-24  Bernhard R. Link <brlink@debian.org>
 	* ported to libgpgme11
 	* removed --onlyacceptsigned
