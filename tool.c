@@ -51,8 +51,9 @@ static void about(bool_t help) {
 "Syntax: modifychanges <changesfile> <commands>\n"
 "Possible commands include:\n"
 " verify\n"
+" updatechecksums [<files to update>]\n"
+" includeallsources [<files to copy from .dsc to .changes>]\n"
 //" add <filenames>\n"
-//" update [<files>]\n"
 //" create <.dsc and .deb files to include>\n"
 );
 	if( help )
@@ -1501,7 +1502,7 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 			if( argc > 0 && !doit )
 				continue;
 
-			if( f->file == NULL ) {
+			if( f->file == NULL || f->file->changesmd5sum == NULL ) {
 				if( !doit ) {
 					fprintf(stderr,
 "Not checking '%s' as not in .changes and not specified on command line.\n",
@@ -1572,6 +1573,63 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 		return RET_NOTHING;
 }
 
+static retvalue includeallsources(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	struct fileentry *file;
+
+	for( file = c->files; file != NULL ; file = file->next ) {
+		unsigned int i;
+
+		if( file->type != ft_DSC )
+			continue;
+
+		if( file->dsc == NULL ) {
+			fprintf(stderr,
+"WARNING: Could not read '%s', thus cannot determine if it depends on unlisted files!\n",
+					file->basename);
+			continue;
+		}
+		assert( file->fullfilename != NULL );
+		for( i = 0 ; i < file->dsc->filecount ; i++ ) {
+			struct sourcefile *f = &file->dsc->files[i];
+
+			assert( f->expectedmd5sum != NULL );
+			assert( f->basename != NULL );
+			assert( f->file != NULL );
+
+			if( f->file->changesmd5sum != NULL )
+				continue;
+
+			if( argc > 0 && !isarg(argc,argv,f->basename) )
+				continue;
+
+			f->file->changesmd5sum = strdup(f->expectedmd5sum);
+			if( f->file->changesmd5sum == NULL )
+				return RET_ERROR_OOM;
+			/* copy section and priority information from the dsc */
+			if( f->file->section == NULL && file->section != NULL ) {
+				f->file->section = strdup(file->section);
+				if( f->file->section == NULL )
+					return RET_ERROR_OOM;
+			}
+			if( f->file->priority == NULL && file->priority != NULL ) {
+				f->file->priority = strdup(file->priority);
+				if( f->file->priority == NULL )
+					return RET_ERROR_OOM;
+			}
+
+			fprintf(stderr,
+"Going to add '%s' with '%s' to '%s'.\n",
+					f->basename, f->expectedmd5sum,
+					changesfilename);
+			c->modified = TRUE;
+		}
+	}
+	if( c->modified ) {
+		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
+	} else
+		return RET_NOTHING;
+}
+
 static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
@@ -1592,6 +1650,14 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 	} else if( strcasecmp(command, "updatechecksums") == 0 ) {
 		if( file_exists )
 			r = updatemd5sums(changesfilename, changesdata, argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "includeallsources") == 0 ) {
+		if( file_exists )
+			r = includeallsources(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
