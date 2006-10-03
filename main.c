@@ -714,8 +714,10 @@ ACTION_F(export) {
 
 		r = distribution_fullexport(d,confdir,dbdir,distdir,filesdb);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && export != EXPORT_FORCE)
+		if( RET_WAS_ERROR(r) && export != EXPORT_FORCE) {
+			distribution_freelist(distributions);
 			return r;
+		}
 	}
 	r = distribution_freelist(distributions);
 	RET_ENDUPDATE(result,r);
