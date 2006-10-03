@@ -1,6 +1,7 @@
 2006-10-03  Bernhard R. Link <brlink@debian.org>
 	* fix typos and spelling errors in manpage (Thanks to Bruce Sass)
 	* fix type-mismatch to silence compiler-warning
+	* work around signing problems in gpgme11, fix some memory holes
 
 2006-10-01  Bernhard R. Link <brlink@debian.org>
 	* new includeallsources command for changestool

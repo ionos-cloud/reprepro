@@ -54,20 +54,19 @@ static retvalue gpgerror(gpgme_error_t err) {
 }
 
 /* Quick&dirty passphrase asking */
-static gpgme_error_t signature_getpassphrase(void *hook, const char *uid_hint, const char *info, int prev_was_bad, int fd) {
+static gpgme_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid_hint, UNUSED(const char *info), int prev_was_bad, int fd) {
 	char *msg;
 	const char *p;
 
-	msg = mprintf("Please insecurely enter passphrase for %s%s%s%s%s:",
+	msg = mprintf("%s needs a passphrase\nPlease enter passphrase%s:",
 			(uid_hint!=NULL)?uid_hint:"key",
-			(info!=NULL)?" (":"",
-			(info!=NULL)?info:"",
-			(info!=NULL)?")":"",
 			(prev_was_bad!=0)?" again":"");
 	if( msg == NULL )
 		return gpgme_err_make(GPG_ERR_SOURCE_USER_1, GPG_ERR_ENOMEM);
 	p = getpass(msg);
 	write(fd, p, strlen(p));
+	write(fd, "\n", 1);
+	free(msg);
 	return GPG_ERR_NO_ERROR;
 }
 
@@ -299,17 +298,37 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		gpgme_key_t key;
 
 		gpgme_signers_clear(context);
-		err = gpgme_get_key(context, options, &key, 1);
+/*		does not work:
+ 		err = gpgme_get_key(context, options, &key, 1);
+		if( gpgme_err_code(err) == GPG_ERR_AMBIGUOUS_NAME ) {
+			fprintf(stderr, "'%s' is too ambiguous for gpgme!\n", options);
+			return RET_ERROR;
+		} else if( gpgme_err_code(err) == GPG_ERR_INV_VALUE ) {
+			fprintf(stderr, "gpgme says '%s' is \"not a fingerprint or key ID\"!\n\n", options);
+			return RET_ERROR;
+		}
 		if( err != 0 )
 			return gpgerror(err);
 		if( key == NULL ) {
 			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
 			return RET_ERROR;
 		}
-		// TODO: does this need to be freed after this?
-		err = gpgme_signers_add(context,key);
+*/
+		err = gpgme_op_keylist_start(context, options, 1);
 		if( err != 0 )
 			return gpgerror(err);
+		err = gpgme_op_keylist_next(context, &key);
+		if( gpgme_err_code(err) == GPG_ERR_EOF ) {
+			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
+			return RET_ERROR;
+		}
+		err = gpgme_signers_add(context,key);
+		gpgme_key_unref(key);
+		if( err != 0 ) {
+			gpgme_op_keylist_end(context);
+			return gpgerror(err);
+		}
+		gpgme_op_keylist_end(context);
 	}
 
 	// TODO: Supply our own read functions to get sensible error messages.
@@ -358,7 +377,11 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 			signature_len -= written;
 			p += written;
 		}
+#ifdef HAVE_GPGPME_FREE
+		gpgme_free(signature_data);
+#else
 		free(signature_data);
+#endif
 		ret = close(fd);
 		if( ret < 0 ) {
 			int e = errno;
