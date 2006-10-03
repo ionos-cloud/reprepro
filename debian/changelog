@@ -1,8 +1,9 @@
 reprepro (1.2.0-2) UNRELEASED; urgency=low
 
   * make package description libdb version independent (Closes: 387345)
+  * fix typos and spelling errors in manpage (Closes: 390734, 390737)
 
- -- Bernhard R. Link <brlink@debian.org>  Thu, 14 Sep 2006 11:54:02 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  3 Oct 2006 18:25:05 +0200
 
 reprepro (1.2.0-1) unstable; urgency=low
 
