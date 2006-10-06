@@ -1,3 +1,7 @@
+2006-10-06  Bernhard R. Link <brlink@debian.org>
+	* FilterList in update and pull rules now
+	  is a space seperated list of files.
+
 2006-10-03  Bernhard R. Link <brlink@debian.org>
 	* fix typos and spelling errors in manpage (Thanks to Bruce Sass)
 	* fix type-mismatch to silence compiler-warning

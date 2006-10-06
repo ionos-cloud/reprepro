@@ -9,18 +9,12 @@ enum filterlisttype {
 	flt_error
 };
 
-struct filterlistitem {
-	/*@owned@*//*@null@*/
-	struct filterlistitem *next;
-	char *packagename;
-	enum filterlisttype what;
-};
+struct filterlistfile;
 
 struct filterlist {
-	/*@owned@*//*@null@*/
-	struct filterlistitem *root;
-	/*@dependent@*//*@null@*/
-	const struct filterlistitem *last;
+	size_t count;
+	struct filterlistfile **files;
+
 	/* to be used when not found */
 	enum filterlisttype defaulttype;
 };

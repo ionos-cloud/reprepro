@@ -738,11 +738,11 @@ Dependency lines. To get only architecture all packages use
 packages use "priority (==required) | priority (==important)".
 .TP
 .B FilterList
-This takes two arguments: The first one is the default action
-when something is not found, the second is a
-filename (relative to
-.B \-\-confdir
-, if not starting with a slash), 
+This takes at least two arguments: The first one is the default action
+when something is not found, the then a list of
+filenames (relative to
+.B \-\-confdir\fR,
+if not starting with a slash), 
 in the format of dpkg \-\-get\-selections and only packages listed in
 there as 
 .B install
@@ -754,6 +754,8 @@ or nonexistent will be treated like not being known.
 A package being
 .B hold
 will not be upgraded but also not downgraded or removed.
+To abort the whole upgrade/pull if a package is available, use
+.B error\fR.
 .TP
 .B ListHook
 If this is given, it is executed for all downloaded index files
