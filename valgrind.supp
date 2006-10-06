@@ -11,6 +11,18 @@
    fun:__db_sync
 }
 {
+   stupid-db3-withlibc-dbg
+   Memcheck:Param
+   pwrite64(buf)
+   fun:do_pwrite64
+   fun:__os_io
+   obj:/usr/lib/libdb-4.3.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+   fun:__memp_fsync
+   fun:__db_sync
+}
+{
    libz-looking-far
    Memcheck:Cond
    obj:/usr/lib/libz.so.1.2.2
