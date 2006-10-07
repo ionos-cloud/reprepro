@@ -199,7 +199,7 @@ static inline retvalue filterlistfile_get(const char *confdir, const char *filen
 		return RET_ERROR_OOM;
 	}
 	if( p->filename[0] != '/' ) {
-		const char *fullfilename = calc_dirconcat(confdir, p->filename);
+		char *fullfilename = calc_dirconcat(confdir, p->filename);
 		if( fullfilename == NULL )
 			r = RET_ERROR_OOM;
 		else {
