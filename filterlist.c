@@ -183,6 +183,7 @@ static inline retvalue filterlistfile_get(const char *confdir, const char *filen
 	for( p = listfiles ; p != NULL ; p = p->next ) {
 		if( p->filename_len == len &&
 				strncmp(p->filename, filename, len) == 0 ) {
+			p->reference_count++;
 			*list = p;
 			return RET_OK;
 		}
