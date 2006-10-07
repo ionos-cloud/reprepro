@@ -294,6 +294,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		return RET_ERROR;
 	} else if( strcasecmp(options,"yes") == 0 || strcasecmp(options,"default") == 0 ) {
 		gpgme_signers_clear(context);
+		options = NULL;
 	} else {
 		gpgme_key_t key;
 
@@ -353,6 +354,34 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		size_t signature_len;
 		ssize_t written;
 		int fd;
+		gpgme_sign_result_t signresult;
+
+		signresult = gpgme_op_sign_result(context);
+		if( signresult == NULL ) {
+			fprintf(stderr,
+"Error: gpgme returned NULL unexpectedly for gpgme_op_sign_result\n"
+"This most likely means gpg is confused or produces some error libgpgme is\n"
+"not able to understand. Try running gpg %s%s --output '%s' --detach-sign '%s'\n"
+"for hints what this error might have been.\n",
+				(options==NULL)?"":"-u ",
+				(options==NULL)?"":options,
+				signaturename, filename);
+			gpgme_data_release(dh_gpg);
+			return RET_ERROR_GPGME;
+		}
+		if( signresult->signatures == NULL ) {
+			fprintf(stderr,
+"Error: gpgme created no signature for '%s'!\n"
+"This most likely means gpg is confused or produces some error libgpgme is\n"
+"not able to understand. Try running gpg %s%s --output '%s' --detach-sign '%s'\n"
+"for hints what this error might have been.\n",
+				filename,
+				(options==NULL)?"":"-u ",
+				(options==NULL)?"":options,
+				signaturename, filename);
+			gpgme_data_release(dh_gpg);
+			return RET_ERROR_GPGME;
+		}
 
 		signature_data = gpgme_data_release_and_get_mem(dh_gpg,&signature_len);
 		if( signature_data == NULL ) {

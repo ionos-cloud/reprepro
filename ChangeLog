@@ -2,6 +2,8 @@
 	* only show control information of to be added packages
 	  in checkpull/checkupdate with -V
 	* fixed a missed refcount increasing in yesterdays code
+	* give hints where to look when gpgme reports no error on
+	  failure
 
 2006-10-06  Bernhard R. Link <brlink@debian.org>
 	* FilterList in update and pull rules now
