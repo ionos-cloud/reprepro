@@ -628,9 +628,12 @@ void upgradelist_dump(struct upgradelist *upgrade){
 					       " as '%s':\n files needed: ",
 					       pkg->name, pkg->new_version);
 				(void)strlist_fprint(stdout,&pkg->new_filekeys);
-				(void)printf("\nwith md5sums: ");
+				(void)printf("\n with md5sums: ");
 				(void)strlist_fprint(stdout,&pkg->new_md5sums);
-				(void)printf("\ninstalling as: '%s'\n",pkg->new_control);
+				if( verbose > 2) 
+					(void)printf("\n installing as: '%s'\n",pkg->new_control);
+				else
+					(void)putchar('\n');
 			}
 		}
 	}

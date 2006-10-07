@@ -1,3 +1,7 @@
+2006-10-07  Bernhard R. Link <brlink@debian.org>
+	* only show control information of to be added packages
+	  in checkpull/checkupdate with -V
+
 2006-10-06  Bernhard R. Link <brlink@debian.org>
 	* FilterList in update and pull rules now
 	  is a space seperated list of files.
