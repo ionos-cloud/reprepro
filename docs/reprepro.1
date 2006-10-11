@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "11 September, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "11 October, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -595,7 +595,7 @@ And so on...
 
 After that a space seperated list of options can be given.
 If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
-(in a file called \fBuContents-\fP\fIarchitecture\fP.)
+(in a file called \fBuContents\-\fP\fIarchitecture\fP.)
 If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
 (Only usefull together with \fBudebs\fP)
 If there is at least one of the keywords \fB.\fP, \fB.gz\fP and/or \fB.bz2\fP,
@@ -621,7 +621,7 @@ no udeb Components are processed at all.)
 .B Uploaders
 Specified a file (relative to confdir if not starting with a slash)
 to specify who is allowed to upload packages. With this there are no
-limits, and this file can be ignored via \fB--ignore=uploaders\fP.
+limits, and this file can be ignored via \fB\-\-ignore=uploaders\fP.
 See the section \fBUPLOADERS FILES\fP below.
 .TP
 .B Tracking
@@ -688,7 +688,7 @@ this location.
 .B Config
 This can contain any number of lines, each in the format
 .B apt\-get \-\-option
-would expect. (Multiple lines - as always - marked with
+would expect. (Multiple lines \(hy as always \(hy marked with
 leading spaces).
 .P
 For example: Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
