@@ -56,6 +56,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->deb_override);
 		free(distribution->udeb_override);
 		free(distribution->dsc_override);
+		free(distribution->uploaders);
 		strlist_done(&distribution->udebcomponents);
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
@@ -180,6 +181,7 @@ static const char * const allowedfields[] = {
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 "Pull", "Contents", "ContentsArchitectures",
 "ContentsComponents", "ContentsUComponents",
+"Uploaders",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
@@ -264,6 +266,7 @@ NULL};
 	getpossibleemptyfield("DebOverride",deb_override);
 	getpossibleemptyfield("UDebOverride",udeb_override);
 	getpossibleemptyfield("DscOverride",dsc_override);
+	getpossibleemptyfield("Uploaders",uploaders);
 
 	getpossibleemptywordlist("UDebComponents",udebcomponents);
 

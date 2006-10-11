@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -56,6 +56,7 @@
 #include "tracking.h"
 #include "optionsfile.h"
 #include "dpkgversions.h"
+#include "uploaderslist.h"
 
 
 #ifndef STD_BASE_DIR
@@ -74,7 +75,7 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*confdir = NULL,
 	*overridedir = NULL,
 	*methoddir = NULL;
-static char /*@only@*/ /*@null@*/ 
+static char /*@only@*/ /*@null@*/
 	*section = NULL,
 	*priority = NULL,
 	*component = NULL,
@@ -97,7 +98,7 @@ enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
 O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export);
 #undef O
-	
+
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
 					owner_ ## variable = config_state; \
 					variable = value; }
@@ -218,8 +219,8 @@ ACTION_N(extractcontrol) {
 	}
 
 	result = extractcontrol(&control,argv[1]);
-	
-	if( RET_IS_OK(result) ) 
+
+	if( RET_IS_OK(result) )
 		printf("%s\n",control);
 	return result;
 }
@@ -233,7 +234,7 @@ ACTION_N(extractfilelist) {
 	}
 
 	result = getfilelist(&filelist,argv[1]);
-	
+
 	if( RET_IS_OK(result) ) {
 		const char *p = filelist;
 		while( *p != '\0' ) {
@@ -267,7 +268,7 @@ ACTION_U_F(addmd5sums) {
 	}
 
 	result = RET_NOTHING;
-	
+
 	while( fgets(buffer,1999,stdin) != NULL ) {
 		c = strchr(buffer,'\n');
 		if( c == NULL ) {
@@ -317,7 +318,7 @@ static retvalue checkifreferenced(void *data,const char *filekey,UNUSED(const ch
 	r = references_isused(dist->refs,filekey);
 	if( r == RET_NOTHING ) {
 		printf("%s\n",filekey);
-		return RET_OK;		
+		return RET_OK;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
 	} else
@@ -386,7 +387,7 @@ ACTION_R(addreference) {
 
 struct remove_args {/*@temp@*/references refs; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;};
 
-static retvalue remove_from_target(/*@temp@*/void *data, struct target *target, 
+static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 		struct distribution *distribution) {
 	retvalue result,r;
 	int i;
@@ -489,7 +490,7 @@ ACTION_D(remove) {
 	return result;
 }
 
-static retvalue list_in_target(void *data, struct target *target, 
+static retvalue list_in_target(void *data, struct target *target,
 		UNUSED(struct distribution *distribution)) {
 	retvalue r,result;
 	const char *packagename = data;
@@ -625,7 +626,7 @@ ACTION_F(detect) {
 			*nl = '\0';
 			r = files_detect(filesdb,buffer);
 			RET_UPDATE(ret,r);
-		} 
+		}
 	return ret;
 }
 
@@ -650,7 +651,7 @@ ACTION_F(forget) {
 			*nl = '\0';
 			r = files_remove(filesdb, buffer, FALSE);
 			RET_UPDATE(ret,r);
-		} 
+		}
 	return ret;
 }
 
@@ -684,7 +685,7 @@ ACTION_N(dumpcontents) {
 
 	r = packages_done(packages);
 	RET_ENDUPDATE(result,r);
-	
+
 	return result;
 }
 
@@ -701,7 +702,7 @@ ACTION_F(export) {
 		fprintf(stderr, "Error: reprepro export incompatible with --export=never\n");
 		return RET_ERROR;
 	}
-	
+
 	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
@@ -737,7 +738,7 @@ ACTION_D(update) {
 		return RET_ERROR;
 	}
 
-	result = dirs_make_recursive(listdir);	
+	result = dirs_make_recursive(listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -790,7 +791,7 @@ ACTION_D(predelete) {
 		return RET_ERROR;
 	}
 
-	result = dirs_make_recursive(listdir);	
+	result = dirs_make_recursive(listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -843,7 +844,7 @@ ACTION_D(iteratedupdate) {
 		return RET_ERROR;
 	}
 
-	result = dirs_make_recursive(listdir);	
+	result = dirs_make_recursive(listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -893,7 +894,7 @@ ACTION_N(checkupdate) {
 		return RET_ERROR;
 	}
 
-	result = dirs_make_recursive(listdir);	
+	result = dirs_make_recursive(listdir);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
@@ -963,7 +964,7 @@ ACTION_D(pull) {
 		return result;
 	}
 	result = pull_update(dbdir,filesdb,references,p,dereferenced);
-	
+
 	pull_freerules(rules);
 	pull_freedistributions(p);
 	r = distribution_freelist(sourceonly);
@@ -1010,7 +1011,7 @@ ACTION_N(checkpull) {
 		return result;
 	}
 	result = pull_checkupdate(dbdir,p);
-	
+
 	pull_freerules(rules);
 	pull_freedistributions(p);
 	r = distribution_freelist(sourceonly);
@@ -1024,12 +1025,12 @@ ACTION_N(checkpull) {
 
 struct copy_data {
 	struct distribution *destination;
-	/*@temp@*/references refs; 
-	/*@temp@*/const char *name; 
+	/*@temp@*/references refs;
+	/*@temp@*/const char *name;
 	/*@temp@*/struct strlist *removedfiles;
 };
 
-static retvalue copy(/*@temp@*/void *data, struct target *origtarget, 
+static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 		struct distribution *distribution) {
 	retvalue result,r;
 	struct copy_data *d = data;
@@ -1130,7 +1131,7 @@ ACTION_D(copy) {
 	if( destination->tracking != dt_NONE ) {
 		fprintf(stderr, "WARNING: copy does not yet support trackingdata and will ignore trackingdata in '%s'!\n", destination->codename);
 	}
-	
+
 	d.destination = destination;
 	d.refs = references;
 	d.removedfiles = dereferenced;
@@ -1152,7 +1153,7 @@ ACTION_D(copy) {
 	distribution_free(source);
 	distribution_free(destination);
 	return result;
-	
+
 }
 
 /***********************rereferencing*************************/
@@ -1303,7 +1304,7 @@ ACTION_D_U(removetrack) {
 	RET_ENDUPDATE(result,r);
 	return result;
 }
-	
+
 ACTION_D(cleartracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
@@ -1656,7 +1657,7 @@ ACTION_D(includedsc) {
 	}
 
 	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],srcoverride,delete,dereferenced,tracks);
-	
+
 	override_free(srcoverride);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
@@ -1672,6 +1673,7 @@ ACTION_D(include) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct alloverrides ao;
+	struct uploaders *uploaders;
 	trackingdb tracks;
 
 	if( argc != 3 ) {
@@ -1720,11 +1722,23 @@ ACTION_D(include) {
 	} else {
 		tracks = NULL;
 	}
+	if( distribution->uploaders != NULL ) {
+		result = uploaders_load(&uploaders, confdir, distribution->uploaders);
+		if( RET_WAS_ERROR(result) ) {
+			r = tracking_done(tracks);
+			RET_ENDUPDATE(result,r);
+			override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			return result;
+		}
+	} else
+		uploaders = NULL;
 
-	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],delete,dereferenced);
+	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,uploaders,&ao,argv[2],delete,dereferenced);
 
 	override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
-
+	uploaders_free(uploaders);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
 	r = distribution_export(export,distribution,confdir,dbdir,distdir,filesdb);
@@ -1755,7 +1769,7 @@ ACTION_N(createsymlinks) {
 		char *linkname,*buffer;
 		size_t bufsize;
 		int ret;
-		
+
 		if( d->suite == NULL )
 			continue;
 		r = RET_NOTHING;
@@ -1973,7 +1987,7 @@ static retvalue acquirelock(const char *dbdir) {
 	int fd;
 	retvalue r;
 
-	// TODO: create directory 
+	// TODO: create directory
 	r = dirs_make_recursive(dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -2004,7 +2018,7 @@ static retvalue acquirelock(const char *dbdir) {
 		(void)unlink(lockfile);
 		free(lockfile);
 		return RET_ERRNO(e);
-	
+
 	}
 	free(lockfile);
 	return RET_OK;
@@ -2036,12 +2050,12 @@ static void releaselock(const char *dbdir) {
 #define A_R(w) action_r_ ## w, NEED_REFERENCES
 #define A_RF(w) action_rf_ ## w, NEED_FILESDB|NEED_REFERENCES
 /* to dereference files, one needs files and references database: */
-#define A_D(w) action_d_ ## w, NEED_FILESDB|NEED_REFERENCES|NEED_DEREF 
+#define A_D(w) action_d_ ## w, NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
 
 static const struct action {
 	char *name;
 	retvalue (*start)(
-			/*@null@*/references references, 
+			/*@null@*/references references,
 			/*@null@*/filesdb filesdb,
 			/*@null@*/struct strlist *dereferencedfilekeys,
 			int argc,const char *argv[]);
@@ -2103,9 +2117,9 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 	bool_t deletederef;
 
 	assert(action != NULL);
-	
+
 	deletederef = ISSET(action->needs,NEED_DEREF) && !keepunreferenced;
-	
+
 	result = acquirelock(dbdir);
 	if( !RET_IS_OK(result) )
 		return result;
@@ -2386,7 +2400,7 @@ static void handle_option(int c,const char *optarg) {
 			}
 			break;
 		case 'C':
-			if( component != NULL && 
+			if( component != NULL &&
 					strcmp(component,optarg) != 0) {
 				fprintf(stderr,"Multiple '-C' are not supported!\n");
 				exit(EXIT_FAILURE);
@@ -2394,7 +2408,7 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(component,optarg);
 			break;
 		case 'A':
-			if( architecture != NULL && 
+			if( architecture != NULL &&
 					strcmp(architecture,optarg) != 0) {
 				fprintf(stderr,"Multiple '-A's are not supported!\n");
 				exit(EXIT_FAILURE);
@@ -2402,7 +2416,7 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(architecture,optarg);
 			break;
 		case 'T':
-			if( packagetype != NULL && 
+			if( packagetype != NULL &&
 					strcmp(packagetype,optarg) != 0) {
 				fprintf(stderr,"Multiple '-T's are not supported!\n");
 				exit(EXIT_FAILURE);
@@ -2410,7 +2424,7 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(packagetype,optarg);
 			break;
 		case 'S':
-			if( section != NULL && 
+			if( section != NULL &&
 					strcmp(section,optarg) != 0) {
 				fprintf(stderr,"Multiple '-S' are not supported!\n");
 				exit(EXIT_FAILURE);
@@ -2418,7 +2432,7 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(section,optarg);
 			break;
 		case 'P':
-			if( priority != NULL && 
+			if( priority != NULL &&
 					strcmp(priority,optarg) != 0) {
 				fprintf(stderr,"Multiple '-P's are mpt supported!\n");
 				exit(EXIT_FAILURE);
@@ -2514,7 +2528,7 @@ int main(int argc,char *argv[]) {
 
 	config_state = CONFIG_OWNER_CMDLINE;
 
-	if( interrupted() ) 
+	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 
 	while( (c = getopt_long(argc,argv,"+fVvhb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
@@ -2524,7 +2538,7 @@ int main(int argc,char *argv[]) {
 		fprintf(stderr,"No action given. (see --help for available options and actions)\n");
 		exit(EXIT_FAILURE);
 	}
-	if( interrupted() ) 
+	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
@@ -2567,12 +2581,12 @@ int main(int argc,char *argv[]) {
 		listdir=calc_dirconcat(mirrordir,"lists");
 	if( overridedir == NULL )
 		overridedir=calc_dirconcat(mirrordir,"override");
-	if( distdir == NULL || dbdir == NULL || listdir == NULL 
+	if( distdir == NULL || dbdir == NULL || listdir == NULL
 			|| confdir == NULL || overridedir == NULL || methoddir == NULL) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
-	if( interrupted() ) 
+	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 	a = all_actions;
 	while( a->name != NULL ) {
@@ -2580,7 +2594,7 @@ int main(int argc,char *argv[]) {
 			signature_init(askforpassphrase);
 			r = callaction(a,argc-optind,(const char**)argv+optind);
 			/* yeah, freeing all this stuff before exiting is
-			 * stupid, but it makes valgrind logs easier 
+			 * stupid, but it makes valgrind logs easier
 			 * readable */
 			signatures_done();
 			free(dbdir);

@@ -618,6 +618,12 @@ If this field is not there or empty, all components are processed.
 (Note unless you specify \fBudebs\fP in the \fBContents:\fP line,
 no udeb Components are processed at all.)
 .TP
+.B Uploaders
+Specified a file (relative to confdir if not starting with a slash)
+to specify who is allowed to upload packages. With this there are no
+limits, and this file can be ignored via \fB--ignore=uploaders\fP.
+See the section \fBUPLOADERS FILES\fP below.
+.TP
 .B Tracking
 Enable the (experimental) tracking of source packages.
 The argument list needs to contain exactly one of the following:
@@ -832,6 +838,29 @@ There is no protection against changing headers like \fBPackage\fP,
 \fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
 fields may give the most curious results.
 (Most likely reprepro may error out in future invocations).
+.SH "UPLOADERS FILES"
+These files specified by the \fBUploaders\fP header in the distribution
+definition as explained above describe what key a \fB.changes\fP file
+as to be signed with to be included in that distribution.
+.P
+Empty lines and lines starting with a hash are ignored, every other line
+has to be of one of this three forms:
+.br
+.B accept * by unsigned
+.br
+which allows everything without a valid signature in,
+.br
+.B accept * by any key
+.br
+which allows everything with any valid signature in or
+.br
+.B accept * by key \fIkey-id\fP
+.br
+which allows everything signed by this \fIkey-id\fP (to be specified
+without any spaces) in.
+.P
+(Other statements
+will follow once somebody tells me what restrictions are usefull).
 .SH "ERROR IGNORING"
 With \fB\-\-ignore\fP on the command line or an \fIignore\fP
 line in the options file, the following type of errors can be

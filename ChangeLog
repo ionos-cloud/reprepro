@@ -1,3 +1,7 @@
+2006-10-11  Bernhard R. Link <brlink@debian.org>
+	* add Uploaders: rule to conf/distributions to
+	limit include to .changes files signed with specific keys.
+
 2006-10-07  Bernhard R. Link <brlink@debian.org>
 	* only show control information of to be added packages
 	  in checkpull/checkupdate with -V

@@ -17,6 +17,8 @@ Updates since 1.2.0:
   .changes file is still not ignoreable due to file naming issues)
 - FilterList in update and pull rules now has a space seperated list
   of filenames instead of only a single filename.
+- new Uploaders field in conf/distributions:
+  allows to specify what a .changes file has to be signed with to be allowed in
 
 Updates since 1.1.0:
 - improve message of missing files

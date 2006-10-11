@@ -44,6 +44,7 @@
 #include "checkindsc.h"
 #include "checkindeb.h"
 #include "checkin.h"
+#include "uploaderslist.h"
 
 extern int verbose;
 
@@ -951,10 +952,15 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 	return r;
 }
 
+static bool_t permissionssuffice(UNUSED(struct changes *changes),
+                                 const struct uploadpermissions *permissions) {
+	return permissions->allowall;
+}
+
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
+retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,struct uploaders *uploaders, const struct alloverrides *ao,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -963,6 +969,49 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
 	if( RET_WAS_ERROR(r) )
 		return r;
+
+	if( (distribution->suite == NULL || 
+		!strlist_in(&changes->distributions,distribution->suite)) &&
+	    !strlist_in(&changes->distributions,distribution->codename) ) {
+		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") ) {
+			changes_free(changes);
+			return RET_ERROR;
+		}
+	}
+
+	if( uploaders != NULL ) {
+		const struct uploadpermissions *permissions;
+		int i;
+
+		if( changes->fingerprints.count == 0 ) {
+			r = uploaders_unsignedpermissions(uploaders, &permissions);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) ) {
+				changes_free(changes);
+				return r;
+			}
+			if( permissions == NULL || !permissionssuffice(changes,permissions) )
+				permissions = NULL;
+		}
+		for( i = 0; i < changes->fingerprints.count ; i++ ) {
+			const char *fingerprint = changes->fingerprints.values[i];
+			r = uploaders_permissions(uploaders, fingerprint, &permissions);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) ) {
+				changes_free(changes);
+				return r;
+			}
+			if( permissions != NULL && permissionssuffice(changes,permissions) )
+				break;
+			permissions = NULL;
+		}
+		if( permissions == NULL &&
+		    !IGNORING_(uploaders,"No rule allowing this package in found in %s!\n",
+			    distribution->uploaders) ) {
+			changes_free(changes);
+			return RET_ERROR;
+		}
+	}
 
 	if( IGNORABLE(missingfile) ) {
 		r = dirs_getdirectory(changesfilename,&directory);
@@ -973,15 +1022,6 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	} else
 		directory = NULL;
 
-	if( (distribution->suite == NULL || 
-		!strlist_in(&changes->distributions,distribution->suite)) &&
-	    !strlist_in(&changes->distributions,distribution->codename) ) {
-		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") ) {
-			free(directory);
-			changes_free(changes);
-			return RET_ERROR;
-		}
-	}
 
 	/* look for component, section and priority to be correct or guess them*/
 	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,ao);

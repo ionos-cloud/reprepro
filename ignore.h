@@ -27,6 +27,7 @@
 	IGN(wrongsourceversion) \
 	IGN(wrongversion) \
 	IGN(brokensignatures) \
+	IGN(uploaders) \
 	IGN(missingfile)
 
 
