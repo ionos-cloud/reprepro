@@ -19,6 +19,7 @@ Updates since 1.2.0:
   of filenames instead of only a single filename.
 - new Uploaders field in conf/distributions:
   allows to specify what a .changes file has to be signed with to be allowed in
+- new helper program "changestool" to preprocess .changes files.
 
 Updates since 1.1.0:
 - improve message of missing files

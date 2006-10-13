@@ -1,9 +1,16 @@
-reprepro (1.2.0-2) UNRELEASED; urgency=low
+reprepro (1.3.0-1) unstable;urgency=low
 
   * make package description libdb version independent (Closes: 387345)
   * fix typos and spelling errors in manpage (Closes: 390734, 390737)
+  * new release
+  - ported to newer libgpgme
+  - each distribution can now have a Uploaders: to require signatures of .changes files
+  - multiple chained filterlists possible
+  - more (--ignore'able) checks for source versions of binaries
+  - add changestool program to preprocess .changes
+  * build-depend on libgpgme11-dev
 
- -- Bernhard R. Link <brlink@debian.org>  Tue,  3 Oct 2006 18:25:05 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 11 Oct 2006 15:45:37 +0200
 
 reprepro (1.2.0-1) unstable; urgency=low
 
