@@ -1,0 +1,134 @@
+This is a list of "frequently" asked questions.
+
+1.1) What can I do when reprepro complains about a missing .orig.tar.gz?
+1.2) Why does it refuse a file when one in an other suite has the same name?
+1.4) The key to sign my Release files needs a passphrase, what to do?
+1.5) How do I change how files are downloaded.
+2.1) Does reprepro support to generate Release.gpg files?
+2.2) Does reprepro support tildes ('~') in versions?
+2.3) Does reprepro support generation of Contents-<arch>.gz files?
+3.1) Can I have two versions of a package in the same distribution?
+9) Feature ... is missing, can you add it?
+
+
+1.1) What can I do when reprepro complains about a missing .orig.tar.gz?
+------------------------------------------------------------------------
+When 'include'ing a .changes file reprepro by default only adds files
+referenced in the .changes file into the pool/-hierachy and does not
+search for files referenced in a .dsc file and thus fails if this .orig.tar.gz
+is not already in the pool.
+You are facing the choice:
+- copy the .orig.tar.gz by hand into the appropiate place within pool/
+  and try again. reprepro will find it there when you try it the next time
+  and add it to its database.
+- use --ignore=missingfile to tell reprepro to search for such files
+  in the directory the .changes file resides in.
+- modify the .changes file by hand to reference the .orig.tar.gz
+- use changestool (comes with reprepro since version 1.3.0) to
+  list the file. ("changestool <.changesfile> includeallsources")
+- use dpkg-buildpackage -sa the next time you build a package so that
+  it calls dpkg-genchanges with -sa which then always lists .orig.tar.gz
+  and not only if it ends in -0 or -1.
+
+1.2) Why does it refuse a file when one in an other suite has the same name?
+----------------------------------------------------------------------------
+Reprepro uses Debian's way to organize the pool hierachy, which means
+that the directory and name a file is saved under is only determined by
+its sourcename, its name and its version and especially not by the
+distribution it belongs to. (This is the intend of having a pool directory,
+so that if two distributions have the same version, the disk space is only
+used once). This means that if different versions of a packaged having the
+same version string are put in the same reprepro repository (even if put
+into different distributions within that), reprepro will refuse to do so.
+(Unless you have a md5sum collision, in which case it will put the one and
+just replace the second with the first).
+
+The only way to work around, is too put the different distributions into
+different repositories. But in general it is really worth the efford to
+get the versioning right instead: Having multiple packages with the same
+version make it hard to track down problems, because it is easy to mix
+them up. Also up/downgrading a host from one distribution to the other
+will not change the package but just keep the old (as they are the
+same version, so they have to be the same, apt and dpkg will think).
+
+How to deal with this without seperating repositories depends on how
+you reached this situation:
+
+- in the past Debian's stable and stable-security buildds sometimes both
+  built a package and for some architectures the one version entered
+  security.debian.org and the other ftp.debian.org with the next
+  point release. (This should be fixed now. And it is always considered
+  a bug, so if you hit this, please report it). If you mirror such
+  a situation, just update one of the distributions and manually
+  include the package into the other distribution. As the versions
+  are the same, reprepro will keep with this and not try to download
+  the other version, err other same version, err ...
+- backports (i.e. packages rebuild for older distributions)
+  Common practise is to append the version with reducing ~,
+  i.e. 1.0-1 gets 1.0-1~bpo.7, or 3.0~sarge.
+  (This makes sure that if a host is updated the backport is
+   replaced by the real package).
+  If backporting to multiple distributions you get bonus points
+  for making sure newer distributions have heigher version numbers.
+  (To make sure which version is considered newer by dpkg use
+   dpkg's --compare-versions action).
+- a package built for multiple distributions
+  is equivalent to the backports case
+- localy modified packages that should be replace by newer official
+  versions: append something like "a0myname". If it should be
+  replaced by security updates of the official package, make sure (using
+  dpkg's --compare-versions) that a security update would have
+  a higher version.
+- localy modified packages that should not be replaced by newer
+  official versions: prefix the version with "99:" and perhaps appending
+  it with something like "-myname". (appending only makes it easier to
+  distinguish, as some tools do not show epochs).
+
+1.4) The key to sign my Release files needs a passphrase, what to do?
+---------------------------------------------------------------------
+Please take a look at gpg-agent. You can also use the --ask-passphrase
+options, but please note this is quite insecure.
+
+1.5) How do I change how files are downloaded.
+----------------------------------------------
+reprepro just calls apt's methods for file retrieval.
+You can give them options in conf/updates like
+Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
+or replace them with other programs speaking the same
+interface.
+
+2.1) Does reprepro support to generate Release.gpg files?
+---------------------------------------------------------
+Yes, add a SignWith in the suite's defintion in conf/distributions.
+(and take a look what the man page says about SignWith)
+
+2.2) Does reprepro support tildes ('~') in versions?
+----------------------------------------------------
+Yes, but in .changes files only since version 0.5.
+
+2.3) Does reprepro support generation of Contents-<arch>.gz files?
+------------------------------------------------------------------
+Yes, since version 1.1.0 (well, actually since 0.8.2 but a bug
+caused the generated files to not be up to date unless manually
+exporting the distributions in question).
+Look for "Contents" in the man page.
+
+3.1) Can I have two versions of a package in the same distribution?
+-------------------------------------------------------------------
+Sorry, this is not possible right now, as reprepro heavily optimizes
+at only having one version of a package in a suite-type-component-architecture
+quadrupel.
+You can have different versions in different architectures and/or components
+within the same suite. (Even different versions of a architecture all package
+in different architectures of the same suite). But within the same
+architecture and the same component of a distribution it is not possible.
+
+9) Feature ... is missing, can you add it?
+------------------------------------------
+First, please take another look at the man page. My documentation is not
+very good, so it is easy to overlook some feature even when it is described
+already. If it is not there, just write me a mail. Some things I add quite
+fast, other stuff takes a bit. Things incompatible with the current underlying
+infrastuctures or past design decisions may never come, but if I have it on the
+TODO list of things to add, it help the code to develop in a direction that
+things like that might be possible in the future.
