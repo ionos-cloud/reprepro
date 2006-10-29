@@ -767,7 +767,8 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 		cef = cef_newfield("Files", CEF_ADD, CEF_LATE, filecount, NULL);
 		if( cef == NULL )
 			return RET_ERROR_OOM;
-		for( i=0,f = c->files; f != NULL ; i++,f = f->next ) {
+		i = 0;
+		for( f = c->files; f != NULL ; f = f->next ) {
 			if( f->changesmd5sum == NULL )
 				continue;
 			cef_setline(cef, i, 4,
@@ -775,6 +776,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 					f->section?f->section:"-",
 					f->priority?f->priority:"-",
 					f->basename, NULL);
+			i++;
 		}
 		assert( i == filecount );
 	} else {
