@@ -85,8 +85,8 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 			distribution->contents.flags.nodebs = TRUE;
 			e += 6;
 		} else if( strncmp(e, ".bz2", 4) == 0 && 
-#ifdef HAVE_LIBBZ2
 				(e[4] == '\0' || isspace(e[4])) ) {
+#ifdef HAVE_LIBBZ2
 			if( defaultcompressions ) {
 				defaultcompressions = FALSE;
 				distribution->contents.compressions = 0;
