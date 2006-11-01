@@ -66,7 +66,7 @@ retvalue dirs_make_parent(const char *filename) {
 	return RET_OK;
 }
 
-/* create dirname and any '/'-seperated part of it */
+/* create dirname and any '/'-separated part of it */
 retvalue dirs_make_recursive(const char *directory) {
 	retvalue r,result;
 	

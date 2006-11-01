@@ -51,7 +51,7 @@ them up. Also up/downgrading a host from one distribution to the other
 will not change the package but just keep the old (as they are the
 same version, so they have to be the same, apt and dpkg will think).
 
-How to deal with this without seperating repositories depends on how
+How to deal with this without separating repositories depends on how
 you reached this situation:
 
 - in the past Debian's stable and stable-security buildds sometimes both
@@ -74,12 +74,12 @@ you reached this situation:
    dpkg's --compare-versions action).
 - a package built for multiple distributions
   is equivalent to the backports case
-- localy modified packages that should be replace by newer official
+- locally modified packages that should be replace by newer official
   versions: append something like "a0myname". If it should be
   replaced by security updates of the official package, make sure (using
   dpkg's --compare-versions) that a security update would have
   a higher version.
-- localy modified packages that should not be replaced by newer
+- locally modified packages that should not be replaced by newer
   official versions: prefix the version with "99:" and perhaps appending
   it with something like "-myname". (appending only makes it easier to
   distinguish, as some tools do not show epochs).

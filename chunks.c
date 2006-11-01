@@ -405,7 +405,7 @@ retvalue chunk_getname(const char *chunk,const char *name,
 		field++;
 	name_end = field;
 	/* this has now checked somewhere else for correctness and
-	 * is only a pure seperation process: 
+	 * is only a pure separation process: 
 	 * (as package(version) is possible, '(' must be checked) */
 	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !xisspace(*name_end) )
 		name_end++;
@@ -459,7 +459,7 @@ retvalue chunk_getnameandversion(const char *chunk,const char *name,
 		field++;
 	name_end = field;
 	/* this has now checked somewhere else for correctness and
-	 * is only a pure seperation process: 
+	 * is only a pure separation process: 
 	 * (as package(version) is possible, '(' must be checked) */
 	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !xisspace(*name_end) )
 		name_end++;

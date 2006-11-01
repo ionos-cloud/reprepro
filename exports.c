@@ -326,7 +326,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 			return RET_ERROR;
 		}
 	} else {
-		fprintf(stderr,"Exporthook terminated abnormaly. (status is %x)!\n",status);
+		fprintf(stderr,"Exporthook terminated abnormally. (status is %x)!\n",status);
 		return RET_ERROR;
 	}
 }

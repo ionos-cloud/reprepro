@@ -2,7 +2,7 @@ Some tipps what to do if (hopefully never), your database gets
 corrupted:
 
 First there are three different databases used, residing in three
-files in your --dbdir (normaly db/): 
+files in your --dbdir (normally db/): 
 
 1) references.db
 This file only contains the information which file in the pool/
@@ -21,7 +21,7 @@ are known. Files not in here will not be deleted with
 (and thus not corrected even if told to be newly included)
 
 To get this database in textform use "_listmd5sums" without argument,
-to add items manualy pipe it into "_addmd5sums". (Filenames
+to add items manually pipe it into "_addmd5sums". (Filenames
 are handled as strings, so be careful).
 
 If the database is completely lost, you can regain it by moving

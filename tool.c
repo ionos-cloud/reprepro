@@ -1128,7 +1128,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					name = NULL;
 					namelen = 0;
 					fprintf(stderr,
-"Warning: '%s' does not contain a '_' seperating name and version!\n",
+"Warning: '%s' does not contain a '_' separating name and version!\n",
 						file->basename);
 				}else {
 					name = file->basename;
@@ -1152,7 +1152,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 #endif
 					if( name != NULL )
 						fprintf(stderr,
-"ERROR: '%s' does not contain a '_' seperating name and version!\n",
+"ERROR: '%s' does not contain a '_' separating name and version!\n",
 							file->basename);
 				} else {
 					version = p+1;

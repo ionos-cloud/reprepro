@@ -734,7 +734,7 @@ static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
 		}
 		/* as we start with some data to process, Z_BUF_ERROR
 		 * should only happend when no output is possible, as that
-		 * gets possible again it should finaly produce more output
+		 * gets possible again it should finally produce more output
 		 * and return Z_OK and always terminate. Hopefully... */
 	} while( zret == Z_BUF_ERROR 
 			|| ( zret == Z_OK && f->gzstream.avail_in != 0));

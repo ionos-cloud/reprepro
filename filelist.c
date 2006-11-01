@@ -231,7 +231,7 @@ retvalue filelist_add(struct filelist_list *list,const struct filelist_package *
 }
 
 static const char header[] = "FILE                                                    LOCATION\n";
-static const char seperator[] = "\t    ";
+static const char separator[] = "\t    ";
 
 static void filelist_writefiles(char *dir, size_t len,
 		struct filelist *files, struct filetorelease *file) {
@@ -243,7 +243,7 @@ static void filelist_writefiles(char *dir, size_t len,
 	filelist_writefiles(dir,len,files->nextl,file);
 		(void)release_writedata(file,dir,len);
 		(void)release_writestring(file,files->name);
-		(void)release_writedata(file,seperator,sizeof(seperator)-1);
+		(void)release_writedata(file,separator,sizeof(separator)-1);
 		first = TRUE;
 		for( i = 0 ; i < files->count ; i ++ ) {
 			if( !first )
