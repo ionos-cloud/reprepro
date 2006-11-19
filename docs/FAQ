@@ -127,7 +127,8 @@ architecture and the same component of a distribution it is not possible.
 ------------------------------------------
 First, please take another look at the man page. My documentation is not
 very good, so it is easy to overlook some feature even when it is described
-already. If it is not there, just write me a mail. Some things I add quite
+already. If it is not there, just write me a mail (or better write a wishlist
+report to the Debian BTS, then it cannot get lost). Some things I add quite
 fast, other stuff takes a bit. Things incompatible with the current underlying
 infrastuctures or past design decisions may never come, but if I have it on the
 TODO list of things to add, it help the code to develop in a direction that
