@@ -53,6 +53,7 @@ static void about(bool_t help) {
 " verify\n"
 " updatechecksums [<files to update>]\n"
 " includeallsources [<files to copy from .dsc to .changes>]\n"
+" adddeb <.deb filenames>\n"
 //" add <filenames>\n"
 //" create <.dsc and .deb files to include>\n"
 );
@@ -181,6 +182,23 @@ struct changes {
 	bool_t modified;
 };
 
+static void fileentry_free(struct fileentry *f) {
+	if( f == NULL )
+		return;
+	free(f->basename);
+	free(f->fullfilename);
+	free(f->changesmd5sum);
+	free(f->realmd5sum);
+	free(f->section);
+	free(f->priority);
+	if( f->type == ft_DEB || f->type == ft_UDEB ) {
+		binaryfile_free(f->deb);
+	} else if( f->type == ft_DSC ) {
+		dscfile_free(f->dsc);
+	}
+	free(f);
+}
+
 static void changes_free(struct changes *c) {
 	unsigned int i;
 
@@ -202,18 +220,7 @@ static void changes_free(struct changes *c) {
 	while( c->files ) {
 		struct fileentry *f = c->files;
 		c->files = f->next;
-		free(f->basename);
-		free(f->fullfilename);
-		free(f->changesmd5sum);
-		free(f->realmd5sum);
-		free(f->section);
-		free(f->priority);
-		if( f->type == ft_DEB || f->type == ft_UDEB ) {
-			binaryfile_free(f->deb);
-		} else if( f->type == ft_DSC ) {
-			dscfile_free(f->dsc);
-		}
-		free(f);
+		fileentry_free(f);
 	}
 	free(c);
 }
@@ -244,6 +251,95 @@ static struct fileentry *add_fileentry(struct changes *c, const char *basename, 
 		}
 	}
 	return f;
+}
+
+static retvalue searchforfile(const char *changesdir, const char *basename,
+		const struct strlist *searchpath, char **result) {
+	int i; bool_t found;
+	char *fullname = calc_dirconcat(changesdir,basename);
+	if( fullname == NULL )
+		return RET_ERROR_OOM;
+
+	found = isregularfile(fullname);
+	i = 0;
+	while( !found && searchpath != NULL && i < searchpath->count ) {
+		free(fullname);
+		fullname = calc_dirconcat(searchpath->values[i],
+				basename);
+		if( fullname == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( found ) {
+		*result = fullname;
+		return RET_OK;
+	} else {
+		free(fullname);
+		return RET_NOTHING;
+	}
+}
+
+static retvalue add_file(const char *changesfilename, struct changes *c, const char *name, enum filetype type, struct fileentry **file) {
+	size_t len = strlen(name);
+	const char *basename = name;
+	size_t basenamelen = len;
+	struct fileentry **fp = &c->files;
+	struct fileentry *f;
+	int i;
+
+	for( i = len ; i > 0 ; i-- ) {
+		if( name[i-1] == '/' ) {
+			basenamelen = len-i;
+			basename = name+i;
+			break;
+		}
+	}
+
+	while( (f=*fp) != NULL ) {
+		if( f->namelen == basenamelen &&
+				strncmp(basename,f->basename,basenamelen) == 0 ) {
+			*file = f;
+			return RET_NOTHING;
+		}
+		fp = &f->next;
+	}
+	assert( f == NULL );
+	f = calloc(1,sizeof(struct fileentry));
+	if( f == NULL ) {
+		return RET_ERROR_OOM;
+	}
+	f->basename = strndup(basename,basenamelen);
+	f->namelen = basenamelen;
+	f->type = type;
+
+	if( isregularfile(name) ) {
+		f->fullfilename = strdup(name);
+		if( f->fullfilename == NULL ) {
+			fileentry_free(f);
+			return RET_ERROR_OOM;
+		}
+	} else {
+		char *dir; retvalue r;
+
+		r = dirs_getdirectory(changesfilename, &dir);
+		if( RET_WAS_ERROR(r) ) {
+			fileentry_free(f);
+			return r;
+		}
+		r = searchforfile(dir, f->basename, NULL, &f->fullfilename);
+		free(dir);
+		if( RET_WAS_ERROR(r) ) {
+			fileentry_free(f);
+			return r;
+		}
+		if( r == RET_NOTHING ) {
+			fileentry_free(f);
+			fprintf(stderr, "Unable to find '%s'!\n", name);
+			return RET_ERROR_MISSING;
+		}
+	}
+	*fp = f;
+	*file = f;
+	return RET_OK;
 }
 
 
@@ -607,33 +703,20 @@ static retvalue processfiles(const char *changesfilename, struct changes *change
 		return r;
 
 	for( file = changes->files; file != NULL ; file = file->next ) {
-		int i; bool_t found;
-		char *fullname = calc_dirconcat(dir,file->basename);
-		if( fullname == NULL )
-			return RET_ERROR_OOM;
 		assert( file->fullfilename == NULL );
 
-		found = isregularfile(fullname);
-		i = 0;
-		while( !found && searchpath != NULL && i < searchpath->count ) {
-			free(fullname);
-			fullname = calc_dirconcat(searchpath->values[i],
-					file->basename);
-			if( fullname == NULL )
-				return RET_ERROR_OOM;
-		}
+		r = searchforfile(dir, file->basename, searchpath, &file->fullfilename);
 
-		r = RET_NOTHING;
-		if( found ) {
-			file->fullfilename = fullname;
+		if( RET_IS_OK(r) ) {
 			if( file->type == ft_DSC )
 				r = parse_dsc(file,changes);
 			else if( file->type == ft_DEB || file->type == ft_UDEB )
 				r = parse_deb(file,changes);
-			if( RET_WAS_ERROR(r) )
+			if( RET_WAS_ERROR(r) ) {
+				free(dir);
 				return r;
-		} else
-			free(fullname);
+			}
+		}
 
 		if( r == RET_NOTHING ) {
 			/* apply heuristics when not readable */
@@ -646,8 +729,10 @@ static retvalue processfiles(const char *changesfilename, struct changes *change
 						file->basename[len] != '\0' )
 					len++;
 				b = get_binary(changes, file->basename, len);
-				if( b == NULL )
+				if( b == NULL ) {
+					free(dir);
 					return RET_ERROR_OOM;
+				}
 				b->uncheckable = TRUE;
 			}
 		}
@@ -1632,6 +1717,55 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 		return RET_NOTHING;
 }
 
+static retvalue adddeb(const char *changesfilename, struct changes *c, const char *debfilename) {
+	retvalue r;
+	struct fileentry *f;
+
+	// TODO: first search file, parse it, then calculate
+	// basename by its contents...
+
+	r = add_file(changesfilename, c, debfilename, ft_DEB, &f);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "'%s' already contains a file of the same name!\n", changesfilename);
+		return RET_ERROR_OOM;
+	}
+	r = parse_deb(f, c);
+	if( RET_IS_OK(r) ) {
+		c->modified = TRUE;
+		r = md5sum_read(f->fullfilename, &f->realmd5sum);
+		if( r == RET_ERROR_OOM )
+			return r;
+		f->changesmd5sum = strdup(f->realmd5sum);
+		if( f->deb->binary != NULL && f->deb->binary->description == NULL ) {
+			f->deb->binary->description = strdup(f->deb->shortdescription);
+			f->deb->binary->missedinheader = FALSE;
+		}
+		// TODO: make sure it is the same if there already is a description
+		// make sure the source name is the same
+	}
+	return r;
+}
+
+static retvalue adddebs(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	if( argc <= 0 ) {
+		fprintf(stderr, "Filenames of .deb files to include expected!\n");
+		return RET_ERROR;
+	}
+	while( argc > 0 ) {
+		retvalue r = adddeb(changesfilename, c, argv[0]);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		argc--; argv++;
+	}
+	if( c->modified ) {
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_FILES|CHANGES_WRITE_BINARIES);
+	} else
+		return RET_NOTHING;
+}
+
 static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
@@ -1660,6 +1794,14 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 	} else if( strcasecmp(command, "includeallsources") == 0 ) {
 		if( file_exists )
 			r = includeallsources(changesfilename, changesdata, argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "adddeb") == 0 ) {
+		if( file_exists )
+			r = adddebs(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);

@@ -1,3 +1,6 @@
+2006-11-27  Bernhard R. Link <brlink@debian.org>
+	* add "adddeb" option to changestool
+
 2006-10-31  Bernhard R. Link <brlink@debian.org>
 	* fix spelling mistakes in manpage (thanks to A. Costa)
 	  fixed the same errors in the code and its messages
