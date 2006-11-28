@@ -1,3 +1,6 @@
+2006-11-28  Bernhard R. Link <brlink@debian.org>
+	* mostly rewrote "adddeb"
+
 2006-11-27  Bernhard R. Link <brlink@debian.org>
 	* add "adddeb" option to changestool
 
