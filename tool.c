@@ -210,6 +210,8 @@ static void changes_free(struct changes *c) {
 	if( c == NULL )
 		return;
 
+	free(c->filename);
+	free(c->basedir);
 	free(c->name);
 	free(c->version);
 	free(c->maintainer);
@@ -273,6 +275,11 @@ static retvalue searchforfile(const char *changesdir, const char *basename,
 				basename);
 		if( fullname == NULL )
 			return RET_ERROR_OOM;
+		if( isregularfile(fullname) ) {
+			found = TRUE;
+			break;
+		}
+		i++;
 	}
 	if( found ) {
 		*result = fullname;
@@ -1961,37 +1968,67 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 	return r;
 }
 
+static retvalue splitpath(struct strlist *list, const char *path) {
+	retvalue r;
+	const char *next;
+
+	while( (next = index(path, ':')) != NULL ) {
+		if( next > path ) {
+			char *dir = strndup(path, next-path);
+			if( dir == NULL ) {
+				return RET_ERROR_OOM;
+			}
+			r = strlist_add(list, dir);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+		path = next+1;
+	}
+	return strlist_add_dup(list, path);
+}
+
 int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"ignore", required_argument, NULL, 'i'},
+		{"searchpath", required_argument, NULL, 's'},
 		{NULL, 0, NULL, 0},
 	};
 	int c;
 	const char *changesfilename;
 	bool_t file_exists;
 	struct strlist validkeys,keys;
+	struct strlist searchpath;
 	struct changes *changesdata;
 	retvalue r;
 
+	strlist_init(&searchpath);
 	init_ignores();
 
 
-	while( (c = getopt_long(argc,argv,"+hi:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+hi:s:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				about(TRUE);
 			case 'i':
 				set_ignore(optarg,FALSE,CONFIG_OWNER_CMDLINE);
 				break;
+			case 's':
+				r = splitpath(&searchpath, optarg);
+				if( RET_WAS_ERROR(r) ) {
+					if( r == RET_ERROR_OOM )
+						fprintf(stderr, "Out of memory!\n");
+					exit(EXIT_FAILURE);
+				}
+				break;
 		}
 	}
-	if( argc <= 2 ) {
+	if( argc - optind < 2 ) {
 		about(FALSE);
 	}
 	signature_init(FALSE);
 
-	changesfilename = argv[1];
+	changesfilename = argv[optind];
 	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes")
 			&& !IGNORING_(extension,
 				"first argument does not ending with '.changes'\n") )
@@ -2007,7 +2044,7 @@ int main(int argc,char *argv[]) {
 				fprintf(stderr, "Out of memory!\n");
 			exit(EXIT_FAILURE);
 		}
-		r = parse_changes(changesfilename, changes, &changesdata, NULL);
+		r = parse_changes(changesfilename, changes, &changesdata, &searchpath);
 		if( RET_IS_OK(r) )
 			changesdata->control = changes;
 		else
@@ -2024,8 +2061,8 @@ int main(int argc,char *argv[]) {
 	}
 
 	if( !RET_WAS_ERROR(r) ) {
-		argc -= 2;
-		argv += 2;
+		argc -= (optind+1);
+		argv += (optind+1);
 		r = execute_command(argc,argv, changesfilename, file_exists, changesdata);
 	}
 	changes_free(changesdata);
