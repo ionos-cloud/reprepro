@@ -86,8 +86,8 @@ you reached this situation:
 
 1.4) The key to sign my Release files needs a passphrase, what to do?
 ---------------------------------------------------------------------
-Please take a look at gpg-agent. You can also use the --ask-passphrase
-options, but please note this is quite insecure.
+Please take a look at gpg-agent.
+You can also use the --ask-passphrase option, but please note this is quite insecure.
 
 1.5) How do I change how files are downloaded.
 ----------------------------------------------
@@ -105,6 +105,8 @@ Yes, add a SignWith in the suite's defintion in conf/distributions.
 2.2) Does reprepro support tildes ('~') in versions?
 ----------------------------------------------------
 Yes, but in .changes files only since version 0.5.
+(You can work around this in older versions by using includedeb and
+ includedsc on the .deb and .dsc files within the .changes file, though)
 
 2.3) Does reprepro support generation of Contents-<arch>.gz files?
 ------------------------------------------------------------------
