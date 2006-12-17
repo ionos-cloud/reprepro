@@ -154,7 +154,8 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 					fprintf(stderr,"Ar exited unnaturally!\n");
 					result = RET_ERROR;
 				} else if( WEXITSTATUS(status) != 0) {
-					fprintf(stderr,"Error from ar: %d\n",WEXITSTATUS(status));
+					fprintf(stderr,"Error from ar for '%s': %d\n",
+							debfile, WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else if( pid == tar ) {
@@ -166,7 +167,9 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 					if( RET_IS_OK(result) )
 						result = RET_NOTHING;
 				} else if( WEXITSTATUS(status) != 0 ) {
-					fprintf(stderr,"Error from tar: %d\n",WEXITSTATUS(status));
+					fprintf(stderr,"Error from tar for control.tar.gz within '%s': %d\n",
+							debfile,
+							WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else {
@@ -373,14 +376,18 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 				ar = -1;
 				if( !WIFEXITED(status) || 
 						WEXITSTATUS(status) != 0) {
-					fprintf(stderr,"Error from ar: %d\n",WEXITSTATUS(status));
+					fprintf(stderr,"Error from ar for '%s': %d\n",
+							debfile,
+							WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else if( pid == tar ) {
 				tar = -1;
 				if( !WIFEXITED(status) || 
 						WEXITSTATUS(status) != 0 ) {
-					fprintf(stderr,"Error from tar: %d\n",WEXITSTATUS(status));
+					fprintf(stderr,"Error from tar for data.tar.gz within '%s': %d\n",
+							debfile,
+							WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else {
