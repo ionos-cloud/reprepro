@@ -2,6 +2,8 @@
 	* tell about the filename in the non-libarchive
 	  case of failure to extract control or filelist
 	  from a .deb
+	* add _fakeemptyfilelist action to omit a file
+	when generting Content files.
 
 2006-11-28  Bernhard R. Link <brlink@debian.org>
 	* mostly rewrote "adddeb"

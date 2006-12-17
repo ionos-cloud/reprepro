@@ -724,7 +724,7 @@ char *files_calcfullfilename(const filesdb filesdb,const char *filekey) {
 	return calc_dirconcat(filesdb->mirrordir,filekey);
 }
 
-static retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist) {
+retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist) {
 	int dbret;
 	DBT key,data;
 	const char *e;

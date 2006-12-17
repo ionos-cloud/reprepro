@@ -88,5 +88,6 @@ retvalue files_detect(filesdb db,const char *filekey);
 retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_regenerate_filelist(filesdb db, bool_t redo);
+retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist);
 
 #endif

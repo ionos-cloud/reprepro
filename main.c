@@ -246,6 +246,14 @@ ACTION_N(extractfilelist) {
 	return result;
 }
 
+ACTION_F(fakeemptyfilelist) {
+	if( argc != 2 ) {
+		fprintf(stderr,"reprepro _fakeemptyfilelist <filekey>\n");
+		return RET_ERROR;
+	}
+	return files_addfilelist(filesdb, argv[1], "");
+}
+
 
 ACTION_F(generatefilelists) {
 
@@ -2072,6 +2080,7 @@ static const struct action {
 	{"_removereferences", 	A_R(removereferences)},
 	{"_addreference", 	A_R(addreference)},
 	{"_versioncompare",	A_N(versioncompare)},
+	{"_fakeemptyfilelist",	A_F(fakeemptyfilelist)},
 	{"remove", 		A_D(remove)},
 	{"list", 		A_N(list)},
 	{"listfilter", 		A_N(listfilter)},

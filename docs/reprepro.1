@@ -416,8 +416,18 @@ Manually mark \fIfilekey\fP to be needed by \fIidentifier\fP
 Remove all references what is needed by
 .I identifier.
 .TP
-.BI __extractcontrol .deb-filename
+.BI __extractcontrol " .deb-filename"
 Look what reprepro believes to be the content of the
+.B control
+file of the specified .deb-file.
+.TP
+.BI __extractfilelist " .deb-filename"
+Look what reprepro believes to be the list of files
+of the specified .deb-file.
+.TP
+.BI _fakeemptyfilelist filekey
+Insert an empty filelist for \fIfilekey\fP. This is a evil
+hack around broken .deb files that cannot be read by reprepro.
 .B control
 file of the specified .deb-file.
 .SH "CONFIG FILES"
