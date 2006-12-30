@@ -45,6 +45,7 @@
 #include "checkindeb.h"
 #include "checkin.h"
 #include "uploaderslist.h"
+#include "changes.h"
 
 extern int verbose;
 
@@ -67,11 +68,6 @@ extern int verbose;
  *  - add the .deb-filed via checkindeb.c
  *
  */
-
-typedef	enum { fe_UNKNOWN=0,fe_DEB,fe_UDEB,fe_DSC,fe_DIFF,fe_ORIG,fe_TAR} filetype;
-
-#define FE_BINARY(ft) ( (ft) == fe_DEB || (ft) == fe_UDEB )
-#define FE_SOURCE(ft) ( (ft) == fe_DIFF || (ft) == fe_ORIG || (ft) == fe_TAR || (ft) == fe_DSC || (ft) == fe_UNKNOWN)
 
 struct fileentry {
 	struct fileentry *next;
@@ -160,161 +156,35 @@ static void changes_free(/*@only@*/struct changes *changes) {
 
 static retvalue newentry(struct fileentry **entry,const char *fileline,const char *packagetypeonly,const char *forcearchitecture, const char *sourcename) {
 	struct fileentry *e;
-	const char *p,*md5start,*md5end;
-	const char *sizestart,*sizeend;
-	const char *sectionstart,*sectionend;
-	const char *priostart,*prioend;
-	const char *filestart,*nameend,*fileend;
-	const char *archstart,*archend;
-	const char *versionstart,*typestart;
-	filetype type;
+	retvalue r;
 
-	p = fileline;
-	while( *p !='\0' && xisspace(*p) )
-		p++;
-	md5start = p;
-	while( *p !='\0' && !xisspace(*p) )
-		p++;
-	md5end = p;
-	while( *p !='\0' && xisspace(*p) )
-		p++;
-	sizestart = p;
-	while( *p !='\0' && !xisspace(*p) )
-		p++;
-	sizeend = p;
-	while( *p !='\0' && xisspace(*p) )
-		p++;
-	sectionstart = p;
-	while( *p !='\0' && !xisspace(*p) )
-		p++;
-	sectionend = p;
-	while( *p !='\0' && xisspace(*p) )
-		p++;
-	priostart = p;
-	while( *p !='\0' && !xisspace(*p) )
-		p++;
-	prioend = p;
-	while( *p !='\0' && xisspace(*p) )
-		p++;
-	filestart = p;
-	while( *p !='\0' && !xisspace(*p) )
-		p++;
-	fileend = p;
-	while( *p !='\0' && xisspace(*p) )
-		p++;
-	if( *p != '\0' ) {
-		fprintf(stderr,"Unexpected sixth argument in '%s'!\n",fileline);
-		return RET_ERROR;
-	}
-	if( *md5start == '\0' || *sizestart == '\0' || *sectionstart == '\0'
-			|| *priostart == '\0' || *filestart == '\0' ) {
-		fprintf(stderr,"Not five arguments in '%s'!\n",fileline);
-		return RET_ERROR;
-	}
-
-	p = filestart;
-	while( *p != '\0' && *p != '_' && !xisspace(*p) )
-		p++;
-	if( *p != '_' ) {
-		if( *p == '\0' )
-			fprintf(stderr,"No underscore in filename in '%s'!",fileline);
-		else
-			fprintf(stderr,"Unexpected character '%c' in filename in '%s'\n!",*p,fileline);
-		return RET_ERROR;
-	}
-	nameend = p;
-	p++;
-	versionstart = p;
-	// We cannot say where the version ends and the filename starts,
-	// but as the packagetypes would be valid part of the version, too,
-	// this check gets the broken things. 
-	names_overversion(&p,TRUE);
-	if( *p != '\0' && *p != '_' ) {
-		fprintf(stderr,"Unexpected character '%c' in filename within '%s'!\n",*p,fileline);
-		return RET_ERROR;
-	}
-	if( *p == '_' ) {
-		/* Things having a underscole will have an architecture
-		 * and be either .deb or .udeb */
-		p++;
-		archstart = p;
-		while( *p !='\0' && *p != '.' )
-			p++;
-		if( *p != '.' ) {
-			fprintf(stderr,"Expect something of the form name_version_arch.[u]deb but got '%s'!\n",filestart);
-			return RET_ERROR;
-		}
-		archend = p;
-		p++;
-		typestart = p;
-		while( *p !='\0' && !xisspace(*p) )
-			p++;
-		if( p-typestart == 3 && strncmp(typestart,"deb",3) == 0 )
-			type = fe_DEB;
-		else if( p-typestart == 4 && strncmp(typestart,"udeb",4) == 0 )
-			type = fe_UDEB;
-		else {
-			fprintf(stderr,"'%s' looks neighter like .deb nor like .udeb!\n",filestart);
-			return RET_ERROR;
-		}
-		if( strncmp(archstart,"source",6) == 0 ) {
-			fprintf(stderr,"How can a .[u]deb be architecture 'source'?('%s')\n",filestart);
-			return RET_ERROR;
-		}
-	} else {
-		/* this looks like some source-package, we will have
-		 * to look for the packagetype ourself... */
-		while( *p !='\0' && !xisspace(*p) ) {
-			p++;
-		}
-		if( p-versionstart > 12 && strncmp(p-12,".orig.tar.gz",12) == 0 )
-			type = fe_ORIG;
-		else if( p-versionstart > 7 && strncmp(p-7,".tar.gz",7) == 0 )
-			type = fe_TAR;
-		else if( p-versionstart > 8 && strncmp(p-8,".diff.gz",8) == 0 )
-			type = fe_DIFF;
-		else if( p-versionstart > 4 && strncmp(p-4,".dsc",4) == 0 )
-			type = fe_DSC;
-		else if( p-versionstart > 13 && strncmp(p-13,".orig.tar.bz2",13) == 0 )
-			type = fe_ORIG;
-		else if( p-versionstart > 8 && strncmp(p-8,".tar.bz2",8) == 0 )
-			type = fe_TAR;
-		else if( p-versionstart > 9 && strncmp(p-9,".diff.bz2",9) == 0 )
-			type = fe_DIFF;
-		else {
-			type = fe_UNKNOWN;
-			fprintf(stderr,"Unknown filetype: '%s', assuming to be source format...\n",fileline);
-		}
-		archstart = "source";
-		archend = archstart + 6;
-		if( strncmp(filestart,sourcename,nameend-filestart) != 0 ) {
-			fprintf(stderr,"Warning: Strange file '%s'!\nLooks like source but does not start with '%s_' as I would have guessed!\nI hope you know what you do.\n",filestart,sourcename);
-		}
-	}
-	if( FE_SOURCE(type) && packagetypeonly != NULL && strcmp(packagetypeonly,"dsc")!=0)
-		return RET_NOTHING;
-	if( type == fe_DEB && packagetypeonly != NULL && strcmp(packagetypeonly,"deb")!=0)
-		return RET_NOTHING;
-	if( type == fe_UDEB && packagetypeonly != NULL && strcmp(packagetypeonly,"udeb")!=0)
-		return RET_NOTHING;
-
-	/* now copy all those parts into the structure */
 	e = calloc(1,sizeof(struct fileentry));
 	if( e == NULL )
 		return RET_ERROR_OOM;
-	e->md5sum = names_concatmd5sumandsize(md5start,md5end,sizestart,sizeend);
-	e->section = strndup(sectionstart,sectionend-sectionstart);
-	e->priority = strndup(priostart,prioend-priostart);
-	e->basename = strndup(filestart,fileend-filestart);
-	e->architecture = strndup(archstart,archend-archstart);
-	e->name = strndup(filestart,nameend-filestart);
-	e->type = type;
 
-	if( e->basename == NULL || e->md5sum == NULL || e->section == NULL || 
-	    e->priority == NULL || e->architecture == NULL || e->name == NULL ) {
-		freeentries(e);
-		return RET_ERROR_OOM;
+	r = changes_parsefileline(fileline, &e->type, &e->basename, &e->md5sum,
+			&e->section, &e->priority, &e->architecture, &e->name);
+	if( RET_WAS_ERROR(r) ) {
+		free(e);
+		return r;
 	}
+	assert( RET_IS_OK(r) );
+	if( FE_SOURCE(e->type) && packagetypeonly != NULL && strcmp(packagetypeonly,"dsc")!=0) {
+		freeentries(e);
+		return RET_NOTHING;
+	}
+	if( e->type == fe_DEB && packagetypeonly != NULL && strcmp(packagetypeonly,"deb")!=0) {
+		freeentries(e);
+		return RET_NOTHING;
+	}
+	if( e->type == fe_UDEB && packagetypeonly != NULL && strcmp(packagetypeonly,"udeb")!=0) {
+		freeentries(e);
+		return RET_NOTHING;
+	}
+	if( strcmp(e->architecture, "source") == 0 && strcmp(e->name, sourcename) != 0 ) {
+		fprintf(stderr,"Warning: Strange file '%s'!\nLooks like source but does not start with '%s_' as I would have guessed!\nI hope you know what you do.\n",e->basename,sourcename);
+	}
+
 	if( forcearchitecture != NULL ) {
 		if( strcmp(forcearchitecture,"source") != 0 && 
 				strcmp(e->architecture,"all") == 0 ) {
