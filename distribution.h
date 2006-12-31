@@ -86,6 +86,9 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
 
+/* get a pointer to the apropiate part of the linked list */
+struct distribution *distribution_find(struct distribution *distributions, const char *name);
+
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
 retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, filesdb);
 #endif

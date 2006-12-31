@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -175,7 +175,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 	const char *missing;
 	char *option;
 static const char * const allowedfields[] = {
-"Codename", "Suite", "Version", "Origin", "Label", "Description", 
+"Codename", "Suite", "Version", "Origin", "Label", "Description",
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
 "UDebOverride", "DscOverride", "Tracking", "NotAutomatic",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
@@ -427,7 +427,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	mydata.distributions = NULL;
 	
 	fn = calc_dirconcat(conf,"distributions");
-	if( fn == NULL ) 
+	if( fn == NULL )
 		return RET_ERROR_OOM;
 
 	result = regularfileexists(fn);
@@ -478,7 +478,7 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 	/* This is a bit overkill, as it does not stop when it finds the
 	 * definition of the distribution. But this way we can warn
 	 * about emtpy lines in the definition (as this would split
-	 * it in two definitions, the second one no valid one). 
+	 * it in two definitions, the second one no valid one).
 	 */
 	result = distribution_getmatched(confdir,1,&name,&d);
 
@@ -573,7 +573,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 	}
 
 	for( d=distributions; d != NULL; d = d->next ) {
-		if( RET_IS_OK(d->status) || 
+		if( RET_IS_OK(d->status) ||
 			( d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
 			when == EXPORT_FORCE) {
 			todo = TRUE;
@@ -590,14 +590,14 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 
 		if( (RET_WAS_ERROR(d->status)||interrupted()) && when != EXPORT_FORCE ) {
 			if( verbose >= 10 )
-				fprintf(stderr, 
+				fprintf(stderr,
 " Not exporting %s because there have been errors and no --export=force.\n",
 						d->codename);
 		} else if( d->status==RET_NOTHING && when==EXPORT_CHANGED ) {
 			struct target *t;
 
 			if( verbose >= 10 )
-				fprintf(stderr, 
+				fprintf(stderr,
 " Not exporting %s because of no recorded changes and --export=changed.\n",
 						d->codename);
 
@@ -617,8 +617,8 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 				}
 			}
 		} else {
-			assert( RET_IS_OK(d->status) || 
-					( d->status == RET_NOTHING && 
+			assert( RET_IS_OK(d->status) ||
+					( d->status == RET_NOTHING &&
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
 			r = export(d,confdir,dbdir,distdir,files, TRUE);
@@ -634,14 +634,14 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
 	if( when == EXPORT_NEVER ) {
 		if( verbose >= 10 )
-			fprintf(stderr, 
+			fprintf(stderr,
 "Not exporting %s because of --export=never.\n"
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
 	}
 	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interrupted()) ) {
 		if( verbose >= 10 )
-			fprintf(stderr, 
+			fprintf(stderr,
 "Not exporting %s because there have been errors and no --export=force.\n"
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
@@ -650,7 +650,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 		struct target *t;
 
 		if( verbose >= 10 )
-			fprintf(stderr, 
+			fprintf(stderr,
 "Not exporting %s because of no recorded changes and --export=changed.\n",
 	distribution->codename);
 
@@ -677,3 +677,26 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	return export(distribution,confdir,dbdir,distdir,files, TRUE);
 }
 
+/* get a pointer to the apropiate part of the linked list */
+struct distribution *distribution_find(struct distribution *distributions, const char *name) {
+	struct distribution *d = distributions, *r;
+
+	while( d != NULL && strcmp(d->codename, name) != 0 )
+		d = d->next;
+	if( d != NULL )
+		return d;
+	d = distributions;
+	while( d != NULL && ( d->suite == NULL || strcmp(d->suite, name) != 0 ))
+		d = d->next;
+	r = d;
+	if( r == NULL ) {
+		fprintf(stderr, "No distribution named '%s' found!\n", name);
+		return NULL;
+	}
+	while( d != NULL && ( d->suite == NULL || strcmp(d->suite, name) != 0 ))
+		d = d->next;
+	if( d == NULL )
+		return r;
+	fprintf(stderr, "No distribution has codename '%s' and multiple have it as suite-name!\n", name);
+	return NULL;
+}

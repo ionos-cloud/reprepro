@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -267,8 +267,8 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 					//to remove it anyway...
 					fprintf(stderr,"ignoring error trying to rmdir %s: %m(%d)\n",filename,en);
 				}
-				/* parent directories will contain this one 
-				 * thus not be empty, in other words: 
+				/* parent directories will contain this one
+				 * thus not be empty, in other words:
 				 * everything's done */
 				break;
 			}
@@ -311,6 +311,57 @@ static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char
 	return ret;
 }
 
+/* check if file is already there (RET_NOTHING) or could be added (RET_OK)
+ * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
+retvalue files_ready(filesdb db,const char *filekey,const char *md5sum) {
+	int dbret;
+	DBT key,data;
+
+	SETDBT(key,filekey);
+	CLEARDBT(data);
+
+	if( (dbret = db->database->get(db->database, NULL, &key, &data, 0)) == 0){
+		if( strcmp(md5sum,data.data) != 0 ) {
+			fprintf(stderr,"File \"%s\" is already registered with other md5sum!\n(expect: '%s', database:'%s')!\n",filekey,md5sum,(char*)data.data);
+			return RET_ERROR_WRONG_MD5;
+		}
+		return RET_NOTHING;
+	} else if( dbret != DB_NOTFOUND ){
+		 db->database->err(db->database, dbret, "files.db:");
+		 return RET_DBERR(dbret);
+	}
+	return RET_OK;;
+}
+
+/* hardlink file with known md5sum and add it to database */
+retvalue files_hardlink(filesdb db,const char *tempfile, const char *filekey,const char *md5sum) {
+	retvalue ret;
+	int dbret;
+	DBT key,data;
+
+	SETDBT(key,filekey);
+	CLEARDBT(data);
+
+	/* an additional check to make sure nothing tricks us into
+	 * overwriting it by another file */
+
+	if( (dbret = db->database->get(db->database, NULL, &key, &data, 0)) == 0){
+		if( strcmp(md5sum,data.data) != 0 ) {
+			fprintf(stderr,"File \"%s\" is already registered with other md5sum!\n(expect: '%s', database:'%s')!\n",filekey,md5sum,(char*)data.data);
+			return RET_ERROR_WRONG_MD5;
+		}
+		return RET_NOTHING;
+	} else if( dbret != DB_NOTFOUND ){
+		 db->database->err(db->database, dbret, "files.db:");
+		 return RET_DBERR(dbret);
+	}
+
+	ret = copyfile_hardlink(db->mirrordir, filekey, tempfile, md5sum);
+	if( RET_WAS_ERROR(ret) )
+		return ret;
+
+	return files_add(db,filekey,md5sum);
+}
 
 /* check for file in the database and if not found there, if it can be detected */
 retvalue files_expect(filesdb db,const char *filekey,const char *md5sum) {
@@ -482,7 +533,7 @@ static retvalue getfilesize(/*@out@*/off_t *s,const char *md5sum) {
 			*s = (off_t)atoll(p);
 			return RET_OK;
 		}
-	} 
+	}
 	fprintf(stderr,"Strange md5sum as missing space: '%s'\n",md5sum);
 	return RET_ERROR;
 }
@@ -605,7 +656,7 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 		char *md5indatabase,*md5offile;
 
 		r = files_get(db,filekey,&md5indatabase);
-		if( RET_WAS_ERROR(r) ) 
+		if( RET_WAS_ERROR(r) )
 			return r;
 		if( RET_IS_OK(r) ) {
 			if( delete == D_INPLACE ) {
@@ -670,7 +721,7 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 	}
 	if( calculatedmd5sum != NULL )
 		*calculatedmd5sum = md5sumfound;
-	else 
+	else
 		free(md5sumfound);
 	return RET_OK;
 }

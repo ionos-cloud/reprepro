@@ -304,7 +304,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	const struct overrideinfo *oinfo;
 	const struct strlist *components;
 
-	assert( (givenmd5sum!=NULL && givenfilekey!=NULL ) ||
+	assert( givenmd5sum!=NULL ||
 		(givenmd5sum==NULL && givenfilekey==NULL ) );
 
 	/* First taking a closer look to the file: */
@@ -435,16 +435,21 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 		return r;
 	}
 	/* then looking if we already have this, or copy it in */
-	if( givenfilekey != NULL ) {
-		assert(givenmd5sum != NULL);
-
+	if( givenmd5sum != NULL ) {
 		pkg->md5sum = strdup(givenmd5sum);
 		if( pkg->md5sum == NULL ) {
 			deb_free(pkg);
 			return RET_ERROR_OOM;
-		} 
+		}
+		if( givenfilekey == NULL ) {
+			r = files_ready(filesdb, pkg->filekey,pkg->md5sum);
+			if( RET_WAS_ERROR(r) ) {
+				deb_free(pkg);
+				return r;
+			}
+		}
 	} else {
-		assert(givenmd5sum == NULL);
+		assert(givenfilekey == NULL);
 		r = files_include(filesdb,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
 		if( RET_WAS_ERROR(r) ) {
 			deb_free(pkg);
@@ -463,6 +468,11 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	return RET_OK;
 }
 
+retvalue deb_hardlinkfiles(struct debpackage *deb,filesdb filesdb,const char *debfilename) {
+	assert( deb != NULL );
+	assert( deb->filekey != NULL && deb-> md5sum != NULL );
+	return files_hardlink(filesdb, debfilename, deb->filekey, deb->md5sum);	
+}
 	
 retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata){
 	retvalue r,result;

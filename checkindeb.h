@@ -27,6 +27,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,/*@null@*/con
 /* in two steps */
 struct debpackage;
 retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata);
+retvalue deb_hardlinkfiles(struct debpackage *deb,filesdb filesdb,const char *debfilename);
 retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,const struct overrideinfo *binoverride,int delete,bool_t needsourceversion,const struct strlist *allowed_binaries,const char *expectedsourcename,const char *expectedsourceversion);
 void deb_free(/*@only@*/struct debpackage *pkg);
 #endif

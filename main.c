@@ -57,7 +57,7 @@
 #include "optionsfile.h"
 #include "dpkgversions.h"
 #include "uploaderslist.h"
-
+#include "incoming.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -1985,6 +1985,30 @@ ACTION_N(versioncompare) {
 	}
 	return r;
 }
+/***********************import***********************************/
+ACTION_D(import) {
+	retvalue result,r;
+	struct distribution *distributions;
+
+	if( argc != 2 ) {
+		fprintf(stderr,"reprepro import <import-name>\n");
+		return RET_ERROR;
+	}
+
+	r = distribution_getmatched(confdir,0,NULL,&distributions);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+
+	result = process_incoming(confdir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
+
+	r = distribution_exportandfreelist(export,distributions,
+			confdir,dbdir,distdir, filesdb);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
 
 /**********************/
 /* lock file handling */
@@ -2110,6 +2134,7 @@ static const struct action {
 	{"include",		A_D(include)},
 	{"generatefilelists",	A_F(generatefilelists)},
 	{"clearvanished",	A_D(clearvanished)},
+	{"import",		A_D(import)},
 	{NULL,NULL,0}
 };
 #undef A_N

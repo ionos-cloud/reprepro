@@ -90,4 +90,10 @@ retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_
 retvalue files_regenerate_filelist(filesdb db, bool_t redo);
 retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist);
 
+/* hardlink file with known md5sum and add it to database */
+retvalue files_hardlink(filesdb db,const char *tempfile, const char *filekey,const char *md5sum);
+/* check if file is already there (RET_NOTHING) or could be added (RET_OK)
+ * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
+retvalue files_ready(filesdb db,const char *filekey,const char *md5sum);
+
 #endif
