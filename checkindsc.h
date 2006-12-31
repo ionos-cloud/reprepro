@@ -21,8 +21,8 @@
 retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,const char *dscfilename,/*@null@*/const struct overrideinfo *srcoverride,int delete,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/trackingdb tracks);
 
 /* in two steps:
- * If basename, filekey and directory are != NULL, then they are used instead 
- * of being newly calculated. 
+ * If basename, filekey and directory are != NULL, then they are used instead
+ * of being newly calculated.
  * (And all files are expected to already be in the pool),
  * delete should be D_INPLACE then
  */

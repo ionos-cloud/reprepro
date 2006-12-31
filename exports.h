@@ -6,7 +6,7 @@
 #endif
 
 struct exportmode {
-	/* "Packages", "Sources" or something like that */ 
+	/* "Packages", "Sources" or something like that */
 	char *filename;
 	/* create uncompressed, create .gz, <future things...> */
 	compressionset compressions;

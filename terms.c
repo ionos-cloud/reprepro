@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -142,7 +142,7 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 	overspace();
 	if( ISSET(options,T_ARCHITECTURES) && *f == '[' ) {
 		//TODO: implement this one...
-		assert( "Not yet implemented!" == NULL); 
+		assert( "Not yet implemented!" == NULL);
 	}
 
 	a = calloc(1,sizeof(struct term_atom));
@@ -171,7 +171,7 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 #undef overspace
 }
 
-/* as this are quite special BDDs (a atom being false cannot make it true), 
+/* as this are quite special BDDs (a atom being false cannot make it true),
  * the places where True and False can be found are
  * quite easy and fast to find: */
 
@@ -198,7 +198,7 @@ static void andterm(term *termtochange, /*@dependent@*/term *termtoand) {
 
 retvalue term_compile(term **term, const char *origformula, int options) {
 	const char *formula = origformula;
-	/* for the global list */ 
+	/* for the global list */
 	struct term_atom *first,*last;
 	/* the atom just read */
 	struct term_atom *atom;
@@ -210,10 +210,10 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 	//TODO: ???
 	int atbeginning = 1;
 	char junction = '\0';
-	
+
 	if( ISSET(options,T_ARCHITECTURES) ) {
 		//TODO: implement this one...
-		assert( "Not yet implemented!" == NULL); 
+		assert( "Not yet implemented!" == NULL);
 	}
 
 #define overspace() while( *formula!='\0' && xisspace(*formula) ) formula++
@@ -329,15 +329,15 @@ retvalue term_decidechunk(term *condition,const char *controlchunk) {
 			int i;
 			i = strcmp(value,atom->comparewith);
 			free(value);
-			if( i < 0 ) 
+			if( i < 0 )
 				correct = c == tc_strictless
 					|| c == tc_lessorequal
 					|| c == tc_notequal;
-			else if( i > 0 ) 
+			else if( i > 0 )
 				correct = c == tc_strictmore
 					|| c == tc_moreorequal
 					|| c == tc_notequal;
-			else 
+			else
 				correct = c == tc_lessorequal
 					|| c == tc_moreorequal
 					|| c == tc_equal;

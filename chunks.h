@@ -25,15 +25,15 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,/*@out@*/char **v
 retvalue chunk_getname(const char *chunk,const char *name,/*@out@*/char **pkgname,bool_t allowversion);
 retvalue chunk_getnameandversion(const char *chunk,const char *name,/*@out@*/char **pkgname,/*@out@*/char **version);
 
-/* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 
+/* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */
 retvalue chunk_gettruth(const char *chunk,const char *name);
-/* return RET_OK, if field is found, RET_NOTHING, if not */ 
+/* return RET_OK, if field is found, RET_NOTHING, if not */
 retvalue chunk_checkfield(const char *chunk,const char *name);
 
 
 typedef retvalue chunkaction(/*@temp@*/void *data,/*@temp@*/const char *chunk);
 
-/* Call action for each chunk in <filename>, 
+/* Call action for each chunk in <filename>,
  * until error or until ok when <stopwhenok> */
 retvalue chunk_foreach(const char *filename,chunkaction action,/*@null@*/ /*@temp@*/void *data,bool_t stopwhenok);
 

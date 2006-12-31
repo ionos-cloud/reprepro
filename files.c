@@ -383,7 +383,7 @@ retvalue files_expect(filesdb db,const char *filekey,const char *md5sum) {
 		 return RET_DBERR(dbret);
 	}
 	/* got DB_NOTFOUND, so have to look for the file itself: */
-	
+
 	ret = files_checkmd5sum(db,filekey,md5sum);
 	if( ret == RET_NOTHING || RET_WAS_ERROR(ret) )
 		return ret;
@@ -452,8 +452,8 @@ retvalue files_printmd5sums(filesdb db) {
 		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
-	CLEARDBT(key);	
-	CLEARDBT(data);	
+	CLEARDBT(key);
+	CLEARDBT(data);
 	result = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		printf("%s %s\n",(const char*)key.data,(const char*)data.data);
@@ -484,8 +484,8 @@ retvalue files_foreach(filesdb db,per_file_action action,void *privdata) {
 		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
-	CLEARDBT(key);	
-	CLEARDBT(data);	
+	CLEARDBT(key);
+	CLEARDBT(data);
 	result = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		size_t fk_len = key.size-1;
@@ -607,7 +607,7 @@ retvalue files_detect(filesdb db,const char *filekey) {
 	char *md5sum;
 	char *fullfilename;
 	retvalue r;
-	
+
 	fullfilename = calc_fullfilename(db->mirrordir,filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
@@ -742,7 +742,7 @@ retvalue files_includefile(filesdb db,const char *sourcedir,const char *basename
 	r = files_include(db,sourcefilename,filekey,md5sum,calculatedmd5sum,delete);
 	free(sourcefilename);
 	return r;
-	
+
 }
 
 /* the same, but with multiple files */
@@ -765,7 +765,7 @@ retvalue files_includefiles(filesdb db,const char *sourcedir,const struct strlis
 
 		r = files_includefile(db,sourcedir,basename,filekey,md5sum,NULL,delete);
 		RET_UPDATE(result,r);
-		
+
 	}
 	return result;
 }
@@ -869,8 +869,8 @@ retvalue files_regenerate_filelist(filesdb db, bool_t reread) {
 		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
 	}
-	CLEARDBT(key);	
-	CLEARDBT(data);	
+	CLEARDBT(key);
+	CLEARDBT(data);
 	result = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		size_t l = key.size-1;
@@ -927,8 +927,8 @@ retvalue files_regenerate_filelist(filesdb db, bool_t reread) {
 				}
 			}
 		}
-		CLEARDBT(key);	
-		CLEARDBT(data);	
+		CLEARDBT(key);
+		CLEARDBT(data);
 	}
 	if( dbret != DB_NOTFOUND ) {
 		db->database->err(db->database, dbret, "files.db:");

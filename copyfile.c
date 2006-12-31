@@ -81,7 +81,7 @@ retvalue copy(const char *fullfilename,const char *origfile,/*@null@*/const char
 static retvalue move(const char *fullfilename,const char *origfile,/*@null@*/const char *md5expected,/*@out@*/char **md5sum) {
 	retvalue r;
 	// TODO: try a rename first, if md5sum is know and correct??
-	
+
 	r = copy(fullfilename,origfile,md5expected,md5sum);
 	if( RET_IS_OK(r) ) {
 		if( verbose > 15 ) {

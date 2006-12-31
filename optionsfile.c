@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -54,7 +54,7 @@ void optionsfile_parse(const char *confdir,const struct option *longopts,
 		l = strlen(buffer);
 		if( l == 0 || buffer[l-1] != '\n' ) {
 			fprintf(stderr,"%s:%d: Ignoring too long (or incomplete) line.\n",filename,linenr);
-			do { 
+			do {
 				if( fgets(buffer,999,f) == NULL )
 					break;
 				l = strlen(buffer);

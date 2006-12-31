@@ -6,8 +6,8 @@
 #endif
 
 enum filetype { ft_ALL_BINARY='a',
-		ft_ARCH_BINARY='b', 
-		ft_CHANGES = 'c',  
+		ft_ARCH_BINARY='b',
+		ft_CHANGES = 'c',
 		ft_SOURCE='s',
 		ft_XTRA_DATA='x'};
 

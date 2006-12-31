@@ -45,7 +45,7 @@ struct distribution {
 	struct exportmode dsc,deb,udeb;
 	/* is tracking enabled for this distribution? */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
-	struct trackingoptions { bool_t includechanges:1; 
+	struct trackingoptions { bool_t includechanges:1;
 		bool_t includebyhand:1;
 		bool_t needsources:1;
 		bool_t keepsources:1;
@@ -69,7 +69,7 @@ retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 typedef retvalue distribution_each_action(void *data, struct target *t, struct distribution *d);
 
-/* call <action> for each part of <distribution>, if component or architecture is 
+/* call <action> for each part of <distribution>, if component or architecture is
  * not NULL or "all", only do those parts */
 retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data);
 

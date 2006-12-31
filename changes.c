@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -98,7 +98,7 @@ retvalue changes_parsefileline(const char *fileline, filetype *result_type,
 	versionstart = p;
 	// We cannot say where the version ends and the filename starts,
 	// but as the packagetypes would be valid part of the version, too,
-	// this check gets the broken things. 
+	// this check gets the broken things.
 	names_overversion(&p,TRUE);
 	if( *p != '\0' && *p != '_' ) {
 		fprintf(stderr,"Unexpected character '%c' in filename within '%s'!\n",*p,fileline);

@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -120,7 +120,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 static retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files) {
 	retvalue r;
 	char *filename;
-	
+
 	/* Read the filename given there */
 	r = chunk_getvalue(chunk,"Filename",&filename);
 	if( !RET_IS_OK(r) ) {
@@ -189,7 +189,7 @@ retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char *
 	}
 	return r;
 }
-	
+
 retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	char *sourcename,*basename;
 	struct strlist mymd5sums;

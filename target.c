@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -71,7 +71,7 @@ static retvalue target_initialize(
 	t->architecture = strdup(architecture);
 	t->packagetype = packagetype;
 	t->identifier = calc_identifier(codename,component,architecture,packagetype);
-	if( t->codename == NULL || t->component == NULL || 
+	if( t->codename == NULL || t->component == NULL ||
 			t->architecture == NULL || t->identifier == NULL ) {
 		(void)target_free(t);
 		return RET_ERROR_OOM;
@@ -112,7 +112,7 @@ retvalue target_free(struct target *target) {
 	if( target->wasmodified ) {
 		fprintf(stderr,"Warning: database '%s' was modified but no index file was exported.\nChanges will only be visible after the next 'export'!\n",target->identifier);
 	}
-		
+
 	free(target->codename);
 	free(target->component);
 	free(target->architecture);
@@ -141,7 +141,7 @@ retvalue target_initpackagesdb(struct target *target, const char *dbdir) {
 /* this closes databases... */
 retvalue target_closepackagesdb(struct target *target) {
 	retvalue r;
-	
+
 	if( target->packages == NULL ) {
 		fprintf(stderr,"Internal Warning: Double close!\n");
 		r = RET_OK;
@@ -285,7 +285,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 }
 
 /* rereference a full database */
-struct data_reref { 
+struct data_reref {
 	/*@dependent@*/references refs;
 	/*@dependent@*/struct target *target;
 };
@@ -330,12 +330,12 @@ retvalue target_rereference(struct target *target,references refs) {
 	refdata.target = target;
 	r = packages_foreach(target->packages,rereferencepkg,&refdata);
 	RET_UPDATE(result,r);
-	
+
 	return result;
 }
 
 /* retrack a full database */
-struct data_retrack { 
+struct data_retrack {
 	/*@temp@*/trackingdb tracks;
 	/*@temp@*/references refs;
 	/*@temp@*/struct target *target;
@@ -366,7 +366,7 @@ retvalue target_retrack(struct target *target,trackingdb tracks,references refs)
 
 
 /* check a full database */
-struct data_check { 
+struct data_check {
 	/*@dependent@*/references refs;
 	/*@dependent@*/filesdb filesdb;
 	/*@dependent@*/struct target *target;
@@ -393,7 +393,7 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	result = r;
 	if( RET_IS_OK(r) ) {
 		free(dummy);
-		if( !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) || 
+		if( !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) ||
 		    !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) ) {
 			(void)fprintf(stderr,"Reparsing the package information of '%s' yields to the expectation to find:\n",package);
 			(void)strlist_fprint(stderr,&expectedfilekeys);

@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -46,7 +46,7 @@
 extern int verbose;
 
 /* This file includes the code to include sources, i.e.
- to create the chunk for the Sources.gz-file and 
+ to create the chunk for the Sources.gz-file and
  to put it in the various databases.
 
 things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
@@ -62,7 +62,7 @@ things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
 
 * Get overwrite information, ecspecially
   the priority(if there is a binaries field,
-  check the one with the highest) and the section 
+  check the one with the highest) and the section
   (...what else...?)
 
 * Rename Source-Field to Package-Field
@@ -157,7 +157,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 		dsc_free(dsc);
 		return r;
 	}
-	if( broken && !IGNORING_(brokensignatures, 
+	if( broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
 "This most likely means the file was damaged (or edited improperly)\n",
 				filename) ) {
@@ -241,7 +241,7 @@ static retvalue dsc_calclocations(struct dscpackage *pkg,/*@null@*/const char *f
 	if( pkg->directory == NULL ) {
 		return RET_ERROR_OOM;
 	}
-	
+
 	/* Calculate the filekeys: */
 	r = calc_dirconcats(pkg->directory,&pkg->basenames,&pkg->filekeys);
 	if( RET_WAS_ERROR(r) ) {
@@ -324,7 +324,7 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
-	
+
 	newchunk  = chunk_replacefields(newchunk2,replace,"Files");
 	free(newfilelines);
 	free(newchunk2);
@@ -363,15 +363,15 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	    strcmp(expectedname, pkg->package) != 0 ) {
 		/* This cannot be ignored, as too much depends on it yet */
 		fprintf(stderr,
-"'%s' says it is '%s', while .changes file said it is '%s'\n", 
+"'%s' says it is '%s', while .changes file said it is '%s'\n",
 				basename, pkg->package, expectedname);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
 	if( expectedversion != NULL &&
 	    strcmp(expectedversion, pkg->version) != 0 &&
-	    !IGNORING_(wrongversion, 
-"'%s' says it is version '%s', while .changes file said it is '%s'\n", 
+	    !IGNORING_(wrongversion,
+"'%s' says it is version '%s', while .changes file said it is '%s'\n",
 				basename, pkg->version, expectedversion)) {
 		dsc_free(pkg);
 		return RET_ERROR;
@@ -412,7 +412,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
-	
+
 	/* decide where it has to go */
 
 	r = guess_component(distribution->codename,&distribution->components,
@@ -441,7 +441,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	}
 
 	/* Calculate the chunk to include: */
-	
+
 	if( !RET_WAS_ERROR(r) )
 		r = dsc_adddsc(pkg);
 
@@ -464,7 +464,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
-		if( interrupted() ) 
+		if( interrupted() )
 			r = RET_ERROR_INTERUPTED;
 		else
 			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
@@ -477,8 +477,8 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 
 /* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guessing it from the section.
- * If basename, filekey and directory are != NULL, then they are used instead 
- * of being newly calculated. 
+ * If basename, filekey and directory are != NULL, then they are used instead
+ * of being newly calculated.
  * (And all files are expected to already be in the pool). */
 retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
 	retvalue r;

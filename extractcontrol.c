@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -36,7 +36,7 @@
 #endif
 // **********************************************************************
 // * This is a very simple implementation calling ar and tar, which
-// * is only used with --without-libarchive or when no libarchive was 
+// * is only used with --without-libarchive or when no libarchive was
 // * found.
 // **********************************************************************
 
@@ -66,7 +66,7 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 		fprintf(stderr, "Error while creating pipe: %d=%s\n",e,strerror(e));
 		return RET_ERRNO(e);
 	}
-	
+
 	ar = fork();
 	if( ar < 0 ) {
 		int e = errno;
@@ -110,7 +110,7 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 				brokentar?"control":"./control", NULL);
 		fprintf(stderr,"calling tar failed: %m\n");
 		exit(254);
-		
+
 	}
 
 	close(pipe1[0]);close(pipe1[1]);
@@ -137,7 +137,7 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 			gzclose(f);
 		}
 	}
-	
+
 	/* avoid being a memory leak */
 	if( !(RET_IS_OK(result)) )
 		controlchunk = NULL;
@@ -177,7 +177,7 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 				fprintf(stderr,"Who is %d, and why does this bother me?\n",pid);
 			}
 		}
-		
+
 	}
 	if( RET_IS_OK(result) ) {
 		if( controlchunk == NULL )
@@ -234,7 +234,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 		close(pipe1[0]);close(pipe1[1]);
 		return RET_ERRNO(e);
 	}
-	
+
 	ar = fork();
 	if( ar < 0 ) {
 		int e = errno;
@@ -277,7 +277,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 		execl("/bin/tar","tar","-tzf","-",NULL);
 		fprintf(stderr,"calling tar failed: %m\n");
 		exit(254);
-		
+
 	}
 
 	close(pipe1[0]);close(pipe1[1]);
@@ -343,7 +343,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 			if( len > last+ignore )
 				len = last;
 			else {
-				memmove(list+last, list+last+ignore, 
+				memmove(list+last, list+last+ignore,
 						1+len-last-ignore);
 				len -= ignore;
 			}
@@ -365,7 +365,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 		}
 	}
 	close(pipe2[0]);
-	
+
 	while( ar != -1 || tar != -1 ) {
 		pid=wait(&status);
 		if( pid < 0 ) {
@@ -374,7 +374,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 		} else {
 			if( pid == ar ) {
 				ar = -1;
-				if( !WIFEXITED(status) || 
+				if( !WIFEXITED(status) ||
 						WEXITSTATUS(status) != 0) {
 					fprintf(stderr,"Error from ar for '%s': %d\n",
 							debfile,
@@ -383,7 +383,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 				}
 			} else if( pid == tar ) {
 				tar = -1;
-				if( !WIFEXITED(status) || 
+				if( !WIFEXITED(status) ||
 						WEXITSTATUS(status) != 0 ) {
 					fprintf(stderr,"Error from tar for data.tar.gz within '%s': %d\n",
 							debfile,
@@ -395,7 +395,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 				fprintf(stderr,"Who is %d, and why does this bother me?\n",pid);
 			}
 		}
-		
+
 	}
 	if( RET_IS_OK(result) )
 		*filelist = list;

@@ -168,7 +168,7 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	retvalue r;
 	struct strlist allowlist, allow_into;
 	char *default_into;
-	static const char * const allowedfields[] = {"Name", "TempDir", 
+	static const char * const allowedfields[] = {"Name", "TempDir",
 		"IncomingDir", "Default", "Allow",
 		NULL};
 
@@ -384,7 +384,7 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 	struct candidate_file **p, *n;
 	char *basename;
 	retvalue r;
-	
+
 	n = calloc(1,sizeof(struct candidate_file));
 	if( n == NULL )
 		return RET_ERROR_OOM;
@@ -484,7 +484,7 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 	file->tempfilename = tempfilename;
 	file->used = TRUE;
 	return RET_OK;
-	
+
 }
 
 static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
@@ -525,11 +525,11 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 	if( RET_WAS_ERROR(r) )
 		return r;
 	assert(file->tempfilename != NULL);
-	r = deb_prepare(&file->deb, filesdb, file->component, 
+	r = deb_prepare(&file->deb, filesdb, file->component,
 			file->architecture, //check architecture on our own instead?
 			section, priority,
-			"deb", into, file->tempfilename, 
-			/* givenmd5sum != NULL and givenfilekey == NULL means 
+			"deb", into, file->tempfilename,
+			/* givenmd5sum != NULL and givenfilekey == NULL means
 			 * we will have to add it ourself before add: */
 			NULL, file->md5sum,
 			NULL, // override
@@ -569,7 +569,7 @@ static retvalue add_changes(filesdb filesdb, const char *dbdir, references refs,
 	// TODO: once uploaderlist allows to look for package names or existing override
 	// entries or such things, check package names here enable checking for content
 	// name with outer name
-	
+
 	/* when we got here, the package is allowed in, now we have to
 	 * read the parts and check all stuff we only know now */
 
@@ -605,7 +605,7 @@ static retvalue add_changes(filesdb filesdb, const char *dbdir, references refs,
 "Error: '%s' contains unused file '%s'!\n",
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 			return RET_ERROR;
-					
+
 		}
 	}
 	/* the actual adding of packages, make sure what can be checked was
@@ -652,13 +652,13 @@ static retvalue add_changes(filesdb filesdb, const char *dbdir, references refs,
 	}
 	/* everything installed, fire up the byhands */
 	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->type == fe_UNKNOWN && 
+		if( file->type == fe_UNKNOWN &&
 		    strcmp(file->section, "byhand") == 0 ) {
 			// TODO: add command to actualy use them
 			continue;
 		}
 	}
-	
+
 	/* mark files as done */
 	i->delete[c->ofs] = TRUE;
 	for( file = c->files ; file != NULL ; file = file->next ) {

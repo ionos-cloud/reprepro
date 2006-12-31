@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -122,7 +122,7 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 		if( !RET_IS_OK(r) ) {
 			return r;
 		}
-		if( verbose > 33 ) 
+		if( verbose > 33 )
 			fprintf(stderr,"got: %s\n",od);
 	}
 
@@ -131,7 +131,7 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 
   	if( basefiles != NULL ) {
 		struct strlist filelines;
-  
+
 		r = chunk_getextralinelist(chunk,"Files",&filelines);
 		if( !RET_IS_OK(r) ) {
 			if( origdirectory != NULL )
@@ -148,7 +148,7 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 				free(od);
   			return r;
 		}
-	} else 
+	} else
 		assert(md5sums == NULL); /* only together with basefiles */
 
 	if( origdirectory != NULL )
@@ -174,9 +174,9 @@ static inline retvalue calcnewcontrol(
 	}
 
 	directory = calc_sourcedir(component,package);
-	if( directory == NULL ) 
+	if( directory == NULL )
 		return RET_ERROR_OOM;
-	
+
 	r = calc_dirconcats(directory,basenames,filekeys);
 	if( RET_WAS_ERROR(r) ) {
 		free(directory);
@@ -208,7 +208,7 @@ retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, s
 	}
 	return r;
 }
-	
+
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item) {
 	size_t len;
 	int i;
@@ -262,7 +262,7 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 	}
 	return r;
 }
-	
+
 retvalue sources_getinstalldata(struct target *t,const char *packagename,UNUSED(const char *version),const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
 	retvalue r;
 	char *origdirectory;
@@ -310,13 +310,13 @@ retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct s
 	char *origdirectory;
 	struct strlist basenames,mymd5sums;
 	retvalue r;
-	
+
 	if( md5sums != NULL )
 		r = parse_chunk(chunk,&origdirectory,&basenames,&mymd5sums);
 	else
 		r = parse_chunk(chunk,&origdirectory,&basenames,NULL);
 	if( r == RET_NOTHING ) {
-		//TODO: check if it is even text and do not print 
+		//TODO: check if it is even text and do not print
 		//of looking binary??
 		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
 		return RET_ERROR;

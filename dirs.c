@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -69,7 +69,7 @@ retvalue dirs_make_parent(const char *filename) {
 /* create dirname and any '/'-separated part of it */
 retvalue dirs_make_recursive(const char *directory) {
 	retvalue r,result;
-	
+
 	if( interrupted() ) {
 		return RET_ERROR_INTERUPTED;
 	}
@@ -103,11 +103,11 @@ retvalue dirs_getdirectory(const char *filename,char **directory) {
 		return RET_ERROR_OOM;
 	else
 		return RET_OK;
-	
+
 }
 const char *dirs_basename(const char *filename) {
 	const char *bn;
-	
+
 	bn = strrchr(filename,'/');
 	if( bn == NULL )
 		return filename;

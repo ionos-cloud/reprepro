@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -132,7 +132,7 @@ retvalue md5sum_read(const char *filename,char **result){
 	}
 }
 
-retvalue md5sum_copy(const char *origfilename,const char *destfilename, 
+retvalue md5sum_copy(const char *origfilename,const char *destfilename,
 			char **result){
 	retvalue r;
 	int fdr,fdw;
@@ -183,7 +183,7 @@ retvalue md5sum_copy(const char *origfilename,const char *destfilename,
 	return RET_OK;
 }
 /* same as above, but delete existing files and try to hardlink first. */
-retvalue md5sum_place(const char *origfilename,const char *destfilename, 
+retvalue md5sum_place(const char *origfilename,const char *destfilename,
 			char **result) {
 	int i;
 	retvalue r;
@@ -200,7 +200,7 @@ retvalue md5sum_place(const char *origfilename,const char *destfilename,
 		if( verbose > 1 ) {
 			fprintf(stderr,"Linking failed, copying file '%s' to '%s'...\n",origfilename,destfilename);
 		}
-		
+
 		r = md5sum_copy(origfilename,destfilename,result);
 		if( r == RET_ERROR_EXIST ) {
 			fprintf(stderr,"File '%s' already exists and could not be removed to link/copy '%s' there!\n",destfilename,origfilename);
@@ -236,7 +236,7 @@ retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnif
 		return RET_ERRNO(i);
 	}
 	// TODO: extract filesize from md5sum and compare here instead
-	// and change code below to check this number and not generate the 
+	// and change code below to check this number and not generate the
 	// full string...
 	expectedsize = s.st_size;
 

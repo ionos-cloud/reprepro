@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -44,9 +44,9 @@
 extern int verbose;
 
 /* This file includes the code to include binaries, i.e.
-   to create the chunk for the Packages.gz-file and 
+   to create the chunk for the Packages.gz-file and
    to put it in the various databases.
-   
+
 Things to do with .deb's checkin by hand: (by comparison with apt-ftparchive)
 - extract the control file (that's the hard part -> extractcontrol.c )
 - check for Package, Version, Architecture, Maintainer, Description
@@ -194,7 +194,7 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 			deb->sourceversion = strdup(deb->version);
 			if( deb->sourceversion == NULL )
 				r = RET_ERROR_OOM;
-			else 
+			else
 				r = RET_OK;
 
 		} else
@@ -276,7 +276,7 @@ static retvalue deb_complete(struct debpackage *pkg,const struct overrideinfo *o
 static retvalue deb_calclocations(struct debpackage *pkg,/*@null@*/const char *givenfilekey,const char *packagetype) {
 	retvalue r;
 	char *basename;
-	
+
 	basename = calc_binary_basename(pkg->package,pkg->version,pkg->architecture,packagetype);
 	if( basename == NULL )
 		return RET_ERROR_OOM;
@@ -378,7 +378,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 		deb_free(pkg);
 		return RET_ERROR;
 	}
-	
+
 	/* decide where it has to go */
 
 	if( strcmp(packagetype,"udeb") == 0 )
@@ -395,7 +395,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	if( verbose > 0 && forcecomponent == NULL ) {
 		fprintf(stderr,"%s: component guessed as '%s'\n",debfilename,pkg->component);
 	}
-	
+
 	/* some sanity checks: */
 
 	if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 &&
@@ -463,7 +463,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
-	} 
+	}
 	*deb = pkg;
 	return RET_OK;
 }
@@ -471,9 +471,9 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 retvalue deb_hardlinkfiles(struct debpackage *deb,filesdb filesdb,const char *debfilename) {
 	assert( deb != NULL );
 	assert( deb->filekey != NULL && deb-> md5sum != NULL );
-	return files_hardlink(filesdb, debfilename, deb->filekey, deb->md5sum);	
+	return files_hardlink(filesdb, debfilename, deb->filekey, deb->md5sum);
 }
-	
+
 retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata){
 	retvalue r,result;
 	int i;
@@ -563,6 +563,6 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		r2 = trackingdata_finish(tracks, &trackingdata, refs, dereferencedfilekeys);
 		RET_ENDUPDATE(r,r2);
 	}
-	
+
 	return r;
 }

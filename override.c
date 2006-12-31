@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -43,7 +43,7 @@ struct overrideinfo {
 
 void override_free(struct overrideinfo *info) {
 	struct overrideinfo *i;
-	
+
 	while( (i = info) != NULL ) {
 		if( i == NULL )
 			return;
@@ -160,11 +160,11 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 			if( strcmp(last->packagename,firstpart) > 0 )
 				last = root;
 			if( strcmp(last->packagename,firstpart) < 0 ) {
-				while( last->next != NULL && 
+				while( last->next != NULL &&
 					strcmp(last->next->packagename,firstpart) < 0) {
 					last = last->next;
 				}
-				if( last->next == NULL || 
+				if( last->next == NULL ||
 				    strcmp(last->next->packagename,firstpart) != 0 ) {
 					/* add it after last and before last->next */
 					r = newoverrideinfo(firstpart,secondpart,thirdpart,&last->next);
@@ -198,7 +198,7 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 			(void)fclose(file);
 			return r;
 		}
-	}	
+	}
 	(void)fclose(file);
 	*info = root;
 	if( root == NULL )
@@ -227,7 +227,7 @@ const char *override_get(const struct overrideinfo *override,const char *field) 
 
 	if( override == NULL )
 		return NULL;
-	
+
 	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
 		// TODO curently case-sensitiv. warn if otherwise?
 		if( strcmp(override->fields.values[i],field) == 0 )

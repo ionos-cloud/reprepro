@@ -39,7 +39,7 @@ struct uploader {
 	struct uploadpermissions permissions;
 };
 
-struct uploaders { 
+struct uploaders {
 	struct uploader *by_fingerprint;
 	struct uploadpermissions defaultpermissions;
 	struct uploadpermissions unsignedpermissions;
@@ -184,7 +184,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 	if( l == 0 )
 		return RET_NOTHING;
 	if( buffer[l-1] != '\n' ) {
-		if( l >= 1024 ) 
+		if( l >= 1024 )
 			fprintf(stderr, "%s:%lu:1024: Overlong line!\n", filename, (long)lineno);
 		else
 			fprintf(stderr, "%s:%lu:%lu: Unterminated line!\n", filename, (long)lineno,(long)l);
@@ -271,7 +271,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 }
 
 
-		
+
 retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *confdir, const char *filename) {
 	char *fullfilename = NULL;
 	FILE *f;

@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -51,17 +51,17 @@ static inline bool_t overlongUTF8(const char *character) {
 
 		if( (c & (uchar)0x3E /* 00111110 */ ) == (uchar)0 )
 			return TRUE;
-		if( c == (uchar)0xE0 /*11100000*/ && 
-		    (nextc & (uchar)0x20 /*00100000*/ ) == (uchar)0) 
+		if( c == (uchar)0xE0 /*11100000*/ &&
+		    (nextc & (uchar)0x20 /*00100000*/ ) == (uchar)0)
 			return TRUE;
-		if( c == (uchar)0xF0 /*11110000*/ && 
-		    (nextc & (uchar)0x30 /*00110000*/ ) == (uchar)0) 
+		if( c == (uchar)0xF0 /*11110000*/ &&
+		    (nextc & (uchar)0x30 /*00110000*/ ) == (uchar)0)
 			return TRUE;
-		if( c == (uchar)0xF8 /*11111000*/ && 
-		    (nextc & (uchar)0x38 /*00111000*/ ) == (uchar)0) 
+		if( c == (uchar)0xF8 /*11111000*/ &&
+		    (nextc & (uchar)0x38 /*00111000*/ ) == (uchar)0)
 			return TRUE;
-		if( c == (uchar)0xFC /*11111100*/ && 
-		    (nextc & (uchar)0x3C /*00111100*/ ) == (uchar)0) 
+		if( c == (uchar)0xFC /*11111100*/ &&
+		    (nextc & (uchar)0x3C /*00111100*/ ) == (uchar)0)
 			return TRUE;
 	}
 	return FALSE;
@@ -82,7 +82,7 @@ static inline bool_t overlongUTF8(const char *character) {
 			*s,descr,string); \
 		return RET_ERROR; \
 	}
-	
+
 
 /* check if this is something that can be used as directory safely */
 retvalue propersourcename(const char *string) {
@@ -103,9 +103,9 @@ retvalue propersourcename(const char *string) {
 	}
 	s = string;
 	while( *s != '\0' ) {
-		if( (*s > 'z' || *s < 'a' ) && 
-		    (*s > '9' || *s < '0' ) && 
-		    (firstcharacter || 
+		if( (*s > 'z' || *s < 'a' ) &&
+		    (*s > '9' || *s < '0' ) &&
+		    (firstcharacter ||
 		     ( *s != '+' && *s != '-' && *s != '.'))) {
 			REJECTLOWCHARS(s,string,"sourcename");
 			REJECTCHARIF( *s == '/', s,string, "sourcename");
@@ -195,7 +195,7 @@ static retvalue properdirectoryandidentifier(const char *string, const char *des
 		return RET_ERROR;
 	}
 	if( (string[0] == '.' && (string[1] == '\0'||string[1]=='/')) ||
-		(string[0] == '.' && string[1] == '.' && 
+		(string[0] == '.' && string[1] == '.' &&
 		 	(string[2] == '\0'||string[2] =='/')) ) {
 		fprintf(stderr,"%s cannot be '%s', as it is used as directory!\n",description,string);
 		return RET_ERROR;
@@ -204,9 +204,9 @@ static retvalue properdirectoryandidentifier(const char *string, const char *des
 	while( *s != '\0' ) {
 		REJECTLOWCHARS(s,string,description);
 		REJECTCHARIF( *s == '|' ,s,string,description);
-		if( *s == '/' && 
+		if( *s == '/' &&
 			((s[1] == '.' && (s[2] == '\0' || s[2] == '/' ) ) ||
-			 (s[1] == '.' && s[2] == '.' && 
+			 (s[1] == '.' && s[2] == '.' &&
 			  	(s[3] == '\0' || s[3] =='/')))) {
 			fprintf(stderr,"%s cannot be '%s': directory parts . or .. in it!\n",description,string);
 			return RET_ERROR;
@@ -278,16 +278,16 @@ retvalue properversion(const char *string) {
 	}
 	if( ( *s < '0' || *s > '9' ) &&
 	    (( *s >= 'a' && *s <= 'z') || (*s >='A' && *s <= 'Z'))) {
-		/* As there are official packages violating the rule 
-		 * of policy 5.6.11 to start with a digit, disabling 
+		/* As there are official packages violating the rule
+		 * of policy 5.6.11 to start with a digit, disabling
 		 * this test, and only omitting a warning. */
-		if( verbose >= 0 ) 
+		if( verbose >= 0 )
 			fprintf(stderr,"Warning: Package version '%s' does not start with a digit, violating 'should'-directive in policy 5.6.11\n",string);
 	}
 	for( ; *s != '\0' ; s++,first=FALSE ) {
 		if( (*s <= '9' || *s >= '0' ) ) {
 			continue;
-		} 
+		}
 		if( !first && yetonlydigits && *s == ':' ) {
 			hadepoch = TRUE;
 			continue;
@@ -298,7 +298,7 @@ retvalue properversion(const char *string) {
 			yetonlydigits = FALSE;
 			continue;
 		}
-		if( first || (*s != '+'  && *s != '-' && 
+		if( first || (*s != '+'  && *s != '-' &&
 	            	      *s != '.'  && *s != '~' &&
 			      (!hadepoch || *s != ':' ))) {
 			REJECTLOWCHARS(s,string,"version");
@@ -317,7 +317,7 @@ retvalue properversion(const char *string) {
 					return RET_ERROR;
 				}
 			}
-		} 
+		}
 	}
 	return RET_OK;
 }
@@ -352,9 +352,9 @@ retvalue properpackagename(const char *string) {
 		/* DAK also allowed upper case letters last I looked, policy
 		 * does not, so they are not allowed without --ignore=forbiddenchar */
 		// perhaps some extra ignore-rule for upper case?
-		if( (*s > 'z' || *s < 'a' ) && 
-		    (*s > '9' || *s < '0' ) && 
-		    ( firstcharacter || 
+		if( (*s > 'z' || *s < 'a' ) &&
+		    (*s > '9' || *s < '0' ) &&
+		    ( firstcharacter ||
   	    	      (*s != '+' && *s != '-' && *s != '.'))) {
 			REJECTLOWCHARS(s,string,"package name");
 			REJECTCHARIF( *s == '/' ,s,string,"package name");
@@ -421,7 +421,7 @@ static inline char *escapecpy(char *dest,const char *orig) {
 char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype) {
 	size_t l_listdir,len,l_packagetype;
 	char *result,*p;
-	
+
 	l_listdir = strlen(listdir),
 	len = escapedlen(codename) + escapedlen(origin) + escapedlen(component) + escapedlen(architecture);
 	l_packagetype = strlen(packagetype);
@@ -429,7 +429,7 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 	if( result == NULL )
 		return result;
 	memcpy(p,listdir,l_listdir);
-	p += l_listdir; 
+	p += l_listdir;
 	*p = '/'; p++;
 	p = escapecpy(p,codename);
 	*p = '_'; p++;
@@ -447,7 +447,7 @@ char *calc_downloadedlistfile(const char *listdir,const char *codename,const cha
 char *calc_downloadedlistpattern(const char *codename) {
 	size_t len;
 	char *result,*p;
-	
+
 	len = escapedlen(codename);
 	p = result = malloc(len + 2);
 	if( result == NULL )
@@ -463,7 +463,7 @@ char *calc_identifier(const char *codename,const char *component,const char *arc
 	assert( strchr(codename,'|') == NULL && strchr(component,'|') == NULL && strchr(architecture,'|') == NULL );
 	assert( codename != NULL ); assert( component != NULL );
 	assert( architecture != NULL ); assert( packagetype != NULL );
-	if( packagetype[0] == 'u' ) 
+	if( packagetype[0] == 'u' )
 		return mprintf("u|%s|%s|%s",codename,component,architecture);
 	else
 		return mprintf("%s|%s|%s",codename,component,architecture);
@@ -479,7 +479,7 @@ char *calc_dirconcat(const char *str1,const char *str2) {
 char *calc_dirconcatn(const char *str1,const char *str2,size_t len2) {
 	size_t len1;
 	char *r;
-	
+
 	assert(str1 != NULL);
 	assert(str2 != NULL);
 	len1 = strlen(str1);
@@ -574,7 +574,7 @@ char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const ch
 	result[(md5end-md5start)] = ' ';
 	memcpy(result+(md5end-md5start)+1,sizestart,sizeend-sizestart);
 	result[(md5end-md5start)+1+(sizeend-sizestart)] = '\0';
-	
+
 	return result;
 
 }
@@ -621,7 +621,7 @@ void names_overversion(const char **version,bool_t epochsuppressed) {
 			/* As there are packages violating the rule of policy 5.6.11 to
 			 * start with a digit, disabling this test, and only omitting a
 			 * warning. */
-			if( verbose >= 0 ) 
+			if( verbose >= 0 )
 				fprintf(stderr,"Warning: Package version '%s' does not start with a digit, violating 'should'-directive in policy 5.6.11\n",n);
 //			return;
 		}
@@ -697,7 +697,7 @@ retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) 
 		md5as[md5end-md5] = ' ';
 		strncpy(md5as+1+(md5end-md5),size,sizeend-size);
 		md5as[(md5end-md5)+1+(sizeend-size)] = '\0';
-	
+
 		*md5sum = md5as;
 	}
 	if( filename != NULL )

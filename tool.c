@@ -1841,7 +1841,7 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 
 	// TODO: add rename/copy option to be activated when old and new
 	// basename differ
-	
+
 	r = add_file(c, basename, fullfilename, type, &f);
 	if( RET_WAS_ERROR(r) ) {
 		binaryfile_free(deb);

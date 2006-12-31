@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -50,7 +50,7 @@ retvalue references_done(references refs) {
 	else
 		return RET_DBERR(r);
 }
-	
+
 retvalue references_initialize(references *refs,const char *dbpath) {
 	int ret;
 	char *filename;
@@ -61,7 +61,7 @@ retvalue references_initialize(references *refs,const char *dbpath) {
 	ref = malloc(sizeof(*ref));
 	if( ref == NULL )
 		return RET_ERROR_OOM;
-	
+
 	filename = calc_dirconcat(dbpath,"references.db");
 	if( filename == NULL ) {
 		free(ref);
@@ -105,7 +105,7 @@ retvalue references_isused(references refs,const char *what) {
 	DBT key,data;
 
 	SETDBT(key,what);
-	CLEARDBT(data);	
+	CLEARDBT(data);
 	if( (dbret = refs->db->get(refs->db, NULL, &key, &data, 0)) == 0){
 		return RET_OK;
 	} else if( dbret == DB_NOTFOUND ){
@@ -127,8 +127,8 @@ static retvalue references_checksingle(references refs,const char *what,const ch
 		refs->db->err(refs->db, dbret, "references_check dberror:");
 		return RET_DBERR(dbret);
 	}
-	SETDBT(key,what);	
-	SETDBT(data,by);	
+	SETDBT(key,what);
+	SETDBT(data,by);
 	if( (dbret=cursor->c_get(cursor,&key,&data,DB_GET_BOTH)) == 0 ) {
 		r = RET_OK;
 	} else
@@ -153,7 +153,7 @@ retvalue references_check(references refs,const char *referee,const struct strli
 	for( i = 0 ; i < filekeys->count ; i++ ) {
 		r = references_checksingle(refs,filekeys->values[i],referee);
 		RET_UPDATE(ret,r);
-		
+
 	}
 	return ret;
 }
@@ -188,8 +188,8 @@ retvalue references_decrement(references refs,const char *needed,const char *nee
 		refs->db->err(refs->db, dbret, "references_decrement dberror:");
 		return RET_DBERR(dbret);
 	}
-	SETDBT(key,needed);	
-	SETDBT(data,neededby);	
+	SETDBT(key,needed);
+	SETDBT(data,neededby);
 	if( (dbret=cursor->c_get(cursor,&key,&data,DB_GET_BOTH)) == 0 ) {
 			if( verbose > 8 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
@@ -199,7 +199,7 @@ retvalue references_decrement(references refs,const char *needed,const char *nee
 				refs->db->err(refs->db, dbret, "references_decrement dberror(del):");
 				RET_UPDATE(r,RET_DBERR(dbret));
 			}
-	} else 
+	} else
 	if( dbret != DB_NOTFOUND ) {
 		refs->db->err(refs->db, dbret, "references_decrement dberror(get):");
 		return RET_DBERR(dbret);
@@ -260,7 +260,7 @@ retvalue references_delete(references refs,const char *identifier,
 	}
 	strlist_done(files);
 	return result;
-	
+
 }
 
 /* remove all references from a given identifier */
@@ -279,12 +279,12 @@ retvalue references_remove(references refs,const char *neededby,
 		return RET_DBERR(dbret);
 	}
 	l = strlen(neededby);
-	CLEARDBT(key);	
-	CLEARDBT(data);	
+	CLEARDBT(key);
+	CLEARDBT(data);
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		const char *found_to = key.data;
 		const char *found_by = data.data;
-		if( strncmp( found_by,neededby,l) == 0 && 
+		if( strncmp( found_by,neededby,l) == 0 &&
 		    (found_by[l] == '\0' || found_by[l] == ' ')) {
 			if( verbose > 8 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
@@ -332,13 +332,13 @@ retvalue references_dump(references refs) {
 		refs->db->err(refs->db, dbret, "references_dump dberror(cursor):");
 		return RET_DBERR(dbret);
 	}
-	CLEARDBT(key);	
+	CLEARDBT(key);
 	CLEARDBT(data);
 	result = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		const char *found_to = (const char*)key.data;
 		const char *found_by = (const char*)data.data;
-		if( fputs(found_by,stdout) == EOF || 
+		if( fputs(found_by,stdout) == EOF ||
 		    putchar(' ') == EOF ||
 		    puts(found_to) == EOF ) {
 			result = RET_ERROR;

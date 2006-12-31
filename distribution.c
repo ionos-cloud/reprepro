@@ -126,7 +126,7 @@ static retvalue createtargets(struct distribution *distribution) {
 
 				}
 			}
-			
+
 		}
 		/* check if this distribution contains source
 		 * (yes, yes, source is not really an architecture, but
@@ -185,7 +185,7 @@ static const char * const allowedfields[] = {
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
-	
+
 	// TODO: if those are checked anyway, there should be no reason to
 	// research them later...
 	ret = chunk_checkfields(chunk,allowedfields,TRUE);
@@ -229,7 +229,7 @@ NULL};
 			r->fieldname.count = 0; \
 			r->fieldname.values = NULL; \
 		}
-		
+
 	getpossibleemptyfield("Suite",suite);
 	getpossibleemptyfield("Version",version);
 	getpossibleemptyfield("Origin",origin);
@@ -348,7 +348,7 @@ NULL};
 #undef getpossibleemptyfield
 #undef getpossibleemptywordlist
 }
-	
+
 /* call <action> for each part of <distribution>. */
 retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
 	retvalue result,r;
@@ -425,7 +425,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	if( mydata.filter.found == NULL )
 		return RET_ERROR_OOM;
 	mydata.distributions = NULL;
-	
+
 	fn = calc_dirconcat(conf,"distributions");
 	if( fn == NULL )
 		return RET_ERROR_OOM;
@@ -439,7 +439,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 		free(fn);
 		return RET_ERROR_MISSING;
 	}
-	
+
 	result = chunk_foreach(fn,adddistribution,&mydata,FALSE);
 
 	if( !RET_WAS_ERROR(result) ) {
@@ -624,7 +624,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 			r = export(d,confdir,dbdir,distdir,files, TRUE);
 			RET_UPDATE(result,r);
 		}
-		
+
 		r = distribution_free(d);
 		RET_ENDUPDATE(result,r);
 	}

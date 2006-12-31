@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -186,7 +186,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	}
 
 	if( forcearchitecture != NULL ) {
-		if( strcmp(forcearchitecture,"source") != 0 && 
+		if( strcmp(forcearchitecture,"source") != 0 &&
 				strcmp(e->architecture,"all") == 0 ) {
 			if( verbose > 2 )
 				fprintf(stderr,"Placing '%s' only in architecture '%s' as requested.\n",e->basename,forcearchitecture);
@@ -242,7 +242,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 			return RET_OK;
 		} else {
 			return RET_ERROR;
-		} 
+		}
 	}
 	return r;
 }
@@ -269,14 +269,14 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 			return r; \
 		} \
 	}
-			
-		
+
+
 	c = calloc(1,sizeof(struct changes));
 	if( c == NULL )
 		return RET_ERROR_OOM;
 	r = signature_readsignedchunk(filename,&c->control,&c->fingerprints, NULL, &broken);
 	R;
-	if( broken && !IGNORING_(brokensignatures, 
+	if( broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
 "This most likely means the file was damaged (or edited improperly)\n",
 				filename) ) {
@@ -336,7 +336,7 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		fprintf(stderr,"No files given in '%s'!\n",filename);
 		return RET_ERROR;
 	}
-	
+
 	while( e != NULL ) {
 		const struct overrideinfo *oinfo = NULL;
 		const char *force = NULL;
@@ -345,8 +345,8 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			FE_BINARY(e->type)?(e->type==fe_UDEB?ao->udeb:ao->deb):ao->dsc,
 					e->name);
 		}
-		
-		if( forcesection != NULL ) 
+
+		if( forcesection != NULL )
 			force = forcesection;
 		else
 			force = override_get(oinfo,SECTION_FIELDNAME);
@@ -417,7 +417,7 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			if( RET_WAS_ERROR(r) )
 				return r;
 			// Let's just check here, perhaps
-			if( e->type == fe_UDEB && 
+			if( e->type == fe_UDEB &&
 					!strlist_in(&distribution->udebcomponents,e->component)) {
 				fprintf(stderr,"Cannot put file '%s' into component '%s', as it is not listed in UDebComponents!\n",e->basename,e->component);
 				return RET_ERROR;
@@ -472,7 +472,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	struct fileentry *e;
 	retvalue r = RET_OK;
 	bool_t havedsc=FALSE, haveorig=FALSE, havetar=FALSE, havediff=FALSE;
-	
+
 	/* First check for each given architecture, if it has files: */
 	if( forcearchitecture != NULL ) {
 		if( !strlist_in(&changes->architectures,forcearchitecture) ){
@@ -568,9 +568,9 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		return RET_ERROR;
 	}
 	if( strlist_in(&changes->architectures,"source") && !havedsc &&
-			( forcearchitecture == NULL 
+			( forcearchitecture == NULL
 			  || strcmp(forcearchitecture,"source") == 0 ) &&
-			( packagetypeonly == NULL 
+			( packagetypeonly == NULL
 			  || strcmp(packagetypeonly,"dsc") == 0 )
 			) {
 		fprintf(stderr,"I don't know what to do with a source-upload not containing a .dsc in '%s'!\n",filename);
@@ -703,7 +703,7 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 					fullorigfilename, e, strerror(e));
 			r = RET_ERRNO(e);
 			RET_UPDATE(result,r);
-		} 
+		}
 		free(fullorigfilename);
 	}
 
@@ -764,7 +764,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		}
-		
+
 		free(fullfilename);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -810,7 +810,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		}
-		
+
 		if( RET_WAS_ERROR(r) )
 			break;
 		e = e->next;
@@ -840,7 +840,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	if( (distribution->suite == NULL || 
+	if( (distribution->suite == NULL ||
 		!strlist_in(&changes->distributions,distribution->suite)) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
 		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") ) {
@@ -935,7 +935,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			assert( changes->srcdirectory != NULL );
 
 			basename = dirs_basename(changesfilename);
-			changes->changesfilekey = 
+			changes->changesfilekey =
 				calc_dirconcat(changes->srcdirectory,basename);
 			if( changes->changesfilekey == NULL ) {
 				changes_free(changes);
