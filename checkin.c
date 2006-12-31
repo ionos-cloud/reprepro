@@ -323,7 +323,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 #undef R
 }
 
-static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,const struct alloverrides *ao) {
+static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -342,7 +342,7 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		const char *force = NULL;
 		if( forcesection == NULL || forcepriority == NULL ) {
 			oinfo = override_search(
-			FE_BINARY(e->type)?(e->type==fe_UDEB?ao->udeb:ao->deb):ao->dsc,
+			FE_BINARY(e->type)?(e->type==fe_UDEB?distribution->overrides.udeb:distribution->overrides.deb):distribution->overrides.dsc,
 					e->name);
 		}
 
@@ -710,7 +710,7 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 	return result;
 }
 
-static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, const char *sourcedirectory) {
+static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes, const char *sourcedirectory) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -734,7 +734,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				"deb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->deb,D_INPLACE,FALSE,
+				D_INPLACE,FALSE,
 				&changes->binaries,
 				changes->source,changes->version);
 			if( r == RET_NOTHING )
@@ -746,7 +746,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				"udeb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->udeb,D_INPLACE,FALSE,
+				D_INPLACE,FALSE,
 				&changes->binaries,
 				changes->source,changes->version);
 			if( r == RET_NOTHING )
@@ -759,7 +759,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				distribution,sourcedirectory,fullfilename,
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
-				ao->dsc,D_INPLACE,
+				D_INPLACE,
 				changes->source,changes->version);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
@@ -830,7 +830,7 @@ static bool_t permissionssuffice(UNUSED(struct changes *changes),
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,struct uploaders *uploaders, const struct alloverrides *ao,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
+retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,struct uploaders *uploaders, const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -894,7 +894,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 
 
 	/* look for component, section and priority to be correct or guess them*/
-	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,ao);
+	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority);
 
 	/* do some tests if values are sensible */
 	if( !RET_WAS_ERROR(r) )
@@ -914,7 +914,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		r = changes_includefiles(filesdb,changes,delete);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkpkgs(filesdb,distribution,changes,ao,directory);
+		r = changes_checkpkgs(filesdb,distribution,changes,directory);
 
 	free(directory);
 

@@ -21,7 +21,7 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 retvalue sources_getfilekeys(struct target *t,const char *chunk,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums);
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
-retvalue sources_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue sources_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,references refs);
 retvalue sources_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 #endif

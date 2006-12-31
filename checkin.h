@@ -19,7 +19,7 @@ struct uploaders;
  * get it from the files or try to guess it.
  * if dereferencedfilekeys is != NULL, add filekeys that lost reference,
  * if tracks != NULL, update/add tracking information there... */
-retvalue changes_add(const char *dbdir,/*@null@*/trackingdb tracks,references refs,filesdb filesdb,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcearchitecture,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,struct uploaders *uploaders,const struct alloverrides *ao,const char *changesfilename,int delete,/*@null@*/struct strlist *dereferencedfilekeys);
+retvalue changes_add(const char *dbdir,/*@null@*/trackingdb tracks,references refs,filesdb filesdb,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcearchitecture,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,struct uploaders *uploaders,const char *changesfilename,int delete,/*@null@*/struct strlist *dereferencedfilekeys);
 
 #endif
 

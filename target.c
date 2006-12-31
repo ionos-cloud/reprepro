@@ -446,14 +446,14 @@ retvalue target_check(struct target *target,filesdb filesdb,references refs) {
 
 /* Reapply override information */
 
-retvalue target_reoverride(struct target *target,const struct alloverrides *ao) {
+retvalue target_reoverride(struct target *target,const struct distribution *distribution) {
 	assert(target->packages!=NULL);
-	assert(ao!=NULL);
+	assert(distribution!=NULL);
 
 	if( verbose > 1 ) {
 		fprintf(stderr,"Reapplying overrides packages in '%s'...\n",target->identifier);
 	}
-	return packages_modifyall(target->packages,target->doreoverride,(void*)ao,&target->wasmodified);
+	return packages_modifyall(target->packages,target->doreoverride,distribution,&target->wasmodified);
 }
 
 /* export a database */

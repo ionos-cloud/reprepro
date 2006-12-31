@@ -94,7 +94,10 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 	FILE *file;
 	char buffer[1001];
 
-	assert(filename != NULL );
+	if( filename == NULL ) {
+		*info = NULL;
+		return RET_OK;
+	}
 	if( overridedir != NULL && filename[0] != '/' ) {
 		char *fn = calc_dirconcat(overridedir,filename);
 		if( fn == NULL )
@@ -261,43 +264,3 @@ struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override
 
 }
 
-retvalue override_readall(const char *overridedir,struct alloverrides *ao,const char *debfile,const char *udebfile, const char *dscfile) {
-	retvalue r;
-
-	ao->deb = ao->udeb = ao->dsc = NULL;
-	if( debfile != NULL ) {
-		r = override_read(overridedir,debfile,&ao->deb);
-		if( RET_WAS_ERROR(r) ) {
-			ao->deb = NULL;
-			return r;
-		}
-	} else
-		ao->deb = NULL;
-	if( udebfile != NULL ) {
-		r = override_read(overridedir,udebfile,&ao->udeb);
-		if( RET_WAS_ERROR(r) ) {
-			override_free(ao->deb);
-			ao->deb = NULL;
-			ao->udeb = NULL;
-			return r;
-		}
-	} else
-		ao->udeb = NULL;
-	if( dscfile != NULL ) {
-		r = override_read(overridedir,dscfile,&ao->dsc);
-		if( RET_WAS_ERROR(r) ) {
-			override_free(ao->deb);
-			override_free(ao->udeb);
-			ao->deb = NULL;
-			ao->udeb = NULL;
-			ao->dsc = NULL;
-			return r;
-		}
-	} else
-		ao->dsc = NULL;
-
-	if( ao->deb != NULL || ao->udeb != NULL || ao->dsc != NULL )
-		return RET_OK;
-	else
-		return RET_NOTHING;
-}

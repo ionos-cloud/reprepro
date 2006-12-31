@@ -19,6 +19,7 @@ struct distribution;
 #ifndef REPREPRO_CONTENTS_H
 #include "contents.h"
 #endif
+struct overrideinfo;
 
 struct distribution {
 	struct distribution *next;
@@ -39,6 +40,10 @@ struct distribution {
 	/*@null@*/char *signwith;
 	/* the override file to use by default */
 	/*@null@*/char *deb_override,*udeb_override,*dsc_override;
+	/* only loaded when you've done it yourself: */ 
+	struct {
+		/*@null@*/struct overrideinfo *dsc,*deb,*udeb;
+	} overrides;
 	/* the list of components containing a debian-installer dir, normally only "main" */
 	struct strlist udebcomponents;
 	/* what kind of index files to generate */
@@ -91,4 +96,7 @@ struct distribution *distribution_find(struct distribution *distributions, const
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
 retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, filesdb);
+
+retvalue distribution_loadalloverrides(struct distribution *, const char *overridedir);
+void distribution_unloadoverrides(struct distribution *distribution);
 #endif

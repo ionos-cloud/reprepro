@@ -18,7 +18,7 @@
 /* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guess it from the section.
  * if dereferenced_filekeys is != NULL, add there the filekeys that lost a reference*/
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,const char *dscfilename,/*@null@*/const struct overrideinfo *srcoverride,int delete,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/trackingdb tracks);
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/trackingdb tracks);
 
 /* in two steps:
  * If basename, filekey and directory are != NULL, then they are used instead
@@ -27,7 +27,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,/*@null@*/con
  * delete should be D_INPLACE then
  */
 struct dscpackage *pkg;
-retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,/*@null@*/const char *sourcedir, const char *dscfilename,/*@null@*/const char *filekey,/*@null@*/const char *basename,/*@null@*/const char *directory,/*@null@*/const char *md5sum,/*@null@*/const struct overrideinfo *srcoverride,int delete, const char *expectedname, const char *expectedversion);
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,/*@null@*/const char *sourcedir, const char *dscfilename,/*@null@*/const char *filekey,/*@null@*/const char *basename,/*@null@*/const char *directory,/*@null@*/const char *md5sum,int delete, const char *expectedname, const char *expectedversion);
 retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,references refs,struct distribution *distribution,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata);
 void dsc_free(/*@only@*/struct dscpackage *pkg);
 

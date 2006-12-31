@@ -339,7 +339,7 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 	return RET_OK;
 }
 
-retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, const char *expectedname, const char *expectedversion){
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int delete, const char *expectedname, const char *expectedversion){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -377,7 +377,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 		return RET_ERROR;
 	}
 
-	oinfo = override_search(srcoverride,pkg->package);
+	oinfo = override_search(distribution->overrides.dsc,pkg->package);
 	if( forcesection == NULL ) {
 		forcesection = override_get(oinfo,SECTION_FIELDNAME);
 	}
@@ -480,7 +480,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
  * If basename, filekey and directory are != NULL, then they are used instead
  * of being newly calculated.
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -490,7 +490,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,srcoverride,delete,NULL,NULL);
+	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,delete,NULL,NULL);
 	free(dscdirectory);
 	if( RET_WAS_ERROR(r) )
 		return r;

@@ -532,7 +532,6 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 			/* givenmd5sum != NULL and givenfilekey == NULL means
 			 * we will have to add it ourself before add: */
 			NULL, file->md5sum,
-			NULL, // override
 			-2, // unused
 			TRUE,
 			// perhaps make those NULL and check on our own?

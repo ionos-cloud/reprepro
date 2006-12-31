@@ -343,7 +343,7 @@ char *sources_getupstreamindex(UNUSED(struct target *target),const char *suite_f
 	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
 }
 
-retvalue sources_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
+retvalue sources_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
 	const struct overrideinfo *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
@@ -351,7 +351,7 @@ retvalue sources_doreoverride(const struct alloverrides *ao,const char *packagen
 	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
 
-	o = override_search(ao->dsc, packagename);
+	o = override_search(distribution->overrides.dsc, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
 

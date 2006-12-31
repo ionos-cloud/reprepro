@@ -1458,13 +1458,13 @@ ACTION_F(checkpool) {
 /*****************reapplying override info***************/
 
 static retvalue reoverride_target(void *data,struct target *target,struct distribution *distribution) {
-	const struct alloverrides *ao = data;
+	const struct distribution *d = data;
 	retvalue result,r;
 
 	r = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	result = target_reoverride(target,ao);
+	result = target_reoverride(target,d);
 	r = target_closepackagesdb(target);
 	RET_ENDUPDATE(result,r);
 	RET_UPDATE(distribution->status, result);
@@ -1487,18 +1487,15 @@ ACTION_F(reoverride) {
 	}
 	result = RET_NOTHING;
 	for( d = distributions ; d != NULL ; d = d->next ) {
-		struct alloverrides ao;
 
 		if( verbose > 0 ) {
 			fprintf(stderr,"Reapplying override to %s...\n",d->codename);
 		}
 
-		r = override_readall(overridedir,&ao,d->deb_override,d->udeb_override,d->dsc_override);
+		r = distribution_loadalloverrides(d,overridedir);
 		if( RET_IS_OK(r) ) {
-			r = distribution_foreach_part(d,component,architecture,packagetype,reoverride_target,&ao);
-			override_free(ao.deb);
-			override_free(ao.udeb);
-			override_free(ao.dsc);
+			r = distribution_foreach_part(d,component,architecture,packagetype,reoverride_target,d);
+			distribution_unloadoverrides(d);
 		} else if( r == RET_NOTHING ) {
 			fprintf(stderr,"No override files, thus nothing to do for %s.\n",d->codename);
 		}
@@ -1517,9 +1514,7 @@ ACTION_F(reoverride) {
 ACTION_D(includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct overrideinfo *override;
 	bool_t isudeb;
-	const char *overridefile;
 	trackingdb tracks;
 
 	if( argc != 3 ) {
@@ -1563,21 +1558,19 @@ ACTION_D(includedeb) {
 		return result;
 	}
 
-	overridefile = isudeb?distribution->udeb_override:distribution->deb_override;
-	if( overridefile != NULL ) {
-		result = override_read(overridedir,overridefile,&override);
-		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
-	} else
-		override = NULL;
+	if( isudeb )
+		result = override_read(overridedir,distribution->udeb_override,&distribution->overrides.udeb);
+	else
+		result = override_read(overridedir,distribution->deb_override,&distribution->overrides.deb);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_free(distribution);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
 
 	// TODO: same for component? (depending on type?)
 	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
 		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
-		override_free(override);
 		(void)distribution_free(distribution);
 		return RET_ERROR;
 	}
@@ -1587,7 +1580,6 @@ ACTION_D(includedeb) {
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
-			override_free(override);
 			return result;
 		}
 	} else {
@@ -1596,11 +1588,11 @@ ACTION_D(includedeb) {
 
 	result = deb_add(dbdir,references,filesdb,component,architecture,
 			section,priority,isudeb?"udeb":"deb",distribution,argv[2],
-			NULL,NULL,override,delete,
+			NULL,NULL,delete,
 			dereferenced,tracks);
 	RET_UPDATE(distribution->status, result);
 
-	override_free(override);
+	distribution_unloadoverrides(distribution);
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
@@ -1618,7 +1610,6 @@ ACTION_D(includedeb) {
 ACTION_D(includedsc) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct overrideinfo *srcoverride;
 	trackingdb tracks;
 
 	if( argc != 3 ) {
@@ -1642,14 +1633,11 @@ ACTION_D(includedsc) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	srcoverride = NULL;
-	if( distribution->dsc_override != NULL ) {
-		result = override_read(overridedir,distribution->dsc_override,&srcoverride);
-		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
+	result = override_read(overridedir,distribution->dsc_override,&distribution->overrides.dsc);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_free(distribution);
+		RET_ENDUPDATE(result,r);
+		return result;
 	}
 
 	if( distribution->tracking != dt_NONE ) {
@@ -1657,16 +1645,15 @@ ACTION_D(includedsc) {
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
-			override_free(srcoverride);
 			return result;
 		}
 	} else {
 		tracks = NULL;
 	}
 
-	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],srcoverride,delete,dereferenced,tracks);
+	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],delete,dereferenced,tracks);
 
-	override_free(srcoverride);
+	distribution_unloadoverrides(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
 	r = distribution_export(export,distribution,confdir,dbdir,distdir,filesdb);
@@ -1680,7 +1667,6 @@ ACTION_D(includedsc) {
 ACTION_D(include) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct alloverrides ao;
 	struct uploaders *uploaders;
 	trackingdb tracks;
 
@@ -1712,7 +1698,7 @@ ACTION_D(include) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = override_readall(overridedir,&ao,distribution->deb_override,distribution->udeb_override,distribution->dsc_override);
+	result = distribution_loadalloverrides(distribution,overridedir);
 	if( RET_WAS_ERROR(result) ) {
 		r = distribution_free(distribution);
 		RET_ENDUPDATE(result,r);
@@ -1724,7 +1710,6 @@ ACTION_D(include) {
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
-			override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
 			return result;
 		}
 	} else {
@@ -1735,7 +1720,6 @@ ACTION_D(include) {
 		if( RET_WAS_ERROR(result) ) {
 			r = tracking_done(tracks);
 			RET_ENDUPDATE(result,r);
-			override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
 			return result;
@@ -1743,9 +1727,9 @@ ACTION_D(include) {
 	} else
 		uploaders = NULL;
 
-	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,uploaders,&ao,argv[2],delete,dereferenced);
+	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,uploaders,argv[2],delete,dereferenced);
 
-	override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
+	distribution_unloadoverrides(distribution);
 	uploaders_free(uploaders);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);

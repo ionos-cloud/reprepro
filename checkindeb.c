@@ -298,11 +298,12 @@ static retvalue deb_calclocations(struct debpackage *pkg,/*@null@*/const char *g
 	return r;
 }
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,const struct overrideinfo *binoverride,int delete,bool_t needsourceversion,const struct strlist *allowed_binaries,const char *expectedsourcepackage,const char *expectedsourceversion){
+retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,int delete,bool_t needsourceversion,const struct strlist *allowed_binaries,const char *expectedsourcepackage,const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
 	const struct strlist *components;
+	const struct overrideinfo *binoverride;
 
 	assert( givenmd5sum!=NULL ||
 		(givenmd5sum==NULL && givenfilekey==NULL ) );
@@ -343,6 +344,14 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 		return RET_ERROR;
 	}
 
+	if( strcmp(packagetype,"udeb") == 0 ) {
+		binoverride = distribution->overrides.udeb;
+		components = &distribution->udebcomponents;
+	} else {
+		binoverride = distribution->overrides.deb;
+		components = &distribution->components;
+	}
+
 	oinfo = override_search(binoverride,pkg->package);
 	if( forcesection == NULL ) {
 		forcesection = override_get(oinfo,SECTION_FIELDNAME);
@@ -380,11 +389,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	}
 
 	/* decide where it has to go */
-
-	if( strcmp(packagetype,"udeb") == 0 )
-		components = &distribution->udebcomponents;
-	else
-		components = &distribution->components;
 
 	r = guess_component(distribution->codename,components,
 			pkg->package,pkg->section,forcecomponent,&pkg->component);
@@ -534,7 +538,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
@@ -542,7 +546,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( givenfilekey != NULL && givenmd5sum != NULL ) {
 		assert( delete == D_INPLACE );
 	}
-	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,binoverride,delete,tracks!=NULL,NULL,NULL,NULL);
+	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,delete,tracks!=NULL,NULL,NULL,NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

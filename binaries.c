@@ -243,12 +243,15 @@ char *ubinaries_getupstreamindex(UNUSED(struct target *target),const char *suite
 	return mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",suite_from,component_from,architecture);
 }
 
-retvalue binaries_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
+retvalue binaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
 	const struct overrideinfo *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
 
-	o = override_search(ao->deb, packagename);
+	if( interrupted() )
+		return RET_ERROR_INTERUPTED;
+
+	o = override_search(distribution->overrides.deb, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
 
@@ -263,7 +266,7 @@ retvalue binaries_doreoverride(const struct alloverrides *ao,const char *package
 	return RET_OK;
 }
 
-retvalue ubinaries_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
+retvalue ubinaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
 	const struct overrideinfo *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
@@ -271,7 +274,7 @@ retvalue ubinaries_doreoverride(const struct alloverrides *ao,const char *packag
 	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
 
-	o = override_search(ao->udeb, packagename);
+	o = override_search(distribution->overrides.udeb, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
 
