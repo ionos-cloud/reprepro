@@ -489,15 +489,30 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 
 static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
 	const char *section,*priority;
+	const struct overrideinfo *oinfo;
 	retvalue r;
 
-	// TODO: check overrides ...
-	section = file->section;
-	priority = file->priority;
+	assert( FE_BINARY(file->type) );
+
+	oinfo = override_search(
+			file->type==fe_UDEB?into->overrides.udeb:
+			                    into->overrides.deb,
+			file->name);
+
+	section = override_get(oinfo, SECTION_FIELDNAME);
+	if( section == NULL ) {
+		// TODO: warn about disparities here?
+		section = file->section;
+	}
 	if( section == NULL || strcmp(section,"-") == 0 ) {
 		fprintf(stderr, "No section found for '%s' in '%s'!\n",
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 		return RET_ERROR;
+	}
+	priority = override_get(oinfo, PRIORITY_FIELDNAME);
+	if( priority == NULL ) {
+		// TODO: warn about disparities here?
+		priority = file->priority;
 	}
 	if( priority == NULL || strcmp(priority,"-") == 0 ) {
 		fprintf(stderr, "No priority found for '%s' in '%s'!\n",
@@ -536,6 +551,10 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 			TRUE,
 			// perhaps make those NULL and check on our own?
 			&c->binaries, c->source, c->version);
+	// TODO: check file->name and deb->name are the same,
+	// or split deb_prepare so that we get the name first before needing
+	// override data. Or should we let deb_prepare do the component guessing
+	// based on it reading section and priority data?
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return RET_OK;
@@ -548,7 +567,7 @@ static retvalue addfiles_dsc(filesdb filesdb, struct candidate_file *file) {
 	return RET_ERROR;
 }
 
-static retvalue add_changes(filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
+static retvalue add_changes(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
 	struct candidate_file *file;
 	retvalue r;
 	assert( into != NULL );
@@ -561,15 +580,16 @@ static retvalue add_changes(filesdb filesdb, const char *dbdir, references refs,
 		fprintf(stderr, "Distributions with tracking not yet supported for import!\n");
 		return RET_NOTHING;
 	}
-	if( into->deb_override != NULL || into->udeb_override != NULL || into->dsc_override != NULL ) {
-		fprintf(stderr, "Distributions with override not yet supported for import!\n");
-		return RET_NOTHING;
-	}
+
+	r = distribution_loadalloverrides(into,confdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	// TODO: once uploaderlist allows to look for package names or existing override
 	// entries or such things, check package names here enable checking for content
 	// name with outer name
 
-	/* when we got here, the package is allowed in, now we have to
+	/* when we get here, the package is allowed in, now we have to
 	 * read the parts and check all stuff we only know now */
 
 	for( file = c->files ; file != NULL ; file = file->next ) {
@@ -607,6 +627,10 @@ static retvalue add_changes(filesdb filesdb, const char *dbdir, references refs,
 
 		}
 	}
+
+	// TODO: make sure not two different files are supposed to be installed
+	// as the same filekey.
+	
 	/* the actual adding of packages, make sure what can be checked was
 	 * checked by now */
 
@@ -668,7 +692,7 @@ static retvalue add_changes(filesdb filesdb, const char *dbdir, references refs,
 	return RET_OK;
 }
 
-static retvalue process_changes(filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, int ofs) {
+static retvalue process_changes(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, int ofs) {
 	struct candidate *c;
 	retvalue r;
 	int j;
@@ -689,7 +713,7 @@ static retvalue process_changes(filesdb filesdb, const char *dbdir, references r
 	}
 	for( j = 0 ; j < i->allow.count ; j++ ) {
 		if( strlist_in(&c->distributions, i->allow.values[j]) ) {
-			r = add_changes(filesdb, dbdir, refs, dereferenced, i, c, i->allow_into[j]);
+			r = add_changes(confdir, filesdb, dbdir, refs, dereferenced, i, c, i->allow_into[j]);
 			if( r != RET_NOTHING ) {
 				candidate_free(c);
 				return r;
@@ -697,7 +721,7 @@ static retvalue process_changes(filesdb filesdb, const char *dbdir, references r
 		}
 	}
 	if( i->default_into != NULL ) {
-		r = add_changes(filesdb, dbdir, refs, dereferenced, i, c, i->default_into);
+		r = add_changes(confdir, filesdb, dbdir, refs, dereferenced, i, c, i->default_into);
 		if( r != RET_NOTHING ) {
 			candidate_free(c);
 			return r;
@@ -729,7 +753,7 @@ retvalue process_incoming(const char *confdir, filesdb files, const char *dbdir,
 		if( l <= C_LEN || strcmp(basename+(l-C_LEN),C_SUFFIX) != 0 )
 			continue;
 		/* a .changes file, check it */
-		r = process_changes(files, dbdir, refs, dereferenced, i, j);
+		r = process_changes(confdir, files, dbdir, refs, dereferenced, i, j);
 		RET_UPDATE(result, r);
 	}
 
