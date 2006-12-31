@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -45,7 +45,7 @@ void copyfile_delete(const char *fullfilename) {
 
 }
 
-static retvalue copy(const char *fullfilename,const char *origfile,/*@null@*/const char *md5expected,/*@null@*//*@out@*/char **calculatedmd5sum) {
+retvalue copy(const char *fullfilename,const char *origfile,/*@null@*/const char *md5expected,/*@null@*//*@out@*/char **calculatedmd5sum) {
 	char *md5sum;
 	retvalue r;
 
@@ -115,6 +115,45 @@ retvalue copyfile_copy(const char *mirrordir,const char *filekey,const char *ori
 	r = copy(fullfilename,origfile,md5expected,md5sum);
 	free(fullfilename);
 	return r;
+}
+
+retvalue copyfile_hardlink(const char *mirrordir, const char *filekey, const char *tempfile, const char *md5sum) {
+	retvalue r;
+	int i,e;
+	char *fullfilename = calc_fullfilename(mirrordir,filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+
+	i = link(tempfile, fullfilename);
+	e = errno;
+	if( i != 0 && e == EEXIST )  {
+		unlink(fullfilename);
+		i = link(tempfile, fullfilename);
+		e = errno;
+	}
+	if( i != 0 && ( e == EACCES || e == ENOENT || e == ENOTDIR ) )  {
+		dirs_make_parent(fullfilename);
+		i = link(tempfile, fullfilename);
+		e = errno;
+	}
+	if( i != 0 ) {
+		if( e == EXDEV || e == EPERM || e == EMLINK ) {
+			r = copy(fullfilename, tempfile, md5sum, NULL);
+			if( RET_WAS_ERROR(r) ) {
+				free(fullfilename);
+				return r;
+			}
+		} else {
+			fprintf(stderr,
+"Error creating hardlink of '%s' as '%s': %d=%s\n",
+					tempfile, fullfilename, e, strerror(e));
+			free(fullfilename);
+			return RET_ERRNO(e);
+		}
+	}
+
+	free(fullfilename);
+	return RET_OK;
 }
 
 retvalue regularfileexists(const char *fullfilename) {
