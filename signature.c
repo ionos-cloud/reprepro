@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -515,7 +515,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 			gpgme_err_code(s->status));
 		return RET_ERROR_GPGME;
 	}
-	if( had_broken && ! had_valid )
+	if( broken != NULL && had_broken && ! had_valid )
 		*broken = TRUE;
 	return RET_OK;
 }
