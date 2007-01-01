@@ -378,5 +378,6 @@ retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *confdir, co
 		uploaderslists = u;
 	} else
 		u->reference_count++;
+	*list = u;
 	return RET_OK;
 }
