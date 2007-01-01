@@ -12,11 +12,7 @@
 #include "chunks.h"
 #endif
 
-struct overrideinfo {
-	struct overrideinfo *next;
-	char *packagename;
-	struct strlist fields;
-};
+struct overrideinfo;
 
 /* to avoid typos */
 #define PRIORITY_FIELDNAME "Priority"

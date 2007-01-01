@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -33,13 +33,11 @@
 #include "names.h"
 #include "override.h"
 
-/*
 struct overrideinfo {
 	struct overrideinfo *next;
 	char *packagename;
 	struct strlist fields;
 };
-*/
 
 void override_free(struct overrideinfo *info) {
 	struct overrideinfo *i;
