@@ -11,9 +11,6 @@
 #ifndef REPREPRO_FILES_H
 #include "files.h"
 #endif
-#ifndef REPREPRO_OVERRIDE_H
-#include "override.h"
-#endif
 
 /* insert the given .deb into the mirror in <component> in the <distribution>
  * putting things with architecture of "all" into <architectures> (and also

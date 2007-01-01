@@ -38,7 +38,6 @@
 #include "md5sum.h"
 #include "dirs.h"
 #include "dpkgversions.h"
-#include "override.h"
 #include "tracking.h"
 #include "target.h"
 

@@ -57,6 +57,7 @@
 #include "optionsfile.h"
 #include "dpkgversions.h"
 #include "incoming.h"
+#include "override.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."

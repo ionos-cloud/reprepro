@@ -40,6 +40,7 @@
 #include "debfile.h"
 #include "guesscomponent.h"
 #include "tracking.h"
+#include "override.h"
 
 extern int verbose;
 

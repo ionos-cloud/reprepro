@@ -42,6 +42,7 @@
 #include "guesscomponent.h"
 #include "tracking.h"
 #include "ignore.h"
+#include "override.h"
 
 extern int verbose;
 

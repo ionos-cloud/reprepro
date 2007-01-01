@@ -44,6 +44,7 @@
 #include "dpkgversions.h"
 #include "uploaderslist.h"
 #include "guesscomponent.h"
+#include "override.h"
 #include "incoming.h"
 #include "changes.h"
 
