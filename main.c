@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -56,7 +56,6 @@
 #include "tracking.h"
 #include "optionsfile.h"
 #include "dpkgversions.h"
-#include "uploaderslist.h"
 #include "incoming.h"
 
 #ifndef STD_BASE_DIR
@@ -1667,7 +1666,6 @@ ACTION_D(includedsc) {
 ACTION_D(include) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct uploaders *uploaders;
 	trackingdb tracks;
 
 	if( argc != 3 ) {
@@ -1715,22 +1713,18 @@ ACTION_D(include) {
 	} else {
 		tracks = NULL;
 	}
-	if( distribution->uploaders != NULL ) {
-		result = uploaders_load(&uploaders, confdir, distribution->uploaders);
-		if( RET_WAS_ERROR(result) ) {
-			r = tracking_done(tracks);
-			RET_ENDUPDATE(result,r);
-			r = distribution_free(distribution);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
-	} else
-		uploaders = NULL;
-
-	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,uploaders,argv[2],delete,dereferenced);
+	result = distribution_loaduploaders(distribution, confdir);
+	if( RET_WAS_ERROR(result) ) {
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+		r = distribution_free(distribution);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,argv[2],delete,dereferenced);
 
 	distribution_unloadoverrides(distribution);
-	uploaders_free(uploaders);
+	distribution_unloaduploaders(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
 	r = distribution_export(export,distribution,confdir,dbdir,distdir,filesdb);

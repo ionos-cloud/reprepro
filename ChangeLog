@@ -1,3 +1,6 @@
+2007-01-01  Bernhard R. Link <brlink@debian.org>
+	* move uploaderslist load into distribution struct
+
 2006-12-31  Bernhard R. Link <brlink@debian.org>
 	* first code for importing from an incoming dir, not
 	yet useable (supports no source, no overrides, no ... yet)

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -830,7 +830,7 @@ static bool_t permissionssuffice(UNUSED(struct changes *changes),
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,struct uploaders *uploaders, const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
+retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -849,12 +849,15 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		}
 	}
 
-	if( uploaders != NULL ) {
+	/* make sure caller has called distribution_loaduploaders */
+	assert( distribution->uploaders == NULL || distribution->uploaderslist != NULL );
+	if( distribution->uploaderslist != NULL ) {
 		const struct uploadpermissions *permissions;
 		int i;
 
 		if( changes->fingerprints.count == 0 ) {
-			r = uploaders_unsignedpermissions(uploaders, &permissions);
+			r = uploaders_unsignedpermissions(distribution->uploaderslist,
+					&permissions);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) ) {
 				changes_free(changes);
@@ -865,7 +868,8 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		}
 		for( i = 0; i < changes->fingerprints.count ; i++ ) {
 			const char *fingerprint = changes->fingerprints.values[i];
-			r = uploaders_permissions(uploaders, fingerprint, &permissions);
+			r = uploaders_permissions(distribution->uploaderslist, 
+					fingerprint, &permissions);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) ) {
 				changes_free(changes);

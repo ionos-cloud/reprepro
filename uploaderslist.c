@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -40,10 +40,15 @@ struct uploader {
 };
 
 struct uploaders {
+	struct uploaders *next;
+	size_t reference_count;
+	char *filename;
+	size_t filename_len;
+
 	struct uploader *by_fingerprint;
 	struct uploadpermissions defaultpermissions;
 	struct uploadpermissions unsignedpermissions;
-};
+} *uploaderslists = NULL;
 
 static void uploadpermission_release(struct uploadpermissions *p) {
 	assert( p != NULL );
@@ -57,7 +62,7 @@ static void uploader_free(struct uploader *u) {
 	free(u);
 }
 
-void uploaders_free(struct uploaders *u) {
+static void uploaders_free(struct uploaders *u) {
 	if( u == NULL )
 		return;
 	while( u->by_fingerprint != NULL ) {
@@ -68,8 +73,31 @@ void uploaders_free(struct uploaders *u) {
 	}
 	uploadpermission_release(&u->defaultpermissions);
 	uploadpermission_release(&u->unsignedpermissions);
+	free(u->filename);
 	free(u);
 }
+
+void uploaders_unlock(struct uploaders *u) {
+	if( u->reference_count > 1 ) {
+		u->reference_count--;
+	} else {
+		struct uploaders **p = &uploaderslists;
+
+		assert( u->reference_count == 1);
+		/* avoid double free: */
+		if( u->reference_count == 0 )
+			return;
+
+		while( *p != NULL && *p != u )
+			p = &(*p)->next;
+		assert( p != NULL && *p == u );
+		if( *p == u ) {
+			*p = u->next;
+			uploaders_free(u);
+		}
+	}
+}
+
 retvalue uploaders_unsignedpermissions(struct uploaders *u, const struct uploadpermissions **permissions) {
 	assert( u != NULL );
 	*permissions = &u->unsignedpermissions;
@@ -272,7 +300,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 
 
 
-retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *confdir, const char *filename) {
+static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *confdir, const char *filename) {
 	char *fullfilename = NULL;
 	FILE *f;
 	size_t lineno=0;
@@ -322,3 +350,33 @@ retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *confdir, c
 	return RET_OK;
 }
 
+retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *confdir, const char *filename) {
+	retvalue r;
+	struct uploaders *u;
+	size_t len;
+
+	assert( filename != NULL );
+
+	len = strlen(filename);
+	u = uploaderslists;
+	while( u != NULL && ( u->filename_len != len || 
+	                      memcmp(u->filename,filename,len) != 0 ) )
+		u = u->next;
+	if( u == NULL ) {
+		r = uploaders_load(&u, confdir, filename);
+		if( !RET_IS_OK(r) )
+			return r;
+		assert( u != NULL );
+		u->filename = strdup(filename);
+		if( u->filename == NULL ) {
+			uploaders_free(u);
+			return RET_ERROR_OOM;
+		}
+		u->filename_len = len;
+		u->next = uploaderslists;
+		u->reference_count = 1;
+		uploaderslists = u;
+	} else
+		u->reference_count++;
+	return RET_OK;
+}

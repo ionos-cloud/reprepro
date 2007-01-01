@@ -20,6 +20,7 @@ struct distribution;
 #include "contents.h"
 #endif
 struct overrideinfo;
+struct uploaders;
 
 struct distribution {
 	struct distribution *next;
@@ -61,7 +62,9 @@ struct distribution {
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* a filename to look for who is allowed to upload packages */
-	char *uploaders;
+	/*@null@*/char *uploaders;
+	/* only loaded after _loaduploaders */
+	/*@null@*/struct uploaders *uploaderslist;
 	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */
@@ -99,4 +102,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct d
 
 retvalue distribution_loadalloverrides(struct distribution *, const char *overridedir);
 void distribution_unloadoverrides(struct distribution *distribution);
+
+retvalue distribution_loaduploaders(struct distribution *, const char *confdir);
+void distribution_unloaduploaders(struct distribution *distribution);
 #endif

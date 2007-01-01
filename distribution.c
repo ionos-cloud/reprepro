@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -38,6 +38,7 @@
 #include "copyfile.h"
 #include "tracking.h"
 #include "override.h"
+#include "uploaderslist.h"
 #include "distribution.h"
 
 extern int verbose;
@@ -70,6 +71,9 @@ retvalue distribution_free(struct distribution *distribution) {
 		override_free(distribution->overrides.deb);
 		override_free(distribution->overrides.udeb);
 		override_free(distribution->overrides.dsc);
+		if( distribution->uploaderslist != NULL ) {
+			uploaders_unlock(distribution->uploaderslist);
+		}
 		result = RET_OK;
 
 		while( distribution->targets != NULL ) {
@@ -745,4 +749,23 @@ retvalue distribution_loadalloverrides(struct distribution *distribution, const 
 		return RET_OK;
 	else
 		return RET_NOTHING;
+}
+
+retvalue distribution_loaduploaders(struct distribution *distribution, const char *confdir) {
+	if( distribution->uploaders != NULL ) {
+		if( distribution->uploaderslist != NULL )
+			return RET_OK;
+		return uploaders_get(&distribution->uploaderslist, 
+				confdir, distribution->uploaders);
+	} else {
+		distribution->uploaderslist = NULL;
+		return RET_NOTHING;
+	}
+}
+
+void distribution_unloaduploaders(struct distribution *distribution) {
+	if( distribution->uploaderslist != NULL ) {
+		uploaders_unlock(distribution->uploaderslist);
+		distribution->uploaderslist = NULL;
+	}
 }
