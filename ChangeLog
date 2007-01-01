@@ -1,6 +1,7 @@
 2007-01-01  Bernhard R. Link <brlink@debian.org>
 	* move uploaderslist load into distribution struct
 	* fix bug in manpage: uploaders list keyword is allow and not accept
+	* some more code for incoming processing
 
 2006-12-31  Bernhard R. Link <brlink@debian.org>
 	* first code for importing from an incoming dir, not

@@ -357,7 +357,7 @@ static void candidate_free(struct candidate *c) {
 	free(c);
 }
 
-static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **result) {
+static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **result, bool_t *broken) {
 	struct candidate *n;
 	retvalue r;
 
@@ -370,7 +370,7 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 		free(n);
 		return RET_ERROR_OOM;
 	}
-	r = signature_readsignedchunk(n->fullfilename, &n->control, &n->keys, NULL, NULL);
+	r = signature_readsignedchunk(n->fullfilename, &n->control, &n->keys, NULL, broken);
 	if( RET_WAS_ERROR(r) ) {
 		free(n->fullfilename);
 		free(n);
@@ -568,15 +568,55 @@ static retvalue addfiles_dsc(filesdb filesdb, struct candidate_file *file) {
 	return RET_ERROR;
 }
 
-static retvalue add_changes(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
+static inline bool_t isallowed(struct incoming *i, struct candidate *c, struct distribution *into, const struct uploadpermissions *permissions) {
+	return permissions->allowall;
+}
+
+static retvalue candidate_checkpermissions(const char *confdir, struct incoming *i, struct candidate *c, struct distribution *into) {
+	retvalue r;
+	int j;
+
+	/* no rules means allowed */
+	if( into->uploaders == NULL )
+		return RET_OK;
+
+	r = distribution_loaduploaders(into, confdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert(into->uploaderslist != NULL);
+
+	if( c->keys.count == 0 ) {
+		const struct uploadpermissions *permissions;
+
+		r = uploaders_unsignedpermissions(into->uploaderslist,
+				&permissions);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+		if( permissions != NULL && isallowed(i,c,into,permissions) )
+			return RET_OK;
+	} else for( j = 0; j < c->keys.count ; j++ ) {
+		const struct uploadpermissions *permissions;
+
+		r = uploaders_permissions(into->uploaderslist,
+				c->keys.values[j], &permissions);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+		if( permissions != NULL && isallowed(i,c,into,permissions) )
+			return RET_OK;
+	}
+	/* reject */
+	return RET_NOTHING;
+}
+
+static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
 	struct candidate_file *file;
 	retvalue r;
 	assert( into != NULL );
 
-	if( into->uploaders != NULL ) {
-		fprintf(stderr, "Distributions with uploaderlist not yet supported for import!\n");
-		return RET_NOTHING;
-	}
 	if( into->tracking != dt_NONE ) {
 		fprintf(stderr, "Distributions with tracking not yet supported for import!\n");
 		return RET_NOTHING;
@@ -631,7 +671,7 @@ static retvalue add_changes(const char *confdir, filesdb filesdb, const char *db
 
 	// TODO: make sure not two different files are supposed to be installed
 	// as the same filekey.
-	
+
 	/* the actual adding of packages, make sure what can be checked was
 	 * checked by now */
 
@@ -695,10 +735,13 @@ static retvalue add_changes(const char *confdir, filesdb filesdb, const char *db
 
 static retvalue process_changes(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, int ofs) {
 	struct candidate *c;
+	struct distribution *into = NULL;
+	struct candidate_file *file;
 	retvalue r;
 	int j;
+	bool_t broken = FALSE, tried = FALSE;
 
-	r = candidate_read(i, ofs, &c);
+	r = candidate_read(i, ofs, &c, &broken);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	assert( RET_IS_OK(r) );
@@ -714,24 +757,65 @@ static retvalue process_changes(const char *confdir, filesdb filesdb, const char
 	}
 	for( j = 0 ; j < i->allow.count ; j++ ) {
 		if( strlist_in(&c->distributions, i->allow.values[j]) ) {
-			r = add_changes(confdir, filesdb, dbdir, refs, dereferenced, i, c, i->allow_into[j]);
-			if( r != RET_NOTHING ) {
+			tried = TRUE;
+			r = candidate_checkpermissions(confdir, i, c, i->allow_into[j]);
+			if( RET_WAS_ERROR(r) ) {
 				candidate_free(c);
 				return r;
 			}
+			if( RET_IS_OK(r) ) {
+				into = i->allow_into[j];
+				break;
+			}
 		}
 	}
-	if( i->default_into != NULL ) {
-		r = add_changes(confdir, filesdb, dbdir, refs, dereferenced, i, c, i->default_into);
-		if( r != RET_NOTHING ) {
+	if( into == NULL && i->default_into != NULL ) {
+		tried = TRUE;
+		r = candidate_checkpermissions(confdir, i, c, i->default_into);
+		if( RET_WAS_ERROR(r) ) {
 			candidate_free(c);
 			return r;
 		}
+		if( RET_IS_OK(r) ) {
+			into = i->default_into;
+		}
 	}
-	fprintf(stderr, "No distribution found for '%s'!\n",
+	if( into == NULL ) {
+		fprintf(stderr, tried?"No distribution accepting '%s'!\n":
+				      "No distribution found for '%s'!\n",
 			i->files.values[ofs]);
+		if( i->cleanup.on_deny  ) {
+			i->delete[c->ofs] = TRUE;
+			for( file = c->files ; file != NULL ; file = file->next ) {
+				// TODO: implement same-owner check
+				if( !i->cleanup.on_deny_check_owner )
+					i->delete[file->ofs] = TRUE;
+			}
+		}
+		r = RET_ERROR;
+	} else {
+		if( broken ) {
+			fprintf(stderr,
+"'%s' is signed with only invalid signatures.\n"
+"If this was not corruption but willfull modification,\n"
+"remove the signatures and try again.\n", 
+				i->files.values[ofs]);
+			r = RET_ERROR;
+		} else
+			r = candidate_add(confdir, filesdb, dbdir,
+			                  refs, dereferenced,
+			                  i, c, into);
+		if( RET_WAS_ERROR(r) && i->cleanup.on_error ) {
+			struct candidate_file *file;
+
+			i->delete[c->ofs] = TRUE;
+			for( file = c->files ; file != NULL ; file = file->next ) {
+				i->delete[file->ofs] = TRUE;
+			}
+		}
+	}
 	candidate_free(c);
-	return RET_ERROR;
+	return r;
 }
 
 /* tempdir should ideally be on the same partition like the pooldir */
@@ -769,7 +853,7 @@ retvalue process_incoming(const char *confdir, filesdb files, const char *dbdir,
 			result = RET_ERROR_OOM;
 			continue;
 		}
-		if( verbose >= 10 )
+		if( verbose >= 3 )
 			printf("deleting '%s'...\n", fullfilename);
 		copyfile_delete(fullfilename);
 		free(fullfilename);
