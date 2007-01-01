@@ -856,15 +856,15 @@ as to be signed with to be included in that distribution.
 Empty lines and lines starting with a hash are ignored, every other line
 has to be of one of this three forms:
 .br
-.B accept * by unsigned
+.B allow * by unsigned
 .br
 which allows everything without a valid signature in,
 .br
-.B accept * by any key
+.B allow * by any key
 .br
 which allows everything with any valid signature in or
 .br
-.B accept * by key \fIkey-id\fP
+.B alllow *  by key \fIkey-id\fP
 .br
 which allows everything signed by this \fIkey-id\fP (to be specified
 without any spaces) in.
