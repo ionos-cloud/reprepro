@@ -37,13 +37,13 @@ struct dsc_headers {
 /* read contents of filename into sources_readdsc.
  * - broken is like signature_readsignedchunk
  * - does not follow retvalue conventions, some fields may be set even when
- *   error returned 
+ *   error returned
  * - no checks for sanity of values, left to the caller */
 retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool_t *broken);
 
 void sources_done(struct dsc_headers *);
 
 struct overrideinfo;
-retvalue sources_complete(struct dsc_headers *, const char *directory, const struct overrideinfo *override);
+retvalue sources_complete(struct dsc_headers *, const char *directory, const struct overrideinfo *override, const char *section, const char *priority);
 
 #endif

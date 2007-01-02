@@ -359,7 +359,7 @@ retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *confdir, co
 
 	len = strlen(filename);
 	u = uploaderslists;
-	while( u != NULL && ( u->filename_len != len || 
+	while( u != NULL && ( u->filename_len != len ||
 	                      memcmp(u->filename,filename,len) != 0 ) )
 		u = u->next;
 	if( u == NULL ) {

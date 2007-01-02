@@ -755,7 +755,7 @@ retvalue distribution_loaduploaders(struct distribution *distribution, const cha
 	if( distribution->uploaders != NULL ) {
 		if( distribution->uploaderslist != NULL )
 			return RET_OK;
-		return uploaders_get(&distribution->uploaderslist, 
+		return uploaders_get(&distribution->uploaderslist,
 				confdir, distribution->uploaders);
 	} else {
 		distribution->uploaderslist = NULL;

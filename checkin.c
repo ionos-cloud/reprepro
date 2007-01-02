@@ -868,7 +868,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		}
 		for( i = 0; i < changes->fingerprints.count ; i++ ) {
 			const char *fingerprint = changes->fingerprints.values[i];
-			r = uploaders_permissions(distribution->uploaderslist, 
+			r = uploaders_permissions(distribution->uploaderslist,
 					fingerprint, &permissions);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) ) {
