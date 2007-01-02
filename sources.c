@@ -525,14 +525,14 @@ void sources_done(struct dsc_headers *dsc) {
 	free(dsc->priority);
 }
 
-retvalue sources_complete(struct dsc_headers *dsc, const char *directory, const struct overrideinfo *override) {
+retvalue sources_complete(struct dsc_headers *dsc, const char *directory, const struct overrideinfo *override, const char *section, const char *priority) {
 	retvalue r;
 	struct fieldtoadd *name;
 	struct fieldtoadd *replace;
 	char *newchunk,*newchunk2;
 	char *newfilelines;
 
-	assert(dsc->section != NULL && dsc->priority != NULL);
+	assert(section != NULL && priority != NULL);
 
 	/* first replace the "Source" with a "Package": */
 	name = addfield_new("Package",dsc->name,NULL);
@@ -558,9 +558,9 @@ retvalue sources_complete(struct dsc_headers *dsc, const char *directory, const 
 	if( replace != NULL )
 		replace = deletefield_new("Status",replace);
 	if( replace != NULL )
-		replace = addfield_new(SECTION_FIELDNAME,dsc->section,replace);
+		replace = addfield_new(SECTION_FIELDNAME,section,replace);
 	if( replace != NULL )
-		replace = addfield_new(PRIORITY_FIELDNAME,dsc->priority,replace);
+		replace = addfield_new(PRIORITY_FIELDNAME,priority,replace);
 	if( replace != NULL )
 		replace = override_addreplacefields(override,replace);
 	if( replace == NULL ) {

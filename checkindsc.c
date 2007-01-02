@@ -300,7 +300,8 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 		r = dsc_adddsc(pkg);
 
 	if( !RET_WAS_ERROR(r) )
-		r = sources_complete(&pkg->dsc,pkg->directory,oinfo);
+		r = sources_complete(&pkg->dsc,pkg->directory,oinfo,
+				pkg->dsc.section, pkg->dsc.priority);
 
 	if( RET_IS_OK(r) )
 		*dsc = pkg;

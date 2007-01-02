@@ -40,11 +40,13 @@
 #include "signature.h"
 #include "debfile.h"
 #include "checkindeb.h"
+#include "sources.h"
 #include "checkindsc.h"
 #include "dpkgversions.h"
 #include "uploaderslist.h"
 #include "guesscomponent.h"
 #include "override.h"
+#include "tracking.h"
 #include "incoming.h"
 #include "changes.h"
 
@@ -318,7 +320,12 @@ struct candidate {
 		/* only for deb and dsc: */
 		char *component;
 		struct debpackage *deb;
-		struct dscpackage *dsc;
+		struct dsc_headers dsc;
+		char *directory;
+		struct strlist filekeys;
+		/* a list of pointers to the files belonging to those
+		 * filekeys, NULL if it does not need linking/copying */
+		struct candidate_file **files;
 		/* ... */
 	} *files;
 };
@@ -350,8 +357,10 @@ static void candidate_free(struct candidate *c) {
 		free(f->component);
 		if( f->deb != NULL )
 			deb_free(f->deb);
-		if( f->dsc != NULL )
-			dsc_free(f->dsc);
+		sources_done(&f->dsc);
+		free(f->directory);
+		strlist_done(&f->filekeys);
+		free(f->files);
 		free(f);
 	}
 	free(c);
@@ -488,17 +497,9 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 
 }
 
-static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
-	const char *section,*priority;
-	const struct overrideinfo *oinfo;
+static inline retvalue getsectionprioritycomponent(struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, const char **section_p, const char **priority_p) {
 	retvalue r;
-
-	assert( FE_BINARY(file->type) );
-
-	oinfo = override_search(
-			file->type==fe_UDEB?into->overrides.udeb:
-			                    into->overrides.deb,
-			file->name);
+	const char *section, *priority;
 
 	section = override_get(oinfo, SECTION_FIELDNAME);
 	if( section == NULL ) {
@@ -506,7 +507,8 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 		section = file->section;
 	}
 	if( section == NULL || strcmp(section,"-") == 0 ) {
-		fprintf(stderr, "No section found for '%s' in '%s'!\n",
+		fprintf(stderr, "No section found for '%s' ('%s' in '%s')!\n",
+				name,
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
@@ -516,7 +518,8 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 		priority = file->priority;
 	}
 	if( priority == NULL || strcmp(priority,"-") == 0 ) {
-		fprintf(stderr, "No priority found for '%s' in '%s'!\n",
+		fprintf(stderr, "No priority found for '%s' ('%s' in '%s')!\n",
+				name,
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
@@ -525,6 +528,28 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
+	*section_p = section;
+	*priority_p = priority;
+	return RET_OK;
+}
+
+static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
+	const char *section,*priority;
+	const struct overrideinfo *oinfo;
+	retvalue r;
+
+	assert( FE_BINARY(file->type) );
+
+	oinfo = override_search(file->type==fe_UDEB?into->overrides.udeb:
+			                    into->overrides.deb,
+	                        file->name);
+
+	r = getsectionprioritycomponent(i,c,into,file,
+			file->name, oinfo,
+			&section, &priority);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	r = properpackagename(file->name);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -560,12 +585,228 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 		return r;
 	return RET_OK;
 }
+
 static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
-	fprintf(stderr, "importing dsc files not yet implemented\n");
-	return RET_ERROR;
+	const char *section,*priority;
+	const struct overrideinfo *oinfo;
+	retvalue r;
+	char *p;
+	bool_t broken;
+	int j;
+
+	assert( file->type == fe_DSC );
+
+	r = properpackagename(file->name);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = candidate_usefile(i,c,file);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert(file->tempfilename != NULL);
+	r = sources_readdsc(&file->dsc, file->tempfilename, &broken);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( strcmp(file->name, file->dsc.name) != 0 ) {
+		// TODO: add permissive thing to ignore this
+		fprintf(stderr, "Name part of filename ('%s') and name within the file ('%s') do not match for '%s' in '%s'!\n",
+				file->name, file->dsc.name,
+				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	if( strcmp(c->source, file->dsc.name) != 0 ) {
+		// TODO: add permissive thing to ignore this
+		// (beware if tracking is active)
+		fprintf(stderr, "Source-header '%s' of '%s' and name '%s' within the file '%s' do not match!\n",
+				c->source, BASENAME(i,c->ofs),
+				file->dsc.name, BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	if( strcmp(c->version, file->dsc.version) != 0 ) {
+		// TODO: add permissive thing to ignore this
+		// (beware if tracking is active)
+		fprintf(stderr, "Version-header '%s' of '%s' and version '%s' within the file '%s' do not match!\n",
+				c->version, BASENAME(i,c->ofs),
+				file->dsc.version, BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	if( RET_IS_OK(r) )
+		r = propersourcename(file->dsc.name);
+	if( RET_IS_OK(r) )
+		r = properversion(file->dsc.version);
+	if( RET_IS_OK(r) )
+		r = properfilenames(&file->dsc.basenames);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	oinfo = override_search(into->overrides.dsc, file->dsc.name);
+
+	r = getsectionprioritycomponent(i, c, into, file,
+			file->dsc.name, oinfo,
+			&section, &priority);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	// or should we keep that filename, too?
+	// TODO: check what dpkg-source uses, the fields from .dsc or the name
+	p = calc_source_basename(file->dsc.name, file->dsc.version);
+	if( p == NULL )
+		return RET_ERROR_OOM;
+	r = strlist_include(&file->dsc.basenames, p);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	p = strdup(file->md5sum);
+	if( p == NULL )
+		return RET_ERROR_OOM;
+	r = strlist_include(&file->dsc.md5sums, p);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	file->directory = calc_sourcedir(file->component, file->dsc.name);
+	if( file->directory == NULL )
+		return RET_ERROR_OOM;
+	r = calc_dirconcats(file->directory, &file->dsc.basenames, &file->filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	file->files = calloc(file->filekeys.count,sizeof(struct candidate *));
+	if( file->files == NULL )
+		return RET_ERROR_OOM;
+	r = files_ready(filesdb, file->filekeys.values[0], file->md5sum);
+	if( RET_IS_OK(r) )
+		file->files[0] = file;
+	if( RET_WAS_ERROR(r) )
+		return r;
+	file->files[0] = file;
+	for( j = 1 ; j < file->filekeys.count ; j++ ) {
+		const char *filekey = file->filekeys.values[j];
+		const char *basename = file->dsc.basenames.values[j];
+		const char *md5sum = file->dsc.md5sums.values[j];
+		struct candidate_file *f = c->files;
+
+		while( f != NULL && strcmp(BASENAME(i,f->ofs), basename) != 0 )
+			f = f->next;
+
+		if( f != NULL && strcmp(f->md5sum,md5sum) != 0 ) {
+			fprintf(stderr, "file '%s' is listed with md5sum '%s' in '%s' but with md5sum '%s' in '%s'!\n",
+					basename,
+					file->md5sum, BASENAME(i,c->ofs),
+					md5sum, BASENAME(i,file->ofs));
+
+		}
+		r = files_ready(filesdb, filekey, md5sum);
+		if( r == RET_NOTHING ) {
+			/* already in the pool, make as used (in the sense
+			 * of not needed) */
+
+			if( f != NULL )
+				f->used = TRUE;
+
+		} else if( RET_IS_OK(r) ) {
+			/* don't have this file in the pool, make sure it is ready
+			 * here */
+
+			if( f == NULL ) {
+				fprintf(stderr, "file '%s' is needed for '%s', not yet registered in the pool and not found in '%s'\n",
+						basename, BASENAME(i,file->ofs),
+						BASENAME(i,c->ofs));
+				return RET_ERROR;
+			}
+
+			r = candidate_usefile(i,c, f);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			file->files[j] = f;
+		}
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	r = sources_complete(&file->dsc, file->directory, oinfo, section, priority);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	return RET_OK;
 }
-static retvalue addfiles_dsc(filesdb filesdb, struct candidate_file *file) {
-	return RET_ERROR;
+
+static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct candidate_file *stopat,int stopatatstopat) {
+	int j;
+	struct candidate_file *file;
+	retvalue r;
+
+	for( file = c->files ; file != NULL ; file = (file==stopat)?NULL:file->next ) {
+		if( ! FE_PACKAGE(file->type) )
+			continue;
+
+		for( j = 0 ;
+		     j < file->filekeys.count
+		     && ( file != stopat || j < stopatatstopat ) ;
+		     j++ ) {
+			if(  file->files[j] == NULL )
+				continue;
+			r = files_deleteandremove(filesdb,
+					file->filekeys.values[j],
+					TRUE, TRUE);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+	}
+	return RET_OK;
+}
+
+static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct candidate *c) {
+	int j;
+	struct candidate_file *file;
+	retvalue r;
+
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( ! FE_PACKAGE(file->type) )
+			continue;
+
+		/* until that is also moved to files/filekeys */
+		if( FE_BINARY(file->type) ) {
+			r = deb_hardlinkfiles(file->deb,filesdb,file->tempfilename);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			continue;
+		}
+		for( j = 0 ; j < file->filekeys.count ; j++ ) {
+			struct candidate_file *f = file->files[j];
+			if(  f == NULL )
+				continue;
+			assert(f->tempfilename != NULL);
+			r = files_hardlink(filesdb, f->tempfilename,
+					file->filekeys.values[j],
+					f->md5sum);
+			if( !RET_IS_OK(r) )
+				/* when we did not add it, do not remove it: */
+				file->files[j] = NULL;
+			if( RET_WAS_ERROR(r) ) {
+				candidate_removefiles(filesdb, c, file, j);
+				return r;
+			}
+		}
+	}
+	return RET_OK;
+}
+static retvalue add_dsc(filesdb filesdb, const char *dbdir, references refs,
+		struct distribution *into, struct strlist *dereferenced,
+		struct incoming *i, struct candidate *c,
+		struct trackingdata *trackingdata, struct candidate_file *file) {
+	retvalue r;
+	struct target *t = distribution_getpart(into,file->component,"source","dsc");
+
+	/* finally put it into the source distribution */
+	r = target_initpackagesdb(t,dbdir);
+	if( !RET_WAS_ERROR(r) ) {
+		retvalue r2;
+		if( interrupted() )
+			r = RET_ERROR_INTERUPTED;
+		else
+			r = target_addpackage(t,refs,
+					file->dsc.name,file->dsc.version,
+					file->dsc.control, &file->filekeys,
+					FALSE, dereferenced,
+					trackingdata, ft_SOURCE);
+		r2 = target_closepackagesdb(t);
+		RET_ENDUPDATE(r,r2);
+	}
+	RET_UPDATE(into->status, r);
+	return r;
 }
 
 static inline bool_t isallowed(struct incoming *i, struct candidate *c, struct distribution *into, const struct uploadpermissions *permissions) {
@@ -614,6 +855,7 @@ static retvalue candidate_checkpermissions(const char *confdir, struct incoming 
 
 static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
 	struct candidate_file *file;
+	struct trackingdata *trackingdata = NULL;
 	retvalue r;
 	assert( into != NULL );
 
@@ -635,7 +877,7 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( strcmp(file->section, "byhand") == 0 ) {
-			/* to avoid further tests for this string */
+			/* to avoid further tests for this file */
 			file->type = fe_UNKNOWN;
 			// TODO: add command to feed them into
 			// increment refcount when used
@@ -672,30 +914,29 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 	// TODO: make sure not two different files are supposed to be installed
 	// as the same filekey.
 
+	if( interrupted() )
+		return RET_ERROR_INTERUPTED;
+
 	/* the actual adding of packages, make sure what can be checked was
 	 * checked by now */
 
 	/* make hardlinks/copies of the files */
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->type == fe_DSC )
-			r = addfiles_dsc(filesdb,file);
-		else if( file->type == fe_DEB || file->type == fe_UDEB )
-			r = deb_hardlinkfiles(file->deb,filesdb,file->tempfilename);
-		else
-			r = RET_OK;
-		if( RET_WAS_ERROR(r) ) {
-			// TODO: error reporting?
-			return r;
-		}
+	r = candidate_addfiles(filesdb, i, c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( interrupted() ) {
+		candidate_removefiles(filesdb,c,NULL,0);
+		return RET_ERROR_INTERUPTED;
 	}
 	/* first add sources */
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( file->type == fe_DSC ) {
-			r = dsc_addprepared(file->dsc, dbdir, refs,
+			r = add_dsc(filesdb, dbdir, refs,
 					into, dereferenced,
-					NULL);
+					i, c, trackingdata, file);
 			if( RET_WAS_ERROR(r) ) {
-				// TODO: error reporting?
+				// hrmpf, how to remove the packages?
+				// candidate_removefiles(filesdb, c);
 				return r;
 			}
 		}
@@ -709,7 +950,8 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 					into, dereferenced,
 					NULL);
 			if( RET_WAS_ERROR(r) ) {
-				// TODO: error reporting?
+				// hrmpf, how to remove the packages?
+				// candidate_removefiles(filesdb, c);
 				return r;
 			}
 		}
@@ -798,7 +1040,7 @@ static retvalue process_changes(const char *confdir, filesdb filesdb, const char
 			fprintf(stderr,
 "'%s' is signed with only invalid signatures.\n"
 "If this was not corruption but willfull modification,\n"
-"remove the signatures and try again.\n", 
+"remove the signatures and try again.\n",
 				i->files.values[ofs]);
 			r = RET_ERROR;
 		} else
