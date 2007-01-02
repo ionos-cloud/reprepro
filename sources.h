@@ -24,4 +24,26 @@ char *sources_getupstreamindex(struct target *target,const char *suite_from,
 retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue sources_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,references refs);
 retvalue sources_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
+
+/* Functions for checkindsc.c and incoming.c: */
+struct dsc_headers {
+	char *name, *version;
+	char *control;
+	struct strlist basenames, md5sums;
+	/* normaly not in a .dsc file: */
+	/*@null@*/ char *section, *priority;
+};
+
+/* read contents of filename into sources_readdsc.
+ * - broken is like signature_readsignedchunk
+ * - does not follow retvalue conventions, some fields may be set even when
+ *   error returned 
+ * - no checks for sanity of values, left to the caller */
+retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool_t *broken);
+
+void sources_done(struct dsc_headers *);
+
+struct overrideinfo;
+retvalue sources_complete(struct dsc_headers *, const char *directory, const struct overrideinfo *override);
+
 #endif

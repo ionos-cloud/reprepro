@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -31,6 +31,7 @@
 #include "dpkgversions.h"
 #include "override.h"
 #include "tracking.h"
+#include "signature.h"
 
 extern int verbose;
 
@@ -437,3 +438,148 @@ retvalue sources_getsourceandversion(UNUSED(struct target *t),const char *chunk,
 	*version = sourceversion;
 	return RET_OK;
 }
+
+/****************************************************************/
+
+static inline retvalue getvalue(const char *filename,const char *chunk,const char *field,char **value) {
+	retvalue r;
+
+	r = chunk_getvalue(chunk,field,value);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing '%s'-header in %s!\n",field,filename);
+		r = RET_ERROR;
+	}
+	return r;
+}
+
+static inline retvalue checkvalue(const char *filename,const char *chunk,const char *field) {
+	retvalue r;
+
+	r = chunk_checkfield(chunk,field);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Cannot find '%s'-header in %s!\n",field,filename);
+		r = RET_ERROR;
+	}
+	return r;
+}
+
+static inline retvalue getvalue_n(const char *chunk,const char *field,char **value) {
+	retvalue r;
+
+	r = chunk_getvalue(chunk,field,value);
+	if( r == RET_NOTHING ) {
+		*value = NULL;
+	}
+	return r;
+}
+
+retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *broken) {
+	retvalue r;
+
+	r = signature_readsignedchunk(filename,&dsc->control,NULL,NULL, broken);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	if( verbose > 100 ) {
+		fprintf(stderr,"Extracted control chunk from '%s': '%s'\n",filename,dsc->control);
+	}
+
+	/* first look for fields that should be there */
+
+	r = chunk_getname(dsc->control,"Source",&dsc->name,FALSE);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = checkvalue(filename,dsc->control,"Maintainer");
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* only recommended, so ignore errors with this: */
+	(void) checkvalue(filename,dsc->control,"Standards-Version");
+
+	r = getvalue(filename,dsc->control,"Version",&dsc->version);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = getvalue_n(dsc->control,SECTION_FIELDNAME,&dsc->section);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = getvalue_n(dsc->control,PRIORITY_FIELDNAME,&dsc->priority);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = sources_parse_getmd5sums(dsc->control,&dsc->basenames,&dsc->md5sums);
+	return r;
+}
+
+void sources_done(struct dsc_headers *dsc) {
+	free(dsc->name);
+	free(dsc->version);
+	free(dsc->control);
+	strlist_done(&dsc->basenames);
+	strlist_done(&dsc->md5sums);
+	free(dsc->section);
+	free(dsc->priority);
+}
+
+retvalue sources_complete(struct dsc_headers *dsc, const char *directory, const struct overrideinfo *override) {
+	retvalue r;
+	struct fieldtoadd *name;
+	struct fieldtoadd *replace;
+	char *newchunk,*newchunk2;
+	char *newfilelines;
+
+	assert(dsc->section != NULL && dsc->priority != NULL);
+
+	/* first replace the "Source" with a "Package": */
+	name = addfield_new("Package",dsc->name,NULL);
+	if( name == NULL )
+		return RET_ERROR_OOM;
+	name = deletefield_new("Source",name);
+	if( name == NULL )
+		return RET_ERROR_OOM;
+	newchunk2  = chunk_replacefields(dsc->control,name,"Format");
+	addfield_free(name);
+	if( newchunk2 == NULL ) {
+		return RET_ERROR_OOM;
+	}
+
+	r = sources_calcfilelines(&dsc->basenames,&dsc->md5sums,&newfilelines);
+	if( RET_WAS_ERROR(r) ) {
+		free(newchunk2);
+		return RET_ERROR_OOM;
+	}
+	replace = addfield_new("Files",newfilelines,NULL);
+	if( replace != NULL )
+		replace = addfield_new("Directory",directory,replace);
+	if( replace != NULL )
+		replace = deletefield_new("Status",replace);
+	if( replace != NULL )
+		replace = addfield_new(SECTION_FIELDNAME,dsc->section,replace);
+	if( replace != NULL )
+		replace = addfield_new(PRIORITY_FIELDNAME,dsc->priority,replace);
+	if( replace != NULL )
+		replace = override_addreplacefields(override,replace);
+	if( replace == NULL ) {
+		free(newfilelines);
+		free(newchunk2);
+		return RET_ERROR_OOM;
+	}
+
+	newchunk  = chunk_replacefields(newchunk2,replace,"Files");
+	free(newfilelines);
+	free(newchunk2);
+	addfield_free(replace);
+	if( newchunk == NULL ) {
+		return RET_ERROR_OOM;
+	}
+
+	free(dsc->control);
+	dsc->control = newchunk;
+
+	return RET_OK;
+}
+

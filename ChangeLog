@@ -1,3 +1,6 @@
+2007-01-02  Bernhard R. Link <brlink@debian.org>
+	* factor some checkindsc code into source.c
+
 2007-01-01  Bernhard R. Link <brlink@debian.org>
 	* move uploaderslist load into distribution struct
 	* fix bug in manpage: uploaders list keyword is allow and not accept
