@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <string.h>
 #include <strings.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <malloc.h>
 #include "error.h"
@@ -31,6 +32,7 @@
 #include "dpkgversions.h"
 #include "override.h"
 #include "tracking.h"
+#include "debfile.h"
 
 extern int verbose;
 
@@ -403,3 +405,148 @@ retvalue binaries_getsourceandversion(UNUSED(struct target *t),const char *chunk
 	*version = sourceversion;
 	return RET_OK;
 }
+
+static inline retvalue getvalue(const char *filename,const char *chunk,const char *field,char **value) {
+	retvalue r;
+
+	r = chunk_getvalue(chunk,field,value);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Cannot find %s-header in control file of %s!\n",field,filename);
+		r = RET_ERROR;
+	}
+	return r;
+}
+
+static inline retvalue checkvalue(const char *filename,const char *chunk,const char *field) {
+	retvalue r;
+
+	r = chunk_checkfield(chunk,field);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Cannot find %s-header in control file of %s!\n",field,filename);
+		r = RET_ERROR;
+	}
+	return r;
+}
+
+static inline retvalue getvalue_n(const char *chunk,const char *field,char **value) {
+	retvalue r;
+
+	r = chunk_getvalue(chunk,field,value);
+	if( r == RET_NOTHING ) {
+		*value = NULL;
+	}
+	return r;
+}
+
+void binaries_debdone(struct deb_headers *pkg) {
+	free(pkg->name);free(pkg->version);
+	free(pkg->source);free(pkg->sourceversion);
+	free(pkg->architecture);
+	free(pkg->control);
+	free(pkg->section);
+	free(pkg->priority);
+}
+
+retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t needssourceversion) {
+	retvalue r;
+
+	r = extractcontrol(&deb->control,filename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	/* first look for fields that should be there */
+
+	r = chunk_getname(deb->control,"Package",&deb->name,FALSE);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Package' field in %s!\n",filename);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = checkvalue(filename,deb->control,"Maintainer");
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = checkvalue(filename,deb->control,"Description");
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = getvalue(filename,deb->control,"Version",&deb->version);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = getvalue(filename,deb->control,"Architecture",&deb->architecture);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	/* can be there, otherwise we also know what it is */
+	if( needssourceversion )
+		r = chunk_getnameandversion(deb->control,"Source",&deb->source,&deb->sourceversion);
+	else
+		r = chunk_getname(deb->control,"Source",&deb->source,TRUE);
+	if( r == RET_NOTHING ) {
+		deb->source = strdup(deb->name);
+		if( deb->source == NULL )
+			r = RET_ERROR_OOM;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( needssourceversion && deb->sourceversion == NULL ) {
+		deb->sourceversion = strdup(deb->version);
+		if( deb->sourceversion == NULL )
+			return RET_ERROR_OOM;
+	}
+
+	/* normaly there, but optional: */
+
+	r = getvalue_n(deb->control,PRIORITY_FIELDNAME,&deb->priority);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = getvalue_n(deb->control,SECTION_FIELDNAME,&deb->section);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return RET_OK;
+}
+
+/* do overwrites, add Filename, Size and md5sum to the control-item */
+retvalue binaries_complete(struct deb_headers *pkg,const char *filekey,const char *md5sum,const struct overrideinfo *override,const char *section,const char *priority) {
+	const char *size;
+	struct fieldtoadd *replace;
+	char *newchunk;
+
+	assert( section != NULL && priority != NULL);
+	assert( filekey != NULL && md5sum != NULL);
+
+	size = md5sum;
+	while( !xisblank(*size) && *size != '\0' )
+		size++;
+	replace = addfield_newn("MD5sum", md5sum, size-md5sum,NULL);
+	if( replace == NULL )
+		return RET_ERROR_OOM;
+	while( *size != '\0' && xisblank(*size) )
+		size++;
+	replace = addfield_new("Size", size, replace);
+	if( replace == NULL )
+		return RET_ERROR_OOM;
+	replace = addfield_new("Filename", filekey,replace);
+	if( replace == NULL )
+		return RET_ERROR_OOM;
+	replace = addfield_new(SECTION_FIELDNAME, section ,replace);
+	if( replace == NULL )
+		return RET_ERROR_OOM;
+	replace = addfield_new(PRIORITY_FIELDNAME, priority, replace);
+	if( replace == NULL )
+		return RET_ERROR_OOM;
+
+	replace = override_addreplacefields(override,replace);
+	if( replace == NULL )
+		return RET_ERROR_OOM;
+
+	newchunk  = chunk_replacefields(pkg->control,replace,"Description");
+	addfield_free(replace);
+	if( newchunk == NULL ) {
+		return RET_ERROR_OOM;
+	}
+
+	free(pkg->control);
+	pkg->control = newchunk;
+
+	return RET_OK;
+}
+
+

@@ -25,6 +25,28 @@ retvalue ubinaries_doreoverride(const struct distribution *,const char *packagen
 retvalue binaries_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,references refs);
 retvalue binaries_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
+/* Functions for checkindeb.c and incoming.c: */
 
+struct deb_headers {
+	char *name,*version;
+	char *source,*architecture;
+	char *control;
+	/* only extracted when requested: */
+	/*@null@*/char *sourceversion;
+	/* optional fields: */
+	/*@null@*/char *section;
+	/*@null@*/char *priority;
+};
+
+/* read contents of filename into deb_headers.
+ * - does not follow retvalue conventions, some fields may be set even when
+ *   error returned
+ * - no checks for sanity of values, left to the caller */
+
+retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool_t needssourceversion);
+void binaries_debdone(struct deb_headers *);
+
+struct overrideinfo;
+retvalue binaries_complete(struct deb_headers *,const char *filekey,const char *md5sum,const struct overrideinfo *,const char *section,const char *priority);
 
 #endif
