@@ -1,5 +1,7 @@
 2007-01-03  Bernhard R. Link <brlink@debian.org>
 	* factor some checkindeb code into binaries.c
+	* incomming.c uses now only binaries.c and not checkindeb.c
+	  in preperation of different semantics to come.
 
 2007-01-02  Bernhard R. Link <brlink@debian.org>
 	* factor some checkindsc code into source.c

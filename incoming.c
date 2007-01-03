@@ -38,10 +38,8 @@
 #include "copyfile.h"
 #include "target.h"
 #include "signature.h"
-#include "debfile.h"
-#include "checkindeb.h"
+#include "binaries.h"
 #include "sources.h"
-#include "checkindsc.h"
 #include "dpkgversions.h"
 #include "uploaderslist.h"
 #include "guesscomponent.h"
@@ -319,7 +317,7 @@ struct candidate {
 		char *tempfilename;
 		/* only for deb and dsc: */
 		char *component;
-		struct debpackage *deb;
+		struct deb_headers deb;
 		struct dsc_headers dsc;
 		char *directory;
 		struct strlist filekeys;
@@ -355,9 +353,10 @@ static void candidate_free(struct candidate *c) {
 			f->tempfilename = NULL;
 		}
 		free(f->component);
-		if( f->deb != NULL )
-			deb_free(f->deb);
-		sources_done(&f->dsc);
+		if( FE_BINARY(f->type) )
+			binaries_debdone(&f->deb);
+		if( f->type == fe_DSC )
+			sources_done(&f->dsc);
 		free(f->directory);
 		strlist_done(&f->filekeys);
 		free(f->files);
@@ -534,11 +533,64 @@ static inline retvalue getsectionprioritycomponent(struct incoming *i,struct can
 }
 
 static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
-	const char *section,*priority;
+	const char *section,*priority, *filekey;
 	const struct overrideinfo *oinfo;
 	retvalue r;
 
 	assert( FE_BINARY(file->type) );
+
+	r = candidate_usefile(i, c, file);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert(file->tempfilename != NULL);
+	r = binaries_readdeb(&file->deb, file->tempfilename, TRUE);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( strcmp(file->name, file->deb.name) != 0 ) {
+		// TODO: add permissive thing to ignore this
+		fprintf(stderr, "Name part of filename ('%s') and name within the file ('%s') do not match for '%s' in '%s'!\n",
+				file->name, file->deb.name,
+				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	if( strcmp(file->architecture, file->deb.architecture) != 0 ) {
+		// TODO: add permissive thing to ignore this in some cases
+		fprintf(stderr, "Architecture '%s' of '%s' does not match '%s' specified in '%s'!\n",
+				file->deb.architecture, BASENAME(i,c->ofs),
+				file->architecture, BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	if( strcmp(c->source, file->deb.source) != 0 ) {
+		// TODO: add permissive thing to ignore this
+		// (beware if tracking is active)
+		fprintf(stderr, "Source-header '%s' of '%s' and source name '%s' within the file '%s' do not match!\n",
+				c->source, BASENAME(i,c->ofs),
+				file->deb.source, BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	if( strcmp(c->version, file->deb.sourceversion) != 0 ) {
+		// TODO: add permissive thing to ignore this
+		// (beware if tracking is active)
+		fprintf(stderr, "Version-header '%s' of '%s' and source version '%s' within the file '%s' do not match!\n",
+				c->version, BASENAME(i,c->ofs),
+				file->deb.sourceversion, BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	if( ! strlist_in(&c->binaries, file->deb.name) ) {
+		fprintf(stderr, "Name '%s' of binary '%s' is not listed in Binaries-header of'%s'!\n",
+				c->version, BASENAME(i,c->ofs),
+				BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+	r = properpackagename(file->deb.name);
+	if( RET_IS_OK(r) )
+		r = propersourcename(file->deb.source);
+	if( RET_IS_OK(r) )
+		r = properversion(file->deb.version);
+	if( RET_IS_OK(r) )
+		r = properfilenamepart(file->deb.architecture);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	oinfo = override_search(file->type==fe_UDEB?into->overrides.udeb:
 			                    into->overrides.deb,
@@ -550,9 +602,6 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = properpackagename(file->name);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	if( file->type == fe_UDEB &&
 	    !strlist_in(&into->udebcomponents,file->component)) {
 		fprintf(stderr,
@@ -562,25 +611,22 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 			file->component, into->codename);
 		return RET_ERROR;
 	}
-	r = candidate_usefile(i,c,file);
+	r = binaries_calcfilekeys(file->component, &file->deb,
+			(file->type==fe_DEB)?"deb":"udeb", &file->filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	assert(file->tempfilename != NULL);
-	r = deb_prepare(&file->deb, filesdb, file->component,
-			file->architecture, //check architecture on our own instead?
-			section, priority,
-			"deb", into, file->tempfilename,
-			/* givenmd5sum != NULL and givenfilekey == NULL means
-			 * we will have to add it ourself before add: */
-			NULL, file->md5sum,
-			-2, // unused
-			TRUE,
-			// perhaps make those NULL and check on our own?
-			&c->binaries, c->source, c->version);
-	// TODO: check file->name and deb->name are the same,
-	// or split deb_prepare so that we get the name first before needing
-	// override data. Or should we let deb_prepare do the component guessing
-	// based on it reading section and priority data?
+	assert( file->filekeys.count == 1 );
+	filekey = file->filekeys.values[0];
+	file->files = calloc(1, sizeof(struct candidate_file *));
+	if( file->files == NULL )
+		return RET_ERROR_OOM;
+	r = files_ready(filesdb, filekey, file->md5sum);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) )
+		file->files[0] = file;
+	r = binaries_complete(&file->deb, filekey, file->md5sum, oinfo,
+			section, priority);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return RET_OK;
@@ -596,9 +642,6 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 
 	assert( file->type == fe_DSC );
 
-	r = properpackagename(file->name);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	r = candidate_usefile(i,c,file);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -757,13 +800,6 @@ static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct can
 		if( ! FE_PACKAGE(file->type) )
 			continue;
 
-		/* until that is also moved to files/filekeys */
-		if( FE_BINARY(file->type) ) {
-			r = deb_hardlinkfiles(file->deb,filesdb,file->tempfilename);
-			if( RET_WAS_ERROR(r) )
-				return r;
-			continue;
-		}
 		for( j = 0 ; j < file->filekeys.count ; j++ ) {
 			struct candidate_file *f = file->files[j];
 			if(  f == NULL )
@@ -783,7 +819,7 @@ static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct can
 	}
 	return RET_OK;
 }
-static retvalue add_dsc(filesdb filesdb, const char *dbdir, references refs,
+static retvalue add_dsc(const char *dbdir, references refs,
 		struct distribution *into, struct strlist *dereferenced,
 		struct incoming *i, struct candidate *c,
 		struct trackingdata *trackingdata, struct candidate_file *file) {
@@ -864,6 +900,14 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 		return RET_NOTHING;
 	}
 
+	// TODO: allow being more permissive
+	r = propersourcename(c->source);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = properversion(c->version);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	r = distribution_loadalloverrides(into,confdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -931,8 +975,7 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 	/* first add sources */
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( file->type == fe_DSC ) {
-			r = add_dsc(filesdb, dbdir, refs,
-					into, dereferenced,
+			r = add_dsc(dbdir, refs, into, dereferenced,
 					i, c, trackingdata, file);
 			if( RET_WAS_ERROR(r) ) {
 				// hrmpf, how to remove the packages?
@@ -944,11 +987,12 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 	/* then binaries */
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( file->type == fe_DEB || file->type == fe_UDEB ) {
-			r = deb_addprepared(file->deb, dbdir, refs,
+			r = binaries_adddeb(&file->deb, dbdir, refs,
 					file->architecture,
 					(file->type == fe_DEB)?"deb":"udeb",
 					into, dereferenced,
-					NULL);
+					trackingdata,
+					file->component, &file->filekeys);
 			if( RET_WAS_ERROR(r) ) {
 				// hrmpf, how to remove the packages?
 				// candidate_removefiles(filesdb, c);

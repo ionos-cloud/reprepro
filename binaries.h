@@ -9,7 +9,6 @@
 #include "target.h"
 #endif
 
-retvalue binaries_calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys);
 
 /* Functions for the target.h-stuff: */
 retvalue binaries_getname(struct target *t,const char *chunk,char **packagename);
@@ -46,7 +45,11 @@ struct deb_headers {
 retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool_t needssourceversion);
 void binaries_debdone(struct deb_headers *);
 
+retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *,const char *packagetype,struct strlist *filekeys);
+
 struct overrideinfo;
 retvalue binaries_complete(struct deb_headers *,const char *filekey,const char *md5sum,const struct overrideinfo *,const char *section,const char *priority);
+
+retvalue binaries_adddeb(const struct deb_headers *,const char *dbdir,references,const char *forcearchitecture,const char *packagetype,struct distribution *,struct strlist *dereferencedfilekeys,struct trackingdata *,const char *component,const struct strlist *filekeys);
 
 #endif

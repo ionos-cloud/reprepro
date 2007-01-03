@@ -106,32 +106,6 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-static retvalue deb_calclocations(struct debpackage *pkg,/*@null@*/const char *givenfilekey,const char *packagetype) {
-	retvalue r;
-	char *basename;
-
-	basename = calc_binary_basename(pkg->deb.name, pkg->deb.version,
-			pkg->deb.architecture, packagetype);
-	if( basename == NULL )
-		return RET_ERROR_OOM;
-
-	r = binaries_calcfilekeys(pkg->component, pkg->deb.source,basename,&pkg->filekeys);
-	if( RET_WAS_ERROR(r) ) {
-		free(basename);
-		return r;
-	}
-
-	pkg->filekey = pkg->filekeys.values[0];
-	free(basename);
-
-	if( givenfilekey!=NULL && strcmp(givenfilekey,pkg->filekey) != 0 ) {
-		fprintf(stderr,"Name mismatch, .changes indicates '%s', but the file itself says '%s'!\n",givenfilekey,pkg->filekey);
-		return RET_ERROR;
-	}
-
-	return r;
-}
-
 retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,int delete,bool_t needsourceversion,const struct strlist *allowed_binaries,const char *expectedsourcepackage,const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
@@ -270,10 +244,17 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 		return RET_ERROR;
 	}
 
-	r = deb_calclocations(pkg,givenfilekey,packagetype);
+	r = binaries_calcfilekeys(pkg->component, &pkg->deb, packagetype, &pkg->filekeys);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
+	}
+	pkg->filekey = pkg->filekeys.values[0];
+
+	if( givenfilekey!=NULL && strcmp(givenfilekey,pkg->filekey) != 0 ) {
+		fprintf(stderr,"Name mismatch, .changes indicates '%s', but the file itself says '%s'!\n",givenfilekey,pkg->filekey);
+		deb_free(pkg);
+		return RET_ERROR;
 	}
 	/* then looking if we already have this, or copy it in */
 	if( givenmd5sum != NULL ) {
@@ -316,79 +297,11 @@ retvalue deb_hardlinkfiles(struct debpackage *deb,filesdb filesdb,const char *de
 	return files_hardlink(filesdb, debfilename, deb->filekey, deb->md5sum);
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata){
-	retvalue r,result;
-	int i;
-
-	/* finally put it into one or more architectures of the distribution */
-
-	result = RET_NOTHING;
-
-	if( strcmp(pkg->deb.architecture,"all") != 0 ) {
-		struct target *t = distribution_getpart(distribution,
-				pkg->component, pkg->deb.architecture,
-				packagetype);
-		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) ) {
-			retvalue r2;
-			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
-			else
-				r = target_addpackage(t, refs, pkg->deb.name,
-						pkg->deb.version,
-						pkg->deb.control,
-						&pkg->filekeys, FALSE,
-						dereferencedfilekeys,
-						trackingdata, ft_ARCH_BINARY);
-			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
-		}
-		RET_UPDATE(result,r);
-	} else if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 ) {
-		struct target *t = distribution_getpart(distribution,
-				pkg->component, forcearchitecture,
-				packagetype);
-		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) ) {
-			retvalue r2;
-			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
-			else
-				r = target_addpackage(t, refs, pkg->deb.name,
-						pkg->deb.version,
-						pkg->deb.control,
-						&pkg->filekeys, FALSE,
-						dereferencedfilekeys,
-						trackingdata, ft_ALL_BINARY);
-			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
-		}
-		RET_UPDATE(result,r);
-	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		/*@dependent@*/struct target *t;
-		if( strcmp(distribution->architectures.values[i],"source") == 0 )
-			continue;
-		t = distribution_getpart(distribution,pkg->component,distribution->architectures.values[i],packagetype);
-		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) ) {
-			retvalue r2;
-			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
-			else
-				r = target_addpackage(t, refs, pkg->deb.name,
-						pkg->deb.version,
-						pkg->deb.control,
-						&pkg->filekeys, FALSE,
-						dereferencedfilekeys,
-						trackingdata, ft_ALL_BINARY);
-			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
-		}
-		RET_UPDATE(result,r);
-	}
-	RET_UPDATE(distribution->status, result);
-
-	return result;
+retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
+	return binaries_adddeb(&pkg->deb, dbdir, refs, forcearchitecture,
+			packagetype, distribution, dereferencedfilekeys,
+			trackingdata,
+			pkg->component, &pkg->filekeys);
 }
 
 /* insert the given .deb into the mirror in <component> in the <distribution>
@@ -418,7 +331,10 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		}
 	}
 
-	r = deb_addprepared(pkg,dbdir,refs,forcearchitecture,packagetype,distribution,dereferencedfilekeys,(tracks!=NULL)?&trackingdata:NULL);
+	r = binaries_adddeb(&pkg->deb, dbdir, refs, forcearchitecture,
+			packagetype, distribution, dereferencedfilekeys,
+			(tracks!=NULL)?&trackingdata:NULL,
+			pkg->component, &pkg->filekeys);
 	deb_free(pkg);
 
 	if( tracks != NULL ) {

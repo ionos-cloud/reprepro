@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -136,7 +136,7 @@ static retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *fil
 	return r;
 }
 
-retvalue binaries_calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys) {
+static retvalue calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys) {
 	char *filekey;
 	retvalue r;
 
@@ -154,7 +154,7 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,const char *basename,const char *component,struct strlist *filekeys,char **newchunk) {
 	retvalue r;
 
-	r = binaries_calcfilekeys(component,sourcename,basename,filekeys);
+	r = calcfilekeys(component,sourcename,basename,filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -549,4 +549,92 @@ retvalue binaries_complete(struct deb_headers *pkg,const char *filekey,const cha
 	return RET_OK;
 }
 
+retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,const char *component,const struct strlist *filekeys) {
+	retvalue r,result;
+	int i;
+
+	/* finally put it into one or more architectures of the distribution */
+
+	result = RET_NOTHING;
+
+	if( strcmp(deb->architecture,"all") != 0 ) {
+		struct target *t = distribution_getpart(distribution,
+				component, deb->architecture,
+				packagetype);
+		r = target_initpackagesdb(t,dbdir);
+		if( !RET_WAS_ERROR(r) ) {
+			retvalue r2;
+			if( interrupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
+				r = target_addpackage(t, refs, deb->name,
+						deb->version,
+						deb->control,
+						filekeys, FALSE,
+						dereferencedfilekeys,
+						trackingdata, ft_ARCH_BINARY);
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r,r2);
+		}
+		RET_UPDATE(result,r);
+	} else if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 ) {
+		struct target *t = distribution_getpart(distribution,
+				component, forcearchitecture,
+				packagetype);
+		r = target_initpackagesdb(t,dbdir);
+		if( !RET_WAS_ERROR(r) ) {
+			retvalue r2;
+			if( interrupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
+				r = target_addpackage(t, refs, deb->name,
+						deb->version,
+						deb->control,
+						filekeys, FALSE,
+						dereferencedfilekeys,
+						trackingdata, ft_ALL_BINARY);
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r,r2);
+		}
+		RET_UPDATE(result,r);
+	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+		/*@dependent@*/struct target *t;
+		if( strcmp(distribution->architectures.values[i],"source") == 0 )
+			continue;
+		t = distribution_getpart(distribution,component,distribution->architectures.values[i],packagetype);
+		r = target_initpackagesdb(t,dbdir);
+		if( !RET_WAS_ERROR(r) ) {
+			retvalue r2;
+			if( interrupted() )
+				r = RET_ERROR_INTERUPTED;
+			else
+				r = target_addpackage(t, refs, deb->name,
+						deb->version,
+						deb->control,
+						filekeys, FALSE,
+						dereferencedfilekeys,
+						trackingdata, ft_ALL_BINARY);
+			r2 = target_closepackagesdb(t);
+			RET_ENDUPDATE(r,r2);
+		}
+		RET_UPDATE(result,r);
+	}
+	RET_UPDATE(distribution->status, result);
+
+	return result;
+}
+
+retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *deb,const char *packagetype,struct strlist *filekeys) {
+	retvalue r;
+	char *basename;
+
+	basename = calc_binary_basename(deb->name, deb->version,
+			deb->architecture, packagetype);
+	if( basename == NULL )
+		return RET_ERROR_OOM;
+
+	r = calcfilekeys(component, deb->source, basename, filekeys);
+	free(basename);
+	return r;
+}
 
