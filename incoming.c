@@ -912,6 +912,7 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 	struct candidate_file *file;
 	struct trackingdata *trackingdata = NULL;
 	retvalue r;
+	int j;
 	assert( into != NULL );
 
 	if( into->tracking != dt_NONE ) {
@@ -919,13 +920,31 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 		return RET_NOTHING;
 	}
 
-	// TODO: allow being more permissive
+	// TODO: allow being more permissive, may need some more checks later
 	r = propersourcename(c->source);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	r = properversion(c->version);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	for( j = 0 ; j < c->architectures.count ; j++ ) {
+		const char *architecture = c->architectures.values[j];
+		if( strcmp(architecture, "all") == 0 ) {
+			if( into->architectures.count > 1 )
+				continue;
+			if( into->architectures.count > 0 &&
+			    strcmp(into->architectures.values[0],"source") != 0)
+				continue;
+			fprintf(stderr, "'%s' lists architecture 'all' but not binary architecture found in distribution '%s'!\n",
+					BASENAME(i,c->ofs), into->codename);
+			return RET_ERROR;
+		}
+		if( strlist_in(&into->architectures, architecture) )
+			continue;
+		fprintf(stderr, "'%s' lists architecture '%s' not found in distribution '%s'!\n",
+				BASENAME(i,c->ofs), architecture, into->codename);
+		return RET_ERROR;
+	}
 
 	r = distribution_loadalloverrides(into,confdir);
 	if( RET_WAS_ERROR(r) )
