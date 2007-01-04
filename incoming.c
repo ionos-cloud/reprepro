@@ -142,6 +142,7 @@ struct importsparsedata {
 	const char *name;
 	struct distribution *distributions;
 	struct incoming *i;
+	const char *basedir;
 };
 
 static retvalue translate(struct distribution *distributions, struct strlist *names, struct distribution ***r) {
@@ -201,6 +202,15 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 		incoming_free(i);
 		return r;
 	}
+	if( i->tempdir[0] != '/' ) {
+		char *n = calc_dirconcat(d->basedir, i->tempdir);
+		if( n == NULL ) {
+			incoming_free(i);
+			return RET_ERROR_OOM;
+		}
+		free(i->tempdir);
+		i->tempdir = n;
+	}
 	r = chunk_getvalue(chunk, "IncomingDir", &i->directory);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Expected 'IncomingDir' header not found in definition for '%s' in '%s'!\n", d->name, d->filename);
@@ -209,6 +219,15 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	if( RET_WAS_ERROR(r) ) {
 		incoming_free(i);
 		return r;
+	}
+	if( i->directory[0] != '/' ) {
+		char *n = calc_dirconcat(d->basedir, i->directory);
+		if( n == NULL ) {
+			incoming_free(i);
+			return RET_ERROR_OOM;
+		}
+		free(i->directory);
+		i->directory = n;
 	}
 	r = chunk_getvalue(chunk, "Default", &default_into);
 	if( RET_WAS_ERROR(r) ) {
@@ -260,13 +279,14 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	return RET_OK;
 }
 
-static retvalue incoming_init(const char *confdir, struct distribution *distributions, const char *name, struct incoming **result) {
+static retvalue incoming_init(const char *basedir,const char *confdir, struct distribution *distributions, const char *name, struct incoming **result) {
 	retvalue r;
 	struct importsparsedata imports;
 
 	imports.name = name;
 	imports.distributions = distributions;
 	imports.i = NULL;
+	imports.basedir = basedir;
 	imports.filename = calc_dirconcat(confdir, "imports");
 	if( imports.filename == NULL )
 		return RET_ERROR_OOM;
@@ -1104,14 +1124,14 @@ static retvalue process_changes(const char *confdir, filesdb filesdb, const char
 }
 
 /* tempdir should ideally be on the same partition like the pooldir */
-retvalue process_incoming(const char *confdir, filesdb files, const char *dbdir, references refs, struct strlist *dereferenced, struct distribution *distributions, const char *name) {
+retvalue process_incoming(const char *basedir,const char *confdir, filesdb files, const char *dbdir, references refs, struct strlist *dereferenced, struct distribution *distributions, const char *name) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
 
 	result = RET_NOTHING;
 
-	r = incoming_init(confdir, distributions, name, &i);
+	r = incoming_init(basedir, confdir, distributions, name, &i);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

@@ -1,3 +1,6 @@
+2007-01-04  Bernhard R. Link <brlink@debian.org>
+	* more fixups of incomming handling
+
 2007-01-03  Bernhard R. Link <brlink@debian.org>
 	* factor some checkindeb code into binaries.c
 	* incomming.c uses now only binaries.c and not checkindeb.c
