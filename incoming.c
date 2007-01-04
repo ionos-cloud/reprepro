@@ -204,7 +204,6 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	r = chunk_getvalue(chunk, "IncomingDir", &i->directory);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Expected 'IncomingDir' header not found in definition for '%s' in '%s'!\n", d->name, d->filename);
-		incoming_free(i);
 		r = RET_ERROR_MISSING;
 	}
 	if( RET_WAS_ERROR(r) ) {
