@@ -93,6 +93,189 @@ case $TESTTOOLVERSION in
 	   ;;
 esac
 touch results.empty
+
+mkdir -p conf
+cat > conf/options <<CONFEND
+export changed
+CONFEND
+cat > conf/distributions <<CONFEND
+Codename: A
+Architectures: abacus calculator
+Components: dog cat
+
+Codename: B
+Architectures: abacus source
+Components: dog cat
+Contents: 1
+CONFEND
+testrun "" -b . export
+find dists -type f |sort > results
+cat > results.expected <<END
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-calculator/Packages
+dists/A/cat/binary-calculator/Packages.gz
+dists/A/cat/binary-calculator/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-calculator/Packages
+dists/A/dog/binary-calculator/Packages.gz
+dists/A/dog/binary-calculator/Release
+dists/A/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
+dists/B/cat/source/Release
+dists/B/cat/source/Sources.gz
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
+dists/B/dog/source/Release
+dists/B/dog/source/Sources.gz
+dists/B/Release
+END
+diff -u results.expected results
+testrun - -b . -V import default 3<<EOF
+returns 254
+stderr
+*=Unable to open file ./conf/imports: No such file or directory
+*=There have been errors!
+EOF
+touch conf/imports
+testrun - -b . -V import default 3<<EOF
+returns 249
+stderr
+*=No definition for 'default' found in './conf/imports'!
+*=There have been errors!
+EOF
+cat > conf/imports <<EOF
+Name: bla
+EOF
+testrun - -b . -V import default 3<<EOF
+returns 249
+stderr
+*=No definition for 'default' found in './conf/imports'!
+*=There have been errors!
+EOF
+cat > conf/imports <<EOF
+Name: bla
+
+Name: default
+
+Name: blub
+EOF
+testrun - -b . -V import default 3<<EOF
+returns 249
+stderr
+*=Expected 'TempDir' header not found in definition for 'default' in './conf/imports'!
+=Stop reading further chunks from './conf/imports' due to previous errors.
+*=There have been errors!
+EOF
+cat > conf/imports <<EOF
+Name: bla
+
+Name: default
+TempDir: temp
+
+Name: blub
+EOF
+testrun - -b . -V import default 3<<EOF
+returns 249
+stderr
+*=Expected 'IncomingDir' header not found in definition for 'default' in './conf/imports'!
+=Stop reading further chunks from './conf/imports' due to previous errors.
+*=There have been errors!
+EOF
+cat > conf/imports <<EOF
+Name: bla
+
+Name: default
+TempDir: temp
+IncomingDir: i
+
+Name: blub
+EOF
+testrun - -b . import default 3<<EOF
+returns 255
+stderr
+*='default' in './conf/imports' has neither a 'Allow' nor a 'Default' definition!
+*=Aborting as nothing would be left in.
+=Stop reading further chunks from './conf/imports' due to previous errors.
+*=There have been errors!
+EOF
+cat > conf/imports <<EOF
+Name: bla
+
+Name: default
+TempDir: temp
+IncomingDir: i
+Allow: A B
+
+Name: blub
+EOF
+testrun - -b . import default 3<<EOF
+returns 254
+stderr
+*=Cannot scan './i': No such file or directory
+*=There have been errors!
+EOF
+mkdir i
+testrun "" -b . import default
+(cd i ; PACKAGE=bird EPOCH="" VERSION=1 REVISION="" SECTION="tasty" genpackage.sh)
+echo returned: $?
+testrun - -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=No distribution found for 'test.changes'!
+*=There have been errors!
+EOF
+sed -i -e 's/test1/A/' i/test.changes
+testrun - -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='test.changes' lists architecture 'source' not found in distribution 'A'!
+*=There have been errors!
+EOF
+sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
+testrun - -V -b . import default 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+*=Created directory "./pool"
+*=Created directory "./pool/dog"
+*=Created directory "./pool/dog/b"
+*=Created directory "./pool/dog/b/bird"
+*=Exporting indices...
+*= generating Contents-abacus...
+*=Reading filelist for pool/dog/b/bird/bird_1_abacus.deb
+*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
+stdout
+*=db: 'bird' added to 'B|dog|source'.
+*=db: 'bird' added to 'B|dog|abacus'.
+*=db: 'bird-addons' added to 'B|dog|abacus'.
+*=deleting './i/bird_1.dsc'...
+*=deleting './i/bird_1.tar.gz'...
+*=deleting './i/bird_1_abacus.deb'...
+*=deleting './i/bird-addons_1_all.deb'...
+*=deleting './i/test.changes'...
+EOF
+find temp -type f > results
+diff results.empty results
+find i -type f > results
+diff results.empty results
+
+# check contents of Packages and Sources
+# TODO: test override to cat
+# exit 0
+rm -r conf db pool dists i
+# echo "preliminary finish due to testing"
+# exit 0
+###############################################################################
+
 mkdir -p conf
 cat > conf/options <<CONFEND
 export changed
