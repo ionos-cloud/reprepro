@@ -235,7 +235,7 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 		if( i->default_into == NULL ) {
 			fprintf(stderr, "'%s' in '%s' has neither a 'Allow' nor a 'Default' definition!\nAborting as nothing would be left in.\n", d->name, d->filename);
 			incoming_free(i);
-			return r;
+			return RET_ERROR;
 		}
 		strlist_init(&i->allow);
 		i->allow_into = NULL;
