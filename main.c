@@ -1980,7 +1980,7 @@ ACTION_D(import) {
 		return r;
 	}
 
-	result = process_incoming(confdir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
+	result = process_incoming(mirrordir, confdir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
 
 	r = distribution_exportandfreelist(export,distributions,
 			confdir,dbdir,distdir, filesdb);
