@@ -1,18 +1,17 @@
 TODO:
 	write more automated test-cases
-	allow to specify a keyring to use.
-	allow to specify which keys are accepted for include and includedsc.
-	add override-support while updating (or decide if this should be done)
+	finish import from incoming dir, implement sending mails to uploader
 	extend FilterFormula, FilterList et al to specify type/architecture/component
 	switch to only include if source is present
 	action to redownload missing pool/ files from some update-rules (looking for md5sum)
 	check for harmful override entries (Package, Source, ....)
+	also support pdiff on upstream-repositories to download from.
 
 half far goals:
 	rewrite error handling, caching error messages and handling Ctrl-C better.
 
 far goals:
-	check for source of package, 
+	check for source of package,
 	      for sources without packages.
 	      for unmeet Dependencies
 	      for unmeet Build-dependencies.
