@@ -338,7 +338,7 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 		update->suite_from = NULL;
 
 	/* * Check which architectures to update from * */
-	r = chunk_getwordlist(chunk,"Architectures",&architectureslist);
+	r = chunk_getuniqwordlist(chunk,"Architectures",&architectureslist);
 	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;
@@ -357,7 +357,7 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 	}
 
 	/* * Check which components to update from * */
-	r = chunk_getwordlist(chunk,"Components",&componentslist);
+	r = chunk_getuniqwordlist(chunk,"Components",&componentslist);
 	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;
@@ -376,7 +376,7 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 	}
 
 	/* * Check which components to update udebs from * */
-	r = chunk_getwordlist(chunk,"UDebComponents",&componentslist);
+	r = chunk_getuniqwordlist(chunk,"UDebComponents",&componentslist);
 	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;

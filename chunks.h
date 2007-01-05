@@ -19,6 +19,7 @@ retvalue chunk_getvalue(const char *chunk,const char *name,/*@out@*/char **value
 retvalue chunk_getfirstword(const char *chunk,const char *name,/*@out@*/char **value);
 retvalue chunk_getextralinelist(const char *chunk,const char *name,/*@out@*/struct strlist *strlist);
 retvalue chunk_getwordlist(const char *chunk,const char *name,/*@out@*/struct strlist *strlist);
+retvalue chunk_getuniqwordlist(const char *chunk,const char *name,/*@out@*/struct strlist *strlist);
 retvalue chunk_getwholedata(const char *chunk,const char *name,/*@out@*/char **value);
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *' */

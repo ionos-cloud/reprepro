@@ -126,7 +126,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 	free(option);
 	if( distribution->contents.rate == 0 )
 		return RET_NOTHING;
-	r = chunk_getwordlist(chunk, "ContentsArchitectures",
+	r = chunk_getuniqwordlist(chunk, "ContentsArchitectures",
 			&distribution->contents.architectures);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -145,7 +145,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 			return RET_ERROR;
 		}
 	}
-	r = chunk_getwordlist(chunk, "ContentsComponents",
+	r = chunk_getuniqwordlist(chunk, "ContentsComponents",
 			&distribution->contents.components);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -164,7 +164,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 			return RET_ERROR;
 		}
 	}
-	r = chunk_getwordlist(chunk, "ContentsUComponents",
+	r = chunk_getuniqwordlist(chunk, "ContentsUComponents",
 			&distribution->contents.ucomponents);
 	if( RET_WAS_ERROR(r) )
 		return r;

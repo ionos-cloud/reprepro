@@ -372,6 +372,45 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 	return RET_OK;
 }
 
+retvalue chunk_getuniqwordlist(const char *chunk,const char *name,struct strlist *strlist) {
+	retvalue r;
+	const char *f,*b;
+	char *v;
+
+	f = chunk_getfield(name,chunk);
+	if( f == NULL )
+		return RET_NOTHING;
+	strlist_init(strlist);
+	while( *f != '\0' ) {
+		/* walk over spaces */
+		while( *f != '\0' && xisspace(*f) ) {
+			if( *f == '\n' ) {
+				f++;
+				if( *f != ' ' && *f != '\t' )
+					return RET_OK;
+			} else
+				f++;
+		}
+		if( *f == '\0' )
+			return RET_OK;
+		b = f;
+		/* search for end of word */
+		while( *f != '\0' && !xisspace(*f) )
+			f++;
+		v = strndup(b,f-b);
+		if( v == NULL ) {
+			strlist_done(strlist);
+			return RET_ERROR_OOM;
+		}
+		r = strlist_adduniq(strlist,v);
+		if( !RET_IS_OK(r) ) {
+			strlist_done(strlist);
+			return r;
+		}
+	}
+	return RET_OK;
+}
+
 retvalue chunk_gettruth(const char *chunk,const char *name) {
 	const char *field;
 

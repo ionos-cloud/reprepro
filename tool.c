@@ -793,7 +793,7 @@ static retvalue parse_changes(const char *changesfile, const char *chunk, struct
 		fprintf(stderr, "Missing 'Maintainer:' field in %s!\n", changesfile);
 		n->maintainer = NULL;
 	}
-	r = chunk_getwordlist(chunk, "Binary", &tmp);
+	r = chunk_getuniqwordlist(chunk, "Binary", &tmp);
 	R;
 	if( r == RET_NOTHING ) {
 		n->binaries = NULL;

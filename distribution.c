@@ -239,7 +239,7 @@ NULL};
 		} else if( ret == RET_NOTHING) \
 			r->fieldname = NULL;
 #define getpossibleemptywordlist(key,fieldname) \
-		ret = chunk_getwordlist(chunk,key,&r->fieldname); \
+		ret = chunk_getuniqwordlist(chunk,key,&r->fieldname); \
 		if(RET_WAS_ERROR(ret)) { \
 			(void)distribution_free(r); \
 			return ret; \
@@ -254,7 +254,7 @@ NULL};
 	getpossibleemptyfield("NotAutomatic",notautomatic);
 	getpossibleemptyfield("Label",label);
 	getpossibleemptyfield("Description",description);
-	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
+	ret = chunk_getuniqwordlist(chunk,"Architectures",&r->architectures);
 	fieldrequired("Architectures");
 	if( RET_IS_OK(ret) )
 		ret = properarchitectures(&r->architectures);
@@ -262,7 +262,7 @@ NULL};
 		(void)distribution_free(r);
 		return ret;
 	}
-	ret = chunk_getwordlist(chunk,"Components",&r->components);
+	ret = chunk_getuniqwordlist(chunk,"Components",&r->components);
 	fieldrequired("Components");
 	if( RET_IS_OK(ret) )
 		ret = propercomponents(&r->components);
