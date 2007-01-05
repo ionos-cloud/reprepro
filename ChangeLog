@@ -1,6 +1,7 @@
 2007-01-05  Bernhard R. Link <brlink@debian.org>
 	* better cope with double entries in some
 	  lists. (Like Architectures or Components)
+	* incomming fixups and more testcases
 
 2007-01-04  Bernhard R. Link <brlink@debian.org>
 	* more fixups of incomming handling
