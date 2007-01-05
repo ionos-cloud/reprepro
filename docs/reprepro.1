@@ -1107,6 +1107,16 @@ if no \fB\-b\fP or \fB\-\-basedir\fP options are supplied.
 .B REPREPRO_CONFIG_DIR
 The directory in this variable is used when no \fB\-\-confdir\fP is
 supplied.
+.TP
+.B GNUPGHOME
+Not used by reprepro directly.
+But reprepro uses libgpgme, which calls gpg for signing and verification
+of signatures.
+And your gpg will most likely use the content of this variable
+instead of "~/.gnupg".
+Take a look at
+.BR gpg (1)
+to be sure.
 .SH BUGS
 Increased verbosity always shows those things one does not want to know.
 (Though this might be inevitable and a corollary to Murphy)
