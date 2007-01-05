@@ -226,6 +226,12 @@ mkdir i
 testrun "" -b . import default
 (cd i ; PACKAGE=bird EPOCH="" VERSION=1 REVISION="" SECTION="tasty" genpackage.sh)
 echo returned: $?
+DSCMD5S="$(md5sum i/bird_1.dsc | cut -d' ' -f1) $(stat -c '%s' i/bird_1.dsc)"
+TARMD5S="$(md5sum i/bird_1.tar.gz | cut -d' ' -f1) $(stat -c '%s' i/bird_1.tar.gz)"
+DEBMD5="$(md5sum i/bird_1_abacus.deb | cut -d' ' -f1)"
+DEBSIZE="$(stat -c '%s' i/bird_1_abacus.deb)"
+DEBAMD5="$(md5sum i/bird-addons_1_all.deb | cut -d' ' -f1)"
+DEBASIZE="$(stat -c '%s' i/bird-addons_1_all.deb)"
 testrun - -b . import default 3<<EOF
 returns 255
 stderr
@@ -242,6 +248,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
+cp -a i i2
 testrun - -V -b . import default 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
@@ -267,10 +274,165 @@ find temp -type f > results
 diff results.empty results
 find i -type f > results
 diff results.empty results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+x	    tasty/bird,tasty/bird-addons
+a/1	    tasty/bird,tasty/bird-addons
+dir/another	    tasty/bird,tasty/bird-addons
+dir/file	    tasty/bird,tasty/bird-addons
+dir/subdir/file	    tasty/bird,tasty/bird-addons
+EOF
+gunzip -c dists/B/Contents-abacus.gz > results
+diff results.expected results
+cat > results.expected <<EOF
+Package: bird
+Version: 1
+Architecture: abacus
+Installed-Size: 20
+Maintainer: me <guess@who>
+Priority: superfluous
+Section: tasty
+Filename: pool/dog/b/bird/bird_1_abacus.deb
+Size: $DEBSIZE
+MD5sum: $DEBMD5
+Description: bla
+ blub
 
-# check contents of Packages and Sources
-# TODO: test override to cat
-# exit 0
+Package: bird-addons
+Version: 1
+Architecture: all
+Installed-Size: 24
+Maintainer: me <guess@who>
+Source: bird
+Priority: superfluous
+Section: tasty
+Filename: pool/dog/b/bird/bird-addons_1_all.deb
+Size: $DEBASIZE
+MD5sum: $DEBAMD5
+Description: bla
+ blub
+
+EOF
+diff results.expected dists/B/dog/binary-abacus/Packages
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Priority: superfluous
+Section: tasty
+Directory: pool/dog/b/bird
+Files: 
+ $DSCMD5S bird_1.dsc
+ $TARMD5S bird_1.tar.gz
+
+EOF
+gunzip -c dists/B/dog/source/Sources.gz > results
+diff results.expected results
+
+echo "DebOverride: debo" >> conf/distributions
+echo "DscOverride: dsco" >> conf/distributions
+mkdir override
+echo "bird Section cat/tasty" > override/debo
+echo "bird Priority hungry" >> override/debo
+echo "bird Task lunch" >> override/debo
+echo "bird-addons Section cat/ugly" >> override/debo
+echo "bird Section cat/nest" > override/dsco
+echo "bird Priority hurry" >> override/dsco
+echo "bird Homepage gopher://tree" >> override/dsco
+
+mv i2/* i/
+rmdir i2
+testrun - -V -b . import default 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+*=Created directory "./pool/cat"
+*=Created directory "./pool/cat/b"
+*=Created directory "./pool/cat/b/bird"
+*=Exporting indices...
+*= generating Contents-abacus...
+*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
+*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
+stdout
+*=db: 'bird' added to 'B|cat|source'.
+*=db: 'bird' added to 'B|cat|abacus'.
+*=db: 'bird-addons' added to 'B|cat|abacus'.
+*=deleting './i/bird_1.dsc'...
+*=deleting './i/bird_1.tar.gz'...
+*=deleting './i/bird_1_abacus.deb'...
+*=deleting './i/bird-addons_1_all.deb'...
+*=deleting './i/test.changes'...
+EOF
+find temp -type f > results
+diff results.empty results
+find i -type f > results
+diff results.empty results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+x	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+a/1	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+dir/another	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+dir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+dir/subdir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+EOF
+gunzip -c dists/B/Contents-abacus.gz > results
+diff results.expected results
+cat > results.expected <<EOF
+Package: bird
+Version: 1
+Architecture: abacus
+Installed-Size: 20
+Maintainer: me <guess@who>
+Task: lunch
+Priority: hungry
+Section: cat/tasty
+Filename: pool/cat/b/bird/bird_1_abacus.deb
+Size: $DEBSIZE
+MD5sum: $DEBMD5
+Description: bla
+ blub
+
+Package: bird-addons
+Version: 1
+Architecture: all
+Installed-Size: 24
+Maintainer: me <guess@who>
+Source: bird
+Priority: superfluous
+Section: cat/ugly
+Filename: pool/cat/b/bird/bird-addons_1_all.deb
+Size: $DEBASIZE
+MD5sum: $DEBAMD5
+Description: bla
+ blub
+
+EOF
+diff results.expected dists/B/cat/binary-abacus/Packages
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Homepage: gopher://tree
+Priority: hurry
+Section: cat/nest
+Directory: pool/cat/b/bird
+Files: 
+ $DSCMD5S bird_1.dsc
+ $TARMD5S bird_1.tar.gz
+
+EOF
+gunzip -c dists/B/cat/source/Sources.gz > results
+diff -u results.expected results
+
+# now missing: checking what all can go wrong in a .changes or .dsc file...
+
 rm -r conf db pool dists i
 # echo "preliminary finish due to testing"
 # exit 0
