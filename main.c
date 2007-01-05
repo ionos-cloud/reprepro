@@ -73,6 +73,7 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*dbdir = NULL,
 	*listdir = NULL,
 	*confdir = NULL,
+	/* This should have never been a seperate directory, well to late... */
 	*overridedir = NULL,
 	*methoddir = NULL;
 static char /*@only@*/ /*@null@*/
@@ -1980,7 +1981,7 @@ ACTION_D(import) {
 		return r;
 	}
 
-	result = process_incoming(mirrordir, confdir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
+	result = process_incoming(mirrordir, confdir, overridedir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
 
 	r = distribution_exportandfreelist(export,distributions,
 			confdir,dbdir,distdir, filesdb);

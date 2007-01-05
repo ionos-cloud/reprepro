@@ -908,7 +908,7 @@ static retvalue candidate_checkpermissions(const char *confdir, struct incoming 
 	return RET_NOTHING;
 }
 
-static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
+static retvalue candidate_add(const char *confdir,const char *overridedir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
 	struct candidate_file *file;
 	struct trackingdata *trackingdata = NULL;
 	retvalue r;
@@ -946,7 +946,7 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 		return RET_ERROR;
 	}
 
-	r = distribution_loadalloverrides(into,confdir);
+	r = distribution_loadalloverrides(into, overridedir);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -1057,7 +1057,7 @@ static retvalue candidate_add(const char *confdir, filesdb filesdb, const char *
 	return RET_OK;
 }
 
-static retvalue process_changes(const char *confdir, filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, int ofs) {
+static retvalue process_changes(const char *confdir,const char *overridedir,filesdb filesdb,const char *dbdir,references refs,struct strlist *dereferenced,struct incoming *i,int ofs) {
 	struct candidate *c;
 	struct distribution *into = NULL;
 	struct candidate_file *file;
@@ -1126,7 +1126,7 @@ static retvalue process_changes(const char *confdir, filesdb filesdb, const char
 				i->files.values[ofs]);
 			r = RET_ERROR;
 		} else
-			r = candidate_add(confdir, filesdb, dbdir,
+			r = candidate_add(confdir, overridedir, filesdb, dbdir,
 			                  refs, dereferenced,
 			                  i, c, into);
 		if( RET_WAS_ERROR(r) && i->cleanup.on_error ) {
@@ -1143,7 +1143,7 @@ static retvalue process_changes(const char *confdir, filesdb filesdb, const char
 }
 
 /* tempdir should ideally be on the same partition like the pooldir */
-retvalue process_incoming(const char *basedir,const char *confdir, filesdb files, const char *dbdir, references refs, struct strlist *dereferenced, struct distribution *distributions, const char *name) {
+retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir,filesdb files,const char *dbdir,references refs,struct strlist *dereferenced,struct distribution *distributions,const char *name) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
@@ -1162,7 +1162,7 @@ retvalue process_incoming(const char *basedir,const char *confdir, filesdb files
 		if( l <= C_LEN || strcmp(basename+(l-C_LEN),C_SUFFIX) != 0 )
 			continue;
 		/* a .changes file, check it */
-		r = process_changes(confdir, files, dbdir, refs, dereferenced, i, j);
+		r = process_changes(confdir, overridedir, files, dbdir, refs, dereferenced, i, j);
 		RET_UPDATE(result, r);
 	}
 
