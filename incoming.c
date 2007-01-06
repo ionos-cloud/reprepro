@@ -113,6 +113,13 @@ static retvalue incoming_prepare(struct incoming *i) {
 		return RET_ERRNO(e);
 	}
 	while( (ent = readdir(dir)) != NULL ) {
+		if( ent->d_name[0] == '.' )
+			continue;
+		/* this should be impossible to hit.
+		 * but given utf-8 encoding filesystems and
+		 * overlong slashes, better check than be sorry */
+		if( strchr(ent->d_name, '/') != NULL )
+			continue;
 		r = strlist_add_dup(&i->files, ent->d_name) ;
 		if( RET_WAS_ERROR(r) ) {
 			closedir(dir);
@@ -487,12 +494,19 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 	const char *basename;
 	char *origfile,*tempfilename;
 	retvalue r;
+	const char *p;
 
 	if( file->used ) {
 		assert(file->tempfilename != NULL);
 		return RET_OK;
 	}
 	basename = BASENAME(i,file->ofs);
+	for( p = basename; *p != '\0' ; p++ ) {
+		if( (0x80 & *(const unsigned char *)p) != 0 ) {
+			fprintf(stderr, "Invalid filename '%s': contains 8-bit characters\n");
+			return RET_ERROR;
+		}
+	}
 	tempfilename = calc_dirconcat(i->tempdir, basename);
 	if( tempfilename == NULL )
 		return RET_ERROR_OOM;
