@@ -503,7 +503,7 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 	basename = BASENAME(i,file->ofs);
 	for( p = basename; *p != '\0' ; p++ ) {
 		if( (0x80 & *(const unsigned char *)p) != 0 ) {
-			fprintf(stderr, "Invalid filename '%s': contains 8-bit characters\n");
+			fprintf(stderr, "Invalid filename '%s': contains 8-bit characters\n", basename);
 			return RET_ERROR;
 		}
 	}
