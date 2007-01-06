@@ -617,14 +617,6 @@ void names_overversion(const char **version,bool_t epochsuppressed) {
 	if( *n < '0' || *n > '9' ) {
 		if( (*n < 'a' || *n > 'z') && (*n < 'A' || *n > 'Z') )
 			return;
-		else {
-			/* As there are packages violating the rule of policy 5.6.11 to
-			 * start with a digit, disabling this test, and only omitting a
-			 * warning. */
-			if( verbose >= 0 )
-				fprintf(stderr,"Warning: Package version '%s' does not start with a digit, violating 'should'-directive in policy 5.6.11\n",n);
-//			return;
-		}
 	} else
 		n++;
 	while( *n >= '0' && *n <= '9' )
@@ -632,7 +624,6 @@ void names_overversion(const char **version,bool_t epochsuppressed) {
 	if( *n == ':' ) {
 		hadepoch = TRUE;
 		n++;
-//TODO: more corectly another check should be here to also look for a digit...
 	}
 	while( ( *n >= '0' && *n <= '9' ) || ( *n >= 'a' && *n <= 'z')
 			|| ( *n >= 'A' && *n <= 'Z' ) || *n == '.' || *n == '~'
