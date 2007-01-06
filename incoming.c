@@ -354,6 +354,28 @@ struct candidate {
 	} *files;
 };
 
+static void candidate_file_free(struct candidate_file *f) {
+	free(f->md5sum);
+	free(f->section);
+	free(f->priority);
+	free(f->architecture);
+	free(f->name);
+	if( f->tempfilename != NULL ) {
+		unlink(f->tempfilename);
+		free(f->tempfilename);
+		f->tempfilename = NULL;
+	}
+	free(f->component);
+	if( FE_BINARY(f->type) )
+		binaries_debdone(&f->deb);
+	if( f->type == fe_DSC )
+		sources_done(&f->dsc);
+	free(f->directory);
+	strlist_done(&f->filekeys);
+	free(f->files);
+	free(f);
+}
+
 static void candidate_free(struct candidate *c) {
 	if( c == NULL )
 		return;
@@ -368,25 +390,7 @@ static void candidate_free(struct candidate *c) {
 	while( c->files != NULL ) {
 		struct candidate_file *f = c->files;
 		c->files = f->next;
-		free(f->md5sum);
-		free(f->section);
-		free(f->priority);
-		free(f->architecture);
-		free(f->name);
-		if( f->tempfilename != NULL ) {
-			unlink(f->tempfilename);
-			free(f->tempfilename);
-			f->tempfilename = NULL;
-		}
-		free(f->component);
-		if( FE_BINARY(f->type) )
-			binaries_debdone(&f->deb);
-		if( f->type == fe_DSC )
-			sources_done(&f->dsc);
-		free(f->directory);
-		strlist_done(&f->filekeys);
-		free(f->files);
-		free(f);
+		candidate_file_free(f);
 	}
 	free(c);
 }
@@ -434,6 +438,7 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 	if( n->ofs < 0 ) {
 		fprintf(stderr,"In '%s': file '%s' not found in the incoming dir!\n", i->files.values[c->ofs], basename);
 		free(basename);
+		candidate_file_free(n);
 		return RET_ERROR_MISSING;
 	}
 	free(basename);
@@ -503,7 +508,7 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 	basename = BASENAME(i,file->ofs);
 	for( p = basename; *p != '\0' ; p++ ) {
 		if( (0x80 & *(const unsigned char *)p) != 0 ) {
-			fprintf(stderr, "Invalid filename '%s': contains 8-bit characters\n", basename);
+			fprintf(stderr, "Invalid filename '%s' listed in '%s': contains 8-bit characters\n", basename, BASENAME(i,c->ofs));
 			return RET_ERROR;
 		}
 	}
@@ -541,7 +546,7 @@ static inline retvalue getsectionprioritycomponent(struct incoming *i,struct can
 	if( section == NULL || strcmp(section,"-") == 0 ) {
 		fprintf(stderr, "No section found for '%s' ('%s' in '%s')!\n",
 				name,
-				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+				BASENAME(i,file->ofs), BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 	priority = override_get(oinfo, PRIORITY_FIELDNAME);
@@ -552,7 +557,7 @@ static inline retvalue getsectionprioritycomponent(struct incoming *i,struct can
 	if( priority == NULL || strcmp(priority,"-") == 0 ) {
 		fprintf(stderr, "No priority found for '%s' ('%s' in '%s')!\n",
 				name,
-				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+				BASENAME(i,file->ofs), BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 
@@ -583,14 +588,14 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 		// TODO: add permissive thing to ignore this
 		fprintf(stderr, "Name part of filename ('%s') and name within the file ('%s') do not match for '%s' in '%s'!\n",
 				file->name, file->deb.name,
-				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+				BASENAME(i,file->ofs), BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 	if( strcmp(file->architecture, file->deb.architecture) != 0 ) {
 		// TODO: add permissive thing to ignore this in some cases
 		fprintf(stderr, "Architecture '%s' of '%s' does not match '%s' specified in '%s'!\n",
-				file->deb.architecture, BASENAME(i,c->ofs),
-				file->architecture, BASENAME(i,file->ofs));
+				file->deb.architecture, BASENAME(i,file->ofs),
+				file->architecture, BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 	if( strcmp(c->source, file->deb.source) != 0 ) {
@@ -610,9 +615,9 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 		return RET_ERROR;
 	}
 	if( ! strlist_in(&c->binaries, file->deb.name) ) {
-		fprintf(stderr, "Name '%s' of binary '%s' is not listed in Binaries-header of'%s'!\n",
-				c->version, BASENAME(i,c->ofs),
-				BASENAME(i,file->ofs));
+		fprintf(stderr, "Name '%s' of binary '%s' is not listed in Binaries-header of '%s'!\n",
+				file->deb.name, BASENAME(i,file->ofs),
+				BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 	r = properpackagename(file->deb.name);

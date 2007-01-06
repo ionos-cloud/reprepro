@@ -432,10 +432,263 @@ gunzip -c dists/B/cat/source/Sources.gz > results
 diff -u results.expected results
 
 # now missing: checking what all can go wrong in a .changes or .dsc file...
+mkdir pkg
+mkdir pkg/a
+touch pkg/a/b
+mkdir pkg/DEBIAN
+cat > pkg/DEBIAN/control <<EOF
+Package: indebname
+Version: 1:versionindeb~1
+Source: sourceindeb (sourceversionindeb)
+EOF
+dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+cat > i/test.changes <<EOF
+EOF
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Could only find spaces within './i/test.changes'!
+*=There have been errors!
+EOF
+cat > i/test.changes <<EOF
+Dummyfield: test
+EOF
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Source' field!
+*=There have been errors!
+EOF
+echo "Source: sourceinchanges" > i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Binary' field!
+*=There have been errors!
+EOF
+echo "Binary: binaryinchanges" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Architecture' field1
+*=There have been errors!
+EOF
+echo "Architecture: funny" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Version' field!
+*=There have been errors!
+EOF
+echo "Version: 999:versioninchanges-0~" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Distribution' field!
+*=There have been errors!
+EOF
+echo "Distribution: A" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Files' field!
+*=There have been errors!
+EOF
+echo "Files:" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Empty 'Files' section!
+*=There have been errors!
+EOF
+# as it does not look for the file, but scanned the directory
+# and looked for it, there is no problem here, though it might
+# look like one
+echo " md5sum size - - ../ööü_v_arch.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 249
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'v_arch.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=In 'test.changes': file '../ööü_v_arch.deb' not found in the incoming dir!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " md5sum size - - \300\257.\300\257_v_arch.deb" >> i/test.changes
+touch "$(echo -e 'i/\300\257.\300\257_v_arch.deb')"
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='test.changes' lists architecture 'funny' not found in distribution 'A'!
+*=There have been errors!
+EOF
+sed -i -e 's/funny/all/' i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Invalid filename 'À¯.À¯_v_arch.deb' listed in 'test.changes': contains 8-bit characters
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " md5sum size - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+# // TODO: that should be ERROR: instead of WARNING:
+testrun - -V -b . import default 3<<EOF
+returns 254
+stderr
+=Data seems not to be signed trying to use directly...
+*=WARNING: './i/debfilename_debfileversion~2_coal.deb' has md5sum '$DEBMD5S', while 'md5sum size' was expected.
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+# TODO: these will hopefully change to not divulge the place of the temp dir some day...
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find Maintainer-header in control file of ./temp/debfilename_debfileversion~2_coal.deb!
+*=There have been errors!
+EOF
+echo "Maintainer: noone <me@nowhere>" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find Description-header in control file of ./temp/debfilename_debfileversion~2_coal.deb!
+*=There have been errors!
+EOF
+echo ...
+echo "Description: test-package" >> pkg/DEBIAN/control
+echo " a package to test reprepro" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find Architecture-header in control file of ./temp/debfilename_debfileversion~2_coal.deb!
+*=There have been errors!
+EOF
+echo "Architecture: coal" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Name part of filename ('debfilename') and name within the file ('indebname') do not match for 'debfilename_debfileversion~2_coal.deb' in 'test.changes'!
+*=There have been errors!
+EOF
+mv i/debfilename_debfileversion~2_coal.deb i/indebname_debfileversion~2_coal.deb
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - indebname_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Source-header 'sourceinchanges' of 'test.changes' and source name 'sourceindeb' within the file 'indebname_debfileversion~2_coal.deb' do not match!
+*=There have been errors!
+EOF
+sed -i -e 's/sourceinchanges/sourceindeb/' i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Version-header '999:versioninchanges-0~' of 'test.changes' and source version 'sourceversionindeb' within the file 'indebname_debfileversion~2_coal.deb' do not match!
+*=There have been errors!
+EOF
+sed -i -e 's/999:versioninchanges-0~/sourceversionindeb/' i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=Name 'indebname' of binary 'indebname_debfileversion~2_coal.deb' is not listed in Binaries-header of 'test.changes'!
+*=There have been errors!
+EOF
+sed -i -e 's/binaryinchanges/indebname/' i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No section found for 'indebname' ('indebname_debfileversion~2_coal.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo "Section: test" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+mv i/debfilename_debfileversion~2_coal.deb i/indebname_debfileversion~2_coal.deb
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - indebname_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No section found for 'indebname' ('indebname_debfileversion~2_coal.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S test - indebname_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No priority found for 'indebname' ('indebname_debfileversion~2_coal.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo "Priority: survival" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+mv i/debfilename_debfileversion~2_coal.deb i/indebname_debfileversion~2_coal.deb
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S test - indebname_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No priority found for 'indebname' ('indebname_debfileversion~2_coal.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S section priority indebname_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Created directory "./pool/dog/s"
+=Created directory "./pool/dog/s/sourceindeb"
+*=There have been errors!
+EOF
 
-rm -r conf db pool dists i
-# echo "preliminary finish due to testing"
-# exit 0
+echo "preliminary finish due to testing"
+exit 0
+rm -r conf db pool dists i pkg
+echo "preliminary finish due to testing"
+exit 0
 ###############################################################################
 
 mkdir -p conf

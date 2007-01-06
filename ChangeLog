@@ -1,6 +1,5 @@
 2007-01-06  Bernhard R. Link <brlink@debian.org>
-	* more incoming handling code:
-	- 8bit checks
+	* incoming fixups and more testcases
 	* omit some warnings about versions not starting
 	  with a digit
 
