@@ -593,6 +593,7 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 	}
 	if( strcmp(file->architecture, file->deb.architecture) != 0 ) {
 		// TODO: add permissive thing to ignore this in some cases
+		// but do not forget to look into into->architectures then
 		fprintf(stderr, "Architecture '%s' of '%s' does not match '%s' specified in '%s'!\n",
 				file->deb.architecture, BASENAME(i,file->ofs),
 				file->architecture, BASENAME(i,c->ofs));
@@ -962,6 +963,16 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 			continue;
 		fprintf(stderr, "'%s' lists architecture '%s' not found in distribution '%s'!\n",
 				BASENAME(i,c->ofs), architecture, into->codename);
+		return RET_ERROR;
+	}
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( !FE_PACKAGE(file->type) )
+			continue;
+		if( strlist_in(&c->architectures, file->architecture) )
+			continue;
+		fprintf(stderr, "'%s' is not listed in the Architecture header of '%s' but file '%s' looks like it!\n",
+				file->architecture, BASENAME(i,c->ofs),
+				BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
 
