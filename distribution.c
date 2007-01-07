@@ -403,8 +403,12 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
 		t = t->next;
 	}
-	// todo: make sure UDEBs get never called here without real testing...!!!!
-	assert( t != NULL );
+	if( t == NULL ) {
+		fprintf(stderr, "Internal error in distribution_getpart: Bogus request for c='%s' a='%s' t='%s' in '%s'!\n",
+				component, architecture, packagetype,
+				distribution->codename);
+		abort();
+	}
 	return t;
 }
 
