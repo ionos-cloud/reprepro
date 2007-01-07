@@ -469,7 +469,7 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 	r = chunk_getwordlist(c->control,"Binary",&c->binaries);
 	E("Missing 'Binary' field!");
 	r = chunk_getwordlist(c->control,"Architecture",&c->architectures);
-	E("Missing 'Architecture' field1");
+	E("Missing 'Architecture' field!");
 	r = chunk_getvalue(c->control,"Version",&c->version);
 	E("Missing 'Version' field!");
 	r = properversion(c->version);
