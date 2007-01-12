@@ -475,7 +475,7 @@ testrun - -V -b . import default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
-*=In 'test.changes': Missing 'Architecture' field1
+*=In 'test.changes': Missing 'Architecture' field!
 *=There have been errors!
 EOF
 echo "Architecture: funny" >> i/test.changes
@@ -803,18 +803,18 @@ echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
-returns 255
-stderr
-=Data seems not to be signed trying to use directly...
-*=There have been errors!
-EOF
+#testrun - -V -b . import default 3<<EOF
+#returns 255
+#stderr
+#=Data seems not to be signed trying to use directly...
+#*=There have been errors!
+#EOF
 
-echo "preliminary finish due to testing"
-exit 0
+#echo "preliminary finish due to testing"
+#exit 0
 rm -r conf db pool dists i pkg
-echo "preliminary finish due to testing"
-exit 0
+#echo "preliminary finish due to testing"
+#exit 0
 ###############################################################################
 
 mkdir -p conf
@@ -1199,10 +1199,10 @@ PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpack
 testrun -  -b . include test1 test.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Warning: Package version 'b.1-1_all.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1_all.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=Exporting indices...
 EOF
 
