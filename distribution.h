@@ -65,6 +65,9 @@ struct distribution {
 	/*@null@*/char *uploaders;
 	/* only loaded after _loaduploaders */
 	/*@null@*/struct uploaders *uploaderslist;
+	/* a list of names beside Codename and Suite to accept .changes
+	 * files via include */
+	struct strlist alsoaccept;
 	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */

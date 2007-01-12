@@ -842,7 +842,9 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 
 	if( (distribution->suite == NULL ||
 		!strlist_in(&changes->distributions,distribution->suite)) &&
-	    !strlist_in(&changes->distributions,distribution->codename) ) {
+	    !strlist_in(&changes->distributions,distribution->codename) &&
+	    !strlist_intersects(&changes->distributions,
+	                       &distribution->alsoaccept) ) {
 		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") ) {
 			changes_free(changes);
 			return RET_ERROR;

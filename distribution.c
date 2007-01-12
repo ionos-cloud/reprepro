@@ -64,6 +64,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
 		strlist_done(&distribution->pulls);
+		strlist_done(&distribution->alsoaccept);
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
@@ -199,7 +200,7 @@ static const char * const allowedfields[] = {
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 "Pull", "Contents", "ContentsArchitectures",
 "ContentsComponents", "ContentsUComponents",
-"Uploaders",
+"Uploaders", "AlsoAcceptFor",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
@@ -342,6 +343,12 @@ NULL};
 		option = NULL;
 	ret = tracking_parse(option,r);
 	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
+	ret = chunk_getuniqwordlist(chunk, "AlsoAcceptFor", &r->alsoaccept);
+	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
 	}
@@ -707,6 +714,18 @@ struct distribution *distribution_find(struct distribution *distributions, const
 		d = d->next;
 	if( d != NULL )
 		return d;
+	d = distributions;
+	while( d != NULL && !strlist_in(&d->alsoaccept, name) )
+		d = d->next;
+	r = d;
+	if( r != NULL ) {
+		while( d != NULL && ! strlist_in(&d->alsoaccept, name) )
+			d = d->next;
+		if( d == NULL )
+			return r;
+		fprintf(stderr, "No distribution has codename '%s' and multiple have it in AlsoAcceptFor!\n", name);
+		return NULL;
+	}
 	d = distributions;
 	while( d != NULL && ( d->suite == NULL || strcmp(d->suite, name) != 0 ))
 		d = d->next;

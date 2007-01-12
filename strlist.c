@@ -259,3 +259,12 @@ retvalue strlist_adduniq(struct strlist *strlist,char *element) {
 		return strlist_add(strlist,element);
 
 }
+
+bool_t strlist_intersects(const struct strlist *a,const struct strlist *b) {
+	size_t i;
+
+	for( i = 0 ; i < a->count ; i++ )
+		if( strlist_in(b, a->values[i]) )
+			return TRUE;
+	return FALSE;
+}
