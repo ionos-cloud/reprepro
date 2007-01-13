@@ -483,6 +483,17 @@ stable, testing or unstable. To create symlinks
 from the Suite to the Codename, use the
 \fBcreatesymlinks\fP command of reprepro.
 .TP
+.B AlsoAcceptFor
+A list of distribution names.
+When a \fB.changes\fP file is told to be included
+into this distribution with the \fBinclude\fP command
+and the distribution header of that file is neigther
+the codename, nor the suite name, nor any name from the
+list, a \fBwrongdistribution\fP error is generated.
+The \fBimport\fP command will also use this field,
+see the description of \fBAllow\fP and \fBDefault\fP
+from the \fBconf/imports\fP file for more information.
+.TP
 .B Version
 This optional field is simply copied into the
 Release files.
