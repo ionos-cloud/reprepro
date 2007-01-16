@@ -803,12 +803,13 @@ echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-#testrun - -V -b . import default 3<<EOF
-#returns 255
-#stderr
-#=Data seems not to be signed trying to use directly...
-#*=There have been errors!
-#EOF
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Missing 'Files'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
 
 #echo "preliminary finish due to testing"
 #exit 0

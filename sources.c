@@ -198,18 +198,6 @@ static inline retvalue calcnewcontrol(
 	return RET_OK;
 }
 
-/* Get the files and their expected md5sums */
-retvalue sources_parse_getmd5sums(const char *chunk,struct strlist *basenames, struct strlist *md5sums) {
-	retvalue r;
-
-	r = parse_chunk(chunk,NULL,basenames,md5sums);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
-		return RET_ERROR;
-	}
-	return r;
-}
-
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item) {
 	size_t len;
 	int i;
@@ -511,7 +499,11 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *
 	r = getvalue_n(dsc->control,PRIORITY_FIELDNAME,&dsc->priority);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = sources_parse_getmd5sums(dsc->control,&dsc->basenames,&dsc->md5sums);
+	r = parse_chunk(dsc->control,NULL,&dsc->basenames,&dsc->md5sums);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing 'Files'-header in %s!\n",filename);
+		return RET_ERROR;
+	}
 	return r;
 }
 

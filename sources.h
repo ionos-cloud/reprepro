@@ -9,8 +9,6 @@
 #include "target.h"
 #endif
 
-retvalue sources_parse_getmd5sums(const char *chunk,/*@out@*/struct strlist *basenames, /*@out@*/struct strlist *md5sums);
-
 /* Calculate the filelines in a form suitable for chunk_replacefields: */
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,/*@out@*/char **item);
 
