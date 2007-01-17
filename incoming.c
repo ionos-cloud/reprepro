@@ -692,7 +692,7 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 		// TODO: add permissive thing to ignore this
 		fprintf(stderr, "Name part of filename ('%s') and name within the file ('%s') do not match for '%s' in '%s'!\n",
 				file->name, file->dsc.name,
-				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+				BASENAME(i,file->ofs), BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 	if( strcmp(c->source, file->dsc.name) != 0 ) {
