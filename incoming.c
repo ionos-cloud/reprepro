@@ -767,13 +767,13 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 		if( f != NULL && strcmp(f->md5sum,md5sum) != 0 ) {
 			fprintf(stderr, "file '%s' is listed with md5sum '%s' in '%s' but with md5sum '%s' in '%s'!\n",
 					basename,
-					file->md5sum, BASENAME(i,c->ofs),
+					f->md5sum, BASENAME(i,c->ofs),
 					md5sum, BASENAME(i,file->ofs));
-
+			return RET_ERROR;
 		}
 		r = files_ready(filesdb, filekey, md5sum);
 		if( r == RET_NOTHING ) {
-			/* already in the pool, make as used (in the sense
+			/* already in the pool, mark as used (in the sense
 			 * of not needed) */
 
 			if( f != NULL )
@@ -782,6 +782,13 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 		} else if( RET_IS_OK(r) ) {
 			/* don't have this file in the pool, make sure it is ready
 			 * here */
+
+			if( f == NULL ) {
+				/* if md5sum and size match, it's our file */
+				f = c->files;
+				while( f != NULL && strcmp(f->md5sum,md5sum) != 0 )
+					f = f->next;
+			}
 
 			if( f == NULL ) {
 				fprintf(stderr, "file '%s' is needed for '%s', not yet registered in the pool and not found in '%s'\n",
