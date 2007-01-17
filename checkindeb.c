@@ -216,7 +216,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 &&
 			strcmp(pkg->deb.architecture,forcearchitecture) != 0 &&
 			strcmp(pkg->deb.architecture,"all") != 0 ) {
-		fprintf(stderr,"Cannot checking in '%s' into architecture '%s', as it is '%s'!",
+		fprintf(stderr,"Cannot checking in '%s' into architecture '%s', as it is '%s'!\n",
 				debfilename,forcearchitecture,pkg->deb.architecture);
 		deb_free(pkg);
 /* TODO: this should be moved upwards...

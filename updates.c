@@ -943,7 +943,7 @@ retvalue updates_clearlists(const char *listdir,struct update_distribution *dist
 		dir = opendir(listdir);
 		if( dir == NULL ) {
 			int e = errno;
-			fprintf(stderr,"Error opening directory '%s' (error %d=%m)!",listdir,e);
+			fprintf(stderr,"Error opening directory '%s' (error %d=%m)!\n",listdir,e);
 			free(pattern);
 			return RET_ERRNO(e);
 		}

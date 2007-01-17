@@ -1316,7 +1316,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 					file->fullfinalfilename);
 			if( e < 0 ) {
 				e = errno;
-				fprintf(stderr,"Error moving %s to %s: %d=%m!",file->fulltemporaryfilename,file->fullfinalfilename,e);
+				fprintf(stderr,"Error moving %s to %s: %d=%m!\n",file->fulltemporaryfilename,file->fullfinalfilename,e);
 				r = RET_ERRNO(e);
 				/* after something was done, do not stop
 				 * but try to do as much as possible */
@@ -1333,7 +1333,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		e = rename(release->newsignfilename,release->signfilename);
 		if( e < 0 ) {
 			e = errno;
-			fprintf(stderr,"Error moving %s to %s: %d=%m!",
+			fprintf(stderr,"Error moving %s to %s: %d=%m!\n",
 					release->newsignfilename,
 					release->signfilename,e);
 			r = RET_ERRNO(e);
@@ -1349,7 +1349,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	e = rename(release->newreleasefilename,release->releasefilename);
 	if( e < 0 ) {
 		e = errno;
-		fprintf(stderr,"Error moving %s to %s: %d=%m!",
+		fprintf(stderr,"Error moving %s to %s: %d=%m!\n",
 				release->newreleasefilename,
 				release->releasefilename,e);
 		r = RET_ERRNO(e);

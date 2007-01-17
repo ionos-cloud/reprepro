@@ -612,7 +612,7 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 		todo = todo->next;
 	}
 	/* huh? If if have not asked for it, how can there be errors? */
-	fprintf(stderr,"Error with unexpected file '%s':\n'%s'!",uri,message);
+	fprintf(stderr,"Error with unexpected file '%s':\n'%s'!\n",uri,message);
 	free(message);
 	return RET_ERROR;
 }
@@ -657,7 +657,7 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 		todo = todo->next;
 	}
 	/* huh? */
-	fprintf(stderr,"Received unexpected file '%s' at '%s'!",uri,filename);
+	fprintf(stderr,"Received unexpected file '%s' at '%s'!\n",uri,filename);
 	return RET_ERROR;
 }
 

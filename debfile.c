@@ -260,7 +260,7 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 				char *n;
 
 				if( size > 1024*1024*1024 ) {
-					fprintf(stderr, "Ridicilous long filelist for %s!",debfile);
+					fprintf(stderr, "Ridicilous long filelist for %s!\n",debfile);
 					free(filelist);
 					return RET_ERROR;
 				}

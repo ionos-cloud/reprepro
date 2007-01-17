@@ -88,9 +88,9 @@ retvalue changes_parsefileline(const char *fileline, filetype *result_type,
 		p++;
 	if( *p != '_' ) {
 		if( *p == '\0' )
-			fprintf(stderr,"No underscore in filename in '%s'!",fileline);
+			fprintf(stderr,"No underscore in filename in '%s'!\n",fileline);
 		else
-			fprintf(stderr,"Unexpected character '%c' in filename in '%s'\n!",*p,fileline);
+			fprintf(stderr,"Unexpected character '%c' in filename in '%s'!\n",*p,fileline);
 		return RET_ERROR;
 	}
 	nameend = p;

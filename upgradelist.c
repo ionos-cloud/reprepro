@@ -131,7 +131,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 			/* this should only happen if the underlying
 			 * database-method get changed, so just throwing
 			 * out here */
-			fprintf(stderr,"Package-database is not sorted!!!");
+			fprintf(stderr,"Package-database is not sorted!!!\n");
 			assert(FALSE);
 			exit(EXIT_FAILURE);
 		}
