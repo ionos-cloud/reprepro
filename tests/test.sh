@@ -773,6 +773,17 @@ testrun - -V -b . import default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
+*=Cannot find 'Format'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo "Format: 1.0" >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
 *=Cannot find 'Maintainer'-header in ./temp/dscfilename_fileversion~.dsc!
 *=There have been errors!
 EOF
@@ -809,6 +820,196 @@ stderr
 =Data seems not to be signed trying to use directly...
 *=Missing 'Files'-header in ./temp/dscfilename_fileversion~.dsc!
 *=There have been errors!
+EOF
+echo "Files:  " >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Name part of filename ('dscfilename') and name within the file ('nameindsc') do not match for 'dscfilename_fileversion~.dsc' in 'test.changes'!
+*=There have been errors!
+EOF
+sed -i 's/^Source: nameindsc$/Source: dscfilename/g' i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Source-header 'sourceinchanges' of 'test.changes' and name 'dscfilename' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=There have been errors!
+EOF
+sed -i 's/^Source: sourceinchanges$/Source: dscfilename/' i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Version-header '1:versioninchanges' of 'test.changes' and version 'versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=There have been errors!
+EOF
+sed -i 's/^Version: 1:versioninchanges$/Version: versionindsc/' i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No section found for 'dscfilename' ('dscfilename_fileversion~.dsc' in 'test.changes')!
+*=There have been errors!
+EOF
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No priority found for 'dscfilename' ('dscfilename_fileversion~.dsc' in 'test.changes')!
+*=There have been errors!
+EOF
+echo -e "g/^Format:/d\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=Cannot find 'Format'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo -e "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 0
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=Created directory "./pool/dog/d"
+*=Created directory "./pool/dog/d/dscfilename"
+=Exporting indices...
+stdout
+*=db: 'dscfilename' added to 'B|dog|source'.
+*=deleting './i/dscfilename_fileversion~.dsc'...
+*=deleting './i/test.changes'...
+EOF
+# TODO: check Sources.gz
+cat >i/strangefile <<EOF
+just a line to make it non-empty
+EOF
+cat >i/dscfilename_fileversion~.dsc <<EOF
+Format: 1.0
+Source: dscfilename
+Maintainer: guess who <me@nowhere>
+Standards-Version: 0
+Version: 1:newversion~
+Files:
+ md5sumindsc sizeindsc strangefile
+EOF
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+cat >i/test.changes <<EOF
+Source: dscfilename
+Binary: nothing
+Architecture: source
+Version: 1:newversion~
+Distribution: B
+Files:
+ $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc
+EOF
+# this is a stupid error message, needs to get some context
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Error in parsing size or missing space afterwards!
+*=There have been errors!
+EOF
+sed -i "s/ sizeindsc / 666 /" i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
+*=There have been errors!
+EOF
+echo " md5suminchanges 666 - - strangefile" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=No underscore in filename in 'md5suminchanges 666 - - strangefile'!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " md5suminchanges 666 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 249
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: 'md5suminchanges 666 - - strangefile_xyz', assuming to be source format...
+*=In 'test.changes': file 'strangefile_xyz' not found in the incoming dir!
+*=There have been errors!
+EOF
+mv i/strangefile i/strangefile_xyz
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: 'md5suminchanges 666 - - strangefile_xyz', assuming to be source format...
+*=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " md5sumindsc 666 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 254
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: 'md5sumindsc 666 - - strangefile_xyz', assuming to be source format...
+*=WARNING: './i/strangefile_xyz' has md5sum '31a1096ff883d52f0c1f39e652d6336f 33', while 'md5sumindsc 666' was expected.
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
+echo " 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz" >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$-1,$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
+echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: '33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
+*=file 'strangefile_xyz' is listed with md5sum '33a1096ff883d52f0c1f39e652d6336f 33' in 'test.changes' but with md5sum '31a1096ff883d52f0c1f39e652d6336f 33' in 'dscfilename_fileversion~.dsc'!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . import default 3<<EOF
+returns 0
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
+=Exporting indices...
+=Deleting files no longer referenced...
+stdout
+*=db: removed old 'dscfilename' from 'B|dog|source'.
+*=db: 'dscfilename' added to 'B|dog|source'.
+*=deleting './i/dscfilename_fileversion~.dsc'...
+*=deleting './i/test.changes'...
+*=deleting './i/strangefile_xyz'...
+*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 EOF
 
 #echo "preliminary finish due to testing"
