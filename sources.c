@@ -482,6 +482,12 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *
 	if( RET_WAS_ERROR(r) )
 		return r;
 
+	/* This is needed and cannot be ignored unless 
+	 * sources_complete is changed to not need it */
+	r = checkvalue(filename,dsc->control,"Format");
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	r = checkvalue(filename,dsc->control,"Maintainer");
 	if( RET_WAS_ERROR(r) )
 		return r;
