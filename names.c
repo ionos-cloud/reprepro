@@ -502,10 +502,6 @@ char *calc_dirsuffixconcat(const char *str1,const char *str2,const char *suffix)
 	return mprintf("%s/%s.%s",str1,str2,suffix);
 }
 
-char *calc_srcfilekey(const char *sourcedir,const char *filename){
-	return calc_dirconcat(sourcedir,filename);
-}
-
 char *calc_fullfilename(const char *mirrordir,const char *filekey){
 	return calc_dirconcat(mirrordir,filekey);
 }
@@ -757,3 +753,39 @@ retvalue splitlist(struct strlist *from,
 	return r;
 }
 
+char *calc_changes_basename(const char *name,const char *version,const struct strlist *architectures) {
+	size_t name_l, version_l, l;
+	int i;
+	char *n,*p;
+
+	name_l = strlen(name);
+	version_l = strlen(version);
+	l = name_l + version_l + sizeof("__.changes");
+
+	for( i = 0 ; i < architectures->count ; i++ ) {
+		l += strlen(architectures->values[i]);
+		if( i != 0 )
+			l++;
+	}
+	n = malloc(l);
+	if( n == NULL )
+		return n;
+	p = n;
+	memcpy(p, name, name_l); p+=name_l;
+	*(p++) = '_';
+	memcpy(p, version, version_l); p+=version_l;
+	*(p++) = '_';
+	for( i = 0 ; i < architectures->count ; i++ ) {
+		size_t a_l = strlen(architectures->values[i]);
+		if( i != 0 )
+			*(p++) = '+';
+		assert( (size_t)((p+a_l)-n) < l );
+		memcpy(p, architectures->values[i], a_l);
+		p += a_l;
+	}
+	assert( (size_t)(p-n) < l-8 );
+	memcpy(p, ".changes", 9 ); p += 9;
+	assert( *(p-1) == '\0' );
+	assert( (size_t)(p-n) == l );
+	return n;
+}

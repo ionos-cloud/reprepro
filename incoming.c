@@ -403,7 +403,7 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	n->ofs = ofs;
-	n->fullfilename = calc_dirconcat(i->directory, i->files.values[ofs]);
+	n->fullfilename = calc_dirconcat(i->directory, BASENAME(i,ofs));
 	if( n->fullfilename == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;
@@ -414,6 +414,16 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 		free(n);
 		return r;
 	}
+	/* first file of any .changes file is the file itself */
+	n->files = calloc(1,sizeof(struct candidate_file));
+	if( n->files == NULL ) {
+		candidate_free(n);
+		return RET_ERROR_OOM;
+	}
+	n->files->ofs = n->ofs;
+	n->files->type = fe_UNKNOWN;
+	n->files->used = TRUE;
+
 	assert( RET_IS_OK(r) );
 	*result = n;
 	return RET_OK;
@@ -457,7 +467,7 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 #define R if( RET_WAS_ERROR(r) ) return r;
 #define E(err) { \
 		if( r == RET_NOTHING ) { \
-			fprintf(stderr,"In '%s': " err "\n",i->files.values[c->ofs]); \
+			fprintf(stderr,"In '%s': " err "\n",BASENAME(i,c->ofs)); \
 			r = RET_ERROR; \
 	  	} \
 		if( RET_WAS_ERROR(r) ) return r; \
@@ -486,8 +496,9 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 		}
 	}
 	strlist_done(&filelines);
-	if( c->files == NULL ) {
-		fprintf(stderr,"In '%s': Empty 'Files' section!\n",i->files.values[c->ofs]);
+	if( c->files == NULL || c->files->next == NULL ) {
+		fprintf(stderr,"In '%s': Empty 'Files' section!\n",
+				BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 	return RET_OK;
@@ -501,10 +512,9 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 	retvalue r;
 	const char *p;
 
-	if( file->used ) {
-		assert(file->tempfilename != NULL);
+	if( file->used && file->tempfilename != NULL )
 		return RET_OK;
-	}
+	assert(file->tempfilename == NULL);
 	basename = BASENAME(i,file->ofs);
 	for( p = basename; *p != '\0' ; p++ ) {
 		if( (0x80 & *(const unsigned char *)p) != 0 ) {
@@ -521,7 +531,7 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 		return RET_ERROR_OOM;
 	}
 	unlink(tempfilename);
-	r = copy(tempfilename, origfile, file->md5sum, NULL);
+	r = copy(tempfilename, origfile, file->md5sum, (file->md5sum==NULL)?&file->md5sum:NULL);
 	free(origfile);
 	if( RET_WAS_ERROR(r) ) {
 		free(tempfilename);
@@ -567,6 +577,66 @@ static inline retvalue getsectionprioritycomponent(struct incoming *i,struct can
 	}
 	*section_p = section;
 	*priority_p = priority;
+	return RET_OK;
+}
+
+static retvalue cadidate_preparechangesfile(filesdb filesdb, struct incoming *i,struct candidate *c) {
+	retvalue r;
+	char *basename, *filekey;
+	struct candidate_file *file;
+	const char *component = NULL;
+	assert( c->files != NULL && c->files->ofs == c->ofs );
+
+	/* search for a component to use */
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->type == fe_DSC && file->component != NULL ) {
+			component = file->component;
+			break;
+		}
+	}
+	if( component == NULL )
+		for( file = c->files ; file != NULL ; file = file->next ) {
+			if( file->component != NULL ) {
+				component = file->component;
+				break;
+			}
+		}
+	if( component == NULL )
+		component = "strange";
+
+	/* the .changes file is the first of its own files */
+	file = c->files;
+
+	/* copy the .changes file, to get its md5sum and be sure it is
+	 * still there */
+	r = candidate_usefile(i, c, file);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( file->md5sum != NULL );
+
+	basename = calc_changes_basename(c->source, c->version, &c->architectures);
+	if( basename == NULL )
+		return RET_ERROR_OOM;
+
+	filekey = calc_filekey(component, c->source, basename);
+	free(basename);
+	if( filekey == NULL )
+		return RET_ERROR_OOM;
+
+	r = strlist_init_singleton(filekey, &file->filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( file->filekeys.count == 1 );
+	filekey = file->filekeys.values[0];
+	file->files = calloc(1, sizeof(struct candidate_file *));
+	if( file->files == NULL )
+		return RET_ERROR_OOM;
+	r = files_ready(filesdb, filekey, file->md5sum);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) )
+		file->files[0] = file;
+
 	return RET_OK;
 }
 
@@ -754,14 +824,14 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 		file->files[0] = file;
 	if( RET_WAS_ERROR(r) )
 		return r;
-	file->files[0] = file;
 	for( j = 1 ; j < file->filekeys.count ; j++ ) {
 		const char *filekey = file->filekeys.values[j];
 		const char *basename = file->dsc.basenames.values[j];
 		const char *md5sum = file->dsc.md5sums.values[j];
 		struct candidate_file *f = c->files;
 
-		while( f != NULL && strcmp(BASENAME(i,f->ofs), basename) != 0 )
+		while( f != NULL && (f->md5sum == NULL ||
+				     strcmp(BASENAME(i,f->ofs), basename) != 0) )
 			f = f->next;
 
 		if( f != NULL && strcmp(f->md5sum,md5sum) != 0 ) {
@@ -774,7 +844,7 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 		r = files_ready(filesdb, filekey, md5sum);
 		if( r == RET_NOTHING ) {
 			/* already in the pool, mark as used (in the sense
-			 * of not needed) */
+			 * of "only not needed because it is already there") */
 
 			if( f != NULL )
 				f->used = TRUE;
@@ -786,7 +856,8 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 			if( f == NULL ) {
 				/* if md5sum and size match, it's our file */
 				f = c->files;
-				while( f != NULL && strcmp(f->md5sum,md5sum) != 0 )
+				while( f != NULL && ( f->md5sum == NULL
+				                 || strcmp(f->md5sum,md5sum)) != 0 )
 					f = f->next;
 			}
 
@@ -818,7 +889,7 @@ static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct
 	retvalue r;
 
 	for( file = c->files ; file != NULL ; file = (file==stopat)?NULL:file->next ) {
-		if( ! FE_PACKAGE(file->type) )
+		if( file != c->files && ! FE_PACKAGE(file->type) )
 			continue;
 
 		for( j = 0 ;
@@ -843,7 +914,7 @@ static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct can
 	retvalue r;
 
 	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( ! FE_PACKAGE(file->type) )
+		if( file != c->files && ! FE_PACKAGE(file->type) )
 			continue;
 
 		for( j = 0 ; j < file->filekeys.count ; j++ ) {
@@ -935,103 +1006,9 @@ static retvalue candidate_checkpermissions(const char *confdir, struct incoming 
 	return RET_NOTHING;
 }
 
-static retvalue candidate_add(const char *confdir,const char *overridedir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
-	struct candidate_file *file;
-	struct trackingdata *trackingdata = NULL;
+static retvalue candidate_addprepared(const char *confdir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into,struct trackingdata *trackingdata) {
 	retvalue r;
-	int j;
-	assert( into != NULL );
-
-	if( into->tracking != dt_NONE ) {
-		fprintf(stderr, "Distributions with tracking not yet supported for import!\n");
-		return RET_NOTHING;
-	}
-
-	// TODO: allow being more permissive, may need some more checks later
-	r = propersourcename(c->source);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = properversion(c->version);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	for( j = 0 ; j < c->architectures.count ; j++ ) {
-		const char *architecture = c->architectures.values[j];
-		if( strcmp(architecture, "all") == 0 ) {
-			if( into->architectures.count > 1 )
-				continue;
-			if( into->architectures.count > 0 &&
-			    strcmp(into->architectures.values[0],"source") != 0)
-				continue;
-			fprintf(stderr, "'%s' lists architecture 'all' but not binary architecture found in distribution '%s'!\n",
-					BASENAME(i,c->ofs), into->codename);
-			return RET_ERROR;
-		}
-		if( strlist_in(&into->architectures, architecture) )
-			continue;
-		fprintf(stderr, "'%s' lists architecture '%s' not found in distribution '%s'!\n",
-				BASENAME(i,c->ofs), architecture, into->codename);
-		return RET_ERROR;
-	}
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( !FE_PACKAGE(file->type) )
-			continue;
-		if( strlist_in(&c->architectures, file->architecture) )
-			continue;
-		fprintf(stderr, "'%s' is not listed in the Architecture header of '%s' but file '%s' looks like it!\n",
-				file->architecture, BASENAME(i,c->ofs),
-				BASENAME(i,file->ofs));
-		return RET_ERROR;
-	}
-
-	r = distribution_loadalloverrides(into, overridedir);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	// TODO: once uploaderlist allows to look for package names or existing override
-	// entries or such things, check package names here enable checking for content
-	// name with outer name
-
-	/* when we get here, the package is allowed in, now we have to
-	 * read the parts and check all stuff we only know now */
-
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( strcmp(file->section, "byhand") == 0 ) {
-			/* to avoid further tests for this file */
-			file->type = fe_UNKNOWN;
-			// TODO: add command to feed them into
-			// increment refcount when used
-			continue;
-		}
-		switch( file->type ) {
-			case fe_UDEB:
-			case fe_DEB:
-				r = prepare_deb(filesdb,i,c,into,file);
-				break;
-			case fe_DSC:
-				r = prepare_dsc(filesdb,i,c,into,file);
-				break;
-			default:
-				r = RET_NOTHING;
-				break;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			// TODO: error reporting?
-			return r;
-		}
-	}
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( !file->used && !i->permit.unused_files ) {
-			// TODO: other error function
-			fprintf(stderr,
-"Error: '%s' contains unused file '%s'!\n",
-				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
-			return RET_ERROR;
-
-		}
-	}
-
-	// TODO: make sure not two different files are supposed to be installed
-	// as the same filekey.
+	struct candidate_file *file;
 
 	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
@@ -1083,9 +1060,152 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 			continue;
 		}
 	}
+	return RET_OK;
+}
+
+static retvalue candidate_add(const char *confdir,const char *overridedir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
+	struct candidate_file *file;
+	struct trackingdata trackingdata;
+	trackingdb tracks;
+	retvalue r;
+	int j;
+	assert( into != NULL );
+
+	// TODO: allow being more permissive, will need some more checks later
+	r = propersourcename(c->source);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = properversion(c->version);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	for( j = 0 ; j < c->architectures.count ; j++ ) {
+		const char *architecture = c->architectures.values[j];
+		if( strcmp(architecture, "all") == 0 ) {
+			if( into->architectures.count > 1 )
+				continue;
+			if( into->architectures.count > 0 &&
+			    strcmp(into->architectures.values[0],"source") != 0)
+				continue;
+			fprintf(stderr, "'%s' lists architecture 'all' but not binary architecture found in distribution '%s'!\n",
+					BASENAME(i,c->ofs), into->codename);
+			return RET_ERROR;
+		}
+		if( strlist_in(&into->architectures, architecture) )
+			continue;
+		fprintf(stderr, "'%s' lists architecture '%s' not found in distribution '%s'!\n",
+				BASENAME(i,c->ofs), architecture, into->codename);
+		return RET_ERROR;
+	}
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( !FE_PACKAGE(file->type) )
+			continue;
+		if( strlist_in(&c->architectures, file->architecture) )
+			continue;
+		fprintf(stderr, "'%s' is not listed in the Architecture header of '%s' but file '%s' looks like it!\n",
+				file->architecture, BASENAME(i,c->ofs),
+				BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
+
+	r = distribution_loadalloverrides(into, overridedir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	// TODO: once uploaderlist allows to look for package names or existing override
+	// entries or such things, check package names here enable checking for content
+	// name with outer name
+
+	/* when we get here, the package is allowed in, now we have to
+	 * read the parts and check all stuff we only know now */
+
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->section != NULL &&
+				strcmp(file->section, "byhand") == 0 ) {
+			/* to avoid further tests for this file */
+			file->type = fe_UNKNOWN;
+			// TODO: add command to feed them into
+			// increment refcount when used
+			continue;
+		}
+		switch( file->type ) {
+			case fe_UDEB:
+			case fe_DEB:
+				r = prepare_deb(filesdb,i,c,into,file);
+				break;
+			case fe_DSC:
+				r = prepare_dsc(filesdb,i,c,into,file);
+				break;
+			default:
+				r = RET_NOTHING;
+				break;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			// TODO: error reporting?
+			return r;
+		}
+	}
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( !file->used && !i->permit.unused_files ) {
+			// TODO: other error function
+			fprintf(stderr,
+"Error: '%s' contains unused file '%s'!\n",
+				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+			return RET_ERROR;
+
+		}
+	}
+
+	tracks = NULL;
+	if( into->tracking != dt_NONE ) {
+		r = tracking_initialize(&tracks, dbdir, into);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( tracks != NULL ) {
+		r = trackingdata_summon(tracks, c->source, c->version, &trackingdata);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( into->trackingoptions.includechanges ) {
+			r = cadidate_preparechangesfile(filesdb, i, c);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+		if( into->trackingoptions.needsources ) {
+			// TODO
+		}
+	}
+
+	// TODO: make sure not two different files are supposed to be installed
+	// as the same filekey.
+
+	r = candidate_addprepared(confdir, filesdb, dbdir, refs,
+			dereferenced, i, c, into,
+			(tracks!=NULL)?&trackingdata:NULL);
+	if( tracks != NULL ) {
+		retvalue r2;
+		if( RET_IS_OK(r) ) {
+			char *changesfilekey;
+			assert( c->files != NULL && c->files->filekeys.count > 0 &&
+					c->files->filekeys.values[0] );
+			changesfilekey = strdup(c->files->filekeys.values[0]);
+			if( changesfilekey == NULL ) {
+				trackingdata_done(&trackingdata);
+				tracking_done(tracks);
+				return RET_ERROR_OOM;
+			}
+			r2 = trackedpackage_addfilekey(tracks, trackingdata.pkg, ft_CHANGES, changesfilekey, FALSE, refs);
+			RET_UPDATE(r,r2);
+		}
+		r2 = trackingdata_finish(tracks, &trackingdata,
+				refs, dereferenced);
+		RET_UPDATE(r,r2);
+		r2 = tracking_done(tracks);
+		RET_ENDUPDATE(r,r2);
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	/* mark files as done */
-	i->delete[c->ofs] = TRUE;
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( file->used || i->cleanup.unused_files ) {
 			i->delete[file->ofs] = TRUE;
