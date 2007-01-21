@@ -137,7 +137,7 @@ dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
 END
-diff -u results.expected results
+dodiff results.expected results
 testrun - -b . -V import default 3<<EOF
 returns 254
 stderr
@@ -271,9 +271,9 @@ stdout
 *=deleting './i/test.changes'...
 EOF
 find temp -type f > results
-diff results.empty results
+dodiff results.empty results
 find i -type f > results
-diff results.empty results
+dodiff results.empty results
 cat > results.expected <<EOF
 FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons
@@ -283,7 +283,7 @@ dir/file	    tasty/bird,tasty/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons
 EOF
 gunzip -c dists/B/Contents-abacus.gz > results
-diff results.expected results
+dodiff results.expected results
 cat > results.expected <<EOF
 Package: bird
 Version: 1
@@ -313,7 +313,7 @@ Description: bla
  blub
 
 EOF
-diff results.expected dists/B/dog/binary-abacus/Packages
+dodiff results.expected dists/B/dog/binary-abacus/Packages
 cat > results.expected <<EOF
 Package: bird
 Format: 1.0
@@ -331,7 +331,7 @@ Files:
 
 EOF
 gunzip -c dists/B/dog/source/Sources.gz > results
-diff results.expected results
+dodiff results.expected results
 
 echo "DebOverride: debo" >> conf/distributions
 echo "DscOverride: dsco" >> conf/distributions
@@ -367,9 +367,9 @@ stdout
 *=deleting './i/test.changes'...
 EOF
 find temp -type f > results
-diff results.empty results
+dodiff results.empty results
 find i -type f > results
-diff results.empty results
+dodiff results.empty results
 cat > results.expected <<EOF
 FILE                                                    LOCATION
 x	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
@@ -379,7 +379,7 @@ dir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 EOF
 gunzip -c dists/B/Contents-abacus.gz > results
-diff results.expected results
+dodiff results.expected results
 cat > results.expected <<EOF
 Package: bird
 Version: 1
@@ -410,7 +410,7 @@ Description: bla
  blub
 
 EOF
-diff results.expected dists/B/cat/binary-abacus/Packages
+dodiff results.expected dists/B/cat/binary-abacus/Packages
 cat > results.expected <<EOF
 Package: bird
 Format: 1.0
@@ -428,8 +428,10 @@ Files:
  $TARMD5S bird_1.tar.gz
 
 EOF
+BIRDDSCMD5S="$DSCMD5S"
+BIRDTARMD5S="$TARMD5S"
 gunzip -c dists/B/cat/source/Sources.gz > results
-diff -u results.expected results
+dodiff results.expected results
 
 # now missing: checking what all can go wrong in a .changes or .dsc file...
 mkdir pkg
@@ -709,7 +711,7 @@ stdout
 EOF
 find pool/dog/s -type f > results
 echo "pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb" > results.expected
-diff -u results.expected results
+dodiff results.expected results
 
 touch i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
@@ -885,6 +887,7 @@ stderr
 EOF
 echo -e "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+OLDDSCFILENAMEMD5S="$DSCMD5S"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
 testrun - -V -b . import default 3<<EOF
@@ -983,6 +986,7 @@ EOF
 echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+DSCFILENAMEMD5S="$DSCMD5S"
 echo -e '$-1,$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
@@ -994,6 +998,80 @@ stderr
 *=file 'strangefile_xyz' is listed with md5sum '33a1096ff883d52f0c1f39e652d6336f 33' in 'test.changes' but with md5sum '31a1096ff883d52f0c1f39e652d6336f 33' in 'dscfilename_fileversion~.dsc'!
 *=There have been errors!
 EOF
+find pool -type f | sort > results
+cat > results.expected <<EOF
+pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1.dsc
+pool/cat/b/bird/bird_1.tar.gz
+pool/cat/b/bird/bird-addons_1_all.deb
+pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1.dsc
+pool/dog/b/bird/bird_1.tar.gz
+pool/dog/b/bird/bird-addons_1_all.deb
+pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
+pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
+EOF
+dodiff results.expected results
+find dists -type f | sort > results
+cat > results.expected <<EOF
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-calculator/Packages
+dists/A/cat/binary-calculator/Packages.gz
+dists/A/cat/binary-calculator/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-calculator/Packages
+dists/A/dog/binary-calculator/Packages.gz
+dists/A/dog/binary-calculator/Release
+dists/A/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
+dists/B/cat/source/Release
+dists/B/cat/source/Sources.gz
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
+dists/B/dog/source/Release
+dists/B/dog/source/Sources.gz
+dists/B/Release
+EOF
+dodiff results.expected results
+gunzip -c dists/B/dog/source/Sources.gz > results
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Priority: superfluous
+Section: tasty
+Directory: pool/dog/b/bird
+Files: 
+ $BIRDDSCMD5S bird_1.dsc
+ $BIRDTARMD5S bird_1.tar.gz
+
+Package: dscfilename
+Format: 1.0
+Maintainer: guess who <me@nowhere>
+Standards-Version: 0
+Version: versionindsc
+Priority: can't-live-without
+Section: dummy
+Directory: pool/dog/d/dscfilename
+Files: 
+ $OLDDSCFILENAMEMD5S dscfilename_versionindsc.dsc
+
+EOF
+dodiff results.expected results
+testout "" -b . dumpunreferenced
+dodiff results.empty results
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
 testrun - -V -b . import default 3<<EOF
@@ -1011,6 +1089,84 @@ stdout
 *=deleting './i/strangefile_xyz'...
 *=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 EOF
+
+find pool -type f | sort > results
+cat > results.expected <<EOF
+pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1.dsc
+pool/cat/b/bird/bird_1.tar.gz
+pool/cat/b/bird/bird-addons_1_all.deb
+pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1.dsc
+pool/dog/b/bird/bird_1.tar.gz
+pool/dog/b/bird/bird-addons_1_all.deb
+pool/dog/d/dscfilename/dscfilename_newversion~.dsc
+pool/dog/d/dscfilename/strangefile_xyz
+pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
+EOF
+dodiff results.expected results
+find dists -type f | sort > results
+cat > results.expected <<EOF
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-calculator/Packages
+dists/A/cat/binary-calculator/Packages.gz
+dists/A/cat/binary-calculator/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-calculator/Packages
+dists/A/dog/binary-calculator/Packages.gz
+dists/A/dog/binary-calculator/Release
+dists/A/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
+dists/B/cat/source/Release
+dists/B/cat/source/Sources.gz
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
+dists/B/dog/source/Release
+dists/B/dog/source/Sources.gz
+dists/B/Release
+EOF
+dodiff results.expected results
+gunzip -c dists/B/dog/source/Sources.gz > results
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Priority: superfluous
+Section: tasty
+Directory: pool/dog/b/bird
+Files: 
+ $BIRDDSCMD5S bird_1.dsc
+ $BIRDTARMD5S bird_1.tar.gz
+
+Package: dscfilename
+Format: 1.0
+Maintainer: guess who <me@nowhere>
+Standards-Version: 0
+Version: 1:newversion~
+Priority: unneeded
+Section: dummy
+Directory: pool/dog/d/dscfilename
+Files: 
+ $DSCFILENAMEMD5S dscfilename_newversion~.dsc
+ 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz
+
+EOF
+dodiff results.expected results
+
+testout "" -b . dumpunreferenced
+dodiff results.empty results
 
 #echo "preliminary finish due to testing"
 #exit 0
@@ -1359,7 +1515,7 @@ Files:
  pool/stupid/s/simple/simple_1.tar.gz s 1
 
 END
-dodiff -u results.expected results
+dodiff results.expected results
 testout "" -b . dumpunreferenced
 dodiff results.empty results 
 
