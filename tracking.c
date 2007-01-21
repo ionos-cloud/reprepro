@@ -164,6 +164,7 @@ retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,
 
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 		if( strcmp(pkg->filekeys.values[i],filekey) == 0 ) {
+			free(filekey);
 			if( pkg->filetypes[i] != ft ) {
 				fprintf(stderr,"Filekey '%s' already registered for '%s_%s' as type '%c' is tried to be reregistered as type '%c'!\n",filekey,pkg->sourcename,pkg->sourceversion,pkg->filetypes[i],ft);
 				return RET_ERROR;
