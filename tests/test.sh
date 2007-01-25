@@ -524,13 +524,23 @@ stderr
 *=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " md5sum size - - \300\257.\300\257_v_all.deb" >> i/test.changes
-touch "$(echo -e 'i/\300\257.\300\257_v_all.deb')"
+echo -e " md5sum size - - \300\257.\300\257_v_funny.deb" >> i/test.changes
+touch "$(echo -e 'i/\300\257.\300\257_v_funny.deb')"
 testrun - -V -b . import default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
 *='test.changes' lists architecture 'funny' not found in distribution 'A'!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " md5sum size - - \300\257.\300\257_v_all.deb" >> i/test.changes
+mv "$(echo -e 'i/\300\257.\300\257_v_funny.deb')" "$(echo -e 'i/\300\257.\300\257_v_all.deb')"
+testrun - -V -b . import default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='all' is not listed in the Architecture header of 'test.changes' but file 'À¯.À¯_v_all.deb' looks like it!
 *=There have been errors!
 EOF
 sed -i -e 's/funny/all/' i/test.changes

@@ -65,6 +65,8 @@ struct incoming {
 	struct {
 		/* do not error out on unused files */
 		bool_t unused_files:1;
+		/* allow .changes file to specify multipe distributions */
+		bool_t multiple_distributions:1;
 	} permit;
 	struct {
 		/* delete everything referenced by a .changes file
@@ -178,7 +180,7 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	struct strlist allowlist, allow_into;
 	char *default_into;
 	static const char * const allowedfields[] = {"Name", "TempDir",
-		"IncomingDir", "Default", "Allow",
+		"IncomingDir", "Default", "Allow", "Multiple",
 		NULL};
 
 	r = chunk_getvalue(chunk, "Name", &name);
@@ -282,6 +284,12 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 		}
 		strlist_done(&allow_into);
 	}
+	r = chunk_gettruth(chunk, "Multiple");
+	if( RET_WAS_ERROR(r) ) {
+		incoming_free(i);
+		return r;
+	}
+	i->permit.multiple_distributions = RET_IS_OK(r);
 	d->i = i;
 	return RET_OK;
 }
@@ -332,7 +340,9 @@ struct candidate {
 		/* set by _addfileline */
 		struct candidate_file *next;
 		int ofs; /* to basename in struct incoming->files */
-		enum filetype type;
+		filetype type;
+		/* all NULL if it is the .changes itself,
+		 * otherwise the data from the .changes for this file: */
 		char *md5sum;
 		char *section;
 		char *priority;
@@ -341,17 +351,32 @@ struct candidate {
 		/* set later */
 		bool_t used;
 		char *tempfilename;
-		/* only for deb and dsc: */
-		char *component;
+		/* distribution-unspecific contents of the packages */
+		/* - only for FE_BINARY types: */
 		struct deb_headers deb;
+		/* - only for fe_DSC types */
 		struct dsc_headers dsc;
-		char *directory;
-		struct strlist filekeys;
-		/* a list of pointers to the files belonging to those
-		 * filekeys, NULL if it does not need linking/copying */
-		struct candidate_file **files;
-		/* ... */
 	} *files;
+	struct candidate_perdistribution {
+		struct candidate_perdistribution *next;
+		struct distribution *into;
+		struct candidate_package {
+			/* a package is something installing files, including
+			 * the pseudo-package for the .changes file, if that is
+			 * to be included */
+			struct candidate_package *next;
+			const struct candidate_file *master;
+			char *component;
+			struct strlist filekeys;
+			/* a list of pointers to the files belonging to those
+			 * filekeys, NULL if it does not need linking/copying */
+			const struct candidate_file **files;
+			/* only for FE_PACKAGE: */
+			char *control;
+			/* only for fe_DSC */
+			char *directory;
+		} *packages;
+	} *perdistribution;
 };
 
 static void candidate_file_free(struct candidate_file *f) {
@@ -360,20 +385,25 @@ static void candidate_file_free(struct candidate_file *f) {
 	free(f->priority);
 	free(f->architecture);
 	free(f->name);
+	if( FE_BINARY(f->type) )
+		binaries_debdone(&f->deb);
+	if( f->type == fe_DSC )
+		sources_done(&f->dsc);
 	if( f->tempfilename != NULL ) {
 		unlink(f->tempfilename);
 		free(f->tempfilename);
 		f->tempfilename = NULL;
 	}
-	free(f->component);
-	if( FE_BINARY(f->type) )
-		binaries_debdone(&f->deb);
-	if( f->type == fe_DSC )
-		sources_done(&f->dsc);
-	free(f->directory);
-	strlist_done(&f->filekeys);
-	free(f->files);
 	free(f);
+}
+
+static void candidate_package_free(struct candidate_package *p) {
+	free(p->control);
+	free(p->component);
+	free(p->directory);
+	strlist_done(&p->filekeys);
+	free(p->files);
+	free(p);
 }
 
 static void candidate_free(struct candidate *c) {
@@ -387,12 +417,52 @@ static void candidate_free(struct candidate *c) {
 	strlist_done(&c->distributions);
 	strlist_done(&c->architectures);
 	strlist_done(&c->binaries);
+	while( c->perdistribution != NULL ) {
+		struct candidate_perdistribution *d = c->perdistribution;
+		c->perdistribution = d->next;
+
+		while( d->packages != NULL ) {
+			struct candidate_package *p = d->packages;
+			d->packages = p->next;
+			candidate_package_free(p);
+		}
+		free(d);
+	}
 	while( c->files != NULL ) {
 		struct candidate_file *f = c->files;
 		c->files = f->next;
 		candidate_file_free(f);
 	}
 	free(c);
+}
+
+static retvalue candidate_newdistribution(struct candidate *c, struct distribution *distribution) {
+	struct candidate_perdistribution *n,**pp = &c->perdistribution;
+
+	while( *pp != NULL ) {
+		if( (*pp)->into == distribution )
+			return RET_NOTHING;
+		pp = &(*pp)->next;
+	}
+	n = calloc(1, sizeof(struct candidate_perdistribution));
+	if( n == NULL )
+		return RET_ERROR_OOM;
+	n->into = distribution;
+	*pp = n;
+	return RET_OK;
+}
+
+static struct candidate_package *candidate_newpackage(struct candidate_perdistribution *fordistribution, const struct candidate_file *master) {
+	struct candidate_package *n,**pp = &fordistribution->packages;
+
+	while( *pp != NULL )
+		pp = &(*pp)->next;
+	n = calloc(1, sizeof(struct candidate_package));
+	if( n != NULL ) {
+		n->master = master;
+		*pp = n;
+	}
+	return n;
 }
 
 static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **result, bool_t *broken) {
@@ -503,10 +573,33 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 	}
 	return RET_OK;
 }
+
 static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
+	struct candidate_file *file;
+	retvalue r;
+
+	// TODO: allow being more permissive,
+	// that will need some more checks later, though
+	r = propersourcename(c->source);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = properversion(c->version);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( !FE_PACKAGE(file->type) )
+			continue;
+		if( strlist_in(&c->architectures, file->architecture) )
+			continue;
+		fprintf(stderr, "'%s' is not listed in the Architecture header of '%s' but file '%s' looks like it!\n",
+				file->architecture, BASENAME(i,c->ofs),
+				BASENAME(i,file->ofs));
+		return RET_ERROR;
+	}
 	return RET_OK;
 }
-static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct candidate_file *file) {
+
+static retvalue candidate_usefile(const struct incoming *i,const struct candidate *c,struct candidate_file *file) {
 	const char *basename;
 	char *origfile,*tempfilename;
 	retvalue r;
@@ -544,7 +637,7 @@ static retvalue candidate_usefile(struct incoming *i,struct candidate *c,struct 
 
 }
 
-static inline retvalue getsectionprioritycomponent(struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, const char **section_p, const char **priority_p) {
+static inline retvalue getsectionprioritycomponent(const struct incoming *i,const struct candidate *c,const struct distribution *into,const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, const char **section_p, const char **priority_p, char **component) {
 	retvalue r;
 	const char *section, *priority;
 
@@ -571,7 +664,7 @@ static inline retvalue getsectionprioritycomponent(struct incoming *i,struct can
 		return RET_ERROR;
 	}
 
-	r = guess_component(into->codename,&into->components,BASENAME(i,file->ofs),section,NULL,&file->component);
+	r = guess_component(into->codename,&into->components,BASENAME(i,file->ofs),section,NULL,component);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -580,77 +673,9 @@ static inline retvalue getsectionprioritycomponent(struct incoming *i,struct can
 	return RET_OK;
 }
 
-static retvalue cadidate_preparechangesfile(filesdb filesdb, struct incoming *i,struct candidate *c) {
-	retvalue r;
-	char *basename, *filekey;
-	struct candidate_file *file;
-	const char *component = NULL;
-	assert( c->files != NULL && c->files->ofs == c->ofs );
-
-	/* search for a component to use */
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->type == fe_DSC && file->component != NULL ) {
-			component = file->component;
-			break;
-		}
-	}
-	if( component == NULL )
-		for( file = c->files ; file != NULL ; file = file->next ) {
-			if( file->component != NULL ) {
-				component = file->component;
-				break;
-			}
-		}
-	if( component == NULL )
-		component = "strange";
-
-	/* the .changes file is the first of its own files */
-	file = c->files;
-
-	/* copy the .changes file, to get its md5sum and be sure it is
-	 * still there */
-	r = candidate_usefile(i, c, file);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	assert( file->md5sum != NULL );
-
-	basename = calc_changes_basename(c->source, c->version, &c->architectures);
-	if( basename == NULL )
-		return RET_ERROR_OOM;
-
-	filekey = calc_filekey(component, c->source, basename);
-	free(basename);
-	if( filekey == NULL )
-		return RET_ERROR_OOM;
-
-	r = strlist_init_singleton(filekey, &file->filekeys);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	assert( file->filekeys.count == 1 );
-	filekey = file->filekeys.values[0];
-	file->files = calloc(1, sizeof(struct candidate_file *));
-	if( file->files == NULL )
-		return RET_ERROR_OOM;
-	r = files_ready(filesdb, filekey, file->md5sum);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( RET_IS_OK(r) )
-		file->files[0] = file;
-
-	return RET_OK;
-}
-
-static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
-	const char *section,*priority, *filekey;
-	const struct overrideinfo *oinfo;
+static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct candidate_file *file) {
 	retvalue r;
 
-	assert( FE_BINARY(file->type) );
-
-	r = candidate_usefile(i, c, file);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	assert(file->tempfilename != NULL);
 	r = binaries_readdeb(&file->deb, file->tempfilename, TRUE);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -700,6 +725,138 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 		r = properfilenamepart(file->deb.architecture);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	return RET_OK;
+}
+
+static retvalue candidate_read_dsc(struct incoming *i,struct candidate *c,struct candidate_file *file) {
+	retvalue r;
+	bool_t broken = FALSE;
+	char *p;
+
+	r = sources_readdsc(&file->dsc, file->tempfilename, &broken);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	p = calc_source_basename(file->dsc.name,
+			file->dsc.version);
+	if( p == NULL )
+		return RET_ERROR_OOM;
+	r = strlist_include(&file->dsc.basenames, p);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	p = strdup(file->md5sum);
+	if( p == NULL )
+		return RET_ERROR_OOM;
+	r = strlist_include(&file->dsc.md5sums, p);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	// TODO: take a look at "broken"...
+	return RET_OK;
+}
+
+static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
+	struct candidate_file *file;
+	retvalue r;
+
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->section != NULL &&
+				strcmp(file->section, "byhand") == 0 ) {
+			/* to avoid further tests for this file */
+			file->type = fe_UNKNOWN;
+			continue;
+		}
+		if( !FE_PACKAGE(file->type) )
+			continue;
+		r = candidate_usefile(i, c, file);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		assert(file->tempfilename != NULL);
+
+		if( FE_BINARY(file->type) )
+			r = candidate_read_deb(i, c, file);
+		else if( file->type == fe_DSC )
+			r = candidate_read_dsc(i, c, file);
+		else {
+			r = RET_ERROR;
+			assert( FE_BINARY(file->type) || file->type == fe_DSC );
+		}
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+static retvalue candidate_preparechangesfile(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per) {
+	retvalue r;
+	char *basename, *filekey;
+	struct candidate_package *package;
+	struct candidate_file *file;
+	const char *component = NULL;
+	assert( c->files != NULL && c->files->ofs == c->ofs );
+
+	/* search for a component to use */
+	for( package = per->packages ; package != NULL ; package = package->next ) {
+		if( package->component != NULL ) {
+			component = package->component;
+			break;
+		}
+	}
+	if( component == NULL )
+		component = "strange";
+
+	/* the .changes file is the first of its own files */
+	file = c->files;
+
+	/* copy the .changes file, to get its md5sum and be sure it is
+	 * still there */
+	r = candidate_usefile(i, c, file);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( file->md5sum != NULL );
+
+	package = candidate_newpackage(per, c->files);
+	if( package == NULL )
+		return RET_ERROR_OOM;
+
+	basename = calc_changes_basename(c->source, c->version, &c->architectures);
+	if( basename == NULL )
+		return RET_ERROR_OOM;
+
+	filekey = calc_filekey(component, c->source, basename);
+	free(basename);
+	if( filekey == NULL )
+		return RET_ERROR_OOM;
+
+	r = strlist_init_singleton(filekey, &package->filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( package->filekeys.count == 1 );
+	filekey = package->filekeys.values[0];
+	package->files = calloc(1, sizeof(struct candidate_file *));
+	if( package->files == NULL )
+		return RET_ERROR_OOM;
+	r = files_ready(filesdb, filekey, file->md5sum);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) )
+		package->files[0] = file;
+	return RET_OK;
+}
+
+static retvalue prepare_deb(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
+	const char *section,*priority, *filekey;
+	const struct overrideinfo *oinfo;
+	struct candidate_package *package;
+	const struct distribution *into = per->into;
+	retvalue r;
+
+	assert( FE_BINARY(file->type) );
+	assert( file->tempfilename != NULL );
+	assert( file->deb.name != NULL );
+
+	package = candidate_newpackage(per, file);
+	if( package == NULL )
+		return RET_ERROR_OOM;
+	assert( file == package->master );
 
 	oinfo = override_search(file->type==fe_UDEB?into->overrides.udeb:
 			                    into->overrides.deb,
@@ -707,57 +864,58 @@ static retvalue prepare_deb(filesdb filesdb, struct incoming *i,struct candidate
 
 	r = getsectionprioritycomponent(i,c,into,file,
 			file->name, oinfo,
-			&section, &priority);
+			&section, &priority, &package->component);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	if( file->type == fe_UDEB &&
-	    !strlist_in(&into->udebcomponents,file->component)) {
+	    !strlist_in(&into->udebcomponents, package->component)) {
 		fprintf(stderr,
 "Cannot put file '%s' of '%s' into component '%s',\n"
 "as it is not listed in UDebComponents of '%s'!\n",
 			BASENAME(i,file->ofs), BASENAME(i,c->ofs),
-			file->component, into->codename);
+			package->component, into->codename);
 		return RET_ERROR;
 	}
-	r = binaries_calcfilekeys(file->component, &file->deb,
-			(file->type==fe_DEB)?"deb":"udeb", &file->filekeys);
+	r = binaries_calcfilekeys(package->component, &file->deb,
+			(package->master->type==fe_DEB)?"deb":"udeb",
+			&package->filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	assert( file->filekeys.count == 1 );
-	filekey = file->filekeys.values[0];
-	file->files = calloc(1, sizeof(struct candidate_file *));
-	if( file->files == NULL )
+	assert( package->filekeys.count == 1 );
+	filekey = package->filekeys.values[0];
+	package->files = calloc(1, sizeof(struct candidate_file *));
+	if( package->files == NULL )
 		return RET_ERROR_OOM;
 	r = files_ready(filesdb, filekey, file->md5sum);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) )
-		file->files[0] = file;
+		package->files[0] = file;
 	r = binaries_complete(&file->deb, filekey, file->md5sum, oinfo,
-			section, priority);
+			section, priority, &package->control);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return RET_OK;
 }
 
-static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate *c,struct distribution *into,struct candidate_file *file) {
+static retvalue prepare_dsc(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section,*priority;
 	const struct overrideinfo *oinfo;
+	struct candidate_package *package;
+	const struct distribution *into = per->into;
 	retvalue r;
-	char *p;
-	bool_t broken;
 	int j;
 
 	assert( file->type == fe_DSC );
+	assert( file->tempfilename != NULL );
+	assert( file->dsc.name != NULL );
 
-	r = candidate_usefile(i,c,file);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	assert(file->tempfilename != NULL);
-	r = sources_readdsc(&file->dsc, file->tempfilename, &broken);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	package = candidate_newpackage(per, file);
+	if( package == NULL )
+		return RET_ERROR_OOM;
+	assert( file == package->master );
+
 	if( strcmp(file->name, file->dsc.name) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		fprintf(stderr, "Name part of filename ('%s') and name within the file ('%s') do not match for '%s' in '%s'!\n",
@@ -781,8 +939,7 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 				file->dsc.version, BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
-	if( RET_IS_OK(r) )
-		r = propersourcename(file->dsc.name);
+	r = propersourcename(file->dsc.name);
 	if( RET_IS_OK(r) )
 		r = properversion(file->dsc.version);
 	if( RET_IS_OK(r) )
@@ -793,39 +950,25 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 
 	r = getsectionprioritycomponent(i, c, into, file,
 			file->dsc.name, oinfo,
-			&section, &priority);
+			&section, &priority, &package->component);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	// or should we keep that filename, too?
-	// TODO: check what dpkg-source uses, the fields from .dsc or the name
-	p = calc_source_basename(file->dsc.name, file->dsc.version);
-	if( p == NULL )
+	package->directory = calc_sourcedir(package->component, file->dsc.name);
+	if( package->directory == NULL )
 		return RET_ERROR_OOM;
-	r = strlist_include(&file->dsc.basenames, p);
+	r = calc_dirconcats(package->directory, &file->dsc.basenames, &package->filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	p = strdup(file->md5sum);
-	if( p == NULL )
+	package->files = calloc(package->filekeys.count,sizeof(struct candidate *));
+	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = strlist_include(&file->dsc.md5sums, p);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	file->directory = calc_sourcedir(file->component, file->dsc.name);
-	if( file->directory == NULL )
-		return RET_ERROR_OOM;
-	r = calc_dirconcats(file->directory, &file->dsc.basenames, &file->filekeys);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	file->files = calloc(file->filekeys.count,sizeof(struct candidate *));
-	if( file->files == NULL )
-		return RET_ERROR_OOM;
-	r = files_ready(filesdb, file->filekeys.values[0], file->md5sum);
+	r = files_ready(filesdb, package->filekeys.values[0], file->md5sum);
 	if( RET_IS_OK(r) )
-		file->files[0] = file;
+		package->files[0] = file;
 	if( RET_WAS_ERROR(r) )
 		return r;
-	for( j = 1 ; j < file->filekeys.count ; j++ ) {
-		const char *filekey = file->filekeys.values[j];
+	for( j = 1 ; j < package->filekeys.count ; j++ ) {
+		const char *filekey = package->filekeys.values[j];
 		const char *basename = file->dsc.basenames.values[j];
 		const char *md5sum = file->dsc.md5sums.values[j];
 		struct candidate_file *f = c->files;
@@ -871,36 +1014,42 @@ static retvalue prepare_dsc(filesdb filesdb, struct incoming *i,struct candidate
 			r = candidate_usefile(i,c, f);
 			if( RET_WAS_ERROR(r) )
 				return r;
-			file->files[j] = f;
+			package->files[j] = f;
 		}
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
-	r = sources_complete(&file->dsc, file->directory, oinfo, section, priority);
+	r = sources_complete(&file->dsc, package->directory, oinfo, section, priority, &package->control);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	return RET_OK;
 }
 
-static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct candidate_file *stopat,int stopatatstopat) {
-	int j;
+static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *d) {
 	struct candidate_file *file;
 	retvalue r;
 
-	for( file = c->files ; file != NULL ; file = (file==stopat)?NULL:file->next ) {
-		if( file != c->files && ! FE_PACKAGE(file->type) )
-			continue;
-
-		for( j = 0 ;
-		     j < file->filekeys.count
-		     && ( file != stopat || j < stopatatstopat ) ;
-		     j++ ) {
-			if(  file->files[j] == NULL )
-				continue;
-			r = files_deleteandremove(filesdb,
-					file->filekeys.values[j],
-					TRUE, TRUE);
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		switch( file->type ) {
+			case fe_UDEB:
+			case fe_DEB:
+				r = prepare_deb(filesdb,i,c,d,file);
+				break;
+			case fe_DSC:
+				r = prepare_dsc(filesdb,i,c,d,file);
+				break;
+			default:
+				r = RET_NOTHING;
+				break;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+	}
+	if( d->into->tracking != dt_NONE ) {
+		if( d->into->trackingoptions.includechanges ) {
+			r = candidate_preparechangesfile(filesdb, i, c, d);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -908,40 +1057,68 @@ static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct
 	return RET_OK;
 }
 
-static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct candidate *c) {
+static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct candidate_perdistribution *stopat,struct candidate_package *stopatatstopat,int stopatatstopatatstopat) {
 	int j;
-	struct candidate_file *file;
+	struct candidate_perdistribution *d;
+	struct candidate_package *p;
 	retvalue r;
 
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file != c->files && ! FE_PACKAGE(file->type) )
-			continue;
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		for( p = d->packages ; p != NULL ; p = p->next ) {
+			for( j = 0 ; j < p->filekeys.count ; j++ ) {
+				if( d == stopat &&
+				    p == stopatatstopat &&
+				    j >= stopatatstopatatstopat )
+					return RET_OK;
 
-		for( j = 0 ; j < file->filekeys.count ; j++ ) {
-			struct candidate_file *f = file->files[j];
-			if(  f == NULL )
-				continue;
-			assert(f->tempfilename != NULL);
-			r = files_hardlink(filesdb, f->tempfilename,
-					file->filekeys.values[j],
-					f->md5sum);
-			if( !RET_IS_OK(r) )
-				/* when we did not add it, do not remove it: */
-				file->files[j] = NULL;
-			if( RET_WAS_ERROR(r) ) {
-				candidate_removefiles(filesdb, c, file, j);
-				return r;
+				if(  p->files[j] == NULL )
+					continue;
+				r = files_deleteandremove(filesdb,
+						p->filekeys.values[j],
+						TRUE, TRUE);
+				if( RET_WAS_ERROR(r) )
+					return r;
 			}
 		}
 	}
 	return RET_OK;
 }
+
+static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct candidate *c) {
+	int j;
+	struct candidate_perdistribution *d;
+	struct candidate_package *p;
+	retvalue r;
+
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		for( p = d->packages ; p != NULL ; p = p->next ) {
+			for( j = 0 ; j < p->filekeys.count ; j++ ) {
+				const struct candidate_file *f = p->files[j];
+				if(  f == NULL )
+					continue;
+				assert(f->tempfilename != NULL);
+				r = files_hardlink(filesdb, f->tempfilename,
+						p->filekeys.values[j],
+						f->md5sum);
+				if( !RET_IS_OK(r) )
+					/* when we did not add it, do not remove it: */
+					p->files[j] = NULL;
+				if( RET_WAS_ERROR(r) ) {
+					candidate_removefiles(filesdb, c, d, p, j);
+					return r;
+				}
+			}
+		}
+	}
+	return RET_OK;
+}
+
 static retvalue add_dsc(const char *dbdir, references refs,
 		struct distribution *into, struct strlist *dereferenced,
-		struct incoming *i, struct candidate *c,
-		struct trackingdata *trackingdata, struct candidate_file *file) {
+		const struct incoming *i, const struct candidate *c,
+		struct trackingdata *trackingdata, struct candidate_package *p) {
 	retvalue r;
-	struct target *t = distribution_getpart(into,file->component,"source","dsc");
+	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
 
 	/* finally put it into the source distribution */
 	r = target_initpackagesdb(t,dbdir);
@@ -951,8 +1128,10 @@ static retvalue add_dsc(const char *dbdir, references refs,
 			r = RET_ERROR_INTERUPTED;
 		else
 			r = target_addpackage(t,refs,
-					file->dsc.name,file->dsc.version,
-					file->dsc.control, &file->filekeys,
+					p->master->dsc.name,
+					p->master->dsc.version,
+					p->control,
+					&p->filekeys,
 					FALSE, dereferenced,
 					trackingdata, ft_SOURCE);
 		r2 = target_closepackagesdb(t);
@@ -960,6 +1139,76 @@ static retvalue add_dsc(const char *dbdir, references refs,
 	}
 	RET_UPDATE(into->status, r);
 	return r;
+}
+
+static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const char *dbdir,references refs,struct strlist *dereferenced,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
+	retvalue r;
+	struct candidate_package *p;
+	struct trackingdata trackingdata;
+	struct distribution *into = d->into;
+	trackingdb tracks;
+
+	if( interrupted() )
+		return RET_ERROR_INTERUPTED;
+
+	tracks = NULL;
+	if( into->tracking != dt_NONE ) {
+		r = tracking_initialize(&tracks, dbdir, into);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( tracks != NULL ) {
+		r = trackingdata_summon(tracks, c->source, c->version, &trackingdata);
+		if( RET_WAS_ERROR(r) ) {
+			tracking_done(tracks);
+			return r;
+		}
+		if( into->trackingoptions.needsources ) {
+			// TODO, but better before we start adding...
+		}
+	}
+
+	r = RET_OK;
+	for( p = d->packages ; p != NULL ; p = p->next ) {
+		if( p->master->type == fe_DSC ) {
+			r = add_dsc(dbdir, refs, into, dereferenced,
+					i, c, (tracks==NULL)?NULL:&trackingdata,
+					p);
+		} else if( FE_BINARY(p->master->type) ) {
+			r = binaries_adddeb(&p->master->deb, dbdir, refs,
+					p->master->architecture,
+					(p->master->type == fe_DEB)?"deb":"udeb",
+					into, dereferenced,
+					(tracks==NULL)?NULL:&trackingdata,
+					p->component, &p->filekeys, p->control);
+		} else if( p->master->type == fe_UNKNOWN ) {
+			/* finally add the .changes to tracking, if requested */
+			assert( p->master->name == NULL );
+			assert( tracks != NULL );
+
+			r = trackedpackage_adddupfilekeys(trackingdata.tracks,
+					trackingdata.pkg,
+					ft_CHANGES, &p->filekeys, FALSE, refs);
+		} else
+			r = RET_ERROR;
+
+		if( RET_WAS_ERROR(r) ) {
+			// TODO: remove files not yet referenced
+			break;
+		}
+	}
+
+	if( tracks != NULL ) {
+		retvalue r2;
+		r2 = trackingdata_finish(tracks, &trackingdata,
+				refs, dereferenced);
+		RET_UPDATE(r,r2);
+		r2 = tracking_done(tracks);
+		RET_ENDUPDATE(r,r2);
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return RET_OK;
 }
 
 static inline bool_t isallowed(struct incoming *i, struct candidate *c, struct distribution *into, const struct uploadpermissions *permissions) {
@@ -1006,110 +1255,65 @@ static retvalue candidate_checkpermissions(const char *confdir, struct incoming 
 	return RET_NOTHING;
 }
 
-static retvalue candidate_addprepared(const char *confdir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into,struct trackingdata *trackingdata) {
-	retvalue r;
-	struct candidate_file *file;
+static retvalue check_architecture_availability(const struct incoming *i, const struct candidate *c) {
+	struct candidate_perdistribution *d;
+	bool_t check_all_availability = FALSE;
+	bool_t have_all_available = FALSE;
+	int j;
 
-	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+	// TODO: switch to instead ensure every architecture can be put into
+	// one distribution at least would be nice. If implementing this do not
+	// forget to check later to only put files in when the distribution can
+	// cope with that.
 
-	/* the actual adding of packages, make sure what can be checked was
-	 * checked by now */
-
-	/* make hardlinks/copies of the files */
-	r = candidate_addfiles(filesdb, i, c);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( interrupted() ) {
-		candidate_removefiles(filesdb,c,NULL,0);
-		return RET_ERROR_INTERUPTED;
-	}
-	/* first add sources */
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->type == fe_DSC ) {
-			r = add_dsc(dbdir, refs, into, dereferenced,
-					i, c, trackingdata, file);
-			if( RET_WAS_ERROR(r) ) {
-				// hrmpf, how to remove the packages?
-				// candidate_removefiles(filesdb, c);
-				return r;
-			}
-		}
-	}
-	/* then binaries */
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->type == fe_DEB || file->type == fe_UDEB ) {
-			r = binaries_adddeb(&file->deb, dbdir, refs,
-					file->architecture,
-					(file->type == fe_DEB)?"deb":"udeb",
-					into, dereferenced,
-					trackingdata,
-					file->component, &file->filekeys);
-			if( RET_WAS_ERROR(r) ) {
-				// hrmpf, how to remove the packages?
-				// candidate_removefiles(filesdb, c);
-				return r;
-			}
-		}
-	}
-	/* everything installed, fire up the byhands */
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->type == fe_UNKNOWN &&
-		    strcmp(file->section, "byhand") == 0 ) {
-			// TODO: add command to actualy use them
+	for( j = 0 ; j < c->architectures.count ; j++ ) {
+		const char *architecture = c->architectures.values[j];
+		if( strcmp(architecture, "all") == 0 ) {
+			check_all_availability = TRUE;
 			continue;
+		}
+		for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+			if( strlist_in(&d->into->architectures, architecture) )
+				continue;
+			fprintf(stderr, "'%s' lists architecture '%s' not found in distribution '%s'!\n",
+					BASENAME(i,c->ofs), architecture, d->into->codename);
+			return RET_ERROR;
+		}
+		if( strcmp(architecture, "source") != 0 )
+			have_all_available = TRUE;
+	}
+	if( check_all_availability && ! have_all_available ) {
+		for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+			if( d->into->architectures.count > 1 )
+				continue;
+			if( d->into->architectures.count > 0 &&
+				strcmp(d->into->architectures.values[0],"source") != 0)
+				continue;
+			fprintf(stderr, "'%s' lists architecture 'all' but not binary architecture found in distribution '%s'!\n",
+					BASENAME(i,c->ofs), d->into->codename);
+			return RET_ERROR;
 		}
 	}
 	return RET_OK;
 }
 
-static retvalue candidate_add(const char *confdir,const char *overridedir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c, struct distribution *into) {
+static retvalue candidate_add(const char *confdir,const char *overridedir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
+	struct candidate_perdistribution *d;
 	struct candidate_file *file;
-	struct trackingdata trackingdata;
-	trackingdb tracks;
 	retvalue r;
-	int j;
-	assert( into != NULL );
+	assert( c->perdistribution != NULL );
 
-	// TODO: allow being more permissive, will need some more checks later
-	r = propersourcename(c->source);
+	/* check if every distribution this is to be added to supports
+	 * all architectures we have files for */
+	r = check_architecture_availability(i, c);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = properversion(c->version);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	for( j = 0 ; j < c->architectures.count ; j++ ) {
-		const char *architecture = c->architectures.values[j];
-		if( strcmp(architecture, "all") == 0 ) {
-			if( into->architectures.count > 1 )
-				continue;
-			if( into->architectures.count > 0 &&
-			    strcmp(into->architectures.values[0],"source") != 0)
-				continue;
-			fprintf(stderr, "'%s' lists architecture 'all' but not binary architecture found in distribution '%s'!\n",
-					BASENAME(i,c->ofs), into->codename);
-			return RET_ERROR;
-		}
-		if( strlist_in(&into->architectures, architecture) )
-			continue;
-		fprintf(stderr, "'%s' lists architecture '%s' not found in distribution '%s'!\n",
-				BASENAME(i,c->ofs), architecture, into->codename);
-		return RET_ERROR;
-	}
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( !FE_PACKAGE(file->type) )
-			continue;
-		if( strlist_in(&c->architectures, file->architecture) )
-			continue;
-		fprintf(stderr, "'%s' is not listed in the Architecture header of '%s' but file '%s' looks like it!\n",
-				file->architecture, BASENAME(i,c->ofs),
-				BASENAME(i,file->ofs));
-		return RET_ERROR;
-	}
 
-	r = distribution_loadalloverrides(into, overridedir);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		r = distribution_loadalloverrides(d->into, overridedir);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	// TODO: once uploaderlist allows to look for package names or existing override
 	// entries or such things, check package names here enable checking for content
@@ -1118,31 +1322,16 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 	/* when we get here, the package is allowed in, now we have to
 	 * read the parts and check all stuff we only know now */
 
-	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->section != NULL &&
-				strcmp(file->section, "byhand") == 0 ) {
-			/* to avoid further tests for this file */
-			file->type = fe_UNKNOWN;
-			// TODO: add command to feed them into
-			// increment refcount when used
-			continue;
-		}
-		switch( file->type ) {
-			case fe_UDEB:
-			case fe_DEB:
-				r = prepare_deb(filesdb,i,c,into,file);
-				break;
-			case fe_DSC:
-				r = prepare_dsc(filesdb,i,c,into,file);
-				break;
-			default:
-				r = RET_NOTHING;
-				break;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			// TODO: error reporting?
-			return r;
-		}
+	r = candidate_read_files(i, c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* now the distribution specific part starts: */
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		r = prepare_for_distribution(filesdb, i, c, d);
+			if( RET_WAS_ERROR(r) ) {
+				return r;
+			}
 	}
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( !file->used && !i->permit.unused_files ) {
@@ -1155,55 +1344,27 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 		}
 	}
 
-	tracks = NULL;
-	if( into->tracking != dt_NONE ) {
-		r = tracking_initialize(&tracks, dbdir, into);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-	if( tracks != NULL ) {
-		r = trackingdata_summon(tracks, c->source, c->version, &trackingdata);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( into->trackingoptions.includechanges ) {
-			r = cadidate_preparechangesfile(filesdb, i, c);
-			if( RET_WAS_ERROR(r) )
-				return r;
-		}
-		if( into->trackingoptions.needsources ) {
-			// TODO
-		}
-	}
-
 	// TODO: make sure not two different files are supposed to be installed
 	// as the same filekey.
 
-	r = candidate_addprepared(confdir, filesdb, dbdir, refs,
-			dereferenced, i, c, into,
-			(tracks!=NULL)?&trackingdata:NULL);
-	if( tracks != NULL ) {
-		retvalue r2;
-		if( RET_IS_OK(r) ) {
-			char *changesfilekey;
-			assert( c->files != NULL && c->files->filekeys.count > 0 &&
-					c->files->filekeys.values[0] );
-			changesfilekey = strdup(c->files->filekeys.values[0]);
-			if( changesfilekey == NULL ) {
-				trackingdata_done(&trackingdata);
-				tracking_done(tracks);
-				return RET_ERROR_OOM;
-			}
-			r2 = trackedpackage_addfilekey(tracks, trackingdata.pkg, ft_CHANGES, changesfilekey, FALSE, refs);
-			RET_UPDATE(r,r2);
-		}
-		r2 = trackingdata_finish(tracks, &trackingdata,
-				refs, dereferenced);
-		RET_UPDATE(r,r2);
-		r2 = tracking_done(tracks);
-		RET_ENDUPDATE(r,r2);
-	}
+	/* the actual adding of packages, make sure what can be checked was
+	 * checked by now */
+
+	/* make hardlinks/copies of the files */
+	r = candidate_addfiles(filesdb, i, c);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	if( interrupted() ) {
+		candidate_removefiles(filesdb,c,NULL,NULL,0);
+		return RET_ERROR_INTERUPTED;
+	}
+	r = RET_OK;
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		r = candidate_add_into(confdir, filesdb, dbdir, refs,
+			dereferenced, i, c, d);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	/* mark files as done */
 	for( file = c->files ; file != NULL ; file = file->next ) {
@@ -1216,10 +1377,9 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 
 static retvalue process_changes(const char *confdir,const char *overridedir,filesdb filesdb,const char *dbdir,references refs,struct strlist *dereferenced,struct incoming *i,int ofs) {
 	struct candidate *c;
-	struct distribution *into = NULL;
 	struct candidate_file *file;
 	retvalue r;
-	int j;
+	int j,k;
 	bool_t broken = FALSE, tried = FALSE;
 
 	r = candidate_read(i, ofs, &c, &broken);
@@ -1236,21 +1396,32 @@ static retvalue process_changes(const char *confdir,const char *overridedir,file
 		candidate_free(c);
 		return r;
 	}
-	for( j = 0 ; j < i->allow.count ; j++ ) {
-		if( strlist_in(&c->distributions, i->allow.values[j]) ) {
-			tried = TRUE;
-			r = candidate_checkpermissions(confdir, i, c, i->allow_into[j]);
-			if( RET_WAS_ERROR(r) ) {
-				candidate_free(c);
-				return r;
-			}
-			if( RET_IS_OK(r) ) {
-				into = i->allow_into[j];
-				break;
+	for( k = 0 ; k < c->distributions.count ; k++ ) {
+		const char *name = c->distributions.values[k];
+
+		for( j = 0 ; j < i->allow.count ; j++ ) {
+			// TODO: implement "*"
+			if( strcmp(name, i->allow.values[j]) == 0 ) {
+				tried = TRUE;
+				r = candidate_checkpermissions(confdir, i, c,
+						i->allow_into[j]);
+				if( r == RET_NOTHING )
+					continue;
+				if( RET_IS_OK(r) )
+					r = candidate_newdistribution(c,
+							i->allow_into[j]);
+				if( RET_WAS_ERROR(r) ) {
+					candidate_free(c);
+					return r;
+				} else
+					break;
 			}
 		}
+		if( c->perdistribution != NULL &&
+				!i->permit.multiple_distributions )
+			break;
 	}
-	if( into == NULL && i->default_into != NULL ) {
+	if( c->perdistribution == NULL && i->default_into != NULL ) {
 		tried = TRUE;
 		r = candidate_checkpermissions(confdir, i, c, i->default_into);
 		if( RET_WAS_ERROR(r) ) {
@@ -1258,10 +1429,10 @@ static retvalue process_changes(const char *confdir,const char *overridedir,file
 			return r;
 		}
 		if( RET_IS_OK(r) ) {
-			into = i->default_into;
+			r = candidate_newdistribution(c, i->default_into);
 		}
 	}
-	if( into == NULL ) {
+	if( c->perdistribution == NULL ) {
 		fprintf(stderr, tried?"No distribution accepting '%s'!\n":
 				      "No distribution found for '%s'!\n",
 			i->files.values[ofs]);
@@ -1285,7 +1456,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,file
 		} else
 			r = candidate_add(confdir, overridedir, filesdb, dbdir,
 			                  refs, dereferenced,
-			                  i, c, into);
+			                  i, c);
 		if( RET_WAS_ERROR(r) && i->cleanup.on_error ) {
 			struct candidate_file *file;
 

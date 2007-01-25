@@ -112,6 +112,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	const struct overrideinfo *oinfo;
 	const struct strlist *components;
 	const struct overrideinfo *binoverride;
+	char *control;
 
 	assert( givenmd5sum!=NULL ||
 		(givenmd5sum==NULL && givenfilekey==NULL ) );
@@ -282,11 +283,12 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	assert( pkg->md5sum != NULL );
 	/* Prepare everything that can be prepared beforehand */
 	r = binaries_complete(&pkg->deb, pkg->filekey, pkg->md5sum, oinfo,
-			pkg->deb.section, pkg->deb.priority);
+			pkg->deb.section, pkg->deb.priority, &control);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
 	}
+	free(pkg->deb.control); pkg->deb.control = control;
 	*deb = pkg;
 	return RET_OK;
 }
@@ -301,7 +303,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 	return binaries_adddeb(&pkg->deb, dbdir, refs, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			trackingdata,
-			pkg->component, &pkg->filekeys);
+			pkg->component, &pkg->filekeys, pkg->deb.control);
 }
 
 /* insert the given .deb into the mirror in <component> in the <distribution>
@@ -334,7 +336,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	r = binaries_adddeb(&pkg->deb, dbdir, refs, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL,
-			pkg->component, &pkg->filekeys);
+			pkg->component, &pkg->filekeys, pkg->deb.control);
 	deb_free(pkg);
 
 	if( tracks != NULL ) {

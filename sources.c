@@ -523,7 +523,7 @@ void sources_done(struct dsc_headers *dsc) {
 	free(dsc->priority);
 }
 
-retvalue sources_complete(struct dsc_headers *dsc, const char *directory, const struct overrideinfo *override, const char *section, const char *priority) {
+retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
 	retvalue r;
 	struct fieldtoadd *name;
 	struct fieldtoadd *replace;
@@ -575,8 +575,7 @@ retvalue sources_complete(struct dsc_headers *dsc, const char *directory, const 
 		return RET_ERROR_OOM;
 	}
 
-	free(dsc->control);
-	dsc->control = newchunk;
+	*newcontrol = newchunk;
 
 	return RET_OK;
 }

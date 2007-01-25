@@ -48,8 +48,8 @@ void binaries_debdone(struct deb_headers *);
 retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *,const char *packagetype,struct strlist *filekeys);
 
 struct overrideinfo;
-retvalue binaries_complete(struct deb_headers *,const char *filekey,const char *md5sum,const struct overrideinfo *,const char *section,const char *priority);
+retvalue binaries_complete(const struct deb_headers *,const char *filekey,const char *md5sum,const struct overrideinfo *,const char *section,const char *priority,char **newcontrol);
 
-retvalue binaries_adddeb(const struct deb_headers *,const char *dbdir,references,const char *forcearchitecture,const char *packagetype,struct distribution *,struct strlist *dereferencedfilekeys,struct trackingdata *,const char *component,const struct strlist *filekeys);
+retvalue binaries_adddeb(const struct deb_headers *,const char *dbdir,references,const char *forcearchitecture,const char *packagetype,struct distribution *,struct strlist *dereferencedfilekeys,struct trackingdata *,const char *component,const struct strlist *filekeys,const char *control);
 
 #endif

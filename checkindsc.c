@@ -197,6 +197,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
+	char *control;
 
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
@@ -301,11 +302,12 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 
 	if( !RET_WAS_ERROR(r) )
 		r = sources_complete(&pkg->dsc,pkg->directory,oinfo,
-				pkg->dsc.section, pkg->dsc.priority);
-
-	if( RET_IS_OK(r) )
+				pkg->dsc.section, pkg->dsc.priority, &control);
+	if( RET_IS_OK(r) ) {
+		free(pkg->dsc.control);
+		pkg->dsc.control = control;
 		*dsc = pkg;
-	else
+	} else
 		dsc_free(pkg);
 
 	return r;

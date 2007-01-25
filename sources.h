@@ -42,6 +42,6 @@ retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool_t *bro
 void sources_done(struct dsc_headers *);
 
 struct overrideinfo;
-retvalue sources_complete(struct dsc_headers *, const char *directory, const struct overrideinfo *override, const char *section, const char *priority);
+retvalue sources_complete(const struct dsc_headers *, const char *directory, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol);
 
 #endif

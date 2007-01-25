@@ -1,3 +1,6 @@
+2007-01-25  Bernhard R. Link <brlink@debian.org>
+	* import allow .changes files with multiple distributions
+
 2007-01-21  Bernhard R. Link <brlink@debian.org>
 	* add trackingsupport to "import" command
 

@@ -504,7 +504,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t 
 }
 
 /* do overwrites, add Filename, Size and md5sum to the control-item */
-retvalue binaries_complete(struct deb_headers *pkg,const char *filekey,const char *md5sum,const struct overrideinfo *override,const char *section,const char *priority) {
+retvalue binaries_complete(const struct deb_headers *pkg,const char *filekey,const char *md5sum,const struct overrideinfo *override,const char *section,const char *priority, char **newcontrol) {
 	const char *size;
 	struct fieldtoadd *replace;
 	char *newchunk;
@@ -543,13 +543,12 @@ retvalue binaries_complete(struct deb_headers *pkg,const char *filekey,const cha
 		return RET_ERROR_OOM;
 	}
 
-	free(pkg->control);
-	pkg->control = newchunk;
+	*newcontrol = newchunk;
 
 	return RET_OK;
 }
 
-retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,const char *component,const struct strlist *filekeys) {
+retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,const char *component,const struct strlist *filekeys, const char *control) {
 	retvalue r,result;
 	int i;
 
@@ -569,7 +568,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 			else
 				r = target_addpackage(t, refs, deb->name,
 						deb->version,
-						deb->control,
+						control,
 						filekeys, FALSE,
 						dereferencedfilekeys,
 						trackingdata, ft_ARCH_BINARY);
@@ -589,7 +588,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 			else
 				r = target_addpackage(t, refs, deb->name,
 						deb->version,
-						deb->control,
+						control,
 						filekeys, FALSE,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
@@ -610,7 +609,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 			else
 				r = target_addpackage(t, refs, deb->name,
 						deb->version,
-						deb->control,
+						control,
 						filekeys, FALSE,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
