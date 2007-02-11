@@ -340,7 +340,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 			}
 		}
 		if( ignore > 0 ) {
-			if( len > last+ignore )
+			if( len <= last+ignore )
 				len = last;
 			else {
 				memmove(list+last, list+last+ignore,
