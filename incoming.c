@@ -302,7 +302,7 @@ static retvalue incoming_init(const char *basedir,const char *confdir, struct di
 	imports.distributions = distributions;
 	imports.i = NULL;
 	imports.basedir = basedir;
-	imports.filename = calc_dirconcat(confdir, "imports");
+	imports.filename = calc_dirconcat(confdir, "incoming");
 	if( imports.filename == NULL )
 		return RET_ERROR_OOM;
 

@@ -307,8 +307,17 @@ and
 .TP
 .B include  \fIcodename\fP \fI.changes-filename\fP
 Include in the specified distribution all packages found and suitable
-in the \fI.changes\fP file, applying override information guessing all 
+in the \fI.changes\fP file, applying override information guessing all
 values not given and guessable.
+.TP
+.B include \fIrulesetname\fP
+Scan an incomming directory and process the .changes files found there.
+.I rulesetname
+identifies which rule-set in
+.B conf/incoming
+determines which incoming directory to use
+and in what distributions to allow packages into.
+See the section about this file for more information.
 .TP
 .BR check " [ " \fIcodenames\fP " ]"
 Check if all packages in the specified distributions have all files
@@ -490,9 +499,9 @@ into this distribution with the \fBinclude\fP command
 and the distribution header of that file is neigther
 the codename, nor the suite name, nor any name from the
 list, a \fBwrongdistribution\fP error is generated.
-The \fBimport\fP command will also use this field,
+The \fBprocess_incoming\fP command will also use this field,
 see the description of \fBAllow\fP and \fBDefault\fP
-from the \fBconf/imports\fP file for more information.
+from the \fBconf/incoming\fP file for more information.
 .TP
 .B Version
 This optional field is simply copied into the
@@ -859,6 +868,53 @@ There is no protection against changing headers like \fBPackage\fP,
 \fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
 fields may give the most curious results.
 (Most likely reprepro may error out in future invocations).
+.SS conf/incoming
+Every chunk is a rule set for the
+.B process_incoming
+command.
+Possible fields are:
+.TP
+.B Name
+The name of the rule-set, used as argument to the scan command to specify
+to use this rule.
+.TP
+.B IncomingDir
+The Name of the directory to scan for
+.B .changes
+files.
+.TP
+.B TempDir
+An directory where the files listed in the processed .changes files
+are copied into before they are read.
+To avoid an additional copy, place on the same partition as the pool
+hirachy (or at least at the largest part of it).
+.TP
+.B Allow \fIarguments
+Each argument is either a pair \fIname1\fB>\fIname2\fR or simply
+\fIname\fP which is short for \fIname\fB>\fIname\fR.
+Each \fIname2\fP must identify a distribution,
+either by being Codename, an unique Suite, or an unique AlsoAcceptFor
+from \fBconf/distributions\fP.
+Each upload has each item in its
+.B Distribution:
+header compared first to last with earch \fIname1\fP in the rules
+and is put in the first one accepting this package.  e.g.:
+.br
+Allow: local unstable>sid
+.br
+or
+.br
+Allow: stable>security-updates stable>proposed-updates
+.TP
+.B Default \fIdistribution
+Every upload not put into any other distribution because
+of an Allow argument is put into \fIdistribution\fP if that
+accepts it.
+.TP
+.B Multiple
+Allow putting an upload in multiple distributions if it lists more
+than one. (Without this field, procession stops after the first
+successfull).
 .SH "UPLOADERS FILES"
 These files specified by the \fBUploaders\fP header in the distribution
 definition as explained above describe what key a \fB.changes\fP file

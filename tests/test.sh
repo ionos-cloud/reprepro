@@ -138,43 +138,43 @@ dists/B/dog/source/Sources.gz
 dists/B/Release
 END
 dodiff results.expected results
-testrun - -b . -V import default 3<<EOF
+testrun - -b . -V processincoming default 3<<EOF
 returns 254
 stderr
-*=Unable to open file ./conf/imports: No such file or directory
+*=Unable to open file ./conf/incoming: No such file or directory
 *=There have been errors!
 EOF
-touch conf/imports
-testrun - -b . -V import default 3<<EOF
+touch conf/incoming
+testrun - -b . -V processincoming default 3<<EOF
 returns 249
 stderr
-*=No definition for 'default' found in './conf/imports'!
+*=No definition for 'default' found in './conf/incoming'!
 *=There have been errors!
 EOF
-cat > conf/imports <<EOF
+cat > conf/incoming <<EOF
 Name: bla
 EOF
-testrun - -b . -V import default 3<<EOF
+testrun - -b . -V processincoming default 3<<EOF
 returns 249
 stderr
-*=No definition for 'default' found in './conf/imports'!
+*=No definition for 'default' found in './conf/incoming'!
 *=There have been errors!
 EOF
-cat > conf/imports <<EOF
+cat > conf/incoming <<EOF
 Name: bla
 
 Name: default
 
 Name: blub
 EOF
-testrun - -b . -V import default 3<<EOF
+testrun - -b . -V processincoming default 3<<EOF
 returns 249
 stderr
-*=Expected 'TempDir' header not found in definition for 'default' in './conf/imports'!
-=Stop reading further chunks from './conf/imports' due to previous errors.
+*=Expected 'TempDir' header not found in definition for 'default' in './conf/incoming'!
+=Stop reading further chunks from './conf/incoming' due to previous errors.
 *=There have been errors!
 EOF
-cat > conf/imports <<EOF
+cat > conf/incoming <<EOF
 Name: bla
 
 Name: default
@@ -182,14 +182,14 @@ TempDir: temp
 
 Name: blub
 EOF
-testrun - -b . -V import default 3<<EOF
+testrun - -b . -V processincoming default 3<<EOF
 returns 249
 stderr
-*=Expected 'IncomingDir' header not found in definition for 'default' in './conf/imports'!
-=Stop reading further chunks from './conf/imports' due to previous errors.
+*=Expected 'IncomingDir' header not found in definition for 'default' in './conf/incoming'!
+=Stop reading further chunks from './conf/incoming' due to previous errors.
 *=There have been errors!
 EOF
-cat > conf/imports <<EOF
+cat > conf/incoming <<EOF
 Name: bla
 
 Name: default
@@ -198,15 +198,15 @@ IncomingDir: i
 
 Name: blub
 EOF
-testrun - -b . import default 3<<EOF
+testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-*='default' in './conf/imports' has neither a 'Allow' nor a 'Default' definition!
+*='default' in './conf/incoming' has neither a 'Allow' nor a 'Default' definition!
 *=Aborting as nothing would be left in.
-=Stop reading further chunks from './conf/imports' due to previous errors.
+=Stop reading further chunks from './conf/incoming' due to previous errors.
 *=There have been errors!
 EOF
-cat > conf/imports <<EOF
+cat > conf/incoming <<EOF
 Name: bla
 
 Name: default
@@ -216,14 +216,14 @@ Allow: A B
 
 Name: blub
 EOF
-testrun - -b . import default 3<<EOF
+testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
 *=Cannot scan './i': No such file or directory
 *=There have been errors!
 EOF
 mkdir i
-testrun "" -b . import default
+testrun "" -b . processincoming default
 (cd i ; PACKAGE=bird EPOCH="" VERSION=1 REVISION="" SECTION="tasty" genpackage.sh)
 echo returned: $?
 DSCMD5S="$(md5sum i/bird_1.dsc | cut -d' ' -f1) $(stat -c '%s' i/bird_1.dsc)"
@@ -232,7 +232,7 @@ DEBMD5="$(md5sum i/bird_1_abacus.deb | cut -d' ' -f1)"
 DEBSIZE="$(stat -c '%s' i/bird_1_abacus.deb)"
 DEBAMD5="$(md5sum i/bird-addons_1_all.deb | cut -d' ' -f1)"
 DEBASIZE="$(stat -c '%s' i/bird-addons_1_all.deb)"
-testrun - -b . import default 3<<EOF
+testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -240,7 +240,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/test1/A/' i/test.changes
-testrun - -b . import default 3<<EOF
+testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -249,7 +249,7 @@ stderr
 EOF
 sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
 cp -a i i2
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 *=Created directory "./pool"
@@ -346,7 +346,7 @@ echo "bird Homepage gopher://tree" >> override/dsco
 
 mv i2/* i/
 rmdir i2
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 *=Created directory "./pool/cat"
@@ -447,7 +447,7 @@ dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
 cat > i/test.changes <<EOF
 EOF
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -457,7 +457,7 @@ EOF
 cat > i/test.changes <<EOF
 Dummyfield: test
 EOF
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -465,7 +465,7 @@ stderr
 *=There have been errors!
 EOF
 echo "Source: sourceinchanges" > i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -473,7 +473,7 @@ stderr
 *=There have been errors!
 EOF
 echo "Binary: binaryinchanges" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -481,7 +481,7 @@ stderr
 *=There have been errors!
 EOF
 echo "Architecture: funny" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -489,7 +489,7 @@ stderr
 *=There have been errors!
 EOF
 echo "Version: 999:versioninchanges-0~" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -497,7 +497,7 @@ stderr
 *=There have been errors!
 EOF
 echo "Distribution: A" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -505,7 +505,7 @@ stderr
 *=There have been errors!
 EOF
 echo "Files:" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -516,7 +516,7 @@ EOF
 # and looked for it, there is no problem here, though it might
 # look like one
 echo " md5sum size - - ../ööü_v_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 249
 stderr
 =Data seems not to be signed trying to use directly...
@@ -526,7 +526,7 @@ EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " md5sum size - - \300\257.\300\257_v_funny.deb" >> i/test.changes
 touch "$(echo -e 'i/\300\257.\300\257_v_funny.deb')"
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -536,7 +536,7 @@ EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " md5sum size - - \300\257.\300\257_v_all.deb" >> i/test.changes
 mv "$(echo -e 'i/\300\257.\300\257_v_funny.deb')" "$(echo -e 'i/\300\257.\300\257_v_all.deb')"
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -544,7 +544,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/funny/all/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -553,7 +553,7 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " md5sum size - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -564,7 +564,7 @@ echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " md5sum size - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 mv i/debfilename_debfileversion~2_coal.deb i/debfilename_debfileversion~2_all.deb
 # // TODO: that should be ERROR: instead of WARNING:
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 254
 stderr
 =Data seems not to be signed trying to use directly...
@@ -574,7 +574,7 @@ EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 # TODO: these will hopefully change to not divulge the place of the temp dir some day...
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -586,7 +586,7 @@ dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -600,7 +600,7 @@ dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -612,7 +612,7 @@ dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -622,7 +622,7 @@ EOF
 mv i/debfilename_debfileversion~2_all.deb i/indebname_debfileversion~2_all.deb
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -634,7 +634,7 @@ dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -642,7 +642,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/sourceinchanges/sourceindeb/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -650,7 +650,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/999:versioninchanges-0~/sourceversionindeb/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -659,7 +659,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/binaryinchanges/indebname/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -672,7 +672,7 @@ dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -682,7 +682,7 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -695,7 +695,7 @@ dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -705,7 +705,7 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S section priority indebname_debfileversion~2_all.deb" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 0
 stderr
 =Data seems not to be signed trying to use directly...
@@ -734,7 +734,7 @@ Distribution: A
 Files:
  md5sum size - - dscfilename_fileversion~.dsc
 EOF
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -742,7 +742,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/^Architecture: all$/Architecture: source/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -750,7 +750,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i -e 's/^Distribution: A$/Distribution: B/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 254
 stderr
 =Data seems not to be signed trying to use directly...
@@ -759,7 +759,7 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -770,7 +770,7 @@ echo "Dummyheader:" > i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -781,7 +781,7 @@ echo "Source: nameindsc" > i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -792,7 +792,7 @@ echo "Format: 1.0" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -803,7 +803,7 @@ echo "Maintainer: guess who <me@nowhere>" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -815,7 +815,7 @@ echo "Standards-Version: 0" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -826,7 +826,7 @@ echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -837,7 +837,7 @@ echo "Files:  " >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -848,7 +848,7 @@ sed -i 's/^Source: nameindsc$/Source: dscfilename/g' i/dscfilename_fileversion~.
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -856,7 +856,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i 's/^Source: sourceinchanges$/Source: dscfilename/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -864,7 +864,7 @@ stderr
 *=There have been errors!
 EOF
 sed -i 's/^Version: 1:versioninchanges$/Version: versionindsc/' i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -875,7 +875,7 @@ EOF
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy - dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -887,7 +887,7 @@ echo -e "g/^Format:/d\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -900,7 +900,7 @@ DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s'
 OLDDSCFILENAMEMD5S="$DSCMD5S"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 0
 stderr
 =Data seems not to be signed trying to use directly...
@@ -937,7 +937,7 @@ Files:
  $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc
 EOF
 # this is a stupid error message, needs to get some context
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -948,7 +948,7 @@ sed -i "s/ sizeindsc / 666 /" i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -957,7 +957,7 @@ stderr
 *=There have been errors!
 EOF
 echo " md5suminchanges 666 - - strangefile" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -966,7 +966,7 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " md5suminchanges 666 - - strangefile_xyz" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 249
 stderr
 =Data seems not to be signed trying to use directly...
@@ -975,7 +975,7 @@ stderr
 *=There have been errors!
 EOF
 mv i/strangefile i/strangefile_xyz
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -985,7 +985,7 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " md5sumindsc 666 - - strangefile_xyz" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 254
 stderr
 =Data seems not to be signed trying to use directly...
@@ -1000,7 +1000,7 @@ DSCFILENAMEMD5S="$DSCMD5S"
 echo -e '$-1,$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 255
 stderr
 =Data seems not to be signed trying to use directly...
@@ -1084,7 +1084,7 @@ testout "" -b . dumpunreferenced
 dodiff results.empty results
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
-testrun - -V -b . import default 3<<EOF
+testrun - -V -b . processincoming default 3<<EOF
 returns 0
 stderr
 =Data seems not to be signed trying to use directly...

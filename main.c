@@ -1965,13 +1965,13 @@ ACTION_N(versioncompare) {
 	}
 	return r;
 }
-/***********************import***********************************/
-ACTION_D(import) {
+/***********************processincoming********************************/
+ACTION_D(processincoming) {
 	retvalue result,r;
 	struct distribution *distributions;
 
 	if( argc != 2 ) {
-		fprintf(stderr,"reprepro import <import-name>\n");
+		fprintf(stderr,"reprepro processincoming <rule-name>\n");
 		return RET_ERROR;
 	}
 
@@ -2114,7 +2114,7 @@ static const struct action {
 	{"include",		A_D(include)},
 	{"generatefilelists",	A_F(generatefilelists)},
 	{"clearvanished",	A_D(clearvanished)},
-	{"import",		A_D(import)},
+	{"processincoming",	A_D(processincoming)},
 	{NULL,NULL,0}
 };
 #undef A_N

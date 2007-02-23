@@ -1,6 +1,6 @@
 _reprepro()
 {
-	local cur prev commands options noargoptions i state cmd ignores hiddencommands commands codenames confdir basedir architectures components
+	local cur prev commands options noargoptions i state cmd ignores hiddencommands commands codenames confdir basedir architectures components importrules
 
 	confdir=""
 	basedir=""
@@ -32,6 +32,31 @@ _reprepro()
 			codenames="experimental woody sarge sid etch whatever-you-defined"
 			architectures="source i386 abacus whatever-you-defined"
 			components="main contrib non-free whatever-you-defined"
+		fi
+	}
+	function parse_incoming() {
+		local conffile incomingfile
+		if [[ -n "$confdir" ]] ; then
+			conffile="$confdir/options"
+			incomingfile="$confdir/incoming"
+		elif [[ -n "$basedir" ]] ; then
+			conffile="$basedir/conf/options"
+			incomingfile="$basedir/conf/incoming"
+		else
+			conffile="./conf/options"
+			incomingfile="./conf/incoming"
+		fi
+		if [[ -e "$conffile" ]] ; then
+			if grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
+				incomingfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir //')/incoming"
+			elif [ -z "$confdir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
+				incoming="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir //')/conf/incoming"
+			fi
+		fi
+		if [[ -e "$incomingfile" ]] ; then
+			importrules="$(awk -- '/^[Nn][Aa][Mm][Ee]: / {$1="";print}' "$incomingfile")"
+		else
+			importrules="rule-name"
 		fi
 	}
 
@@ -81,7 +106,6 @@ _reprepro()
 				confdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
 				;;
-			
 			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export)
 
 				prev="$cur"
@@ -142,11 +166,12 @@ _reprepro()
 		commands='remove list listfilter createsymlinks export\
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
-			cleartracks removetrack update checkupdate pull \
-			checkpull includedeb includeudeb includedsc include copy'
-		hiddencommands='__d __extractcontrol _detect _forget\
-			_listmd5sums _addmd5sum _dumpcontents\
-			_removereferences _addreference'
+			cleartracks removetrack update checkupdate predelete pull\
+			checkpull includedeb includeudeb includedsc include\
+			generatefilelists clearvanished copy processincoming'
+		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
+			_listmd5sums _addmd5sums _dumpcontents\
+			_removereferences _addreference _versioncompare _fakeemptyfilelist'
 
 		if [[ "$cur" == -* ]]; then
 			case "$cur" in 
@@ -192,6 +217,14 @@ _reprepro()
 			# all arguments are codenames
 			parse_config
 			COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
+			return 0
+			;;
+
+		processincoming)
+			# arguments are rule-name from conf/incoming
+			parse_config
+			parse_incoming
+			COMPREPLY=( $( compgen -W "$importrules" -- $cur ) )
 			return 0
 			;;
 

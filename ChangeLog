@@ -1,3 +1,8 @@
+2007-02-23  Bernhard R. Link <brlink@debian.org>
+	* rename import to processincoming
+	* describe in manpage
+	* update bash completion example
+
 2007-02-11  Bernhard R. Link <brlink@debian.org>
 	* fix bug in non-libarchive filelist extraction with long
 	filelists
