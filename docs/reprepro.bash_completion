@@ -168,7 +168,7 @@ _reprepro()
 			dumpunreferenced deleteunreferenced retrack dumptracks\
 			cleartracks removetrack update checkupdate predelete pull\
 			checkpull includedeb includeudeb includedsc include\
-			generatefilelists clearvanished copy processincoming'
+			generatefilelists clearvanished copy processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
 			_listmd5sums _addmd5sums _dumpcontents\
 			_removereferences _addreference _versioncompare _fakeemptyfilelist'
@@ -266,6 +266,20 @@ _reprepro()
 				_filedir "!*.changes"
 			fi
 			return 0
+			;;
+		gensnapshot)
+			# first argument is a codename
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
+				return 0
+			fi
+			# then the name of a snapshot, add a suggestion
+			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
+				COMPREPLY=( $( compgen -W "$(date +%Y/%m/%d)" -- $cur ) )
+				return 0
+			fi
+			return 0;
 			;;
 		copy)
 			# first argument is a codename

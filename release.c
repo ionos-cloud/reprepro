@@ -54,6 +54,8 @@ struct release {
 	char *dirofdist;
 	/* anything new yet added */
 	bool_t new;
+	/* snapshot */
+	bool_t snapshot;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -156,6 +158,21 @@ retvalue release_init(const char *dbdir, const char *distdir, const char *codena
 		return RET_DBERR(dbret);
 	}
 	free(filename);
+	*release = n;
+	return RET_OK;
+}
+
+retvalue release_initsnapshot(const char *distdir, const char *codename, const char *name, struct release **release) {
+	struct release *n;
+
+	n = calloc(1,sizeof(struct release));
+	n->dirofdist = mprintf("%s/%s/snapshots/%s",distdir,codename,name);
+	if( n->dirofdist == NULL ) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
+	n->cachedb = NULL;
+	n->snapshot = TRUE;
 	*release = n;
 	return RET_OK;
 }
@@ -1061,6 +1078,9 @@ static retvalue getcachevalue(struct release *r,const char *relfilename, char **
 	int dbret;
 	DBT key,data;
 
+	if( r->cachedb == NULL )
+		return RET_NOTHING;
+
 	SETDBT(key,relfilename);
 	CLEARDBT(data);
 	dbret = r->cachedb->get(r->cachedb, NULL, &key, &data, 0);
@@ -1356,13 +1376,13 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		RET_UPDATE(result,r);
 	}
 
-	/* now update the cache database, so we find those the next time */
-
-	r = storechecksums(release);
-	RET_UPDATE(result,r);
-
 	if( release->cachedb != NULL ) {
 	 	int dbret;
+
+		/* now update the cache database, so we find those the next time */
+		r = storechecksums(release);
+		RET_UPDATE(result,r);
+
 		/* check for an possible error in the cachedb,
 		 * release_free return no error */
 		dbret = release->cachedb->close(release->cachedb,0);
@@ -1377,3 +1397,15 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	return result;
 }
 
+retvalue release_mkdir(struct release *release, const char *relativedirectory) {
+	char *dirname;
+	retvalue r;
+
+	dirname = calc_dirconcat(release->dirofdist,relativedirectory);
+	if( dirname == NULL )
+		return RET_ERROR_OOM;
+	// TODO: in some far future, remember which dirs were created so that
+	r = dirs_make_recursive(dirname);
+	free(dirname);
+	return r;
+}

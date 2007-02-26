@@ -1989,6 +1989,28 @@ ACTION_D(processincoming) {
 
 	return result;
 }
+/***********************gensnapshot********************************/
+ACTION_R(gensnapshot) {
+	retvalue result,r;
+	struct distribution *distribution;
+
+	if( argc != 3 ) {
+		fprintf(stderr,"reprepro gensnapshot <distribution> <date or other name>\n");
+		return RET_ERROR;
+	}
+	result = distribution_get(&distribution,confdir,argv[1]);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = distribution_snapshot(distribution,
+	                               confdir, dbdir, distdir,
+	                               references,
+	                               argv[2]);
+	r = distribution_free(distribution);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
 
 /**********************/
 /* lock file handling */
@@ -2115,6 +2137,7 @@ static const struct action {
 	{"generatefilelists",	A_F(generatefilelists)},
 	{"clearvanished",	A_D(clearvanished)},
 	{"processincoming",	A_D(processincoming)},
+	{"gensnapshot",		A_R(gensnapshot)},
 	{NULL,NULL,0}
 };
 #undef A_N

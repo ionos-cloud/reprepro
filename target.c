@@ -287,6 +287,7 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 struct data_reref {
 	/*@dependent@*/references refs;
 	/*@dependent@*/struct target *target;
+	/*@dependent@*/const char *identifier;
 };
 
 static retvalue rereferencepkg(void *data,const char *package,const char *chunk) {
@@ -298,11 +299,11 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( verbose > 10 ) {
-		fprintf(stderr,"adding references to '%s' for '%s': ",d->target->identifier,package);
+		fprintf(stderr,"adding references to '%s' for '%s': ",d->identifier,package);
 		(void)strlist_fprint(stderr,&filekeys);
 		(void)putc('\n',stderr);
 	}
-	r = references_insert(d->refs,d->target->identifier,&filekeys,NULL);
+	r = references_insert(d->refs,d->identifier,&filekeys,NULL);
 	strlist_done(&filekeys);
 	return r;
 }
@@ -327,10 +328,60 @@ retvalue target_rereference(struct target *target,references refs) {
 
 	refdata.refs = refs;
 	refdata.target = target;
+	refdata.identifier = target->identifier;
 	r = packages_foreach(target->packages,rereferencepkg,&refdata);
 	RET_UPDATE(result,r);
 
 	return result;
+}
+
+static retvalue snapshotreferencepkg(void *data,const char *package,const char *chunk) {
+	struct data_reref *d = data;
+	struct strlist filekeys;
+	retvalue r;
+
+	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys,NULL);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( verbose > 15 ) {
+		fprintf(stderr,"adding references to '%s' for '%s': ",d->identifier,package);
+		(void)strlist_fprint(stderr,&filekeys);
+		(void)putc('\n',stderr);
+	}
+	r = references_add(d->refs,d->identifier,&filekeys);
+	strlist_done(&filekeys);
+	return r;
+}
+
+retvalue target_addsnapshotreference(struct target *target,const char *dbdir,references refs,const char *name) {
+	retvalue r,r2;
+	struct data_reref refdata;
+	char *id;
+
+	assert(target->packages==NULL);
+
+	id = mprintf("s=%s=%s", target->codename, name);
+	if( id == NULL )
+		return RET_ERROR_OOM;
+
+	r = target_initpackagesdb(target,dbdir);
+	if( RET_WAS_ERROR(r) ) {
+		free(id);
+		return r;
+	}
+
+	if( verbose >= 1)
+		fprintf(stderr,"Referencing snapshot '%s' of %s...\n",name,target->identifier);
+	refdata.refs = refs;
+	refdata.target = target;
+	refdata.identifier = id;
+	r = packages_foreach(target->packages,snapshotreferencepkg,&refdata);
+	free(id);
+
+	r2 = target_closepackagesdb(target);
+	RET_ENDUPDATE(r,r2);
+
+	return r;
 }
 
 /* retrack a full database */
@@ -457,7 +508,7 @@ retvalue target_reoverride(struct target *target,const struct distribution *dist
 
 /* export a database */
 
-retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, struct release *release ) {
+retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, bool_t snapshot, struct release *release) {
 	retvalue result,r;
 	bool_t onlymissing;
 
@@ -479,25 +530,14 @@ retvalue target_export(struct target *target,const char *confdir,const char *dbd
 				target->packages,
 				target->exportmode,
 				release,
-				onlymissing);
+				onlymissing, snapshot);
 	r = target_closepackagesdb(target);
 	RET_ENDUPDATE(result,r);
 
-	if( !RET_WAS_ERROR(result) ) {
+	if( !RET_WAS_ERROR(result) && !snapshot ) {
 		target->saved_wasmodified =
 			target->saved_wasmodified || target->wasmodified;
 		target->wasmodified = FALSE;
 	}
 	return result;
-}
-
-retvalue target_mkdistdir(struct target *target,const char *distdir) {
-	char *dirname;retvalue r;
-
-	dirname = calc_dirconcat3(distdir,target->codename,target->relativedirectory);
-	if( dirname == NULL )
-		return RET_ERROR_OOM;
-	r = dirs_make_recursive(dirname);
-	free(dirname);
-	return r;
 }

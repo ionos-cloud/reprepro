@@ -331,7 +331,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlyifmissing) {
+retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlyifmissing, bool_t snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
@@ -365,8 +365,9 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 	} else {
 		status = "old";
 	}
-	r = callexporthook(confdir,
-			exportmode->hook,
+	if( !snapshot )
+		r = callexporthook(confdir,
+					exportmode->hook,
 					relfilename,
 					status,
 					release);

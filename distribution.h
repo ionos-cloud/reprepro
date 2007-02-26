@@ -94,6 +94,8 @@ retvalue distribution_fullexport(struct distribution *distribution,const char *c
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
 retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
 
+retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,references refs,const char *name);
+
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
 

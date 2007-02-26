@@ -524,6 +524,51 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 	return RET_OK;
 }
 
+retvalue distribution_snapshot(struct distribution *distribution,
+		const char *confdir, const char *dbdir, const char *distdir,
+		references refs, const char *name) {
+	struct target *target;
+	retvalue result,r;
+	struct release *release;
+
+	assert( distribution != NULL );
+
+	r = release_initsnapshot(distdir,distribution->codename,name,&release);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = RET_NOTHING;
+	for( target=distribution->targets; target != NULL ; target = target->next ) {
+		r = release_mkdir(release, target->relativedirectory);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+		r = target_export(target,confdir,dbdir,FALSE,TRUE,release);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+		if( target->exportmode->release != NULL ) {
+			r = release_directorydescription(release,distribution,target,target->exportmode->release,FALSE);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				break;
+		}
+	}
+	if( RET_WAS_ERROR(result) ) {
+		release_free(release);
+		return result;
+	}
+	result = release_write(release,distribution,FALSE);
+	if( RET_WAS_ERROR(result) )
+		return r;
+	/* add references so that the pool files belonging to it are not deleted */
+	for( target=distribution->targets; target != NULL ; target = target->next ) {
+		r = target_addsnapshotreference(target,dbdir,refs,name);
+		RET_UPDATE(result,r);
+	}
+	return result;
+}
+
 static retvalue export(struct distribution *distribution,
 		const char *confdir, const char *dbdir, const char *distdir,
 		filesdb files, bool_t onlyneeded) {
@@ -539,11 +584,11 @@ static retvalue export(struct distribution *distribution,
 
 	result = RET_NOTHING;
 	for( target=distribution->targets; target != NULL ; target = target->next ) {
-		r = target_mkdistdir(target,distdir);
+		r = release_mkdir(release, target->relativedirectory);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = target_export(target,confdir,dbdir,onlyneeded,release);
+		r = target_export(target,confdir,dbdir,onlyneeded,FALSE,release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;

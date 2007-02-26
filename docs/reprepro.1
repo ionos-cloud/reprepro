@@ -310,7 +310,7 @@ Include in the specified distribution all packages found and suitable
 in the \fI.changes\fP file, applying override information guessing all
 values not given and guessable.
 .TP
-.B include \fIrulesetname\fP
+.B processincoming \fIrulesetname\fP
 Scan an incomming directory and process the .changes files found there.
 .I rulesetname
 identifies which rule-set in
@@ -384,6 +384,24 @@ files still marked as needed by this target.
 reference.)
 
 Do not forget to remove all exported package indices manually.
+.TP
+.B gensnapshot " " \fIcodename\fP " " \fIdirectoryname\fP
+Generate a snapshot of the distribution specified by \fIcodename\fP
+in the directory \fIconf\fB/\fIcodename\fB/snapshots/\fIdirectoryname\fB/\fR
+and reference all needed files in the pool as needed by that.
+No Content files are generated and no export hooks are run.
+
+Note that there is currently no automated way to remove that snapshot
+again (not even clearvanished will unlock the referenced files after the
+distribution itself vanished).
+You will have to remove the directory yourself and tell reprepro
+to \fB_removereferences s=\fP\fIcodename\fP\fB=\fP\fIdirectoryname\fP before
+\fBdeleteunreferenced\fP will delete the files from the pool locked by this.
+
+To access such a snapshot with apt, add something like the following to
+your sources.list file:
+.br
+\fBdeb method://as/without/snapshot \fIcodename\fB/snapshots/\fIname\fB main\fR
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:

@@ -22,6 +22,10 @@ typedef unsigned int compressionset; /* 1 << indexcompression */
 
 /* Initialize Release generation */
 retvalue release_init(const char *dbdir, const char *distdir, const char *codename, struct release **release);
+/* same but for a snapshot */
+retvalue release_initsnapshot(const char *distdir, const char *codename, const char *name, struct release **release);
+
+retvalue release_mkdir(struct release *release, const char *relativedirectory);
 
 const char *release_dirofdist(struct release *release);
 

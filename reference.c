@@ -231,6 +231,27 @@ retvalue references_insert(references refs,const char *identifier,
 	return result;
 }
 
+/* add possible already existing references */
+retvalue references_add(references refs,const char *identifier,const struct strlist *files) {
+	int dbret;
+	int i;
+	DBT key,data;
+
+	for( i = 0 ; i < files->count ; i++ ) {
+		const char *filekey = files->values[i];
+		SETDBT(key,filekey);
+		SETDBT(data,identifier);
+		if ((dbret = refs->db->put(refs->db, NULL, &key, &data, DB_NODUPDATA)) == 0) {
+			if( verbose > 8 )
+				fprintf(stderr,"Added reference to '%s' by '%s'\n", filekey, identifier);
+		} else if( dbret != DB_KEYEXIST) {
+			refs->db->err(refs->db, dbret, "references_add dberror:");
+			return RET_DBERR(dbret);
+		}
+	}
+	return RET_OK;
+}
+
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
 retvalue references_delete(references refs,const char *identifier,
