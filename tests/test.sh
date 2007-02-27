@@ -109,7 +109,7 @@ Components: dog cat
 Contents: 1
 CONFEND
 testrun "" -b . export
-find dists -type f |sort > results
+find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<END
 dists/A/cat/binary-abacus/Packages
 dists/A/cat/binary-abacus/Packages.gz
@@ -1008,21 +1008,21 @@ stderr
 *=file 'strangefile_xyz' is listed with md5sum '33a1096ff883d52f0c1f39e652d6336f 33' in 'test.changes' but with md5sum '31a1096ff883d52f0c1f39e652d6336f 33' in 'dscfilename_fileversion~.dsc'!
 *=There have been errors!
 EOF
-find pool -type f | sort > results
+find pool -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird-addons_1_all.deb
-pool/dog/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird-addons_1_all.deb
+pool/dog/b/bird/bird_1_abacus.deb
 pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
 EOF
 dodiff results.expected results
-find dists -type f | sort > results
+find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
 dists/A/cat/binary-abacus/Packages
 dists/A/cat/binary-abacus/Packages.gz
@@ -1100,22 +1100,22 @@ stdout
 *=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 EOF
 
-find pool -type f | sort > results
+find pool -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird-addons_1_all.deb
-pool/dog/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird-addons_1_all.deb
+pool/dog/b/bird/bird_1_abacus.deb
 pool/dog/d/dscfilename/dscfilename_newversion~.dsc
 pool/dog/d/dscfilename/strangefile_xyz
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
 EOF
 dodiff results.expected results
-find dists -type f | sort > results
+find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
 dists/A/cat/binary-abacus/Packages
 dists/A/cat/binary-abacus/Packages.gz
