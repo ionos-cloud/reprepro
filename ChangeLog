@@ -1,3 +1,7 @@
+2007-03-12  Bernhard R. Link <brlink@debian.org>
+	* add --silent option
+	* change some status output to stdout instead of stderr.
+
 2007-02-26  Bernhard R. Link <brlink@debian.org>
 	* add gensnapshot command
 

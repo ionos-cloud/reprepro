@@ -1,3 +1,7 @@
+Updates since 2.0.0:
+- add --silent option
+- change some status output to stdout instead of stderr.
+
 Updates since 1.3.1:
 - add "adddeb" action to changestool
 - fix bug in manpage ("accept" should have been "allow" for uploaders)

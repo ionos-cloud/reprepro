@@ -2418,6 +2418,9 @@ static void handle_option(int c,const char *optarg) {
 			}
 			longoption = 0;
 			break;
+		case 's':
+			verbose--;
+			break;
 		case 'v':
 			verbose++;
 			break;
@@ -2525,6 +2528,7 @@ int main(int argc,char *argv[]) {
 		{"type", required_argument, NULL, 'T'},
 		{"help", no_argument, NULL, 'h'},
 		{"verbose", no_argument, NULL, 'v'},
+		{"silent", no_argument, NULL, 's'},
 		{"version", no_argument, &longoption, LO_VERSION},
 		{"nothingiserror", no_argument, &longoption, LO_NOTHINGISERROR},
 		{"nolistsdownload", no_argument, &longoption, LO_NOLISTDOWNLOAD},
@@ -2568,7 +2572,7 @@ int main(int argc,char *argv[]) {
 	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 
-	while( (c = getopt_long(argc,argv,"+fVvhb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
+	while( (c = getopt_long(argc,argv,"+fVvshb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
 		handle_option(c,optarg);
 	}
 	if( optind >= argc ) {

@@ -1548,7 +1548,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 
 	/* Then get all packages */
 	if( verbose >= 0 )
-		fprintf(stderr,"Calculating packages to get...\n");
+		fprintf(stdout,"Calculating packages to get...\n");
 	r = downloadcache_initialize(&cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
@@ -1580,15 +1580,15 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stderr,"Getting packages...\n");
+		fprintf(stdout,"Getting packages...\n");
 	r = aptmethod_download(run,methoddir,filesdb);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
-		fprintf(stderr,"Freeing some memory...\n");
+		fprintf(stdout,"Freeing some memory...\n");
 	r = downloadcache_free(cache);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
-		fprintf(stderr,"Shutting down aptmethods...\n");
+		fprintf(stdout,"Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
 
@@ -1603,7 +1603,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
+		fprintf(stdout,"Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
