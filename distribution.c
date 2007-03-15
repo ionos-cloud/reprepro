@@ -188,7 +188,7 @@ static inline retvalue isinfilter(const char *codename, const struct distributio
 	return RET_NOTHING;
 }
 
-static retvalue distribution_parse_and_filter(struct distribution **distribution,const char *chunk,struct distribution_filter filter) {
+static retvalue distribution_parse_and_filter(struct distribution **distribution,const char *chunk,struct distribution_filter filter, bool_t lookedat) {
 	struct distribution *r;
 	retvalue ret;
 	const char *missing;
@@ -365,6 +365,7 @@ NULL};
 		return ret;
 	}
 	r->status = RET_NOTHING;
+	r->lookedat = lookedat;
 
 	*distribution = r;
 	return RET_OK;
@@ -398,6 +399,8 @@ retvalue distribution_foreach_part(struct distribution *distribution,const char 
 struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
 	struct target *t = distribution->targets;
 
+	// TODO: think about making read only access and only alowing readwrite when lookedat is set
+
 	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
 		t = t->next;
 	}
@@ -419,14 +422,14 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 	return t;
 }
 
-struct distmatch_mydata {struct distribution_filter filter; struct distribution *distributions;};
+struct distmatch_mydata {struct distribution_filter filter; struct distribution *distributions;bool_t lookedat;};
 
 static retvalue adddistribution(void *d,const char *chunk) {
 	struct distmatch_mydata *mydata = d;
 	retvalue result;
 	struct distribution *distribution;
 
-	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter);
+	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter,mydata->lookedat);
 	if( RET_IS_OK(result) ){
 		struct distribution *d;
 		for( d=mydata->distributions; d != NULL; d=d->next ) {
@@ -443,7 +446,7 @@ static retvalue adddistribution(void *d,const char *chunk) {
 }
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],struct distribution **distributions) {
+retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],struct distribution **distributions, bool_t lookedat) {
 	retvalue result;
 	char *fn;
 	struct distmatch_mydata mydata;
@@ -454,6 +457,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	if( mydata.filter.found == NULL )
 		return RET_ERROR_OOM;
 	mydata.distributions = NULL;
+	mydata.lookedat = lookedat;
 
 	fn = calc_dirconcat(conf,"distributions");
 	if( fn == NULL )
@@ -500,7 +504,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	return result;
 }
 
-retvalue distribution_get(struct distribution **distribution,const char *confdir,const char *name) {
+retvalue distribution_get(struct distribution **distribution,const char *confdir,const char *name, bool_t lookedat) {
 	retvalue result;
 	struct distribution *d;
 
@@ -509,7 +513,7 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 	 * about emtpy lines in the definition (as this would split
 	 * it in two definitions, the second one no valid one).
 	 */
-	result = distribution_getmatched(confdir,1,&name,&d);
+	result = distribution_getmatched(confdir,1,&name,&d,lookedat);
 
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -647,14 +651,14 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 	}
 
 	for( d=distributions; d != NULL; d = d->next ) {
-		if( RET_IS_OK(d->status) ||
+		if( d->lookedat && (RET_IS_OK(d->status) ||
 			( d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
-			when == EXPORT_FORCE) {
+			when == EXPORT_FORCE)) {
 			todo = TRUE;
 		}
 	}
 
-	if( (verbose >= 0 && todo) || verbose >= 10 )
+	if( verbose >= 0 && todo )
 		fprintf(stdout,"Exporting indices...\n");
 
 	result = RET_NOTHING;
@@ -662,7 +666,12 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		d = distributions;
 		distributions = d->next;
 
-		if( (RET_WAS_ERROR(d->status)||interrupted()) && when != EXPORT_FORCE ) {
+		if( !d->lookedat ) {
+			if( verbose >= 30 )
+				printf(
+" Not exporting %s because not looked at.\n", d->codename);
+		} else if( (RET_WAS_ERROR(d->status)||interrupted()) &&
+		           when != EXPORT_FORCE ) {
 			if( verbose >= 10 )
 				fprintf(stderr,
 " Not exporting %s because there have been errors and no --export=force.\n",
@@ -671,7 +680,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 			struct target *t;
 
 			if( verbose >= 10 )
-				fprintf(stderr,
+				printf(
 " Not exporting %s because of no recorded changes and --export=changed.\n",
 						d->codename);
 

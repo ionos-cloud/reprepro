@@ -435,7 +435,7 @@ ACTION_D(remove) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(&distribution,confdir,argv[1]);
+	r = distribution_get(&distribution, confdir, argv[1], TRUE);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -533,7 +533,7 @@ ACTION_N(list) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(&distribution,confdir,argv[1]);
+	r = distribution_get(&distribution, confdir, argv[1], FALSE);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -595,7 +595,7 @@ ACTION_N(listfilter) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(&distribution,confdir,argv[1]);
+	r = distribution_get(&distribution, confdir, argv[1], FALSE);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -712,14 +712,14 @@ ACTION_F(export) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
 	result = RET_NOTHING;
 	for( d = distributions ; d != NULL ; d = d->next ) {
 		if( verbose > 0 ) {
-			fprintf(stderr,"Exporting %s...\n",d->codename);
+			printf("Exporting %s...\n",d->codename);
 		}
 
 		r = distribution_fullexport(d,confdir,dbdir,distdir,filesdb);
@@ -752,7 +752,7 @@ ACTION_D(update) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -805,7 +805,7 @@ ACTION_D(predelete) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -858,7 +858,7 @@ ACTION_D(iteratedupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -908,7 +908,7 @@ ACTION_N(checkupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -952,7 +952,7 @@ ACTION_D(pull) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -999,7 +999,7 @@ ACTION_N(checkpull) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1126,11 +1126,11 @@ ACTION_D(copy) {
 		fprintf(stderr,"reprepro [-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(&destination,confdir,argv[1]);
+	result = distribution_get(&destination, confdir, argv[1], TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	result = distribution_get(&source,confdir,argv[2]);
+	result = distribution_get(&source, confdir, argv[2], FALSE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		distribution_free(destination);
@@ -1191,7 +1191,7 @@ ACTION_R(rereference) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1201,7 +1201,7 @@ ACTION_R(rereference) {
 		struct data_binsrcreref dat;
 
 		if( verbose > 0 ) {
-			fprintf(stderr,"Referencing %s...\n",d->codename);
+			printf("Referencing %s...\n",d->codename);
 		}
 		dat.distribution = d;
 		dat.refs = references;
@@ -1244,7 +1244,7 @@ ACTION_R(retrack) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1295,7 +1295,7 @@ ACTION_D_U(removetrack) {
 		fprintf(stderr,"reprepro removetrack <distribution> <sourcename> <version>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(&distribution,confdir,argv[1]);
+	result = distribution_get(&distribution, confdir, argv[1], TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1323,7 +1323,7 @@ ACTION_D(cleartracks) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1332,8 +1332,8 @@ ACTION_D(cleartracks) {
 	for( d = distributions ; d != NULL ; d = d->next ) {
 		trackingdb tracks;
 
-		if( verbose > 0 ) {
-			fprintf(stderr,"Deleting all tracks for %s...\n",d->codename);
+		if( verbose >= 0 ) {
+			printf("Deleting all tracks for %s...\n",d->codename);
 		}
 		r = tracking_initialize(&tracks,dbdir,d);
 		if( RET_WAS_ERROR(r) ) {
@@ -1365,7 +1365,7 @@ ACTION_N(dumptracks) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1418,7 +1418,7 @@ ACTION_RF(check) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1428,7 +1428,7 @@ ACTION_RF(check) {
 		struct data_check dat;
 
 		if( verbose > 0 ) {
-			fprintf(stderr,"Checking %s...\n",d->codename);
+			printf("Checking %s...\n",d->codename);
 		}
 
 		dat.references = references;
@@ -1481,7 +1481,7 @@ ACTION_F(reoverride) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1553,7 +1553,7 @@ ACTION_D(includedeb) {
 			return RET_ERROR;
 	}
 
-	result = distribution_get(&distribution,confdir,argv[1]);
+	result = distribution_get(&distribution, confdir, argv[1], TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1630,7 +1630,7 @@ ACTION_D(includedsc) {
 				"includedsc called with a file not ending with '.dsc'\n") )
 		return RET_ERROR;
 
-	result = distribution_get(&distribution,confdir,argv[1]);
+	result = distribution_get(&distribution, confdir, argv[1], TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1693,7 +1693,7 @@ ACTION_D(include) {
 		}
 	}
 
-	result = distribution_get(&distribution,confdir,argv[1]);
+	result = distribution_get(&distribution, confdir, argv[1], TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1747,7 +1747,7 @@ ACTION_N(createsymlinks) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1870,7 +1870,7 @@ ACTION_D_UU(clearvanished) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir,0,NULL,&distributions);
+	result = distribution_getmatched(confdir, 0, NULL, &distributions, FALSE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1922,7 +1922,7 @@ ACTION_D_UU(clearvanished) {
 				continue;
 			}
 		}
-		fprintf(stderr,
+		printf(
 "Deleting vanished identifier '%s'.\n", identifier);
 		/* derference anything left */
 		references_remove(references, identifier, dereferenced);
@@ -1975,7 +1975,7 @@ ACTION_D(processincoming) {
 		return RET_ERROR;
 	}
 
-	r = distribution_getmatched(confdir,0,NULL,&distributions);
+	r = distribution_getmatched(confdir,0,NULL,&distributions, FALSE);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -1998,7 +1998,7 @@ ACTION_R(gensnapshot) {
 		fprintf(stderr,"reprepro gensnapshot <distribution> <date or other name>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(&distribution,confdir,argv[1]);
+	result = distribution_get(&distribution, confdir, argv[1], TRUE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -2197,7 +2197,7 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 						assert(references!=NULL);
 
 						if( verbose >= 0 )
-					  	    fprintf(stderr,
+					  	    printf(
 "Deleting files no longer referenced...\n");
 						r = removeunreferencedfiles(
 							references,filesdb,
