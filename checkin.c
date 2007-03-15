@@ -1010,7 +1010,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			}
 		} else {
 			if( verbose >= 5 ) {
-				fprintf(stderr,"Deleting '%s'.\n",changesfilename);
+				printf("Deleting '%s'.\n",changesfilename);
 			}
 			if( unlink(changesfilename) != 0 ) {
 				fprintf(stderr,"Error deleting '%s': %m\n",changesfilename);

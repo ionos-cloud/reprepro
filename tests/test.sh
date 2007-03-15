@@ -76,12 +76,12 @@ fi
 #VERBOSITY="-v"
 #TESTOPTIONS="-D v=2 $TESTOPTIONS"
 #VERBOSITY="-vv"
-TESTOPTIONS="-D v=3 $TESTOPTIONS"
-VERBOSITY="-vvv"
+#TESTOPTIONS="-D v=3 $TESTOPTIONS"
+#VERBOSITY="-vvv"
 #TESTOPTIONS="-D v=4 $TESTOPTIONS"
 #VERBOSITY="-vvvv"
-#TESTOPTIONS="-D v=5 $TESTOPTIONS"
-#VERBOSITY="-vvvvv"
+TESTOPTIONS="-D v=5 $TESTOPTIONS"
+VERBOSITY="-vvvvv"
 if [ "2" -le "$#" ] ; then
 	TESTTOOL="$2"
 else
@@ -1613,9 +1613,15 @@ stdout
 -v2*=Created directory "./lists"
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
+-v3*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
 -v3*=  processing updates for 'test1|ugly|abacus'
+-v3*=  reading './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v3*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v3*=  processing updates for 'test1|stupid|source'
+-v3*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
 -v3*=  processing updates for 'test1|stupid|abacus'
+-v3*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v3*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
 -v1*=Freeing some memory...
 -v1*=Shutting down aptmethods...
@@ -1642,9 +1648,15 @@ testrun - --nolistsdownload -b . $UPDATETYPE test1 3<<EOF
 stdout
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
+-v3*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
 -v3*=  processing updates for 'test1|ugly|abacus'
+-v3*=  reading './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v3*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v3*=  processing updates for 'test1|stupid|source'
+-v3*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
 -v3*=  processing updates for 'test1|stupid|abacus'
+-v3*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v3*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
 -v1*=Freeing some memory...
 -v1*=Shutting down aptmethods...
@@ -2346,6 +2358,8 @@ Components: test
 EOF
 if $tracking ; then
 testrun - -b . --delete clearvanished 3<<EOF
+stderr
+-v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
 *=Deleting vanished identifier 'foo|bloated|abacus'.
 *=Deleting vanished identifier 'foo|bloated|fingers'.
@@ -2376,6 +2390,7 @@ stdout
 EOF
 else
 testrun - -b . --delete clearvanished 3<<EOF
+-v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
 *=Deleting vanished identifier 'a|all|abacus'.
 *=Deleting vanished identifier 'a|all|source'.
@@ -2450,6 +2465,7 @@ testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|abacus'
+-v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 EOF
 test ! -d dists/a
@@ -2458,6 +2474,7 @@ testrun - -b . --export=normal pull b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|abacus'
+-v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
@@ -2471,6 +2488,7 @@ testrun - -b . --export=normal pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|abacus'
+-v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
@@ -2494,6 +2512,7 @@ stdout
 -v3*=db: 'aa-addons' added to 'a|all|abacus'.
 -v3*=db: 'aa' added to 'a|all|abacus'.
 -v3*=db: 'aa' added to 'a|all|source'.
+-v5*=Deleting 'test.changes'.
 EOF
 test ! -d dists/a
 test ! -d dists/b
@@ -2533,6 +2552,7 @@ testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|abacus'
+-v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 -v3*=db: 'aa' added to 'b|all|abacus'.
 -v3*=db: 'aa-addons' added to 'b|all|abacus'.
@@ -2591,6 +2611,7 @@ stderr
 stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|abacus'
+-v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 -v3*=db: removed old 'aa' from 'b|all|abacus'.
 -v3*=db: 'aa' added to 'b|all|abacus'.
@@ -2658,12 +2679,14 @@ stdout
 -v3*=db: 'ab-addons' added to 'a|all|abacus'.
 -v3*=db: 'ab' added to 'a|all|abacus'.
 -v3*=db: 'ab' added to 'a|all|source'.
+-v5*=Deleting 'test.changes'.
 EOF
 testrun - -b . --export=changed pull b 3<<EOF
 stderr
 stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|abacus'
+-v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 -v3*=db: removed old 'aa' from 'b|all|abacus'.
 -v3*=db: 'aa' added to 'b|all|abacus'.
@@ -2788,6 +2811,7 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 stdout
 -v3*=db: removed old 'ab' from 'a|all|source'.
 -v3*=db: 'ab' added to 'a|all|source'.
+-v5*=Deleting 'broken.changes'.
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.dsc
@@ -2823,6 +2847,7 @@ stdout
 -v2*=Created directory "./pool/all/a/ac"
 -v3*=db: 'ac-addons' added to 'b|all|abacus'.
 -v3*=db: 'ac' added to 'b|all|abacus'.
+-v5*=Deleting 'test.changes'.
 -v0*=Exporting indices...
 EOF
 dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
@@ -2846,6 +2871,8 @@ testrun - -b . predelete b 3<<EOF
 stdout
 -v0*=Removing obsolete or to be replaced packages...
 -v3*=  processing updates for 'b|all|abacus'
+-v5*=  marking everything to be deleted
+-v5*=  reading './lists/b_froma_deb_all_abacus_changed'
 -v3*=db: 'ac-addons' removed from 'b|all|abacus'.
 -v1*=removing 'ab' from 'b|all|abacus'...
 -v3*=db: 'ab' removed from 'b|all|abacus'.
@@ -2873,7 +2900,7 @@ test ! -f pool/all/a/ab/ab_2-1_abacus.deb
 test -f pool/all/a/aa/aa_1-3_abacus.deb
 testrun - -b . copy b a ab ac 3<<EOF
 stdout
--v5*=Adding reference to 'pool/all/a/ab/ab_3-1_abacus.deb' by 'b|all|abacus'
+-v6*=Adding reference to 'pool/all/a/ab/ab_3-1_abacus.deb' by 'b|all|abacus'
 -v1*=Moving 'ab' from 'a|all|abacus' to 'b|all|abacus'.
 -v3*=Not looking into 'a|all|source' as no matching target in 'b'!
 -v3*=No instance of 'ab' found in 'a|all|source'!

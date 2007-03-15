@@ -1323,7 +1323,7 @@ static inline retvalue searchformissing(FILE *out,const char *dbdir,struct updat
 
 		if( index->origin == NULL ) {
 			if( verbose > 4 )
-				fprintf(stderr,"  marking everything to be deleted\n");
+				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = TRUE;
@@ -1343,7 +1343,7 @@ static inline retvalue searchformissing(FILE *out,const char *dbdir,struct updat
 		}
 
 		if( verbose > 4 )
-			fprintf(stderr,"  reading '%s'\n",index->filename);
+			fprintf(out,"  reading '%s'\n",index->filename);
 		assert(index->origin->download!= NULL);
 		r = upgradelist_update(u->upgradelist,
 				index->origin->download,index->filename,
