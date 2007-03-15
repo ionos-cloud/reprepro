@@ -1,3 +1,6 @@
+2007-03-15  Bernhard R. Link <brlink@debian.org>
+	* more output to stdout instead of stderr
+
 2007-03-14  Bernhard R. Link <brlink@debian.org>
 	* processincoming only exports distributions looked at
 	  with --export=always (the default) and not every distribution.

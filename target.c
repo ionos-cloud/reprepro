@@ -316,15 +316,15 @@ retvalue target_rereference(struct target *target,references refs) {
 
 	if( verbose > 1 ) {
 		if( verbose > 2 )
-			fprintf(stderr,"Unlocking depencies of %s...\n",target->identifier);
+			printf("Unlocking depencies of %s...\n",target->identifier);
 		else
-			fprintf(stderr,"Rereferencing %s...\n",target->identifier);
+			printf("Rereferencing %s...\n",target->identifier);
 	}
 
 	result = references_remove(refs,target->identifier, NULL);
 
 	if( verbose > 2 )
-		fprintf(stderr,"Referencing %s...\n",target->identifier);
+		printf("Referencing %s...\n",target->identifier);
 
 	refdata.refs = refs;
 	refdata.target = target;
@@ -486,7 +486,7 @@ retvalue target_check(struct target *target,filesdb filesdb,references refs) {
 
 	assert(target->packages!=NULL);
 	if( verbose > 1 ) {
-		fprintf(stderr,"Checking packages in '%s'...\n",target->identifier);
+		printf("Checking packages in '%s'...\n",target->identifier);
 	}
 	data.refs = refs;
 	data.filesdb = filesdb;
