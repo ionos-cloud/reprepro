@@ -400,7 +400,7 @@ static retvalue pull_loadmissingsourcedistributions(const char *confdir,
 		*extradistributions = NULL;
 		return RET_OK;
 	}
-	r = distribution_getmatched(confdir,count,names, extradistributions);
+	r = distribution_getmatched(confdir, count, names, extradistributions, FALSE);
 	free(names);
 	assert( r != RET_NOTHING );
 	if( RET_IS_OK(r) ) {
@@ -735,7 +735,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 	struct pull_distribution *d;
 
 	if( verbose >= 0 )
-		fprintf(stderr,"Calculating packages to pull...\n");
+		printf("Calculating packages to pull...\n");
 
 	result = RET_NOTHING;
 
@@ -757,7 +757,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
+		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = pull_install(dbdir,filesdb,refs,d,dereferencedfilekeys);

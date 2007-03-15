@@ -1,3 +1,10 @@
+2007-03-14  Bernhard R. Link <brlink@debian.org>
+	* processincoming only exports distributions looked at
+	  with --export=always (the default) and not every distribution.
+	  (other commands should not have changed)
+	* changed output of many status messages to stdout instead of stderr
+	* changed verbosity level needed to see some messages
+
 2007-03-12  Bernhard R. Link <brlink@debian.org>
 	* add --silent option
 	* change some status output to stdout instead of stderr.

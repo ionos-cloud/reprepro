@@ -1030,6 +1030,8 @@ static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *
 	struct candidate_file *file;
 	retvalue r;
 
+	d->into->lookedat = TRUE;
+
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		switch( file->type ) {
 			case fe_UDEB:
@@ -1150,6 +1152,8 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 
 	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
+
+	d->into->lookedat = TRUE;
 
 	tracks = NULL;
 	if( into->tracking != dt_NONE ) {

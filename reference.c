@@ -167,7 +167,7 @@ retvalue references_increment(references refs,const char *needed,const char *nee
 	SETDBT(data,neededby);
 	if ((dbret = refs->db->put(refs->db, NULL, &key, &data, 0)) == 0) {
 		if( verbose > 8 )
-			fprintf(stderr,"Adding reference to '%s' by '%s'\n", needed,neededby);
+			printf("Adding reference to '%s' by '%s'\n", needed,neededby);
 		return RET_OK;
 	} else {
 		refs->db->err(refs->db, dbret, "references_increment dberror:");

@@ -1757,7 +1757,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	}
 
 	if( verbose >= 0 )
-		fprintf(stderr,"Removing obsolete or to be replaced packages...\n");
+		printf("Removing obsolete or to be replaced packages...\n");
 	for( d=distributions ; d != NULL ; d=d->next) {
 		struct update_target *u;
 

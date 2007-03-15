@@ -72,10 +72,12 @@ struct distribution {
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */
 	retvalue status;
+	/* FALSE: not looked at, do not export at all */
+	bool_t lookedat;
 };
 
 
-retvalue distribution_get(/*@out@*/struct distribution **distribution,const char *conf,const char *name);
+retvalue distribution_get(/*@out@*/struct distribution **distribution,const char *conf,const char *name, bool_t lookedat);
 retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 typedef retvalue distribution_each_action(void *data, struct target *t, struct distribution *d);
@@ -97,7 +99,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,references refs,const char *name);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
+retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions, bool_t lookedat);
 
 /* get a pointer to the apropiate part of the linked list */
 struct distribution *distribution_find(struct distribution *distributions, const char *name);

@@ -186,7 +186,7 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 	}
 	free(oldchunk);
 	if( verbose > 0 )
-		fprintf(stderr,"removing '%s' from '%s'...\n",name,target->identifier);
+		printf("removing '%s' from '%s'...\n",name,target->identifier);
 	result = packages_remove(target->packages,name);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = TRUE;
