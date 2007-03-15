@@ -1301,18 +1301,18 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 	return UD_UPGRADE;
 }
 
-static inline retvalue searchformissing(const char *dbdir,struct update_target *u) {
+static inline retvalue searchformissing(FILE *out,const char *dbdir,struct update_target *u) {
 	struct update_index *index;
 	retvalue result,r;
 
 	if( u->nothingnew ) {
 		if( verbose >= 0 ) {
-		fprintf(stderr,"  nothing new for '%s' (use --noskipold to process anyway)\n",u->target->identifier);
+		fprintf(out,"  nothing new for '%s' (use --noskipold to process anyway)\n",u->target->identifier);
 		}
 		return RET_NOTHING;
 	}
 	if( verbose > 2 )
-		fprintf(stderr,"  processing updates for '%s'\n",u->target->identifier);
+		fprintf(out,"  processing updates for '%s'\n",u->target->identifier);
 	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1361,13 +1361,13 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 	return result;
 }
 
-static retvalue updates_readindices(const char *dbdir,struct update_distribution *d) {
+static retvalue updates_readindices(FILE *out,const char *dbdir,struct update_distribution *d) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
-		r = searchformissing(dbdir,u);
+		r = searchformissing(out, dbdir, u);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
@@ -1557,7 +1557,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	}
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(dbdir,d);
+		r = updates_readindices(stdout, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1681,7 +1681,7 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 		fprintf(stderr,"Calculating packages to get...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(dbdir,d);
+		r = updates_readindices(stderr, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1762,7 +1762,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 		struct update_target *u;
 
 		for( u=d->targets ; u != NULL ; u=u->next ) {
-			r = searchformissing(dbdir,u);
+			r = searchformissing(stdout, dbdir, u);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) ) {
 				u->incomplete = TRUE;
@@ -1902,7 +1902,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			}
 			continue;
 		}
-		r = searchformissing(dbdir,target);
+		r = searchformissing(stdout, dbdir, target);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		else if( r == RET_NOTHING ) {

@@ -78,6 +78,8 @@ fi
 #VERBOSITY="-vv"
 TESTOPTIONS="-D v=3 $TESTOPTIONS"
 VERBOSITY="-vvv"
+#TESTOPTIONS="-D v=4 $TESTOPTIONS"
+#VERBOSITY="-vvvv"
 #TESTOPTIONS="-D v=5 $TESTOPTIONS"
 #VERBOSITY="-vvvvv"
 if [ "2" -le "$#" ] ; then
@@ -406,8 +408,8 @@ stdout
 -v2*=Created directory "./pool/cat/b/bird"
 -v0*=Exporting indices...
 -v1*= generating Contents-abacus...
--v3*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
--v3*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
+-v4*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
+-v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
 -v3*=deleting './i/bird_1_abacus.deb'...
@@ -1355,14 +1357,6 @@ echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd5
 dodiff dists/test1/Release.expected dists/test1/Release || exit 1
 dodiff dists/test2/Release.expected dists/test2/Release || exit 1
 
-cat > includedel.rules <<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
-stdout
--v0*=Exporting indices...
--v0*=Deleting files no longer referenced...
-EOF
-
 PACKAGE=simple EPOCH="" VERSION=1 REVISION="" SECTION="stupid/base" genpackage.sh
 testrun - -b . include test1 test.changes 3<<EOF
 stderr
@@ -1374,9 +1368,9 @@ stdout
 -v2*=Created directory "./pool/stupid/s/simple"
 =[tracking_get test1 simple 1]
 =[tracking_new test1 simple 1]
--v5*=db: 'simple-addons' added to 'test1|stupid|abacus'.
--v5*=db: 'simple' added to 'test1|stupid|abacus'.
--v5*=db: 'simple' added to 'test1|stupid|source'.
+-v3*=db: 'simple-addons' added to 'test1|stupid|abacus'.
+-v3*=db: 'simple' added to 'test1|stupid|abacus'.
+-v3*=db: 'simple' added to 'test1|stupid|source'.
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
 EOF
@@ -1392,9 +1386,9 @@ stdout
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_new test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
--v5*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v5*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
--v5*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0=Exporting indices...
 EOF
@@ -1497,6 +1491,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/s"
 -v2*=Created directory "./pool/ugly/s/simple"
+-v3*=db: 'simple' added to 'test2|ugly|source'.
 -v0*=Exporting indices...
 EOF
 testrun - -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc 3<<EOF
@@ -1506,6 +1501,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/b"
 -v2*=Created directory "./pool/stupid/b/bloat+-0a9z.app"
+-v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|source'.
 -v0*=Exporting indices...
 EOF
 testrun - -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb 3<<EOF
@@ -1513,6 +1509,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple_1_abacus.deb: component guessed as 'ugly'
 stdout
+-v3*=db: 'simple' added to 'test2|ugly|abacus'.
 -v0=Exporting indices...
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 simple-addons_1_all.deb 3<<EOF
@@ -1520,6 +1517,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple-addons_1_all.deb: component guessed as 'ugly'
 stdout
+-v3*=db: 'simple-addons' added to 'test2|ugly|coal'.
 -v0=Exporting indices...
 EOF
 testrun - -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb 3<<EOF
@@ -1527,6 +1525,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb: component guessed as 'stupid'
 stdout
+-v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|abacus'.
 -v0=Exporting indices...
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb 3<<EOF
@@ -1534,6 +1533,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb: component guessed as 'stupid'
 stdout
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test2|stupid|coal'.
 -v0=Exporting indices...
 EOF
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' > results
@@ -1598,48 +1598,59 @@ simple			install
 bloat+-0a9z.app-addons	install
 END
 
-cat >update.rules <<EOF
+testrun - -b . $UPDATETYPE test1 3<<EOF
 stderr
-=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
+*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/Release'
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/ugly/source/Sources.gz'
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/ugly/binary-abacus/Packages.gz'
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/ugly/binary-coal/Packages.gz'
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/source/Sources.gz'
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/binary-abacus/Packages.gz'
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/binary-coal/Packages.gz'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/Release'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/ugly/source/Sources.gz'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/ugly/binary-abacus/Packages.gz'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/ugly/binary-coal/Packages.gz'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/source/Sources.gz'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/binary-abacus/Packages.gz'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/binary-coal/Packages.gz'
 stdout
--v2=Created directory "./lists"
--v0=Calculating packages to get...
--v0=Getting packages...
--v1=Freeing some memory...
--v1=Shutting down aptmethods...
--v0=Installing (and possibly deleting) packages...
--v0=Exporting indices...
+-v2*=Created directory "./lists"
+-v0*=Calculating packages to get...
+-v3*=  processing updates for 'test1|ugly|source'
+-v3*=  processing updates for 'test1|ugly|abacus'
+-v3*=  processing updates for 'test1|stupid|source'
+-v3*=  processing updates for 'test1|stupid|abacus'
+-v0*=Getting packages...
+-v1*=Freeing some memory...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+-v3*=db: 'simple' added to 'test1|ugly|source'.
+-v3*=db: 'simple' added to 'test1|ugly|abacus'.
+-v3*=db: 'simple-addons' added to 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|source'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|abacus'.
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|stupid|abacus'.
+-v0*=Exporting indices...
 EOF
-cat >emptyupdate.rules <<EOF
+testrun - -b . $UPDATETYPE test1 3<<EOF
 =WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
--v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/Release'
+-v1*=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/Release'
 *=Nothing to do found. (Use --noskipold to force processing)
 EOF
-cat >nolistsupdate.rules <<EOF
+testrun - --nolistsdownload -b . $UPDATETYPE test1 3<<EOF
 -v0*=Ignoring --skipold because of --nolistsdownload
 =WARNING: Single-Instance not yet supported!
 =WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 -v0*=Warning: As --nolistsdownload is given, index files are NOT checked.
 stdout
--v0=Calculating packages to get...
--v0=Getting packages...
--v1=Freeing some memory...
--v1=Shutting down aptmethods...
+-v0*=Calculating packages to get...
+-v3*=  processing updates for 'test1|ugly|source'
+-v3*=  processing updates for 'test1|ugly|abacus'
+-v3*=  processing updates for 'test1|stupid|source'
+-v3*=  processing updates for 'test1|stupid|abacus'
+-v0*=Getting packages...
+-v1*=Freeing some memory...
+-v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 EOF
 
-testrun update -b . $UPDATETYPE test1
-testrun emptyupdate -b . $UPDATETYPE test1
-testrun nolistsupdate --nolistsdownload -b . $UPDATETYPE test1
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
 dodiff test2 test1
@@ -1663,17 +1674,37 @@ testrun "" -b . checkpool
 testrun - -b . rereference test1 test2 3<<EOF
 stdout
 -v1*=Referencing test2...
--v2*=Rereferencing test2|stupid|abacus...
--v2*=Rereferencing test2|stupid|coal...
--v2*=Rereferencing test2|stupid|source...
--v2*=Rereferencing test2|ugly|abacus...
--v2*=Rereferencing test2|ugly|coal...
--v2*=Rereferencing test2|ugly|source...
+-v2=Rereferencing test2|stupid|abacus...
+-v2=Rereferencing test2|stupid|coal...
+-v2=Rereferencing test2|stupid|source...
+-v2=Rereferencing test2|ugly|abacus...
+-v2=Rereferencing test2|ugly|coal...
+-v2=Rereferencing test2|ugly|source...
+-v3*=Unlocking depencies of test2|stupid|abacus...
+-v3*=Referencing test2|stupid|abacus...
+-v3*=Unlocking depencies of test2|stupid|coal...
+-v3*=Referencing test2|stupid|coal...
+-v3*=Unlocking depencies of test2|stupid|source...
+-v3*=Referencing test2|stupid|source...
+-v3*=Unlocking depencies of test2|ugly|abacus...
+-v3*=Referencing test2|ugly|abacus...
+-v3*=Unlocking depencies of test2|ugly|coal...
+-v3*=Referencing test2|ugly|coal...
+-v3*=Unlocking depencies of test2|ugly|source...
+-v3*=Referencing test2|ugly|source...
 -v1*=Referencing test1...
--v2*=Rereferencing test1|stupid|abacus...
--v2*=Rereferencing test1|stupid|source...
--v2*=Rereferencing test1|ugly|abacus...
--v2*=Rereferencing test1|ugly|source...
+-v2=Rereferencing test1|stupid|abacus...
+-v2=Rereferencing test1|stupid|source...
+-v2=Rereferencing test1|ugly|abacus...
+-v2=Rereferencing test1|ugly|source...
+-v3*=Unlocking depencies of test1|stupid|abacus...
+-v3*=Referencing test1|stupid|abacus...
+-v3*=Unlocking depencies of test1|stupid|source...
+-v3*=Referencing test1|stupid|source...
+-v3*=Unlocking depencies of test1|ugly|abacus...
+-v3*=Referencing test1|ugly|abacus...
+-v3*=Unlocking depencies of test1|ugly|source...
+-v3*=Referencing test1|ugly|source...
 EOF
 testrun - -b . check test1 test2 3<<EOF
 stdout
@@ -1749,11 +1780,26 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
 -v0=Exporting indices...
 EOF
 echo returned: $?
 OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
-testrun includedel -b . include test1 test2.changes
+testrun - -b . include test1 test2.changes 3<<EOF
+stderr
+-v0=Data seems not to be signed trying to use directly...
+stdout
+-v3*=db: removed old 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
+-v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|abacus'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
+-v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|source'.
+-v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
+-v0=Exporting indices...
+-v0*=Deleting files no longer referenced...
+EOF
 echo returned: $?
 testrun - -b . -S test -P test includedeb test1 simple_1_abacus.deb 3<<EOF
 stderr
@@ -1761,6 +1807,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
+-v3*=db: 'simple' added to 'test1|stupid|abacus'.
 -v0*=Exporting indices...
 EOF
 echo returned: $?
@@ -1769,6 +1816,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1*=simple_1.dsc: component guessed as 'stupid'
 stdout
+-v3*=db: 'simple' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
 EOF
 echo returned: $?
@@ -1837,6 +1885,9 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
+-v3*=db: 'test-addons' added to 'test1|stupid|abacus'.
+-v3*=db: 'test' added to 'test1|stupid|abacus'.
+-v3*=db: 'test' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
 EOF
 dodo zgrep test_1-2.dsc dists/test1/stupid/source/Sources.gz
@@ -1848,12 +1899,27 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/stupid/t/testb"
+-v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
+-v3*=db: 'testb' added to 'test1|stupid|abacus'.
+-v3*=db: 'testb' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
 EOF
 dodo zgrep testb_2-2.dsc dists/test1/stupid/source/Sources.gz
 rm test2.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="test2.changes" genpackage.sh -sd
-testrun includedel -b . include test1 test2.changes
+testrun - -b . include test1 test2.changes 3<<EOF
+stderr
+-v0=Data seems not to be signed trying to use directly...
+stdout
+-v3*=db: removed old 'testb-addons' from 'test1|stupid|abacus'.
+-v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
+-v3*=db: removed old 'testb' from 'test1|stupid|abacus'.
+-v3*=db: 'testb' added to 'test1|stupid|abacus'.
+-v3*=db: removed old 'testb' from 'test1|stupid|source'.
+-v3*=db: 'testb' added to 'test1|stupid|source'.
+-v0*=Exporting indices...
+-v0*=Deleting files no longer referenced...
+EOF
 dodo zgrep testb_2-3.dsc dists/test1/stupid/source/Sources.gz
 
 testout "" -b . dumpunreferenced
@@ -1867,6 +1933,9 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/4"
 -v2*=Created directory "./pool/stupid/4/4test"
+-v3*=db: '4test-addons' added to 'test1|stupid|abacus'.
+-v3*=db: '4test' added to 'test1|stupid|abacus'.
+-v3*=db: '4test' added to 'test1|stupid|source'.
 -v0*=Exporting indices...
 EOF
 
@@ -2113,6 +2182,10 @@ stdout
 -v1*=removing 'simple' from 'test1|stupid|source'...
 -v1*=removing 'simple' from 'test1|ugly|abacus'...
 -v1*=removing 'simple' from 'test1|ugly|source'...
+-v3*=db: 'simple' removed from 'test1|stupid|abacus'.
+-v3*=db: 'simple' removed from 'test1|stupid|source'.
+-v3*=db: 'simple' removed from 'test1|ugly|abacus'.
+-v3*=db: 'simple' removed from 'test1|ugly|source'.
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
 EOF
@@ -2121,7 +2194,9 @@ testrun - -b . remove test2 simple 3<<EOF
 -v0*=There have been errors!
 stdout
 -v1=removing 'simple' from 'test2|ugly|abacus'...
+-v3*=db: 'simple' removed from 'test2|ugly|abacus'.
 -v1=removing 'simple' from 'test2|ugly|source'...
+-v3*=db: 'simple' removed from 'test2|ugly|source'.
 -v0=Exporting indices...
 -v0=Deleting files no longer referenced...
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1_abacus.deb
@@ -2246,12 +2321,16 @@ testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 b
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
 *=Ignoring as --ignore=wrongversion given.
 stdout
+-v3*=db: '4test' added to 'test2|stupid|abacus'.
+-v3*=db: '4test' added to 'test2|stupid|source'.
 -v0*=Exporting indices...
 EOF
 testrun - -b . remove test2 4test 3<<EOF
 stdout
 -v1*=removing '4test' from 'test2|stupid|abacus'...
+-v3*=db: '4test' removed from 'test2|stupid|abacus'.
 -v1*=removing '4test' from 'test2|stupid|source'...
+-v3*=db: '4test' removed from 'test2|stupid|source'.
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
@@ -2370,6 +2449,7 @@ dodiff results.empty results
 testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 EOF
 test ! -d dists/a
@@ -2377,6 +2457,7 @@ test ! -d dists/b
 testrun - -b . --export=normal pull b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
@@ -2389,6 +2470,7 @@ test -d dists/b
 testrun - -b . --export=normal pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
@@ -2409,6 +2491,9 @@ stdout
 -v2*=Created directory "./pool/all"
 -v2*=Created directory "./pool/all/a"
 -v2*=Created directory "./pool/all/a/aa"
+-v3*=db: 'aa-addons' added to 'a|all|abacus'.
+-v3*=db: 'aa' added to 'a|all|abacus'.
+-v3*=db: 'aa' added to 'a|all|source'.
 EOF
 test ! -d dists/a
 test ! -d dists/b
@@ -2447,7 +2532,10 @@ rm -r dists/a
 testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
+-v3*=db: 'aa' added to 'b|all|abacus'.
+-v3*=db: 'aa-addons' added to 'b|all|abacus'.
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
@@ -2461,6 +2549,12 @@ testrun - -b . --export=changed --delete include a test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
+-v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
+-v3*=db: 'aa-addons' added to 'a|all|abacus'.
+-v3*=db: removed old 'aa' from 'a|all|abacus'.
+-v3*=db: 'aa' added to 'a|all|abacus'.
+-v3*=db: removed old 'aa' from 'a|all|source'.
+-v3*=db: 'aa' added to 'a|all|source'.
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -2496,7 +2590,12 @@ testrun - -b . --export=changed pull a b 3<<EOF
 stderr
 stdout
 -v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
+-v3*=db: removed old 'aa' from 'b|all|abacus'.
+-v3*=db: 'aa' added to 'b|all|abacus'.
+-v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
+-v3*=db: 'aa-addons' added to 'b|all|abacus'.
 -v0=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
@@ -2515,6 +2614,12 @@ testrun - -b . --export=never include a test.changes 3<<EOF
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
+-v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
+-v3*=db: 'aa-addons' added to 'a|all|abacus'.
+-v3*=db: removed old 'aa' from 'a|all|abacus'.
+-v3*=db: 'aa' added to 'a|all|abacus'.
+-v3*=db: removed old 'aa' from 'a|all|source'.
+-v3*=db: 'aa' added to 'a|all|source'.
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.dsc
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.tar.gz
@@ -2550,12 +2655,22 @@ stderr
 =Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/all/a/ab"
+-v3*=db: 'ab-addons' added to 'a|all|abacus'.
+-v3*=db: 'ab' added to 'a|all|abacus'.
+-v3*=db: 'ab' added to 'a|all|source'.
 EOF
 testrun - -b . --export=changed pull b 3<<EOF
 stderr
 stdout
 -v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
+-v3*=db: removed old 'aa' from 'b|all|abacus'.
+-v3*=db: 'aa' added to 'b|all|abacus'.
+-v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
+-v3*=db: 'aa-addons' added to 'b|all|abacus'.
+-v3*=db: 'ab' added to 'b|all|abacus'.
+-v3*=db: 'ab-addons' added to 'b|all|abacus'.
 -v0=Exporting indices...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2_abacus.deb
@@ -2594,6 +2709,10 @@ testrun - -b . --delete -T deb include a broken.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
+-v3*=db: removed old 'ab-addons' from 'a|all|abacus'.
+-v3*=db: 'ab-addons' added to 'a|all|abacus'.
+-v3*=db: removed old 'ab' from 'a|all|abacus'.
+-v3*=db: 'ab' added to 'a|all|abacus'.
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -2667,6 +2786,8 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 *=Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!
 *=Looking around if it is elsewhere as --ignore=missingfile given.
 stdout
+-v3*=db: removed old 'ab' from 'a|all|source'.
+-v3*=db: 'ab' added to 'a|all|source'.
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.dsc
@@ -2697,8 +2818,11 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v2*=Skipping 'ac_1-1.dsc' as not for architecture 'abacus'.
 -v2*=Skipping 'ac_1-1.tar.gz' as not for architecture 'abacus'.
+-v3*=Placing 'ac-addons_1-1_all.deb' only in architecture 'abacus' as requested.
 stdout
 -v2*=Created directory "./pool/all/a/ac"
+-v3*=db: 'ac-addons' added to 'b|all|abacus'.
+-v3*=db: 'ac' added to 'b|all|abacus'.
 -v0*=Exporting indices...
 EOF
 dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
@@ -2721,9 +2845,14 @@ testrun - -b . predelete b 3<<EOF
 -v1*=Shutting down aptmethods...
 stdout
 -v0*=Removing obsolete or to be replaced packages...
+-v3*=  processing updates for 'b|all|abacus'
+-v3*=db: 'ac-addons' removed from 'b|all|abacus'.
 -v1*=removing 'ab' from 'b|all|abacus'...
+-v3*=db: 'ab' removed from 'b|all|abacus'.
 -v1*=removing 'ab-addons' from 'b|all|abacus'...
+-v3*=db: 'ab-addons' removed from 'b|all|abacus'.
 -v1*=removing 'ac' from 'b|all|abacus'...
+-v3*=db: 'ac' removed from 'b|all|abacus'.
 -v1*=removing 'ac-addons' from 'b|all|abacus'...
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
