@@ -68,12 +68,14 @@ if [ -z "$TESTOPTIONS" ] ; then
 		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$SRCDIR/valgrind.supp"
 	fi
 fi
-#TESTOPTIONS="-D v=1 $TESTOPTIONS"
-#VERBOSITY="-v"
-TESTOPTIONS="-D v=0 $TESTOPTIONS"
-VERBOSITY=""
 #TESTOPTIONS="-D v=-1 $TESTOPTIONS"
 #VERBOSITY="-s"
+#TESTOPTIONS="-D v=0 $TESTOPTIONS"
+#VERBOSITY=""
+#TESTOPTIONS="-D v=1 $TESTOPTIONS"
+#VERBOSITY="-v"
+TESTOPTIONS="-D v=2 $TESTOPTIONS"
+VERBOSITY="-vv"
 #TESTOPTIONS="-D v=5 $TESTOPTIONS"
 #VERBOSITY="-vvvvv"
 if [ "2" -le "$#" ] ; then
@@ -404,11 +406,11 @@ stdout
 -v1*= generating Contents-abacus...
 -v3*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
 -v3*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
--v2*=deleting './i/bird_1.dsc'...
--v2*=deleting './i/bird_1.tar.gz'...
--v2*=deleting './i/bird_1_abacus.deb'...
--v2*=deleting './i/bird-addons_1_all.deb'...
--v2*=deleting './i/test.changes'...
+-v3*=deleting './i/bird_1.dsc'...
+-v3*=deleting './i/bird_1.tar.gz'...
+-v3*=deleting './i/bird_1_abacus.deb'...
+-v3*=deleting './i/bird-addons_1_all.deb'...
+-v3*=deleting './i/test.changes'...
 EOF
 find temp -type f > results
 dodiff results.empty results
@@ -760,8 +762,8 @@ stdout
 -v0*=Exporting indices...
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
--v2*=deleting './i/indebname_debfileversion~2_all.deb'...
--v2*=deleting './i/test.changes'...
+-v3*=deleting './i/indebname_debfileversion~2_all.deb'...
+-v3*=deleting './i/test.changes'...
 EOF
 find pool/dog/s -type f > results
 echo "pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb" > results.expected
@@ -954,8 +956,8 @@ stdout
 -v0=Exporting indices...
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
--v2*=deleting './i/dscfilename_fileversion~.dsc'...
--v2*=deleting './i/test.changes'...
+-v3*=deleting './i/dscfilename_fileversion~.dsc'...
+-v3*=deleting './i/test.changes'...
 EOF
 # TODO: check Sources.gz
 cat >i/strangefile <<EOF
@@ -1138,9 +1140,9 @@ stdout
 -v3*=db: 'dscfilename' added to 'B|dog|source'.
 -v0*=Exporting indices...
 -v0*=Deleting files no longer referenced...
--v2*=deleting './i/dscfilename_fileversion~.dsc'...
--v2*=deleting './i/test.changes'...
--v2*=deleting './i/strangefile_xyz'...
+-v3*=deleting './i/dscfilename_fileversion~.dsc'...
+-v3*=deleting './i/test.changes'...
+-v3*=deleting './i/strangefile_xyz'...
 -v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 EOF
 
@@ -1351,12 +1353,6 @@ echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd5
 dodiff dists/test1/Release.expected dists/test1/Release || exit 1
 dodiff dists/test2/Release.expected dists/test2/Release || exit 1
 
-cat > include.rules <<EOF
-stderr
--v0=Data seems not to be signed trying to use directly...
-stdout
--v0=Exporting indices...
-EOF
 cat > includedel.rules <<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -1497,14 +1493,18 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple_1.dsc: component guessed as 'ugly'
 stdout
--v0=Exporting indices...
+-v2*=Created directory "./pool/ugly/s"
+-v2*=Created directory "./pool/ugly/s/simple"
+-v0*=Exporting indices...
 EOF
 testrun - -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc: component guessed as 'stupid'
 stdout
--v0=Exporting indices...
+-v2*=Created directory "./pool/stupid/b"
+-v2*=Created directory "./pool/stupid/b/bloat+-0a9z.app"
+-v0*=Exporting indices...
 EOF
 testrun - -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb 3<<EOF
 stderr
@@ -1608,6 +1608,7 @@ stderr
 -v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/binary-abacus/Packages.gz'
 -v1=aptmethod got 'copy:/tmp/rt/testdir/dists/test2/stupid/binary-coal/Packages.gz'
 stdout
+-v2=Created directory "./lists"
 -v0=Calculating packages to get...
 -v0=Getting packages...
 -v1=Freeing some memory...
@@ -1643,19 +1644,49 @@ dodiff test2 test1
 
 testrun - -b . check test1 test2 3<<EOF
 stdout
--v1*=Checking test1...
 -v1*=Checking test2...
+-v2*=Checking packages in 'test2|stupid|abacus'...
+-v2*=Checking packages in 'test2|stupid|coal'...
+-v2*=Checking packages in 'test2|stupid|source'...
+-v2*=Checking packages in 'test2|ugly|abacus'...
+-v2*=Checking packages in 'test2|ugly|coal'...
+-v2*=Checking packages in 'test2|ugly|source'...
+-v1*=Checking test1...
+-v2*=Checking packages in 'test1|stupid|abacus'...
+-v2*=Checking packages in 'test1|stupid|source'...
+-v2*=Checking packages in 'test1|ugly|abacus'...
+-v2*=Checking packages in 'test1|ugly|source'...
 EOF
 testrun "" -b . checkpool
 testrun - -b . rereference test1 test2 3<<EOF
 stdout
--v1*=Referencing test1...
 -v1*=Referencing test2...
+-v2*=Rereferencing test2|stupid|abacus...
+-v2*=Rereferencing test2|stupid|coal...
+-v2*=Rereferencing test2|stupid|source...
+-v2*=Rereferencing test2|ugly|abacus...
+-v2*=Rereferencing test2|ugly|coal...
+-v2*=Rereferencing test2|ugly|source...
+-v1*=Referencing test1...
+-v2*=Rereferencing test1|stupid|abacus...
+-v2*=Rereferencing test1|stupid|source...
+-v2*=Rereferencing test1|ugly|abacus...
+-v2*=Rereferencing test1|ugly|source...
 EOF
 testrun - -b . check test1 test2 3<<EOF
 stdout
 -v1*=Checking test1...
+-v2*=Checking packages in 'test2|stupid|abacus'...
+-v2*=Checking packages in 'test2|stupid|coal'...
+-v2*=Checking packages in 'test2|stupid|source'...
+-v2*=Checking packages in 'test2|ugly|abacus'...
+-v2*=Checking packages in 'test2|ugly|coal'...
+-v2*=Checking packages in 'test2|ugly|source'...
 -v1*=Checking test2...
+-v2*=Checking packages in 'test1|stupid|abacus'...
+-v2*=Checking packages in 'test1|stupid|source'...
+-v2*=Checking packages in 'test1|ugly|abacus'...
+-v2*=Checking packages in 'test1|ugly|source'...
 EOF
 
 testout "" -b . dumptracks
@@ -1710,7 +1741,14 @@ stdout
 -v1*=removed now empty directory ./pool/ugly/b
 EOF
 echo returned: $?
-testrun include -b . include test1 test.changes
+testrun - -b . include test1 test.changes 3<<EOF
+stderr
+-v0=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./pool/ugly/b"
+-v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
+-v0=Exporting indices...
+EOF
 echo returned: $?
 OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
 testrun includedel -b . include test1 test2.changes
@@ -1719,6 +1757,8 @@ testrun - -b . -S test -P test includedeb test1 simple_1_abacus.deb 3<<EOF
 stderr
 -v1*=simple_1_abacus.deb: component guessed as 'stupid'
 stdout
+-v2*=Created directory "./pool/stupid/s"
+-v2*=Created directory "./pool/stupid/s/simple"
 -v0*=Exporting indices...
 EOF
 echo returned: $?
@@ -1778,6 +1818,8 @@ stderr
 *= or you cound try --ignore=missingfile
 -v0*=There have been errors!
 stdout
+-v2*=Created directory "./pool/stupid/t"
+-v2*=Created directory "./pool/stupid/t/test"
 -v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2_abacus.deb
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.diff.gz
@@ -1791,13 +1833,21 @@ stderr
 *=Unable to find ./pool/stupid/t/test/test_1.orig.tar.gz!
 *=Looking around if it is elsewhere as --ignore=missingfile given.
 stdout
+-v2*=Created directory "./pool/stupid/t"
+-v2*=Created directory "./pool/stupid/t/test"
 -v0*=Exporting indices...
 EOF
 dodo zgrep test_1-2.dsc dists/test1/stupid/source/Sources.gz
 
 tar -czf testb_2.orig.tar.gz test.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-2" SECTION="stupid/base" genpackage.sh -sa
-testrun include -b . include test1 test.changes
+testrun - -b . include test1 test.changes 3<<EOF
+stderr
+-v0=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./pool/stupid/t/testb"
+-v0*=Exporting indices...
+EOF
 dodo zgrep testb_2-2.dsc dists/test1/stupid/source/Sources.gz
 rm test2.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="test2.changes" genpackage.sh -sd
@@ -1812,11 +1862,9 @@ PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpack
 testrun -  -b . include test1 test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
-=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
-=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
-=Warning: Package version 'b.1-1_all.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 stdout
+-v2*=Created directory "./pool/stupid/4"
+-v2*=Created directory "./pool/stupid/4/4test"
 -v0*=Exporting indices...
 EOF
 
@@ -1874,7 +1922,27 @@ testrun - -b . --confdir conf2 update 3<<EOF
 returns 254
 EOF
 touch conf2/updates
-testrun update -b . --confdir conf2 --noskipold update
+testrun - -b . --confdir conf2 --noskipold update 3<<EOF
+stderr
+stdout
+-v2=Created directory "./lists"
+-v0*=Calculating packages to get...
+-v0*=Getting packages...
+-v1*=Freeing some memory...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists/foo"
+-v2*=Created directory "./dists/foo/unneeded"
+-v2*=Created directory "./dists/foo/unneeded/binary-abacus"
+-v2*=Created directory "./dists/foo/unneeded/binary-fingers"
+-v2*=Created directory "./dists/foo/bloated"
+-v2*=Created directory "./dists/foo/bloated/binary-abacus"
+-v2*=Created directory "./dists/foo/bloated/binary-fingers"
+-v2*=Created directory "./dists/foo/i386"
+-v2*=Created directory "./dists/foo/i386/binary-abacus"
+-v2*=Created directory "./dists/foo/i386/binary-fingers"
+EOF
 echo "Format: 2.0" > broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
@@ -2010,14 +2078,15 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =Warning: Strange file 'filename_version.tar.gz'!
 *=Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
-# again
-=Warning: Package version 'version.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
 *=Architecture-header lists architecture 'brain', but no files for this!
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
+stdout
+-v2*=Created directory "./pool/stupid/n"
+-v2*=Created directory "./pool/stupid/n/nowhere"
 EOF
 testout "" -b . dumpunreferenced
 cat >results.expected <<EOF
@@ -2101,6 +2170,8 @@ testrun - -b . include test2 broken.changes 3<<EOF
 *=To ignore use --ignore=surprisingbinary.
 -v0*=There have been errors!
 stdout
+-v2*=Created directory "./pool/stupid/d"
+-v2*=Created directory "./pool/stupid/d/differently"
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_abacus.deb
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
@@ -2118,6 +2189,8 @@ testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
 *='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' lists source package '4test', but .changes says it is 'differently'!
 -v0*=There have been errors!
 stdout
+-v2*=Created directory "./pool/stupid/d"
+-v2*=Created directory "./pool/stupid/d/differently"
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_abacus.deb
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
@@ -2292,19 +2365,35 @@ testout "" -b . dumptracks a
 dodiff results.empty results
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-cat >pull.rules <<EOF
+testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
 -v0*=Installing (and possibly deleting) packages...
--v0=Exporting indices...
 EOF
-testrun pull -b . --export=changed pull a b
 test ! -d dists/a
 test ! -d dists/b
-testrun pull -b . --export=normal pull b
+testrun - -b . --export=normal pull b 3<<EOF
+stdout
+-v0*=Calculating packages to pull...
+-v0*=Installing (and possibly deleting) packages...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/b"
+-v2*=Created directory "./dists/b/all"
+-v2*=Created directory "./dists/b/all/binary-abacus"
+EOF
 test ! -d dists/a
 test -d dists/b
-testrun pull -b . --export=normal pull a b
+testrun - -b . --export=normal pull a b 3<<EOF
+stdout
+-v0*=Calculating packages to pull...
+-v0*=Installing (and possibly deleting) packages...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists/a"
+-v2*=Created directory "./dists/a/all"
+-v2*=Created directory "./dists/a/all/binary-abacus"
+-v2*=Created directory "./dists/a/all/source"
+EOF
 test -d dists/a
 test -d dists/b
 rm -r dists/a dists/b
@@ -2314,6 +2403,10 @@ testrun - -b . --export=never --delete --delete include a test.changes 3<<EOF
 *=Warning: database 'a|all|abacus' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
+stdout
+-v2*=Created directory "./pool/all"
+-v2*=Created directory "./pool/all/a"
+-v2*=Created directory "./pool/all/a/aa"
 EOF
 test ! -d dists/a
 test ! -d dists/b
@@ -2342,10 +2435,22 @@ if $tracking; then dodiff results.expected results ; else dodiff results.empty r
 testrun - -b . export a 3<<EOF
 stdout
 -v1*=Exporting a...
+-v2*=Created directory "./dists/a"
+-v2*=Created directory "./dists/a/all"
+-v2*=Created directory "./dists/a/all/binary-abacus"
+-v2*=Created directory "./dists/a/all/source"
 EOF
 dogrep "Version: 1-1" dists/a/all/binary-abacus/Packages
 rm -r dists/a
-testrun pull -b . --export=changed pull a b
+testrun - -b . --export=changed pull a b 3<<EOF
+stdout
+-v0*=Calculating packages to pull...
+-v0*=Installing (and possibly deleting) packages...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists/b"
+-v2*=Created directory "./dists/b/all"
+-v2*=Created directory "./dists/b/all/binary-abacus"
+EOF
 test ! -d dists/a
 test -d dists/b
 dogrep "Version: 1-1" dists/b/all/binary-abacus/Packages
@@ -2355,6 +2460,10 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
 -v0*=Exporting indices...
+-v2*=Created directory "./dists/a"
+-v2*=Created directory "./dists/a/all"
+-v2*=Created directory "./dists/a/all/binary-abacus"
+-v2*=Created directory "./dists/a/all/source"
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.dsc
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.tar.gz
@@ -2387,6 +2496,9 @@ stdout
 -v0*=Calculating packages to pull...
 -v0*=Installing (and possibly deleting) packages...
 -v0=Exporting indices...
+-v2*=Created directory "./dists/b"
+-v2*=Created directory "./dists/b/all"
+-v2*=Created directory "./dists/b/all/binary-abacus"
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1_abacus.deb
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-1_all.deb
@@ -2434,6 +2546,8 @@ stderr
 *=Warning: database 'a|all|abacus' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 =Changes will only be visible after the next 'export'!
+stdout
+-v2*=Created directory "./pool/all/a/ab"
 EOF
 testrun - -b . --export=changed pull b 3<<EOF
 stderr
@@ -2474,7 +2588,17 @@ test ! -f pool/all/a/ab/ab-addons_3-1_all.deb
 test ! -f pool/all/a/ab/ab_3-1_abacus.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 touch ab_3-1.diff.gz
-testrun includedel -b . --delete -T deb include a broken.changes
+testrun - -b . --delete -T deb include a broken.changes 3<<EOF
+stderr
+-v0=Data seems not to be signed trying to use directly...
+stdout
+-v0*=Exporting indices...
+-v2*=Created directory "./dists/a"
+-v2*=Created directory "./dists/a/all"
+-v2*=Created directory "./dists/a/all/binary-abacus"
+-v2*=Created directory "./dists/a/all/source"
+-v0*=Deleting files no longer referenced...
+EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 test -f broken.changes
@@ -2566,7 +2690,15 @@ stdout
 EOF
 
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
-testrun include -b . -A abacus --delete --delete --ignore=missingfile include b test.changes
+testrun - -b . -A abacus --delete --delete --ignore=missingfile include b test.changes 3<<EOF
+stderr
+-v0=Data seems not to be signed trying to use directly...
+-v2*=Skipping 'ac_1-1.dsc' as not for architecture 'abacus'.
+-v2*=Skipping 'ac_1-1.tar.gz' as not for architecture 'abacus'.
+stdout
+-v2*=Created directory "./pool/all/a/ac"
+-v0*=Exporting indices...
+EOF
 dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
 dogrep '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
 dogrep '^Package: ab$' dists/b/all/binary-abacus/Packages
