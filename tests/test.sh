@@ -258,7 +258,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 *='default' in './conf/incoming' has neither a 'Allow' nor a 'Default' definition!
-*=Aborting as nothing would be left in.
+*=Aborting as nothing would be let in.
 -v0=Stop reading further chunks from './conf/incoming' due to previous errors.
 -v0*=There have been errors!
 EOF
@@ -1990,10 +1990,6 @@ dodiff results.expected results
 
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-cat >delete.rules <<EOF
-stdout
--v0*=Deleting files no longer referenced...
-EOF
 testrun - -b . cleartracks 3<<EOF
 stdout
 -v0*=Deleting all tracks for test2...

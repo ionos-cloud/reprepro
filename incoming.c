@@ -261,7 +261,7 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	}
 	if( r == RET_NOTHING ) {
 		if( i->default_into == NULL ) {
-			fprintf(stderr, "'%s' in '%s' has neither a 'Allow' nor a 'Default' definition!\nAborting as nothing would be left in.\n", d->name, d->filename);
+			fprintf(stderr, "'%s' in '%s' has neither a 'Allow' nor a 'Default' definition!\nAborting as nothing would be let in.\n", d->name, d->filename);
 			incoming_free(i);
 			return RET_ERROR;
 		}
