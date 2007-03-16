@@ -514,9 +514,9 @@ retvalue target_export(struct target *target,const char *confdir,const char *dbd
 
 	if( verbose > 5 ) {
 		if( onlyneeded )
-			fprintf(stderr," looking for changes in '%s'...\n",target->identifier);
+			printf(" looking for changes in '%s'...\n",target->identifier);
 		else
-			fprintf(stderr," exporting '%s'...\n",target->identifier);
+			printf(" exporting '%s'...\n",target->identifier);
 	}
 
 	r = target_initpackagesdb(target,dbdir);
