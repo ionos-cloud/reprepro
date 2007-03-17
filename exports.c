@@ -428,7 +428,7 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 		}
 	} else {
 		if( verbose > 9 )
-			printf("  keeping old '%s/%s'\n%s",
+			printf("  keeping old '%s/%s' %s\n",
 				release_dirofdist(release), relfilename,
 				exportdescription(exportmode, buffer, 100));
 		status = "old";
