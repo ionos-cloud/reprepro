@@ -111,7 +111,7 @@ n-to-n relation that should never be uses expect the case where such a
 error happens)).
 What you can do when a upstream repository you update from misses a file:
 - get the file elsewhere (with the correct md5sum), place it in the
-  appropiate place in the pool/ hierachy and do the update. Reprepro will 
+  appropiate place in the pool/ hierachy and do the update. Reprepro will
   see the file is already there, add it to its database and just continue
   with the update.
 - tell reprepro to explude this package
