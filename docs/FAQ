@@ -4,6 +4,7 @@ This is a list of "frequently" asked questions.
 1.2) Why does it refuse a file when one in an other suite has the same name?
 1.4) The key to sign my Release files needs a passphrase, what to do?
 1.5) How do I change how files are downloaded.
+1.6) How to omit packages missing files when updating.
 2.1) Does reprepro support to generate Release.gpg files?
 2.2) Does reprepro support tildes ('~') in versions?
 2.3) Does reprepro support generation of Contents-<arch>.gz files?
@@ -65,7 +66,7 @@ you reached this situation:
   the other version, err other same version, err ...
 - backports (i.e. packages rebuild for older distributions)
   Common practise is to append the version with reducing ~,
-  i.e. 1.0-1 gets 1.0-1~bpo.7, or 3.0~sarge.
+  i.e. 1.0-1 becomes 1.0-1~bpo.7, or 3.0 becomes 3.0~sarge.
   (This makes sure that if a host is updated the backport is
    replaced by the real package).
   If backporting to multiple distributions you get bonus points
@@ -96,6 +97,49 @@ You can give them options in conf/updates like
 Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
 or replace them with other programs speaking the same
 interface.
+
+1.6) How to omit packages missing files when updating.
+------------------------------------------------------
+reprepro does not like broken upstream repositories and just splits out
+errors and does not process the rest. (Implementing simply a ignore for
+that is not that easy, as I would have special case holding an old version
+in that case when unavailable packages should be deleted, and make some
+costly information-pushing between layers (after all, each file can belong
+to multiple packages and packages can have more than one file, so keeping
+track which package should get a mark that files where missing needs a
+n-to-n relation that should never be uses expect the case where such a
+error happens)).
+What you can do when a upstream repository you update from misses a file:
+- get the file elsewhere (with the correct md5sum), place it in the
+  appropiate place in the pool/ hierachy and do the update. Reprepro will 
+  see the file is already there, add it to its database and just continue
+  with the update.
+- tell reprepro to explude this package
+* There are multiple ways to do so. Easiest is adding something like
+  FilterFormula: package (!= xen-shell)
+  or
+  FilterFormula: package (!= xen-shell) | version (!=1.0-2) | !files
+  to your rule in conf/updates. ( the "| ! files" tells it to only
+  omit the source package xen-shell, as source packages have a files
+  field. Make sure the package in question does not require you to
+  make the source available or you are not making your repository
+  accessible to others).
+* Another way is adding something like
+  FilterList: install excludefile
+  and adding a file conf/excludefile with content
+  xen-shell deinstall
+  (the install will tell it to install what is not listed in the file,
+   the deinstall on xen-shell will tell it to not install that package)
+* Finally you can also supply a ListHook: with a script copying
+  its first argument to the second argument, removing all occourances
+  of the package you do not want (take a look intro the dctrl-tool
+  package for tools helping you with this).
+- the worst solution is to just propage the problem further, by just
+  telling reprepro the file is there with the correct md5sum while it
+  is not. (Via the _addmd5sums command of reprepro). Unless you
+  run checkpool reprepro will not notice what you have done and will
+  not even try to download that file once it becomes available. So
+  don't do this.
 
 2.1) Does reprepro support to generate Release.gpg files?
 ---------------------------------------------------------
