@@ -38,6 +38,7 @@
 #include "copyfile.h"
 #include "tracking.h"
 #include "override.h"
+#include "log.h"
 #include "uploaderslist.h"
 #include "distribution.h"
 
@@ -72,6 +73,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		override_free(distribution->overrides.deb);
 		override_free(distribution->overrides.udeb);
 		override_free(distribution->overrides.dsc);
+		logger_free(distribution->logger);
 		if( distribution->uploaderslist != NULL ) {
 			uploaders_unlock(distribution->uploaderslist);
 		}
@@ -200,7 +202,7 @@ static const char * const allowedfields[] = {
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 "Pull", "Contents", "ContentsArchitectures",
 "ContentsComponents", "ContentsUComponents",
-"Uploaders", "AlsoAcceptFor",
+"Uploaders", "AlsoAcceptFor", "Log",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
@@ -342,6 +344,17 @@ NULL};
 	} else if( ret == RET_NOTHING)
 		option = NULL;
 	ret = tracking_parse(option,r);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
+	r->logger = NULL;
+	ret = chunk_getvalue(chunk,"Log",&option);
+	if( RET_IS_OK(ret) ) {
+		ret = logger_init(option, &r->logger);
+		free(option);
+	}
 	if(RET_WAS_ERROR(ret)) {
 		(void)distribution_free(r);
 		return ret;
@@ -845,4 +858,16 @@ void distribution_unloaduploaders(struct distribution *distribution) {
 		uploaders_unlock(distribution->uploaderslist);
 		distribution->uploaderslist = NULL;
 	}
+}
+
+retvalue distribution_prepareforwriting(struct distribution *distribution) {
+	retvalue r;
+
+	if( distribution->logger != NULL ) {
+		r = logger_prepare(distribution->logger);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	distribution->lookedat = TRUE;
+	return RET_OK;
 }

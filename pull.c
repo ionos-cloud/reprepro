@@ -32,6 +32,7 @@
 #include "distribution.h"
 #include "terms.h"
 #include "filterlist.h"
+#include "log.h"
 
 extern int verbose;
 
@@ -704,9 +705,14 @@ static retvalue pull_install(const char *dbdir,filesdb filesdb,references refs,s
 	retvalue result,r;
 	struct pull_target *u;
 
+	assert( logger_isprepared(distribution->distribution->logger) );
+
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,u->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(u->upgradelist,
+				distribution->distribution->logger,
+				dbdir, filesdb, refs,
+				u->ignoredelete, dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
@@ -733,6 +739,12 @@ static void pull_dump(struct pull_distribution *distribution) {
 retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct pull_distribution *d;
+
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_prepareforwriting(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	if( verbose >= 0 )
 		printf("Calculating packages to pull...\n");

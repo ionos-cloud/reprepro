@@ -39,6 +39,7 @@
 #include "dirs.h"
 #include "dpkgversions.h"
 #include "tracking.h"
+#include "log.h"
 #include "target.h"
 
 extern int verbose;
@@ -153,11 +154,11 @@ retvalue target_closepackagesdb(struct target *target) {
 
 /* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
  * filekeys that lost references */
-retvalue target_removepackage(struct target *target,references refs,const char *name, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
-	char *oldchunk;
+retvalue target_removepackage(struct target *target,struct logger *logger,references refs,const char *name,const char *oldpversion,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
+	char *oldchunk,*oldpversion_ifunknown = NULL;
 	struct strlist files;
 	retvalue result,r;
-	char *oldsource,*oldversion;
+	char *oldsource,*oldsversion;
 
 	assert(target != NULL && target->packages != NULL && name != NULL );
 
@@ -171,39 +172,116 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 					name,target->identifier);
 		return RET_NOTHING;
 	}
+	if( logger != NULL && oldpversion == NULL ) {
+		/* need to get the version for logging, if not available */
+		r = target->getversion(target,oldchunk,&oldpversion_ifunknown);
+		if( RET_IS_OK(r) )
+			oldpversion = oldpversion_ifunknown;
+	}
 	r = target->getfilekeys(target,oldchunk,&files,NULL);
 	if( RET_WAS_ERROR(r) ) {
+		free(oldpversion_ifunknown);
 		free(oldchunk);
 		return r;
 	}
 	if( trackingdata != NULL ) {
-		r = (*target->getsourceandversion)(target,oldchunk,name,&oldsource,&oldversion);
+		r = (*target->getsourceandversion)(target, oldchunk,
+				name, &oldsource, &oldsversion);
 		if( !RET_IS_OK(r) ) {
-			oldsource = oldversion = NULL;
+			oldsource = oldsversion = NULL;
 		}
 	} else {
-		oldsource = oldversion = NULL;
+		oldsource = oldsversion = NULL;
 	}
-	free(oldchunk);
 	if( verbose > 0 )
 		printf("removing '%s' from '%s'...\n",name,target->identifier);
 	result = packages_remove(target->packages,name);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = TRUE;
-		if( oldsource!= NULL && oldversion != NULL ) {
-			r = trackingdata_remove(trackingdata,oldsource,oldversion,&files);
+		if( oldsource!= NULL && oldsversion != NULL ) {
+			r = trackingdata_remove(trackingdata,
+					oldsource, oldsversion, &files);
 			RET_UPDATE(result,r);
 		}
-		r = references_delete(refs,target->identifier,&files,NULL,dereferencedfilekeys);
-		RET_UPDATE(result,r);
+		if( logger != NULL )
+			logger_log(logger, target, name,
+					NULL, oldpversion,
+					NULL, oldchunk,
+					NULL, &files);
+		r = references_delete(refs, target->identifier, &files,
+				NULL, dereferencedfilekeys);
+		RET_UPDATE(result, r);
 	} else
 		strlist_done(&files);
+	free(oldpversion_ifunknown);
+	free(oldchunk);
 	return result;
 }
 
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
+static retvalue addpackages(struct target *target, references refs,
+		const char *packagename, const char *controlchunk,
+		/*@null@*/const char *oldcontrolchunk,
+		const char *version, /*@null@*/const char *oldversion,
+		const struct strlist *files,
+		/*@only@*//*@null@*/struct strlist *oldfiles,
+		/*@null@*/struct logger *logger,
+		/*@null@*/struct strlist *dereferencedfilekeys,
+		/*@null@*/struct trackingdata *trackingdata,
+		enum filetype filetype,
+		/*@null@*//*@only@*/char *oldsource,/*@null@*//*@only@*/char *oldsversion) {
+
+	retvalue result,r;
+	packagesdb packagesdb = target->packages;
+
+	/* mark it as needed by this distribution */
+
+	r = references_insert(refs,target->identifier,files,oldfiles);
+
+	if( RET_WAS_ERROR(r) ) {
+		if( oldfiles != NULL )
+			strlist_done(oldfiles);
+		return r;
+	}
+
+	/* Add package to the distribution's database */
+
+	if( oldcontrolchunk != NULL ) {
+		result = packages_replace(packagesdb,packagename,controlchunk);
+
+	} else {
+		result = packages_add(packagesdb,packagename,controlchunk);
+	}
+
+	if( RET_WAS_ERROR(result) ) {
+		if( oldfiles != NULL )
+			strlist_done(oldfiles);
+		return result;
+	}
+
+	if( logger != NULL )
+		logger_log(logger, target, packagename,
+				version, oldversion,
+				controlchunk, oldcontrolchunk,
+				files, oldfiles);
+
+	r = trackingdata_insert(trackingdata,filetype,files,oldsource,oldsversion,oldfiles,refs);
+	RET_UPDATE(result,r);
+
+	/* remove old references to files */
+
+	if( oldfiles != NULL ) {
+		r = references_delete(refs,target->identifier,
+				oldfiles,files,dereferencedfilekeys);
+		RET_UPDATE(result,r);
+	}
+
+	return result;
+}
+
+retvalue target_addpackage(struct target *target,struct logger *logger,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
+	char *oldpversion;
 	retvalue r;
 
 	assert(target->packages!=NULL);
@@ -215,8 +293,9 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 		ofk = NULL;
 		oldsource = NULL;
 		oldsversion = NULL;
+		oldpversion = NULL;
+		oldcontrol = NULL;
 	} else {
-		char *oldpversion;
 
 		r = target->getversion(target,oldcontrol,&oldpversion);
 		if( RET_WAS_ERROR(r) && !IGNORING_(brokenold,"Error parsing old version!\n") ) {
@@ -246,39 +325,49 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 					}
 				}
 			}
-			free(oldpversion);
-		}
+		} else
+			oldpversion = NULL;
 		r = (*target->getfilekeys)(target,oldcontrol,&oldfilekeys,NULL);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
-			free(oldcontrol);
 			if( IGNORING_(brokenold,"Error parsing files belonging to installed version of %s!\n",name)) {
 				ofk = NULL;
 				oldsversion = oldsource = NULL;
-			} else
+			} else {
+				free(oldcontrol);
+				free(oldpversion);
 				return r;
+			}
 		} else if(trackingdata != NULL) {
 			r = (*target->getsourceandversion)(target,oldcontrol,name,&oldsource,&oldsversion);
-			free(oldcontrol);
 			if( RET_WAS_ERROR(r) ) {
 				strlist_done(ofk);
 				if( IGNORING_(brokenold,"Error searching for source name of installed version of %s!\n",name)) {
 					// TODO: free something of oldfilekeys?
 					ofk = NULL;
 					oldsversion = oldsource = NULL;
-				} else
+				} else {
+					free(oldcontrol);
+					free(oldpversion);
 					return r;
+				}
 			}
 		} else {
-			free(oldcontrol);
 			oldsversion = oldsource = NULL;
 		}
 
 	}
-	r = packages_insert(refs,target->packages,name,control,filekeys,ofk,dereferencedfilekeys,trackingdata,filetype,oldsource,oldsversion);
+	r = addpackages(target, refs, name, control, oldcontrol,
+			version, oldpversion,
+			filekeys, ofk,
+			logger,
+			dereferencedfilekeys,
+			trackingdata, filetype, oldsource, oldsversion);
 	if( RET_IS_OK(r) ) {
 		target->wasmodified = TRUE;
 	}
+	free(oldpversion);
+	free(oldcontrol);
 
 	return r;
 }

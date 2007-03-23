@@ -58,6 +58,7 @@
 #include "dpkgversions.h"
 #include "incoming.h"
 #include "override.h"
+#include "log.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -394,7 +395,7 @@ ACTION_R(addreference) {
 }
 
 
-struct remove_args {/*@temp@*/references refs; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;};
+struct remove_args {/*@temp@*/references refs; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;struct logger *logger;};
 
 static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 		struct distribution *distribution) {
@@ -410,7 +411,9 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
-		r = target_removepackage(target,d->refs,d->names[i],d->removedfiles,d->trackingdata);
+		r = target_removepackage(target, d->logger, d->refs,
+				d->names[i], NULL,
+				d->removedfiles, d->trackingdata);
 		if( RET_IS_OK(r) ) {
 			if( ! d->gotremoved[i] )
 				d->todo--;
@@ -441,6 +444,10 @@ ACTION_D(remove) {
 		return r;
 	}
 
+	r = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	if( distribution->tracking != dt_NONE ) {
 		r = tracking_initialize(&tracks,dbdir,distribution);
 		if( RET_WAS_ERROR(r) ) {
@@ -464,6 +471,7 @@ ACTION_D(remove) {
 	d.gotremoved = calloc(d.count,sizeof(*d.gotremoved));
 	d.refs = references;
 	d.removedfiles = dereferenced;
+	d.logger = distribution->logger;
 	if( d.gotremoved == NULL )
 		result = RET_ERROR_OOM;
 	else
@@ -1103,7 +1111,10 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 		return result;
 	}
 
-	result = target_addpackage(dsttarget, d->refs, d->name, version, chunk,
+	assert( logger_isprepared(d->destination->logger) );
+
+	result = target_addpackage(dsttarget, d->destination->logger,
+			d->refs, d->name, version, chunk,
 			&filekeys, TRUE, d->removedfiles,
 			NULL, '?');
 	free(version);
@@ -1132,6 +1143,11 @@ ACTION_D(copy) {
 		return result;
 	result = distribution_get(&source, confdir, argv[2], FALSE);
 	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		distribution_free(destination);
+		return result;
+	}
+	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) ) {
 		distribution_free(destination);
 		return result;
@@ -1576,6 +1592,12 @@ ACTION_D(includedeb) {
 		return RET_ERROR;
 	}
 
+	r = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(r) ) {
+		(void)distribution_free(distribution);
+		return RET_ERROR;
+	}
+
 	if( distribution->tracking != dt_NONE ) {
 		result = tracking_initialize(&tracks,dbdir,distribution);
 		if( RET_WAS_ERROR(result) ) {
@@ -1635,6 +1657,12 @@ ACTION_D(includedsc) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 	result = override_read(overridedir,distribution->dsc_override,&distribution->overrides.dsc);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_free(distribution);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	result = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(result) ) {
 		r = distribution_free(distribution);
 		RET_ENDUPDATE(result,r);

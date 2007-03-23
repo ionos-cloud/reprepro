@@ -43,6 +43,7 @@
 #include "dpkgversions.h"
 #include "uploaderslist.h"
 #include "guesscomponent.h"
+#include "log.h"
 #include "override.h"
 #include "tracking.h"
 #include "incoming.h"
@@ -1122,6 +1123,8 @@ static retvalue add_dsc(const char *dbdir, references refs,
 	retvalue r;
 	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
 
+	assert( logger_isprepared(into->logger) );
+
 	/* finally put it into the source distribution */
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
@@ -1129,7 +1132,7 @@ static retvalue add_dsc(const char *dbdir, references refs,
 		if( interrupted() )
 			r = RET_ERROR_INTERUPTED;
 		else
-			r = target_addpackage(t,refs,
+			r = target_addpackage(t, into->logger, refs,
 					p->master->dsc.name,
 					p->master->dsc.version,
 					p->control,
@@ -1154,6 +1157,11 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 		return RET_ERROR_INTERUPTED;
 
 	d->into->lookedat = TRUE;
+	if( d->into->logger != NULL ) {
+		r = logger_prepare(d->into->logger);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	tracks = NULL;
 	if( into->tracking != dt_NONE ) {

@@ -65,6 +65,8 @@ struct distribution {
 	/*@null@*/char *uploaders;
 	/* only loaded after _loaduploaders */
 	/*@null@*/struct uploaders *uploaderslist;
+	/* how and where to log */
+	/*@null@*/struct logger *logger;
 	/* a list of names beside Codename and Suite to accept .changes
 	 * files via include */
 	struct strlist alsoaccept;
@@ -76,9 +78,11 @@ struct distribution {
 	bool_t lookedat;
 };
 
-
 retvalue distribution_get(/*@out@*/struct distribution **distribution,const char *conf,const char *name, bool_t lookedat);
 retvalue distribution_free(/*@only@*/struct distribution *distribution);
+
+/* set lookedat, start logger, ... */
+retvalue distribution_prepareforwriting(struct distribution *distribution);
 
 typedef retvalue distribution_each_action(void *data, struct target *t, struct distribution *d);
 

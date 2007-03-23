@@ -73,9 +73,9 @@ retvalue target_initpackagesdb(struct target *target, const char *dbdir);
 retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
-
-retvalue target_addpackage(struct target *target,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/struct trackingdata *,enum filetype);
-retvalue target_removepackage(struct target *target,references refs,const char *name, /*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
+struct logger;
+retvalue target_addpackage(struct target *target,/*@null@*/struct logger *logger,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/struct trackingdata *,enum filetype);
+retvalue target_removepackage(struct target *target,struct logger *logger,references refs,const char *name,/*@null@*/const char *oldpversion,/*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb);
 retvalue target_rereference(struct target *target,references refs);
 retvalue target_addsnapshotreference(struct target *target,const char *dbdir,references refs,const char *name);

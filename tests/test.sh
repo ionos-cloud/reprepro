@@ -118,11 +118,13 @@ cat > conf/distributions <<CONFEND
 Codename: A
 Architectures: abacus calculator
 Components: dog cat
+Log: logfile
 
 Codename: B
 Architectures: abacus source
 Components: dog cat
 Contents: 1
+Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 stdout
@@ -309,6 +311,10 @@ stdout
 EOF
 sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
 cp -a i i2
+function checknolog() {
+	dodo test ! -f "$1"
+}
+checknolog logfile
 testrun - -b . processincoming default 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -340,6 +346,15 @@ stdout
 -v4*=Reading filelist for pool/dog/b/bird/bird_1_abacus.deb
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
 EOF
+LOGDATE="$(date +'%Y-%m-%d %H:')"
+echo normalizing logfile: DATESTR is "$LOGDATE??:??"
+sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logfile
+cat > results.log.expected <<EOF
+DATESTR add B dsc dog source bird 1
+DATESTR add B deb dog abacus bird 1
+DATESTR add B deb dog abacus bird-addons 1
+EOF
+dodiff results.log.expected logfile
 find temp -type f > results
 dodiff results.empty results
 find i -type f > results
@@ -445,6 +460,23 @@ stdout
 -v1*= generating Contents-abacus...
 -v4*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
+EOF
+function checklog() {
+	cat > results.log.expected
+	LOGDATE="$(date +'%Y-%m-%d %H:')"
+	echo normalizing "$1": DATESTR is "$LOGDATE??:??"
+	sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' "$1"
+	dodiff results.log.expected "$1"
+	rm -- "$1"
+
+}
+checklog logfile <<EOF
+DATESTR add B dsc dog source bird 1
+DATESTR add B deb dog abacus bird 1
+DATESTR add B deb dog abacus bird-addons 1
+DATESTR add B dsc cat source bird 1
+DATESTR add B deb cat abacus bird 1
+DATESTR add B deb cat abacus bird-addons 1
 EOF
 find temp -type f > results
 dodiff results.empty results
@@ -785,6 +817,7 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " $DEBMD5S section priority indebname_debfileversion~2_all.deb" >> i/test.changes
+checknolog logfile
 testrun - -b . processincoming default 3<<EOF
 returns 0
 stderr
@@ -804,6 +837,10 @@ stdout
 -v6*=  replacing './dists/A/dog/binary-calculator/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'A|dog|abacus'...
 -v6*= looking for changes in 'A|dog|calculator'...
+EOF
+checklog logfile <<EOF
+DATESTR add A deb dog abacus indebname 1:versionindeb~1
+DATESTR add A deb dog calculator indebname 1:versionindeb~1
 EOF
 find pool/dog/s -type f > results
 echo "pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb" > results.expected
@@ -986,6 +1023,7 @@ DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s'
 OLDDSCFILENAMEMD5S="$DSCMD5S"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
+checknolog logfile
 testrun - -b . processincoming default 3<<EOF
 returns 0
 stderr
@@ -1003,6 +1041,9 @@ stdout
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
 -v6*= looking for changes in 'B|cat|abacus'...
 -v6*= looking for changes in 'B|cat|source'...
+EOF
+checklog logfile <<EOF
+DATESTR add B dsc dog source dscfilename versionindsc
 EOF
 # TODO: check Sources.gz
 cat >i/strangefile <<EOF
@@ -1175,6 +1216,7 @@ testout "" -b . dumpunreferenced
 dodiff results.empty results
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
+checknolog logfile
 testrun - -b . processincoming default 3<<EOF
 returns 0
 stderr
@@ -1194,6 +1236,9 @@ stdout
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
+EOF
+checklog logfile <<EOF
+DATESTR replace B dsc dog source dscfilename 1:newversion~ versionindsc
 EOF
 
 find pool -type f | LC_ALL=C sort -f > results
@@ -1294,6 +1339,7 @@ DebIndices: Packages Release . .gz .bz2
 UDebIndices: Packages .gz .bz2
 DscIndices: Sources Release .gz .bz2
 Tracking: keep includechanges includebyhand
+Log: log1
 
 Codename: test2
 Architectures: abacus coal source
@@ -1308,9 +1354,11 @@ DscIndices: Sources Release . .gz $SRCDIR/docs/bzip.example
 Description: test with all fields set
 DebOverride: binoverride
 DscOverride: srcoverride
+Log: log2
 CONFEND
 
 set -v
+checknolog logfile
 testrun - -b . export 3<<EOF
 stdout
 -v2*=Created directory "./db"
@@ -1431,6 +1479,7 @@ dodiff dists/test1/Release.expected dists/test1/Release || exit 1
 dodiff dists/test2/Release.expected dists/test2/Release || exit 1
 
 PACKAGE=simple EPOCH="" VERSION=1 REVISION="" SECTION="stupid/base" genpackage.sh
+checknolog log1
 testrun - -b . include test1 test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -1454,6 +1503,11 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+checklog log1 << EOF
+DATESTR add test1 deb stupid abacus simple-addons 1
+DATESTR add test1 deb stupid abacus simple 1
+DATESTR add test1 dsc stupid source simple 1
+EOF
 
 PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=0.9-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/base" genpackage.sh
 testrun - -b . include test1 test.changes 3<<EOF
@@ -1478,6 +1532,11 @@ stdout
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 echo returned: $?
+checklog log1 <<EOF
+DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
 
 testrun - -b . -Tdsc remove test1 simple 3<<EOF
 stdout
@@ -1494,6 +1553,9 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
+checklog log1 <<EOF
+DATESTR remove test1 dsc stupid source simple 1
+EOF
 testrun - -b . -Tdeb remove test1 bloat+-0a9z.app 3<<EOF
 stdout
 -v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|abacus'...
@@ -1508,6 +1570,9 @@ stdout
 -v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
+EOF
+checklog log1 <<EOF
+DATESTR remove test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -A source remove test1 bloat+-0a9z.app 3<<EOF
 stdout
@@ -1524,6 +1589,9 @@ stdout
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
 EOF
+checklog log1 <<EOF
+DATESTR remove test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
 testrun - -b . -A abacus remove test1 simple 3<<EOF
 stdout
 -v1*=removing 'simple' from 'test1|stupid|abacus'...
@@ -1538,6 +1606,9 @@ stdout
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
+EOF
+checklog log1 <<EOF
+DATESTR remove test1 deb stupid abacus simple 1
 EOF
 testrun - -b . -C ugly remove test1 bloat+-0a9z.app-addons 3<<EOF
 stdout
@@ -1554,6 +1625,9 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
+checklog log1 <<EOF
+DATESTR remove test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
 testrun - -b . -C stupid remove test1 simple-addons 3<<EOF
 stdout
 -v1*=removing 'simple-addons' from 'test1|stupid|abacus'...
@@ -1568,6 +1642,9 @@ stdout
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
+EOF
+checklog log1 <<EOF
+DATESTR remove test1 deb stupid abacus simple-addons 1
 EOF
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
@@ -1623,6 +1700,9 @@ stdout
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'change'
 -v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 EOF
+checklog log2 <<EOF
+DATESTR add test2 dsc ugly source simple 1
+EOF
 testrun - -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -1647,6 +1727,9 @@ stdout
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+checklog log2 <<EOF
+DATESTR add test2 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
 testrun - -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -1668,6 +1751,9 @@ stdout
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
+EOF
+checklog log2  <<EOF
+DATESTR add test2 deb ugly abacus simple 1
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 simple-addons_1_all.deb 3<<EOF
 stderr
@@ -1691,6 +1777,9 @@ stdout
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+checklog log2  <<EOF
+DATESTR add test2 deb ugly coal simple-addons 1
+EOF
 testrun - -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -1713,6 +1802,9 @@ stdout
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
+checklog log2 <<EOF
+DATESTR add test2 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
 testrun - -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -1734,6 +1826,9 @@ stdout
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
+EOF
+checklog log2 <<EOF
+DATESTR add test2 deb stupid coal bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' > results
 cat >results.expected <<END
@@ -1855,6 +1950,16 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+checklog log1 <<EOF
+DATESTR add test1 dsc ugly source simple 1
+DATESTR add test1 deb ugly abacus simple 1
+DATESTR add test1 deb ugly abacus simple-addons 1
+DATESTR add test1 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb stupid abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
+checknolog log1
+checknolog log2
 testrun - -b . $UPDATETYPE test1 3<<EOF
 =WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
@@ -1862,6 +1967,8 @@ testrun - -b . $UPDATETYPE test1 3<<EOF
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 *=Nothing to do found. (Use --noskipold to force processing)
 EOF
+checklog log1 < /dev/null
+checknolog log2
 testrun - --nolistsdownload -b . $UPDATETYPE test1 3<<EOF
 -v0*=Ignoring --skipold because of --nolistsdownload
 =WARNING: Single-Instance not yet supported!
@@ -1891,6 +1998,8 @@ stdout
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 EOF
+checklog log1 < /dev/null
+checknolog log2
 
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
@@ -2028,6 +2137,11 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+checklog log1 <<EOF
+DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
 echo returned: $?
 OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
 testrun - -b . include test1 test2.changes 3<<EOF
@@ -2050,6 +2164,11 @@ stdout
 -v0*=Deleting files no longer referenced...
 EOF
 echo returned: $?
+checklog log1 <<EOF
+DATESTR replace test1 deb ugly abacus bloat+-0a9z.app-addons 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR replace test1 deb ugly abacus bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR replace test1 dsc ugly source bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
+EOF
 testrun - -b . -S test -P test includedeb test1 simple_1_abacus.deb 3<<EOF
 stderr
 -v1*=simple_1_abacus.deb: component guessed as 'stupid'
@@ -2065,6 +2184,9 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+checklog log1 <<EOF
+DATESTR add test1 deb stupid abacus simple 1
+EOF
 testrun - -b . -S test -P test includedsc test1 simple_1.dsc 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -2079,6 +2201,9 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+checklog log1 <<EOF
+DATESTR add test1 dsc stupid source simple 1
+EOF
 
 testout "" -b . dumptracks
 cat >results.expected <<END
@@ -2136,6 +2261,8 @@ stdout
 -v1*=removed now empty directory ./pool/stupid/t/test
 -v1*=removed now empty directory ./pool/stupid/t
 EOF
+checknolog log1
+checknolog log2
 testrun - -b . --ignore=missingfile include test1 test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
@@ -2154,6 +2281,11 @@ stdout
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
+EOF
+checklog log1 <<EOF
+DATESTR add test1 deb stupid abacus test-addons 1-2
+DATESTR add test1 deb stupid abacus test 1-2
+DATESTR add test1 dsc stupid source test 1-2
 EOF
 dodo zgrep test_1-2.dsc dists/test1/stupid/source/Sources.gz
 
@@ -2174,6 +2306,11 @@ stdout
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
+EOF
+checklog log1 <<EOF
+DATESTR add test1 deb stupid abacus testb-addons 1:2-2
+DATESTR add test1 deb stupid abacus testb 1:2-2
+DATESTR add test1 dsc stupid source testb 1:2-2
 EOF
 dodo zgrep testb_2-2.dsc dists/test1/stupid/source/Sources.gz
 rm test2.changes
@@ -2196,6 +2333,11 @@ stdout
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
+EOF
+checklog log1 <<EOF
+DATESTR replace test1 deb stupid abacus testb-addons 1:2-3 1:2-2
+DATESTR replace test1 deb stupid abacus testb 1:2-3 1:2-2
+DATESTR replace test1 dsc stupid source testb 1:2-3 1:2-2
 EOF
 dodo zgrep testb_2-3.dsc dists/test1/stupid/source/Sources.gz
 
@@ -2220,6 +2362,11 @@ stdout
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|abacus'...
 -v6*= looking for changes in 'test1|ugly|source'...
+EOF
+checklog log1 <<EOF
+DATESTR add test1 deb stupid abacus 4test-addons 1:b.1-1
+DATESTR add test1 deb stupid abacus 4test 1:b.1-1
+DATESTR add test1 dsc stupid source 4test 1:b.1-1
 EOF
 
 cat >includeerror.rules <<EOF
@@ -2492,6 +2639,12 @@ stdout
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
 EOF
+checklog log1 <<EOF
+DATESTR remove test1 deb stupid abacus simple 1
+DATESTR remove test1 dsc stupid source simple 1
+DATESTR remove test1 deb ugly abacus simple 1
+DATESTR remove test1 dsc ugly source simple 1
+EOF
 testrun - -b . remove test2 simple 3<<EOF
 *=To be forgotten filekey 'pool/ugly/s/simple/simple_1_abacus.deb' was not known.
 -v0*=There have been errors!
@@ -2514,6 +2667,10 @@ stdout
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.dsc
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.tar.gz
 returns 249
+EOF
+checklog log2 <<EOF
+DATESTR remove test2 deb ugly abacus simple 1
+DATESTR remove test2 dsc ugly source simple 1
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
@@ -2625,6 +2782,8 @@ stdout
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 returns 255
 EOF
+checknolog log1
+checknolog log2
 testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 *='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
@@ -2644,6 +2803,10 @@ stdout
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
 EOF
+checklog log2 <<EOF
+DATESTR add test2 deb stupid abacus 4test 1:b.1-1
+DATESTR add test2 dsc stupid source 4test 1:b.1-1
+EOF
 testrun - -b . remove test2 4test 3<<EOF
 stdout
 -v1*=removing '4test' from 'test2|stupid|abacus'...
@@ -2662,9 +2825,15 @@ stdout
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 EOF
+checklog log2 <<EOF
+DATESTR remove test2 deb stupid abacus 4test 1:b.1-1
+DATESTR remove test2 dsc stupid source 4test 1:b.1-1
+EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 
+checknolog log1
+checknolog log2
 for tracking in true false ; do
 cat > conf/distributions <<EOF
 Codename: X
@@ -2716,6 +2885,10 @@ fi
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 
+checknolog logfile
+checknolog log1
+checknolog log2
+
 if $tracking ; then
 cat >> conf/distributions <<EOF
 
@@ -2723,11 +2896,13 @@ Codename: a
 Architectures: abacus source
 Components: all
 Tracking: minimal
+Log: logab
 
 Codename: b
 Architectures: abacus
 Components: all
 Pull: froma
+Log: logab
 EOF
 else
 cat >> conf/distributions <<EOF
@@ -2735,17 +2910,21 @@ cat >> conf/distributions <<EOF
 Codename: a
 Architectures: abacus source
 Components: all
+Log: logab
 
 Codename: b
 Architectures: abacus
 Components: all
 Pull: froma
+Log: logab
 EOF
 fi
 cat > conf/pulls <<EOF
 Name: froma
 From: a
 EOF
+
+checknolog logab
 
 rm -r dists
 if $tracking ; then
@@ -2772,10 +2951,12 @@ stdout
 -v1*=removed now empty directory ./pool/all
 EOF
 fi
+checknolog logab
 testout "" -b . dumptracks a
 dodiff results.empty results
 testout "" -b . dumpunreferenced
 dodiff results.empty results
+checknolog logab
 testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
@@ -2783,6 +2964,7 @@ stdout
 -v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
 EOF
+checklog logab < /dev/null
 test ! -d dists/a
 test ! -d dists/b
 testrun - -b . --export=normal pull b 3<<EOF
@@ -2799,6 +2981,7 @@ stdout
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
 EOF
+checklog logab < /dev/null
 test ! -d dists/a
 test -d dists/b
 testrun - -b . --export=normal pull a b 3<<EOF
@@ -2818,6 +3001,7 @@ stdout
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 EOF
+checklog logab < /dev/null
 test -d dists/a
 test -d dists/b
 rm -r dists/a dists/b
@@ -2835,6 +3019,11 @@ stdout
 -v3*=db: 'aa' added to 'a|all|abacus'.
 -v3*=db: 'aa' added to 'a|all|source'.
 -v5*=Deleting 'test.changes'.
+EOF
+checklog logab << EOF
+DATESTR add a deb all abacus aa-addons 1-1
+DATESTR add a deb all abacus aa 1-1
+DATESTR add a dsc all source aa 1-1
 EOF
 test ! -d dists/a
 test ! -d dists/b
@@ -2872,6 +3061,7 @@ stdout
 -v6*= exporting 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 EOF
+checknolog logab
 dogrep "Version: 1-1" dists/a/all/binary-abacus/Packages
 rm -r dists/a
 testrun - -b . --export=changed pull a b 3<<EOF
@@ -2888,6 +3078,10 @@ stdout
 -v2*=Created directory "./dists/b/all/binary-abacus"
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+EOF
+checklog logab << EOF
+DATESTR add b deb all abacus aa 1-1
+DATESTR add b deb all abacus aa-addons 1-1
 EOF
 test ! -d dists/a
 test -d dists/b
@@ -2915,6 +3109,11 @@ stdout
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.dsc
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.tar.gz
+EOF
+checklog logab << EOF
+DATESTR replace a deb all abacus aa-addons 1-2 1-1
+DATESTR replace a deb all abacus aa 1-2 1-1
+DATESTR replace a dsc all source aa 1-2 1-1
 EOF
 test -f test.changes
 test ! -f aa_1-2_abacus.deb
@@ -2959,6 +3158,10 @@ stdout
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1_abacus.deb
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-1_all.deb
 EOF
+checklog logab << EOF
+DATESTR replace b deb all abacus aa 1-2 1-1
+DATESTR replace b deb all abacus aa-addons 1-2 1-1
+EOF
 test ! -d dists/a
 test -d dists/b
 dogrep "Version: 1-2" dists/b/all/binary-abacus/Packages
@@ -2978,6 +3181,11 @@ stdout
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.dsc
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.tar.gz
+EOF
+checklog logab << EOF
+DATESTR replace a deb all abacus aa-addons 1-3 1-2
+DATESTR replace a deb all abacus aa 1-3 1-2
+DATESTR replace a dsc all source aa 1-3 1-2
 EOF
 test -f test.changes
 test -f aa_1-3_abacus.deb
@@ -3015,6 +3223,11 @@ stdout
 -v3*=db: 'ab' added to 'a|all|source'.
 -v5*=Deleting 'test.changes'.
 EOF
+checklog logab << EOF
+DATESTR add a deb all abacus ab-addons 2-1
+DATESTR add a deb all abacus ab 2-1
+DATESTR add a dsc all source ab 2-1
+EOF
 testrun - -b . --export=changed pull b 3<<EOF
 stderr
 stdout
@@ -3035,6 +3248,12 @@ stdout
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2_abacus.deb
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-2_all.deb
 EOF
+checklog logab << EOF
+DATESTR replace b deb all abacus aa 1-3 1-2
+DATESTR replace b deb all abacus aa-addons 1-3 1-2
+DATESTR add b deb all abacus ab 2-1
+DATESTR add b deb all abacus ab-addons 2-1
+EOF
 dogrep "Version: 1-3" dists/b/all/binary-abacus/Packages
 dogrep "Version: 2-1" dists/b/all/binary-abacus/Packages
 test ! -f pool/all/a/aa/aa_1-2_abacus.deb
@@ -3047,6 +3266,7 @@ testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0*=There have been errors!
 returns 255
 EOF
+checknolog logab
 echo ' d41d8cd98f00b204e9800998ecf8427e 0 stupid/base superfluous ab_3-1.diff.gz' >> broken.changes
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
@@ -3054,6 +3274,7 @@ testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0*=There have been errors!
 returns 249
 EOF
+checknolog logab
 test -f broken.changes
 test ! -f ab_3-1.diff.gz
 test -f ab-addons_3-1_all.deb
@@ -3082,6 +3303,10 @@ stdout
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
+EOF
+checklog logab <<EOF
+DATESTR replace a deb all abacus ab-addons 3-1 2-1
+DATESTR replace a deb all abacus ab 3-1 2-1
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
@@ -3160,6 +3385,9 @@ stdout
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.dsc
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.tar.gz
 EOF
+checklog logab <<EOF
+DATESTR replace a dsc all source ab 3-1 2-1
+EOF
 test ! -f broken.changes
 test ! -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
@@ -3194,6 +3422,10 @@ stdout
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+EOF
+checklog logab <<EOF
+DATESTR add b deb all abacus ac-addons 1-1
+DATESTR add b deb all abacus ac 1-1
 EOF
 dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
 dogrep '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
@@ -3240,6 +3472,12 @@ stdout
 -v1*=deleting and forgetting pool/all/a/ac/ac-addons_1-1_all.deb
 -v1*=removed now empty directory ./pool/all/a/ac
 EOF
+checklog logab <<EOF
+DATESTR remove b deb all abacus ab 2-1
+DATESTR remove b deb all abacus ab-addons 2-1
+DATESTR remove b deb all abacus ac 1-1
+DATESTR remove b deb all abacus ac-addons 1-1
+EOF
 dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
 dogrep '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
 dongrep '^Package: ab$' dists/b/all/binary-abacus/Packages
@@ -3263,6 +3501,9 @@ stdout
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+EOF
+checklog logab <<EOF
+DATESTR add b deb all abacus ab 3-1
 EOF
 done
 set +v +x

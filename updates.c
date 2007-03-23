@@ -43,6 +43,7 @@
 #include "terms.h"
 #include "filterlist.h"
 #include "readrelease.h"
+#include "log.h"
 #include "donefile.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
@@ -1400,11 +1401,16 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 	retvalue result,r;
 	struct update_target *u;
 
+	assert( logger_isprepared(distribution->distribution->logger) );
+
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->nothingnew )
 			continue;
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,u->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(u->upgradelist,
+				distribution->distribution->logger,
+				dbdir, filesdb, refs,
+				u->ignoredelete, dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
@@ -1495,6 +1501,11 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_prepareforwriting(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1696,6 +1707,11 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	struct update_distribution *d;
 	struct aptmethodrun *run;
 
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_prepareforwriting(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1773,7 +1789,9 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 				u->upgradelist = NULL;
 				continue;
 			}
-			r = upgradelist_predelete(u->upgradelist,dbdir,refs,dereferencedfilekeys);
+			r = upgradelist_predelete(u->upgradelist,
+					d->distribution->logger,
+					dbdir, refs, dereferencedfilekeys);
 			RET_UPDATE(d->distribution->status, r);
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = TRUE;
@@ -1794,6 +1812,9 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	struct update_target *target;
 	retvalue result,r;
 
+	result = distribution_prepareforwriting(d->distribution);
+	if( RET_WAS_ERROR(result) )
+		return result;
 	result = RET_OK;
 
 	r = aptmethod_initialize_run(&run);
@@ -1938,7 +1959,10 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 
 		if( verbose >= 0 )
 			fprintf(stderr,"Installing/removing packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = upgradelist_install(target->upgradelist,dbdir,filesdb,refs,target->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(target->upgradelist,
+				d->distribution->logger,
+				dbdir, filesdb, refs,
+				target->ignoredelete, dereferencedfilekeys);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		RET_UPDATE(result,r);

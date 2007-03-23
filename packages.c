@@ -29,11 +29,8 @@
 #include "names.h"
 #include "md5sum.h"
 #include "dirs.h"
-#include "reference.h"
 #include "files.h"
-#include "target.h"
 #include "packages.h"
-#include "tracking.h"
 
 struct s_packagesdb {
 	char *identifier;
@@ -130,7 +127,7 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 }
 
 /* replace a save chunk with another */
-static retvalue packages_replace(packagesdb db,const char *package,const char *chunk) {
+retvalue packages_replace(packagesdb db,const char *package,const char *chunk) {
 	int dbret;
 	DBT key,data;
 
@@ -156,7 +153,7 @@ static retvalue packages_replace(packagesdb db,const char *package,const char *c
 }
 
 /* save a given chunk in the database */
-static retvalue packages_add(packagesdb db,const char *package,const char *chunk) {
+retvalue packages_add(packagesdb db,const char *package,const char *chunk) {
 	int dbret;
 	DBT key,data;
 
@@ -325,57 +322,6 @@ retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const str
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
 		db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
 		return RET_DBERR(dbret);
-	}
-
-	return result;
-}
-
-retvalue packages_insert(references refs, packagesdb packagesdb,
-		const char *packagename, const char *controlchunk,
-		const struct strlist *files,
-		struct strlist *oldfiles,
-		struct strlist *dereferencedfilekeys,
-		struct trackingdata *trackingdata,
-		enum filetype filetype,
-		/*@only@*/char *oldsource,/*@only@*/char *oldsversion) {
-
-
-	retvalue result,r;
-
-	/* mark it as needed by this distribution */
-
-	r = references_insert(refs,packagesdb->identifier,files,oldfiles);
-
-	if( RET_WAS_ERROR(r) ) {
-		if( oldfiles != NULL )
-			strlist_done(oldfiles);
-		return r;
-	}
-
-	/* Add package to the distribution's database */
-
-	if( oldfiles != NULL ) {
-		result = packages_replace(packagesdb,packagename,controlchunk);
-
-	} else {
-		result = packages_add(packagesdb,packagename,controlchunk);
-	}
-
-	if( RET_WAS_ERROR(result) ) {
-		if( oldfiles != NULL )
-			strlist_done(oldfiles);
-		return result;
-	}
-
-	r = trackingdata_insert(trackingdata,filetype,files,oldsource,oldsversion,oldfiles,refs);
-	RET_UPDATE(result,r);
-
-	/* remove old references to files */
-
-	if( oldfiles != NULL ) {
-		r = references_delete(refs,packagesdb->identifier,
-				oldfiles,files,dereferencedfilekeys);
-		RET_UPDATE(result,r);
 	}
 
 	return result;

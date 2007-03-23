@@ -781,6 +781,10 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
 
+	r = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	r = RET_NOTHING;
 
 	e = changes->files;
