@@ -190,7 +190,7 @@ static inline retvalue isinfilter(const char *codename, const struct distributio
 	return RET_NOTHING;
 }
 
-static retvalue distribution_parse_and_filter(struct distribution **distribution,const char *chunk,struct distribution_filter filter, bool_t lookedat) {
+static retvalue distribution_parse_and_filter(const char *confdir,const char *logdir,struct distribution **distribution,const char *chunk,struct distribution_filter filter,bool_t lookedat) {
 	struct distribution *r;
 	retvalue ret;
 	const char *missing;
@@ -352,7 +352,7 @@ NULL};
 	r->logger = NULL;
 	ret = chunk_getvalue(chunk,"Log",&option);
 	if( RET_IS_OK(ret) ) {
-		ret = logger_init(option, &r->logger);
+		ret = logger_init(confdir, logdir, option, &r->logger);
 		free(option);
 	}
 	if(RET_WAS_ERROR(ret)) {
@@ -435,14 +435,21 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 	return t;
 }
 
-struct distmatch_mydata {struct distribution_filter filter; struct distribution *distributions;bool_t lookedat;};
+struct distmatch_mydata {
+	const char *confdir;
+	const char *logdir;
+	struct distribution_filter filter;
+	struct distribution *distributions;
+	bool_t lookedat;
+};
 
 static retvalue adddistribution(void *d,const char *chunk) {
 	struct distmatch_mydata *mydata = d;
 	retvalue result;
 	struct distribution *distribution;
 
-	result = distribution_parse_and_filter(&distribution,chunk,mydata->filter,mydata->lookedat);
+	result = distribution_parse_and_filter(mydata->confdir, mydata->logdir,
+			&distribution, chunk, mydata->filter, mydata->lookedat);
 	if( RET_IS_OK(result) ){
 		struct distribution *d;
 		for( d=mydata->distributions; d != NULL; d=d->next ) {
@@ -459,11 +466,13 @@ static retvalue adddistribution(void *d,const char *chunk) {
 }
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],struct distribution **distributions, bool_t lookedat) {
+retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc,const char *argv[],bool_t lookedat,struct distribution **distributions) {
 	retvalue result;
 	char *fn;
 	struct distmatch_mydata mydata;
 
+	mydata.confdir = confdir;
+	mydata.logdir = logdir;
 	mydata.filter.count = argc;
 	mydata.filter.dists = (const char**)argv;
 	mydata.filter.found = calloc(argc,sizeof(bool_t));
@@ -472,7 +481,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	mydata.distributions = NULL;
 	mydata.lookedat = lookedat;
 
-	fn = calc_dirconcat(conf,"distributions");
+	fn = calc_dirconcat(confdir,"distributions");
 	if( fn == NULL )
 		return RET_ERROR_OOM;
 
@@ -517,7 +526,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	return result;
 }
 
-retvalue distribution_get(struct distribution **distribution,const char *confdir,const char *name, bool_t lookedat) {
+retvalue distribution_get(const char *confdir,const char *logdir,const char *name,bool_t lookedat,struct distribution **distribution) {
 	retvalue result;
 	struct distribution *d;
 
@@ -526,7 +535,7 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 	 * about emtpy lines in the definition (as this would split
 	 * it in two definitions, the second one no valid one).
 	 */
-	result = distribution_getmatched(confdir,1,&name,&d,lookedat);
+	result = distribution_getmatched(confdir,logdir,1,&name,lookedat,&d);
 
 	if( RET_WAS_ERROR(result) )
 		return result;

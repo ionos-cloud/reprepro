@@ -367,6 +367,7 @@ static inline void pull_addsourcedistributions(struct pull_rule *rules,
 }
 
 static retvalue pull_loadmissingsourcedistributions(const char *confdir,
+		const char *logdir,
 		struct pull_rule *rules,
 		struct distribution **extradistributions) {
 	const char **names = NULL;
@@ -401,7 +402,7 @@ static retvalue pull_loadmissingsourcedistributions(const char *confdir,
 		*extradistributions = NULL;
 		return RET_OK;
 	}
-	r = distribution_getmatched(confdir, count, names, extradistributions, FALSE);
+	r = distribution_getmatched(confdir, logdir, count, names, FALSE, extradistributions);
 	free(names);
 	assert( r != RET_NOTHING );
 	if( RET_IS_OK(r) ) {
@@ -569,7 +570,7 @@ static retvalue pull_generatetargets(struct pull_distribution *pull_distribution
  * combination of the steps two, three and four                            *
  **************************************************************************/
 
-retvalue pull_prepare(const char *confdir,struct pull_rule *rules,struct distribution *distributions, struct pull_distribution **pd,struct distribution **alsoneeded) {
+retvalue pull_prepare(const char *confdir,const char *logdir,struct pull_rule *rules,struct distribution *distributions, struct pull_distribution **pd,struct distribution **alsoneeded) {
 	struct distribution *extra;
 	struct pull_distribution *pulls;
 	retvalue r;
@@ -580,7 +581,7 @@ retvalue pull_prepare(const char *confdir,struct pull_rule *rules,struct distrib
 
 	pull_addsourcedistributions(rules, distributions);
 
-	r = pull_loadmissingsourcedistributions(confdir, rules, &extra);
+	r = pull_loadmissingsourcedistributions(confdir, logdir, rules, &extra);
 	if( RET_WAS_ERROR(r) ) {
 		pull_freedistributions(pulls);
 		return r;

@@ -78,7 +78,7 @@ struct distribution {
 	bool_t lookedat;
 };
 
-retvalue distribution_get(/*@out@*/struct distribution **distribution,const char *conf,const char *name, bool_t lookedat);
+retvalue distribution_get(const char *confdir,const char *logdir,const char *name, bool_t lookedat,/*@out@*/struct distribution **distribution);
 retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 /* set lookedat, start logger, ... */
@@ -103,7 +103,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,references refs,const char *name);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions, bool_t lookedat);
+retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc,const char *argv[],bool_t lookedat,/*@out@*/struct distribution **distributions);
 
 /* get a pointer to the apropiate part of the linked list */
 struct distribution *distribution_find(struct distribution *distributions, const char *name);

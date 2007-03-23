@@ -28,6 +28,7 @@
 #include <malloc.h>
 #include "error.h"
 #include "strlist.h"
+#include "dirs.h"
 #include "target.h"
 #include "log.h"
 
@@ -40,8 +41,10 @@ struct logfile {
 	int fd;
 } *logfile_root = NULL;
 
-static retvalue logfile_reference(const char *filename,struct logfile **logfile) {
+static retvalue logfile_reference(const char *logdir,const char *filename,struct logfile **logfile) {
 	struct logfile *l;
+
+	assert( logdir != NULL && filename != NULL );
 
 	for( l = logfile_root ; l != NULL ; l = l->next ) {
 		if( strcmp(l->filename, filename) == 0 ) {
@@ -53,7 +56,10 @@ static retvalue logfile_reference(const char *filename,struct logfile **logfile)
 	l = malloc(sizeof(struct logfile));
 	if( l == NULL )
 		return RET_ERROR_OOM;
-	l->filename = strdup(filename);
+	if( filename[0] == '/' )
+		l->filename = strdup(filename);
+	else
+		l->filename = calc_dirconcat(logdir,filename);
 	if( l->filename == NULL ) {
 		free(l);
 		return RET_ERROR_OOM;
@@ -102,6 +108,7 @@ static retvalue logfile_open(struct logfile *logfile) {
 	assert( logfile != NULL );
 	assert( logfile->fd < 0 );
 
+	(void)dirs_make_parent(logfile->filename);
 	logfile->fd = open(logfile->filename,
 			O_CREAT|O_APPEND|O_LARGEFILE|O_NOCTTY|O_WRONLY,
 			0666);
@@ -190,7 +197,7 @@ void logger_free(struct logger *logger) {
 	free(logger);
 }
 
-retvalue logger_init(const char *option,struct logger **logger_p) {
+retvalue logger_init(const char *confdir,const char *logdir,const char *option,struct logger **logger_p) {
 	struct logger *n;
 	retvalue r;
 
@@ -201,7 +208,7 @@ retvalue logger_init(const char *option,struct logger **logger_p) {
 	n = malloc(sizeof(struct logger));
 	if( n == NULL )
 		return RET_ERROR_OOM;
-	r = logfile_reference(option,&n->logfile);
+	r = logfile_reference(logdir, option, &n->logfile);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
 		return r;

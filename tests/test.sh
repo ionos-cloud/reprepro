@@ -312,7 +312,7 @@ EOF
 sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
 cp -a i i2
 function checknolog() {
-	dodo test ! -f "$1"
+	dodo test ! -f logs/"$1"
 }
 checknolog logfile
 testrun - -b . processincoming default 3<<EOF
@@ -327,6 +327,7 @@ stdout
 -v2*=Created directory "./pool/dog"
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
+-v2*=Created directory "./logs"
 -v3*=db: 'bird' added to 'B|dog|source'.
 -v3*=db: 'bird' added to 'B|dog|abacus'.
 -v3*=db: 'bird-addons' added to 'B|dog|abacus'.
@@ -348,13 +349,13 @@ stdout
 EOF
 LOGDATE="$(date +'%Y-%m-%d %H:')"
 echo normalizing logfile: DATESTR is "$LOGDATE??:??"
-sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logfile
+sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/logfile
 cat > results.log.expected <<EOF
 DATESTR add B dsc dog source bird 1
 DATESTR add B deb dog abacus bird 1
 DATESTR add B deb dog abacus bird-addons 1
 EOF
-dodiff results.log.expected logfile
+dodiff results.log.expected logs/logfile
 find temp -type f > results
 dodiff results.empty results
 find i -type f > results
@@ -465,9 +466,9 @@ function checklog() {
 	cat > results.log.expected
 	LOGDATE="$(date +'%Y-%m-%d %H:')"
 	echo normalizing "$1": DATESTR is "$LOGDATE??:??"
-	sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' "$1"
-	dodiff results.log.expected "$1"
-	rm -- "$1"
+	sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/"$1"
+	dodiff results.log.expected logs/"$1"
+	rm logs/"$1"
 
 }
 checklog logfile <<EOF

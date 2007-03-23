@@ -74,6 +74,7 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*dbdir = NULL,
 	*listdir = NULL,
 	*confdir = NULL,
+	*logdir = NULL,
 	/* This should have never been a seperate directory, well to late... */
 	*overridedir = NULL,
 	*methoddir = NULL;
@@ -98,7 +99,7 @@ int		verbose = 0;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -438,7 +439,7 @@ ACTION_D(remove) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(&distribution, confdir, argv[1], TRUE);
+	r = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -541,7 +542,7 @@ ACTION_N(list) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(&distribution, confdir, argv[1], FALSE);
+	r = distribution_get(confdir, logdir, argv[1], FALSE, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -603,7 +604,7 @@ ACTION_N(listfilter) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(&distribution, confdir, argv[1], FALSE);
+	r = distribution_get(confdir, logdir, argv[1], FALSE, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -720,7 +721,7 @@ ACTION_F(export) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -760,7 +761,7 @@ ACTION_D(update) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -813,7 +814,7 @@ ACTION_D(predelete) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -866,7 +867,7 @@ ACTION_D(iteratedupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -916,7 +917,7 @@ ACTION_N(checkupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -960,7 +961,7 @@ ACTION_D(pull) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -973,7 +974,7 @@ ACTION_D(pull) {
 	}
 	assert( RET_IS_OK(result) );
 
-	result = pull_prepare(confdir,rules,distributions,&p,&sourceonly);
+	result = pull_prepare(confdir, logdir, rules, distributions, &p, &sourceonly);
 	if( RET_WAS_ERROR(result) ) {
 		pull_freerules(rules);
 		r = distribution_freelist(distributions);
@@ -1007,7 +1008,7 @@ ACTION_N(checkpull) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1020,7 +1021,7 @@ ACTION_N(checkpull) {
 	}
 	assert( RET_IS_OK(result) );
 
-	result = pull_prepare(confdir,rules,distributions,&p,&sourceonly);
+	result = pull_prepare(confdir, logdir, rules, distributions, &p, &sourceonly);
 	if( RET_WAS_ERROR(result) ) {
 		pull_freerules(rules);
 		r = distribution_freelist(distributions);
@@ -1137,11 +1138,11 @@ ACTION_D(copy) {
 		fprintf(stderr,"reprepro [-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(&destination, confdir, argv[1], TRUE);
+	result = distribution_get(confdir, logdir, argv[1], TRUE, &destination);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	result = distribution_get(&source, confdir, argv[2], FALSE);
+	result = distribution_get(confdir, logdir, argv[2], FALSE, &source);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		distribution_free(destination);
@@ -1207,7 +1208,7 @@ ACTION_R(rereference) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1260,7 +1261,7 @@ ACTION_R(retrack) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1311,7 +1312,7 @@ ACTION_D_U(removetrack) {
 		fprintf(stderr,"reprepro removetrack <distribution> <sourcename> <version>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(&distribution, confdir, argv[1], TRUE);
+	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1339,7 +1340,7 @@ ACTION_D(cleartracks) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1381,7 +1382,7 @@ ACTION_N(dumptracks) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1434,7 +1435,7 @@ ACTION_RF(check) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1497,7 +1498,7 @@ ACTION_F(reoverride) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, TRUE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1569,7 +1570,7 @@ ACTION_D(includedeb) {
 			return RET_ERROR;
 	}
 
-	result = distribution_get(&distribution, confdir, argv[1], TRUE);
+	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1652,7 +1653,7 @@ ACTION_D(includedsc) {
 				"includedsc called with a file not ending with '.dsc'\n") )
 		return RET_ERROR;
 
-	result = distribution_get(&distribution, confdir, argv[1], TRUE);
+	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1721,7 +1722,7 @@ ACTION_D(include) {
 		}
 	}
 
-	result = distribution_get(&distribution, confdir, argv[1], TRUE);
+	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1775,7 +1776,7 @@ ACTION_N(createsymlinks) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = distribution_getmatched(confdir, argc-1, argv+1, &distributions, FALSE);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1898,7 +1899,7 @@ ACTION_D_UU(clearvanished) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, 0, NULL, &distributions, FALSE);
+	result = distribution_getmatched(confdir, logdir, 0, NULL, FALSE, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -2003,7 +2004,7 @@ ACTION_D(processincoming) {
 		return RET_ERROR;
 	}
 
-	r = distribution_getmatched(confdir,0,NULL,&distributions, FALSE);
+	r = distribution_getmatched(confdir, logdir, 0, NULL, FALSE, &distributions);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -2026,7 +2027,7 @@ ACTION_R(gensnapshot) {
 		fprintf(stderr,"reprepro gensnapshot <distribution> <date or other name>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(&distribution, confdir, argv[1], TRUE);
+	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -2275,6 +2276,7 @@ LO_NOSKIPOLD,
 LO_EXPORT,
 LO_DISTDIR,
 LO_DBDIR,
+LO_LOGDIR,
 LO_LISTDIR,
 LO_OVERRIDEDIR,
 LO_CONFDIR,
@@ -2323,6 +2325,7 @@ static void handle_option(int c,const char *optarg) {
 "     --dbdir <dir>:                 Directory to place the database in.\n"
 "     --listdir <dir>:               Directory to place downloaded lists in.\n"
 "     --confdir <dir>:               Directory to search configuration in.\n"
+"     --logdir <dir>:                Directory to put requeted log files in.\n"
 "     --overridedir <dir>:           Directory to search override files in.\n"
 "     --methodir <dir>:              Use instead of /usr/lib/apt/methods/\n"
 " -S, --section <section>:           Force include* to set section.\n"
@@ -2433,6 +2436,9 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_CONFDIR:
 					CONFIGDUP(confdir,optarg);
+					break;
+				case LO_LOGDIR:
+					CONFIGDUP(logdir,optarg);
 					break;
 				case LO_METHODDIR:
 					CONFIGDUP(methoddir,optarg);
@@ -2549,6 +2555,7 @@ int main(int argc,char *argv[]) {
 		{"listdir", required_argument, &longoption, LO_LISTDIR},
 		{"overridedir", required_argument, &longoption, LO_OVERRIDEDIR},
 		{"confdir", required_argument, &longoption, LO_CONFDIR},
+		{"logdir", required_argument, &longoption, LO_LOGDIR},
 		{"section", required_argument, NULL, 'S'},
 		{"priority", required_argument, NULL, 'P'},
 		{"component", required_argument, NULL, 'C'},
@@ -2646,11 +2653,13 @@ int main(int argc,char *argv[]) {
 		distdir=calc_dirconcat(mirrordir,"dists");
 	if( dbdir == NULL )
 		dbdir=calc_dirconcat(mirrordir,"db");
+	if( logdir == NULL )
+		logdir=calc_dirconcat(mirrordir,"logs");
 	if( listdir == NULL )
 		listdir=calc_dirconcat(mirrordir,"lists");
 	if( overridedir == NULL )
 		overridedir=calc_dirconcat(mirrordir,"override");
-	if( distdir == NULL || dbdir == NULL || listdir == NULL
+	if( distdir == NULL || dbdir == NULL || listdir == NULL || logdir == NULL
 			|| confdir == NULL || overridedir == NULL || methoddir == NULL) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
@@ -2669,6 +2678,7 @@ int main(int argc,char *argv[]) {
 			free(dbdir);
 			free(distdir);
 			free(listdir);
+			free(logdir);
 			free(confdir);
 			free(overridedir);
 			free(mirrordir);
@@ -2694,6 +2704,7 @@ int main(int argc,char *argv[]) {
 	free(dbdir);
 	free(distdir);
 	free(listdir);
+	free(logdir);
 	free(confdir);
 	free(overridedir);
 	free(mirrordir);
