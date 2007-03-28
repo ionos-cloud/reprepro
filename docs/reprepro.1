@@ -1213,6 +1213,14 @@ to be sure.
 Increased verbosity always shows those things one does not want to know.
 (Though this might be inevitable and a corollary to Murphy)
 
+Reprepro uses berkley db, which was a big mistake.
+The most annoying problem not yet worked around is database corruption
+when the disk runs out of space.
+(Luckily if it happens while downloading packages while updating,
+only the files database is affected, which is easy (though time consuming)
+to rebuild, see \fBrecovery\fP file in the documentation).
+Ideally put the database on another partition to avoid that.
+
 While the source part is mostly considered as the architecture
 .B source
 some parts may still not use this notation.
@@ -1283,11 +1291,13 @@ and thus expose a multitude of bugs including those leading to data corruption.
 Better think a second more before issuing a command than risking the need
 for interruption.
 .SH "REPORTING BUGS"
-Report bugs or wishlist requests to <brlink@debian.org>
+Report bugs or wishlist requests to the Debian BTS
 .br
-or the Debian BTS (e.g. by using \fBreportbug reperepro\fP)
+(e.g. by using \fBreportbug reperepro\fP under Debian)
+.br
+or directly to <brlink@debian.org>.
 .SH COPYRIGHT
-Copyright \(co 2004,2005,2006 Bernhard R. Link
-.br 
+Copyright \(co 2004,2005,2006,2007 Bernhard R. Link
+.br
 This is free software; see the source for copying conditions. There is NO
 warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
