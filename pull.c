@@ -778,6 +778,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
+	logger_wait();
 
 	return result;
 }

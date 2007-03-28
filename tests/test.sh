@@ -119,6 +119,62 @@ Codename: A
 Architectures: abacus calculator
 Components: dog cat
 Log: logfile
+ --bla
+CONFEND
+testrun - -b . export 3<<EOF
+return 255
+stdout
+-v2*=Created directory "./db"
+stderr
+*=Unknown option in notifiers of 'A': '--bla' (in '--bla')
+-v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+-v0*=There have been errors!
+EOF
+cat > conf/distributions <<CONFEND
+Codename: A
+Architectures: abacus calculator
+Components: dog cat
+Log: logfile
+ -A
+CONFEND
+testrun - -b . export 3<<EOF
+return 255
+*=Missing '=' in notifiers of 'A' after '-A' (in '-A')
+-v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+-v0*=There have been errors!
+EOF
+cat > conf/distributions <<CONFEND
+Codename: A
+Architectures: abacus calculator
+Components: dog cat
+Log: logfile
+ -A=abacus
+CONFEND
+testrun - -b . export 3<<EOF
+return 255
+*=Missing notification script to call in '-A=abacus' of 'A'
+-v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+-v0*=There have been errors!
+EOF
+cat > conf/distributions <<CONFEND
+Codename: A
+Architectures: abacus calculator
+Components: dog cat
+Log: logfile
+ -A=abacus --architecture=coal
+CONFEND
+testrun - -b . export 3<<EOF
+return 255
+*=Double notifier option '--architecture' (in '-A=abacus --architecture=coal' from 'A')
+-v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+-v0*=There have been errors!
+EOF
+cat > conf/distributions <<CONFEND
+Codename: A
+Architectures: abacus calculator
+Components: dog cat
+Log: logfile
+ -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
 
 Codename: B
 Architectures: abacus source
@@ -128,7 +184,6 @@ Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 stdout
--v2*=Created directory "./db"
 -v1*=Exporting B...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/B"

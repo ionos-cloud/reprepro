@@ -480,6 +480,8 @@ ACTION_D(remove) {
 	d.refs = NULL;
 	d.removedfiles = NULL;
 
+	logger_wait();
+
 	r = distribution_export(export, distribution,confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 
@@ -1169,6 +1171,8 @@ ACTION_D(copy) {
 					destination->codename);
 		result = distribution_foreach_part(source,component,architecture,packagetype,copy,&d);
 	}
+	logger_wait();
+
 	d.refs = NULL;
 	d.removedfiles = NULL;
 	d.destination = NULL;
@@ -1621,6 +1625,8 @@ ACTION_D(includedeb) {
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
 
+	logger_wait();
+
 	r = distribution_export(export,distribution,confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 
@@ -1682,6 +1688,7 @@ ACTION_D(includedsc) {
 	}
 
 	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],delete,dereferenced,tracks);
+	logger_wait();
 
 	distribution_unloadoverrides(distribution);
 	r = tracking_done(tracks);

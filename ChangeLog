@@ -1,5 +1,9 @@
+2007-03-28  Bernhard R. Link <brlink@debian.org>
+	* add support logging to external notificators
+	  (including example to create changelog/ hierachy)
+
 2007-03-26  Bernhard R. Link <brlink@debian.org>
-	* fix bug in term parsing to not accept '<<'
+	* fix bug in term parsing not accepting '<<'
 
 2007-03-23  Bernhard R. Link <brlink@debian.org>
 	* first part of logging code

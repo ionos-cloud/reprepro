@@ -1630,6 +1630,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 			markdone(u);
 		}
 	}
+	logger_wait();
 
 	return result;
 }
@@ -1802,6 +1803,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 				return r;
 		}
 	}
+	logger_wait();
 	return result;
 }
 
@@ -1963,6 +1965,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 				d->distribution->logger,
 				dbdir, filesdb, refs,
 				target->ignoredelete, dereferencedfilekeys);
+		logger_wait();
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		RET_UPDATE(result,r);

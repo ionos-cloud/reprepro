@@ -820,6 +820,8 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 		e = e->next;
 	}
 
+	logger_wait();
+
 	if( RET_IS_OK(r) && somethingwasmissed ) {
 		return RET_NOTHING;
 	}

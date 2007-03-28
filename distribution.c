@@ -350,9 +350,18 @@ NULL};
 	}
 
 	r->logger = NULL;
-	ret = chunk_getvalue(chunk,"Log",&option);
+	ret = chunk_getvalue(chunk, "Log", &option);
 	if( RET_IS_OK(ret) ) {
-		ret = logger_init(confdir, logdir, option, &r->logger);
+		struct strlist notify_list;
+		ret = chunk_getextralinelist(chunk, "Log", &notify_list);
+		if( ret == RET_NOTHING )
+			ret = logger_init(confdir, logdir, r->codename,
+					option, NULL, &r->logger);
+		else if( RET_IS_OK(ret) ) {
+			ret = logger_init(confdir, logdir, r->codename,
+					option, &notify_list, &r->logger);
+			strlist_done(&notify_list);
+		}
 		free(option);
 	}
 	if(RET_WAS_ERROR(ret)) {
