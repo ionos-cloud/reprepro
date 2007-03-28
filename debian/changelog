@@ -1,4 +1,13 @@
-reprepro (2.0.0-1) unstable; urgency=low
+reprepro (2.1.0-1) experimental; urgency=low
+
+  * new release
+  - several changes in status messages (closes: 414514)
+  - add support for log files and to call notification scripts.
+  - example how to use this to generate something like packages.d.o/changelogs/
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 28 Mar 2007 19:14:26 +0200
+
+reprepro (2.0.0-1) experimental; urgency=low
 
   * new release
   - contains a little bit of factorisation that might break stuff, thus .0.0
