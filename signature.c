@@ -421,7 +421,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		}
 	}
 	if( verbose > 1 ) {
-		fprintf(stderr,"Successfully created '%s'\n",signaturename);
+		printf("Successfully created '%s'\n",signaturename);
 	}
 
 	return r;

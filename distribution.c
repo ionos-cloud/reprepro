@@ -690,7 +690,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 	}
 
 	if( verbose >= 0 && todo )
-		fprintf(stdout,"Exporting indices...\n");
+		printf("Exporting indices...\n");
 
 	result = RET_NOTHING;
 	while( distributions != NULL ) {
@@ -787,7 +787,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 		return RET_NOTHING;
 	}
 	if( verbose >= 0 )
-		fprintf(stdout, "Exporting indices...\n");
+		printf("Exporting indices...\n");
 	return export(distribution,confdir,dbdir,distdir,files, TRUE);
 }
 

@@ -1539,7 +1539,8 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		 * add a check if some of the upstreams without Release files
 		 * are unchanged and if this changes anything? */
 		if( !anythingtodo ) {
-			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
+			if( verbose >= 0 )
+				fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
 			aptmethod_shutdown(run);
 			if( RET_IS_OK(result) )
 				return RET_NOTHING;
@@ -1559,7 +1560,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 
 	/* Then get all packages */
 	if( verbose >= 0 )
-		fprintf(stdout,"Calculating packages to get...\n");
+		printf("Calculating packages to get...\n");
 	r = downloadcache_initialize(&cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
@@ -1591,15 +1592,15 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stdout,"Getting packages...\n");
+		printf("Getting packages...\n");
 	r = aptmethod_download(run,methoddir,filesdb);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
-		fprintf(stdout,"Freeing some memory...\n");
+		printf("Freeing some memory...\n");
 	r = downloadcache_free(cache);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
-		fprintf(stdout,"Shutting down aptmethods...\n");
+		printf("Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
 
@@ -1614,7 +1615,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stdout,"Installing (and possibly deleting) packages...\n");
+		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
@@ -1746,7 +1747,8 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 		 * add a check if some of the upstreams without Release files
 		 * are unchanged and if this changes anything? */
 		if( !anythingtodo ) {
-			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
+			if( verbose >= 0 )
+				printf("Nothing to do found. (Use --noskipold to force processing)\n");
 			aptmethod_shutdown(run);
 			if( RET_IS_OK(result) )
 				return RET_NOTHING;
@@ -1765,7 +1767,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	}
 
 	if( verbose > 0 )
-		fprintf(stderr,"Shutting down aptmethods...\n");
+		printf("Shutting down aptmethods...\n");
 
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
@@ -1914,7 +1916,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		}
 		/* Then get all packages */
 		if( verbose >= 0 )
-			fprintf(stderr,"Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
+			printf("Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
 		r = downloadcache_initialize(&cache);
 		RET_UPDATE(result,r);
 		if( !RET_IS_OK(r) ) {

@@ -1931,7 +1931,7 @@ ACTION_D_UU(clearvanished) {
 			if( i >= 0 ) {
 				inuse[i] = TRUE;
 				if( verbose > 6 )
-					fprintf(stderr,
+					printf(
 "Marking '%s' as used.\n", t->identifier);
 			} else if( verbose > 3 ){
 				fprintf(stderr,
