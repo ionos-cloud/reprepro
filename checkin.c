@@ -45,6 +45,7 @@
 #include "checkindeb.h"
 #include "checkin.h"
 #include "uploaderslist.h"
+#include "log.h"
 #include "changes.h"
 
 extern int verbose;
