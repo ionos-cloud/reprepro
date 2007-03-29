@@ -1,3 +1,6 @@
+2007-03-29  Bernhard R. Link <brlink@debian.org>
+	* add rerunnotifiers command
+
 2007-03-28  Bernhard R. Link <brlink@debian.org>
 	* add support logging to external notificators
 	  (including example to create changelog/ hierachy)

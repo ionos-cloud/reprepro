@@ -415,6 +415,10 @@ To access such a snapshot with apt, add something like the following to
 your sources.list file:
 .br
 \fBdeb method://as/without/snapshot \fIcodename\fB/snapshots/\fIname\fB main\fR
+.TP
+.BR rerunnotifiers " [ " \fIcodenames\fP " ]"
+Run all external scripts specified in the \fBLog:\fP options of the
+specified distributions.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:

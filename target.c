@@ -630,3 +630,41 @@ retvalue target_export(struct target *target,const char *confdir,const char *dbd
 	}
 	return result;
 }
+
+/* call all log notificators again */
+struct data_rerunnotify { struct target *target; struct logger *logger;};
+
+static retvalue package_rerunnotify(void *data,const char *package,const char *chunk) {
+	struct data_rerunnotify *d = data;
+	struct strlist filekeys;
+	char *version;
+	retvalue r;
+
+	r = (*d->target->getversion)(d->target, chunk, &version);
+	if( !RET_IS_OK(r) ) {
+		fprintf(stderr,"Error extraction version number from package control info of '%s'!\n",package);
+		if( r == RET_NOTHING )
+			r = RET_ERROR_MISSING;
+		return r;
+	}
+	r = (*d->target->getfilekeys)(d->target, chunk, &filekeys, NULL);
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Error extracting information about used files from package '%s'!\n",package);
+		free(version);
+		return r;
+	}
+	r = logger_reruninfo(d->logger, d->target, package, version, chunk, &filekeys);
+	strlist_done(&filekeys);
+	free(version);
+	return r;
+}
+
+retvalue target_rerunnotifiers(struct target *target, struct logger *logger) {
+	struct data_rerunnotify data;
+
+	assert(target->packages!=NULL);
+
+	data.logger = logger;
+	data.target = target;
+	return packages_foreach(target->packages, package_rerunnotify, &data);
+}

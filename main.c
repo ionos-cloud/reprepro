@@ -2048,6 +2048,66 @@ ACTION_R(gensnapshot) {
 	return result;
 }
 
+
+/***********************rerunnotifiers********************************/
+static retvalue runnotifiers(UNUSED(void *data),struct target *target,struct distribution *d) {
+	retvalue result,r;
+
+	if( !logger_rerun_needs_target(d->logger, target) )
+		return RET_NOTHING;
+
+	r = target_initpackagesdb(target, dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = target_rerunnotifiers(target, d->logger);
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_N(rerunnotifiers) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro rerunnotifiers [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
+	assert( result != RET_NOTHING);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		if( d->logger == NULL )
+			continue;
+
+		if( verbose > 0 ) {
+			printf("Processing %s...\n",d->codename);
+		}
+		r = logger_prepare(d->logger);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+
+		r = distribution_foreach_part(d,component,architecture,packagetype,runnotifiers,NULL);
+		logger_wait();
+
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+
+
+}
+
 /**********************/
 /* lock file handling */
 /**********************/
@@ -2174,6 +2234,7 @@ static const struct action {
 	{"clearvanished",	A_D(clearvanished)},
 	{"processincoming",	A_D(processincoming)},
 	{"gensnapshot",		A_R(gensnapshot)},
+	{"rerunnotifiers",	A_N(rerunnotifiers)},
 	{NULL,NULL,0}
 };
 #undef A_N

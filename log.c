@@ -589,7 +589,7 @@ static retvalue startchild(void) {
 	return RET_OK;
 }
 
-static void notificator_enqueue(struct notificator *n,struct target *target,const char *name,/*@null@*/const char *version,/*@null@*/const char *oldversion,/*@null@*/const char *control,/*@null@*/const char *oldcontrol,/*@null@*/const struct strlist *filekeys,/*@null@*/const struct strlist *oldfilekeys,bool_t renotification) {
+static retvalue notificator_enqueue(struct notificator *n,struct target *target,const char *name,/*@null@*/const char *version,/*@null@*/const char *oldversion,/*@null@*/const char *control,/*@null@*/const char *oldcontrol,/*@null@*/const struct strlist *filekeys,/*@null@*/const struct strlist *oldfilekeys,bool_t renotification) {
 	size_t count,i,j;
 	char **arguments;
 	const char *action = NULL;
@@ -602,19 +602,19 @@ static void notificator_enqueue(struct notificator *n,struct target *target,cons
 			strcmp(n->architecture,target->architecture) != 0 ) {
 		if( runningchildren() < 1 )
 			startchild();
-		return;
+		return RET_NOTHING;
 	}
 	if( n->component != NULL &&
 			strcmp(n->component,target->component) != 0 ) {
 		if( runningchildren() < 1 )
 			startchild();
-		return;
+		return RET_NOTHING;
 	}
 	if( n->packagetype != NULL &&
 			strcmp(n->packagetype,target->packagetype) != 0 ) {
 		if( runningchildren() < 1 )
 			startchild();
-		return;
+		return RET_NOTHING;
 	}
 	count = 7; /* script action codename type component architecture */
 	if( version != NULL ) {
@@ -670,7 +670,7 @@ static void notificator_enqueue(struct notificator *n,struct target *target,cons
 			for( j = 0 ; j < count ; j++ )
 				free(arguments[j]);
 			free(arguments);
-			return;
+			return RET_ERROR_OOM;
 		}
 	if( processes == NULL ) {
 		p = malloc(sizeof(struct notification_process));
@@ -686,7 +686,7 @@ static void notificator_enqueue(struct notificator *n,struct target *target,cons
 		for( j = 0 ; j < count ; j++ )
 			free(arguments[j]);
 		free(arguments);
-		return;
+		return RET_ERROR_OOM;
 	}
 	p->arguments = arguments;
 	p->next = NULL;
@@ -698,6 +698,7 @@ static void notificator_enqueue(struct notificator *n,struct target *target,cons
 	// TODO: implement --withcontrol
 	if( runningchildren() < 1 )
 		startchild();
+	return RET_OK;
 }
 
 void logger_wait(void) {
@@ -835,3 +836,46 @@ void logger_log(struct logger *log,struct target *target,const char *name,const 
 	}
 }
 
+bool_t logger_rerun_needs_target(const struct logger *logger,const struct target *target) {
+	int i;
+	struct notificator *n;
+
+	for( i = 0 ; i < logger->notificator_count ; i++ ) {
+		n = &logger->notificators[i];
+
+		if( n->architecture != NULL &&
+				strcmp(n->architecture,target->architecture) != 0 ) {
+			continue;
+		}
+		if( n->component != NULL &&
+				strcmp(n->component,target->component) != 0 ) {
+			continue;
+		}
+		if( n->packagetype != NULL &&
+				strcmp(n->packagetype,target->packagetype) != 0 ) {
+			continue;
+		}
+		return TRUE;
+	}
+	return FALSE;
+}
+
+retvalue logger_reruninfo(struct logger *logger,struct target *target,const char *name,const char *version,const char *control,/*@null@*/const struct strlist *filekeys) {
+	retvalue result,r;
+	size_t i;
+
+	assert( name != NULL );
+	assert( version != NULL );
+	assert( control != NULL );
+
+	result = RET_NOTHING;
+
+	for( i = 0 ; i < logger->notificator_count ; i++ ) {
+		r = notificator_enqueue(&logger->notificators[i], target,
+				name, version, NULL,
+				control, NULL,
+				filekeys, NULL, TRUE);
+		RET_UPDATE(result,r);
+	}
+	return result;
+}

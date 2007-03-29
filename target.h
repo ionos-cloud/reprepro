@@ -82,4 +82,5 @@ retvalue target_addsnapshotreference(struct target *target,const char *dbdir,ref
 retvalue target_retrack(struct target *target,trackingdb tracks,references refs);
 retvalue target_reoverride(struct target *target,const struct distribution *);
 
+retvalue target_rerunnotifiers(struct target *, struct logger *);
 #endif

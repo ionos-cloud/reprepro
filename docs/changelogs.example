@@ -9,7 +9,7 @@
 # (note the space at the beginning of the second line).
 # This will cause this script to extract changelogs for all
 # newly added source packages. (To generate them for already
-# existing packages, call "reprepro recallnotificators").
+# existing packages, call "reprepro rerunnotifiers").
 
 # DEPENDENCIES: dpkg >= 1.13.9
 
