@@ -15,6 +15,7 @@
  */
 #include <config.h>
 
+#include <sys/types.h>
 #include <assert.h>
 #include <malloc.h>
 #include <string.h>
@@ -24,6 +25,7 @@
 #include "names.h"
 #include "dirs.h"
 #include "files.h"
+#include "freespace.h"
 #include "downloadcache.h"
 
 
@@ -33,17 +35,19 @@ struct downloaditem {
 	struct tobedone *todo;
 };
 
-struct downloadcache {
-	/*@null@*/struct downloaditem *items;
-};
-
 /* Initialize a new download session */
-retvalue downloadcache_initialize(struct downloadcache **download) {
+retvalue downloadcache_initialize(const char *dbdir,struct downloadcache **download) {
 	struct downloadcache *cache;
+	retvalue r;
 
 	cache = malloc(sizeof(struct downloadcache));
 	if( cache == NULL )
 		return RET_ERROR_OOM;
+	r = space_prepare(dbdir, &cache->devices);
+	if( RET_WAS_ERROR(r) ) {
+		free(cache);
+		return r;
+	}
 	cache->items = NULL;
 	*download = cache;
 	return RET_OK;
@@ -63,6 +67,7 @@ retvalue downloadcache_free(struct downloadcache *download) {
 		return RET_NOTHING;
 
 	freeitem(download->items);
+	space_free(download->devices);
 	free(download);
 	return RET_OK;
 }
@@ -123,6 +128,12 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 		return RET_ERROR_OOM;
 	}
 	(void)dirs_make_parent(fullfilename);
+	r = space_needed(cache->devices, fullfilename, md5sum);
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		free(item);
+		return r;
+	}
 	r = aptmethod_queuefile(method,orig,fullfilename,md5sum,filekey,&item->todo);
 	free(fullfilename);
 	if( RET_WAS_ERROR(r) ) {

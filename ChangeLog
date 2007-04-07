@@ -1,3 +1,6 @@
+2007-04-03  Bernhard R. Link <brlink@debian.org>
+	* first code for checking for enough free space
+
 2007-03-29  Bernhard R. Link <brlink@debian.org>
 	* add rerunnotifiers command
 

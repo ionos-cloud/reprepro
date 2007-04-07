@@ -45,6 +45,7 @@
 #include "readrelease.h"
 #include "log.h"
 #include "donefile.h"
+#include "freespace.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
@@ -1561,7 +1562,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	/* Then get all packages */
 	if( verbose >= 0 )
 		printf("Calculating packages to get...\n");
-	r = downloadcache_initialize(&cache);
+	r = downloadcache_initialize(dbdir, &cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
 		RET_UPDATE(result,r);
@@ -1578,6 +1579,11 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
+	if( !RET_WAS_ERROR(result) ) {
+		r = space_check(cache->devices);
+		RET_ENDUPDATE(result,r);
+	}
+
 	if( RET_WAS_ERROR(result) ) {
 		for( d=distributions ; d != NULL ; d=d->next) {
 			struct update_target *u;
@@ -1593,11 +1599,9 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	}
 	if( verbose >= 0 )
 		printf("Getting packages...\n");
-	r = aptmethod_download(run,methoddir,filesdb);
-	RET_UPDATE(result,r);
-	if( verbose > 0 )
-		printf("Freeing some memory...\n");
 	r = downloadcache_free(cache);
+	RET_ENDUPDATE(result,r);
+	r = aptmethod_download(run,methoddir,filesdb);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
 		printf("Shutting down aptmethods...\n");
@@ -1917,7 +1921,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		/* Then get all packages */
 		if( verbose >= 0 )
 			printf("Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = downloadcache_initialize(&cache);
+		r = downloadcache_initialize(dbdir, &cache);
 		RET_UPDATE(result,r);
 		if( !RET_IS_OK(r) ) {
 			(void)downloadcache_free(cache);

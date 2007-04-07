@@ -16,10 +16,15 @@
 #include "aptmethod.h"
 #endif
 
-struct downloadcache;
+struct downloaditem;
+
+struct downloadcache {
+	/*@null@*/struct downloaditem *items;
+	/*@null@*/struct devices *devices;
+};
 
 /* Initialize a new download session */
-retvalue downloadcache_initialize(struct downloadcache **download);
+retvalue downloadcache_initialize(const char *dbdir,struct downloadcache **download);
 
 /* free all memory */
 retvalue downloadcache_free(/*@null@*//*@only@*/struct downloadcache *download);
