@@ -1861,7 +1861,6 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	f->deb = deb;
 	deb->binary = get_binary(c, deb->name, strlen(deb->name));
 	if( deb->binary == NULL ) {
-		fileentry_free(f);
 		return RET_ERROR_OOM;
 	}
 	deb->next = deb->binary->files;
@@ -1869,10 +1868,12 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	c->modified = TRUE;
 	r = md5sum_read(f->fullfilename, &f->realmd5sum);
 	if( RET_WAS_ERROR(r) ) {
-		fileentry_free(f);
 		return r;
 	}
 	f->changesmd5sum = strdup(f->realmd5sum);
+	if( f->changesmd5sum == NULL ) {
+		return RET_ERROR_OOM;;
+	}
 	if( deb->shortdescription != NULL ) {
 		if( deb->binary->description == NULL ) {
 			deb->binary->description = strdup(deb->shortdescription);
@@ -1920,6 +1921,99 @@ static retvalue adddebs(const char *changesfilename, struct changes *c, int argc
 		return RET_NOTHING;
 }
 
+static retvalue addrawfile(struct changes *c, const char *filename) {
+	retvalue r;
+	struct fileentry *f;
+	char *fullfilename, *basefilename;
+	char *md5sum;
+
+	r = findfile(filename, c, NULL, &fullfilename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Cannot find '%s'!\n", filename);
+		return RET_ERROR_MISSING;
+	}
+	basefilename = strdup(basename(filename));
+	if( basefilename == NULL ) {
+		free(fullfilename);
+		return RET_ERROR_OOM;
+	}
+	r = md5sum_read(fullfilename, &md5sum);
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		free(basefilename);
+		return r;
+	}
+	r = add_file(c, basefilename, fullfilename, ft_UNKNOWN, &f);
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		free(basefilename);
+		free(md5sum);
+		return r;
+	}
+	if( r == RET_NOTHING ) {
+
+		assert( f != NULL );
+
+		if( f->changesmd5sum != NULL ) {
+			/* already listed in .changes */
+
+			if( strcmp(f->changesmd5sum, md5sum) != 0 ) {
+				fprintf(stderr, "ERROR: '%s' already contains a file with name '%s' but different size or md5sum!\n", c->filename, basefilename);
+				free(fullfilename);
+				free(basefilename);
+				free(md5sum);
+				return RET_ERROR;
+			}
+			printf("'%s' already lists '%s' with same md5sum. Doing nothing.\n", c->filename, basefilename);
+			free(fullfilename);
+			free(basefilename);
+			free(md5sum);
+			return RET_NOTHING;
+		} else {
+			/* file already expected by some other part (e.g. a .dsc) */
+
+			// TODO: find out whom this files belong to and warn if different
+			free(fullfilename);
+			free(basefilename);
+		}
+	} else {
+		// fullfilename and basefilename now belong to *f
+		basefilename = NULL;
+		fullfilename = NULL;
+	}
+
+	c->modified = TRUE;
+	assert( f->changesmd5sum == NULL );
+	f->changesmd5sum = md5sum;
+	md5sum = NULL;
+	if( f->realmd5sum == NULL )
+		f->realmd5sum = strdup(f->changesmd5sum);
+	if( f->realmd5sum == NULL ) {
+		return RET_ERROR_OOM;;
+	}
+	return RET_OK;
+}
+
+static retvalue addrawfiles(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	if( argc <= 0 ) {
+		fprintf(stderr, "Filenames of files to add (without further parsing) expected!\n");
+		return RET_ERROR;
+	}
+	while( argc > 0 ) {
+		retvalue r = addrawfile(c, argv[0]);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		argc--; argv++;
+	}
+	if( c->modified ) {
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_FILES);
+	} else
+		return RET_NOTHING;
+}
+
 static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
@@ -1948,6 +2042,14 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 	} else if( strcasecmp(command, "includeallsources") == 0 ) {
 		if( file_exists )
 			r = includeallsources(changesfilename, changesdata, argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "addrawfile") == 0 ) {
+		if( file_exists )
+			r = addrawfiles(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2047,8 +2149,10 @@ int main(int argc,char *argv[]) {
 		r = parse_changes(changesfilename, changes, &changesdata, &searchpath);
 		if( RET_IS_OK(r) )
 			changesdata->control = changes;
-		else
+		else {
 			free(changes);
+			changesdata = NULL;
+		}
 	} else {
 		strlist_init(&keys);
 		strlist_init(&validkeys);
