@@ -862,6 +862,7 @@ static retvalue parse_changes(const char *changesfile, const char *chunk, struct
 #define CHANGES_WRITE_VERSION		0x08
 #define CHANGES_WRITE_ARCHITECTURES	0x10
 #define CHANGES_WRITE_MAINTAINER 	0x20
+#define CHANGES_WRITE_DISTRIBUTIONS 	0x40
 #define CHANGES_WRITE_ALL 	      0xFFFF
 
 static retvalue write_changes_file(const char *changesfilename,struct changes *c, unsigned int flags) {
@@ -950,6 +951,22 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 	cef = cef_newfield("Distribution", CEF_KEEP, CEF_EARLY, 0, cef);
 	if( cef == NULL )
 			return RET_ERROR_OOM;
+	if( c->distributions.count > 0 ) {
+		if( flagset(CHANGES_WRITE_DISTRIBUTIONS) )
+			cef = cef_newfield("Distribution", CEF_ADD,
+					CEF_EARLY, 0, cef);
+		else
+			cef = cef_newfield("Distribution", CEF_ADDMISSED,
+					CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+		cef_setwordlist(cef, &c->distributions);
+	} else if( flagset(CHANGES_WRITE_DISTRIBUTIONS) ) {
+		cef = cef_newfield("Distribution", CEF_DELETE,
+				CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
 	if( c->version != NULL ) {
 		if( flagset(CHANGES_WRITE_VERSION) )
 			cef = cef_newfield("Version", CEF_ADD,
@@ -2231,6 +2248,31 @@ static retvalue addfiles(const char *changesfilename, struct changes *c, int arg
 		return RET_NOTHING;
 }
 
+static retvalue setdistribution(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	retvalue r;
+	struct strlist distributions;
+	int i;
+
+	if( argc <= 0 ) {
+		fprintf(stderr, "expected Distribution name to set!\n");
+		return RET_ERROR;
+	}
+	r = strlist_init_n(argc, &distributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	for( i = 0 ; i < argc ; i++ ) {
+		r = strlist_add_dup(&distributions, argv[i]);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&distributions);
+			return r;
+		}
+	}
+	strlist_done(&c->distributions);
+	strlist_move(&c->distributions, &distributions);
+	return write_changes_file(changesfilename, c,
+			CHANGES_WRITE_DISTRIBUTIONS);
+}
+
 static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, bool_t create_file, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
@@ -2291,6 +2333,14 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 	} else if( strcasecmp(command, "add") == 0 ) {
 		if( file_exists || create_file )
 			r = addfiles(changesfilename, changesdata, argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "setdistribution") == 0 ) {
+		if( file_exists )
+			r = setdistribution(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);

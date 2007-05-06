@@ -2,6 +2,7 @@
 	* changestool: add adddsc command
 	* changestool: add --create option
 	* changestool: add add command
+	* changestool: add setdistribution command
 
 2007-05-03  Bernhard R. Link <brlink@debian.org>
 	* changestool: add addrawfile command

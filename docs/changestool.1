@@ -21,10 +21,13 @@ build Debian packages into Debian repository managers like
 or
 .BR dak .
 
-The version this manpage belongs to is yet mostly a torso,
-more actions will hopefully be added in the future.
-
 .SH EXAMPLES
+.P
+.B changestool \fIbloat.changes\fP setdistribution \fIlocal\fP
+.br
+will modify the \fBDistribution:\fP header inside \fIbloat.changes\fP
+to say \fIlocal\fP instead of what was there before.
+.P
 .B changestool \fIreprepro_1.2.0\-1.local_sparc.changes\fP includeallsources
 .br
 will modify the given file to also list \fB.orig.tar.gz\fP it does not list
@@ -73,6 +76,9 @@ Update the checksum (md5sum and size) information within the specified
 Without arguments, all files will be updated.
 To only update specific files, give their filename (without path) as
 arguments.
+.TP
+.BR setdistribution " [ " \fIdistributions\fP " ]"
+Change the \fBDistribution:\fP header to list the remaining arguments.
 .TP
 .BR includeallsources " [ " \fIfilename\fP " ]"
 List all files referenced by \fB.dsc\fP files mentioned in the \fB.changes\fP
