@@ -56,6 +56,7 @@ static void about(bool_t help) {
 " adddeb <.deb filenames>\n"
 " adddsc <.dsc filenames>\n"
 " addrawfile <filenames>\n"
+" add <filenames processed by filename suffix>\n"
 //" create <.dsc and .deb files to include>\n"
 );
 	if( help )
