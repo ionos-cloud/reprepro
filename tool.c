@@ -54,7 +54,8 @@ static void about(bool_t help) {
 " updatechecksums [<files to update>]\n"
 " includeallsources [<files to copy from .dsc to .changes>]\n"
 " adddeb <.deb filenames>\n"
-//" add <filenames>\n"
+" adddsc <.dsc filenames>\n"
+" addrawfile <filenames>\n"
 //" create <.dsc and .deb files to include>\n"
 );
 	if( help )
@@ -475,17 +476,15 @@ static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 	return RET_OK;
 }
 
-static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
+static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 	struct dscfile *n;
 	struct strlist tmp;
 	retvalue r;
 
-	if( dscfile->fullfilename == NULL )
-		return RET_NOTHING;
 	n = calloc(1,sizeof(struct dscfile));
 	if( n == NULL )
 		return RET_ERROR_OOM;
-	r = signature_readsignedchunk(dscfile->fullfilename,
+	r = signature_readsignedchunk(fullfilename,
 			&n->controlchunk, &n->validkeys, &n->keys, NULL);
 	assert( r != RET_NOTHING );
 	// TODO: can this be ignored sometimes?
@@ -526,6 +525,7 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 		int i,j = 0;
 		n->files = calloc(tmp.count, sizeof(struct sourcefile));
 		for( i = 0 ; i < tmp.count ; i++ ) {
+			n->files[j].file = NULL;
 			r = calc_parsefileline(tmp.values[i],
 					&n->files[j].basename,
 					&n->files[j].expectedmd5sum);
@@ -535,23 +535,39 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 				return r;
 			}
 			if( RET_IS_OK(r) ) {
-				n->files[j].file = add_fileentry(changes,
-						n->files[j].basename,
-						strlen(n->files[j].basename),
-						TRUE);
 				j++;
 				n->filecount = j;
-				if( n->files[j-1].file == NULL ) {
-					strlist_done(&tmp);
-					dscfile_free(n);
-					return RET_ERROR_OOM;
-				}
 			}
 		}
 		strlist_done(&tmp);
 	} else if( RET_WAS_ERROR(r) ) {
 		dscfile_free(n);
 		return r;
+	}
+	*dsc = n;
+	return RET_OK;
+}
+
+static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
+	struct dscfile *n;
+	retvalue r;
+	int i;
+
+	if( dscfile->fullfilename == NULL )
+		return RET_NOTHING;
+	r = read_dscfile(dscfile->fullfilename, &n);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	for( i =  0 ; i < n->filecount ; i++ ) {
+		n->files[i].file = add_fileentry(changes,
+				n->files[i].basename,
+				strlen(n->files[i].basename),
+				TRUE);
+		if( n->files[i].file == NULL ) {
+			dscfile_free(n);
+			return RET_ERROR_OOM;
+		}
 	}
 	dscfile->dsc = n;
 	return RET_OK;
@@ -1734,6 +1750,177 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 		return RET_NOTHING;
 }
 
+static retvalue adddsc(struct changes *c, const char *dscfilename) {
+	retvalue r;
+	struct fileentry *f;
+	struct dscfile *dsc;
+	char *fullfilename, *basename;
+	int i;
+
+	r = findfile(dscfilename, c, NULL, &fullfilename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Cannot find '%s'!\n", dscfilename);
+		return RET_ERROR_MISSING;
+	}
+	r = read_dscfile(fullfilename, &dsc);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Error reading '%s'!\n", fullfilename);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		return r;
+	}
+	if( dsc->name == NULL || dsc->version == NULL ) {
+		if( dsc->name == NULL )
+			fprintf(stderr, "Could not extract name of '%s'!\n",
+					fullfilename);
+		else
+			fprintf(stderr, "Could not extract version of '%s'!\n",
+					fullfilename);
+		dscfile_free(dsc);
+		free(fullfilename);
+		return RET_ERROR;
+	}
+	if( c->name != NULL ) {
+		if( strcmp(c->name, dsc->name) != 0 ) {
+			fprintf(stderr,
+"ERROR: '%s' lists source '%s' while '%s' already is '%s'!\n",
+					fullfilename, dsc->name,
+					c->filename, c->name);
+			dscfile_free(dsc);
+			free(fullfilename);
+			return RET_ERROR;
+		}
+	} else {
+		c->name = strdup(dsc->name);
+		if( c->name == NULL ) {
+			dscfile_free(dsc);
+			free(fullfilename);
+			return RET_ERROR_OOM;
+		}
+	}
+	if( c->version != NULL ) {
+		if( strcmp(c->version, dsc->version) != 0 )
+			fprintf(stderr,
+"WARNING: '%s' lists version '%s' while '%s' already lists '%s'!\n",
+					fullfilename, dsc->version,
+					c->filename, c->version);
+	} else {
+		c->version = strdup(dsc->version);
+		if( c->version == NULL ) {
+			dscfile_free(dsc);
+			free(fullfilename);
+			return RET_ERROR_OOM;
+		}
+	}
+	// TODO: make sure if the .changes name/version are modified they will
+	// also be written...
+	basename = calc_source_basename(dsc->name, dsc->version);
+	if( basename == NULL ) {
+		dscfile_free(dsc);
+		free(fullfilename);
+		return RET_ERROR_OOM;
+	}
+
+	// TODO: add rename/copy option to be activated when old and new
+	// basename differ
+
+	r = add_file(c, basename, fullfilename, ft_DSC, &f);
+	if( RET_WAS_ERROR(r) ) {
+		dscfile_free(dsc);
+		free(fullfilename);
+		free(basename);
+		return r;
+	}
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "ERROR: '%s' already contains a file of the same name!\n", c->filename);
+		dscfile_free(dsc);
+		free(fullfilename);
+		free(basename);
+		// TODO: check instead if it is already the same...
+		return RET_ERROR;
+	}
+	/* f owns dsc, fullfilename and basename now */
+	f->dsc = dsc;
+
+	/* now include the files needed by this */
+	for( i =  0 ; i < dsc->filecount ; i++ ) {
+		struct fileentry *file;
+		const char *basefilename = dsc->files[i].basename;
+		const char *md5sum = dsc->files[i].expectedmd5sum;
+
+		file = add_fileentry(c, basefilename,
+				strlen(basefilename),
+				TRUE);
+		if( file == NULL )
+			return RET_ERROR_OOM;
+		dsc->files[i].file = file;
+		/* make them appear in the .changes file if not there: */
+		if( file->changesmd5sum == NULL ) {
+			file->changesmd5sum = strdup(md5sum);
+			if( file->changesmd5sum == NULL )
+				return RET_ERROR_OOM;
+		} // TODO: otherwise warn if not the same
+	}
+
+	c->modified = TRUE;
+	r = md5sum_read(f->fullfilename, &f->realmd5sum);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	f->changesmd5sum = strdup(f->realmd5sum);
+	if( f->changesmd5sum == NULL ) {
+		return RET_ERROR_OOM;;
+	}
+	/* for a "extended" dsc with section or priority or
+	 * for the future code for parsing .diff and .tar.gz  */
+	if( dsc->section != NULL ) {
+		free(f->section);
+		f->section = strdup(dsc->section);
+		if( f->section == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( dsc->priority != NULL ) {
+		free(f->priority);
+		f->priority = strdup(dsc->priority);
+		if( f->priority == NULL )
+			return RET_ERROR_OOM;
+	}
+	/* update information in the main .changes file if not there already */
+	if( c->maintainer == NULL && dsc->maintainer != NULL ) {
+		c->maintainer = strdup(dsc->maintainer);
+		if( c->maintainer == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( !strlist_in(&c->architectures, "source") ) {
+		r = strlist_add_dup(&c->architectures, "source");
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+static retvalue adddscs(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	if( argc <= 0 ) {
+		fprintf(stderr, "Filenames of .dsc files to include expected!\n");
+		return RET_ERROR;
+	}
+	while( argc > 0 ) {
+		retvalue r = adddsc(c, argv[0]);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		argc--; argv++;
+	}
+	if( c->modified ) {
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_ALL);
+	} else
+		return RET_NOTHING;
+}
+
 static retvalue adddeb(struct changes *c, const char *debfilename) {
 	retvalue r;
 	struct fileentry *f;
@@ -1865,6 +2052,7 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	}
 	deb->next = deb->binary->files;
 	deb->binary->files = deb;
+	deb->binary->missedinheader = FALSE;
 	c->modified = TRUE;
 	r = md5sum_read(f->fullfilename, &f->realmd5sum);
 	if( RET_WAS_ERROR(r) ) {
@@ -2050,6 +2238,14 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 	} else if( strcasecmp(command, "addrawfile") == 0 ) {
 		if( file_exists )
 			r = addrawfiles(changesfilename, changesdata, argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "adddsc") == 0 ) {
+		if( file_exists )
+			r = adddscs(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
