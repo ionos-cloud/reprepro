@@ -2202,6 +2202,34 @@ static retvalue addrawfiles(const char *changesfilename, struct changes *c, int 
 		return RET_NOTHING;
 }
 
+static retvalue addfiles(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	if( argc <= 0 ) {
+		fprintf(stderr, "Filenames of files to add expected!\n");
+		return RET_ERROR;
+	}
+	while( argc > 0 ) {
+		retvalue r;
+		const char *filename = argv[0];
+		size_t l = strlen(filename);
+
+		if( (l > 4 && strcmp(filename+l-4, ".deb") == 0) ||
+		    (l > 5 && strcmp(filename+l-5, ".udeb") == 0) )
+			r = adddeb(c, filename);
+		else if( (l > 4 && strcmp(filename+l-4, ".dsc") == 0) )
+			r = adddsc(c, filename);
+		else
+			r = addrawfile(c, argv[0]);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		argc--; argv++;
+	}
+	if( c->modified ) {
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_ALL);
+	} else
+		return RET_NOTHING;
+}
+
 static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, bool_t create_file, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
@@ -2254,6 +2282,14 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 	} else if( strcasecmp(command, "adddeb") == 0 ) {
 		if( file_exists || create_file )
 			r = adddebs(changesfilename, changesdata, argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "add") == 0 ) {
+		if( file_exists || create_file )
+			r = addfiles(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);

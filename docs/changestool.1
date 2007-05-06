@@ -36,6 +36,13 @@ because you forgot to build it with
 will update the md5sums to those of the files referenced by this file.
 (So one can do quick'n'dirty corrections to them before uploading to
 your private package repository)
+.P
+.B changestool \-\-create \fItest.changes\fP add \fIbla_1\-1.dsc bla_1\-1_abacus.deb\fP
+.br
+will add the specified files (format detected by filename,
+use \fBadddeb\fP or \fBadddsc\fP if you know it).
+If the file \fItest.changes\fP does not exist yet, a minimal one will be
+generated. Though that might be too minimal for most direct uses.
 
 .SH "GLOBAL OPTIONS"
 Options can be specified before the command. Each affects a different
