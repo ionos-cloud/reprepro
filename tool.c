@@ -1050,7 +1050,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 	}
 	cef_setdata(cef, "1.7");
 
-	r = chunk_edit(c->control, &control, &controllen, cef);
+	r = chunk_edit((c->control==NULL)?"":c->control, &control, &controllen, cef);
 	strlist_done(&binaries);
 	cef_free(cef);
 	if( RET_WAS_ERROR(r) )
@@ -2122,7 +2122,7 @@ static retvalue addrawfile(struct changes *c, const char *filename) {
 		fprintf(stderr, "Cannot find '%s'!\n", filename);
 		return RET_ERROR_MISSING;
 	}
-	basefilename = strdup(basename(filename));
+	basefilename = strdup(dirs_basename(filename));
 	if( basefilename == NULL ) {
 		free(fullfilename);
 		return RET_ERROR_OOM;
@@ -2202,7 +2202,7 @@ static retvalue addrawfiles(const char *changesfilename, struct changes *c, int 
 		return RET_NOTHING;
 }
 
-static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, struct changes *changesdata) {
+static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, bool_t create_file, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
 
@@ -2236,7 +2236,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 			r = RET_ERROR;
 		}
 	} else if( strcasecmp(command, "addrawfile") == 0 ) {
-		if( file_exists )
+		if( file_exists || create_file )
 			r = addrawfiles(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
@@ -2244,7 +2244,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 			r = RET_ERROR;
 		}
 	} else if( strcasecmp(command, "adddsc") == 0 ) {
-		if( file_exists )
+		if( file_exists || create_file )
 			r = adddscs(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
@@ -2252,7 +2252,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 			r = RET_ERROR;
 		}
 	} else if( strcasecmp(command, "adddeb") == 0 ) {
-		if( file_exists )
+		if( file_exists || create_file )
 			r = adddebs(changesfilename, changesdata, argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
@@ -2288,6 +2288,7 @@ static retvalue splitpath(struct strlist *list, const char *path) {
 int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
+		{"create", no_argument, NULL, 'C'},
 		{"ignore", required_argument, NULL, 'i'},
 		{"searchpath", required_argument, NULL, 's'},
 		{NULL, 0, NULL, 0},
@@ -2295,6 +2296,7 @@ int main(int argc,char *argv[]) {
 	int c;
 	const char *changesfilename;
 	bool_t file_exists;
+	bool_t create_file = FALSE;
 	struct strlist validkeys,keys;
 	struct strlist searchpath;
 	struct changes *changesdata;
@@ -2310,6 +2312,9 @@ int main(int argc,char *argv[]) {
 				about(TRUE);
 			case 'i':
 				set_ignore(optarg,FALSE,CONFIG_OWNER_CMDLINE);
+				break;
+			case 'C':
+				create_file = TRUE;
 				break;
 			case 's':
 				r = splitpath(&searchpath, optarg);
@@ -2356,14 +2361,16 @@ int main(int argc,char *argv[]) {
 		if( changesdata == NULL )
 			r = RET_ERROR_OOM;
 		else {
-			r = RET_OK;
+			r = dirs_getdirectory(changesfilename,
+					&changesdata->basedir);
 		}
 	}
 
 	if( !RET_WAS_ERROR(r) ) {
 		argc -= (optind+1);
 		argv += (optind+1);
-		r = execute_command(argc,argv, changesfilename, file_exists, changesdata);
+		r = execute_command(argc, argv, changesfilename,
+		                    file_exists, create_file, changesdata);
 	}
 	changes_free(changesdata);
 	strlist_done(&keys);
