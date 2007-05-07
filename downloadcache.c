@@ -79,6 +79,8 @@ retvalue downloadcache_free(struct downloadcache *download) {
 	struct downloaditem *item;
 	int c;
 
+	*h = &list->items;
+	*p = NULL;
 	item = list->items;
 	while( item != NULL ) {
 		*p = item;
@@ -142,11 +144,6 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 	}
 	item->left = item->right = NULL;
 
-	if( cache->items == NULL ) {
-		cache->items = item;
-		item->parent = NULL;
-		return RET_OK;
-	}
 	item->parent = parent;
 	*h = item;
 

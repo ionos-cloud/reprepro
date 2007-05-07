@@ -455,7 +455,7 @@ struct distmatch_mydata {
 static retvalue adddistribution(void *d,const char *chunk) {
 	struct distmatch_mydata *mydata = d;
 	retvalue result;
-	struct distribution *distribution;
+	struct distribution *distribution IFSTUPIDCC(=NULL);
 
 	result = distribution_parse_and_filter(mydata->confdir, mydata->logdir,
 			&distribution, chunk, mydata->filter, mydata->lookedat);

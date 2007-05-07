@@ -194,7 +194,7 @@ retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char *
 }
 
 retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
-	char *sourcename,*basename;
+	char *sourcename IFSTUPIDCC(=NULL) ,*basename IFSTUPIDCC(=NULL);
 	struct strlist mymd5sums;
 	retvalue r;
 

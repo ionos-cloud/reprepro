@@ -577,7 +577,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 	for( i = 0; i < distribution->updates.count ; i++ ) {
 		const char *name = distribution->updates.values[i];
 		const struct update_pattern *pattern;
-		struct update_origin *update;
+		struct update_origin *update IFSTUPIDCC(=NULL);
 		retvalue r;
 
 		if( strcmp(name,"-") == 0 ) {
@@ -601,6 +601,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 			RET_UPDATE(result,RET_ERROR);
 			break;
 		}
+		IFSTUPIDCC(update = NULL;)
 
 		r = instance_pattern(listdir,pattern,distribution,&update);
 		RET_UPDATE(result,r);
