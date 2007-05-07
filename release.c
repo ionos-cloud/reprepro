@@ -375,7 +375,7 @@ struct filetorelease {
 #endif
 #ifdef HAVE_LIBBZ2
 	/* output buffer for bzip2 compression */
-	unsigned char *bzoutputbuffer; size_t bz_waiting_bytes;
+	char *bzoutputbuffer; size_t bz_waiting_bytes;
 	bz_stream bzstream;
 #endif
 };
@@ -438,7 +438,7 @@ static retvalue openfile(const char *dirofdist, struct openfile *f) {
 	return RET_OK;
 }
 
-static retvalue writetofile(struct openfile *file, const char *data, size_t len) {
+static retvalue writetofile(struct openfile *file, const unsigned char *data, size_t len) {
 
 	file->filesize += len;
 	MD5Update(&file->context,data,len);
@@ -725,7 +725,7 @@ static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
 	f->crc = crc32(f->crc,data,len);
 #endif
 
-	f->gzstream.next_in = (char*)data;
+	f->gzstream.next_in = (unsigned char*)data;
 	f->gzstream.avail_in = len;
 
 	do {
@@ -774,7 +774,7 @@ static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
 
 static retvalue finishgz(struct filetorelease *f) {
 	int zret;
-	char dummy;
+	unsigned char dummy;
 #ifdef OLDZLIB
 	unsigned char buffer[4];
 	retvalue r;
@@ -883,7 +883,8 @@ static retvalue writebz(struct filetorelease *f, const char *data, size_t len) {
 			retvalue r;
 			assert( f->bz_waiting_bytes > 0 );
 			r = writetofile(&f->f[ic_bzip2],
-					f->bzoutputbuffer, f->bz_waiting_bytes);
+					(const unsigned char *)f->bzoutputbuffer,
+					f->bz_waiting_bytes);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -922,7 +923,8 @@ static retvalue finishbz(struct filetorelease *f) {
 			retvalue r;
 			assert( f->bz_waiting_bytes != 0 );
 			r = writetofile(&f->f[ic_bzip2],
-					f->bzoutputbuffer, f->bz_waiting_bytes);
+					(const unsigned char*)f->bzoutputbuffer,
+					f->bz_waiting_bytes);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -1023,7 +1025,7 @@ retvalue release_writedata(struct filetorelease *file, const char *data, size_t 
 
 	result = RET_OK;
 	/* always call this so that md5sum is calculated */
-	r = writetofile(&file->f[ic_uncompressed],data,len);
+	r = writetofile(&file->f[ic_uncompressed],(const unsigned char*)data,len);
 	RET_UPDATE(result,r);
 	if( file->f[ic_gzip].relativefilename != NULL ) {
 		r = writegz(file,data,len);
