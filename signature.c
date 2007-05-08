@@ -275,8 +275,6 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	//TODO: specify which key to use...
-
 	/* make sure it does not already exists */
 
 	ret = unlink(signaturename);
@@ -651,4 +649,190 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 			strlist_done(&allfingerprints);
 	}
 	return r;
+}
+
+struct signedfile {
+	char *plainfilename, *newplainfilename;
+	char *signfilename, *newsignfilename;
+	int fd; retvalue result;
+};
+
+
+static retvalue newpossiblysignedfile(const char *directory, const char *basename, struct signedfile **out) {
+	struct signedfile *n;
+
+	n = calloc(1, sizeof(struct signedfile));
+	if( n == NULL )
+		return RET_ERROR_OOM;
+	n->fd = -1;
+	n->plainfilename = calc_dirconcat(directory, basename);
+	if( n->plainfilename == NULL ) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
+	n->newplainfilename = calc_addsuffix(n->plainfilename, "new");
+	if( n->newplainfilename == NULL ) {
+		free(n->plainfilename);
+		free(n);
+		return RET_ERROR_OOM;
+	}
+
+	(void)dirs_make_parent(n->newplainfilename);
+	(void)unlink(n->newplainfilename);
+
+	n->fd = open(n->newplainfilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY, 0666);
+	if( n->fd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error creating file '%s': %s\n",
+				n->newplainfilename,
+				strerror(e));
+		free(n->newplainfilename);
+		free(n->plainfilename);
+		free(n);
+		return RET_ERRNO(e);
+	}
+	*out = n;
+	return RET_OK;
+}
+
+retvalue signedfile_free(struct signedfile *f) {
+	if( f == NULL )
+		return RET_NOTHING;
+	assert( f->fd < 0 );
+	if( f->newplainfilename != NULL ) {
+		(void)unlink(f->newplainfilename);
+		free(f->newplainfilename);
+	}
+	free(f->plainfilename);
+	if( f->newsignfilename != NULL ) {
+		(void)unlink(f->newsignfilename);
+		free(f->newsignfilename);
+	}
+	free(f->signfilename);
+	free(f);
+	return RET_OK;
+}
+
+retvalue signature_startsignedfile(const char *directory, const char *basename, UNUSED(const char *options), struct signedfile **out) {
+	retvalue r;
+	struct signedfile *n;
+
+	r = newpossiblysignedfile(directory, basename, &n);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	// create object to place data into...
+	*out = n;
+	return RET_OK;
+}
+
+retvalue signature_startunsignedfile(const char *directory, const char *basename, struct signedfile **out) {
+	retvalue r;
+	struct signedfile *n;
+
+	r = newpossiblysignedfile(directory, basename, &n);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	*out = n;
+	return RET_OK;
+}
+
+void signedfile_write(struct signedfile *f, const void *data, size_t len) {
+	if( f->fd >= 0  ) {
+		ssize_t written;
+
+		while( len > 0 ) {
+			written = write(f->fd, data, len);
+			if( written < 0 ) {
+				int e = errno;
+				fprintf(stderr, "Error writing to file '%s': %s\n",
+						f->newplainfilename,
+						strerror(e));
+				(void)close(f->fd);
+				(void)unlink(f->newplainfilename);
+				f->fd = -1;
+				RET_UPDATE(f->result, RET_ERRNO(e));
+				return;
+			}
+			assert( (size_t)written <= len );
+			data += written;
+			len -= written;
+		}
+	}
+	// push into signing object...
+}
+retvalue signedfile_prepare(struct signedfile *f, const char *options) {
+	if( f->fd >= 0 ) {
+		int ret;
+
+		ret = close(f->fd);
+		f->fd = -1;
+		if( ret < 0 ) {
+			int e = errno;
+			fprintf(stderr, "Error writing to file '%s': %s\n",
+					f->newplainfilename,
+					strerror(e));
+			(void)unlink(f->newplainfilename);
+			free(f->newplainfilename);
+			f->newplainfilename = NULL;
+			RET_UPDATE(f->result, RET_ERRNO(e));
+		}
+	}
+	if( RET_WAS_ERROR(f->result) )
+		return f->result;
+	if( options != NULL ) {
+		retvalue r;
+
+		assert( f->newplainfilename != NULL );
+		f->signfilename = calc_addsuffix(f->plainfilename, "gpg");
+		if( f->signfilename == NULL )
+			return RET_ERROR_OOM;
+		f->newsignfilename = calc_addsuffix(f->signfilename, "new");
+		if( f->newsignfilename == NULL )
+			return RET_ERROR_OOM;
+
+		r = signature_sign(options,
+				f->newplainfilename,
+				f->newsignfilename);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+retvalue signedfile_finalize(struct signedfile *f, bool_t *toolate) {
+	int result = RET_OK, r;
+	int e;
+
+	if( f->newsignfilename != NULL && f->signfilename != NULL ) {
+		e = rename(f->newsignfilename, f->signfilename);
+		if( e < 0 ) {
+			e = errno;
+			fprintf(stderr, "Error moving %s to %s: %d=%m!\n",
+					f->newsignfilename,
+					f->signfilename, e);
+			result = RET_ERRNO(e);
+			/* after something was done, do not stop
+			 * but try to do as much as possible */
+			if( !*toolate )
+				return result;
+		} else {
+			/* does not need deletion any more */
+			free(f->newsignfilename);
+			f->newsignfilename = NULL;
+			*toolate = TRUE;
+		}
+	}
+	e = rename(f->newplainfilename, f->plainfilename);
+	if( e < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error moving %s to %s: %d=%m!\n",
+				f->newplainfilename,
+				f->plainfilename, e);
+		r = RET_ERRNO(e);
+		RET_UPDATE(result, r);
+	} else {
+		free(f->newplainfilename);
+		f->newplainfilename = NULL;
+	}
+	return result;
 }

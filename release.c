@@ -67,10 +67,6 @@ struct release {
 	} *files;
 	/* the cache database for old files */
 	DB *cachedb;
-	/* some more things, only here to make
-	 * free'ing them in case of error easier */
-	char *newreleasefilename,*releasefilename;
-	char *newsignfilename,*signfilename;
 };
 
 void release_free(struct release *release) {
@@ -85,10 +81,6 @@ void release_free(struct release *release) {
 		free(e->fulltemporaryfilename);
 		free(e);
 	}
-	free(release->newreleasefilename);
-	free(release->releasefilename);
-	free(release->newsignfilename);
-	free(release->signfilename);
 	if( release->cachedb != NULL ) {
 		release->cachedb->close(release->cachedb,0);
 	}
@@ -1069,6 +1061,7 @@ retvalue release_directorydescription(struct release *release, const struct dist
 	release_writeheader("Architecture",target->architecture);
 	release_writeheader("NotAutomatic",distribution->notautomatic);
 	release_writeheader("Description",distribution->description);
+#undef release_writeheader
 	r = release_finishfile(release, f);
 	return r;
 }
@@ -1135,10 +1128,8 @@ static retvalue storechecksums(struct release *r) {
 #undef CLEARDBT
 #undef SETDBT
 
-
 /* Generate a main "Release" file for a distribution */
 retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool_t onlyifneeded) {
-	FILE *f;
 	size_t s;
 	int e;
 	retvalue result,r;
@@ -1148,6 +1139,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	int i;
 	struct release_entry *file;
 	bool_t somethingwasdone;
+	struct signedfile *signedfile;
 
 	if( onlyifneeded && !release->new ) {
 		release_free(release);
@@ -1167,161 +1159,81 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		return RET_ERROR;
 	}
 
-	release->newreleasefilename = calc_dirconcat(release->dirofdist,"Release.new");
-	if( release->newreleasefilename == NULL ) {
+	if( distribution->signwith != NULL )
+		r = signature_startsignedfile(release->dirofdist, "Release",
+				distribution->signwith,
+				&signedfile);
+	else
+		r = signature_startunsignedfile(release->dirofdist, "Release",
+				&signedfile);
+	if( RET_WAS_ERROR(r) ) {
 		release_free(release);
-		return RET_ERROR_OOM;
+		return r;
 	}
-	release->releasefilename = calc_dirconcat(release->dirofdist,"Release");
-	if( release->releasefilename == NULL ) {
-		release_free(release);
-		return RET_ERROR_OOM;
-	}
-	(void)dirs_make_parent(release->newreleasefilename);
-	(void)unlink(release->newreleasefilename);
-	f = fopen(release->newreleasefilename,"w");
-	if( f == NULL ) {
-		e = errno;
-		fprintf(stderr,"Error writing file %s: %m\n",release->newreleasefilename);
-		release_free(release);
-		return RET_ERRNO(e);
-	}
-#define checkwritten if( e < 0 ) { \
-		e = errno; \
-		fprintf(stderr,"Error writing to %s: %d=$m!\n",release->newreleasefilename,e); \
-		release_free(release); \
-		(void)fclose(f); \
-		return RET_ERRNO(e); \
-	}
+#define writestring(s) signedfile_write(signedfile, s, strlen(s))
+#define writechar(c) {char __c = c ; signedfile_write(signedfile, &__c, 1); }
 
 	if( distribution->origin != NULL ) {
-		e = fputs("Origin: ",f);
-		checkwritten;
-		e = fputs(distribution->origin,f);
-		checkwritten;
-		e = fputc('\n',f) - 1;
-		checkwritten;
+		writestring("Origin: ");
+		writestring(distribution->origin);
+		writechar('\n');
 	}
 	if( distribution->label != NULL ) {
-		e = fputs("Label: ",f);
-		checkwritten;
-		e = fputs(distribution->label,f);
-		checkwritten;
-		e = fputc('\n',f) - 1;
-		checkwritten;
+		writestring("Label: ");
+		writestring(distribution->label);
+		writechar('\n');
 	}
 	if( distribution->suite != NULL ) {
-		e = fputs("Suite: ",f);
-		checkwritten;
-		e = fputs(distribution->suite,f);
-		checkwritten;
-		e = fputc('\n',f) - 1;
-		checkwritten;
+		writestring("Suite: ");
+		writestring(distribution->suite);
+		writechar('\n');
 	}
-	e = fputs("Codename: ",f);
-	checkwritten;
-	e = fputs(distribution->codename,f);
-	checkwritten;
+	writestring("Codename: ");
+	writestring(distribution->codename);
 	if( distribution->version != NULL ) {
-		e = fputs("\nVersion: ",f);
-		checkwritten;
-		e = fputs(distribution->version,f);
-		checkwritten;
+		writestring("\nVersion: ");
+		writestring(distribution->version);
 	}
-	e = fputs("\nDate: ",f);
-	checkwritten;
-	e = fputs(buffer,f);
-	checkwritten;
-	e = fputs("\nArchitectures:",f);
-	checkwritten;
+	writestring("\nDate: ");
+	writestring(buffer);
+	writestring("\nArchitectures:");
 	for( i = 0 ; i < distribution->architectures.count ; i++ ) {
 		/* Debian's topmost Release files do not list it, so we won't either */
 		if( strcmp(distribution->architectures.values[i],"source") == 0 )
 			continue;
-		e = fputc(' ',f) - 1;
-		checkwritten;
-		e = fputs(distribution->architectures.values[i],f);
-		checkwritten;
+		writechar(' ');
+		writestring(distribution->architectures.values[i]);
 	}
-	e = fputs("\nComponents: ",f);
-	checkwritten;
-	r = strlist_fprint(f,&distribution->components);
-	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Error writing to %s!\n",release->newreleasefilename);
-		release_free(release);
-		(void)fclose(f);
-		return r;
+	writestring("\nComponents:");
+	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		writechar(' ');
+		writestring(distribution->components.values[i]);
 	}
 	if( distribution->description != NULL ) {
-		e = fputs("\nDescription: ",f);
-		checkwritten;
-		e = fputs(distribution->description,f);
-		checkwritten;
+		writestring("\nDescription: ");
+		writestring(distribution->description);
 	}
 	if( distribution->notautomatic != NULL ) {
-		e = fputs("\nNotAutomatic: ",f);
-		checkwritten;
-		e = fputs(distribution->notautomatic,f);
-		checkwritten;
+		writestring("\nNotAutomatic: ");
+		writestring(distribution->notautomatic);
 	}
 
-	e = fputs("\nMD5Sum:\n",f);
-	checkwritten;
-
+	writestring("\nMD5Sum:\n");
 	for( file = release->files ; file != NULL ; file = file->next ) {
 		if( file->md5sum != NULL && file->relativefilename != NULL ) {
-			e = fputc(' ',f) - 1;
-			checkwritten;
-			e = fputs(file->md5sum,f);
-			checkwritten;
-			e = fputc(' ',f) - 1;
-			checkwritten;
-			e = fputs(file->relativefilename,f);
-			checkwritten;
-			e = fputc('\n',f) - 1;
-			checkwritten;
+			writechar(' ');
+			writestring(file->md5sum);
+			writechar(' ');
+			writestring(file->relativefilename);
+			writechar('\n');
 		}
 	}
-
-#undef checkwritten
-	if( ferror(f) != 0 ) {
-		e = errno;
-		fprintf(stderr,"Error writing to %s: %d=$m!\n",
-				release->newreleasefilename,e);
+	r = signedfile_prepare(signedfile, distribution->signwith);
+	if( RET_WAS_ERROR(r) ) {
+		signedfile_free(signedfile);
 		release_free(release);
-		(void)fclose(f);
-		return RET_ERRNO(e);
+		return r;
 	}
-	if( fclose(f) < 0 ) {
-		e = errno;
-		fprintf(stderr,"Error writing to %s: %d=$m!\n",
-				release->newreleasefilename,e);
-		release_free(release);
-		return RET_ERRNO(e);
-	}
-
-	if( distribution->signwith != NULL ) {
-
-		release->signfilename = calc_dirconcat(release->dirofdist,"Release.gpg");
-		if( release->signfilename == NULL ) {
-			release_free(release);
-			return RET_ERROR_OOM;
-		}
-		release->newsignfilename = calc_dirconcat(release->dirofdist,"Release.gpg.new");
-		if( release->newsignfilename == NULL ) {
-			release_free(release);
-			return RET_ERROR_OOM;
-		}
-
-		r = signature_sign(distribution->signwith,
-				release->newreleasefilename,
-				release->newsignfilename);
-		if( RET_WAS_ERROR(r) ) {
-			release_free(release);
-			return r;
-		}
-	}
-
 	somethingwasdone = FALSE;
 	result = RET_OK;
 
@@ -1343,6 +1255,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 				/* after something was done, do not stop
 				 * but try to do as much as possible */
 				if( !somethingwasdone ) {
+					signedfile_free(signedfile);
 					release_free(release);
 					return r;
 				}
@@ -1351,32 +1264,13 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 				somethingwasdone = TRUE;
 		}
 	}
-	if( release->newsignfilename != NULL && release->signfilename != NULL ) {
-		e = rename(release->newsignfilename,release->signfilename);
-		if( e < 0 ) {
-			e = errno;
-			fprintf(stderr,"Error moving %s to %s: %d=%m!\n",
-					release->newsignfilename,
-					release->signfilename,e);
-			r = RET_ERRNO(e);
-			/* after something was done, do not stop
-			 * but try to do as much as possible */
-			if( !somethingwasdone ) {
-				release_free(release);
-				return r;
-			}
-			RET_UPDATE(result,r);
-		}
+	r = signedfile_finalize(signedfile, &somethingwasdone);
+	signedfile_free(signedfile);
+	if( RET_WAS_ERROR(r) && !somethingwasdone ) {
+		release_free(release);
+		return r;
 	}
-	e = rename(release->newreleasefilename,release->releasefilename);
-	if( e < 0 ) {
-		e = errno;
-		fprintf(stderr,"Error moving %s to %s: %d=%m!\n",
-				release->newreleasefilename,
-				release->releasefilename,e);
-		r = RET_ERRNO(e);
-		RET_UPDATE(result,r);
-	}
+	RET_UPDATE(result,r);
 
 	if( release->cachedb != NULL ) {
 	 	int dbret;

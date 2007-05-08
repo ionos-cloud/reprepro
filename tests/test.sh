@@ -1886,30 +1886,30 @@ EOF
 checklog log2 <<EOF
 DATESTR add test2 deb stupid coal bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' > results
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' | sort > results
 cat >results.expected <<END
-dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/binary-abacus/Packages.gz:Maintainer: bloat.maintainer
+dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/binary-abacus/Packages.gz:Priority: optional
 dists/test2/stupid/binary-abacus/Packages.gz:Section: stupid/base
-dists/test2/stupid/binary-coal/Packages.gz:Package: bloat+-0a9z.app-addons
 dists/test2/stupid/binary-coal/Packages.gz:Maintainer: bloat.add.maintainer
+dists/test2/stupid/binary-coal/Packages.gz:Package: bloat+-0a9z.app-addons
 dists/test2/stupid/binary-coal/Packages.gz:Priority: optional
 dists/test2/stupid/binary-coal/Packages.gz:Section: stupid/addons
-dists/test2/stupid/source/Sources.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/source/Sources.gz:Maintainer: bloat.source.maintainer
+dists/test2/stupid/source/Sources.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/source/Sources.gz:Priority: optional
 dists/test2/stupid/source/Sources.gz:Section: stupid/X11
-dists/test2/ugly/binary-abacus/Packages.gz:Package: simple
 dists/test2/ugly/binary-abacus/Packages.gz:Maintainer: simple.maintainer
+dists/test2/ugly/binary-abacus/Packages.gz:Package: simple
 dists/test2/ugly/binary-abacus/Packages.gz:Priority: optional
 dists/test2/ugly/binary-abacus/Packages.gz:Section: ugly/base
-dists/test2/ugly/binary-coal/Packages.gz:Package: simple-addons
 dists/test2/ugly/binary-coal/Packages.gz:Maintainer: simple.add.maintainer
+dists/test2/ugly/binary-coal/Packages.gz:Package: simple-addons
 dists/test2/ugly/binary-coal/Packages.gz:Priority: optional
 dists/test2/ugly/binary-coal/Packages.gz:Section: ugly/addons
-dists/test2/ugly/source/Sources.gz:Package: simple
 dists/test2/ugly/source/Sources.gz:Maintainer: simple.source.maintainer
+dists/test2/ugly/source/Sources.gz:Package: simple
 dists/test2/ugly/source/Sources.gz:Priority: optional
 dists/test2/ugly/source/Sources.gz:Section: ugly/games
 END
@@ -2057,8 +2057,8 @@ EOF
 checklog log1 < /dev/null
 checknolog log2
 
-find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
-find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' | sort > test2
+find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sort > test1
 dodiff test2 test1
 
 testrun - -b . check test1 test2 3<<EOF

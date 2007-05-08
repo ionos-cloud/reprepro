@@ -1,3 +1,7 @@
+2007-05-07  Bernhard R. Link <brlink@debian.org>
+	* move some code from release.c to signature.c in preperation of
+	  later changes
+
 2007-05-06  Bernhard R. Link <brlink@debian.org>
 	* changestool: add adddsc command
 	* changestool: add --create option
