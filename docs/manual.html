@@ -1,0 +1,215 @@
+<html><head>
+<title>reprepro manual</title>
+<!-- some style elements stolen from bugs.debian.org /-->
+<style>
+<!--
+html { color: #000; background: #fefefe; font-family: serif; margin: 1em; border: 0; padding: 0; line-height: 120%; }
+body { margin: 0; border: 0; padding: 0; }
+pre { text-align: left; border: #f0f0f0 1px solid;  padding: 1px;}
+h1, h2, h3 { text-align: left; font-family: sans-serif; background-color: #f0f0ff; color: #3c3c3c; border: #a7a7a7 1px solid;  padding: 10px;}
+h1 { font-size: 180%; line-height: 150%; }
+h2 { font-size: 150% }
+h3 { font-size: 100% }
+li { list-style-type: square; }
+/-->
+</style>
+</head>
+<body>
+<h1>reprepro manual</h1>
+This manual documents reprepro, a tool to generate and administer
+Debian package repositories.
+<br>
+Other usefull resources:
+<ul>
+<li> the <a href="http://mirrorer.alioth.debian.org/">homepage</a> of  reprepro.</li>
+<li> <a href="file://localhost/usr/share/doc/reprepro/">local directory</a> with documentation and examples, if you have reprepro installed.</li>
+</ul>
+<h2>Table of contents</h2>
+Sections of this document:
+<ul>
+<li><a href="#introduction">Introduction</a></li>
+<li><a href="#firststeps">First steps</a></li>
+<li><a href="#dirbasics">Repository basics</a></li>
+<li><a href="#localpackages">Local packages</a></li>
+<li><a href="#morroring">Mirroring</a></li>
+<li><a href="#recovery">Disaster recovery</a></li>
+<li><a href="#counterindications">What reprepro cannot do</a></li>
+</ul>
+<h2><a name="introduction">Introduction</a></h2>
+<h3>What reprepro does</h3>
+Reprepro is a tool to take care of a repository of Debian packages
+(<tt>.dsc</tt>,<tt>.deb</tt> and <tt>.udeb</tt>).
+It installs them to the proper places, generates indices of packages
+(<tt>Packages</tt> and <tt>Sources</tt> and their compressed variants)
+and of index files (<tt>Release</tt> and optionally <tt>Release.gpg</tt>),
+so tools like <tt>apt</tt> know what is available and where to get it from.
+It will keep track which file belongs to where and remove files no longer
+needed (unless told to not do so).
+It can also make (partial) partial mirrors of remote repositories,
+including merging multiple sources and
+automatically (if explicitly requested) removing packages no longer available
+in the source.
+And many other things (sometimes I fear it got a few features too much).
+<h3>What reprepro needs</h3>
+It needs some libraries (<tt>zlib</tt>, <tt>libgpgme</tt>, <tt>libdb</tt> (Version 3, 4.3 or 4.4)) and can be compiled with some more for additional features (<tt>libarchive</tt>,
+<tt>libbz2</tt>).
+Otherwise it only needs
+<tt>apt</tt>'s methods (only when downloading stuff),
+<tt>gpg</tt> (only when signing or checking signatures),
+and if compiled without <tt>libarchive</tt> it needs <tt>tar</tt> and <tt>ar</tt> installed.
+<br>
+If you tell reprepro to call scripts for you, you will of course need the interpreters for thse scripts:
+The included example to generate pdiff files needs python. The example to extract
+changelogs needs dpkg-source.
+<h3>What this manual aims to do</h3>
+This manual aims to give some overview over the most important features,
+so people can use them and so that I do not implement something a second
+time because I forgot support is already there.
+For a full reference of all possible commands and config options take a
+look at the manpage, as this manual might miss some of the more obscure
+options.
+<h2><a name="firststeps">First steps</a></h2>
+<h3>generate a repository with local packages</h3>
+<ul>
+<li>Choose a directory (or create it).</li>
+<li>Create a subdirectory called <tt>conf</tt> in there.</li>
+<li>In the <tt>conf/</tt> subdirectory create a file called <tt>distributions</tt>,
+with content like:
+<pre>
+Codename: mystuff
+Components: main bad
+Architectures: sparc i386 source
+</pre>
+or with content like:
+<pre>
+Codename: andy
+Suite: rusty
+Components: main bad
+Architectures: sparc i386 source
+Origin: myorg
+Version: 20.3
+Description: my first little repository
+</pre>
+(Multiple disributions are seperated by empty lines, Origin, Version and Description
+are just copied to the generated Release files, more things controling reprepro can
+appear which are described later).
+</li>
+<li>If your <tt>conf/distributions</tt> file contained a <tt>Suite:</tt> and you
+are to lazy to generate the symlinks yourself, call:
+<pre>
+reprepro -b $YOURBASEDIR createsymlinks
+</pre>
+</li>
+<li>Include some package, like:
+<pre>
+reprepro -b $YOURBASEDIR include mypackage.changes
+</pre>
+or:
+<pre>
+reprepro -b $YOURBASEDIR includedeb mypackage.deb
+</pre>
+</li>
+<li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
+directories. They contain everything needed to apt-get from.
+Tell apt to include it by adding the following to your <tt>sources.list</tt>:
+<pre>
+deb file:///$YOURBASEDIR mystuff main bad
+</pre>
+or make it available via http or ftp and do the same <tt>http://</tt> or <tt>ftp://</tt> source.</li>
+</ul>
+<h3>mirroring packages from other repositories</h3>
+This example shows how to generate a mirror of a single architecture with
+all packages of etch plus security updates:
+<ul>
+<li>Choose a directory (or create it).</li>
+<li>Create a subdirectory called <tt>conf</tt> in there (if not already existant).</li>
+<li>In the <tt>conf/</tt> subdirectory create a file called <tt>distributions</tt>,
+with content like (or add to that file after an empty line):
+<pre>
+Origin: Debian
+Label: Debian
+Suite: stable
+Version: 4.0
+Codename: etch
+Architectures: i386
+Components: main
+Description: Debian 4.0 etch + security updates
+Updates: - debian security
+Logfile: logfile
+</pre>
+Actually only <tt>Codename</tt>, <tt>Components</tt>, <tt>Architecture</tt> and <tt>Update</tt> is needed, the rest is just information for clients.
+The <tt>Updates</tt> line tells to delete everything no longer available (<tt>-</tt>),
+then add the <tt>debian</tt> and <tt>security</tt> rules, which still have to be defined:
+</li>
+<li>In the <tt>conf/</tt> subdirectory create a file called <tt>updates</tt>,
+with content like (or add to that file after an empty line:):
+or with content like:
+<pre>
+Name: security
+Method: http://security.debian.org/debian-security
+Fallback: ftp://klecker.debian.org/debian-security
+Suite: */updates
+VerifyRelease: A99951DAF9BB569BDB50AD90A70DAF536070D3A1|7EA391D72477203B58C04FBCB5D0C804ADB11277
+Architectures: i386
+Components: main
+UDebComponents: none
+
+Name: debian
+Method: http://ftp2.de.debian.org/debian
+Config: Acquire::Http::Proxy=http://proxy.myorg.de:8080
+VerifyRelease: A99951DAF9BB569BDB50AD90A70DAF536070D3A1|7EA391D72477203B58C04FBCB5D0C804ADB11277
+</pre>
+(If there are no Architecture, Components or UDebComponents, it will try all the distribution to update has. Fallback means a URL to try when the first cannot offer some file).
+</li>
+<li>Tell reprepro to update:
+<pre>
+reprepro -b $YOURBASEDIR update etch
+</pre>
+</li>
+<li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
+directories. They contain everything needed to apt-get from.
+Tell apt to include it by adding the following to your <tt>sources.list</tt>:
+<pre>
+deb file:///$YOURBASEDIR etch main
+</pre>
+or make it available via http or ftp.</li>
+</ul>
+<h2><a name="dirbasics">Repository basics</a></h2>
+
+TO BE WRITTEN
+<h2><a name="localpackages">Local packages</a></h2>
+TO BE WRITTEN
+<h2><a name="morroring">Mirroring</a></h2>
+TO BE WRITTEN
+<h2><a name="recovery">Disaster recovery</a></h2>
+TO BE WRITTEN
+<h2><a name="counterindications">What reprepro cannot do</a></h2>
+There are some things reprepro does not do:
+<dl><dt>Verbatim mirroring</dt><dd>
+Reprepro aims to put all files into a coherent <tt>pool/</tt> hierachy.
+Thus it cannot garantee that files will have the same relatives path as in the
+original repository (especially if those have no pool).
+It also creates the index files from its own indices.
+While this leads to a tidy repository and possible savings of disk-space, the
+signatures of the repositories you mirror cannot be used to authenticate the mirror,
+but you will have to sign (or tell reprepro to sign for you) the result.
+While this is perfect when you only mirror some parts or specific packages or
+also have local packages that need local signing anyway, reprepro is no suitable tool
+for creating a full mirror that can be authenticated without adding the key of this
+repository.
+</dd>
+<dt>Placing your files on your own</dt><dd>
+Reprepro does all the calculation of filenames to save files as,
+bookkeeping what files are there and what are needed and so on.
+This cannot be switched off or disabled.
+You can place files where reprepro will expect them and reprepro will use
+them if their md5sum matches.
+But reprepro is not suited if you want those files outside of a pool or in
+places reprepro does not consider their canonical ones.
+</dd>
+<dt>Having different files with the same name</dt><dd>
+take a look in the <a href="http://alioth.debian.org/plugins/scmcvs/cvsweb.php/~checkout~/mirrorer/docs/FAQ?rev=HEAD;content-type=text%2Fplain;cvsroot=mirrorer">FAQ</a> (currently question 1.2) why and how to avoid the problem.
+</dd>
+</dl>
+</body>
+</html>
