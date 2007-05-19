@@ -29,7 +29,7 @@
 #include "freespace.h"
 
 struct device {
-	struct device *next;
+	/*@null@*/struct device *next;
 	/* stat(2)'s st_dev number identifying this device */
 	dev_t id;
 	/* some directory in this filesystem */
@@ -45,7 +45,7 @@ struct device {
 };
 
 struct devices {
-	struct device *root;
+	/*@null@*/struct device *root;
 };
 
 void space_free(struct devices *devices) {
@@ -126,6 +126,7 @@ retvalue space_prepare(const char *dbdir,struct devices **devices) {
 		int e = errno;
 		fprintf(stderr, "Error stat'ing %s: %d=%s\n", dbdir,
 						e, strerror(e));
+		free(n);
 		return RET_ERRNO(e);
 	}
 	r = device_find_or_create(n, s.st_dev, dbdir, &d);
@@ -182,6 +183,7 @@ retvalue space_needed(struct devices *devices,const char *filename,const char *m
 	filesize = 0;
 	while( *p <= '9' && *p >= '0' ) {
 		filesize = filesize*10 + (*p-'0');
+		p++;
 	}
 	if( *p != '\0' ) {
 		fprintf(stderr, "Cannot extract filesize from '%s'\n", md5sum);
@@ -228,20 +230,20 @@ retvalue space_check(struct devices *devices) {
 			fprintf(stderr,
 "NOT ENOUGH FREE SPACE on filesystem 0x%lx (the filesystem '%s' is on)\n"
 "available blocks %llu, needed blocks %llu, block size is %llu.\n",
-				(long)device->id, device->somepath,
-				(long long)device->available,
-				(long long)device->needed,
-				(long long)device->blocksize);
+				(unsigned long)device->id, device->somepath,
+				(unsigned long long)device->available,
+				(unsigned long long)device->needed,
+				(unsigned long long)device->blocksize);
 			result = RET_ERROR;
 		} else if( device->needed >= device->available+device->reserved ) {
 			fprintf(stderr,
 "NOT ENOUGH FREE SPACE on filesystem 0x%lx (the filesystem '%s' is on)\n"
 "available blocks %llu, needed blocks %llu (+%llu savety margin), block size is %llu.\n",
-				(long)device->id, device->somepath,
-				(long long)device->available,
-				(long long)device->needed,
-				(long long)device->reserved,
-				(long long)device->blocksize);
+				(unsigned long)device->id, device->somepath,
+				(unsigned long long)device->available,
+				(unsigned long long)device->needed,
+				(unsigned long long)device->reserved,
+				(unsigned long long)device->blocksize);
 			result = RET_ERROR;
 		}
 	}

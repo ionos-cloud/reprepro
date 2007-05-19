@@ -54,7 +54,7 @@ struct ar_archive {
 	bool_t wasodd;
 };
 
-static ssize_t readwait(int fd, void *buf, size_t count) {
+static ssize_t readwait(int fd, /*@out@*/void *buf, size_t count) {
 	ssize_t totalread;
 
 	totalread = 0;
@@ -151,7 +151,7 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 
 	if( ar->bytes_left >0 || ar->wasodd ) {
 		off_t s;
-		s = lseek(ar->fd,ar->bytes_left+ar->wasodd,SEEK_CUR);
+		s = lseek(ar->fd,ar->bytes_left+ar->wasodd?1:0,SEEK_CUR);
 		if( s == (off_t)-1 ) {
 			int e = errno;
 			fprintf(stderr,"Error seeking to next member in ar-file %s: %s\n",ar->filename,strerror(e));

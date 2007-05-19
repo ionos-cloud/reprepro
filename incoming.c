@@ -149,10 +149,10 @@ static retvalue incoming_prepare(struct incoming *i) {
 
 struct importsparsedata {
 	char *filename;
-	const char *name;
-	struct distribution *distributions;
+	/*@temp@*/const char *name;
+	/*@temp@*/struct distribution *distributions;
 	struct incoming *i;
-	const char *basedir;
+	/*@temp@*/const char *basedir;
 };
 
 static retvalue translate(struct distribution *distributions, struct strlist *names, struct distribution ***r) {
@@ -295,7 +295,7 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	return RET_OK;
 }
 
-static retvalue incoming_init(const char *basedir,const char *confdir, struct distribution *distributions, const char *name, struct incoming **result) {
+static retvalue incoming_init(const char *basedir,const char *confdir, struct distribution *distributions, const char *name, /*@out@*/struct incoming **result) {
 	retvalue r;
 	struct importsparsedata imports;
 
@@ -380,7 +380,7 @@ struct candidate {
 	} *perdistribution;
 };
 
-static void candidate_file_free(struct candidate_file *f) {
+static void candidate_file_free(/*@only@*/struct candidate_file *f) {
 	free(f->md5sum);
 	free(f->section);
 	free(f->priority);
@@ -398,7 +398,7 @@ static void candidate_file_free(struct candidate_file *f) {
 	free(f);
 }
 
-static void candidate_package_free(struct candidate_package *p) {
+static void candidate_package_free(/*@only@*/struct candidate_package *p) {
 	free(p->control);
 	free(p->component);
 	free(p->directory);
@@ -407,7 +407,7 @@ static void candidate_package_free(struct candidate_package *p) {
 	free(p);
 }
 
-static void candidate_free(struct candidate *c) {
+static void candidate_free(/*@only@*/struct candidate *c) {
 	if( c == NULL )
 		return;
 	free(c->fullfilename);
@@ -638,7 +638,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 
 }
 
-static inline retvalue getsectionprioritycomponent(const struct incoming *i,const struct candidate *c,const struct distribution *into,const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, const char **section_p, const char **priority_p, char **component) {
+static inline retvalue getsectionprioritycomponent(const struct incoming *i,const struct candidate *c,const struct distribution *into,const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/char **component) {
 	retvalue r;
 	const char *section, *priority;
 

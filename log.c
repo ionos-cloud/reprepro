@@ -16,6 +16,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <sys/select.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/poll.h>
@@ -36,14 +37,14 @@
 
 extern int verbose;
 
-static struct logfile {
+/*@null@*/ static struct logfile {
 	struct logfile *next;
 	char *filename;
 	size_t refcount;
 	int fd;
 } *logfile_root = NULL;
 
-static retvalue logfile_reference(const char *logdir,const char *filename,struct logfile **logfile) {
+static retvalue logfile_reference(const char *logdir,const char *filename,/*@out@*/struct logfile **logfile) {
 	struct logfile *l;
 
 	assert( logdir != NULL && filename != NULL );
@@ -123,7 +124,7 @@ static retvalue logfile_open(struct logfile *logfile) {
 	return RET_OK;
 }
 
-static retvalue logfile_write(struct logfile *logfile,struct target *target,const char *name,const char *version,const char *oldversion) {
+static retvalue logfile_write(struct logfile *logfile,struct target *target,const char *name,/*@null@*/const char *version,/*@null@*/const char *oldversion) {
 	int ret;
 	time_t currenttime;
 	struct tm t;
@@ -213,11 +214,11 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 		while( *q != '\0' && *q != ' ' && *q != '\t' )
 			q++;
 		if( *p == '-' ) {
+			char **value_p = NULL;
 			p++;
 			s = p;
 			while( s < q && *s != '=' )
 				s++;
-			char **value_p = NULL;
 			switch( s-p ) {
 				case 1:
 					if( *p == 'A' )
@@ -342,7 +343,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, co
 	return RET_ERROR;
 }
 
-static struct notification_process {
+/*@null@*/ static struct notification_process {
 	struct notification_process *next;
 	char **arguments;
 	/* data to send to the process */
@@ -357,7 +358,7 @@ static void notification_process_free(/*@only@*/struct notification_process *p) 
 	char **a;
 
 	if( p->fd >= 0 )
-		close(p->fd);
+		(void)close(p->fd);
 	for( a = p->arguments ; *a != NULL ; a++ )
 		free(*a);
 	free(p->arguments);
@@ -407,7 +408,7 @@ static int catchchildren(void) {
 					(int)(WEXITSTATUS(status)));
 		}
 		if( p->fd >= 0 ) {
-			close(p->fd);
+			(void)close(p->fd);
 			p->fd = -1;
 		}
 		p->child = 0;
@@ -445,7 +446,7 @@ static void feedchildren(bool_t wait) {
 			size_t tosent = p->datalen - p->datasent;
 			ssize_t sent;
 
-			if( tosent > 512 )
+			if( tosent > (size_t)512 )
 				tosent = 512;
 			sent = write(p->fd, p->data+p->datasent, 512);
 			if( sent < 0 ) {
@@ -506,7 +507,7 @@ static retvalue startchild(void) {
 		if( p->datalen > 0 ) {
 			dup2(filedes[0], 0);
 			if( filedes[0] != 0)
-				close(filedes[0]);
+				(void)close(filedes[0]);
 		}
 		/* Try to close all open fd but 0,1,2 */
 		maxopen = sysconf(_SC_OPEN_MAX);
@@ -515,14 +516,14 @@ static retvalue startchild(void) {
 			for( fd = 3 ; fd < maxopen ; fd++ )
 				(void)close(fd);
 		} else {
-			/* closeat least the ones definitly causing problems*/
+			/* close at least the ones definitly causing problems*/
 			const struct notification_process *q;
 			for( q = processes; q != NULL ; q = q->next ) {
 				if( q != p && q->fd >= 0 )
-					close(q->fd);
+					(void)close(q->fd);
 			}
 		}
-		execv(p->arguments[0], p->arguments);
+		(void)execv(p->arguments[0], p->arguments);
 		fprintf(stderr, "Error executing '%s': %s\n", p->arguments[0],
 				strerror(errno));
 		_exit(255);
@@ -533,7 +534,7 @@ static retvalue startchild(void) {
 		int e = errno;
 		fprintf(stderr, "Error forking: %d=%s!\n", e, strerror(e));
 		if( p->fd >= 0 ) {
-			close(p->fd);
+			(void)close(p->fd);
 			p->fd = -1;
 		}
 		return RET_ERRNO(e);
@@ -557,7 +558,7 @@ static retvalue startchild(void) {
 			}
 			if( (polldata.revents & POLLOUT) != 0 ) {
 				size_t towrite =  p->datalen - p->datasent;
-				if( towrite > 512 )
+				if( towrite > (size_t)512 )
 					towrite = 512;
 				written = write(p->fd,
 						p->data + p->datasent,
@@ -573,11 +574,15 @@ static retvalue startchild(void) {
 				}
 				p->datasent += written;
 				if( p->datasent >= p->datalen ) {
+					int ret;
 					free(p->data);
 					p->data = NULL;
-					close(p->fd);
+					ret = close(p->fd);
 					p->fd = -1;
-					return RET_OK;
+					if( ret != 0 )
+						return RET_ERRNO(errno);
+					else
+						return RET_OK;
 				}
 				continue;
 			}
@@ -639,6 +644,8 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 	if( renotification )
 		action = "info";
 	arguments = calloc(count+1, sizeof(char*));
+	if( arguments == NULL )
+		return RET_ERROR_OOM;
 	i = 0;
 	arguments[i++] = strdup(n->scriptname);
 	arguments[i++] = strdup(action);
@@ -716,7 +723,7 @@ void logger_wait(void) {
 }
 
 struct logger {
-	struct logfile *logfile;
+	/*@dependent@*/struct logfile *logfile;
 	size_t notificator_count;
 	struct notificator *notificators;
 };
