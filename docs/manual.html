@@ -1,6 +1,6 @@
 <html><head>
 <title>reprepro manual</title>
-<!-- some style elements stolen from bugs.debian.org /-->
+<!-- some style elements stolen from or inspired by bugs.debian.org /-->
 <style>
 <!--
 html { color: #000; background: #fefefe; font-family: serif; margin: 1em; border: 0; padding: 0; line-height: 120%; }
@@ -10,7 +10,9 @@ h1, h2, h3 { text-align: left; font-family: sans-serif; background-color: #f0f0f
 h1 { font-size: 180%; line-height: 150%; }
 h2 { font-size: 150% }
 h3 { font-size: 100% }
-li { list-style-type: square; }
+ul.dir { list-style-type: disc; }
+ul { list-style-type: square; }
+dt.dir, dt.file, dt.symlink { font-weight:bold; font-family: sans-serif; }
 /-->
 </style>
 </head>
@@ -23,6 +25,7 @@ Other usefull resources:
 <ul>
 <li> the <a href="http://mirrorer.alioth.debian.org/">homepage</a> of  reprepro.</li>
 <li> <a href="file://localhost/usr/share/doc/reprepro/">local directory</a> with documentation and examples, if you have reprepro installed.</li>
+<li> the <a href="http://alioth.debian.org/plugins/scmcvs/cvsweb.php/~checkout~/mirrorer/docs/FAQ?rev=HEAD;content-type=text%2Fplain;cvsroot=mirrorer">Frequently Asked Questions</a></li>
 </ul>
 <h2>Table of contents</h2>
 Sections of this document:
@@ -30,9 +33,12 @@ Sections of this document:
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#firststeps">First steps</a></li>
 <li><a href="#dirbasics">Repository basics</a></li>
-<li><a href="#localpackages">Local packages</a></li>
-<li><a href="#morroring">Mirroring</a></li>
-<li><a href="#recovery">Disaster recovery</a></li>
+<li><a href="#localpackages">Local packages</a> (STILL TO BE WRITTEN)</li>
+<li><a href="#incoming">Incoming directories</a> (STILL TO BE WRITTEN)</li>
+<li><a href="#morroring">Mirroring</a> (STILL TO BE WRITTEN)</li>
+<li><a href="#signing">Signing</a> (STILL TO BE WRITTEN)</li>
+<li><a href="#tracking">Source package tracking</a> (STILL TO BE WRITTEN)</li>
+<li><a href="#recovery">Disaster recovery</a> (STILL TO BE WRITTEN)</li>
 <li><a href="#counterindications">What reprepro cannot do</a></li>
 </ul>
 <h2><a name="introduction">Introduction</a></h2>
@@ -175,11 +181,199 @@ deb file:///$YOURBASEDIR etch main
 or make it available via http or ftp.</li>
 </ul>
 <h2><a name="dirbasics">Repository basics</a></h2>
+An <tt>apt-get</tt>able repository of Debian packages consists of two parts:
+the index files describing what is available and where it is and the actual
+Debian binary (<tt class="suffix">.deb</tt>),
+installer binary (<tt class="suffix">.deb</tt>),
+and source (<tt class="suffix">.dsc</tt> together with
+<tt class="suffix">.tar.gz</tt> or
+<tt class="suffix">.origtar.gz</tt> and
+<tt class="suffix">.diff.gz</tt>) packages.
+<br>
+While you do not know how these look like to use reprepro, it's always a good
+idea to know what you are creating.
+<h3>Index files</h3>
+All index files are in subdirectories of a directory called
+<tt class="dirname">dists</tt>. Apt is very decided what names those should
+have, including the name of <tt class="dirname">dists</tt>.
+Including all optional and extensional files, the hierachy looks like this:
+
+<dl class="dir">
+<dt class="dir">dists</dt><dd>
+	<dl class="dir">
+	<dt class="dir">CODENAME</dt><dd>
+Each distribution has it's own subdirectory here, named by it's codename.
+		<dl class="dir">
+		<dt class="file">Release</dt><dd>
+This file describes what distribution this is and the checksums of
+all index files included.
+		</dd>
+		<dt class="file">Release.gpg</dt><dd>
+This is the optional detached gpg signature of the Release file.
+To generate it, use the <tt class="config">SignWith</tt> header in
+the distribution declaration:
+<pre class="config">
+SignWith: yes
+</pre>
+If the key you specified ("<tt>yes</tt>" means the first libgpgme finds) needs
+a passphrase make sure <a href="http://packages.debian.org/gpg-agent">gpg-agent</a>
+is running.
+		</dd>
+		<dt class="file">Contents-ARCHITECTURE.gz</dt><dd>
+This optional file lists all files and which packages they belong to.
+It's downloaded and used by tools like
+<a href="http://packages.debian.org/apt-file">apt-file</a>
+to allow users to determine which package to install to get a specific file.
+<br>
+To activate generating of these files by reprepro, you need a <tt>Contents</tt>
+header in your distribution declaration, like:
+<pre class="config">
+Contents: 1
+</pre>
+Or if you want to include only udebs but no debs and only have the file uncompressed
+and bzip2ed but not gzipped, and only for some architecture, use:
+<pre class="config">
+Contents: 1 udebs nodebs . .bz2
+ContentsArchitectures: ia64
+</pre>
+		</dd>
+		<dt class="dir">COMPONENT1</dt><dd>
+Each component has it's own subdirectory here. They can be named whatever users
+can be bothered to write into their <tt class="filename">sources.list</tt>, but
+things like <tt>main</tt>, <tt>non-free</tt> and <tt>contrib</tt> are common.
+But funny names like <tt>bad</tt> or <tt>universe</tt> are just as possible.
+			<dl class="dir">
+			<dt class="dir">source</dt><dd>
+If this distribution supports sources, this directory lists which source
+packages are available in this component.
+				<dl class="dir">
+				<dt class="file">Release</dt><dd>
+This file contains a copy of those information about the distribution
+applicaple to this directory.
+				</dd>
+				<dt class="file">Sources</dt>
+				<dt class="file">Sources.gz</dt>
+				<dt class="file">Sources.bz2</dt><dd>
+These files contain the actual description of the source Packages. By default
+only the <tt class="suffix">.gz</tt> file created, to create all three add the
+following to the declerations of the distributions:
+<pre class="config">
+DscIndices Sources Release . .gz .bz2
+</pre>
+That header can also be used to name those files differently, but then apt
+will no longer find them...
+				</dd>
+				<dt class="dir">Sources.diff</dt><dd>
+This optional directory contains diffs, so that only parts of the index
+file must be downloaded if it changed. While reprepro cannot generate these
+so-called <tt>pdiff</tt>s itself, it ships with an example python script it
+can call to generate those.
+				</dd>
+				</dl>
+			</dd>
+			</dl>
+			<dl class="dir">
+			<dt class="dir">binary-ARCHITECTURE</dt><dd>
+Each architecture has its own directory in each component.
+				<dl class="dir">
+				<dt class="file">Release</dt><dd>
+This file contains a copy of those information about the distribution
+applicaple to this directory.
+				</dd>
+				<dt class="file">Packages</dt>
+				<dt class="file">Packages.gz</dt>
+				<dt class="file">Packages.bz2</dt><dd>
+These files contain the actual description of the binary Packages. By default
+only the uncompressed and <tt class="suffix">.gz</tt> files are created.
+To create all three, add the following to the declerations of the distributions:
+<pre class="config">
+DebIndices Packages Release . .gz .bz2
+</pre>
+That header can also be used to name those files differently, but then apt
+will no longer find them...
+				</dd>
+				<dt class="dir">Packages.diff</dt><dd>
+This optional directory contains diffs, so that only parts of the index
+file must be downloaded if it changed. While reprepro cannot generate these
+so-called <tt>pdiff</tt>s itself, it ships with an example python script it
+can call to generate those.
+				</dd>
+				</dl>
+			</dd>
+			<dl class="dir">
+			<dt class="dir">debian-installer</dt><dd>
+This directory contains information about the <tt class="suffix">.udeb</tt>
+modules for the <a href="http://www.debian.org/devel/debian-installer/">Debian-Installer</a>.
+Those are actually just a very stripped down form of normal <tt class="suffix">.deb</tt>
+packages and this the hierachy looks very similar:
+
+				<dl class="dir">
+				<dt class="dir">binary-ARCHITECTURE</dt><dd>
+					<dl class="dir">
+					<dt class="file">Packages</dt>
+					<dt class="file">Packages.gz</dt>
+					</dl>
+				</dd>
+				</dl>
+			</dd>
+			</dl>
+		</dd>
+		<dt class="dir">COMPONENT2</dt><dd>
+There is one dir for every component. All look just the same.
+		</dd>
+		</dl>
+	</dd>
+	<dt class="symlink">SUITE -> CODENAME</dt><dd>
+To allow accessing distribution by function instead of by name, there are often
+symlinks from suite to codenames. That way users can write
+<pre class="config">
+deb http://some.domain.tld/debian SUITE COMPONENT1 COMPONENT2
+</pre>
+instead of
+<pre class="config">
+deb http://some.domain.tld/debian CODENAME COMPONENT1 COMPONENT2
+</pre>
+in their <tt class="filename">/etc/apt/sources.list</tt> and totally get
+suprised by getting something new after a release.
+	</dd>
+	</dl>
+</dd>
+</dl>
+<h3>Package pool</h3>
+TO BE WRITTEN
+
+<ul class="dir">
+<li>pool
+<ul class="dir">
+<li>a
+<ul class="dir">
+<li>a-source
+<ul class="dir">
+<li>a-source_version.dsc</li>
+<li>a-source_version.tar.gz</li>
+<li>binary_version.deb</li>
+<li>binary2_version.deb</li>
+</ul>
+</li>
+<li>another-source-packagename</li>
+</ul>
+</li>
+<li>b</li>
+<li>...</li>
+</ul>
+</li>
+</ul>
 
 TO BE WRITTEN
 <h2><a name="localpackages">Local packages</a></h2>
 TO BE WRITTEN
+<h2><a name="incoming">Incoming directories</a></h2>
+TO BE WRITTEN
 <h2><a name="morroring">Mirroring</a></h2>
+TO BE WRITTEN
+<h2><a name="signing">Signing</a></h2>
+TO BE WRITTEN
+<h2><a name="tracking">Source package tracking</a></h2>
 TO BE WRITTEN
 <h2><a name="recovery">Disaster recovery</a></h2>
 TO BE WRITTEN
