@@ -21,7 +21,7 @@ dt.dir, dt.file, dt.symlink { font-weight:bold; font-family: sans-serif; }
 This manual documents reprepro, a tool to generate and administer
 Debian package repositories.
 <br>
-Other usefull resources:
+Other useful resources:
 <ul>
 <li> the <a href="http://mirrorer.alioth.debian.org/">homepage</a> of  reprepro.</li>
 <li> <a href="file://localhost/usr/share/doc/reprepro/">local directory</a> with documentation and examples, if you have reprepro installed.</li>
@@ -66,7 +66,7 @@ Otherwise it only needs
 <tt>gpg</tt> (only when signing or checking signatures),
 and if compiled without <tt>libarchive</tt> it needs <tt>tar</tt> and <tt>ar</tt> installed.
 <br>
-If you tell reprepro to call scripts for you, you will of course need the interpreters for thse scripts:
+If you tell reprepro to call scripts for you, you will of course need the interpreters for these scripts:
 The included example to generate pdiff files needs python. The example to extract
 changelogs needs dpkg-source.
 <h3>What this manual aims to do</h3>
@@ -74,7 +74,7 @@ This manual aims to give some overview over the most important features,
 so people can use them and so that I do not implement something a second
 time because I forgot support is already there.
 For a full reference of all possible commands and config options take a
-look at the manpage, as this manual might miss some of the more obscure
+look at the man page, as this manual might miss some of the more obscure
 options.
 <h2><a name="firststeps">First steps</a></h2>
 <h3>generate a repository with local packages</h3>
@@ -98,8 +98,8 @@ Origin: myorg
 Version: 20.3
 Description: my first little repository
 </pre>
-(Multiple disributions are seperated by empty lines, Origin, Version and Description
-are just copied to the generated Release files, more things controling reprepro can
+(Multiple distributions are separated by empty lines, Origin, Version and Description
+are just copied to the generated Release files, more things controlling reprepro can
 appear which are described later).
 </li>
 <li>If your <tt>conf/distributions</tt> file contained a <tt>Suite:</tt> and you
@@ -130,7 +130,7 @@ This example shows how to generate a mirror of a single architecture with
 all packages of etch plus security updates:
 <ul>
 <li>Choose a directory (or create it).</li>
-<li>Create a subdirectory called <tt>conf</tt> in there (if not already existant).</li>
+<li>Create a subdirectory called <tt>conf</tt> in there (if not already existent).</li>
 <li>In the <tt>conf/</tt> subdirectory create a file called <tt>distributions</tt>,
 with content like (or add to that file after an empty line):
 <pre>
@@ -189,7 +189,7 @@ Debian binary (<tt class="suffix">.deb</tt>),
 installer binary (<tt class="suffix">.deb</tt>),
 and source (<tt class="suffix">.dsc</tt> together with
 <tt class="suffix">.tar.gz</tt> or
-<tt class="suffix">.origtar.gz</tt> and
+<tt class="suffix">.orig.tar.gz</tt> and
 <tt class="suffix">.diff.gz</tt>) packages.
 <br>
 While you do not know how these look like to use reprepro, it's always a good
@@ -198,7 +198,7 @@ idea to know what you are creating.
 All index files are in subdirectories of a directory called
 <tt class="dirname">dists</tt>. Apt is very decided what names those should
 have, including the name of <tt class="dirname">dists</tt>.
-Including all optional and extensional files, the hierachy looks like this:
+Including all optional and extensional files, the hierarchy looks like this:
 
 <dl class="dir">
 <dt class="dir">dists</dt><dd>
@@ -251,14 +251,14 @@ packages are available in this component.
 				<dl class="dir">
 				<dt class="file">Release</dt><dd>
 This file contains a copy of those information about the distribution
-applicaple to this directory.
+applicable to this directory.
 				</dd>
 				<dt class="file">Sources</dt>
 				<dt class="file">Sources.gz</dt>
 				<dt class="file">Sources.bz2</dt><dd>
 These files contain the actual description of the source Packages. By default
 only the <tt class="suffix">.gz</tt> file created, to create all three add the
-following to the declerations of the distributions:
+following to the declarations of the distributions:
 <pre class="config">
 DscIndices Sources Release . .gz .bz2
 </pre>
@@ -280,14 +280,14 @@ Each architecture has its own directory in each component.
 				<dl class="dir">
 				<dt class="file">Release</dt><dd>
 This file contains a copy of those information about the distribution
-applicaple to this directory.
+applicable to this directory.
 				</dd>
 				<dt class="file">Packages</dt>
 				<dt class="file">Packages.gz</dt>
 				<dt class="file">Packages.bz2</dt><dd>
 These files contain the actual description of the binary Packages. By default
 only the uncompressed and <tt class="suffix">.gz</tt> files are created.
-To create all three, add the following to the declerations of the distributions:
+To create all three, add the following to the declarations of the distributions:
 <pre class="config">
 DebIndices Packages Release . .gz .bz2
 </pre>
@@ -307,7 +307,7 @@ can call to generate those.
 This directory contains information about the <tt class="suffix">.udeb</tt>
 modules for the <a href="http://www.debian.org/devel/debian-installer/">Debian-Installer</a>.
 Those are actually just a very stripped down form of normal <tt class="suffix">.deb</tt>
-packages and this the hierachy looks very similar:
+packages and this the hierarchy looks very similar:
 
 				<dl class="dir">
 				<dt class="dir">binary-ARCHITECTURE</dt><dd>
@@ -336,7 +336,7 @@ instead of
 deb http://some.domain.tld/debian CODENAME COMPONENT1 COMPONENT2
 </pre>
 in their <tt class="filename">/etc/apt/sources.list</tt> and totally get
-suprised by getting something new after a release.
+surprised by getting something new after a release.
 	</dd>
 	</dl>
 </dd>
@@ -349,14 +349,14 @@ scheme is used to place them. The classical way Debian used till
 woody was to just put them in subdirectories of the
 <tt class="dir">binary-ARCHITECTURE</tt> directories, with the exception
 of the architecture-independent packages, which were put into a
-artifical <tt class="dir">binary-all</tt> directory. This was replaced
+artificial <tt class="dir">binary-all</tt> directory. This was replaced
 for the official repository with package pools, which reprepro also uses.
 (Actually reprepro stores everything in pool a bit longer than the official
 repositories, that's why it recalculates all filenames without exception).
 <br>
 In a package pool, all package files of all distributions in that repository
-are stored in a common directory hierachy starting with <tt class="dir">pool/</tt>,
-only seperated by the component they belong to and the source package name.
+are stored in a common directory hierarchy starting with <tt class="dir">pool/</tt>,
+only separated by the component they belong to and the source package name.
 As everything this has disadvantages and advantages:
 <ul><li>disadvantages
 	<ul><li>different files in different distributions must have different filenames
@@ -364,7 +364,7 @@ As everything this has disadvantages and advantages:
 	</li><li>packages can no longer be grouped together in common subdirectories by having similar functions
 	</li></ul>
 </li><li>advantages
-	<ul><li>the extremly confusing situation of having diffently build packages with the same version if different distributions gets impossible by design.
+	<ul><li>the extremely confusing situation of having differently build packages with the same version if different distributions gets impossible by design.
 	</li><li>the source (well, if it exists) is in the same directory as the binaries generated from it
 	</li><li>same files in different distributions need disk-space and bandwidth only once
 	</li><li>each package can be found only knowing component and sourcename
@@ -377,7 +377,7 @@ reprepro):
 <dl class="dir">
 <dt class="dir">pool</dt><dd>
 	The directory all this resides is is normally called <tt class="dir">pool</tt>.
-	That's nowhere hardcoded in apt but that only looks at the relative
+	That's nowhere hard coded in apt but that only looks at the relative
 	directory names in the index files. But there is also no reason to name
 	it differently.
 	<dl class="dir">
@@ -391,7 +391,7 @@ But funny names like <tt>bad</tt> or <tt>universe</tt> are just as possible.
 		<dt class="dir">a</dt><dd>
 As there are really many different source packages,
 the directory would be too full when all put here.
-So they are seperated in different directories.
+So they are separated in different directories.
 Source packages starting with <tt class="constant">lib</tt> are put into a
 directory named after the first four letters of the source name.
 Everything else is put in a directory having the first letter as name.
@@ -430,7 +430,7 @@ There is one dir for every component. All look just the same.
 	</dd>
 	</dl>
 </dd></dl>
-As said before, you don't need to know this hierachy in normal operation.
+As said before, you don't need to know this hierarchy in normal operation.
 reprepro will put everything to where it belong, keep account what is there
 and needed by what distribution or snapshot, and delete files no longer needed.
 (Unless told otherwise or when you are using the low-level commands).
@@ -456,8 +456,8 @@ TO BE DOCUMENTED (see the recovery file until then)
 <h2><a name="counterindications">What reprepro cannot do</a></h2>
 There are some things reprepro does not do:
 <dl><dt>Verbatim mirroring</dt><dd>
-Reprepro aims to put all files into a coherent <tt>pool/</tt> hierachy.
-Thus it cannot garantee that files will have the same relatives path as in the
+Reprepro aims to put all files into a coherent <tt>pool/</tt> hierarchy.
+Thus it cannot guarantee that files will have the same relatives path as in the
 original repository (especially if those have no pool).
 It also creates the index files from its own indices.
 While this leads to a tidy repository and possible savings of disk-space, the
