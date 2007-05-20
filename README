@@ -2,18 +2,18 @@ See the file TODO for things I plan to do.
 
 * What it is:
 
-	This project aims to be a weightleight manager of a debian package
-	(i.e. binary .deb and source .dsc+.tar.gz+.diff.gz) repository.
+	This project is a leightweight feature complete manager of a debian
+	package (i.e. binary .deb and source .dsc+.tar.gz+.diff.gz) repository.
 	Emphasis is put on having all packages in the pool/-directory,
-	generation of signed Release file and maximal checking of all
-	sources.
-	Libraries needed are libdb3 and libz and libgpgme.
-	
+	maximal checking of all sources.
+	generation of signed Release file, Contents, ...
+	Libraries needed are libdb4.3 and libz and libgpgme.
+
 * Current status:
-	
-	It mostly works. Cases I do not use are not very well tested
-	and some small things are not yet implemented.
-	
+
+	The main features work without problems. Some special use cases
+	might not be very well tested.
+
 * Some naming conventions:
 	basename: the name of a file without any directory information.
 	filekey: the position relative to the mirrordir.
@@ -58,8 +58,8 @@ See the file TODO for things I plan to do.
 	by the component and the sourcename. Ecspecially
 	woody and updates/woody will share the same space,
 	thus avoiding multiple instances of the same file.
-	(Can also cause trouble in the rare cases, when both 
-	 have a file of the same name with different md5sum. 
+	(Can also cause trouble in the rare cases, when both
+	 have a file of the same name with different md5sum.
 	 Using -f can help here).
  - 'byhand'-section
  	This is currently just implemented as alias for '-',
@@ -67,14 +67,13 @@ See the file TODO for things I plan to do.
 	to land in a byhand-section...
  - Override files:
  	Only the ExtraOverride style of apt-ftparchive(1) is
-	supported. 
+	supported.
 	(i.e. "packagename Section section\npackagename Maintainer maintainer\n")
 	Note that other than apt-ftparchive case is most likely
 	to be significant. (Having the wrong case in might also
 	cause havoc in apt-ftparchive, as that changes the case of
 	the fieldname, which might confuse other programms...)
- 	
-	
+
 * Things that might be intresting to know:
 
  - guessing the component:
@@ -86,11 +85,11 @@ See the file TODO for things I plan to do.
 	or having the section as prefix or any.
 	Thus having specifiend the components:
 	"main non-free contrib non-US/main non-US/non-free non-US/contrib"
-	should map .e.g 
+	should map .e.g
 	"non-US" to "non-US/main" and "contrib/editors" to "contrib",
 	while having only "main non-free and contrib" as components should
 	map e.g. "non-US/contrib" to "contrib" and "non-US" to "main".
 
-	NOTE: Always specify main as the first component, if you want things 
+	NOTE: Always specify main as the first component, if you want things
 	      to end up there.
 	NOTE: unlike in dak, non-US and non-us are different things...
