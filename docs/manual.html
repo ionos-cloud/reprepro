@@ -40,7 +40,9 @@ Sections of this document:
 <li><a href="#propagation">Propagation of packages</a> (TODO)</li>
 <li><a href="#snapshosts">Snapshots</a> (TODO)</li>
 <li><a href="#tracking">Source package tracking</a> (TODO)</li>
-<li><a href="#recovery">Disaster recovery</a> (TODO)</li>
+<li><a href="#maintainance">Maintenance</a></li>
+<li><a href="#internals">Internals</a></li>
+<li><a href="#recovery">Disaster recovery</a></li>
 <li><a href="#counterindications">What reprepro cannot do</a></li>
 </ul>
 <h2><a name="introduction">Introduction</a></h2>
@@ -443,7 +445,7 @@ TO BE DOCUMENTED
 <h2><a name="signing">Signing</a></h2>
 TO BE DOCUMENTED
 <h2><a name="propagation">Propagation of packages</a></h2>
-You can copy packages between distributions using the pull and copypkg
+You can copy packages between distributions using the pull and copy
 commands.<br>
 TO BE DOCUMENTED
 <h2><a name="snapshosts">Snapshots</a></h2>
@@ -451,8 +453,101 @@ There is a gensnapshot command.<br>
 TO BE DOCUMENTED
 <h2><a name="tracking">Source package tracking</a></h2>
 TO BE DOCUMENTED
+<h2><a name="maintainance">Maintenance</a></h2>
+This section lists some commands you can use to check and improve the health
+of you repository.
+<br>
+Normally nothing of this should be needed, but taking a look from time to time
+cannot harm.
+<pre class="command">
+reprepro -b $YOURBASEDIR dumpunreferenced
+</pre>
+This lists all files reprepro knows about that are not marked as needed by anything.
+Unless you called reprepro with the <tt class="option">--keepunreferenced</tt>
+option, those should never occour. Though if reprepro is confused or interupted it
+may sometimes prefer keeping files around instead of deleting them.
+<pre class="command">
+reprepro -b $YOURBASEDIR deleteunreferenced
+</pre>
+This is like the command before, only that such files are directly forgotten and
+deleted.
+<pre class="command">
+reprepro -b $YOURBASEDIR check
+</pre>
+Look if all needed files are in fact marked needed and known.
+<pre class="command">
+reprepro -b $YOURBASEDIR checkpool
+</pre>
+Make sure all known files are still there and still have the same checksum.
+<pre class="command">
+reprepro -b $YOURBASEDIR checkpool fast
+</pre>
+As the command above, but do not compute checksums.
+<h2><a name="internals">Internals</a></h2>
+reprepro stores the data it collects in Berkeley DB file (<tt class="suffix">.db</tt>)
+in a directory called <tt class="dir">db/</tt> or whatever you specified via command
+line. With a few exceptions, those files are NO CACHES, but the actual data.
+While some of those data can be regained when you lose those files, they are better
+not deleted.
+<h3>packages.db</h3>
+This file contains the actual package information.
+<br>
+It contains a database for every (codename,component,architecture,packagetype) quadruple
+available.
+<br>
+Each is indexed by package name and essentially contains the information written do
+the Packages and Sources files.
+<br>
+Note that if you change your <tt class="file">conf/distributions</tt> to no longer
+list some codenames, architectures or components,
+that will not remove the associated databases in this file.
+That needs an explicit call to <tt class="command">clearvanished</tt>.
+<h3>references.db</h3>
+This file contains a single database that lists for every file why this file
+is still needed.
+This is either an identifier for a package database, an tracked source package,
+or a snapshot.
+<br>
+Some low level commands to access this are (take a look at the manpage for how to use them):
+<dl class="commands">
+<dt class="command">rereference</dt><dd>recreate references (i.e. forget old and create newly)</dd>
+<dt class="command">dumpreferences</dt><dd>print a list of all references</dd>
+<dt class="command">_removereferences</dt><dd>remove everything referenced by a given identifier</dd>
+<dt class="command">_addreference</dt><dd>manually add a reference</dd>
+</dl>
+<h3>files.db</h3>
+This file contains what reprepro knows about your <tt class="dir">pool</tt> directory,
+i.e. what files it things are there with what sizes and md5sums.
+If you manually put files there or remove them, you should tell reprepro about that.
+(it sometimes looks for files there without being told, but it never forgets files
+except when it would have deleted them anyway).
+Some low level commands (take a look at the man page for how to use them):
+<dl class="commands">
+<dt class="command">checkpool fast</dt><dd>Make sure all files are still there.</dd>
+<dt class="command">checkpool</dt><dd>Make sure all files are still there and correct.</dd>
+<dt class="command">dumpunreferenced</dt><dd>Show all known files without reference.</dd>
+<dt class="command">deleteunreferenced</dt><dd>Delete all known files without reference.</dd>
+<dt class="command">_listmd5sums</dt><dd>Dump this database</dd>
+<dt class="command">_detect</dt><dd>Add files to the database</dd>
+<dt class="command">_forget</dt><dd>Forget that some file is there</dd>
+<dt class="command">_addmd5sums</dt><dd>Create the database from dumped data</dd>
+<h3>release.cache.db</h3>
+In this file reprepro remembers what it already wrote to the <tt class="dir">dists</tt>
+directory,
+so that it can write their checksums (including the checksums of the uncompressed variant,
+even if that was never written to disk)
+in a newly to create <tt class="file">Release</tt>
+file without having to trust those files or having to unpack them.
+<h3>contents.cache.db</h3>
+This file contains all the lists of files of binary package files where reprepro
+already needed them. (which can only happen if you requested Contents files to be
+generated).
+<h3>tracking.db</h3>
+This file contains the information of the <a href="#tracking">source package tracking</a>.
 <h2><a name="recovery">Disaster recovery</a></h2>
-TO BE DOCUMENTED (see the recovery file until then)
+TO BE DOCUMENTED (see the
+<a href="http://alioth.debian.org/plugins/scmcvs/cvsweb.php/~checkout~/mirrorer/docs/recovery?rev=HEAD;content-type=text%2Fplain;cvsroot=mirrorer">recovery</a>
+file until then)
 <h2><a name="counterindications">What reprepro cannot do</a></h2>
 There are some things reprepro does not do:
 <dl><dt>Verbatim mirroring</dt><dd>
