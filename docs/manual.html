@@ -33,10 +33,14 @@ Sections of this document:
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#firststeps">First steps</a></li>
 <li><a href="#dirbasics">Repository basics</a></li>
+<li><a href="#export">Generation of index files</a></li>
+<ul>
+<li><a href="#signing">Signing</a></li>
+<li><a href="#contents">Contents files</a></li>
+</ul>
 <li><a href="#localpackages">Local packages</a> (TODO)</li>
 <li><a href="#incoming">Incoming directories</a> (TODO)</li>
 <li><a href="#morroring">Mirroring</a> (TODO)</li>
-<li><a href="#signing">Signing</a> (TODO)</li>
 <li><a href="#propagation">Propagation of packages</a> (TODO)</li>
 <li><a href="#snapshosts">Snapshots</a> (TODO)</li>
 <li><a href="#tracking">Source package tracking</a> (TODO)</li>
@@ -214,14 +218,8 @@ all index files included.
 		</dd>
 		<dt class="file">Release.gpg</dt><dd>
 This is the optional detached gpg signature of the Release file.
-To generate it, use the <tt class="config">SignWith</tt> header in
-the distribution declaration:
-<pre class="config">
-SignWith: yes
-</pre>
-If the key you specified ("<tt>yes</tt>" means the first libgpgme finds) needs
-a passphrase make sure <a href="http://packages.debian.org/gpg-agent">gpg-agent</a>
-is running.
+Take a look at the <a name="#signing">section about signing</a> for how to
+active this.
 		</dd>
 		<dt class="file">Contents-ARCHITECTURE.gz</dt><dd>
 This optional file lists all files and which packages they belong to.
@@ -229,17 +227,8 @@ It's downloaded and used by tools like
 <a href="http://packages.debian.org/apt-file">apt-file</a>
 to allow users to determine which package to install to get a specific file.
 <br>
-To activate generating of these files by reprepro, you need a <tt>Contents</tt>
-header in your distribution declaration, like:
-<pre class="config">
-Contents: 1
-</pre>
-Or if you want to include only udebs but no debs and only have the file uncompressed
-and bzip2ed but not gzipped, and only for some architecture, use:
-<pre class="config">
-Contents: 1 udebs nodebs . .bz2
-ContentsArchitectures: ia64
-</pre>
+To activate generating of these files by reprepro, you need a <a href="#contents">Contents</a>
+header in your distribution declaration.
 		</dd>
 		<dt class="dir">COMPONENT1</dt><dd>
 Each component has it's own subdirectory here. They can be named whatever users
@@ -436,13 +425,108 @@ As said before, you don't need to know this hierarchy in normal operation.
 reprepro will put everything to where it belong, keep account what is there
 and needed by what distribution or snapshot, and delete files no longer needed.
 (Unless told otherwise or when you are using the low-level commands).
+<h2><a name="config">Config files</a></h2>
+TO BE DOCUMENTED
+<h2><a name="export">Generation of index files</a></h2>
+<h3>Deciding when to generate</h3>
+As reprepro stores all state in its database,
+you can decide when you want them to be written to the <tt class="dir">dists/</tt>
+directory.
+You can always tell reprepro to generate those files with the <tt>export</tt> command:
+<pre class="command">
+reprepro -b $YOURBASEDIR export $CODENAMES
+</pre>
+This can be especially useful, if you just edited <tt class="file">conf/distributions</tt>
+and want to test what it generates.
+<p>
+While that command regenerates all files, in normal operation reprepro will only
+regenerate files where something just changed or that are missing.
+With <tt class="option">--export</tt> option you can control when this fill happen:
+<dl><dt>never</dt><dd>Don't touch any index files.
+This can be useful for doing multiple operations in a row and not wanting to regenerate
+the indices all the time.
+Note that unless you do an explicit export or change the same parts later without that
+option, the generated index files may be permanently out of date.
+</dd><dt>normal</dt><dd>This is the default behaviour.
+In this mode all distributions are processed that were looked at without error.
+This ensures that even after a operation that had nothing to do the looked at
+distribution has all the files exported needed to access it.
+</dd><dt>changed</dt><dd>Only look for missing files if something in a distribution
+actually changed. That means that if you generate or change the options of a distribution
+you have to actually do some action adding, removing or changing a package in that before
+the changes will hit the <tt class="dir">dists/</tt> directory.
+</dd><dt>force</dt><dd>Also try to write the current state if some error occured.
+In all other modes reprepro will not write the index files if there was a problem.
+While this keeps the repository usable for users, it means that you will need an
+explicit export to write possible other changes done before that in the same run.
+(reprepro will tell you that at the end of the run with error, but you should not
+miss it).
+</dd></dl>
+<h3>Distribution specific fields</h3>
+There are a lot of <tt class="file">conf/distributions</tt> headers to control
+what index files to generate for some distribution, how to name
+them, how to postprocess them and so on. The most important are:
+<h4>Fields for the Release files</h4>
+The following headers are copied verbatim to the Release file, if they exist:
+<tt class="header">Origin</tt>,
+<tt class="header">Label</tt>,
+<tt class="header">Codename</tt>,
+<tt class="header">Suite</tt>,
+<tt class="header">Architectures</tt> (excluding a possible value "<tt>source</tt>"),
+<tt class="header">Components</tt>,
+<tt class="header">Description</tt>, and
+<tt class="header">NotAutomatic</tt>.
+<h4><a name="signing">Signing</a></h4>
+If there is a <tt class="config">SignWith</tt> header, reprepro will try
+to generate a <tt class="file">Release.gpg</tt> file using libgpgme.
+If the value of the header is <tt>yes</tt> it will use the first key
+it finds, otherwise it will give the option to libgpgme to determine the
+key. (Which means fingerprints and keyids work fine, and whatever libgpgme
+supports, which might include most that gpg supports to select a key).
+<br>
+The best way to deal with keys needing passphrases is to use
+<a href="http://packages.debian.org/gpg-agent">gpg-agent</a>.
+The only way to specify which keyring to use is to set the
+<tt class="env">GNUPGHOME</tt> enviroment variable, which will effect all
+distributions.
+<h4><a name="contents">Contents files</a></h4>
+Reprepro can generate files called
+<tt class="file">dists/CODENAME/Contents-ARCHITECTURE.gz</tt>
+listing all files in all binary packages available for the selected
+architecture in that distribution and which package they belong to.
+<br>
+This file can either be used by humans directly or via downloaded
+and searched with tools like
+<a href="http://packages.debian.org/apt-file">apt-file</a>.
+<br>
+To activate generating of these files by reprepro, you need a <tt class="config">Contents</tt> header in that distribution's declaration in <tt class="file">conf/distributions</tt>,
+like:
+<pre class="config">
+Contents: 1
+</pre>
+The number is the inverse ratio of not yet looked at and cached files to process in
+every run. The larger the more packages are missing. 1 means to list everything.
+<br>
+There can be a number of arguments after the number, and additional headers
+specifying which Architectures to generate Contents files for and which
+Components to include in those. For example
+<pre class="config">
+Contents: 1 udebs nodebs . .gz .bz2
+ContentsArchitectures: ia64
+ContentsComponents: none
+ContentsUComponents: main
+</pre>
+means to not skip any packages, generate Contents for <tt class="suffix">.udeb</tt>
+files, not generating Contents for <tt class="suffix">.deb</tt>s. Also it is only
+generated for the <tt>ia64</tt> architecture and only packages in component
+<tt>main</tt> are included.
+<h4>...</h4>
+TO BE CONTINUED
 <h2><a name="localpackages">Local packages</a></h2>
 TO BE DOCUMENTED
 <h2><a name="incoming">Incoming directories</a></h2>
 TO BE DOCUMENTED
 <h2><a name="morroring">Mirroring</a></h2>
-TO BE DOCUMENTED
-<h2><a name="signing">Signing</a></h2>
 TO BE DOCUMENTED
 <h2><a name="propagation">Propagation of packages</a></h2>
 You can copy packages between distributions using the pull and copy
