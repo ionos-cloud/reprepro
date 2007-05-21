@@ -1506,6 +1506,7 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 		RET_UPDATE(result, r);
 	}
 
+	logger_wait();
 	for( j = 0 ; j < i->files.count ; j ++ ) {
 		char *fullfilename;
 
@@ -1523,6 +1524,5 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 		free(fullfilename);
 	}
 	incoming_free(i);
-	logger_wait();
 	return result;
 }
