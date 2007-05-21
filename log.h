@@ -25,5 +25,5 @@ retvalue logger_reruninfo(struct logger *,struct target *,const char *name,const
 retvalue logger_continue(struct logger*);
 /* wait for all jobs to finish */
 void logger_wait(void);
-
+void logger_warn_waiting(void);
 #endif

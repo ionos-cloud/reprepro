@@ -2019,6 +2019,8 @@ ACTION_D(processincoming) {
 
 	result = process_incoming(mirrordir, confdir, overridedir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
 
+	logger_wait();
+
 	r = distribution_exportandfreelist(export,distributions,
 			confdir,dbdir,distdir, filesdb);
 	RET_ENDUPDATE(result,r);
@@ -2293,6 +2295,8 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 						assert(filesdb!=NULL);
 						assert(references!=NULL);
 
+						logger_wait();
+
 						if( verbose >= 0 )
 					  	    printf(
 "Deleting files no longer referenced...\n");
@@ -2321,6 +2325,10 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 			RET_ENDUPDATE(result,r);
 		}
 	}
+	if( !interrupted() ) {
+		logger_wait();
+	}
+	logger_warn_waiting();
 	releaselock(dbdir);
 	return result;
 }

@@ -1523,5 +1523,6 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 		free(fullfilename);
 	}
 	incoming_free(i);
+	logger_wait();
 	return result;
 }

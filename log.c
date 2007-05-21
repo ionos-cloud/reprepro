@@ -711,6 +711,8 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 void logger_wait(void) {
 	while( processes != NULL ) {
 		catchchildren();
+		if( interrupted() )
+			break;
 		feedchildren(TRUE);
 		// TODO: add option to start multiple at the same time
 		if( runningchildren() < 1 )
@@ -718,6 +720,33 @@ void logger_wait(void) {
 		else {
 			struct timeval tv = { 0, 100 };
 			select(0, NULL, NULL, NULL, &tv);
+		}
+	}
+}
+
+void logger_warn_waiting(void) {
+	struct notification_process *p;
+
+	if( processes != NULL ) {
+		fputs(
+"WARNING: some notificator hooks were not run!\n"
+"(most likely due to receiving an interruption request)\n"
+"You will either have to run them by hand or run rerunnotifiers if\n"
+"you want the information they get to not be out of sync.\n"
+"Missed calls are:\n", stderr);
+		for( p = processes ; p != NULL ; p = p->next ) {
+			char **c = p->arguments;
+			if( c == NULL )
+				continue;
+			while( *c != NULL ) {
+				fputc('"', stderr);
+				fputs(*c, stderr);
+				fputc('"', stderr);
+				c++;
+				if( *c != NULL )
+					fputc(' ', stderr);
+			}
+			fputc('\n', stderr);
 		}
 	}
 }

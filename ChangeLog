@@ -1,3 +1,7 @@
+2007-05-21  Bernhard R. Link <brlink@debian.org>
+	* fix problem of not waiting for notificators in some commands
+	  (Thanks to Dan Pascu for finding this)
+
 2007-05-07  Bernhard R. Link <brlink@debian.org>
 	* move some code from release.c to signature.c in preperation of
 	  later changes
