@@ -218,12 +218,14 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 				return RET_OK;
 			case GPG_ERR_SIG_EXPIRED:
 				if( verbose > 0 ) {
+					time_t timestamp = s->timestamp,
+					       exp_timestamp = s->exp_timestamp;
 					fprintf(stderr,
 "'%s' has a valid but expired signature with '%s'\n"
 " signature created %s, expired %s\n",
 						releasegpg, s->fpr,
-						ctime(&s->timestamp),
-						ctime(&s->exp_timestamp));
+						ctime(&timestamp),
+						ctime(&exp_timestamp));
 				}
 				// not accepted:
 				continue;
@@ -472,12 +474,14 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 			case GPG_ERR_SIG_EXPIRED:
 				had_valid = TRUE;
 				if( verbose > 0 ) {
+					time_t timestamp = s->timestamp,
+					      exp_timestamp = s->exp_timestamp;
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the signature has expired.\n"
 " signature created %s, expired %s\n",
 						s->fpr, filename,
-						ctime(&s->timestamp),
-						ctime(&s->exp_timestamp));
+						ctime(&timestamp),
+						ctime(&exp_timestamp));
 				}
 				continue;
 			case GPG_ERR_BAD_SIGNATURE:
@@ -519,7 +523,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 }
 
 /* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature) {
+retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature) {
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	gpgme_error_t err;
@@ -578,7 +582,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 "While it did so in a way indicating running out of memory, experience says\n"
 "this also happens when gpg returns a error code it does not understand.\n"
 "To check this please try running gpg --output '%s' manually.\n",
-					filename, filename);
+					filenametoshow, filenametoshow);
 			return RET_ERROR_GPGME;
 		}
 	}
@@ -594,7 +598,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 		if( (size_t)(startofchanges - plain_data) >= plain_len ) {
 			fprintf(stderr,
 "Could only find spaces within '%s'!\n",
-					filename);
+					filenametoshow);
 			r = RET_ERROR;
 		} else
 			r = RET_OK;
@@ -615,11 +619,11 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 			if( *afterchanges == '\0' )
 				fprintf(stderr,
 "Unexpected \\0 character within '%s'!\n",
-					filename);
+					filenametoshow);
 			else
 				fprintf(stderr,
 "Unexpected data after ending empty line in '%s'!\n",
-					filename);
+					filenametoshow);
 			r = RET_ERROR;
 		}
 	}

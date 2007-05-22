@@ -275,7 +275,8 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	c = calloc(1,sizeof(struct changes));
 	if( c == NULL )
 		return RET_ERROR_OOM;
-	r = signature_readsignedchunk(filename,&c->control,&c->fingerprints, NULL, &broken);
+	r = signature_readsignedchunk(filename, filename,
+			&c->control, &c->fingerprints, NULL, &broken);
 	R;
 	if( broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
