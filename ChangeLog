@@ -1,3 +1,6 @@
+2007-05-22  Bernhard R. Link <brlink@debian.org>
+	* Add per distribution notification scripts for accepted changes files.
+
 2007-05-21  Bernhard R. Link <brlink@debian.org>
 	* fix problem of not waiting for notificators in some commands
 	  (Thanks to Dan Pascu for finding this)

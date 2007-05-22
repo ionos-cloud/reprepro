@@ -1010,6 +1010,12 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		}
 	}
 
+	assert( logger_isprepared(distribution->logger) );
+	logger_logchanges(distribution->logger, distribution->codename,
+			changes->source, changes->version, changes->control,
+			changesfilename, changes->changesfilekey);
+	logger_wait();
+
 	if( (delete >= D_MOVE && changes->changesfilekey != NULL) ||
 			delete >= D_DELETE ) {
 		if( result == RET_NOTHING && delete < D_DELETE ) {

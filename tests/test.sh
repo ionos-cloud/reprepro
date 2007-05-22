@@ -619,7 +619,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Could only find spaces within './i/test.changes'!
+*=Could only find spaces within 'test.changes'!
 -v0*=There have been errors!
 EOF
 cat > i/test.changes <<EOF

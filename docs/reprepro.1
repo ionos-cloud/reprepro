@@ -720,9 +720,11 @@ Not yet implemented.
 .br
 .B ambargoalls
 Not yet implemented.
+.br
 .B keepsources
 Even when using minimal mode, do not remove source files
 until no file is needed any more.
+.br
 .B needsources
 Not yet implemented.
 .TP
@@ -738,6 +740,9 @@ form \fB\-\-type=\fP(\fBdsc\fP|\fBdeb\fP|\fBudeb\fP),
 \fB\-\-architecture=\fP\fIname\fP or
 \fB\-\-component=\fP\fIname\fP to only call the script for some
 parts of the distribution.
+An script with argument \fB\-\-changes\fP is called when a \fB.changes\fP
+file was accepted by \fBinclude\fP or \fBprocessincoming\fP (and with other
+arguments).
 
 If the filename for the log files does not start with a slash,
 it is relative to the directory specified with \fB\-\-logdir\fP,

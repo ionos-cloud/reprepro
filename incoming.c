@@ -84,6 +84,8 @@ struct incoming {
 	} cleanup;
 };
 #define BASENAME(i,ofs) (i)->files.values[ofs]
+/* the changes file is always the first one listed */
+#define changesfile(c) (c->files)
 
 static void incoming_free(/*@only@*/ struct incoming *i) {
 	if( i == NULL )
@@ -329,7 +331,6 @@ static retvalue incoming_init(const char *basedir,const char *confdir, struct di
 struct candidate {
 	/* from candidate_read */
 	int ofs;
-	char *fullfilename;
 	char *control;
 	struct strlist keys;
 	/* from candidate_parse */
@@ -410,7 +411,6 @@ static void candidate_package_free(/*@only@*/struct candidate_package *p) {
 static void candidate_free(/*@only@*/struct candidate *c) {
 	if( c == NULL )
 		return;
-	free(c->fullfilename);
 	free(c->control);
 	strlist_done(&c->keys);
 	free(c->source);
@@ -466,6 +466,8 @@ static struct candidate_package *candidate_newpackage(struct candidate_perdistri
 	return n;
 }
 
+static retvalue candidate_usefile(const struct incoming *i,const struct candidate *c,struct candidate_file *file);
+
 static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **result, bool_t *broken) {
 	struct candidate *n;
 	retvalue r;
@@ -474,28 +476,27 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	n->ofs = ofs;
-	n->fullfilename = calc_dirconcat(i->directory, BASENAME(i,ofs));
-	if( n->fullfilename == NULL ) {
-		free(n);
-		return RET_ERROR_OOM;
-	}
-	r = signature_readsignedchunk(n->fullfilename, &n->control, &n->keys, NULL, broken);
-	if( RET_WAS_ERROR(r) ) {
-		free(n->fullfilename);
-		free(n);
-		return r;
-	}
 	/* first file of any .changes file is the file itself */
 	n->files = calloc(1,sizeof(struct candidate_file));
 	if( n->files == NULL ) {
-		candidate_free(n);
+		free(n);
 		return RET_ERROR_OOM;
 	}
 	n->files->ofs = n->ofs;
 	n->files->type = fe_UNKNOWN;
-	n->files->used = TRUE;
-
-	assert( RET_IS_OK(r) );
+	r = candidate_usefile(i, n, n->files);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		candidate_free(n);
+		return r;
+	}
+	assert( n->files->tempfilename != NULL );
+	r = signature_readsignedchunk(n->files->tempfilename, BASENAME(i,ofs), &n->control, &n->keys, NULL, broken);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		candidate_free(n);
+		return r;
+	}
 	*result = n;
 	return RET_OK;
 }
@@ -600,6 +601,7 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 	return RET_OK;
 }
 
+/* Is used before any other candidate fields are set */
 static retvalue candidate_usefile(const struct incoming *i,const struct candidate *c,struct candidate_file *file) {
 	const char *basename;
 	char *origfile,*tempfilename;
@@ -804,14 +806,11 @@ static retvalue candidate_preparechangesfile(filesdb filesdb,const struct incomi
 	if( component == NULL )
 		component = "strange";
 
-	/* the .changes file is the first of its own files */
-	file = c->files;
+	file = changesfile(c);
 
 	/* copy the .changes file, to get its md5sum and be sure it is
 	 * still there */
-	r = candidate_usefile(i, c, file);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	assert( file->used );
 	assert( file->md5sum != NULL );
 
 	package = candidate_newpackage(per, c->files);
@@ -1152,12 +1151,13 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 	struct trackingdata trackingdata;
 	struct distribution *into = d->into;
 	trackingdb tracks;
+	const char *changesfilekey = NULL;
 
 	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
 
-	d->into->lookedat = TRUE;
-	if( d->into->logger != NULL ) {
+	into->lookedat = TRUE;
+	if( into->logger != NULL ) {
 		r = logger_prepare(d->into->logger);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -1201,6 +1201,8 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 			r = trackedpackage_adddupfilekeys(trackingdata.tracks,
 					trackingdata.pkg,
 					ft_CHANGES, &p->filekeys, FALSE, refs);
+			if( p->filekeys.count > 0 )
+				changesfilekey = p->filekeys.values[0];
 		} else
 			r = RET_ERROR;
 
@@ -1218,6 +1220,9 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
 	}
+	logger_logchanges(into->logger, into->codename,
+			c->source, c->version, c->control,
+			changesfile(c)->tempfilename, changesfilekey);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return RET_OK;
@@ -1478,6 +1483,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,file
 			}
 		}
 	}
+	logger_wait();
 	candidate_free(c);
 	return r;
 }
