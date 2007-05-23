@@ -166,7 +166,7 @@ _reprepro()
 		commands='remove list listfilter createsymlinks export\
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
-			cleartracks removetrack update checkupdate predelete pull\
+			tidytracks removealltracks removetrack update checkupdate predelete pull\
 			checkpull includedeb includeudeb includedsc include\
 			generatefilelists clearvanished copy processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
@@ -213,7 +213,7 @@ _reprepro()
 			# these later could also look for stuff, but
 			# that might become a bit slow
 			;;
-		export|update|checkupdate|pull|checkpull|rereference|retrack|cleartracks|dumptracks|check|reoverride)
+		export|update|checkupdate|pull|checkpull|rereference|retrack|removealltracks|tidytracks|dumptracks|check|reoverride)
 			# all arguments are codenames
 			parse_config
 			COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
@@ -224,8 +224,10 @@ _reprepro()
 			# arguments are rule-name from conf/incoming
 			parse_config
 			parse_incoming
-			COMPREPLY=( $( compgen -W "$importrules" -- $cur ) )
-			return 0
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				COMPREPLY=( $( compgen -W "$importrules" -- $cur ) )
+				return 0
+			fi
 			;;
 
 		includedeb)
