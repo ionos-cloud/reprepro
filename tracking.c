@@ -1045,10 +1045,13 @@ static inline retvalue trackedpackage_tidy(trackingdb tracks, struct trackedpack
 retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, references refs, struct strlist *dereferenced) {
 	retvalue r;
 	assert( d->tracks == tracks );
-	r = trackedpackage_tidy(tracks, d->pkg, refs, dereferenced);
-	r = tracking_save(tracks, d->pkg);
+	if( d->pkg != NULL ) {
+		r = trackedpackage_tidy(tracks, d->pkg, refs, dereferenced);
+		r = tracking_save(tracks, d->pkg);
+	} else
+		r = RET_OK;
 	d->pkg = NULL;
-	/* call for all rememebered actions... */
+	/* call for all remembered actions... */
 	while( d->remembered != NULL ) {
 		struct trackingdata_remember *h = d->remembered;
 		struct trackedpackage *pkg;

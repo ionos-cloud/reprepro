@@ -486,7 +486,10 @@ ACTION_D(remove) {
 	RET_ENDUPDATE(result,r);
 
 	if( d.trackingdata != NULL ) {
-		trackingdata_done(d.trackingdata);
+		if( RET_WAS_ERROR(result) )
+			trackingdata_done(d.trackingdata);
+		else
+			trackingdata_finish(tracks, d.trackingdata, references, dereferenced);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
