@@ -567,6 +567,11 @@ Make sure all known files are still there and still have the same checksum.
 reprepro -b $YOURBASEDIR checkpool fast
 </pre>
 As the command above, but do not compute checksums.
+<pre class="command">
+reprepro -b $YOURBASEDIR tidytracks
+</pre>
+If you use source package tracking, check for files kept because of this
+that should no longer by the current rules.
 <h2><a name="internals">Internals</a></h2>
 reprepro stores the data it collects in Berkeley DB file (<tt class="suffix">.db</tt>)
 in a directory called <tt class="dir">db/</tt> or whatever you specified via command

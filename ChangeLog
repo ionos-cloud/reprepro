@@ -1,6 +1,8 @@
 2007-05-23  Bernhard R. Link <brlink@debian.org>
 	* fix remove action not tidy tracked packages.
 	  (Thanks to Dan Pascu for finding this, too)
+	* rename cleartracks in removealltracks
+	* new tidytracks command
 
 2007-05-22  Bernhard R. Link <brlink@debian.org>
 	* Add per distribution notification scripts for accepted changes files.

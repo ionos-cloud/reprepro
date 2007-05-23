@@ -1,3 +1,10 @@
+Updates since 2.1.0:
+- renamed cleartracks in removealltracks
+- new notifier type for accepted changes files
+- bugs fixed:
+  * not tidy tracking dependencies on package remove
+  * forgot to call some slow notifiers in processincomming
+
 Updates since 2.0.0:
 - add --silent option
 - change some status output to stdout instead of stderr.

@@ -374,7 +374,7 @@ As this only takes information from the Indices into account,
 this will loose all information about older packages or
 changes files.
 .TP
-.BR cleartracks " [ " \fIcodenames\fP " ]"
+.BR removealltracks " [ " \fIcodenames\fP " ]"
 Removes all source package tracking information for the
 given distributions.
 .TP
@@ -382,6 +382,10 @@ given distributions.
 Remove the trackingdata of the given version of a given sourcepackage
 from a given distribution. This also removes the references for all
 used files.
+.TP
+.BR tidytracks " [ " \fIcodenames\fP " ]"
+Check all source package tracking information for the given distributions
+for files no longer to keep.
 .TP
 .B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
 Copy the given packages from one distribution to another. No overrides

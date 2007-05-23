@@ -1289,7 +1289,7 @@ ACTION_R(retrack) {
 				break;
 			continue;
 		}
-		r = tracking_clearall(dat.tracks);
+		r = tracking_removeall(dat.tracks);
 		RET_UPDATE(result,r);
 		r = references_remove(references,d->codename, NULL);
 		RET_UPDATE(result,r);
@@ -1338,12 +1338,12 @@ ACTION_D_U(removetrack) {
 	return result;
 }
 
-ACTION_D(cleartracks) {
+ACTION_D(removealltracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 
 	if( argc < 1 ) {
-		fprintf(stderr,"reprepro cleartracks [<distributions>]\n");
+		fprintf(stderr,"reprepro removealltracks [<distributions>]\n");
 		return RET_ERROR;
 	}
 
@@ -1366,7 +1366,7 @@ ACTION_D(cleartracks) {
 				break;
 			continue;
 		}
-		r = tracking_clearall(tracks);
+		r = tracking_removeall(tracks);
 		RET_UPDATE(result,r);
 		r = references_remove(references, d->codename, dereferenced);
 		RET_UPDATE(result,r);
@@ -1380,6 +1380,49 @@ ACTION_D(cleartracks) {
 
 	return result;
 }
+
+ACTION_D(tidytracks) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro tidytracks [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		trackingdb tracks;
+
+		if( verbose >= 0 ) {
+			printf("Looking for old tracks in %s...\n",d->codename);
+		}
+		r = tracking_initialize(&tracks, dbdir, d);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				break;
+			continue;
+		}
+		r = tracking_tidyall(tracks, references, dereferenced);
+		RET_UPDATE(result,r);
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(result) )
+			break;
+	}
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+retvalue tracking_tidyall(trackingdb, references, struct strlist *dereferenced);
 ACTION_N(dumptracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
@@ -2222,7 +2265,8 @@ static const struct action {
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
 	{"retrack",	 	A_R(retrack)},
 	{"dumptracks",	 	A_N(dumptracks)},
-	{"cleartracks",	 	A_D(cleartracks)},
+	{"removealltracks",	A_D(removealltracks)},
+	{"tidytracks",		A_D(tidytracks)},
 	{"removetrack",		A_D(removetrack)},
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},

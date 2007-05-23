@@ -28,7 +28,7 @@ void trackedpackage_free(struct trackedpackage *pkg);
 retvalue tracking_getornew(trackingdb,const char *name,const char *version,/*@out@*/struct trackedpackage **);
 retvalue tracking_save(trackingdb,/*@only@*/struct trackedpackage *);
 retvalue tracking_remove(trackingdb,const char *sourcename,const char *version,references,/*@null@*/struct strlist *unreferencedfilekeys);
-retvalue tracking_clearall(trackingdb);
+retvalue tracking_removeall(trackingdb);
 retvalue tracking_printall(trackingdb t);
 
 retvalue trackingdata_summon(trackingdb,const char*,const char*,struct trackingdata *);
@@ -38,4 +38,7 @@ retvalue trackingdata_remove(struct trackingdata *,/*@only@*/char*oldsource,/*@o
 void trackingdata_done(struct trackingdata *);
 /* like _done but actually do something */
 retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, references refs, struct strlist *dereferenced);
+
+/* look at all listed packages and remove everything not needed */
+retvalue tracking_tidyall(trackingdb, references, struct strlist *dereferenced);
 #endif /*REPREPRO_TRACKING_H*/

@@ -405,6 +405,23 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 	return RET_OK;
 }
 
+static inline retvalue parseunknowndata(DBT key,DBT data,/*@out@*/struct trackedpackage **pkg) {
+	size_t versionlen;
+	const char *sep;
+
+	if( ((const char*)key.data)[key.size-1] != '\0' ) {
+		fprintf(stderr, "Tracking database corrupted! (unterminated key name!)\n");
+		return RET_ERROR;
+	}
+	sep = memchr(data.data, '\0', data.size);
+	if( sep == NULL ) {
+		fprintf(stderr, "Tracking database corrupted! (unterminated data!)\n");
+		return RET_ERROR;
+	}
+	versionlen = (sep - (const char*)data.data);
+	return parsedata(key.data, data.data, versionlen, data, pkg);
+}
+
 
 static retvalue tracking_get(trackingdb t,const char *sourcename,const char *version,/*@out@*/struct trackedpackage **pkg) {
 	int dbret;
@@ -599,7 +616,7 @@ retvalue tracking_save(trackingdb t, struct trackedpackage *pkg) {
 	return r;
 }
 
-retvalue tracking_clearall(trackingdb t) {
+retvalue tracking_removeall(trackingdb t) {
 	DBC *cursor;
 	DBT key,data;
 	retvalue r;
@@ -607,7 +624,7 @@ retvalue tracking_clearall(trackingdb t) {
 
 	cursor = NULL;
 	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_clearall dberror(cursor):");
+		t->db->err(t->db, dbret, "tracking_removeall dberror(cursor):");
 		return RET_DBERR(dbret);
 	}
 	r = RET_OK;
@@ -616,17 +633,17 @@ retvalue tracking_clearall(trackingdb t) {
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		dbret = cursor->c_del(cursor,0);
 		if( dbret != 0 ) {
-			t->db->err(t->db, dbret, "tracking_clearall dberror(del):");
+			t->db->err(t->db, dbret, "tracking_removeall dberror(del):");
 			RET_UPDATE(r,RET_DBERR(dbret));
 		}
 	}
 	if( dbret != DB_NOTFOUND ) {
 		(void)cursor->c_close(cursor);
-		t->db->err(t->db, dbret, "tracking_clearall dberror(get):");
+		t->db->err(t->db, dbret, "tracking_removeall dberror(get):");
 		return RET_DBERR(dbret);
 	}
 	if( (dbret=cursor->c_close(cursor)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_clearall dberror(close):");
+		t->db->err(t->db, dbret, "tracking_removeall dberror(close):");
 		return RET_DBERR(dbret);
 	}
 	return r;
@@ -1069,3 +1086,64 @@ retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, referenc
 	return r;
 
 }
+
+retvalue tracking_tidyall(trackingdb t, references refs, struct strlist *dereferenced) {
+	DBC *cursor;
+	DBT key,data;
+	retvalue result,r;
+	int dbret;
+
+	result = RET_NOTHING;
+	cursor = NULL;
+	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
+		t->db->err(t->db, dbret, "tracking_tidyall dberror(cursor):");
+		return RET_DBERR(dbret);
+	}
+	CLEARDBT(key);
+	CLEARDBT(data);
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		struct trackedpackage *pkg;
+		r = parseunknowndata(key, data, &pkg);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = trackedpackage_tidy(t, pkg, refs, dereferenced);
+		RET_UPDATE(result, r);
+		if( pkg->flags.deleted ) {
+			/* delete if delete is requested
+			 * (all unreferencing has to be done before) */
+			dbret = cursor->c_del(cursor, 0);
+			if( dbret != 0 ) {
+				trackedpackage_free(pkg);
+				(void)cursor->c_close(cursor);
+				t->db->err(t->db, dbret, "tracking_tidyall(delete) dberror:");
+				return RET_DBERR(dbret);
+			}
+		} else {
+			r = gendata(&data,pkg);
+			if( RET_WAS_ERROR(r) ) {
+				(void)cursor->c_close(cursor);
+				return r;
+			}
+			dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT);
+			free(data.data);
+			if( dbret != 0 ) {
+				trackedpackage_free(pkg);
+				(void)cursor->c_close(cursor);
+				t->db->err(t->db, dbret, "tracking_tidyall c_put:");
+				return RET_DBERR(dbret);
+			}
+		}
+		trackedpackage_free(pkg);
+	}
+	if( dbret != DB_NOTFOUND ) {
+		(void)cursor->c_close(cursor);
+		t->db->err(t->db, dbret, "tracking_tidyall dberror(get):");
+		return RET_DBERR(dbret);
+	}
+	if( (dbret=cursor->c_close(cursor)) != 0 ) {
+		t->db->err(t->db, dbret, "tracking_tidyall dberror(close):");
+		return RET_DBERR(dbret);
+	}
+	return result;
+}
+
