@@ -715,7 +715,6 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes, const char *sourcedirectory) {
 	struct fileentry *e;
 	retvalue r;
-	bool_t somethingwasmissed = FALSE;
 
 	r = RET_NOTHING;
 
@@ -739,8 +738,6 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				D_INPLACE,FALSE,
 				&changes->binaries,
 				changes->source,changes->version);
-			if( r == RET_NOTHING )
-				somethingwasmissed = TRUE;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_prepare(&e->pkg.deb,filesdb,
 				e->component,e->architecture,
@@ -751,8 +748,6 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				D_INPLACE,FALSE,
 				&changes->binaries,
 				changes->source,changes->version);
-			if( r == RET_NOTHING )
-				somethingwasmissed = TRUE;
 		} else if( e->type == fe_DSC ) {
 			assert(changes->srccomponent!=NULL);
 			assert(changes->srcdirectory!=NULL);
@@ -763,8 +758,6 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				changes->srcdirectory,e->md5sum,
 				D_INPLACE,
 				changes->source,changes->version);
-			if( r == RET_NOTHING )
-				somethingwasmissed = TRUE;
 		}
 
 		free(fullfilename);
@@ -773,21 +766,18 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 		e = e->next;
 	}
 
-	if( RET_IS_OK(r) && somethingwasmissed ) {
-		return RET_NOTHING;
-	}
 	return r;
 }
-static retvalue changes_includepkgs(const char *dbdir,references refs,struct distribution *distribution,struct changes *changes,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata) {
+static retvalue changes_includepkgs(const char *dbdir,references refs,struct distribution *distribution,struct changes *changes,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata,bool_t *missed_p) {
 	struct fileentry *e;
-	retvalue r;
-	bool_t somethingwasmissed = FALSE;
+	retvalue result,r;
 
+	*missed_p = FALSE;
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = RET_NOTHING;
+	result = RET_NOTHING;
 
 	e = changes->files;
 	while( e != NULL ) {
@@ -803,19 +793,20 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 				e->architecture,"deb",
 				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
-				somethingwasmissed = TRUE;
+				*missed_p = TRUE;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_addprepared(e->pkg.deb,dbdir,refs,
 				e->architecture,"udeb",
 				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
-				somethingwasmissed = TRUE;
+				*missed_p = TRUE;
 		} else if( e->type == fe_DSC ) {
 			r = dsc_addprepared(e->pkg.dsc,dbdir,refs,
 				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
-				somethingwasmissed = TRUE;
+				*missed_p = TRUE;
 		}
+		RET_UPDATE(result, r);
 
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -824,10 +815,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 
 	logger_wait();
 
-	if( RET_IS_OK(r) && somethingwasmissed ) {
-		return RET_NOTHING;
-	}
-	return r;
+	return result;
 }
 
 static bool_t permissionssuffice(UNUSED(struct changes *changes),
@@ -843,6 +831,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	struct changes *changes;
 	struct trackingdata trackingdata;
 	char *directory;
+	bool_t somethingwasmissed;
 
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
 	if( RET_WAS_ERROR(r) )
@@ -979,7 +968,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	/* add the source and binary packages in the given distribution */
 	result = changes_includepkgs(dbdir,refs,
 		distribution,changes,dereferencedfilekeys,
-		(tracks!=NULL)?&trackingdata:NULL);
+		(tracks!=NULL)?&trackingdata:NULL, &somethingwasmissed);
 
 	if( RET_WAS_ERROR(result) ) {
 		if( tracks != NULL ) {
@@ -1010,15 +999,20 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		}
 	}
 
-	assert( logger_isprepared(distribution->logger) );
-	logger_logchanges(distribution->logger, distribution->codename,
+	/* if something was included, call --changes notify scripts */
+	if( RET_IS_OK(result) ) {
+		assert( logger_isprepared(distribution->logger) );
+		logger_logchanges(distribution->logger, distribution->codename,
 			changes->source, changes->version, changes->control,
 			changesfilename, changes->changesfilekey);
+	}
+	/* wait for notify scripts (including those for the packages)
+	 * before deleting the .changes */
 	logger_wait();
 
 	if( (delete >= D_MOVE && changes->changesfilekey != NULL) ||
 			delete >= D_DELETE ) {
-		if( result == RET_NOTHING && delete < D_DELETE ) {
+		if( somethingwasmissed && delete < D_DELETE ) {
 			if( verbose >= 0 ) {
 				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use --delete --delete to delete anyway in such cases)\n",changesfilename);
 			}

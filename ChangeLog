@@ -1,7 +1,8 @@
 2007-05-24  Bernhard R. Link <brlink@debian.org>
-	* error/warn if trying to include a package already there newer
+	* error/warn if trying to include a package via
+	  processincoming which is already there newer
 	* do not notify a .changes when no package included
-          (when using Log: --changes and processincoming)
+          (when using Log: --changes)
 
 2007-05-23  Bernhard R. Link <brlink@debian.org>
 	* fix remove action not tidy tracked packages.
