@@ -92,6 +92,7 @@ static bool_t	keepunneededlists = FALSE;
 static bool_t	keepdirectories = FALSE;
 static bool_t	askforpassphrase = FALSE;
 static bool_t	skipold = TRUE;
+static size_t   waitforlock = 0;
 static enum exportwhen export = EXPORT_NORMAL;
 int		verbose = 0;
 
@@ -99,7 +100,7 @@ int		verbose = 0;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -2164,6 +2165,7 @@ static retvalue acquirelock(const char *dbdir) {
 	char *lockfile;
 	int fd;
 	retvalue r;
+	size_t tries = 0;
 
 	// TODO: create directory
 	r = dirs_make_recursive(dbdir);
@@ -2174,29 +2176,37 @@ static retvalue acquirelock(const char *dbdir) {
 	if( lockfile == NULL )
 		return RET_ERROR_OOM;
 	fd = open(lockfile,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_NOCTTY,S_IRUSR|S_IWUSR);
-	if( fd < 0 ) {
+	while( fd < 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
-		free(lockfile);
 		if( e == EEXIST ) {
+			if( tries < waitforlock && ! interrupted() ) {
+				if( verbose >= 0 )
+					printf("Could not aquire lock: %s already exists!\nWaiting 10 seconds before trying again.\n", lockfile);
+				sleep(10);
+				tries++;
+				fd = open(lockfile,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_NOCTTY,S_IRUSR|S_IWUSR);
+				continue;
+
+			}
 			fprintf(stderr,
-"The lockfile already exists, there might be another instance with the\n"
+"The lockfile '%s' already exists, there might be another instance with the\n"
 "same database dir running. To avoid locking overhead, only one process\n"
 "can access the database at the same time. Only delete the lockfile if\n"
-"you are sure no other version is still running!\n");
+"you are sure no other version is still running!\n", lockfile);
 
-		}
+		} else
+			fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+		free(lockfile);
 		return RET_ERRNO(e);
 	}
 	// TODO: do some more locking of this file to avoid problems
 	// with the non-atomity of O_EXCL with nfs-filesystems...
 	if( close(fd) != 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+		fprintf(stderr,"(Late) Error creating lockfile '%s': %d=%m!\n",lockfile,e);
 		(void)unlink(lockfile);
 		free(lockfile);
 		return RET_ERRNO(e);
-
 	}
 	free(lockfile);
 	return RET_OK;
@@ -2405,6 +2415,7 @@ LO_OVERRIDEDIR,
 LO_CONFDIR,
 LO_METHODDIR,
 LO_VERSION,
+LO_WAITFORLOCK,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -2569,6 +2580,9 @@ static void handle_option(int c,const char *optarg) {
 				case LO_VERSION:
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
 					exit(EXIT_SUCCESS);
+				case LO_WAITFORLOCK:
+					CONFIGSET(waitforlock, strtoll(optarg,NULL,10));
+					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
 					exit(EXIT_FAILURE);
@@ -2706,6 +2720,7 @@ int main(int argc,char *argv[]) {
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
 		{"force", no_argument, NULL, 'f'},
 		{"export", required_argument, &longoption, LO_EXPORT},
+		{"waitforlock", required_argument, &longoption, LO_WAITFORLOCK},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
