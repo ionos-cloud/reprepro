@@ -372,6 +372,109 @@ retvalue target_addpackage(struct target *target,struct logger *logger,reference
 	return r;
 }
 
+retvalue target_checkaddpackage(struct target *target,const char *name,const char *version,bool_t tracking,bool_t permitnewerold) {
+	struct strlist oldfilekeys,*ofk;
+	char *oldcontrol,*oldsource,*oldsversion;
+	char *oldpversion;
+	retvalue r;
+
+	assert(target->packages!=NULL);
+
+	r = packages_get(target->packages,name,&oldcontrol);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		ofk = NULL;
+		oldsource = NULL;
+		oldsversion = NULL;
+		oldpversion = NULL;
+		oldcontrol = NULL;
+	} else {
+		int versioncmp;
+
+		r = target->getversion(target,oldcontrol,&oldpversion);
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,
+"Error extracting version from old '%s' in '%s'. Database corrupted?\n", name, target->identifier);
+			free(oldcontrol);
+			return r;
+		}
+		assert( RET_IS_OK(r) );
+
+		r = dpkgversions_cmp(version,oldpversion,&versioncmp);
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,
+"Parse error comparing version '%s' of '%s' with old version '%s' in '%s'\n.",
+					version, name, oldpversion,
+					target->identifier);
+			free(oldpversion);
+			free(oldcontrol);
+			return r;
+		}
+		if( versioncmp <= 0 ) {
+			free(oldpversion);
+			free(oldcontrol);
+			if( versioncmp < 0 ) {
+				if( !permitnewerold ) {
+					fprintf(stderr,
+"Error: trying to put version '%s' of '%s' in '%s',\n"
+"while there already is '%s' in there.\n"
+// "(To ignore this error add Permit: newerolder.)\n"
+						,name, version,
+						target->identifier,
+						oldpversion);
+					r = RET_ERROR;
+				} else if( verbose >= 0 ) {
+					printf(
+"Warning: trying to put version '%s' of '%s' in '%s',\n"
+"while there already is '%s' in there.\n",
+						name, version,
+						target->identifier,
+						oldpversion);
+				}
+			} else if( verbose > 2 ) {
+					printf(
+"Will not put '%s' in '%s', as already there with same version '%s'.\n",
+						name, target->identifier,
+						oldpversion);
+
+			}
+			return RET_NOTHING;
+		}
+		r = (*target->getfilekeys)(target,
+				oldcontrol, &oldfilekeys, NULL);
+		ofk = &oldfilekeys;
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,
+"Error extracting installed files from old '%s' in '%s'.\nDatabase corrupted?\n",
+				name, target->identifier);
+			free(oldcontrol);
+			free(oldpversion);
+			return r;
+		}
+		if( tracking ) {
+			r = (*target->getsourceandversion)(target,
+					oldcontrol, name, &oldsource, &oldsversion);
+			if( RET_WAS_ERROR(r) ) {
+				fprintf(stderr,
+"Error extracting source name and version from '%s' in '%s'. Database corrupted?\n",
+						name, target->identifier);
+				strlist_done(ofk);
+				free(oldcontrol);
+				free(oldpversion);
+				return r;
+			}
+			/* TODO: check if tracking would succeed */
+			free(oldsversion);
+			free(oldsource);
+		}
+		strlist_done(ofk);
+	}
+	free(oldpversion);
+	free(oldcontrol);
+	return RET_OK;
+}
+
 /* rereference a full database */
 struct data_reref {
 	/*@dependent@*/references refs;

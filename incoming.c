@@ -68,6 +68,8 @@ struct incoming {
 		bool_t unused_files:1;
 		/* allow .changes file to specify multipe distributions */
 		bool_t multiple_distributions:1;
+		/* do not error out if there already is a newer package */
+		bool_t oldpackagenewer:1;
 	} permit;
 	struct {
 		/* delete everything referenced by a .changes file
@@ -362,6 +364,7 @@ struct candidate {
 	struct candidate_perdistribution {
 		struct candidate_perdistribution *next;
 		struct distribution *into;
+		bool_t skip;
 		struct candidate_package {
 			/* a package is something installing files, including
 			 * the pseudo-package for the .changes file, if that is
@@ -377,6 +380,8 @@ struct candidate {
 			char *control;
 			/* only for fe_DSC */
 			char *directory;
+			/* true if skipped because already there or newer */
+			bool_t skip;
 		} *packages;
 	} *perdistribution;
 };
@@ -1056,6 +1061,7 @@ static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *
 				return r;
 		}
 	}
+	//... check if something would be done ...
 	return RET_OK;
 }
 
@@ -1094,6 +1100,8 @@ static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct can
 
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
 		for( p = d->packages ; p != NULL ; p = p->next ) {
+			if( p->skip )
+				continue;
 			for( j = 0 ; j < p->filekeys.count ; j++ ) {
 				const struct candidate_file *f = p->files[j];
 				if(  f == NULL )
@@ -1145,6 +1153,30 @@ static retvalue add_dsc(const char *dbdir, references refs,
 	return r;
 }
 
+static retvalue checkadd_dsc(const char *dbdir,
+		struct distribution *into,
+		const struct incoming *i, const struct candidate *c,
+		bool_t tracking, struct candidate_package *p) {
+	retvalue r;
+	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
+
+	/* check for possible errors putting it into the source distribution */
+	r = target_initpackagesdb(t,dbdir);
+	if( !RET_WAS_ERROR(r) ) {
+		retvalue r2;
+		if( interrupted() )
+			r = RET_ERROR_INTERUPTED;
+		else
+			r = target_checkaddpackage(t,
+					p->master->dsc.name,
+					p->master->dsc.version,
+					tracking, i->permit.oldpackagenewer);
+		r2 = target_closepackagesdb(t);
+		RET_ENDUPDATE(r,r2);
+	}
+	return r;
+}
+
 static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const char *dbdir,references refs,struct strlist *dereferenced,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
 	retvalue r;
 	struct candidate_package *p;
@@ -1182,6 +1214,14 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 
 	r = RET_OK;
 	for( p = d->packages ; p != NULL ; p = p->next ) {
+		if( p->skip ) {
+			if( verbose >= 0 )
+				printf(
+"Not putting '%s' in '%s' as already in there with equal or newer version.\n",
+					BASENAME(i,p->master->ofs),
+					into->codename);
+			continue;
+		}
 		if( p->master->type == fe_DSC ) {
 			r = add_dsc(dbdir, refs, into, dereferenced,
 					i, c, (tracks==NULL)?NULL:&trackingdata,
@@ -1220,12 +1260,48 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
 	}
+	if( RET_WAS_ERROR(r) )
+		return r;
 	logger_logchanges(into->logger, into->codename,
 			c->source, c->version, c->control,
 			changesfile(c)->tempfilename, changesfilekey);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	return RET_OK;
+}
+
+static inline retvalue candidate_checkadd_into(const char *confdir,filesdb filesdb,const char *dbdir,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
+	retvalue r;
+	struct candidate_package *p;
+	struct distribution *into = d->into;
+	bool_t somethingtodo = FALSE;
+
+	for( p = d->packages ; p != NULL ; p = p->next ) {
+		if( p->master->type == fe_DSC ) {
+			r = checkadd_dsc(dbdir, into,
+					i, c, into->tracking != dt_NONE,
+					p);
+		} else if( FE_BINARY(p->master->type) ) {
+			r = binaries_checkadddeb(&p->master->deb, dbdir,
+					p->master->architecture,
+					(p->master->type == fe_DEB)?"deb":"udeb",
+					into,
+					into->tracking != dt_NONE,
+					p->component, i->permit.oldpackagenewer);
+		} else if( p->master->type == fe_UNKNOWN ) {
+			continue;
+		} else
+			r = RET_ERROR;
+
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING ) 
+			p->skip = TRUE;
+		else
+			somethingtodo = TRUE;
+	}
+	if( somethingtodo )
+		return RET_OK;
+	else
+		return RET_NOTHING;
 }
 
 static inline bool_t isallowed(struct incoming *i, struct candidate *c, struct distribution *into, const struct uploadpermissions *permissions) {
@@ -1318,6 +1394,7 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
+	bool_t somethingtodo;
 	assert( c->perdistribution != NULL );
 
 	/* check if every distribution this is to be added to supports
@@ -1361,6 +1438,31 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 		}
 	}
 
+	/* additional test run to see if anything could go wrong,
+	 * or if there are already newer versions */
+	somethingtodo = FALSE;
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		r = candidate_checkadd_into(confdir, filesdb, dbdir,
+			i, c, d);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING )
+			d->skip = TRUE;
+		else
+			somethingtodo = TRUE;
+	}
+	if( ! somethingtodo ) {
+		if( verbose >= 0 ) {
+			printf("Skipping %s because all packages are skipped!\n",
+					BASENAME(i,c->ofs));
+		}
+		for( file = c->files ; file != NULL ; file = file->next ) {
+			if( file->used || i->cleanup.unused_files )
+				i->delete[file->ofs] = TRUE;
+		}
+		return RET_NOTHING;
+	}
+
 	// TODO: make sure not two different files are supposed to be installed
 	// as the same filekey.
 
@@ -1377,6 +1479,8 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 	}
 	r = RET_OK;
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		if( d->skip )
+			continue;
 		r = candidate_add_into(confdir, filesdb, dbdir, refs,
 			dereferenced, i, c, d);
 		if( RET_WAS_ERROR(r) )
