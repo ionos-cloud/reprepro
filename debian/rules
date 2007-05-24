@@ -41,41 +41,45 @@ config.status: configure
 		    --disable-dependency-tracking \
 		    CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,syms"
 
-build: build-stamp
+build-indep: build-indep-stamp
+build-arch: build-arch-stamp
 
-build-stamp:  config.status
+build-indep-stamp:
+	touch build-indep-stamp
+build-arch-stamp:  config.status
 	dh_testdir
-
 	$(MAKE)
-	touch build-stamp
+	touch build-arch-stamp
 
 clean:
 	dh_testdir
 	dh_testroot
-	rm -f build-stamp 
+	rm -f build-arch-stamp build-indep-stamp
 
 	# clean up after the build process.
 	if [ -e config.status ] ; then $(MAKE) distclean ; fi
 
-	dh_clean 
+	dh_clean
 
-install: build
+install: install-indep install-arch
+install-indep: build-indep
+install-arch: build-arch
 	dh_testdir
 	dh_testroot
-	dh_clean -k 
+	dh_clean -k
 	dh_installdirs
 
-	# Add here commands to install the package into debian/reprepro.
+	# install the package into debian/reprepro.
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/reprepro
 	install -D -m 644 docs/reprepro.bash_completion debian/reprepro/etc/bash_completion.d/reprepro
 
 
 # Build architecture-independent files here.
-binary-indep: build install
-# We have nothing to do by default.
+binary-indep: build-indep install-indep
+# We have nothing to do.
 
 # Build architecture-dependent files here.
-binary-arch: build install
+binary-arch: build-arch install-archh
 	dh_testdir
 	dh_testroot
 	dh_installchangelogs ChangeLog
@@ -110,4 +114,4 @@ binary-arch: build install
 	dh_builddeb
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install 
+.PHONY: build build-arch build-indep clean binary-indep binary-arch binary install install-arch install-indep
