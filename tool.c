@@ -48,7 +48,7 @@ bool_t interrupted(void) {return FALSE;}
 static void about(bool_t help) {
 	fprintf(help?stdout:stderr,
 "modifychanges: Modify a Debian style .changes file\n"
-"Syntax: modifychanges <changesfile> <commands>\n"
+"Syntax: modifychanges [--create] <changesfile> <commands>\n"
 "Possible commands include:\n"
 " verify\n"
 " updatechecksums [<files to update>]\n"
@@ -57,6 +57,7 @@ static void about(bool_t help) {
 " adddsc <.dsc filenames>\n"
 " addrawfile <filenames>\n"
 " add <filenames processed by filename suffix>\n"
+" setdistribution <distributions to list>\n"
 //" create <.dsc and .deb files to include>\n"
 );
 	if( help )
