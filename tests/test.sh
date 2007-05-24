@@ -2155,7 +2155,7 @@ dodiff results.expected results
 
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-testrun - -b . cleartracks 3<<EOF
+testrun - -b . removealltracks 3<<EOF
 stdout
 -v0*=Deleting all tracks for test2...
 -v0*=Deleting all tracks for test1...
@@ -2984,12 +2984,12 @@ checknolog logab
 
 rm -r dists
 if $tracking ; then
-testrun - -b . cleartracks a 3<<EOF
+testrun - -b . removealltracks a 3<<EOF
 stdout
 -v0*=Deleting all tracks for a...
 EOF
 else
-testrun - -b . cleartracks a 3<<EOF
+testrun - -b . removealltracks a 3<<EOF
 stdout
 -v0*=Deleting all tracks for a...
 -v0*=Deleting files no longer referenced...
