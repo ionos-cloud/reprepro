@@ -412,14 +412,13 @@ retvalue target_checkaddpackage(struct target *target,const char *name,const cha
 			return r;
 		}
 		if( versioncmp <= 0 ) {
-			free(oldpversion);
-			free(oldcontrol);
+			r = RET_NOTHING;
 			if( versioncmp < 0 ) {
 				if( !permitnewerold ) {
 					fprintf(stderr,
 "Error: trying to put version '%s' of '%s' in '%s',\n"
-"while there already is '%s' in there.\n"
-// "(To ignore this error add Permit: newerolder.)\n"
+"while there already is the stricly newer '%s' in there.\n"
+"(To ignore this error add Permit: older_version.)\n"
 						,name, version,
 						target->identifier,
 						oldpversion);
@@ -439,7 +438,9 @@ retvalue target_checkaddpackage(struct target *target,const char *name,const cha
 						oldpversion);
 
 			}
-			return RET_NOTHING;
+			free(oldpversion);
+			free(oldcontrol);
+			return r;
 		}
 		r = (*target->getfilekeys)(target,
 				oldcontrol, &oldfilekeys, NULL);
