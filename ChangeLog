@@ -3,6 +3,8 @@
 	  processincoming which is already there newer
 	* do not notify a .changes when no package included
           (when using Log: --changes)
+	* add Permit: unused_files older_version
+	  and Cleanup: unused_files on_deny on_error for conf/incoming
 
 2007-05-23  Bernhard R. Link <brlink@debian.org>
 	* fix remove action not tidy tracked packages.

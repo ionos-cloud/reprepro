@@ -977,6 +977,37 @@ accepts it.
 Allow putting an upload in multiple distributions if it lists more
 than one. (Without this field, procession stops after the first
 successfull).
+.TP
+.B Permit \fIoptions
+A list of options to allow things otherwise causing errors:
+.br
+.B unused_files
+.br
+Do not stop with error if there are files listed in the \fB.changes\fP
+file if it lists files not belonging to any package in it.
+.br
+.B older_version
+.br
+Ignore a package not added because there already is a stricly newer
+version available instead of treating this as an error.
+.TP
+.B Cleanup \fIoptions
+A list of options to cause more files in the incoming directory to be
+deleted:
+.br
+.B unused_files
+.br
+If there is \fBunused_files\fP in \fBPermit\fP then also delete those
+files when the package is deleted after successful processing.
+.br
+.B on_deny
+.br
+If a \fB.changes\fP file is denied processing because of missing signatures
+or allowed distributions to be put in, delete it and all the files it references.
+.br
+.B on_error
+.br
+If a \fB.changes\fP file causes errors while processing, delete it.
 .SH "UPLOADERS FILES"
 These files specified by the \fBUploaders\fP header in the distribution
 definition as explained above describe what key a \fB.changes\fP file

@@ -182,10 +182,11 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	struct incoming *i;
 	struct importsparsedata *d = data;
 	retvalue r;
-	struct strlist allowlist, allow_into;
+	struct strlist allowlist, allow_into, wordlist;
 	char *default_into;
 	static const char * const allowedfields[] = {"Name", "TempDir",
 		"IncomingDir", "Default", "Allow", "Multiple",
+		"Cleanup", "Permit",
 		NULL};
 
 	r = chunk_getvalue(chunk, "Name", &name);
@@ -295,6 +296,62 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 		return r;
 	}
 	i->permit.multiple_distributions = RET_IS_OK(r);
+	r = chunk_getwordlist(chunk, "Permit", &wordlist);
+	if( RET_WAS_ERROR(r) ) {
+		incoming_free(i);
+		return r;
+	}
+	if( RET_IS_OK(r) ) {
+		int j;
+		for( j = 0 ; j < wordlist.count ; j++ ) {
+			const char *word = wordlist.values[j];
+
+			if( strcasecmp(word, "unused_files") == 0 ) {
+				i->permit.unused_files = TRUE;
+			} else if( strcasecmp(word, "older_version") == 0 ) {
+				i->permit.oldpackagenewer = TRUE;
+			/* not yet implemented
+			} else if( strcasecmp(word, "downgrade") == 0 ) {
+				i->permit.downgrade = TRUE;
+			*/
+			} else if( !IGNORING("Ignoring", "To ignore this",
+unknownfield, "Unknown option '%s' in Permit of incoming-rule '%s'!\n",
+					word, d->name) ) {
+				incoming_free(i);
+				return RET_ERROR;
+			}
+		}
+		strlist_done(&wordlist);
+	}
+	r = chunk_getwordlist(chunk, "Cleanup", &wordlist);
+	if( RET_WAS_ERROR(r) ) {
+		incoming_free(i);
+		return r;
+	}
+	if( RET_IS_OK(r) ) {
+		int j;
+		for( j = 0 ; j < wordlist.count ; j++ ) {
+			const char *word = wordlist.values[j];
+
+			if( strcasecmp(word, "unused_files") == 0 ) {
+				i->cleanup.unused_files = TRUE;
+			} else if( strcasecmp(word, "on_deny") == 0 ) {
+				i->cleanup.on_deny = TRUE;
+			/* not yet implemented
+			} else if( strcasecmp(word, "on_deny_check_owner") == 0 ) {
+				i->cleanup.on_deny_check_owner = TRUE;
+			*/
+			} else if( strcasecmp(word, "on_error") == 0 ) {
+				i->cleanup.on_error = TRUE;
+			} else if( !IGNORING("Ignoring", "To ignore this",
+unknownfield, "Unknown option '%s' in Cleanup of incoming-rule '%s'!\n",
+					word, d->name) ) {
+				incoming_free(i);
+				return RET_ERROR;
+			}
+		}
+		strlist_done(&wordlist);
+	}
 	d->i = i;
 	return RET_OK;
 }
@@ -1429,12 +1486,13 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 	}
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( !file->used && !i->permit.unused_files ) {
-			// TODO: other error function
+			// TODO: find some way to mail such errors...
 			fprintf(stderr,
-"Error: '%s' contains unused file '%s'!\n",
+"Error: '%s' contains unused file '%s'!\n"
+"(Do Permit: unused_files to conf/incoming to ignore and\n"
+" additionaly Cleanup: unused_files to delete them)\n",
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 			return RET_ERROR;
-
 		}
 	}
 
