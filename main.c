@@ -101,12 +101,17 @@ static bool_t	skipold = TRUE;
 static size_t   waitforlock = 0;
 static enum exportwhen export = EXPORT_NORMAL;
 int		verbose = 0;
+static enum spacecheckmode spacecheckmode = scm_FULL;
+/* default: 100 MB for database to grow */
+static off_t reserveddbspace = 1024*1024*100
+/* 1MB safety margin for other fileystems */;
+static off_t reservedotherspace = 1024*1024;
 
 /* define for each config value an owner, and only higher owners are allowed
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -799,7 +804,7 @@ ACTION_D(update) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced);
+		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced,spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -903,7 +908,7 @@ ACTION_D(iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced,export);
+		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced,export, spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -2422,6 +2427,9 @@ LO_CONFDIR,
 LO_METHODDIR,
 LO_VERSION,
 LO_WAITFORLOCK,
+LO_SPACECHECK,
+LO_SAFETYMARGIN,
+LO_DBSAFETYMARGIN,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -2447,10 +2455,24 @@ static void setexport(const char *optarg) {
 	exit(EXIT_FAILURE);
 }
 
-static void handle_option(int c,const char *optarg) {
-	retvalue r;
+static unsigned long long parse_number(const char *name, const char *argument, long long max) {
 	long long l;
 	char *p;
+
+	l = strtoll(argument, &p, 10);
+	if( p==NULL || *p != '\0' || l < 0 ) {
+		fprintf(stderr, "Invalid argument to %s: '%s'\n", name, argument);
+		exit(EXIT_FAILURE);
+	}
+	if( l == LLONG_MAX  || l > max ) {
+		fprintf(stderr, "Too large argument for to %s: '%s'\n", name, argument);
+		exit(EXIT_FAILURE);
+	}
+	return l;
+}
+
+static void handle_option(int c,const char *optarg) {
+	retvalue r;
 
 	switch( c ) {
 		case 'h':
@@ -2589,13 +2611,30 @@ static void handle_option(int c,const char *optarg) {
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
 					exit(EXIT_SUCCESS);
 				case LO_WAITFORLOCK:
-					l = strtoll(optarg, &p, 10);
-					if( p==NULL || *p != '\0' || l < 0 || l == LLONG_MAX  || l > SIZE_MAX ) {
-						fprintf(stderr, "Invalid argument to --waitforlock: '%s'\n", optarg);
+					CONFIGSET(waitforlock, parse_number(
+							"--waitforlock",
+							optarg, SIZE_MAX));
+					break;
+				case LO_SPACECHECK:
+					if( strcasecmp(optarg, "none") == 0 ) {
+						CONFIGSET(spacecheckmode, scm_NONE);
+					} else if( strcasecmp(optarg, "full") == 0 ) {
+						CONFIGSET(spacecheckmode, scm_FULL);
+					} else {
+						fprintf(stderr,
+"Unknown --spacecheck argument: '%s'!\n", optarg);
 						exit(EXIT_FAILURE);
 					}
-
-					CONFIGSET(waitforlock, l);
+					break;
+				case LO_SAFETYMARGIN:
+					CONFIGSET(reservedotherspace, parse_number(
+							"--safetymargin",
+							optarg, LONG_MAX));
+					break;
+				case LO_DBSAFETYMARGIN:
+					CONFIGSET(reserveddbspace, parse_number(
+							"--dbsafetymargin",
+							optarg, LONG_MAX));
 					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
@@ -2735,6 +2774,9 @@ int main(int argc,char *argv[]) {
 		{"force", no_argument, NULL, 'f'},
 		{"export", required_argument, &longoption, LO_EXPORT},
 		{"waitforlock", required_argument, &longoption, LO_WAITFORLOCK},
+		{"checkspace", required_argument, &longoption, LO_SPACECHECK},
+		{"safetymargin", required_argument, &longoption, LO_SAFETYMARGIN},
+		{"dbsafetymargin", required_argument, &longoption, LO_DBSAFETYMARGIN},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;

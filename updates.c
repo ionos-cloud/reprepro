@@ -1497,7 +1497,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	return result;
 }
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1563,7 +1563,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	/* Then get all packages */
 	if( verbose >= 0 )
 		printf("Calculating packages to get...\n");
-	r = downloadcache_initialize(dbdir, &cache);
+	r = downloadcache_initialize(dbdir, mode, reserveddb, reservedother, &cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
 		RET_UPDATE(result,r);
@@ -1814,7 +1814,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	return result;
 }
 
-static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys) {
+static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 	struct update_origin *origin;
@@ -1922,7 +1922,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		/* Then get all packages */
 		if( verbose >= 0 )
 			printf("Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = downloadcache_initialize(dbdir, &cache);
+		r = downloadcache_initialize(dbdir, mode, reserveddb, reservedother, &cache);
 		RET_UPDATE(result,r);
 		if( !RET_IS_OK(r) ) {
 			(void)downloadcache_free(cache);
@@ -1992,7 +1992,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -2016,7 +2016,7 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 		if( d->distribution->tracking != dt_NONE ) {
 			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
 		}
-		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,nolistsdownload,skipold,dereferencedfilekeys);
+		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,nolistsdownload,skipold,dereferencedfilekeys, mode, reserveddb, reservedother);
 		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
 		r = distribution_export(export,d->distribution,confdir,dbdir,distdir,filesdb);

@@ -46,6 +46,7 @@ struct device {
 
 struct devices {
 	/*@null@*/struct device *root;
+	off_t reserved;
 };
 
 void space_free(struct devices *devices) {
@@ -103,23 +104,29 @@ static retvalue device_find_or_create(struct devices *devices, dev_t id, const c
 	d->available = s.f_bavail;
 	d->needed = 0;
 	/* always keep at least one megabyte spare */
-	d->reserved = (1024*1024)/d->blocksize+1;
+	d->reserved = devices->reserved/d->blocksize+1;
 	devices->root = d;
 	*result = d;
 	return RET_OK;
 }
 
-retvalue space_prepare(const char *dbdir,struct devices **devices) {
+retvalue space_prepare(const char *dbdir,struct devices **devices,enum spacecheckmode mode,off_t reservedfordb,off_t reservedforothers) {
 	struct devices *n;
 	struct device *d;
 	struct stat s;
 	int ret;
 	retvalue r;
 
+	if( mode == scm_NONE ) {
+		*devices = NULL;
+		return RET_OK;
+	}
+	assert( mode == scm_FULL );
 	n = malloc(sizeof(struct devices));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	n->root = NULL;
+	n->reserved = reservedforothers;
 
 	ret = stat(dbdir ,&s);
 	if( ret != 0 ) {
@@ -134,8 +141,7 @@ retvalue space_prepare(const char *dbdir,struct devices **devices) {
 		space_free(n);
 		return r;
 	}
-	// TODO: what is a reasonable number here?
-	d->reserved += (100*1024*1024)/d->blocksize+1;
+	d->reserved += reservedfordb/d->blocksize+1;
 	*devices = n;
 	return RET_OK;
 }
@@ -190,7 +196,7 @@ retvalue space_needed(struct devices *devices,const char *filename,const char *m
 		return RET_ERROR;
 	}
 	blocks = (filesize + device->blocksize - 1) / device->blocksize;
-	device->needed += blocks;
+	device->needed += 1 + blocks;
 
 	return RET_OK;
 }
@@ -236,10 +242,12 @@ retvalue space_check(struct devices *devices) {
 				(unsigned long long)device->needed,
 				(unsigned long long)device->blocksize);
 			result = RET_ERROR;
-		} else if( device->needed >= device->available+device->reserved ) {
+		} else if( device->reserved >= device->available ||
+		           device->needed >= device->available - device->reserved ) {
 			fprintf(stderr,
 "NOT ENOUGH FREE SPACE on filesystem 0x%lx (the filesystem '%s' is on)\n"
-"available blocks %llu, needed blocks %llu (+%llu savety margin), block size is %llu.\n",
+"available blocks %llu, needed blocks %llu (+%llu savety margin), block size is %llu.\n"
+"(Take a look at --spacecheck in the manpage for more information.)\n",
 				(unsigned long)device->id, device->somepath,
 				(unsigned long long)device->available,
 				(unsigned long long)device->needed,

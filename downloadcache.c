@@ -36,14 +36,14 @@ struct downloaditem {
 };
 
 /* Initialize a new download session */
-retvalue downloadcache_initialize(const char *dbdir,struct downloadcache **download) {
+retvalue downloadcache_initialize(const char *dbdir,enum spacecheckmode mode,off_t reserveddb,off_t reservedother,struct downloadcache **download) {
 	struct downloadcache *cache;
 	retvalue r;
 
 	cache = malloc(sizeof(struct downloadcache));
 	if( cache == NULL )
 		return RET_ERROR_OOM;
-	r = space_prepare(dbdir, &cache->devices);
+	r = space_prepare(dbdir, &cache->devices, mode, reserveddb, reservedother);
 	if( RET_WAS_ERROR(r) ) {
 		free(cache);
 		return r;

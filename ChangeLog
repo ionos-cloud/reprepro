@@ -1,5 +1,6 @@
 2007-05-25  Bernhard R. Link <brlink@debian.org>
 	* some fixed and improvements of the free space calculation
+	( add --spacecheck, --safetymargin, --dbsafetymargin )
 
 2007-05-24  Bernhard R. Link <brlink@debian.org>
 	* error/warn if trying to include a package via
