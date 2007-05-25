@@ -98,7 +98,7 @@ static retvalue device_find_or_create(struct devices *devices, dev_t id, const c
 		free(d);
 		return RET_ERROR_OOM;
 	}
-	d->blocksize = s.f_blocks;
+	d->blocksize = s.f_bsize;
 	/* use bfree when being root? but why run as root? */
 	d->available = s.f_bavail;
 	d->needed = 0;
@@ -201,6 +201,7 @@ retvalue space_check(struct devices *devices) {
 	int ret;
 	retvalue result = RET_OK;
 
+
 	if( devices == NULL )
 		return RET_NOTHING;
 
@@ -218,7 +219,7 @@ retvalue space_check(struct devices *devices) {
 					e, strerror(e));
 			return RET_ERRNO(e);
 		}
-		if( device->blocksize != s.f_blocks ) {
+		if( device->blocksize != s.f_bsize ) {
 			fprintf(stderr,
 "The blocksize of the filesystem belonging to '%s' has changed.\n"
 "Either something was mounted or unmounted while reprepro was running,\n"
