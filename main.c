@@ -17,7 +17,9 @@
 
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <getopt.h>
@@ -65,6 +67,10 @@
 #endif
 #ifndef STD_METHOD_DIR
 #define STD_METHOD_DIR "/usr/lib/apt/methods"
+#endif
+
+#ifndef LLONG_MAX
+#define LLONG_MAX __LONG_LONG_MAX__
 #endif
 
 /* global options */
@@ -2443,6 +2449,8 @@ static void setexport(const char *optarg) {
 
 static void handle_option(int c,const char *optarg) {
 	retvalue r;
+	long long l;
+	char *p;
 
 	switch( c ) {
 		case 'h':
@@ -2581,7 +2589,13 @@ static void handle_option(int c,const char *optarg) {
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
 					exit(EXIT_SUCCESS);
 				case LO_WAITFORLOCK:
-					CONFIGSET(waitforlock, strtoll(optarg,NULL,10));
+					l = strtoll(optarg, &p, 10);
+					if( p==NULL || *p != '\0' || l < 0 || l == LLONG_MAX  || l > SIZE_MAX ) {
+						fprintf(stderr, "Invalid argument to --waitforlock: '%s'\n", optarg);
+						exit(EXIT_FAILURE);
+					}
+
+					CONFIGSET(waitforlock, l);
 					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");

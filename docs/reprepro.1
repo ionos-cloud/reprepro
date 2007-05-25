@@ -211,6 +211,12 @@ marked as already processed are available.
 
 If you changed a script to preprocess downloaded index files or
 changed a Listfilter, you most likely want to call reprepro with \-\-noskipold.
+.TP
+.B \-\-waitforlock \fIcount
+If there is a lockfile indicating another instance of reprepro is currently
+using the database, retry \fIcount\fP times after waiting for 10 seconds
+each time.
+The default is 0 and means to error out instantly.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
