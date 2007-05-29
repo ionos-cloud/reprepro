@@ -934,12 +934,13 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			return r;
 		}
 		if( distribution->trackingoptions.includechanges ) {
-			const char *basename;
+			char *basename;
 			assert( changes->srcdirectory != NULL );
 
-			basename = dirs_basename(changesfilename);
+			basename = calc_changes_basename(changes->source, changes->version, &changes->architectures);
 			changes->changesfilekey =
 				calc_dirconcat(changes->srcdirectory,basename);
+			free(basename);
 			if( changes->changesfilekey == NULL ) {
 				changes_free(changes);
 				trackingdata_done(&trackingdata);

@@ -1,3 +1,7 @@
+2007-05-29  Bernhard R. Link <brlink@debian.org>
+	* adapt name include uses for .changes files to
+	  that of processincoming.
+
 2007-05-25  Bernhard R. Link <brlink@debian.org>
 	* some fixed and improvements of the free space calculation
 	( add --spacecheck, --safetymargin, --dbsafetymargin )

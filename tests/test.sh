@@ -2138,7 +2138,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/test.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: simple
@@ -2148,7 +2148,7 @@ Files:
  pool/stupid/s/simple/simple_1_abacus.deb b 0
  pool/stupid/s/simple/simple_1.dsc s 0
  pool/stupid/s/simple/simple_1.tar.gz s 0
- pool/stupid/s/simple/test.changes c 0
+ pool/stupid/s/simple/simple_1_source+abacus+all.changes c 0
 
 END
 dodiff results.expected results
@@ -2164,14 +2164,14 @@ stdout
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1_abacus.deb
--v1*=deleting and forgetting pool/stupid/s/simple/test.changes
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+abacus+all.changes
 -v1*=removed now empty directory ./pool/stupid/s/simple
 -v1*=removed now empty directory ./pool/stupid/s
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
--v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/test.changes
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes
 -v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
 -v1*=removed now empty directory ./pool/ugly/b
 EOF
@@ -2271,7 +2271,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/test.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -2281,7 +2281,7 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/test2.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: simple
