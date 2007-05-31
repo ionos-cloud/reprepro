@@ -367,7 +367,7 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			return RET_ERROR;
 		}
 		if( strcmp(e->section,"-") == 0 ) {
-			fprintf(stderr,"No section specified for '%s'!\n",filename);
+			fprintf(stderr,"No section specified for '%s' in '%s'!\n", e->basename, filename);
 			return RET_ERROR;
 		}
 		if( forcepriority != NULL )
