@@ -961,7 +961,8 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		}
 	}
 	if( interrupted() ) {
-		trackingdata_done(&trackingdata);
+		if( tracks != NULL )
+			trackingdata_done(&trackingdata);
 		changes_free(changes);
 		return RET_ERROR_INTERUPTED;
 	}
