@@ -2447,7 +2447,9 @@ int main(int argc,char *argv[]) {
 		strlist_init(&keys);
 		strlist_init(&validkeys);
 		changesdata = calloc(1,sizeof(struct changes));
-		if( changesdata == NULL )
+		if( changesdata != NULL )
+			changesdata->filename = strdup(changesfilename);
+		if( changesdata == NULL || changesdata->filename == NULL )
 			r = RET_ERROR_OOM;
 		else {
 			r = dirs_getdirectory(changesfilename,
