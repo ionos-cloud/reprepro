@@ -1,6 +1,7 @@
 2007-06-02  Bernhard R. Link <brlink@debian.org>
 	* rename --checkspace to --spacecheck, as
 	manpage and error messages hint to that.
+	* fix 64bit problem in errormessages  for Log:
 
 2007-05-29  Bernhard R. Link <brlink@debian.org>
 	* adapt name include uses for .changes files to
