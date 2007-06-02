@@ -1,4 +1,5 @@
 TODO:
+	do not put/leave files in pool when include gets an older version than already there
 	write more automated test-cases
 	finish import from incoming dir, implement sending mails to uploader
 	extend FilterFormula, FilterList et al to specify type/architecture/component
