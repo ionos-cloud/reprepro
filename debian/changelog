@@ -1,3 +1,16 @@
+reprepro (2.2.0-1) unstable; urgency=low
+
+  * new release
+  - add notification scripts for .changes files (per distribution)
+  - fix bug not calling all notifiers when they need too long
+  - new --wait-for-lock option
+  - check for enough free space on update
+  - fix bug of remove not reducing tracking when mode is minimal
+  - renames cleartracks to removealltracks
+  - new tidytracks command
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat,  2 Jun 2007 12:54:02 +0200
+
 reprepro (2.1.0-1) experimental; urgency=low
 
   * new release

@@ -79,7 +79,7 @@ binary-indep: build-indep install-indep
 # We have nothing to do.
 
 # Build architecture-dependent files here.
-binary-arch: build-arch install-archh
+binary-arch: build-arch install-arch
 	dh_testdir
 	dh_testroot
 	dh_installchangelogs ChangeLog
