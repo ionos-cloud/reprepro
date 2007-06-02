@@ -1,3 +1,7 @@
+2007-06-02  Bernhard R. Link <brlink@debian.org>
+	* rename --checkspace to --spacecheck, as
+	manpage and error messages hint to that.
+
 2007-05-29  Bernhard R. Link <brlink@debian.org>
 	* adapt name include uses for .changes files to
 	  that of processincoming.
