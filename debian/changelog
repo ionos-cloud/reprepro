@@ -1,3 +1,12 @@
+reprepro (2.2.1-1) unstable; urgency=low
+
+  * bugfix release
+  - fix mixup of the name of the --spacecheck option
+  - fix missing options in bash completions
+  - fix segfault when including changes without notificators (closes: #427390)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  3 Jun 2007 20:02:22 +0200
+
 reprepro (2.2.0-1) unstable; urgency=low
 
   * new release
