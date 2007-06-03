@@ -972,6 +972,9 @@ void logger_logchanges(struct logger *log,const char *codename,const char *name,
 	assert( name != NULL );
 	assert( version != NULL );
 
+	if( log == NULL )
+		return;
+
 	for( i = 0 ; i < log->notificator_count ; i++ ) {
 		notificator_enqueuechanges(&log->notificators[i], codename,
 				name, version, data, safefilename, changesfilekey);
