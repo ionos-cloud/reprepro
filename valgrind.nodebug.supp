@@ -25,12 +25,12 @@
 {
    libz-looking-far
    Memcheck:Cond
-   obj:/usr/lib/libz.so.1.2.2
-   obj:/usr/lib/libz.so.1.2.2
+   obj:/usr/lib/libz.so.*
+   obj:/usr/lib/libz.so.*
 }
 {
    gpgme11-gpgme_data_release_and_get_mem_leak
    Memcheck:Leak
    fun:calloc
-   obj:/usr/lib/libgpgme.so.11.3.3
+   obj:*/libgpgme.so.*
 }
