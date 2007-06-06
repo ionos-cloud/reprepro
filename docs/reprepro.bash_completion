@@ -256,7 +256,7 @@ _reprepro()
 			fi
 			# then one .deb file follows
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
-				_filedir "!*.deb"
+				_filedir deb
 			fi
 			return 0
 			;;
@@ -269,7 +269,7 @@ _reprepro()
 			fi
 			# then one .dsc file follows
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
-				_filedir "!*.dsc"
+				_filedir dsc
 			fi
 			return 0
 			;;
@@ -282,7 +282,7 @@ _reprepro()
 			fi
 			# then one .changes file follows
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
-				_filedir "!*.changes"
+				_filedir changes
 			fi
 			return 0
 			;;
@@ -320,5 +320,152 @@ _reprepro()
 	COMPREPLY=( $( compgen -f -- $cur ) )
 	return 0
 }
-complete -F _reprepro reprepro
+# This -o filename has its problems when there are directories named like
+# commands in you current directory. But it makes adding filenames so much
+# easier. I wished I knew a way to only active it for those parts that are
+# filenames.
+complete -o filenames -F _reprepro reprepro
+
+_changestool()
+{
+	local cur prev commands options noargoptions i j cmd ignores wascreate changesfilename
+
+	COMPREPLY=()
+
+	ignores=' notyetimplemented '
+	noargoptions='--help --create'
+	options='--ignore --searchpath'
+	wascreate=no
+
+	i=1
+	prev=""
+	while [[ $i -lt $COMP_CWORD ]] ; do
+		cur=${COMP_WORDS[i]}
+		prev=""
+		case "$cur" in
+			--*=*)
+				i=$((i+1))
+				;;
+			-i|--ignore|--unignore|-s|--searchpath)
+				prev="$cur"
+				i=$((i+2))
+				;;
+			--create|-c)
+				i=$((i+1))
+				wascreate=yes
+				;;
+			--*|-*)
+				i=$((i+1))
+				;;
+			*)
+				break
+				;;
+		esac
+	done
+	cur=${COMP_WORDS[COMP_CWORD]}
+	if [[ $i -gt $COMP_CWORD && -n "$prev" ]]; then
+		case "$prev" in
+			-i|--ignore|--unignore)
+        			COMPREPLY=( $( compgen -W "$ignores"  -- $cur ) )
+				return 0
+				;;
+			-s|--searchpath)
+				COMPREPLY=( $( compgen -d  -- $cur ) )
+				return 0
+				;;
+		esac
+	fi
+
+	if [[ $i -ge $COMP_CWORD ]] ; then
+		# No changes filename yet specified:
+		commands='addrawfile adddsc adddeb add includeallsources setdistribution updatechecksums verify'
+
+		if [[ "$cur" == -* ]]; then
+			case "$cur" in
+				*)
+					COMPREPLY=( $( compgen -W "$options $noargoptions" -- $cur ) )
+					;;
+			esac
+			return 0
+		fi
+		if [ "$wascreate" = "yes" ] ; then
+				_filedir
+		else
+				_filedir changes
+		fi
+		return 0
+	fi
+	changesfilename=${COMP_WORDS[i]}
+	i=$((i+1))
+	if [[ $i -ge $COMP_CWORD ]] ; then
+		# No command yet specified:
+		commands='addrawfile adddsc adddeb add includeallsources setdistribution updatechecksums verify'
+		# todo: restrict to add commands when --create and file not yet existing?
+		COMPREPLY=( $( compgen -W "$commands" -- $cur ) )
+		return 0
+	fi
+	cmd=${COMP_WORDS[i]}
+
+	case "$cmd" in
+# with searchpath it should also list the files available there,
+# but I know no easy way to get that done...
+		addrawfile)
+				_filedir
+				return 0
+			;;
+		adddsc)
+				_filedir dsc
+				return 0
+			;;
+		adddeb)
+				_filedir deb
+				return 0
+			;;
+		adddeb)
+				_filedir
+				return 0
+			;;
+		includeallsources)
+			prev="$(grep '^ [0-9a-f]\{32\} \+[0-9]\+ \+[a-zA-Z/0-9.:-]\+ \+[a-zA-Z/0-9.:-]\+ \+[^ ]\+\.dsc$'  -- "$changesfilename" | sed -e 's/^ [0-9a-f]\+ \+[0-9]\+ \+[^ ]\+ \+[^ ]\+ \+//')"
+			j=0
+			options=()
+			for i in $prev ; do
+				if [ -f "$i" ] ; then
+					options=(${options[@]:-} $(grep '^ [0-9a-f]\{32\} \+[0-9]\+ \+[^ ]\+$'  -- "$i" | sed -e 's/^ [0-9a-f]\+ \+[0-9]\+ \+//') )
+				elif [ -f "$(dirname $changesfilename)/$i" ] ; then
+					options=(${options[@]:-} $(grep '^ [0-9a-f]\{32\} \+[0-9]\+ \+[^ ]\+$'  -- "$(dirname $changesfilename)/$i" | sed -e 's/^ [0-9a-f]\+ \+[0-9]\+ \+//') )
+				else
+					cmd="missing"
+				fi
+			done
+			COMPREPLY=( $( compgen -W "${options[@]}" -- $cur ) )
+			# if some .dsc cannot be found or read, offer everythin additionally
+			if [ "$cmd" = "missing" ] ; then
+				_filedir
+			fi
+			return 0
+			;;
+		setdistribution)
+			COMPREPLY=( $( compgen -W "unstable testing stable sarge etch lenny sid backports local" -- $cur ) )
+			return 0
+			;;
+		updatechecksums)
+			options="$(grep '^ [0-9a-f]\{32\} \+[0-9]\+ \+[a-zA-Z/0-9.:-]\+ \+[a-zA-Z/0-9.:-]\+ \+[^ ]\+$'  -- "$changesfilename" | sed -e 's/^ [0-9a-f]\+ \+[0-9]\+ \+[^ ]\+ \+[^ ]\+ \+//')"
+			if [ -n "$options" ] ; then
+				COMPREPLY=( $( compgen -W "$options" -- $cur ) )
+			else
+				_filedir
+			fi
+			return 0
+			;;
+		verify)
+			return 0
+			;;
+	esac
+	COMPREPLY=( $( compgen -f -- $cur ) )
+	return 0
+}
+# some problem as above with -o filenames,
+# but I guess still better than without...
+complete -o filenames -F _changestool changestool
 
