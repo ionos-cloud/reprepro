@@ -1304,6 +1304,22 @@ instead of "~/.gnupg".
 Take a look at
 .BR gpg (1)
 to be sure.
+.TP
+.B GPG_TTY
+When there is a gpg-agent running that does not have the passphrase
+cached yet, gpg will most likely try to start some pinentry program
+to get it.
+If that is pinentry-curses, that is likely to fail without this
+variable, because it cannot find a terminal to ask on.
+In this cases you might set this variable to something like
+.B $(tty)
+or
+.B $SSH_TTY
+or anything else denoting a useable terminal. (You might also
+want to make sure you actually have a terminal available.
+With ssh you might need the
+.B \-t
+option for non-interactive logins).
 .SH BUGS
 Increased verbosity always shows those things one does not want to know.
 (Though this might be inevitable and a corollary to Murphy)
