@@ -238,6 +238,13 @@ what you do.
 If checking for free space, reserve \fIbyte-count\fP bytes on fileystems
 not containing the \fBdb/\fP directory.
 The default is 1048576 (i.e. 1MB).
+.TP
+.B \-\-noguessgpgtty
+Don't set the environment variable
+.BR GPG_TTY ,
+even when it is not set, stdin is terminal and
+.B /proc/self/fd/0
+is a readable symbolic link.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -1312,6 +1319,7 @@ to get it.
 If that is pinentry-curses, that is likely to fail without this
 variable, because it cannot find a terminal to ask on.
 In this cases you might set this variable to something like
+the value of
 .B $(tty)
 or
 .B $SSH_TTY
@@ -1319,7 +1327,13 @@ or anything else denoting a useable terminal. (You might also
 want to make sure you actually have a terminal available.
 With ssh you might need the
 .B \-t
-option for non-interactive logins).
+option to get a terminal even when telling gpg to start a specific command).
+
+By default, reprepro will set this variable to what the symbolic link
+.B /proc/self/fd/0
+points to, if stdin is a terminal, unless you told with
+.B \-\-noguessgpgtty
+to not do so.
 .SH BUGS
 Increased verbosity always shows those things one does not want to know.
 (Though this might be inevitable and a corollary to Murphy)
