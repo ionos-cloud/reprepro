@@ -1,3 +1,8 @@
+2007-06-11  Bernhard R. Link <brlink@debian.org>
+	* detect "false" and "no" as false in boolean headers.
+	(Until now only existance was tested and considered as
+	 true, which broke apt-methods telling "Send-Config: false")
+
 2007-06-10  Bernhard R. Link <brlink@debian.org>
 	* don't waste filedescriptors by not closing .done-files
 
