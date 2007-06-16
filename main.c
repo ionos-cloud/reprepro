@@ -2253,7 +2253,7 @@ static void releaselock(const char *dbdir) {
 #define A_D(w) action_d_ ## w, NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
 
 static const struct action {
-	char *name;
+	const char *name;
 	retvalue (*start)(
 			/*@null@*/references references,
 			/*@null@*/filesdb filesdb,

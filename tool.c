@@ -45,6 +45,7 @@
 int verbose=0;
 bool_t interrupted(void) {return FALSE;}
 
+static void about(bool_t help) NORETURN;
 static void about(bool_t help) {
 	fprintf(help?stdout:stderr,
 "modifychanges: Modify a Debian style .changes file\n"
