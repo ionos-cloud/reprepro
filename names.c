@@ -576,7 +576,7 @@ retvalue calc_extractsize(const char *checksum, off_t *size) {
 		return RET_NOTHING;
 	value = *checksum - '0';
 	checksum++;
-	while( *checksum >= '0' || *checksum <= '9' ) {
+	while( *checksum >= '0' && *checksum <= '9' ) {
 		value *= 10;
 		value += (*checksum - '0');
 		checksum++;
