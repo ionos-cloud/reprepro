@@ -1,3 +1,8 @@
+2007-06-16  Bernhard R. Link <brlink@debian.org>
+	* when checking a file to have the expected checksum,
+	first check if the file size matches before calculating
+	its md5sum.
+
 2007-06-11  Bernhard R. Link <brlink@debian.org>
 	* detect "false" and "no" as false in boolean headers.
 	(Until now only existance was tested and considered as
