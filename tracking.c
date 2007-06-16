@@ -605,6 +605,7 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 		fprintf(stderr,"Adding tracked package '%s'_'%s' to '%s'\n",
 				pkg->sourcename, pkg->sourceversion,
 				t->codename);
+//TODO: find out why I did this here:
 	return RET_OK;
 	trackedpackage_free(pkg);
 	return r;
