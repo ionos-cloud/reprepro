@@ -122,11 +122,11 @@ reprepro -b $YOURBASEDIR createsymlinks
 </li>
 <li>Include some package, like:
 <pre>
-reprepro -b $YOURBASEDIR include mypackage.changes
+reprepro -b $YOURBASEDIR include mystuff mypackage.changes
 </pre>
 or:
 <pre>
-reprepro -b $YOURBASEDIR includedeb mypackage.deb
+reprepro -b $YOURBASEDIR includedeb mystuff mypackage.deb
 </pre>
 </li>
 <li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
@@ -179,7 +179,7 @@ Method: http://ftp2.de.debian.org/debian
 Config: Acquire::Http::Proxy=http://proxy.myorg.de:8080
 VerifyRelease: A99951DAF9BB569BDB50AD90A70DAF536070D3A1|7EA391D72477203B58C04FBCB5D0C804ADB11277
 </pre>
-(If there are no Architecture, Components or UDebComponents, it will try all the distribution to update has. Fallback means a URL to try when the first cannot offer some file).
+(If there are no Architecture, Components or UDebComponents, it will try all the distribution to update has. Fallback means a URL to try when the first cannot offer some file (Has to be the same method)).
 </li>
 <li>Tell reprepro to update:
 <pre>
