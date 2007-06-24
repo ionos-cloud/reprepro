@@ -1,8 +1,13 @@
-reprepro (2.2.1-?) UNRELEASED; urgency=low
+reprepro (2.2.2-1) unstable; urgency=low
 
-  * fix example typos in manual.html (Closes: 429172)
+  * bugfix and integration release
+  - fix example typos in manual.html (Closes: 429172)
+  - set GPG_TTY to help pinentry-curses
+  - processincoming can be limited to a single file
+    (to better integrate with inoticoming).
+  * add Vcs- headers
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 16 Jun 2007 13:22:55 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 24 Jun 2007 13:24:13 +0200
 
 reprepro (2.2.1-1) unstable; urgency=low
 
