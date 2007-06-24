@@ -43,6 +43,7 @@ echo "$@"
 
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
+VALGRIND_SUP=""
 
 if [ "x$1" == "x--delete" ] ; then
 	rm -r "$WORKDIR" || true
@@ -50,6 +51,12 @@ if [ "x$1" == "x--delete" ] ; then
 fi
 if [ "x$1" == "x--valgrind" ] ; then
 	USE_VALGRIND=1
+	shift
+fi
+if [ "x$1" == "x--valgrind-supp" ] ; then
+	USE_VALGRIND=1
+	shift
+	VALGRIND_SUP="$1"
 	shift
 fi
 
@@ -64,8 +71,10 @@ SRCDIR="$1"
 if [ -z "$TESTOPTIONS" ] ; then
 	if [ -z "$USE_VALGRIND" ] ; then
 		TESTOPTIONS="-e -a"
-	else
+	elif [ -z "$VALGRIND_SUP" ] ; then
 		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$SRCDIR/valgrind.supp"
+	else
+		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$VALGRIND_SUP"
 	fi
 fi
 #TESTOPTIONS="-D v=-1 $TESTOPTIONS"
