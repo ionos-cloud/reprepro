@@ -1,3 +1,8 @@
+2007-06-24  Bernhard R. Link <brlink@debian.org>
+	* processincoming allows an optional second argument
+	to limit processing to a specific file for better
+	integration with inoticoming.
+
 2007-06-16  Bernhard R. Link <brlink@debian.org>
 	* when checking a file to have the expected checksum,
 	first check if the file size matches before calculating

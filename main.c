@@ -2065,8 +2065,8 @@ ACTION_D(processincoming) {
 	retvalue result,r;
 	struct distribution *distributions;
 
-	if( argc != 2 ) {
-		fprintf(stderr,"reprepro processincoming <rule-name>\n");
+	if( argc != 2 && argc != 3 ) {
+		fprintf(stderr,"reprepro processincoming <rule-name> [<.changes file>]\n");
 		return RET_ERROR;
 	}
 
@@ -2076,7 +2076,7 @@ ACTION_D(processincoming) {
 		return r;
 	}
 
-	result = process_incoming(mirrordir, confdir, overridedir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
+	result = process_incoming(mirrordir, confdir, overridedir, filesdb, dbdir, references, dereferenced, distributions, argv[1], (argc==3)?argv[2]:NULL);
 
 	logger_wait();
 
