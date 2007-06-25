@@ -1,3 +1,7 @@
+2007-06-25  Bernhard R. Link <brlink@debian.org>
+	* don't complain if suite name and component name are 
+	the same in createsymlinks
+
 2007-06-24  Bernhard R. Link <brlink@debian.org>
 	* processincoming allows an optional second argument
 	to limit processing to a specific file for better

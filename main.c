@@ -1853,7 +1853,7 @@ ACTION_N(createsymlinks) {
 		size_t bufsize;
 		int ret;
 
-		if( d->suite == NULL )
+		if( d->suite == NULL || strcmp(d->suite, d->codename) == 0 )
 			continue;
 		r = RET_NOTHING;
 		for( d2 = distributions ; d2 != NULL ; d2 = d2->next ) {
