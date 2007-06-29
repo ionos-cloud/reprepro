@@ -42,7 +42,7 @@ Sections of this document:
  </ul></li>
 <li><a href="#localpackages">Local packages</a>
  <ul>
- <li><a href="#include">Including via command line</a> (TODO)</li>
+ <li><a href="#include">Including via command line</a></li>
  <li><a href="#incoming">Processing an incoming queue</a> (TODO) </li>
  </ul></li>
 <li><a href="#incoming">Incoming directories</a> (TODO)</li>
@@ -621,7 +621,49 @@ This method is also relatively new (only available since 2.0.0), thus
 optimisation for automatic procession will happen even more.
 </dd></dl>
 <h3><a name="include">Including via command line</a></h3>
-TO BE DOCUMENTED
+There are three commands to directly include packages into your repository:
+<tt class="command">includedeb</tt>, <tt class="command">includedsc</tt>
+and <tt class="command">includechanges</tt>.
+Each needs to codename of the distribution you want to put your package into
+as first argument and a file of the appropiate type
+(<tt class="suffix">.deb</tt>, <tt class="suffix">.dsc</tt> or
+ <tt class="suffix">.changes</tt>, respectively) as second argument.
+<br>
+If no component is specified via <tt class="option">--component</tt>
+(or short <tt class="option">-C</tt>), it will be guessed looking at its
+section and the components of that distribution.
+<br>
+If there are no <tt class="option">--section</tt>
+(or short <tt class="option">-S</tt>) option, and it is not specified
+by the (binary or source, depending on the type) override file of the
+distribution, the value from the <tt class="suffix">.changes</tt>-file
+is used (if the command is <tt class="command">includechanges</tt>)
+or it is extracted out of the file (if it is a
+<tt class="suffix">.deb</tt>-file, future versions might also try to
+extract it from a <tt class="suffix">.dsc</tt>'s diff or tarball).
+<br>
+Same with the priority and the <tt class="option">--priority</tt>
+(or short <tt class="option">-P</tt>) option.
+<br>
+With the <tt class="option">--architecture</tt> (or short <tt class="option">-A</tt>)
+option, the scope of the command is limited to that architecture.
+<tt class="command">includdeb</tt> will add a Architecture <tt>all</tt>
+packages only to that architecture (and complain about Debian packages for
+other architectures).
+<tt class="command">include</tt> will do the same and ignore packages for
+other architectures (source packages will only be included if the value
+for <tt class="option">--architecture</tt> is <tt>source</tt>).
+<br>
+To limit the scope to a specify type of package, use the
+<tt class="option">--packagetype</tt> or short <tt class="option">-T</tt>
+option. Possible values are <tt>deb</tt>, <tt>udeb</tt> and <tt>dsc</tt>.
+<br>
+When using the <tt class="option">--delete</tt> option, files will
+be moved or deleted after copying them.
+Repeating the <tt class="option">--delete</tt> option will also delete
+unused files.
+<br>
+TO BE CONTINUED.
 <h3><a name="incoming">Processing and incoming queue</a></h3>
 TO BE DOCUMENTED
 <h2><a name="incoming">Incoming directories</a></h2>
