@@ -1,0 +1,303 @@
+#compdef reprepro
+
+local context state line confdir distfile incomingfile incomingdir
+typeset -A opt_args
+local -a codenames architectures list
+
+function _reprepro_calcconfdir ()
+{
+        if [[ -n "$opt_args[--confdir]" ]]; then
+		confdir=${opt_args[--confdir]}
+	elif [[ -n "$REPREPRO_CONFIG_DIR" ]]; then
+		confdir=${REPREPRO_BASE_DIR}/conf
+	elif [[ -n "$opt_args[-b]" ]]; then
+		confdir=${opt_args[-b]}/conf
+	elif [[ -n "$opt_args[--basedir]" ]]; then
+		confdir=${opt_args[--basedir]}/conf
+	elif [[ -n "$REPREPRO_BASE_DIR" ]]; then
+		confdir=${REPREPRO_BASE_DIR}/conf
+	else
+		confdir=$PWD/conf
+	fi
+	if [[  -e "$confdir/options" ]] ; then
+		if grep -q '^confdir ' -- "$confdir/options" 2>/dev/null ; then
+			confdir="$(grep '^confdir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^confdir  *//')"
+		elif [[ -z "$opt_args[--confdir]" && -z "$REPREPRO_CONFIG_DIR" ]] \
+		     &&  grep -q '^basedir ' -- "$confdir/options" 2>/dev/null ; then
+		     	confdir="$(grep '^basedir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^basedir //')/conf"
+		fi
+	fi
+}
+
+function _reprepro_finddistributions ()
+{
+	_reprepro_calcconfdir
+	distfile="$confdir"/distributions
+	test -e "$distfile"
+}
+
+function _reprepro_findincoming ()
+{
+	_reprepro_calcconfdir
+	incomingfile="$confdir"/incoming
+	test -e "$incomingfile"
+}
+
+function _reprepro_architectures ()
+{
+	_reprepro_finddistributions \
+		&& architectures=($(awk '/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {$1="";print}' "$distfile" 2>/dev/null)) \
+		|| architectures=(i386 m68k sparc alpha powerpc arm mips mipsel hppa ia64 s390 amd64 ppc64 sh armeb m32r hurd-i386 netbsd-i386 netbsd-alpha kfreebsd-gnu)
+      	_wanted -V 'architectures' expl 'architecture' compadd -a architectures
+}
+
+function _reprepro_components ()
+{
+	_reprepro_finddistributions \
+		&& components=($(awk '/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {$1="";print}' "$distfile" 2>/dev/null)) \
+		|| components=(main contrib non-free bad)
+      	_wanted -V 'components' expl 'component' compadd -a components
+}
+function _reprepro_codenames () {
+	_reprepro_finddistributions \
+	&& codenames=($(awk '/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {$1="";print}' "$distfile")) \
+	|| codenames=(sid lenny etch sarge unstable testing stable local)
+      	_wanted -V 'codenames' expl 'codename' compadd -a codenames
+}
+function _reprepro_identifiers () {
+	_reprepro_finddistributions \
+		&& list=($(awk '
+			/^[Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {ccount = split($0,components); next}
+			/^[Uu][Dd][Ee][Bb][Cc][Oo][Mm][Pp][Oo][Nn][Ee][Nn][Tt][Ss]: / {uccount = split($0,ucomponents); next}
+			/^[Aa][Rr][Cc][Hh][Ii][Tt][Ee][Cc][Tt][Uu][Rr][Ee][Ss]: / {acount = split($0,architectures); next}
+			/^[Cc][Oo][Dd][Ee][Nn][Aa][Mm][Ee]: / {codename = $2; next}
+			/^$/ {for(a=2;a<=acount;a++){
+				for(c=2;c<=ccount;c++){
+				print codename "|" components[c] "|" architectures[a]
+				}
+				if( architectures[a] != "source" ) {
+				for(c=2;c<=uccount;c++){
+				print "u|" codename "|" ucomponents[c] "|" architectures[a]
+				}
+				}
+			     }; acount=0;ccount=0;ucount=0}
+			END {for(a=2;a<=acount;a++){
+				for(c=2;c<=ccount;c++){
+				print codename "|" components[c] "|" architectures[a]
+				}
+				if( architectures[a] != "source" ) {
+				for(c=2;c<=uccount;c++){
+				print "u|" codename "|" ucomponents[c] "|" architectures[a]
+				}
+				}
+			     }; acount=0;ccount=0;ucount=0}
+			{next}
+			' "$distfile" )) \
+		|| list=(identifier)
+  	_wanted -V 'identifiers' expl 'identifier' compadd -a list
+}
+function _reprepro_incomings () {
+	_reprepro_findincoming \
+	&& list=($(awk '/^[Nn][Aa][Mm][Ee]: / {print $2}' "$incomingfile")) \
+	|| list=(rule-name)
+      	_wanted -V 'rule names' expl 'rule name' compadd -a list
+}
+function _reprepro_incomingdir () {
+	local rulename=$1
+	shift
+	_reprepro_findincoming \
+	&& incomingdir=($(awk '
+		/^[Ii][Nn][Cc][Oo][Mm][Ii][Nn][Gg][Dd][Ii][Rr]: / {dir=$2; next}
+		/^[Nn][Aa][Mm][Ee]: / {name=$2; next}
+		/^$/ { if( name="'"$rulename"'" ) { print dir } ; next } 
+		END { if( name="'"$rulename"'" ) { print dir }}
+		{next}
+		' "$incomingfile"))
+}
+function _reprepro_package_names () {
+#todo get package names?...
+      		_wanted -V 'package names' expl 'package name' compadd name
+}
+function _reprepro_source_package_names () {
+#todo get package names?...
+      	_wanted -V 'source package names' expl 'source package name' compadd name
+}
+
+_arguments \
+	'*'{-v,-V,--verbose}'[be more verbose]' \
+	'*--silent[be less verbose]' \
+	'*--delete[Delete files after inclusion]' \
+	'(-b --basedir)'{-b,--basedir}'[Base drectoryset]:basedir:_files -/' \
+	'--confdir[Directory where config files are]:config dir:_files -/' \
+	'--distdir[Directory where index files will be exported to]:dist dir:_files -/' \
+	'--logdir[Directory where log files will be generated]:log dir:_files -/' \
+	'--overridedir[Directory where override files are searched]:override dir:_files -/' \
+	'--dbdir[Directory where the database is stored]:database dir:_files -/' \
+	'--listdir[Directory where downloaded index files will be stored]:list dir:_files -/' \
+	'--methoddir[Directory to search apt methods in]:method dir:_files -/' \
+	'(-C --component)'{-C,--component}'[Override component]:component:{_reprepro_components}' \
+	'(-A --architecture)'{-A,--architecture}'[Limit to a specific architecture]:architecture:{_reprepro_architectures}' \
+	'(-T --type)'{-T,--type}'[Limit to a specific type]:file type:(dsc deb udeb)' \
+	'(-S --section)'{-S,--section}'[Override section]:section:(admin base comm contrib devel doc editors electronics embedded games gnome graphics hamradio interpreters kde libs libdevel mail math misc net news non-free oldlibs otherosfs perl python science shells sound tex text utils web x11 contrib/admin contrib/base contrib/comm contrib/contrib contrib/devel contrib/doc contrib/editors contrib/electronics contrib/embedded contrib/games contrib/gnome contrib/graphics contrib/hamradio contrib/interpreters contrib/kde contrib/libs contrib/libdevel contrib/mail contrib/math contrib/misc contrib/net contrib/news contrib/non-free contrib/oldlibs contrib/otherosfs contrib/perl contrib/python contrib/science contrib/shells contrib/sound contrib/tex contrib/text contrib/utils contrib/web contrib/x11 non-free/admin non-free/base non-free/comm non-free/contrib non-free/devel non-free/doc non-free/editors non-free/electronics non-free/embedded non-free/games non-free/gnome non-free/graphics non-free/hamradio non-free/interpreters non-free/kde non-free/libs non-free/libdevel non-free/mail non-free/math non-free/misc non-free/net non-free/news non-free/non-free non-free/oldlibs non-free/otherosfs non-free/perl non-free/python non-free/science non-free/shells non-free/sound non-free/tex non-free/text non-free/utils non-free/web non-free/x11)' \
+	'(-P --priority)'{-P,--priority}'[Override priority]:priority:(required important standard optional extra)' \
+	'--export=[]:when:(never changed normal force)' \
+	'*--ignore=[Do ignore errors of some type]:error type:((\
+		ignore\:"ignore unknown ignore tags"\
+		forbiddenchar\:"allow more 7bit characters for names and versions"\
+		8bit\:"allow 8 bit characters"\
+		emptyfilenamepart\:"allow strings used to construct filenames to be empty"\
+		overlongcomments\:"allow multiline comments"\
+		spaceonlyline\:"do not warn about lines containing only spaces"\
+		malformedchunk\:"ignore lines without colons"\
+		shortkeyid\:"allow gpg-keys specified with less than 8 hex-digits"\
+		unknownfield\:"ignore unknown fields"\
+		wrongdistribution\:"put .changes files in distributed they were not made for"\
+		missingfield\:"allow missing fields"\
+		brokenold\:"ignore broken packages in database"\
+		brokenversioncmp\:"ignore versions not parseable"\
+		extension\:"ignore unexpected suffixes of files"\
+		unusedarch\:"allow changes files to list achitectures not used"\
+		surprisingarch\:"do not protest when a changes file does not list a architecture it has files for"\
+		))' \
+	'*--unignore=[Do not ignore errors of type]:error type:(
+		ignore forbiddenchar 8bit emptyfilenamepart overlongcomments\
+		spaceonlyline malformedchunk shortkeyid unknownfield\
+		wrongdistribution missingfield brokenold brokenversioncmp\
+		extension unusedarch surprisingarch)' \
+	'--waitforlock=[Time to wait if database is locked]:count:(0 3600)' \
+	'--spacecheck[Mode for calculating free space before downloading packages]:behavior:(full none)' \
+	'--dbsafetymargin[Safety margin for the partition with the database]:bytes count:' \
+	'--safetymargin[Safety margin per partition]:bytes count:' \
+	'(--nonothingiserror)--nothingiserror[Return error code when nothing was done]' \
+	'(--listsdownload --nonolistsdownload)--nolistsdownload[Do not download Release nor index files]' \
+	'(--nokeepunreferencedfiles)--keepunreferencedfiles[Do not delete files that are no longer used]' \
+	'(--nokeepunneededlists)--keepunneededlists[Do not delete downloaded list files that seem to be no longer used]' \
+	'(--nokeepdirectories)--keepdirectories[Do not remove directories when they get emtpy]' \
+	'(--noask-passphrase)--ask-passphrase[Ask for passphrases (insecure)]' \
+  	'(--nonoskipold --skipold)--noskipold[Do not ignore parts where no new index file is available]' \
+	'(--guessgpgtty --nonoguessgpgtty)--noguessgpgtty[Do not set GPG_TTY variable even when unset and stdin is a tty]' \
+	':reprepro command:((\
+		export\:"export index files"\
+		createsymlinks\:"create suite symlinks"\
+		list\:"list packages"\
+		listfilter\:"list packages matching filter"\
+		remove\:"remove packages"\
+		update\:"update from external source"\
+		iteratedupdate\:"update step-by-step from external source"\
+		checkupdate\:"check what would be updated"\
+		predelete\:"delete what would be removed or superseeded by an update"\
+		pull\:"update from another local distribtuion"\
+		checkpull\:"check what would be pulled"\
+		includedeb\:"include a .deb file"\
+		includeudeb\:"include a .udeb file"\
+		includedsc\:"include a .dsc file"\
+		include\:"include a .changes file"\
+		processincoming\:"process files from an incoming directory"\
+		check\:"check if all references are correct"\
+		checkpool\:"check if all files are still there and correct"\
+		rereference\:"recreate references"\
+		dumpreferences\:"dump reference information"\
+		dumpunreferenced\:"dump files without reference (i.e. unneded)"\
+		deleteunreferenced\:"delete files without reference"\
+		reoverride\:"apply override information to already existing packages"\
+		dumptracks\:"dump tracking information"\
+		retrack\:"recreate tracking information"\
+		removealltracks\:"remove tracking information"\
+		removetrack\:"remove a single tracking data"\
+		tidytracks\:"look for files referened by tracks but no longer needed"\
+		copy\:"move a package from one distribution to another"\
+		clearvanished\:"remove empty databases"\
+		gensnapshot\:"generate a snapshot"\
+		rerunnotifiers\:"call notificators as if all packages were just included"\
+    		))' \
+	'2::arguments:->first' \
+	'3::arguments:->second' \
+	'4::arguments:->third' \
+	'*::arguments:->argument' && return 0
+
+case "$state" in
+ (first argument|second argument|third argument|argument)
+	case "$words[1]" in
+	 (export|update|iteratedupdate|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks)
+		_reprepro_codenames
+		;;
+	 (checkpool)
+		if [[ "$state" = "first argument" ]] ; then
+      			_wanted -V 'modifiers' expl 'modifier' compadd fast
+		fi
+		;;
+
+	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_addmd5sums)
+		;;
+	 (_dumpcontents|_removereferences)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_identifiers
+		fi
+		;;
+	 (list|listfilter)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		fi
+		;;
+	 (remove)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		else
+			_reprepro_package_names "$words[2]"
+		fi
+		;;
+	 (gensnapshot)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+      			_wanted -V 'snapshot names' expl 'snapshot name' compadd $(date -I)
+		fi
+		;;
+	 (removetrack)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+			_reprepro_source_package_names "$words[2]"
+		elif [[ "$state" = "third argument" ]] ; then
+#and version...
+		fi
+		;;
+	 (includedeb)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+			_files -g "*.deb"
+		fi
+		;;
+	 (includedsc)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+			_files -g "*.dsc"
+		fi
+		;;
+	 (include)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+			_files -g "*.changes"
+		fi
+		;;
+	 (__extractfilelist|__extractcontrol)
+		_files -g "*.deb"
+		;;
+	 (processincoming)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_incomings
+		elif [[ "$state" = "second argument" ]] ; then
+			_reprepro_incomingdir "$words[2]" \
+			&& _files -g "*.changes" -W "$incomingdir" \
+			|| _files -g "*.changes"
+		fi
+		;;
+	 (*)
+    		_files
+	   	;;
+	esac
+	;;
+esac
