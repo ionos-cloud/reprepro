@@ -1,5 +1,16 @@
 #compdef reprepro
 
+# This is a zsh completion script for reprepro.
+# To make use of it make sure it is stored as _reprepro in your
+# zsh's fpath (like /usr/local/share/zsh/site-functions).
+#
+# to install as user:
+#
+# mkdir ~/.zshfpath
+# cp reprepro.zsh_completion ~/.zshfiles/_reprepro
+# echo 'fpath=(~/.zshfiles $fpath)' >> ~/.zshrc
+# echo 'autoload -U ~/.zshfiles*(:t)' >> ~/.zshrc
+
 local context state line confdir distfile incomingfile incomingdir
 typeset -A opt_args
 local -a codenames architectures list
