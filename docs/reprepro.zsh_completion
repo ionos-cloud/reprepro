@@ -11,16 +11,47 @@
 # echo 'fpath=(~/.zshfiles $fpath)' >> ~/.zshrc
 # echo 'autoload -U ~/.zshfiles*(:t)' >> ~/.zshrc
 
-local context state line confdir distfile incomingfile incomingdir
+local context state line confdir distfile incomingfile incomingdir basedir
 typeset -A opt_args
-local -a codenames architectures list
+local -a codenames architectures list commands hiddencommands
+
+function _reprepro_calcbasedir ()
+{
+	if [[ -n "$opt_args[-b]" ]]; then
+		basedir=${opt_args[-b]}
+	elif [[ -n "$opt_args[--basedir]" ]]; then
+		basedir=${opt_args[--basedir]}
+	elif [[ -n "$REPREPRO_BASE_DIR" ]]; then
+		basedir=${REPREPRO_BASE_DIR}
+	else
+		basedir=$PWD
+	fi
+        if [[ -n "$opt_args[--confdir]" ]]; then
+		confdir=${opt_args[--confdir]}
+	elif [[ -n "$REPREPRO_CONFIG_DIR" ]]; then
+		confdir=${REPREPRO_CONFIG_DIR}
+	else
+		confdir=$basedir/conf
+	fi
+	if [[  -e "$confdir/options" ]] ; then
+		if grep -q '^basedir ' -- "$confdir/options" 2>/dev/null ; then
+		     	basedir="$(grep '^basedir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^basedir //')"
+		fi
+	fi
+}
+function _reprepro_filekeys ()
+{
+	_reprepro_calcbasedir
+	list=( $basedir )
+	_files -W list
+}
 
 function _reprepro_calcconfdir ()
 {
         if [[ -n "$opt_args[--confdir]" ]]; then
 		confdir=${opt_args[--confdir]}
 	elif [[ -n "$REPREPRO_CONFIG_DIR" ]]; then
-		confdir=${REPREPRO_BASE_DIR}/conf
+		confdir=${REPREPRO_CONFIG_DIR}
 	elif [[ -n "$opt_args[-b]" ]]; then
 		confdir=${opt_args[-b]}/conf
 	elif [[ -n "$opt_args[--basedir]" ]]; then
@@ -124,6 +155,8 @@ function _reprepro_incomingdir () {
 		END { if( name="'"$rulename"'" ) { print dir }}
 		{next}
 		' "$incomingfile"))
+	# needs to be an array, as it might not be absolute...
+	list=( $incomingdir )
 }
 function _reprepro_package_names () {
 #todo get package names?...
@@ -133,6 +166,52 @@ function _reprepro_source_package_names () {
 #todo get package names?...
       	_wanted -V 'source package names' expl 'source package name' compadd name
 }
+
+commands=( export:"export index files"
+	createsymlinks:"create suite symlinks"
+	list:"list packages"
+	listfilter:"list packages matching filter"
+	remove:"remove packages"
+	update:"update from external source"
+	iteratedupdate:"update step-by-step from external source"
+	checkupdate:"check what would be updated"
+	predelete:"delete what would be removed or superseeded by an update"
+	pull:"update from another local distribtuion"
+	checkpull:"check what would be pulled"
+	includedeb:"include a .deb file"
+	includeudeb:"include a .udeb file"
+	includedsc:"include a .dsc file"
+	include:"include a .changes file"
+	processincoming:"process files from an incoming directory"
+	check:"check if all references are correct"
+	checkpool:"check if all files are still there and correct"
+	rereference:"recreate references"
+	dumpreferences:"dump reference information"
+	dumpunreferenced:"dump files without reference (i.e. unneded)"
+	deleteunreferenced:"delete files without reference"
+	reoverride:"apply override information to already existing packages"
+	dumptracks:"dump tracking information"
+	retrack:"recreate tracking information"
+	removealltracks:"remove tracking information"
+	removetrack:"remove a single tracking data"
+	tidytracks:"look for files referened by tracks but no longer needed"
+	copy:"move a package from one distribution to another"
+	clearvanished:"remove empty databases"
+	gensnapshot:"generate a snapshot"
+	rerunnotifiers:"call notificators as if all packages were just included"
+   	)
+hiddencommands=(
+	_detect:"look if the file belonging to a filekey exists and add to the database."
+	_forget:"forget a file specified by filekey."
+	_listmd5sums:"print a list of filekeys and their checksums"
+	_addm5sums:"add checksums to database"
+	_dumpcontents:"output contents of a part of the repository"
+	_addreference:"mark a filekey needed by an identifier"
+	_removereferences:"remove all references by an identifer"
+	__extractcontrol:"extract the control file from a .deb file"
+	__extractfilelist:"extract the filelist from a .deb file"
+	_fakeemptyfilelist:"create an empty fake filelist cache item for a filekey"
+    	)
 
 _arguments \
 	'*'{-v,-V,--verbose}'[be more verbose]' \
@@ -195,46 +274,21 @@ _arguments \
 	'(--noask-passphrase)--ask-passphrase[Ask for passphrases (insecure)]' \
   	'(--nonoskipold --skipold)--noskipold[Do not ignore parts where no new index file is available]' \
 	'(--guessgpgtty --nonoguessgpgtty)--noguessgpgtty[Do not set GPG_TTY variable even when unset and stdin is a tty]' \
-	':reprepro command:((\
-		export\:"export index files"\
-		createsymlinks\:"create suite symlinks"\
-		list\:"list packages"\
-		listfilter\:"list packages matching filter"\
-		remove\:"remove packages"\
-		update\:"update from external source"\
-		iteratedupdate\:"update step-by-step from external source"\
-		checkupdate\:"check what would be updated"\
-		predelete\:"delete what would be removed or superseeded by an update"\
-		pull\:"update from another local distribtuion"\
-		checkpull\:"check what would be pulled"\
-		includedeb\:"include a .deb file"\
-		includeudeb\:"include a .udeb file"\
-		includedsc\:"include a .dsc file"\
-		include\:"include a .changes file"\
-		processincoming\:"process files from an incoming directory"\
-		check\:"check if all references are correct"\
-		checkpool\:"check if all files are still there and correct"\
-		rereference\:"recreate references"\
-		dumpreferences\:"dump reference information"\
-		dumpunreferenced\:"dump files without reference (i.e. unneded)"\
-		deleteunreferenced\:"delete files without reference"\
-		reoverride\:"apply override information to already existing packages"\
-		dumptracks\:"dump tracking information"\
-		retrack\:"recreate tracking information"\
-		removealltracks\:"remove tracking information"\
-		removetrack\:"remove a single tracking data"\
-		tidytracks\:"look for files referened by tracks but no longer needed"\
-		copy\:"move a package from one distribution to another"\
-		clearvanished\:"remove empty databases"\
-		gensnapshot\:"generate a snapshot"\
-		rerunnotifiers\:"call notificators as if all packages were just included"\
-    		))' \
+	':reprepro command:->commands' \
 	'2::arguments:->first' \
 	'3::arguments:->second' \
 	'4::arguments:->third' \
 	'*::arguments:->argument' && return 0
 
 case "$state" in
+ (commands)
+	if [[ -prefix _* ]] ; then
+		_describe "reprepro command" hiddencommands
+	else
+		_describe "reprepro command" commands
+	fi
+	;;
+
  (first argument|second argument|third argument|argument)
 	case "$words[1]" in
 	 (export|update|iteratedupdate|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks)
@@ -310,8 +364,23 @@ case "$state" in
 			_reprepro_incomings
 		elif [[ "$state" = "second argument" ]] ; then
 			_reprepro_incomingdir "$words[2]" \
-			&& _files -g "*.changes" -W "$incomingdir" \
+			&& _files -g "*.changes" -W list \
 			|| _files -g "*.changes"
+		fi
+		;;
+	  (_detect|_forget)
+		_reprepro_filekeys
+		;;
+	  (_fakeemptyfilelist)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_filekeys
+		fi
+		;;
+	  (_addreference)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_filekeys
+		elif [[ "$state" = "second argument" ]] ; then
+			_reprepro_identifiers
 		fi
 		;;
 	 (*)
