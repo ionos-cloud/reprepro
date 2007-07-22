@@ -1,5 +1,8 @@
+2007-07-22  Bernhard R. Link <brlink@debian.org>
+	* include[u]deb allows multiple files to include now
+
 2007-06-25  Bernhard R. Link <brlink@debian.org>
-	* don't complain if suite name and component name are 
+	* don't complain if suite name and component name are
 	the same in createsymlinks
 
 2007-06-24  Bernhard R. Link <brlink@debian.org>

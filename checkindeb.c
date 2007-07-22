@@ -337,6 +337,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 			packagetype, distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL,
 			pkg->component, &pkg->filekeys, pkg->deb.control);
+	RET_UPDATE(distribution->status, r);
 	deb_free(pkg);
 
 	if( tracks != NULL ) {
