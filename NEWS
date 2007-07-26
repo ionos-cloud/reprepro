@@ -1,3 +1,7 @@
+Updates since 2.2.2:
+- add support for binNMUs (i.e. .changes files having a Version: that is not
+  the source version).
+
 Updates since 2.2.1:
 - processincoming can be limited to a single .changes file
 - fix to support apt-methods stating Send-Config: false

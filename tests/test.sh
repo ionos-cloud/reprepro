@@ -823,7 +823,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Version-header '999:versioninchanges-0~' of 'test.changes' and source version 'sourceversionindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
+*=Source version '999:versioninchanges-0~' of 'test.changes' and source version 'sourceversionindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
 -v0*=There have been errors!
 EOF
 sed -i -e 's/999:versioninchanges-0~/sourceversionindeb/' i/test.changes
@@ -1048,7 +1048,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Version-header '1:versioninchanges' of 'test.changes' and version 'versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=Source version '1:versioninchanges' of 'test.changes' and version 'versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
 -v0*=There have been errors!
 EOF
 sed -i 's/^Version: 1:versioninchanges$/Version: versionindsc/' i/test.changes
