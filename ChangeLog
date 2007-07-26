@@ -1,3 +1,8 @@
+2007-07-26  Bernhard R. Link <brlink@debian.org>
+	* add support for .changes file having the source
+	version in the Sources: header (like binNMUs) to the
+	include command.
+
 2007-07-22  Bernhard R. Link <brlink@debian.org>
 	* include[u]deb allows multiple files to include now
 

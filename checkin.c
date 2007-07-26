@@ -46,6 +46,7 @@
 #include "checkin.h"
 #include "uploaderslist.h"
 #include "log.h"
+#include "dpkgversions.h"
 #include "changes.h"
 
 extern int verbose;
@@ -94,7 +95,7 @@ struct fileentry {
 
 struct changes {
 	/* Things read by changes_read: */
-	char *source, *version;
+	char *source, *sourceversion, *changesversion;
 	struct strlist distributions,
 		       architectures,
 		       binaries;
@@ -112,6 +113,8 @@ struct changes {
 	const char *firstcomponent;
 	/* the directory the .changes file resides in */
 	char *incomingdirectory;
+	/* the Version: and the version in Source: differ */
+	bool_t isbinnmu;
 };
 
 static void freeentries(/*@only@*/struct fileentry *entry) {
@@ -139,7 +142,8 @@ static void freeentries(/*@only@*/struct fileentry *entry) {
 static void changes_free(/*@only@*/struct changes *changes) {
 	if( changes != NULL ) {
 		free(changes->source);
-		free(changes->version);
+		free(changes->sourceversion);
+		free(changes->changesversion);
 		strlist_done(&changes->architectures);
 		strlist_done(&changes->binaries);
 		freeentries(changes->files);
@@ -253,6 +257,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	struct changes *c;
 	struct strlist filelines;
 	bool_t broken;
+	int versioncmp;
 
 #define E(err) { \
 		if( r == RET_NOTHING ) { \
@@ -289,18 +294,35 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	R;
 	r = check(filename,c,"Date");
 	R;
-	r = chunk_getname(c->control,"Source",&c->source,FALSE);
+	r = chunk_getnameandversion(c->control,"Source",&c->source,&c->sourceversion);
 	E("Missing 'Source' field");
 	r = propersourcename(c->source);
 	R;
+	if( c->sourceversion != NULL ) {
+		r = properversion(c->sourceversion);
+		R;
+	}
 	r = chunk_getwordlist(c->control,"Binary",&c->binaries);
 	E("Missing 'Binary' field");
 	r = chunk_getwordlist(c->control,"Architecture",&c->architectures);
 	E("Missing 'Architecture' field");
-	r = chunk_getvalue(c->control,"Version",&c->version);
+	r = chunk_getvalue(c->control,"Version",&c->changesversion);
 	E("Missing 'Version' field");
-	r = properversion(c->version);
+	r = properversion(c->changesversion);
 	E("Malforce Version number");
+	if( c->sourceversion == NULL ) {
+		c->sourceversion = strdup(c->changesversion);
+		if( c->sourceversion == NULL ) {
+			changes_free(c);
+			return RET_ERROR_OOM;
+		}
+		c->isbinnmu = FALSE;
+	} else {
+		r = dpkgversions_cmp(c->sourceversion, c->changesversion,
+				&versioncmp);
+		E("Error comparing versions. (That should have been caught earlier, why now?)");
+		c->isbinnmu = versioncmp != 0;
+	}
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field");
 	r = check(filename,c,"Urgency");
@@ -529,7 +551,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 				return RET_ERROR;
 			}
 			havedsc = TRUE;
-			calculatedname = calc_source_basename(changes->source,changes->version);
+			calculatedname = calc_source_basename(changes->source,changes->sourceversion);
 			if( calculatedname == NULL )
 				return RET_ERROR_OOM;
 			if( strcmp(calculatedname,e->basename) != 0 ) {
@@ -737,7 +759,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				e->filekey,e->md5sum,
 				D_INPLACE,FALSE,
 				&changes->binaries,
-				changes->source,changes->version);
+				changes->source,changes->sourceversion);
 		} else if( e->type == fe_UDEB ) {
 			r = deb_prepare(&e->pkg.deb,filesdb,
 				e->component,e->architecture,
@@ -747,17 +769,25 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 				e->filekey,e->md5sum,
 				D_INPLACE,FALSE,
 				&changes->binaries,
-				changes->source,changes->version);
+				changes->source,changes->sourceversion);
 		} else if( e->type == fe_DSC ) {
-			assert(changes->srccomponent!=NULL);
-			assert(changes->srcdirectory!=NULL);
-			r = dsc_prepare(&e->pkg.dsc,filesdb,
-				changes->srccomponent,e->section,e->priority,
-				distribution,sourcedirectory,fullfilename,
-				e->filekey,e->basename,
-				changes->srcdirectory,e->md5sum,
-				D_INPLACE,
-				changes->source,changes->version);
+			if( !changes->isbinnmu || IGNORING_(dscinbinnmu,
+"File '%s' looks like a source package, but this .changes looks like a binNMU\n"
+"(as '%s' (from Source:) and '%s' (From Version:) differ.)\n",
+				e->filekey, changes->sourceversion,
+				changes->changesversion) ) {
+
+				assert(changes->srccomponent!=NULL);
+				assert(changes->srcdirectory!=NULL);
+				r = dsc_prepare(&e->pkg.dsc,filesdb,
+						changes->srccomponent,e->section,e->priority,
+						distribution,sourcedirectory,fullfilename,
+						e->filekey,e->basename,
+						changes->srcdirectory,e->md5sum,
+						D_INPLACE,
+						changes->source,changes->sourceversion);
+			} else
+				r = RET_ERROR;
 		}
 
 		free(fullfilename);
@@ -928,7 +958,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	}
 
 	if( tracks != NULL ) {
-		r = trackingdata_summon(tracks,changes->source,changes->version,&trackingdata);
+		r = trackingdata_summon(tracks,changes->source,changes->sourceversion,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
 			changes_free(changes);
 			return r;
@@ -937,7 +967,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			char *basename;
 			assert( changes->srcdirectory != NULL );
 
-			basename = calc_changes_basename(changes->source, changes->version, &changes->architectures);
+			basename = calc_changes_basename(changes->source, changes->changesversion, &changes->architectures);
 			changes->changesfilekey =
 				calc_dirconcat(changes->srcdirectory,basename);
 			free(basename);
@@ -1005,7 +1035,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	if( RET_IS_OK(result) ) {
 		assert( logger_isprepared(distribution->logger) );
 		logger_logchanges(distribution->logger, distribution->codename,
-			changes->source, changes->version, changes->control,
+			changes->source, changes->changesversion, changes->control,
 			changesfilename, changes->changesfilekey);
 	}
 	/* wait for notify scripts (including those for the packages)
