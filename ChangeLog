@@ -2,6 +2,8 @@
 	* fix segfault in changestool's verify if
 	md5sum of .orig.tar.gz is wrong and not listed
 	in the .changes file.
+	* changestool's verify knows about epochs not showing
+	up in filenames now.
 
 2007-07-26  Bernhard R. Link <brlink@debian.org>
 	* add support for .changes file having the source
