@@ -1130,7 +1130,8 @@ static void verify_sourcefile_md5sums(struct sourcefile *f, const char *dscfile)
 		return;
 	}
 	if( strcmp(f->expectedmd5sum, f->file->realmd5sum) != 0 ) {
-		if( strcmp(f->expectedmd5sum, f->file->changesmd5sum) == 0 )
+		if( f->file->changesmd5sum != NULL &&
+		    strcmp(f->expectedmd5sum, f->file->changesmd5sum) == 0 )
 			fprintf(stderr,
 "ERROR: '%s' lists the same wrong md5sum for '%s' like the .changes file!\n",
 				dscfile, f->basename);

@@ -1,3 +1,8 @@
+2007-07-28  Bernhard R. Link <brlink@debian.org>
+	* fix segfault in changestool's verify if
+	md5sum of .orig.tar.gz is wrong and not listed
+	in the .changes file.
+
 2007-07-26  Bernhard R. Link <brlink@debian.org>
 	* add support for .changes file having the source
 	version in the Sources: header (like binNMUs) to the
