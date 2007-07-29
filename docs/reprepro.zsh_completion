@@ -2,16 +2,18 @@
 
 # This is a zsh completion script for reprepro.
 # To make use of it make sure it is stored as _reprepro in your
-# zsh's fpath (like /usr/local/share/zsh/site-functions).
+# zsh's fpath (like /usr/local/share/zsh/site-functions/).
 #
 # to install as user:
 #
-# mkdir ~/.zshfpath
+# mkdir ~/.zshfiles
 # cp reprepro.zsh_completion ~/.zshfiles/_reprepro
 # echo 'fpath=(~/.zshfiles $fpath)' >> ~/.zshrc
 # echo 'autoload -U ~/.zshfiles*(:t)' >> ~/.zshrc
+#
+# make sure compinit is called after those lines in .zshrc
 
-local context state line confdir distfile incomingfile incomingdir basedir
+local context state line confdir distfile incomingfile incomingdir basedir confdirset basedirset
 typeset -A opt_args
 local -a codenames architectures list commands hiddencommands
 
@@ -19,12 +21,16 @@ function _reprepro_calcbasedir ()
 {
 	if [[ -n "$opt_args[-b]" ]]; then
 		basedir=${opt_args[-b]}
+		basedirset=true
 	elif [[ -n "$opt_args[--basedir]" ]]; then
 		basedir=${opt_args[--basedir]}
+		basedirset=true
 	elif [[ -n "$REPREPRO_BASE_DIR" ]]; then
 		basedir=${REPREPRO_BASE_DIR}
+		basedirset=true
 	else
 		basedir=$PWD
+		basedirset=false
 	fi
         if [[ -n "$opt_args[--confdir]" ]]; then
 		confdir=${opt_args[--confdir]}
@@ -34,8 +40,8 @@ function _reprepro_calcbasedir ()
 		confdir=$basedir/conf
 	fi
 	if [[  -e "$confdir/options" ]] ; then
-		if grep -q '^basedir ' -- "$confdir/options" 2>/dev/null ; then
-		     	basedir="$(grep '^basedir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^basedir //')"
+		if [ "$basedirset" != "true" ] && grep -q '^basedir ' -- "$confdir/options" 2>/dev/null ; then
+		     	basedir="$(grep '^basedir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^basedir *//')"
 		fi
 	fi
 }
@@ -50,23 +56,33 @@ function _reprepro_calcconfdir ()
 {
         if [[ -n "$opt_args[--confdir]" ]]; then
 		confdir=${opt_args[--confdir]}
+		confdirset=direct
 	elif [[ -n "$REPREPRO_CONFIG_DIR" ]]; then
 		confdir=${REPREPRO_CONFIG_DIR}
+		confdirset=direct
 	elif [[ -n "$opt_args[-b]" ]]; then
 		confdir=${opt_args[-b]}/conf
+		confdirset=basedir
+		basedirset=true
 	elif [[ -n "$opt_args[--basedir]" ]]; then
 		confdir=${opt_args[--basedir]}/conf
+		confdirset=basedir
+		basedirset=true
 	elif [[ -n "$REPREPRO_BASE_DIR" ]]; then
 		confdir=${REPREPRO_BASE_DIR}/conf
+		confdirset=basedir
+		basedirset=true
 	else
 		confdir=$PWD/conf
+		confdirset=default
+		basedirset=false
 	fi
-	if [[  -e "$confdir/options" ]] ; then
+	if [ "$confdirset" != "direct" ] && [[  -e "$confdir/options" ]] ; then
 		if grep -q '^confdir ' -- "$confdir/options" 2>/dev/null ; then
 			confdir="$(grep '^confdir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^confdir  *//')"
-		elif [[ -z "$opt_args[--confdir]" && -z "$REPREPRO_CONFIG_DIR" ]] \
+		elif [ "$basedirset" = "false" ] \
 		     &&  grep -q '^basedir ' -- "$confdir/options" 2>/dev/null ; then
-		     	confdir="$(grep '^basedir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^basedir //')/conf"
+		     	confdir="$(grep '^basedir ' -- "$confdir/options" 2>/dev/null | sed -e 's/^basedir *//')/conf"
 		fi
 	fi
 }

@@ -17,11 +17,11 @@ _reprepro()
 			conffile="./conf/options"
 			distfile="./conf/distributions"
 		fi
-		if [[ -e "$conffile" ]] ; then
+		if [ -z "$confdir" ] && [[ -e "$conffile" ]] ; then
 			if grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
-				distfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir //')/distributions"
-			elif [ -z "$confdir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
-				distfile="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir //')/conf/distributions"
+				distfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir *//')/distributions"
+			elif [ -z "$basedir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
+				distfile="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir *//')/conf/distributions"
 			fi
 		fi
 		if [[ -e "$distfile" ]] ; then
@@ -46,10 +46,10 @@ _reprepro()
 			conffile="./conf/options"
 			incomingfile="./conf/incoming"
 		fi
-		if [[ -e "$conffile" ]] ; then
+		if [ -z "$confdir" ] && [[ -e "$conffile" ]] ; then
 			if grep -q '^confdir ' -- "$conffile" 2>/dev/null ; then
 				incomingfile="$(grep '^confdir ' -- "$conffile" 2>/dev/null | sed -e 's/^confdir //')/incoming"
-			elif [ -z "$confdir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
+			elif [ -z "$basedir" ] && grep -q '^basedir ' -- "$conffile" 2>/dev/null  ; then
 				incoming="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir //')/conf/incoming"
 			fi
 		fi
