@@ -22,4 +22,4 @@ far goals:
 		source of this package would be left.
 	write dokumentation, some examples
 	allow multiple versions in a distribution (needs major rewrite I fear)
-	option to keep source to each binary (needs mutliple source versions)
+	option to keep apt-get'able source to each binary (needs mutliple source versions)
