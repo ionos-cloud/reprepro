@@ -1,3 +1,13 @@
+reprepro (2.2.3-1) unstable; urgency=low
+
+  * bugfix release
+  - properly handle binNMU .changes files
+  - fix directory guessing problems in bash completions scripts
+  - add zsh completion scripts
+  - fix some deficits in the changestool program
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 29 Jul 2007 13:22:40 +0200
+
 reprepro (2.2.2-1) unstable; urgency=low
 
   * bugfix and integration release
