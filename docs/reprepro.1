@@ -1092,6 +1092,18 @@ In general the second one should be ignored then, but
 perhaps sometimes the first one.
 So I hope you know what you do.
 .TP
+.B dscinbinnmu
+If a .changes file has an explicit Source version that is different the
+to the version header of the file,
+than reprepro assumes it is binary non maintainer upload (NMU).
+In that case, source files are not permitted in .changes files
+processed by
+.B include
+or
+.BR processincoming .
+Adding \fB--ignore=dscinbinnmu\fP allows it for the \fBinclude\fP
+command.
+.TP
 .B emptyfilenamepart \fR(insecure)
 Allow strings to be empty that are used to construct filenames.
 (like versions, architectures, ...)

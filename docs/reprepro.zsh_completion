@@ -267,6 +267,7 @@ _arguments \
 		surprisingbinary\:"do not demand a .changes Binaries header to list all binaries"\
 		wrongsourceversion\:"do not demand coherent source versions in a .changes"\
 		wrongversion\:"do not demand coherent version of source packages in a .changes"\
+		dscinbinnmu\:"do not reject source files in what looks like a binMNU"\
 		brokensignatures\:"ignore corrupted signatures if there is a valid one"\
 		uploaders\:"allow even when forbidden by uploaders file"\
 		missingfile\:"include commands search harder for missing files like .orig.tar.gz"\
