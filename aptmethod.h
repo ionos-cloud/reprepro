@@ -1,8 +1,8 @@
 #ifndef REPREPRO_APTMETHOD_H
 #define REPREPRO_APTMETHOD_H
 
-#ifndef REPREPRO_FILES_H
-#include "files.h"
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
 #endif
 
 struct aptmethodrun;
@@ -31,7 +31,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey,/*@out@*//*@null@*/struct tobedone **);
 retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,const char *destfile);
 
-retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,/*@null@*/filesdb filesdb);
+retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struct database *);
 retvalue aptmethod_shutdown(/*@only@*/struct aptmethodrun *run);
 
 #endif

@@ -5,9 +5,6 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef REPREPRO_REFERENCES_H
-#include "reference.h"
-#endif
 #ifndef REPREPRO_RELEASE_H
 #include "release.h"
 #endif
@@ -27,7 +24,7 @@ void pull_freerules(/*@only@*/struct pull_rule *p);
 void pull_freedistributions(/*@only@*/struct pull_distribution *p);
 
 retvalue pull_prepare(const char *confdir,const char *logdir,struct pull_rule *rules,struct distribution *,/*@out@*/struct pull_distribution **,struct distribution **alsoneeded);
-retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys);
-retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributions);
+retvalue pull_update(struct database *,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys);
+retvalue pull_checkupdate(struct database *,struct pull_distribution *distributions);
 
 #endif

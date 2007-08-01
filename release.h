@@ -8,6 +8,9 @@
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
+#endif
 
 struct release;
 
@@ -21,7 +24,7 @@ typedef unsigned int compressionset; /* 1 << indexcompression */
 #define IC_FLAG(a) (1<<(a))
 
 /* Initialize Release generation */
-retvalue release_init(const char *dbdir, const char *distdir, const char *codename, struct release **release);
+retvalue release_init(struct release **release, struct database *database, const char *distdir, const char *codename);
 /* same but for a snapshot */
 retvalue release_initsnapshot(const char *distdir, const char *codename, const char *name, struct release **release);
 

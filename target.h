@@ -7,6 +7,9 @@
 #ifndef REPREPRO_NAMES_H
 #include "names.h"
 #endif
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
+#endif
 #ifndef REPREPRO_TRACKINGT_H
 #include "trackingt.h"
 #endif
@@ -28,7 +31,7 @@ typedef retvalue get_filekeys(struct target *,const char *,/*@out@*/struct strli
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 typedef retvalue do_reoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-typedef retvalue do_retrack(struct target *,const char *packagename,const char *controlchunk,trackingdb,references);
+typedef retvalue do_retrack(struct target *,const char *packagename,const char *controlchunk,trackingdb,struct database *);
 typedef retvalue get_sourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
 struct target {
@@ -63,24 +66,24 @@ retvalue target_initialize_binary(const char *codename,const char *component,con
 retvalue target_initialize_source(const char *codename,const char *component,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
 retvalue target_free(struct target *target);
 
-retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, bool_t snapshot, struct release *release);
+retvalue target_export(struct target *target,const char *confdir,struct database *,bool_t onlyneeded, bool_t snapshot, struct release *release);
 
 retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(struct target *target, const char *dbdir);
+retvalue target_initpackagesdb(struct target *target, struct database *);
 /* this closes databases... */
 retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
-retvalue target_addpackage(struct target *target,/*@null@*/struct logger *logger,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/struct trackingdata *,enum filetype);
+retvalue target_addpackage(struct target *,/*@null@*/struct logger *,struct database *,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/struct trackingdata *,enum filetype);
 retvalue target_checkaddpackage(struct target *target,const char *name,const char *version,bool_t tracking,bool_t permitnewerold);
-retvalue target_removepackage(struct target *target,struct logger *logger,references refs,const char *name,/*@null@*/const char *oldpversion,/*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
-retvalue target_check(struct target *target,filesdb filesdb,references refsdb);
-retvalue target_rereference(struct target *target,references refs);
-retvalue target_addsnapshotreference(struct target *target,const char *dbdir,references refs,const char *name);
-retvalue target_retrack(struct target *target,trackingdb tracks,references refs);
+retvalue target_removepackage(struct target *,struct logger *,struct database *,const char *name,/*@null@*/const char *oldpversion,/*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
+retvalue target_check(struct target *,struct database *);
+retvalue target_rereference(struct target *,struct database *);
+retvalue target_addsnapshotreference(struct target *,struct database *,const char *name);
+retvalue target_retrack(struct target *,trackingdb,struct database *);
 retvalue target_reoverride(struct target *target,const struct distribution *);
 
 retvalue target_rerunnotifiers(struct target *, struct logger *);

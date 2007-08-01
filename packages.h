@@ -9,20 +9,20 @@
 #include "strlist.h"
 #warning "What's hapening here?"
 #endif
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
+#endif
 #ifndef REPREPRO_NAMES_H
 #include "names.h"
-#endif
-#ifndef REPREPRO_FILES_H
-#include "files.h"
 #endif
 
 typedef struct s_packagesdb *packagesdb;
 
 /* initialize the packages-database for <identifier> */
-retvalue packages_initialize(/*@out@*/packagesdb *pkgs,const char *dbpath,const char *identifier);
+retvalue packages_initialize(/*@out@*/packagesdb *pkgs, struct database *,const char *identifier);
 
 /* The same but calculate the identifier */
-retvalue packages_init(packagesdb *pkgs,const char *dbpath,const char *codename,const char *component,const char *architecture,const char *packagetype);
+retvalue packages_init(packagesdb *pkgs, struct database *,const char *codename,const char *component,const char *architecture,const char *packagetype);
 
 /* release the packages-database initialized got be packages_initialize */
 retvalue packages_done(/*@only@*/packagesdb db);
@@ -43,13 +43,14 @@ typedef retvalue per_package_action(void *data,const char *package,/*@temp@*/con
 /* call action once for each saved chunk: */
 retvalue packages_foreach(packagesdb packagesdb,per_package_action *action,/*@temp@*/ /*@null@*/void *data);
 
+struct distribution;
 /* action to be called by packages_modifyall */
 typedef retvalue per_package_modifier(const struct distribution *data,const char *package,const char *chunk, char **newchunk);
 /* call action once for each saved chunk and replace with a new one, if it returns RET_OK: */
 retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const struct distribution *privdata,bool_t *setifmodified);
 
 /* get a list of all identifiers once created */
-retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers);
+retvalue packages_getdatabases(struct database *, struct strlist *identifiers);
 /* remove the package database for the given identifier */
-retvalue packages_drop(const char *dbpath, const char *identifier);
+retvalue packages_drop(struct database *,const char *identifier);
 #endif

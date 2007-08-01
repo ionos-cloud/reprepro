@@ -24,7 +24,7 @@ bool_t logger_rerun_needs_target(const struct logger *,const struct target *);
 retvalue logger_reruninfo(struct logger *,struct target *,const char *name,const char *version,const char *control,/*@null@*/const struct strlist *filekeys);
 
 /* do work that is left */
-retvalue logger_continue(struct logger*);
+retvalue logger_continue(struct logger *);
 /* wait for all jobs to finish */
 void logger_wait(void);
 void logger_warn_waiting(void);

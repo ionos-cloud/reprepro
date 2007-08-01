@@ -1,10 +1,6 @@
 #ifndef REPREPRO_TRACKINGT_H
 #define REPREPRO_TRACKINGT_H
 
-#ifndef REPREPRO_REFERENCE_H
-#include "reference.h"
-#endif
-
 enum filetype { ft_ALL_BINARY='a',
 		ft_ARCH_BINARY='b',
 		ft_CHANGES = 'c',

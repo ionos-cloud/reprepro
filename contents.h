@@ -4,6 +4,9 @@
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
+#endif
 #ifndef REPREPRO_RELEASE_H
 #include "release.h"
 #endif
@@ -24,9 +27,7 @@ void contentsoptions_done(struct contentsoptions *options);
 
 struct distribution;
 
-retvalue contentsoptions_parse(struct distribution *distribution,
-		const char *chunk);
-
-retvalue contents_generate(filesdb files, struct distribution *distribution, const char *dbdir, struct release *release, bool_t onlyneeded);
+retvalue contentsoptions_parse(struct distribution *distribution,const char *chunk);
+retvalue contents_generate(struct database *,struct distribution *,struct release *,bool_t onlyneeded);
 
 #endif

@@ -7,6 +7,9 @@ struct distribution;
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
+#endif
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
@@ -90,17 +93,23 @@ typedef retvalue distribution_each_action(void *data, struct target *t, struct d
  * not NULL or "all", only do those parts */
 retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data);
 
+/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
+retvalue distribution_foreach_roopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
+/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb,
+ * setting distribution->status to some error if there are any*/
+retvalue distribution_foreach_rwopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
+
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 /* like distribtion_getpart, but returns NULL if there is no such target */
 /*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
-retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
+retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *distdir,struct database *);
 
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *distdir,struct database *);
 
-retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,references refs,const char *name);
+retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *distdir,struct database *,const char *name);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc,const char *argv[],bool_t lookedat,/*@out@*/struct distribution **distributions);
@@ -109,7 +118,7 @@ retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc
 struct distribution *distribution_find(struct distribution *distributions, const char *name);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, filesdb);
+retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
 
 retvalue distribution_loadalloverrides(struct distribution *, const char *overridedir);
 void distribution_unloadoverrides(struct distribution *distribution);
