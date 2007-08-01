@@ -37,8 +37,9 @@
 #include "ignore.h"
 #include "filelist.h"
 #include "debfile.h"
+#include "database_p.h"
 
-struct s_filesdb {
+struct filesdb {
 	DB *database;
 	DB *contents;
 	char *mirrordir;
@@ -50,13 +51,13 @@ struct s_filesdb {
 extern int verbose;
 
 /* initalize "md5sum and size"-database */
-retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir) {
-	filesdb db;
+retvalue files_initialize(struct filesdb **fdb,const char *dbpath,const char *mirrordir) {
+	struct filesdb *db;
 	int dbret;
 	char *filename;
 	retvalue r;
 
-	db = malloc(sizeof(struct s_filesdb));
+	db = malloc(sizeof(struct filesdb));
 	if( db == NULL )
 		return RET_ERROR_OOM;
 	db->mirrordir = strdup(mirrordir);
@@ -126,7 +127,7 @@ retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir)
 }
 
 /* release the files-database initialized got be files_initialize */
-retvalue files_done(filesdb db) {
+retvalue files_done(struct filesdb *db) {
 	int dberr,dberr2;
 
 	assert( db != NULL);
@@ -144,8 +145,14 @@ retvalue files_done(filesdb db) {
 		return RET_OK;
 }
 
+/* concat mirrordir. return NULL if OutOfMemory */
+inline char *files_calcfullfilename(const struct database *database,const char *filekey) {
+	return calc_dirconcat(database->files->mirrordir, filekey);
+}
+
 /* Add file's md5sum to database */
-retvalue files_add(filesdb db,const char *filekey,const char *md5sum) {
+retvalue files_add(struct database *database,const char *filekey,const char *md5sum) {
+	struct filesdb *db = database->files;
 	int dbret;
 	DBT key,data;
 
@@ -161,7 +168,8 @@ retvalue files_add(filesdb db,const char *filekey,const char *md5sum) {
 	}
 }
 
-static retvalue files_get(filesdb db,const char *filekey,/*@out@*/char **md5sum) {
+static retvalue files_get(struct database *database,const char *filekey,/*@out@*/char **md5sum) {
+	struct filesdb *db = database->files;
 	int dbret;
 	DBT key,data;
 
@@ -185,7 +193,8 @@ static retvalue files_get(filesdb db,const char *filekey,/*@out@*/char **md5sum)
 
 
 /* remove file's md5sum from database */
-retvalue files_remove(filesdb db,const char *filekey, bool_t ignoremissing) {
+retvalue files_remove(struct database *database,const char *filekey, bool_t ignoremissing) {
+	struct filesdb *db = database->files;
 	int dbret;
 	DBT key;
 
@@ -215,7 +224,8 @@ retvalue files_remove(filesdb db,const char *filekey, bool_t ignoremissing) {
 }
 
 /* delete the file and remove its md5sum from database */
-retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs, bool_t ignoreifnot) {
+retvalue files_deleteandremove(struct database *database,const char *filekey,bool_t rmdirs, bool_t ignoreifnot) {
+	struct filesdb *db = database->files;
 	int err,en;
 	char *filename;
 	retvalue r;
@@ -224,7 +234,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 		return RET_ERROR_INTERUPTED;
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n",filekey);
-	filename = calc_fullfilename(filesdb->mirrordir,filekey);
+	filename = files_calcfullfilename(database, filekey);
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 	err = unlink(filename);
@@ -242,7 +252,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 	} else if(rmdirs) {
 		/* try to delete parent directories, until one gives
 		 * errors (hopefully because it still contains files) */
-		size_t fixedpartlen = strlen(filesdb->mirrordir);
+		size_t fixedpartlen = strlen(db->mirrordir);
 		char *p;
 
 		while( (p = strrchr(filename,'/')) != NULL ) {
@@ -276,7 +286,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 
 	}
 	free(filename);
-	return files_remove(filesdb, filekey, ignoreifnot);
+	return files_remove(database, filekey, ignoreifnot);
 }
 
 static retvalue files_calcmd5(/*@out@*/char **md5sum,const char *filename) {
@@ -297,12 +307,12 @@ static retvalue files_calcmd5(/*@out@*/char **md5sum,const char *filename) {
 	return ret;
 
 }
-static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char *md5sum) {
+
+static retvalue files_checkmd5sum(struct database *database,const char *filekey,const char *md5sum) {
 	char *filename;
 	retvalue ret;
 
-	filename = calc_fullfilename(filesdb->mirrordir,filekey);
-
+	filename = files_calcfullfilename(database, filekey);
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 
@@ -313,7 +323,8 @@ static retvalue files_checkmd5sum(filesdb filesdb,const char *filekey,const char
 
 /* check if file is already there (RET_NOTHING) or could be added (RET_OK)
  * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
-retvalue files_ready(filesdb db,const char *filekey,const char *md5sum) {
+retvalue files_ready(struct database *database,const char *filekey,const char *md5sum) {
+	struct filesdb *db = database->files;
 	int dbret;
 	DBT key,data;
 
@@ -334,7 +345,8 @@ retvalue files_ready(filesdb db,const char *filekey,const char *md5sum) {
 }
 
 /* hardlink file with known md5sum and add it to database */
-retvalue files_hardlink(filesdb db,const char *tempfile, const char *filekey,const char *md5sum) {
+retvalue files_hardlink(struct database *database,const char *tempfile, const char *filekey,const char *md5sum) {
+	struct filesdb *db = database->files;
 	retvalue ret;
 	int dbret;
 	DBT key,data;
@@ -360,11 +372,12 @@ retvalue files_hardlink(filesdb db,const char *tempfile, const char *filekey,con
 	if( RET_WAS_ERROR(ret) )
 		return ret;
 
-	return files_add(db,filekey,md5sum);
+	return files_add(database, filekey, md5sum);
 }
 
 /* check for file in the database and if not found there, if it can be detected */
-retvalue files_expect(filesdb db,const char *filekey,const char *md5sum) {
+retvalue files_expect(struct database *database,const char *filekey,const char *md5sum) {
+	struct filesdb *db = database->files;
 	retvalue ret;
 	int dbret;
 	DBT key,data;
@@ -384,17 +397,17 @@ retvalue files_expect(filesdb db,const char *filekey,const char *md5sum) {
 	}
 	/* got DB_NOTFOUND, so have to look for the file itself: */
 
-	ret = files_checkmd5sum(db,filekey,md5sum);
+	ret = files_checkmd5sum(database, filekey, md5sum);
 	if( ret == RET_NOTHING || RET_WAS_ERROR(ret) )
 		return ret;
 
 	/* add found file to database */
-	ret = files_add(db,filekey,md5sum);
+	ret = files_add(database, filekey, md5sum);
 	return ret;
 }
 
 /* check for several files in the database and in the pool if missing */
-retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const struct strlist *md5sums) {
+retvalue files_expectfiles(struct database *database,const struct strlist *filekeys,const struct strlist *md5sums) {
 	int i;
 	retvalue r;
 
@@ -402,7 +415,7 @@ retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const 
 		const char *filekey = filekeys->values[i];
 		const char *md5sum = md5sums->values[i];
 
-		r = files_expect(filesdb,filekey,md5sum);
+		r = files_expect(database, filekey, md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			return r;
 		}
@@ -416,7 +429,8 @@ retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const 
 }
 
 /* print missing files */
-retvalue files_printmissing(filesdb db,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles) {
+retvalue files_printmissing(struct database *database,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles) {
+	struct filesdb *db = database->files;
 	int i;
 	retvalue ret,r;
 
@@ -426,7 +440,7 @@ retvalue files_printmissing(filesdb db,const struct strlist *filekeys,const stru
 		const char *md5sum = md5sums->values[i];
 		const char *origfile = origfiles->values[i];
 
-		r = files_expect(db,filekey,md5sum);
+		r = files_expect(database, filekey, md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			return r;
 		}
@@ -441,7 +455,8 @@ retvalue files_printmissing(filesdb db,const struct strlist *filekeys,const stru
 }
 
 /* dump out all information */
-retvalue files_printmd5sums(filesdb db) {
+retvalue files_printmd5sums(struct database *database) {
+	struct filesdb *db = database->files;
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -473,7 +488,8 @@ retvalue files_printmd5sums(filesdb db) {
 // retvalue files_foreach(DB* filesdb,per_file_action action,void *data);
 
 /* callback for each registered file */
-retvalue files_foreach(filesdb db,per_file_action action,void *privdata) {
+retvalue files_foreach(struct database *database,per_file_action action,void *privdata) {
+	struct filesdb *db = database->files;
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -517,7 +533,7 @@ retvalue files_foreach(filesdb db,per_file_action action,void *privdata) {
 	return result;
 }
 
-struct checkfiledata { /*@temp@*/filesdb filesdb ; bool_t fast ; };
+struct checkfiledata { /*@temp@*/struct database *database; bool_t fast; };
 
 static retvalue getfilesize(/*@out@*/off_t *s,const char *md5sum) {
 	const char *p;
@@ -543,7 +559,7 @@ static retvalue checkfile(void *data,const char *filekey,const char *md5sumexpec
 	char *fullfilename;
 	retvalue r;
 
-	fullfilename = calc_dirconcat(d->filesdb->mirrordir,filekey);
+	fullfilename = files_calcfullfilename(d->database, filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 	if( d->fast ) {
@@ -596,19 +612,19 @@ static retvalue checkfile(void *data,const char *filekey,const char *md5sumexpec
 	return r;
 }
 
-retvalue files_checkpool(filesdb filesdb,bool_t fast) {
+retvalue files_checkpool(struct database *database,bool_t fast) {
 	struct checkfiledata d;
 	d.fast = fast;
-	d.filesdb = filesdb;
-	return files_foreach(filesdb,checkfile,&d);
+	d.database = database;
+	return files_foreach(database, checkfile, &d);
 }
 
-retvalue files_detect(filesdb db,const char *filekey) {
+retvalue files_detect(struct database *database,const char *filekey) {
 	char *md5sum;
 	char *fullfilename;
 	retvalue r;
 
-	fullfilename = calc_fullfilename(db->mirrordir,filekey);
+	fullfilename = files_calcfullfilename(database, filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 	r = md5sum_read(fullfilename,&md5sum);
@@ -624,7 +640,7 @@ retvalue files_detect(filesdb db,const char *filekey) {
 		fprintf(stderr,"Md5sum of '%s' is '%s'.\n",fullfilename,md5sum);
 	}
 	free(fullfilename);
-	r = files_add(db,filekey,md5sum);
+	r = files_add(database, filekey, md5sum);
 	free(md5sum);
 	return r;
 
@@ -632,12 +648,13 @@ retvalue files_detect(filesdb db,const char *filekey) {
 }
 
 /* Include a given file into the pool. */
-retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete) {
+retvalue files_include(struct database *database,const char *sourcefilename,const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete) {
+	struct filesdb *db = database->files;
 	retvalue r;
 	char *md5sumfound;
 
 	if( md5sum != NULL ) {
-		r = files_expect(db,filekey,md5sum);
+		r = files_expect(database, filekey, md5sum);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( RET_IS_OK(r) ) {
@@ -655,7 +672,7 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 	} else {
 		char *md5indatabase,*md5offile;
 
-		r = files_get(db,filekey,&md5indatabase);
+		r = files_get(database, filekey, &md5indatabase);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( RET_IS_OK(r) ) {
@@ -714,7 +731,7 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 			return r;
 	}
 
-	r = files_add(db,filekey,md5sumfound);
+	r = files_add(database, filekey, md5sumfound);
 	if( RET_WAS_ERROR(r) ) {
 		free(md5sumfound);
 		return r;
@@ -727,7 +744,7 @@ retvalue files_include(filesdb db,const char *sourcefilename,const char *filekey
 }
 
 /* same as above, but use sourcedir/basename instead of sourcefilename */
-retvalue files_includefile(filesdb db,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete) {
+retvalue files_includefile(struct database *database,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, char **calculatedmd5sum, int delete) {
 	char *sourcefilename;
 	retvalue r;
 
@@ -739,14 +756,15 @@ retvalue files_includefile(filesdb db,const char *sourcedir,const char *basename
 		if( sourcefilename == NULL )
 			return RET_ERROR_OOM;
 	}
-	r = files_include(db,sourcefilename,filekey,md5sum,calculatedmd5sum,delete);
+	r = files_include(database, sourcefilename, filekey, md5sum,
+			calculatedmd5sum, delete);
 	free(sourcefilename);
 	return r;
 
 }
 
 /* the same, but with multiple files */
-retvalue files_includefiles(filesdb db,const char *sourcedir,const struct strlist *basefilenames, const struct strlist *filekeys, const struct strlist *md5sums, int delete) {
+retvalue files_includefiles(struct database *database,const char *sourcedir,const struct strlist *basefilenames, const struct strlist *filekeys, const struct strlist *md5sums, int delete) {
 
 	retvalue result,r;
 	int i;
@@ -763,19 +781,16 @@ retvalue files_includefiles(filesdb db,const char *sourcedir,const struct strlis
 		const char *filekey = filekeys->values[i];
 		const char *md5sum = md5sums->values[i];
 
-		r = files_includefile(db,sourcedir,basename,filekey,md5sum,NULL,delete);
+		r = files_includefile(database, sourcedir, basename,
+				filekey, md5sum, NULL, delete);
 		RET_UPDATE(result,r);
 
 	}
 	return result;
 }
 
-/* concat mirrordir. return NULL if OutOfMemory */
-char *files_calcfullfilename(const filesdb filesdb,const char *filekey) {
-	return calc_dirconcat(filesdb->mirrordir,filekey);
-}
-
-retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist) {
+retvalue files_addfilelist(struct database *database,const char *filekey,const char *filelist) {
+	struct filesdb *db = database->files;
 	int dbret;
 	DBT key,data;
 	const char *e;
@@ -800,7 +815,8 @@ retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist) 
 	}
 }
 
-retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
+retvalue files_getfilelist(struct database *database,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
+	struct filesdb *db = database->files;
 	int dbret;
 	DBT key,data;
 
@@ -834,8 +850,8 @@ retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_
 	return RET_NOTHING;
 }
 
-retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
-	char *debfilename = calc_dirconcat(db->mirrordir, filekey);
+retvalue files_genfilelist(struct database *database,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
+	char *debfilename = files_calcfullfilename(database, filekey);
 	char *contents;
 	const char *p;
 	retvalue result,r;
@@ -847,7 +863,7 @@ retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_
 	free(debfilename);
 	if( !RET_IS_OK(r) )
 		return r;
-	result = files_addfilelist(db, filekey, contents);
+	result = files_addfilelist(database, filekey, contents);
 	for( p = contents; *p != '\0'; p += strlen(p)+1 ) {
 		r = filelist_add(filelist, package, p);
 		RET_UPDATE(result,r);
@@ -856,7 +872,8 @@ retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_
 	return result;
 }
 
-retvalue files_regenerate_filelist(filesdb db, bool_t reread) {
+retvalue files_regenerate_filelist(struct database *database, bool_t reread) {
+	struct filesdb *db = database->files;
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -899,7 +916,8 @@ retvalue files_regenerate_filelist(filesdb db, bool_t reread) {
 				char *debfilename;
 				char *filelist;
 
-				debfilename = calc_dirconcat(db->mirrordir, filekey);
+				debfilename = files_calcfullfilename(database,
+						filekey);
 				if( debfilename == NULL ) {
 					cursor->c_close(cursor);
 					return RET_ERROR_OOM;
@@ -918,7 +936,8 @@ retvalue files_regenerate_filelist(filesdb db, bool_t reread) {
 							p += strlen(p)+1;
 						}
 					}
-					r = files_addfilelist(db, filekey, filelist);
+					r = files_addfilelist(database,
+							filekey, filelist);
 					free(filelist);
 				}
 				if( RET_WAS_ERROR(r) ) {

@@ -47,6 +47,7 @@
 #include "override.h"
 #include "tracking.h"
 #include "incoming.h"
+#include "files.h"
 #include "changes.h"
 
 extern int verbose;
@@ -869,7 +870,7 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 	return RET_OK;
 }
 
-static retvalue candidate_preparechangesfile(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per) {
+static retvalue candidate_preparechangesfile(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per) {
 	retvalue r;
 	char *basename, *filekey;
 	struct candidate_package *package;
@@ -915,7 +916,7 @@ static retvalue candidate_preparechangesfile(filesdb filesdb,const struct incomi
 	package->files = calloc(1, sizeof(struct candidate_file *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(filesdb, filekey, file->md5sum);
+	r = files_ready(database, filekey, file->md5sum);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) )
@@ -923,7 +924,7 @@ static retvalue candidate_preparechangesfile(filesdb filesdb,const struct incomi
 	return RET_OK;
 }
 
-static retvalue prepare_deb(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
+static retvalue prepare_deb(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section,*priority, *filekey;
 	const struct overrideinfo *oinfo;
 	struct candidate_package *package;
@@ -968,7 +969,7 @@ static retvalue prepare_deb(filesdb filesdb,const struct incoming *i,const struc
 	package->files = calloc(1, sizeof(struct candidate_file *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(filesdb, filekey, file->md5sum);
+	r = files_ready(database, filekey, file->md5sum);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) )
@@ -980,7 +981,7 @@ static retvalue prepare_deb(filesdb filesdb,const struct incoming *i,const struc
 	return RET_OK;
 }
 
-static retvalue prepare_dsc(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
+static retvalue prepare_dsc(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section,*priority;
 	const struct overrideinfo *oinfo;
 	struct candidate_package *package;
@@ -1051,7 +1052,7 @@ static retvalue prepare_dsc(filesdb filesdb,const struct incoming *i,const struc
 	package->files = calloc(package->filekeys.count,sizeof(struct candidate *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(filesdb, package->filekeys.values[0], file->md5sum);
+	r = files_ready(database, package->filekeys.values[0], file->md5sum);
 	if( RET_IS_OK(r) )
 		package->files[0] = file;
 	if( RET_WAS_ERROR(r) )
@@ -1073,7 +1074,7 @@ static retvalue prepare_dsc(filesdb filesdb,const struct incoming *i,const struc
 					md5sum, BASENAME(i,file->ofs));
 			return RET_ERROR;
 		}
-		r = files_ready(filesdb, filekey, md5sum);
+		r = files_ready(database, filekey, md5sum);
 		if( r == RET_NOTHING ) {
 			/* already in the pool, mark as used (in the sense
 			 * of "only not needed because it is already there") */
@@ -1115,7 +1116,7 @@ static retvalue prepare_dsc(filesdb filesdb,const struct incoming *i,const struc
 	return RET_OK;
 }
 
-static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *d) {
+static retvalue prepare_for_distribution(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *d) {
 	struct candidate_file *file;
 	retvalue r;
 
@@ -1125,10 +1126,10 @@ static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *
 		switch( file->type ) {
 			case fe_UDEB:
 			case fe_DEB:
-				r = prepare_deb(filesdb,i,c,d,file);
+				r = prepare_deb(database, i, c, d, file);
 				break;
 			case fe_DSC:
-				r = prepare_dsc(filesdb,i,c,d,file);
+				r = prepare_dsc(database, i, c, d, file);
 				break;
 			default:
 				r = RET_NOTHING;
@@ -1140,7 +1141,7 @@ static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *
 	}
 	if( d->into->tracking != dt_NONE ) {
 		if( d->into->trackingoptions.includechanges ) {
-			r = candidate_preparechangesfile(filesdb, i, c, d);
+			r = candidate_preparechangesfile(database, i, c, d);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -1149,7 +1150,7 @@ static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *
 	return RET_OK;
 }
 
-static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct candidate_perdistribution *stopat,struct candidate_package *stopatatstopat,int stopatatstopatatstopat) {
+static retvalue candidate_removefiles(struct database *database,struct candidate *c,struct candidate_perdistribution *stopat,struct candidate_package *stopatatstopat,int stopatatstopatatstopat) {
 	int j;
 	struct candidate_perdistribution *d;
 	struct candidate_package *p;
@@ -1165,7 +1166,7 @@ static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct
 
 				if(  p->files[j] == NULL )
 					continue;
-				r = files_deleteandremove(filesdb,
+				r = files_deleteandremove(database,
 						p->filekeys.values[j],
 						TRUE, TRUE);
 				if( RET_WAS_ERROR(r) )
@@ -1176,7 +1177,7 @@ static retvalue candidate_removefiles(filesdb filesdb,struct candidate *c,struct
 	return RET_OK;
 }
 
-static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct candidate *c) {
+static retvalue candidate_addfiles(struct database *database,struct incoming *i,struct candidate *c) {
 	int j;
 	struct candidate_perdistribution *d;
 	struct candidate_package *p;
@@ -1191,14 +1192,14 @@ static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct can
 				if(  f == NULL )
 					continue;
 				assert(f->tempfilename != NULL);
-				r = files_hardlink(filesdb, f->tempfilename,
+				r = files_hardlink(database, f->tempfilename,
 						p->filekeys.values[j],
 						f->md5sum);
 				if( !RET_IS_OK(r) )
 					/* when we did not add it, do not remove it: */
 					p->files[j] = NULL;
 				if( RET_WAS_ERROR(r) ) {
-					candidate_removefiles(filesdb, c, d, p, j);
+					candidate_removefiles(database, c, d, p, j);
 					return r;
 				}
 			}
@@ -1207,7 +1208,7 @@ static retvalue candidate_addfiles(filesdb filesdb,struct incoming *i,struct can
 	return RET_OK;
 }
 
-static retvalue add_dsc(const char *dbdir, references refs,
+static retvalue add_dsc(struct database *database,
 		struct distribution *into, struct strlist *dereferenced,
 		const struct incoming *i, const struct candidate *c,
 		struct trackingdata *trackingdata, struct candidate_package *p) {
@@ -1217,13 +1218,13 @@ static retvalue add_dsc(const char *dbdir, references refs,
 	assert( logger_isprepared(into->logger) );
 
 	/* finally put it into the source distribution */
-	r = target_initpackagesdb(t,dbdir);
+	r = target_initpackagesdb(t, database);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
 			r = RET_ERROR_INTERUPTED;
 		else
-			r = target_addpackage(t, into->logger, refs,
+			r = target_addpackage(t, into->logger, database,
 					p->master->dsc.name,
 					p->master->dsc.version,
 					p->control,
@@ -1237,7 +1238,7 @@ static retvalue add_dsc(const char *dbdir, references refs,
 	return r;
 }
 
-static retvalue checkadd_dsc(const char *dbdir,
+static retvalue checkadd_dsc(struct database *database,
 		struct distribution *into,
 		const struct incoming *i, const struct candidate *c,
 		bool_t tracking, struct candidate_package *p) {
@@ -1245,7 +1246,7 @@ static retvalue checkadd_dsc(const char *dbdir,
 	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
 
 	/* check for possible errors putting it into the source distribution */
-	r = target_initpackagesdb(t,dbdir);
+	r = target_initpackagesdb(t, database);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
@@ -1261,7 +1262,7 @@ static retvalue checkadd_dsc(const char *dbdir,
 	return r;
 }
 
-static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const char *dbdir,references refs,struct strlist *dereferenced,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
+static retvalue candidate_add_into(const char *confdir,struct database *database,struct strlist *dereferenced,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
 	retvalue r;
 	struct candidate_package *p;
 	struct trackingdata trackingdata;
@@ -1281,7 +1282,7 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 
 	tracks = NULL;
 	if( into->tracking != dt_NONE ) {
-		r = tracking_initialize(&tracks, dbdir, into);
+		r = tracking_initialize(&tracks, database, into);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1308,11 +1309,11 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 			continue;
 		}
 		if( p->master->type == fe_DSC ) {
-			r = add_dsc(dbdir, refs, into, dereferenced,
+			r = add_dsc(database, into, dereferenced,
 					i, c, (tracks==NULL)?NULL:&trackingdata,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
-			r = binaries_adddeb(&p->master->deb, dbdir, refs,
+			r = binaries_adddeb(&p->master->deb, database,
 					p->master->architecture,
 					(p->master->type == fe_DEB)?"deb":"udeb",
 					into, dereferenced,
@@ -1325,7 +1326,7 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 
 			r = trackedpackage_adddupfilekeys(trackingdata.tracks,
 					trackingdata.pkg,
-					ft_CHANGES, &p->filekeys, FALSE, refs);
+					ft_CHANGES, &p->filekeys, FALSE, database);
 			if( p->filekeys.count > 0 )
 				changesfilekey = p->filekeys.values[0];
 		} else
@@ -1340,7 +1341,7 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 	if( tracks != NULL ) {
 		retvalue r2;
 		r2 = trackingdata_finish(tracks, &trackingdata,
-				refs, dereferenced);
+				database, dereferenced);
 		RET_UPDATE(r,r2);
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
@@ -1353,7 +1354,7 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 	return RET_OK;
 }
 
-static inline retvalue candidate_checkadd_into(const char *confdir,filesdb filesdb,const char *dbdir,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
+static inline retvalue candidate_checkadd_into(const char *confdir,struct database *database,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
 	retvalue r;
 	struct candidate_package *p;
 	struct distribution *into = d->into;
@@ -1361,11 +1362,11 @@ static inline retvalue candidate_checkadd_into(const char *confdir,filesdb files
 
 	for( p = d->packages ; p != NULL ; p = p->next ) {
 		if( p->master->type == fe_DSC ) {
-			r = checkadd_dsc(dbdir, into,
+			r = checkadd_dsc(database, into,
 					i, c, into->tracking != dt_NONE,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
-			r = binaries_checkadddeb(&p->master->deb, dbdir,
+			r = binaries_checkadddeb(&p->master->deb, database,
 					p->master->architecture,
 					(p->master->type == fe_DEB)?"deb":"udeb",
 					into,
@@ -1475,7 +1476,7 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 	return RET_OK;
 }
 
-static retvalue candidate_add(const char *confdir,const char *overridedir,filesdb filesdb, const char *dbdir, references refs, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
+static retvalue candidate_add(const char *confdir,const char *overridedir,struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
@@ -1507,7 +1508,7 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 
 	/* now the distribution specific part starts: */
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		r = prepare_for_distribution(filesdb, i, c, d);
+		r = prepare_for_distribution(database, i, c, d);
 			if( RET_WAS_ERROR(r) ) {
 				return r;
 			}
@@ -1528,7 +1529,7 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 	 * or if there are already newer versions */
 	somethingtodo = FALSE;
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		r = candidate_checkadd_into(confdir, filesdb, dbdir,
+		r = candidate_checkadd_into(confdir, database,
 			i, c, d);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -1556,18 +1557,18 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 	 * checked by now */
 
 	/* make hardlinks/copies of the files */
-	r = candidate_addfiles(filesdb, i, c);
+	r = candidate_addfiles(database, i, c);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( interrupted() ) {
-		candidate_removefiles(filesdb,c,NULL,NULL,0);
+		candidate_removefiles(database,c,NULL,NULL,0);
 		return RET_ERROR_INTERUPTED;
 	}
 	r = RET_OK;
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
 		if( d->skip )
 			continue;
-		r = candidate_add_into(confdir, filesdb, dbdir, refs,
+		r = candidate_add_into(confdir, database,
 			dereferenced, i, c, d);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -1582,7 +1583,7 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,filesd
 	return RET_OK;
 }
 
-static retvalue process_changes(const char *confdir,const char *overridedir,filesdb filesdb,const char *dbdir,references refs,struct strlist *dereferenced,struct incoming *i,int ofs) {
+static retvalue process_changes(const char *confdir,const char *overridedir,struct database *database,struct strlist *dereferenced,struct incoming *i,int ofs) {
 	struct candidate *c;
 	struct candidate_file *file;
 	retvalue r;
@@ -1661,9 +1662,9 @@ static retvalue process_changes(const char *confdir,const char *overridedir,file
 				i->files.values[ofs]);
 			r = RET_ERROR;
 		} else
-			r = candidate_add(confdir, overridedir, filesdb, dbdir,
-			                  refs, dereferenced,
-			                  i, c);
+			r = candidate_add(confdir, overridedir, database,
+					dereferenced,
+					i, c);
 		if( RET_WAS_ERROR(r) && i->cleanup.on_error ) {
 			struct candidate_file *file;
 
@@ -1679,7 +1680,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,file
 }
 
 /* tempdir should ideally be on the same partition like the pooldir */
-retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir,filesdb files,const char *dbdir,references refs,struct strlist *dereferenced,struct distribution *distributions,const char *name,const char *changesfilename) {
+retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir,struct database *database,struct strlist *dereferenced,struct distribution *distributions,const char *name,const char *changesfilename) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
@@ -1700,7 +1701,7 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 		if( changesfilename != NULL && strcmp(basename, changesfilename) != 0 )
 			continue;
 		/* a .changes file, check it */
-		r = process_changes(confdir, overridedir, files, dbdir, refs, dereferenced, i, j);
+		r = process_changes(confdir, overridedir, database, dereferenced, i, j);
 		RET_UPDATE(result, r);
 	}
 
