@@ -31,6 +31,8 @@
 #include "names.h"
 #include "release.h"
 #include "distribution.h"
+#include "filelist.h"
+#include "files.h"
 
 extern int verbose;
 
@@ -190,7 +192,7 @@ struct addcontentsdata {
 	int rate;
 	size_t work, leisure;
 	struct filelist_list *contents;
-	filesdb files;
+	struct database *db;
 };
 
 static retvalue addpackagetocontents(void *data, const char *packagename, const char *chunk) {
@@ -213,12 +215,12 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = files_getfilelist(d->files, filekey, package, d->contents);
+	r = files_getfilelist(d->db, filekey, package, d->contents);
 	if( r == RET_NOTHING ) {
 		if( d->rate <= 1 || d->work <= d->leisure/(d->rate-1) ) {
 			if( verbose > 3 )
 				printf("Reading filelist for %s\n", filekey);
-			r = files_genfilelist(d->files, filekey, package, d->contents);
+			r = files_genfilelist(d->db, filekey, package, d->contents);
 			if( RET_IS_OK(r) )
 				d->work++;
 		} else {
@@ -234,7 +236,7 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 	return r;
 }
 
-static retvalue genarchcontents(filesdb files, struct distribution *distribution, const char *dbdir, const char *architecture, struct release *release, bool_t onlyneeded) {
+static retvalue genarchcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool_t onlyneeded) {
 	retvalue r;
 	struct target *target;
 	char *contentsfilename;
@@ -244,7 +246,7 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 
 	data.rate = distribution->contents.rate;
 	data.work = data.leisure = 0;
-	data.files = files;
+	data.db = database;
 
 	if( distribution->contents.components.count > 0 )
 		components = &distribution->contents.components;
@@ -291,7 +293,7 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 			continue;
 		if( !strlist_in(components, target->component) )
 			continue;
-		r = target_initpackagesdb(target, dbdir);
+		r = target_initpackagesdb(target, database);
 		if( RET_WAS_ERROR(r) )
 			break;
 		r = packages_foreach(target->packages,addpackagetocontents,&data);
@@ -309,7 +311,7 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 	return r;
 }
 
-static retvalue genarchudebcontents(filesdb files, struct distribution *distribution, const char *dbdir, const char *architecture, struct release *release, bool_t onlyneeded) {
+static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool_t onlyneeded) {
 	retvalue r;
 	struct target *target;
 	char *contentsfilename;
@@ -319,7 +321,7 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 
 	data.rate = distribution->contents.rate;
 	data.work = data.leisure = 0;
-	data.files = files;
+	data.db = database;
 
 	if( distribution->contents.ucomponents.count > 0 )
 		components = &distribution->contents.ucomponents;
@@ -364,7 +366,7 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 			continue;
 		if( !strlist_in(components, target->component) )
 			continue;
-		r = target_initpackagesdb(target, dbdir);
+		r = target_initpackagesdb(target, database);
 		if( RET_WAS_ERROR(r) )
 			break;
 		r = packages_foreach(target->packages,addpackagetocontents,&data);
@@ -382,7 +384,7 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 	return r;
 }
 
-retvalue contents_generate(filesdb files, struct distribution *distribution, const char *dbdir, struct release *release, bool_t onlyneeded) {
+retvalue contents_generate(struct database *database, struct distribution *distribution, struct release *release, bool_t onlyneeded) {
 	retvalue result,r;
 	int i;
 	const struct strlist *architectures;
@@ -399,12 +401,12 @@ retvalue contents_generate(filesdb files, struct distribution *distribution, con
 			continue;
 
 		if( !distribution->contents.flags.nodebs) {
-			r = genarchcontents(files, distribution, dbdir,
+			r = genarchcontents(database, distribution,
 					architecture,release,onlyneeded);
 			RET_UPDATE(result,r);
 		}
 		if( distribution->contents.flags.udebs) {
-			r = genarchudebcontents(files, distribution, dbdir,
+			r = genarchudebcontents(database, distribution,
 					architecture,release,onlyneeded);
 			RET_UPDATE(result,r);
 		}

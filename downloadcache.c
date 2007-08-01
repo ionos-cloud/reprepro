@@ -36,14 +36,14 @@ struct downloaditem {
 };
 
 /* Initialize a new download session */
-retvalue downloadcache_initialize(const char *dbdir,enum spacecheckmode mode,off_t reserveddb,off_t reservedother,struct downloadcache **download) {
+retvalue downloadcache_initialize(struct database *database,enum spacecheckmode mode,off_t reserveddb,off_t reservedother,struct downloadcache **download) {
 	struct downloadcache *cache;
 	retvalue r;
 
 	cache = malloc(sizeof(struct downloadcache));
 	if( cache == NULL )
 		return RET_ERROR_OOM;
-	r = space_prepare(dbdir, &cache->devices, mode, reserveddb, reservedother);
+	r = space_prepare(database, &cache->devices, mode, reserveddb, reservedother);
 	if( RET_WAS_ERROR(r) ) {
 		free(cache);
 		return r;
@@ -101,15 +101,15 @@ retvalue downloadcache_free(struct downloadcache *download) {
 /* queue a new file to be downloaded:
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
-retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct aptmethod *method,const char *orig,const char *filekey,const char *md5sum) {
+retvalue downloadcache_add(struct downloadcache *cache,struct database *database,struct aptmethod *method,const char *orig,const char *filekey,const char *md5sum) {
 
 	const struct downloaditem *i;
 	struct downloaditem *item,**h,*parent;
 	char *fullfilename;
 	retvalue r;
 
-	assert( filesdb != NULL && cache != NULL && method != NULL );
-	r = files_expect(filesdb,filekey,md5sum);
+	assert( cache != NULL && method != NULL );
+	r = files_expect(database, filekey, md5sum);
 	if( r != RET_NOTHING )
 		return r;
 
@@ -124,7 +124,7 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 	if( item == NULL )
 		return RET_ERROR_OOM;
 
-	fullfilename = files_calcfullfilename(filesdb,filekey);
+	fullfilename = files_calcfullfilename(database, filekey);
 	if( fullfilename == NULL ) {
 		free(item);
 		return RET_ERROR_OOM;
@@ -151,7 +151,8 @@ retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct ap
 }
 
 /* some as above, only for more files... */
-retvalue downloadcache_addfiles(struct downloadcache *cache,filesdb filesdb,
+retvalue downloadcache_addfiles(struct downloadcache *cache,
+		struct database *database,
 		struct aptmethod *method,
 		const struct strlist *origfiles,
 		const struct strlist *filekeys,
@@ -166,7 +167,7 @@ retvalue downloadcache_addfiles(struct downloadcache *cache,filesdb filesdb,
 	result = RET_NOTHING;
 
 	for( i = 0 ; i < filekeys->count ; i++ ) {
-		r = downloadcache_add(cache,filesdb,method,
+		r = downloadcache_add(cache, database, method,
 			origfiles->values[i],
 			filekeys->values[i],
 			md5sums->values[i]);

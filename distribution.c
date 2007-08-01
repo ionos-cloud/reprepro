@@ -418,6 +418,64 @@ retvalue distribution_foreach_part(struct distribution *distribution,const char 
 	return result;
 }
 
+/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
+retvalue distribution_foreach_rwopenedpart(struct distribution *distribution,struct database *database,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
+	retvalue result,r;
+	struct target *t;
+
+	result = RET_NOTHING;
+	for( t = distribution->targets ; t != NULL ; t = t->next ) {
+		if( component != NULL && strcmp(component,t->component) != 0 )
+			continue;
+		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+			continue;
+		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+			continue;
+		r = target_initpackagesdb(t, database);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			return result;
+		r = action(data, t, distribution);
+		RET_UPDATE(result, r);
+		// TODO: how to seperate this in those affecting distribution
+		// and those that do not?
+		RET_UPDATE(distribution->status, r);
+		r = target_closepackagesdb(t);
+		RET_UPDATE(distribution->status, r);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(result) )
+			return result;
+	}
+	return result;
+}
+
+/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
+retvalue distribution_foreach_roopenedpart(struct distribution *distribution,struct database *database,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
+	retvalue result,r;
+	struct target *t;
+
+	result = RET_NOTHING;
+	for( t = distribution->targets ; t != NULL ; t = t->next ) {
+		if( component != NULL && strcmp(component,t->component) != 0 )
+			continue;
+		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+			continue;
+		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+			continue;
+		r = target_initpackagesdb(t, database);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			return result;
+		r = action(data, t, distribution);
+		RET_UPDATE(result, r);
+		r = target_closepackagesdb(t);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(result) )
+			return result;
+	}
+	return result;
+}
+
 struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
 	struct target *t = distribution->targets;
 
@@ -560,8 +618,8 @@ retvalue distribution_get(const char *confdir,const char *logdir,const char *nam
 }
 
 retvalue distribution_snapshot(struct distribution *distribution,
-		const char *confdir, const char *dbdir, const char *distdir,
-		references refs, const char *name) {
+		const char *confdir, const char *distdir,
+		struct database *database, const char *name) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
@@ -578,7 +636,8 @@ retvalue distribution_snapshot(struct distribution *distribution,
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = target_export(target,confdir,dbdir,FALSE,TRUE,release);
+		r = target_export(target, confdir, database,
+				FALSE, TRUE, release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -598,22 +657,22 @@ retvalue distribution_snapshot(struct distribution *distribution,
 		return r;
 	/* add references so that the pool files belonging to it are not deleted */
 	for( target=distribution->targets; target != NULL ; target = target->next ) {
-		r = target_addsnapshotreference(target,dbdir,refs,name);
+		r = target_addsnapshotreference(target, database, name);
 		RET_UPDATE(result,r);
 	}
 	return result;
 }
 
 static retvalue export(struct distribution *distribution,
-		const char *confdir, const char *dbdir, const char *distdir,
-		filesdb files, bool_t onlyneeded) {
+		const char *confdir, const char *distdir,
+		struct database *database, bool_t onlyneeded) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
 
 	assert( distribution != NULL );
 
-	r = release_init(dbdir,distdir,distribution->codename,&release);
+	r = release_init(&release, database, distdir, distribution->codename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -623,7 +682,8 @@ static retvalue export(struct distribution *distribution,
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = target_export(target,confdir,dbdir,onlyneeded,FALSE,release);
+		r = target_export(target, confdir, database,
+				onlyneeded, FALSE, release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -635,7 +695,8 @@ static retvalue export(struct distribution *distribution,
 		}
 	}
 	if( !RET_WAS_ERROR(result) && distribution->contents.rate > 0 ) {
-		r = contents_generate(files, distribution, dbdir, release, onlyneeded);
+		r = contents_generate(database, distribution,
+				release, onlyneeded);
 	}
 	if( RET_WAS_ERROR(result) )
 		release_free(release);
@@ -650,8 +711,8 @@ static retvalue export(struct distribution *distribution,
 	return result;
 }
 
-retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
-	return export(distribution,confdir,dbdir,distdir,files,FALSE);
+retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *distdir, struct database *database) {
+	return export(distribution,confdir,distdir,database,FALSE);
 }
 
 retvalue distribution_freelist(struct distribution *distributions) {
@@ -669,8 +730,8 @@ retvalue distribution_freelist(struct distribution *distributions) {
 
 retvalue distribution_exportandfreelist(enum exportwhen when,
 		struct distribution *distributions,
-		const char *confdir,const char *dbdir, const char *distdir,
-		filesdb files) {
+		const char *confdir,const char *distdir,
+		struct database *database) {
 	retvalue result,r;
 	bool_t todo = FALSE;
 	struct distribution *d;
@@ -725,7 +786,8 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						d->codename);
-					r = export(d,confdir,dbdir,distdir,files,TRUE);
+					r = export(d, confdir, distdir,
+							database, TRUE);
 					RET_UPDATE(result,r);
 					break;
 				}
@@ -735,7 +797,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 					( d->status == RET_NOTHING &&
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
-			r = export(d,confdir,dbdir,distdir,files, TRUE);
+			r = export(d, confdir, distdir, database, TRUE);
 			RET_UPDATE(result,r);
 		}
 
@@ -745,7 +807,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 	return result;
 }
 
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *distdir,struct database *database) {
 	if( when == EXPORT_NEVER ) {
 		if( verbose >= 10 )
 			fprintf(stderr,
@@ -778,8 +840,8 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						distribution->codename);
-				return export(distribution,
-						confdir,dbdir,distdir,files,TRUE);
+				return export(distribution, confdir, distdir,
+						database, TRUE);
 				break;
 			}
 		}
@@ -788,7 +850,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	}
 	if( verbose >= 0 )
 		printf("Exporting indices...\n");
-	return export(distribution,confdir,dbdir,distdir,files, TRUE);
+	return export(distribution, confdir, distdir, database, TRUE);
 }
 
 /* get a pointer to the apropiate part of the linked list */

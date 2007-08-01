@@ -608,7 +608,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	return r;
 }
 
-static retvalue changes_checkfiles(filesdb filesdb,const char *filename,struct changes *changes) {
+static retvalue changes_checkfiles(struct database *database,const char *filename,struct changes *changes) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -635,7 +635,7 @@ static retvalue changes_checkfiles(filesdb filesdb,const char *filename,struct c
 		if( e->filekey == NULL )
 			return RET_ERROR_OOM;
 		/* do not copy yet, but only check if it could be included */
-		r = files_expect(filesdb,e->filekey,e->md5sum);
+		r = files_expect(database, e->filekey, e->md5sum);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		/* If is was already there, remember that */
@@ -663,7 +663,7 @@ static retvalue changes_checkfiles(filesdb filesdb,const char *filename,struct c
 	return RET_OK;
 }
 
-static retvalue changes_includefiles(filesdb filesdb,struct changes *changes,int delete) {
+static retvalue changes_includefiles(struct database *database,struct changes *changes,int delete) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -675,8 +675,8 @@ static retvalue changes_includefiles(filesdb filesdb,struct changes *changes,int
 		if( e->wasalreadythere )
 			continue;
 
-		r = files_includefile(filesdb,changes->incomingdirectory,
-				e->basename,e->filekey,e->md5sum,NULL,
+		r = files_includefile(database, changes->incomingdirectory,
+				e->basename, e->filekey, e->md5sum, NULL,
 				/* do not delete, we do that later outself */
 				(delete>=D_MOVE)?D_COPY:delete);
 		if( RET_IS_OK(r) )
@@ -689,7 +689,7 @@ static retvalue changes_includefiles(filesdb filesdb,struct changes *changes,int
 }
 /* run if packages are not all includeable and the stuff put into the
  * pool shall be removed again */
-static void changes_unincludefiles(filesdb filesdb,struct changes *changes) {
+static void changes_unincludefiles(struct database *database,struct changes *changes) {
 	struct fileentry *e;
 
 	for( e = changes->files; e != NULL ; e = e->next ) {
@@ -697,7 +697,7 @@ static void changes_unincludefiles(filesdb filesdb,struct changes *changes) {
 		if( e->filekey == NULL || e->wasalreadythere || !e->included )
 			continue;
 
-		(void)files_deleteandremove(filesdb,e->filekey,TRUE,FALSE);
+		(void)files_deleteandremove(database, e->filekey, TRUE, FALSE);
 	}
 }
 /* delete the files included */
@@ -734,7 +734,7 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 	return result;
 }
 
-static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes, const char *sourcedirectory) {
+static retvalue changes_checkpkgs(struct database *database,struct distribution *distribution,struct changes *changes, const char *sourcedirectory) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -747,29 +747,29 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 			e = e->next;
 			continue;
 		}
-		fullfilename = files_calcfullfilename(filesdb,e->filekey);
+		fullfilename = files_calcfullfilename(database, e->filekey);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {
-			r = deb_prepare(&e->pkg.deb,filesdb,
-				e->component,e->architecture,
-				e->section,e->priority,
+			r = deb_prepare(&e->pkg.deb, database,
+				e->component, e->architecture,
+				e->section, e->priority,
 				"deb",
-				distribution,fullfilename,
-				e->filekey,e->md5sum,
-				D_INPLACE,FALSE,
+				distribution, fullfilename,
+				e->filekey, e->md5sum,
+				D_INPLACE, FALSE,
 				&changes->binaries,
-				changes->source,changes->sourceversion);
+				changes->source, changes->sourceversion);
 		} else if( e->type == fe_UDEB ) {
-			r = deb_prepare(&e->pkg.deb,filesdb,
-				e->component,e->architecture,
-				e->section,e->priority,
+			r = deb_prepare(&e->pkg.deb, database,
+				e->component, e->architecture,
+				e->section, e->priority,
 				"udeb",
-				distribution,fullfilename,
-				e->filekey,e->md5sum,
-				D_INPLACE,FALSE,
+				distribution, fullfilename,
+				e->filekey, e->md5sum,
+				D_INPLACE, FALSE,
 				&changes->binaries,
-				changes->source,changes->sourceversion);
+				changes->source, changes->sourceversion);
 		} else if( e->type == fe_DSC ) {
 			if( !changes->isbinnmu || IGNORING_(dscinbinnmu,
 "File '%s' looks like a source package, but this .changes looks like a binNMU\n"
@@ -779,13 +779,17 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 
 				assert(changes->srccomponent!=NULL);
 				assert(changes->srcdirectory!=NULL);
-				r = dsc_prepare(&e->pkg.dsc,filesdb,
-						changes->srccomponent,e->section,e->priority,
-						distribution,sourcedirectory,fullfilename,
-						e->filekey,e->basename,
-						changes->srcdirectory,e->md5sum,
+				r = dsc_prepare(&e->pkg.dsc, database,
+						changes->srccomponent,
+						e->section, e->priority,
+						distribution,
+						sourcedirectory, fullfilename,
+						e->filekey, e->basename,
+						changes->srcdirectory,
+						e->md5sum,
 						D_INPLACE,
-						changes->source,changes->sourceversion);
+						changes->source,
+						changes->sourceversion);
 			} else
 				r = RET_ERROR;
 		}
@@ -798,7 +802,7 @@ static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribut
 
 	return r;
 }
-static retvalue changes_includepkgs(const char *dbdir,references refs,struct distribution *distribution,struct changes *changes,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata,bool_t *missed_p) {
+static retvalue changes_includepkgs(struct database *database,struct distribution *distribution,struct changes *changes,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata,bool_t *missed_p) {
 	struct fileentry *e;
 	retvalue result,r;
 
@@ -819,19 +823,19 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 			return RET_ERROR_INTERUPTED;
 		}
 		if( e->type == fe_DEB ) {
-			r = deb_addprepared(e->pkg.deb,dbdir,refs,
-				e->architecture,"deb",
-				distribution,dereferencedfilekeys,trackingdata);
+			r = deb_addprepared(e->pkg.deb, database,
+				e->architecture, "deb",
+				distribution, dereferencedfilekeys, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = TRUE;
 		} else if( e->type == fe_UDEB ) {
-			r = deb_addprepared(e->pkg.deb,dbdir,refs,
-				e->architecture,"udeb",
+			r = deb_addprepared(e->pkg.deb, database,
+				e->architecture, "udeb",
 				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = TRUE;
 		} else if( e->type == fe_DSC ) {
-			r = dsc_addprepared(e->pkg.dsc,dbdir,refs,
+			r = dsc_addprepared(e->pkg.dsc, database,
 				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = TRUE;
@@ -856,7 +860,7 @@ static bool_t permissionssuffice(UNUSED(struct changes *changes),
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
+retvalue changes_add(struct database *database,trackingdb const tracks,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -937,22 +941,22 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 		RET_UPDATE(r,RET_ERROR_INTERUPTED);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkfiles(filesdb,changesfilename,changes);
+		r = changes_checkfiles(database, changesfilename, changes);
 
 	if( interrupted() )
 		RET_UPDATE(r,RET_ERROR_INTERUPTED);
 
 	/* add files in the pool */
 	if( !RET_WAS_ERROR(r) )
-		r = changes_includefiles(filesdb,changes,delete);
+		r = changes_includefiles(database, changes, delete);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkpkgs(filesdb,distribution,changes,directory);
+		r = changes_checkpkgs(database, distribution, changes, directory);
 
 	free(directory);
 
 	if( RET_WAS_ERROR(r) ) {
-		changes_unincludefiles(filesdb,changes);
+		changes_unincludefiles(database, changes);
 		changes_free(changes);
 		return r;
 	}
@@ -980,9 +984,10 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 				r = RET_ERROR_INTERUPTED;
 			else
 			/* always D_COPY, and only delete it afterwards... */
-				r = files_include(filesdb,changesfilename,
+				r = files_include(database,
+					changesfilename,
 					changes->changesfilekey,
-					NULL,NULL,D_COPY);
+					NULL, NULL, D_COPY);
 			if( RET_WAS_ERROR(r) ) {
 				changes_free(changes);
 				trackingdata_done(&trackingdata);
@@ -998,7 +1003,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	}
 
 	/* add the source and binary packages in the given distribution */
-	result = changes_includepkgs(dbdir,refs,
+	result = changes_includepkgs(database,
 		distribution,changes,dereferencedfilekeys,
 		(tracks!=NULL)?&trackingdata:NULL, &somethingwasmissed);
 
@@ -1020,10 +1025,12 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 				return RET_ERROR_OOM;
 			}
 
-			r = trackedpackage_addfilekey(tracks,trackingdata.pkg,ft_CHANGES,changesfilekey,FALSE,refs);
+			r = trackedpackage_addfilekey(tracks, trackingdata.pkg,
+					ft_CHANGES, changesfilekey, FALSE,
+					database);
 			RET_ENDUPDATE(result,r);
 		}
-		r = trackingdata_finish(tracks, &trackingdata, refs, dereferencedfilekeys);
+		r = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) ) {
 			changes_free(changes);

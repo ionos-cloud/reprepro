@@ -40,6 +40,7 @@
 #include "dpkgversions.h"
 #include "tracking.h"
 #include "log.h"
+#include "files.h"
 #include "target.h"
 
 extern int verbose;
@@ -123,14 +124,15 @@ retvalue target_free(struct target *target) {
 }
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(struct target *target, const char *dbdir) {
+retvalue target_initpackagesdb(struct target *target, struct database *database) {
 	retvalue r;
 
 	if( target->packages != NULL ) {
 		fprintf(stderr,"again2\n");
 		r = RET_OK;
 	} else {
-		r = packages_initialize(&target->packages,dbdir,target->identifier);
+		r = packages_initialize(&target->packages, database,
+				target->identifier);
 		if( RET_WAS_ERROR(r) ) {
 			target->packages = NULL;
 			return r;
@@ -154,7 +156,7 @@ retvalue target_closepackagesdb(struct target *target) {
 
 /* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
  * filekeys that lost references */
-retvalue target_removepackage(struct target *target,struct logger *logger,references refs,const char *name,const char *oldpversion,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
+retvalue target_removepackage(struct target *target,struct logger *logger,struct database *database,const char *name,const char *oldpversion,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
 	char *oldchunk,*oldpversion_ifunknown = NULL;
 	struct strlist files;
 	retvalue result,r;
@@ -208,7 +210,7 @@ retvalue target_removepackage(struct target *target,struct logger *logger,refere
 					NULL, oldpversion,
 					NULL, oldchunk,
 					NULL, &files);
-		r = references_delete(refs, target->identifier, &files,
+		r = references_delete(database, target->identifier, &files,
 				NULL, dereferencedfilekeys);
 		RET_UPDATE(result, r);
 	} else
@@ -218,7 +220,7 @@ retvalue target_removepackage(struct target *target,struct logger *logger,refere
 	return result;
 }
 
-static retvalue addpackages(struct target *target, references refs,
+static retvalue addpackages(struct target *target, struct database *database,
 		const char *packagename, const char *controlchunk,
 		/*@null@*/const char *oldcontrolchunk,
 		const char *version, /*@null@*/const char *oldversion,
@@ -235,7 +237,8 @@ static retvalue addpackages(struct target *target, references refs,
 
 	/* mark it as needed by this distribution */
 
-	r = references_insert(refs,target->identifier,files,oldfiles);
+	r = references_insert(database, target->identifier,
+			files, oldfiles);
 
 	if( RET_WAS_ERROR(r) ) {
 		if( oldfiles != NULL )
@@ -264,21 +267,22 @@ static retvalue addpackages(struct target *target, references refs,
 				controlchunk, oldcontrolchunk,
 				files, oldfiles);
 
-	r = trackingdata_insert(trackingdata,filetype,files,oldsource,oldsversion,oldfiles,refs);
+	r = trackingdata_insert(trackingdata, filetype, files,
+			oldsource, oldsversion, oldfiles, database);
 	RET_UPDATE(result,r);
 
 	/* remove old references to files */
 
 	if( oldfiles != NULL ) {
-		r = references_delete(refs,target->identifier,
-				oldfiles,files,dereferencedfilekeys);
+		r = references_delete(database, target->identifier,
+				oldfiles, files, dereferencedfilekeys);
 		RET_UPDATE(result,r);
 	}
 
 	return result;
 }
 
-retvalue target_addpackage(struct target *target,struct logger *logger,references refs,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
+retvalue target_addpackage(struct target *target,struct logger *logger,struct database *database,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
 	char *oldpversion;
@@ -357,7 +361,7 @@ retvalue target_addpackage(struct target *target,struct logger *logger,reference
 		}
 
 	}
-	r = addpackages(target, refs, name, control, oldcontrol,
+	r = addpackages(target, database, name, control, oldcontrol,
 			version, oldpversion,
 			filekeys, ofk,
 			logger,
@@ -478,7 +482,7 @@ retvalue target_checkaddpackage(struct target *target,const char *name,const cha
 
 /* rereference a full database */
 struct data_reref {
-	/*@dependent@*/references refs;
+	/*@dependent@*/struct database *db;
 	/*@dependent@*/struct target *target;
 	/*@dependent@*/const char *identifier;
 };
@@ -496,12 +500,12 @@ static retvalue rereferencepkg(void *data,const char *package,const char *chunk)
 		(void)strlist_fprint(stderr,&filekeys);
 		(void)putc('\n',stderr);
 	}
-	r = references_insert(d->refs,d->identifier,&filekeys,NULL);
+	r = references_insert(d->db, d->identifier, &filekeys, NULL);
 	strlist_done(&filekeys);
 	return r;
 }
 
-retvalue target_rereference(struct target *target,references refs) {
+retvalue target_rereference(struct target *target,struct database *database) {
 	retvalue result,r;
 	struct data_reref refdata;
 
@@ -514,12 +518,12 @@ retvalue target_rereference(struct target *target,references refs) {
 			printf("Rereferencing %s...\n",target->identifier);
 	}
 
-	result = references_remove(refs,target->identifier, NULL);
+	result = references_remove(database, target->identifier, NULL);
 
 	if( verbose > 2 )
 		printf("Referencing %s...\n",target->identifier);
 
-	refdata.refs = refs;
+	refdata.db = database;
 	refdata.target = target;
 	refdata.identifier = target->identifier;
 	r = packages_foreach(target->packages,rereferencepkg,&refdata);
@@ -541,12 +545,12 @@ static retvalue snapshotreferencepkg(void *data,const char *package,const char *
 		(void)strlist_fprint(stderr,&filekeys);
 		(void)putc('\n',stderr);
 	}
-	r = references_add(d->refs,d->identifier,&filekeys);
+	r = references_add(d->db, d->identifier, &filekeys);
 	strlist_done(&filekeys);
 	return r;
 }
 
-retvalue target_addsnapshotreference(struct target *target,const char *dbdir,references refs,const char *name) {
+retvalue target_addsnapshotreference(struct target *target,struct database *database,const char *name) {
 	retvalue r,r2;
 	struct data_reref refdata;
 	char *id;
@@ -557,7 +561,7 @@ retvalue target_addsnapshotreference(struct target *target,const char *dbdir,ref
 	if( id == NULL )
 		return RET_ERROR_OOM;
 
-	r = target_initpackagesdb(target,dbdir);
+	r = target_initpackagesdb(target, database);
 	if( RET_WAS_ERROR(r) ) {
 		free(id);
 		return r;
@@ -565,7 +569,7 @@ retvalue target_addsnapshotreference(struct target *target,const char *dbdir,ref
 
 	if( verbose >= 1)
 		fprintf(stderr,"Referencing snapshot '%s' of %s...\n",name,target->identifier);
-	refdata.refs = refs;
+	refdata.db = database;
 	refdata.target = target;
 	refdata.identifier = id;
 	r = packages_foreach(target->packages,snapshotreferencepkg,&refdata);
@@ -580,7 +584,7 @@ retvalue target_addsnapshotreference(struct target *target,const char *dbdir,ref
 /* retrack a full database */
 struct data_retrack {
 	/*@temp@*/trackingdb tracks;
-	/*@temp@*/references refs;
+	/*@temp@*/struct database *db;
 	/*@temp@*/struct target *target;
 };
 
@@ -588,11 +592,11 @@ static retvalue retrackpkg(void *data,const char *package,const char *chunk) {
 	struct data_retrack *d = data;
 	retvalue r;
 
-	r = (*d->target->doretrack)(d->target,package,chunk,d->tracks,d->refs);
+	r = (*d->target->doretrack)(d->target,package,chunk,d->tracks,d->db);
 	return r;
 }
 
-retvalue target_retrack(struct target *target,trackingdb tracks,references refs) {
+retvalue target_retrack(struct target *target,trackingdb tracks,struct database *database) {
 	struct data_retrack trackdata;
 
 	assert(target->packages!=NULL);
@@ -601,7 +605,7 @@ retvalue target_retrack(struct target *target,trackingdb tracks,references refs)
 		fprintf(stderr,"  Tracking %s...\n",target->identifier);
 	}
 
-	trackdata.refs = refs;
+	trackdata.db = database;
 	trackdata.tracks = tracks;
 	trackdata.target = target;
 	return packages_foreach(target->packages,retrackpkg,&trackdata);
@@ -610,8 +614,7 @@ retvalue target_retrack(struct target *target,trackingdb tracks,references refs)
 
 /* check a full database */
 struct data_check {
-	/*@dependent@*/references refs;
-	/*@dependent@*/filesdb filesdb;
+	/*@dependent@*/struct database *db;
 	/*@dependent@*/struct target *target;
 };
 
@@ -657,7 +660,7 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 	if( verbose > 10 ) {
 		fprintf(stderr,"checking files of '%s'\n",package);
 	}
-	r = files_expectfiles(d->filesdb,&actualfilekeys,&md5sums);
+	r = files_expectfiles(d->db, &actualfilekeys, &md5sums);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Files are missing for '%s'!\n",package);
 	}
@@ -667,22 +670,21 @@ static retvalue checkpkg(void *data,const char *package,const char *chunk) {
 		(void)strlist_fprint(stderr,&actualfilekeys);
 		(void)putc('\n',stderr);
 	}
-	r = references_check(d->refs,d->target->identifier,&actualfilekeys);
+	r = references_check(d->db, d->target->identifier, &actualfilekeys);
 	RET_UPDATE(result,r);
 	strlist_done(&actualfilekeys);
 	strlist_done(&md5sums);
 	return result;
 }
 
-retvalue target_check(struct target *target,filesdb filesdb,references refs) {
+retvalue target_check(struct target *target,struct database *database) {
 	struct data_check data;
 
 	assert(target->packages!=NULL);
 	if( verbose > 1 ) {
 		printf("Checking packages in '%s'...\n",target->identifier);
 	}
-	data.refs = refs;
-	data.filesdb = filesdb;
+	data.db = database;
 	data.target = target;
 	return packages_foreach(target->packages,checkpkg,&data);
 }
@@ -701,7 +703,7 @@ retvalue target_reoverride(struct target *target,const struct distribution *dist
 
 /* export a database */
 
-retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, bool_t snapshot, struct release *release) {
+retvalue target_export(struct target *target,const char *confdir,struct database *database,bool_t onlyneeded, bool_t snapshot, struct release *release) {
 	retvalue result,r;
 	bool_t onlymissing;
 
@@ -712,7 +714,7 @@ retvalue target_export(struct target *target,const char *confdir,const char *dbd
 			printf(" exporting '%s'...\n",target->identifier);
 	}
 
-	r = target_initpackagesdb(target,dbdir);
+	r = target_initpackagesdb(target, database);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

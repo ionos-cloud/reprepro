@@ -355,7 +355,7 @@ retvalue sources_doreoverride(const struct distribution *distribution,const char
 	return RET_OK;
 }
 
-retvalue sources_retrack(struct target *t,const char *sourcename,const char *chunk, trackingdb tracks,references refs) {
+retvalue sources_retrack(struct target *t,const char *sourcename,const char *chunk, trackingdb tracks,struct database *database) {
 	retvalue r;
 	char *sourceversion;
 	struct trackedpackage *pkg;
@@ -393,7 +393,8 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 		return r;
 	}
 
-	r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,TRUE,refs);
+	r = trackedpackage_addfilekeys(tracks, pkg,
+			ft_SOURCE, &filekeys, TRUE, database);
 	if( RET_WAS_ERROR(r) ) {
 		trackedpackage_free(pkg);
 		return r;

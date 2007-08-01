@@ -633,14 +633,14 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 	return UD_UPGRADE;
 }
 
-static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct pull_target *p) {
+static inline retvalue pull_searchformissing(FILE *out,struct database *database,struct pull_target *p) {
 	struct pull_source *source;
 	retvalue result,r;
 
 	if( verbose > 2 )
 		fprintf(out,"  pulling into '%s'\n",p->target->identifier);
 	assert(p->upgradelist == NULL);
-	r = upgradelist_initialize(&p->upgradelist,p->target,dbdir);
+	r = upgradelist_initialize(&p->upgradelist, p->target, database);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -665,7 +665,7 @@ static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct 
 		r = upgradelist_pull(p->upgradelist,
 				source->source,
 				ud_decide_by_rule, source->rule,
-				dbdir);
+				database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -674,7 +674,7 @@ static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct 
 	return result;
 }
 
-static retvalue pull_search(FILE *out,const char *dbdir,struct pull_distribution *d) {
+static retvalue pull_search(FILE *out,struct database *database,struct pull_distribution *d) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -694,7 +694,7 @@ static retvalue pull_search(FILE *out,const char *dbdir,struct pull_distribution
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
-		r = pull_searchformissing(out,dbdir,u);
+		r = pull_searchformissing(out, database, u);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -702,7 +702,7 @@ static retvalue pull_search(FILE *out,const char *dbdir,struct pull_distribution
 	return result;
 }
 
-static retvalue pull_install(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distribution,struct strlist *dereferencedfilekeys) {
+static retvalue pull_install(struct database *database,struct pull_distribution *distribution,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -712,7 +712,7 @@ static retvalue pull_install(const char *dbdir,filesdb filesdb,references refs,s
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
-				dbdir, filesdb, refs,
+				database,
 				u->ignoredelete, dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		RET_UPDATE(result,r);
@@ -737,7 +737,7 @@ static void pull_dump(struct pull_distribution *distribution) {
 	}
 }
 
-retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys) {
+retvalue pull_update(struct database *database,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct pull_distribution *d;
 
@@ -753,7 +753,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 	result = RET_NOTHING;
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(stdout, dbdir, d);
+		r = pull_search(stdout, database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -773,7 +773,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
+		r = pull_install(database, d, dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -783,7 +783,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 	return result;
 }
 
-retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributions) {
+retvalue pull_checkupdate(struct database *database, struct pull_distribution *distributions) {
 	struct pull_distribution *d;
 	retvalue result,r;
 
@@ -793,7 +793,7 @@ retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributi
 	result = RET_NOTHING;
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(stderr, dbdir, d);
+		r = pull_search(stderr, database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;

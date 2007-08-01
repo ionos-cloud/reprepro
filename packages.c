@@ -30,6 +30,7 @@
 #include "md5sum.h"
 #include "dirs.h"
 #include "files.h"
+#include "database_p.h"
 #include "packages.h"
 
 struct s_packagesdb {
@@ -62,7 +63,7 @@ retvalue packages_done(packagesdb db) {
 		return RET_OK;
 }
 
-retvalue packages_init(packagesdb *db,const char *dbpath,const char *codename,const char *component,const char *architecture,const char *packagetype) {
+retvalue packages_init(packagesdb *db,struct database *database,const char *codename,const char *component,const char *architecture,const char *packagetype) {
 	char * identifier;
 	retvalue r;
 
@@ -70,19 +71,19 @@ retvalue packages_init(packagesdb *db,const char *dbpath,const char *codename,co
 	if( identifier == NULL )
 		return RET_ERROR_OOM;
 
-	r = packages_initialize(db,dbpath,identifier);
+	r = packages_initialize(db, database, identifier);
 	free(identifier);
 	return r;
 }
 
 /* initialize the packages-database for <identifier> */
-retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *identifier) {
+retvalue packages_initialize(packagesdb *db,struct database *database,const char *identifier) {
 	packagesdb pkgs;
 	char *filename;
 	int dbret;
 	retvalue r;
 
-	filename=calc_dirconcat(dbpath,"packages.db");
+	filename = calc_dirconcat(database->directory, "packages.db");
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 	r = dirs_make_parent(filename);
@@ -328,37 +329,37 @@ retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const str
 }
 
 /* Get a list of all identifiers having a package list */
-retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers) {
+retvalue packages_getdatabases(struct database *database, struct strlist *identifiers) {
 	char *filename;
-	DB *database;
+	DB *table;
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
 	retvalue ret,r;
 	struct strlist ids;
 
-	filename = calc_dirconcat(dbpath, "packages.db");
+	filename = calc_dirconcat(database->directory, "packages.db");
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 
-	if ((dbret = db_create(&database, NULL, 0)) != 0) {
+	if ((dbret = db_create(&table, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s %s\n", filename,db_strerror(dbret));
 		free(filename);
 		return RET_DBERR(dbret);
 	}
-	dbret = DB_OPEN(database, filename, NULL, DB_UNKNOWN, DB_RDONLY);
+	dbret = DB_OPEN(table, filename, NULL, DB_UNKNOWN, DB_RDONLY);
 	if (dbret != 0) {
-		database->err(database, dbret, "%s", filename);
-		(void)database->close(database,0);
+		table->err(table, dbret, "%s", filename);
+		(void)table->close(table,0);
 		free(filename);
 		return RET_DBERR(dbret);
 	}
 	free(filename);
 
 	cursor = NULL;
-	if( (dbret = database->cursor(database,NULL,&cursor,0)) != 0 ) {
-		database->err(database, dbret, "packages.db:");
-		(void)database->close(database,0);
+	if( (dbret = table->cursor(table,NULL,&cursor,0)) != 0 ) {
+		table->err(table, dbret, "packages.db:");
+		(void)table->close(table,0);
 		return RET_ERROR;
 	}
 	CLEARDBT(key);
@@ -370,13 +371,13 @@ retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers) 
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		char *identifier = strndup(key.data,key.size);
 		if( identifier == NULL ) {
-			(void)database->close(database,0);
+			(void)table->close(table,0);
 			strlist_done(&ids);
 			return RET_ERROR_OOM;
 		}
 		r = strlist_add(&ids, identifier);
 		if( RET_WAS_ERROR(r) ) {
-			(void)database->close(database,0);
+			(void)table->close(table,0);
 			strlist_done(&ids);
 			return r;
 		}
@@ -385,19 +386,19 @@ retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers) 
 	}
 
 	if( dbret != 0 && dbret != DB_NOTFOUND ) {
-		database->err(database, dbret, "packages.db:");
-		(void)database->close(database,0);
+		table->err(table, dbret, "packages.db:");
+		(void)table->close(table,0);
 		strlist_done(&ids);
 		return RET_DBERR(dbret);
 	}
 	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		database->err(database, dbret, "packages.db:");
-		(void)database->close(database,0);
+		table->err(table, dbret, "packages.db:");
+		(void)table->close(table,0);
 		strlist_done(&ids);
 		return RET_DBERR(dbret);
 	}
 
-	dbret = database->close(database,0);
+	dbret = table->close(table,0);
 	if( dbret != 0 ) {
 		strlist_done(&ids);
 		return RET_DBERR(dbret);
@@ -408,21 +409,21 @@ retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers) 
 }
 
 /* drop a database */
-retvalue packages_drop(const char *dbpath, const char *identifier) {
+retvalue packages_drop(struct database *database, const char *identifier) {
 	char *filename;
-	DB *database;
+	DB *table;
 	int dbret;
 
-	filename = calc_dirconcat(dbpath, "packages.db");
+	filename = calc_dirconcat(database->directory, "packages.db");
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 
-	if ((dbret = db_create(&database, NULL, 0)) != 0) {
+	if ((dbret = db_create(&table, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s %s\n", filename, db_strerror(dbret));
 		free(filename);
 		return RET_DBERR(dbret);
 	}
-	dbret = database->remove(database, filename, identifier, 0);
+	dbret = table->remove(table, filename, identifier, 0);
 	if (dbret != 0) {
 		fprintf(stderr,"Error removing '%s' from %s!\n",
 				identifier, filename);

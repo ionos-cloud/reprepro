@@ -44,6 +44,7 @@
 #include "names.h"
 #include "signature.h"
 #include "distribution.h"
+#include "database_p.h"
 #include "release.h"
 
 extern int verbose;
@@ -115,7 +116,7 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 	return RET_OK;
 }
 
-retvalue release_init(const char *dbdir, const char *distdir, const char *codename, struct release **release) {
+retvalue release_init(struct release **release, struct database *database, const char *distdir, const char *codename) {
 	struct release *n;
 	int dbret;
 	char *filename;
@@ -134,7 +135,7 @@ retvalue release_init(const char *dbdir, const char *distdir, const char *codena
 		free(n);
 		return RET_DBERR(dbret);
 	}
-	filename = calc_dirconcat(dbdir,"release.cache.db");
+	filename = calc_dirconcat(database->directory, "release.cache.db");
 	if( filename == NULL ) {
 		(void)n->cachedb->close(n->cachedb,0);
 		return RET_ERROR_OOM;

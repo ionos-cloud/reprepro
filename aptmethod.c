@@ -480,7 +480,7 @@ retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(const struct tobedone *todo,const char *filename,const char *md5sum,filesdb filesdb) {
+static inline retvalue todo_done(const struct tobedone *todo,const char *filename,const char *md5sum,struct database *database) {
 	char *calculatedmd5;
 
 	/* if the file is somewhere else, copy it: */
@@ -528,10 +528,9 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	if( todo->filekey != NULL ) {
 		retvalue r;
 
-		assert(filesdb != NULL);
 		assert(todo->md5sum != NULL);
 
-		r = files_add(filesdb,todo->filekey,todo->md5sum);
+		r = files_add(database, todo->filekey, todo->md5sum);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -620,14 +619,14 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 }
 
 /* look where a received file has to go to: */
-static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename,/*@null@*/const char *md5sum,filesdb filesdb) {
+static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename,/*@null@*/const char *md5sum,struct database *database) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
 	while( todo != NULL ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
-			r = todo_done(todo,filename,md5sum,filesdb);
+			r = todo_done(todo, filename, md5sum, database);
 
 			/* remove item: */
 			if( lasttodo == NULL )
@@ -708,7 +707,7 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 	return RET_OK;
 }
 
-static inline retvalue goturidone(struct aptmethod *method,const char *chunk,filesdb filesdb) {
+static inline retvalue goturidone(struct aptmethod *method,const char *chunk,struct database *database) {
 	retvalue r;
 	char *uri,*filename,*md5,*size,*md5sum;
 
@@ -750,7 +749,7 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,fil
 		return r;
 	}
 
- 	r = uridone(method,uri,filename,md5sum,filesdb);
+ 	r = uridone(method, uri, filename, md5sum, database);
 	free(uri);
 	free(filename);
 	free(md5sum);
@@ -783,7 +782,7 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 	return r;
 }
 
-static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
+static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,struct database *database) {
 	const char *p;
 	retvalue r;
 #define OVERLINE {while( *p != '\0' && *p != '\n') p++; if(*p == '\n') p++; }
@@ -837,7 +836,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					OVERLINE;
 					if( verbose >= 1 )
 						logmessage(method,p,"got");
-					return goturidone(method,p,filesdb);
+					return goturidone(method, p, database);
 				default:
 					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
 					return RET_ERROR;
@@ -868,7 +867,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 	}
 }
 
-static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
+static retvalue receivedata(struct aptmethod *method,struct database *database) {
 	retvalue result;
 	ssize_t r;
 	char *p;
@@ -934,7 +933,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 			return result;
 		}
 		*p ='\0'; p++; r--;
-		res = parsereceivedblock(method,method->inputbuffer,filesdb);
+		res = parsereceivedblock(method, method->inputbuffer, database);
 		if( r > 0 )
 			memmove(method->inputbuffer,p,r);
 		method->alreadyread = r;
@@ -1044,7 +1043,7 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 }
 
 /* *workleft is always set, even when return indicated error. (workleft < 0 when critical)*/
-static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,filesdb filesdb) {
+static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct database *database) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;
@@ -1096,7 +1095,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,filesd
 	maxfd = 0;
 	for( method = run->methods ; method != NULL ; method = method->next ) {
 		if( method->stdout != -1 && FD_ISSET(method->stdout,&readfds) ) {
-			r = receivedata(method,filesdb);
+			r = receivedata(method, database);
 			RET_UPDATE(result,r);
 		}
 		if( method->stdin != -1 && FD_ISSET(method->stdin,&writefds) ) {
@@ -1107,7 +1106,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,filesd
 	return result;
 }
 
-retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb) {
+retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struct database *database) {
 	struct aptmethod *method;
 	retvalue result,r;
 	int workleft;
@@ -1127,7 +1126,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,files
 	do {
 	  r = checkchilds(run);
 	  RET_UPDATE(result,r);
-	  r = readwrite(run,&workleft,filesdb);
+	  r = readwrite(run, &workleft, database);
 	  RET_UPDATE(result,r);
 	  // TODO: check interrupted here...
 	} while( workleft > 0 );
