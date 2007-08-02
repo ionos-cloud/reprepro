@@ -401,12 +401,6 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 	int i;
 	struct remove_args *d = data;
 
-	result = target_initpackagesdb(target, d->db);
-	if( RET_WAS_ERROR(result) ) {
-		RET_UPDATE(distribution->status,result);
-		return result;
-	}
-
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
 		r = target_removepackage(target, d->logger, d->db,
@@ -419,9 +413,6 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 		}
 		RET_UPDATE(result,r);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result,r);
-	RET_UPDATE(distribution->status,result);
 	return result;
 }
 
@@ -473,7 +464,9 @@ ACTION_D(remove) {
 	if( d.gotremoved == NULL )
 		result = RET_ERROR_OOM;
 	else
-		result = distribution_foreach_part(distribution,component,architecture,packagetype,remove_from_target,&d);
+		result = distribution_foreach_rwopenedpart(distribution, database,
+				component, architecture, packagetype,
+				remove_from_target, &d);
 	d.db = NULL;
 	d.removedfiles = NULL;
 
@@ -1181,19 +1174,10 @@ ACTION_D(copy) {
 }
 
 /***********************rereferencing*************************/
-struct data_binsrcreref { /*@temp@*/const struct distribution *distribution; /*@temp@*/struct database *db;};
-
 static retvalue reref(void *data,struct target *target,UNUSED(struct distribution *di)) {
-	retvalue result,r;
-	struct data_binsrcreref *d = data;
+	struct database *database = data;
 
-	result = target_initpackagesdb(target, d->db);
-	if( !RET_WAS_ERROR(result) ) {
-		result = target_rereference(target, d->db);
-		r = target_closepackagesdb(target);
-		RET_ENDUPDATE(result,r);
-	}
-	return result;
+	return target_rereference(target, database);
 }
 
 
@@ -1213,18 +1197,13 @@ ACTION_R(rereference) {
 	}
 	result = RET_NOTHING;
 	for( d = distributions ; d != NULL ; d = d->next ) {
-		struct data_binsrcreref dat;
-
 		if( verbose > 0 ) {
 			printf("Referencing %s...\n",d->codename);
 		}
-		dat.distribution = d;
-		dat.db = database;
 
-		r = distribution_foreach_part(d,component,architecture,packagetype,
-				reref,&dat);
-		dat.db = NULL;
-		dat.distribution = NULL;
+		r = distribution_foreach_roopenedpart(d, database,
+				component, architecture, packagetype,
+				reref, database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1235,19 +1214,12 @@ ACTION_R(rereference) {
 	return result;
 }
 /***************************retrack****************************/
-struct data_binsrctrack { /*@temp@*/const struct distribution *distribution; /*@temp@*/struct database *db; trackingdb tracks;};
+struct data_binsrctrack { /*@temp@*/struct database *db; trackingdb tracks;};
 
 static retvalue retrack(void *data,struct target *target,UNUSED(struct distribution *di)) {
-	retvalue result,r;
 	struct data_binsrctrack *d = data;
 
-	result = target_initpackagesdb(target, d->db);
-	if( !RET_WAS_ERROR(result) ) {
-		result = target_retrack(target,d->tracks,d->db);
-		r = target_closepackagesdb(target);
-		RET_ENDUPDATE(result,r);
-	}
-	return result;
+	return target_retrack(target, d->tracks, d->db);
 }
 
 ACTION_R(retrack) {
@@ -1271,7 +1243,6 @@ ACTION_R(retrack) {
 		if( verbose > 0 ) {
 			fprintf(stderr,"Chasing %s...\n",d->codename);
 		}
-		dat.distribution = d;
 		dat.db = database;
 		r = tracking_initialize(&dat.tracks, database, d);
 		if( RET_WAS_ERROR(r) ) {
@@ -1285,11 +1256,11 @@ ACTION_R(retrack) {
 		r = references_remove(database, d->codename, NULL);
 		RET_UPDATE(result,r);
 
-		r = distribution_foreach_part(d,component,architecture,packagetype,
-				retrack,&dat);
+		r = distribution_foreach_roopenedpart(d, database,
+				component, architecture, packagetype,
+				retrack, &dat);
 		RET_UPDATE(result,r);
 		dat.db = NULL;
-		dat.distribution = NULL;
 		r = tracking_done(dat.tracks);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
