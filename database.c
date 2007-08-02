@@ -171,3 +171,9 @@ retvalue database_openreferences(struct database *db) {
 		db->references = NULL;
 	return r;
 }
+
+const char *database_directory(struct database *database) {
+	/* this has to make sure the database directory actually
+	 * exists. Though locking before already does so */
+	return database->directory;
+}

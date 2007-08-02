@@ -14,6 +14,8 @@ retvalue database_create(struct database **, const char *dbdir);
 retvalue database_lock(struct database *, size_t waitforlock);
 retvalue database_close(struct database *);
 
+const char *database_directory(struct database *);
+
 retvalue database_openfiles(struct database *, const char *mirrordir);
 retvalue database_openreferences(struct database *);
 

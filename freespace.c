@@ -26,8 +26,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include "error.h"
+#include "database.h"
 #include "freespace.h"
-#include "database_p.h"
 
 struct device {
 	/*@null@*/struct device *next;
@@ -117,6 +117,7 @@ retvalue space_prepare(struct database *database,struct devices **devices,enum s
 	struct stat s;
 	int ret;
 	retvalue r;
+	const char *dbdir;
 
 	if( mode == scm_NONE ) {
 		*devices = NULL;
@@ -129,15 +130,17 @@ retvalue space_prepare(struct database *database,struct devices **devices,enum s
 	n->root = NULL;
 	n->reserved = reservedforothers;
 
-	ret = stat(database->directory ,&s);
+	dbdir = database_directory(database);
+
+	ret = stat(dbdir, &s);
 	if( ret != 0 ) {
 		int e = errno;
 		fprintf(stderr, "Error stat'ing %s: %d=%s\n",
-				database->directory, e, strerror(e));
+				dbdir, e, strerror(e));
 		free(n);
 		return RET_ERRNO(e);
 	}
-	r = device_find_or_create(n, s.st_dev, database->directory, &d);
+	r = device_find_or_create(n, s.st_dev, dbdir, &d);
 	if( RET_WAS_ERROR(r) ) {
 		space_free(n);
 		return r;
