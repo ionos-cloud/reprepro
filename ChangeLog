@@ -1,3 +1,8 @@
+2007-08-03  Bernhard R. Link <brlink@debian.org>
+	* add --without-libgpgme to compile without
+	gpgme support (checking and signing are then not
+	available, yet).
+
 2007-07-28  Bernhard R. Link <brlink@debian.org>
 	* fix segfault in changestool's verify if
 	md5sum of .orig.tar.gz is wrong and not listed
