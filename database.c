@@ -155,7 +155,7 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 
 	assert( db->files == NULL );
 
-	r = files_initialize(&db->files, db->directory, mirrordir);
+	r = files_initialize(&db->files, db, mirrordir);
 	if( !RET_IS_OK(r) )
 		db->files = NULL;
 	return r;
@@ -166,7 +166,7 @@ retvalue database_openreferences(struct database *db) {
 
 	assert( db->references == NULL );
 
-	r = references_initialize(&db->references, db->directory);
+	r = references_initialize(&db->references, db);
 	if( !RET_IS_OK(r) )
 		db->references = NULL;
 	return r;
@@ -176,4 +176,132 @@ const char *database_directory(struct database *database) {
 	/* this has to make sure the database directory actually
 	 * exists. Though locking before already does so */
 	return database->directory;
+}
+
+retvalue database_opentable(struct database *database,const char *filename,const char *subtable,DBTYPE type,u_int32_t flags,u_int32_t preflags,int (*dupcompare)(DB *,const DBT *,const DBT *),DB **result) {
+	char *fullfilename;
+	DB *table;
+	int dbret;
+
+	fullfilename = calc_dirconcat(database_directory(database), filename);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+
+	dbret = db_create(&table, NULL, 0);
+	if ( dbret != 0) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
+		free(fullfilename);
+		return RET_DBERR(dbret);
+	}
+	if( preflags != 0 ) {
+		dbret = table->set_flags(table, preflags);
+		if( dbret != 0 ) {
+			table->err(table, dbret, "db_set_flags(%u):",
+					(unsigned int)preflags);
+			(void)table->close(table, 0);
+			free(fullfilename);
+			return RET_DBERR(dbret);
+		}
+	}
+	if( dupcompare != NULL ) {
+		dbret = table->set_dup_compare(table, dupcompare);
+		if( dbret != 0 ) {
+			table->err(table, dbret, "db_set_dup_compare:");
+			(void)table->close(table, 0);
+			free(fullfilename);
+			return RET_DBERR(dbret);
+		}
+	}
+
+#if LIBDB_VERSION == 44
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#elif LIBDB_VERSION == 43
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#else
+#if LIBDB_VERSION == 3
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,filename,name,type,flags,0664)
+#else
+#error Unexpected LIBDB_VERSION!
+#endif
+#endif
+	dbret = DB_OPEN(table, fullfilename, subtable, type, flags);
+	if (dbret != 0) {
+		if( subtable != NULL )
+			table->err(table, dbret, "db_open(%s:%s)",
+					fullfilename, subtable);
+		else
+			table->err(table, dbret, "db_open(%s)", fullfilename);
+		(void)table->close(table, 0);
+		free(fullfilename);
+		return RET_DBERR(dbret);
+	}
+	free(fullfilename);
+	*result = table;
+	return RET_OK;
+}
+
+retvalue database_listsubtables(struct database *database,const char *filename,struct strlist *result) {
+	DB *table;
+	DBC *cursor;
+	DBT key,data;
+	int dbret;
+	retvalue ret,r;
+	struct strlist ids;
+
+	r = database_opentable(database, filename, NULL,
+			DB_UNKNOWN, DB_RDONLY, 0, NULL, &table);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	cursor = NULL;
+	if( (dbret = table->cursor(table, NULL, &cursor, 0)) != 0 ) {
+		table->err(table, dbret, "cursor(%s):", filename);
+		(void)table->close(table,0);
+		return RET_ERROR;
+	}
+	CLEARDBT(key);
+	CLEARDBT(data);
+
+	strlist_init(&ids);
+
+	ret = RET_NOTHING;
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		char *identifier = strndup(key.data, key.size);
+		if( identifier == NULL ) {
+			(void)table->close(table, 0);
+			strlist_done(&ids);
+			return RET_ERROR_OOM;
+		}
+		r = strlist_add(&ids, identifier);
+		if( RET_WAS_ERROR(r) ) {
+			(void)table->close(table, 0);
+			strlist_done(&ids);
+			return r;
+		}
+		CLEARDBT(key);
+		CLEARDBT(data);
+	}
+
+	if( dbret != 0 && dbret != DB_NOTFOUND ) {
+		table->err(table, dbret, "c_get(%s):", filename);
+		(void)table->close(table, 0);
+		strlist_done(&ids);
+		return RET_DBERR(dbret);
+	}
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		table->err(table, dbret, "c_close(%s):", filename);
+		(void)table->close(table, 0);
+		strlist_done(&ids);
+		return RET_DBERR(dbret);
+	}
+
+	dbret = table->close(table, 0);
+	if( dbret != 0 ) {
+		table->err(table, dbret, "close(%s):", filename);
+		strlist_done(&ids);
+		return RET_DBERR(dbret);
+	} else {
+		strlist_move(result, &ids);
+		return RET_OK;
+	}
 }

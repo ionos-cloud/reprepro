@@ -13,7 +13,7 @@
 struct filesdb;
 
 /* initalize "md5sum and size"-database */
-retvalue files_initialize(/*@out@*/struct filesdb **,const char *dbdir,const char *mirrordir);
+retvalue files_initialize(/*@out@*/struct filesdb **,struct database *,const char *mirrordir);
 
 /* release the files-database initialized got be files_initialize */
 retvalue files_done(/*@only@*/struct filesdb *);

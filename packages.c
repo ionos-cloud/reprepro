@@ -23,7 +23,6 @@
 #include <malloc.h>
 #include <string.h>
 #include <zlib.h>
-#include <db.h>
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
@@ -37,9 +36,6 @@ struct s_packagesdb {
 	char *identifier;
 	DB *database;
 };
-
-#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
-#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
 
 extern int verbose;
 
@@ -79,50 +75,28 @@ retvalue packages_init(packagesdb *db,struct database *database,const char *code
 /* initialize the packages-database for <identifier> */
 retvalue packages_initialize(packagesdb *db,struct database *database,const char *identifier) {
 	packagesdb pkgs;
-	char *filename;
-	int dbret;
 	retvalue r;
 
-	filename = calc_dirconcat(database->directory, "packages.db");
-	if( filename == NULL )
-		return RET_ERROR_OOM;
-	r = dirs_make_parent(filename);
-	if( RET_WAS_ERROR(r) ) {
-		free(filename);
-		return r;
-	}
 	pkgs = malloc(sizeof(struct s_packagesdb));
 	if( pkgs == NULL ) {
-		free(filename);
 		return RET_ERROR_OOM;
 	}
 	pkgs->identifier = strdup(identifier);
 	if( pkgs->identifier == NULL ) {
-		free(filename);
 		free(pkgs);
 		return RET_ERROR_OOM;
-	}
-
-	if ((dbret = db_create(&pkgs->database, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s:%s %s\n", filename,identifier,db_strerror(dbret));
-		free(filename);
-		free(pkgs->identifier);
-		free(pkgs);
-		return RET_DBERR(dbret);
 	}
 	isopen++;
 	if( isopen > 1 )
 		fprintf(stderr,"isopen: %d\n",isopen);
-	dbret = DB_OPEN(pkgs->database, filename, identifier, DB_BTREE, DB_CREATE);
-	if (dbret != 0) {
-		pkgs->database->err(pkgs->database, dbret, "%s(%s)", filename,identifier);
-		(void)pkgs->database->close(pkgs->database,0);
-		free(filename);
+
+	r = database_opentable(database, "packages.db", identifier,
+			DB_BTREE, DB_CREATE, 0 , NULL, &pkgs->database);
+	if( RET_WAS_ERROR(r) ) {
 		free(pkgs->identifier);
 		free(pkgs);
-		return RET_DBERR(dbret);
+		return r;
 	}
-	free(filename);
 	*db = pkgs;
 	return RET_OK;
 }
@@ -330,82 +304,8 @@ retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const str
 
 /* Get a list of all identifiers having a package list */
 retvalue packages_getdatabases(struct database *database, struct strlist *identifiers) {
-	char *filename;
-	DB *table;
-	DBC *cursor;
-	DBT key,data;
-	int dbret;
-	retvalue ret,r;
-	struct strlist ids;
 
-	filename = calc_dirconcat(database->directory, "packages.db");
-	if( filename == NULL )
-		return RET_ERROR_OOM;
-
-	if ((dbret = db_create(&table, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s %s\n", filename,db_strerror(dbret));
-		free(filename);
-		return RET_DBERR(dbret);
-	}
-	dbret = DB_OPEN(table, filename, NULL, DB_UNKNOWN, DB_RDONLY);
-	if (dbret != 0) {
-		table->err(table, dbret, "%s", filename);
-		(void)table->close(table,0);
-		free(filename);
-		return RET_DBERR(dbret);
-	}
-	free(filename);
-
-	cursor = NULL;
-	if( (dbret = table->cursor(table,NULL,&cursor,0)) != 0 ) {
-		table->err(table, dbret, "packages.db:");
-		(void)table->close(table,0);
-		return RET_ERROR;
-	}
-	CLEARDBT(key);
-	CLEARDBT(data);
-
-	strlist_init(&ids);
-
-	ret = RET_NOTHING;
-	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		char *identifier = strndup(key.data,key.size);
-		if( identifier == NULL ) {
-			(void)table->close(table,0);
-			strlist_done(&ids);
-			return RET_ERROR_OOM;
-		}
-		r = strlist_add(&ids, identifier);
-		if( RET_WAS_ERROR(r) ) {
-			(void)table->close(table,0);
-			strlist_done(&ids);
-			return r;
-		}
-		CLEARDBT(key);
-		CLEARDBT(data);
-	}
-
-	if( dbret != 0 && dbret != DB_NOTFOUND ) {
-		table->err(table, dbret, "packages.db:");
-		(void)table->close(table,0);
-		strlist_done(&ids);
-		return RET_DBERR(dbret);
-	}
-	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		table->err(table, dbret, "packages.db:");
-		(void)table->close(table,0);
-		strlist_done(&ids);
-		return RET_DBERR(dbret);
-	}
-
-	dbret = table->close(table,0);
-	if( dbret != 0 ) {
-		strlist_done(&ids);
-		return RET_DBERR(dbret);
-	} else {
-		strlist_move(identifiers, &ids);
-		return RET_OK;
-	}
+	return database_listsubtables(database, "packages.db", identifiers);
 }
 
 /* drop a database */

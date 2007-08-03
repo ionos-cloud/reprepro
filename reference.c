@@ -22,7 +22,6 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
-#include <db.h>
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
@@ -34,9 +33,6 @@
 struct references {
 	DB *db;
 };
-
-#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
-#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
 
 extern int verbose;
 
@@ -52,9 +48,7 @@ retvalue references_done(struct references *refs) {
 		return RET_DBERR(r);
 }
 
-retvalue references_initialize(struct references **refs,const char *dbpath) {
-	int ret;
-	char *filename;
+retvalue references_initialize(struct references **refs,struct database *database) {
 	retvalue r;
 	struct references *ref;
 
@@ -63,40 +57,12 @@ retvalue references_initialize(struct references **refs,const char *dbpath) {
 	if( ref == NULL )
 		return RET_ERROR_OOM;
 
-	filename = calc_dirconcat(dbpath,"references.db");
-	if( filename == NULL ) {
-		free(ref);
-		return RET_ERROR_OOM;
-	}
-	r = dirs_make_parent(filename);
+	r = database_opentable(database, "references.db", "references",
+			DB_BTREE, DB_CREATE, DB_DUPSORT, NULL, &ref->db);
 	if( RET_WAS_ERROR(r) ) {
-		free(filename);
 		free(ref);
-		return RET_ERROR_OOM;
+		return r;
 	}
-	if( (ret = db_create(&ref->db, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
-		free(filename);
-		free(ref);
-		return RET_DBERR(ret);
-	}
-	/* allow a file referenced by multiple dists: */
-	if( (ret = ref->db->set_flags(ref->db,DB_DUPSORT)) != 0 ) {
-		ref->db->err(ref->db, ret, "db_set_flags:%s", filename);
-		(void)ref->db->close(ref->db,0);
-		free(filename);
-		free(ref);
-		return RET_DBERR(ret);
-	}
-	ret = DB_OPEN(ref->db, filename, "references", DB_BTREE, DB_CREATE);
-	if( ret != 0) {
-		ref->db->err(ref->db, ret, "db_open:%s", filename);
-		(void)ref->db->close(ref->db,0);
-		free(filename);
-		free(ref);
-		return RET_DBERR(ret);
-	}
-	free(filename);
 	*refs = ref;
 	return RET_OK;
 }

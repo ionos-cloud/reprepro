@@ -25,7 +25,6 @@
 #include <unistd.h>
 #include <malloc.h>
 #include <string.h>
-#include <db.h>
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
@@ -45,16 +44,11 @@ struct filesdb {
 	char *mirrordir;
 };
 
-#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
-#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
-
 extern int verbose;
 
 /* initalize "md5sum and size"-database */
-retvalue files_initialize(struct filesdb **fdb,const char *dbpath,const char *mirrordir) {
+retvalue files_initialize(struct filesdb **fdb,struct database *database,const char *mirrordir) {
 	struct filesdb *db;
-	int dbret;
-	char *filename;
 	retvalue r;
 
 	db = malloc(sizeof(struct filesdb));
@@ -66,62 +60,22 @@ retvalue files_initialize(struct filesdb **fdb,const char *dbpath,const char *mi
 		return RET_ERROR_OOM;
 	}
 
-	filename = calc_dirconcat(dbpath,"files.db");
-	if( filename == NULL ) {
-		free(db->mirrordir);
-		free(db);
-		return RET_ERROR_OOM;
-	}
-	r = dirs_make_parent(filename);
+	r = database_opentable(database, "files.db", "md5sums",
+			DB_BTREE, DB_CREATE, 0, NULL, &db->database);
 	if( RET_WAS_ERROR(r) ) {
-		free(filename);
 		free(db->mirrordir);
 		free(db);
 		return r;
 	}
-	if ((dbret = db_create(&db->database, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
-		free(filename);
-		free(db->mirrordir);
-		free(db);
-		return RET_DBERR(dbret);
-	}
-	dbret = DB_OPEN(db->database, filename, "md5sums", DB_BTREE,DB_CREATE);
-	if (dbret != 0) {
-		db->database->err(db->database, dbret, "%s", filename);
-		(void)db->database->close(db->database,0);
-		free(filename);
-		free(db->mirrordir);
-		free(db);
-		return RET_DBERR(dbret);
-	}
-	free(filename);
-	filename = calc_dirconcat(dbpath,"contents.cache.db");
-	if( filename == NULL ) {
+	r = database_opentable(database, "contents.cache.db", "filelists",
+			DB_BTREE, DB_CREATE, 0, NULL, &db->contents);
+	if( RET_WAS_ERROR(r) ) {
 		(void)db->database->close(db->database,0);
 		free(db->mirrordir);
 		free(db);
-		return RET_ERROR_OOM;
+		return r;
 	}
-	if ((dbret = db_create(&db->contents, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
-		(void)db->database->close(db->database,0);
-		free(filename);
-		free(db->mirrordir);
-		free(db);
-		return RET_DBERR(dbret);
-	}
-	dbret = DB_OPEN(db->contents,filename,"filelists",DB_BTREE,DB_CREATE);
-	if( dbret != 0 ) {
-		db->contents->err(db->contents, dbret, "%s", filename);
-		(void)db->contents->close(db->contents,0);
-		(void)db->database->close(db->database,0);
-		free(filename);
-		free(db->mirrordir);
-		free(db);
-		return RET_DBERR(dbret);
-	}
-	free(filename);
+
 	*fdb = db;
 	return RET_OK;
 }

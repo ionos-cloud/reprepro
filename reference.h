@@ -17,7 +17,7 @@
 
 struct references;
 
-retvalue references_initialize(/*@out@*/struct references **ref, const char *path);
+retvalue references_initialize(/*@out@*/struct references **ref,struct database *);
 retvalue references_done(/*@only@*/struct references *ref);
 
 /* remove all references from a given identifier */

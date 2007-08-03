@@ -32,7 +32,6 @@
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
-#include <db.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -118,8 +117,7 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 
 retvalue release_init(struct release **release, struct database *database, const char *distdir, const char *codename) {
 	struct release *n;
-	int dbret;
-	char *filename;
+	retvalue r;
 
 	n = calloc(1,sizeof(struct release));
 	n->dirofdist = calc_dirconcat(distdir,codename);
@@ -127,30 +125,14 @@ retvalue release_init(struct release **release, struct database *database, const
 		free(n);
 		return RET_ERROR_OOM;
 	}
-	dbret = db_create(&n->cachedb,NULL,0);
-	if( dbret < 0 ) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
+	r = database_opentable(database, "release.cache.db", codename,
+			DB_HASH, DB_CREATE, 0, NULL, &n->cachedb);
+	if( RET_WAS_ERROR(r) ) {
 		n->cachedb = NULL;
 		free(n->dirofdist);
 		free(n);
-		return RET_DBERR(dbret);
+		return r;
 	}
-	filename = calc_dirconcat(database->directory, "release.cache.db");
-	if( filename == NULL ) {
-		(void)n->cachedb->close(n->cachedb,0);
-		return RET_ERROR_OOM;
-	}
-	dbret = DB_OPEN(n->cachedb,filename,codename, DB_HASH, DB_CREATE);
-	if( dbret < 0 ) {
-		n->cachedb->err(n->cachedb, dbret, "%s(%s)",
-				filename,codename);
-		(void)n->cachedb->close(n->cachedb,0);
-		free(filename);
-		free(n->dirofdist);
-		free(n);
-		return RET_DBERR(dbret);
-	}
-	free(filename);
 	*release = n;
 	return RET_OK;
 }
@@ -1067,9 +1049,6 @@ retvalue release_directorydescription(struct release *release, const struct dist
 	return r;
 }
 
-#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
-#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
-
 static retvalue getcachevalue(struct release *r,const char *relfilename, char **md5sum) {
 	int dbret;
 	DBT key,data;
@@ -1126,8 +1105,6 @@ static retvalue storechecksums(struct release *r) {
 	}
 	return RET_OK;
 }
-#undef CLEARDBT
-#undef SETDBT
 
 /* Generate a main "Release" file for a distribution */
 retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool_t onlyifneeded) {

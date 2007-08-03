@@ -5,6 +5,8 @@
 #include "database.h"
 #endif
 
+#include <db.h>
+
 struct references;
 struct filesdb;
 
@@ -15,16 +17,10 @@ struct database {
 	bool_t locked;
 };
 
-#if LIBDB_VERSION == 44
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
-#elif LIBDB_VERSION == 43
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
-#else
-#if LIBDB_VERSION == 3
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,filename,name,type,flags,0664)
-#else
-#error Unexpected LIBDB_VERSION!
-#endif
-#endif
+retvalue database_opentable(struct database *,const char *,const char *,DBTYPE,u_int32_t flags,u_int32_t preflags,int (*)(DB *,const DBT *,const DBT *),/*@out@*/DB **);
+retvalue database_listsubtables(struct database *,const char *,/*@out@*/struct strlist *);
+
+#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
+#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
 
 #endif

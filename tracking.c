@@ -17,11 +17,11 @@
 #include <config.h>
 
 #include <assert.h>
+#include <sys/types.h>
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <db.h>
 
 #include "error.h"
 #include "names.h"
@@ -44,10 +44,6 @@ struct s_tracking {
 	enum trackingtype type;
 	struct trackingoptions options;
 };
-
-#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
-#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
-
 
 retvalue tracking_done(trackingdb db) {
 	int dbret;
@@ -73,70 +69,27 @@ static int mydatacompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
 
 
 retvalue tracking_initialize(/*@out@*/trackingdb *db,struct database *database,const struct distribution *distribution) {
-	char *filename;
 	struct s_tracking *t;
 	retvalue r;
-	int dbret;
 
-	filename = calc_dirconcat(database->directory, "tracking.db");
-	if( filename == NULL )
-		return RET_ERROR_OOM;
-	r = dirs_make_parent(filename);
-	if( RET_WAS_ERROR(r) ) {
-		free(filename);
-		return r;
-	}
 	t = calloc(1,sizeof(struct s_tracking));
 	if( t == NULL ) {
-		free(filename);
 		return RET_ERROR_OOM;
 	}
 	t->codename = strdup(distribution->codename);
 	if( t->codename == NULL ) {
-		free(filename);
 		free(t);
 		return RET_ERROR_OOM;
 	}
 	t->type = distribution->tracking;
 	t->options = distribution->trackingoptions;
-	if ((dbret = db_create(&t->db, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s:%s %s\n",
-				filename,t->codename,db_strerror(dbret));
-		free(filename);
+	r = database_opentable(database, "tracking.db", t->codename,
+			DB_BTREE, DB_CREATE, DB_DUPSORT, mydatacompare, &t->db);
+	if( RET_WAS_ERROR(r) ) {
 		free(t->codename);
 		free(t);
-		return RET_DBERR(dbret);
+		return r;
 	}
-	/* allow multiple versions of a package */
-	if( (dbret = t->db->set_flags(t->db,DB_DUPSORT)) != 0 ) {
-		t->db->err(t->db,dbret,"db_set_flags:%s:%s",filename,t->codename);
-		(void)t->db->close(t->db,0);
-		free(filename);
-		free(t->codename);
-		free(t);
-		return RET_DBERR(dbret);
-	}
-	/* sort by sorting the version string */
-	if( (dbret = t->db->set_dup_compare(t->db,mydatacompare)) != 0 ) {
-		t->db->err(t->db,dbret,"db_set_dup_compare:%s:%s",filename,t->codename);
-		(void)t->db->close(t->db,0);
-		free(filename);
-		free(t->codename);
-		free(t);
-		return RET_DBERR(dbret);
-	}
-
-	dbret = DB_OPEN(t->db,filename, t->codename, DB_BTREE, DB_CREATE);
-	if( dbret != 0 ) {
-		t->db->err(t->db, dbret, "db_open:%s:%s", filename, t->codename);
-		(void)t->db->close(t->db,0);
-		free(filename);
-		free(t->codename);
-		free(t);
-		return RET_DBERR(ret);
-	}
-	free(filename);
-
 	*db = t;
 	return RET_OK;
 }
