@@ -683,7 +683,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 			strlist_done(&allfingerprints);
 	}
 	return r;
-#endif /* HAVE_LIBGPGME */
+#else /* HAVE_LIBGPGME */
 	char *chunk;
 	gzFile f;
 	retvalue r;
@@ -774,6 +774,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	if( brokensignature != NULL )
 		*brokensignature = FALSE;
 	return RET_OK;
+#endif /* HAVE_LIBGPGME */
 }
 
 struct signedfile {
