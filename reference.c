@@ -340,8 +340,12 @@ retvalue references_dump(struct database *database) {
 			break;
 		}
 		result = RET_OK;
+		if( interrupted() ) {
+			result = RET_ERROR_INTERUPTED;
+			break;
+		}
 	}
-	if( dbret != DB_NOTFOUND ) {
+	if( dbret != DB_NOTFOUND && dbret != 0 ) {
 		refs->db->err(refs->db, dbret, "references_dump dberror(get):");
 		return RET_DBERR(dbret);
 	}
