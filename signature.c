@@ -206,9 +206,14 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		r = containskey(options, s->fpr);
 		if( RET_WAS_ERROR(r) )
 			return r;
-		if( r == RET_NOTHING )
+		if( r == RET_NOTHING ) {
+			if( gpgme_err_code(s->status) == GPG_ERR_NO_ERROR &&
+					verbose > 10 ) {
+				printf("Valid signature with key '%s', but that key is not looked at.\n", s->fpr);
+			}
 			/* there's no use in checking signatures not sufficient */
 			continue;
+		}
 		assert( RET_IS_OK(r) );
 		switch( gpgme_err_code(s->status) ) {
 			case GPG_ERR_NO_ERROR:

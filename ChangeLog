@@ -1,3 +1,7 @@
+2007-08-20  Bernhard R. Link <brlink@debian.org>
+	* Print ignored signatures in Release.gpg files
+	when verbosity > 10
+
 2007-08-18  Bernhard R. Link <brlink@debian.org>
 	* stop dumpreferences output when Ctrl-c is received.
 
