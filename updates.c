@@ -1054,6 +1054,12 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 		r = signature_check(origin->pattern->verifyrelease,
 				origin->releasegpgfile,
 				origin->releasefile);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Error: No accepted signature found for update rule %s for distribution %s!\n",
+					origin->pattern->name,
+					origin->distribution->codename);
+			r = RET_ERROR_BADSIG;
+		}
 		if( RET_WAS_ERROR(r) ) {
 			origin->failed = TRUE;
 			return r;
@@ -1304,7 +1310,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 	return UD_UPGRADE;
 }
 
-static inline retvalue searchformissing(FILE *out,struct database *database,struct update_target *u) {
+static inline retvalue searchformissing(FILE *out,const char *dbdir,struct update_target *u) {
 	struct update_index *index;
 	retvalue result,r;
 
@@ -1316,7 +1322,7 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 	}
 	if( verbose > 2 )
 		fprintf(out,"  processing updates for '%s'\n",u->target->identifier);
-	r = upgradelist_initialize(&u->upgradelist, u->target, database);
+	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -1364,13 +1370,13 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 	return result;
 }
 
-static retvalue updates_readindices(FILE *out,struct database *database,struct update_distribution *d) {
+static retvalue updates_readindices(FILE *out,const char *dbdir,struct update_distribution *d) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
-		r = searchformissing(out, database, u);
+		r = searchformissing(out, dbdir, u);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
@@ -1380,7 +1386,7 @@ static retvalue updates_readindices(FILE *out,struct database *database,struct u
 	return result;
 }
 
-static retvalue updates_enqueue(struct downloadcache *cache,struct database *database,struct update_distribution *distribution) {
+static retvalue updates_enqueue(struct downloadcache *cache,filesdb filesdb,struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
 
@@ -1388,7 +1394,7 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->nothingnew )
 			continue;
-		r = upgradelist_enqueue(u->upgradelist, cache, database);
+		r = upgradelist_enqueue(u->upgradelist,cache,filesdb);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
@@ -1399,7 +1405,7 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
 }
 
 
-static retvalue updates_install(struct database *database,struct update_distribution *distribution,struct strlist *dereferencedfilekeys) {
+static retvalue updates_install(const char *dbdir,filesdb filesdb,references refs,struct update_distribution *distribution,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_target *u;
 
@@ -1411,7 +1417,7 @@ static retvalue updates_install(struct database *database,struct update_distribu
 			continue;
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
-				database,
+				dbdir, filesdb, refs,
 				u->ignoredelete, dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
@@ -1497,7 +1503,7 @@ static retvalue updates_downloadlists(const char *methoddir,struct aptmethodrun 
 	return result;
 }
 
-retvalue updates_update(struct database *database,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1563,7 +1569,7 @@ retvalue updates_update(struct database *database,const char *methoddir,struct u
 	/* Then get all packages */
 	if( verbose >= 0 )
 		printf("Calculating packages to get...\n");
-	r = downloadcache_initialize(database, mode, reserveddb, reservedother, &cache);
+	r = downloadcache_initialize(dbdir, mode, reserveddb, reservedother, &cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
 		RET_UPDATE(result,r);
@@ -1571,11 +1577,11 @@ retvalue updates_update(struct database *database,const char *methoddir,struct u
 	}
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(stdout, database, d);
+		r = updates_readindices(stdout, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = updates_enqueue(cache, database, d);
+		r = updates_enqueue(cache,filesdb,d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1602,7 +1608,7 @@ retvalue updates_update(struct database *database,const char *methoddir,struct u
 		printf("Getting packages...\n");
 	r = downloadcache_free(cache);
 	RET_ENDUPDATE(result,r);
-	r = aptmethod_download(run, methoddir, database);
+	r = aptmethod_download(run,methoddir,filesdb);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
 		printf("Shutting down aptmethods...\n");
@@ -1623,7 +1629,7 @@ retvalue updates_update(struct database *database,const char *methoddir,struct u
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_install(database, d, dereferencedfilekeys);
+		r = updates_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1641,7 +1647,7 @@ retvalue updates_update(struct database *database,const char *methoddir,struct u
 	return result;
 }
 
-retvalue updates_checkupdate(struct database *database,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold) {
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold) {
 	struct update_distribution *d;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1699,7 +1705,7 @@ retvalue updates_checkupdate(struct database *database,const char *methoddir,str
 		fprintf(stderr,"Calculating packages to get...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(stderr, database, d);
+		r = updates_readindices(stderr, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1709,7 +1715,7 @@ retvalue updates_checkupdate(struct database *database,const char *methoddir,str
 	return result;
 }
 
-retvalue updates_predelete(struct database *database,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
+retvalue updates_predelete(const char *dbdir,const char *methoddir,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1786,7 +1792,7 @@ retvalue updates_predelete(struct database *database,const char *methoddir,struc
 		struct update_target *u;
 
 		for( u=d->targets ; u != NULL ; u=u->next ) {
-			r = searchformissing(stdout, database, u);
+			r = searchformissing(stdout, dbdir, u);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) ) {
 				u->incomplete = TRUE;
@@ -1799,7 +1805,7 @@ retvalue updates_predelete(struct database *database,const char *methoddir,struc
 			}
 			r = upgradelist_predelete(u->upgradelist,
 					d->distribution->logger,
-					database, dereferencedfilekeys);
+					dbdir, refs, dereferencedfilekeys);
 			RET_UPDATE(d->distribution->status, r);
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = TRUE;
@@ -1814,7 +1820,7 @@ retvalue updates_predelete(struct database *database,const char *methoddir,struc
 	return result;
 }
 
-static retvalue singledistributionupdate(struct database *database,const char *methoddir,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
+static retvalue singledistributionupdate(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *d,bool_t nolistsdownload,bool_t skipold, struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 	struct update_origin *origin;
@@ -1922,7 +1928,7 @@ static retvalue singledistributionupdate(struct database *database,const char *m
 		/* Then get all packages */
 		if( verbose >= 0 )
 			printf("Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = downloadcache_initialize(database, mode, reserveddb, reservedother, &cache);
+		r = downloadcache_initialize(dbdir, mode, reserveddb, reservedother, &cache);
 		RET_UPDATE(result,r);
 		if( !RET_IS_OK(r) ) {
 			(void)downloadcache_free(cache);
@@ -1932,7 +1938,7 @@ static retvalue singledistributionupdate(struct database *database,const char *m
 			}
 			continue;
 		}
-		r = searchformissing(stdout, database, target);
+		r = searchformissing(stdout, dbdir, target);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		else if( r == RET_NOTHING ) {
@@ -1945,7 +1951,7 @@ static retvalue singledistributionupdate(struct database *database,const char *m
 			aptmethod_shutdown(run);
 			return result;
 		}
-		r = upgradelist_enqueue(target->upgradelist, cache, database);
+		r = upgradelist_enqueue(target->upgradelist,cache,filesdb);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		RET_UPDATE(result,r);
@@ -1956,7 +1962,7 @@ static retvalue singledistributionupdate(struct database *database,const char *m
 		}
 		if( verbose >= 0 )
 			fprintf(stderr,"Getting packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = aptmethod_download(run, methoddir, database);
+		r = aptmethod_download(run,methoddir,filesdb);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) ) {
 			(void)downloadcache_free(cache);
@@ -1969,7 +1975,8 @@ static retvalue singledistributionupdate(struct database *database,const char *m
 		if( verbose >= 0 )
 			fprintf(stderr,"Installing/removing packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
 		r = upgradelist_install(target->upgradelist,
-				d->distribution->logger, database,
+				d->distribution->logger,
+				dbdir, filesdb, refs,
 				target->ignoredelete, dereferencedfilekeys);
 		logger_wait();
 		if( RET_WAS_ERROR(r) )
@@ -1991,7 +1998,7 @@ static retvalue singledistributionupdate(struct database *database,const char *m
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir,struct database *database,const char *distdir,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export,enum spacecheckmode mode,off_t reserveddb,off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -2015,13 +2022,10 @@ retvalue updates_iteratedupdate(const char *confdir,struct database *database,co
 		if( d->distribution->tracking != dt_NONE ) {
 			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
 		}
-		r = singledistributionupdate(database, methoddir, d,
-				nolistsdownload, skipold, dereferencedfilekeys,
-				mode, reserveddb, reservedother);
+		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,nolistsdownload,skipold,dereferencedfilekeys, mode, reserveddb, reservedother);
 		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
-		r = distribution_export(export, d->distribution,
-				confdir, distdir, database);
+		r = distribution_export(export,d->distribution,confdir,dbdir,distdir,filesdb);
 		RET_UPDATE(result,r);
 	}
 	return result;

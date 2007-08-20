@@ -1,10 +1,6 @@
-2007-08-18  Bernhard R. Link <brlink@debian.org>
-	* stop dumpreferences output when Ctrl-c is received.
-
-2007-08-03  Bernhard R. Link <brlink@debian.org>
-	* add --without-libgpgme to compile without
-	gpgme support (checking and signing are then not
-	available, yet).
+2007-08-19  Bernhard R. Link <brlink@debian.org>
+	* [SECURITY] fix bug causing a Release.gpg with only
+	unknown signatures considered as properly signed.
 
 2007-07-28  Bernhard R. Link <brlink@debian.org>
 	* fix segfault in changestool's verify if
