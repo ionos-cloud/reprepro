@@ -1,3 +1,10 @@
+reprepro (2.2.4-1) unstable; urgency=high
+
+  * fix bug causing a Release.gpg with only unknown signatures
+    considered as properly signed.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 19 Aug 2007 16:36:44 +0200
+
 reprepro (2.2.3-1) unstable; urgency=low
 
   * bugfix release
