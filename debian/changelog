@@ -1,3 +1,10 @@
+reprepro (2.3.0-0) UNRELEASED; urgency=low
+
+  * new version
+  - ignore SIGPIPE, as libgpgme can cause it (Closes: 437138)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 21 Aug 2007 12:11:39 +0200
+
 reprepro (2.2.4-1) unstable; urgency=high
 
   * fix bug causing a Release.gpg with only unknown signatures

@@ -2658,6 +2658,8 @@ int main(int argc,char *argv[]) {
 	(void)sigaction(SIGINT, &sa, NULL);
 	(void)sigaction(SIGQUIT, &sa, NULL);
 
+	(void)signal(SIGPIPE, SIG_IGN);
+
 	programname = argv[0];
 
 	init_ignores();
