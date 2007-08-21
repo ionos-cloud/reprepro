@@ -687,7 +687,7 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 }
 
 static retvalue notificator_enqueue(struct notificator *n,struct target *target,const char *name,/*@null@*/const char *version,/*@null@*/const char *oldversion,/*@null@*/const char *control,/*@null@*/const char *oldcontrol,/*@null@*/const struct strlist *filekeys,/*@null@*/const struct strlist *oldfilekeys,bool_t renotification) {
-	size_t count,i,j;
+	size_t count, i;
 	char **arguments;
 	const char *action = NULL;
 	struct notification_process *p;
@@ -753,12 +753,14 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 	if( oldversion != NULL )
 		arguments[i++] = strdup(oldversion);
 	if( version != NULL ) {
+		int j;
 		arguments[i++] = strdup("--");
 		if( filekeys != NULL )
 			for( j = 0 ; j < filekeys->count ; j++ )
 				arguments[i++] = strdup(filekeys->values[j]);
 	}
 	if( oldversion != NULL ) {
+		int j;
 		arguments[i++] = strdup("--");
 		if( oldfilekeys != NULL )
 			for( j = 0 ; j < oldfilekeys->count ; j++ )
@@ -766,13 +768,15 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 	}
 	assert( i == count );
 	arguments[i] = NULL;
-	for( i = 0 ; i < count ; i++ )
+	for( i = 0 ; i < count ; i++ ) {
+		size_t j;
 		if( arguments[i] == NULL ) {
 			for( j = 0 ; j < count ; j++ )
 				free(arguments[j]);
 			free(arguments);
 			return RET_ERROR_OOM;
 		}
+	}
 	if( processes == NULL ) {
 		p = malloc(sizeof(struct notification_process));
 		processes = p;
@@ -784,6 +788,7 @@ static retvalue notificator_enqueue(struct notificator *n,struct target *target,
 		p = p->next;
 	}
 	if( p == NULL ) {
+		size_t j;
 		for( j = 0 ; j < count ; j++ )
 			free(arguments[j]);
 		free(arguments);
@@ -858,7 +863,7 @@ void logger_free(struct logger *logger) {
 	if( logger->logfile != NULL )
 		logfile_dereference(logger->logfile);
 	if( logger->notificators != NULL ) {
-		int i;
+		size_t i;
 
 		for( i = 0 ; i < logger->notificator_count ; i++ )
 			notificator_done(&logger->notificators[i]);
@@ -982,7 +987,7 @@ void logger_logchanges(struct logger *log,const char *codename,const char *name,
 }
 
 bool_t logger_rerun_needs_target(const struct logger *logger,const struct target *target) {
-	int i;
+	size_t i;
 	struct notificator *n;
 
 	for( i = 0 ; i < logger->notificator_count ; i++ ) {

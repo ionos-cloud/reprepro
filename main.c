@@ -396,7 +396,7 @@ ACTION_R(addreference) {
 struct remove_args {/*@temp@*/struct database *db; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;struct logger *logger;};
 
 static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
-		struct distribution *distribution) {
+		UNUSED(struct distribution *dummy)) {
 	retvalue result,r;
 	int i;
 	struct remove_args *d = data;

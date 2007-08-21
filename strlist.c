@@ -261,7 +261,7 @@ retvalue strlist_adduniq(struct strlist *strlist,char *element) {
 }
 
 bool_t strlist_intersects(const struct strlist *a,const struct strlist *b) {
-	size_t i;
+	int i;
 
 	for( i = 0 ; i < a->count ; i++ )
 		if( strlist_in(b, a->values[i]) )

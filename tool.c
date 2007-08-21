@@ -554,7 +554,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 	struct dscfile *n;
 	retvalue r;
-	int i;
+	size_t i;
 
 	if( dscfile->fullfilename == NULL )
 		return RET_NOTHING;
@@ -1792,7 +1792,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 	struct fileentry *f;
 	struct dscfile *dsc;
 	char *fullfilename, *basename;
-	int i;
+	size_t i;
 
 	r = findfile(dscfilename, c, NULL, &fullfilename);
 	if( RET_WAS_ERROR(r) )

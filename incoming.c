@@ -813,7 +813,7 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 	return RET_OK;
 }
 
-static retvalue candidate_read_dsc(struct incoming *i,struct candidate *c,struct candidate_file *file) {
+static retvalue candidate_read_dsc(struct candidate_file *file) {
 	retvalue r;
 	bool_t broken = FALSE;
 	char *p;
@@ -859,7 +859,7 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 		if( FE_BINARY(file->type) )
 			r = candidate_read_deb(i, c, file);
 		else if( file->type == fe_DSC )
-			r = candidate_read_dsc(i, c, file);
+			r = candidate_read_dsc(file);
 		else {
 			r = RET_ERROR;
 			assert( FE_BINARY(file->type) || file->type == fe_DSC );
@@ -870,7 +870,7 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 	return RET_OK;
 }
 
-static retvalue candidate_preparechangesfile(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per) {
+static retvalue candidate_preparechangesfile(struct database *database,const struct candidate *c,struct candidate_perdistribution *per) {
 	retvalue r;
 	char *basename, *filekey;
 	struct candidate_package *package;
@@ -1141,7 +1141,7 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 	}
 	if( d->into->tracking != dt_NONE ) {
 		if( d->into->trackingoptions.includechanges ) {
-			r = candidate_preparechangesfile(database, i, c, d);
+			r = candidate_preparechangesfile(database, c, d);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -1177,7 +1177,7 @@ static retvalue candidate_removefiles(struct database *database,struct candidate
 	return RET_OK;
 }
 
-static retvalue candidate_addfiles(struct database *database,struct incoming *i,struct candidate *c) {
+static retvalue candidate_addfiles(struct database *database,struct candidate *c) {
 	int j;
 	struct candidate_perdistribution *d;
 	struct candidate_package *p;
@@ -1210,7 +1210,6 @@ static retvalue candidate_addfiles(struct database *database,struct incoming *i,
 
 static retvalue add_dsc(struct database *database,
 		struct distribution *into, struct strlist *dereferenced,
-		const struct incoming *i, const struct candidate *c,
 		struct trackingdata *trackingdata, struct candidate_package *p) {
 	retvalue r;
 	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
@@ -1240,7 +1239,7 @@ static retvalue add_dsc(struct database *database,
 
 static retvalue checkadd_dsc(struct database *database,
 		struct distribution *into,
-		const struct incoming *i, const struct candidate *c,
+		const struct incoming *i,
 		bool_t tracking, struct candidate_package *p) {
 	retvalue r;
 	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
@@ -1262,7 +1261,7 @@ static retvalue checkadd_dsc(struct database *database,
 	return r;
 }
 
-static retvalue candidate_add_into(const char *confdir,struct database *database,struct strlist *dereferenced,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
+static retvalue candidate_add_into(struct database *database,struct strlist *dereferenced,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
 	retvalue r;
 	struct candidate_package *p;
 	struct trackingdata trackingdata;
@@ -1310,7 +1309,7 @@ static retvalue candidate_add_into(const char *confdir,struct database *database
 		}
 		if( p->master->type == fe_DSC ) {
 			r = add_dsc(database, into, dereferenced,
-					i, c, (tracks==NULL)?NULL:&trackingdata,
+					(tracks==NULL)?NULL:&trackingdata,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
 			r = binaries_adddeb(&p->master->deb, database,
@@ -1354,7 +1353,7 @@ static retvalue candidate_add_into(const char *confdir,struct database *database
 	return RET_OK;
 }
 
-static inline retvalue candidate_checkadd_into(const char *confdir,struct database *database,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
+static inline retvalue candidate_checkadd_into(struct database *database,const struct incoming *i,const struct candidate_perdistribution *d) {
 	retvalue r;
 	struct candidate_package *p;
 	struct distribution *into = d->into;
@@ -1363,7 +1362,7 @@ static inline retvalue candidate_checkadd_into(const char *confdir,struct databa
 	for( p = d->packages ; p != NULL ; p = p->next ) {
 		if( p->master->type == fe_DSC ) {
 			r = checkadd_dsc(database, into,
-					i, c, into->tracking != dt_NONE,
+					i, into->tracking != dt_NONE,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
 			r = binaries_checkadddeb(&p->master->deb, database,
@@ -1390,7 +1389,7 @@ static inline retvalue candidate_checkadd_into(const char *confdir,struct databa
 		return RET_NOTHING;
 }
 
-static inline bool_t isallowed(struct incoming *i, struct candidate *c, struct distribution *into, const struct uploadpermissions *permissions) {
+static inline bool_t isallowed(UNUSED(struct incoming *i), UNUSED(struct candidate *c), UNUSED(struct distribution *into), const struct uploadpermissions *permissions) {
 	return permissions->allowall;
 }
 
@@ -1476,7 +1475,7 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 	return RET_OK;
 }
 
-static retvalue candidate_add(const char *confdir,const char *overridedir,struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
+static retvalue candidate_add(const char *overridedir,struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
@@ -1529,8 +1528,8 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,struct
 	 * or if there are already newer versions */
 	somethingtodo = FALSE;
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		r = candidate_checkadd_into(confdir, database,
-			i, c, d);
+		r = candidate_checkadd_into(database,
+			i, d);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( r == RET_NOTHING )
@@ -1557,7 +1556,7 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,struct
 	 * checked by now */
 
 	/* make hardlinks/copies of the files */
-	r = candidate_addfiles(database, i, c);
+	r = candidate_addfiles(database, c);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( interrupted() ) {
@@ -1568,7 +1567,7 @@ static retvalue candidate_add(const char *confdir,const char *overridedir,struct
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
 		if( d->skip )
 			continue;
-		r = candidate_add_into(confdir, database,
+		r = candidate_add_into(database,
 			dereferenced, i, c, d);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -1662,7 +1661,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 				i->files.values[ofs]);
 			r = RET_ERROR;
 		} else
-			r = candidate_add(confdir, overridedir, database,
+			r = candidate_add(overridedir, database,
 					dereferenced,
 					i, c);
 		if( RET_WAS_ERROR(r) && i->cleanup.on_error ) {
