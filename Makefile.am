@@ -16,7 +16,7 @@ AM_CPPFLAGS = -D_GNU_SOURCE=1 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
 
-reprepro_SOURCES = database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED)
+reprepro_SOURCES = database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c packages.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED)
 EXTRA_reprepro_SOURCE = $(ARCHIVE_UNUSED)
 
 changestool_SOURCES = tool.c chunkedit.c strlist.c md5sum.c md5.c mprintf.c chunks.c signature.c dirs.c ignore.c names.c copyfile.c $(ARCHIVE_USED)
