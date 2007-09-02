@@ -26,8 +26,9 @@ struct contentsoptions {
 void contentsoptions_done(struct contentsoptions *options);
 
 struct distribution;
+struct configiterator;
 
-retvalue contentsoptions_parse(struct distribution *distribution,const char *chunk);
+retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter);
 retvalue contents_generate(struct database *,struct distribution *,struct release *,bool_t onlyneeded);
 
 #endif

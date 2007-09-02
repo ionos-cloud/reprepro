@@ -27,7 +27,6 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
-#include "chunks.h"
 #include "uploaderslist.h"
 
 extern int verbose;

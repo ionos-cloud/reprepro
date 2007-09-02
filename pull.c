@@ -22,10 +22,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "error.h"
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
-#include "chunks.h"
 #include "md5sum.h"
 #include "pull.h"
 #include "upgradelist.h"
@@ -33,6 +33,7 @@
 #include "terms.h"
 #include "filterlist.h"
 #include "log.h"
+#include "configparser.h"
 
 extern int verbose;
 
@@ -89,167 +90,41 @@ void pull_freerules(struct pull_rule *p) {
 	}
 }
 
-inline static retvalue parse_rule(const char *confdir,const char *chunk, struct pull_rule **rule) {
-	struct pull_rule *pull;
-	struct strlist architectureslist;
-	char *formula,*filename;
-	retvalue r;
-	static const char * const allowedfields[] = {"Name", "From",
-"Architectures", "Components", "UDebComponents",
-"FilterFormula", "FilterList", NULL};
+CFlinkedlistinit(pull_rule)
+CFvalueSETPROC(pull_rule, name)
+CFvalueSETPROC(pull_rule, from)
+CFsplitstrlistSETPROC(pull_rule, architectures)
+CFuniqstrlistSETPROC(pull_rule, components)
+CFuniqstrlistSETPROC(pull_rule, udebcomponents)
+CFfilterlistSETPROC(pull_rule, filterlist)
+CFtermSETPROC(pull_rule, includecondition)
 
-	pull = calloc(1,sizeof(struct pull_rule));
-	if( pull == NULL )
-		return RET_ERROR_OOM;
-	r = chunk_getvalue(chunk,"Name",&pull->name);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Unexpected chunk in pulls-file: '%s'.\n",chunk);
-		return RET_ERROR;
-	}
-	if( RET_WAS_ERROR(r) ) {
-		free(pull);
-		return r;
-	}
-	if( verbose > 30 ) {
-		fprintf(stderr,"parsing pull-chunk '%s'\n",pull->name);
-	}
-
-	/* * Look where we are getting it from: * */
-
-	r = chunk_getvalue(chunk,"From",&pull->from);
-	if( !RET_IS_OK(r) ) {
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"No From found in pull-block %s!\n",
-					pull->name);
-			r = RET_ERROR_MISSING;
-		}
-		pull_rule_free(pull);
-		return r;
-	}
-
-	r = chunk_checkfields(chunk,allowedfields,TRUE);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-
-	/* * Check which architectures to pull from * */
-	r = chunk_getuniqwordlist(chunk,"Architectures",&architectureslist);
-	// TODO: is this save if uniqwordlist could become sorted?
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		pull->architectures_from.count = 0;
-		pull->architectures_into.count = 0;
-	} else {
-		r = splitlist(&pull->architectures_from,
-				&pull->architectures_into,&architectureslist);
-		strlist_done(&architectureslist);
-		if( RET_WAS_ERROR(r) ) {
-			pull_rule_free(pull);
-			return r;
-		}
-	}
-
-	/* * Check which components to pull from * */
-	r = chunk_getuniqwordlist(chunk,"Components",&pull->components);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		pull->components.count = 0;
-	}
-
-	/* * Check which components to pull udebs from * */
-	r = chunk_getuniqwordlist(chunk,"UDebComponents",&pull->udebcomponents);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		pull->udebcomponents.count = 0;
-	}
-
-	/* * Check if there is a Include condition * */
-	r = chunk_getvalue(chunk,"FilterFormula",&formula);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r != RET_NOTHING ) {
-		r = term_compile(&pull->includecondition,formula,
-			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
-		free(formula);
-		if( RET_WAS_ERROR(r) ) {
-			pull->includecondition = NULL;
-			pull_rule_free(pull);
-			return r;
-		}
-		assert( r != RET_NOTHING );
-	}
-	/* * Check if there is a list to say what can be included by pull * */
-	r = chunk_getvalue(chunk,"FilterList",&filename);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r != RET_NOTHING ) {
-		r = filterlist_load(&pull->filterlist,confdir,filename);
-		free(filename);
-		if( RET_WAS_ERROR(r) ) {
-			pull_rule_free(pull);
-			return r;
-		}
-		assert( r != RET_NOTHING );
-	} else {
-		filterlist_empty(&pull->filterlist,flt_install);
-	}
-	pull->distribution = NULL;
-	pull->used = FALSE;
-
-	*rule = pull;
-	return RET_OK;
-}
-
-struct getrules_data {
-	struct pull_rule **rules;
-	const char *confdir;
+static const struct configfield pullconfigfields[] = {
+	CFr("Name", pull_rule, name),
+	CFr("From", pull_rule, from),
+	CF("Architectures", pull_rule, architectures),
+	CF("Components", pull_rule, components),
+	CF("UDebComponents", pull_rule, udebcomponents),
+	CF("FilterFormula", pull_rule, includecondition),
+	CF("FilterList", pull_rule, filterlist)
 };
 
-static retvalue pull_parsechunk(void *data,const char *chunk) {
-	struct pull_rule *pull;
-	struct getrules_data *d = data;
-	retvalue r;
-
-	r = parse_rule(d->confdir,chunk,&pull);
-	if( RET_IS_OK(r) ) {
-		pull->next = *d->rules;
-		*d->rules = pull;
-	}
-	return r;
-}
-
 retvalue pull_getrules(const char *confdir,struct pull_rule **rules) {
-	char *pullfile;
 	struct pull_rule *pull = NULL;
-	struct getrules_data data;
 	retvalue r;
 
-	pullfile = calc_dirconcat(confdir,"pulls");
-	if( pullfile == NULL )
-		return RET_ERROR_OOM;
-	data.rules = &pull;
-	data.confdir = confdir;
-	r = chunk_foreach(pullfile,pull_parsechunk,&data,FALSE);
-	free(pullfile);
+	r = configfile_parse(confdir, "pulls", IGNORABLE(unknownfield),
+			configparser_pull_rule_init, linkedlistfinish,
+			pullconfigfields, ARRAYCOUNT(pullconfigfields), &pull);
 	if( RET_IS_OK(r) )
 		*rules = pull;
 	else if( r == RET_NOTHING ) {
+		assert( pull == NULL );
 		*rules = NULL;
 		r = RET_OK;
+	} else {
+		// TODO special handle unknownfield
+		pull_freerules(pull);
 	}
 	return r;
 }

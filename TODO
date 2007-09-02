@@ -1,4 +1,7 @@
 TODO:
+	readd checking of codename, component and architecture in distributions
+	check for empty lists... (decide which should not be empty and which may)
+	test new config parser: to update's Config still work?
 	add --fast option, default --nofast and doing more consistency checks:
 	- check if clearvanished is needed
 	- check Component/Architecture lists in pull/update rules

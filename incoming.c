@@ -48,9 +48,34 @@
 #include "tracking.h"
 #include "incoming.h"
 #include "files.h"
+#include "configparser.h"
 #include "changes.h"
 
 extern int verbose;
+
+enum permitflags {
+	/* do not error out on unused files */
+	pmf_unused_files = 0,
+	/* allow .changes file to specify multipe distributions */
+	pmf_multiple_distributions,
+	/* do not error out if there already is a newer package */
+	pmf_oldpackagenewer,
+	pmf_COUNT /* must be last */
+};
+enum cleanupflags {
+	/* delete everything referenced by a .changes file
+	 * when it is not accepted */
+	cuf_on_deny = 0,
+	/* check owner when deleting on_deny */
+	cuf_on_deny_check_owner,
+	/* delete everything referenced by a .changes on errors
+	 * after accepting that .changes file*/
+	cuf_on_error,
+	/* delete unused files after sucessfully
+	 * processing the used ones */
+	cuf_unused_files,
+	cuf_COUNT /* must be last */
+};
 
 struct incoming {
 	/* by incoming_parse: */
@@ -64,27 +89,10 @@ struct incoming {
 	bool_t *processed;
 	bool_t *delete;
 	struct strlist md5sums;
-	struct {
-		/* do not error out on unused files */
-		bool_t unused_files:1;
-		/* allow .changes file to specify multipe distributions */
-		bool_t multiple_distributions:1;
-		/* do not error out if there already is a newer package */
-		bool_t oldpackagenewer:1;
-	} permit;
-	struct {
-		/* delete everything referenced by a .changes file
-		 * when it is not accepted */
-		bool_t on_deny:1;
-		/* check owner when deleting on_deny */
-		bool_t on_deny_check_owner:1;
-		/* delete everything referenced by a .changes on errors
-		 * after accepting that .changes file*/
-		bool_t on_error:1;
-		/* delete unused files after sucessfully
-		 * processing the used ones */
-		bool_t unused_files:1;
-	} cleanup;
+	bool_t permit[pmf_COUNT];
+	bool_t cleanup[cuf_COUNT];
+	/* only to ease parsing: */
+	char *name; size_t lineno;
 };
 #define BASENAME(i,ofs) (i)->files.values[ofs]
 /* the changes file is always the first one listed */
@@ -93,6 +101,7 @@ struct incoming {
 static void incoming_free(/*@only@*/ struct incoming *i) {
 	if( i == NULL )
 		return;
+	free(i->name);
 	free(i->tempdir);
 	free(i->directory);
 	strlist_done(&i->allow);
@@ -152,8 +161,7 @@ static retvalue incoming_prepare(struct incoming *i) {
 	return RET_OK;
 }
 
-struct importsparsedata {
-	char *filename;
+struct read_incoming_data {
 	/*@temp@*/const char *name;
 	/*@temp@*/struct distribution *distributions;
 	struct incoming *i;
@@ -178,45 +186,34 @@ static retvalue translate(struct distribution *distributions, struct strlist *na
 	return RET_OK;
 }
 
-static retvalue incoming_parse(void *data, const char *chunk) {
-	char *name;
+CFstartparse(incoming) {
+	CFstartparseVAR(incoming,result_p);
 	struct incoming *i;
-	struct importsparsedata *d = data;
-	retvalue r;
-	struct strlist allowlist, allow_into, wordlist;
-	char *default_into;
-	static const char * const allowedfields[] = {"Name", "TempDir",
-		"IncomingDir", "Default", "Allow", "Multiple",
-		"Cleanup", "Permit",
-		NULL};
-
-	r = chunk_getvalue(chunk, "Name", &name);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Expected 'Name' header in every chunk in '%s'!\n", d->filename);
-		return RET_ERROR_MISSING;
-	}
-	if( strcmp(name, d->name) != 0 ) {
-		free(name);
-		return RET_NOTHING;
-	}
-	free(name);
-
-	r = chunk_checkfields(chunk, allowedfields, TRUE);
-	if( RET_WAS_ERROR(r) )
-		return r;
 
 	i = calloc(1,sizeof(struct incoming));
 	if( i == NULL )
 		return RET_ERROR_OOM;
+	*result_p = i;
+	return RET_OK;
+}
 
-	r = chunk_getvalue(chunk, "TempDir", &i->tempdir);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Expected 'TempDir' header not found in definition for '%s' in '%s'!\n", d->name, d->filename);
-		r = RET_ERROR_MISSING;
-	}
-	if( RET_WAS_ERROR(r) ) {
+CFfinishparse(incoming) {
+	CFfinishparseVARS(incoming,i,last,d);
+
+	if( !complete || strcmp(i->name, d->name) != 0) {
 		incoming_free(i);
-		return r;
+		return RET_NOTHING;
+	}
+	if( d->i != NULL ) {
+		fprintf(stderr, "Multiple definitions of '%s' within '%s': first started at line %u, second at line %u!\n",
+				d->name,
+				config_filename(iter),
+				d->i->lineno,
+				config_firstline(iter));
+		incoming_free(i);
+		incoming_free(d->i);
+		d->i = NULL;
+		return RET_ERROR;
 	}
 	if( i->tempdir[0] != '/' ) {
 		char *n = calc_dirconcat(d->basedir, i->tempdir);
@@ -227,15 +224,6 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 		free(i->tempdir);
 		i->tempdir = n;
 	}
-	r = chunk_getvalue(chunk, "IncomingDir", &i->directory);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Expected 'IncomingDir' header not found in definition for '%s' in '%s'!\n", d->name, d->filename);
-		r = RET_ERROR_MISSING;
-	}
-	if( RET_WAS_ERROR(r) ) {
-		incoming_free(i);
-		return r;
-	}
 	if( i->directory[0] != '/' ) {
 		char *n = calc_dirconcat(d->basedir, i->directory);
 		if( n == NULL ) {
@@ -245,139 +233,150 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 		free(i->directory);
 		i->directory = n;
 	}
-	r = chunk_getvalue(chunk, "Default", &default_into);
-	if( RET_WAS_ERROR(r) ) {
-		incoming_free(i);
-		return r;
-	}
-	if( RET_IS_OK(r) ) {
-		i->default_into = distribution_find(d->distributions, default_into);
-		if( i->default_into == NULL ) {
-			free(default_into);
+	if( i->default_into == NULL && i->allow.count == 0 ) {
+		fprintf(stderr,
+"There ia neither a 'Allow' nor a 'Default' definition in rule '%s'\n"
+"(starting at line %u, ending at line %u of %s)!\n"
+"Aborting as nothing would be let in.\n",
+				d->name,
+				config_firstline(iter), config_line(iter),
+				config_filename(iter));
 			incoming_free(i);
 			return RET_ERROR;
-		}
-		free(default_into);
-	} else
-		i->default_into = NULL;
+	}
 
-	r = chunk_getwordlist(chunk, "Allow", &allowlist);
-	if( RET_WAS_ERROR(r) ) {
-		incoming_free(i);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		if( i->default_into == NULL ) {
-			fprintf(stderr, "'%s' in '%s' has neither a 'Allow' nor a 'Default' definition!\nAborting as nothing would be let in.\n", d->name, d->filename);
-			incoming_free(i);
-			return RET_ERROR;
-		}
-		strlist_init(&i->allow);
-		i->allow_into = NULL;
-	} else {
-		r = splitlist(&i->allow,&allow_into, &allowlist);
-		strlist_done(&allowlist);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) ) {
-			incoming_free(i);
-			return r;
-		}
-		assert( i->allow.count == allow_into.count );
-		r = translate(d->distributions, &allow_into, &i->allow_into);
-		if( RET_WAS_ERROR(r) ) {
-			strlist_done(&allow_into);
-			incoming_free(i);
-			return r;
-		}
-		strlist_done(&allow_into);
-	}
-	r = chunk_gettruth(chunk, "Multiple");
-	if( RET_WAS_ERROR(r) ) {
-		incoming_free(i);
-		return r;
-	}
-	i->permit.multiple_distributions = RET_IS_OK(r);
-	r = chunk_getwordlist(chunk, "Permit", &wordlist);
-	if( RET_WAS_ERROR(r) ) {
-		incoming_free(i);
-		return r;
-	}
-	if( RET_IS_OK(r) ) {
-		int j;
-		for( j = 0 ; j < wordlist.count ; j++ ) {
-			const char *word = wordlist.values[j];
-
-			if( strcasecmp(word, "unused_files") == 0 ) {
-				i->permit.unused_files = TRUE;
-			} else if( strcasecmp(word, "older_version") == 0 ) {
-				i->permit.oldpackagenewer = TRUE;
-			/* not yet implemented
-			} else if( strcasecmp(word, "downgrade") == 0 ) {
-				i->permit.downgrade = TRUE;
-			*/
-			} else if( !IGNORING("Ignoring", "To ignore this",
-unknownfield, "Unknown option '%s' in Permit of incoming-rule '%s'!\n",
-					word, d->name) ) {
-				incoming_free(i);
-				return RET_ERROR;
-			}
-		}
-		strlist_done(&wordlist);
-	}
-	r = chunk_getwordlist(chunk, "Cleanup", &wordlist);
-	if( RET_WAS_ERROR(r) ) {
-		incoming_free(i);
-		return r;
-	}
-	if( RET_IS_OK(r) ) {
-		int j;
-		for( j = 0 ; j < wordlist.count ; j++ ) {
-			const char *word = wordlist.values[j];
-
-			if( strcasecmp(word, "unused_files") == 0 ) {
-				i->cleanup.unused_files = TRUE;
-			} else if( strcasecmp(word, "on_deny") == 0 ) {
-				i->cleanup.on_deny = TRUE;
-			/* not yet implemented
-			} else if( strcasecmp(word, "on_deny_check_owner") == 0 ) {
-				i->cleanup.on_deny_check_owner = TRUE;
-			*/
-			} else if( strcasecmp(word, "on_error") == 0 ) {
-				i->cleanup.on_error = TRUE;
-			} else if( !IGNORING("Ignoring", "To ignore this",
-unknownfield, "Unknown option '%s' in Cleanup of incoming-rule '%s'!\n",
-					word, d->name) ) {
-				incoming_free(i);
-				return RET_ERROR;
-			}
-		}
-		strlist_done(&wordlist);
-	}
 	d->i = i;
+	i->lineno = config_firstline(iter);
+	/* only suppreses the last unused warning: */
+	*last = i;
 	return RET_OK;
 }
 
+CFSETPROC(incoming,default) {
+	CFSETPROCVARS(incoming,i,d);
+	char *default_into;
+	retvalue r;
+
+	r = config_getonlyword(iter, headername, &default_into);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	i->default_into = distribution_find(d->distributions, default_into);
+	free(default_into);
+	return ( i->default_into == NULL )?RET_ERROR:RET_OK;
+}
+
+CFSETPROC(incoming,allow) {
+	CFSETPROCVARS(incoming,i,d);
+	struct strlist allow_into;
+	retvalue r;
+
+	r = config_getsplitwords(iter, headername, &i->allow, &allow_into);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	assert( i->allow.count == allow_into.count );
+	r = translate(d->distributions, &allow_into, &i->allow_into);
+	strlist_done(&allow_into);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return RET_OK;
+}
+
+CFSETPROC(incoming,permit) {
+	CFSETPROCVARS(incoming,i,d);
+	static const struct constant const permitconstants[] = {
+		{ "unused_files",	pmf_unused_files},
+		{ "older_version",	pmf_oldpackagenewer},
+		/* not yet implemented:
+		   { "downgrade",		pmf_downgrade},
+		 */
+		{ NULL, -1}
+	};
+
+	if( IGNORABLE(unknownfield) )
+		return config_getflags(iter, headername, permitconstants,
+				i->permit, TRUE, "");
+	else if( i->name == NULL )
+		return config_getflags(iter, headername, permitconstants,
+				i->permit, FALSE,
+"\n(try put Name: before Permit: to ignore if it is from the wrong rule");
+	else if( strcmp(i->name, d->name) != 0 )
+		return config_getflags(iter, headername, permitconstants,
+				i->permit, TRUE,
+" (but not within the rule we are intrested in.)");
+	else
+		return config_getflags(iter, headername, permitconstants,
+				i->permit, FALSE,
+" (use --ignore=unknownfield to ignore this)\n");
+
+}
+
+CFSETPROC(incoming,cleanup) {
+	CFSETPROCVARS(incoming,i,d);
+	static const struct constant const cleanupconstants[] = {
+		{ "unused_files", cuf_unused_files},
+		{ "on_deny", cuf_on_deny},
+		/* not yet implemented
+		{ "on_deny_check_owner", cuf_on_deny_check_owner},
+		 */
+		{ "on_error", cuf_on_error},
+		{ NULL, -1}
+	};
+
+	if( IGNORABLE(unknownfield) )
+		return config_getflags(iter, headername, cleanupconstants,
+				i->cleanup, TRUE, "");
+	else if( i->name == NULL )
+		return config_getflags(iter, headername, cleanupconstants,
+				i->cleanup, FALSE,
+"\n(try put Name: before Cleanup: to ignore if it is from the wrong rule");
+	else if( strcmp(i->name, d->name) != 0 )
+		return config_getflags(iter, headername, cleanupconstants,
+				i->cleanup, TRUE,
+" (but not within the rule we are intrested in.)");
+	else
+		return config_getflags(iter, headername, cleanupconstants,
+				i->cleanup, FALSE,
+" (use --ignore=unknownfield to ignore this)\n");
+}
+
+CFvalueSETPROC(incoming, name)
+CFdirSETPROC(incoming, tempdir)
+CFdirSETPROC(incoming, directory)
+CFtruthSETPROC2(incoming, multiple, permit[pmf_multiple_distributions])
+
+static const struct configfield incomingconfigfields[] = {
+	CFr("Name", incoming, name),
+	CFr("TempDir", incoming, tempdir),
+	CFr("IncomingDir", incoming, directory),
+	CF("Default", incoming, default),
+	CF("Allow", incoming, allow),
+	CF("Multiple", incoming, multiple),
+	CF("Cleanup", incoming, cleanup),
+	CF("Permit", incoming, permit)
+};
+
 static retvalue incoming_init(const char *basedir,const char *confdir, struct distribution *distributions, const char *name, /*@out@*/struct incoming **result) {
 	retvalue r;
-	struct importsparsedata imports;
+	struct read_incoming_data imports;
 
 	imports.name = name;
 	imports.distributions = distributions;
 	imports.i = NULL;
 	imports.basedir = basedir;
-	imports.filename = calc_dirconcat(confdir, "incoming");
-	if( imports.filename == NULL )
-		return RET_ERROR_OOM;
 
-	r = chunk_foreach(imports.filename, incoming_parse, &imports, TRUE);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "No definition for '%s' found in '%s'!\n",
-				name, imports.filename);
-		r = RET_ERROR_MISSING;
-	}
-	free(imports.filename);
+	r = configfile_parse(confdir, "incoming", IGNORABLE(unknownfield),
+			startparseincoming, finishparseincoming,
+			incomingconfigfields, ARRAYCOUNT(incomingconfigfields),
+			&imports);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	if( imports.i == NULL ) {
+		fprintf(stderr, "No definition for '%s' found in '%s/incoming'!\n",
+				name, confdir);
+		return RET_ERROR_MISSING;
+	}
 
 	r = incoming_prepare(imports.i);
 	if( RET_WAS_ERROR(r) ) {
@@ -1254,7 +1253,7 @@ static retvalue checkadd_dsc(struct database *database,
 			r = target_checkaddpackage(t,
 					p->master->dsc.name,
 					p->master->dsc.version,
-					tracking, i->permit.oldpackagenewer);
+					tracking, i->permit[pmf_oldpackagenewer]);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}
@@ -1370,7 +1369,7 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 					(p->master->type == fe_DEB)?"deb":"udeb",
 					into,
 					into->tracking != dt_NONE,
-					p->component, i->permit.oldpackagenewer);
+					p->component, i->permit[pmf_oldpackagenewer]);
 		} else if( p->master->type == fe_UNKNOWN ) {
 			continue;
 		} else
@@ -1513,7 +1512,7 @@ static retvalue candidate_add(const char *overridedir,struct database *database,
 			}
 	}
 	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( !file->used && !i->permit.unused_files ) {
+		if( !file->used && !i->permit[pmf_unused_files] ) {
 			// TODO: find some way to mail such errors...
 			fprintf(stderr,
 "Error: '%s' contains unused file '%s'!\n"
@@ -1543,7 +1542,7 @@ static retvalue candidate_add(const char *overridedir,struct database *database,
 					BASENAME(i,c->ofs));
 		}
 		for( file = c->files ; file != NULL ; file = file->next ) {
-			if( file->used || i->cleanup.unused_files )
+			if( file->used || i->cleanup[cuf_unused_files] )
 				i->delete[file->ofs] = TRUE;
 		}
 		return RET_NOTHING;
@@ -1575,7 +1574,7 @@ static retvalue candidate_add(const char *overridedir,struct database *database,
 
 	/* mark files as done */
 	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->used || i->cleanup.unused_files ) {
+		if( file->used || i->cleanup[cuf_unused_files] ) {
 			i->delete[file->ofs] = TRUE;
 		}
 	}
@@ -1625,7 +1624,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 			}
 		}
 		if( c->perdistribution != NULL &&
-				!i->permit.multiple_distributions )
+				!i->permit[pmf_multiple_distributions] )
 			break;
 	}
 	if( c->perdistribution == NULL && i->default_into != NULL ) {
@@ -1643,11 +1642,11 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 		fprintf(stderr, tried?"No distribution accepting '%s'!\n":
 				      "No distribution found for '%s'!\n",
 			i->files.values[ofs]);
-		if( i->cleanup.on_deny  ) {
+		if( i->cleanup[cuf_on_deny]  ) {
 			i->delete[c->ofs] = TRUE;
 			for( file = c->files ; file != NULL ; file = file->next ) {
 				// TODO: implement same-owner check
-				if( !i->cleanup.on_deny_check_owner )
+				if( !i->cleanup[cuf_on_deny_check_owner] )
 					i->delete[file->ofs] = TRUE;
 			}
 		}
@@ -1664,7 +1663,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 			r = candidate_add(overridedir, database,
 					dereferenced,
 					i, c);
-		if( RET_WAS_ERROR(r) && i->cleanup.on_error ) {
+		if( RET_WAS_ERROR(r) && i->cleanup[cuf_on_error] ) {
 			struct candidate_file *file;
 
 			i->delete[c->ofs] = TRUE;

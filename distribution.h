@@ -29,6 +29,8 @@ struct distribution {
 	struct distribution *next;
 	/* the primary name to access this distribution: */
 	char *codename;
+	/* for more helpfull error messages: */
+	unsigned int firstline, lastline;
 	/* additional information for the Release-file to be
 	 * generated, may be NULL. only suite is sometimes used
 	 * (and only for sanity checks) */
@@ -52,7 +54,7 @@ struct distribution {
 	struct strlist udebcomponents;
 	/* what kind of index files to generate */
 	struct exportmode dsc,deb,udeb;
-	/* is tracking enabled for this distribution? */
+	/* is tracking enabled for this distribution? (NONE must be 0 so it is the default) */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
 	struct trackingoptions { bool_t includechanges:1;
 		bool_t includebyhand:1;
@@ -79,6 +81,8 @@ struct distribution {
 	retvalue status;
 	/* FALSE: not looked at, do not export at all */
 	bool_t lookedat;
+	/* FALSE: not requested, do not handle at all */
+	bool_t selected;
 };
 
 retvalue distribution_get(const char *confdir,const char *logdir,const char *name, bool_t lookedat,/*@out@*/struct distribution **distribution);
@@ -110,6 +114,9 @@ enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
 retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *distdir,struct database *);
 
 retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *distdir,struct database *,const char *name);
+
+/* read the configuration from all distributions */
+retvalue distribution_readall(const char *confdir,const char *logdir,/*@out@*/struct distribution **distributions);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc,const char *argv[],bool_t lookedat,/*@out@*/struct distribution **distributions);

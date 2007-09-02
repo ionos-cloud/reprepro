@@ -62,9 +62,9 @@ _reprepro()
 
 	COMPREPLY=()
 
-	ignores='ignore forbiddenchar 8bit emptyfilenamepart overlongcomments\
+	ignores='ignore forbiddenchar 8bit emptyfilenamepart\
 		spaceonlyline malformedchunk shortkeyid unknownfield\
-		wrongdistribution missingfield doublefield brokenold\
+		wrongdistribution missingfield brokenold\
 		brokenversioncmp extension unusedarch surprisingarch\
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\
 		brokensignatures uploaders missingfile'

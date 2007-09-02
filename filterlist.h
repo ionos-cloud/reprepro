@@ -2,9 +2,10 @@
 #define REPREPRO_FILTERLIST_H
 
 enum filterlisttype {
+	/* must be 0, so it is the default, when there is no list */
+	flt_install = 0,
 	flt_purge,
 	flt_deinstall,
-	flt_install,
 	flt_hold,
 	flt_error
 };
@@ -19,9 +20,8 @@ struct filterlist {
 	enum filterlisttype defaulttype;
 };
 
-
-retvalue filterlist_load(/*@out@*/struct filterlist *list, const char *confdir, const char *filename);
-void filterlist_empty(/*@out@*/struct filterlist *list, enum filterlisttype defaulttype);
+struct configiterator;
+retvalue filterlist_load(/*@out@*/struct filterlist *, const char *confdir, struct configiterator *);
 
 void filterlist_release(struct filterlist *list);
 

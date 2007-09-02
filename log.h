@@ -10,7 +10,7 @@ struct logger;
 
 enum log_action { LOG_PACKAGE_ADD, LOG_PACKAGE_REPLACE, LOG_PACKAGE_REMOVE};
 
-retvalue logger_init(const char *confdir,const char *logdir,const char *codename,const char *option,/*@null@*/const struct strlist *notificators,/*@out@*/struct logger **);
+retvalue logger_init(const char *confdir,const char *logdir,struct configiterator *,/*@out@*/struct logger **);
 void logger_free(/*@only@*/struct logger *);
 
 retvalue logger_prepare(struct logger *logger);

@@ -36,6 +36,8 @@ typedef int bool_t;
 #endif
 #endif
 
+#define ARRAYCOUNT(a) (sizeof(a)/sizeof(a[0]))
+
 enum config_option_owner { 	CONFIG_OWNER_DEFAULT=0,
 				CONFIG_OWNER_FILE,
 				CONFIG_OWNER_ENVIRONMENT,

@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "March, 29th 2007" "reprepro" REPREPRO
+.TH REPREPRO 1 "September, 2nd 2007" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -1085,13 +1085,6 @@ ignore directive is given.
 .B brokenversioncmp \fR(hopefully never seen)
 If comparing an old and a new version fails, assume the new one is newer.
 .TP
-.B doublefield \fR(better comment the second one)
-Ignore doubled fields in the config files,
-instead of refusing to run then.
-In general the second one should be ignored then, but
-perhaps sometimes the first one.
-So I hope you know what you do.
-.TP
 .B dscinbinnmu
 If a .changes file has an explicit Source version that is different the
 to the version header of the file,
@@ -1153,13 +1146,6 @@ try to get files needed but not listed in the .changes file
 (e.g. when someone forgot to specify \-sa to dpkg\-buildpackage)
 from the directory the .changes file is in instead of erroring out.
 (\fB\-\-delete\fP will not work with those files, though.)
-.TP
-.B overlongcomments \fR(I hope you know what you do)
-Allow overlong comments. That is a line started with a hash(#)
-followed by lines starting with spaces. By default reprepro errors
-out in that case, as marking every line as comment is as easy and
-people might try to comment a single line within a multi-line
-header (which does not work but makes all the rest a comment).
 .TP
 .B shortkeyid \fR(insecure)
 Allow gpg-keys to be specified with less than 8 hexdigits of their fingerprint.

@@ -33,6 +33,8 @@
 #include "distribution.h"
 #include "filelist.h"
 #include "files.h"
+#include "ignore.h"
+#include "configparser.h"
 
 extern int verbose;
 
@@ -46,145 +48,59 @@ struct distribution;
 
 /* options are zerroed when called, when error is returned contentsopions_done
  * is called by the caller */
-retvalue contentsoptions_parse(struct distribution *distribution, const char *chunk) {
-	char *option,*e;
+retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter) {
+	enum contentsflags { cf_udebs, cf_nodebs, cf_uncompressed, cf_gz, cf_bz2, cf_COUNT};
+	bool_t flags[cf_COUNT];
+	static const struct constant contentsflags[] = {
+		{"udebs", cf_udebs},
+		{"nodebs", cf_nodebs},
+		{".bz2", cf_bz2},
+		{".gz", cf_gz},
+		{".", cf_uncompressed},
+		{NULL,	-1}
+	};
 	retvalue r;
-	long l;
-	bool_t defaultcompressions;
+	long long l;
 
-	r = chunk_getvalue(chunk,"Contents",&option);
-	if( RET_WAS_ERROR(r) ) {
+	r = config_getnumber(iter, "Contents rate", &l, 0, INT_MAX);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
 		return r;
-	} else if( r == RET_NOTHING ) {
-		// check the other fields or just ignore them?
-		distribution->contents.rate = 0;
-		return RET_NOTHING;
+
+	distribution->contents.rate = l;
+
+	memset(flags, 0, sizeof(flags));
+	r = config_getflags(iter, "Contents", contentsflags, flags,
+			IGNORABLE(unknownfield), "");
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+#ifndef HAVE_LIBBZ2
+	if( flags[cf_bz2] ) {
+		fprintf(stderr,
+"Warning: Ignoring request to generate .bz2'ed Contents files.\n"
+"(not compiled with libbzip2, so no support available.)\n"
+"Request was in %s in the Contents-header ending in line %u\n",
+			config_filename(iter), config_line(iter));
+		flags[cf_bz2] = FALSE;
 	}
-	assert( RET_IS_OK(r) );
-	l = strtol(option, &e, 10);
-	if( l == LONG_MAX || l >= INT_MAX ) {
-		fprintf(stderr,"Too large rate value in Contents: line of %s: %s\n",
-				distribution->codename,
-				option);
-		free(option);
-		return RET_ERROR;
-	}
-	if( l <= 0 )
-		distribution->contents.rate = 0;
-	else
-		distribution->contents.rate = l;
-	defaultcompressions = TRUE;
-	distribution->contents.compressions = IC_FLAG(ic_gzip);
-	while( *e != '\0' && xisspace(*e) )
-		e++;
-	while( *e != '\0' ) {
-		if( strncmp(e, "udebs", 5) == 0 &&
-				(e[5] == '\0' || isspace(e[5])) ) {
-			distribution->contents.flags.udebs = TRUE;
-			e += 5;
-		} else if( strncmp(e, "nodebs", 6) == 0 &&
-				(e[6] == '\0' || isspace(e[6])) ) {
-			distribution->contents.flags.nodebs = TRUE;
-			e += 6;
-		} else if( strncmp(e, ".bz2", 4) == 0 &&
-				(e[4] == '\0' || isspace(e[4])) ) {
-#ifdef HAVE_LIBBZ2
-			if( defaultcompressions ) {
-				defaultcompressions = FALSE;
-				distribution->contents.compressions = 0;
-			}
-			distribution->contents.compressions |=
-				IC_FLAG(ic_bzip2);
-#else
-			fprintf(stderr, "Warning: Ignoring request to generate .bz2'ed Contents files as compiled without libbz2.\n");
 #endif
-			e += 4;
-		} else if( strncmp(e, ".gz", 3) == 0 &&
-				(e[3] == '\0' || isspace(e[3])) ) {
-			if( defaultcompressions ) {
-				defaultcompressions = FALSE;
-				distribution->contents.compressions = 0;
-			}
-			distribution->contents.compressions |=
-				IC_FLAG(ic_gzip);
-			e += 3;
-		} else if( e[0] == '.' && (e[1] == '\0' || isspace(e[1])) ) {
-			if( defaultcompressions ) {
-				defaultcompressions = FALSE;
-				distribution->contents.compressions = 0;
-			}
-			distribution->contents.compressions |=
-				IC_FLAG(ic_uncompressed);
-			e += 1;
-		} else {
-			fprintf(stderr, "Unknown Contents: option in %s: '%s'\n",
-					distribution->codename, e);
-			free(option);
-			return RET_ERROR;
-		}
-		while( *e != '\0' && xisspace(*e) )
-			e++;
-	}
-	free(option);
+	if( !flags[cf_uncompressed] && !flags[cf_gz] && !flags[cf_bz2] )
+		flags[cf_gz] = TRUE;
+	distribution->contents.compressions = 0;
+	if( flags[cf_uncompressed] )
+		distribution->contents.compressions |= IC_FLAG(ic_uncompressed);
+	if( flags[cf_gz] )
+		distribution->contents.compressions |= IC_FLAG(ic_gzip);
+#ifdef HAVE_LIBBZ2
+	if( flags[cf_bz2] )
+		distribution->contents.compressions |= IC_FLAG(ic_bzip2);
+#endif
+	distribution->contents.flags.udebs = flags[cf_udebs];
+	distribution->contents.flags.nodebs = flags[cf_nodebs];
+
 	if( distribution->contents.rate == 0 )
 		return RET_NOTHING;
-	r = chunk_getuniqwordlist(chunk, "ContentsArchitectures",
-			&distribution->contents.architectures);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		distribution->contents.architectures.count = 0;
-		distribution->contents.architectures.values = NULL;
-	} else {
-		const char *missing;
-
-		if( !strlist_subset(&distribution->architectures,
-					&distribution->contents.architectures,
-					&missing) ) {
-			fprintf(stderr, "ContentsArchitectures of %s lists architecture %s not found in its Architectures: list!\n",
-					distribution->codename,
-					missing);
-			return RET_ERROR;
-		}
-	}
-	r = chunk_getuniqwordlist(chunk, "ContentsComponents",
-			&distribution->contents.components);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		distribution->contents.components.count = 0;
-		distribution->contents.components.values = NULL;
-	} else {
-		const char *missing;
-
-		if( !strlist_subset(&distribution->components,
-					&distribution->contents.components,
-					&missing) ) {
-			fprintf(stderr, "ContentsComponents of %s lists component %s not found in its Components: list!\n",
-					distribution->codename,
-					missing);
-			return RET_ERROR;
-		}
-	}
-	r = chunk_getuniqwordlist(chunk, "ContentsUComponents",
-			&distribution->contents.ucomponents);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		distribution->contents.ucomponents.count = 0;
-		distribution->contents.ucomponents.values = NULL;
-	} else {
-		const char *missing;
-
-		if( !strlist_subset(&distribution->udebcomponents,
-					&distribution->contents.ucomponents,
-					&missing) ) {
-			fprintf(stderr, "ContentsUComponents of %s lists udeb-component %s not found in its UComponents: list!\n",
-					distribution->codename,
-					missing);
-			return RET_ERROR;
-		}
-	}
 	return RET_OK;
 }
 

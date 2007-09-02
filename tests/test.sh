@@ -135,8 +135,7 @@ return 255
 stdout
 -v2*=Created directory "./db"
 stderr
-*=Unknown option in notifiers of 'A': '--bla' (in '--bla')
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Unknown Log notifier option in ./conf/distributions, line 5, column 2: '--bla'
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
@@ -148,8 +147,7 @@ Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Missing '=' in notifiers of 'A' after '-A' (in '-A')
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Log notifier option -A misses an argument in ./conf/distributions, line 5, column 3
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
@@ -161,8 +159,8 @@ Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Missing notification script to call in '-A=abacus' of 'A'
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Error parsing config file ./conf/distributions, line 5, column 10:
+*=Unexpected end of line: name of notifier script missing!
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
@@ -174,8 +172,7 @@ Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Double notifier option '--architecture' (in '-A=abacus --architecture=coal' from 'A')
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Repeated notifier option --architecture in ./conf/distributions, line 5, column 12!
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
@@ -260,7 +257,7 @@ dodiff results.expected results
 testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
-*=Unable to open file ./conf/incoming: No such file or directory
+*=Error opening config file './conf/incoming': No such file or directory(2)
 -v0*=There have been errors!
 stdout
 EOF
@@ -274,6 +271,8 @@ stdout
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+Tempdir: bla
+Incomingdir: bla
 EOF
 testrun - -b . processincoming default 3<<EOF
 returns 249
@@ -284,6 +283,11 @@ stdout
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+Tempdir: bla
+Incomingdir: bla
+
+# a comment
+#
 
 Name: default
 
@@ -292,12 +296,17 @@ EOF
 testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
-*=Expected 'TempDir' header not found in definition for 'default' in './conf/incoming'!
--v0=Stop reading further chunks from './conf/incoming' due to previous errors.
+*=Error parsing config file ./conf/incoming, line 9:
+*=Required field 'TempDir' expected (since line 8).
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+Tempdir: bla
+Incomingdir: bla
+
+# a comment
+#
 
 Name: default
 TempDir: temp
@@ -307,36 +316,71 @@ EOF
 testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
-*=Expected 'IncomingDir' header not found in definition for 'default' in './conf/incoming'!
--v0=Stop reading further chunks from './conf/incoming' due to previous errors.
+*=Error parsing config file ./conf/incoming, line 10:
+*=Required field 'IncomingDir' expected (since line 8).
+-v0*=There have been errors!
+EOF
+cat > conf/incoming <<EOF
+# commentary
+Name: bla
+Tempdir: bla
+Incomingdir: bla
+Permit: unused_files bla older_version
+Cleanup: unused_files bla on_deny
+
+# a comment
+#
+
+Name: default
+TempDir: temp
+
+Name: blub
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 249
+stderr
+*=Warning: ignored error parsing config file ./conf/incoming, line 5, column 22:
+*=Unknown flag in Permit-header. (but not within the rule we are intrested in.)
+*=Warning: ignored error parsing config file ./conf/incoming, line 6, column 23:
+*=Unknown flag in Cleanup-header. (but not within the rule we are intrested in.)
+*=Error parsing config file ./conf/incoming, line 13:
+*=Required field 'IncomingDir' expected (since line 11).
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+TempDir: bla
+IncomingDir: bla
 
 Name: default
 TempDir: temp
-IncomingDir: i
+IncomingDir:		i
 
 Name: blub
+TempDir: blub
+IncomingDir: blub
 EOF
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-*='default' in './conf/incoming' has neither a 'Allow' nor a 'Default' definition!
+*=There ia neither a 'Allow' nor a 'Default' definition in rule 'default'
+*=(starting at line 5, ending at line 8 of ./conf/incoming)!
 *=Aborting as nothing would be let in.
--v0=Stop reading further chunks from './conf/incoming' due to previous errors.
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+TempDir: bla
+IncomingDir: blub
 
 Name: default
 TempDir: temp
-IncomingDir: i
+IncomingDir:		i	
 Allow: A B
 
 Name: blub
+TempDir: bla
+IncomingDir: blub
 EOF
 testrun - -b . processincoming default 3<<EOF
 returns 254
@@ -2452,9 +2496,9 @@ testout "" -b . dumpunreferenced
 dodiff results.empty results
 mkdir conf2
 testrun - -b . --confdir conf2 update 3<<EOF
-returns 249
+returns 254
 stderr
-*=Could not find 'conf2/distributions'!
+*=Error opening config file 'conf2/distributions': No such file or directory(2)
 =(Have you forgotten to specify a basedir by -b?
 =To only set the conf/ dir use --confdir)
 -v0*=There have been errors!
@@ -2463,27 +2507,27 @@ touch conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 returns 249
 stderr
-*=No distribution definitons found!
+*=No distribution definitions found in conf2/distributions!
 -v0*=There have been errors!
 EOF
 echo -e 'Codename: foo' > conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 stderr
-*=While parsing distribution definition, required field Architectures not found!
--v1*=Stop reading further chunks from 'conf2/distributions' due to previous errors.
+*=Error parsing config file conf2/distributions, line 2:
+*=Required field 'Architectures' expected (since line 1).
 -v0*=There have been errors!
 returns 249
 EOF
 echo -e 'Architectures: abacus fingers' >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
-*=While parsing distribution definition, required field Components not found!
--v1*=Stop reading further chunks from 'conf2/distributions' due to previous errors.
+*=Error parsing config file conf2/distributions, line 3:
+*=Required field 'Components' expected (since line 1).
 -v0*=There have been errors!
 returns 249
 EOF
 echo -e 'Components: unneeded bloated i386' >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
-*=Unable to open file conf2/updates: No such file or directory
+*=Error opening config file 'conf2/updates': No such file or directory(2)
 -v0*=There have been errors!
 returns 254
 EOF

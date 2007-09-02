@@ -28,6 +28,8 @@
 #include "dirs.h"
 #include "names.h"
 #include "reference.h"
+#include "ignore.h"
+#include "configparser.h"
 
 #include "database_p.h"
 #include "tracking.h"
@@ -721,68 +723,71 @@ retvalue tracking_printall(trackingdb t) {
 	return r;
 }
 
-retvalue tracking_parse(/*@null@*//*@only@*/char *option,struct distribution *d) {
-	/*@temp@*/char *p,*q;
+retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
+	enum trackingflags { tf_keep, tf_all, tf_minimal,
+		tf_includechanges, tf_includebyhand, tf_keepsources,
+		tf_needsources, tf_embargoalls,
+		tf_COUNT /* must be last */
+	};
+	static const struct constant trackingflags[] = {
+		{"keep",	tf_keep},
+		{"all",		tf_all},
+		{"minimal",	tf_minimal},
+		{"includechanges",	tf_includechanges},
+		{"includebyhand",	tf_includebyhand},
+		{"keepsources",		tf_keepsources},
+		{"needsources",		tf_needsources},
+		{"embargoalls",		tf_embargoalls},
+		{NULL,		-1}
+	};
+	bool_t flags[tf_COUNT];
+	retvalue r;
+	int modecount;
 
-	if( option == NULL ) {
-		d->tracking = dt_NONE;
-		return RET_OK;
-	}
-	d->tracking = dt_NONE;
-	q = option;
-	while( *q != '\0') {
-		p = q;
-		while( *p != '\0' && xisspace(*p) ) {
-			p++;
-		}
-		q = p;
-		while( *q != '\0' && !xisspace(*q) ) {
-			q++;
-		}
-		while( *q != '\0' && xisspace(*q) ) {
-			*(q++) = '\0';
-		}
-		if( strcasecmp(p,"keep") == 0 ) {
-			if( d->tracking != dt_NONE ) {
-				fprintf(stderr,"Error in %s: Only one of 'keep','all' or 'minimal' can be in one Tracking: line.\n",d->codename);
-				return RET_ERROR;
-			}
-			d->tracking = dt_KEEP;
-		} else if( strcasecmp(p,"all") == 0 ) {
-			if( d->tracking != dt_NONE ) {
-				fprintf(stderr,"Error in %s: Only one of 'keep','all' or 'minimal' can be in one Tracking: line.\n",d->codename);
-				return RET_ERROR;
-			}
-			d->tracking = dt_ALL;
-		} else if( strcasecmp(p,"minimal") == 0 ) {
-			if( d->tracking != dt_NONE ) {
-				fprintf(stderr,"Error in %s: Only one of 'keep','all' or 'minimal' can be in one Tracking: line.\n",d->codename);
-				return RET_ERROR;
-			}
-			d->tracking = dt_MINIMAL;
-		} else if( strcasecmp(p,"includechanges") == 0 ) {
-			d->trackingoptions.includechanges = TRUE;
-		} else if( strcasecmp(p,"includebyhand") == 0 ) {
-			d->trackingoptions.includebyhand = TRUE;
-		} else if( strcasecmp(p,"keepsources") == 0 ) {
-			d->trackingoptions.keepsources = TRUE;
-		} else if( strcasecmp(p,"needsources") == 0 ) {
-			fprintf(stderr,"Warning(%s): 'needsources' not yet supported.\n",d->codename);
-			d->trackingoptions.needsources = TRUE;
-		} else if( strcasecmp(p,"embargoalls") == 0 ) {
-			fprintf(stderr,"Warning(%s): 'embargoalls' not yet supported.\n",d->codename);
-			d->trackingoptions.embargoalls = TRUE;
-		} else {
-			fprintf(stderr,"Unsupported tracking option: '%s' in %s.\n",p,d->codename);
-			return RET_ERROR;
-		}
-	}
-
-	free(option);
-	if( d->tracking == dt_NONE ) {
-		fprintf(stderr,"Error in %s: There is a Tracking: line but none of 'keep','all' or 'minimal' was found there.\n",d->codename);
+	assert( d->tracking == dt_NONE );
+	memset(flags, 0, sizeof(flags));
+	r = config_getflags(iter, "Tracking", trackingflags, flags,
+			IGNORABLE(unknownfield), "");
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	modecount = flags[tf_keep]?1:0 + flags[tf_minimal]?1:0 + flags[tf_all]?1:0;
+	if( modecount > 1 ) {
+		fprintf(stderr,
+"Error parsing config file %s, line %u:\n"
+"Only one of 'keep','all' or 'minimal' can be in one Tracking-header.\n",
+			config_filename(iter), config_line(iter));
 		return RET_ERROR;
 	}
+	if( modecount < 1 ) {
+		fprintf(stderr,
+"Error parsing config file %s, line %u, column %u:\n"
+"Tracking-mode ('keep','all' or 'minimal') expected.\n",
+			config_filename(iter), config_line(iter), config_column(iter));
+		return RET_ERROR;
+	}
+	if( flags[tf_keep] )
+		d->tracking = dt_KEEP;
+	else if( flags[tf_minimal] )
+		d->tracking = dt_MINIMAL;
+	else
+		d->tracking = dt_ALL;
+
+	d->trackingoptions.includechanges = flags[tf_includechanges];
+	d->trackingoptions.includebyhand = flags[tf_includebyhand];
+	d->trackingoptions.keepsources = flags[tf_keepsources];
+	d->trackingoptions.needsources = flags[tf_needsources];
+	if( flags[tf_needsources] )
+		fprintf(stderr,
+"Warning parsing config file %s, line %u:\n"
+"'needsources' ignored as not yet supported.\n",
+			config_filename(iter), config_line(iter));
+	d->trackingoptions.embargoalls = flags[tf_embargoalls];
+	if( flags[tf_embargoalls] )
+		fprintf(stderr,
+"Warning parsing config file %s, line %u:\n"
+"'embargoall' ignored as not yet supported.\n",
+			config_filename(iter), config_line(iter));
 	return RET_OK;
 }
 

@@ -27,7 +27,7 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
-#include "chunks.h"
+#include "configparser.h"
 #include "filterlist.h"
 
 extern int verbose;
@@ -176,7 +176,7 @@ static inline retvalue filterlistfile_read(struct filterlistfile *n, const char 
 	return r;
 }
 
-static inline retvalue filterlistfile_get(const char *confdir, const char *filename, size_t len, struct filterlistfile **list) {
+static inline retvalue filterlistfile_getl(const char *confdir, const char *filename, size_t len, struct filterlistfile **list) {
 	struct filterlistfile *p;
 	retvalue r;
 
@@ -221,6 +221,55 @@ static inline retvalue filterlistfile_get(const char *confdir, const char *filen
 	return r;
 }
 
+static inline retvalue filterlistfile_get(const char *confdir, /*@only@*/char *filename, /*@out@*/struct filterlistfile **list) {
+	struct filterlistfile *p;
+	retvalue r;
+	size_t len = strlen(filename);
+
+	for( p = listfiles ; p != NULL ; p = p->next ) {
+		if( p->filename_len == len &&
+				strncmp(p->filename, filename, len) == 0 ) {
+			p->reference_count++;
+			*list = p;
+			free(filename);
+			return RET_OK;
+		}
+	}
+	p = calloc(1,sizeof(struct filterlistfile));
+	if( p == NULL ) {
+		free(filename);
+		return RET_ERROR_OOM;
+	}
+	p->reference_count = 1;
+	p->filename = filename;
+	p->filename_len = len;
+	if( p->filename == NULL ) {
+		free(p);
+		return RET_ERROR_OOM;
+	}
+	if( p->filename[0] != '/' ) {
+		char *fullfilename = calc_dirconcat(confdir, p->filename);
+		if( fullfilename == NULL )
+			r = RET_ERROR_OOM;
+		else {
+			r = filterlistfile_read(p, fullfilename);
+			free(fullfilename);
+		}
+	} else
+		r = filterlistfile_read(p, p->filename);
+
+	if( RET_IS_OK(r) ) {
+		p->next = listfiles;
+		listfiles = p;
+		*list = p;
+	} else {
+		filterlistitems_free(p->root);
+		free(p->filename);
+		free(p);
+	}
+	return r;
+}
+
 void filterlist_release(struct filterlist *list) {
 	size_t i;
 
@@ -236,47 +285,50 @@ void filterlist_release(struct filterlist *list) {
 	}
 }
 
-retvalue filterlist_load(struct filterlist *list, const char *confdir,const char *configline) {
-	const char *filename;
+static const struct constant filterlisttype_listtypes[] = {
+	{"install",	(int)flt_install},
+	{"hold",	(int)flt_hold},
+	{"deinstall",	(int)flt_deinstall},
+	{"purge",	(int)flt_purge},
+	{"error",	(int)flt_error},
+	{NULL, 0}
+};
+
+retvalue filterlist_load(struct filterlist *list, const char *confdir, struct configiterator *iter) {
 	enum filterlisttype defaulttype;
 	size_t count;
 	struct filterlistfile **files;
+	retvalue r;
+	char *filename;
 
-
-	if( strncmp(configline,"install",7) == 0 && xisspace(configline[7]) ) {
-		defaulttype = flt_install; filename = configline + 7;
-	} else if( strncmp(configline,"hold",4) == 0 && xisspace(configline[4]) ) {
-		defaulttype = flt_hold; filename = configline + 4;
-	} else if( strncmp(configline,"deinstall",9) == 0 && xisspace(configline[9]) ) {
-		defaulttype = flt_deinstall; filename = configline + 9;
-	} else if( strncmp(configline,"purge",5) == 0 && xisspace(configline[5]) ) {
-		defaulttype = flt_purge; filename = configline + 5;
-	} else if( strncmp(configline,"error",5) == 0 && xisspace(configline[5]) ) {
-		defaulttype = flt_error; filename = configline + 5;
-	} else {
-		fprintf(stderr,"Cannot parse '%s' into the format 'install|deinstall|purge|hold <filename>'\n",configline);
+	r = config_getenum(iter, filterlisttype, listtypes, &defaulttype);
+	if( r == RET_NOTHING || r == RET_ERROR_UNKNOWNFIELD ) {
+		fprintf(stderr,
+"Error parsing %s, line %u, column %u: Expected default action as first argument to FilterList: (one of install, purge, hold, ...)\n",
+				config_filename(iter),
+				config_markerline(iter),
+				config_markercolumn(iter));
 		return RET_ERROR;
 	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	count = 0;
 	files = NULL;
-	while( *filename != '\0' && xisspace(*filename) )
-		filename++;
-	while( *filename != '\0' ) {
-		const char *filenameend = filename;
+	while( (r = config_getword(iter, &filename)) != RET_NOTHING ) {
 		struct filterlistfile **n;
 		retvalue r;
-
-		while( *filenameend != '\0' && !xisspace(*filenameend) )
-			filenameend++;
 
 		n = realloc(files, (count+1)*
 				sizeof(struct filterlistfile *));
 		if( n == NULL ) {
+			free(filename);
 			r = RET_ERROR_OOM;
 		} else {
 			n[count] = NULL;
 			files = n;
-			r = filterlistfile_get(confdir, filename, filenameend-filename, &files[count]);
+			// TODO: make filename only
+			r = filterlistfile_get(confdir, filename, &files[count]);
 			if( RET_IS_OK(r) )
 				count++;
 		}
@@ -288,20 +340,11 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir,const char
 			free(files);
 			return r;
 		}
-		filename = filenameend;
-		while( *filename != '\0' && xisspace(*filename) )
-			filename++;
 	}
 	list->count = count;
 	list->files = files;
 	list->defaulttype = defaulttype;
 	return RET_OK;
-}
-
-void filterlist_empty(struct filterlist *list, enum filterlisttype defaulttype) {
-	list->files = NULL;
-	list->count = 0;
-	list->defaulttype = defaulttype;
 }
 
 static inline bool_t find(const char *name,/*@null@*/struct filterlistfile *list) {

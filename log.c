@@ -33,6 +33,7 @@
 #include "strlist.h"
 #include "dirs.h"
 #include "target.h"
+#include "configparser.h"
 #include "log.h"
 
 extern int verbose;
@@ -44,7 +45,7 @@ extern int verbose;
 	int fd;
 } *logfile_root = NULL;
 
-static retvalue logfile_reference(const char *logdir,const char *filename,/*@out@*/struct logfile **logfile) {
+static retvalue logfile_reference(const char *logdir,/*@only@*/char *filename,/*@out@*/struct logfile **logfile) {
 	struct logfile *l;
 
 	assert( logdir != NULL && filename != NULL );
@@ -53,16 +54,21 @@ static retvalue logfile_reference(const char *logdir,const char *filename,/*@out
 		if( strcmp(l->filename, filename) == 0 ) {
 			l->refcount++;
 			*logfile = l;
+			free(filename);
 			return RET_OK;
 		}
 	}
 	l = malloc(sizeof(struct logfile));
-	if( l == NULL )
+	if( l == NULL ) {
+		free(filename);
 		return RET_ERROR_OOM;
+	}
 	if( filename[0] == '/' )
-		l->filename = strdup(filename);
-	else
+		l->filename = filename;
+	else {
 		l->filename = calc_dirconcat(logdir,filename);
+		free(filename);
+	}
 	if( l->filename == NULL ) {
 		free(l);
 		return RET_ERROR_OOM;
@@ -203,173 +209,182 @@ static void notificator_done(struct notificator *n) {
 	free(n->architecture);
 }
 
-static retvalue notificator_parse(struct notificator *n, const char *confdir, const char *codename, const char *line) {
-	const char *p,*q,*s;
+static retvalue notificator_parse(struct notificator *n, const char *confdir, struct configiterator *iter) {
+	retvalue r;
+	int c;
 
-	p = line; q = line;
-	while( *q != '\0' ) {
-		while( *p == ' ' || *p == '\t' )
-			p++;
-		q = p;
-		while( *q != '\0' && *q != ' ' && *q != '\t' )
-			q++;
-		if( *p == '-' ) {
+	memset(n, 0, sizeof(struct notificator));
+	while( (c = config_nextnonspaceinline(iter)) != EOF ) {
+		if( c == '-' ) {
+			char *word, *s, *detachedargument = NULL;
+			const char *argument;
 			char **value_p = NULL;
-			p++;
-			s = p;
-			while( s < q && *s != '=' )
+			bool_t error = FALSE;
+
+			r = config_completeword(iter, c, &word);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) )
+				return r;
+
+			s = word + 1;
+			while( *s != '\0' && *s != '=' )
 				s++;
-			switch( s-p ) {
-				case 1:
-					if( *p == 'A' )
+			if( *s == '=' ) {
+				argument = s+1;
+				s[0] = '\0';
+			} else
+				argument = NULL;
+			switch( s-word ) {
+				case 2:
+					if( word[1] == 'A' )
 						value_p = &n->architecture;
-					else if( *p == 'C' )
+					else if( word[1] == 'C' )
 						value_p = &n->component;
-					else if( *p == 'T' )
+					else if( word[1] == 'T' )
 						value_p = &n->packagetype;
-					else {
-						fprintf(stderr,
-"Unknown option in notifiers of '%s': '-%c' (in '%s')\n",
-							codename,
-							*p,
-							line);
-						return RET_ERROR;
-					}
+					else
+						error = TRUE;
 					break;
-				case 5:
-					if( memcmp(p, "-type", 5) == 0 )
+				case 6:
+					if( strcmp(word, "--type") == 0 )
 						value_p = &n->packagetype;
-					else {
-						fprintf(stderr,
-"Unknown option in notifiers of '%s': '%6s' (in '%s')\n",
-							codename,
-							p-1,
-							line);
-						return RET_ERROR;
-					}
+					else
+						error = TRUE;
 					break;
-				case 8:
-					if( memcmp(p, "-changes", 8) == 0 )
+				case 9:
+					if( strcmp(word, "--changes") == 0 )
 						n->changesacceptrule = TRUE;
-					else {
-						fprintf(stderr,
-"Unknown option in notifiers of '%s': '%8s' (in '%s')\n",
-							codename,
-							p-1,
-							line);
-						return RET_ERROR;
-					}
+					else
+						error = TRUE;
 					break;
-				case 10:
-					if( memcmp(p, "-component", 10) == 0 )
+				case 11:
+					if( strcmp(word, "--component") == 0 )
 						value_p = &n->component;
-					else {
-						fprintf(stderr,
-"Unknown option in notifiers of '%s': '%11s' (in '%s')\n",
-							codename,
-							p-1,
-							line);
-						return RET_ERROR;
-					}
-					break;
-				case 12:
-					if( memcmp(p, "-withcontrol", 12) == 0 )
-						n->withcontrol = TRUE;
-					else {
-						fprintf(stderr,
-"Unknown option in notifiers of '%s': '%12s' (in '%s')\n",
-							codename,
-							p-1,
-							line);
-						return RET_ERROR;
-					}
+					else
+						error = TRUE;
 					break;
 				case 13:
-					if( memcmp(p, "-architecture", 13) == 0 )
+					if( strcmp(word, "--withcontrol") == 0 )
+						n->withcontrol = TRUE;
+					else
+						error = TRUE;
+					break;
+				case 14:
+					if( strcmp(word, "--architecture") == 0 )
 						value_p = &n->architecture;
-					else {
-						fprintf(stderr,
-"Unknown option in notifiers of '%s': '%14s' (in '%s')\n",
-							codename,
-							p-1,
-							line);
-						return RET_ERROR;
-					}
+					else
+						error = TRUE;
 					break;
 				default:
-					fprintf(stderr,
-"Unknown option in notifiers of '%s': '%.*s' (in '%s')\n",
-							codename,
-							(int)(1+s-p), p-1,
-							line);
-					return RET_ERROR;
+					error = TRUE;
+					break;
+			}
+			if( error ) {
+				fprintf(stderr,
+"Unknown Log notifier option in %s, line %u, column %u: '%s'\n",
+					config_filename(iter),
+					config_markerline(iter),
+					config_markercolumn(iter), word);
+				free(word);
+				return RET_ERROR;
 			}
 			if( value_p == NULL ) {
-				if( s != q ) {
+				if( argument != NULL ) {
 					fprintf(stderr,
-"Unexpected '=' in notifiers of '%s' after '%.*s' (in '%s')\n",
-							codename,
-							(int)(1+s-p), p-1,
-							line);
+"Log notifier option has = but may not, in %s, line %u, column %u: '%s'\n",
+						config_filename(iter),
+						config_markerline(iter),
+						config_markercolumn(iter),
+						word);
+					free(word);
 					return RET_ERROR;
 				}
-				p = q;
+				free(word);
 				continue;
 			}
 			/* option expecting string value: */
-			if( *s != '=' ) {
-				fprintf(stderr,
-"Missing '=' in notifiers of '%s' after '%.*s' (in '%s')\n",
-						codename, (int)(1+s-p), p-1, line);
-				return RET_ERROR;
-			}
 			if( *value_p != NULL ) {
 				fprintf(stderr,
-"Double notifier option '%.*s' (in '%s' from '%s')\n",
-						(int)(1+s-p), p-1, line, codename);
+"Repeated notifier option %s in %s, line %u, column %u!\n", word,
+					config_filename(iter),
+					config_markerline(iter), config_markercolumn(iter));
+				free(word);
 				return RET_ERROR;
 			}
-			*value_p = strndup(s+1, q-s-1);
+			if( argument == NULL ) {
+				r = config_getwordinline(iter, &detachedargument);
+				if( RET_WAS_ERROR(r) )
+					return r;
+				if( r == RET_NOTHING ) {
+					fprintf(stderr,
+"Log notifier option %s misses an argument in %s, line %u, column %u\n",
+						word, config_filename(iter),
+						config_line(iter),
+						config_column(iter));
+					free(word);
+					return RET_ERROR;
+				}
+			}
+			if( argument == NULL )
+				*value_p = detachedargument;
+			else
+				*value_p = strdup(argument);
+			free(word);
 			if( *value_p == NULL )
 				return RET_ERROR_OOM;
-			p = q;
 		} else {
+			char *script;
+
 			if( n->changesacceptrule && n->architecture != NULL ) {
 				fprintf(stderr,
-"--changes and --architecture cannot be combined! (notifier in '%s')\n",
-						codename);
+"Error: --changes and --architecture cannot be combined! (line %u in '%s')\n",
+					config_markerline(iter), config_filename(iter));
 				return RET_ERROR;
 			}
 			if( n->changesacceptrule && n->component != NULL ) {
 				fprintf(stderr,
-"--changes and --component cannot be combined! (notifier in '%s')\n",
-						codename);
+"Error: --changes and --component cannot be combined! (line %u in %s)\n",
+					config_markerline(iter), config_filename(iter));
 				return RET_ERROR;
 			}
 			if( n->changesacceptrule && n->packagetype != NULL ) {
 				fprintf(stderr,
-"--changes and --type cannot be combined! (notifier in '%s')\n",
-						codename);
+"Error: --changes and --type cannot be combined! (line %u in %s)\n",
+					config_markerline(iter), config_filename(iter));
 				return RET_ERROR;
 			}
-			if( *q != '\0' ) {
+
+			r = config_completeword(iter, c, &script);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) )
+				return r;
+
+			c = config_nextnonspaceinline(iter);
+			if( c != EOF ) {
 				fprintf(stderr,
-"Unexpected data at end of notifier for '%s': '%s'\n",
-						codename, q);
+"Error parsing config file %s, line %u, column %u:\n"
+"Unexpected data at end of notifier after scriptname '%s'\n",
+					config_filename(iter),
+					config_line(iter), config_column(iter),
+					script);
+				free(script);
 				return RET_ERROR;
 			}
-			if( *p == '/' )
-				n->scriptname = strdup(p);
-			else
-				n->scriptname = calc_dirconcat(confdir, p);
+			if( script[0] == '/' )
+				n->scriptname = script;
+			else {
+				n->scriptname = calc_dirconcat(confdir, script);
+				free(script);
+			}
 			if( n->scriptname == NULL )
 				return RET_ERROR_OOM;
 			return RET_OK;
 		}
 	}
 	fprintf(stderr,
-"Missing notification script to call in '%s' of '%s'\n",
-		line, codename);
+"Error parsing config file %s, line %u, column %u:\n"
+"Unexpected end of line: name of notifier script missing!\n",
+		config_filename(iter), config_line(iter), config_column(iter));
 	return RET_ERROR;
 }
 
@@ -873,56 +888,68 @@ void logger_free(struct logger *logger) {
 	free(logger);
 }
 
-retvalue logger_init(const char *confdir,const char *logdir,const char *codename,const char *option,const struct strlist *notificators,struct logger **logger_p) {
+retvalue logger_init(const char *confdir,const char *logdir,struct configiterator *iter,struct logger **logger_p) {
 	struct logger *n;
 	retvalue r;
+	char *logfilename;
+	bool_t havenotificators;
 
-	if( (option == NULL || *option == '\0')
-		&& (notificators == NULL || notificators->count == 0) ) {
+	r = config_getfileinline(iter, &logfilename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING )
+		logfilename = NULL;
+	if( config_nextnonspaceinline(iter) != EOF ) {
+		fprintf(stderr, "Error parsing %s, line %u, column %u:\n"
+				"Unexpected second filename for logfile.\n",
+				config_filename(iter), config_line(iter),
+				config_column(iter));
+		free(logfilename);
+		return RET_ERROR;
+	}
+	config_overline(iter);
+	havenotificators = config_nextline(iter);
+	if( !havenotificators && logfilename == NULL ) {
 		*logger_p = NULL;
 		return RET_NOTHING;
 	}
+
 	n = malloc(sizeof(struct logger));
-	if( n == NULL )
+	if( n == NULL ) {
+		free(logfilename);
 		return RET_ERROR_OOM;
-	if( option != NULL && *option != '\0' ) {
-		r = logfile_reference(logdir, option, &n->logfile);
+	}
+	if( logfilename != NULL ) {
+		assert( *logfilename != '\0');
+		r = logfile_reference(logdir, logfilename, &n->logfile);
 		if( RET_WAS_ERROR(r) ) {
 			free(n);
 			return r;
 		}
 	} else
 		n->logfile = NULL;
-	if( notificators != NULL && notificators->count > 0 ) {
-		int i;
-		n->notificator_count = notificators->count;
-		n->notificators = calloc(n->notificator_count, sizeof(struct notificator));
-		if( n->notificators == NULL ) {
-			if( n->logfile != NULL )
-				logfile_dereference(n->logfile);
-			free(n);
+
+	n->notificators = NULL;
+	n->notificator_count = 0;
+
+	while( havenotificators ) {
+		struct notificator *newnot;
+		newnot = realloc(n->notificators,
+				(n->notificator_count+1)* sizeof(struct notificator));
+		if( newnot == NULL ) {
+			logger_free(n);
 			return RET_ERROR_OOM;
 		}
-		for( i = 0 ; i < notificators->count ; i++ ) {
-			r = notificator_parse(&n->notificators[i], confdir, codename,
-					notificators->values[i]);
-			if( RET_WAS_ERROR(r) ) {
-				/* a bit ugly: also free the just failed item here */
-				while( i >= 0 ) {
-					notificator_done(&n->notificators[i]);
-					i--;
-				}
-
-				if( n->logfile != NULL )
-					logfile_dereference(n->logfile);
-				free(n->notificators);
-				free(n);
-				return r;
-			}
+		n->notificators = newnot;
+		r = notificator_parse(&n->notificators[n->notificator_count++],
+				confdir, iter);
+		if( RET_WAS_ERROR(r) ) {
+			/* a bit ugly: also free the just failed item here */
+			logger_free(n);
+			return r;
 		}
-	} else {
-		n->notificators = NULL;
-		n->notificator_count = 0;
+		// TODO assert eol here...
+		havenotificators = config_nextline(iter);
 	}
 	*logger_p = n;
 	return RET_OK;

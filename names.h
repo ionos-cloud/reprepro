@@ -44,17 +44,6 @@ retvalue properfilename(const char *string);
 retvalue properfilenames(const struct strlist *names);
 retvalue properpackagename(const char *string);
 retvalue properversion(const char *string);
-retvalue propercodename(const char *codename);
-retvalue properarchitectures(const struct strlist *architectures);
-retvalue propercomponents(const struct strlist *components);
-
-/* create two stringlists out of one,
- * from[i]=into[i]=list[i] if list[i] contains no '>'
- * from[i] '>' into[i] = list[i] when list[i] contains a '>'
- */
-retvalue splitlist(/*@out@*/struct strlist *from,
-				/*@out@*/struct strlist *into,
-				const struct strlist *list);
 
 static inline bool_t endswith(const char *name, const char *suffix) {
 	size_t ln,ls;

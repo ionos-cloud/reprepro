@@ -12,9 +12,7 @@
 #include "distribution.h"
 #endif
 
-
-
-retvalue tracking_parse(/*@null@*//*@only@*/char *option,struct distribution *);
+retvalue tracking_parse(struct distribution *, struct configiterator *);
 
 retvalue tracking_initialize(/*@out@*/trackingdb *, struct database *, const struct distribution *);
 retvalue tracking_done(trackingdb);

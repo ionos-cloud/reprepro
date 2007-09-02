@@ -381,60 +381,6 @@ char *calc_trackreferee(const char *codename,const char *sourcename,const char *
 	return	mprintf("%s %s %s",codename,sourcename,sourceversion);
 }
 
-retvalue splitlist(struct strlist *from,
-				struct strlist *into,
-				const struct strlist *list) {
-	retvalue r;
-	int i;
-
-	strlist_init(from);
-	strlist_init(into);
-
-	/* * Iterator over components to update * */
-	r = RET_NOTHING;
-	for( i = 0 ; i < list->count ; i++ ) {
-		const char *item,*separator;
-		char *origin,*destination;
-
-		item = list->values[i];
-		// TODO: isn't this broken for the !*(dest+1) case ?
-		if( (separator = strchr(item,'>')) == NULL ) {
-			destination = strdup(item);
-			origin = strdup(item);
-		} else if( separator == item ) {
-			destination = strdup(separator+1);
-			origin = strdup(separator+1);
-		} else if( *(separator+1) == '\0' ) {
-			destination = strndup(item,separator-item);
-			origin = strndup(item,separator-item);
-		} else {
-			origin = strndup(item,separator-item);
-			destination = strdup(separator+1);
-		}
-		if( origin == NULL || destination == NULL ) {
-			free(origin);free(destination);
-			strlist_done(from);
-			strlist_done(into);
-			return RET_ERROR_OOM;
-		}
-		r = strlist_add(from,origin);
-		if( RET_WAS_ERROR(r) ) {
-			free(destination);
-			strlist_done(from);
-			strlist_done(into);
-			return r;
-		}
-		r = strlist_add(into,destination);
-		if( RET_WAS_ERROR(r) ) {
-			strlist_done(from);
-			strlist_done(into);
-			return r;
-		}
-		r = RET_OK;
-	}
-	return r;
-}
-
 char *calc_changes_basename(const char *name,const char *version,const struct strlist *architectures) {
 	size_t name_l, version_l, l;
 	int i;

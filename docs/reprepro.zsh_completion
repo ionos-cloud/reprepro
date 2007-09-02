@@ -252,7 +252,6 @@ _arguments \
 		forbiddenchar\:"allow more 7bit characters for names and versions"\
 		8bit\:"allow 8 bit characters"\
 		emptyfilenamepart\:"allow strings used to construct filenames to be empty"\
-		overlongcomments\:"allow multiline comments"\
 		spaceonlyline\:"do not warn about lines containing only spaces"\
 		malformedchunk\:"ignore lines without colons"\
 		shortkeyid\:"allow gpg-keys specified with less than 8 hex-digits"\
@@ -273,7 +272,7 @@ _arguments \
 		missingfile\:"include commands search harder for missing files like .orig.tar.gz"\
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
-		ignore forbiddenchar 8bit emptyfilenamepart overlongcomments\
+		ignore forbiddenchar 8bit emptyfilenamepart\
 		spaceonlyline malformedchunk shortkeyid unknownfield\
 		wrongdistribution missingfield brokenold brokenversioncmp\
 		extension unusedarch surprisingarch surprisingbinary

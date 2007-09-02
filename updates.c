@@ -29,11 +29,11 @@
 #include <ctype.h>
 #include <zlib.h>
 #include "error.h"
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "dirs.h"
 #include "names.h"
-#include "chunks.h"
 #include "signature.h"
 #include "md5sum.h"
 #include "aptmethod.h"
@@ -46,6 +46,7 @@
 #include "log.h"
 #include "donefile.h"
 #include "freespace.h"
+#include "configparser.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
@@ -266,200 +267,59 @@ static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/
 	return RET_OK;
 }
 
-inline static retvalue parse_pattern(const char *confdir,const char *chunk, struct update_pattern **pattern) {
-	struct update_pattern *update;
-	struct strlist componentslist,architectureslist;
-	char *formula,*filename;
+CFlinkedlistinit(update_pattern)
+CFvalueSETPROC(update_pattern, name)
+CFvalueSETPROC(update_pattern, suite_from)
+CFurlSETPROC(update_pattern, method)
+CFurlSETPROC(update_pattern, fallback)
+/* what here? */
+CFvalueSETPROC(update_pattern, verifyrelease)
+CFallSETPROC(update_pattern, config)
+CFtruthSETPROC(update_pattern, ignorerelease)
+CFscriptSETPROC(update_pattern, listhook)
+CFsplitstrlistSETPROC(update_pattern, architectures)
+CFsplitstrlistSETPROC(update_pattern, components)
+CFsplitstrlistSETPROC(update_pattern, udebcomponents)
+CFfilterlistSETPROC(update_pattern, filterlist)
+CFtermSETPROC(update_pattern, includecondition)
+
+static const struct configfield updateconfigfields[] = {
+	CFr("Name", update_pattern, name),
+	CFr("Method", update_pattern, method),
+	CF("Fallback", update_pattern, fallback),
+	CF("Config", update_pattern, config),
+	CF("Suite", update_pattern, suite_from),
+	CF("Architectures", update_pattern, architectures),
+	CF("Components", update_pattern, components),
+	CF("UDebComponents", update_pattern, udebcomponents),
+	CF("IgnoreRelease", update_pattern, ignorerelease),
+	CF("VerifyRelease", update_pattern, verifyrelease),
+	CF("ListHook", update_pattern, listhook),
+	CF("FilterFormula", update_pattern, includecondition),
+	CF("FilterList", update_pattern, filterlist)
+};
+
+retvalue updates_getpatterns(const char *confdir,struct update_pattern **patterns) {
+	struct update_pattern *update = NULL;
 	retvalue r;
-	static const char * const allowedfields[] = {"Name", "Method",
-"Config", "Suite", "Architectures", "Components", "UDebComponents",
-"IgnoreRelease", "VerifyRelease", "FilterFormula", "FilterList",
-"ListHook", "Fallback", NULL};
 
-	update = calloc(1,sizeof(struct update_pattern));
-	if( update == NULL )
-		return RET_ERROR_OOM;
-	r = chunk_getvalue(chunk,"Name",&update->name);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Unexpected chunk in updates-file: '%s'.\n",chunk);
-		return RET_ERROR;
-	}
-	if( RET_WAS_ERROR(r) ) {
-		free(update);
-		return r;
-	}
-	if( verbose > 30 ) {
-		fprintf(stderr,"parsing update-chunk '%s'\n",update->name);
-	}
-
-	/* * Look where we are getting it from: * */
-
-	r = chunk_getvalue(chunk,"Method",&update->method);
-	if( !RET_IS_OK(r) ) {
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"No Method found in update-block!\n");
-			r = RET_ERROR_MISSING;
-		}
-		update_pattern_free(update);
-		return r;
-	}
-
-	/* * Look for alternate server: * */
-	r = chunk_getvalue(chunk,"Fallback",&update->fallback);
-	if( r == RET_NOTHING )
-		update->fallback = NULL;
-	else if( !RET_IS_OK(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-
-	// TODO: if those are checked anyway, there should be no reason to
-	// research them later...
-	r = chunk_checkfields(chunk,allowedfields,TRUE);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-
-	/* * Is there config for the method? * */
-	r = chunk_getwholedata(chunk,"Config",&update->config);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r == RET_NOTHING )
-		update->config = NULL;
-
-	/* * Check which suite to update from * */
-	r = chunk_getvalue(chunk,"Suite",&update->suite_from);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r == RET_NOTHING )
-		update->suite_from = NULL;
-
-	/* * Check which architectures to update from * */
-	r = chunk_getuniqwordlist(chunk,"Architectures",&architectureslist);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		update->architectures_from.count = 0;
-		update->architectures_into.count = 0;
+	r = configfile_parse(confdir, "updates", IGNORABLE(unknownfield),
+			configparser_update_pattern_init, linkedlistfinish,
+			updateconfigfields, ARRAYCOUNT(updateconfigfields),
+			&update);
+	if( RET_IS_OK(r) )
+		*patterns = update;
+	else if( r == RET_NOTHING ) {
+		assert( update == NULL );
+		*patterns = NULL;
+		r = RET_OK;
 	} else {
-		r = splitlist(&update->architectures_from,
-				&update->architectures_into,&architectureslist);
-		strlist_done(&architectureslist);
-		if( RET_WAS_ERROR(r) ) {
-			update_pattern_free(update);
-			return r;
-		}
+		// TODO special handle unknownfield
+		updates_freepatterns(update);
 	}
-
-	/* * Check which components to update from * */
-	r = chunk_getuniqwordlist(chunk,"Components",&componentslist);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		update->components_from.count = 0;
-		update->components_into.count = 0;
-	} else {
-		r = splitlist(&update->components_from,
-				&update->components_into,&componentslist);
-		strlist_done(&componentslist);
-		if( RET_WAS_ERROR(r) ) {
-			update_pattern_free(update);
-			return r;
-		}
-	}
-
-	/* * Check which components to update udebs from * */
-	r = chunk_getuniqwordlist(chunk,"UDebComponents",&componentslist);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		update->udebcomponents_from.count = 0;
-		update->udebcomponents_into.count = 0;
-	} else {
-		r = splitlist(&update->udebcomponents_from,
-				&update->udebcomponents_into,&componentslist);
-		strlist_done(&componentslist);
-		if( RET_WAS_ERROR(r) ) {
-			update_pattern_free(update);
-			return r;
-		}
-	}
-
-
-	/* * Check if we should get the Release-file * */
-	r = chunk_gettruth(chunk,"IgnoreRelease");
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	update->ignorerelease = (r == RET_OK);
-
-	/* * Check if we should get the Release.gpg file * */
-	r = chunk_getvalue(chunk,"VerifyRelease",&update->verifyrelease);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r == RET_NOTHING )
-		update->verifyrelease = NULL;
-
-	/* * Check if there is a Include condition * */
-	r = chunk_getvalue(chunk,"FilterFormula",&formula);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r != RET_NOTHING ) {
-		r = term_compile(&update->includecondition,formula,
-			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
-		free(formula);
-		if( RET_WAS_ERROR(r) ) {
-			update->includecondition = NULL;
-			update_pattern_free(update);
-			return r;
-		}
-		assert( r != RET_NOTHING );
-	}
-	/* * Check if there is a list to say what can be included by update * */
-	r = chunk_getvalue(chunk,"FilterList",&filename);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	}
-	if( r != RET_NOTHING ) {
-		r = filterlist_load(&update->filterlist,confdir,filename);
-		free(filename);
-		if( RET_WAS_ERROR(r) ) {
-			update_pattern_free(update);
-			return r;
-		}
-		assert( r != RET_NOTHING );
-	} else {
-		filterlist_empty(&update->filterlist,flt_install);
-	}
-	/* * Check if there is a script to call * */
-	r = chunk_getvalue(chunk,"ListHook",&update->listhook);
-	if( RET_WAS_ERROR(r) ) {
-		update_pattern_free(update);
-		return r;
-	} else if( r == RET_NOTHING ) {
-		update->listhook = NULL;
-	}
-
-	*pattern = update;
-	return RET_OK;
+	return r;
 }
+
 
 static retvalue new_deleterule(struct update_origin **origins) {
 
@@ -526,46 +386,6 @@ static retvalue instance_pattern(const char *listdir,
 
 	*origins = update;
 	return RET_OK;
-}
-
-struct getpatterns_data {
-	struct update_pattern **patterns;
-	const char *confdir;
-};
-
-static retvalue parsechunk(void *data,const char *chunk) {
-	struct update_pattern *update;
-	struct getpatterns_data *d = data;
-	retvalue r;
-
-	r = parse_pattern(d->confdir,chunk,&update);
-	if( RET_IS_OK(r) ) {
-		update->next = *d->patterns;
-		*d->patterns = update;
-	}
-	return r;
-}
-
-retvalue updates_getpatterns(const char *confdir,struct update_pattern **patterns) {
-	char *updatesfile;
-	struct update_pattern *update = NULL;
-	struct getpatterns_data data;
-	retvalue r;
-
-	updatesfile = calc_dirconcat(confdir,"updates");
-	if( updatesfile == NULL )
-		return RET_ERROR_OOM;
-	data.patterns = &update;
-	data.confdir = confdir;
-	r = chunk_foreach(updatesfile,parsechunk,&data,FALSE);
-	free(updatesfile);
-	if( RET_IS_OK(r) )
-		*patterns = update;
-	else if( r == RET_NOTHING ) {
-		*patterns = NULL;
-		r = RET_OK;
-	}
-	return r;
 }
 
 static retvalue getorigins(const char *listdir,const struct update_pattern *patterns,const struct distribution *distribution,struct update_origin **origins) {
