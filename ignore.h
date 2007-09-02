@@ -12,7 +12,6 @@
 	IGN(emptyfilenamepart) \
 	IGN(spaceonlyline) \
 	IGN(malformedchunk) \
-	IGN(shortkeyid) \
 	IGN(unknownfield) \
 	IGN(wrongdistribution) \
 	IGN(missingfield) \

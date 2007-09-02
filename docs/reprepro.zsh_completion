@@ -254,7 +254,6 @@ _arguments \
 		emptyfilenamepart\:"allow strings used to construct filenames to be empty"\
 		spaceonlyline\:"do not warn about lines containing only spaces"\
 		malformedchunk\:"ignore lines without colons"\
-		shortkeyid\:"allow gpg-keys specified with less than 8 hex-digits"\
 		unknownfield\:"ignore unknown fields"\
 		wrongdistribution\:"put .changes files in distributed they were not made for"\
 		missingfield\:"allow missing fields"\
@@ -273,7 +272,7 @@ _arguments \
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
 		ignore forbiddenchar 8bit emptyfilenamepart\
-		spaceonlyline malformedchunk shortkeyid unknownfield\
+		spaceonlyline malformedchunk unknownfield\
 		wrongdistribution missingfield brokenold brokenversioncmp\
 		extension unusedarch surprisingarch surprisingbinary
 		wrongsourceversion wrongversion brokensignatures

@@ -23,7 +23,6 @@
 #include <ctype.h>
 #include <assert.h>
 #include "error.h"
-#include "ignore.h"
 #include "chunks.h"
 #include "chunkedit.h"
 #include "names.h"

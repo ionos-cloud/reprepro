@@ -63,7 +63,7 @@ _reprepro()
 	COMPREPLY=()
 
 	ignores='ignore forbiddenchar 8bit emptyfilenamepart\
-		spaceonlyline malformedchunk shortkeyid unknownfield\
+		spaceonlyline malformedchunk unknownfield\
 		wrongdistribution missingfield brokenold\
 		brokenversioncmp extension unusedarch surprisingarch\
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\

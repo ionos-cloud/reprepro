@@ -27,9 +27,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <time.h>
-#define DEFINE_IGNORE_VARIABLES
 #include "error.h"
-#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
@@ -2395,7 +2393,6 @@ int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"create", no_argument, NULL, 'C'},
-		{"ignore", required_argument, NULL, 'i'},
 		{"searchpath", required_argument, NULL, 's'},
 		{NULL, 0, NULL, 0},
 	};
@@ -2409,16 +2406,11 @@ int main(int argc,char *argv[]) {
 	retvalue r;
 
 	strlist_init(&searchpath);
-	init_ignores();
-
 
 	while( (c = getopt_long(argc,argv,"+hi:s:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
 				about(TRUE);
-			case 'i':
-				set_ignore(optarg,FALSE,CONFIG_OWNER_CMDLINE);
-				break;
 			case 'C':
 				create_file = TRUE;
 				break;
@@ -2438,10 +2430,10 @@ int main(int argc,char *argv[]) {
 	signature_init(FALSE);
 
 	changesfilename = argv[optind];
-	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes")
-			&& !IGNORING_(extension,
-				"first argument does not ending with '.changes'\n") )
+	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes") ) {
+		fprintf(stderr, "first argument does not ending with '.changes'\n");
 		exit(EXIT_FAILURE);
+	}
 	file_exists = isregularfile(changesfilename);
 	if( file_exists ) {
 		char *changes;

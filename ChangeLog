@@ -2,6 +2,7 @@
 	* fix uninitialized use of errno in listclean.
 	  (might cause update to report error opening dir: file exists)
 	* new config file parser
+	* remove --ignore from changestool, --ignore=shortkeyid from reprepro
 
 2007-08-21  Bernhard R. Link <brlink@debian.org>
 	* ignore SIGPIPE, so that libgpgme cannot tear us apart

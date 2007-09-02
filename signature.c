@@ -30,7 +30,6 @@
 #endif
 #include "globals.h"
 #include "error.h"
-#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "dirs.h"
@@ -124,7 +123,8 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		while( *p != '\0' && !xisspace(*p) && *p != '|' )
 			p++;
 		kl = p-keypart;
-		if( kl < 8 && !IGNORING("Ignoring","To ignore this",shortkeyid,"Too short keyid specified (less than 8 characters) in '%s'!\n",key)) {
+		if( kl < 8 ) {
+			fprintf(stderr, "Too short keyid specified (less than 8 characters) in '%s'!\n",key);
 			return RET_ERROR;
 		}
 		if( kl < fl && strncasecmp(fingerprint+fl-kl,keypart,kl) == 0 )
