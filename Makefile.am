@@ -12,7 +12,7 @@ ARCHIVE_USED = extractcontrol.c
 ARCHIVE_UNUSED = ar.c debfile.c
 endif
 
-AM_CPPFLAGS = -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
+AM_CPPFLAGS = -std=gnu99 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
 
