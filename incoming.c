@@ -257,7 +257,7 @@ CFSETPROC(incoming,default) {
 	char *default_into;
 	retvalue r;
 
-	r = config_getonlyword(iter, headername, &default_into);
+	r = config_getonlyword(iter, headername, NULL, &default_into);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;

@@ -406,7 +406,7 @@ retvalue config_getword(struct configiterator *iter, char **result_p) {
 	return config_completeword(iter, c, result_p);
 }
 
-retvalue config_getonlyword(struct configiterator *iter, const char *header, char **result_p) {
+retvalue config_getonlyword(struct configiterator *iter, const char *header, checkfunc check, char **result_p) {
 	char *value;
 	retvalue r;
 
@@ -424,14 +424,25 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, cha
 		free(value);
 		return RET_ERROR;
 	}
+	if( check != NULL ) {
+		const char *errormessage = check(value);
+		if( errormessage != NULL ) {
+			configparser_errorlast(iter,
+"Malformed %s-header content '%s': %s\n", header, value, errormessage);
+			free(value);
+			checkerror_free(errormessage);
+			return RET_ERROR;
+		}
+	}
 	*result_p = value;
 	return RET_OK;
 }
 
-retvalue config_getuniqwords(struct configiterator *iter, const char *header, struct strlist *result_p) {
+retvalue config_getuniqwords(struct configiterator *iter, const char *header, checkfunc check, struct strlist *result_p) {
 	char *value;
 	retvalue r;
 	struct strlist data;
+	const char *errormessage;
 
 	strlist_init(&data);
 	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
@@ -441,9 +452,15 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, st
 		}
 		if( strlist_in(&data, value) ) {
 			configparser_errorlast(iter,
-"Unexpected duplicate '%s' within %s-header (ignoring it).", value, header);
+"Unexpected duplicate '%s' within %s-header.", value, header);
 			free(value);
 			strlist_done(&data);
+			return RET_ERROR;
+		} else if( check != NULL && (errormessage = check(value)) != NULL ) {
+			configparser_errorlast(iter,
+"Malformed %s-header element '%s': %s\n", header, value, errormessage);
+			checkerror_free(errormessage);
+			free(value);
 			return RET_ERROR;
 		} else {
 			r = strlist_add(&data, value);

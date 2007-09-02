@@ -4,6 +4,9 @@
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
+#ifndef REPREPRO_CHECKS_H
+#include "checks.h"
+#endif
 
 struct configiterator;
 
@@ -41,8 +44,8 @@ retvalue config_getwords(struct configiterator *,struct strlist *);
 retvalue config_getall(struct configiterator *iter, char **result_p);
 retvalue config_getword(struct configiterator *, char **);
 retvalue config_getwordinline(struct configiterator *, char **);
-retvalue config_getonlyword(struct configiterator *, const char *, char **);
-retvalue config_getuniqwords(struct configiterator *, const char *, struct strlist *);
+retvalue config_getonlyword(struct configiterator *, const char *, checkfunc, char **);
+retvalue config_getuniqwords(struct configiterator *, const char *, checkfunc, struct strlist *);
 retvalue config_getsplitwords(struct configiterator *, const char *, struct strlist *, struct strlist *);
 retvalue config_gettruth(struct configiterator *, const char *, bool *);
 retvalue config_getnumber(struct configiterator *, const char *, long long *, long long minval, long long maxval);
@@ -68,25 +71,35 @@ static retvalue configparser_ ## sname ## _init(void *rootptr, void *lastitem, v
 	*newptr = n; \
 	return RET_OK; \
 }
+#define CFcheckvalueSETPROC(sname, field, checker) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_getonlyword(iter, name, checker, &item->field); \
+}
 #define CFvalueSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	return config_getonlyword(iter, name, &item->field); \
+	return config_getonlyword(iter, name, NULL, &item->field); \
 }
 #define CFstrlistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getwords(iter, &item->field); \
 }
+#define CFcheckuniqstrlistSETPROC(sname, field, checker) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_getuniqwords(iter, name, checker, &item->field); \
+}
 #define CFuniqstrlistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	return config_getuniqwords(iter, name, &item->field); \
+	return config_getuniqwords(iter, name, NULL, &item->field); \
 }
 #define CFuniqstrlistSETPROCsub(sname, name, field) \
 static retvalue configparser_ ## sname ## _set_ ## name ## _ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	return config_getuniqwords(iter, name, &item->name.field); \
+	return config_getuniqwords(iter, name, NULL, &item->name.field); \
 }
 #define CFsplitstrlistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \

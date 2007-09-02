@@ -305,10 +305,9 @@ CFuniqstrlistSETPROCsub(distribution, contents, ucomponents)
 CFexportmodeSETPROC(distribution, udeb)
 CFexportmodeSETPROC(distribution, deb)
 CFexportmodeSETPROC(distribution, dsc)
-// TODO: readd checking these values for sanity!!!!!
-CFuniqstrlistSETPROC(distribution, components)
-CFuniqstrlistSETPROC(distribution, architectures)
-CFvalueSETPROC(distribution, codename)
+CFcheckuniqstrlistSETPROC(distribution, components, checkforcomponent)
+CFcheckuniqstrlistSETPROC(distribution, architectures, checkforarchitecture)
+CFcheckvalueSETPROC(distribution, codename, checkforcodename)
 
 CFUSETPROC(distribution, Contents) {
 	CFSETPROCVAR(distribution, d);

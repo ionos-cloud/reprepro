@@ -21,11 +21,14 @@
 #include <ctype.h>
 #include <string.h>
 #include <malloc.h>
+#include <stdarg.h>
 #include <sys/types.h>
 #include "error.h"
 #include "ignore.h"
 #include "strlist.h"
+#include "mprintf.h"
 #include "names.h"
+#include "checks.h"
 
 extern int verbose;
 typedef unsigned char uchar;
@@ -37,7 +40,7 @@ static inline bool overlongUTF8(const char *character) {
 	 * (as they might mask '.' '\0' or '/' chars).
 	 * we assume no filesystem/ar/gpg code will parse
 	 * invalid utf8, as we would only be able to rule
-	 * this out if we knew it is utf8 we arec coping
+	 * this out if we knew it is utf8 we are coping
 	 * with. (Well, you should not use --ignore=validchars
 	 * anyway). */
 	uchar c = *character;
@@ -159,90 +162,74 @@ retvalue properfilename(const char *string) {
 	return RET_OK;
 }
 
-static retvalue properidentifierpart(const char *string,const char *description) {
-	const char *s;
+static const char *formaterror(const char *format, ...) {
+	va_list ap;
+	static char *data = NULL;
 
-	if( string[0] == '\0' && !IGNORING(
-"Ignoring","To ignore this",emptyfilenamepart,"A string to be used of an filename is empty!\n") ) {
-		return RET_ERROR;
-	}
-	for( s = string; *s != '\0' ; s++ ) {
-		REJECTLOWCHARS(s,string,description);
-		REJECTCHARIF( *s == '|' || *s == '/' ,s,string,description);
-	}
-	return RET_OK;
-}
-
-retvalue properarchitectures(const struct strlist *architectures) {
-	int i;
-	retvalue r;
-
-	for( i = 0 ; i < architectures->count ; i++ ) {
-		r = properidentifierpart(architectures->values[i],"architecture");
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-	return RET_OK;
+	if( data != NULL )
+		free(data);
+	va_start(ap, format);
+	data = vmprintf(format, ap);
+	va_end(ap);
+	if( data == NULL )
+		return "Out of memory";
+	return data;
 }
 
 /* check if this is something that can be used as directory *and* identifer safely */
-static retvalue properdirectoryandidentifier(const char *string, const char *description) {
+const char *checkfordirectoryandidentifier(const char *string) {
 	const char *s;
 
-	if( string[0] == '\0' ) {
-		fprintf(stderr,"Error: empty %s!\n",description);
-		return RET_ERROR;
-	}
-	if( (string[0] == '.' && (string[1] == '\0'||string[1]=='/')) ||
-		(string[0] == '.' && string[1] == '.' &&
-		 	(string[2] == '\0'||string[2] =='/')) ) {
-		fprintf(stderr,"%s cannot be '%s', as it is used as directory!\n",description,string);
-		return RET_ERROR;
-	}
-	s = string;
-	while( *s != '\0' ) {
-		REJECTLOWCHARS(s,string,description);
-		REJECTCHARIF( *s == '|' ,s,string,description);
-		if( *s == '/' &&
-			((s[1] == '.' && (s[2] == '\0' || s[2] == '/' ) ) ||
-			 (s[1] == '.' && s[2] == '.' &&
-			  	(s[3] == '\0' || s[3] =='/')))) {
-			fprintf(stderr,"%s cannot be '%s': directory parts . or .. in it!\n",description,string);
-			return RET_ERROR;
-		}
-		if( *s == '/' && s[1] == '/' ) {
-			fprintf(stderr,"%s '%s' should have only single '/'!\n",description,string);
-			return RET_ERROR;
-		}
+	assert( string != NULL && string[0] != '\0' );
+
+	if( (string[0] == '.' && (string[1] == '\0'||string[1]=='/')) )
+		return "'.' is not allowed as directory part";
+	if( (string[0] == '.' && string[1] == '.' &&
+		 	(string[2] == '\0'||string[2] =='/')) )
+		return "'..' is not allowed as directory part";
+	for( s = string; *s != '\0'; s++ ) {
+		if( *s == '|' )
+			return "'|' is not allowed";
+		if( (uchar)*s < (uchar)' ' )
+			return formaterror("Character 0x%02hhx not allowed", *s);
+		if( *s == '/' && s[1] == '.' && (s[2] == '\0' || s[2] == '/') )
+			return "'.' is not allowed as directory part";
+		if( *s == '/' && s[1] == '.' && s[2] == '.' &&
+				  	(s[3] == '\0' || s[3] =='/'))
+			return "'..' is not allowed as directory part";
+		if( *s == '/' && s[1] == '/' )
+			return "\"//\" is not allowed";
 		if( ISSET(*s,0x80) ) {
-			if( overlongUTF8(s) ) {
-				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting %s '%s'!\n",description,string);
-				return RET_ERROR;
-			}
-			if( !IGNORING(
-"Not rejecting","To ignore this",8bit,"8bit character in %s: '%s'!\n",description,string)) {
-				return RET_ERROR;
-			}
+			if( overlongUTF8(s) )
+				return "Contains overlong UTF-8 sequence if treated as UTF-8";
+			if( !IGNORABLE(8bit) )
+				return "Contains 8bit character (use --ignore=8bit to ignore)";
 		}
-		s++;
 	}
-	return RET_OK;
+	return NULL;
 }
 
-retvalue propercomponents(const struct strlist *components) {
-	int i;
-	retvalue r;
+/* check if this can be used as part of identifier (and as part of a filename) */
+const char *checkforidentifierpart(const char *string) {
+	const char *s;
 
-	for( i = 0 ; i < components->count ; i++ ) {
-		r = properdirectoryandidentifier(components->values[i],"Component");
-		if( RET_WAS_ERROR(r) )
-			return r;
+	assert( string != NULL && string[0] != '\0' );
+
+	for( s = string; *s != '\0' ; s++ ) {
+		if( *s == '|' )
+			return "'|' is not allowed";
+		if( *s == '/' )
+			return "'/' is not allowed";
+		if( (uchar)*s < (uchar)' ' )
+			return formaterror("Character 0x%02hhx not allowed", *s);
+		if( ISSET(*s,0x80) ) {
+			if( overlongUTF8(s) )
+				return "Contains overlong UTF-8 sequence if treated as UTF-8";
+			if( !IGNORABLE(8bit) )
+				return "Contains 8bit character (use --ignore=8bit to ignore)";
+		}
 	}
-	return RET_OK;
-}
-
-retvalue propercodename(const char *codename) {
-	return properdirectoryandidentifier(codename,"Codename");
+	return NULL;
 }
 
 retvalue properfilenamepart(const char *string) {
