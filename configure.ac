@@ -12,6 +12,8 @@ AC_PROG_CC
 AC_PROG_INSTALL
 AC_SYS_LARGEFILE
 
+AC_DEFINE([_GNU_SOURCE],[],[switch needed to get more prototypes])
+AC_DEFINE([_ISOC99_SOURCE],[],[switch needed to get more prototypes and constants])
 
 DBLIBS=""
 DBCPPFLAGS=""

@@ -4,7 +4,7 @@ EXTRA_DIST = test.sh genpackage.sh dpkg-architecture testchunk.c
 MAINTAINERCLEANFILES = Makefile.in
 CLEANFILES = testchunk.data.gz testchunk.data test testchunk2.data.gz testchunk2.data
 
-AM_CPPFLAGS = -D_GNU_SOURCE=1 -Wall
+AM_CPPFLAGS = -Wall
 
 noinst_PROGRAMS = randomgen randomgen2
 randomgen_SOURCES = randomgen.c
@@ -23,7 +23,7 @@ testchunk2.data: randomgen2
 	./randomgen2 4000000 1 > testchunk2.data
 
 VALGRIND = valgrind -v --trace-children=no --single-step=yes --num-callers=30 --show-reachable=yes --leak-check=yes
-	
+
 test: testchunk testchunk.data.gz
 	$(VALGRIND) ./testchunk testchunk.data.gz
 

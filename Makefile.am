@@ -6,13 +6,13 @@ bin_PROGRAMS = reprepro changestool
 
 if HAVE_LIBARCHIVE
 ARCHIVE_USED = ar.c debfile.c
-ARCHIVE_UNUSED = extractcontrol.c 
+ARCHIVE_UNUSED = extractcontrol.c
 else
 ARCHIVE_USED = extractcontrol.c
 ARCHIVE_UNUSED = ar.c debfile.c
 endif
 
-AM_CPPFLAGS = -D_GNU_SOURCE=1 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
+AM_CPPFLAGS = -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
 
@@ -30,7 +30,7 @@ maintainer-clean-local:
 
 # Some things for my private laziness
 strictbooleancheck:
-	/home/brl/gcc/b/gcc/cc1 -DHAVE_CONFIG_H -I/home/brl/gcc/b/gcc/include -I/usr/include -I.  -D_GNU_SOURCE=1 -Wall -DAVOID_CHECKPROBLEMS=1 -g -W -O2 *.c
+	/home/brl/gcc/b/gcc/cc1 -DHAVE_CONFIG_H -I/home/brl/gcc/b/gcc/include -I/usr/include -I. -Wall -DAVOID_CHECKPROBLEMS=1 -g -W -O2 *.c
 
 SPLINT=splint
 SPLITFLAGSFORVIM= -linelen 10000 -locindentspaces 0
