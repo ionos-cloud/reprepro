@@ -80,7 +80,7 @@ void deb_free(/*@only@*/struct debpackage *pkg) {
 }
 
 /* read the data from a .deb, make some checks and extract some data */
-static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename, bool_t needssourceversion) {
+static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename, bool needssourceversion) {
 	retvalue r;
 	struct debpackage *deb;
 
@@ -106,7 +106,7 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb,struct database *database,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,int delete,bool_t needsourceversion,const struct strlist *allowed_binaries,const char *expectedsourcepackage,const char *expectedsourceversion){
+retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const char * const givenmd5sum, int delete, bool needsourceversion, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;

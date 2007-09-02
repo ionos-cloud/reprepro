@@ -51,7 +51,7 @@ struct ar_archive {
 	} currentheader;
 	off_t bytes_left;
 	void *readbuffer;
-	bool_t wasodd;
+	bool wasodd;
 };
 
 static ssize_t readwait(int fd, /*@out@*/void *buf, size_t count) {
@@ -191,10 +191,10 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 		return RET_ERROR;
 	}
 	if( (ar->bytes_left & 1) != 0 )
-		ar->wasodd = TRUE;
+		ar->wasodd = true;
 
 	/* get the name of the file */
-	if( FALSE ) {
+	if( false ) {
 		/* handle long filenames */
 		// TODO!
 	} else {

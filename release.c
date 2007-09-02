@@ -53,9 +53,9 @@ struct release {
 	/* The base-directory of the distribution we are exporting */
 	char *dirofdist;
 	/* anything new yet added */
-	bool_t new;
+	bool new;
 	/* snapshot */
-	bool_t snapshot;
+	bool snapshot;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -147,7 +147,7 @@ retvalue release_initsnapshot(const char *distdir, const char *codename, const c
 		return RET_ERROR_OOM;
 	}
 	n->cachedb = NULL;
-	n->snapshot = TRUE;
+	n->snapshot = true;
 	*release = n;
 	return RET_OK;
 }
@@ -188,7 +188,7 @@ retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@on
 		free(md5sum);
 		return RET_ERROR_OOM;
 	}
-	release->new = TRUE;
+	release->new = true;
 	return newreleaseentry(release,relfilename,md5sum,finalfilename,filename);
 }
 
@@ -380,7 +380,7 @@ void release_abortfile(struct filetorelease *file) {
 #endif
 }
 
-bool_t release_oldexists(struct filetorelease *file) {
+bool release_oldexists(struct filetorelease *file) {
 	if( file->f[ic_uncompressed].fullfinalfilename != NULL ) {
 		if( file->f[ic_gzip].fullfinalfilename != NULL ) {
 			return isregularfile(file->f[ic_gzip].fullfinalfilename) &&
@@ -557,7 +557,7 @@ static retvalue	initbzcompression(struct filetorelease *f) {
 
 static retvalue startfile(struct release *release,
 		char *filename, compressionset compressions,
-		bool_t usecache,
+		bool usecache,
 		struct filetorelease **file) {
 	struct filetorelease *n;
 	enum indexcompression i;
@@ -640,7 +640,7 @@ static retvalue startfile(struct release *release,
 
 retvalue release_startfile2(struct release *release,
 		const char *relative_dir, const char *filename, compressionset compressions,
-		bool_t usecache,
+		bool usecache,
 		struct filetorelease **file) {
 	char *relfilename;
 
@@ -651,7 +651,7 @@ retvalue release_startfile2(struct release *release,
 }
 retvalue release_startfile(struct release *release,
 		const char *filename, compressionset compressions,
-		bool_t usecache,
+		bool usecache,
 		struct filetorelease **file) {
 	char *relfilename;
 
@@ -975,7 +975,7 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 		file->f[ic_bzip2].fd = -1;
 	}
 #endif
-	release->new = TRUE;
+	release->new = true;
 	result = RET_OK;
 
 	for( i = ic_uncompressed ; i < ic_count ; i++ ) {
@@ -1018,7 +1018,7 @@ retvalue release_writedata(struct filetorelease *file, const char *data, size_t 
 }
 
 /* Generate a "Release"-file for arbitrary directory */
-retvalue release_directorydescription(struct release *release, const struct distribution *distribution,const struct target *target,const char *releasename,bool_t onlyifneeded) {
+retvalue release_directorydescription(struct release *release, const struct distribution *distribution, const struct target *target, const char *releasename, bool onlyifneeded) {
 	retvalue r;
 	struct filetorelease *f;
 
@@ -1107,7 +1107,7 @@ static retvalue storechecksums(struct release *r) {
 }
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool_t onlyifneeded) {
+retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
 	int e;
 	retvalue result,r;
@@ -1116,7 +1116,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	struct tm *gmt;
 	int i;
 	struct release_entry *file;
-	bool_t somethingwasdone;
+	bool somethingwasdone;
 	struct signedfile *signedfile;
 
 	if( onlyifneeded && !release->new ) {
@@ -1212,7 +1212,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		release_free(release);
 		return r;
 	}
-	somethingwasdone = FALSE;
+	somethingwasdone = false;
 	result = RET_OK;
 
 	for( file = release->files ; file != NULL ; file = file->next ) {
@@ -1239,7 +1239,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 				}
 				RET_UPDATE(result,r);
 			} else
-				somethingwasdone = TRUE;
+				somethingwasdone = true;
 		}
 	}
 	r = signedfile_finalize(signedfile, &somethingwasdone);

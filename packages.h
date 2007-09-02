@@ -47,7 +47,7 @@ struct distribution;
 /* action to be called by packages_modifyall */
 typedef retvalue per_package_modifier(const struct distribution *data,const char *package,const char *chunk, char **newchunk);
 /* call action once for each saved chunk and replace with a new one, if it returns RET_OK: */
-retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const struct distribution *privdata,bool_t *setifmodified);
+retvalue packages_modifyall(packagesdb db, per_package_modifier *action, const struct distribution *privdata, bool *setifmodified);
 
 /* get a list of all identifiers once created */
 retvalue packages_getdatabases(struct database *, struct strlist *identifiers);

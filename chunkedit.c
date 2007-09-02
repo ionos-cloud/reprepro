@@ -37,7 +37,7 @@ struct chunkeditfield {
 		       CEF_REPLACE,   /+ replace if there +/
 		       CEF_ADD	      /+ add if not there or replace if there +/
 	} action;
-	bool_t early; /+ add as early as possible or as late as possible +/
+	bool early; /+ add as early as possible or as late as possible +/
 	/+ the following must be 0 or NULL for CEF_DELETE +/
 	size_t len_all_data;
 	/+@null@+/const char +data; size_t len_data;
@@ -204,7 +204,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 	}
 	p = chunk;
 
-	while( TRUE ) {
+	while( true ) {
 		q = p;
 		while( *q != '\0' && *q != '\n' && *q != ':' )
 			q++;
@@ -320,7 +320,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 	}
 	p = chunk;
 	/* now add all headers in between */
-	while( TRUE ) {
+	while( true ) {
 		q = p;
 		while( *q != '\0' && *q != '\n' && *q != ':' )
 			q++;

@@ -56,11 +56,11 @@ struct distribution {
 	struct exportmode dsc,deb,udeb;
 	/* is tracking enabled for this distribution? (NONE must be 0 so it is the default) */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
-	struct trackingoptions { bool_t includechanges:1;
-		bool_t includebyhand:1;
-		bool_t needsources:1;
-		bool_t keepsources:1;
-		bool_t embargoalls:1;
+	struct trackingoptions { bool includechanges:1;
+		bool includebyhand:1;
+		bool needsources:1;
+		bool keepsources:1;
+		bool embargoalls:1;
 		} trackingoptions;
 	/* what content files to generate */
 	struct contentsoptions contents;
@@ -79,13 +79,13 @@ struct distribution {
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */
 	retvalue status;
-	/* FALSE: not looked at, do not export at all */
-	bool_t lookedat;
-	/* FALSE: not requested, do not handle at all */
-	bool_t selected;
+	/* false: not looked at, do not export at all */
+	bool lookedat;
+	/* false: not requested, do not handle at all */
+	bool selected;
 };
 
-retvalue distribution_get(const char *confdir,const char *logdir,const char *name, bool_t lookedat,/*@out@*/struct distribution **distribution);
+retvalue distribution_get(const char *confdir, const char *logdir, const char *name, bool lookedat, /*@out@*/struct distribution **distribution);
 retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 /* set lookedat, start logger, ... */
@@ -119,7 +119,7 @@ retvalue distribution_snapshot(struct distribution *distribution,const char *con
 retvalue distribution_readall(const char *confdir,const char *logdir,/*@out@*/struct distribution **distributions);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc,const char *argv[],bool_t lookedat,/*@out@*/struct distribution **distributions);
+retvalue distribution_getmatched(const char *confdir, const char *logdir, int argc, const char *argv[], bool lookedat, /*@out@*/struct distribution **distributions);
 
 /* get a pointer to the apropiate part of the linked list */
 struct distribution *distribution_find(struct distribution *distributions, const char *name);

@@ -32,7 +32,7 @@ typedef unsigned char uchar;
 
 /* check if the character starting where <character> points
  * at is a overlong one */
-static inline bool_t overlongUTF8(const char *character) {
+static inline bool overlongUTF8(const char *character) {
 	/* This checks for overlong utf-8 characters.
 	 * (as they might mask '.' '\0' or '/' chars).
 	 * we assume no filesystem/ar/gpg code will parse
@@ -46,24 +46,24 @@ static inline bool_t overlongUTF8(const char *character) {
 		uchar nextc = *(character+1);
 
 		if( (nextc & (uchar)0xC0 /*11000000*/ ) != (uchar)0x80 /*10000000*/ )
-			return FALSE;
+			return false;
 
 		if( (c & (uchar)0x3E /* 00111110 */ ) == (uchar)0 )
-			return TRUE;
+			return true;
 		if( c == (uchar)0xE0 /*11100000*/ &&
 		    (nextc & (uchar)0x20 /*00100000*/ ) == (uchar)0)
-			return TRUE;
+			return true;
 		if( c == (uchar)0xF0 /*11110000*/ &&
 		    (nextc & (uchar)0x30 /*00110000*/ ) == (uchar)0)
-			return TRUE;
+			return true;
 		if( c == (uchar)0xF8 /*11111000*/ &&
 		    (nextc & (uchar)0x38 /*00111000*/ ) == (uchar)0)
-			return TRUE;
+			return true;
 		if( c == (uchar)0xFC /*11111100*/ &&
 		    (nextc & (uchar)0x3C /*00111100*/ ) == (uchar)0)
-			return TRUE;
+			return true;
 	}
-	return FALSE;
+	return false;
 }
 
 #define REJECTLOWCHARS(s,str,descr) \
@@ -86,7 +86,7 @@ static inline bool_t overlongUTF8(const char *character) {
 /* check if this is something that can be used as directory safely */
 retvalue propersourcename(const char *string) {
 	const char *s;
-	bool_t firstcharacter = TRUE;
+	bool firstcharacter = true;
 
 	if( string[0] == '\0' ) {
 		/* This is not really ignoreable, as this will lead
@@ -124,7 +124,7 @@ retvalue propersourcename(const char *string) {
 			}
 		}
 		s++;
-		firstcharacter = FALSE;
+		firstcharacter = false;
 	}
 	return RET_OK;
 }
@@ -267,9 +267,9 @@ retvalue properfilenamepart(const char *string) {
 
 retvalue properversion(const char *string) {
 	const char *s = string;
-	bool_t hadepoch = FALSE;
-	bool_t first = TRUE;
-	bool_t yetonlydigits = TRUE;
+	bool hadepoch = false;
+	bool first = true;
+	bool yetonlydigits = true;
 
 	if( string[0] == '\0' && !IGNORING(
 "Ignoring","To ignore this",emptyfilenamepart,"A version string is empty!\n") ) {
@@ -283,18 +283,18 @@ retvalue properversion(const char *string) {
 		if( verbose >= 0 )
 			fprintf(stderr,"Warning: Package version '%s' does not start with a digit, violating 'should'-directive in policy 5.6.11\n",string);
 	}
-	for( ; *s != '\0' ; s++,first=FALSE ) {
+	for( ; *s != '\0' ; s++,first=false ) {
 		if( (*s <= '9' || *s >= '0' ) ) {
 			continue;
 		}
 		if( !first && yetonlydigits && *s == ':' ) {
-			hadepoch = TRUE;
+			hadepoch = true;
 			continue;
 		}
-		yetonlydigits = FALSE;
+		yetonlydigits = false;
 		if( (*s >= 'A' && *s <= 'Z' ) ||
 		           (*s >= 'a' || *s <= 'z' )) {
-			yetonlydigits = FALSE;
+			yetonlydigits = false;
 			continue;
 		}
 		if( first || (*s != '+'  && *s != '-' &&
@@ -335,7 +335,7 @@ retvalue properfilenames(const struct strlist *names) {
 
 retvalue properpackagename(const char *string) {
 	const char *s;
-	bool_t firstcharacter = TRUE;
+	bool firstcharacter = true;
 
 	/* To be able to avoid multiple warnings,
 	 * this should always be a subset of propersourcename */
@@ -373,7 +373,7 @@ retvalue properpackagename(const char *string) {
 			}
 		}
 		s++;
-		firstcharacter = FALSE;
+		firstcharacter = false;
 	}
 	return RET_OK;
 }

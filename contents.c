@@ -50,7 +50,7 @@ struct distribution;
  * is called by the caller */
 retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter) {
 	enum contentsflags { cf_udebs, cf_nodebs, cf_uncompressed, cf_gz, cf_bz2, cf_COUNT};
-	bool_t flags[cf_COUNT];
+	bool flags[cf_COUNT];
 	static const struct constant contentsflags[] = {
 		{"udebs", cf_udebs},
 		{"nodebs", cf_nodebs},
@@ -82,11 +82,11 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 "(not compiled with libbzip2, so no support available.)\n"
 "Request was in %s in the Contents-header ending in line %u\n",
 			config_filename(iter), config_line(iter));
-		flags[cf_bz2] = FALSE;
+		flags[cf_bz2] = false;
 	}
 #endif
 	if( !flags[cf_uncompressed] && !flags[cf_gz] && !flags[cf_bz2] )
-		flags[cf_gz] = TRUE;
+		flags[cf_gz] = true;
 	distribution->contents.compressions = 0;
 	if( flags[cf_uncompressed] )
 		distribution->contents.compressions |= IC_FLAG(ic_uncompressed);
@@ -152,7 +152,7 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 	return r;
 }
 
-static retvalue genarchcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool_t onlyneeded) {
+static retvalue genarchcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
 	struct target *target;
 	char *contentsfilename;
@@ -179,7 +179,7 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 					break;
 		}
 		if( target != NULL )
-			onlyneeded = FALSE;
+			onlyneeded = false;
 	}
 
 	contentsfilename = mprintf("Contents-%s",architecture);
@@ -227,7 +227,7 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 	return r;
 }
 
-static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool_t onlyneeded) {
+static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
 	struct target *target;
 	char *contentsfilename;
@@ -255,7 +255,7 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 				break;
 		}
 		if( target != NULL )
-			onlyneeded = FALSE;
+			onlyneeded = false;
 	}
 
 	contentsfilename = mprintf("uContents-%s",architecture);
@@ -300,7 +300,7 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 	return r;
 }
 
-retvalue contents_generate(struct database *database, struct distribution *distribution, struct release *release, bool_t onlyneeded) {
+retvalue contents_generate(struct database *database, struct distribution *distribution, struct release *release, bool onlyneeded) {
 	retvalue result,r;
 	int i;
 	const struct strlist *architectures;

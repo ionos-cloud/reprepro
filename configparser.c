@@ -19,7 +19,6 @@
 #include <assert.h>
 #include <limits.h>
 #include <sys/types.h>
-#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +34,7 @@ struct configiterator {
 	FILE *f;
 	unsigned int startline, line, column, markerline, markercolumn;
 	char *filename;
-	bool_t eol;
+	bool eol;
 };
 
 const char *config_filename(const struct configiterator *iter) {
@@ -68,13 +67,13 @@ void config_overline(struct configiterator *iter) {
 	while( !iter->eol ) {
 		c = fgetc(iter->f);
 		if( c == EOF || c == '\n' )
-			iter->eol = TRUE;
+			iter->eol = true;
 		else
 			iter->column++;
 	}
 }
 
-bool_t config_nextline(struct configiterator *iter) {
+bool config_nextline(struct configiterator *iter) {
 	int c;
 
 	assert( iter->eol );
@@ -93,19 +92,19 @@ bool_t config_nextline(struct configiterator *iter) {
 	if( c == ' ' ) {
 		iter->line++;
 		iter->column = 1;
-		iter->eol = FALSE;
-		return TRUE;
+		iter->eol = false;
+		return true;
 	}
 	ungetc(c, iter->f);
-	return FALSE;
+	return false;
 }
 
-retvalue linkedlistfinish(UNUSED(void *privdata), void *this, void **last, UNUSED(bool_t complete),UNUSED(struct configiterator *dummy3)) {
+retvalue linkedlistfinish(UNUSED(void *privdata), void *this, void **last, UNUSED(bool complete), UNUSED(struct configiterator *dummy3)) {
 	*last = this;
 	return RET_NOTHING;
 }
 
-static inline retvalue finishchunk(configfinishfunction finishfunc, void *privdata, struct configiterator *iter, const struct configfield *fields, size_t fieldcount, bool_t *found, void **this, void **last, bool_t complete) {
+static inline retvalue finishchunk(configfinishfunction finishfunc, void *privdata, struct configiterator *iter, const struct configfield *fields, size_t fieldcount, bool *found, void **this, void **last, bool complete) {
 	size_t i;
 	retvalue r;
 
@@ -120,7 +119,7 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 "Required field '%s' expected (since line %u).\n",
 					iter->filename, iter->line,
 					fields[i].name, iter->startline);
-			(void)finishfunc(privdata, *this, last, FALSE, iter);
+			(void)finishfunc(privdata, *this, last, false, iter);
 			*this = NULL;
 			return RET_ERROR_MISSING;
 		}
@@ -129,8 +128,8 @@ static inline retvalue finishchunk(configfinishfunction finishfunc, void *privda
 	return r;
 }
 
-retvalue configfile_parse(const char *confdir, const char *filename, bool_t ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const struct configfield *fields, size_t fieldcount, void *privdata) {
-	bool_t found[fieldcount];
+retvalue configfile_parse(const char *confdir, const char *filename, bool ignoreunknown, configinitfunction initfunc, configfinishfunction finishfunc, const struct configfield *fields, size_t fieldcount, void *privdata) {
+	bool found[fieldcount];
 	void *last = NULL, *this = NULL;
 	char key[100];
 	size_t keylen;
@@ -186,7 +185,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool_t igno
 			/* finish this chunk, to get ready for the next: */
 			r = finishchunk(finishfunc, privdata, &iter,
 					fields, fieldcount, found,
-					&this, &last, TRUE);
+					&this, &last, true);
 			if( RET_WAS_ERROR(r) ) {
 				result = r;
 				break;
@@ -259,14 +258,14 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool_t igno
 			result = RET_ERROR;
 			break;
 		} else
-			found[i] = TRUE;
+			found[i] = true;
 		do {
 			c = fgetc(iter.f);
 			iter.column++;
 		} while( c == ' ' || c == '\t' );
 		ungetc(c, iter.f);
 
-		iter.eol = FALSE;
+		iter.eol = false;
 		if( i < fieldcount ) {
 			r = fields[i].setfunc(privdata, confdir, fields[i].name, this, &iter);
 			RET_UPDATE(result, r);
@@ -277,7 +276,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool_t igno
 		do {
 			config_overline(&iter);
 		} while( config_nextline(&iter) );
-	} while( TRUE );
+	} while( true );
 	if( this != NULL ) {
 		r = finishchunk(finishfunc, privdata, &iter,
 				fields, fieldcount, found,
@@ -317,7 +316,7 @@ static inline int config_nextnonspace(struct configiterator *iter) {
 		c = fgetc(iter->f);
 		iter->column++;
 		if( c == '\n' ) {
-			iter->eol = TRUE;
+			iter->eol = true;
 			continue;
 		}
 	} while( c == '\n' || c == '\r' || c == ' ' || c == '\t');
@@ -335,7 +334,7 @@ int config_nextnonspaceinline(struct configiterator *iter) {
 		c = fgetc(iter->f);
 		iter->column++;
 		if( c == '\n' ) {
-			iter->eol = TRUE;
+			iter->eol = true;
 			return EOF;
 		}
 	} while( c == '\r' || c == ' ' || c == '\t');
@@ -373,7 +372,7 @@ inline retvalue config_completeword(struct configiterator *iter, char c, char **
 		if( c == EOF )
 			break;
 		if( c == '\n' ) {
-			iter->eol = TRUE;
+			iter->eol = true;
 			break;
 		}
 		iter->column++;
@@ -557,7 +556,7 @@ retvalue config_getconstant(struct configiterator *iter, const struct constant *
 	return RET_ERROR_UNKNOWNFIELD;
 }
 
-retvalue config_getflags(struct configiterator *iter, const char *header, const struct constant *constants, bool_t *flags, bool_t ignoreunknown, const char *msg) {
+retvalue config_getflags(struct configiterator *iter, const char *header, const struct constant *constants, bool *flags, bool ignoreunknown, const char *msg) {
 	retvalue r, result = RET_NOTHING;;
 	int option = -1;
 
@@ -585,7 +584,7 @@ retvalue config_getflags(struct configiterator *iter, const char *header, const 
 		if( RET_WAS_ERROR(r) )
 			return r;
 		assert( option >= 0 );
-		flags[option] = TRUE;
+		flags[option] = true;
 		result = RET_OK;
 		option = -1;
 	}
@@ -620,7 +619,7 @@ retvalue config_getall(struct configiterator *iter, char **result_p) {
 		}
 		c = fgetc(iter->f);
 		if( c == '\n' )
-			iter->eol = TRUE;
+			iter->eol = true;
 		else
 			iter->column++;
 	} while( c != EOF );
@@ -638,7 +637,7 @@ retvalue config_getall(struct configiterator *iter, char **result_p) {
 	return RET_OK;
 }
 
-retvalue config_gettruth(struct configiterator *iter, const char *header, bool_t *result_p) {
+retvalue config_gettruth(struct configiterator *iter, const char *header, bool *result_p) {
 	char *value = NULL;
 	retvalue r;
 
@@ -654,22 +653,22 @@ retvalue config_gettruth(struct configiterator *iter, const char *header, bool_t
 		return r;
 	// TODO: check against trailing garbage
 	if( strcasecmp(value, "Yes") == 0 ) {
-		*result_p = TRUE;
+		*result_p = true;
 		free(value);
 		return RET_OK;
 	}
 	if( strcasecmp(value, "No") == 0 ) {
-		*result_p = FALSE;
+		*result_p = false;
 		free(value);
 		return RET_OK;
 	}
 	if( strcmp(value, "1") == 0 ) {
-		*result_p = TRUE;
+		*result_p = true;
 		free(value);
 		return RET_OK;
 	}
 	if( strcmp(value, "0") == 0 ) {
-		*result_p = FALSE;
+		*result_p = false;
 		free(value);
 		return RET_OK;
 	}

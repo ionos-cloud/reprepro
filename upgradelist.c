@@ -46,7 +46,7 @@ struct package_data {
 	/* if this is != 0, package will be deleted afterwards,
 	 * (or new version simply ignored if it is not yet in the
 	 * archive) */
-	bool_t deleted;
+	bool deleted;
 
 	/* The most recent version we found upstream:
 	 * NULL means nothing found. */
@@ -133,7 +133,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 			 * database-method get changed, so just throwing
 			 * out here */
 			fprintf(stderr,"Package-database is not sorted!!!\n");
-			assert(FALSE);
+			assert(false);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -219,7 +219,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	 * after the last one. Otherwise we walk down the long list
 	 * again and again... and again... and even some more...*/
 
-	while( TRUE ) {
+	while( true ) {
 		int cmp;
 
 		assert( insertafter == NULL || insertafter->next == current );
@@ -291,7 +291,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			return RET_ERROR_OOM;
 		}
 //		assert(upgrade->currentaptmethod!=NULL);
-		new->deleted = FALSE; //to be sure...
+		new->deleted = false; //to be sure...
 		new->aptmethod = upgrade->currentaptmethod;
 		new->name = packagename;
 		packagename = NULL; //to be sure...
@@ -357,7 +357,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			 * will keep it or even install from a mirror before
 			 * the delete was applied */
 			if( decision == UD_HOLD )
-				current->deleted = FALSE;
+				current->deleted = false;
 			free(version);
 			free(packagename);
 			return (decision==UD_ERROR)?RET_ERROR:RET_NOTHING;
@@ -373,7 +373,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 				current->new_version = version;
 			} else
 					free(version);
-			current->deleted = FALSE;
+			current->deleted = false;
 			free(packagename);
 			return RET_NOTHING;
 		}
@@ -392,7 +392,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 					current->new_version = version;
 				} else
 					free(version);
-				current->deleted = FALSE;
+				current->deleted = false;
 				free(packagename);
 				return RET_NOTHING;
 			}
@@ -409,7 +409,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			free(version);
 			return r;
 		}
-		current->deleted = FALSE;
+		current->deleted = false;
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
@@ -431,7 +431,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method
 	upgrade->predecide = decide;
 	upgrade->predecide_data = decide_data;
 
-	return chunk_foreach(filename,upgradelist_trypackage,upgrade,FALSE);
+	return chunk_foreach(filename, upgradelist_trypackage, upgrade, false);
 }
 
 static retvalue try(void *data,UNUSED(const char *package),const char *chunk) {
@@ -461,7 +461,7 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade) {
 	struct package_data *pkg;
 
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
-		pkg->deleted = TRUE;
+		pkg->deleted = true;
 	}
 
 	return RET_OK;
@@ -537,7 +537,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade,struct logger *logger,struct database *database,bool_t ignoredelete, struct strlist *dereferencedfilekeys){
+retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete, struct strlist *dereferencedfilekeys){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -563,7 +563,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,struct logger *logger,s
 						pkg->name,
 						pkg->new_version,
 						pkg->new_control,
-						&pkg->new_filekeys, TRUE,
+						&pkg->new_filekeys, true,
 						dereferencedfilekeys, NULL, 0);
 			}
 			RET_UPDATE(result,r);

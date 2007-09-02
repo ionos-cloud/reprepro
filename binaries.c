@@ -83,7 +83,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	assert(packagename!=NULL);
 
 	/* get the sourcename */
-	r = chunk_getname(chunk,"Source",&mysourcename,TRUE);
+	r = chunk_getname(chunk, "Source", &mysourcename, true);
 	if( r == RET_NOTHING ) {
 		mysourcename = strdup(packagename);
 		if( mysourcename == NULL )
@@ -366,7 +366,7 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 		return r;
 	}
 	assert( r != RET_NOTHING );
-	r = trackedpackage_addfilekey(tracks,pkg, filetype, filekey, TRUE,
+	r = trackedpackage_addfilekey(tracks, pkg, filetype, filekey, true,
 			database);
 	if( RET_WAS_ERROR(r) ) {
 		trackedpackage_free(pkg);
@@ -450,7 +450,7 @@ void binaries_debdone(struct deb_headers *pkg) {
 	free(pkg->priority);
 }
 
-retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t needssourceversion) {
+retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool needssourceversion) {
 	retvalue r;
 
 	r = extractcontrol(&deb->control,filename);
@@ -458,7 +458,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t 
 		return r;
 	/* first look for fields that should be there */
 
-	r = chunk_getname(deb->control,"Package",&deb->name,FALSE);
+	r = chunk_getname(deb->control, "Package", &deb->name, false);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing 'Package' field in %s!\n",filename);
 		r = RET_ERROR;
@@ -481,7 +481,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t 
 	if( needssourceversion )
 		r = chunk_getnameandversion(deb->control,"Source",&deb->source,&deb->sourceversion);
 	else
-		r = chunk_getname(deb->control,"Source",&deb->source,TRUE);
+		r = chunk_getname(deb->control, "Source", &deb->source, true);
 	if( r == RET_NOTHING ) {
 		deb->source = strdup(deb->name);
 		if( deb->source == NULL )
@@ -575,7 +575,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, FALSE,
+						filekeys, false,
 						dereferencedfilekeys,
 						trackingdata, ft_ARCH_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -596,7 +596,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, FALSE,
+						filekeys, false,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -618,7 +618,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, FALSE,
+						filekeys, false,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -631,7 +631,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 	return result;
 }
 
-static inline retvalue checkadddeb(struct database *database,struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,bool_t tracking,const struct deb_headers *deb,bool_t permitnewerold) {
+static inline retvalue checkadddeb(struct database *database, struct distribution *distribution, const char *component, const char *architecture, const char *packagetype, bool tracking, const struct deb_headers *deb, bool permitnewerold) {
 	retvalue r;
 	struct target *t;
 
@@ -654,7 +654,7 @@ static inline retvalue checkadddeb(struct database *database,struct distribution
 	return r;
 }
 
-retvalue binaries_checkadddeb(const struct deb_headers *deb,struct database *database,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,bool_t tracking,const char *component,bool_t permitnewerold) {
+retvalue binaries_checkadddeb(const struct deb_headers *deb, struct database *database, const char *forcearchitecture, const char *packagetype, struct distribution *distribution, bool tracking, const char *component, bool permitnewerold) {
 	retvalue r,result;
 	int i;
 

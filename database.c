@@ -113,7 +113,7 @@ retvalue database_lock(struct database *db, size_t waitforlock) {
 		return RET_ERRNO(e);
 	}
 	free(lockfile);
-	db->locked = TRUE;
+	db->locked = true;
 	return RET_OK;
 }
 
@@ -129,7 +129,7 @@ static void releaselock(struct database *db) {
 		(void)unlink(lockfile);
 	}
 	free(lockfile);
-	db->locked = FALSE;
+	db->locked = false;
 }
 
 retvalue database_close(struct database *db) {

@@ -50,7 +50,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 		,"bzip2ed"
 #endif
 	};
-	bool_t needcomma = FALSE;
+	bool needcomma = false;
 
 	assert( buffersize > 50 );
 	*buffer++ = ' '; buffersize--;
@@ -64,7 +64,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 			}
 			memcpy(buffer, compression_names[ic], l);
 			buffer += l; buffersize -= l;
-			needcomma = TRUE;
+			needcomma = true;
 		}
 	}
 	if( mode->hook != NULL ) {
@@ -108,7 +108,7 @@ static retvalue printout(void *data,UNUSED(const char *package),const char *chun
 	return RET_OK;
 }
 
-retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*@null@*/const char *release,const char *indexfile) {
+retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*@null@*/const char *release, const char *indexfile) {
 	mode->hook = NULL;
 	mode->compressions = IC_FLAG(ic_gzip) | (uncompressed?IC_FLAG(ic_uncompressed):0);
 	mode->filename = strdup(indexfile);
@@ -326,7 +326,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		printf("Called %s '%s' '%s.new' '%s' '%s'\n",
 			hook,release_dirofdist(release),relfilename,relfilename,mode);
 	/* read what comes from the client */
-	while( TRUE ) {
+	while( true ) {
 		ssize_t r;
 		int last,j;
 
@@ -400,7 +400,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlyifmissing, bool_t snapshot) {
+retvalue export_target(const char *confdir, const char *relativedir, packagesdb packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;

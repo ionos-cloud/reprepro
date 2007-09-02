@@ -251,7 +251,7 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 //typedef retvalue per_package_modifier(void *data,const char *package,const char *chunk, char **newchunk);
 
 /* call action once for each saved chunk and replace with a new one, if it returns RET_OK: */
-retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const struct distribution *privdata,bool_t *setifmodified) {
+retvalue packages_modifyall(packagesdb db, per_package_modifier *action, const struct distribution *privdata, bool *setifmodified) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -284,7 +284,7 @@ retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const str
 				return RET_DBERR(dbret);
 			}
 			if( setifmodified != NULL )
-				*setifmodified = TRUE;
+				*setifmodified = true;
 		}
 		CLEARDBT(key);
 		CLEARDBT(data);

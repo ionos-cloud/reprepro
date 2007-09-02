@@ -100,7 +100,7 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	// We cannot say where the version ends and the filename starts,
 	// but as the packagetypes would be valid part of the version, too,
 	// this check gets the broken things.
-	names_overversion(&p,TRUE);
+	names_overversion(&p, true);
 	if( *p != '\0' && *p != '_' ) {
 		fprintf(stderr,"Unexpected character '%c' in filename within '%s'!\n",*p,fileline);
 		return RET_ERROR;

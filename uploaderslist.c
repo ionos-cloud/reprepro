@@ -293,7 +293,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		fprintf(stderr, "%s:%lu:%u: 'key', 'unsigned' or 'any key' expected!\n", filename, (long)lineno, (int)(1+p-buffer));
 		return RET_ERROR;
 	}
-	permissions->allowall = TRUE;
+	permissions->allowall = true;
 	return RET_OK;
 }
 

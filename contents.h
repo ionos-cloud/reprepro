@@ -14,8 +14,8 @@
 struct contentsoptions {
 	size_t rate;
 	struct {
-		bool_t udebs:1;
-		bool_t nodebs:1;
+		bool udebs:1;
+		bool nodebs:1;
 	} flags;
 	compressionset compressions;
 	struct strlist architectures,
@@ -29,6 +29,6 @@ struct distribution;
 struct configiterator;
 
 retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter);
-retvalue contents_generate(struct database *,struct distribution *,struct release *,bool_t onlyneeded);
+retvalue contents_generate(struct database *, struct distribution *, struct release *, bool onlyneeded);
 
 #endif

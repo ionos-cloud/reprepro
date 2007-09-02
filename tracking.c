@@ -105,11 +105,11 @@ static inline enum filetype filetypechar(enum filetype filetype) {
 		case ft_XTRA_DATA:
 			return filetype;
 	}
-	assert(FALSE);
+	assert(false);
 	return ft_XTRA_DATA;
 }
 
-retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,char *filekey,bool_t used,struct database *database) {
+retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg, enum filetype filetype, char *filekey, bool used, struct database *database) {
 	char *id;
 	enum filetype ft = filetypechar(filetype);
 	int i, *newrefcounts;
@@ -160,7 +160,7 @@ retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,
 	return r;
 }
 
-retvalue trackedpackage_addfilekeys(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,struct strlist *filekeys,bool_t used,struct database *database) {
+retvalue trackedpackage_addfilekeys(trackingdb tracks, struct trackedpackage *pkg, enum filetype filetype, struct strlist *filekeys, bool used, struct database *database) {
 	int i;
 	retvalue result,r;
 	assert( filekeys != NULL );
@@ -173,7 +173,7 @@ retvalue trackedpackage_addfilekeys(trackingdb tracks,struct trackedpackage *pkg
 	}
 	return result;
 }
-retvalue trackedpackage_adddupfilekeys(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,const struct strlist *filekeys,bool_t used,struct database *database) {
+retvalue trackedpackage_adddupfilekeys(trackingdb tracks, struct trackedpackage *pkg, enum filetype filetype, const struct strlist *filekeys, bool used, struct database *database) {
 	int i;
 	retvalue result,r;
 	assert( filekeys != NULL );
@@ -259,7 +259,7 @@ static retvalue tracking_new(trackingdb t,const char *sourcename,const char *ver
 		return RET_ERROR_OOM;
 	p->sourcename = strdup(sourcename);
 	p->sourceversion = strdup(version);
-	p->flags.isnew = TRUE;
+	p->flags.isnew = true;
 	if( p->sourcename == NULL || p->sourceversion == NULL ) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
@@ -274,7 +274,7 @@ static inline int search(DBC *cursor,DBT *key,DBT *data,const char *version, siz
 
 	CLEARDBT(*data);
 	dbret=cursor->c_get(cursor,key,data,DB_SET);
-	while( TRUE ) {
+	while( true ) {
 		if( dbret != 0 ) {
 			return dbret;
 		}
@@ -358,8 +358,8 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 		trackedpackage_free(p);
 		return RET_ERROR;
 	}
-	p->flags.isnew = FALSE;
-	p->flags.deleted = FALSE;
+	p->flags.isnew = false;
+	p->flags.deleted = false;
 	*pkg = p;
 	return RET_OK;
 }
@@ -510,8 +510,8 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 		if( dbret != 0 ) {
 			(void)cursor->c_close(cursor);
 			if( dbret == DB_KEYEMPTY || dbret == DB_NOTFOUND ) {
-				fprintf(stderr,"tracking_save with isnew=FALSE called but could not find %s_%s in %s!\n",pkg->sourcename,pkg->sourceversion,t->codename);
-				pkg->flags.isnew = TRUE;
+				fprintf(stderr, "tracking_save with isnew=false called but could not find %s_%s in %s!\n", pkg->sourcename, pkg->sourceversion, t->codename);
+				pkg->flags.isnew = true;
 				cursor = NULL;
 			} else {
 				t->db->err(t->db, dbret, "tracking_save(replace) dberror(get):");
@@ -740,7 +740,7 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 		{"embargoalls",		tf_embargoalls},
 		{NULL,		-1}
 	};
-	bool_t flags[tf_COUNT];
+	bool flags[tf_COUNT];
 	retvalue r;
 	int modecount;
 
@@ -839,7 +839,7 @@ retvalue trackingdata_insert(struct trackingdata *data,enum filetype filetype,co
 	}
 	assert(data->pkg != NULL);
 	result = trackedpackage_adddupfilekeys(data->tracks, data->pkg,
-			filetype, filekeys, TRUE, database);
+			filetype, filekeys, true, database);
 	if( RET_WAS_ERROR(result) ) {
 		free(oldsource);free(oldversion);
 		return result;
@@ -932,7 +932,7 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 	if( id == NULL )
 		return RET_ERROR_OOM;
 
-	pkg->flags.deleted = TRUE;
+	pkg->flags.deleted = true;
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 		r = references_decrement(database, pkg->filekeys.values[i] ,id);
 		RET_UPDATE(result,r);
@@ -946,16 +946,16 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 	return result;
 }
 
-static inline bool_t tracking_needed(trackingdb tracks, struct trackedpackage *pkg, int ofs) {
+static inline bool tracking_needed(trackingdb tracks, struct trackedpackage *pkg, int ofs) {
 	if( pkg->refcounts[ofs] > 0 )
-		return TRUE;
+		return true;
 	if( pkg->filetypes[ofs] == ft_CHANGES && tracks->options.includechanges )
-		return TRUE;
+		return true;
 	if( pkg->filetypes[ofs] == ft_XTRA_DATA )
-		return TRUE;
+		return true;
 	if( pkg->filetypes[ofs] == ft_SOURCE && tracks->options.keepsources )
-		return TRUE;
-	return FALSE;
+		return true;
+	return false;
 
 }
 

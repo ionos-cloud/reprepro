@@ -9,16 +9,16 @@ struct configiterator;
 
 typedef retvalue configsetfunction(void *,const char *,const char *,void *,struct configiterator *);
 typedef retvalue configinitfunction(void *,void *,void **);
-typedef retvalue configfinishfunction(void *, void *, void **, bool_t, struct configiterator *);
+typedef retvalue configfinishfunction(void *, void *, void **, bool, struct configiterator *);
 
-retvalue linkedlistfinish(void *, void *, void **, bool_t, struct configiterator *);
+retvalue linkedlistfinish(void *, void *, void **, bool, struct configiterator *);
 
 struct configfield {
 	const char *name;
 	size_t namelen;
 	/* privdata, allocated struct, iterator */
 	configsetfunction *setfunc;
-	bool_t required;
+	bool required;
 };
 
 struct constant {
@@ -26,8 +26,8 @@ struct constant {
 	int value;
 };
 
-#define CFr(name, sname, field) {name, sizeof(name)-1, configparser_ ## sname ## _set_ ## field, TRUE}
-#define CF(name, sname, field) {name, sizeof(name)-1, configparser_ ## sname ## _set_ ## field, FALSE}
+#define CFr(name, sname, field) {name, sizeof(name)-1, configparser_ ## sname ## _set_ ## field, true}
+#define CF(name, sname, field) {name, sizeof(name)-1, configparser_ ## sname ## _set_ ## field, false}
 
 const char *config_filename(const struct configiterator *) __attribute__((pure));
 unsigned int config_line(const struct configiterator *) __attribute__((pure));
@@ -35,7 +35,7 @@ unsigned int config_column(const struct configiterator *) __attribute__((pure));
 unsigned int config_firstline(const struct configiterator *) __attribute__((pure));
 unsigned int config_markerline(const struct configiterator *) __attribute__((pure));
 unsigned int config_markercolumn(const struct configiterator *) __attribute__((pure));
-retvalue config_getflags(struct configiterator *, const char *, const struct constant *,bool_t *, bool_t, const char *msg);
+retvalue config_getflags(struct configiterator *, const char *, const struct constant *, bool *, bool, const char *msg);
 int config_nextnonspaceinline(struct configiterator *iter);
 retvalue config_getwords(struct configiterator *,struct strlist *);
 retvalue config_getall(struct configiterator *iter, char **result_p);
@@ -44,7 +44,7 @@ retvalue config_getwordinline(struct configiterator *, char **);
 retvalue config_getonlyword(struct configiterator *, const char *, char **);
 retvalue config_getuniqwords(struct configiterator *, const char *, struct strlist *);
 retvalue config_getsplitwords(struct configiterator *, const char *, struct strlist *, struct strlist *);
-retvalue config_gettruth(struct configiterator *, const char *, bool_t *);
+retvalue config_gettruth(struct configiterator *, const char *, bool *);
 retvalue config_getnumber(struct configiterator *, const char *, long long *, long long minval, long long maxval);
 retvalue config_getconstant(struct configiterator *, const struct constant *, int *);
 #define config_getenum(iter,type,constants,result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
@@ -52,8 +52,8 @@ retvalue config_getconstant(struct configiterator *, const struct constant *, in
 char *config_getline(struct configiterator *);
 retvalue config_completeword(struct configiterator *, char, char **);
 void config_overline(struct configiterator *);
-bool_t config_nextline(struct configiterator *);
-retvalue configfile_parse(const char *confdir, const char *filename, bool_t ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);
+bool config_nextline(struct configiterator *);
+retvalue configfile_parse(const char *confdir, const char *filename, bool ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);
 
 #define CFlinkedlistinit(sname) \
 static retvalue configparser_ ## sname ## _init(void *rootptr, void *lastitem, void **newptr) { \
@@ -126,7 +126,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 
 #define CFstartparse(sname) static retvalue startparse ## sname(UNUSED(void *dummyprivdata), UNUSED(void *lastdata), void **result_p_ ##sname)
 #define CFstartparseVAR(sname,r) struct sname **r = (void*)result_p_ ## sname
-#define CFfinishparse(sname) static retvalue finishparse ## sname(void *privdata_ ## sname, void *thisdata_ ## sname, void **lastdata_p_ ##sname, bool_t complete, struct configiterator *iter)
+#define CFfinishparse(sname) static retvalue finishparse ## sname(void *privdata_ ## sname, void *thisdata_ ## sname, void **lastdata_p_ ##sname, bool complete, struct configiterator *iter)
 #define CFfinishparseVARS(sname,this,last,mydata) struct sname *this = thisdata_ ## sname, **last = (void*)lastdata_p_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
 
 

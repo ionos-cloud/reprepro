@@ -22,11 +22,11 @@ retvalue files_done(/*@only@*/struct filesdb *);
 retvalue files_add(struct database *,const char *filekey,const char *md5sum);
 
 /* remove file's md5sum from database */
-retvalue files_remove(struct database *,const char *filekey,bool_t ignoremissing);
+retvalue files_remove(struct database *, const char *filekey, bool ignoremissing);
 
 /* delete the file and remove its md5sum from database,
  * also try to rmdir empty directories it is in if rmdirs is true */
-retvalue files_deleteandremove(struct database *,const char *filekey, bool_t rmdirs, bool_t ignoremissing);
+retvalue files_deleteandremove(struct database *, const char *filekey, bool rmdirs, bool ignoremissing);
 
 /* check for file in the database and if not found there in the pool */
 retvalue files_expect(struct database *,const char *filekey,const char *md5sum);
@@ -77,7 +77,7 @@ typedef retvalue per_file_action(void *data,const char *filekey,const char *md5s
 retvalue files_foreach(struct database *,per_file_action action,void *data);
 
 /* check if all files are corect. (skip md5sum if fast is true) */
-retvalue files_checkpool(struct database *,bool_t fast);
+retvalue files_checkpool(struct database *, bool fast);
 
 /* dump out all information */
 retvalue files_printmd5sums(struct database *);
@@ -90,7 +90,7 @@ retvalue files_detect(struct database *,const char *filekey);
 
 retvalue files_getfilelist(struct database *,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_genfilelist(struct database *,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
-retvalue files_regenerate_filelist(struct database *, bool_t redo);
+retvalue files_regenerate_filelist(struct database *, bool redo);
 retvalue files_addfilelist(struct database *,const char *filekey,const char *filelist);
 
 /* hardlink file with known md5sum and add it to database */

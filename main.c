@@ -92,14 +92,14 @@ static char /*@only@*/ /*@null@*/
 	*architecture = NULL,
 	*packagetype = NULL;
 static int	delete = D_COPY;
-static bool_t	nothingiserror = FALSE;
-static bool_t	nolistsdownload = FALSE;
-static bool_t	keepunreferenced = FALSE;
-static bool_t	keepunneededlists = FALSE;
-static bool_t	keepdirectories = FALSE;
-static bool_t	askforpassphrase = FALSE;
-static bool_t	guessgpgtty = TRUE;
-static bool_t	skipold = TRUE;
+static bool	nothingiserror = false;
+static bool	nolistsdownload = false;
+static bool	keepunreferenced = false;
+static bool	keepunneededlists = false;
+static bool	keepdirectories = false;
+static bool	askforpassphrase = false;
+static bool	guessgpgtty = true;
+static bool	skipold = true;
 static size_t   waitforlock = 0;
 static enum exportwhen export = EXPORT_NORMAL;
 int		verbose = 0;
@@ -138,7 +138,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 
 		r = references_isused(database,filekey);
 		if( r == RET_NOTHING ) {
-			r = files_deleteandremove(database,filekey,!keepdirectories,TRUE);
+			r = files_deleteandremove(database, filekey,
+					!keepdirectories, true);
 			if( r == RET_NOTHING ) {
 				/* not found, check if it was us removing it */
 				int j;
@@ -360,7 +361,8 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,UNUSED(const
 
 	r = references_isused(database,filekey);
 	if( r == RET_NOTHING ) {
-		r = files_deleteandremove(database,filekey,!keepdirectories,FALSE);
+		r = files_deleteandremove(database, filekey,
+				!keepdirectories, false);
 		return r;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
@@ -393,7 +395,7 @@ ACTION_R(addreference) {
 }
 
 
-struct remove_args {/*@temp@*/struct database *db; int count; /*@temp@*/ const char * const *names; bool_t *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;struct logger *logger;};
+struct remove_args {/*@temp@*/struct database *db; int count; /*@temp@*/ const char * const *names; bool *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;struct logger *logger;};
 
 static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 		UNUSED(struct distribution *dummy)) {
@@ -409,7 +411,7 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 		if( RET_IS_OK(r) ) {
 			if( ! d->gotremoved[i] )
 				d->todo--;
-			d->gotremoved[i] = TRUE;
+			d->gotremoved[i] = true;
 		}
 		RET_UPDATE(result,r);
 	}
@@ -427,7 +429,7 @@ ACTION_D(remove) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
+	r = distribution_get(confdir, logdir, argv[1], true, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -532,7 +534,7 @@ ACTION_NB(list) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(confdir, logdir, argv[1], FALSE, &distribution);
+	r = distribution_get(confdir, logdir, argv[1], false, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -590,7 +592,7 @@ ACTION_NB(listfilter) {
 		fprintf(stderr,"reprepro [-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>\n");
 		return RET_ERROR;
 	}
-	r = distribution_get(confdir, logdir, argv[1], FALSE, &distribution);
+	r = distribution_get(confdir, logdir, argv[1], false, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -642,7 +644,7 @@ ACTION_F(forget) {
 	ret = RET_NOTHING;
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
-			r = files_remove(database, argv[i], FALSE);
+			r = files_remove(database, argv[i], false);
 			RET_UPDATE(ret,r);
 		}
 
@@ -653,7 +655,7 @@ ACTION_F(forget) {
 				return RET_ERROR;
 			}
 			*nl = '\0';
-			r = files_remove(database, buffer, FALSE);
+			r = files_remove(database, buffer, false);
 			RET_UPDATE(ret,r);
 		}
 	return ret;
@@ -707,7 +709,7 @@ ACTION_F(export) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -747,7 +749,7 @@ ACTION_D(update) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -802,7 +804,7 @@ ACTION_D(predelete) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -855,7 +857,7 @@ ACTION_D(iteratedupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -905,7 +907,7 @@ ACTION_NB(checkupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -950,7 +952,7 @@ ACTION_D(pull) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -997,7 +999,7 @@ ACTION_NB(checkpull) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1105,7 +1107,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 
 	result = target_addpackage(dsttarget, d->destination->logger,
 			d->db, d->name, version, chunk,
-			&filekeys, TRUE, d->removedfiles,
+			&filekeys, true, d->removedfiles,
 			NULL, '?');
 	free(version);
 	free(chunk);
@@ -1127,11 +1129,11 @@ ACTION_D(copy) {
 		fprintf(stderr,"reprepro [-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(confdir, logdir, argv[1], TRUE, &destination);
+	result = distribution_get(confdir, logdir, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	result = distribution_get(confdir, logdir, argv[2], FALSE, &source);
+	result = distribution_get(confdir, logdir, argv[2], false, &source);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		distribution_free(destination);
@@ -1190,7 +1192,7 @@ ACTION_R(rereference) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1231,7 +1233,7 @@ ACTION_R(retrack) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1281,7 +1283,7 @@ ACTION_D_U(removetrack) {
 		fprintf(stderr,"reprepro removetrack <distribution> <sourcename> <version>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
+	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1309,7 +1311,7 @@ ACTION_D(removealltracks) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1352,7 +1354,7 @@ ACTION_D(tidytracks) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1393,7 +1395,7 @@ ACTION_NB(dumptracks) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1436,7 +1438,7 @@ ACTION_RF(check) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1485,7 +1487,7 @@ ACTION_F(reoverride) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, TRUE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1521,7 +1523,7 @@ ACTION_F(reoverride) {
 ACTION_D(includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
-	bool_t isudeb;
+	bool isudeb;
 	trackingdb tracks;
 	int i = 0;
 
@@ -1534,13 +1536,13 @@ ACTION_D(includedeb) {
 		return RET_ERROR;
 	}
 	if( strcmp(argv[0],"includeudeb") == 0 ) {
-		isudeb = TRUE;
+		isudeb = true;
 		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
 			fprintf(stderr,"Calling includeudeb with a -T different from 'udeb' makes no sense!\n");
 			return RET_ERROR;
 		}
 	} else if( strcmp(argv[0],"includedeb") == 0 ) {
-		isudeb = FALSE;
+		isudeb = false;
 		if( packagetype != NULL && strcmp(packagetype,"deb") != 0 ) {
 			fprintf(stderr,"Calling includedeb with -T something where something is not 'deb' makes no sense!\n");
 			return RET_ERROR;
@@ -1565,7 +1567,7 @@ ACTION_D(includedeb) {
 		}
 	}
 
-	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
+	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1654,7 +1656,7 @@ ACTION_D(includedsc) {
 				"includedsc called with a file not ending with '.dsc'\n") )
 		return RET_ERROR;
 
-	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
+	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1727,7 +1729,7 @@ ACTION_D(include) {
 		}
 	}
 
-	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
+	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1784,7 +1786,7 @@ ACTION_N(createsymlinks) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1899,7 +1901,7 @@ ACTION_D_UU(clearvanished) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 	struct strlist identifiers;
-	bool_t *inuse;
+	bool *inuse;
 	int i;
 
 	if( argc != 1 ) {
@@ -1907,7 +1909,7 @@ ACTION_D_UU(clearvanished) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, 0, NULL, FALSE, &distributions);
+	result = distribution_getmatched(confdir, logdir, 0, NULL, false, &distributions);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1919,7 +1921,7 @@ ACTION_D_UU(clearvanished) {
 		return result;
 	}
 
-	inuse = calloc(identifiers.count,sizeof(bool_t));
+	inuse = calloc(identifiers.count, sizeof(bool));
 	if( inuse == NULL ) {
 		strlist_done(&identifiers);
 		(void)distribution_freelist(distributions);
@@ -1930,7 +1932,7 @@ ACTION_D_UU(clearvanished) {
 		for( t = d->targets; t != NULL ; t = t->next ) {
 			int i = strlist_ofs(&identifiers, t->identifier);
 			if( i >= 0 ) {
-				inuse[i] = TRUE;
+				inuse[i] = true;
 				if( verbose > 6 )
 					printf(
 "Marking '%s' as used.\n", t->identifier);
@@ -2012,7 +2014,7 @@ ACTION_D(processincoming) {
 		return RET_ERROR;
 	}
 
-	r = distribution_getmatched(confdir, logdir, 0, NULL, FALSE, &distributions);
+	r = distribution_getmatched(confdir, logdir, 0, NULL, false, &distributions);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -2037,7 +2039,7 @@ ACTION_R(gensnapshot) {
 		fprintf(stderr,"reprepro gensnapshot <distribution> <date or other name>\n");
 		return RET_ERROR;
 	}
-	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
+	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -2069,7 +2071,7 @@ ACTION_NB(rerunnotifiers) {
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, FALSE, &distributions);
+	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -2183,7 +2185,7 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 	retvalue result, r;
 	struct database *database;
 	struct strlist dereferencedfilekeys;
-	bool_t deletederef;
+	bool deletederef;
 
 	assert(action != NULL);
 
@@ -2386,7 +2388,7 @@ static void handle_option(int c,const char *optarg) {
 		case '\0':
 			switch( longoption ) {
 				case LO_UNIGNORE:
-					r = set_ignore(optarg,FALSE,config_state);
+					r = set_ignore(optarg, false, config_state);
 					if( RET_WAS_ERROR(r) ) {
 						exit(EXIT_FAILURE);
 					}
@@ -2398,52 +2400,52 @@ static void handle_option(int c,const char *optarg) {
 					delete--;
 					break;
 				case LO_KEEPUNREFERENCED:
-					CONFIGSET(keepunreferenced,TRUE);
+					CONFIGSET(keepunreferenced, true);
 					break;
 				case LO_NOKEEPUNREFERENCED:
-					CONFIGSET(keepunreferenced,FALSE);
+					CONFIGSET(keepunreferenced, false);
 					break;
 				case LO_KEEPUNNEEDEDLISTS:
-					CONFIGSET(keepunneededlists,TRUE);
+					CONFIGSET(keepunneededlists, true);
 					break;
 				case LO_NOKEEPUNNEEDEDLISTS:
-					CONFIGSET(keepunneededlists,FALSE);
+					CONFIGSET(keepunneededlists, false);
 					break;
 				case LO_KEEPDIRECTORIES:
-					CONFIGSET(keepdirectories,TRUE);
+					CONFIGSET(keepdirectories, true);
 					break;
 				case LO_NOKEEPDIRECTORIES:
-					CONFIGSET(keepdirectories,FALSE);
+					CONFIGSET(keepdirectories, false);
 					break;
 				case LO_NOTHINGISERROR:
-					CONFIGSET(nothingiserror,TRUE);
+					CONFIGSET(nothingiserror, true);
 					break;
 				case LO_NONOTHINGISERROR:
-					CONFIGSET(nothingiserror,FALSE);
+					CONFIGSET(nothingiserror, false);
 					break;
 				case LO_NOLISTDOWNLOAD:
-					CONFIGSET(nolistsdownload,TRUE);
+					CONFIGSET(nolistsdownload, true);
 					break;
 				case LO_LISTDOWNLOAD:
-					CONFIGSET(nolistsdownload,FALSE);
+					CONFIGSET(nolistsdownload, false);
 					break;
 				case LO_ASKPASSPHRASE:
-					CONFIGSET(askforpassphrase,TRUE);
+					CONFIGSET(askforpassphrase, true);
 					break;
 				case LO_NOASKPASSPHRASE:
-					CONFIGSET(askforpassphrase,FALSE);
+					CONFIGSET(askforpassphrase, false);
 					break;
 				case LO_GUESSGPGTTY:
-					CONFIGSET(guessgpgtty,TRUE);
+					CONFIGSET(guessgpgtty, true);
 					break;
 				case LO_NOGUESSGPGTTY:
-					CONFIGSET(guessgpgtty,FALSE);
+					CONFIGSET(guessgpgtty, false);
 					break;
 				case LO_SKIPOLD:
-					CONFIGSET(skipold,TRUE);
+					CONFIGSET(skipold, true);
 					break;
 				case LO_NOSKIPOLD:
-					CONFIGSET(skipold,FALSE);
+					CONFIGSET(skipold, false);
 					break;
 				case LO_EXPORT:
 					setexport(optarg);
@@ -2520,7 +2522,7 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(mirrordir,optarg);
 			break;
 		case 'i':
-			r = set_ignore(optarg,TRUE,config_state);
+			r = set_ignore(optarg, true, config_state);
 			if( RET_WAS_ERROR(r) ) {
 				exit(EXIT_FAILURE);
 			}
@@ -2574,23 +2576,23 @@ static void handle_option(int c,const char *optarg) {
 	}
 }
 
-static volatile bool_t was_interrupted = FALSE;
-static bool_t interruption_printed = FALSE;
+static volatile bool was_interrupted = false;
+static bool interruption_printed = false;
 
-bool_t interrupted(void) {
+bool interrupted(void) {
 	if( was_interrupted ) {
 		if( !interruption_printed ) {
-			interruption_printed = TRUE;
+			interruption_printed = true;
 			fprintf(stderr, "\n\nInterruption in progress, interrupt again to force-stop it (and risking database corruption!)\n\n");
 		}
-		return TRUE;
+		return true;
 	} else
-		return FALSE;
+		return false;
 }
 
 static void interrupt_signaled(int signal) /*__attribute__((signal))*/;
 static void interrupt_signaled(UNUSED(int signal)) {
-	was_interrupted = TRUE;
+	was_interrupted = true;
 }
 
 int main(int argc,char *argv[]) {

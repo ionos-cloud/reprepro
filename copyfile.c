@@ -167,7 +167,7 @@ retvalue regularfileexists(const char *fullfilename) {
 		return RET_ERROR_MISSING;
 }
 
-bool_t isregularfile(const char *fullfilename) {
+bool isregularfile(const char *fullfilename) {
 	struct stat s;
 	int i;
 

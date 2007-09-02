@@ -210,7 +210,7 @@ retvalue md5sum_place(const char *origfilename,const char *destfilename,
 	}
 }
 
-retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnifwrong) {
+retvalue md5sum_ensure(const char *fullfilename, const char *md5sum, bool warnifwrong) {
 	retvalue ret;
 	int fd,i;
 	struct stat s;

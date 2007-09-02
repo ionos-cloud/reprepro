@@ -3,6 +3,7 @@
 	  (might cause update to report error opening dir: file exists)
 	* new config file parser
 	* remove --ignore from changestool, --ignore=shortkeyid from reprepro
+	* move to C99's bool, false and true
 
 2007-08-21  Bernhard R. Link <brlink@debian.org>
 	* ignore SIGPIPE, so that libgpgme cannot tear us apart

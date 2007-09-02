@@ -347,7 +347,7 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir, struct co
 	return RET_OK;
 }
 
-static inline bool_t find(const char *name,/*@null@*/struct filterlistfile *list) {
+static inline bool find(const char *name, /*@null@*/struct filterlistfile *list) {
 	int cmp;
 	/*@dependent@*/const struct filterlistitem *last = list->last;
 
@@ -357,38 +357,38 @@ static inline bool_t find(const char *name,/*@null@*/struct filterlistfile *list
 		cmp = strcmp(name,last->next->packagename);
 		if( cmp == 0 ) {
 			list->last = last->next;
-			return TRUE;
+			return true;
 		}
 	}
 	if( last->next == NULL || cmp < 0 ) {
 		cmp = strcmp(name,last->packagename);
 		if( cmp == 0 ) {
-			return TRUE;
+			return true;
 		} else if( cmp > 0 )
-			return FALSE;
+			return false;
 		last = list->root;
 		cmp = strcmp(name,last->packagename);
 		if( cmp == 0 ) {
 			list->last = list->root;
-			return TRUE;
+			return true;
 		} else if( cmp < 0 )
-			return FALSE;
+			return false;
 	}
 	/* now we are after last */
 	while( last->next != NULL ) {
 		cmp = strcmp(name,last->next->packagename);
 		if( cmp == 0 ) {
 			list->last = last->next;
-			return TRUE;
+			return true;
 		}
 		if( cmp < 0 ) {
 			list->last = last;
-			return FALSE;
+			return false;
 		}
 		last = last->next;
 	}
 	list->last = last;
-	return FALSE;
+	return false;
 }
 
 enum filterlisttype filterlist_find(const char *name,struct filterlist *list) {

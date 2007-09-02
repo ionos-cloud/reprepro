@@ -87,8 +87,8 @@ struct fileentry {
 	/* only set after changes_includefiles */
 	char *filekey;
 	/* was already found in the pool before */
-	bool_t wasalreadythere;
-	bool_t included;
+	bool wasalreadythere;
+	bool included;
 	/* set between checkpkg and includepkg */
 	union { struct dscpackage *dsc; struct debpackage *deb;} pkg;
 };
@@ -114,7 +114,7 @@ struct changes {
 	/* the directory the .changes file resides in */
 	char *incomingdirectory;
 	/* the Version: and the version in Source: differ */
-	bool_t isbinnmu;
+	bool isbinnmu;
 };
 
 static void freeentries(/*@only@*/struct fileentry *entry) {
@@ -256,7 +256,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines;
-	bool_t broken;
+	bool broken;
 	int versioncmp;
 
 #define E(err) { \
@@ -316,7 +316,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 			changes_free(c);
 			return RET_ERROR_OOM;
 		}
-		c->isbinnmu = FALSE;
+		c->isbinnmu = false;
 	} else {
 		r = dpkgversions_cmp(c->sourceversion, c->changesversion,
 				&versioncmp);
@@ -495,7 +495,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
-	bool_t havedsc=FALSE, haveorig=FALSE, havetar=FALSE, havediff=FALSE;
+	bool havedsc = false, haveorig = false, havetar = false, havediff = false;
 
 	/* First check for each given architecture, if it has files: */
 	if( forcearchitecture != NULL ) {
@@ -550,7 +550,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 				fprintf(stderr,"I don't know what to do with multiple .dsc files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			havedsc = TRUE;
+			havedsc = true;
 			calculatedname = calc_source_basename(changes->source,changes->sourceversion);
 			if( calculatedname == NULL )
 				return RET_ERROR_OOM;
@@ -565,19 +565,19 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 				fprintf(stderr,"I don't know what to do with multiple .diff files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			havediff = TRUE;
+			havediff = true;
 		} else if( e->type == fe_ORIG ) {
 			if( haveorig ) {
 				fprintf(stderr,"I don't know what to do with multiple .orig.tar.gz files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			haveorig = TRUE;
+			haveorig = true;
 		} else if( e->type == fe_TAR ) {
 			if( havetar ) {
 				fprintf(stderr,"I don't know what to do with multiple .tar.gz files in '%s'!\n",filename);
 				return RET_ERROR;
 			}
-			havetar = TRUE;
+			havetar = true;
 		}
 
 		e = e->next;
@@ -640,7 +640,7 @@ static retvalue changes_checkfiles(struct database *database,const char *filenam
 			return r;
 		/* If is was already there, remember that */
 		if( RET_IS_OK(r) ) {
-			e->wasalreadythere = TRUE;
+			e->wasalreadythere = true;
 		} else {
 		/* and if it needs inclusion check if there is a file */
 			char *fullfilename;
@@ -680,7 +680,7 @@ static retvalue changes_includefiles(struct database *database,struct changes *c
 				/* do not delete, we do that later outself */
 				(delete>=D_MOVE)?D_COPY:delete);
 		if( RET_IS_OK(r) )
-			e->included = TRUE;
+			e->included = true;
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -697,7 +697,7 @@ static void changes_unincludefiles(struct database *database,struct changes *cha
 		if( e->filekey == NULL || e->wasalreadythere || !e->included )
 			continue;
 
-		(void)files_deleteandremove(database, e->filekey, TRUE, FALSE);
+		(void)files_deleteandremove(database, e->filekey, true, false);
 	}
 }
 /* delete the files included */
@@ -757,7 +757,7 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 				"deb",
 				distribution, fullfilename,
 				e->filekey, e->md5sum,
-				D_INPLACE, FALSE,
+				D_INPLACE, false,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_UDEB ) {
@@ -767,7 +767,7 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 				"udeb",
 				distribution, fullfilename,
 				e->filekey, e->md5sum,
-				D_INPLACE, FALSE,
+				D_INPLACE, false,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_DSC ) {
@@ -802,11 +802,11 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 
 	return r;
 }
-static retvalue changes_includepkgs(struct database *database,struct distribution *distribution,struct changes *changes,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata,bool_t *missed_p) {
+static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata, bool *missed_p) {
 	struct fileentry *e;
 	retvalue result,r;
 
-	*missed_p = FALSE;
+	*missed_p = false;
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -827,18 +827,18 @@ static retvalue changes_includepkgs(struct database *database,struct distributio
 				e->architecture, "deb",
 				distribution, dereferencedfilekeys, trackingdata);
 			if( r == RET_NOTHING )
-				*missed_p = TRUE;
+				*missed_p = true;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
 				e->architecture, "udeb",
 				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
-				*missed_p = TRUE;
+				*missed_p = true;
 		} else if( e->type == fe_DSC ) {
 			r = dsc_addprepared(e->pkg.dsc, database,
 				distribution,dereferencedfilekeys,trackingdata);
 			if( r == RET_NOTHING )
-				*missed_p = TRUE;
+				*missed_p = true;
 		}
 		RET_UPDATE(result, r);
 
@@ -852,7 +852,7 @@ static retvalue changes_includepkgs(struct database *database,struct distributio
 	return result;
 }
 
-static bool_t permissionssuffice(UNUSED(struct changes *changes),
+static bool permissionssuffice(UNUSED(struct changes *changes),
                                  const struct uploadpermissions *permissions) {
 	return permissions->allowall;
 }
@@ -865,7 +865,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	struct changes *changes;
 	struct trackingdata trackingdata;
 	char *directory;
-	bool_t somethingwasmissed;
+	bool somethingwasmissed;
 
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
 	if( RET_WAS_ERROR(r) )
@@ -1026,7 +1026,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 			}
 
 			r = trackedpackage_addfilekey(tracks, trackingdata.pkg,
-					ft_CHANGES, changesfilekey, FALSE,
+					ft_CHANGES, changesfilekey, false,
 					database);
 			RET_ENDUPDATE(result,r);
 		}

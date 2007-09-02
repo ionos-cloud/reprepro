@@ -40,7 +40,7 @@
 // * found.
 // **********************************************************************
 
-static retvalue try_extractcontrol(char **control,const char *debfile, bool_t brokentar) {
+static retvalue try_extractcontrol(char **control, const char *debfile, bool brokentar) {
 	int pipe1[2];
 	int pipe2[2];
 	int ret;
@@ -193,12 +193,12 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 retvalue extractcontrol(char **control,const char *debfile) {
 	retvalue r;
 
-	r = try_extractcontrol(control, debfile, FALSE);
+	r = try_extractcontrol(control, debfile, false);
 	if( r != RET_NOTHING )
 		return r;
 	/* perhaps the control.tar.gz is packaged by hand wrongly,
 	 * try again: */
-	r = try_extractcontrol(control, debfile, TRUE);
+	r = try_extractcontrol(control, debfile, true);
 	if( RET_IS_OK(r) ) {
 		fprintf(stderr, "WARNING: '%s' contains a broken/unusual control.tar.gz.\n"
 				"reprepro was able to work around this but other tools or versions might not.\n", debfile);
@@ -348,7 +348,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 				len -= ignore;
 			}
 		}
-	} while( TRUE );
+	} while( true );
 	if( len != last ) {
 		fprintf(stderr, "WARNING: unterminated output from tar over pipe while extracting filelist of %s\n",debfile);
 		list[len] = '\0';

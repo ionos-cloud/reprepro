@@ -199,7 +199,7 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 		printf("removing '%s' from '%s'...\n",name,target->identifier);
 	result = packages_remove(target->packages,name);
 	if( RET_IS_OK(result) ) {
-		target->wasmodified = TRUE;
+		target->wasmodified = true;
 		if( oldsource!= NULL && oldsversion != NULL ) {
 			r = trackingdata_remove(trackingdata,
 					oldsource, oldsversion, &files);
@@ -282,7 +282,7 @@ static retvalue addpackages(struct target *target, struct database *database,
 	return result;
 }
 
-retvalue target_addpackage(struct target *target,struct logger *logger,struct database *database,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade, struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,enum filetype filetype) {
+retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
 	char *oldpversion;
@@ -368,7 +368,7 @@ retvalue target_addpackage(struct target *target,struct logger *logger,struct da
 			dereferencedfilekeys,
 			trackingdata, filetype, oldsource, oldsversion);
 	if( RET_IS_OK(r) ) {
-		target->wasmodified = TRUE;
+		target->wasmodified = true;
 	}
 	free(oldpversion);
 	free(oldcontrol);
@@ -376,7 +376,7 @@ retvalue target_addpackage(struct target *target,struct logger *logger,struct da
 	return r;
 }
 
-retvalue target_checkaddpackage(struct target *target,const char *name,const char *version,bool_t tracking,bool_t permitnewerold) {
+retvalue target_checkaddpackage(struct target *target, const char *name, const char *version, bool tracking, bool permitnewerold) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
 	char *oldpversion;
@@ -703,9 +703,9 @@ retvalue target_reoverride(struct target *target,const struct distribution *dist
 
 /* export a database */
 
-retvalue target_export(struct target *target,const char *confdir,struct database *database,bool_t onlyneeded, bool_t snapshot, struct release *release) {
+retvalue target_export(struct target *target, const char *confdir, struct database *database, bool onlyneeded, bool snapshot, struct release *release) {
 	retvalue result,r;
-	bool_t onlymissing;
+	bool onlymissing;
 
 	if( verbose > 5 ) {
 		if( onlyneeded )
@@ -732,7 +732,7 @@ retvalue target_export(struct target *target,const char *confdir,struct database
 	if( !RET_WAS_ERROR(result) && !snapshot ) {
 		target->saved_wasmodified =
 			target->saved_wasmodified || target->wasmodified;
-		target->wasmodified = FALSE;
+		target->wasmodified = false;
 	}
 	return result;
 }

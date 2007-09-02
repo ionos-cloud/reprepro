@@ -199,7 +199,7 @@ struct notificator {
 	/*@null@*/char *packagetype;
 	/*@null@*/char *component;
 	/*@null@*/char *architecture;
-	bool_t withcontrol, changesacceptrule;
+	bool withcontrol, changesacceptrule;
 };
 
 static void notificator_done(struct notificator *n) {
@@ -219,7 +219,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, st
 			char *word, *s, *detachedargument = NULL;
 			const char *argument;
 			char **value_p = NULL;
-			bool_t error = FALSE;
+			bool error = false;
 
 			r = config_completeword(iter, c, &word);
 			assert( r != RET_NOTHING );
@@ -243,40 +243,40 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, st
 					else if( word[1] == 'T' )
 						value_p = &n->packagetype;
 					else
-						error = TRUE;
+						error = true;
 					break;
 				case 6:
 					if( strcmp(word, "--type") == 0 )
 						value_p = &n->packagetype;
 					else
-						error = TRUE;
+						error = true;
 					break;
 				case 9:
 					if( strcmp(word, "--changes") == 0 )
-						n->changesacceptrule = TRUE;
+						n->changesacceptrule = true;
 					else
-						error = TRUE;
+						error = true;
 					break;
 				case 11:
 					if( strcmp(word, "--component") == 0 )
 						value_p = &n->component;
 					else
-						error = TRUE;
+						error = true;
 					break;
 				case 13:
 					if( strcmp(word, "--withcontrol") == 0 )
-						n->withcontrol = TRUE;
+						n->withcontrol = true;
 					else
-						error = TRUE;
+						error = true;
 					break;
 				case 14:
 					if( strcmp(word, "--architecture") == 0 )
 						value_p = &n->architecture;
 					else
-						error = TRUE;
+						error = true;
 					break;
 				default:
-					error = TRUE;
+					error = true;
 					break;
 			}
 			if( error ) {
@@ -464,7 +464,7 @@ static int catchchildren(void) {
 	return returned;
 }
 
-static void feedchildren(bool_t wait) {
+static void feedchildren(bool wait) {
 	struct notification_process *p;
 	fd_set w;
 	int ret;
@@ -645,7 +645,7 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 	struct notification_process *p;
 
 	catchchildren();
-	feedchildren(FALSE);
+	feedchildren(false);
 	if( !n->changesacceptrule )
 		return RET_NOTHING;
 	count = 6; /* script "accepted" codename name version safename */
@@ -701,14 +701,14 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 	return RET_OK;
 }
 
-static retvalue notificator_enqueue(struct notificator *n,struct target *target,const char *name,/*@null@*/const char *version,/*@null@*/const char *oldversion,/*@null@*/const char *control,/*@null@*/const char *oldcontrol,/*@null@*/const struct strlist *filekeys,/*@null@*/const struct strlist *oldfilekeys,bool_t renotification) {
+static retvalue notificator_enqueue(struct notificator *n, struct target *target, const char *name, /*@null@*/const char *version, /*@null@*/const char *oldversion, /*@null@*/const char *control, /*@null@*/const char *oldcontrol, /*@null@*/const struct strlist *filekeys, /*@null@*/const struct strlist *oldfilekeys, bool renotification) {
 	size_t count, i;
 	char **arguments;
 	const char *action = NULL;
 	struct notification_process *p;
 
 	catchchildren();
-	feedchildren(FALSE);
+	feedchildren(false);
 	if( n->changesacceptrule )
 		return RET_NOTHING;
 	// some day, some atom handling for those would be nice
@@ -827,7 +827,7 @@ void logger_wait(void) {
 		catchchildren();
 		if( interrupted() )
 			break;
-		feedchildren(TRUE);
+		feedchildren(true);
 		// TODO: add option to start multiple at the same time
 		if( runningchildren() < 1 )
 			startchild();
@@ -892,7 +892,7 @@ retvalue logger_init(const char *confdir,const char *logdir,struct configiterato
 	struct logger *n;
 	retvalue r;
 	char *logfilename;
-	bool_t havenotificators;
+	bool havenotificators;
 
 	r = config_getfileinline(iter, &logfilename);
 	if( RET_WAS_ERROR(r) )
@@ -967,12 +967,12 @@ retvalue logger_prepare(struct logger *logger) {
 		r = RET_OK;
 	return r;
 }
-bool_t logger_isprepared(/*@null@*/const struct logger *logger) {
+bool logger_isprepared(/*@null@*/const struct logger *logger) {
 	if( logger == NULL )
-		return TRUE;
+		return true;
 	if( logger->logfile != NULL && logger->logfile->fd < 0 )
-		return FALSE;
-	return TRUE;
+		return false;
+	return true;
 }
 
 void logger_log(struct logger *log,struct target *target,const char *name,const char *version,const char *oldversion,const char *control,const char *oldcontrol,const struct strlist *filekeys, const struct strlist *oldfilekeys) {
@@ -994,7 +994,7 @@ void logger_log(struct logger *log,struct target *target,const char *name,const 
 		notificator_enqueue(&log->notificators[i], target,
 				name, version, oldversion,
 				control, oldcontrol,
-				filekeys, oldfilekeys, FALSE);
+				filekeys, oldfilekeys, false);
 	}
 }
 
@@ -1013,7 +1013,7 @@ void logger_logchanges(struct logger *log,const char *codename,const char *name,
 	}
 }
 
-bool_t logger_rerun_needs_target(const struct logger *logger,const struct target *target) {
+bool logger_rerun_needs_target(const struct logger *logger, const struct target *target) {
 	size_t i;
 	struct notificator *n;
 
@@ -1032,9 +1032,9 @@ bool_t logger_rerun_needs_target(const struct logger *logger,const struct target
 				strcmp(n->packagetype,target->packagetype) != 0 ) {
 			continue;
 		}
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 retvalue logger_reruninfo(struct logger *logger,struct target *target,const char *name,const char *version,const char *control,/*@null@*/const struct strlist *filekeys) {
@@ -1051,7 +1051,7 @@ retvalue logger_reruninfo(struct logger *logger,struct target *target,const char
 		r = notificator_enqueue(&logger->notificators[i], target,
 				name, version, NULL,
 				control, NULL,
-				filekeys, NULL, TRUE);
+				filekeys, NULL, true);
 		RET_UPDATE(result,r);
 	}
 	return result;

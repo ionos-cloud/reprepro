@@ -34,9 +34,9 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 /* remove all files ${listdir}/${distribution}_* that will not be needed. */
 retvalue updates_clearlists(const char *listdir,struct update_distribution *distributions);
 
-retvalue updates_update(struct database *,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys,enum spacecheckmode mode,off_t reserveddb,off_t reservedother);
-retvalue updates_iteratedupdate(const char *confdir,struct database *,const char *distdir,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export,enum spacecheckmode mode,off_t reserveddb,off_t reservedother);
-retvalue updates_checkupdate(struct database *,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold);
-retvalue updates_predelete(struct database *database,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys);
+retvalue updates_update(struct database *, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother);
+retvalue updates_iteratedupdate(const char *confdir, struct database *, const char *distdir, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum exportwhen export, enum spacecheckmode mode, off_t reserveddb, off_t reservedother);
+retvalue updates_checkupdate(struct database *, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold);
+retvalue updates_predelete(struct database *database, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys);
 
 #endif

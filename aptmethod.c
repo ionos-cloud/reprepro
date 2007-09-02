@@ -63,7 +63,7 @@ struct aptmethod {
 	/*@null@*/char *command;
 	size_t alreadywritten,output_length;
 	/* true when we are already trying the fallbacks */
-	bool_t fallenback;
+	bool fallenback;
 };
 
 struct aptmethodrun {
@@ -258,7 +258,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	int r;
 
 	/* new try, new luck */
-	method->fallenback = FALSE;
+	method->fallenback = false;
 
 	/* When there is nothing to get, there is no reason to startup
 	 * the method. */
@@ -366,7 +366,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	size_t l;
 	const char *p;
 	char *c;
-	bool_t wasnewline;
+	bool wasnewline;
 
 	assert(method->command == NULL);
 
@@ -395,16 +395,16 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 
 	strcpy(c,CONF601 CONFITEM);
 	c += sizeof(CONF601)+sizeof(CONFITEM)-2;
-	wasnewline = TRUE;
+	wasnewline = true;
 	for( p = method->config; *p != '\0'  ; p++ ) {
 		if( *p != '\n' ) {
 			if( !wasnewline || !xisspace(*p) )
 				*(c++) = *p;
-			wasnewline = FALSE;
+			wasnewline = false;
 		} else {
 			strcpy(c,CONFITEM);
 			c += sizeof(CONFITEM)-1;
-			wasnewline = TRUE;
+			wasnewline = true;
 		}
 	}
 	*(c++) = '\n';
@@ -557,7 +557,7 @@ static retvalue requeue_failed(struct aptmethod *method){
 	new_len = strlen(method->fallbackbaseuri);
 
 	/* try at most once */
-	method->fallenback = TRUE;
+	method->fallenback = true;
 
 	for( todo = method->tobedone; todo != NULL ; todo = todo->next ) {
 		size_t l;
@@ -908,7 +908,7 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 	method->alreadyread += r;
 
 	result = RET_NOTHING;
-	while(TRUE) {
+	while(true) {
 		retvalue res;
 
 		r = method->alreadyread;

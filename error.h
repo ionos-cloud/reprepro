@@ -5,7 +5,7 @@
 #include "globals.h"
 #endif
 
-bool_t interrupted(void);
+bool interrupted(void);
 
 /* retvalue is simply an int.
  * just named to show it follows the given semantics */

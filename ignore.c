@@ -23,19 +23,19 @@
 #include "ignore.h"
 
 int ignored[IGN_COUNT];
-bool_t ignore[IGN_COUNT];
+bool ignore[IGN_COUNT];
 enum config_option_owner owner_ignore[IGN_COUNT];
 
 void init_ignores(void) {
 	int i;
 	for( i = 0 ; i < IGN_COUNT ; i++ ) {
 		ignored[i] = 0;
-		ignore[i] = FALSE;
+		ignore[i] = false;
 		owner_ignore[i] = CONFIG_OWNER_DEFAULT;
 	}
 }
 
-static retvalue set(const char *given,size_t len, bool_t newvalue, enum config_option_owner newowner) {
+static retvalue set(const char *given, size_t len, bool newvalue, enum config_option_owner newowner) {
 	int i;
 	static const char * const ignores[] = {
 #define IGN(what) #what ,
@@ -67,7 +67,7 @@ static retvalue set(const char *given,size_t len, bool_t newvalue, enum config_o
 		return RET_OK;
 }
 
-retvalue set_ignore(const char *given,bool_t newvalue, enum config_option_owner newowner) {
+retvalue set_ignore(const char *given, bool newvalue, enum config_option_owner newowner) {
 	const char *g,*p;
 	retvalue r;
 
@@ -75,7 +75,7 @@ retvalue set_ignore(const char *given,bool_t newvalue, enum config_option_owner 
 
 	g = given;
 
-	while( TRUE ) {
+	while( true ) {
 		p = g;
 		while( *p != '\0' && *p !=',' )
 			p++;

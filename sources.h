@@ -37,7 +37,7 @@ struct dsc_headers {
  * - does not follow retvalue conventions, some fields may be set even when
  *   error returned
  * - no checks for sanity of values, left to the caller */
-retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool_t *broken);
+retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool *broken);
 
 void sources_done(struct dsc_headers *);
 

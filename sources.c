@@ -394,7 +394,7 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 	}
 
 	r = trackedpackage_addfilekeys(tracks, pkg,
-			ft_SOURCE, &filekeys, TRUE, database);
+			ft_SOURCE, &filekeys, true, database);
 	if( RET_WAS_ERROR(r) ) {
 		trackedpackage_free(pkg);
 		return r;
@@ -462,7 +462,7 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 	return r;
 }
 
-retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *broken) {
+retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool *broken) {
 	retvalue r;
 
 	r = signature_readsignedchunk(filename, filename, &dsc->control, NULL, NULL, broken);
@@ -475,7 +475,7 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *
 
 	/* first look for fields that should be there */
 
-	r = chunk_getname(dsc->control,"Source",&dsc->name,FALSE);
+	r = chunk_getname(dsc->control, "Source", &dsc->name, false);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
 		return RET_ERROR;

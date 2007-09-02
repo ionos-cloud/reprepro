@@ -63,7 +63,7 @@ struct pull_rule {
 	struct filterlist filterlist;
 	/*----only set after _addsourcedistribution----*/
 	/*@NULL@*/ struct distribution *distribution;
-	bool_t used;
+	bool used;
 };
 
 static void pull_rule_free(/*@only@*/struct pull_rule *pull) {
@@ -188,7 +188,7 @@ static retvalue pull_initdistribution(struct pull_distribution **pp,
 				return RET_ERROR_MISSING;
 			}
 			p->rules[i] = rule;
-			rule->used = TRUE;
+			rule->used = true;
 		}
 	}
 	*pp = p;
@@ -277,7 +277,7 @@ static retvalue pull_loadmissingsourcedistributions(const char *confdir,
 		*extradistributions = NULL;
 		return RET_OK;
 	}
-	r = distribution_getmatched(confdir, logdir, count, names, FALSE, extradistributions);
+	r = distribution_getmatched(confdir, logdir, count, names, false, extradistributions);
 	free(names);
 	assert( r != RET_NOTHING );
 	if( RET_IS_OK(r) ) {
@@ -306,7 +306,7 @@ struct pull_target {
 	/*@dependent@*/struct target *target;
 	/*@null@*/struct upgradelist *upgradelist;
 	/* Ignore delete marks (as some lists were missing) */
-	bool_t ignoredelete;
+	bool ignoredelete;
 };
 
 static void pull_freetargets(struct pull_target *targets) {
@@ -402,7 +402,7 @@ static retvalue generatepulltarget(struct pull_distribution *pd, struct target *
 	pt->target = target;
 	pt->next = pd->targets;
 	pt->upgradelist = NULL;
-	pt->ignoredelete = FALSE;
+	pt->ignoredelete = false;
 	pt->sources = NULL;
 	s = &pt->sources;
 	pd->targets = pt;
@@ -530,7 +530,7 @@ static inline retvalue pull_searchformissing(FILE *out,struct database *database
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				return result;
-			p->ignoredelete = FALSE;
+			p->ignoredelete = false;
 			continue;
 		}
 

@@ -54,7 +54,7 @@ struct target {
 	get_sourceandversion *getsourceandversion;
 	do_reoverride *doreoverride;
 	do_retrack *doretrack;
-	bool_t wasmodified, saved_wasmodified;
+	bool wasmodified, saved_wasmodified;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
 	/* is initialized as soon as needed: */
@@ -66,7 +66,7 @@ retvalue target_initialize_binary(const char *codename,const char *component,con
 retvalue target_initialize_source(const char *codename,const char *component,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
 retvalue target_free(struct target *target);
 
-retvalue target_export(struct target *target,const char *confdir,struct database *,bool_t onlyneeded, bool_t snapshot, struct release *release);
+retvalue target_export(struct target *target, const char *confdir, struct database *, bool onlyneeded, bool snapshot, struct release *release);
 
 retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 
@@ -77,8 +77,8 @@ retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
-retvalue target_addpackage(struct target *,/*@null@*/struct logger *,struct database *,const char *name,const char *version,const char *control,const struct strlist *filekeys,bool_t downgrade,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/struct trackingdata *,enum filetype);
-retvalue target_checkaddpackage(struct target *target,const char *name,const char *version,bool_t tracking,bool_t permitnewerold);
+retvalue target_addpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *, enum filetype);
+retvalue target_checkaddpackage(struct target *target, const char *name, const char *version, bool tracking, bool permitnewerold);
 retvalue target_removepackage(struct target *,struct logger *,struct database *,const char *name,/*@null@*/const char *oldpversion,/*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
 retvalue target_check(struct target *,struct database *);
 retvalue target_rereference(struct target *,struct database *);

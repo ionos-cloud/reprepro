@@ -42,7 +42,7 @@ struct deb_headers {
  *   error returned
  * - no checks for sanity of values, left to the caller */
 
-retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool_t needssourceversion);
+retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool needssourceversion);
 void binaries_debdone(struct deb_headers *);
 
 retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *,const char *packagetype,struct strlist *filekeys);
@@ -51,5 +51,5 @@ struct overrideinfo;
 retvalue binaries_complete(const struct deb_headers *,const char *filekey,const char *md5sum,const struct overrideinfo *,const char *section,const char *priority,char **newcontrol);
 
 retvalue binaries_adddeb(const struct deb_headers *,struct database *,const char *forcearchitecture,const char *packagetype,struct distribution *,struct strlist *dereferencedfilekeys,struct trackingdata *,const char *component,const struct strlist *filekeys,const char *control);
-retvalue binaries_checkadddeb(const struct deb_headers *,struct database *,const char *forcearchitecture,const char *packagetype,struct distribution *,bool_t tracking,const char *component,bool_t permitnewerold);
+retvalue binaries_checkadddeb(const struct deb_headers *, struct database *, const char *forcearchitecture, const char *packagetype, struct distribution *, bool tracking, const char *component, bool permitnewerold);
 #endif

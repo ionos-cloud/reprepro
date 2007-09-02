@@ -23,7 +23,7 @@
 #include "error.h"
 #include "strlist.h"
 
-bool_t strlist_in(const struct strlist *strlist,const char *element) {
+bool strlist_in(const struct strlist *strlist, const char *element) {
 	int c;
 	char **t;
 
@@ -33,9 +33,9 @@ bool_t strlist_in(const struct strlist *strlist,const char *element) {
 	t = strlist->values;
 	while( c-- != 0 ) {
 		if( strcmp(*(t++),element) == 0 )
-			return TRUE;
+			return true;
 	}
-	return FALSE;
+	return false;
 }
 int strlist_ofs(const struct strlist *strlist,const char *element) {
 	int c;
@@ -52,7 +52,7 @@ int strlist_ofs(const struct strlist *strlist,const char *element) {
 	return -1;
 }
 
-bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset,const char **missing) {
+bool strlist_subset(const struct strlist *strlist, const struct strlist *subset, const char **missing) {
 	int c;
 	char **t;
 
@@ -64,10 +64,10 @@ bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset
 		if( !strlist_in(strlist,*(t++)) ) {
 			if( missing != NULL )
 				*missing = *(t-1);
-			return FALSE;
+			return false;
 		}
 	}
-	return TRUE;
+	return true;
 
 }
 
@@ -260,11 +260,11 @@ retvalue strlist_adduniq(struct strlist *strlist,char *element) {
 
 }
 
-bool_t strlist_intersects(const struct strlist *a,const struct strlist *b) {
+bool strlist_intersects(const struct strlist *a, const struct strlist *b) {
 	int i;
 
 	for( i = 0 ; i < a->count ; i++ )
 		if( strlist_in(b, a->values[i]) )
-			return TRUE;
-	return FALSE;
+			return true;
+	return false;
 }

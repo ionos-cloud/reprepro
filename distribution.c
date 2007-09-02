@@ -183,17 +183,17 @@ CFstartparse(distribution) {
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	/* set some default value: */
-	r = exportmode_init(&n->udeb, TRUE, NULL, "Packages");
+	r = exportmode_init(&n->udeb, true, NULL, "Packages");
 	if( RET_WAS_ERROR(r) ) {
 		(void)distribution_free(n);
 		return r;
 	}
-	r = exportmode_init(&n->deb, TRUE, "Release", "Packages");
+	r = exportmode_init(&n->deb, true, "Release", "Packages");
 	if( RET_WAS_ERROR(r) ) {
 		(void)distribution_free(n);
 		return r;
 	}
-	r = exportmode_init(&n->dsc, FALSE, "Release", "Sources");
+	r = exportmode_init(&n->dsc, false, "Release", "Sources");
 	if( RET_WAS_ERROR(r) ) {
 		(void)distribution_free(n);
 		return r;
@@ -202,7 +202,7 @@ CFstartparse(distribution) {
 	return RET_OK;
 }
 
-static bool_t notpropersuperset(const struct strlist *allowed, const char *allowedname,
+static bool notpropersuperset(const struct strlist *allowed, const char *allowedname,
 		const struct strlist *check, const char *checkname,
 		const struct configiterator *iter, const struct distribution *d) {
 	const char *missing;
@@ -215,9 +215,9 @@ static bool_t notpropersuperset(const struct strlist *allowed, const char *allow
 				d->firstline, d->lastline,
 				config_filename(iter),
 				checkname, missing, allowedname);
-		return TRUE;
+		return true;
 	}
-	return FALSE;
+	return false;
 }
 
 CFfinishparse(distribution) {
@@ -272,8 +272,8 @@ CFfinishparse(distribution) {
 		return r;
 	}
 	n->status = RET_NOTHING;
-	n->lookedat = FALSE;
-	n->selected = FALSE;
+	n->lookedat = false;
+	n->selected = false;
 
 	/* put in linked list */
 	if( *last_p == NULL )
@@ -502,10 +502,10 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 }
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc,const char *argv[],bool_t lookedat,struct distribution **distributions) {
+retvalue distribution_getmatched(const char *confdir, const char *logdir, int argc, const char *argv[], bool lookedat, struct distribution **distributions) {
 	retvalue r;
 	struct distribution *d, *alldistributions, *selecteddistributions, **l;
-	bool_t *found;
+	bool *found;
 	int i;
 
 	r = distribution_readall(confdir, logdir, &alldistributions);
@@ -516,14 +516,14 @@ retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc
 	// TODO: only set selected on those choosen. (once reprepro is ready) */
 	if( argc <= 0 ) {
 		for( d = alldistributions ; d != NULL ; d = d->next ) {
-			d->selected = TRUE;
+			d->selected = true;
 			d->lookedat = lookedat;
 		}
 		assert( alldistributions != NULL );
 		*distributions = alldistributions;
 		return RET_OK;
 	}
-	found = calloc(argc,sizeof(bool_t));
+	found = calloc(argc, sizeof(bool));
 	if( found == NULL ) {
 		distribution_freelist(alldistributions);
 		return RET_ERROR_OOM;
@@ -539,8 +539,8 @@ retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc
 		for( i = 0 ; i < argc ; i++ ) {
 			if( strcmp(argv[i], d->codename) == 0 ) {
 				assert( !found[i] );
-				found[i] = TRUE;
-				d->selected = TRUE;
+				found[i] = true;
+				d->selected = true;
 				d->lookedat = lookedat;
 				*l = d;
 				l = &d->next;
@@ -565,7 +565,7 @@ retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc
 	return RET_OK;
 }
 
-retvalue distribution_get(const char *confdir,const char *logdir,const char *name,bool_t lookedat,struct distribution **distribution) {
+retvalue distribution_get(const char *confdir, const char *logdir, const char *name, bool lookedat, struct distribution **distribution) {
 	retvalue result;
 	struct distribution *d;
 
@@ -609,12 +609,12 @@ retvalue distribution_snapshot(struct distribution *distribution,
 		if( RET_WAS_ERROR(r) )
 			break;
 		r = target_export(target, confdir, database,
-				FALSE, TRUE, release);
+				false, true, release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
 		if( target->exportmode->release != NULL ) {
-			r = release_directorydescription(release,distribution,target,target->exportmode->release,FALSE);
+			r = release_directorydescription(release, distribution, target, target->exportmode->release, false);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
@@ -624,7 +624,7 @@ retvalue distribution_snapshot(struct distribution *distribution,
 		release_free(release);
 		return result;
 	}
-	result = release_write(release,distribution,FALSE);
+	result = release_write(release, distribution, false);
 	if( RET_WAS_ERROR(result) )
 		return r;
 	/* add references so that the pool files belonging to it are not deleted */
@@ -637,7 +637,7 @@ retvalue distribution_snapshot(struct distribution *distribution,
 
 static retvalue export(struct distribution *distribution,
 		const char *confdir, const char *distdir,
-		struct database *database, bool_t onlyneeded) {
+		struct database *database, bool onlyneeded) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
@@ -655,7 +655,7 @@ static retvalue export(struct distribution *distribution,
 		if( RET_WAS_ERROR(r) )
 			break;
 		r = target_export(target, confdir, database,
-				onlyneeded, FALSE, release);
+				onlyneeded, false, release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -684,7 +684,7 @@ static retvalue export(struct distribution *distribution,
 }
 
 retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *distdir, struct database *database) {
-	return export(distribution,confdir,distdir,database,FALSE);
+	return export(distribution, confdir, distdir, database, false);
 }
 
 retvalue distribution_freelist(struct distribution *distributions) {
@@ -705,7 +705,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		const char *confdir,const char *distdir,
 		struct database *database) {
 	retvalue result,r;
-	bool_t todo = FALSE;
+	bool todo = false;
 	struct distribution *d;
 
 	if( when == EXPORT_NEVER ) {
@@ -718,7 +718,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		if( d->lookedat && (RET_IS_OK(d->status) ||
 			( d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
 			when == EXPORT_FORCE)) {
-			todo = TRUE;
+			todo = true;
 		}
 	}
 
@@ -759,7 +759,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 "Doing a export despite --export=changed....\n",
 						d->codename);
 					r = export(d, confdir, distdir,
-							database, TRUE);
+							database, true);
 					RET_UPDATE(result,r);
 					break;
 				}
@@ -769,7 +769,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 					( d->status == RET_NOTHING &&
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
-			r = export(d, confdir, distdir, database, TRUE);
+			r = export(d, confdir, distdir, database, true);
 			RET_UPDATE(result,r);
 		}
 
@@ -813,7 +813,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Doing a export despite --export=changed....\n",
 						distribution->codename);
 				return export(distribution, confdir, distdir,
-						database, TRUE);
+						database, true);
 				break;
 			}
 		}
@@ -822,7 +822,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	}
 	if( verbose >= 0 )
 		printf("Exporting indices...\n");
-	return export(distribution, confdir, distdir, database, TRUE);
+	return export(distribution, confdir, distdir, database, true);
 }
 
 /* get a pointer to the apropiate part of the linked list */
@@ -920,6 +920,6 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
-	distribution->lookedat = TRUE;
+	distribution->lookedat = true;
 	return RET_OK;
 }

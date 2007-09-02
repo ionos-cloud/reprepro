@@ -38,12 +38,12 @@ retvalue release_addold(struct release *release,/*@only@*/char *relfilename);
 
 struct filetorelease;
 
-retvalue release_startfile2(struct release *release, const char *relative_dir, const char *filename, compressionset compressions, bool_t usecache, struct filetorelease **file);
+retvalue release_startfile2(struct release *release, const char *relative_dir, const char *filename, compressionset compressions, bool usecache, struct filetorelease **file);
 
-retvalue release_startfile(struct release *release, const char *filename, compressionset compressions, bool_t usecache, struct filetorelease **file);
+retvalue release_startfile(struct release *release, const char *filename, compressionset compressions, bool usecache, struct filetorelease **file);
 
-/* return TRUE if an old file is already there */
-bool_t release_oldexists(struct filetorelease *file);
+/* return true if an old file is already there */
+bool release_oldexists(struct filetorelease *file);
 
 /* errors will be cached for release_finishfile */
 retvalue release_writedata(struct filetorelease *file, const char *data, size_t len);
@@ -54,9 +54,9 @@ retvalue release_finishfile(struct release *release, /*@only@*/struct filetorele
 
 struct distribution;
 struct target;
-retvalue release_directorydescription(struct release *release, const struct distribution *distribution,const struct target *target,const char *filename,bool_t onlyifneeded);
+retvalue release_directorydescription(struct release *release, const struct distribution *distribution, const struct target *target, const char *filename, bool onlyifneeded);
 
 void release_free(/*@only@*/struct release *release);
-retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool_t onlyneeded);
+retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool onlyneeded);
 
 #endif

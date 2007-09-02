@@ -47,7 +47,7 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade);
 /* request all wanted files refering the methods given before */
 retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,struct database *);
 
-retvalue upgradelist_install(struct upgradelist *upgrade,/*@null@*/struct logger *,struct database *,bool_t ignoredelete, struct strlist *dereferencedfilekeys);
+retvalue upgradelist_install(struct upgradelist *upgrade, /*@null@*/struct logger *, struct database *, bool ignoredelete, struct strlist *dereferencedfilekeys);
 
 /* remove all packages that would either be removed or upgraded by an upgrade */
 retvalue upgradelist_predelete(struct upgradelist *upgrade,/*@null@*/struct logger *logger,struct database *,struct strlist *dereferencedfilekeys);

@@ -32,7 +32,7 @@ extern int verbose;
 // of only \n terminated oned. Though this has still to be tested properly...
 
 /* Call action for each chunk in <filename> */
-retvalue chunk_foreach(const char *filename,chunkaction action,void *data,bool_t stopwhenok){
+retvalue chunk_foreach(const char *filename, chunkaction action, void *data, bool stopwhenok){
 	gzFile f;
 	retvalue result,ret;
 	char *chunk;
@@ -72,7 +72,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,bool_t
 retvalue chunk_read(gzFile f,char **chunk) {
 	char *buffer,*bhead;
 	size_t size,already,without,l;
-	bool_t afternewline = FALSE;
+	bool afternewline = false;
 
 	size = 4096;
 	already = 0; without = 0;
@@ -304,7 +304,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 
 retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	const char *f,*p,*e;
-	bool_t afternewline = FALSE;
+	bool afternewline = false;
 	char *v;
 
 	f = chunk_getfield(name,chunk);
@@ -313,13 +313,13 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	for ( e = p = f ; *p != '\0' ; p++ ) {
 		if( afternewline ) {
 			if( *p == ' ' || *p == '\t' )
-				afternewline = FALSE;
+				afternewline = false;
 			else if( *p != '\r' )
 				break;
 		} else {
 			if(  *p == '\n' ) {
 				e = p;
-				afternewline = TRUE;
+				afternewline = true;
 			}
 		}
 	}
@@ -444,8 +444,7 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 }
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *' */
-retvalue chunk_getname(const char *chunk,const char *name,
-		char **pkgname,bool_t allowversion) {
+retvalue chunk_getname(const char *chunk, const char *name, char **pkgname, bool allowversion) {
 	const char *field,*name_end,*p;
 
 	field = chunk_getfield(name,chunk);
@@ -580,7 +579,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	size_t size,len_beforethis;
 	const struct fieldtoadd *f;
 	retvalue result;
-	bool_t fieldsadded = FALSE;
+	bool fieldsadded = false;
 
 	assert( chunk != NULL && beforethis != NULL );
 
@@ -624,7 +623,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 				f = f->next;
 			}
 			result = RET_OK;
-			fieldsadded = TRUE;
+			fieldsadded = true;
 		}
 		/* is this one of the fields we added/will add? */
 		f = toadd;
@@ -665,7 +664,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,chunk);
-		assert(FALSE);
+		assert(false);
 	}
 
 	return newchunk;

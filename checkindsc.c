@@ -107,7 +107,7 @@ void dsc_free(/*@only@*/struct dscpackage *pkg) {
 static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename) {
 	retvalue r;
 	struct dscpackage *dsc;
-	bool_t broken;
+	bool broken;
 
 
 	dsc = calloc(1,sizeof(struct dscpackage));
@@ -334,7 +334,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,struct database *database,
 			r = target_addpackage(t, distribution->logger, database,
 					pkg->dsc.name, pkg->dsc.version,
 					pkg->dsc.control, &pkg->filekeys,
-					FALSE, dereferencedfilekeys,
+					false, dereferencedfilekeys,
 					trackingdata, ft_SOURCE);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);

@@ -147,7 +147,7 @@ static retvalue files_get(struct database *database,const char *filekey,/*@out@*
 
 
 /* remove file's md5sum from database */
-retvalue files_remove(struct database *database,const char *filekey, bool_t ignoremissing) {
+retvalue files_remove(struct database *database, const char *filekey, bool ignoremissing) {
 	struct filesdb *db = database->files;
 	int dbret;
 	DBT key;
@@ -178,7 +178,7 @@ retvalue files_remove(struct database *database,const char *filekey, bool_t igno
 }
 
 /* delete the file and remove its md5sum from database */
-retvalue files_deleteandremove(struct database *database,const char *filekey,bool_t rmdirs, bool_t ignoreifnot) {
+retvalue files_deleteandremove(struct database *database, const char *filekey, bool rmdirs, bool ignoreifnot) {
 	struct filesdb *db = database->files;
 	int err,en;
 	char *filename;
@@ -270,7 +270,7 @@ static retvalue files_checkmd5sum(struct database *database,const char *filekey,
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 
-	ret = md5sum_ensure(filename,md5sum,TRUE);
+	ret = md5sum_ensure(filename, md5sum, true);
 	free(filename);
 	return ret;
 }
@@ -487,7 +487,7 @@ retvalue files_foreach(struct database *database,per_file_action action,void *pr
 	return result;
 }
 
-struct checkfiledata { /*@temp@*/struct database *database; bool_t fast; };
+struct checkfiledata { /*@temp@*/struct database *database; bool fast; };
 
 static retvalue getfilesize(/*@out@*/off_t *s,const char *md5sum) {
 	const char *p;
@@ -566,7 +566,7 @@ static retvalue checkfile(void *data,const char *filekey,const char *md5sumexpec
 	return r;
 }
 
-retvalue files_checkpool(struct database *database,bool_t fast) {
+retvalue files_checkpool(struct database *database, bool fast) {
 	struct checkfiledata d;
 	d.fast = fast;
 	d.database = database;
@@ -826,7 +826,7 @@ retvalue files_genfilelist(struct database *database,const char *filekey,const s
 	return result;
 }
 
-retvalue files_regenerate_filelist(struct database *database, bool_t reread) {
+retvalue files_regenerate_filelist(struct database *database, bool reread) {
 	struct filesdb *db = database->files;
 	DBC *cursor;
 	DBT key,data;
@@ -853,10 +853,10 @@ retvalue files_regenerate_filelist(struct database *database, bool_t reread) {
 			return RET_ERROR;
 		}
 		if( l > 4 && strcmp(filekey+l-4,".deb") == 0 ) {
-			bool_t needed;
+			bool needed;
 
 			if( reread )
-				needed = TRUE;
+				needed = true;
 			else {
 				DBT listkey,listdata;
 

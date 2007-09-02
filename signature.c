@@ -74,7 +74,7 @@ static gpgme_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid
 }
 #endif /* HAVE_LIBGPGME */
 
-retvalue signature_init(bool_t allowpassphrase){
+retvalue signature_init(bool allowpassphrase){
 #ifdef HAVE_LIBGPGME
 	gpgme_error_t err;
 
@@ -113,7 +113,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 	fl = strlen(fingerprint);
 
 	keypart = key;
-	while( TRUE ) {
+	while( true ) {
 		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
@@ -157,7 +157,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
 
-	r = signature_init(FALSE);
+	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -297,7 +297,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	gpgme_data_t dh,dh_gpg;
 #endif /* HAVE_LIBGPGME */
 
-	r = signature_init(FALSE);
+	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -464,10 +464,10 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
  * which are mentioned in the signature (all). set broken if all signatures
  * was broken (hints to a broken file, as opposed to expired or whatever
  * else may make a signature invalid)). */
-static retvalue checksigs(const char *filename, struct strlist *valid, struct strlist *all, bool_t *broken) {
+static retvalue checksigs(const char *filename, struct strlist *valid, struct strlist *all, bool *broken) {
 	gpgme_verify_result_t result;
 	gpgme_signature_t s;
-	bool_t had_valid=FALSE, had_broken=FALSE;
+	bool had_valid = false, had_broken = false;
 
 	result = gpgme_op_verify_result(context);
 	if( result == NULL ) {
@@ -482,7 +482,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 		}
 		switch( gpgme_err_code(s->status) ) {
 			case GPG_ERR_NO_ERROR:
-				had_valid = TRUE;
+				had_valid = true;
 				if( valid != NULL ) {
 					retvalue r = strlist_add_dup(valid,
 								s->fpr);
@@ -491,21 +491,21 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 				}
 				continue;
 			case GPG_ERR_KEY_EXPIRED:
-				had_valid = TRUE;
+				had_valid = true;
 				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key has expired.\n",
 						s->fpr, filename);
 				continue;
 			case GPG_ERR_CERT_REVOKED:
-				had_valid = TRUE;
+				had_valid = true;
 				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key is revoked.\n",
 						s->fpr, filename);
 				continue;
 			case GPG_ERR_SIG_EXPIRED:
-				had_valid = TRUE;
+				had_valid = true;
 				if( verbose > 0 ) {
 					time_t timestamp = s->timestamp,
 					      exp_timestamp = s->exp_timestamp;
@@ -518,7 +518,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 				}
 				continue;
 			case GPG_ERR_BAD_SIGNATURE:
-				had_broken = TRUE;
+				had_broken = true;
 				if( verbose > 0 ) {
 					fprintf(stderr,
 "WARNING: '%s' has a invalid signature with '%s'\n", filename, s->fpr);
@@ -551,13 +551,13 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 		return RET_ERROR_GPGME;
 	}
 	if( broken != NULL && had_broken && ! had_valid )
-		*broken = TRUE;
+		*broken = true;
 	return RET_OK;
 }
 #endif /* HAVE_LIBGPGME */
 
 /* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature) {
+retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature) {
 #ifdef HAVE_LIBGPGME
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
@@ -567,12 +567,12 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	char *plain_data;
 	retvalue r;
 	struct strlist validfingerprints, allfingerprints;
-	bool_t foundbroken = FALSE;
+	bool foundbroken = false;
 
 	strlist_init(&validfingerprints);
 	strlist_init(&allfingerprints);
 
-	r = signature_init(FALSE);
+	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -692,7 +692,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	char *chunk;
 	gzFile f;
 	retvalue r;
-	bool_t issigned = FALSE, finished = FALSE;
+	bool issigned = false, finished = false;
 
 	f = gzopen(filename, "r");
 	if( !f ) {
@@ -716,7 +716,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	if( strncmp(chunk, "-----BEGIN", 10) == 0 ) {
 		char *endmarker;
 
-		issigned = TRUE;
+		issigned = true;
 		if( verbose >= 0 ) {
 			fprintf(stderr,
 "Cannot extract signatures from '%s' as compiled without support for libgpgme!\n"
@@ -745,7 +745,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 			if( verbose > 0 )
 				fprintf(stderr,"Truncating at -----\n");
 			*endmarker ='\0';
-			finished = TRUE;
+			finished = true;
 		}
 	}
 	while( !finished ) {
@@ -760,7 +760,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 				fprintf(stderr, "Unexpected ---- in '%s'!\n",
 						filenametoshow);
 			} else {
-				finished = TRUE;
+				finished = true;
 
 			}
 		} else {
@@ -777,7 +777,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	if( allkeys != NULL )
 		strlist_init(allkeys);
 	if( brokensignature != NULL )
-		*brokensignature = FALSE;
+		*brokensignature = false;
 	return RET_OK;
 #endif /* HAVE_LIBGPGME */
 }
@@ -933,7 +933,7 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options) {
 	return RET_OK;
 }
 
-retvalue signedfile_finalize(struct signedfile *f, bool_t *toolate) {
+retvalue signedfile_finalize(struct signedfile *f, bool *toolate) {
 	int result = RET_OK, r;
 	int e;
 
@@ -953,7 +953,7 @@ retvalue signedfile_finalize(struct signedfile *f, bool_t *toolate) {
 			/* does not need deletion any more */
 			free(f->newsignfilename);
 			f->newsignfilename = NULL;
-			*toolate = TRUE;
+			*toolate = true;
 		}
 	}
 	e = rename(f->newplainfilename, f->plainfilename);

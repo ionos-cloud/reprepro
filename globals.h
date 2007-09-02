@@ -1,16 +1,25 @@
 #ifndef REPREPRO_GLOBALS_H
 #define REPREPRO_GLOBALS_H
 
-#define TRUE (1==1)
-#define FALSE (0==42)
 #ifdef AVOID_CHECKPROBLEMS
-#define bool_t _Bool
+# define bool _Bool
+# define true (1==1)
+# define false (0==42)
 /* avoid problems with __builtin_expect being long instead of boolean */
-#define __builtin_expect(a,b) (a)
-#define __builtin_constant_p(a) (__builtin_constant_p(a) != 0)
+# define __builtin_expect(a,b) (a)
+# define __builtin_constant_p(a) (__builtin_constant_p(a) != 0)
 #else
-typedef int bool_t;
+# if HAVE_STDBOOL_H
+#  include <stdbool.h>
+# else
+#  if ! HAVE__BOOL
+typedef int _Bool;
+#  endif
+#  define true (1==1)
+#  define false (0==42)
+# endif
 #endif
+
 #define xisspace(c) (isspace(c)!=0)
 #define xisblank(c) (isblank(c)!=0)
 #define xisdigit(c) (isdigit(c)!=0)

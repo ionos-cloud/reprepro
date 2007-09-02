@@ -236,7 +236,7 @@ static const char separator[] = "\t    ";
 static void filelist_writefiles(char *dir, size_t len,
 		struct filelist *files, struct filetorelease *file) {
 	unsigned int i;
-	bool_t first;
+	bool first;
 
 	if( files == NULL )
 		return;
@@ -244,11 +244,11 @@ static void filelist_writefiles(char *dir, size_t len,
 		(void)release_writedata(file,dir,len);
 		(void)release_writestring(file,files->name);
 		(void)release_writedata(file,separator,sizeof(separator)-1);
-		first = TRUE;
+		first = true;
 		for( i = 0 ; i < files->count ; i ++ ) {
 			if( !first )
 				(void)release_writestring(file,",");
-			first = FALSE;
+			first = false;
 			(void)release_writestring(file,files->packages[i]);
 		}
 		(void)release_writestring(file,"\n");
