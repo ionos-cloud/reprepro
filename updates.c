@@ -892,6 +892,7 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 		char *fullfilename;
 		int e;
 
+		errno = 0;
 		r = readdir(dir);
 		if( r == NULL ) {
 			e = errno;

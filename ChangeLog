@@ -1,3 +1,7 @@
+2007-09-02  Bernhard R. Link <brlink@debian.org>
+	* fix uninitialized use of errno in listclean.
+	  (might cause update to report error opening dir: file exists)
+
 2007-08-21  Bernhard R. Link <brlink@debian.org>
 	* ignore SIGPIPE, so that libgpgme cannot tear us apart
 	so easily.
