@@ -71,8 +71,9 @@ retvalue database_lock(struct database *db, size_t waitforlock) {
 	retvalue r;
 	size_t tries = 0;
 
-	// TODO: create directory
-	r = dirs_make_recursive(db->directory);
+	assert( !db->locked );
+	db->dircreationdepth = 0;
+	r = dir_create_needed(db->directory, &db->dircreationdepth);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -120,6 +121,8 @@ retvalue database_lock(struct database *db, size_t waitforlock) {
 static void releaselock(struct database *db) {
 	char *lockfile;
 
+	assert( db->locked );
+
 	lockfile = calc_dirconcat(db->directory, "lockfile");
 	if( lockfile == NULL )
 		return;
@@ -129,6 +132,7 @@ static void releaselock(struct database *db) {
 		(void)unlink(lockfile);
 	}
 	free(lockfile);
+	dir_remove_new(db->directory, db->dircreationdepth);
 	db->locked = false;
 }
 

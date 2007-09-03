@@ -14,6 +14,9 @@
 retvalue dirs_make_parent(const char *filename);
 /* create dirname and any '/'-separated part of it */
 retvalue dirs_make_recursive(const char *directory);
+/* create directory and parents as needed, and save count to remove them later */
+retvalue dir_create_needed(const char *directory, int *createddepth);
+void dir_remove_new(const char *directory, int created);
 
 /* Behave like dirname(3) */
 retvalue dirs_getdirectory(const char *filename,/*@out@*/char **directory);

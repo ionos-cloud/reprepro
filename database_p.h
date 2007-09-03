@@ -15,6 +15,7 @@ struct database {
 	struct filesdb *files;
 	struct references *references;
 	bool locked;
+	int dircreationdepth;
 };
 
 retvalue database_opentable(struct database *,const char *,const char *,DBTYPE,u_int32_t flags,u_int32_t preflags,int (*)(DB *,const DBT *,const DBT *),/*@out@*/DB **);

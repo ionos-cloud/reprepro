@@ -119,6 +119,32 @@ case $TESTTOOLVERSION in
 esac
 touch results.empty
 
+dodo test ! -d db
+testrun - -b . __extractcontrol 3<<EOF
+return 255
+stdout
+-v2*=Created directory "./db"
+-v2*=Removed empty directory "./db"
+stderr
+*=reprepro __extractcontrol <.deb-file>
+-v0*=There have been errors!
+EOF
+dodo test ! -d db
+mkdir d
+testrun - -b . --dbdir d/ab/c//x __extractcontrol 3<<EOF
+return 255
+stdout
+-v2*=Created directory "d/ab"
+-v2*=Created directory "d/ab/c"
+-v2*=Created directory "d/ab/c//x"
+-v2*=Removed empty directory "d/ab/c//x"
+-v2*=Removed empty directory "d/ab/c"
+-v2*=Removed empty directory "d/ab"
+stderr
+*=reprepro __extractcontrol <.deb-file>
+-v0*=There have been errors!
+EOF
+dodo test ! -d d/ab
 mkdir -p conf
 cat > conf/options <<CONFEND
 export changed

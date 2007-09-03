@@ -20,6 +20,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <malloc.h>
 #include <string.h>
 #include "error.h"
@@ -77,6 +78,104 @@ retvalue dirs_make_recursive(const char *directory) {
 	result = dirs_check(directory);
 	RET_UPDATE(result,r);
 	return result;
+}
+
+/* create directory and return the number of created directoried */
+retvalue dir_create_needed(const char *directory, int *createddepth) {
+	retvalue r;
+	int ret;
+	size_t len = strlen(directory);
+	int check, depth = 0;
+	char *this;
+	int e;
+
+	if( interrupted() ) {
+		return RET_ERROR_INTERUPTED;
+	}
+	while( len > 0 && directory[len-1] == '/' )
+		len--;
+	while( len > 0 ) {
+		this = strndup(directory, len);
+		if( this == NULL )
+			return RET_ERROR_OOM;
+		ret = mkdir(this, 0777);
+		e = errno;
+		if( ret == 0 ) {
+			if( verbose > 1)
+				printf("Created directory \"%s\"\n", this);
+		} else if( e == EEXIST ) {
+			free(this);
+			break;
+		/* normaly ENOENT should be the only problem, but check the others
+		 * to be nice to annoying filesystems */
+		} else if( e != ENOENT && e != EACCES && e != EPERM ) {
+			fprintf(stderr,"Can not create directory \"%s\": %s(%d)m\n",
+					this, strerror(e), e);
+			free(this);
+			return RET_ERRNO(e);
+		}
+		free(this);
+		depth++;
+		while( len > 0 && directory[len-1] != '/' )
+			len--;
+		while( len > 0 && directory[len-1] == '/' )
+			len--;
+	}
+	check = depth;
+	while( directory[len] == '/' )
+		len++;
+	while( directory[len] != '\0' ) {
+		while( directory[len] != '\0' && directory[len] != '/' )
+			len++;
+		this = strndup(directory, len);
+		if( this == NULL )
+			return RET_ERROR_OOM;
+		r = dirs_check(this);
+		free(this);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		// TODO: if we get RET_NOTHING here, reduce depth?
+		check--;
+		while( directory[len] == '/' )
+			len++;
+	}
+	assert(check == 0);
+	*createddepth = depth;
+	return RET_OK;
+}
+
+void dir_remove_new(const char *directory, int created) {
+	size_t len = strlen(directory);
+	char *this;
+	int ret;
+
+	while( len > 0 && directory[len-1] == '/' )
+		len--;
+	while( created > 0 && len > 0 ) {
+		this = strndup(directory, len);
+		if( this == NULL )
+			return;
+		ret = rmdir(this);
+		if( ret == 0 ) {
+			if( verbose > 1)
+				printf("Removed empty directory \"%s\"\n", this);
+		} else {
+			int e = errno;
+			if( e != ENOTEMPTY ) {
+				fprintf(stderr, "Error removing directory \"%s\": %s(%d)\n",
+						this, strerror(e), e);
+			}
+			free(this);
+			return;
+		}
+		free(this);
+		created--;
+		while( len > 0 && directory[len-1] != '/' )
+			len--;
+		while( len > 0 && directory[len-1] == '/' )
+			len--;
+	}
+	return;
 }
 
 retvalue dirs_getdirectory(const char *filename,char **directory) {
