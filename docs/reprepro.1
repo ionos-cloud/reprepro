@@ -108,10 +108,14 @@ when not in an update run.
 
 If none is given, \fIbasedir\fP\fB/lists\fP is used.
 .TP
-.B \-\-overridedir \fIoverridedir\fP
+.B \-\-overridedir \fIoverridedir\fP \fR(OBSOLETE)\fP
 Sets the directory where specified override\-files will be searched in if
 they do not start with a slash.
 If none is given, \fIbasedir\fP\fB/override\fP is used.
+.br
+This will be removed in a future version.
+Since reprepro 2.4.0, also the directory given to \-\-confdir is searched
+for override files.
 .TP
 .B \-\-methoddir \fImethoddir\fP
 Look in \fImethoddir\fP instead of

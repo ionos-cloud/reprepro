@@ -127,7 +127,7 @@ struct distribution *distribution_find(struct distribution *distributions, const
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
 retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
 
-retvalue distribution_loadalloverrides(struct distribution *, const char *overridedir);
+retvalue distribution_loadalloverrides(struct distribution *, const char *confdir, const char *overridedir);
 void distribution_unloadoverrides(struct distribution *distribution);
 
 retvalue distribution_loaduploaders(struct distribution *, const char *confdir);

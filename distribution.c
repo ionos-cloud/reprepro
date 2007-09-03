@@ -860,25 +860,25 @@ struct distribution *distribution_find(struct distribution *distributions, const
 	return NULL;
 }
 
-retvalue distribution_loadalloverrides(struct distribution *distribution, const char *overridedir) {
+retvalue distribution_loadalloverrides(struct distribution *distribution, const char *confdir, const char *overridedir) {
 	retvalue r;
 
 	if( distribution->overrides.deb == NULL ) {
-		r = override_read(overridedir,distribution->deb_override,&distribution->overrides.deb);
+		r = override_read(confdir, overridedir, distribution->deb_override, &distribution->overrides.deb);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.deb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.udeb == NULL ) {
-		r = override_read(overridedir,distribution->udeb_override,&distribution->overrides.udeb);
+		r = override_read(confdir, overridedir, distribution->udeb_override, &distribution->overrides.udeb);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.udeb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.dsc == NULL ) {
-		r = override_read(overridedir,distribution->dsc_override,&distribution->overrides.dsc);
+		r = override_read(confdir, overridedir, distribution->dsc_override, &distribution->overrides.dsc);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.dsc = NULL;
 			return r;

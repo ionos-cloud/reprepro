@@ -4,6 +4,10 @@ Updates since 2.2.4:
   * native support of comments (i.e. lines starting with # are now ignored,
     instead of treated as ignored headers)
   * better support of tabs
+- obsolete --overridedir and searching files in overrides/ directory by default.
+  This places are still search, but so is the configuration directory now and
+  future version will stop accepting --overridedir and not search in that
+  directory.
 
 Updates since 2.2.3:
 - [SECURITY] fix bug causing a Release.gpg with only

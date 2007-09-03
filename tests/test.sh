@@ -555,14 +555,13 @@ dodiff results.expected results
 
 echo "DebOverride: debo" >> conf/distributions
 echo "DscOverride: dsco" >> conf/distributions
-mkdir override
-echo "bird Section cat/tasty" > override/debo
-echo "bird Priority hungry" >> override/debo
-echo "bird Task lunch" >> override/debo
-echo "bird-addons Section cat/ugly" >> override/debo
-echo "bird Section cat/nest" > override/dsco
-echo "bird Priority hurry" >> override/dsco
-echo "bird Homepage gopher://tree" >> override/dsco
+echo "bird Section cat/tasty" > conf/debo
+echo "bird Priority hungry" >> conf/debo
+echo "bird Task lunch" >> conf/debo
+echo "bird-addons Section cat/ugly" >> conf/debo
+echo "bird Section cat/nest" > conf/dsco
+echo "bird Priority hurry" >> conf/dsco
+echo "bird Homepage gopher://tree" >> conf/dsco
 
 mv i2/* i/
 rmdir i2
@@ -1786,8 +1785,7 @@ echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd5
 
 dodiff dists/test1/Release.expected dists/test1/Release || exit 1
 
-mkdir -p override
-cat > override/srcoverride <<END
+cat > conf/srcoverride <<END
 simple Section ugly/games
 simple Priority optional
 simple Maintainer simple.source.maintainer
@@ -1796,7 +1794,7 @@ bloat+-0a9z.app Priority optional
 bloat+-0a9z.app X-addition totally-unsupported
 bloat+-0a9z.app Maintainer bloat.source.maintainer
 END
-cat > override/binoverride <<END
+cat > conf/binoverride <<END
 simple Maintainer simple.maintainer
 simple Section ugly/base
 simple Priority optional

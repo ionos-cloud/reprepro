@@ -1474,7 +1474,7 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 	return RET_OK;
 }
 
-static retvalue candidate_add(const char *overridedir,struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
+static retvalue candidate_add(const char *confdir, const char *overridedir,struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
@@ -1488,7 +1488,7 @@ static retvalue candidate_add(const char *overridedir,struct database *database,
 		return r;
 
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		r = distribution_loadalloverrides(d->into, overridedir);
+		r = distribution_loadalloverrides(d->into, confdir, overridedir);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1660,7 +1660,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 				i->files.values[ofs]);
 			r = RET_ERROR;
 		} else
-			r = candidate_add(overridedir, database,
+			r = candidate_add(confdir, overridedir, database,
 					dereferenced,
 					i, c);
 		if( RET_WAS_ERROR(r) && i->cleanup[cuf_on_error] ) {

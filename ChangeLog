@@ -2,6 +2,8 @@
 	* remove the dbdirs and all its parents created at startup
 	that are still empty at shutdown. (Does not make much difference
 	yet, as most commands create an empty file database in there.)
+	* obsolete --overridedir, overrides belong to conf dir like all
+	the other config files now.
 
 2007-09-02  Bernhard R. Link <brlink@debian.org>
 	* fix uninitialized use of errno in listclean.

@@ -33,6 +33,8 @@
 #include "names.h"
 #include "override.h"
 
+extern int verbose;
+
 struct overrideinfo {
 	struct overrideinfo *next;
 	char *packagename;
@@ -87,7 +89,7 @@ static inline retvalue newoverrideinfo(const char *firstpart,const char *secondp
 	return RET_OK;
 }
 
-retvalue override_read(const char *overridedir,const char *filename,struct overrideinfo **info) {
+retvalue override_read(const char *confdir, const char *overridedir, const char *filename, struct overrideinfo **info) {
 	struct overrideinfo *root = NULL ,*last = NULL;
 	FILE *file;
 	char buffer[1001];
@@ -96,12 +98,24 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 		*info = NULL;
 		return RET_OK;
 	}
-	if( overridedir != NULL && filename[0] != '/' ) {
+	if( filename[0] != '/' ) {
 		char *fn = calc_dirconcat(overridedir,filename);
 		if( fn == NULL )
 			return RET_ERROR_OOM;
-		file = fopen(fn,"r");
+		file = fopen(fn, "r");
 		free(fn);
+		if( file != NULL ) {
+			if( verbose >= -1 )
+				fprintf(stderr,
+"Warning: usage of a seperate directory for override files is obsolete.\n"
+"Please put in conf dir instead for compatility with future versions.\n");
+		} else {
+			fn = calc_dirconcat(confdir, filename);
+			if( fn == NULL )
+				return RET_ERROR_OOM;
+			file = fopen(fn, "r");
+			free(fn);
+		}
 	} else
 		file = fopen(filename,"r");
 

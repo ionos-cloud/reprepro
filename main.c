@@ -1499,7 +1499,7 @@ ACTION_F(reoverride) {
 			fprintf(stderr,"Reapplying override to %s...\n",d->codename);
 		}
 
-		r = distribution_loadalloverrides(d, overridedir);
+		r = distribution_loadalloverrides(d, confdir, overridedir);
 		if( RET_IS_OK(r) ) {
 			r = distribution_foreach_rwopenedpart(d, database,
 					component, architecture, packagetype,
@@ -1574,9 +1574,13 @@ ACTION_D(includedeb) {
 	}
 
 	if( isudeb )
-		result = override_read(overridedir,distribution->udeb_override,&distribution->overrides.udeb);
+		result = override_read(confdir, overridedir,
+				distribution->udeb_override,
+				&distribution->overrides.udeb);
 	else
-		result = override_read(overridedir,distribution->deb_override,&distribution->overrides.deb);
+		result = override_read(confdir, overridedir,
+				distribution->deb_override,
+				&distribution->overrides.deb);
 	if( RET_WAS_ERROR(result) ) {
 		r = distribution_free(distribution);
 		RET_ENDUPDATE(result,r);
@@ -1660,7 +1664,9 @@ ACTION_D(includedsc) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	result = override_read(overridedir,distribution->dsc_override,&distribution->overrides.dsc);
+	result = override_read(confdir, overridedir,
+			distribution->dsc_override,
+			&distribution->overrides.dsc);
 	if( RET_WAS_ERROR(result) ) {
 		r = distribution_free(distribution);
 		RET_ENDUPDATE(result,r);
@@ -1734,7 +1740,7 @@ ACTION_D(include) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = distribution_loadalloverrides(distribution,overridedir);
+	result = distribution_loadalloverrides(distribution, confdir, overridedir);
 	if( RET_WAS_ERROR(result) ) {
 		r = distribution_free(distribution);
 		RET_ENDUPDATE(result,r);
@@ -2460,6 +2466,8 @@ static void handle_option(int c,const char *optarg) {
 					CONFIGDUP(listdir,optarg);
 					break;
 				case LO_OVERRIDEDIR:
+					if( verbose >= -1 )
+						fprintf(stderr, "Warning: --overridedir is obsolete. \nPlease put override files in the conf dir for compatibility with future version.\n");
 					CONFIGDUP(overridedir,optarg);
 					break;
 				case LO_CONFDIR:
