@@ -46,7 +46,7 @@
 
 extern int verbose;
 
-retvalue distribution_free(struct distribution *distribution) {
+static retvalue distribution_free(struct distribution *distribution) {
 	retvalue result,r;
 
 	if( distribution != NULL ) {
@@ -564,26 +564,19 @@ retvalue distribution_getmatched(const char *confdir, const char *logdir, int ar
 	return RET_OK;
 }
 
-retvalue distribution_get(const char *confdir, const char *logdir, const char *name, bool lookedat, struct distribution **distribution) {
-	retvalue result;
+retvalue distribution_get(struct distribution *alldistributions, const char *name, bool lookedat, struct distribution **distribution) {
 	struct distribution *d;
 
-	/* This is a bit overkill, as it does not stop when it finds the
-	 * definition of the distribution. But this way we can warn
-	 * about emtpy lines in the definition (as this would split
-	 * it in two definitions, the second one no valid one).
-	 */
-	result = distribution_getmatched(confdir,logdir,1,&name,lookedat,&d);
-
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	if( result == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find definition of distribution '%s' in %s/distributions!\n",name,confdir);
+	d = alldistributions;
+	while( d != NULL && strcmp(name, d->codename) != 0 )
+		d = d->next;
+	if( d == NULL ) {
+		fprintf(stderr,"Cannot find definition of distribution '%s'!\n", name);
 		return RET_ERROR_MISSING;
 	}
-	assert( d != NULL && d->next == NULL );
-
+	d->selected = true;
+	if( lookedat )
+		d->lookedat = true;
 	*distribution = d;
 	return RET_OK;
 }

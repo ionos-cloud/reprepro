@@ -383,15 +383,18 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 ACTION_D(remove) {
 	retvalue result,r;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 	struct remove_args d;
 	trackingdb tracks;
 	struct trackingdata trackingdata;
 
-	r = distribution_get(confdir, logdir, argv[1], true, &distribution);
-	assert( r != RET_NOTHING);
-	if( RET_WAS_ERROR(r) ) {
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
 		return r;
-	}
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) )
@@ -400,12 +403,12 @@ ACTION_D(remove) {
 	if( distribution->tracking != dt_NONE ) {
 		r = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(r) ) {
-			(void)distribution_free(distribution);
+			(void)distribution_freelist(alldistributions);
 			return r;
 		}
 		r = trackingdata_new(tracks,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
-			(void)distribution_free(distribution);
+			(void)distribution_freelist(alldistributions);
 			(void)tracking_done(tracks);
 			return r;
 		}
@@ -443,7 +446,7 @@ ACTION_D(remove) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {
 		(void)fputs("Not removed as not found: ",stderr);
@@ -487,19 +490,22 @@ static retvalue list_in_target(void *data, struct target *target,
 ACTION_NB(list) {
 	retvalue r,result;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 
 	assert( argc == 3 );
 
-	r = distribution_get(confdir, logdir, argv[1], false, &distribution);
-	assert( r != RET_NOTHING);
-	if( RET_WAS_ERROR(r) ) {
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
 		return r;
-	}
+	r = distribution_get(alldistributions, argv[1], false, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	result = distribution_foreach_roopenedpart(distribution, database,
 			component, architecture, packagetype,
 			list_in_target, (void*)argv[2]);
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 	return result;
 }
@@ -542,25 +548,29 @@ static retvalue listfilter_in_target(/*@temp@*/void *data, /*@temp@*/struct targ
 ACTION_NB(listfilter) {
 	retvalue r,result;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 	term *condition;
 
 	assert( argc == 3 );
 
-	r = distribution_get(confdir, logdir, argv[1], false, &distribution);
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
 	result = term_compile(&condition,argv[2],T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_free(distribution);
+		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
 	result = distribution_foreach_roopenedpart(distribution, database, component, architecture, packagetype, listfilter_in_target, condition);
 	term_free(condition);
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 	return result;
 }
@@ -1033,23 +1043,27 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 
 ACTION_D(copy) {
 	struct distribution *destination,*source;
+	struct distribution *alldistributions = NULL;
 	retvalue result, r;
 	struct copy_data d;
 	int i;
 
-	result = distribution_get(confdir, logdir, argv[1], true, &destination);
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	result = distribution_get(confdir, logdir, argv[2], false, &source);
+	result = distribution_get(alldistributions, argv[2], false, &source);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
-		distribution_free(destination);
+		(void)distribution_freelist(alldistributions);
 		return result;
 	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) ) {
-		distribution_free(destination);
+		(void)distribution_freelist(alldistributions);
 		return result;
 	}
 
@@ -1077,8 +1091,7 @@ ACTION_D(copy) {
 	r = distribution_export(export, destination, confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
-	distribution_free(source);
-	distribution_free(destination);
+	distribution_freelist(alldistributions);
 	return result;
 
 }
@@ -1175,17 +1188,21 @@ ACTION_R(retrack) {
 ACTION_D(removetrack) {
 	retvalue result,r;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 	trackingdb tracks;
 
 	assert( argc == 4 );
 
-	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 	r = tracking_initialize(&tracks, database, distribution);
 	if( RET_WAS_ERROR(r) ) {
-		distribution_free(distribution);
+		distribution_freelist(alldistributions);
 		return r;
 	}
 
@@ -1193,7 +1210,7 @@ ACTION_D(removetrack) {
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 	return result;
 }
@@ -1396,6 +1413,7 @@ ACTION_F(reoverride) {
 ACTION_D(includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 	bool isudeb;
 	trackingdb tracks;
 	int i = 0;
@@ -1436,7 +1454,10 @@ ACTION_D(includedeb) {
 		}
 	}
 
-	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1451,7 +1472,7 @@ ACTION_D(includedeb) {
 				distribution->deb_override,
 				&distribution->overrides.deb);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_free(distribution);
+		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
@@ -1459,20 +1480,20 @@ ACTION_D(includedeb) {
 	// TODO: same for component? (depending on type?)
 	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
 		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
-		(void)distribution_free(distribution);
+		(void)distribution_freelist(alldistributions);
 		return RET_ERROR;
 	}
 
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) ) {
-		(void)distribution_free(distribution);
+		(void)distribution_freelist(alldistributions);
 		return RET_ERROR;
 	}
 
 	if( distribution->tracking != dt_NONE ) {
 		result = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
+			r = distribution_freelist(alldistributions);
 			RET_ENDUPDATE(result,r);
 			return result;
 		}
@@ -1500,7 +1521,7 @@ ACTION_D(includedeb) {
 	r = distribution_export(export, distribution, confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1510,6 +1531,7 @@ ACTION_D(includedeb) {
 ACTION_D(includedsc) {
 	retvalue result,r;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 	trackingdb tracks;
 
 	assert( argc == 3 );
@@ -1526,7 +1548,10 @@ ACTION_D(includedsc) {
 				"includedsc called with a file not ending with '.dsc'\n") )
 		return RET_ERROR;
 
-	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1534,13 +1559,13 @@ ACTION_D(includedsc) {
 			distribution->dsc_override,
 			&distribution->overrides.dsc);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_free(distribution);
+		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	result = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_free(distribution);
+		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
@@ -1548,7 +1573,7 @@ ACTION_D(includedsc) {
 	if( distribution->tracking != dt_NONE ) {
 		result = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
+			r = distribution_freelist(alldistributions);
 			RET_ENDUPDATE(result,r);
 			return result;
 		}
@@ -1567,7 +1592,7 @@ ACTION_D(includedsc) {
 	r = distribution_export(export, distribution,
 			confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1576,6 +1601,7 @@ ACTION_D(includedsc) {
 ACTION_D(include) {
 	retvalue result,r;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 	trackingdb tracks;
 
 	assert( argc == 3 );
@@ -1599,14 +1625,17 @@ ACTION_D(include) {
 		}
 	}
 
-	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 
 	result = distribution_loadalloverrides(distribution, confdir, overridedir);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_free(distribution);
+		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
@@ -1614,7 +1643,7 @@ ACTION_D(include) {
 	if( distribution->tracking != dt_NONE ) {
 		result = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
+			r = distribution_freelist(alldistributions);
 			RET_ENDUPDATE(result,r);
 			return result;
 		}
@@ -1625,7 +1654,7 @@ ACTION_D(include) {
 	if( RET_WAS_ERROR(result) ) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
-		r = distribution_free(distribution);
+		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
@@ -1640,7 +1669,7 @@ ACTION_D(include) {
 	RET_ENDUPDATE(result,r);
 	r = distribution_export(export,distribution,confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1892,10 +1921,14 @@ ACTION_D(processincoming) {
 ACTION_R(gensnapshot) {
 	retvalue result,r;
 	struct distribution *distribution;
+	struct distribution *alldistributions = NULL;
 
 	assert( argc == 3 );
 
-	result = distribution_get(confdir, logdir, argv[1], true, &distribution);
+	r = distribution_readall(confdir, logdir, &alldistributions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1904,7 +1937,7 @@ ACTION_R(gensnapshot) {
 	                               confdir, distdir,
 				       database,
 	                               argv[2]);
-	r = distribution_free(distribution);
+	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 	return result;
 }

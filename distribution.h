@@ -85,8 +85,8 @@ struct distribution {
 	bool selected;
 };
 
-retvalue distribution_get(const char *confdir, const char *logdir, const char *name, bool lookedat, /*@out@*/struct distribution **distribution);
-retvalue distribution_free(/*@only@*/struct distribution *distribution);
+retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);
+// retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 /* set lookedat, start logger, ... */
 retvalue distribution_prepareforwriting(struct distribution *distribution);
