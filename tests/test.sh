@@ -120,29 +120,23 @@ esac
 touch results.empty
 
 dodo test ! -d db
-testrun - -b . __extractcontrol 3<<EOF
-return 255
+testrun - -b . _versioncompare 0 1 3<<EOF
 stdout
 -v2*=Created directory "./db"
 -v2*=Removed empty directory "./db"
-stderr
-*=reprepro __extractcontrol <.deb-file>
--v0*=There have been errors!
+*='0' is smaller than '1'.
 EOF
 dodo test ! -d db
 mkdir d
-testrun - -b . --dbdir d/ab/c//x __extractcontrol 3<<EOF
-return 255
+testrun - -b . --dbdir d/ab/c//x _versioncompare 0 1 3<<EOF
 stdout
 -v2*=Created directory "d/ab"
 -v2*=Created directory "d/ab/c"
 -v2*=Created directory "d/ab/c//x"
+*='0' is smaller than '1'.
 -v2*=Removed empty directory "d/ab/c//x"
 -v2*=Removed empty directory "d/ab/c"
 -v2*=Removed empty directory "d/ab"
-stderr
-*=reprepro __extractcontrol <.deb-file>
--v0*=There have been errors!
 EOF
 dodo test ! -d d/ab
 mkdir -p conf
@@ -2506,7 +2500,8 @@ cat >includeerror.rules <<EOF
 returns 255
 stderr
 -v0*=There have been errors!
-=reprepro [--delete] include <distribution> <.changes-file>
+*=Error: Too few arguments for command 'include'!
+*=Syntax: reprepro [--delete] include <distribution> <.changes-file>
 EOF
 testrun includeerror -b . include unknown 3<<EOF
 testrun includeerror -b . include unknown test.changes test2.changes
