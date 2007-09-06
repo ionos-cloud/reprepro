@@ -1502,6 +1502,7 @@ retvalue updates_checkupdate(struct database *database, const char *methoddir, s
 		}
 		if( !anythingtodo ) {
 			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
+			aptmethod_shutdown(run);
 			return result;
 		}
 	}
@@ -1511,6 +1512,7 @@ retvalue updates_checkupdate(struct database *database, const char *methoddir, s
 	r = updates_calllisthooks(distributions);
 	RET_UPDATE(result,r);
 	if( RET_WAS_ERROR(result) ) {
+		aptmethod_shutdown(run);
 		return result;
 	}
 	if( verbose > 0 )
