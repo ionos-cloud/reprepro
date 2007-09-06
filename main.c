@@ -103,6 +103,7 @@ static bool	skipold = true;
 static size_t   waitforlock = 0;
 static enum exportwhen export = EXPORT_NORMAL;
 int		verbose = 0;
+static bool	fast = false;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
@@ -113,7 +114,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty);
+O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -2206,6 +2207,7 @@ LO_NOTHINGISERROR,
 LO_NOLISTDOWNLOAD,
 LO_ASKPASSPHRASE,
 LO_KEEPDIRECTORIES,
+LO_FAST,
 LO_SKIPOLD,
 LO_GUESSGPGTTY,
 LO_NODELETE,
@@ -2215,6 +2217,7 @@ LO_NONOTHINGISERROR,
 LO_LISTDOWNLOAD,
 LO_NOASKPASSPHRASE,
 LO_NOKEEPDIRECTORIES,
+LO_NOFAST,
 LO_NOSKIPOLD,
 LO_NOGUESSGPGTTY,
 LO_EXPORT,
@@ -2388,6 +2391,12 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NOSKIPOLD:
 					CONFIGSET(skipold, false);
+					break;
+				case LO_FAST:
+					CONFIGSET(fast, true);
+					break;
+				case LO_NOFAST:
+					CONFIGSET(fast, false);
 					break;
 				case LO_EXPORT:
 					setexport(optarg);
@@ -2579,6 +2588,8 @@ int main(int argc,char *argv[]) {
 		{"guessgpgtty", no_argument, &longoption, LO_GUESSGPGTTY},
 		{"noguessgpgtty", no_argument, &longoption, LO_NOGUESSGPGTTY},
 		{"nonoguessgpgtty", no_argument, &longoption, LO_GUESSGPGTTY},
+		{"fast", no_argument, &longoption, LO_FAST},
+		{"nofast", no_argument, &longoption, LO_NOFAST},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
