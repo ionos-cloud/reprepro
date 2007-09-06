@@ -45,27 +45,11 @@ static void database_free(struct database *db) {
 	free(db);
 }
 
-retvalue database_create(struct database **result, const char *dbdir) {
-	struct database *n;
-
-	n = calloc(1, sizeof(struct database));
-	if( n == NULL )
-		return RET_ERROR_OOM;
-	n->directory = strdup(dbdir);
-	if( n->directory == NULL ) {
-		free(n);
-		return RET_ERROR_OOM;
-	}
-
-	*result = n;
-	return RET_OK;
-}
-
 /**********************/
 /* lock file handling */
 /**********************/
 
-retvalue database_lock(struct database *db, size_t waitforlock) {
+static retvalue database_lock(struct database *db, size_t waitforlock) {
 	char *lockfile;
 	int fd;
 	retvalue r;
@@ -309,3 +293,38 @@ retvalue database_listsubtables(struct database *database,const char *filename,s
 		return RET_OK;
 	}
 }
+
+/* Initialize a database.
+ * - if not fast, make all kind of checks for consistency (TO BE IMPLEMENTED),
+ * - if readonly, do not create but return with RET_NOTHING
+ * - lock database, waiting a given amount of time if already locked
+ */
+retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool readonly, size_t waitforlock) {
+	struct database *n;
+	retvalue r;
+
+	if( readonly && !isdir(dbdir) ) {
+		if( verbose >= 0 )
+			fprintf(stderr, "Exiting without doing anything, as there is no database yet that could result in other actions.\n");
+		return RET_NOTHING;
+	}
+
+	n = calloc(1, sizeof(struct database));
+	if( n == NULL )
+		return RET_ERROR_OOM;
+	n->directory = strdup(dbdir);
+	if( n->directory == NULL ) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
+
+	r = database_lock(n, waitforlock);
+	assert( r != RET_NOTHING );
+	if( !RET_IS_OK(r) ) {
+		database_free(n);
+		return r;
+	}
+	*result = n;
+	return RET_OK;
+}
+

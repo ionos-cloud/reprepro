@@ -122,22 +122,50 @@ touch results.empty
 dodo test ! -d db
 testrun - -b . _versioncompare 0 1 3<<EOF
 stdout
--v2*=Created directory "./db"
--v2*=Removed empty directory "./db"
 *='0' is smaller than '1'.
+EOF
+mkdir -p conf
+cat > conf/distributions <<EOF
+
+#
+
+Codename:		test	
+Architectures:
+# This is an comment
+ 	a
+Components:
+ 	c
+
+#
+#
+
+EOF
+touch conf/updates
+dodo test ! -d db
+testrun - -b . checkupdate test 3<<EOF
+stderr
+*=Nothing to do found. (Use --noskipold to force processing)
+stdout
+-v2*=Created directory "./db"
+-v2=Created directory "./lists"
+-v2*=Removed empty directory "./db"
 EOF
 dodo test ! -d db
 mkdir d
-testrun - -b . --dbdir d/ab/c//x _versioncompare 0 1 3<<EOF
+testrun - -b . --dbdir d/ab/c//x checkupdate test 3<<EOF
+stderr
+*=Nothing to do found. (Use --noskipold to force processing)
 stdout
 -v2*=Created directory "d/ab"
 -v2*=Created directory "d/ab/c"
 -v2*=Created directory "d/ab/c//x"
-*='0' is smaller than '1'.
+-v2=Created directory "./lists"
 -v2*=Removed empty directory "d/ab/c//x"
 -v2*=Removed empty directory "d/ab/c"
 -v2*=Removed empty directory "d/ab"
 EOF
+rm -r -f lists
+rm -r conf
 dodo test ! -d d/ab
 mkdir -p conf
 cat > conf/options <<CONFEND
@@ -153,7 +181,6 @@ CONFEND
 testrun - -b . export 3<<EOF
 return 255
 stdout
--v2*=Created directory "./db"
 stderr
 *=Unknown Log notifier option in ./conf/distributions, line 5, column 2: '--bla'
 -v0*=There have been errors!
@@ -210,6 +237,7 @@ Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 stdout
+-v2*=Created directory "./db"
 -v1*=Exporting B...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/B"

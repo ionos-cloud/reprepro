@@ -619,6 +619,9 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 			       distribution = distribution->next ) {
 		struct update_distribution *u_d;
 
+		if( !distribution->selected )
+			continue;
+
 		u_d = calloc(1,sizeof(struct update_distribution));
 		if( u_d == NULL ) {
 			r = RET_ERROR_OOM;

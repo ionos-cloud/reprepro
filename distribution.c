@@ -500,66 +500,43 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 	return t;
 }
 
-/* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *confdir, const char *logdir, int argc, const char *argv[], bool lookedat, struct distribution **distributions) {
-	retvalue r;
-	struct distribution *d, *alldistributions, *selecteddistributions, **l;
+/* mark all distributions matching one of the first argc argv */
+retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat) {
+	struct distribution *d;
 	bool *found;
 	int i;
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
+	assert( alldistributions != NULL );
 
-	// TODO: only set selected on those choosen. (once reprepro is ready) */
 	if( argc <= 0 ) {
 		for( d = alldistributions ; d != NULL ; d = d->next ) {
 			d->selected = true;
 			d->lookedat = lookedat;
 		}
-		assert( alldistributions != NULL );
-		*distributions = alldistributions;
 		return RET_OK;
 	}
 	found = calloc(argc, sizeof(bool));
-	if( found == NULL ) {
-		distribution_freelist(alldistributions);
+	if( found == NULL )
 		return RET_ERROR_OOM;
-	}
-	selecteddistributions = NULL;
-	l = &selecteddistributions;
 
-	while( alldistributions != NULL ) {
-		d = alldistributions;
-		alldistributions = d->next;
-		d->next = NULL;
-
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		for( i = 0 ; i < argc ; i++ ) {
 			if( strcmp(argv[i], d->codename) == 0 ) {
 				assert( !found[i] );
 				found[i] = true;
 				d->selected = true;
-				d->lookedat = lookedat;
-				*l = d;
-				l = &d->next;
-				d = NULL;
-				break;
+				if( lookedat )
+					d->lookedat = lookedat;
 			}
 		}
-		if( d != NULL )
-			(void)distribution_free(d);
 	}
 	for( i = 0 ; i < argc ; i++ ) {
 		if( !found[i] ) {
-			fprintf(stderr, "No distribution definition of '%s' found in '%s/distributions'!\n", argv[i], confdir);
-			distribution_freelist(selecteddistributions);
+			fprintf(stderr, "No distribution definition of '%s' found in distributions'!\n", argv[i]);
 			free(found);
 			return RET_ERROR_MISSING;
 		}
 	}
-	assert( selecteddistributions != NULL );
-	*distributions = selecteddistributions;
 	free(found);
 	return RET_OK;
 }
@@ -692,10 +669,7 @@ retvalue distribution_freelist(struct distribution *distributions) {
 	return result;
 }
 
-retvalue distribution_exportandfreelist(enum exportwhen when,
-		struct distribution *distributions,
-		const char *confdir,const char *distdir,
-		struct database *database) {
+retvalue distribution_exportlist(enum exportwhen when, struct distribution *distributions, const char *confdir,const char *distdir, struct database *database) {
 	retvalue result,r;
 	bool todo = false;
 	struct distribution *d;
@@ -707,6 +681,8 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 	}
 
 	for( d=distributions; d != NULL; d = d->next ) {
+		if( !d->selected )
+			continue;
 		if( d->lookedat && (RET_IS_OK(d->status) ||
 			( d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
 			when == EXPORT_FORCE)) {
@@ -718,10 +694,9 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		printf("Exporting indices...\n");
 
 	result = RET_NOTHING;
-	while( distributions != NULL ) {
-		d = distributions;
-		distributions = d->next;
-
+	for( d=distributions; d != NULL; d = d->next ) {
+		if( !d->selected )
+			continue;
 		if( !d->lookedat ) {
 			if( verbose >= 30 )
 				printf(
@@ -764,9 +739,6 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 			r = export(d, confdir, distdir, database, true);
 			RET_UPDATE(result,r);
 		}
-
-		r = distribution_free(d);
-		RET_ENDUPDATE(result,r);
 	}
 	return result;
 }

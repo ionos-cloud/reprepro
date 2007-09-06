@@ -1,3 +1,7 @@
+2007-09-06  Bernhard R. Link <brlink@debian.org>
+	* read all distribution definitions before starting
+	  any action.
+
 2007-09-04  Bernhard R. Link <brlink@debian.org>
 	* test number of arguments earlier.
 

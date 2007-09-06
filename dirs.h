@@ -22,4 +22,6 @@ void dir_remove_new(const char *directory, int created);
 retvalue dirs_getdirectory(const char *filename,/*@out@*/char **directory);
 
 const char *dirs_basename(const char *filename);
+
+bool isdir(const char *);
 #endif

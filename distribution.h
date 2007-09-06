@@ -118,14 +118,15 @@ retvalue distribution_snapshot(struct distribution *distribution,const char *con
 /* read the configuration from all distributions */
 retvalue distribution_readall(const char *confdir,const char *logdir,/*@out@*/struct distribution **distributions);
 
-/* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *confdir, const char *logdir, int argc, const char *argv[], bool lookedat, /*@out@*/struct distribution **distributions);
+/* mark all dists from <conf> fitting in the filter given in <argc,argv> */
+retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat);
 
 /* get a pointer to the apropiate part of the linked list */
 struct distribution *distribution_find(struct distribution *distributions, const char *name);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
 retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
+retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
 
 retvalue distribution_loadalloverrides(struct distribution *, const char *confdir, const char *overridedir);
 void distribution_unloadoverrides(struct distribution *distribution);

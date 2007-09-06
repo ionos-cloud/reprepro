@@ -161,51 +161,84 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 }
 
 #define ACTION_N(name) static retvalue action_n_ ## name ( \
+			UNUSED(struct distribution *dummy2), \
 			UNUSED(struct database *dummy),	\
 			UNUSED(struct strlist* dummy3), \
 			int argc,const char *argv[])
 
-#define ACTION_NB(name) static retvalue action_n_ ## name ( \
+#define ACTION_C(name) static retvalue action_c_ ## name ( \
+			struct distribution *alldistributions, \
+			UNUSED(struct database *dummy),	\
+			UNUSED(struct strlist* dummy3), \
+			int argc,const char *argv[])
+
+#define ACTION_u_B(name) static retvalue action_b_ ## name ( \
+			UNUSED(struct distribution *ddummy), \
+			struct database *database,	\
+			UNUSED(struct strlist* dummy3), \
+			int argc,const char *argv[])
+
+#define ACTION_B(name) static retvalue action_b_ ## name ( \
+			struct distribution *alldistributions, \
 			struct database *database,	\
 			UNUSED(struct strlist* dummy3), \
 			int argc,const char *argv[])
 
 #define ACTION_U_R(name) static retvalue action_r_ ## name ( \
+			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
 			UNUSED(int argc), UNUSED(const char *dummy4[]))
 
+#define ACTION_u_R(name) static retvalue action_r_ ## name ( \
+			UNUSED(struct distribution *ddummy), \
+			struct database *database,		\
+			UNUSED(struct strlist* dummy3), \
+			int argc,const char *argv[])
+
 #define ACTION_R(name) static retvalue action_r_ ## name ( \
+			struct distribution *alldistributions, \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
 			int argc,const char *argv[])
 
 #define ACTION_U_F(name) static retvalue action_f_ ## name ( \
+			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
 			UNUSED(int argc), UNUSED(const char *dummy4[]))
 
+#define ACTION_u_F(name) static retvalue action_f_ ## name ( \
+			UNUSED(struct distribution *ddummy), \
+			struct database *database,		\
+			UNUSED(struct strlist* dummy3), \
+			int argc,const char *argv[])
 #define ACTION_F(name) static retvalue action_f_ ## name ( \
+			struct distribution *alldistributions, \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
 			int argc,const char *argv[])
 
 #define ACTION_RF(name) static retvalue action_rf_ ## name ( \
+			struct distribution *alldistributions, \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
 			int argc,const char *argv[])
 
 #define ACTION_U_RF(name) static retvalue action_rf_ ## name ( \
+			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
 			UNUSED(int argc) ,UNUSED(const char *dumym4[]))
 
 #define ACTION_D(name) static retvalue action_d_ ## name ( \
+			struct distribution *alldistributions, \
 			struct database *database,		\
 			struct strlist* dereferenced, 	\
 			int argc,const char *argv[])
 
 #define ACTION_U_D(name) static retvalue action_d_ ## name ( \
+			struct distribution *alldistributions, \
 			struct database *database,		\
 			struct strlist* dereferenced, 	\
 			UNUSED(int argc), UNUSED(const char *dummy4[]))
@@ -219,6 +252,7 @@ ACTION_N(printargs) {
 	}
 	return 0;
 }
+
 ACTION_N(extractcontrol) {
 	retvalue result;
 	char *control;
@@ -250,13 +284,13 @@ ACTION_N(extractfilelist) {
 	return result;
 }
 
-ACTION_F(fakeemptyfilelist) {
+ACTION_u_F(fakeemptyfilelist) {
 	assert( argc == 2 );
 	return files_addfilelist(database, argv[1], "");
 }
 
 
-ACTION_F(generatefilelists) {
+ACTION_u_F(generatefilelists) {
 	assert( argc == 2 || argc == 3 );
 	if( argc == 2 && strcmp(argv[1],"reread") != 0 ) {
 		fprintf(stderr,"Error: Unrecognized second argument '%s'\n"
@@ -295,7 +329,7 @@ ACTION_U_F(addmd5sums) {
 }
 
 
-ACTION_R(removereferences) {
+ACTION_u_R(removereferences) {
 	assert( argc == 2 );
 	return references_remove(database, argv[1], NULL);
 }
@@ -352,7 +386,7 @@ ACTION_U_RF(deleteunreferenced) {
 	return result;
 }
 
-ACTION_R(addreference) {
+ACTION_u_R(addreference) {
 	assert( argc == 2 || argc == 3 );
 	return references_increment(database, argv[1], argv[2]);
 }
@@ -384,14 +418,10 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 ACTION_D(remove) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 	struct remove_args d;
 	trackingdb tracks;
 	struct trackingdata trackingdata;
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	r = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
@@ -404,12 +434,10 @@ ACTION_D(remove) {
 	if( distribution->tracking != dt_NONE ) {
 		r = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(r) ) {
-			(void)distribution_freelist(alldistributions);
 			return r;
 		}
 		r = trackingdata_new(tracks,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
-			(void)distribution_freelist(alldistributions);
 			(void)tracking_done(tracks);
 			return r;
 		}
@@ -447,8 +475,6 @@ ACTION_D(remove) {
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
 	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {
 		(void)fputs("Not removed as not found: ",stderr);
 		while( d.count > 0 ) {
@@ -488,16 +514,12 @@ static retvalue list_in_target(void *data, struct target *target,
 	return result;
 }
 
-ACTION_NB(list) {
+ACTION_B(list) {
 	retvalue r,result;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 
 	assert( argc == 3 );
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	r = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
@@ -506,8 +528,6 @@ ACTION_NB(list) {
 	result = distribution_foreach_roopenedpart(distribution, database,
 			component, architecture, packagetype,
 			list_in_target, (void*)argv[2]);
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
 	return result;
 }
 
@@ -546,17 +566,13 @@ static retvalue listfilter_in_target(/*@temp@*/void *data, /*@temp@*/struct targ
 	return result;
 }
 
-ACTION_NB(listfilter) {
+ACTION_B(listfilter) {
 	retvalue r,result;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 	term *condition;
 
 	assert( argc == 3 );
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	r = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert( r != RET_NOTHING);
 	if( RET_WAS_ERROR(r) ) {
@@ -564,19 +580,15 @@ ACTION_NB(listfilter) {
 	}
 	result = term_compile(&condition,argv[2],T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(alldistributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
 	result = distribution_foreach_roopenedpart(distribution, database, component, architecture, packagetype, listfilter_in_target, condition);
 	term_free(condition);
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
 	return result;
 }
 
-ACTION_F(detect) {
+ACTION_u_F(detect) {
 	char buffer[5000],*nl;
 	int i;
 	retvalue r,ret;
@@ -601,7 +613,7 @@ ACTION_F(detect) {
 	return ret;
 }
 
-ACTION_F(forget) {
+ACTION_u_F(forget) {
 	char buffer[5000],*nl;
 	int i;
 	retvalue r,ret;
@@ -635,7 +647,7 @@ static retvalue printout(UNUSED(void *data),const char *package,const char *chun
 	return RET_OK;
 }
 
-ACTION_NB(dumpcontents) {
+ACTION_u_B(dumpcontents) {
 	retvalue result,r;
 	packagesdb packages;
 
@@ -655,19 +667,22 @@ ACTION_NB(dumpcontents) {
 
 ACTION_F(export) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
 	if( export == EXPORT_NEVER ) {
 		fprintf(stderr, "Error: reprepro export incompatible with --export=never\n");
 		return RET_ERROR;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
+
 		if( verbose > 0 ) {
 			printf("Exporting %s...\n",d->codename);
 		}
@@ -675,12 +690,9 @@ ACTION_F(export) {
 		r = distribution_fullexport(d, confdir, distdir, database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && export != EXPORT_FORCE) {
-			distribution_freelist(distributions);
 			return r;
 		}
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
 	return result;
 }
 
@@ -689,7 +701,6 @@ ACTION_F(export) {
 ACTION_D(update) {
 	retvalue result,r;
 	struct update_pattern *patterns;
-	struct distribution *distributions;
 	struct update_distribution *u_distributions;
 
 	result = dirs_make_recursive(listdir);
@@ -697,24 +708,19 @@ ACTION_D(update) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getpatterns(confdir,&patterns);
-	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
+	result = updates_getpatterns(confdir, &patterns);
+	if( RET_WAS_ERROR(result) )
 		return result;
-	}
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	assert( RET_IS_OK(result) );
@@ -729,7 +735,7 @@ ACTION_D(update) {
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportandfreelist(export, distributions,
+	r = distribution_exportlist(export, alldistributions,
 			confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
@@ -739,7 +745,6 @@ ACTION_D(update) {
 ACTION_D(predelete) {
 	retvalue result,r;
 	struct update_pattern *patterns;
-	struct distribution *distributions;
 	struct update_distribution *u_distributions;
 
 	result = dirs_make_recursive(listdir);
@@ -747,47 +752,42 @@ ACTION_D(predelete) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 
 	result = updates_getpatterns(confdir,&patterns);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	assert( RET_IS_OK(result) );
 
 	if( !keepunneededlists ) {
-		result = updates_clearlists(listdir,u_distributions);
+		result = updates_clearlists(listdir, u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
 		result = updates_predelete(database, methoddir, u_distributions, nolistsdownload, skipold, dereferenced);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportandfreelist(export, distributions,
+	r = distribution_exportlist(export, alldistributions,
 			confdir, distdir, database);
-	RET_ENDUPDATE(result,r);
+	RET_ENDUPDATE(result, r);
 
 	return result;
 }
 
 ACTION_D(iteratedupdate) {
-	retvalue result,r;
+	retvalue result;
 	struct update_pattern *patterns;
-	struct distribution *distributions;
 	struct update_distribution *u_distributions;
 
 	result = dirs_make_recursive(listdir);
@@ -795,23 +795,18 @@ ACTION_D(iteratedupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getpatterns(confdir,&patterns);
-	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
+	result = updates_getpatterns(confdir, &patterns);
+	if( RET_WAS_ERROR(result) )
 		return result;
-	}
 
-	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
@@ -819,20 +814,16 @@ ACTION_D(iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir, database, distdir,methoddir,u_distributions,nolistsdownload,skipold,dereferenced,export, spacecheckmode, reserveddbspace, reservedotherspace);
+		result = updates_iteratedupdate(confdir, database, distdir, methoddir, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
-
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
 
 	return result;
 }
 
-ACTION_NB(checkupdate) {
-	retvalue result,r;
+ACTION_B(checkupdate) {
+	retvalue result;
 	struct update_pattern *patterns;
-	struct distribution *distributions;
 	struct update_distribution *u_distributions;
 
 	result = dirs_make_recursive(listdir);
@@ -840,23 +831,19 @@ ACTION_NB(checkupdate) {
 		return result;
 	}
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_getpatterns(confdir,&patterns);
+	result = updates_getpatterns(confdir, &patterns);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
-	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
@@ -865,8 +852,6 @@ ACTION_NB(checkupdate) {
 
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
 
 	return result;
 }
@@ -876,81 +861,60 @@ ACTION_D(pull) {
 	retvalue result,r;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
-	struct distribution *distributions,
-	/* list of distributions only source but not target of a replication: */
-		*sourceonly = NULL;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = pull_getrules(confdir,&rules);
+	result = pull_getrules(confdir, &rules);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	assert( RET_IS_OK(result) );
 
-	result = pull_prepare(confdir, logdir, rules, distributions, &p, &sourceonly);
+	result = pull_prepare(alldistributions, rules, &p);
 	if( RET_WAS_ERROR(result) ) {
 		pull_freerules(rules);
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	result = pull_update(database, p, dereferenced);
 
 	pull_freerules(rules);
 	pull_freedistributions(p);
-	r = distribution_freelist(sourceonly);
-	RET_ENDUPDATE(result,r);
 
-	r = distribution_exportandfreelist(export, distributions,
+	r = distribution_exportlist(export, alldistributions,
 			confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
 }
 
-ACTION_NB(checkpull) {
-	retvalue result,r;
+ACTION_B(checkpull) {
+	retvalue result;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
-	struct distribution *distributions,
-	/* list of distributions only source but not target of a replication: */
-		*sourceonly = NULL;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 
 	result = pull_getrules(confdir,&rules);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	assert( RET_IS_OK(result) );
 
-	result = pull_prepare(confdir, logdir, rules, distributions, &p, &sourceonly);
+	result = pull_prepare(alldistributions, rules, &p);
 	if( RET_WAS_ERROR(result) ) {
 		pull_freerules(rules);
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	result = pull_checkupdate(database, p);
 
 	pull_freerules(rules);
 	pull_freedistributions(p);
-	r = distribution_freelist(sourceonly);
-	RET_ENDUPDATE(result,r);
-
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
 
 	return result;
 }
@@ -1044,14 +1008,10 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 
 ACTION_D(copy) {
 	struct distribution *destination,*source;
-	struct distribution *alldistributions = NULL;
 	retvalue result, r;
 	struct copy_data d;
 	int i;
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
@@ -1059,12 +1019,10 @@ ACTION_D(copy) {
 	result = distribution_get(alldistributions, argv[2], false, &source);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
-		(void)distribution_freelist(alldistributions);
 		return result;
 	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) ) {
-		(void)distribution_freelist(alldistributions);
 		return result;
 	}
 
@@ -1092,7 +1050,6 @@ ACTION_D(copy) {
 	r = distribution_export(export, destination, confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
-	distribution_freelist(alldistributions);
 	return result;
 
 }
@@ -1107,15 +1064,18 @@ static retvalue reref(void *data,struct target *target,UNUSED(struct distributio
 
 ACTION_R(rereference) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
+
 		if( verbose > 0 ) {
 			printf("Referencing %s...\n",d->codename);
 		}
@@ -1127,8 +1087,6 @@ ACTION_R(rereference) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
 
 	return result;
 }
@@ -1143,17 +1101,19 @@ static retvalue retrack(void *data,struct target *target,UNUSED(struct distribut
 
 ACTION_R(retrack) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		struct data_binsrctrack dat;
 
+		if( !d->selected )
+			continue;
 		if( verbose > 0 ) {
 			fprintf(stderr,"Chasing %s...\n",d->codename);
 		}
@@ -1180,30 +1140,22 @@ ACTION_R(retrack) {
 		if( RET_WAS_ERROR(result) )
 			break;
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
 ACTION_D(removetrack) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 	trackingdb tracks;
 
 	assert( argc == 4 );
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
 	r = tracking_initialize(&tracks, database, distribution);
 	if( RET_WAS_ERROR(r) ) {
-		distribution_freelist(alldistributions);
 		return r;
 	}
 
@@ -1211,23 +1163,24 @@ ACTION_D(removetrack) {
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
 	return result;
 }
 
 ACTION_D(removealltracks) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		trackingdb tracks;
+
+		if( !d->selected )
+			continue;
 
 		if( verbose >= 0 ) {
 			printf("Deleting all tracks for %s...\n",d->codename);
@@ -1248,24 +1201,24 @@ ACTION_D(removealltracks) {
 		if( RET_WAS_ERROR(result) )
 			break;
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
 ACTION_D(tidytracks) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		trackingdb tracks;
+
+		if( !d->selected )
+			continue;
 
 		if( verbose >= 0 ) {
 			printf("Looking for old tracks in %s...\n",d->codename);
@@ -1284,24 +1237,24 @@ ACTION_D(tidytracks) {
 		if( RET_WAS_ERROR(result) )
 			break;
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
-ACTION_NB(dumptracks) {
+ACTION_B(dumptracks) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		trackingdb tracks;
+
+		if( !d->selected )
+			continue;
 
 		r = tracking_initialize(&tracks, database, d);
 		if( RET_WAS_ERROR(r) ) {
@@ -1317,9 +1270,6 @@ ACTION_NB(dumptracks) {
 		if( RET_WAS_ERROR(result) )
 			break;
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 /***********************checking*************************/
@@ -1330,15 +1280,18 @@ static retvalue check_target(void *data,struct target *target,UNUSED(struct dist
 
 ACTION_RF(check) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
+
 		if( verbose > 0 ) {
 			printf("Checking %s...\n",d->codename);
 		}
@@ -1350,13 +1303,10 @@ ACTION_RF(check) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
-ACTION_F(checkpool) {
+ACTION_u_F(checkpool) {
 
 	if( argc == 2 && strcmp(argv[1],"fast") != 0 ) {
 		fprintf(stderr,"Error: Unrecognized second argument '%s'\n"
@@ -1376,15 +1326,18 @@ static retvalue reoverride_target(UNUSED(void *data),struct target *target,struc
 
 ACTION_F(reoverride) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, true, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+
+		if( !d->selected )
+			continue;
 
 		if( verbose > 0 ) {
 			fprintf(stderr,"Reapplying override to %s...\n",d->codename);
@@ -1403,7 +1356,7 @@ ACTION_F(reoverride) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	r = distribution_exportandfreelist(export,distributions,confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1414,7 +1367,6 @@ ACTION_F(reoverride) {
 ACTION_D(includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 	bool isudeb;
 	trackingdb tracks;
 	int i = 0;
@@ -1455,9 +1407,6 @@ ACTION_D(includedeb) {
 		}
 	}
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
@@ -1473,29 +1422,23 @@ ACTION_D(includedeb) {
 				distribution->deb_override,
 				&distribution->overrides.deb);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(alldistributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
 	// TODO: same for component? (depending on type?)
 	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
 		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
-		(void)distribution_freelist(alldistributions);
 		return RET_ERROR;
 	}
 
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) ) {
-		(void)distribution_freelist(alldistributions);
 		return RET_ERROR;
 	}
 
 	if( distribution->tracking != dt_NONE ) {
 		result = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(result) ) {
-			r = distribution_freelist(alldistributions);
-			RET_ENDUPDATE(result,r);
 			return result;
 		}
 	} else {
@@ -1522,9 +1465,6 @@ ACTION_D(includedeb) {
 	r = distribution_export(export, distribution, confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
@@ -1532,7 +1472,6 @@ ACTION_D(includedeb) {
 ACTION_D(includedsc) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 	trackingdb tracks;
 
 	assert( argc == 3 );
@@ -1549,9 +1488,6 @@ ACTION_D(includedsc) {
 				"includedsc called with a file not ending with '.dsc'\n") )
 		return RET_ERROR;
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
@@ -1560,22 +1496,16 @@ ACTION_D(includedsc) {
 			distribution->dsc_override,
 			&distribution->overrides.dsc);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(alldistributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 	result = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(alldistributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
 	if( distribution->tracking != dt_NONE ) {
 		result = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(result) ) {
-			r = distribution_freelist(alldistributions);
-			RET_ENDUPDATE(result,r);
 			return result;
 		}
 	} else {
@@ -1593,8 +1523,6 @@ ACTION_D(includedsc) {
 	r = distribution_export(export, distribution,
 			confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
 
 	return result;
 }
@@ -1602,7 +1530,6 @@ ACTION_D(includedsc) {
 ACTION_D(include) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 	trackingdb tracks;
 
 	assert( argc == 3 );
@@ -1626,9 +1553,6 @@ ACTION_D(include) {
 		}
 	}
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
@@ -1636,16 +1560,12 @@ ACTION_D(include) {
 
 	result = distribution_loadalloverrides(distribution, confdir, overridedir);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(alldistributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
 	if( distribution->tracking != dt_NONE ) {
 		result = tracking_initialize(&tracks, database, distribution);
 		if( RET_WAS_ERROR(result) ) {
-			r = distribution_freelist(alldistributions);
-			RET_ENDUPDATE(result,r);
 			return result;
 		}
 	} else {
@@ -1654,8 +1574,6 @@ ACTION_D(include) {
 	result = distribution_loaduploaders(distribution, confdir);
 	if( RET_WAS_ERROR(result) ) {
 		r = tracking_done(tracks);
-		RET_ENDUPDATE(result,r);
-		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
@@ -1670,37 +1588,40 @@ ACTION_D(include) {
 	RET_ENDUPDATE(result,r);
 	r = distribution_export(export,distribution,confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
 
 	return result;
 }
 
 /***********************createsymlinks***********************************/
 
-ACTION_N(createsymlinks) {
+ACTION_C(createsymlinks) {
 	retvalue result,r;
-	struct distribution *distributions,*d,*d2;
+	struct distribution *d,*d2;
 
 	r = dirs_make_recursive(distdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		char *linkname,*buffer;
 		size_t bufsize;
 		int ret;
 
+		if( !d->selected )
+			continue;
+
 		if( d->suite == NULL || strcmp(d->suite, d->codename) == 0 )
 			continue;
 		r = RET_NOTHING;
-		for( d2 = distributions ; d2 != NULL ; d2 = d2->next ) {
+		for( d2 = alldistributions ; d2 != NULL ; d2 = d2->next ) {
+			if( !d2->selected )
+				continue;
 			if( d!=d2 && d2->suite!=NULL &&strcmp(d->suite,d2->suite)==0) {
 				fprintf(stderr,
 "Not linking %s->%s due to conflict with %s->%s\n",
@@ -1782,8 +1703,6 @@ ACTION_N(createsymlinks) {
 
 		RET_UPDATE(result,r);
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
 	return result;
 }
 
@@ -1799,30 +1718,22 @@ static retvalue docount(void *data,UNUSED(const char *a),UNUSED(const char *b)) 
 
 ACTION_U_D(clearvanished) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 	struct strlist identifiers;
 	bool *inuse;
 	int i;
 
-	result = distribution_getmatched(confdir, logdir, 0, NULL, false, &distributions);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
-		return result;
-	}
 	result = packages_getdatabases(database, &identifiers);
 	if( RET_WAS_ERROR(result) ) {
-		r = distribution_freelist(distributions);
-		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
 	inuse = calloc(identifiers.count, sizeof(bool));
 	if( inuse == NULL ) {
 		strlist_done(&identifiers);
-		(void)distribution_freelist(distributions);
 		return RET_ERROR_OOM;
 	}
-	for( d = distributions; d != NULL ; d = d->next ) {
+	for( d = alldistributions; d != NULL ; d = d->next ) {
 		struct target *t;
 		for( t = d->targets; t != NULL ; t = t->next ) {
 			int i = strlist_ofs(&identifiers, t->identifier);
@@ -1866,8 +1777,6 @@ ACTION_U_D(clearvanished) {
 	free(inuse);
 
 	strlist_done(&identifiers);
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
 	return result;
 }
 
@@ -1900,19 +1809,16 @@ ACTION_N(versioncompare) {
 /***********************processincoming********************************/
 ACTION_D(processincoming) {
 	retvalue result,r;
-	struct distribution *distributions;
+	struct distribution *d;
 
-	r = distribution_getmatched(confdir, logdir, 0, NULL, false, &distributions);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
+	for( d = alldistributions ; d != NULL ; d = d->next )
+		d->selected = true;
 
-	result = process_incoming(mirrordir, confdir, overridedir, database, dereferenced, distributions, argv[1], (argc==3)?argv[2]:NULL);
+	result = process_incoming(mirrordir, confdir, overridedir, database, dereferenced, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
 
 	logger_wait();
 
-	r = distribution_exportandfreelist(export,distributions,
+	r = distribution_exportlist(export, alldistributions,
 			confdir, distdir, database);
 	RET_ENDUPDATE(result,r);
 
@@ -1920,15 +1826,11 @@ ACTION_D(processincoming) {
 }
 /***********************gensnapshot********************************/
 ACTION_R(gensnapshot) {
-	retvalue result,r;
+	retvalue result;
 	struct distribution *distribution;
-	struct distribution *alldistributions = NULL;
 
 	assert( argc == 3 );
 
-	r = distribution_readall(confdir, logdir, &alldistributions);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
@@ -1938,8 +1840,6 @@ ACTION_R(gensnapshot) {
 	                               confdir, distdir,
 				       database,
 	                               argv[2]);
-	r = distribution_freelist(alldistributions);
-	RET_ENDUPDATE(result,r);
 	return result;
 }
 
@@ -1952,17 +1852,20 @@ static retvalue runnotifiers(UNUSED(void *data),struct target *target,struct dis
 	return target_rerunnotifiers(target, d->logger);
 }
 
-ACTION_NB(rerunnotifiers) {
+ACTION_B(rerunnotifiers) {
 	retvalue result,r;
-	struct distribution *distributions,*d;
+	struct distribution *d;
 
-	result = distribution_getmatched(confdir, logdir, argc-1, argv+1, false, &distributions);
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
 	result = RET_NOTHING;
-	for( d = distributions ; d != NULL ; d = d->next ) {
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
+
 		if( d->logger == NULL )
 			continue;
 
@@ -1983,9 +1886,6 @@ ACTION_NB(rerunnotifiers) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	r = distribution_freelist(distributions);
-	RET_ENDUPDATE(result,r);
-
 	return result;
 
 
@@ -1998,16 +1898,23 @@ ACTION_NB(rerunnotifiers) {
 #define NEED_REFERENCES 1
 #define NEED_FILESDB 2
 #define NEED_DEREF 4
+#define NEED_DATABASE 8
+#define NEED_CONFIG 16
+#define NEED_RO 32
 #define A_N(w) action_n_ ## w, 0
-#define A_F(w) action_f_ ## w, NEED_FILESDB
-#define A_R(w) action_r_ ## w, NEED_REFERENCES
-#define A_RF(w) action_rf_ ## w, NEED_FILESDB|NEED_REFERENCES
+#define A_C(w) action_c_ ## w, NEED_CONFIG
+#define A_ROB(w) action_b_ ## w, NEED_DATABASE|NEED_RO
+#define A_B(w) action_b_ ## w, NEED_DATABASE
+#define A_F(w) action_f_ ## w, NEED_DATABASE|NEED_FILESDB
+#define A_R(w) action_r_ ## w, NEED_DATABASE|NEED_REFERENCES
+#define A_RF(w) action_rf_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES
 /* to dereference files, one needs files and references database: */
-#define A_D(w) action_d_ ## w, NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
+#define A_D(w) action_d_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
 
 static const struct action {
 	const char *name;
 	retvalue (*start)(
+			/*@null@*//*@only@*/struct distribution *,
 			/*@null@*/struct database*,
 			/*@null@*/struct strlist *dereferencedfilekeys,
 			int argc,const char *argv[]);
@@ -2029,7 +1936,7 @@ static const struct action {
 		0, 0, "_listmd5sums "},
 	{"_addmd5sums",		A_F(addmd5sums),
 		0, 0, "_addmd5sums < data"},
-	{"_dumpcontents", 	A_N(dumpcontents),
+	{"_dumpcontents", 	A_ROB(dumpcontents),
 		1, 1, "_dumpcontents <identifier>"},
 	{"_removereferences", 	A_R(removereferences),
 		1, 1, "_removereferences <identifier>"},
@@ -2041,11 +1948,11 @@ static const struct action {
 		1, 1, "_fakeemptyfilelist <filekey>"},
 	{"remove", 		A_D(remove),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
-	{"list", 		A_N(list),
+	{"list", 		A_ROB(list),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>"},
-	{"listfilter", 		A_N(listfilter),
+	{"listfilter", 		A_ROB(listfilter),
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>"},
-	{"createsymlinks", 	A_N(createsymlinks),
+	{"createsymlinks", 	A_C(createsymlinks),
 		0, -1, "createsymlinks [<distributions>]"},
 	{"export", 		A_F(export),
 		0, -1, "export [<distributions>]"},
@@ -2065,7 +1972,7 @@ static const struct action {
 		0, 0, "deleteunreferenced", },
 	{"retrack",	 	A_R(retrack),
 		0, -1, "retrack [<distributions>]"},
-	{"dumptracks",	 	A_N(dumptracks),
+	{"dumptracks",	 	A_ROB(dumptracks),
 		0, -1, "dumptracks [<distributions>]"},
 	{"removealltracks",	A_D(removealltracks),
 		0, -1, "removealltracks [<distributions>]"},
@@ -2077,7 +1984,7 @@ static const struct action {
 		0, -1, "update [<distributions>]"},
 	{"iteratedupdate",	A_D(iteratedupdate),
 		0, -1, "iteratedupdate [<distributions>]"},
-	{"checkupdate",		A_N(checkupdate),
+	{"checkupdate",		A_B(checkupdate),
 		0, -1, "checkupdate [<distributions>]"},
 	{"predelete",		A_D(predelete),
 		0, -1, "predelete [<distributions>]"},
@@ -2085,7 +1992,7 @@ static const struct action {
 		0, -1, "pull [<distributions>]"},
 	{"copy",		A_D(copy),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>"},
-	{"checkpull",		A_N(checkpull),
+	{"checkpull",		A_B(checkpull),
 		0, -1, "checkpull [<distributions>]"},
 	{"includedeb",		A_D(includedeb),
 		2, -1, "[--delete] includedeb <distribution> <.deb-file>"},
@@ -2103,11 +2010,14 @@ static const struct action {
 		1, 2, "processincoming <rule-name> [<.changes file>]"},
 	{"gensnapshot",		A_R(gensnapshot),
 		2, 2, "gensnapshot <distribution> <date or other name>"},
-	{"rerunnotifiers",	A_N(rerunnotifiers),
+	{"rerunnotifiers",	A_B(rerunnotifiers),
 		0, -1, "rerunnotifiers [<distributions>]"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N
+#undef A_B
+#undef A_ROB
+#undef A_C
 #undef A_F
 #undef A_R
 #undef A_RF
@@ -2117,7 +2027,9 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	retvalue result, r;
 	struct database *database;
 	struct strlist dereferencedfilekeys;
+	struct distribution *alldistributions = NULL;
 	bool deletederef;
+	int needs;
 
 	assert(action != NULL);
 
@@ -2131,36 +2043,52 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				argv[0], action->wrongargmessage);
 		return RET_ERROR;
 	}
+	needs = action->needs;
 
-	deletederef = ISSET(action->needs,NEED_DEREF) && !keepunreferenced;
+	if( ISSET(needs, NEED_DATABASE))
+		needs |= NEED_CONFIG;
+	if( ISSET(needs, NEED_CONFIG) ) {
+		r = distribution_readall(confdir, logdir, &alldistributions);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
-	result = database_create(&database, dbdir);
-	if( !RET_IS_OK(result) )
+	if( !ISSET(needs, NEED_DATABASE) ) {
+		assert( (needs & !NEED_CONFIG) == 0);
+
+		result = action->start(alldistributions, NULL, NULL, argc, argv);
 		return result;
-	result = database_lock(database, waitforlock);
-	if( !RET_IS_OK(result) )
-		return result;
+	}
 
-	if( ISSET(action->needs,NEED_REFERENCES) )
+	deletederef = ISSET(needs,NEED_DEREF) && !keepunreferenced;
+
+	result = database_create(&database, dbdir, alldistributions,
+			fast, ISSET(needs, NEED_RO), waitforlock);
+	if( !RET_IS_OK(result) ) {
+		return result;
+	}
+
+	if( ISSET(needs,NEED_REFERENCES) )
 		result = database_openreferences(database);
 
 	assert( result != RET_NOTHING );
 	if( RET_IS_OK(result) ) {
 
-		if( ISSET(action->needs,NEED_FILESDB) )
+		if( ISSET(needs,NEED_FILESDB) )
 			result = database_openfiles(database, mirrordir);
 
 		assert( result != RET_NOTHING );
 		if( RET_IS_OK(result) ) {
 
 			if( deletederef ) {
-				assert( ISSET(action->needs,NEED_REFERENCES) );
-				assert( ISSET(action->needs,NEED_REFERENCES) );
+				assert( ISSET(needs,NEED_REFERENCES) );
+				assert( ISSET(needs,NEED_REFERENCES) );
 				strlist_init(&dereferencedfilekeys);
 			}
 
 			if( !interrupted() ) {
-				result = action->start(database,
+				result = action->start(alldistributions,
+					database,
 					deletederef?&dereferencedfilekeys:NULL,
 					argc,argv);
 
@@ -2196,6 +2124,8 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	logger_warn_waiting();
 	r = database_close(database);
 	RET_UPDATE(result, r);
+	r = distribution_freelist(alldistributions);
+	RET_ENDUPDATE(result,r);
 	database = NULL;
 	return result;
 }

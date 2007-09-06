@@ -214,3 +214,12 @@ const char *dirs_basename(const char *filename) {
 	// things like /bla/blub/ will give emtpy string...
 	return bn+1;
 }
+
+bool isdir(const char *fullfilename) {
+	struct stat s;
+	int i;
+
+	assert(fullfilename != NULL);
+	i = stat(fullfilename, &s);
+	return i == 0 && S_ISDIR(s.st_mode);
+}

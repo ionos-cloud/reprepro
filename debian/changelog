@@ -3,8 +3,9 @@ reprepro (2.3.0-0) UNRELEASED; urgency=low
   * new version
   - ignore SIGPIPE, as libgpgme can cause it (Closes: 437138)
   - new config file parser (Closes: 438941, 440029)
+  - always read and check distributions config first (Closes: 439154)
 
- -- Bernhard R. Link <brlink@debian.org>  Sun,  2 Sep 2007 16:06:14 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  6 Sep 2007 15:46:50 +0200
 
 reprepro (2.2.4-1) unstable; urgency=high
 

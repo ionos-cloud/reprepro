@@ -203,6 +203,8 @@ static retvalue pull_init(struct pull_distribution **pulls,
 	retvalue r;
 
 	for( d = distributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
 		r = pull_initdistribution(pp, d, rules);
 		if( RET_WAS_ERROR(r) ) {
 			pull_freedistributions(p);
@@ -222,71 +224,26 @@ static retvalue pull_init(struct pull_distribution **pulls,
  * load the config of the distributions mentioned in the rules             *
  **************************************************************************/
 
-static inline void pull_addsourcedistribution(struct pull_rule *rules,
-		struct distribution *distribution) {
+static retvalue pull_loadsourcedistributions(struct distribution *alldistributions, struct pull_rule *rules) {
 	struct pull_rule *rule;
-
-	for( rule = rules ; rule != NULL ; rule = rule->next ) {
-		if( strcmp(rule->from, distribution->codename) == 0 )
-			rule->distribution = distribution;
-	}
-}
-
-static inline void pull_addsourcedistributions(struct pull_rule *rules,
-		struct distribution *distributions) {
 	struct distribution *d;
-
-	for( d = distributions ; d != NULL ; d = d->next ) {
-		pull_addsourcedistribution(rules, d);
-	}
-}
-
-static retvalue pull_loadmissingsourcedistributions(const char *confdir,
-		const char *logdir,
-		struct pull_rule *rules,
-		struct distribution **extradistributions) {
-	const char **names = NULL;
-	struct pull_rule *rule;
-	size_t count = 0;
-	retvalue r;
 
 	for( rule = rules ; rule != NULL ; rule = rule->next ) {
 		if( rule->used && rule->distribution == NULL ) {
-			unsigned int i;
-
-			for( i = 0 ; i < count ; i++ ) {
-				if( strcmp(names[i],rule->from) == 0 )
+			for( d = alldistributions ; d != NULL ; d = d->next ) {
+				if( strcmp(d->codename, rule->from) == 0 ) {
+					rule->distribution = d;
 					break;
-			}
-			if( i != count )
-				break;
-
-			if( (count & 7) == 0 ) {
-				const char **n = realloc(names,
-					(count+8)* sizeof(const char*));
-				if( n == NULL ) {
-					free(names);
-					return RET_ERROR_OOM;
 				}
-				names = n;
 			}
-			names[count++] = rule->from;
+			if( d == NULL ) {
+				fprintf(stderr, "Error: Unknown distribution '%s' referenced in pull rule '%s'\n",
+						rule->from, rule->name);
+				return RET_ERROR_MISSING;
+			}
 		}
 	}
-	if( count == 0 ) {
-		*extradistributions = NULL;
-		return RET_OK;
-	}
-	r = distribution_getmatched(confdir, logdir, count, names, false, extradistributions);
-	free(names);
-	assert( r != RET_NOTHING );
-	if( RET_IS_OK(r) ) {
-		pull_addsourcedistributions(rules, *extradistributions);
-		for( rule = rules ; rule != NULL ; rule = rule->next ) {
-			assert( !rule->used || rule->distribution != NULL );
-		}
-	}
-	return r;
+	return RET_OK;
 }
 
 /***************************************************************************
@@ -445,30 +402,24 @@ static retvalue pull_generatetargets(struct pull_distribution *pull_distribution
  * combination of the steps two, three and four                            *
  **************************************************************************/
 
-retvalue pull_prepare(const char *confdir,const char *logdir,struct pull_rule *rules,struct distribution *distributions, struct pull_distribution **pd,struct distribution **alsoneeded) {
-	struct distribution *extra;
+retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *rules, struct pull_distribution **pd) {
 	struct pull_distribution *pulls;
 	retvalue r;
 
-	r = pull_init(&pulls, rules, distributions);
+	r = pull_init(&pulls, rules, alldistributions);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	pull_addsourcedistributions(rules, distributions);
-
-	r = pull_loadmissingsourcedistributions(confdir, logdir, rules, &extra);
+	r = pull_loadsourcedistributions(alldistributions, rules);
 	if( RET_WAS_ERROR(r) ) {
 		pull_freedistributions(pulls);
 		return r;
 	}
 	r = pull_generatetargets(pulls);
 	if( RET_WAS_ERROR(r) ) {
-		// thats a bit ugly, as rules are already poluted with them...
-		distribution_freelist(extra);
 		pull_freedistributions(pulls);
 		return r;
 	}
-	*alsoneeded = extra;
 	*pd = pulls;
 	return RET_OK;
 }
