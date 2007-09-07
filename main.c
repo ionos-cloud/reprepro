@@ -1900,13 +1900,17 @@ ACTION_B(rerunnotifiers) {
 #define NEED_DEREF 4
 #define NEED_DATABASE 8
 #define NEED_CONFIG 16
-#define NEED_RO 32
+#define NEED_NO_PACKAGES 32
+#define IS_RO 64
+#define IS_CLEARVANISHED 128
 #define A_N(w) action_n_ ## w, 0
 #define A_C(w) action_c_ ## w, NEED_CONFIG
-#define A_ROB(w) action_b_ ## w, NEED_DATABASE|NEED_RO
+#define A_ROB(w) action_b_ ## w, NEED_DATABASE|IS_RO
 #define A_B(w) action_b_ ## w, NEED_DATABASE
 #define A_F(w) action_f_ ## w, NEED_DATABASE|NEED_FILESDB
 #define A_R(w) action_r_ ## w, NEED_DATABASE|NEED_REFERENCES
+#define A__F(w) action_f_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_NO_PACKAGES
+#define A__R(w) action_r_ ## w, NEED_DATABASE|NEED_REFERENCES|NEED_NO_PACKAGES
 #define A_RF(w) action_rf_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES
 /* to dereference files, one needs files and references database: */
 #define A_D(w) action_d_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
@@ -1928,23 +1932,23 @@ static const struct action {
 		1, 1, "__extractcontrol <.deb-file>"},
 	{"__extractfilelist",	A_N(extractfilelist),
 		1, 1, "__extractfilelist <.deb-file>"},
-	{"_detect", 		A_F(detect),
+	{"_versioncompare",	A_N(versioncompare),
+		2, 2, "versioncompare <version> <version>"},
+	{"_detect", 		A__F(detect),
 		-1, -1, NULL},
-	{"_forget", 		A_F(forget),
+	{"_forget", 		A__F(forget),
 		-1, -1, NULL},
-	{"_listmd5sums",	A_F(listmd5sums),
+	{"_listmd5sums",	A__F(listmd5sums),
 		0, 0, "_listmd5sums "},
-	{"_addmd5sums",		A_F(addmd5sums),
+	{"_addmd5sums",		A__F(addmd5sums),
 		0, 0, "_addmd5sums < data"},
 	{"_dumpcontents", 	A_ROB(dumpcontents),
 		1, 1, "_dumpcontents <identifier>"},
-	{"_removereferences", 	A_R(removereferences),
+	{"_removereferences", 	A__R(removereferences),
 		1, 1, "_removereferences <identifier>"},
-	{"_addreference", 	A_R(addreference),
+	{"_addreference", 	A__R(addreference),
 		2, 2, "_addreference <reference> <referee>"},
-	{"_versioncompare",	A_N(versioncompare),
-		2, 2, "versioncompare <version> <version>"},
-	{"_fakeemptyfilelist",	A_F(fakeemptyfilelist),
+	{"_fakeemptyfilelist",	A__F(fakeemptyfilelist),
 		1, 1, "_fakeemptyfilelist <filekey>"},
 	{"remove", 		A_D(remove),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
@@ -2004,7 +2008,7 @@ static const struct action {
 		2, 2, "[--delete] include <distribution> <.changes-file>"},
 	{"generatefilelists",	A_F(generatefilelists),
 		0, 1, "generatefilelists [reread]"},
-	{"clearvanished",	A_D(clearvanished),
+	{"clearvanished",	A_D(clearvanished)|IS_CLEARVANISHED,
 		0, 0, "[--delete] clearvanished"},
 	{"processincoming",	A_D(processincoming),
 		1, 2, "processincoming <rule-name> [<.changes file>]"},
@@ -2063,7 +2067,9 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	deletederef = ISSET(needs,NEED_DEREF) && !keepunreferenced;
 
 	result = database_create(&database, dbdir, alldistributions,
-			fast, ISSET(needs, NEED_RO), waitforlock);
+			fast, ISSET(needs, NEED_NO_PACKAGES),
+			ISSET(needs, IS_CLEARVANISHED), ISSET(needs, IS_RO),
+			waitforlock);
 	if( !RET_IS_OK(result) ) {
 		return result;
 	}

@@ -16,6 +16,8 @@ struct database {
 	struct references *references;
 	bool locked;
 	int dircreationdepth;
+	bool nopackages, readonly;
+	int version, compatibilityversion;
 };
 
 retvalue database_opentable(struct database *,const char *,const char *,DBTYPE,u_int32_t flags,u_int32_t preflags,int (*)(DB *,const DBT *,const DBT *),/*@out@*/DB **);

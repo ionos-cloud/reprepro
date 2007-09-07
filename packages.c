@@ -77,6 +77,12 @@ retvalue packages_initialize(packagesdb *db,struct database *database,const char
 	packagesdb pkgs;
 	retvalue r;
 
+	assert( !database->nopackages );
+	if( database->nopackages ) {
+		fputs("Internal Error: Accessing packages database while that was not prepared!\n", stderr);
+		return RET_ERROR;
+	}
+
 	pkgs = malloc(sizeof(struct s_packagesdb));
 	if( pkgs == NULL ) {
 		return RET_ERROR_OOM;

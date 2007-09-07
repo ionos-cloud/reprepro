@@ -11,7 +11,7 @@
 struct database;
 struct distribution;
 
-retvalue database_create(struct database **, const char *dbdir, struct distribution *alldistributions, bool fast, bool readonly, size_t waitforlock);
+retvalue database_create(struct database **, const char *dbdir, struct distribution *, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock);
 retvalue database_close(struct database *);
 
 const char *database_directory(struct database *);

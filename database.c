@@ -19,24 +19,41 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <assert.h>
+#include <limits.h>
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
 
 #include "globals.h"
 #include "error.h"
+#include "ignore.h"
 #include "strlist.h"
 #include "names.h"
 #include "database.h"
 #include "dirs.h"
 #include "files.h"
 #include "reference.h"
+#include "copyfile.h"
+#include "distribution.h"
 #include "database_p.h"
 
 extern int verbose;
 
+/* Version numbers of the database:
+ *
+ * 0: compatibility (means no db/version file yet)
+ *    used by reprepro until before 2.3.0
+ *
+ * 1: since reprepro 2.3.0
+ *    - all packages.db database are created
+ *      (i.e. missing ones means there is a new architecture/component)
+ *
+ * */
+
+#define CURRENT_VERSION 1
 
 static void database_free(struct database *db) {
 	if( db == NULL )
@@ -294,12 +311,265 @@ retvalue database_listsubtables(struct database *database,const char *filename,s
 	}
 }
 
+static inline bool targetisdefined(const char *identifier, struct distribution *distributions) {
+	struct distribution *d;
+	struct target *t;
+
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		for( t = d->targets; t != NULL ; t = t->next ) {
+			if( strcmp(t->identifier, identifier) == 0 )
+				return true;
+		}
+	}
+	return false;
+}
+
+static retvalue warnusedidentifers(const struct strlist *identifiers, struct distribution *distributions) {
+	const char *identifier;
+	int i;
+
+	for( i = 0; i < identifiers->count ; i++ ) {
+		identifier = identifiers->values[i];
+
+		if( targetisdefined(identifier, distributions) )
+			continue;
+
+		fprintf(stderr,
+"Error: packages database contains unused '%s' database.\n", identifier);
+		if( ignored[IGN_undefinedtarget] == 0 ) {
+			fputs(
+"This either means you removed a distribution, component or architecture from\n"
+"the distributions config file without calling clearvanished, or your config\n"
+"does not belong to this database.\n",
+					stderr);
+		}
+		if( IGNORABLE(undefinedtarget) ) {
+			fputs("Ignoring as --ignore=undefinedtarget given.\n",
+					stderr);
+			ignored[IGN_undefinedtarget]++;
+			continue;
+		}
+
+		fputs("To ignore use --ignore=undefinedtarget.\n", stderr);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static retvalue readversionfile(struct database *db) {
+	char *versionfilename;
+	char buffer[20], *e;
+	FILE *f;
+	size_t l;
+	long v;
+
+	versionfilename = calc_dirconcat(db->directory, "version");
+	if( versionfilename == NULL )
+		return RET_ERROR_OOM;
+	f = fopen(versionfilename, "r");
+	if( f == NULL ) {
+		int e = errno;
+
+		if( e != ENOENT ) {
+			fprintf(stderr, "Error opening '%s': %s(errno is %d)\n",
+					versionfilename, strerror(e), e);
+			free(versionfilename);
+			return RET_ERRNO(e);
+		}
+		db->version = 0;
+		db->compatibilityversion = 0;
+		free(versionfilename);
+		return RET_NOTHING;
+	}
+
+	if( fgets(buffer, 20, f) == NULL ) {
+		int e = errno;
+		if( e == 0 ) {
+			fprintf(stderr, "Error reading '%s': unexpected empty file\n",
+					versionfilename);
+			(void)fclose(f);
+			free(versionfilename);
+			return RET_ERROR;
+		} else {
+			fprintf(stderr, "Error reading '%s': %s(errno is %d)\n",
+					versionfilename, strerror(e), e);
+			(void)fclose(f);
+			free(versionfilename);
+			return RET_ERRNO(e);
+		}
+	}
+	l = strlen(buffer);
+	while( l > 0 && ( buffer[l-1] == '\r' || buffer[l-1] == '\n' ) ) {
+		buffer[--l] = '\0';
+	}
+	v = strtol(buffer, &e, 10);
+	if( l == 0 || e == NULL || *e != '\0' || v < 0 || v >= INT_MAX ) {
+		fprintf(stderr, "Error reading '%s': malformed first line.\n",
+				versionfilename);
+		(void)fclose(f);
+		free(versionfilename);
+		return RET_ERROR;
+	}
+	db->version = v;
+
+	/* second line says which versions of reprepro will be able to cope
+	 * with this database */
+
+	if( fgets(buffer, 20, f) == NULL ) {
+		int e = errno;
+		if( e == 0 ) {
+			fprintf(stderr, "Error reading '%s': no second line\n",
+					versionfilename);
+			(void)fclose(f);
+			free(versionfilename);
+			return RET_ERROR;
+		} else {
+			fprintf(stderr, "Error reading '%s': %s(errno is %d)\n",
+					versionfilename, strerror(e), e);
+			(void)fclose(f);
+			free(versionfilename);
+			return RET_ERRNO(e);
+		}
+	}
+	l = strlen(buffer);
+	while( l > 0 && ( buffer[l-1] == '\r' || buffer[l-1] == '\n' ) ) {
+		buffer[--l] = '\0';
+	}
+	v = strtol(buffer, &e, 10);
+	if( l == 0 || e == NULL || *e != '\0' || v < 0 || v >= INT_MAX ) {
+		fprintf(stderr, "Error reading '%s': malformed second line.\n",
+				versionfilename);
+		(void)fclose(f);
+		free(versionfilename);
+		return RET_ERROR;
+	}
+	db->compatibilityversion = v;
+	(void)fclose(f);
+	free(versionfilename);
+	return RET_OK;
+}
+
+static retvalue writeversionfile(struct database *db) {
+	char *versionfilename;
+	FILE *f;
+	int e;
+
+	versionfilename = calc_dirconcat(db->directory, "version");
+	if( versionfilename == NULL )
+		return RET_ERROR_OOM;
+	f = fopen(versionfilename, "w");
+	if( f == NULL ) {
+		int e = errno;
+
+		fprintf(stderr, "Error creating '%s': %s(errno is %d)\n",
+					versionfilename, strerror(e), e);
+		free(versionfilename);
+		return RET_ERRNO(e);
+	}
+
+	fprintf(f, "%d\n%d\n", db->version, db->compatibilityversion);
+	fprintf(f, "%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
+	fprintf(f, "%d.%d.0\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
+	fprintf(f, "%s %s\n", PACKAGE, VERSION);
+
+	e = ferror(f);
+
+	if( e != 0 ) {
+		fprintf(stderr, "Error writing '%s': %s(errno is %d)\n",
+				versionfilename, strerror(e), e);
+		(void)fclose(f);
+		free(versionfilename);
+		return RET_ERRNO(e);
+	}
+	if( fclose(f) != 0 ) {
+		e = errno;
+		fprintf(stderr, "Error writing '%s': %s(errno is %d)\n",
+				versionfilename, strerror(e), e);
+		free(versionfilename);
+		return RET_ERRNO(e);
+	}
+	free(versionfilename);
+	return RET_OK;
+}
+
+static retvalue createnewdatabase(struct database *db, struct distribution *distributions) {
+	struct distribution *d;
+	struct target *t;
+	retvalue result = RET_NOTHING, r;
+
+	db->version = CURRENT_VERSION;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		for( t = d->targets ; t != NULL ; t = t->next ) {
+			r = target_initpackagesdb(t, db);
+			RET_UPDATE(result, r);
+			if( RET_IS_OK(r) ) {
+				r = target_closepackagesdb(t);
+				RET_UPDATE(result, r);
+			}
+		}
+	}
+	r = writeversionfile(db);
+	RET_UPDATE(result, r);
+	return result;
+}
+
+static retvalue preparepackages(struct database *db, bool fast, bool readonly, bool allowunused, struct distribution *distributions) {
+	retvalue r;
+	char *packagesfilename;
+
+	r = readversionfile(db);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+
+	packagesfilename = calc_dirconcat(db->directory, "packages.db");
+	if( packagesfilename == NULL )
+		return RET_ERROR_OOM;
+	if( !isregularfile(packagesfilename) ) {
+		free(packagesfilename);
+		// TODO: handle readonly, but only once packages files may no
+		// longer be generated when it is active...
+
+		// TODO: if version > 0, there should already be one...
+
+		return createnewdatabase(db, distributions);
+	}
+	free(packagesfilename);
+
+	if( db->compatibilityversion > CURRENT_VERSION ) {
+		fprintf(stderr,
+"According to %s/version this database was created with an future version\n"
+"and uses features this version will not be able to understand. Aborting...\n",
+				db->directory);
+		return RET_ERROR;
+	}
+
+	if( !allowunused && !fast )  {
+		struct strlist identifiers;
+
+		r = packages_getdatabases(db, &identifiers);
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+
+		if( RET_IS_OK(r) ) {
+			r = warnusedidentifers(&identifiers, distributions);
+			if( RET_WAS_ERROR(r) ) {
+				strlist_done(&identifiers);
+				return r;
+			}
+			strlist_done(&identifiers);
+		}
+	}
+	return RET_OK;
+}
+
 /* Initialize a database.
  * - if not fast, make all kind of checks for consistency (TO BE IMPLEMENTED),
  * - if readonly, do not create but return with RET_NOTHING
  * - lock database, waiting a given amount of time if already locked
  */
-retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool readonly, size_t waitforlock) {
+retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock) {
 	struct database *n;
 	retvalue r;
 
@@ -324,6 +594,20 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 		database_free(n);
 		return r;
 	}
+	n->readonly = readonly;
+
+	if( nopackages ) {
+		n->nopackages = true;
+		*result = n;
+		return RET_OK;
+	}
+
+	r = preparepackages(n, fast, readonly, allowunused, alldistributions);
+	if( RET_WAS_ERROR(r) ) {
+		database_close(n);
+		return r;
+	}
+
 	*result = n;
 	return RET_OK;
 }

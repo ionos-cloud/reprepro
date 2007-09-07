@@ -261,6 +261,7 @@ _arguments \
 		brokenversioncmp\:"ignore versions not parseable"\
 		extension\:"ignore unexpected suffixes of files"\
 		unusedarch\:"allow changes files to list achitectures not used"\
+		undefinedtarget\:"allow unspecified databases"\
 		surprisingarch\:"do not protest when a changes file does not list a architecture it has files for"\
 		surprisingbinary\:"do not demand a .changes Binaries header to list all binaries"\
 		wrongsourceversion\:"do not demand coherent source versions in a .changes"\
@@ -276,7 +277,7 @@ _arguments \
 		wrongdistribution missingfield brokenold brokenversioncmp\
 		extension unusedarch surprisingarch surprisingbinary
 		wrongsourceversion wrongversion brokensignatures
-		missingfile uploaders)' \
+		missingfile uploaders undefinedtarget)' \
 	'--waitforlock=[Time to wait if database is locked]:count:(0 3600)' \
 	'--spacecheck[Mode for calculating free space before downloading packages]:behavior:(full none)' \
 	'--dbsafetymargin[Safety margin for the partition with the database]:bytes count:' \

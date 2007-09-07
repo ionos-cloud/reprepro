@@ -26,6 +26,7 @@
 	IGN(dscinbinnmu) \
 	IGN(brokensignatures) \
 	IGN(uploaders) \
+	IGN(undefinedtarget) \
 	IGN(missingfile)
 
 

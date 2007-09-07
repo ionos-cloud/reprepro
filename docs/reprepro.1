@@ -114,7 +114,7 @@ they do not start with a slash.
 If none is given, \fIbasedir\fP\fB/override\fP is used.
 .br
 This will be removed in a future version.
-Since reprepro 2.4.0, also the directory given to \-\-confdir is searched
+Since reprepro 2.3.0, also the directory given to \-\-confdir is searched
 for override files.
 .TP
 .B \-\-methoddir \fImethoddir\fP
@@ -1164,6 +1164,17 @@ architecture not listed in the Architecture-header within it.
 Do not reject a .changes file containing .deb files containing
 packages whose name is not listed in the "Binary:" header
 of that changes file.
+.TP
+.B undefinedtarget \fR(hope you are not using the wrong db directory)
+Do not stop when the packages.db file contains databases for
+codename/packagetype/component/architectures combinations that are
+not listed in your distributions file.
+
+This allows you to temporarily remove some distribution from the config files,
+without having to remove the packages in it with the \fBclearvanished\fP
+command.
+You might even temporarily remove single architectures or components,
+though that might cause inconsistencies in some situations.
 .TP
 .B unknownfield \fR(for forward compatibility)
 Ignore unknown fields in the config files, instead of refusing to run

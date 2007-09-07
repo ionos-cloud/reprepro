@@ -1,4 +1,9 @@
 2007-09-06  Bernhard R. Link <brlink@debian.org>
+	* create db/version
+	* always create all packages.db subtables, so future
+	  versions can detect new architectures/components.
+
+2007-09-06  Bernhard R. Link <brlink@debian.org>
 	* read all distribution definitions before starting
 	  any action.
 

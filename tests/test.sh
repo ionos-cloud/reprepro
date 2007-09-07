@@ -140,31 +140,31 @@ Components:
 #
 
 EOF
-touch conf/updates
-dodo test ! -d db
-testrun - -b . checkupdate test 3<<EOF
-stderr
-*=Nothing to do found. (Use --noskipold to force processing)
-stdout
--v2*=Created directory "./db"
--v2=Created directory "./lists"
--v2*=Removed empty directory "./db"
-EOF
-dodo test ! -d db
-mkdir d
-testrun - -b . --dbdir d/ab/c//x checkupdate test 3<<EOF
-stderr
-*=Nothing to do found. (Use --noskipold to force processing)
-stdout
--v2*=Created directory "d/ab"
--v2*=Created directory "d/ab/c"
--v2*=Created directory "d/ab/c//x"
--v2=Created directory "./lists"
--v2*=Removed empty directory "d/ab/c//x"
--v2*=Removed empty directory "d/ab/c"
--v2*=Removed empty directory "d/ab"
-EOF
-rm -r -f lists
+# touch conf/updates
+# dodo test ! -d db
+# testrun - -b . checkupdate test 3<<EOF
+# stderr
+# *=Nothing to do found. (Use --noskipold to force processing)
+# stdout
+# -v2*=Created directory "./db"
+# -v2=Created directory "./lists"
+# -v2*=Removed empty directory "./db"
+# EOF
+# dodo test ! -d db
+# mkdir d
+# testrun - -b . --dbdir d/ab/c//x checkupdate test 3<<EOF
+# stderr
+# *=Nothing to do found. (Use --noskipold to force processing)
+# stdout
+# -v2*=Created directory "d/ab"
+# -v2*=Created directory "d/ab/c"
+# -v2*=Created directory "d/ab/c//x"
+# -v2=Created directory "./lists"
+# -v2*=Removed empty directory "d/ab/c//x"
+# -v2*=Removed empty directory "d/ab/c"
+# -v2*=Removed empty directory "d/ab"
+# EOF
+# rm -r -f lists
 rm -r conf
 dodo test ! -d d/ab
 mkdir -p conf
@@ -2574,13 +2574,50 @@ returns 249
 EOF
 echo -e 'Components: unneeded bloated i386' >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
+*=Error: packages database contains unused 'test1|stupid|abacus' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=To ignore use --ignore=undefinedtarget.
+-v0*=There have been errors!
+returns 255
+EOF
+testrun - -b . --confdir conf2 --ignore=undefinedtarget update 3<<EOF
+*=Error: packages database contains unused 'test1|stupid|abacus' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=Ignoring as --ignore=undefinedtarget given.
+*=Error: packages database contains unused 'test1|ugly|abacus' database.
+*=Error: packages database contains unused 'test1|ugly|source' database.
+*=Error: packages database contains unused 'test1|stupid|source' database.
+*=Error: packages database contains unused 'test2|stupid|abacus' database.
+*=Error: packages database contains unused 'test2|stupid|coal' database.
+*=Error: packages database contains unused 'test2|stupid|source' database.
+*=Error: packages database contains unused 'test2|ugly|abacus' database.
+*=Error: packages database contains unused 'test2|ugly|coal' database.
+*=Error: packages database contains unused 'test2|ugly|source' database.
 *=Error opening config file 'conf2/updates': No such file or directory(2)
 -v0*=There have been errors!
 returns 254
 EOF
 touch conf2/updates
-testrun - -b . --confdir conf2 --noskipold update 3<<EOF
+testrun - -b . --confdir conf2 --ignore=undefinedtarget --noskipold update 3<<EOF
 stderr
+*=Error: packages database contains unused 'test1|stupid|abacus' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=Ignoring as --ignore=undefinedtarget given.
+*=Error: packages database contains unused 'test1|ugly|abacus' database.
+*=Error: packages database contains unused 'test1|ugly|source' database.
+*=Error: packages database contains unused 'test1|stupid|source' database.
+*=Error: packages database contains unused 'test2|stupid|abacus' database.
+*=Error: packages database contains unused 'test2|stupid|coal' database.
+*=Error: packages database contains unused 'test2|stupid|source' database.
+*=Error: packages database contains unused 'test2|ugly|abacus' database.
+*=Error: packages database contains unused 'test2|ugly|coal' database.
+*=Error: packages database contains unused 'test2|ugly|source' database.
 stdout
 -v2=Created directory "./lists"
 -v0*=Calculating packages to get...
@@ -2611,6 +2648,15 @@ stdout
 -v2*=Created directory "./dists/foo/i386/binary-fingers"
 -v6*= looking for changes in 'foo|i386|fingers'...
 -v6*=  creating './dists/foo/i386/binary-fingers/Packages' (uncompressed,gzipped)
+EOF
+testrun - -b . clearvanished 3<<EOF
+stdout
+*=Deleting vanished identifier 'foo|bloated|abacus'.
+*=Deleting vanished identifier 'foo|bloated|fingers'.
+*=Deleting vanished identifier 'foo|i386|abacus'.
+*=Deleting vanished identifier 'foo|i386|fingers'.
+*=Deleting vanished identifier 'foo|unneeded|abacus'.
+*=Deleting vanished identifier 'foo|unneeded|fingers'.
 EOF
 echo "Format: 2.0" > broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
@@ -3001,12 +3047,6 @@ testrun - -b . --delete clearvanished 3<<EOF
 stderr
 -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
-*=Deleting vanished identifier 'foo|bloated|abacus'.
-*=Deleting vanished identifier 'foo|bloated|fingers'.
-*=Deleting vanished identifier 'foo|i386|abacus'.
-*=Deleting vanished identifier 'foo|i386|fingers'.
-*=Deleting vanished identifier 'foo|unneeded|abacus'.
-*=Deleting vanished identifier 'foo|unneeded|fingers'.
 *=Deleting vanished identifier 'test1|stupid|abacus'.
 *=Deleting vanished identifier 'test1|stupid|source'.
 *=Deleting vanished identifier 'test1|ugly|abacus'.
