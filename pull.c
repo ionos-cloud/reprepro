@@ -399,10 +399,207 @@ static retvalue pull_generatetargets(struct pull_distribution *pull_distribution
 }
 
 /***************************************************************************
+ * Some checking to be able to warn against typos                          *
+ **************************************************************************/
+
+static inline void markasused(const struct strlist *pulls, const char *rulename, const struct strlist *needed, const struct strlist *have, bool *found) {
+	int i, j, o;
+
+	for( i = 0 ; i < pulls->count ; i++ ) {
+		if( strcmp(pulls->values[i], rulename) != 0 )
+			continue;
+		for( j = 0 ; j < have->count ; j++ ) {
+			o = strlist_ofs(needed, have->values[j]);
+			if( o > 0 )
+				found[o] = true;
+		}
+	}
+}
+
+static bool *preparefoundlist(const struct strlist *list) {
+	bool *found;
+	int i, j;
+
+	found = calloc(list->count, sizeof(bool));
+	if( found == NULL )
+		return found;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( found[i] )
+			continue;
+		for( j = i + 1 ; j < list->count ; j++ )
+			if( strcmp(list->values[i], list->values[j]) == 0 )
+				found[j] = true;
+	}
+	return found;
+}
+
+static void checkifarchitectureisused(const struct strlist *architectures, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+	bool *found;
+	const struct distribution *d;
+	int i;
+
+	assert( rule != NULL );
+	if( architectures->count == 0 )
+		return;
+	found = preparefoundlist(architectures);
+	if( found == NULL )
+		return;
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		markasused(&d->pulls, rule->name,
+				architectures, &d->architectures,
+				found);
+	}
+	for( i = 0 ; i < architectures->count ; i++ ) {
+		if( found[i] )
+			continue;
+		if( strcmp(architectures->values[i], "none") == 0 )
+			continue;
+		fprintf(stderr,
+"Warning: pull rule '%s' wants to %s architecture '%s',\n"
+"but no distribution using this has such an architecture.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+				rule->name, action,
+				architectures->values[i]);
+	}
+	free(found);
+	return;
+}
+
+static void checkifcomponentisused(const struct strlist *components, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+	bool *found;
+	const struct distribution *d;
+	int i;
+
+	assert( rule != NULL );
+	if( components->count == 0 )
+		return;
+	found = preparefoundlist(components);
+	if( found == NULL )
+		return;
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		markasused(&d->pulls, rule->name,
+				components, &d->components,
+				found);
+	}
+	for( i = 0 ; i < components->count ; i++ ) {
+		if( found[i] )
+			continue;
+		if( strcmp(components->values[i], "none") == 0 )
+			continue;
+		fprintf(stderr,
+"Warning: pull rule '%s' wants to %s component '%s',\n"
+"but no distribution using this has such an component.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+				rule->name, action,
+				components->values[i]);
+	}
+	free(found);
+	return;
+}
+
+static void checkifudebcomponentisused(const struct strlist *udebcomponents, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+	bool *found;
+	const struct distribution *d;
+	int i;
+
+	assert( rule != NULL );
+	if( udebcomponents->count == 0 )
+		return;
+	found = preparefoundlist(udebcomponents);
+	if( found == NULL )
+		return;
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		markasused(&d->pulls, rule->name,
+				udebcomponents, &d->udebcomponents,
+				found);
+	}
+	for( i = 0 ; i < udebcomponents->count ; i++ ) {
+		if( found[i] )
+			continue;
+		if( strcmp(udebcomponents->values[i], "none") == 0 )
+			continue;
+		fprintf(stderr,
+"Warning: pull rule '%s' wants to %s udeb component '%s',\n"
+"but no distribution using this has such an udeb component.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+				rule->name, action,
+				udebcomponents->values[i]);
+	}
+	free(found);
+	return;
+}
+
+static void checksubset(const struct strlist *needed, const struct strlist *have, const char *rulename, const char *from, const char *what) {
+	int i, j;
+
+	for( i = 0 ; i < needed->count ; i++ ) {
+		const char *value = needed->values[i];
+
+		if( strcmp(value, "none") == 0 )
+			continue;
+
+		for( j = 0 ; j < i ; j++ ) {
+			if( strcmp(value, needed->values[j]) == 0 )
+				break;
+		}
+		if( j < i )
+			continue;
+
+		if( !strlist_in(have, value) ) {
+			fprintf(stderr,
+"Warning: pull rule '%s' wants to get something from %s '%s',\n"
+"but there is no such %s in distribution '%s'.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+					rulename, what, value, what, from);
+		}
+	}
+}
+
+static void searchunused(const struct distribution *alldistributions, const struct pull_rule *rule) {
+	if( rule->distribution != NULL ) {
+		// TODO: move this part of the checks into parsing?
+		checksubset(&rule->architectures_from,
+				&rule->distribution->architectures,
+				rule->name, rule->from, "architecture");
+		checksubset(&rule->components,
+				&rule->distribution->components,
+				rule->name, rule->from, "component");
+		checksubset(&rule->udebcomponents,
+				&rule->distribution->udebcomponents,
+				rule->name, rule->from, "udeb component");
+	}
+
+	if( rule->distribution == NULL ) {
+		assert( strcmp(rule->from, "*") == 0 );
+		checkifarchitectureisused(&rule->architectures_from,
+				alldistributions, rule, "get something from");
+		/* no need to check component and udebcomponent, as those
+		 * are the same with the others */
+	}
+	checkifarchitectureisused(&rule->architectures_into,
+			alldistributions, rule, "put something into");
+	checkifcomponentisused(&rule->components,
+			alldistributions, rule, "put something into");
+	checkifudebcomponentisused(&rule->udebcomponents,
+			alldistributions, rule, "put something into");
+}
+
+static void pull_searchunused(const struct distribution *alldistributions, struct pull_rule *pull_rules) {
+	struct pull_rule *rule;
+
+	for( rule = pull_rules ; rule != NULL ; rule = rule->next ) {
+		if( !rule->used )
+			continue;
+
+		searchunused(alldistributions, rule);
+	}
+}
+
+/***************************************************************************
  * combination of the steps two, three and four                            *
  **************************************************************************/
 
-retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *rules, struct pull_distribution **pd) {
+retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *rules, bool fast, struct pull_distribution **pd) {
 	struct pull_distribution *pulls;
 	retvalue r;
 
@@ -415,6 +612,9 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
 		pull_freedistributions(pulls);
 		return r;
 	}
+	if( !fast )
+		pull_searchunused(alldistributions, rules);
+
 	r = pull_generatetargets(pulls);
 	if( RET_WAS_ERROR(r) ) {
 		pull_freedistributions(pulls);

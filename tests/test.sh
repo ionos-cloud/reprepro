@@ -3115,11 +3115,6 @@ Pull: froma
 Log: logab
 EOF
 fi
-cat > conf/pulls <<EOF
-Name: froma
-From: a
-EOF
-
 checknolog logab
 
 rm -r dists
@@ -3153,7 +3148,45 @@ dodiff results.empty results
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 checknolog logab
+cat > conf/pulls <<EOF
+Name: froma
+From: a
+Architectures: froma>toa froma>toa2 froma2>toa2
+Components: c1 c2
+UDebComponents: u1 u2
+EOF
 testrun - -b . --export=changed pull a b 3<<EOF
+stderr
+*=(This will simply be ignored and is not even checked when using --fast).
+*=Warning: pull rule 'froma' wants to get something from architecture 'froma',
+*=Warning: pull rule 'froma' wants to get something from architecture 'froma2',
+*=but there is no such architecture in distribution 'a'.
+*=Warning: pull rule 'froma' wants to get something from component 'c1',
+*=Warning: pull rule 'froma' wants to get something from component 'c2',
+*=but there is no such component in distribution 'a'.
+*=Warning: pull rule 'froma' wants to get something from udeb component 'u1',
+*=Warning: pull rule 'froma' wants to get something from udeb component 'u2',
+*=but there is no such udeb component in distribution 'a'.
+*=Warning: pull rule 'froma' wants to put something into architecture 'toa',
+*=but no distribution using this has such an architecture.
+*=Warning: pull rule 'froma' wants to put something into architecture 'toa2',
+*=Warning: pull rule 'froma' wants to put something into component 'c1',
+*=but no distribution using this has such an component.
+*=Warning: pull rule 'froma' wants to put something into component 'c2',
+*=Warning: pull rule 'froma' wants to put something into udeb component 'u1',
+*=but no distribution using this has such an udeb component.
+*=Warning: pull rule 'froma' wants to put something into udeb component 'u2',
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|abacus'
+-v0*=Installing (and possibly deleting) packages...
+EOF
+cat > conf/pulls <<EOF
+Name: froma
+From: a
+EOF
+testrun - -b . --export=changed pull a b 3<<EOF
+stderr
 stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|abacus'

@@ -2,7 +2,7 @@ TODO:
 	check for empty lists... (decide which should not be empty and which may)
 	test new config parser: do update's Config still work?
 	add --fast option, default --nofast and doing more consistency checks:
-	- check Component/Architecture lists in pull/update rules
+	- check Component/Architecture lists in update rules
 	 (both need having all distribtion specifications always available first)
 	do not put/leave files in pool when include gets an older version than already there
 	write more automated test-cases

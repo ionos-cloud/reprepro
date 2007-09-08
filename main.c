@@ -873,7 +873,7 @@ ACTION_D(pull) {
 	}
 	assert( RET_IS_OK(result) );
 
-	result = pull_prepare(alldistributions, rules, &p);
+	result = pull_prepare(alldistributions, rules, fast, &p);
 	if( RET_WAS_ERROR(result) ) {
 		pull_freerules(rules);
 		return result;
@@ -906,7 +906,7 @@ ACTION_B(checkpull) {
 	}
 	assert( RET_IS_OK(result) );
 
-	result = pull_prepare(alldistributions, rules, &p);
+	result = pull_prepare(alldistributions, rules, fast, &p);
 	if( RET_WAS_ERROR(result) ) {
 		pull_freerules(rules);
 		return result;
