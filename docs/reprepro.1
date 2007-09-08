@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "September, 2nd 2007" "reprepro" REPREPRO
+.TH REPREPRO 1 "2007-09-08" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -645,8 +645,7 @@ See the description for \fBconf/pulls\fP.
 .TP
 .B SignWith
 When this field is present, a Release.gpg file will be generated.
-If the value is "yes" and "default", the default key
-is used.
+If the value is "yes" or "default", the default key is used.
 Otherwise the value will be given to libgpgme to determine to key to
 use.
 (That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
