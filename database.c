@@ -468,8 +468,8 @@ static retvalue writeversionfile(struct database *db) {
 	}
 
 	fprintf(f, "%d\n%d\n", db->version, db->compatibilityversion);
-	fprintf(f, "%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
-	fprintf(f, "%d.%d.0\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
+	fprintf(f, "bdb%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
+	fprintf(f, "bdb%d.%d.0\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
 	fprintf(f, "%s %s\n", PACKAGE, VERSION);
 
 	e = ferror(f);
