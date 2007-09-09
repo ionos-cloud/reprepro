@@ -352,7 +352,7 @@ retvalue updates_getpatterns(const char *confdir, struct update_pattern **patter
 		r = RET_OK;
 	} else {
 		if( r == RET_ERROR_UNKNOWNFIELD )
-			fputs("To ignore unknown fields use --ignore=unknownfields\n", stderr);
+			fputs("To ignore unknown fields use --ignore=unknownfield\n", stderr);
 		updates_freepatterns(update);
 	}
 	/* check for unknown fields
