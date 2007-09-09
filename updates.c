@@ -903,7 +903,7 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 
 	toget = mprintf("dists/%s/Release",origin->suite_from);
 	r = aptmethod_queueindexfile(origin->download,
-			toget,origin->releasefile);
+			toget, origin->releasefile, NULL);
 	free(toget);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -911,7 +911,7 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 	if( p->verifyrelease != NULL ) {
 		toget = mprintf("dists/%s/Release.gpg",origin->suite_from);
 		r = aptmethod_queueindexfile(origin->download,
-				toget,origin->releasegpgfile);
+				toget, origin->releasegpgfile, NULL);
 		free(toget);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -995,7 +995,7 @@ static inline retvalue queueindex(struct update_index *index) {
 		/* TODO: save the content to make sure it is the old instead */
 		donefile_delete(index->filename);
 		r = aptmethod_queueindexfile(origin->download,
-				index->upstream,index->filename);
+				index->upstream, index->filename, NULL);
 		assert( r != RET_NOTHING );
 		return r;
 	}
@@ -1015,9 +1015,9 @@ static inline retvalue queueindex(struct update_index *index) {
 			r = md5sum_ensure(index->filename, md5sum, false);
 			if( r == RET_NOTHING ) {
 				donefile_delete(index->filename);
-				r = aptmethod_queuefile(origin->download,
-					index->upstream,index->filename,
-					md5sum,NULL,NULL);
+				r = aptmethod_queueindexfile(origin->download,
+					index->upstream, index->filename,
+					md5sum);
 			} else if( RET_IS_OK(r) ) {
 				/* file is already there, but it might still need
 				 * processing as last time it was not due to some

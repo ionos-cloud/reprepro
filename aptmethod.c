@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -451,13 +451,16 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey,/*@null@*/struct tobedone **t) {
+retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, const char *destfile, const char *md5sum, const char *filekey, struct tobedone **t) {
 	struct tobedone *todo;
 
-	todo = newtodo(method->baseuri,origfile,destfile,md5sum,filekey);
-	if( todo == NULL ) {
+	assert( origfile != NULL ); assert( destfile != NULL );
+	assert( md5sum != NULL ); assert( filekey != NULL );
+	assert( t != NULL );
+
+	todo = newtodo(method->baseuri, origfile, destfile, md5sum, filekey);
+	if( todo == NULL )
 		return RET_ERROR_OOM;
-	}
 
 	if( method->lasttobedone == NULL )
 		method->nexttosend = method->lasttobedone = method->tobedone = todo;
@@ -465,16 +468,27 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 		method->lasttobedone->next = todo;
 		method->lasttobedone = todo;
 	}
-	if( t != NULL )
-		*t = todo;
+	*t = todo;
 	return RET_OK;
-
 }
 
-retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,const char *destfile) {
+retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile, const char *destfile, /*@null@*/const char *md5sum) {
+	struct tobedone *todo;
+
 	if( origfile == NULL || destfile == NULL )
 		return RET_ERROR_OOM;
-	return aptmethod_queuefile(method,origfile,destfile,NULL,NULL,NULL);
+
+	todo = newtodo(method->baseuri, origfile, destfile, md5sum, NULL);
+	if( todo == NULL )
+		return RET_ERROR_OOM;
+
+	if( method->lasttobedone == NULL )
+		method->nexttosend = method->lasttobedone = method->tobedone = todo;
+	else {
+		method->lasttobedone->next = todo;
+		method->lasttobedone = todo;
+	}
+	return RET_OK;
 }
 
 /*****************what to do with received files************************/
@@ -486,10 +500,20 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 	/* if the file is somewhere else, copy it: */
 	if( strcmp(filename,todo->filename) != 0 ) {
 		retvalue r;
-		if( verbose > 1 ) {
-			fprintf(stderr,"Linking file '%s' to '%s'...\n",filename,todo->filename);
+		/* never link index files, but copy them */
+		if( todo->filekey == NULL ) {
+			if( verbose > 1 )
+				fprintf(stderr,
+"Copy file '%s' to '%s'...\n", filename, todo->filename);
+			r = md5sum_copy(filename, todo->filename,
+					&calculatedmd5);
+		} else {
+			if( verbose > 1 )
+				fprintf(stderr,
+"Linking file '%s' to '%s'...\n", filename, todo->filename);
+			r = md5sum_place(filename, todo->filename,
+					&calculatedmd5);
 		}
-		r = md5sum_place(filename,todo->filename,&calculatedmd5);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
 			r = RET_ERROR_MISSING;
@@ -523,7 +547,7 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 			return RET_ERROR_WRONG_MD5;
 		}
 	}
-	free(calculatedmd5);md5sum=NULL;
+	free(calculatedmd5); md5sum=NULL;
 
 	if( todo->filekey != NULL ) {
 		retvalue r;
@@ -534,7 +558,6 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
-
 
 	return RET_OK;
 }
