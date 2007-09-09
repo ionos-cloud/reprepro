@@ -94,7 +94,7 @@ updates_getpatterns read a list of patterns from <confdir>/updates:
                         |          |
 updates_getupstreams instances them for a given distribution:
                         |          |
-   distribution --> u_origin -> u_origin --> NULL
+ u_distribution --> u_origin -> u_origin --> NULL
       |   |          / \ / \    / \ / \
       |  \ /          |   |      |   |
       | u_target -> u_index -> u_index -> NULL
@@ -105,17 +105,21 @@ updates_getupstreams instances them for a given distribution:
       |  \ /
       |  NULL              .           .
      \ /                   |           |
-   distribution ---> u_origin -> u_origin -> NULL
+ u_distribution ---> u_origin -> u_origin -> NULL
       |   |            / \          / \
       |  \ /            |            |
       | u_target --> u_index ---> u_index -> NULL
       |   |
       |  \ /
-      |  NULL
-      |
-     \ /
-     NULL
+      |  NULL    omitted in this image:
+      |          not every target must have an index in each
+     \ /         origin. (Some origin might only support a
+     NULL        limited number of architectures or components)
 
+                 also omitted are delete rules, i.e. markers
+		 that all versions previously found are not to
+		 be kept or even installed, unless a later
+		 index again adds them.
 */
 
 /* the data for some upstream part to get updates from, some
