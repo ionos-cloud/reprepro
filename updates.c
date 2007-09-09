@@ -336,7 +336,7 @@ static const struct configfield updateconfigfields[] = {
 	CF("FilterList", update_pattern, filterlist)
 };
 
-retvalue updates_getpatterns(const char *confdir,struct update_pattern **patterns) {
+retvalue updates_getpatterns(const char *confdir, struct update_pattern **patterns) {
 	struct update_pattern *update = NULL;
 	retvalue r;
 
@@ -351,9 +351,11 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 		*patterns = NULL;
 		r = RET_OK;
 	} else {
-		// TODO special handle unknownfield
+		if( r == RET_ERROR_UNKNOWNFIELD )
+			fputs("To ignore unknown fields use --ignore=unknownfields\n", stderr);
 		updates_freepatterns(update);
 	}
+	/* check for unknown fields
 	return r;
 }
 
