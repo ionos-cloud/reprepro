@@ -13,6 +13,37 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
  */
+
+/* This module handles the updating of distribtions from remote repositories.
+ * It's using apt's methods (the files in /usr/lib/apt/methods) for the
+ * actuall getting of needed lists and package files.
+ *
+ * It's only task is to request the right actions in the right order,
+ * almost everything is done in other modules:
+ *
+ *  aptmethod.c		start, feed and take care of the apt methods
+ *  downloadcache.c     keep track of what is downloaded to avoid duplicates
+ *  signature.c		verify Release.gpg files, if requested
+ *  readrelease.c	parse Release files, unless ignored
+ *  upgradelist.c	decide which packages (and version) should be installed
+ *
+ * an update run consists of the following steps, in between done some
+ * downloading, checking and so on:
+ *
+ * Step  1: parsing the conf/updates file with the patterns
+ * Step  2: create rules for some distribution based on those patterns
+ * Step  3: calculate which remote indices are to be retrieved and processed
+ * Step  4: look which previously downloaded lists can be deleted
+ * Step  5: preperations for actually doing anything
+ * Step  6: queue downloading of list of lists (Release, Release.gpg, ...)
+ * Step  7: queue downloading of lists (Packages.gz, Sources.gz, ...)
+ * Step  8: call possible list hooks allowing them to modify the lists
+ * Step  9: search for missing packages i.e. needing to be added or upgraded
+ * Step 10: enqueue downloading of missing packages
+ * Step 11: install the missing packages
+ * Step 12: remember processed index files as processed
+ *
+ */
 #include <config.h>
 
 #include <errno.h>
@@ -47,8 +78,6 @@
 #include "donefile.h"
 #include "freespace.h"
 #include "configparser.h"
-
-// TODO: what about other signatures? Is hard-coding ".gpg" sensible?
 
 extern int verbose;
 
@@ -267,6 +296,10 @@ static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/
 	return RET_OK;
 }
 
+/****************************************************************************
+ * Step 1: parsing the conf/updates file with the patterns                  *
+ ****************************************************************************/
+
 CFlinkedlistinit(update_pattern)
 CFvalueSETPROC(update_pattern, name)
 CFvalueSETPROC(update_pattern, suite_from)
@@ -320,6 +353,9 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 	return r;
 }
 
+/****************************************************************************
+ * Step 2: create rules for some distribution based on those patterns       *
+ ****************************************************************************/
 
 static retvalue new_deleterule(struct update_origin **origins) {
 
@@ -440,6 +476,10 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 	}
 	return result;
 }
+
+/****************************************************************************
+ * Step 3: calculate which remote indices are to be retrieved and processed *
+ ****************************************************************************/
 
 static inline retvalue newindex(struct update_index **indices,
 		const char *listdir,
@@ -664,6 +704,10 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 	return r;
 }
 
+/****************************************************************************
+ * Step 4 (optional): look which previously downloaded lists can be deleted *
+ ****************************************************************************/
+
 static bool foundinorigins(struct update_origin *origins, size_t nameoffset, const char *name) {
 	struct update_origin *o;
 
@@ -786,7 +830,12 @@ retvalue updates_clearlists(const char *listdir,struct update_distribution *dist
 	return RET_OK;
 }
 
-/************************* Preparations *********************************/
+/****************************************************************************
+ * Step 5: preperations for actually doing anything:                        *
+ * 		- starting up apt methods                                   *
+ * 		- printing some warnings                                    *
+ ****************************************************************************/
+
 static inline retvalue startuporigin(struct aptmethodrun *run,struct update_origin *origin) {
 	retvalue r;
 	struct aptmethod *method;
@@ -831,7 +880,11 @@ static retvalue updates_startup(struct aptmethodrun *run,struct update_distribut
 	}
 	return result;
 }
-/******************* Fetch all Lists for an update **********************/
+
+/****************************************************************************
+ * Step 6: queue downloading of list of lists (Release, Release.gpg, ...)   *
+ ****************************************************************************/
+
 static inline retvalue queuemetalists(struct update_origin *origin) {
 	char *toget;
 	retvalue r;
@@ -861,6 +914,32 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 	}
 	return RET_OK;
 }
+
+static retvalue updates_queuemetalists(struct update_distribution *distributions) {
+	retvalue result,r;
+	struct update_origin *origin;
+	struct update_distribution *d;
+
+	result = RET_NOTHING;
+	for( d=distributions ; d != NULL ; d=d->next) {
+		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
+			if( origin->pattern == NULL)
+				continue;
+			if( origin->pattern->ignorerelease )
+				continue;
+			r = queuemetalists(origin);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+	}
+	return result;
+}
+
+/****************************************************************************
+ * Step 7: queue downloading of lists                                       *
+ *         (using information from previously downloaded meta-lists)        *
+ ****************************************************************************/
 
 static inline retvalue readchecksums(struct update_origin *origin) {
 	retvalue r;
@@ -950,30 +1029,6 @@ static inline retvalue queueindex(struct update_index *index) {
 }
 
 
-
-static retvalue updates_queuemetalists(struct update_distribution *distributions) {
-	retvalue result,r;
-	struct update_origin *origin;
-	struct update_distribution *d;
-
-	result = RET_NOTHING;
-	for( d=distributions ; d != NULL ; d=d->next) {
-		for( origin=d->origins; origin != NULL ; origin=origin->next ) {
-			if( origin->pattern == NULL)
-				continue;
-			if( origin->pattern->ignorerelease )
-				continue;
-			r = queuemetalists(origin);
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) )
-				return r;
-		}
-
-	}
-
-	return result;
-}
-
 static retvalue updates_queuelists(struct update_distribution *distributions, bool skipold, bool *anythingtodo) {
 	retvalue result,r;
 	struct update_origin *origin;
@@ -1014,6 +1069,10 @@ static retvalue updates_queuelists(struct update_distribution *distributions, bo
 	}
 	return result;
 }
+
+/****************************************************************************
+ * Step 8: call possible list hooks allowing them to modify the lists       *
+ ****************************************************************************/
 
 static retvalue calllisthook(const char *listhook,struct update_index *index) {
 	char *newfilename;
@@ -1104,6 +1163,11 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
 	return result;
 }
 
+/****************************************************************************
+ * Step 9: search for missing packages i.e. needing to be added or upgraded *
+ *         (all the logic in upgradelist.c, this is only clue code)         *
+ ****************************************************************************/
+
 static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package,UNUSED(const char *old_version),UNUSED(const char *new_version),const char *newcontrolchunk) {
 	struct update_pattern *pattern = privdata;
 	retvalue r;
@@ -1133,6 +1197,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 
 	return UD_UPGRADE;
 }
+
 
 static inline retvalue searchformissing(FILE *out,struct database *database,struct update_target *u) {
 	struct update_index *index;
@@ -1210,6 +1275,10 @@ static retvalue updates_readindices(FILE *out,struct database *database,struct u
 	return result;
 }
 
+/****************************************************************************
+ * Step 10: enqueue downloading of missing packages                         *
+ ****************************************************************************/
+
 static retvalue updates_enqueue(struct downloadcache *cache,struct database *database,struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
@@ -1228,6 +1297,10 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
 	return result;
 }
 
+/****************************************************************************
+ * Step 11: install the missing packages                                    *
+ *          (missing files should have been downloaded first)               *
+ ****************************************************************************/
 
 static retvalue updates_install(struct database *database,struct update_distribution *distribution,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
@@ -1254,6 +1327,11 @@ static retvalue updates_install(struct database *database,struct update_distribu
 	}
 	return result;
 }
+
+/****************************************************************************
+ * Step 12: mark index files as processed, so they won't process a second   *
+ *          time, unless --noskipold is given                               *
+ ****************************************************************************/
 
 static void markdone(struct update_target *target) {
 	struct update_index *index;
@@ -1283,18 +1361,11 @@ static void markdone(struct update_target *target) {
 	}
 }
 
-static void updates_dump(struct update_distribution *distribution) {
-	struct update_target *u;
 
-	for( u=distribution->targets ; u != NULL ; u=u->next ) {
-		if( u->nothingnew )
-			continue;
-		printf("Updates needed for '%s':\n",u->target->identifier);
-		upgradelist_dump(u->upgradelist);
-		upgradelist_free(u->upgradelist);
-		u->upgradelist = NULL;
-	}
-}
+/****************************************************************************
+ * All together now: everything done step after step, in between telling    *
+ * the apt methods to actually download what was enqueued.                  *
+ ****************************************************************************/
 
 static retvalue updates_downloadlists(const char *methoddir, struct aptmethodrun *run, struct update_distribution *distributions, bool skipold, bool *anythingtodo) {
 	retvalue r,result;
@@ -1471,6 +1542,24 @@ retvalue updates_update(struct database *database, const char *methoddir, struct
 	return result;
 }
 
+/****************************************************************************
+ * Alternatively, don't download and install, but list what is needed to be *
+ * done. (For the checkupdate command)                                      *
+ ****************************************************************************/
+
+static void updates_dump(struct update_distribution *distribution) {
+	struct update_target *u;
+
+	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->nothingnew )
+			continue;
+		printf("Updates needed for '%s':\n",u->target->identifier);
+		upgradelist_dump(u->upgradelist);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
+	}
+}
+
 retvalue updates_checkupdate(struct database *database, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result,r;
@@ -1540,6 +1629,11 @@ retvalue updates_checkupdate(struct database *database, const char *methoddir, s
 
 	return result;
 }
+
+/******************************************************************************
+ * For the predelete command: delete everything a following update run would  *
+ * delete. (Assuming no unexpected errors occur, like a file missing upstream.*
+ *****************************************************************************/
 
 retvalue updates_predelete(struct database *database, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
@@ -1645,6 +1739,11 @@ retvalue updates_predelete(struct database *database, const char *methoddir, str
 	logger_wait();
 	return result;
 }
+
+/*****************************************************************************
+ * Mostly an experiment, and not very well tested: Instead of doing anything *
+ * in the same run, update the targets one after the other.                  *
+ *****************************************************************************/
 
 static retvalue singledistributionupdate(struct database *database, const char *methoddir, struct update_distribution *d, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	struct aptmethodrun *run;
