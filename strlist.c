@@ -268,3 +268,20 @@ bool strlist_intersects(const struct strlist *a, const struct strlist *b) {
 			return true;
 	return false;
 }
+
+bool *strlist_preparefoundlist(const struct strlist *list) {
+	bool *found;
+	int i, j;
+
+	found = calloc(list->count, sizeof(bool));
+	if( found == NULL )
+		return found;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( found[i] )
+			continue;
+		for( j = i + 1 ; j < list->count ; j++ )
+			if( strcmp(list->values[i], list->values[j]) == 0 )
+				found[j] = true;
+	}
+	return found;
+}

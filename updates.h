@@ -29,7 +29,7 @@ retvalue updates_getpatterns(const char *confdir,/*@out@*/struct update_pattern 
 void updates_freepatterns(/*@only@*/struct update_pattern *p);
 void updates_freeupdatedistributions(/*@only@*/struct update_distribution *d);
 
-retvalue updates_calcindices(const char *listdir,const struct update_pattern *patterns,struct distribution *distributions,/*@out@*/struct update_distribution **update_distributions);
+retvalue updates_calcindices(const char *listdir, struct update_pattern *, struct distribution *, bool fast, /*@out@*/struct update_distribution **);
 
 /* remove all files ${listdir}/${distribution}_* that will not be needed. */
 retvalue updates_clearlists(const char *listdir,struct update_distribution *distributions);

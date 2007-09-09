@@ -416,23 +416,6 @@ static inline void markasused(const struct strlist *pulls, const char *rulename,
 	}
 }
 
-static bool *preparefoundlist(const struct strlist *list) {
-	bool *found;
-	int i, j;
-
-	found = calloc(list->count, sizeof(bool));
-	if( found == NULL )
-		return found;
-	for( i = 0 ; i < list->count ; i++ ) {
-		if( found[i] )
-			continue;
-		for( j = i + 1 ; j < list->count ; j++ )
-			if( strcmp(list->values[i], list->values[j]) == 0 )
-				found[j] = true;
-	}
-	return found;
-}
-
 static void checkifarchitectureisused(const struct strlist *architectures, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
 	bool *found;
 	const struct distribution *d;
@@ -441,7 +424,7 @@ static void checkifarchitectureisused(const struct strlist *architectures, const
 	assert( rule != NULL );
 	if( architectures->count == 0 )
 		return;
-	found = preparefoundlist(architectures);
+	found = strlist_preparefoundlist(architectures);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -473,7 +456,7 @@ static void checkifcomponentisused(const struct strlist *components, const struc
 	assert( rule != NULL );
 	if( components->count == 0 )
 		return;
-	found = preparefoundlist(components);
+	found = strlist_preparefoundlist(components);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -505,7 +488,7 @@ static void checkifudebcomponentisused(const struct strlist *udebcomponents, con
 	assert( rule != NULL );
 	if( udebcomponents->count == 0 )
 		return;
-	found = preparefoundlist(udebcomponents);
+	found = strlist_preparefoundlist(udebcomponents);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {

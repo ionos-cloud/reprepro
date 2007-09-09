@@ -718,7 +718,8 @@ ACTION_D(update) {
 		return result;
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;
@@ -763,7 +764,8 @@ ACTION_D(predelete) {
 	}
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;
@@ -804,7 +806,8 @@ ACTION_D(iteratedupdate) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;
@@ -841,7 +844,8 @@ ACTION_B(checkupdate) {
 		return result;
 	}
 
-	result = updates_calcindices(listdir, patterns, alldistributions, &u_distributions);
+	result = updates_calcindices(listdir, patterns, alldistributions, fast,
+			&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;

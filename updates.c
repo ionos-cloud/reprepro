@@ -156,6 +156,7 @@ struct update_pattern {
 	struct filterlist filterlist;
 	// NULL means nothing to execute after lists are downloaded...
 	/*@null@*/char *listhook;
+	bool used;
 };
 
 struct update_origin {
@@ -355,8 +356,82 @@ retvalue updates_getpatterns(const char *confdir, struct update_pattern **patter
 			fputs("To ignore unknown fields use --ignore=unknownfield\n", stderr);
 		updates_freepatterns(update);
 	}
-	/* check for unknown fields
 	return r;
+}
+
+static inline void markfound(const struct strlist *updates, const char *patternname, const struct strlist *searched, const struct strlist *have, bool *found) {
+	int i, j, o;
+
+	for( i = 0 ; i < updates->count ; i++ ) {
+		if( strcmp(updates->values[i], patternname) != 0 )
+			continue;
+		for( j = 0 ; j < have->count ; j++ ) {
+			o = strlist_ofs(searched, have->values[j]);
+			if( o > 0 )
+				found[o] = true;
+		}
+	}
+}
+
+/* TODO: move this into parsing? */
+static void checkpatternsforunused(const struct update_pattern *patterns, const struct distribution *distributions) {
+	const struct distribution *d;
+	const struct update_pattern *p;
+	bool *found;
+	int i;
+
+	for( p = patterns ; p != NULL ; p = p->next ) {
+		if( !p->used )
+			continue;
+		found = strlist_preparefoundlist(&p->architectures_into);
+		if( found == NULL )
+			return;
+		for( d = distributions ; d != NULL ; d = d->next ) {
+			markfound(&d->updates, p->name, &p->architectures_into,
+					&d->architectures, found);
+		}
+		for( i = 0 ; i < p->architectures_into.count ; i++ ) {
+			if( found[i] )
+				continue;
+			fprintf(stderr,
+"Warning: Update-pattern '%s' wants to put something in architecture '%s',\n"
+"but no distribution using that rule has an architecture of that name.\n",
+				p->name, p->architectures_into.values[i]);
+		}
+		free(found);
+		found = strlist_preparefoundlist(&p->components_into);
+		if( found == NULL )
+			return;
+		for( d = distributions ; d != NULL ; d = d->next ) {
+			markfound(&d->updates, p->name, &p->components_into,
+					&d->components, found);
+		}
+		for( i = 0 ; i < p->components_into.count ; i++ ) {
+			if( found[i] )
+				continue;
+			fprintf(stderr,
+"Warning: Update-pattern '%s' wants to put something in component '%s',\n"
+"but no distribution using that rule has an component of that name.\n",
+				p->name, p->components_into.values[i]);
+		}
+		free(found);
+		found = strlist_preparefoundlist(&p->udebcomponents_into);
+		if( found == NULL )
+			return;
+		for( d = distributions ; d != NULL ; d = d->next ) {
+			markfound(&d->updates, p->name, &p->udebcomponents_into,
+					&d->udebcomponents, found);
+		}
+		for( i = 0 ; i < p->udebcomponents_into.count ; i++ ) {
+			if( found[i] )
+				continue;
+			fprintf(stderr,
+"Warning: Update-pattern '%s' wants to put something in udebcomponent '%s',\n"
+"but no distribution using that rule has an udebcomponent of that name.\n",
+				p->name, p->udebcomponents_into.values[i]);
+		}
+		free(found);
+	}
 }
 
 /****************************************************************************
@@ -375,10 +450,7 @@ static retvalue new_deleterule(struct update_origin **origins) {
 	return RET_OK;
 }
 
-static retvalue instance_pattern(const char *listdir,
-		const struct update_pattern *pattern,
-		const struct distribution *distribution,
-		struct update_origin **origins) {
+static retvalue instance_pattern(const char *listdir, struct update_pattern *pattern, const struct distribution *distribution, struct update_origin **origins) {
 
 	struct update_origin *update;
 
@@ -405,6 +477,7 @@ static retvalue instance_pattern(const char *listdir,
 		free(update);
 		return RET_ERROR_OOM;
 	}
+	pattern->used = true;
 
 	update->distribution = distribution;
 	update->pattern = pattern;
@@ -430,7 +503,7 @@ static retvalue instance_pattern(const char *listdir,
 	return RET_OK;
 }
 
-static retvalue getorigins(const char *listdir,const struct update_pattern *patterns,const struct distribution *distribution,struct update_origin **origins) {
+static retvalue getorigins(const char *listdir, struct update_pattern *patterns, const struct distribution *distribution, struct update_origin **origins) {
 	struct update_origin *updates = NULL;
 	retvalue result;
 	int i;
@@ -438,7 +511,7 @@ static retvalue getorigins(const char *listdir,const struct update_pattern *patt
 	result = RET_NOTHING;
 	for( i = 0; i < distribution->updates.count ; i++ ) {
 		const char *name = distribution->updates.values[i];
-		const struct update_pattern *pattern;
+		struct update_pattern *pattern;
 		struct update_origin *update IFSTUPIDCC(=NULL);
 		retvalue r;
 
@@ -653,7 +726,7 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 	return result;
 }
 
-retvalue updates_calcindices(const char *listdir,const struct update_pattern *patterns,struct distribution *distributions,struct update_distribution **update_distributions) {
+retvalue updates_calcindices(const char *listdir, struct update_pattern *patterns, struct distribution *distributions, bool fast, struct update_distribution **update_distributions) {
 	struct distribution *distribution;
 	struct update_distribution *u_ds;
 	retvalue r;
@@ -703,9 +776,11 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 		}
 		r = RET_OK;
 	}
-	if( RET_IS_OK(r) )
+	if( RET_IS_OK(r) ) {
+		if( !fast )
+			checkpatternsforunused(patterns, distributions);
 		*update_distributions = u_ds;
-	else
+	} else
 		updates_freeupdatedistributions(u_ds);
 	return r;
 }

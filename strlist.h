@@ -46,4 +46,6 @@ bool strlist_intersects(const struct strlist *, const struct strlist *);
 /* if missing != NULL And subset no subset of strlist, set *missing to the first missing one */
 bool strlist_subset(const struct strlist *strlist, const struct strlist *subset, const char **missing);
 
+/* a list of bool for all values, duplicates already set to true */
+bool *strlist_preparefoundlist(const struct strlist *);
 #endif

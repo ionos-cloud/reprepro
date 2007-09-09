@@ -1,6 +1,7 @@
 2007-09-09  Bernhard R. Link <brlink@debian.org>
 	* never hardlink index files, but copy them always into the lists
 	  directory. (Should not make a difference yet, but feels safer).
+	* warn if update rules list components or architectures are always ignored
 
 2007-09-08  Bernhard R. Link <brlink@debian.org>
 	* warn if pull rules list components or architectures are always ignored

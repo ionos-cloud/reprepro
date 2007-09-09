@@ -8,8 +8,8 @@ Updates between 2.2.4 and 2.3.0:
   (avoids actions started in the wrong base directory and helps to catch more
    disambiguities, may lead to the need of a valid config file for some actions
    not needing one, though).
-- check pull rules to not list any architectures or components that will never
-  be used, so typos won't go unnoticed.
+- check pull and update rules to not list any architectures or components that
+  will never be used, so typos won't go unnoticed.
 - obsolete --overridedir and searching files in overrides/ directory by default.
   This places are still search, but so is the configuration directory now and
   future version will stop accepting --overridedir and not search in that
