@@ -410,7 +410,7 @@ static inline void markasused(const struct strlist *pulls, const char *rulename,
 			continue;
 		for( j = 0 ; j < have->count ; j++ ) {
 			o = strlist_ofs(needed, have->values[j]);
-			if( o > 0 )
+			if( o >= 0 )
 				found[o] = true;
 		}
 	}

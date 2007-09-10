@@ -367,9 +367,10 @@ static inline void markfound(const struct strlist *updates, const char *patternn
 			continue;
 		for( j = 0 ; j < have->count ; j++ ) {
 			o = strlist_ofs(searched, have->values[j]);
-			if( o > 0 )
+			if( o >= 0 )
 				found[o] = true;
 		}
+		break;
 	}
 }
 
