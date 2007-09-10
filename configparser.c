@@ -350,9 +350,10 @@ int config_nextnonspaceinline(struct configiterator *iter) {
 			iter->filename, iter->line, \
 			iter->column, ##  __VA_ARGS__);
 
-inline retvalue config_completeword(struct configiterator *iter, char c, char **result_p) {
+inline retvalue config_completeword(struct configiterator *iter, char firstc, char **result_p) {
 	size_t size = 0, len = 0;
 	char *value = NULL, *nv;
+	int c = firstc;
 
 	iter->markerline = iter->line;
 	iter->markercolumn = iter->column;
@@ -755,5 +756,77 @@ retvalue config_getnumber(struct configiterator *iter, const char *name, long lo
 	}
 	free(word);
 	*result_p = value;
+	return RET_OK;
+}
+
+static retvalue config_getline(struct configiterator *iter, char **result_p) {
+	size_t size = 0, len = 0;
+	char *value = NULL, *nv;
+	int c;
+
+	c = config_nextnonspace(iter);
+	if( c == EOF )
+		return RET_NOTHING;
+	iter->markerline = iter->line;
+	iter->markercolumn = iter->column;
+	do {
+		if( len + 2 >= size ) {
+			nv = realloc(value, size+128);
+			if( nv == NULL ) {
+				free(value);
+				return RET_ERROR_OOM;
+			}
+			size += 128;
+			value = nv;
+		}
+		value[len] = c;
+		len++;
+		c = fgetc(iter->f);
+		if( c == EOF )
+			break;
+		if( c == '\n' ) {
+			iter->eol = true;
+			break;
+		}
+		iter->column++;
+	} while( true );
+	assert( len > 0 );
+	assert( len < size );
+	while( len > 0 &&
+			(value[len-1] == ' ' || value[len-1] == '\t'
+			 || value[len-1] == '\r' ) )
+		len--;
+	assert( len > 0 );
+	value[len] = '\0';
+	nv = realloc(value, len+1);
+	if( nv == NULL )
+		*result_p = value;
+	else
+		*result_p = nv;
+	return RET_OK;
+}
+
+retvalue config_getlines(struct configiterator *iter, struct strlist *result) {
+	char *line;
+	struct strlist list;
+	retvalue r;
+
+	strlist_init(&list);
+	do {
+		r = config_getline(iter, &line);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&list);
+			return r;
+		}
+		if( r == RET_NOTHING )
+			r = strlist_add_dup(&list, "");
+		else
+			r = strlist_add(&list, line);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&list);
+			return r;
+		}
+	} while( config_nextline(iter) );
+	strlist_move(result, &list);
 	return RET_OK;
 }

@@ -48,4 +48,7 @@ bool strlist_subset(const struct strlist *strlist, const struct strlist *subset,
 
 /* a list of bool for all values, duplicates already set to true */
 bool *strlist_preparefoundlist(const struct strlist *);
+
+/* concatenate <prefix> <values separated by infix> <suffix> */
+char *strlist_concat(const struct strlist *, const char *prefix, const char *infix, const char *suffix);
 #endif

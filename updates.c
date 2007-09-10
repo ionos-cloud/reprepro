@@ -133,7 +133,7 @@ struct update_pattern {
 	//e.g. "Fallback: ftp://ftp.debian.org/pub/linux/debian"
 	char *fallback; // can be other server or dir, but must be same method
 	//e.g. "Config: Dir=/"
-	/*@null@*/char *config;
+	struct strlist config;
 	//e.g. "Suite: woody" or "Suite: <asterix>/updates" (NULL means "*")
 	/*@null@*/char *suite_from;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
@@ -211,11 +211,11 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	if( update == NULL )
 		return;
 	free(update->name);
-	free(update->config);
 	free(update->method);
 	free(update->fallback);
 	free(update->suite_from);
 	free(update->verifyrelease);
+	strlist_done(&update->config);
 	strlist_done(&update->architectures_from);
 	strlist_done(&update->architectures_into);
 	strlist_done(&update->components_from);
@@ -312,7 +312,7 @@ CFurlSETPROC(update_pattern, method)
 CFurlSETPROC(update_pattern, fallback)
 /* what here? */
 CFvalueSETPROC(update_pattern, verifyrelease)
-CFallSETPROC(update_pattern, config)
+CFlinelistSETPROC(update_pattern, config)
 CFtruthSETPROC(update_pattern, ignorerelease)
 CFscriptSETPROC(update_pattern, listhook)
 CFsplitstrlistSETPROC(update_pattern, architectures)
@@ -925,7 +925,7 @@ static inline retvalue startuporigin(struct aptmethodrun *run,struct update_orig
 	assert( origin != NULL && origin->pattern != NULL );
 	r = aptmethod_newmethod(run,origin->pattern->method,
 			origin->pattern->fallback,
-			origin->pattern->config,&method);
+			&origin->pattern->config, &method);
 	if( RET_WAS_ERROR(r) ) {
 		origin->download = NULL;
 		origin->failed = true;

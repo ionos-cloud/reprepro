@@ -90,6 +90,7 @@ static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 		return;
 	free(method->name);
 	free(method->baseuri);
+	free(method->config);
 	free(method->fallbackbaseuri);
 	free(method->inputbuffer);
 	free(method->command);
@@ -176,7 +177,7 @@ retvalue aptmethod_initialize_run(struct aptmethodrun **run) {
 	}
 }
 
-retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *fallbackuri,const char *config,struct aptmethod **m) {
+retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const char *fallbackuri, const struct strlist *config, struct aptmethod **m) {
 	struct aptmethod *method;
 	const char *p;
 
@@ -231,17 +232,19 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 			return RET_ERROR_OOM;
 		}
 	}
-	if( config != NULL ) {
-		method->config = strdup(config);
-		if( method->config == NULL ) {
-			free(method->fallbackbaseuri);
-			free(method->baseuri);
-			free(method->name);
-			free(method);
-			return RET_ERROR_OOM;
-		}
-	} else {
-		method->config = NULL;
+#define CONF601 "601 Configuration"
+#define CONFITEM "\nConfig-Item: "
+	if( config->count == 0 )
+		method->config = strdup(CONF601 CONFITEM "Dir=/" "\n\n");
+	else
+		method->config = strlist_concat(config,
+				CONF601 CONFITEM, CONFITEM, "\n\n");
+	if( method->config == NULL ) {
+		free(method->fallbackbaseuri);
+		free(method->baseuri);
+		free(method->name);
+		free(method);
+		return RET_ERROR_OOM;
 	}
 	method->next = run->methods;
 	run->methods = method;
@@ -355,67 +358,6 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	method->command = NULL;
 	method->output_length = 0;
 	method->alreadywritten = 0;
-	return RET_OK;
-}
-
-/************************Sending Configuration**************************/
-
-static inline retvalue sendconfig(struct aptmethod *method) {
-#define CONF601 "601 Configuration"
-#define CONFITEM "\nConfig-Item: "
-	size_t l;
-	const char *p;
-	char *c;
-	bool wasnewline;
-
-	assert(method->command == NULL);
-
-	method->alreadywritten = 0;
-
-	if( method->config == NULL ) {
-		method->command = mprintf(CONF601 "Config-Item: Dir=/\n\n");
-		if( method->command == NULL ) {
-			return RET_ERROR_OOM;
-		}
-		method->output_length = strlen(method->command);
-		return RET_OK;
-	}
-
-	l = sizeof(CONF601)+sizeof(CONFITEM)+1;
-	for( p = method->config; *p != '\0' ; p++ ) {
-		if( *p == '\n' )
-			l += sizeof(CONFITEM)-1;
-		else
-			l++;
-	}
-	c = method->command = malloc(l);
-	if( method->command == NULL ) {
-		return RET_ERROR_OOM;
-	}
-
-	strcpy(c,CONF601 CONFITEM);
-	c += sizeof(CONF601)+sizeof(CONFITEM)-2;
-	wasnewline = true;
-	for( p = method->config; *p != '\0'  ; p++ ) {
-		if( *p != '\n' ) {
-			if( !wasnewline || !xisspace(*p) )
-				*(c++) = *p;
-			wasnewline = false;
-		} else {
-			strcpy(c,CONFITEM);
-			c += sizeof(CONFITEM)-1;
-			wasnewline = true;
-		}
-	}
-	*(c++) = '\n';
-	*(c++) = '\n';
-	*c = '\0';
-
-	if( verbose > 11 ) {
-		fprintf(stderr,"Sending config: '%s'\n",method->command);
-	}
-
-	method->output_length = strlen(method->command);
 	return RET_OK;
 }
 
@@ -722,9 +664,17 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r != RET_NOTHING ) {
-		r = sendconfig(method);
-		if( RET_WAS_ERROR(r) )
-			return r;
+		assert(method->command == NULL);
+		method->alreadywritten = 0;
+		method->command = method->config;
+		method->config = NULL;
+		method->output_length = strlen(method->command);
+		if( verbose > 11 ) {
+			fprintf(stderr,"Sending config: '%s'\n",method->command);
+		}
+	} else {
+		free(method->config);
+		method->config = NULL;
 	}
 	method->status = ams_ok;
 	return RET_OK;

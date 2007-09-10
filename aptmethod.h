@@ -25,7 +25,7 @@ struct tobedone {
 };
 
 retvalue aptmethod_initialize_run(/*@out@*/struct aptmethodrun **run);
-retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *fallbackuri,const char *config,/*@out@*/struct aptmethod **m);
+retvalue aptmethod_newmethod(struct aptmethodrun *, const char *uri, const char *fallbackuri, const struct strlist *config, /*@out@*/struct aptmethod **);
 
 /* md5sum can be NULL(filekey then, too): if todo != NULL, then *todo will be set */
 retvalue aptmethod_queuefile(struct aptmethod *, const char *origfile, const char *destfile, const char *md5sum, const char *filekey, /*@out@*/struct tobedone **);

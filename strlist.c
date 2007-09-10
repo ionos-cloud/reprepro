@@ -285,3 +285,39 @@ bool *strlist_preparefoundlist(const struct strlist *list) {
 	}
 	return found;
 }
+
+char *strlist_concat(const struct strlist *list, const char *prefix, const char *infix, const char *suffix) {
+	size_t l, prefix_len, infix_len, suffix_len, line_len;
+	char *c, *n;
+	int i;
+
+	prefix_len = strlen(prefix);
+	infix_len = strlen(infix);
+	suffix_len = strlen(suffix);
+
+	l = prefix_len + suffix_len;
+	for( i = 0 ; i < list->count ; i++ )
+		l += strlen(list->values[i]);
+	if( list->count > 0 )
+		l += (list->count-1)*infix_len;
+	c = malloc(l + 1);
+	if( c == NULL )
+		return c;
+	memcpy(c, prefix, prefix_len);
+	n = c + prefix_len;
+	for( i = 0 ; i < list->count ; i++ ) {
+		line_len = strlen(list->values[i]);
+		memcpy(n, list->values[i], line_len);
+		n += line_len;
+		if( i+1 < list->count ) {
+			memcpy(n, infix, infix_len);
+			n += infix_len;
+		} else {
+			memcpy(n, suffix, suffix_len);
+			n += suffix_len;
+		}
+	}
+	assert( (size_t)(n-c) == l );
+	*n = '\0';
+	return c;
+}

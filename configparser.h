@@ -40,6 +40,7 @@ unsigned int config_markerline(const struct configiterator *) __attribute__((pur
 unsigned int config_markercolumn(const struct configiterator *) __attribute__((pure));
 retvalue config_getflags(struct configiterator *, const char *, const struct constant *, bool *, bool, const char *msg);
 int config_nextnonspaceinline(struct configiterator *iter);
+retvalue config_getlines(struct configiterator *,struct strlist *);
 retvalue config_getwords(struct configiterator *,struct strlist *);
 retvalue config_getall(struct configiterator *iter, char **result_p);
 retvalue config_getword(struct configiterator *, char **);
@@ -51,8 +52,6 @@ retvalue config_gettruth(struct configiterator *, const char *, bool *);
 retvalue config_getnumber(struct configiterator *, const char *, long long *, long long minval, long long maxval);
 retvalue config_getconstant(struct configiterator *, const struct constant *, int *);
 #define config_getenum(iter,type,constants,result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
-// retvalue config_getword(struct configiterator *, char **);
-char *config_getline(struct configiterator *);
 retvalue config_completeword(struct configiterator *, char, char **);
 void config_overline(struct configiterator *);
 bool config_nextline(struct configiterator *);
@@ -80,6 +79,11 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getonlyword(iter, name, NULL, &item->field); \
+}
+#define CFlinelistSETPROC(sname, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_getlines(iter, &item->field); \
 }
 #define CFstrlistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \

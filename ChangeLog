@@ -1,3 +1,6 @@
+2007-09-10  Bernhard R. Link <brlink@debian.org>
+	* improve parsing of update's Config lines
+
 2007-09-09  Bernhard R. Link <brlink@debian.org>
 	* never hardlink index files, but copy them always into the lists
 	  directory. (Should not make a difference yet, but feels safer).
