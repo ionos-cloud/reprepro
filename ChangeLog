@@ -1,3 +1,7 @@
+2007-09-11  Bernhard R. Link <brlink@debian.org>
+	* reject spaces and tabs in key-names (i.e. before :) in config files,
+	instead of bubbling about unknown fields.
+
 2007-09-10  Bernhard R. Link <brlink@debian.org>
 	* improve parsing of update's Config lines
 

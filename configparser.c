@@ -209,16 +209,29 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 
 		while( (c = fgetc(iter.f)) != EOF && c != ':' && c != '\n' && c != '\0') {
 			iter.column++;
-			key[keylen++] = c;
-			if( keylen >= 100 ) {
-				fprintf(stderr, "Error parsing %s, line %u: Colon expected!\n",
+			if( c == ' ' ) {
+				fprintf(stderr, "Error parsing %s, line %u: Unexpected space in header name!\n",
 						iter.filename, iter.line);
+				result = RET_ERROR;
+				break;
 			}
+			if( c == '\t' ) {
+				fprintf(stderr, "Error parsing %s, line %u: Unexpected tabulator character in header name!\n",
+						iter.filename, iter.line);
+				if( this != NULL && keylen == 0 )
+					fputs("(Multi line headers have to start with a space character.)", stderr);
+				result = RET_ERROR;
+				break;
+			}
+			key[keylen++] = c;
+			if( keylen >= 100 )
+				break;
 		}
 		if( c != ':' ) {
-			/* newline or end-of-file */
-			fprintf(stderr, "Error parsing %s, line %u, column %u: Colon expected!\n",
-				iter.filename, iter.line, iter.column);
+			if( c != ' ' && c != '\t' )
+				/* newline or end-of-file */
+				fprintf(stderr, "Error parsing %s, line %u, column %u: Colon expected!\n",
+					iter.filename, iter.line, iter.column);
 			result = RET_ERROR;
 			break;
 		}
