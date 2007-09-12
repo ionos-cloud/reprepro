@@ -185,7 +185,7 @@ retvalue files_deleteandremove(struct database *database, const char *filekey, b
 	retvalue r;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n",filekey);
 	filename = files_calcfullfilename(database, filekey);

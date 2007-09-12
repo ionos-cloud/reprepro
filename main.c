@@ -2564,7 +2564,7 @@ int main(int argc,char *argv[]) {
 	config_state = CONFIG_OWNER_CMDLINE;
 
 	if( interrupted() )
-		exit(EXIT_RET(RET_ERROR_INTERUPTED));
+		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 
 	while( (c = getopt_long(argc,argv,"+fVvshb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
 		handle_option(c,optarg);
@@ -2574,7 +2574,7 @@ int main(int argc,char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	if( interrupted() )
-		exit(EXIT_RET(RET_ERROR_INTERUPTED));
+		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
@@ -2637,7 +2637,7 @@ int main(int argc,char *argv[]) {
 		exit(EXIT_FAILURE);
 	}
 	if( interrupted() )
-		exit(EXIT_RET(RET_ERROR_INTERUPTED));
+		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {

@@ -338,7 +338,7 @@ retvalue sources_doreoverride(const struct distribution *distribution,const char
 	char *newchunk;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(distribution->overrides.dsc, packagename);
 	if( o == NULL )
@@ -365,7 +365,7 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 	assert(sourcename!=NULL);
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	r = chunk_getvalue(chunk,"Version",&sourceversion);
 	if( r == RET_NOTHING ) {

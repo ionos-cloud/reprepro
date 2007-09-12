@@ -253,7 +253,7 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 	char *newchunk;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(distribution->overrides.deb, packagename);
 	if( o == NULL )
@@ -276,7 +276,7 @@ retvalue ubinaries_doreoverride(const struct distribution *distribution,const ch
 	char *newchunk;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(distribution->overrides.udeb, packagename);
 	if( o == NULL )
@@ -304,7 +304,7 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 	assert(packagename!=NULL);
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	/* is there a sourcename */
 	r = chunk_getnameandversion(chunk,"Source",&fsourcename,&sourceversion);
@@ -569,7 +569,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
 						database,
@@ -590,7 +590,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
 						database,
@@ -612,7 +612,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
 						database,
@@ -642,7 +642,7 @@ static inline retvalue checkadddeb(struct database *database, struct distributio
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
-			r = RET_ERROR_INTERUPTED;
+			r = RET_ERROR_INTERRUPTED;
 		else
 			r = target_checkaddpackage(t,
 					deb->name, deb->version,

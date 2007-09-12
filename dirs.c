@@ -72,7 +72,7 @@ retvalue dirs_make_recursive(const char *directory) {
 	retvalue r,result;
 
 	if( interrupted() ) {
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 	r = dirs_make_parent(directory);
 	result = dirs_check(directory);
@@ -90,7 +90,7 @@ retvalue dir_create_needed(const char *directory, int *createddepth) {
 	int e;
 
 	if( interrupted() ) {
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 	while( len > 0 && directory[len-1] == '/' )
 		len--;

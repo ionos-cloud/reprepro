@@ -64,7 +64,7 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 	}
 	if( interrupted() ) {
 		free(buffer);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 	if( got < 0 ) {
 		free(buffer);
@@ -147,7 +147,7 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 				return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 			}
 			if( interrupted() )
-				return RET_ERROR_INTERUPTED;
+				return RET_ERROR_INTERRUPTED;
 		} else {
 			r = read_control_file(control, debfile, tar, entry);
 			if( r != RET_NOTHING )
@@ -278,7 +278,7 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 		}
 		if( interrupted() ) {
 			free(filelist);
-			return RET_ERROR_INTERUPTED;
+			return RET_ERROR_INTERRUPTED;
 		}
 		a = archive_read_data_skip(tar);
 		if( a != ARCHIVE_OK ) {

@@ -21,7 +21,7 @@ typedef int retvalue;
 #define RET_ERROR_BADSIG (retvalue)-6
 #define RET_ERROR_MISSING (retvalue)-7
 #define RET_ERROR_UNKNOWNFIELD (retvalue)-8
-#define RET_ERROR_INTERUPTED (retvalue)-9
+#define RET_ERROR_INTERRUPTED (retvalue)-9
 
 #define RET_IS_OK(r) ((r) == RET_OK)
 #define RET_WAS_NO_ERROR(r) ((r) >= (retvalue)0)

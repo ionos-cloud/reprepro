@@ -88,7 +88,7 @@ retvalue ar_open(/*@out@*/struct ar_archive **n, const char *filename) {
 	ssize_t bytesread;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	ar = calloc(1,sizeof(struct ar_archive));
 	if( ar == NULL )
 		return RET_ERROR_OOM;
@@ -161,7 +161,7 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 	/* read the next header from the file */
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	bytesread = readwait(ar->fd,&ar->currentheader,sizeof(ar->currentheader));
 	if( bytesread == 0 )

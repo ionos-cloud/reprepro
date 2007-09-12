@@ -45,7 +45,7 @@ retvalue chunk_foreach(const char *filename, chunkaction action, void *data, boo
 	result = RET_NOTHING;
 	while( (ret = chunk_read(f,&chunk)) == RET_OK ) {
 		if( interrupted() ) {
-			RET_UPDATE(result,RET_ERROR_INTERUPTED);
+			RET_UPDATE(result, RET_ERROR_INTERRUPTED);
 			free(chunk);
 			break;
 		}

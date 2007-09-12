@@ -520,7 +520,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 		if( pkg->version_in_use != NULL &&
 				(pkg->version == pkg->new_version || pkg->deleted)) {
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_removepackage(upgrade->target,
 						logger, database,
@@ -556,7 +556,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 				/* upgrade (or possibly downgrade) */
 // TODO: trackingdata?
 				if( interrupted() )
-					r = RET_ERROR_INTERUPTED;
+					r = RET_ERROR_INTERRUPTED;
 				else
 					r = target_addpackage(upgrade->target,
 						logger, database,
@@ -572,7 +572,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 		}
 		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_removepackage(upgrade->target,
 						logger, database,

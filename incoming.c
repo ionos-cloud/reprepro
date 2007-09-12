@@ -1220,7 +1220,7 @@ static retvalue add_dsc(struct database *database,
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
-			r = RET_ERROR_INTERUPTED;
+			r = RET_ERROR_INTERRUPTED;
 		else
 			r = target_addpackage(t, into->logger, database,
 					p->master->dsc.name,
@@ -1248,7 +1248,7 @@ static retvalue checkadd_dsc(struct database *database,
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
-			r = RET_ERROR_INTERUPTED;
+			r = RET_ERROR_INTERRUPTED;
 		else
 			r = target_checkaddpackage(t,
 					p->master->dsc.name,
@@ -1269,7 +1269,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 	const char *changesfilekey = NULL;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	into->lookedat = true;
 	if( into->logger != NULL ) {
@@ -1560,7 +1560,7 @@ static retvalue candidate_add(const char *confdir, const char *overridedir,struc
 		return r;
 	if( interrupted() ) {
 		candidate_removefiles(database,c,NULL,NULL,0);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 	r = RET_OK;
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {

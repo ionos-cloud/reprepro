@@ -329,7 +329,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,struct database *database,
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
-			r = RET_ERROR_INTERUPTED;
+			r = RET_ERROR_INTERRUPTED;
 		else
 			r = target_addpackage(t, distribution->logger, database,
 					pkg->dsc.name, pkg->dsc.version,
@@ -365,7 +365,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 
 	if( interrupted() ) {
 		dsc_free(pkg);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 
 	if( tracks != NULL ) {

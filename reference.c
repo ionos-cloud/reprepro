@@ -341,7 +341,7 @@ retvalue references_dump(struct database *database) {
 		}
 		result = RET_OK;
 		if( interrupted() ) {
-			result = RET_ERROR_INTERUPTED;
+			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
 	}

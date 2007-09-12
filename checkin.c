@@ -820,7 +820,7 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 			continue;
 		}
 		if( interrupted() ) {
-			return RET_ERROR_INTERUPTED;
+			return RET_ERROR_INTERRUPTED;
 		}
 		if( e->type == fe_DEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
@@ -938,13 +938,13 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 		r = changes_check(changesfilename,changes,forcearchitecture,packagetypeonly);
 
 	if( interrupted() )
-		RET_UPDATE(r,RET_ERROR_INTERUPTED);
+		RET_UPDATE(r, RET_ERROR_INTERRUPTED);
 
 	if( !RET_WAS_ERROR(r) )
 		r = changes_checkfiles(database, changesfilename, changes);
 
 	if( interrupted() )
-		RET_UPDATE(r,RET_ERROR_INTERUPTED);
+		RET_UPDATE(r, RET_ERROR_INTERRUPTED);
 
 	/* add files in the pool */
 	if( !RET_WAS_ERROR(r) )
@@ -981,7 +981,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 				return RET_ERROR_OOM;
 			}
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 			/* always D_COPY, and only delete it afterwards... */
 				r = files_include(database,
@@ -999,7 +999,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 		if( tracks != NULL )
 			trackingdata_done(&trackingdata);
 		changes_free(changes);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 
 	/* add the source and binary packages in the given distribution */

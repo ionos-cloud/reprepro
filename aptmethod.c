@@ -293,7 +293,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	if( interrupted() ) {
 		(void)close(stdin[0]);(void)close(stdin[1]);
 		(void)close(stdout[0]);(void)close(stdout[1]);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 	f = fork();
 	if( f < 0 ) {
@@ -928,7 +928,7 @@ static retvalue senddata(struct aptmethod *method) {
 		}
 
 		if( interrupted() )
-			return RET_ERROR_INTERUPTED;
+			return RET_ERROR_INTERRUPTED;
 
 		method->alreadywritten = 0;
 		// TODO: make sure this is already checked for earlier...
