@@ -70,7 +70,7 @@ static int mydatacompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
 }
 
 
-retvalue tracking_initialize(/*@out@*/trackingdb *db,struct database *database,const struct distribution *distribution) {
+retvalue tracking_initialize(/*@out@*/trackingdb *db, struct database *database, const struct distribution *distribution, bool readonly) {
 	struct s_tracking *t;
 	retvalue r;
 
@@ -83,11 +83,12 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db,struct database *database,c
 		free(t);
 		return RET_ERROR_OOM;
 	}
+	assert( distribution->tracking != dt_NONE || readonly );
 	t->type = distribution->tracking;
 	t->options = distribution->trackingoptions;
 	r = database_opentable(database, "tracking.db", t->codename,
-			DB_BTREE, DB_CREATE, DB_DUPSORT, mydatacompare, &t->db);
-	if( RET_WAS_ERROR(r) ) {
+			DB_BTREE, DB_DUPSORT, mydatacompare, readonly, &t->db);
+	if( !RET_IS_OK(r) ) {
 		free(t->codename);
 		free(t);
 		return r;
@@ -576,37 +577,18 @@ retvalue tracking_save(trackingdb t, struct trackedpackage *pkg) {
 	return r;
 }
 
-retvalue tracking_removeall(trackingdb t) {
-	DBC *cursor;
-	DBT key,data;
-	retvalue r;
-	int dbret;
+retvalue tracking_listdistributions(struct database *db, struct strlist *distributions) {
+	return database_listsubtables(db, "tracking.db", distributions);
+}
 
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_removeall dberror(cursor):");
-		return RET_DBERR(dbret);
-	}
-	r = RET_OK;
-	CLEARDBT(key);
-	CLEARDBT(data);
-	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		dbret = cursor->c_del(cursor,0);
-		if( dbret != 0 ) {
-			t->db->err(t->db, dbret, "tracking_removeall dberror(del):");
-			RET_UPDATE(r,RET_DBERR(dbret));
-		}
-	}
-	if( dbret != DB_NOTFOUND ) {
-		(void)cursor->c_close(cursor);
-		t->db->err(t->db, dbret, "tracking_removeall dberror(get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret=cursor->c_close(cursor)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_removeall dberror(close):");
-		return RET_DBERR(dbret);
-	}
-	return r;
+retvalue tracking_drop(struct database *db, const char *codename, struct strlist *dereferenced) {
+	retvalue result, r;
+
+	result = database_dropsubtable(db, "tracking.db", codename);
+	r = references_remove(db, codename, dereferenced);
+	RET_UPDATE(result, r);
+
+	return result;
 }
 
 retvalue tracking_remove(trackingdb t,const char *sourcename,const char *version,struct database *database,/*@null@*/struct strlist *dereferencedfilekeys) {

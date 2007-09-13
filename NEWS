@@ -14,7 +14,12 @@ Updates between 2.2.4 and 2.3.0:
   This places are still search, but so is the configuration directory now and
   future version will stop accepting --overridedir and not search in that
   directory.
-- added db/version file to document database format 
+- added db/version file to document database format
+- cleaned up tracking handling a bit:
+  * retrack no longer created tracking data for distribtions without tracking
+  * removealltracks now needs explicitly needs distribution names
+  * tidytracks now removes all tracking data from a distribution without tracking
+  * clearvanished removes tracking data from vanished distributions.
 
 Updates since 2.2.3:
 - [SECURITY] fix bug causing a Release.gpg with only

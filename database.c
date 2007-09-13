@@ -36,6 +36,7 @@
 #include "dirs.h"
 #include "files.h"
 #include "reference.h"
+#include "tracking.h"
 #include "copyfile.h"
 #include "distribution.h"
 #include "database_p.h"
@@ -183,7 +184,7 @@ const char *database_directory(struct database *database) {
 	return database->directory;
 }
 
-retvalue database_opentable(struct database *database,const char *filename,const char *subtable,DBTYPE type,u_int32_t flags,u_int32_t preflags,int (*dupcompare)(DB *,const DBT *,const DBT *),DB **result) {
+retvalue database_opentable(struct database *database,const char *filename,const char *subtable,DBTYPE type,u_int32_t preflags,int (*dupcompare)(DB *,const DBT *,const DBT *), bool readonly, DB **result) {
 	char *fullfilename;
 	DB *table;
 	int dbret;
@@ -229,13 +230,20 @@ retvalue database_opentable(struct database *database,const char *filename,const
 #error Unexpected LIBDB_VERSION!
 #endif
 #endif
-	dbret = DB_OPEN(table, fullfilename, subtable, type, flags);
+	dbret = DB_OPEN(table, fullfilename, subtable, type,
+			readonly?DB_RDONLY:DB_CREATE);
+	if( dbret == ENOENT && readonly ) {
+		(void)table->close(table, 0);
+		free(fullfilename);
+		return RET_NOTHING;
+	}
 	if (dbret != 0) {
 		if( subtable != NULL )
-			table->err(table, dbret, "db_open(%s:%s)",
-					fullfilename, subtable);
+			table->err(table, dbret, "db_open(%s:%s)[%d]",
+					fullfilename, subtable, dbret);
 		else
-			table->err(table, dbret, "db_open(%s)", fullfilename);
+			table->err(table, dbret, "db_open(%s)[%d]",
+					fullfilename, dbret);
 		(void)table->close(table, 0);
 		free(fullfilename);
 		return RET_DBERR(dbret);
@@ -254,7 +262,7 @@ retvalue database_listsubtables(struct database *database,const char *filename,s
 	struct strlist ids;
 
 	r = database_opentable(database, filename, NULL,
-			DB_UNKNOWN, DB_RDONLY, 0, NULL, &table);
+			DB_UNKNOWN, 0, NULL, true, &table);
 	if( !RET_IS_OK(r) )
 		return r;
 
@@ -310,6 +318,35 @@ retvalue database_listsubtables(struct database *database,const char *filename,s
 		return RET_OK;
 	}
 }
+retvalue database_dropsubtable(struct database *database, const char *table, const char *subtable) {
+	char *filename;
+	DB *db;
+	int dbret;
+
+	filename = calc_dirconcat(database->directory, table);
+	if( filename == NULL )
+		return RET_ERROR_OOM;
+
+	if ((dbret = db_create(&db, NULL, 0)) != 0) {
+		fprintf(stderr, "db_create: %s %s\n", filename, db_strerror(dbret));
+		free(filename);
+		return RET_DBERR(dbret);
+	}
+	dbret = db->remove(db, filename, subtable, 0);
+	if( dbret == ENOENT ) {
+		free(filename);
+		return RET_NOTHING;
+	}
+	if (dbret != 0) {
+		fprintf(stderr,"Error removing '%s' from %s!\n",
+				subtable, filename);
+		free(filename);
+		return RET_DBERR(dbret);
+	}
+
+	free(filename);
+	return RET_OK;
+}
 
 static inline bool targetisdefined(const char *identifier, struct distribution *distributions) {
 	struct distribution *d;
@@ -351,6 +388,49 @@ static retvalue warnusedidentifers(const struct strlist *identifiers, struct dis
 		}
 
 		fputs("To ignore use --ignore=undefinedtarget.\n", stderr);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static retvalue warnunusedtracking(const struct strlist *codenames, const struct distribution *distributions) {
+	const char *codename;
+	const struct distribution *d;
+	int i;
+
+	for( i = 0; i < codenames->count ; i++ ) {
+		codename = codenames->values[i];
+
+		d = distributions;
+		while( d != NULL && strcmp(d->codename, codename) != 0 )
+			d = d->next;
+		if( d != NULL && d->tracking != dt_NONE )
+			continue;
+
+		fprintf(stderr,
+"Error: tracking database contains unused '%s' database.\n", codename);
+		if( ignored[IGN_undefinedtracking] == 0 ) {
+			if( d == NULL )
+				fputs(
+"This either means you removed a distribution from the distributions config\n"
+"file without calling clearvanished (or at least removealltracks), you were\n"
+"bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your\n"
+"config does not belong to this database.\n",
+						stderr);
+			else
+				fputs(
+"This either means you removed the Tracking: options from this distribution without\n"
+"calling removealltracks for it, or your config does not belong to this database.\n",
+						stderr);
+		}
+		if( IGNORABLE(undefinedtracking) ) {
+			fputs("Ignoring as --ignore=undefinedtracking given.\n",
+					stderr);
+			ignored[IGN_undefinedtracking]++;
+			continue;
+		}
+
+		fputs("To ignore use --ignore=undefinedtracking.\n", stderr);
 		return RET_ERROR;
 	}
 	return RET_OK;
@@ -515,26 +595,13 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
 
 static retvalue preparepackages(struct database *db, bool fast, bool readonly, bool allowunused, struct distribution *distributions) {
 	retvalue r;
-	char *packagesfilename;
+	char *packagesfilename, *trackingfilename;
+	bool packagesfileexists, trackingfileexists;
 
 	r = readversionfile(db);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-
-	packagesfilename = calc_dirconcat(db->directory, "packages.db");
-	if( packagesfilename == NULL )
-		return RET_ERROR_OOM;
-	if( !isregularfile(packagesfilename) ) {
-		free(packagesfilename);
-		// TODO: handle readonly, but only once packages files may no
-		// longer be generated when it is active...
-
-		// TODO: if version > 0, there should already be one...
-
-		return createnewdatabase(db, distributions);
-	}
-	free(packagesfilename);
 
 	if( db->compatibilityversion > CURRENT_VERSION ) {
 		fprintf(stderr,
@@ -544,14 +611,32 @@ static retvalue preparepackages(struct database *db, bool fast, bool readonly, b
 		return RET_ERROR;
 	}
 
-	if( !allowunused && !fast )  {
+	packagesfilename = calc_dirconcat(db->directory, "packages.db");
+	if( packagesfilename == NULL )
+		return RET_ERROR_OOM;
+	packagesfileexists = isregularfile(packagesfilename);
+	free(packagesfilename);
+	trackingfilename = calc_dirconcat(db->directory, "tracking.db");
+	if( trackingfilename == NULL )
+		return RET_ERROR_OOM;
+	trackingfileexists = isregularfile(trackingfilename);
+	free(trackingfilename);
+
+	if( !packagesfileexists && !trackingfileexists ) {
+		// TODO: handle readonly, but only once packages files may no
+		// longer be generated when it is active...
+
+		// TODO: if version > 0, there should already be one...
+
+		return createnewdatabase(db, distributions);
+	}
+
+	if( !allowunused && !fast && packagesfileexists )  {
 		struct strlist identifiers;
 
 		r = packages_getdatabases(db, &identifiers);
-		if( RET_WAS_ERROR(r) ) {
+		if( RET_WAS_ERROR(r) )
 			return r;
-		}
-
 		if( RET_IS_OK(r) ) {
 			r = warnusedidentifers(&identifiers, distributions);
 			if( RET_WAS_ERROR(r) ) {
@@ -559,6 +644,21 @@ static retvalue preparepackages(struct database *db, bool fast, bool readonly, b
 				return r;
 			}
 			strlist_done(&identifiers);
+		}
+	}
+	if( !allowunused && !fast && trackingfileexists )  {
+		struct strlist codenames;
+
+		r = tracking_listdistributions(db, &codenames);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( RET_IS_OK(r) ) {
+			r = warnunusedtracking(&codenames, distributions);
+			if( RET_WAS_ERROR(r) ) {
+				strlist_done(&codenames);
+				return r;
+			}
+			strlist_done(&codenames);
 		}
 	}
 	return RET_OK;

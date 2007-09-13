@@ -1175,6 +1175,17 @@ command.
 You might even temporarily remove single architectures or components,
 though that might cause inconsistencies in some situations.
 .TP
+.B undefinedtracking \fR(hope you are not using the wrong db directory)
+Do not stop when the tracking file contains databases for
+distributions that are not listed in your \fBdistributions\fP file.
+
+This allows you to temporarily remove some distribution from the config files,
+without having to remove the packages in it with the \fBclearvanished\fP
+command.
+You might even temporarily disable tracking in some distribution, but that
+is likely to cause inconsistencies in there, if you do not know, what you
+are doing.
+.TP
 .B unknownfield \fR(for forward compatibility)
 Ignore unknown fields in the config files, instead of refusing to run
 then.

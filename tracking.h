@@ -14,8 +14,10 @@
 
 retvalue tracking_parse(struct distribution *, struct configiterator *);
 
-retvalue tracking_initialize(/*@out@*/trackingdb *, struct database *, const struct distribution *);
+retvalue tracking_initialize(/*@out@*/trackingdb *, struct database *, const struct distribution *, bool readonly);
 retvalue tracking_done(trackingdb);
+retvalue tracking_listdistributions(struct database *, /*@out@*/struct strlist *);
+retvalue tracking_drop(struct database *, const char *, struct strlist *dereferenced);
 
 retvalue trackedpackage_addfilekey(trackingdb, struct trackedpackage *, enum filetype, /*@only@*/char *filekey, bool used, struct database *);
 retvalue trackedpackage_addfilekeys(trackingdb, struct trackedpackage *, enum filetype, struct strlist *filekeys, bool used, struct database *);
@@ -26,7 +28,6 @@ void trackedpackage_free(struct trackedpackage *pkg);
 retvalue tracking_getornew(trackingdb,const char *name,const char *version,/*@out@*/struct trackedpackage **);
 retvalue tracking_save(trackingdb,/*@only@*/struct trackedpackage *);
 retvalue tracking_remove(trackingdb,const char *sourcename,const char *version,struct database *,/*@null@*/struct strlist *unreferencedfilekeys);
-retvalue tracking_removeall(trackingdb);
 retvalue tracking_printall(trackingdb t);
 
 retvalue trackingdata_summon(trackingdb,const char *,const char *,struct trackingdata *);

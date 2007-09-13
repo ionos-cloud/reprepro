@@ -602,7 +602,7 @@ retvalue target_retrack(struct target *target,trackingdb tracks,struct database 
 	assert(target->packages!=NULL);
 
 	if( verbose > 1 ) {
-		fprintf(stderr,"  Tracking %s...\n",target->identifier);
+		printf("  Tracking %s...\n", target->identifier);
 	}
 
 	trackdata.db = database;

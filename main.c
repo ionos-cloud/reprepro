@@ -432,7 +432,7 @@ ACTION_D(remove) {
 		return r;
 
 	if( distribution->tracking != dt_NONE ) {
-		r = tracking_initialize(&tracks, database, distribution);
+		r = tracking_initialize(&tracks, database, distribution, false);
 		if( RET_WAS_ERROR(r) ) {
 			return r;
 		}
@@ -1118,22 +1118,33 @@ ACTION_R(retrack) {
 
 		if( !d->selected )
 			continue;
+		if( d->tracking == dt_NONE ) {
+			if( argc > 1 ) {
+				fprintf(stderr, "Cannot retrack %s: Tracking not activated for this distribution!\n", d->codename);
+				RET_UPDATE(result, RET_ERROR);
+			}
+			continue;
+		}
 		if( verbose > 0 ) {
-			fprintf(stderr,"Chasing %s...\n",d->codename);
+			printf("Chasing %s...\n", d->codename);
 		}
 		dat.db = database;
-		r = tracking_initialize(&dat.tracks, database, d);
+		// TODO: instead only remove packages,
+		// so that .changes (and log when they exist) survive it.
+		r = tracking_drop(database, d->codename, NULL);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
 			continue;
 		}
-		r = tracking_removeall(dat.tracks);
-		RET_UPDATE(result,r);
-		r = references_remove(database, d->codename, NULL);
-		RET_UPDATE(result,r);
-
+		r = tracking_initialize(&dat.tracks, database, d, false);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				break;
+			continue;
+		}
 		r = distribution_foreach_roopenedpart(d, database,
 				component, architecture, packagetype,
 				retrack, &dat);
@@ -1158,7 +1169,7 @@ ACTION_D(removetrack) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	r = tracking_initialize(&tracks, database, distribution);
+	r = tracking_initialize(&tracks, database, distribution, false);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -1171,39 +1182,49 @@ ACTION_D(removetrack) {
 }
 
 ACTION_D(removealltracks) {
-	retvalue result,r;
+	retvalue result, r;
 	struct distribution *d;
+	const char *codename;
+	int i;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
-		return result;
-	}
+	if( !delete )
+		for( i = 1 ; i < argc ; i ++ ) {
+			codename = argv[i];
+
+			d = alldistributions;
+			while( d != NULL && strcmp(codename, d->codename) != 0 )
+				d = d->next;
+			if( d != NULL && d->tracking != dt_NONE ) {
+				fprintf(stderr,
+"Error: Requested removing of all tracks of distribution '%s',\n"
+"which still has tracking enabled. Use --delete to delete anyway.\n",
+						codename);
+				return RET_ERROR;
+			}
+		}
 	result = RET_NOTHING;
-	for( d = alldistributions ; d != NULL ; d = d->next ) {
-		trackingdb tracks;
-
-		if( !d->selected )
-			continue;
+	for( i = 1 ; i < argc ; i ++ ) {
+		codename = argv[i];
 
 		if( verbose >= 0 ) {
-			printf("Deleting all tracks for %s...\n",d->codename);
+			printf("Deleting all tracks for %s...\n", codename);
 		}
-		r = tracking_initialize(&tracks, database, d);
-		if( RET_WAS_ERROR(r) ) {
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) )
-				break;
-			continue;
-		}
-		r = tracking_removeall(tracks);
+
+		r = tracking_drop(database, codename, dereferenced);
 		RET_UPDATE(result,r);
-		r = references_remove(database, d->codename, dereferenced);
-		RET_UPDATE(result,r);
-		r = tracking_done(tracks);
-		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
 			break;
+		if( r == RET_NOTHING ) {
+			d = alldistributions;
+			while( d != NULL && strcmp(codename, d->codename) != 0 )
+				d = d->next;
+			if( d == NULL ) {
+				fprintf(stderr,
+"Warning: There was no tracking information to delete for '%s',\n"
+"which is also not found in conf/distributions. Either this was already\n"
+"deleted earlier, or you might have mistyped.\n", codename);
+			}
+		}
 	}
 	return result;
 }
@@ -1224,10 +1245,18 @@ ACTION_D(tidytracks) {
 		if( !d->selected )
 			continue;
 
+		if( d->tracking == dt_NONE ) {
+			r = tracking_drop(database, d->codename, dereferenced);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				break;
+			continue;
+		}
+
 		if( verbose >= 0 ) {
 			printf("Looking for old tracks in %s...\n",d->codename);
 		}
-		r = tracking_initialize(&tracks, database, d);
+		r = tracking_initialize(&tracks, database, d, false);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
@@ -1260,13 +1289,15 @@ ACTION_B(dumptracks) {
 		if( !d->selected )
 			continue;
 
-		r = tracking_initialize(&tracks, database, d);
+		r = tracking_initialize(&tracks, database, d, true);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
 			continue;
 		}
+		if( r == RET_NOTHING )
+			continue;
 		r = tracking_printall(tracks);
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
@@ -1441,7 +1472,7 @@ ACTION_D(includedeb) {
 	}
 
 	if( distribution->tracking != dt_NONE ) {
-		result = tracking_initialize(&tracks, database, distribution);
+		result = tracking_initialize(&tracks, database, distribution, false);
 		if( RET_WAS_ERROR(result) ) {
 			return result;
 		}
@@ -1508,7 +1539,7 @@ ACTION_D(includedsc) {
 	}
 
 	if( distribution->tracking != dt_NONE ) {
-		result = tracking_initialize(&tracks, database, distribution);
+		result = tracking_initialize(&tracks, database, distribution, false);
 		if( RET_WAS_ERROR(result) ) {
 			return result;
 		}
@@ -1568,7 +1599,7 @@ ACTION_D(include) {
 	}
 
 	if( distribution->tracking != dt_NONE ) {
-		result = tracking_initialize(&tracks, database, distribution);
+		result = tracking_initialize(&tracks, database, distribution, false);
 		if( RET_WAS_ERROR(result) ) {
 			return result;
 		}
@@ -1723,12 +1754,12 @@ static retvalue docount(void *data,UNUSED(const char *a),UNUSED(const char *b)) 
 ACTION_U_D(clearvanished) {
 	retvalue result,r;
 	struct distribution *d;
-	struct strlist identifiers;
+	struct strlist identifiers, codenames;
 	bool *inuse;
 	int i;
 
 	result = packages_getdatabases(database, &identifiers);
-	if( RET_WAS_ERROR(result) ) {
+	if( !RET_IS_OK(result) ) {
 		return result;
 	}
 
@@ -1757,6 +1788,8 @@ ACTION_U_D(clearvanished) {
 		const char *identifier = identifiers.values[i];
 		if( inuse[i] )
 			continue;
+		if( interrupted() )
+			return RET_ERROR_INTERRUPTED;
 		if( delete <= 0 ) {
 			long int count = 0;
 			packagesdb db;
@@ -1771,6 +1804,10 @@ ACTION_U_D(clearvanished) {
 				continue;
 			}
 		}
+		if( interrupted() )
+			return RET_ERROR_INTERRUPTED;
+		// TODO: if delete, check what is removed, so that tracking
+		// information can be updated.
 		printf(
 "Deleting vanished identifier '%s'.\n", identifier);
 		/* derference anything left */
@@ -1779,8 +1816,26 @@ ACTION_U_D(clearvanished) {
 		packages_drop(database, identifier);
 	}
 	free(inuse);
-
 	strlist_done(&identifiers);
+	if( interrupted() )
+		return RET_ERROR_INTERRUPTED;
+
+	r = tracking_listdistributions(database, &codenames);
+	RET_UPDATE(result, r);
+	if( RET_IS_OK(r) ) {
+		for( d = alldistributions; d != NULL ; d = d->next ) {
+			strlist_remove(&codenames, d->codename);
+		}
+		for( i = 0 ; i < codenames.count ; i ++ ) {
+			printf("Deleting tracking data for vanished distribution '%s'.\n",
+					codenames.values[i]);
+			r = tracking_drop(database, codenames.values[i],
+					dereferenced);
+			RET_UPDATE(result, r);
+		}
+		strlist_done(&codenames);
+	}
+
 	return result;
 }
 
@@ -1906,7 +1961,7 @@ ACTION_B(rerunnotifiers) {
 #define NEED_CONFIG 16
 #define NEED_NO_PACKAGES 32
 #define IS_RO 64
-#define IS_CLEARVANISHED 128
+#define MAY_UNUSED 128
 #define A_N(w) action_n_ ## w, 0
 #define A_C(w) action_c_ ## w, NEED_CONFIG
 #define A_ROB(w) action_b_ ## w, NEED_DATABASE|IS_RO
@@ -1946,7 +2001,7 @@ static const struct action {
 		0, 0, "_listmd5sums "},
 	{"_addmd5sums",		A__F(addmd5sums),
 		0, 0, "_addmd5sums < data"},
-	{"_dumpcontents", 	A_ROB(dumpcontents),
+	{"_dumpcontents", 	A_ROB(dumpcontents)|MAY_UNUSED,
 		1, 1, "_dumpcontents <identifier>"},
 	{"_removereferences", 	A__R(removereferences),
 		1, 1, "_removereferences <identifier>"},
@@ -1972,7 +2027,7 @@ static const struct action {
 		0, 1, "checkpool [fast]"},
 	{"rereference", 	A_R(rereference),
 		0, -1, "rereference [<distributions>]"},
-	{"dumpreferences", 	A_R(dumpreferences),
+	{"dumpreferences", 	A_R(dumpreferences)|MAY_UNUSED,
 		0, 0, "dumpreferences", },
 	{"dumpunreferenced", 	A_RF(dumpunreferenced),
 		0, 0, "dumpunreferenced", },
@@ -1980,10 +2035,10 @@ static const struct action {
 		0, 0, "deleteunreferenced", },
 	{"retrack",	 	A_R(retrack),
 		0, -1, "retrack [<distributions>]"},
-	{"dumptracks",	 	A_ROB(dumptracks),
+	{"dumptracks",	 	A_ROB(dumptracks)|MAY_UNUSED,
 		0, -1, "dumptracks [<distributions>]"},
-	{"removealltracks",	A_D(removealltracks),
-		0, -1, "removealltracks [<distributions>]"},
+	{"removealltracks",	A_D(removealltracks)|MAY_UNUSED,
+		1, -1, "removealltracks <distributions>"},
 	{"tidytracks",		A_D(tidytracks),
 		0, -1, "tidytracks [<distributions>]"},
 	{"removetrack",		A_D(removetrack),
@@ -2012,7 +2067,7 @@ static const struct action {
 		2, 2, "[--delete] include <distribution> <.changes-file>"},
 	{"generatefilelists",	A_F(generatefilelists),
 		0, 1, "generatefilelists [reread]"},
-	{"clearvanished",	A_D(clearvanished)|IS_CLEARVANISHED,
+	{"clearvanished",	A_D(clearvanished)|MAY_UNUSED,
 		0, 0, "[--delete] clearvanished"},
 	{"processincoming",	A_D(processincoming),
 		1, 2, "processincoming <rule-name> [<.changes file>]"},
@@ -2072,7 +2127,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 
 	result = database_create(&database, dbdir, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
-			ISSET(needs, IS_CLEARVANISHED), ISSET(needs, IS_RO),
+			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
 			waitforlock);
 	if( !RET_IS_OK(result) ) {
 		return result;

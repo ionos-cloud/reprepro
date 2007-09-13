@@ -96,8 +96,9 @@ retvalue packages_initialize(packagesdb *db,struct database *database,const char
 	if( isopen > 1 )
 		fprintf(stderr,"isopen: %d\n",isopen);
 
+	// TODO: allow users of this function to specify readonly
 	r = database_opentable(database, "packages.db", identifier,
-			DB_BTREE, DB_CREATE, 0 , NULL, &pkgs->database);
+			DB_BTREE, 0 , NULL, false, &pkgs->database);
 	if( RET_WAS_ERROR(r) ) {
 		free(pkgs->identifier);
 		free(pkgs);
@@ -316,27 +317,6 @@ retvalue packages_getdatabases(struct database *database, struct strlist *identi
 
 /* drop a database */
 retvalue packages_drop(struct database *database, const char *identifier) {
-	char *filename;
-	DB *table;
-	int dbret;
 
-	filename = calc_dirconcat(database->directory, "packages.db");
-	if( filename == NULL )
-		return RET_ERROR_OOM;
-
-	if ((dbret = db_create(&table, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s %s\n", filename, db_strerror(dbret));
-		free(filename);
-		return RET_DBERR(dbret);
-	}
-	dbret = table->remove(table, filename, identifier, 0);
-	if (dbret != 0) {
-		fprintf(stderr,"Error removing '%s' from %s!\n",
-				identifier, filename);
-		free(filename);
-		return RET_DBERR(dbret);
-	}
-
-	free(filename);
-	return RET_OK;
+	return database_dropsubtable(database, "packages.db", identifier);
 }

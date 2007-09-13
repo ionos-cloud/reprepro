@@ -1,3 +1,15 @@
+2007-09-13  Bernhard R. Link <brlink@debian.org>
+	* retrack no longer create track records for distributions with
+	tracking disabled, dumptracks no longer generated empty databases.
+	* removealltracks now also works on distributions no longer listed
+	in conf/distributions, no longer supports being used on all
+	distributions listed there (i.e. without argumnts)
+	* tidytracks not remove all tracking data from a distribution without
+	tracking activated.
+	* clearvanished removes tracking data from vanished distributions.
+	* in default --nofast mode, check for unexpected tracking data and
+	do not run, unless --ignore=undefinedtracking is defined
+
 2007-09-11  Bernhard R. Link <brlink@debian.org>
 	* reject spaces and tabs in key-names (i.e. before :) in config files,
 	instead of bubbling about unknown fields.

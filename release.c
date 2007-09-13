@@ -126,7 +126,7 @@ retvalue release_init(struct release **release, struct database *database, const
 		return RET_ERROR_OOM;
 	}
 	r = database_opentable(database, "release.cache.db", codename,
-			DB_HASH, DB_CREATE, 0, NULL, &n->cachedb);
+			DB_HASH, 0, NULL, false, &n->cachedb);
 	if( RET_WAS_ERROR(r) ) {
 		n->cachedb = NULL;
 		free(n->dirofdist);

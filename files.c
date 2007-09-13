@@ -61,14 +61,14 @@ retvalue files_initialize(struct filesdb **fdb,struct database *database,const c
 	}
 
 	r = database_opentable(database, "files.db", "md5sums",
-			DB_BTREE, DB_CREATE, 0, NULL, &db->database);
+			DB_BTREE, 0, NULL, false, &db->database);
 	if( RET_WAS_ERROR(r) ) {
 		free(db->mirrordir);
 		free(db);
 		return r;
 	}
 	r = database_opentable(database, "contents.cache.db", "filelists",
-			DB_BTREE, DB_CREATE, 0, NULL, &db->contents);
+			DB_BTREE, 0, NULL, false, &db->contents);
 	if( RET_WAS_ERROR(r) ) {
 		(void)db->database->close(db->database,0);
 		free(db->mirrordir);

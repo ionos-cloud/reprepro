@@ -58,7 +58,7 @@ retvalue references_initialize(struct references **refs,struct database *databas
 		return RET_ERROR_OOM;
 
 	r = database_opentable(database, "references.db", "references",
-			DB_BTREE, DB_CREATE, DB_DUPSORT, NULL, &ref->db);
+			DB_BTREE, DB_DUPSORT, NULL, false, &ref->db);
 	if( RET_WAS_ERROR(r) ) {
 		free(ref);
 		return r;

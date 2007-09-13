@@ -27,6 +27,7 @@
 	IGN(brokensignatures) \
 	IGN(uploaders) \
 	IGN(undefinedtarget) \
+	IGN(undefinedtracking) \
 	IGN(missingfile)
 
 

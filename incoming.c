@@ -1280,7 +1280,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 
 	tracks = NULL;
 	if( into->tracking != dt_NONE ) {
-		r = tracking_initialize(&tracks, database, into);
+		r = tracking_initialize(&tracks, database, into, false);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}

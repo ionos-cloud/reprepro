@@ -1,4 +1,4 @@
-#!/bin/bash
+eeeeeeebash
 
 set -e
 
@@ -2254,7 +2254,15 @@ dodiff results.expected results
 
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-testrun - -b . removealltracks 3<<EOF
+testrun - -b . removealltracks test2 test1 3<<EOF
+stdout
+stderr
+*=Error: Requested removing of all tracks of distribution 'test1',
+*=which still has tracking enabled. Use --delete to delete anyway.
+-v0*=There have been errors!
+returns 255
+EOF
+testrun - --delete -b . removealltracks test2 test1 3<<EOF
 stdout
 -v0*=Deleting all tracks for test2...
 -v0*=Deleting all tracks for test1...
@@ -2541,6 +2549,255 @@ returns 249
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
+
+testout "" -b . dumptracks
+# TODO: check those if they are really expected...
+cat > results.expected <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_abacus.deb b 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+ pool/stupid/t/test/test_1-2_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: testb
+Version: 1:2-2
+Files:
+ pool/stupid/t/testb/testb-addons_2-2_all.deb a 0
+ pool/stupid/t/testb/testb_2-2_abacus.deb b 0
+ pool/stupid/t/testb/testb_2-2.dsc s 0
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 0
+ pool/stupid/t/testb/testb_2-2.diff.gz s 0
+ pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_abacus.deb b 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+ pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes c 0
+
+EOF
+dodiff results.expected results
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+EOF
+testout "" -b . dumptracks
+dodiff results.expected results
+sed -i -e 's/^Tracking: keep/Tracking: all/' conf/distributions
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes
+-v1*=deleting and forgetting pool/stupid/t/testb/testb-addons_2-2_all.deb
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2_abacus.deb
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2.dsc
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2.diff.gz
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+testout "" -b . dumptracks
+cat > results.expected <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_abacus.deb b 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+ pool/stupid/t/test/test_1-2_source+abacus+all.changes c 0
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_abacus.deb b 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+ pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes c 0
+
+EOF
+dodiff results.expected results
+sed -i -e 's/^Tracking: all/Tracking: minimal/' conf/distributions
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+testout "" -b . dumptracks
+dodiff results.expected results
+sed -i -e 's/^Tracking: minimal includechanges/Tracking: minimal/' conf/distributions
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2_source+abacus+all.changes
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+testout "" -b . dumptracks
+cat > results.expected <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_abacus.deb b 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_abacus.deb b 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+
+EOF
+dodiff results.expected results
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+# before testing this, take a look why the later checks
+# have warnings that go away with this...
+#testrun -  -b . retrack 3<<EOF
+#stdout
+#-v1*=Chasing test1...
+#-v2*=  Tracking test1|stupid|abacus...
+#-v2*=  Tracking test1|stupid|source...
+#-v2*=  Tracking test1|ugly|abacus...
+#-v2*=  Tracking test1|ugly|source...
+#EOF
+testout "" -b . dumptracks
+# TODO: this show some funny little problems, search for them and fix them...
+#dodiff results.expected results
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+sed -i -e 's/^Tracking: minimal/Tracking: keep includechanges/' conf/distributions
+
 mkdir conf2
 testrun - -b . --confdir conf2 update 3<<EOF
 returns 254
@@ -2597,12 +2854,42 @@ testrun - -b . --confdir conf2 --ignore=undefinedtarget update 3<<EOF
 *=Error: packages database contains unused 'test2|ugly|abacus' database.
 *=Error: packages database contains unused 'test2|ugly|coal' database.
 *=Error: packages database contains unused 'test2|ugly|source' database.
+*=Error: tracking database contains unused 'test1' database.
+*=This either means you removed a distribution from the distributions config
+*=file without calling clearvanished (or at least removealltracks), you were
+*=bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your
+*=config does not belong to this database.
+*=To ignore use --ignore=undefinedtracking.
+-v0*=There have been errors!
+returns 255
+EOF
+testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracking update 3<<EOF
+*=Error: packages database contains unused 'test1|stupid|abacus' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=Ignoring as --ignore=undefinedtarget given.
+*=Error: tracking database contains unused 'test1' database.
+*=This either means you removed a distribution from the distributions config
+*=file without calling clearvanished (or at least removealltracks), you were
+*=bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your
+*=config does not belong to this database.
+*=Ignoring as --ignore=undefinedtracking given.
+*=Error: packages database contains unused 'test1|ugly|abacus' database.
+*=Error: packages database contains unused 'test1|ugly|source' database.
+*=Error: packages database contains unused 'test1|stupid|source' database.
+*=Error: packages database contains unused 'test2|stupid|abacus' database.
+*=Error: packages database contains unused 'test2|stupid|coal' database.
+*=Error: packages database contains unused 'test2|stupid|source' database.
+*=Error: packages database contains unused 'test2|ugly|abacus' database.
+*=Error: packages database contains unused 'test2|ugly|coal' database.
+*=Error: packages database contains unused 'test2|ugly|source' database.
 *=Error opening config file 'conf2/updates': No such file or directory(2)
 -v0*=There have been errors!
 returns 254
 EOF
 touch conf2/updates
-testrun - -b . --confdir conf2 --ignore=undefinedtarget --noskipold update 3<<EOF
+testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracking --noskipold update 3<<EOF
 stderr
 *=Error: packages database contains unused 'test1|stupid|abacus' database.
 *=This either means you removed a distribution, component or architecture from
@@ -2618,6 +2905,12 @@ stderr
 *=Error: packages database contains unused 'test2|ugly|abacus' database.
 *=Error: packages database contains unused 'test2|ugly|coal' database.
 *=Error: packages database contains unused 'test2|ugly|source' database.
+*=Error: tracking database contains unused 'test1' database.
+*=This either means you removed a distribution from the distributions config
+*=file without calling clearvanished (or at least removealltracks), you were
+*=bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your
+*=config does not belong to this database.
+*=Ignoring as --ignore=undefinedtracking given.
 stdout
 -v2=Created directory "./lists"
 -v0*=Calculating packages to get...
@@ -2658,6 +2951,8 @@ stdout
 *=Deleting vanished identifier 'foo|unneeded|abacus'.
 *=Deleting vanished identifier 'foo|unneeded|fingers'.
 EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
 echo "Format: 2.0" > broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
@@ -2816,6 +3111,10 @@ stdout
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
+testout "" -b . dumpreferences
+# here is some strangeness: due to retracking? there is the data now not
+# missing, leading it to be not removed...
+grep pool.ugly.s.simple.*abacus.deb results
 # first remove file, then try to remove the package
 testrun "" -b . _forget pool/ugly/s/simple/simple_1_abacus.deb
 testrun - -b . remove test1 simple 3<<EOF
@@ -3036,13 +3335,16 @@ dodiff results.empty results
 
 checknolog log1
 checknolog log2
-for tracking in true false ; do
+
+testout "" -b . dumptracks
+# TODO: check here for what should be here,
+# check the othe stuff, too
+#dodiff results.empty results
 cat > conf/distributions <<EOF
 Codename: X
 Architectures: none
 Components: test
 EOF
-if $tracking ; then
 testrun - -b . --delete clearvanished 3<<EOF
 stderr
 -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
@@ -3057,27 +3359,60 @@ stdout
 *=Deleting vanished identifier 'test2|ugly|abacus'.
 *=Deleting vanished identifier 'test2|ugly|coal'.
 *=Deleting vanished identifier 'test2|ugly|source'.
+*=Deleting tracking data for vanished distribution 'test1'.
 -v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/stupid/4/4test/4test-addons_b.1-1_all.deb
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1_abacus.deb
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1.dsc
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1.tar.gz
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_abacus.deb
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
+-v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2_abacus.deb
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2.dsc
+-v1*=deleting and forgetting pool/stupid/t/test/test_1.orig.tar.gz
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2.diff.gz
+-v1*=deleting and forgetting pool/stupid/t/testb/testb-addons_2-3_all.deb
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3_abacus.deb
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3.dsc
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2.orig.tar.gz
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3.diff.gz
+-v1*=deleting and forgetting pool/ugly/s/simple/simple-addons_1_all.deb
+-v1*=removed now empty directory ./pool/stupid/4/4test
+-v1*=removed now empty directory ./pool/stupid/4
 -v1*=removed now empty directory ./pool/stupid/b/bloat+-0a9z.app
 -v1*=removed now empty directory ./pool/stupid/b
--v1*=deleting and forgetting pool/ugly/s/simple/simple-addons_1_all.deb
+-v1*=removed now empty directory ./pool/stupid/s/simple
+-v1*=removed now empty directory ./pool/stupid/s
+-v1*=removed now empty directory ./pool/stupid/t/testb
+-v1*=removed now empty directory ./pool/stupid/t/test
+-v1*=removed now empty directory ./pool/stupid/t
+-v1*=removed now empty directory ./pool/stupid
+-v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
+-v1*=removed now empty directory ./pool/ugly/b
 -v1*=removed now empty directory ./pool/ugly/s/simple
 -v1*=removed now empty directory ./pool/ugly/s
+-v1*=removed now empty directory ./pool/ugly
+-v1*=removed now empty directory ./pool
 EOF
+
+for tracking in true false ; do
+if $tracking ; then
+echo "this is the test variant with tracking on"
 else
-testrun - -b . --delete clearvanished 3<<EOF
--v4*=Strange, 'X|test|none' does not appear in packages.db yet.
-stdout
-*=Deleting vanished identifier 'a|all|abacus'.
-*=Deleting vanished identifier 'a|all|source'.
-*=Deleting vanished identifier 'b|all|abacus'.
--v0*=Deleting files no longer referenced...
-EOF
+echo "this is the test variant with tracking off"
 fi
+testout "" -b . dumptracks
+dodiff results.empty results
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 
@@ -3118,30 +3453,6 @@ fi
 checknolog logab
 
 rm -r dists
-if $tracking ; then
-testrun - -b . removealltracks a 3<<EOF
-stdout
--v0*=Deleting all tracks for a...
-EOF
-else
-testrun - -b . removealltracks a 3<<EOF
-stdout
--v0*=Deleting all tracks for a...
--v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
--v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
--v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
--v1*=deleting and forgetting pool/all/a/aa/aa_1-3_abacus.deb
--v1*=removed now empty directory ./pool/all/a/aa
--v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
--v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
--v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
--v1*=deleting and forgetting pool/all/a/ab/ab_3-1_abacus.deb
--v1*=removed now empty directory ./pool/all/a/ab
--v1*=removed now empty directory ./pool/all/a
--v1*=removed now empty directory ./pool/all
-EOF
-fi
 checknolog logab
 testout "" -b . dumptracks a
 dodiff results.empty results
@@ -3241,6 +3552,7 @@ testrun - -b . --export=never --delete --delete include a test.changes 3<<EOF
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
+-v2*=Created directory "./pool"
 -v2*=Created directory "./pool/all"
 -v2*=Created directory "./pool/all/a"
 -v2*=Created directory "./pool/all/a/aa"
@@ -3734,6 +4046,125 @@ EOF
 checklog logab <<EOF
 DATESTR add b deb all abacus ab 3-1
 EOF
+if $tracking ; then
+testout "" -b . dumptracks
+cat > results.expected <<EOF
+Distribution: a
+Source: aa
+Version: 1-3
+Files:
+ pool/all/a/aa/aa-addons_1-3_all.deb a 1
+ pool/all/a/aa/aa_1-3_abacus.deb b 1
+ pool/all/a/aa/aa_1-3.dsc s 1
+ pool/all/a/aa/aa_1-3.tar.gz s 1
+
+Distribution: a
+Source: ab
+Version: 3-1
+Files:
+ pool/all/a/ab/ab-addons_3-1_all.deb a 1
+ pool/all/a/ab/ab_3-1_abacus.deb b 1
+ pool/all/a/ab/ab_3-1.dsc s 1
+ pool/all/a/ab/ab_3-1.tar.gz s 1
+
+EOF
+dodiff results.expected results
+testout "" -b . dumpreferences
+cat > results.expected <<EOF
+a aa 1-3 pool/all/a/aa/aa-addons_1-3_all.deb
+a|all|abacus pool/all/a/aa/aa-addons_1-3_all.deb
+b|all|abacus pool/all/a/aa/aa-addons_1-3_all.deb
+a aa 1-3 pool/all/a/aa/aa_1-3.dsc
+a|all|source pool/all/a/aa/aa_1-3.dsc
+a aa 1-3 pool/all/a/aa/aa_1-3.tar.gz
+a|all|source pool/all/a/aa/aa_1-3.tar.gz
+a aa 1-3 pool/all/a/aa/aa_1-3_abacus.deb
+a|all|abacus pool/all/a/aa/aa_1-3_abacus.deb
+b|all|abacus pool/all/a/aa/aa_1-3_abacus.deb
+a ab 3-1 pool/all/a/ab/ab-addons_3-1_all.deb
+a|all|abacus pool/all/a/ab/ab-addons_3-1_all.deb
+a ab 3-1 pool/all/a/ab/ab_3-1.dsc
+a|all|source pool/all/a/ab/ab_3-1.dsc
+a ab 3-1 pool/all/a/ab/ab_3-1.tar.gz
+a|all|source pool/all/a/ab/ab_3-1.tar.gz
+a ab 3-1 pool/all/a/ab/ab_3-1_abacus.deb
+a|all|abacus pool/all/a/ab/ab_3-1_abacus.deb
+b|all|abacus pool/all/a/ab/ab_3-1_abacus.deb
+EOF
+dodiff results.expected results
+testrun - -b . --delete removealltracks a 3<<EOF
+stdout
+-v0*=Deleting all tracks for a...
+-v0=Deleting files no longer referenced...
+EOF
+testout "" -b . dumptracks
+dodiff results.empty results
+fi
+testout "" -b . dumpreferences
+cat > results.expected <<EOF
+a|all|abacus pool/all/a/aa/aa-addons_1-3_all.deb
+b|all|abacus pool/all/a/aa/aa-addons_1-3_all.deb
+a|all|source pool/all/a/aa/aa_1-3.dsc
+a|all|source pool/all/a/aa/aa_1-3.tar.gz
+a|all|abacus pool/all/a/aa/aa_1-3_abacus.deb
+b|all|abacus pool/all/a/aa/aa_1-3_abacus.deb
+a|all|abacus pool/all/a/ab/ab-addons_3-1_all.deb
+a|all|source pool/all/a/ab/ab_3-1.dsc
+a|all|source pool/all/a/ab/ab_3-1.tar.gz
+a|all|abacus pool/all/a/ab/ab_3-1_abacus.deb
+b|all|abacus pool/all/a/ab/ab_3-1_abacus.deb
+EOF
+dodiff results.expected results
+cat > conf/distributions <<EOF
+Codename: X
+Architectures: none
+Components: test
+EOF
+if $tracking ; then
+testrun - -b . --delete clearvanished 3<<EOF
+-v4*=Strange, 'X|test|none' does not appear in packages.db yet.
+stdout
+*=Deleting vanished identifier 'a|all|abacus'.
+*=Deleting vanished identifier 'a|all|source'.
+*=Deleting vanished identifier 'b|all|abacus'.
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3_abacus.deb
+-v1*=removed now empty directory ./pool/all/a/aa
+-v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1_abacus.deb
+-v1*=removed now empty directory ./pool/all/a/ab
+-v1*=removed now empty directory ./pool/all/a
+-v1*=removed now empty directory ./pool/all
+-v1*=removed now empty directory ./pool
+EOF
+else
+testrun - -b . --delete clearvanished 3<<EOF
+-v4*=Strange, 'X|test|none' does not appear in packages.db yet.
+stdout
+*=Deleting vanished identifier 'a|all|abacus'.
+*=Deleting vanished identifier 'a|all|source'.
+*=Deleting vanished identifier 'b|all|abacus'.
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3_abacus.deb
+-v1*=removed now empty directory ./pool/all/a/aa
+-v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1_abacus.deb
+-v1*=removed now empty directory ./pool/all/a/ab
+-v1*=removed now empty directory ./pool/all/a
+-v1*=removed now empty directory ./pool/all
+-v1*=removed now empty directory ./pool
+EOF
+fi
 done
 set +v +x
 echo
