@@ -58,6 +58,7 @@ struct distribution {
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
 	struct trackingoptions { bool includechanges:1;
 		bool includebyhand:1;
+		bool includelogs:1;
 		bool needsources:1;
 		bool keepsources:1;
 		bool embargoalls:1;

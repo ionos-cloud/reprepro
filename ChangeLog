@@ -12,6 +12,7 @@
 	* retrack refreshes tracking information instead of destroying and
 	starting new.
 	* make update's ListHook relative to confdir
+	* low level part of the includelogs options added
 
 2007-09-11  Bernhard R. Link <brlink@debian.org>
 	* reject spaces and tabs in key-names (i.e. before :) in config files,

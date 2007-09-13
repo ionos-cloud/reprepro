@@ -99,6 +99,7 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db, struct database *database,
 
 static inline enum filetype filetypechar(enum filetype filetype) {
 	switch( filetype ) {
+		case ft_LOG:
 		case ft_CHANGES:
 		case ft_ALL_BINARY:
 		case ft_ARCH_BINARY:
@@ -707,7 +708,8 @@ retvalue tracking_printall(trackingdb t) {
 
 retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	enum trackingflags { tf_keep, tf_all, tf_minimal,
-		tf_includechanges, tf_includebyhand, tf_keepsources,
+		tf_includechanges, tf_includebyhand, tf_includelogs,
+		tf_keepsources,
 		tf_needsources, tf_embargoalls,
 		tf_COUNT /* must be last */
 	};
@@ -716,6 +718,7 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 		{"all",		tf_all},
 		{"minimal",	tf_minimal},
 		{"includechanges",	tf_includechanges},
+		{"includelogs",		tf_includelogs},
 		{"includebyhand",	tf_includebyhand},
 		{"keepsources",		tf_keepsources},
 		{"needsources",		tf_needsources},
@@ -757,6 +760,7 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 
 	d->trackingoptions.includechanges = flags[tf_includechanges];
 	d->trackingoptions.includebyhand = flags[tf_includebyhand];
+	d->trackingoptions.includelogs = flags[tf_includelogs];
 	d->trackingoptions.keepsources = flags[tf_keepsources];
 	d->trackingoptions.needsources = flags[tf_needsources];
 	if( flags[tf_needsources] )
@@ -930,6 +934,10 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 
 static inline bool tracking_needed(trackingdb tracks, struct trackedpackage *pkg, int ofs) {
 	if( pkg->refcounts[ofs] > 0 )
+		return true;
+	// TODO: add checks so that only .changes and .log files belonging
+	// to still existing binaries are kept in minimal mode
+	if( pkg->filetypes[ofs] == ft_LOG && tracks->options.includelogs )
 		return true;
 	if( pkg->filetypes[ofs] == ft_CHANGES && tracks->options.includechanges )
 		return true;
