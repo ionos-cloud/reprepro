@@ -46,9 +46,9 @@ extern int verbose;
 /* Version numbers of the database:
  *
  * 0: compatibility (means no db/version file yet)
- *    used by reprepro until before 2.3.0
+ *    used by reprepro until before 3.0.0
  *
- * 1: since reprepro 2.3.0
+ * 1: since reprepro 3.0.0
  *    - all packages.db database are created
  *      (i.e. missing ones means there is a new architecture/component)
  *
@@ -414,7 +414,7 @@ static retvalue warnunusedtracking(const struct strlist *codenames, const struct
 				fputs(
 "This either means you removed a distribution from the distributions config\n"
 "file without calling clearvanished (or at least removealltracks), you were\n"
-"bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your\n"
+"bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your\n"
 "config does not belong to this database.\n",
 						stderr);
 			else

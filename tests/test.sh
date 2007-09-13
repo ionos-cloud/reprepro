@@ -2923,7 +2923,7 @@ testrun - -b . --confdir conf2 --ignore=undefinedtarget update 3<<EOF
 *=Error: tracking database contains unused 'test1' database.
 *=This either means you removed a distribution from the distributions config
 *=file without calling clearvanished (or at least removealltracks), you were
-*=bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your
+*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=To ignore use --ignore=undefinedtracking.
 -v0*=There have been errors!
@@ -2938,7 +2938,7 @@ testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracki
 *=Error: tracking database contains unused 'test1' database.
 *=This either means you removed a distribution from the distributions config
 *=file without calling clearvanished (or at least removealltracks), you were
-*=bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your
+*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=Ignoring as --ignore=undefinedtracking given.
 *=Error: packages database contains unused 'test1|ugly|abacus' database.
@@ -2974,7 +2974,7 @@ stderr
 *=Error: tracking database contains unused 'test1' database.
 *=This either means you removed a distribution from the distributions config
 *=file without calling clearvanished (or at least removealltracks), you were
-*=bitten by a bug in retrack in versions < 2.3.0, you found a new bug or your
+*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=Ignoring as --ignore=undefinedtracking given.
 stdout
