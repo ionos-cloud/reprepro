@@ -136,6 +136,7 @@ retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg
 
 	newrefcounts = realloc(pkg->refcounts,sizeof(int)*(pkg->filekeys.count+1));
 	if( newrefcounts == NULL ) {
+		free(filekey);
 		return RET_ERROR_OOM;
 	}
 	if( used )
@@ -145,6 +146,7 @@ retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg
 	pkg->refcounts = newrefcounts;
 	newfiletypes = realloc(pkg->filetypes,sizeof(enum filetype)*(pkg->filekeys.count+1));
 	if( newfiletypes == NULL ) {
+		free(filekey);
 		return RET_ERROR_OOM;
 	}
 	newfiletypes[pkg->filekeys.count] = filetype;
@@ -162,19 +164,6 @@ retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg
 	return r;
 }
 
-retvalue trackedpackage_addfilekeys(trackingdb tracks, struct trackedpackage *pkg, enum filetype filetype, struct strlist *filekeys, bool used, struct database *database) {
-	int i;
-	retvalue result,r;
-	assert( filekeys != NULL );
-
-	result = RET_OK;
-	for( i = 0 ; i < filekeys->count ; i++ ) {
-		r = trackedpackage_addfilekey(tracks, pkg, filetype,
-				filekeys->values[i], used, database);
-		RET_UPDATE(result,r);
-	}
-	return result;
-}
 retvalue trackedpackage_adddupfilekeys(trackingdb tracks, struct trackedpackage *pkg, enum filetype filetype, const struct strlist *filekeys, bool used, struct database *database) {
 	int i;
 	retvalue result,r;

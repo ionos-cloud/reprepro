@@ -22,7 +22,6 @@ retvalue tracking_drop(struct database *, const char *, struct strlist *derefere
 retvalue tracking_reset(trackingdb);
 
 retvalue trackedpackage_addfilekey(trackingdb, struct trackedpackage *, enum filetype, /*@only@*/char *filekey, bool used, struct database *);
-retvalue trackedpackage_addfilekeys(trackingdb, struct trackedpackage *, enum filetype, struct strlist *filekeys, bool used, struct database *);
 retvalue trackedpackage_adddupfilekeys(trackingdb, struct trackedpackage *, enum filetype, const struct strlist *filekeys, bool used, struct database *);
 retvalue trackedpackage_removefilekeys(trackingdb,struct trackedpackage *,const struct strlist *);
 void trackedpackage_free(struct trackedpackage *pkg);

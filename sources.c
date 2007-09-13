@@ -360,6 +360,7 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 	char *sourceversion;
 	struct trackedpackage *pkg;
 	struct strlist filekeys;
+	int i;
 
 	//TODO: elliminate duplicate code!
 	assert(sourcename!=NULL);
@@ -393,12 +394,21 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 		return r;
 	}
 
-	r = trackedpackage_addfilekeys(tracks, pkg,
-			ft_SOURCE, &filekeys, true, database);
-	if( RET_WAS_ERROR(r) ) {
-		trackedpackage_free(pkg);
-		return r;
+	// TODO: error handling is suboptimal here.
+	//  is there a way to again remove old additions (esp. references)
+	//  where something fails?
+	for( i = 0 ; i < filekeys.count ; i++ ) {
+		r = trackedpackage_addfilekey(tracks, pkg,
+				ft_SOURCE, filekeys.values[i],
+				true, database);
+		filekeys.values[i] = NULL;
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&filekeys);
+			trackedpackage_free(pkg);
+			return r;
+		}
 	}
+	strlist_done(&filekeys);
 	return tracking_save(tracks, pkg);
 }
 
