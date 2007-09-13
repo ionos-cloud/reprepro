@@ -409,9 +409,17 @@ given distributions.
 .TP
 .BR retrack " [ " \fIcodenames\fP " ]"
 Recreate a tracking database for the specified distributions.
-As this only takes information from the Indices into account,
-this will loose all information about older packages or
-changes files.
+This contains ouf of three steps.
+First all files marked as part of a source package are set to
+unused.
+Then all files actually used are marked as thus.
+Finaly tidytracks is called remove everything no longer needed
+with the new information about used files.
+
+(This behaviour, though a bit longsome, keeps even files only
+kept because of tracking mode \fBkeep\fP and files not otherwise
+used but kept due to \fBincludechanges\fP or its relatives.
+Before version 3.0.0 such files were lost by running retrack).
 .TP
 .BR removealltracks " [ " \fIcodenames\fP " ]"
 Removes all source package tracking information for the

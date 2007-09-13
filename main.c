@@ -1103,7 +1103,7 @@ static retvalue retrack(void *data,struct target *target,UNUSED(struct distribut
 	return target_retrack(target, d->tracks, d->db);
 }
 
-ACTION_R(retrack) {
+ACTION_D(retrack) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -1128,16 +1128,6 @@ ACTION_R(retrack) {
 		if( verbose > 0 ) {
 			printf("Chasing %s...\n", d->codename);
 		}
-		dat.db = database;
-		// TODO: instead only remove packages,
-		// so that .changes (and log when they exist) survive it.
-		r = tracking_drop(database, d->codename, NULL);
-		if( RET_WAS_ERROR(r) ) {
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) )
-				break;
-			continue;
-		}
 		r = tracking_initialize(&dat.tracks, database, d, false);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
@@ -1145,11 +1135,23 @@ ACTION_R(retrack) {
 				break;
 			continue;
 		}
-		r = distribution_foreach_roopenedpart(d, database,
-				component, architecture, packagetype,
-				retrack, &dat);
+		/* first forget than any package is there*/
+		r = tracking_reset(dat.tracks);
 		RET_UPDATE(result,r);
+		if( !RET_WAS_ERROR(r) ) {
+			/* add back information about actually used files */
+			dat.db = database;
+			r = distribution_foreach_roopenedpart(d, database,
+					component, architecture, packagetype,
+					retrack, &dat);
+			RET_UPDATE(result,r);
+		}
 		dat.db = NULL;
+		if( !RET_WAS_ERROR(r) ) {
+			/* now remove everything no longer needed */
+			r = tracking_tidyall(dat.tracks, database, dereferenced);
+			RET_UPDATE(result,r);
+		}
 		r = tracking_done(dat.tracks);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
@@ -2033,7 +2035,7 @@ static const struct action {
 		0, 0, "dumpunreferenced", },
 	{"deleteunreferenced", 	A_RF(deleteunreferenced),
 		0, 0, "deleteunreferenced", },
-	{"retrack",	 	A_R(retrack),
+	{"retrack",	 	A_D(retrack),
 		0, -1, "retrack [<distributions>]"},
 	{"dumptracks",	 	A_ROB(dumptracks)|MAY_UNUSED,
 		0, -1, "dumptracks [<distributions>]"},

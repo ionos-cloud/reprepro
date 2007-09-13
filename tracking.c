@@ -1093,3 +1093,53 @@ retvalue tracking_tidyall(trackingdb t, struct database *database, struct strlis
 	return result;
 }
 
+retvalue tracking_reset(trackingdb t) {
+	DBC *cursor;
+	DBT key, data;
+	retvalue result, r;
+	struct trackedpackage *pkg;
+	int i;
+	int dbret;
+
+	result = RET_NOTHING;
+	cursor = NULL;
+	if( (dbret = t->db->cursor(t->db, NULL, &cursor, 0)) != 0 ) {
+		t->db->err(t->db, dbret, "tracking_reset dberror(cursor):");
+		return RET_DBERR(dbret);
+	}
+	CLEARDBT(key);
+	CLEARDBT(data);
+	while( (dbret=cursor->c_get(cursor, &key, &data, DB_NEXT)) == 0 ) {
+		// this would perhaps be more stable if it just replaced
+		// everything within the string just received...
+		r = parseunknowndata(key, data, &pkg);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+			pkg->refcounts[i] = 0;
+		}
+		r = gendata(&data, pkg);
+		trackedpackage_free(pkg);
+		if( RET_WAS_ERROR(r) ) {
+			(void)cursor->c_close(cursor);
+			return r;
+		}
+		dbret = cursor->c_put(cursor, &key, &data, DB_CURRENT);
+		free(data.data);
+		if( dbret != 0 ) {
+			(void)cursor->c_close(cursor);
+			t->db->err(t->db, dbret, "tracking_reset c_put:");
+			return RET_DBERR(dbret);
+		}
+	}
+	if( dbret != DB_NOTFOUND ) {
+		(void)cursor->c_close(cursor);
+		t->db->err(t->db, dbret, "tracking_reset dberror(c_get):");
+		return RET_DBERR(dbret);
+	}
+	if( (dbret=cursor->c_close(cursor)) != 0 ) {
+		t->db->err(t->db, dbret, "tracking_reset dberror(close):");
+		return RET_DBERR(dbret);
+	}
+	return result;
+}

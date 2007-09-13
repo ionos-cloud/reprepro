@@ -2648,6 +2648,8 @@ stdout
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2.diff.gz
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_1:2-2_source+abacus+all.changes
 EOF
+cp db/tracking.db db/saved2tracking.db
+cp db/references.db db/saved2references.db
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 testout "" -b . dumptracks
@@ -2784,8 +2786,12 @@ dodiff results.empty results
 # Earlier update rules made this tracking data outdated.
 # so copy it, so it can be replayed so that also outdated data
 # is tested to be handled correctly.
-cp db/tracking.db db/savedtracking.db
-cp db/references.db db/savedreferences.db
+mv db/tracking.db db/savedtracking.db
+mv db/references.db db/savedreferences.db
+# Try this with .changes files still listed
+mv db/saved2tracking.db db/tracking.db
+mv db/saved2references.db db/references.db
+sed -i -e 's/^Tracking: minimal/Tracking: minimal includechanges/' conf/distributions
 testrun -  -b . retrack 3<<EOF
 stdout
 -v1*=Chasing test1...
@@ -2795,15 +2801,16 @@ stdout
 -v2*=  Tracking test1|ugly|source...
 EOF
 testout "" -b . dumptracks
-cat > results.expected results <<EOF
+cat > results.expected <<EOF
 Distribution: test1
 Source: 4test
 Version: 1:b.1-1
 Files:
- pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
  pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
  pool/stupid/4/4test/4test_b.1-1.dsc s 1
  pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:b.1-1_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
@@ -2818,10 +2825,11 @@ Distribution: test1
 Source: bloat+-0a9z.app
 Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: simple
@@ -2839,23 +2847,25 @@ Distribution: test1
 Source: test
 Version: 1-2
 Files:
- pool/stupid/t/test/test_1-2_abacus.deb b 1
  pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_abacus.deb b 1
  pool/stupid/t/test/test_1-2.dsc s 1
  pool/stupid/t/test/test_1.orig.tar.gz s 1
  pool/stupid/t/test/test_1-2.diff.gz s 1
+ pool/stupid/t/test/test_1-2_source+abacus+all.changes c 0
 
 Distribution: test1
 Source: testb
 Version: 1:2-3
 Files:
- pool/stupid/t/testb/testb_2-3_abacus.deb b 1
  pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_abacus.deb b 1
  pool/stupid/t/testb/testb_2-3.dsc s 1
  pool/stupid/t/testb/testb_2.orig.tar.gz s 1
  pool/stupid/t/testb/testb_2-3.diff.gz s 1
+ pool/stupid/t/testb/testb_1:2-3_source+abacus+all.changes c 0
+
 EOF
-# This differs because what update added was not marked in the tracking data
 dodiff results.expected results
 
 testout "" -b . dumpunreferenced
@@ -3178,9 +3188,6 @@ EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 testout "" -b . dumpreferences
-# here is some strangeness: due to retracking? there is the data now not
-# missing, leading it to be not removed...
-grep pool.ugly.s.simple.*abacus.deb results
 # first remove file, then try to remove the package
 testrun "" -b . _forget pool/ugly/s/simple/simple_1_abacus.deb
 testrun - -b . remove test1 simple 3<<EOF

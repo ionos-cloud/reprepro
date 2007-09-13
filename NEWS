@@ -17,6 +17,8 @@ Updates between 2.2.4 and 3.0.0:
 - added db/version file to document database format
 - cleaned up tracking handling a bit:
   * retrack no longer created tracking data for distribtions without tracking
+  * retrack only recreates usage data, not all data
+    (so .changes files and old versions are no longer lost when run)
   * removealltracks now needs explicitly needs distribution names
   * tidytracks now removes all tracking data from a distribution without tracking
   * clearvanished removes tracking data from vanished distributions.

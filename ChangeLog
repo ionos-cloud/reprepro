@@ -9,6 +9,8 @@
 	* clearvanished removes tracking data from vanished distributions.
 	* in default --nofast mode, check for unexpected tracking data and
 	do not run, unless --ignore=undefinedtracking is defined
+	* retrack refreshes tracking information instead of destroying and
+	starting new.
 	* make update's ListHook relative to confdir
 
 2007-09-11  Bernhard R. Link <brlink@debian.org>

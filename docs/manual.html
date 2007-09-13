@@ -715,6 +715,17 @@ reprepro -b $YOURBASEDIR tidytracks
 </pre>
 If you use source package tracking, check for files kept because of this
 that should no longer by the current rules.
+<br>
+If you fear your tracking data could have became outdated (and you have at least
+version 3.0.0 of reprepro), you can also try the retrack command:
+<pre class="command">
+reprepro -b $YOURBASEDIR retrack
+</pre>
+Since 3.0.0 that refreshes the tracking information about packages used and then
+runs a tidytracks. (Beware: before version 3.0.0 this will destroy your tracking
+data and replace it with scratch information from your installed packages, so
+all information about prior versions or <tt class="suffix">.changes</tt> files
+is lost.
 <h2><a name="internals">Internals</a></h2>
 reprepro stores the data it collects in Berkeley DB file (<tt class="suffix">.db</tt>)
 in a directory called <tt class="dir">db/</tt> or whatever you specified via command
