@@ -321,3 +321,21 @@ char *strlist_concat(const struct strlist *list, const char *prefix, const char 
 	*n = '\0';
 	return c;
 }
+
+void strlist_remove(struct strlist *strlist, const char *element) {
+	int i, j;
+
+	assert(strlist != NULL);
+	assert(element != NULL);
+
+	j = 0;
+	for( i = 0 ; i < strlist->count ; i++ ) {
+		if( strcmp(strlist->values[i], element) != 0 ) {
+			if( i != j )
+				strlist->values[j] = strlist->values[i];
+			j++;
+		} else
+			free(strlist->values[i]);
+	}
+	strlist->count = j;
+}

@@ -51,4 +51,7 @@ bool *strlist_preparefoundlist(const struct strlist *);
 
 /* concatenate <prefix> <values separated by infix> <suffix> */
 char *strlist_concat(const struct strlist *, const char *prefix, const char *infix, const char *suffix);
+
+/* remove all strings equal to the argument */
+void strlist_remove(struct strlist *, const char *);
 #endif
