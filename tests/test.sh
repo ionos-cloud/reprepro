@@ -2781,22 +2781,88 @@ stdout
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-# before testing this, take a look why the later checks
-# have warnings that go away with this...
-#testrun -  -b . retrack 3<<EOF
-#stdout
-#-v1*=Chasing test1...
-#-v2*=  Tracking test1|stupid|abacus...
-#-v2*=  Tracking test1|stupid|source...
-#-v2*=  Tracking test1|ugly|abacus...
-#-v2*=  Tracking test1|ugly|source...
-#EOF
+# Earlier update rules made this tracking data outdated.
+# so copy it, so it can be replayed so that also outdated data
+# is tested to be handled correctly.
+cp db/tracking.db db/savedtracking.db
+cp db/references.db db/savedreferences.db
+testrun -  -b . retrack 3<<EOF
+stdout
+-v1*=Chasing test1...
+-v2*=  Tracking test1|stupid|abacus...
+-v2*=  Tracking test1|stupid|source...
+-v2*=  Tracking test1|ugly|abacus...
+-v2*=  Tracking test1|ugly|source...
+EOF
 testout "" -b . dumptracks
-# TODO: this show some funny little problems, search for them and fix them...
-#dodiff results.expected results
+cat > results.expected results <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test_b.1-1_abacus.deb b 1
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+ pool/ugly/s/simple/simple_1_abacus.deb b 1
+ pool/ugly/s/simple/simple-addons_1_all.deb a 1
+ pool/ugly/s/simple/simple_1.dsc s 1
+ pool/ugly/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test_1-2_abacus.deb b 1
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb_2-3_abacus.deb b 1
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+EOF
+# This differs because what update added was not marked in the tracking data
+dodiff results.expected results
+
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 sed -i -e 's/^Tracking: minimal/Tracking: keep includechanges/' conf/distributions
+mv db/savedtracking.db db/tracking.db
+mv db/savedreferences.db db/references.db
 
 mkdir conf2
 testrun - -b . --confdir conf2 update 3<<EOF
