@@ -20,6 +20,7 @@ Updates between 2.2.4 and 2.3.0:
   * removealltracks now needs explicitly needs distribution names
   * tidytracks now removes all tracking data from a distribution without tracking
   * clearvanished removes tracking data from vanished distributions.
+- make update's ListHook relative to confdir (unless absolute)
 
 Updates since 2.2.3:
 - [SECURITY] fix bug causing a Release.gpg with only

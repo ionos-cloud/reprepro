@@ -80,6 +80,24 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	struct sname *item = data; \
 	return config_getonlyword(iter, name, NULL, &item->field); \
 }
+#define CFscriptSETPROC(sname, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *confdir, const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	char *value, *fullvalue; retvalue r; \
+	r = config_getonlyword(iter, name, NULL, &value); \
+	if( RET_IS_OK(r) ) { \
+		assert( value != NULL && value[0] != '\0' ); \
+		if( value[0] != '/' ) { \
+			fullvalue = calc_dirconcat(confdir, value); \
+			free(value); \
+		} else \
+			fullvalue = value; \
+		if( fullvalue == NULL ) \
+			return RET_ERROR_OOM; \
+		item->field = fullvalue; \
+	} \
+	return r; \
+}
 #define CFlinelistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
@@ -163,7 +181,6 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 
 // TODO: decide which should get better checking, which might allow escapes spaces:
 #define CFurlSETPROC CFvalueSETPROC
-#define CFscriptSETPROC CFvalueSETPROC
 #define CFdirSETPROC CFvalueSETPROC
 #define CFfileSETPROC CFvalueSETPROC
 #define config_getfileinline config_getwordinline
