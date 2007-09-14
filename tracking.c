@@ -240,11 +240,10 @@ static inline int parsenumber(const char **d,size_t *s) {
 	return count;
 }
 
-static retvalue tracking_new(trackingdb t,const char *sourcename,const char *version,/*@out@*/struct trackedpackage **pkg) {
+static retvalue tracking_new(const char *sourcename,const char *version,/*@out@*/struct trackedpackage **pkg) {
 	struct trackedpackage *p;
 	assert( pkg != NULL && sourcename != NULL && version != NULL );
 
-//	printf("[tracking_new %s %s %s]\n",t->codename,sourcename,version);
 	p = calloc(1,sizeof(struct trackedpackage));
 	if( p == NULL )
 		return RET_ERROR_OOM;
@@ -413,7 +412,7 @@ retvalue tracking_getornew(trackingdb tracks,const char *name,const char *versio
 	retvalue r;
 	r = tracking_get(tracks, name, version, pkg);
 	if( r == RET_NOTHING )
-		r = tracking_new(tracks, name, version, pkg);
+		r = tracking_new(name, version, pkg);
 	return r;
 }
 
