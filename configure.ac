@@ -33,13 +33,13 @@ AC_ARG_WITH(libdb,
 	4.4)
 	DB_WANT_VERSION=4.4
 	;;
-	?|?.?)
-	AC_MSG_ERROR([Unknown --with-libdb argument $withval])
-	;;
-	*)
+	/*)
 	DB_WANT_VERSION=any
 	DBLIBS="-L$withval/lib"
 	DBCPPFLAGS="-I$withval/include"
+	;;
+	*)
+	AC_MSG_ERROR([Unparseable --with-libdb argument $withval])
 	;;
 	esac
 ],[DB_WANT_VERSION=any])
