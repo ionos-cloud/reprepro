@@ -39,7 +39,8 @@ config.status: configure
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
 		    --with-libbz2 $(DBFLAGS) $(ARCHIVEFLAGS) \
 		    --disable-dependency-tracking \
-		    CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,syms"
+		    CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,syms" \
+	|| (cat config.log ; exit 1 )
 
 build-indep: build-indep-stamp
 build-arch: build-arch-stamp

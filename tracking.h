@@ -20,6 +20,7 @@ retvalue tracking_listdistributions(struct database *, /*@out@*/struct strlist *
 retvalue tracking_drop(struct database *, const char *, struct strlist *dereferenced);
 
 retvalue tracking_reset(trackingdb);
+retvalue tracking_rereference(struct database *, struct distribution *);
 
 retvalue trackedpackage_addfilekey(trackingdb, struct trackedpackage *, enum filetype, /*@only@*/char *filekey, bool used, struct database *);
 retvalue trackedpackage_adddupfilekeys(trackingdb, struct trackedpackage *, enum filetype, const struct strlist *filekeys, bool used, struct database *);

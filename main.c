@@ -1090,6 +1090,10 @@ ACTION_R(rereference) {
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
+		r = tracking_rereference(database, d);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
 	}
 
 	return result;

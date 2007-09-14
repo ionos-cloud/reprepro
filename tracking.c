@@ -581,6 +581,71 @@ retvalue tracking_drop(struct database *db, const char *codename, struct strlist
 	return result;
 }
 
+static retvalue tracking_recreatereferences(trackingdb t, struct database *database) {
+	DBC *cursor;
+	DBT key, data;
+	retvalue result, r;
+	struct trackedpackage *pkg;
+	char *id;
+	int i;
+	int dbret;
+
+	result = RET_NOTHING;
+	cursor = NULL;
+	if( (dbret = t->db->cursor(t->db, NULL, &cursor, 0)) != 0 ) {
+		t->db->err(t->db, dbret, "tracking_recreatereferences dberror(cursor):");
+		return RET_DBERR(dbret);
+	}
+	CLEARDBT(key);
+	CLEARDBT(data);
+	while( (dbret=cursor->c_get(cursor, &key, &data, DB_NEXT)) == 0 ) {
+		r = parseunknowndata(key, data, &pkg);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		id = calc_trackreferee(t->codename, pkg->sourcename,
+				                    pkg->sourceversion);
+		if( id == NULL ) {
+			trackedpackage_free(pkg);
+			return RET_ERROR_OOM;
+		}
+		for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+			const char *filekey = pkg->filekeys.values[i];
+			r = references_increment(database, filekey, id);
+			RET_UPDATE(result, r);
+		}
+		free(id);
+		trackedpackage_free(pkg);
+	}
+	if( dbret != DB_NOTFOUND ) {
+		(void)cursor->c_close(cursor);
+		t->db->err(t->db, dbret, "tracking_recreatereferences dberror(c_get):");
+		return RET_DBERR(dbret);
+	}
+	if( (dbret=cursor->c_close(cursor)) != 0 ) {
+		t->db->err(t->db, dbret, "tracking_recreatereferences dberror(close):");
+		return RET_DBERR(dbret);
+	}
+	return result;
+}
+
+retvalue tracking_rereference(struct database *database, struct distribution *distribution) {
+	retvalue result, r;
+	trackingdb tracks;
+
+	result = references_remove(database, distribution->codename, NULL);
+	if( distribution->tracking == dt_NONE )
+		return result;
+	r = tracking_initialize(&tracks, database, distribution, true);
+	RET_UPDATE(result, r);
+	if( !RET_IS_OK(r) )
+		return result;
+	r = tracking_recreatereferences(tracks, database);
+	RET_UPDATE(result, r);
+	r = tracking_done(tracks);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
 retvalue tracking_remove(trackingdb t,const char *sourcename,const char *version,struct database *database,/*@null@*/struct strlist *dereferencedfilekeys) {
 	DBC *cursor;
 	DBT key,data;
