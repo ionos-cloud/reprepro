@@ -1,9 +1,6 @@
 #ifndef REPREPRO_UPGRADELIST_H
 #define REPREPRO_UPGRADELIST_H
 
-#ifndef REPREPRO_PACKAGES_H
-#include "packages.h"
-#endif
 #ifndef REPREPRO_APTMETHOD_H
 #include "aptmethod.h"
 #endif

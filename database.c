@@ -634,7 +634,7 @@ static retvalue preparepackages(struct database *db, bool fast, bool readonly, b
 	if( !allowunused && !fast && packagesfileexists )  {
 		struct strlist identifiers;
 
-		r = packages_getdatabases(db, &identifiers);
+		r = database_listpackages(db, &identifiers);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( RET_IS_OK(r) ) {
@@ -669,7 +669,7 @@ static retvalue preparepackages(struct database *db, bool fast, bool readonly, b
  * - if readonly, do not create but return with RET_NOTHING
  * - lock database, waiting a given amount of time if already locked
  */
-retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock) {
+retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb) {
 	struct database *n;
 	retvalue r;
 
@@ -695,6 +695,7 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 		return r;
 	}
 	n->readonly = readonly;
+	n->verbose = verbosedb;
 
 	if( nopackages ) {
 		n->nopackages = true;
@@ -712,3 +713,394 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 	return RET_OK;
 }
 
+/********************************************************************************
+ * Stuff string parts                                                           *
+ ********************************************************************************/
+
+static const char databaseerror[] = "Internal error of the underlying BerkleyDB database:\n";
+
+/********************************************************************************
+ * Stuff to handle data in tables                                               *
+ ********************************************************************************
+ There is nothing that connot be solved by another layer of indirection, except
+ too many levels of indirection. (Source forgotten) */
+
+struct table {
+	char *name, *subname;
+	DB *berkleydb;
+	bool *flagreset;
+	bool readonly, verbose;
+};
+
+static void table_printerror(struct table *table, int dbret, const char *action) {
+	if( table->subname != NULL )
+		table->berkleydb->err(table->berkleydb, dbret,
+				"%sWithin %s subtable %s at %s:",
+				databaseerror, table->name, table->subname,
+				action);
+	else
+		table->berkleydb->err(table->berkleydb, dbret,
+				"%sWithin %s at %s:",
+				databaseerror, table->name, action);
+}
+
+retvalue table_close(struct table *table) {
+	int dbret;
+
+	if( table == NULL )
+		return RET_NOTHING;
+	if( table->flagreset != NULL )
+		*table->flagreset = false;
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		dbret = 0;
+	} else
+		dbret = table->berkleydb->close(table->berkleydb, 0);
+	free(table->name);
+	free(table->subname);
+	free(table);
+	if( dbret != 0 )
+		return RET_DBERR(dbret);
+	else
+		return RET_OK;
+}
+
+retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
+	int dbret;
+	DBT Key, Data;
+
+	assert( table != NULL );
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		return RET_NOTHING;
+	}
+
+	SETDBT(Key, key);
+	CLEARDBT(Data);
+	Data.flags = DB_DBT_MALLOC;
+
+	dbret = table->berkleydb->get(table->berkleydb, NULL,
+			&Key, &Data, 0);
+	// TODO: find out what error code means out of memory...
+	if( dbret == DB_NOTFOUND )
+		return RET_NOTHING;
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "get");
+		return RET_DBERR(dbret);
+	}
+	if( Data.data == NULL )
+		return RET_ERROR_OOM;
+	if( ((const char*)Data.data)[Data.size-1] != '\0' ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) data!",
+					table->name);
+		free(Data.data);
+		return RET_ERROR;
+	}
+	*data_p = Data.data;
+	return RET_OK;
+}
+
+retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
+	int dbret;
+	DBT Key, Data;
+
+	assert( table != NULL );
+	assert( !table->readonly && table->berkleydb != NULL );
+
+	SETDBT(Key, key);
+	SETDBT(Data, data);
+	dbret = table->berkleydb->put(table->berkleydb, NULL,
+			&Key, &Data, DB_NOOVERWRITE);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "put(uniq)");
+		return RET_DBERR(dbret);
+	}
+	if( table->verbose ) {
+		if( table->subname != NULL )
+			printf("db: '%s' added to %s(%s).\n",
+					key, table->name, table->subname);
+		else
+			printf("db: '%s' added to %s.\n",
+					key, table->name);
+	}
+	return RET_OK;
+}
+
+retvalue table_deleterecord(struct table *table, const char *key) {
+	int dbret;
+	DBT Key;
+
+	assert( table != NULL );
+	assert( !table->readonly && table->berkleydb != NULL );
+
+	SETDBT(Key, key);
+	dbret = table->berkleydb->del(table->berkleydb, NULL, &Key, 0);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "del");
+		if( dbret == DB_NOTFOUND )
+			return RET_ERROR_MISSING;
+		else
+			return RET_DBERR(dbret);
+	}
+	if( table->verbose ) {
+		if( table->subname != NULL )
+			printf("db: '%s' removed from %s(%s).\n",
+					key, table->name, table->subname);
+		else
+			printf("db: '%s' removed from %s.\n",
+					key, table->name);
+	}
+	return RET_OK;
+}
+
+retvalue table_replacerecord(struct table *table, const char *key, const char *data) {
+	retvalue r;
+
+	r = table_deleterecord(table, key);
+	if( r != RET_ERROR_MISSING && RET_WAS_ERROR(r) )
+		return r;
+	return table_adduniqrecord(table, key, data);
+}
+
+struct cursor {
+	DBC *cursor;
+	retvalue r;
+};
+
+retvalue table_newglobaluniqcursor(struct table *table, struct cursor **cursor_p) {
+	struct cursor *cursor;
+	int dbret;
+
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		*cursor_p = NULL;
+		return RET_OK;
+	}
+
+	cursor = calloc(1, sizeof(struct cursor));
+	if( cursor == NULL )
+		return RET_ERROR_OOM;
+
+	cursor->cursor = NULL;
+	cursor->r = RET_OK;
+	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+			&cursor->cursor, 0);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "cursor");
+		return RET_DBERR(dbret);
+	}
+	*cursor_p = cursor;
+	return RET_OK;
+}
+
+retvalue table_newduplicatecursor(struct table *, const char *key, struct cursor **);
+
+retvalue cursor_close(struct table *table, struct cursor *cursor) {
+	int dbret;
+	retvalue r;
+
+	if( cursor == NULL )
+		return RET_OK;
+
+	r = cursor->r;
+	dbret = cursor->cursor->c_close(cursor->cursor);
+	cursor->cursor = NULL;
+	free(cursor);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_close");
+		RET_UPDATE(r, RET_DBERR(dbret));
+	}
+	return r;
+}
+
+bool cursor_nexttemp(struct table *table, struct cursor *cursor, const char **key, const char **data) {
+	DBT Key, Data;
+	int dbret;
+
+	if( cursor == NULL )
+		return false;
+
+	CLEARDBT(Key);
+	CLEARDBT(Data);
+
+	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_NEXT);
+	if( dbret == DB_NOTFOUND )
+		return false;
+
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_get(DB_NEXT)");
+		cursor->r = RET_DBERR(dbret);
+		return false;
+	}
+	if( ((const char*)Key.data)[Key.size-1] != '\0' ||
+	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) data!",
+					table->name);
+		cursor->r = RET_ERROR;
+		return false;
+	}
+	*key = Key.data;
+	*data = Data.data;
+	return true;
+}
+
+retvalue cursor_replace(struct table *table, struct cursor *cursor, const char *data) {
+	DBT Data;
+	int dbret;
+
+	assert( cursor != NULL );
+	assert( !table->readonly );
+
+	SETDBT(Data, data);
+
+	dbret = cursor->cursor->c_put(cursor->cursor, NULL, &Data, DB_CURRENT);
+
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_put(DB_CURRENT)");
+		return RET_DBERR(dbret);
+	}
+	return RET_OK;
+}
+
+bool table_isempty(struct table *table) {
+	DBC *cursor;
+	DBT Key, Data;
+	int dbret;
+
+	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+			&cursor, 0);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "cursor");
+		return true;
+	}
+	CLEARDBT(Key);
+	CLEARDBT(Data);
+
+	dbret = cursor->c_get(cursor, &Key, &Data, DB_NEXT);
+	if( dbret == DB_NOTFOUND ) {
+		(void)cursor->c_close(cursor);
+		return true;
+	}
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_get(DB_NEXT)");
+		(void)cursor->c_close(cursor);
+		return true;
+	}
+	dbret = cursor->c_close(cursor);
+	if( dbret != 0 )
+		table_printerror(table, dbret, "c_close");
+	return false;
+}
+
+// obsolete, remove in next step:
+typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
+retvalue packages_foreach(struct table *table, per_package_action action, void *privdata) {
+	retvalue result, r;
+	struct cursor *cursor;
+	const char *package, *control;
+
+	r = table_newglobaluniqcursor(table, &cursor);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = RET_NOTHING;
+	while( cursor_nexttemp(table, cursor, &package, &control) ) {
+		r = action(privdata, package, control);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	r = cursor_close(table, cursor);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+/********************************************************************************
+ * Open the different types of tables with their needed flags:                  *
+ ********************************************************************************/
+static retvalue database_table(struct database *database, const char *filename, const char *subtable, DBTYPE type, u_int32_t preflags, int (*dupcompare)(DB *,const DBT *,const DBT *), bool readonly, /*@out@*/struct table **table_p) {
+	struct table *table;
+	retvalue r;
+
+	table = calloc(1, sizeof(struct table));
+	if( table == NULL )
+		return RET_ERROR_OOM;
+	/* TODO: is filename always an static constant? then we could drop the dup */
+	table->name = strdup(filename);
+	if( table->name == NULL ) {
+		free(table);
+		return RET_ERROR_OOM;
+	}
+	if( subtable != NULL ) {
+		table->subname = strdup(subtable);
+		if( table->subname == NULL ) {
+			free(table->name);
+			free(table);
+			return RET_ERROR_OOM;
+		}
+	} else
+		table->subname = NULL;
+	table->readonly = readonly;
+	table->verbose = verbose;
+	r = database_opentable(database, filename, subtable, type, preflags, dupcompare, readonly, &table->berkleydb);
+	if( RET_WAS_ERROR(r) ) {
+		free(table->subname);
+		free(table->name);
+		free(table);
+		return r;
+	}
+	if( r == RET_NOTHING ) {
+		assert( readonly );
+		/* sometimes we don't want a return here, when? */
+		table->berkleydb = NULL;
+		r = RET_OK;
+	}
+	*table_p = table;
+	return r;
+}
+
+retvalue database_openpackages(struct database *database, const char *identifier, bool readonly, struct table **table_p) {
+	struct table *table IFSTUPIDCC(=NULL);
+	retvalue r;
+
+	if( database->nopackages ) {
+		fputs("Internal Error: Accessing packages databse while that was not prepared!\n", stderr);
+		return RET_ERROR;
+	}
+	if( database->packagesdatabaseopen ) {
+		fputs("Internal Error: Trying to open multiple packages databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
+		return RET_ERROR;
+	}
+
+	r = database_table(database, "packages.db", identifier,
+			DB_BTREE, 0, NULL, readonly, &table);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	table->flagreset = &database->packagesdatabaseopen;
+	database->packagesdatabaseopen = true;
+	*table_p = table;
+	return RET_OK;
+}
+
+/* Get a list of all identifiers having a package list */
+retvalue database_listpackages(struct database *database, struct strlist *identifiers) {
+	return database_listsubtables(database, "packages.db", identifiers);
+}
+
+/* drop a database */
+retvalue database_droppackages(struct database *database, const char *identifier) {
+	return database_dropsubtable(database, "packages.db", identifier);
+}

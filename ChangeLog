@@ -1,3 +1,6 @@
+2007-09-15  Bernhard R. Link <brlink@debian.org>
+	* move package database handling from packages.c to database.c
+
 2007-09-14  Bernhard R. Link <brlink@debian.org>
 	* rereference now also refreshes references by tracking data.
 

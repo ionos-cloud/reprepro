@@ -30,7 +30,6 @@
 #include "strlist.h"
 #include "names.h"
 #include "chunks.h"
-#include "packages.h"
 #include "reference.h"
 #include "binaries.h"
 #include "sources.h"
@@ -127,19 +126,20 @@ retvalue target_free(struct target *target) {
 retvalue target_initpackagesdb(struct target *target, struct database *database) {
 	retvalue r;
 
-	if( target->packages != NULL ) {
-		fprintf(stderr,"again2\n");
-		r = RET_OK;
-	} else {
-		r = packages_initialize(&target->packages, database,
-				target->identifier);
-		if( RET_WAS_ERROR(r) ) {
-			target->packages = NULL;
-			return r;
-		}
+	assert( target->packages == NULL );
+	if( target->packages != NULL )
+		return RET_OK;
+	/* TODO: allow readonly to be set here */
+	r = database_openpackages(database, target->identifier, false,
+			&target->packages);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		target->packages = NULL;
+		return r;
 	}
 	return r;
 }
+
 /* this closes databases... */
 retvalue target_closepackagesdb(struct target *target) {
 	retvalue r;
@@ -148,7 +148,7 @@ retvalue target_closepackagesdb(struct target *target) {
 		fprintf(stderr,"Internal Warning: Double close!\n");
 		r = RET_OK;
 	} else {
-		r = packages_done(target->packages);
+		r = table_close(target->packages);
 		target->packages = NULL;
 	}
 	return r;
@@ -164,7 +164,7 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 
 	assert(target != NULL && target->packages != NULL && name != NULL );
 
-	r = packages_get(target->packages,name,&oldchunk);
+	r = table_getrecord(target->packages, name, &oldchunk);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -197,7 +197,7 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 	}
 	if( verbose > 0 )
 		printf("removing '%s' from '%s'...\n",name,target->identifier);
-	result = packages_remove(target->packages,name);
+	result = table_deleterecord(target->packages, name);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = true;
 		if( oldsource!= NULL && oldsversion != NULL ) {
@@ -233,7 +233,7 @@ static retvalue addpackages(struct target *target, struct database *database,
 		/*@null@*//*@only@*/char *oldsource,/*@null@*//*@only@*/char *oldsversion) {
 
 	retvalue result,r;
-	packagesdb packagesdb = target->packages;
+	struct table *table = target->packages;
 
 	/* mark it as needed by this distribution */
 
@@ -249,10 +249,10 @@ static retvalue addpackages(struct target *target, struct database *database,
 	/* Add package to the distribution's database */
 
 	if( oldcontrolchunk != NULL ) {
-		result = packages_replace(packagesdb,packagename,controlchunk);
+		result = table_replacerecord(table, packagename, controlchunk);
 
 	} else {
-		result = packages_add(packagesdb,packagename,controlchunk);
+		result = table_adduniqrecord(table, packagename, controlchunk);
 	}
 
 	if( RET_WAS_ERROR(result) ) {
@@ -290,7 +290,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 
 	assert(target->packages!=NULL);
 
-	r = packages_get(target->packages,name,&oldcontrol);
+	r = table_getrecord(target->packages, name, &oldcontrol);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
@@ -384,7 +384,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 
 	assert(target->packages!=NULL);
 
-	r = packages_get(target->packages,name,&oldcontrol);
+	r = table_getrecord(target->packages, name, &oldcontrol);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
@@ -692,13 +692,44 @@ retvalue target_check(struct target *target,struct database *database) {
 /* Reapply override information */
 
 retvalue target_reoverride(struct target *target,const struct distribution *distribution) {
+	struct cursor *cursor;
+	retvalue result, r;
+	const char *package, *controlchunk;
+	struct table *table = target->packages;
+
 	assert(target->packages!=NULL);
 	assert(distribution!=NULL);
 
 	if( verbose > 1 ) {
 		fprintf(stderr,"Reapplying overrides packages in '%s'...\n",target->identifier);
 	}
-	return packages_modifyall(target->packages,target->doreoverride,distribution,&target->wasmodified);
+
+	r = table_newglobaluniqcursor(table, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+	result = RET_NOTHING;
+	while( cursor_nexttemp(table, cursor, &package, &controlchunk) ) {
+		char *newcontrolchunk = NULL;
+
+		r = target->doreoverride(distribution, package, controlchunk,
+				&newcontrolchunk);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) ) {
+			if( verbose > 0 )
+				fputs("target_reoverride: Stopping procession of further packages due to previous errors\n", stderr);
+			break;
+		}
+		if( RET_IS_OK(r) ) {
+			r = cursor_replace(table, cursor, newcontrolchunk);
+			free(newcontrolchunk);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			target->wasmodified = true;
+		}
+	}
+	r = cursor_close(table, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
 }
 
 /* export a database */

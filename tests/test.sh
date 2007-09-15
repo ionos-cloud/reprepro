@@ -103,6 +103,8 @@ if [ "3" -le "$#" ] ; then
 else
 	REPREPRO="$SRCDIR/reprepro"
 fi
+TESTOPTIONS="-D d=1 $TESTOPTIONS"
+VERBOSITY="--verbosedb $VERBOSITY"
 TESTS="$SRCDIR/tests"
 UPDATETYPE=update
 export PATH="$TESTS:$PATH"
@@ -484,9 +486,9 @@ stdout
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
 -v2*=Created directory "./logs"
--v3*=db: 'bird' added to 'B|dog|source'.
--v3*=db: 'bird' added to 'B|dog|abacus'.
--v3*=db: 'bird-addons' added to 'B|dog|abacus'.
+-d1*=db: 'bird' added to packages.db(B|dog|source).
+-d1*=db: 'bird' added to packages.db(B|dog|abacus).
+-d1*=db: 'bird-addons' added to packages.db(B|dog|abacus).
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
 -v3*=deleting './i/bird_1_abacus.deb'...
@@ -594,9 +596,9 @@ stdout
 -v2*=Created directory "./pool/cat"
 -v2*=Created directory "./pool/cat/b"
 -v2*=Created directory "./pool/cat/b/bird"
--v3*=db: 'bird' added to 'B|cat|source'.
--v3*=db: 'bird' added to 'B|cat|abacus'.
--v3*=db: 'bird-addons' added to 'B|cat|abacus'.
+-d1*=db: 'bird' added to packages.db(B|cat|source).
+-d1*=db: 'bird' added to packages.db(B|cat|abacus).
+-d1*=db: 'bird-addons' added to packages.db(B|cat|abacus).
 -v7*=db: pool/cat/b/bird/bird_1.dsc: file added.
 -v7*=db: pool/cat/b/bird/bird_1.tar.gz: file added.
 -v7*=db: pool/cat/b/bird/bird_1_abacus.deb: file added.
@@ -982,8 +984,8 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
--v3*=db: 'indebname' added to 'A|dog|abacus'.
--v3*=db: 'indebname' added to 'A|dog|calculator'.
+-d1*=db: 'indebname' added to packages.db(A|dog|abacus).
+-d1*=db: 'indebname' added to packages.db(A|dog|calculator).
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
@@ -1186,7 +1188,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 stdout
--v3*=db: 'dscfilename' added to 'B|dog|source'.
+-d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
@@ -1379,8 +1381,8 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Unknown filetype: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
 stdout
--v3*=db: removed old 'dscfilename' from 'B|dog|source'.
--v3*=db: 'dscfilename' added to 'B|dog|source'.
+-d1*=db: 'dscfilename' removed from packages.db(B|dog|source).
+-d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v3*=deleting './i/strangefile_xyz'...
@@ -1646,9 +1648,9 @@ stdout
 -v2*=Created directory "./pool/stupid/s/simple"
 =[tracking_get test1 simple 1]
 =[tracking_new test1 simple 1]
--v3*=db: 'simple-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'simple' added to 'test1|stupid|abacus'.
--v3*=db: 'simple' added to 'test1|stupid|source'.
+-d1*=db: 'simple-addons' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'simple' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'simple' added to packages.db(test1|stupid|source).
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
@@ -1675,9 +1677,9 @@ stdout
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_new test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
@@ -1697,7 +1699,7 @@ EOF
 testrun - -b . -Tdsc remove test1 simple 3<<EOF
 stdout
 -v1*=removing 'simple' from 'test1|stupid|source'...
--v3*=db: 'simple' removed from 'test1|stupid|source'.
+-d1*=db: 'simple' removed from packages.db(test1|stupid|source).
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
@@ -1715,7 +1717,7 @@ EOF
 testrun - -b . -Tdeb remove test1 bloat+-0a9z.app 3<<EOF
 stdout
 -v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|abacus'...
--v3*=db: 'bloat+-0a9z.app' removed from 'test1|ugly|abacus'.
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|abacus).
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
@@ -1733,7 +1735,7 @@ EOF
 testrun - -b . -A source remove test1 bloat+-0a9z.app 3<<EOF
 stdout
 -v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|source'...
--v3*=db: 'bloat+-0a9z.app' removed from 'test1|ugly|source'.
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|source).
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
@@ -1751,7 +1753,7 @@ EOF
 testrun - -b . -A abacus remove test1 simple 3<<EOF
 stdout
 -v1*=removing 'simple' from 'test1|stupid|abacus'...
--v3*=db: 'simple' removed from 'test1|stupid|abacus'.
+-d1*=db: 'simple' removed from packages.db(test1|stupid|abacus).
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
@@ -1769,7 +1771,7 @@ EOF
 testrun - -b . -C ugly remove test1 bloat+-0a9z.app-addons 3<<EOF
 stdout
 -v1*=removing 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'...
--v3*=db: 'bloat+-0a9z.app-addons' removed from 'test1|ugly|abacus'.
+-d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|abacus).
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
@@ -1787,7 +1789,7 @@ EOF
 testrun - -b . -C stupid remove test1 simple-addons 3<<EOF
 stdout
 -v1*=removing 'simple-addons' from 'test1|stupid|abacus'...
--v3*=db: 'simple-addons' removed from 'test1|stupid|abacus'.
+-d1*=db: 'simple-addons' removed from packages.db(test1|stupid|abacus).
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
@@ -1838,7 +1840,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/s"
 -v2*=Created directory "./pool/ugly/s/simple"
--v3*=db: 'simple' added to 'test2|ugly|source'.
+-d1*=db: 'simple' added to packages.db(test2|ugly|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
@@ -1865,7 +1867,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/b"
 -v2*=Created directory "./pool/stupid/b/bloat+-0a9z.app"
--v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|source'.
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
@@ -1890,7 +1892,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple_1_abacus.deb: component guessed as 'ugly'
 stdout
--v3*=db: 'simple' added to 'test2|ugly|abacus'.
+-d1*=db: 'simple' added to packages.db(test2|ugly|abacus).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
@@ -1915,7 +1917,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple-addons_1_all.deb: component guessed as 'ugly'
 stdout
--v3*=db: 'simple-addons' added to 'test2|ugly|coal'.
+-d1*=db: 'simple-addons' added to packages.db(test2|ugly|coal).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
@@ -1940,7 +1942,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb: component guessed as 'stupid'
 stdout
--v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|abacus'.
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|abacus).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
@@ -1965,7 +1967,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb: component guessed as 'stupid'
 stdout
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test2|stupid|coal'.
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test2|stupid|coal).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
@@ -2089,12 +2091,12 @@ stdout
 -v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: 'simple' added to 'test1|ugly|source'.
--v3*=db: 'simple' added to 'test1|ugly|abacus'.
--v3*=db: 'simple-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|source'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|abacus'.
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|stupid|abacus'.
+-d1*=db: 'simple' added to packages.db(test1|ugly|source).
+-d1*=db: 'simple' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'simple-addons' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|source).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|stupid|abacus).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2289,9 +2291,9 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -2311,12 +2313,12 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
--v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|source'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
+-d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|abacus).
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|source).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -2338,7 +2340,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
--v3*=db: 'simple' added to 'test1|stupid|abacus'.
+-d1*=db: 'simple' added to packages.db(test1|stupid|abacus).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2355,7 +2357,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1*=simple_1.dsc: component guessed as 'stupid'
 stdout
--v3*=db: 'simple' added to 'test1|stupid|source'.
+-d1*=db: 'simple' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -2434,9 +2436,9 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
--v3*=db: 'test-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'test' added to 'test1|stupid|abacus'.
--v3*=db: 'test' added to 'test1|stupid|source'.
+-d1*=db: 'test-addons' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'test' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'test' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2459,9 +2461,9 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/stupid/t/testb"
--v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|source'.
+-d1*=db: 'testb-addons' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'testb' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'testb' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2482,12 +2484,12 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'testb-addons' from 'test1|stupid|abacus'.
--v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
--v3*=db: removed old 'testb' from 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|abacus'.
--v3*=db: removed old 'testb' from 'test1|stupid|source'.
--v3*=db: 'testb' added to 'test1|stupid|source'.
+-d1*=db: 'testb-addons' removed from packages.db(test1|stupid|abacus).
+-d1*=db: 'testb-addons' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'testb' removed from packages.db(test1|stupid|abacus).
+-d1*=db: 'testb' added to packages.db(test1|stupid|abacus).
+-d1*=db: 'testb' removed from packages.db(test1|stupid|source).
+-d1*=db: 'testb' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2515,9 +2517,9 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/4"
 -v2*=Created directory "./pool/stupid/4/4test"
--v3*=db: '4test-addons' added to 'test1|stupid|abacus'.
--v3*=db: '4test' added to 'test1|stupid|abacus'.
--v3*=db: '4test' added to 'test1|stupid|source'.
+-d1*=db: '4test-addons' added to packages.db(test1|stupid|abacus).
+-d1*=db: '4test' added to packages.db(test1|stupid|abacus).
+-d1*=db: '4test' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -3278,10 +3280,10 @@ stdout
 -v1*=removing 'simple' from 'test1|stupid|source'...
 -v1*=removing 'simple' from 'test1|ugly|abacus'...
 -v1*=removing 'simple' from 'test1|ugly|source'...
--v3*=db: 'simple' removed from 'test1|stupid|abacus'.
--v3*=db: 'simple' removed from 'test1|stupid|source'.
--v3*=db: 'simple' removed from 'test1|ugly|abacus'.
--v3*=db: 'simple' removed from 'test1|ugly|source'.
+-d1*=db: 'simple' removed from packages.db(test1|stupid|abacus).
+-d1*=db: 'simple' removed from packages.db(test1|stupid|source).
+-d1*=db: 'simple' removed from packages.db(test1|ugly|abacus).
+-d1*=db: 'simple' removed from packages.db(test1|ugly|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|abacus'...
 -v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
@@ -3304,9 +3306,9 @@ testrun - -b . remove test2 simple 3<<EOF
 -v0*=There have been errors!
 stdout
 -v1=removing 'simple' from 'test2|ugly|abacus'...
--v3*=db: 'simple' removed from 'test2|ugly|abacus'.
+-d1*=db: 'simple' removed from packages.db(test2|ugly|abacus).
 -v1=removing 'simple' from 'test2|ugly|source'...
--v3*=db: 'simple' removed from 'test2|ugly|source'.
+-d1*=db: 'simple' removed from packages.db(test2|ugly|source).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*= looking for changes in 'test2|stupid|coal'...
@@ -3445,8 +3447,8 @@ testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 b
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
 *=Ignoring as --ignore=wrongversion given.
 stdout
--v3*=db: '4test' added to 'test2|stupid|abacus'.
--v3*=db: '4test' added to 'test2|stupid|source'.
+-d1*=db: '4test' added to packages.db(test2|stupid|abacus).
+-d1*=db: '4test' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
@@ -3464,9 +3466,9 @@ EOF
 testrun - -b . remove test2 4test 3<<EOF
 stdout
 -v1*=removing '4test' from 'test2|stupid|abacus'...
--v3*=db: '4test' removed from 'test2|stupid|abacus'.
+-d1*=db: '4test' removed from packages.db(test2|stupid|abacus).
 -v1*=removing '4test' from 'test2|stupid|source'...
--v3*=db: '4test' removed from 'test2|stupid|source'.
+-d1*=db: '4test' removed from packages.db(test2|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|abacus'...
 -v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
@@ -3709,9 +3711,9 @@ stdout
 -v2*=Created directory "./pool/all"
 -v2*=Created directory "./pool/all/a"
 -v2*=Created directory "./pool/all/a/aa"
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|source'.
+-d1*=db: 'aa-addons' added to packages.db(a|all|abacus).
+-d1*=db: 'aa' added to packages.db(a|all|abacus).
+-d1*=db: 'aa' added to packages.db(a|all|source).
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -3764,8 +3766,8 @@ stdout
 -v3*=  pulling into 'b|all|abacus'
 -v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
+-d1*=db: 'aa' added to packages.db(b|all|abacus).
+-d1*=db: 'aa-addons' added to packages.db(b|all|abacus).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
@@ -3785,12 +3787,12 @@ testrun - -b . --export=changed --delete include a test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|source'.
--v3*=db: 'aa' added to 'a|all|source'.
+-d1*=db: 'aa-addons' removed from packages.db(a|all|abacus).
+-d1*=db: 'aa-addons' added to packages.db(a|all|abacus).
+-d1*=db: 'aa' removed from packages.db(a|all|abacus).
+-d1*=db: 'aa' added to packages.db(a|all|abacus).
+-d1*=db: 'aa' removed from packages.db(a|all|source).
+-d1*=db: 'aa' added to packages.db(a|all|source).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -3838,10 +3840,10 @@ stdout
 -v3*=  pulling into 'b|all|abacus'
 -v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: removed old 'aa' from 'b|all|abacus'.
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
+-d1*=db: 'aa' removed from packages.db(b|all|abacus).
+-d1*=db: 'aa' added to packages.db(b|all|abacus).
+-d1*=db: 'aa-addons' removed from packages.db(b|all|abacus).
+-d1*=db: 'aa-addons' added to packages.db(b|all|abacus).
 -v0=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
@@ -3866,12 +3868,12 @@ testrun - -b . --export=never include a test.changes 3<<EOF
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
--v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|source'.
--v3*=db: 'aa' added to 'a|all|source'.
+-d1*=db: 'aa-addons' removed from packages.db(a|all|abacus).
+-d1*=db: 'aa-addons' added to packages.db(a|all|abacus).
+-d1*=db: 'aa' removed from packages.db(a|all|abacus).
+-d1*=db: 'aa' added to packages.db(a|all|abacus).
+-d1*=db: 'aa' removed from packages.db(a|all|source).
+-d1*=db: 'aa' added to packages.db(a|all|source).
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.dsc
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.tar.gz
@@ -3912,9 +3914,9 @@ stderr
 =Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/all/a/ab"
--v3*=db: 'ab-addons' added to 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|source'.
+-d1*=db: 'ab-addons' added to packages.db(a|all|abacus).
+-d1*=db: 'ab' added to packages.db(a|all|abacus).
+-d1*=db: 'ab' added to packages.db(a|all|source).
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -3929,12 +3931,12 @@ stdout
 -v3*=  pulling into 'b|all|abacus'
 -v5*=  looking what to get from 'a|all|abacus'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: removed old 'aa' from 'b|all|abacus'.
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
--v3*=db: 'ab' added to 'b|all|abacus'.
--v3*=db: 'ab-addons' added to 'b|all|abacus'.
+-d1*=db: 'aa' removed from packages.db(b|all|abacus).
+-d1*=db: 'aa' added to packages.db(b|all|abacus).
+-d1*=db: 'aa-addons' removed from packages.db(b|all|abacus).
+-d1*=db: 'aa-addons' added to packages.db(b|all|abacus).
+-d1*=db: 'ab' added to packages.db(b|all|abacus).
+-d1*=db: 'ab-addons' added to packages.db(b|all|abacus).
 -v0=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
 -v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
@@ -3983,10 +3985,10 @@ testrun - -b . --delete -T deb include a broken.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'ab-addons' from 'a|all|abacus'.
--v3*=db: 'ab-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'ab' from 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|abacus'.
+-d1*=db: 'ab-addons' removed from packages.db(a|all|abacus).
+-d1*=db: 'ab-addons' added to packages.db(a|all|abacus).
+-d1*=db: 'ab' removed from packages.db(a|all|abacus).
+-d1*=db: 'ab' added to packages.db(a|all|abacus).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -4068,8 +4070,8 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 *=Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!
 *=Looking around if it is elsewhere as --ignore=missingfile given.
 stdout
--v3*=db: removed old 'ab' from 'a|all|source'.
--v3*=db: 'ab' added to 'a|all|source'.
+-d1*=db: 'ab' removed from packages.db(a|all|source).
+-d1*=db: 'ab' added to packages.db(a|all|source).
 -v5*=Deleting 'broken.changes'.
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|abacus'...
@@ -4110,8 +4112,8 @@ stderr
 -v3*=Placing 'ac-addons_1-1_all.deb' only in architecture 'abacus' as requested.
 stdout
 -v2*=Created directory "./pool/all/a/ac"
--v3*=db: 'ac-addons' added to 'b|all|abacus'.
--v3*=db: 'ac' added to 'b|all|abacus'.
+-d1*=db: 'ac-addons' added to packages.db(b|all|abacus).
+-d1*=db: 'ac' added to packages.db(b|all|abacus).
 -v5*=Deleting 'test.changes'.
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
@@ -4147,13 +4149,13 @@ stdout
 -v3*=  processing updates for 'b|all|abacus'
 -v5*=  marking everything to be deleted
 -v5*=  reading './lists/b_froma_deb_all_abacus_changed'
--v3*=db: 'ac-addons' removed from 'b|all|abacus'.
+-d1*=db: 'ac-addons' removed from packages.db(b|all|abacus).
 -v1*=removing 'ab' from 'b|all|abacus'...
--v3*=db: 'ab' removed from 'b|all|abacus'.
+-d1*=db: 'ab' removed from packages.db(b|all|abacus).
 -v1*=removing 'ab-addons' from 'b|all|abacus'...
--v3*=db: 'ab-addons' removed from 'b|all|abacus'.
+-d1*=db: 'ab-addons' removed from packages.db(b|all|abacus).
 -v1*=removing 'ac' from 'b|all|abacus'...
--v3*=db: 'ac' removed from 'b|all|abacus'.
+-d1*=db: 'ac' removed from packages.db(b|all|abacus).
 -v1*=removing 'ac-addons' from 'b|all|abacus'...
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...
@@ -4190,7 +4192,7 @@ stdout
 -v3*=No instance of 'ac' found in 'a|all|abacus'!
 -v3*=No instance of 'ac' found in 'a|all|source'!
 -v1*=Looking for 'ab' in 'a' to be copied to 'b'...
--v3*=db: 'ab' added to 'b|all|abacus'.
+-d1*=db: 'ab' added to packages.db(b|all|abacus).
 -v1*=Looking for 'ac' in 'a' to be copied to 'b'...
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|abacus'...

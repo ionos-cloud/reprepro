@@ -1342,7 +1342,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		package = strndup(basename, s-basename);
 		if( package == NULL )
 				return RET_ERROR_OOM;
-		r = packages_get(target->packages, package, &control);
+		r = table_getrecord(target->packages, package, &control);
 		if( RET_WAS_ERROR(r) ) {
 			free(package);
 			return r;

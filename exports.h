@@ -4,9 +4,6 @@
 #ifndef REPREPRO_RELEASE_H
 #include "release.h"
 #endif
-#ifndef REPREPRO_PACKAGES_H
-#include "packages.h"
-#endif
 
 struct exportmode {
 	/* "Packages", "Sources" or something like that */
@@ -25,6 +22,6 @@ struct configiterator;
 retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct configiterator *iter);
 void exportmode_done(struct exportmode *mode);
 
-retvalue export_target(const char *confdir, const char *relativedir, packagesdb packages, const struct exportmode *exportmode, struct release *release, bool onlymissing, bool snapshot);
+retvalue export_target(const char *confdir, const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlymissing, bool snapshot);
 
 #endif

@@ -14,9 +14,9 @@ struct database {
 	char *directory;
 	struct filesdb *files;
 	struct references *references;
-	bool locked;
+	bool locked, verbose;
 	int dircreationdepth;
-	bool nopackages, readonly;
+	bool nopackages, readonly, packagesdatabaseopen;
 	int version, compatibilityversion;
 };
 

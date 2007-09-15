@@ -13,9 +13,6 @@
 #ifndef REPREPRO_TRACKINGT_H
 #include "trackingt.h"
 #endif
-#ifndef REPREPRO_PACKAGES_H
-#include "packages.h"
-#endif
 #ifndef REPREPRO_EXPORTS_H
 #include "exports.h"
 #endif
@@ -58,7 +55,7 @@ struct target {
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
 	/* is initialized as soon as needed: */
-	packagesdb packages;
+	struct table *packages;
 };
 
 retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);

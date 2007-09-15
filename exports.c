@@ -31,8 +31,9 @@
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
+#include "names.h"
 #include "chunks.h"
-#include "packages.h"
+#include "database.h"
 #include "exports.h"
 #include "md5sum.h"
 #include "copyfile.h"
@@ -400,7 +401,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir, const char *relativedir, packagesdb packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
+retvalue export_target(const char *confdir, const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;

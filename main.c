@@ -40,7 +40,6 @@
 #include "files.h"
 #include "database.h"
 #include "target.h"
-#include "packages.h"
 #include "reference.h"
 #include "binaries.h"
 #include "sources.h"
@@ -104,6 +103,7 @@ static size_t   waitforlock = 0;
 static enum exportwhen export = EXPORT_NORMAL;
 int		verbose = 0;
 static bool	fast = false;
+static bool	verbosedatabase = false;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
@@ -114,7 +114,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty);
+O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -563,7 +563,7 @@ static retvalue list_in_target(void *data, struct target *target,
 	const char *packagename = data;
 	char *control,*version;
 
-	result = packages_get(target->packages, packagename, &control);
+	result = table_getrecord(target->packages, packagename, &control);
 	if( RET_IS_OK(result) ) {
 		r = (*target->getversion)(target, control, &version);
 		if( RET_IS_OK(r) ) {
@@ -712,17 +712,17 @@ static retvalue printout(UNUSED(void *data),const char *package,const char *chun
 
 ACTION_u_B(dumpcontents) {
 	retvalue result,r;
-	packagesdb packages;
+	struct table *packages;
 
 	assert( argc == 2 );
 
-	result = packages_initialize(&packages, database, argv[1]);
+	result = database_openpackages(database, argv[1], true, &packages);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
 	result = packages_foreach(packages,printout,NULL);
 
-	r = packages_done(packages);
+	r = table_close(packages);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1017,7 +1017,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 					d->destination->codename);
 		result = RET_NOTHING;
 	} else
-		result = packages_get(origtarget->packages, d->name, &chunk);
+		result = table_getrecord(origtarget->packages, d->name, &chunk);
 	if( result == RET_NOTHING && verbose > 2 )
 		printf("No instance of '%s' found in '%s'!\n",
 				d->name, origtarget->identifier);
@@ -1812,14 +1812,6 @@ ACTION_C(createsymlinks) {
 
 /***********************clearvanished***********************************/
 
-static retvalue docount(void *data,UNUSED(const char *a),UNUSED(const char *b)) {
-	long int *p = data;
-
-	(*p)++;
-	return RET_OK;
-}
-
-
 ACTION_U_D(clearvanished) {
 	retvalue result,r;
 	struct distribution *d;
@@ -1827,7 +1819,7 @@ ACTION_U_D(clearvanished) {
 	bool *inuse;
 	int i;
 
-	result = packages_getdatabases(database, &identifiers);
+	result = database_listpackages(database, &identifiers);
 	if( !RET_IS_OK(result) ) {
 		return result;
 	}
@@ -1860,17 +1852,16 @@ ACTION_U_D(clearvanished) {
 		if( interrupted() )
 			return RET_ERROR_INTERRUPTED;
 		if( delete <= 0 ) {
-			long int count = 0;
-			packagesdb db;
-			r = packages_initialize(&db, database, identifier);
-			if( !RET_WAS_ERROR(r) )
-				r = packages_foreach(db, docount, &count);
-			if( !RET_WAS_ERROR(r) )
-				r = packages_done(db);
-			if( count > 0 ) {
-				fprintf(stderr,
-"There are still %ld packages in '%s', not removing (give --delete to do so)!\n", count, identifier);
-				continue;
+			struct table *packages;
+			r = database_openpackages(database, identifier, true,
+					&packages);
+			if( RET_IS_OK(r) ) {
+				if( !table_isempty(packages) ) {
+					fprintf(stderr,
+"There are still packages in '%s', not removing (give --delete to do so)!\n", identifier);
+					continue;
+				}
+				r = table_close(packages);
 			}
 		}
 		if( interrupted() )
@@ -1882,7 +1873,7 @@ ACTION_U_D(clearvanished) {
 		/* derference anything left */
 		references_remove(database, identifier, dereferenced);
 		/* remove the database */
-		packages_drop(database, identifier);
+		database_droppackages(database, identifier);
 	}
 	free(inuse);
 	strlist_done(&identifiers);
@@ -2199,7 +2190,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	result = database_create(&database, dbdir, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
 			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
-			waitforlock);
+			waitforlock, verbosedatabase || (verbose >= 30) );
 	if( !RET_IS_OK(result) ) {
 		return result;
 	}
@@ -2286,6 +2277,8 @@ LO_NOKEEPDIRECTORIES,
 LO_NOFAST,
 LO_NOSKIPOLD,
 LO_NOGUESSGPGTTY,
+LO_VERBOSEDB,
+LO_NOVERBOSEDB,
 LO_EXPORT,
 LO_DISTDIR,
 LO_DBDIR,
@@ -2463,6 +2456,12 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NOFAST:
 					CONFIGSET(fast, false);
+					break;
+				case LO_VERBOSEDB:
+					CONFIGSET(verbosedatabase, true);
+					break;
+				case LO_NOVERBOSEDB:
+					CONFIGSET(verbosedatabase, false);
 					break;
 				case LO_EXPORT:
 					setexport(optarg);
@@ -2656,6 +2655,10 @@ int main(int argc,char *argv[]) {
 		{"nonoguessgpgtty", no_argument, &longoption, LO_GUESSGPGTTY},
 		{"fast", no_argument, &longoption, LO_FAST},
 		{"nofast", no_argument, &longoption, LO_NOFAST},
+		{"verbosedb", no_argument, &longoption, LO_VERBOSEDB},
+		{"noverbosedb", no_argument, &longoption, LO_NOVERBOSEDB},
+		{"verbosedatabase", no_argument, &longoption, LO_VERBOSEDB},
+		{"noverbosedatabase", no_argument, &longoption, LO_NOVERBOSEDB},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
