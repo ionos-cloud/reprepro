@@ -1204,3 +1204,286 @@ retvalue tracking_reset(trackingdb t) {
 	}
 	return result;
 }
+
+static retvalue tracking_foreachversion(trackingdb t, struct database *db, struct distribution *distribution,  const char *sourcename, retvalue (action)(trackingdb t,struct trackedpackage *,struct database *,struct distribution *,struct strlist *), struct strlist *dereferenced) {
+	int dbret;
+	DBT key, data;
+	DBC *cursor;
+	retvalue result, r;
+	struct trackedpackage *pkg;
+
+	assert( sourcename != NULL );
+
+	cursor = NULL;
+	if( (dbret = t->db->cursor(t->db, NULL, &cursor, 0)) != 0 ) {
+		t->db->err(t->db, dbret, "tracking_foreachversion dberror:");
+		return RET_DBERR(dbret);
+	}
+	SETDBT(key, sourcename);
+	CLEARDBT(data);
+	result = RET_NOTHING;
+	dbret = cursor->c_get(cursor, &key, &data, DB_SET);
+	while( dbret == 0 ) {
+		r = parseunknowndata(key, data, &pkg);
+		if( RET_WAS_ERROR(r) ) {
+			(void)cursor->c_close(cursor);
+			return r;
+		}
+		if( verbose > 10 )
+			printf("Processing track of '%s' version '%s'\n",
+					pkg->sourcename, pkg->sourceversion);
+		r = action(t, pkg, db, distribution, dereferenced);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) ) {
+			(void)cursor->c_close(cursor);
+			return r;
+		}
+		r = trackedpackage_tidy(t, pkg, db, dereferenced);
+		RET_ENDUPDATE(result, r);
+		if( pkg->flags.deleted ) {
+			/* delete if delete is requested
+			 * (all unreferencing has to be done before) */
+			dbret = cursor->c_del(cursor, 0);
+			if( dbret != 0 ) {
+				trackedpackage_free(pkg);
+				(void)cursor->c_close(cursor);
+				t->db->err(t->db, dbret, "tracking_foreachversion(delete) dberror:");
+				return RET_DBERR(dbret);
+			}
+		} else {
+			r = gendata(&data,pkg);
+			if( RET_WAS_ERROR(r) ) {
+				(void)cursor->c_close(cursor);
+				return r;
+			}
+			dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT);
+			free(data.data);
+			if( dbret != 0 ) {
+				trackedpackage_free(pkg);
+				(void)cursor->c_close(cursor);
+				t->db->err(t->db, dbret, "tracking_foreachversion c_put:");
+				return RET_DBERR(dbret);
+			}
+		}
+		trackedpackage_free(pkg);
+		CLEARDBT(data);
+		dbret = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP);
+	}
+	(void)cursor->c_close(cursor);
+	if( dbret == DB_KEYEMPTY || dbret == DB_NOTFOUND )
+		return result;
+	else {
+		t->db->err(t->db, dbret, "tracking_foreachversion dberror(get):");
+		return RET_DBERR(dbret);
+	}
+}
+
+
+static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *pkg, struct database *database, struct distribution *distribution, struct target *target, struct strlist *dereferenced) {
+	size_t component_len, arch_len;
+	retvalue result, r;
+	int i;
+
+	result = RET_NOTHING;
+
+	component_len = strlen(target->component);
+	arch_len = strlen(target->architecture);
+	for( i = 0 ; i < pkg->filekeys.count ; i++) {
+		const char *s, *basename, *filekey = pkg->filekeys.values[i];
+		char *package, *control, *source, *version;
+		struct strlist filekeys;
+
+		if( pkg->refcounts[i] <= 0 )
+			continue;
+		if( strncmp(filekey, "pool/", 5) != 0 )
+			continue;
+		if( strncmp(filekey+5, target->component, component_len) != 0 )
+			continue;
+		if( filekey[5+component_len] != '/' )
+			continue;
+		/* check this file could actuall be in this target */
+		if( pkg->filetypes[i] == ft_ALL_BINARY ) {
+			if( strcmp(target->packagetype, "dsc") == 0 )
+				continue;
+			s = strrchr(filekey, '.');
+			if( s == NULL )
+				continue;
+			if( strcmp(s+1, target->packagetype) != 0)
+				continue;
+		} else if( pkg->filetypes[i] == ft_SOURCE ) {
+			if( strcmp(target->packagetype, "dsc") != 0 )
+				continue;
+			s = strrchr(filekey, '.');
+			if( s == NULL )
+				continue;
+			if( strcmp(s+1, "dsc") != 0)
+				continue;
+		} else if( pkg->filetypes[i] == ft_ARCH_BINARY ) {
+			if( strcmp(target->packagetype, "dsc") == 0 )
+				continue;
+			s = strrchr(filekey, '_');
+			if( s == NULL )
+				continue;
+			s++;
+			if( strncmp(s, target->architecture, arch_len) != 0
+			    || s[arch_len] != '.'
+			    || strcmp(s+arch_len+1, target->packagetype) != 0)
+				continue;
+		} else
+			continue;
+		/* get this package, check it has the right source and version,
+		 * and if yes, remove... */
+		basename = strrchr(filekey, '/');
+		if( basename == NULL )
+			basename = filekey;
+		else
+			basename++;
+		s = strchr(basename, '_');
+		package = strndup(basename, s-basename);
+		if( package == NULL )
+				return RET_ERROR_OOM;
+		r = packages_get(target->packages, package, &control);
+		if( RET_WAS_ERROR(r) ) {
+			free(package);
+			return r;
+		}
+		if( r == RET_NOTHING ) {
+			if( pkg->filetypes[i] != ft_ALL_BINARY
+			    && verbose >= -1 ) {
+				fprintf(stderr,
+"Warning: tracking data might be incosistent:\n"
+"cannot find '%s' in '%s', but '%s' should be there.\n",
+						package, target->identifier,
+						filekey);
+			}
+			free(package);
+			continue;
+		}
+		r = target->getsourceandversion(target, control, package,
+				&source, &version);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			free(package);
+			free(control);
+			return r;
+		}
+		if( strcmp(source, pkg->sourcename) != 0 ) {
+			if( pkg->filetypes[i] != ft_ALL_BINARY
+			    && verbose >= -1 ) {
+				fprintf(stderr,
+"Warning: tracking data might be incosistent:\n"
+"'%s' has '%s' of source '%s', but source '%s' contains '%s'.\n",
+						target->identifier, package,
+						source, pkg->sourcename,
+						filekey);
+			}
+			free(source);
+			free(version);
+			free(package);
+			free(control);
+			continue;
+		}
+		free(source);
+		if( strcmp(version, pkg->sourceversion) != 0 ) {
+			if( pkg->filetypes[i] != ft_ALL_BINARY
+			    && verbose >= -1 ) {
+				fprintf(stderr,
+"Warning: tracking data might be incosistent:\n"
+"'%s' has '%s' of source version '%s', but version '%s' contains '%s'.\n",
+						target->identifier, package,
+						version, pkg->sourceversion,
+						filekey);
+			}
+			free(package);
+			free(version);
+			free(control);
+			continue;
+		}
+		free(version);
+		r = target->getfilekeys(target, control, &filekeys, NULL);
+		assert( r != RET_NOTHING );
+		free(control);
+		if( RET_WAS_ERROR(r) ) {
+			free(package);
+			return r;
+		}
+
+		/* that is a bit wasteful, as it parses some stuff again, but
+		 * but that is better than reimplementing logger here */
+		r = target_removepackage(target, distribution->logger, database,
+				package, NULL, dereferenced, NULL);
+		free(package);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&filekeys);
+			return r;
+		}
+		trackedpackage_removefilekeys(t, pkg, &filekeys);
+		strlist_done(&filekeys);
+		result = RET_OK;
+	}
+	return result;
+}
+
+/* Try to remove all packages causing refcounts in this tracking record */
+static retvalue removesourcepackage(trackingdb t, struct trackedpackage *pkg, struct database *database, struct distribution *distribution, struct strlist *dereferenced) {
+	struct target *target;
+	retvalue result, r;
+	int i;
+
+	result = RET_NOTHING;
+	for( target = distribution->targets ; target != NULL ; target = target->next ) {
+		r = target_initpackagesdb(target, database);
+		RET_ENDUPDATE(result, r);
+		if( RET_IS_OK(r) ) {
+			r = targetremovesourcepackage(t, pkg, database,
+					distribution, target, dereferenced);
+			RET_UPDATE(result, r);
+			RET_UPDATE(distribution->status, r);
+			r = target_closepackagesdb(target);
+			RET_ENDUPDATE(result, r);
+			RET_ENDUPDATE(distribution->status, r);
+			if( RET_WAS_ERROR(result) )
+				return result;
+		}
+	}
+	for( i = 0 ; i < pkg->filekeys.count ; i++) {
+		const char *filekey = pkg->filekeys.values[i];
+
+		if( pkg->refcounts[i] <= 0 )
+			continue;
+		if( pkg->filetypes[i] != ft_ALL_BINARY &&
+		    pkg->filetypes[i] != ft_SOURCE &&
+		    pkg->filetypes[i] != ft_ARCH_BINARY )
+			continue;
+		fprintf(stderr,
+"There was an inconsistency in the tracking data of '%s':\n"
+"'%s' has refcount > 0, but was nowhere found.\n",
+				distribution->codename,
+				filekey);
+		pkg->filetypes[i] = 0;
+	}
+	return result;
+}
+
+retvalue tracking_removepackages(trackingdb t, struct database *database, struct distribution *distribution, const char *sourcename, /*@null@*/const char *version, struct strlist *dereferenced) {
+	struct trackedpackage *pkg;
+	retvalue result, r;
+
+	if( version == NULL )
+		return tracking_foreachversion(t, database, distribution,
+				sourcename, removesourcepackage, dereferenced);
+	result = tracking_get(t, sourcename, version, &pkg);
+	if( RET_IS_OK(result) ) {
+		result = removesourcepackage(t, pkg, database, distribution,
+				dereferenced);
+		if( RET_IS_OK(result) ) {
+			r = trackedpackage_tidy(t, pkg, database, dereferenced);
+			RET_ENDUPDATE(result, r);
+			r = tracking_save(t, pkg);
+			RET_ENDUPDATE(result, r);
+		} else
+			trackedpackage_free(pkg);
+	}
+	return result;
+}

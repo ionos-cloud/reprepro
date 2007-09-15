@@ -42,4 +42,6 @@ retvalue trackingdata_finish(trackingdb tracks,struct trackingdata *d,struct dat
 
 /* look at all listed packages and remove everything not needed */
 retvalue tracking_tidyall(trackingdb, struct database *, struct strlist *dereferenced);
+
+retvalue tracking_removepackages(trackingdb, struct database *, struct distribution *, const char *sourcename, /*@null@*/const char *version, struct strlist *dereferenced);
 #endif /*REPREPRO_TRACKING_H*/

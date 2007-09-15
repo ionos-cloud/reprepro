@@ -493,6 +493,69 @@ ACTION_D(remove) {
 	return result;
 }
 
+ACTION_D(removesrc) {
+	retvalue result, r;
+	struct distribution *distribution;
+	trackingdb tracks;
+
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( distribution->tracking != dt_NONE ) {
+		r = tracking_initialize(&tracks, database, distribution, false);
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+		if( r == RET_NOTHING )
+			tracks = NULL;
+	} else
+		tracks = NULL;
+	result = RET_NOTHING;
+	if( tracks != NULL ) {
+		result = tracking_removepackages(tracks, database,
+				distribution,
+				argv[2], (argc <= 3)?NULL:argv[3],
+				dereferenced);
+		if( RET_WAS_ERROR(r) ) {
+			r = tracking_done(tracks);
+			RET_ENDUPDATE(result,r);
+			return result;
+		}
+		if( result == RET_NOTHING ) {
+			if( verbose >= -2 ) {
+				if( argc == 3 )
+					fprintf(stderr,
+"Nothing about source package '%s' found in the tracking data of '%s'!\n"
+"This either means nothing from this source in this version is there,\n"
+"or the tracking information might be out of date.\n",
+						argv[2],
+						distribution->codename);
+				else
+					fprintf(stderr,
+"Nothing about '%s' version '%s' found in the tracking data of '%s'!\n"
+"This either means nothing from this source in this version is there,\n"
+"or the tracking information might be out of date.\n",
+						argv[2], argv[3],
+						distribution->codename);
+			}
+		} else {
+			r = distribution_export(export, distribution, confdir, distdir, database);
+			RET_ENDUPDATE(result,r);
+		}
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	fprintf(stderr, "Continue implementing...\n");
+	return RET_ERROR;
+}
+
 
 static retvalue list_in_target(void *data, struct target *target,
 		UNUSED(struct distribution *distribution)) {
@@ -2017,6 +2080,8 @@ static const struct action {
 		1, 1, "_fakeemptyfilelist <filekey>"},
 	{"remove", 		A_D(remove),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
+	{"removesrc", 		A_D(removesrc),
+		2, 3, "removesrc <codename> <source-package-names> [<source-version>]"},
 	{"list", 		A_ROB(list),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>"},
 	{"listfilter", 		A_ROB(listfilter),
