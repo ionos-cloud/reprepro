@@ -95,20 +95,6 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 	return result;
 }
 
-static retvalue printout(void *data,UNUSED(const char *package),const char *chunk) {
-	struct filetorelease *file = data;
-	size_t l;
-
-	l = strlen(chunk);
-	if( l == 0 )
-		return RET_NOTHING;
-	(void)release_writedata(file,chunk,l);
-	(void)release_writestring(file,"\n");
-	if( chunk[l-1] != '\n' )
-		(void)release_writestring(file,"\n");
-	return RET_OK;
-}
-
 retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*@null@*/const char *release, const char *indexfile) {
 	mode->hook = NULL;
 	mode->compressions = IC_FLAG(ic_gzip) | (uncompressed?IC_FLAG(ic_uncompressed):0);
@@ -407,6 +393,9 @@ retvalue export_target(const char *confdir, const char *relativedir, struct tabl
 	const char *status;
 	char *relfilename;
 	char buffer[100];
+	const char *chunk;
+	size_t chunk_len;
+	struct cursor *cursor;
 
 	relfilename = calc_dirconcat(relativedir,exportmode->filename);
 	if( relfilename == NULL )
@@ -431,7 +420,22 @@ retvalue export_target(const char *confdir, const char *relativedir, struct tabl
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = packages_foreach(packages,printout,file);
+		r = table_newglobaluniqcursor(packages, &cursor);
+		if( RET_WAS_ERROR(r) ) {
+			release_abortfile(file);
+			free(relfilename);
+			return r;
+		}
+		while( cursor_nexttempdata(packages, cursor,
+					&chunk, &chunk_len) ) {
+			if( chunk_len == 0 )
+				continue;
+			(void)release_writedata(file, chunk, chunk_len);
+			(void)release_writestring(file, "\n");
+			if( chunk[chunk_len-1] != '\n' )
+				(void)release_writestring(file, "\n");
+		}
+		r = cursor_close(packages, cursor);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			free(relfilename);

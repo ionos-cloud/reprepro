@@ -480,218 +480,136 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 	return RET_OK;
 }
 
-/* rereference a full database */
-struct data_reref {
-	/*@dependent@*/struct database *db;
-	/*@dependent@*/struct target *target;
-	/*@dependent@*/const char *identifier;
-};
-
-static retvalue rereferencepkg(void *data,const char *package,const char *chunk) {
-	struct data_reref *d = data;
-	struct strlist filekeys;
-	retvalue r;
-
-	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys,NULL);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( verbose > 10 ) {
-		fprintf(stderr,"adding references to '%s' for '%s': ",d->identifier,package);
-		(void)strlist_fprint(stderr,&filekeys);
-		(void)putc('\n',stderr);
-	}
-	r = references_insert(d->db, d->identifier, &filekeys, NULL);
-	strlist_done(&filekeys);
-	return r;
-}
-
-retvalue target_rereference(struct target *target,struct database *database) {
+retvalue target_rereference(struct target *target, struct database *database) {
 	retvalue result,r;
-	struct data_reref refdata;
+	struct cursor *cursor;
+	const char *package, *control;
 
 	assert(target->packages!=NULL);
 
 	if( verbose > 1 ) {
 		if( verbose > 2 )
-			printf("Unlocking depencies of %s...\n",target->identifier);
+			printf("Unlocking depencies of %s...\n",
+					target->identifier);
 		else
-			printf("Rereferencing %s...\n",target->identifier);
+			printf("Rereferencing %s...\n",
+					target->identifier);
 	}
 
 	result = references_remove(database, target->identifier, NULL);
-
 	if( verbose > 2 )
-		printf("Referencing %s...\n",target->identifier);
+		printf("Referencing %s...\n", target->identifier);
 
-	refdata.db = database;
-	refdata.target = target;
-	refdata.identifier = target->identifier;
-	r = packages_foreach(target->packages,rereferencepkg,&refdata);
-	RET_UPDATE(result,r);
+	r = table_newglobaluniqcursor(target->packages, &cursor);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	while( cursor_nexttemp(target->packages, cursor, &package, &control) ) {
+		struct strlist filekeys;
 
+		r = target->getfilekeys(target, control, &filekeys, NULL);
+		RET_UPDATE(result, r);
+		if( !RET_IS_OK(r) )
+			continue;
+		if( verbose > 10 ) {
+			fprintf(stderr, "adding references to '%s' for '%s': ",
+					target->identifier, package);
+			(void)strlist_fprint(stderr, &filekeys);
+			(void)putc('\n', stderr);
+		}
+		r = references_insert(database, target->identifier, &filekeys, NULL);
+		strlist_done(&filekeys);
+		RET_UPDATE(result, r);
+	}
+	r = cursor_close(target->packages, cursor);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
-static retvalue snapshotreferencepkg(void *data,const char *package,const char *chunk) {
-	struct data_reref *d = data;
+retvalue package_referenceforsnapshot(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, void *data) {
+	const char *identifier = data;
 	struct strlist filekeys;
 	retvalue r;
 
-	r = (*d->target->getfilekeys)(d->target,chunk,&filekeys,NULL);
+	r = (*target->getfilekeys)(target, chunk, &filekeys, NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( verbose > 15 ) {
-		fprintf(stderr,"adding references to '%s' for '%s': ",d->identifier,package);
-		(void)strlist_fprint(stderr,&filekeys);
-		(void)putc('\n',stderr);
+		fprintf(stderr, "adding references to '%s' for '%s': ",
+				identifier, package);
+		(void)strlist_fprint(stderr, &filekeys);
+		(void)putc('\n', stderr);
 	}
-	r = references_add(d->db, d->identifier, &filekeys);
+	r = references_add(database, identifier, &filekeys);
 	strlist_done(&filekeys);
 	return r;
 }
 
-retvalue target_addsnapshotreference(struct target *target,struct database *database,const char *name) {
-	retvalue r,r2;
-	struct data_reref refdata;
-	char *id;
-
-	assert(target->packages==NULL);
-
-	id = mprintf("s=%s=%s", target->codename, name);
-	if( id == NULL )
-		return RET_ERROR_OOM;
-
-	r = target_initpackagesdb(target, database);
-	if( RET_WAS_ERROR(r) ) {
-		free(id);
-		return r;
-	}
-
-	if( verbose >= 1)
-		fprintf(stderr,"Referencing snapshot '%s' of %s...\n",name,target->identifier);
-	refdata.db = database;
-	refdata.target = target;
-	refdata.identifier = id;
-	r = packages_foreach(target->packages,snapshotreferencepkg,&refdata);
-	free(id);
-
-	r2 = target_closepackagesdb(target);
-	RET_ENDUPDATE(r,r2);
-
-	return r;
-}
-
-/* retrack a full database */
-struct data_retrack {
-	/*@temp@*/trackingdb tracks;
-	/*@temp@*/struct database *db;
-	/*@temp@*/struct target *target;
-};
-
-static retvalue retrackpkg(void *data,const char *package,const char *chunk) {
-	struct data_retrack *d = data;
-	retvalue r;
-
-	r = (*d->target->doretrack)(d->target,package,chunk,d->tracks,d->db);
-	return r;
-}
-
-retvalue target_retrack(struct target *target,trackingdb tracks,struct database *database) {
-	struct data_retrack trackdata;
-
-	assert(target->packages!=NULL);
-
-	if( verbose > 1 ) {
-		printf("  Tracking %s...\n", target->identifier);
-	}
-
-	trackdata.db = database;
-	trackdata.tracks = tracks;
-	trackdata.target = target;
-	return packages_foreach(target->packages,retrackpkg,&trackdata);
-}
-
-
-/* check a full database */
-struct data_check {
-	/*@dependent@*/struct database *db;
-	/*@dependent@*/struct target *target;
-};
-
-static retvalue checkpkg(void *data,const char *package,const char *chunk) {
-	struct data_check *d = data;
-	struct strlist expectedfilekeys,actualfilekeys,md5sums;
-	char *dummy,*version;
+retvalue package_check(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, UNUSED(void *pd)) {
+	struct strlist expectedfilekeys, actualfilekeys, md5sums;
+	char *dummy, *version;
 	retvalue result,r;
 
-	r = (*d->target->getversion)(d->target,chunk,&version);
+	r = target->getversion(target, chunk, &version);
 	if( !RET_IS_OK(r) ) {
-		fprintf(stderr,"Error extraction version number from package control info of '%s'!\n",package);
+		fprintf(stderr, "Error extraction version number from package control info of '%s'!\n", package);
 		if( r == RET_NOTHING )
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = (*d->target->getinstalldata)(d->target,package,version,chunk,&dummy,&expectedfilekeys,&md5sums,&actualfilekeys);
+	r = target->getinstalldata(target, package, version, chunk, &dummy,
+			&expectedfilekeys, &md5sums, &actualfilekeys);
 	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Error extracting information of package '%s'!\n",package);
+		fprintf(stderr, "Error extracting information of package '%s'!\n",
+				package);
 	}
 	free(version);
 	result = r;
 	if( RET_IS_OK(r) ) {
 		free(dummy);
-		if( !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) ||
-		    !strlist_subset(&expectedfilekeys,&actualfilekeys,NULL) ) {
-			(void)fprintf(stderr,"Reparsing the package information of '%s' yields to the expectation to find:\n",package);
-			(void)strlist_fprint(stderr,&expectedfilekeys);
-			(void)fputs("but found:\n",stderr);
-			(void)strlist_fprint(stderr,&actualfilekeys);
+		if( !strlist_subset(&expectedfilekeys, &actualfilekeys, NULL) ||
+		    !strlist_subset(&expectedfilekeys, &actualfilekeys, NULL) ) {
+			(void)fprintf(stderr, "Reparsing the package information of '%s' yields to the expectation to find:\n", package);
+			(void)strlist_fprint(stderr, &expectedfilekeys);
+			(void)fputs("but found:\n", stderr);
+			(void)strlist_fprint(stderr, &actualfilekeys);
 			(void)putc('\n',stderr);
 			result = RET_ERROR;
 		}
 		strlist_done(&expectedfilekeys);
 	} else {
-		r = (*d->target->getfilekeys)(d->target,chunk,&actualfilekeys,&md5sums);
+		r = target->getfilekeys(target, chunk, &actualfilekeys, &md5sums);
 		if( RET_WAS_ERROR(r) ) {
-			fprintf(stderr,"Even more errors extracting information of package '%s'!\n",package);
+			fprintf(stderr, "Even more errors extracting information of package '%s'!\n",
+					package);
 			return r;
 		}
 	}
 
 	if( verbose > 10 ) {
-		fprintf(stderr,"checking files of '%s'\n",package);
+		fprintf(stderr, "checking files of '%s'\n", package);
 	}
-	r = files_expectfiles(d->db, &actualfilekeys, &md5sums);
+	r = files_expectfiles(database, &actualfilekeys, &md5sums);
 	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Files are missing for '%s'!\n",package);
+		fprintf(stderr,"Files are missing for '%s'!\n", package);
 	}
 	RET_UPDATE(result,r);
 	if( verbose > 10 ) {
-		(void)fprintf(stderr,"checking references to '%s' for '%s': ",d->target->identifier,package);
-		(void)strlist_fprint(stderr,&actualfilekeys);
-		(void)putc('\n',stderr);
+		(void)fprintf(stderr, "checking references to '%s' for '%s': ",
+				target->identifier, package);
+		(void)strlist_fprint(stderr, &actualfilekeys);
+		(void)putc('\n', stderr);
 	}
-	r = references_check(d->db, d->target->identifier, &actualfilekeys);
+	r = references_check(database, target->identifier, &actualfilekeys);
 	RET_UPDATE(result,r);
 	strlist_done(&actualfilekeys);
 	strlist_done(&md5sums);
 	return result;
 }
 
-retvalue target_check(struct target *target,struct database *database) {
-	struct data_check data;
-
-	assert(target->packages!=NULL);
-	if( verbose > 1 ) {
-		printf("Checking packages in '%s'...\n",target->identifier);
-	}
-	data.db = database;
-	data.target = target;
-	return packages_foreach(target->packages,checkpkg,&data);
-}
-
 /* Reapply override information */
 
-retvalue target_reoverride(struct target *target,const struct distribution *distribution) {
+retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct distribution *distribution) {
 	struct cursor *cursor;
 	retvalue result, r;
 	const char *package, *controlchunk;
@@ -768,40 +686,27 @@ retvalue target_export(struct target *target, const char *confdir, struct databa
 	return result;
 }
 
-/* call all log notificators again */
-struct data_rerunnotify { struct target *target; struct logger *logger;};
-
-static retvalue package_rerunnotify(void *data,const char *package,const char *chunk) {
-	struct data_rerunnotify *d = data;
+retvalue package_rerunnotifiers(UNUSED(struct database *da), struct distribution *distribution, struct target *target, const char *package, const char *chunk, UNUSED(void *data)) {
+	struct logger *logger = distribution->logger;
 	struct strlist filekeys;
 	char *version;
 	retvalue r;
 
-	r = (*d->target->getversion)(d->target, chunk, &version);
+	r = target->getversion(target, chunk, &version);
 	if( !RET_IS_OK(r) ) {
 		fprintf(stderr,"Error extraction version number from package control info of '%s'!\n",package);
 		if( r == RET_NOTHING )
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = (*d->target->getfilekeys)(d->target, chunk, &filekeys, NULL);
+	r = target->getfilekeys(target, chunk, &filekeys, NULL);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Error extracting information about used files from package '%s'!\n",package);
 		free(version);
 		return r;
 	}
-	r = logger_reruninfo(d->logger, d->target, package, version, chunk, &filekeys);
+	r = logger_reruninfo(logger, target, package, version, chunk, &filekeys);
 	strlist_done(&filekeys);
 	free(version);
 	return r;
-}
-
-retvalue target_rerunnotifiers(struct target *target, struct logger *logger) {
-	struct data_rerunnotify data;
-
-	assert(target->packages!=NULL);
-
-	data.logger = logger;
-	data.target = target;
-	return packages_foreach(target->packages, package_rerunnotify, &data);
 }

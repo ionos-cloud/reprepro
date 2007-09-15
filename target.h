@@ -77,11 +77,10 @@ struct logger;
 retvalue target_addpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *, enum filetype);
 retvalue target_checkaddpackage(struct target *target, const char *name, const char *version, bool tracking, bool permitnewerold);
 retvalue target_removepackage(struct target *,struct logger *,struct database *,const char *name,/*@null@*/const char *oldpversion,/*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
-retvalue target_check(struct target *,struct database *);
-retvalue target_rereference(struct target *,struct database *);
-retvalue target_addsnapshotreference(struct target *,struct database *,const char *name);
-retvalue target_retrack(struct target *,trackingdb,struct database *);
-retvalue target_reoverride(struct target *target,const struct distribution *);
+retvalue package_check(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
+retvalue target_rereference(struct target *, struct database *);
+retvalue package_referenceforsnapshot(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
+retvalue target_reoverride(void *, struct target *, struct distribution *);
 
-retvalue target_rerunnotifiers(struct target *, struct logger *);
+retvalue package_rerunnotifiers(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 #endif

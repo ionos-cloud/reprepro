@@ -474,6 +474,98 @@ retvalue distribution_foreach_roopenedpart(struct distribution *distribution,str
 	return result;
 }
 
+/* call <action> for each package */
+retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action action, each_target_action target_action, void *data) {
+	retvalue result,r;
+	struct target *t;
+	struct cursor *cursor;
+	const char *package, *control;
+
+	result = RET_NOTHING;
+	for( t = distribution->targets ; t != NULL ; t = t->next ) {
+		if( component != NULL && strcmp(component,t->component) != 0 )
+			continue;
+		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+			continue;
+		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+			continue;
+		if( target_action != NULL ) {
+			r = target_action(database, distribution, t, data);
+			if( RET_WAS_ERROR(r) )
+				return result;
+			if( r == RET_NOTHING )
+				continue;
+		}
+		r = target_initpackagesdb(t, database); //TODO: readonly
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			return result;
+		r = table_newglobaluniqcursor(t->packages, &cursor);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			(void)target_closepackagesdb(t);
+			return r;
+		}
+		while( cursor_nexttemp(t->packages, cursor,
+					&package, &control) ) {
+			r = action(database, distribution, t,
+					package, control, data);
+			RET_UPDATE(result, r);
+			if( RET_WAS_ERROR(r) )
+				break;
+		}
+		r = cursor_close(t->packages, cursor);
+		RET_ENDUPDATE(result, r);
+		r = target_closepackagesdb(t);
+		RET_ENDUPDATE(result, r);
+		if( RET_WAS_ERROR(result) )
+			return result;
+	}
+	return result;
+}
+
+retvalue distribution_foreach_package_c(struct distribution *distribution, struct database *database, const struct strlist *components, const char *architecture, const char *packagetype, each_package_action action, void *data) {
+	retvalue result,r;
+	struct target *t;
+	struct cursor *cursor;
+	const char *package, *control;
+
+	result = RET_NOTHING;
+	for( t = distribution->targets ; t != NULL ; t = t->next ) {
+		if( components != NULL && !strlist_in(components, t->component) )
+			continue;
+		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+			continue;
+		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+			continue;
+		r = target_initpackagesdb(t, database); //TODO: readonly
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			return result;
+		r = table_newglobaluniqcursor(t->packages, &cursor);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			(void)target_closepackagesdb(t);
+			return r;
+		}
+		while( cursor_nexttemp(t->packages, cursor,
+					&package, &control) ) {
+			r = action(database, distribution, t,
+					package, control, data);
+			RET_UPDATE(result, r);
+			if( RET_WAS_ERROR(r) )
+				break;
+		}
+		r = cursor_close(t->packages, cursor);
+		RET_ENDUPDATE(result, r);
+		r = target_closepackagesdb(t);
+		RET_ENDUPDATE(result, r);
+		if( RET_WAS_ERROR(result) )
+			return result;
+	}
+	return result;
+}
+
 struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
 	struct target *t = distribution->targets;
 
@@ -564,6 +656,7 @@ retvalue distribution_snapshot(struct distribution *distribution,
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
+	char *id;
 
 	assert( distribution != NULL );
 
@@ -596,11 +689,14 @@ retvalue distribution_snapshot(struct distribution *distribution,
 	result = release_write(release, distribution, false);
 	if( RET_WAS_ERROR(result) )
 		return r;
-	/* add references so that the pool files belonging to it are not deleted */
-	for( target=distribution->targets; target != NULL ; target = target->next ) {
-		r = target_addsnapshotreference(target, database, name);
-		RET_UPDATE(result,r);
-	}
+	id = mprintf("s=%s=%s", distribution->codename, name);
+	if( id == NULL )
+		return RET_ERROR_OOM;
+	r = distribution_foreach_package(distribution, database,
+			NULL, NULL, NULL,
+			package_referenceforsnapshot, NULL, id);
+	free(id);
+	RET_UPDATE(result,r);
 	return result;
 }
 

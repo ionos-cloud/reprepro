@@ -790,7 +790,8 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 	}
 	if( Data.data == NULL )
 		return RET_ERROR_OOM;
-	if( ((const char*)Data.data)[Data.size-1] != '\0' ) {
+	if( Data.size <= 0 ||
+	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
 		if( table->subname != NULL )
 			fprintf(stderr,
 "Database %s(%s) returned corrupted (not null-terminated) data!",
@@ -938,7 +939,8 @@ bool cursor_nexttemp(struct table *table, struct cursor *cursor, const char **ke
 		cursor->r = RET_DBERR(dbret);
 		return false;
 	}
-	if( ((const char*)Key.data)[Key.size-1] != '\0' ||
+	if( Key.size <= 0 || Data.size <= 0 ||
+	    ((const char*)Key.data)[Key.size-1] != '\0' ||
 	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
 		if( table->subname != NULL )
 			fprintf(stderr,
@@ -956,16 +958,55 @@ bool cursor_nexttemp(struct table *table, struct cursor *cursor, const char **ke
 	return true;
 }
 
+bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **data, size_t *len_p) {
+	DBT Key, Data;
+	int dbret;
+
+	if( cursor == NULL )
+		return false;
+
+	CLEARDBT(Key);
+	CLEARDBT(Data);
+
+	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_NEXT);
+	if( dbret == DB_NOTFOUND )
+		return false;
+
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_get(DB_NEXT)");
+		cursor->r = RET_DBERR(dbret);
+		return false;
+	}
+	if( Key.size <= 0 || Data.size <= 0 ||
+	    ((const char*)Key.data)[Key.size-1] != '\0' ||
+	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) data!",
+					table->name);
+		cursor->r = RET_ERROR;
+		return false;
+	}
+	*data = Data.data;
+	*len_p = Data.size-1;
+	return true;
+}
+
 retvalue cursor_replace(struct table *table, struct cursor *cursor, const char *data) {
-	DBT Data;
+	DBT Key, Data;
 	int dbret;
 
 	assert( cursor != NULL );
 	assert( !table->readonly );
 
+	CLEARDBT(Key);
 	SETDBT(Data, data);
 
-	dbret = cursor->cursor->c_put(cursor->cursor, NULL, &Data, DB_CURRENT);
+	dbret = cursor->cursor->c_put(cursor->cursor, &Key, &Data, DB_CURRENT);
 
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "c_put(DB_CURRENT)");
@@ -1002,29 +1043,6 @@ bool table_isempty(struct table *table) {
 	if( dbret != 0 )
 		table_printerror(table, dbret, "c_close");
 	return false;
-}
-
-// obsolete, remove in next step:
-typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
-retvalue packages_foreach(struct table *table, per_package_action action, void *privdata) {
-	retvalue result, r;
-	struct cursor *cursor;
-	const char *package, *control;
-
-	r = table_newglobaluniqcursor(table, &cursor);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
-	result = RET_NOTHING;
-	while( cursor_nexttemp(table, cursor, &package, &control) ) {
-		r = action(privdata, package, control);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
-	r = cursor_close(table, cursor);
-	RET_ENDUPDATE(result,r);
-	return result;
 }
 
 /********************************************************************************

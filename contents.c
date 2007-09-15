@@ -108,10 +108,9 @@ struct addcontentsdata {
 	int rate;
 	size_t work, leisure;
 	struct filelist_list *contents;
-	struct database *db;
 };
 
-static retvalue addpackagetocontents(void *data, const char *packagename, const char *chunk) {
+static retvalue addpackagetocontents(struct database *database, UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const char *chunk, void *data) {
 	struct addcontentsdata *d = data;
 	const struct filelist_package *package;
 	retvalue r;
@@ -131,12 +130,12 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = files_getfilelist(d->db, filekey, package, d->contents);
+	r = files_getfilelist(database, filekey, package, d->contents);
 	if( r == RET_NOTHING ) {
 		if( d->rate <= 1 || d->work <= d->leisure/(d->rate-1) ) {
 			if( verbose > 3 )
 				printf("Reading filelist for %s\n", filekey);
-			r = files_genfilelist(d->db, filekey, package, d->contents);
+			r = files_genfilelist(database, filekey, package, d->contents);
 			if( RET_IS_OK(r) )
 				d->work++;
 		} else {
@@ -154,7 +153,6 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 
 static retvalue genarchcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
-	struct target *target;
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct addcontentsdata data;
@@ -162,7 +160,6 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 
 	data.rate = distribution->contents.rate;
 	data.work = data.leisure = 0;
-	data.db = database;
 
 	if( distribution->contents.components.count > 0 )
 		components = &distribution->contents.components;
@@ -170,6 +167,7 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 		components = &distribution->components;
 
 	if( onlyneeded ) {
+		struct target *target;
 		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
@@ -202,21 +200,9 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 		release_abortfile(file);
 		return r;
 	}
-	for( target=distribution->targets;target!=NULL;target=target->next ) {
-		if( strcmp(target->packagetype,"deb") != 0 )
-			continue;
-		if( strcmp(target->architecture,architecture) != 0 )
-			continue;
-		if( !strlist_in(components, target->component) )
-			continue;
-		r = target_initpackagesdb(target, database);
-		if( RET_WAS_ERROR(r) )
-			break;
-		r = packages_foreach(target->packages,addpackagetocontents,&data);
-		(void)target_closepackagesdb(target);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
+	r = distribution_foreach_package_c(distribution, database,
+			components, architecture, "deb",
+			addpackagetocontents, &data);
 	if( !RET_WAS_ERROR(r) )
 		r = filelist_write(data.contents, file);
 	if( RET_WAS_ERROR(r) )
@@ -229,7 +215,6 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 
 static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
-	struct target *target;
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct addcontentsdata data;
@@ -237,7 +222,6 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 
 	data.rate = distribution->contents.rate;
 	data.work = data.leisure = 0;
-	data.db = database;
 
 	if( distribution->contents.ucomponents.count > 0 )
 		components = &distribution->contents.ucomponents;
@@ -246,6 +230,7 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 
 
 	if( onlyneeded ) {
+		struct target *target;
 		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
@@ -275,21 +260,9 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 	r = filelist_init(&data.contents);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	for( target=distribution->targets;target!=NULL;target=target->next ) {
-		if( strcmp(target->packagetype,"udeb") != 0 )
-			continue;
-		if( strcmp(target->architecture,architecture) != 0 )
-			continue;
-		if( !strlist_in(components, target->component) )
-			continue;
-		r = target_initpackagesdb(target, database);
-		if( RET_WAS_ERROR(r) )
-			break;
-		r = packages_foreach(target->packages,addpackagetocontents,&data);
-		(void)target_closepackagesdb(target);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
+	r = distribution_foreach_package_c(distribution, database,
+			components, architecture, "udeb",
+			addpackagetocontents, &data);
 	if( !RET_WAS_ERROR(r) )
 		r = filelist_write(data.contents, file);
 	if( RET_WAS_ERROR(r) )

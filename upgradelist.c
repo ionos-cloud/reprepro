@@ -93,8 +93,7 @@ static void package_data_free(/*@only@*/struct package_data *data){
 /* This is called before any package lists are read for any package we already
  * have in this target. upgrade->list points to the first in the sorted list,
  * upgrade->last to the last one inserted */
-static retvalue save_package_version(void *d,const char *packagename,const char *chunk) {
-	struct upgradelist *upgrade = d;
+static retvalue save_package_version(struct upgradelist *upgrade, const char *packagename, const char *chunk) {
 	char *version;
 	retvalue r;
 	struct package_data *package;
@@ -144,6 +143,8 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct database *database) {
 	struct upgradelist *upgrade;
 	retvalue r,r2;
+	const char *packagename, *controlchunk;
+	struct cursor *cursor;
 
 	upgrade = calloc(1,sizeof(struct upgradelist));
 	if( upgrade == NULL )
@@ -158,7 +159,24 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 	}
 
 	/* Beginn with the packages currently in the archive */
-	r = packages_foreach(t->packages, save_package_version, upgrade);
+
+	r = table_newglobaluniqcursor(t->packages, &cursor);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		r2 = target_closepackagesdb(t);
+		RET_UPDATE(r,r2);
+		(void)upgradelist_free(upgrade);
+		return r;
+	}
+	while( cursor_nexttemp(t->packages, cursor,
+				&packagename, &controlchunk) ) {
+		r2 = save_package_version(upgrade, packagename, controlchunk);
+		RET_UPDATE(r,r2);
+		if( RET_WAS_ERROR(r2) )
+			break;
+	}
+	r2 = cursor_close(t->packages, cursor);
+	RET_UPDATE(r,r2);
 	r2 = target_closepackagesdb(t);
 	RET_UPDATE(r,r2);
 
@@ -434,13 +452,11 @@ retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method
 	return chunk_foreach(filename, upgradelist_trypackage, upgrade, false);
 }
 
-static retvalue try(void *data,UNUSED(const char *package),const char *chunk) {
-	return upgradelist_trypackage(data,chunk);
-}
-
-
 retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *database) {
-	retvalue result,r;
+	retvalue result, r;
+	const char *package, *control;
+	struct cursor *cursor;
+
 
 	upgrade->last = NULL;
 	upgrade->currentaptmethod = NULL;
@@ -450,9 +466,24 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	r =  target_initpackagesdb(source, database);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	result = packages_foreach(source->packages,try,upgrade);
+	result = table_newglobaluniqcursor(source->packages, &cursor);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		r = target_closepackagesdb(source);
+		RET_UPDATE(result,r);
+		return result;
+	}
+	result = RET_NOTHING;
+	while( cursor_nexttemp(source->packages, cursor, &package, &control) ) {
+		r = upgradelist_trypackage(upgrade, control);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	r = cursor_close(source->packages, cursor);
+	RET_ENDUPDATE(result,r);
 	r = target_closepackagesdb(source);
-	RET_UPDATE(result,r);
+	RET_ENDUPDATE(result,r);
 	return result;
 }
 

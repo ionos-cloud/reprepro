@@ -595,38 +595,25 @@ ACTION_B(list) {
 }
 
 
-struct listfilter { /*@temp@*/ struct target *target; /*@temp@*/ term *condition; };
 
-static retvalue listfilterprint(/*@temp@*/void *data,const char *packagename,const char *control){
-	struct listfilter *d = data;
+static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+	term *condition = data;
 	char *version;
 	retvalue r;
 
-	r = term_decidechunk(d->condition,control);
+	r = term_decidechunk(condition, control);
 	if( RET_IS_OK(r) ) {
-		r = (*d->target->getversion)(d->target,control,&version);
+		r = (*target->getversion)(target, control, &version);
 		if( RET_IS_OK(r) ) {
-			printf("%s: %s %s\n",d->target->identifier,packagename,version);
+			printf("%s: %s %s\n", target->identifier,
+			                      packagename, version);
 			free(version);
 		} else {
-			printf("Could not retrieve version from %s in %s\n",packagename,d->target->identifier);
+			printf("Could not retrieve version from %s in %s\n",
+					packagename, target->identifier);
 		}
 	}
 	return r;
-}
-
-static retvalue listfilter_in_target(/*@temp@*/void *data, /*@temp@*/struct target *target,
-		UNUSED(struct distribution *distribution)) {
-	retvalue result;
-	/*@temp@*/ struct listfilter d;
-
-	d.target = target;
-	d.condition = data;
-	result = packages_foreach(target->packages,listfilterprint,&d);
-	d.target = NULL;
-	d.condition = NULL;
-
-	return result;
 }
 
 ACTION_B(listfilter) {
@@ -646,7 +633,9 @@ ACTION_B(listfilter) {
 		return result;
 	}
 
-	result = distribution_foreach_roopenedpart(distribution, database, component, architecture, packagetype, listfilter_in_target, condition);
+	result = distribution_foreach_package(distribution, database,
+			component, architecture, packagetype,
+			listfilterprint, NULL, condition);
 	term_free(condition);
 	return result;
 }
@@ -705,26 +694,32 @@ ACTION_U_F(listmd5sums) {
 	return files_printmd5sums(database);
 }
 
-static retvalue printout(UNUSED(void *data),const char *package,const char *chunk){
-	printf("'%s' -> '%s'\n",package,chunk);
-	return RET_OK;
-}
-
 ACTION_u_B(dumpcontents) {
 	retvalue result,r;
 	struct table *packages;
+	const char *package, *chunk;
+	struct cursor *cursor;
 
 	assert( argc == 2 );
 
 	result = database_openpackages(database, argv[1], true, &packages);
 	if( RET_WAS_ERROR(result) )
 		return result;
-
-	result = packages_foreach(packages,printout,NULL);
-
+	r = table_newglobaluniqcursor(packages, &cursor);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		(void)table_close(packages);
+		return r;
+	}
+	result = RET_NOTHING;
+	while( cursor_nexttemp(packages, cursor, &package, &chunk) ) {
+		printf("'%s' -> '%s'\n", package, chunk);
+		result = RET_OK;
+	}
+	r = cursor_close(packages, cursor);
+	RET_ENDUPDATE(result,r);
 	r = table_close(packages);
 	RET_ENDUPDATE(result,r);
-
 	return result;
 }
 
@@ -1122,16 +1117,10 @@ ACTION_D(copy) {
 }
 
 /***********************rereferencing*************************/
-static retvalue reref(void *data,struct target *target,UNUSED(struct distribution *di)) {
-	struct database *database = data;
-
-	return target_rereference(target, database);
-}
-
-
 ACTION_R(rereference) {
-	retvalue result,r;
+	retvalue result, r;
 	struct distribution *d;
+	struct target *t;
 
 	result = distribution_match(alldistributions, argc-1, argv+1, true);
 	assert( result != RET_NOTHING );
@@ -1146,15 +1135,18 @@ ACTION_R(rereference) {
 		if( verbose > 0 ) {
 			printf("Referencing %s...\n",d->codename);
 		}
-
-		r = distribution_foreach_roopenedpart(d, database,
-				component, architecture, packagetype,
-				reref, database);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
-			break;
+		for( t = d->targets ; t != NULL ; t = t->next ) {
+			r = target_initpackagesdb(t, database);
+			RET_UPDATE(result, r);
+			if( RET_WAS_ERROR(r) )
+				continue;
+			r = target_rereference(t, database);
+			RET_UPDATE(result, r);
+			r = target_closepackagesdb(t);
+			RET_UPDATE(result, r);
+		}
 		r = tracking_rereference(database, d);
-		RET_UPDATE(result,r);
+		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
@@ -1162,12 +1154,11 @@ ACTION_R(rereference) {
 	return result;
 }
 /***************************retrack****************************/
-struct data_binsrctrack { /*@temp@*/struct database *db; trackingdb tracks;};
+static retvalue package_retrack(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
+	trackingdb tracks = data;
 
-static retvalue retrack(void *data,struct target *target,UNUSED(struct distribution *di)) {
-	struct data_binsrctrack *d = data;
-
-	return target_retrack(target, d->tracks, d->db);
+	return target->doretrack(target, packagename, controlchunk,
+			tracks, database);
 }
 
 ACTION_D(retrack) {
@@ -1181,7 +1172,7 @@ ACTION_D(retrack) {
 	}
 	result = RET_NOTHING;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
-		struct data_binsrctrack dat;
+		trackingdb tracks;
 
 		if( !d->selected )
 			continue;
@@ -1195,7 +1186,7 @@ ACTION_D(retrack) {
 		if( verbose > 0 ) {
 			printf("Chasing %s...\n", d->codename);
 		}
-		r = tracking_initialize(&dat.tracks, database, d, false);
+		r = tracking_initialize(&tracks, database, d, false);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
@@ -1203,23 +1194,21 @@ ACTION_D(retrack) {
 			continue;
 		}
 		/* first forget than any package is there*/
-		r = tracking_reset(dat.tracks);
+		r = tracking_reset(tracks);
 		RET_UPDATE(result,r);
 		if( !RET_WAS_ERROR(r) ) {
 			/* add back information about actually used files */
-			dat.db = database;
-			r = distribution_foreach_roopenedpart(d, database,
+			r = distribution_foreach_package(d, database,
 					component, architecture, packagetype,
-					retrack, &dat);
+					package_retrack, NULL, tracks);
 			RET_UPDATE(result,r);
 		}
-		dat.db = NULL;
 		if( !RET_WAS_ERROR(r) ) {
 			/* now remove everything no longer needed */
-			r = tracking_tidyall(dat.tracks, database, dereferenced);
+			r = tracking_tidyall(tracks, database, dereferenced);
 			RET_UPDATE(result,r);
 		}
-		r = tracking_done(dat.tracks);
+		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
 			break;
@@ -1378,10 +1367,6 @@ ACTION_B(dumptracks) {
 }
 /***********************checking*************************/
 
-static retvalue check_target(void *data,struct target *target,UNUSED(struct distribution *di)) {
-	return target_check(target, data);
-}
-
 ACTION_RF(check) {
 	retvalue result,r;
 	struct distribution *d;
@@ -1400,9 +1385,9 @@ ACTION_RF(check) {
 			printf("Checking %s...\n",d->codename);
 		}
 
-		r = distribution_foreach_roopenedpart(d, database,
+		r = distribution_foreach_package(d, database,
 				component, architecture, packagetype,
-				check_target, database);
+				package_check, NULL, NULL);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1422,11 +1407,6 @@ ACTION_u_F(checkpool) {
 	return files_checkpool(database, argc == 2);
 }
 /*****************reapplying override info***************/
-
-static retvalue reoverride_target(UNUSED(void *data),struct target *target,struct distribution *distribution) {
-
-	return target_reoverride(target, distribution);
-}
 
 ACTION_F(reoverride) {
 	retvalue result,r;
@@ -1451,7 +1431,7 @@ ACTION_F(reoverride) {
 		if( RET_IS_OK(r) ) {
 			r = distribution_foreach_rwopenedpart(d, database,
 					component, architecture, packagetype,
-					reoverride_target, NULL);
+					target_reoverride, NULL);
 			distribution_unloadoverrides(d);
 		} else if( r == RET_NOTHING ) {
 			fprintf(stderr,"No override files, thus nothing to do for %s.\n",d->codename);
@@ -1964,11 +1944,10 @@ ACTION_R(gensnapshot) {
 
 
 /***********************rerunnotifiers********************************/
-static retvalue runnotifiers(UNUSED(void *data),struct target *target,struct distribution *d) {
+static retvalue rerunnotifiersintarget(UNUSED(struct database *da), struct distribution *d, struct target *target, UNUSED(void *dummy)) {
 	if( !logger_rerun_needs_target(d->logger, target) )
 		return RET_NOTHING;
-
-	return target_rerunnotifiers(target, d->logger);
+	return RET_OK;
 }
 
 ACTION_B(rerunnotifiers) {
@@ -1996,9 +1975,10 @@ ACTION_B(rerunnotifiers) {
 		if( RET_WAS_ERROR(r) )
 			break;
 
-		r = distribution_foreach_roopenedpart(d, database,
+		r = distribution_foreach_package(d, database,
 				component, architecture, packagetype,
-				runnotifiers, NULL);
+				package_rerunnotifiers,
+				rerunnotifiersintarget, NULL);
 		logger_wait();
 
 		RET_UPDATE(result,r);
@@ -2006,8 +1986,6 @@ ACTION_B(rerunnotifiers) {
 			break;
 	}
 	return result;
-
-
 }
 
 /*********************/

@@ -42,6 +42,7 @@ retvalue table_checkkey(struct table *, const char *key);
 retvalue table_newglobaluniqcursor(struct table *, /*@out@*/struct cursor **);
 retvalue table_newduplicatecursor(struct table *, const char *key, /*@out@*/struct cursor **);
 bool cursor_nexttemp(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **);
+bool cursor_nexttempdata(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/size_t *);
 retvalue cursor_replace(struct table *, struct cursor *, const char *);
 retvalue cursor_close(struct table *, /*@only@*/struct cursor *);
 

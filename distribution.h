@@ -98,6 +98,13 @@ typedef retvalue distribution_each_action(void *data, struct target *t, struct d
  * not NULL or "all", only do those parts */
 retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data);
 
+typedef retvalue each_target_action(struct database *, struct distribution *, struct target *, void *);
+typedef retvalue each_package_action(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
+
+/* call <action> for each package of <distribution> */
+retvalue distribution_foreach_package(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action, each_target_action, void *);
+retvalue distribution_foreach_package_c(struct distribution *, struct database *, const struct strlist *components, const char *architecture, const char *packagetype, each_package_action, void *);
+
 /* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
 retvalue distribution_foreach_roopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
 /* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb,
