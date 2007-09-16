@@ -4307,6 +4307,17 @@ DATESTR remove a deb all abacus ab-addons 3-1
 DATESTR remove a dsc all source ab 3-1
 EOF
 fi
+testrun - --keepunreferenced --dbdir db2 -b . removefilter b "Version (== 1-3), Package (>> aa)" 3<<EOF
+stdout
+-v1*=removing 'aa-addons' from 'b|all|abacus'...
+-d1*=db: 'aa-addons' removed from packages.db(b|all|abacus).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'b|all|abacus'...
+-v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+EOF
+checklog logab <<EOF
+DATESTR remove b deb all abacus aa-addons 1-3
+EOF
 if $tracking ; then
 testrun - -b . --delete removealltracks a 3<<EOF
 stdout

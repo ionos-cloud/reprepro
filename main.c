@@ -604,6 +604,77 @@ ACTION_D(removesrc) {
 	return result;
 }
 
+static retvalue package_matches_condition(UNUSED(struct database *da), UNUSED(struct distribution *di), UNUSED(struct target *ta), UNUSED(const char *pa), const char *control, void *data) {
+	term *condition = data;
+
+	return term_decidechunk(condition, control);
+}
+
+ACTION_D(removefilter) {
+	retvalue result, r;
+	struct distribution *distribution;
+	trackingdb tracks;
+	struct trackingdata trackingdata;
+	term *condition;
+
+	assert( argc == 3 );
+
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = term_compile(&condition, argv[2],
+			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(r) ) {
+		term_free(condition);
+		return r;
+	}
+
+	if( distribution->tracking != dt_NONE ) {
+		r = tracking_initialize(&tracks, database, distribution, false);
+		if( RET_WAS_ERROR(r) ) {
+			term_free(condition);
+			return r;
+		}
+		if( r == RET_NOTHING )
+			tracks = NULL;
+		else {
+			r = trackingdata_new(tracks, &trackingdata);
+			if( RET_WAS_ERROR(r) ) {
+				(void)tracking_done(tracks);
+				term_free(condition);
+				return r;
+			}
+		}
+	} else
+		tracks = NULL;
+
+	result = distribution_remove_packages(distribution, database,
+			NULL, NULL, NULL,
+			package_matches_condition, dereferenced,
+			(tracks != NULL)?&trackingdata:NULL,
+			condition);
+	if( RET_IS_OK(result) ) {
+		r = distribution_export(export, distribution,
+				confdir, distdir, database);
+		RET_ENDUPDATE(result, r);
+	}
+	if( tracks != NULL ) {
+		trackingdata_finish(tracks, &trackingdata,
+					database, dereferenced);
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+	}
+	term_free(condition);
+	return result;
+}
+
+
 
 static retvalue list_in_target(void *data, struct target *target,
 		UNUSED(struct distribution *distribution)) {
@@ -2103,6 +2174,8 @@ static const struct action {
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>"},
 	{"listfilter", 		A_ROB(listfilter),
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>"},
+	{"removefilter", 	A_D(removefilter),
+		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] removefilter <codename> <term to describe which packages to remove>"},
 	{"createsymlinks", 	A_C(createsymlinks),
 		0, -1, "createsymlinks [<distributions>]"},
 	{"export", 		A_F(export),

@@ -1,5 +1,5 @@
 2007-09-16  Bernhard R. Link <brlink@debian.org>
-	* add removesrc action
+	* add removesrc and removefilter action
 
 2007-09-15  Bernhard R. Link <brlink@debian.org>
 	* move package database handling from packages.c to database.c
