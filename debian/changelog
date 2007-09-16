@@ -6,8 +6,9 @@ reprepro (3.0.0-0) UNRELEASED; urgency=low
   - always read and check distributions config first (Closes: 439154)
   - fix grammar error in manpage (Closes: 441300)
   - warn about unused tracking data (Closes: 426596)
+  - add removesrc (Closes: 440101)
 
- -- Bernhard R. Link <brlink@debian.org>  Thu, 13 Sep 2007 17:45:12 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 16 Sep 2007 14:53:31 +0200
 
 reprepro (2.2.4-1) unstable; urgency=high
 

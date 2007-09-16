@@ -4247,6 +4247,67 @@ a|all|abacus pool/all/a/ab/ab_3-1_abacus.deb
 b|all|abacus pool/all/a/ab/ab_3-1_abacus.deb
 EOF
 dodiff results.expected results
+fi
+rm -r -f db2
+cp -a db db2
+echo tracking is $tracking
+testrun - --keepunreferenced --dbdir db2 -b . removesrc a ab 3-1 3<<EOF
+stdout
+-v1*=removing 'ab-addons' from 'a|all|abacus'...
+-d1*=db: 'ab-addons' removed from packages.db(a|all|abacus).
+-v1*=removing 'ab' from 'a|all|abacus'...
+-d1*=db: 'ab' removed from packages.db(a|all|abacus).
+-v1*=removing 'ab' from 'a|all|source'...
+-d1*=db: 'ab' removed from packages.db(a|all|source).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'a|all|abacus'...
+-v6*=  replacing './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'a|all|source'...
+-v6*=  replacing './dists/a/all/source/Sources' (gzipped)
+EOF
+if $tracking ; then
+checklog logab <<EOF
+DATESTR remove a deb all abacus ab-addons 3-1
+DATESTR remove a deb all abacus ab 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+else
+checklog logab <<EOF
+DATESTR remove a deb all abacus ab 3-1
+DATESTR remove a deb all abacus ab-addons 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+fi
+rm -r db2
+cp -a db db2
+testrun - --keepunreferenced --dbdir db2 -b . removesrc a ab 3<<EOF
+stdout
+-v1*=removing 'ab-addons' from 'a|all|abacus'...
+-d1*=db: 'ab-addons' removed from packages.db(a|all|abacus).
+-v1*=removing 'ab' from 'a|all|abacus'...
+-d1*=db: 'ab' removed from packages.db(a|all|abacus).
+-v1*=removing 'ab' from 'a|all|source'...
+-d1*=db: 'ab' removed from packages.db(a|all|source).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'a|all|abacus'...
+-v6*=  replacing './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'a|all|source'...
+-v6*=  replacing './dists/a/all/source/Sources' (gzipped)
+EOF
+if $tracking ; then
+checklog logab <<EOF
+DATESTR remove a deb all abacus ab-addons 3-1
+DATESTR remove a deb all abacus ab 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+else
+checklog logab <<EOF
+DATESTR remove a deb all abacus ab 3-1
+DATESTR remove a deb all abacus ab-addons 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+fi
+if $tracking ; then
 testrun - -b . --delete removealltracks a 3<<EOF
 stdout
 -v0*=Deleting all tracks for a...
@@ -4275,6 +4336,7 @@ Codename: X
 Architectures: none
 Components: test
 EOF
+checknolog logab
 if $tracking ; then
 testrun - -b . --delete clearvanished 3<<EOF
 -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
@@ -4320,6 +4382,7 @@ stdout
 -v1*=removed now empty directory ./pool
 EOF
 fi
+checknolog logab
 done
 set +v +x
 echo

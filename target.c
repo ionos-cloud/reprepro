@@ -30,6 +30,7 @@
 #include "strlist.h"
 #include "names.h"
 #include "chunks.h"
+#include "database.h"
 #include "reference.h"
 #include "binaries.h"
 #include "sources.h"
@@ -156,38 +157,29 @@ retvalue target_closepackagesdb(struct target *target) {
 
 /* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
  * filekeys that lost references */
-retvalue target_removepackage(struct target *target,struct logger *logger,struct database *database,const char *name,const char *oldpversion,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
-	char *oldchunk,*oldpversion_ifunknown = NULL;
+retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, const char *oldpversion, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+	char *oldpversion_ifunknown = NULL;
 	struct strlist files;
 	retvalue result,r;
 	char *oldsource,*oldsversion;
 
-	assert(target != NULL && target->packages != NULL && name != NULL );
+	assert( target != NULL && target->packages != NULL );
+	assert( oldcontrol != NULL && name != NULL );
 
-	r = table_getrecord(target->packages, name, &oldchunk);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	else if( r == RET_NOTHING ) {
-		if( verbose >= 10 )
-			fprintf(stderr,"Could not find '%s' in '%s'...\n",
-					name,target->identifier);
-		return RET_NOTHING;
-	}
 	if( logger != NULL && oldpversion == NULL ) {
 		/* need to get the version for logging, if not available */
-		r = target->getversion(target,oldchunk,&oldpversion_ifunknown);
+		r = target->getversion(target, oldcontrol,
+				&oldpversion_ifunknown);
 		if( RET_IS_OK(r) )
 			oldpversion = oldpversion_ifunknown;
 	}
-	r = target->getfilekeys(target,oldchunk,&files,NULL);
+	r = target->getfilekeys(target, oldcontrol, &files, NULL);
 	if( RET_WAS_ERROR(r) ) {
 		free(oldpversion_ifunknown);
-		free(oldchunk);
 		return r;
 	}
 	if( trackingdata != NULL ) {
-		r = (*target->getsourceandversion)(target, oldchunk,
+		r = target->getsourceandversion(target, oldcontrol,
 				name, &oldsource, &oldsversion);
 		if( !RET_IS_OK(r) ) {
 			oldsource = oldsversion = NULL;
@@ -196,7 +188,8 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 		oldsource = oldsversion = NULL;
 	}
 	if( verbose > 0 )
-		printf("removing '%s' from '%s'...\n",name,target->identifier);
+		printf("removing '%s' from '%s'...\n",
+				name, target->identifier);
 	result = table_deleterecord(target->packages, name);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = true;
@@ -208,7 +201,7 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 		if( logger != NULL )
 			logger_log(logger, target, name,
 					NULL, oldpversion,
-					NULL, oldchunk,
+					NULL, oldcontrol,
 					NULL, &files);
 		r = references_delete(database, target->identifier, &files,
 				NULL, dereferencedfilekeys);
@@ -216,7 +209,88 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 	} else
 		strlist_done(&files);
 	free(oldpversion_ifunknown);
+	return result;
+}
+
+/* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
+ * filekeys that lost references */
+retvalue target_removepackage(struct target *target,struct logger *logger,struct database *database,const char *name,const char *oldpversion,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
+	char *oldchunk;
+	retvalue r;
+
+	assert(target != NULL && target->packages != NULL && name != NULL );
+
+	r = table_getrecord(target->packages, name, &oldchunk);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	else if( r == RET_NOTHING ) {
+		if( verbose >= 10 )
+			fprintf(stderr,"Could not find '%s' in '%s'...\n",
+					name, target->identifier);
+		return RET_NOTHING;
+	}
+	r = target_removereadpackage(target, logger, database,
+			name, oldchunk, oldpversion, dereferencedfilekeys,
+			trackingdata);
 	free(oldchunk);
+	return r;
+}
+
+
+/* Like target_removepackage, but delete the package record by cursor */
+retvalue target_removepackage_by_cursor(struct target *target, struct logger *logger, struct database *database, struct cursor *cursor, const char *name, const char *control, const char *oldpversion, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+	char *oldpversion_ifunknown = NULL;
+	struct strlist files;
+	retvalue result, r;
+	char *oldsource, *oldsversion;
+
+	assert(target != NULL && target->packages != NULL );
+	assert( name != NULL && control != NULL);
+
+	if( logger != NULL && oldpversion == NULL ) {
+		/* need to get the version for logging, if not available */
+		r = target->getversion(target, control,
+				&oldpversion_ifunknown);
+		if( RET_IS_OK(r) )
+			oldpversion = oldpversion_ifunknown;
+	}
+	r = target->getfilekeys(target, control, &files, NULL);
+	if( RET_WAS_ERROR(r) ) {
+		free(oldpversion_ifunknown);
+		return r;
+	}
+	if( trackingdata != NULL ) {
+		r = target->getsourceandversion(target, control,
+				name, &oldsource, &oldsversion);
+		if( !RET_IS_OK(r) ) {
+			oldsource = oldsversion = NULL;
+		}
+	} else {
+		oldsource = oldsversion = NULL;
+	}
+	if( verbose > 0 )
+		printf("removing '%s' from '%s'...\n",
+				name, target->identifier);
+	result = cursor_delete(target->packages, cursor, name);
+	if( RET_IS_OK(result) ) {
+		target->wasmodified = true;
+		if( oldsource != NULL && oldsversion != NULL ) {
+			r = trackingdata_remove(trackingdata,
+					oldsource, oldsversion, &files);
+			RET_UPDATE(result,r);
+		}
+		if( logger != NULL )
+			logger_log(logger, target, name,
+					NULL, oldpversion,
+					NULL, control,
+					NULL, &files);
+		r = references_delete(database, target->identifier, &files,
+				NULL, dereferencedfilekeys);
+		RET_UPDATE(result, r);
+	} else
+		strlist_done(&files);
+	free(oldpversion_ifunknown);
 	return result;
 }
 

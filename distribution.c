@@ -983,3 +983,54 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 	distribution->lookedat = true;
 	return RET_OK;
 }
+
+/* delete every package decider returns RET_OK for */
+retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *trackingdata, void *data) {
+	retvalue result,r;
+	struct target *t;
+	struct cursor *cursor;
+	const char *package, *control;
+
+	result = RET_NOTHING;
+	for( t = distribution->targets ; t != NULL ; t = t->next ) {
+		if( component != NULL && strcmp(component,t->component) != 0 )
+			continue;
+		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+			continue;
+		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+			continue;
+		r = target_initpackagesdb(t, database); //TODO: readwrite
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			return result;
+		r = table_newglobaluniqcursor(t->packages, &cursor);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			(void)target_closepackagesdb(t);
+			return r;
+		}
+		while( cursor_nexttemp(t->packages, cursor,
+					&package, &control) ) {
+			r = decider(database, distribution, t,
+					package, control, data);
+			RET_UPDATE(result, r);
+			if( RET_WAS_ERROR(r) )
+				break;
+			if( RET_IS_OK(r) ) {
+				r = target_removepackage_by_cursor(t,
+					distribution->logger, database, cursor,
+					package, control, NULL, dereferenced,
+					trackingdata);
+				RET_UPDATE(result, r);
+				RET_UPDATE(distribution->status, r);
+			}
+		}
+		r = cursor_close(t->packages, cursor);
+		RET_ENDUPDATE(result, r);
+		r = target_closepackagesdb(t);
+		RET_ENDUPDATE(result, r);
+		if( RET_WAS_ERROR(result) )
+			return result;
+	}
+	return result;
+}

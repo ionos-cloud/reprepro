@@ -291,6 +291,14 @@ number with its Source, as binary and source version differ).
 .B remove \fIcodename\fP \fIpackage name\fP
 same as list, but remove instead of list.
 .TP
+.B removesrc \fIcodename\fP \fIsource-name\fP \fR[\fP\fIversion\fP\fR]\fP
+Remove all packages in distribution \fIcodename\fP belonging to source
+package \fIsource-name\fP.
+(Limited to those with source version \fIversion\fP if specified).
+
+If package tracking is activated, it will use that information to find the
+packages, otherwise it traverses all package indicies for the distribution.
+.TP
 .BR update " [ " \fIcodenames\fP " ]"
 Sync the specified distributions (all if none given) as
 specified in the config with their upstreams. See the

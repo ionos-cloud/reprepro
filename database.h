@@ -44,6 +44,7 @@ retvalue table_newduplicatecursor(struct table *, const char *key, /*@out@*/stru
 bool cursor_nexttemp(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **);
 bool cursor_nexttempdata(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/size_t *);
 retvalue cursor_replace(struct table *, struct cursor *, const char *);
+retvalue cursor_delete(struct table *, struct cursor *, const char *);
 retvalue cursor_close(struct table *, /*@only@*/struct cursor *);
 
 #endif

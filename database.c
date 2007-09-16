@@ -1015,6 +1015,29 @@ retvalue cursor_replace(struct table *table, struct cursor *cursor, const char *
 	return RET_OK;
 }
 
+retvalue cursor_delete(struct table *table, struct cursor *cursor, const char *key) {
+	int dbret;
+
+	assert( cursor != NULL );
+	assert( !table->readonly );
+
+	dbret = cursor->cursor->c_del(cursor->cursor, 0);
+
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_del");
+		return RET_DBERR(dbret);
+	}
+	if( table->verbose ) {
+		if( table->subname != NULL )
+			printf("db: '%s' removed from %s(%s).\n",
+					key, table->name, table->subname);
+		else
+			printf("db: '%s' removed from %s.\n",
+					key, table->name);
+	}
+	return RET_OK;
+}
+
 bool table_isempty(struct table *table) {
 	DBC *cursor;
 	DBT Key, Data;

@@ -111,6 +111,9 @@ retvalue distribution_foreach_roopenedpart(struct distribution *,struct database
  * setting distribution->status to some error if there are any*/
 retvalue distribution_foreach_rwopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
 
+/* delete every package decider returns RET_OK for */
+retvalue distribution_remove_packages(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *, void *);
+
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 /* like distribtion_getpart, but returns NULL if there is no such target */

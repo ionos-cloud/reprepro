@@ -493,10 +493,45 @@ ACTION_D(remove) {
 	return result;
 }
 
+struct removesrcdata {
+	const char *sourcename;
+	const char /*@null@*/*sourceversion;
+};
+
+static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+	struct removesrcdata *d = data;
+	char *sourcename, *sourceversion;
+	retvalue r;
+
+	r = target->getsourceandversion(target, control, packagename,
+			&sourcename, &sourceversion);
+	if( !RET_IS_OK(r) )
+		return r;
+	if( strcmp(sourcename, d->sourcename) != 0 ) {
+		free(sourcename);
+		free(sourceversion);
+		return RET_NOTHING;
+	}
+	if( d->sourceversion == NULL ) {
+		free(sourcename);
+		free(sourceversion);
+		return RET_OK;
+	}
+	if( strcmp(sourceversion, d->sourceversion) != 0 ) {
+		free(sourcename);
+		free(sourceversion);
+		return RET_NOTHING;
+	}
+	free(sourcename);
+	free(sourceversion);
+	return RET_OK;
+}
+
 ACTION_D(removesrc) {
 	retvalue result, r;
 	struct distribution *distribution;
 	trackingdb tracks;
+	struct removesrcdata data;
 
 	r = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( r != RET_NOTHING );
@@ -552,8 +587,21 @@ ACTION_D(removesrc) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
-	fprintf(stderr, "Continue implementing...\n");
-	return RET_ERROR;
+	data.sourcename = argv[2];
+	if( argc <= 3 )
+		data.sourceversion = NULL;
+	else
+		data.sourceversion = argv[3];
+	result = distribution_remove_packages(distribution, database,
+			NULL, NULL, NULL,
+			package_source_fits, dereferenced, NULL,
+			&data);
+	if( RET_IS_OK(result) ) {
+		r = distribution_export(export, distribution,
+				confdir, distdir, database);
+		RET_ENDUPDATE(result, r);
+	}
+	return result;
 }
 
 

@@ -404,6 +404,7 @@ static retvalue tracking_get(trackingdb t,const char *sourcename,const char *ver
 //	printf("[tracking_get found %s %s %s]\n",t->codename,sourcename,version);
 	/* we have found it, now parse it */
 	r = parsedata(sourcename,version,versionlen,data,pkg);
+	assert( r != RET_NOTHING );
 	(void)cursor->c_close(cursor);
 	return r;
 }
@@ -975,8 +976,10 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 		r = references_decrement(database, pkg->filekeys.values[i] ,id);
 		RET_UPDATE(result,r);
-		strlist_add(dereferenced, pkg->filekeys.values[i]);
-		pkg->filekeys.values[i] = NULL;
+		if( dereferenced != NULL ) {
+			strlist_add(dereferenced, pkg->filekeys.values[i]);
+			pkg->filekeys.values[i] = NULL;
+		}
 	}
 	free(id);
 	strlist_done(&pkg->filekeys);
@@ -1402,16 +1405,18 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		free(version);
 		r = target->getfilekeys(target, control, &filekeys, NULL);
 		assert( r != RET_NOTHING );
-		free(control);
 		if( RET_WAS_ERROR(r) ) {
 			free(package);
+			free(control);
 			return r;
 		}
 
 		/* that is a bit wasteful, as it parses some stuff again, but
 		 * but that is better than reimplementing logger here */
-		r = target_removepackage(target, distribution->logger, database,
-				package, NULL, dereferenced, NULL);
+		r = target_removereadpackage(target, distribution->logger,
+				database, package, control, NULL,
+				dereferenced, NULL);
+		free(control);
 		free(package);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
