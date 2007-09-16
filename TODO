@@ -1,4 +1,6 @@
 TODO:
+	update test-suite to work with different architecture, block sizes and
+	 ways dpkg-deb puts the headers...
 	check for empty lists... (decide which should not be empty and which may)
 	test new config parser
 	do not put/leave files in pool when include gets an older version than already there
