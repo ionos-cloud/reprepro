@@ -565,7 +565,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 		struct target *t = distribution_getpart(distribution,
 				component, deb->architecture,
 				packagetype);
-		r = target_initpackagesdb(t, database);
+		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
@@ -586,7 +586,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 		struct target *t = distribution_getpart(distribution,
 				component, forcearchitecture,
 				packagetype);
-		r = target_initpackagesdb(t, database);
+		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
@@ -608,7 +608,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database
 		if( strcmp(distribution->architectures.values[i],"source") == 0 )
 			continue;
 		t = distribution_getpart(distribution,component,distribution->architectures.values[i],packagetype);
-		r = target_initpackagesdb(t, database);
+		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
@@ -638,7 +638,7 @@ static inline retvalue checkadddeb(struct database *database, struct distributio
 	t = distribution_getpart(distribution,
 			component, architecture, packagetype);
 	assert( t != NULL );
-	r = target_initpackagesdb(t, database);
+	r = target_initpackagesdb(t, database, READONLY);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )

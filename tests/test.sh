@@ -4350,7 +4350,7 @@ EOF
 checknolog logab
 if $tracking ; then
 testrun - -b . --delete clearvanished 3<<EOF
--v4*=Strange, 'X|test|none' does not appear in packages.db yet.
+#-v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
 *=Deleting vanished identifier 'a|all|abacus'.
 *=Deleting vanished identifier 'a|all|source'.
@@ -4372,7 +4372,7 @@ stdout
 EOF
 else
 testrun - -b . --delete clearvanished 3<<EOF
--v4*=Strange, 'X|test|none' does not appear in packages.db yet.
+# -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
 *=Deleting vanished identifier 'a|all|abacus'.
 *=Deleting vanished identifier 'a|all|source'.

@@ -354,15 +354,20 @@ static inline bool targetisdefined(const char *identifier, struct distribution *
 
 	for( d = distributions ; d != NULL ; d = d->next ) {
 		for( t = d->targets; t != NULL ; t = t->next ) {
-			if( strcmp(t->identifier, identifier) == 0 )
+			if( strcmp(t->identifier, identifier) == 0 ) {
+				t->existed = true;
 				return true;
+			}
 		}
 	}
 	return false;
 }
 
-static retvalue warnusedidentifers(const struct strlist *identifiers, struct distribution *distributions) {
+static retvalue warnidentifers(struct database *db, const struct strlist *identifiers, struct distribution *distributions, bool readonly) {
+	struct distribution *d;
+	struct target *t;
 	const char *identifier;
+	retvalue r;
 	int i;
 
 	for( i = 0; i < identifiers->count ; i++ ) {
@@ -389,6 +394,24 @@ static retvalue warnusedidentifers(const struct strlist *identifiers, struct dis
 
 		fputs("To ignore use --ignore=undefinedtarget.\n", stderr);
 		return RET_ERROR;
+	}
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		// TODO: check for new architectures here and warn then...
+		if( readonly )
+			continue;
+		for( t = d->targets; t != NULL ; t = t->next ) {
+			if( t->existed )
+				continue;
+			/* create database now, to test it can be created
+			 * early, and to know when new architectures
+			 * arrive in the future. */
+			r = target_initpackagesdb(t, db, READWRITE);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			r = target_closepackagesdb(t);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
 	}
 	return RET_OK;
 }
@@ -580,7 +603,7 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
 	db->version = CURRENT_VERSION;
 	for( d = distributions ; d != NULL ; d = d->next ) {
 		for( t = d->targets ; t != NULL ; t = t->next ) {
-			r = target_initpackagesdb(t, db);
+			r = target_initpackagesdb(t, db, READWRITE);
 			RET_UPDATE(result, r);
 			if( RET_IS_OK(r) ) {
 				r = target_closepackagesdb(t);
@@ -638,7 +661,8 @@ static retvalue preparepackages(struct database *db, bool fast, bool readonly, b
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( RET_IS_OK(r) ) {
-			r = warnusedidentifers(&identifiers, distributions);
+			r = warnidentifers(db, &identifiers,
+					distributions, readonly);
 			if( RET_WAS_ERROR(r) ) {
 				strlist_done(&identifiers);
 				return r;

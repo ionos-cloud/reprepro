@@ -152,7 +152,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 
 	upgrade->target = t;
 
-	r = target_initpackagesdb(t, database);
+	r = target_initpackagesdb(t, database, READONLY);
 	if( RET_WAS_ERROR(r) ) {
 		(void)upgradelist_free(upgrade);
 		return r;
@@ -463,7 +463,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	upgrade->predecide = predecide;
 	upgrade->predecide_data = decide_data;
 
-	r =  target_initpackagesdb(source, database);
+	r =  target_initpackagesdb(source, database, READONLY);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	result = table_newglobaluniqcursor(source->packages, &cursor);
@@ -544,7 +544,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 	result = RET_NOTHING;
 	assert(upgrade != NULL);
 
-	result = target_initpackagesdb(upgrade->target, database);
+	result = target_initpackagesdb(upgrade->target, database, READWRITE);
 	if( RET_WAS_ERROR(result) )
 		return result;
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
@@ -575,7 +575,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 	if( upgrade->list == NULL )
 		return RET_NOTHING;
 
-	result = target_initpackagesdb(upgrade->target, database);
+	result = target_initpackagesdb(upgrade->target, database, READWRITE);
 	if( RET_WAS_ERROR(result) )
 		return result;
 	result = RET_NOTHING;

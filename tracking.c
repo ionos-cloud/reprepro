@@ -1438,7 +1438,7 @@ static retvalue removesourcepackage(trackingdb t, struct trackedpackage *pkg, st
 
 	result = RET_NOTHING;
 	for( target = distribution->targets ; target != NULL ; target = target->next ) {
-		r = target_initpackagesdb(target, database);
+		r = target_initpackagesdb(target, database, READWRITE);
 		RET_ENDUPDATE(result, r);
 		if( RET_IS_OK(r) ) {
 			r = targetremovesourcepackage(t, pkg, database,

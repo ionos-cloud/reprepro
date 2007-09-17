@@ -124,14 +124,13 @@ retvalue target_free(struct target *target) {
 }
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(struct target *target, struct database *database) {
+retvalue target_initpackagesdb(struct target *target, struct database *database, bool readonly) {
 	retvalue r;
 
 	assert( target->packages == NULL );
 	if( target->packages != NULL )
 		return RET_OK;
-	/* TODO: allow readonly to be set here */
-	r = database_openpackages(database, target->identifier, false,
+	r = database_openpackages(database, target->identifier, readonly,
 			&target->packages);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
@@ -737,7 +736,7 @@ retvalue target_export(struct target *target, const char *confdir, struct databa
 			printf(" exporting '%s'...\n",target->identifier);
 	}
 
-	r = target_initpackagesdb(target, database);
+	r = target_initpackagesdb(target, database, READONLY);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

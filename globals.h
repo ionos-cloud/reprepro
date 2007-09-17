@@ -24,6 +24,9 @@ typedef int _Bool;
 #define xisblank(c) (isblank(c)!=0)
 #define xisdigit(c) (isdigit(c)!=0)
 
+#define READONLY true
+#define READWRITE false
+
 #define ISSET(a,b) (a&b)!=0
 #define NOTSET(a,b) (a&b)==0
 

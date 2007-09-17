@@ -1115,7 +1115,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 	struct strlist filekeys;
 	struct target *dsttarget;
 
-	result = target_initpackagesdb(origtarget, d->db);
+	result = target_initpackagesdb(origtarget, d->db, READONLY);
 	if( RET_WAS_ERROR(result) ) {
 		RET_UPDATE(distribution->status,result);
 		return result;
@@ -1162,7 +1162,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 				dsttarget->identifier);
 	}
 
-	result = target_initpackagesdb(dsttarget, d->db);
+	result = target_initpackagesdb(dsttarget, d->db, READWRITE);
 	if( RET_WAS_ERROR(result) ) {
 		RET_UPDATE(d->destination->status,result);
 		free(chunk);
@@ -1255,7 +1255,7 @@ ACTION_R(rereference) {
 			printf("Referencing %s...\n",d->codename);
 		}
 		for( t = d->targets ; t != NULL ; t = t->next ) {
-			r = target_initpackagesdb(t, database);
+			r = target_initpackagesdb(t, database, READONLY);
 			RET_UPDATE(result, r);
 			if( RET_WAS_ERROR(r) )
 				continue;

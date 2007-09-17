@@ -429,7 +429,7 @@ retvalue distribution_foreach_rwopenedpart(struct distribution *distribution,str
 			continue;
 		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
-		r = target_initpackagesdb(t, database);
+		r = target_initpackagesdb(t, database, READWRITE);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -460,7 +460,7 @@ retvalue distribution_foreach_roopenedpart(struct distribution *distribution,str
 			continue;
 		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
-		r = target_initpackagesdb(t, database);
+		r = target_initpackagesdb(t, database, READONLY);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -496,7 +496,7 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 			if( r == RET_NOTHING )
 				continue;
 		}
-		r = target_initpackagesdb(t, database); //TODO: readonly
+		r = target_initpackagesdb(t, database, READONLY);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -538,7 +538,7 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 			continue;
 		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
-		r = target_initpackagesdb(t, database); //TODO: readonly
+		r = target_initpackagesdb(t, database, READONLY);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -999,7 +999,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 			continue;
 		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
-		r = target_initpackagesdb(t, database); //TODO: readwrite
+		r = target_initpackagesdb(t, database, READWRITE);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;

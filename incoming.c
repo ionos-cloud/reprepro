@@ -1216,7 +1216,7 @@ static retvalue add_dsc(struct database *database,
 	assert( logger_isprepared(into->logger) );
 
 	/* finally put it into the source distribution */
-	r = target_initpackagesdb(t, database);
+	r = target_initpackagesdb(t, database, READWRITE);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
@@ -1244,7 +1244,7 @@ static retvalue checkadd_dsc(struct database *database,
 	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
 
 	/* check for possible errors putting it into the source distribution */
-	r = target_initpackagesdb(t, database);
+	r = target_initpackagesdb(t, database, READONLY);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )

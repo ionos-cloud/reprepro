@@ -325,7 +325,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,struct database *database,
 	assert( logger_isprepared(distribution->logger) );
 
 	/* finally put it into the source distribution */
-	r = target_initpackagesdb(t, database);
+	r = target_initpackagesdb(t, database, READWRITE);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )

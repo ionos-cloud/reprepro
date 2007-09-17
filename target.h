@@ -52,6 +52,8 @@ struct target {
 	do_reoverride *doreoverride;
 	do_retrack *doretrack;
 	bool wasmodified, saved_wasmodified;
+	/* set when existed at startup time, only valid in --nofast mode */
+	bool existed;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
 	/* is initialized as soon as needed: */
@@ -68,7 +70,7 @@ retvalue target_export(struct target *target, const char *confdir, struct databa
 retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 
 /* This opens up the database, if db != NULL, *db will be set to it.. */
-retvalue target_initpackagesdb(struct target *target, struct database *);
+retvalue target_initpackagesdb(struct target *target, struct database *, bool readonly);
 /* this closes databases... */
 retvalue target_closepackagesdb(struct target *target);
 
