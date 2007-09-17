@@ -655,7 +655,7 @@ ACTION_D(removefilter) {
 		tracks = NULL;
 
 	result = distribution_remove_packages(distribution, database,
-			NULL, NULL, NULL,
+			component, architecture, packagetype,
 			package_matches_condition, dereferenced,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
