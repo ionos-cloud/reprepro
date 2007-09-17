@@ -556,21 +556,25 @@ dodiff results.expected results
 printindexpart pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb > results.expected
 printindexpart pool/dog/b/bird/bird-addons_1_all.deb >> results.expected
 dodiff results.expected dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
+cat pool/dog/b/bird/bird_1.dsc >results.expected
+ed -s results.expected <<EOF
+H
+/^Source: / m 0
+s/^Source: /Package: /
+/^Files: / kf
+'f i
 Priority: superfluous
 Section: tasty
 Directory: pool/dog/b/bird
-Files: 
+.
+'f a
  $DSCMD5S bird_1.dsc
- $TARMD5S bird_1.tar.gz
+.
+$ a
 
+.
+w
+q
 EOF
 gunzip -c dists/B/dog/source/Sources.gz > results
 dodiff results.expected results
@@ -662,22 +666,26 @@ w
 q
 EOF
 dodiff results.expected dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
+cat pool/cat/b/bird/bird_1.dsc >results.expected
+ed -s results.expected <<EOF
+H
+/^Source: / m 0
+s/^Source: /Package: /
+/^Files: / kf
+'f i
 Homepage: gopher://tree
 Priority: hurry
 Section: cat/nest
 Directory: pool/cat/b/bird
-Files: 
+.
+'f a
  $DSCMD5S bird_1.dsc
- $TARMD5S bird_1.tar.gz
+.
+$ a
 
+.
+w
+q
 EOF
 BIRDDSCMD5S="$DSCMD5S"
 BIRDTARMD5S="$TARMD5S"
@@ -1323,21 +1331,27 @@ dists/B/Release
 EOF
 dodiff results.expected results
 gunzip -c dists/B/dog/source/Sources.gz > results
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
+cat pool/dog/b/bird/bird_1.dsc >bird.preprocessed
+ed -s bird.preprocessed <<EOF
+H
+/^Source: / m 0
+s/^Source: /Package: /
+/^Files: / kf
+'f i
 Priority: superfluous
 Section: tasty
 Directory: pool/dog/b/bird
-Files: 
+.
+'f a
  $BIRDDSCMD5S bird_1.dsc
- $BIRDTARMD5S bird_1.tar.gz
+.
+$ a
 
+.
+w
+q
+EOF
+cat bird.preprocessed - > results.expected <<EOF
 Package: dscfilename
 Format: 1.0
 Maintainer: guess who <me@nowhere>
@@ -1425,21 +1439,7 @@ dists/B/Release
 EOF
 dodiff results.expected results
 gunzip -c dists/B/dog/source/Sources.gz > results
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
-Priority: superfluous
-Section: tasty
-Directory: pool/dog/b/bird
-Files: 
- $BIRDDSCMD5S bird_1.dsc
- $BIRDTARMD5S bird_1.tar.gz
-
+cat bird.preprocessed - > results.expected <<EOF
 Package: dscfilename
 Format: 1.0
 Maintainer: guess who <me@nowhere>
