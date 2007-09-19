@@ -1264,3 +1264,12 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 	}
 	return r;
 }
+
+retvalue database_openreleasecache(struct database *database, const char *codename, struct table **cachedb_p) {
+	retvalue r;
+	r = database_table(database, "release.cache.db", codename,
+			 DB_HASH, 0, NULL, READWRITE, cachedb_p);
+	if( RET_IS_OK(r) )
+		(*cachedb_p)->verbose = false;
+	return r;
+}

@@ -26,6 +26,7 @@ retvalue database_openreferences(struct database *);
 retvalue database_listpackages(struct database *, /*@out@*/struct strlist *);
 retvalue database_droppackages(struct database *, const char *);
 retvalue database_openpackages(struct database *, const char *identifier, bool readonly, /*@out@*/struct table **);
+retvalue database_openreleasecache(struct database *, const char *codename, /*@out@*/struct table **);
 
 retvalue table_close(/*@only@*/struct table *);
 
