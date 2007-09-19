@@ -5,8 +5,6 @@
 #include "database.h"
 #endif
 
-#include <db.h>
-
 struct references;
 struct filesdb;
 
@@ -24,12 +22,14 @@ struct database {
 	int version, compatibilityversion;
 };
 
-retvalue database_opentable(struct database *, const char *, const char *, DBTYPE, u_int32_t preflags, int (*)(DB *,const DBT *,const DBT *), bool readonly, /*@out@*/DB **);
 retvalue database_listsubtables(struct database *,const char *,/*@out@*/struct strlist *);
 retvalue database_dropsubtable(struct database *, const char *table, const char *subtable);
 
+#ifdef DB_VERSION_MAJOR
+retvalue database_opentable(struct database *, const char *, const char *, DBTYPE, u_int32_t preflags, int (*)(DB *,const DBT *,const DBT *), bool readonly, /*@out@*/DB **);
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
 #define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
 #define SETDBTl(dbt,datastr,datasize) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=datasize;}
+#endif
 
 #endif

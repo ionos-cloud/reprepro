@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
+#include <db.h>
 
 #include "error.h"
 #include "names.h"

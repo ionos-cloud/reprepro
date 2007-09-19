@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <db.h>
 
 #include "globals.h"
 #include "error.h"

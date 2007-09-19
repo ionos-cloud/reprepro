@@ -22,6 +22,8 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
+#include <db.h>
+
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
