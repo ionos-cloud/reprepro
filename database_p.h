@@ -12,8 +12,12 @@ struct filesdb;
 
 struct database {
 	char *directory;
-	struct filesdb *files;
+	/* for the files database: */
+	char *mirrordir;
+	struct table *files, *contents;
+	/* for the references database: */
 	struct references *references;
+	/* internal stuff: */
 	bool locked, verbose;
 	int dircreationdepth;
 	bool nopackages, readonly, packagesdatabaseopen;
@@ -26,5 +30,6 @@ retvalue database_dropsubtable(struct database *, const char *table, const char 
 
 #define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
 #define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
+#define SETDBTl(dbt,datastr,datasize) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=datasize;}
 
 #endif

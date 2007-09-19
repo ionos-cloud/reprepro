@@ -199,6 +199,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
 	char *control;
+	int i;
 
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
@@ -294,10 +295,18 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 				md5sum, &pkg->dscmd5sum, delete);
 	}
 
-	if( !RET_WAS_ERROR(r) ) {
-		r = files_includefiles(database,
-				sourcedir, &pkg->dsc.basenames, &pkg->filekeys,
-				&pkg->dsc.md5sums, delete);
+	assert( pkg->dsc.basenames.count == pkg->dsc.md5sums.count );
+	assert( pkg->dsc.basenames.count == pkg->filekeys.count );
+	for( i = 0 ; i < pkg->dsc.basenames.count ; i ++ ) {
+		if( !RET_WAS_ERROR(r) ) {
+			const char *basename = pkg->dsc.basenames.values[i];
+			const char *filekey = pkg->filekeys.values[i];
+			const char *md5sum = pkg->dsc.md5sums.values[i];
+
+			r = files_includefile(database, sourcedir,
+					basename, filekey, md5sum,
+					NULL, delete);
+		}
 	}
 
 	/* Calculate the chunk to include: */

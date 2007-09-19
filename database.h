@@ -31,12 +31,15 @@ retvalue table_close(/*@only@*/struct table *);
 
 bool table_isempty(struct table *);
 
+bool table_recordexists(struct table *, const char *);
 /* retrieve a record from the database, return RET_NOTHING if there is none: */
 retvalue table_getrecord(struct table *, const char *, /*@out@*/char **);
+retvalue table_gettemprecord(struct table *, const char *, /*@out@*/const char **, /*@out@*/ size_t *);
 
+retvalue table_adduniqlenrecord(struct table *, const char *key, const char *data, size_t data_size, bool allowoverwrote);
 retvalue table_adduniqrecord(struct table *, const char *key, const char *data);
 retvalue table_replacerecord(struct table *, const char *key, const char *data);
-retvalue table_deleterecord(struct table *, const char *key);
+retvalue table_deleterecord(struct table *, const char *key, bool ignoremissing);
 retvalue table_checkkey(struct table *, const char *key);
 
 retvalue table_newglobaluniqcursor(struct table *, /*@out@*/struct cursor **);

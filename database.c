@@ -60,6 +60,7 @@ static void database_free(struct database *db) {
 	if( db == NULL )
 		return;
 	free(db->directory);
+	free(db->mirrordir);
 	free(db);
 }
 
@@ -145,26 +146,18 @@ retvalue database_close(struct database *db) {
 		db->references = NULL;
 		RET_UPDATE(result, r);
 	}
-	if( db->files ) {
-		r = files_done(db->files);
+	if( db->files != NULL ) {
+		table_close(db->files);
 		db->files = NULL;
-		RET_UPDATE(result, r);
+	}
+	if( db->contents != NULL ) {
+		table_close(db->contents);
+		db->contents = NULL;
 	}
 	if( db->locked )
 		releaselock(db);
 	database_free(db);
 	return RET_OK;
-}
-
-retvalue database_openfiles(struct database *db, const char *mirrordir) {
-	retvalue r;
-
-	assert( db->files == NULL );
-
-	r = files_initialize(&db->files, db, mirrordir);
-	if( !RET_IS_OK(r) )
-		db->files = NULL;
-	return r;
 }
 
 retvalue database_openreferences(struct database *db) {
@@ -831,17 +824,84 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 	return RET_OK;
 }
 
-retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
+retvalue table_gettemprecord(struct table *table, const char *key, const char **data_p, size_t *size_p) {
+	int dbret;
+	DBT Key, Data;
+
+	assert( table != NULL );
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		return RET_NOTHING;
+	}
+
+	SETDBT(Key, key);
+	CLEARDBT(Data);
+
+	dbret = table->berkleydb->get(table->berkleydb, NULL,
+			&Key, &Data, 0);
+	// TODO: find out what error code means out of memory...
+	if( dbret == DB_NOTFOUND )
+		return RET_NOTHING;
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "get");
+		return RET_DBERR(dbret);
+	}
+	if( Data.data == NULL )
+		return RET_ERROR_OOM;
+	if( Data.size <= 0 ||
+	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) data!",
+					table->name);
+		return RET_ERROR;
+	}
+	*data_p = Data.data;
+	if( size_p != NULL )
+		*size_p = Data.size;
+	return RET_OK;
+}
+
+bool table_recordexists(struct table *table, const char *key) {
+	int dbret;
+	DBT Key, Data;
+
+	assert( table != NULL );
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		return false;
+	}
+
+	SETDBT(Key, key);
+	CLEARDBT(Data);
+
+	dbret = table->berkleydb->get(table->berkleydb, NULL,
+			&Key, &Data, 0);
+	if( dbret == DB_NOTFOUND )
+		return false;
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "get");
+		return false;
+	}
+	return true;
+}
+
+retvalue table_adduniqlenrecord(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite) {
 	int dbret;
 	DBT Key, Data;
 
 	assert( table != NULL );
 	assert( !table->readonly && table->berkleydb != NULL );
+	assert( data_size > 0 && data[data_size-1] == '\0' );
 
 	SETDBT(Key, key);
-	SETDBT(Data, data);
+	SETDBTl(Data, data, data_size);
 	dbret = table->berkleydb->put(table->berkleydb, NULL,
-			&Key, &Data, DB_NOOVERWRITE);
+			&Key, &Data, allowoverwrite?0:DB_NOOVERWRITE);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "put(uniq)");
 		return RET_DBERR(dbret);
@@ -856,8 +916,11 @@ retvalue table_adduniqrecord(struct table *table, const char *key, const char *d
 	}
 	return RET_OK;
 }
+retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
+	return table_adduniqlenrecord(table, key, data, strlen(data)+1, false);
+}
 
-retvalue table_deleterecord(struct table *table, const char *key) {
+retvalue table_deleterecord(struct table *table, const char *key, bool ignoremissing) {
 	int dbret;
 	DBT Key;
 
@@ -867,6 +930,8 @@ retvalue table_deleterecord(struct table *table, const char *key) {
 	SETDBT(Key, key);
 	dbret = table->berkleydb->del(table->berkleydb, NULL, &Key, 0);
 	if( dbret != 0 ) {
+		if( dbret == DB_NOTFOUND && ignoremissing )
+			return RET_NOTHING;
 		table_printerror(table, dbret, "del");
 		if( dbret == DB_NOTFOUND )
 			return RET_ERROR_MISSING;
@@ -887,7 +952,7 @@ retvalue table_deleterecord(struct table *table, const char *key) {
 retvalue table_replacerecord(struct table *table, const char *key, const char *data) {
 	retvalue r;
 
-	r = table_deleterecord(table, key);
+	r = table_deleterecord(table, key, false);
 	if( r != RET_ERROR_MISSING && RET_WAS_ERROR(r) )
 		return r;
 	return table_adduniqrecord(table, key, data);
@@ -1168,4 +1233,34 @@ retvalue database_listpackages(struct database *database, struct strlist *identi
 /* drop a database */
 retvalue database_droppackages(struct database *database, const char *identifier) {
 	return database_dropsubtable(database, "packages.db", identifier);
+}
+
+retvalue database_openfiles(struct database *db, const char *mirrordir) {
+	retvalue r;
+
+	assert( db->files == NULL && db->contents == NULL );
+	assert( db->mirrordir == NULL );
+
+	db->mirrordir = strdup(mirrordir);
+	if( db->mirrordir == NULL )
+		return RET_ERROR_OOM;
+	r = database_table(db, "files.db", "md5sums",
+			DB_BTREE, 0, NULL, READWRITE, &db->files);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		free(db->mirrordir);
+		db->mirrordir = NULL;
+		db->files = NULL;
+		return r;
+	}
+	r = database_table(db, "contents.cache.db", "filelists",
+			DB_BTREE, 0, NULL, READWRITE, &db->contents);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		(void)table_close(db->files);
+		db->mirrordir = NULL;
+		db->files = NULL;
+		db->contents = NULL;
+	}
+	return r;
 }

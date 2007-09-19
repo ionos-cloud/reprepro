@@ -510,6 +510,10 @@ stdout
 -v2*=Created directory "./pool/dog"
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
+-d1*=db: 'pool/dog/b/bird/bird_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/dog/b/bird/bird_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to files.db(md5sums).
 -v2*=Created directory "./logs"
 -d1*=db: 'bird' added to packages.db(B|dog|source).
 -d1*=db: 'bird' added to packages.db(B|dog|${FAKEARCHITECTURE}).
@@ -528,7 +532,9 @@ stdout
 -v6*= looking for changes in 'B|cat|source'...
 -v1*= generating Contents-${FAKEARCHITECTURE}...
 -v4*=Reading filelist for pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(filelists).
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
+-d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to contents.cache.db(filelists).
 EOF
 LOGDATE="$(date +'%Y-%m-%d %H:')"
 echo normalizing logfile: DATESTR is "$LOGDATE??:??"
@@ -598,13 +604,13 @@ stdout
 -v2*=Created directory "./pool/cat"
 -v2*=Created directory "./pool/cat/b"
 -v2*=Created directory "./pool/cat/b/bird"
+-d1*=db: 'pool/cat/b/bird/bird_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/cat/b/bird/bird_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to files.db(md5sums).
 -d1*=db: 'bird' added to packages.db(B|cat|source).
 -d1*=db: 'bird' added to packages.db(B|cat|${FAKEARCHITECTURE}).
 -d1*=db: 'bird-addons' added to packages.db(B|cat|${FAKEARCHITECTURE}).
--v7*=db: pool/cat/b/bird/bird_1.dsc: file added.
--v7*=db: pool/cat/b/bird/bird_1.tar.gz: file added.
--v7*=db: pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb: file added.
--v7*=db: pool/cat/b/bird/bird-addons_1_all.deb: file added.
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
 -v3*=deleting './i/bird_1_${FAKEARCHITECTURE}.deb'...
@@ -619,7 +625,9 @@ stdout
 -v6*=  replacing './dists/B/cat/source/Sources' (gzipped)
 -v1*= generating Contents-${FAKEARCHITECTURE}...
 -v4*=Reading filelist for pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(filelists).
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
+-d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(filelists).
 EOF
 function checklog() {
 	cat > results.log.expected
@@ -973,6 +981,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
+-d1*=db: 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb' added to files.db(md5sums).
 -d1*=db: 'indebname' added to packages.db(A|dog|${FAKEARCHITECTURE}).
 -d1*=db: 'indebname' added to packages.db(A|dog|calculator).
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
@@ -1177,9 +1186,10 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 stdout
--d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
+-d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' added to files.db(md5sums).
+-d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v0=Exporting indices...
@@ -1376,6 +1386,8 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Unknown filetype: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
 stdout
+-d1*=db: 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/dog/d/dscfilename/strangefile_xyz' added to files.db(md5sums).
 -d1*=db: 'dscfilename' removed from packages.db(B|dog|source).
 -d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
@@ -1389,6 +1401,7 @@ stdout
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
+-d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' removed from files.db(md5sums).
 EOF
 checklog logfile <<EOF
 DATESTR replace B dsc dog source dscfilename 1:newversion~ versionindsc
@@ -1657,12 +1670,14 @@ stdout
 -v2*=Created directory "./pool/stupid"
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
-=[tracking_get test1 simple 1]
-=[tracking_new test1 simple 1]
+-d1*=db: 'pool/stupid/s/simple/simple-addons_1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: 'simple-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'simple' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'simple' added to packages.db(test1|stupid|source).
-=[tracking_save test1 simple 1]
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -1686,12 +1701,14 @@ stdout
 -v2*=Created directory "./pool/ugly"
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
-=[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
-=[tracking_new test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
-=[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -1851,6 +1868,8 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/s"
 -v2*=Created directory "./pool/ugly/s/simple"
+-d1*=db: 'pool/ugly/s/simple/simple_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/s/simple/simple_1.tar.gz' added to files.db(md5sums).
 -d1*=db: 'simple' added to packages.db(test2|ugly|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
@@ -1878,6 +1897,8 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/b"
 -v2*=Created directory "./pool/stupid/b/bloat+-0a9z.app"
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
@@ -1903,6 +1924,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple_1_${FAKEARCHITECTURE}.deb: component guessed as 'ugly'
 stdout
+-d1*=db: 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -d1*=db: 'simple' added to packages.db(test2|ugly|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
@@ -1928,6 +1950,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple-addons_1_all.deb: component guessed as 'ugly'
 stdout
+-d1*=db: 'pool/ugly/s/simple/simple-addons_1_all.deb' added to files.db(md5sums).
 -d1*=db: 'simple-addons' added to packages.db(test2|ugly|coal).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
@@ -1953,6 +1976,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb: component guessed as 'stupid'
 stdout
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|${FAKEARCHITECTURE}).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
@@ -1978,6 +2002,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb: component guessed as 'stupid'
 stdout
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test2|stupid|coal).
 -v0=Exporting indices...
 -v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
@@ -2281,17 +2306,27 @@ stdout
 -v0*=Deleting all tracks for test1...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/s/simple/simple-addons_1_all.deb
+-d1*=db: 'pool/stupid/s/simple/simple-addons_1_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/s/simple
 -v1*=removed now empty directory ./pool/stupid/s
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
 -v1*=removed now empty directory ./pool/ugly/b
 EOF
@@ -2302,6 +2337,11 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
@@ -2324,6 +2364,11 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|${FAKEARCHITECTURE}).
@@ -2351,6 +2396,7 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -d1*=db: 'simple' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
@@ -2368,6 +2414,8 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1*=simple_1.dsc: component guessed as 'stupid'
 stdout
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' added to files.db(md5sums).
 -d1*=db: 'simple' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
@@ -2430,10 +2478,18 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.diff.gz
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.dsc
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/t/test
 -v1*=removed now empty directory ./pool/stupid/t
 EOF
@@ -2447,6 +2503,12 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1.orig.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: 'test-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'test' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'test' added to packages.db(test1|stupid|source).
@@ -2472,6 +2534,12 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/stupid/t/testb"
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2.orig.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-2_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: 'testb-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'testb' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'testb' added to packages.db(test1|stupid|source).
@@ -2495,6 +2563,11 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-3_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: 'testb-addons' removed from packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'testb-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'testb' removed from packages.db(test1|stupid|${FAKEARCHITECTURE}).
@@ -2528,6 +2601,11 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/4"
 -v2*=Created directory "./pool/stupid/4/4test"
+-d1*=db: 'pool/stupid/4/4test/4test-addons_b.1-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
 -d1*=db: '4test-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: '4test' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: '4test' added to packages.db(test1|stupid|source).
@@ -2651,15 +2729,25 @@ stdout
 -v0*=Looking for old tracks in test1...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb-addons_2-2_all.deb
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-2_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/testb/testb_2-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2.dsc
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2.diff.gz
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.diff.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_1:2-2_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-2_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 EOF
 cp db/tracking.db db/saved2tracking.db
 cp db/references.db db/saved2references.db
@@ -2734,9 +2822,13 @@ stdout
 -v0*=Looking for old tracks in test1...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
@@ -3233,8 +3325,6 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =Warning: Strange file 'filename_version.tar.gz'!
 =Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
-# again
-=Warning: Package version 'version.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
 *=Architecture-header lists architecture 'brain', but no files for this!
@@ -3266,6 +3356,7 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 stdout
 -v2*=Created directory "./pool/stupid/n"
 -v2*=Created directory "./pool/stupid/n/nowhere"
+-d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to files.db(md5sums).
 EOF
 testout "" -b . dumpunreferenced
 cat >results.expected <<EOF
@@ -3275,6 +3366,7 @@ dodiff results.expected results
 testrun - -b . deleteunreferenced 3<<EOF
 stdout
 -v1*=deleting and forgetting pool/stupid/n/nowhere/filename_version.tar.gz
+-d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/n/nowhere
 -v1*=removed now empty directory ./pool/stupid/n
 EOF
@@ -3282,7 +3374,10 @@ testout "" -b . dumpunreferenced
 dodiff results.empty results
 testout "" -b . dumpreferences
 # first remove file, then try to remove the package
-testrun "" -b . _forget pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb
+testrun - -b . _forget pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
+stdout
+-d1*=db: 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+EOF
 testrun - -b . remove test1 simple 3<<EOF
 # ???
 =Warning: tracking database of test1 missed files for simple_1.
@@ -3331,8 +3426,11 @@ stdout
 -v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v0=Deleting files no longer referenced...
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb
+-d1=db: 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.dsc
+-d1=db: 'pool/ugly/s/simple/simple_1.dsc' removed from files.db(md5sums).
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.tar.gz
+-d1=db: 'pool/ugly/s/simple/simple_1.tar.gz' removed from files.db(md5sums).
 returns 249
 EOF
 checklog log2 <<EOF
@@ -3384,9 +3482,15 @@ testrun - -b . include test2 broken.changes 3<<EOF
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/d/differently
 -v1*=removed now empty directory ./pool/stupid/d
 returns 255
@@ -3403,9 +3507,15 @@ testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/d/differently
 -v1*=removed now empty directory ./pool/stupid/d
 returns 255
@@ -3435,7 +3545,9 @@ testrun - -b . include test2 broken.changes 3<<EOF
 *=To ignore use --ignore=wrongsourceversion.
 -v0*=There have been errors!
 stdout
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 returns 255
 EOF
 testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
@@ -3446,7 +3558,9 @@ testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
 *=To ignore use --ignore=wrongversion.
 -v0*=There have been errors!
 stdout
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 returns 255
 EOF
 checknolog log1
@@ -3458,6 +3572,7 @@ testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 b
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
 *=Ignoring as --ignore=wrongversion given.
 stdout
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
 -d1*=db: '4test' added to packages.db(test2|stupid|${FAKEARCHITECTURE}).
 -d1*=db: '4test' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
@@ -3491,6 +3606,7 @@ stdout
 -v6*= looking for changes in 'test2|ugly|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 EOF
 checklog log2 <<EOF
 DATESTR remove test2 deb stupid ${FAKEARCHITECTURE} 4test 1:b.1-1
@@ -3528,31 +3644,57 @@ stdout
 *=Deleting tracking data for vanished distribution 'test1'.
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/4/4test/4test-addons_b.1-1_all.deb
+-d1*=db: 'pool/stupid/4/4test/4test-addons_b.1-1_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1.tar.gz
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.dsc
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1.orig.tar.gz
+-d1*=db: 'pool/stupid/t/test/test_1.orig.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.diff.gz
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb-addons_2-3_all.deb
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-3_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3.dsc
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2.orig.tar.gz
+-d1*=db: 'pool/stupid/t/testb/testb_2.orig.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3.diff.gz
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.diff.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/s/simple/simple-addons_1_all.deb
+-d1*=db: 'pool/ugly/s/simple/simple-addons_1_all.deb' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/4/4test
 -v1*=removed now empty directory ./pool/stupid/4
 -v1*=removed now empty directory ./pool/stupid/b/bloat+-0a9z.app
@@ -3722,6 +3864,10 @@ stdout
 -v2*=Created directory "./pool/all"
 -v2*=Created directory "./pool/all/a"
 -v2*=Created directory "./pool/all/a/aa"
+-d1*=db: 'pool/all/a/aa/aa-addons_1-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-1.dsc' added to files.db(md5sums).
 -d1*=db: 'aa-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' added to packages.db(a|all|source).
@@ -3798,6 +3944,10 @@ testrun - -b . --export=changed --delete include a test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
+-d1*=db: 'pool/all/a/aa/aa-addons_1-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-2.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-2.dsc' added to files.db(md5sums).
 -d1*=db: 'aa-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' removed from packages.db(a|all|${FAKEARCHITECTURE}).
@@ -3815,7 +3965,9 @@ stdout
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-1.tar.gz' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
 DATESTR replace a deb all ${FAKEARCHITECTURE} aa-addons 1-2 1-1
@@ -3863,7 +4015,9 @@ stdout
 -v6*=  creating './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-1_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-1_all.deb' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
 DATESTR replace b deb all ${FAKEARCHITECTURE} aa 1-2 1-1
@@ -3879,6 +4033,10 @@ testrun - -b . --export=never include a test.changes 3<<EOF
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
+-d1*=db: 'pool/all/a/aa/aa-addons_1-3_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-3.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-3.dsc' added to files.db(md5sums).
 -d1*=db: 'aa-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' removed from packages.db(a|all|${FAKEARCHITECTURE}).
@@ -3887,7 +4045,9 @@ stdout
 -d1*=db: 'aa' added to packages.db(a|all|source).
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-2.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-2.tar.gz' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
 DATESTR replace a deb all ${FAKEARCHITECTURE} aa-addons 1-3 1-2
@@ -3925,6 +4085,10 @@ stderr
 =Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/all/a/ab"
+-d1*=db: 'pool/all/a/ab/ab-addons_2-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_2-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_2-1.dsc' added to files.db(md5sums).
 -d1*=db: 'ab-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab' added to packages.db(a|all|source).
@@ -3953,7 +4117,9 @@ stdout
 -v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-2_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-2_all.deb' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
 DATESTR replace b deb all ${FAKEARCHITECTURE} aa 1-3 1-2
@@ -3996,6 +4162,8 @@ testrun - -b . --delete -T deb include a broken.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
+-d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -d1*=db: 'ab-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab' removed from packages.db(a|all|${FAKEARCHITECTURE}).
@@ -4062,8 +4230,12 @@ testrun - -b . --delete --delete include a broken.changes 3<<EOF
 = or you cound try --ignore=missingfile
 -v0*=There have been errors!
 stdout
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
+-d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' removed from files.db(md5sums).
 returns 249
 EOF
 test -f broken.changes
@@ -4081,6 +4253,9 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 *=Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!
 *=Looking around if it is elsewhere as --ignore=missingfile given.
 stdout
+-d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to files.db(md5sums).
 -d1*=db: 'ab' removed from packages.db(a|all|source).
 -d1*=db: 'ab' added to packages.db(a|all|source).
 -v5*=Deleting 'broken.changes'.
@@ -4090,7 +4265,9 @@ stdout
 -v6*=  replacing './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_2-1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.tar.gz
+-d1*=db: 'pool/all/a/ab/ab_2-1.tar.gz' removed from files.db(md5sums).
 EOF
 checklog logab <<EOF
 DATESTR replace a dsc all source ab 3-1 2-1
@@ -4112,6 +4289,7 @@ dodiff results.empty results || dodiff results.expected results
 testrun - -b . deleteunreferenced 3<<EOF
 stdout
 -v1=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
+-d1=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
 EOF
 
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
@@ -4123,6 +4301,8 @@ stderr
 -v3*=Placing 'ac-addons_1-1_all.deb' only in architecture '${FAKEARCHITECTURE}' as requested.
 stdout
 -v2*=Created directory "./pool/all/a/ac"
+-d1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ac/ac_1-1_abacus.deb' added to files.db(md5sums).
 -d1*=db: 'ac-addons' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ac' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -v5*=Deleting 'test.changes'.
@@ -4174,9 +4354,13 @@ stdout
 -v1*=Shutting down aptmethods...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_2-1_all.deb
+-d1*=db: 'pool/all/a/ab/ab-addons_2-1_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ac/ac_1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ac/ac_1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ac/ac-addons_1-1_all.deb
+-d1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/all/a/ac
 EOF
 checklog logab <<EOF
@@ -4368,14 +4552,22 @@ stdout
 *=Deleting vanished identifier 'b|all|${FAKEARCHITECTURE}'.
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-3_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-3.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-3.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/all/a/aa
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
+-d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
+-d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/all/a/ab
 -v1*=removed now empty directory ./pool/all/a
 -v1*=removed now empty directory ./pool/all
@@ -4390,14 +4582,22 @@ stdout
 *=Deleting vanished identifier 'b|all|${FAKEARCHITECTURE}'.
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-3_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-3.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-3.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/all/a/aa
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
+-d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
+-d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/all/a/ab
 -v1*=removed now empty directory ./pool/all/a
 -v1*=removed now empty directory ./pool/all

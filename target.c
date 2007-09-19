@@ -189,7 +189,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 	if( verbose > 0 )
 		printf("removing '%s' from '%s'...\n",
 				name, target->identifier);
-	result = table_deleterecord(target->packages, name);
+	result = table_deleterecord(target->packages, name, false);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = true;
 		if( oldsource!= NULL && oldsversion != NULL ) {

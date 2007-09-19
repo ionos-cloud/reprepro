@@ -12,12 +12,6 @@
 
 struct filesdb;
 
-/* initalize "md5sum and size"-database */
-retvalue files_initialize(/*@out@*/struct filesdb **,struct database *,const char *mirrordir);
-
-/* release the files-database initialized got be files_initialize */
-retvalue files_done(/*@only@*/struct filesdb *);
-
 /* Add file's md5sum to database */
 retvalue files_add(struct database *,const char *filekey,const char *md5sum);
 
@@ -67,9 +61,6 @@ retvalue files_include(struct database *,const char *sourcefilename,const char *
 
 /* same as above, but use sourcedir/basename instead of sourcefilename */
 retvalue files_includefile(struct database *,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, /*@null@*/char **calculatedmd5sum, int delete);
-
-/* the same, but with multiple files */
-retvalue files_includefiles(struct database *,const char *sourcedir,const struct strlist *basenames, const struct strlist *filekeys, const struct strlist *md5sums, int delete);
 
 typedef retvalue per_file_action(void *data,const char *filekey,const char *md5sum);
 
