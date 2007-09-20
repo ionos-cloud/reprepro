@@ -29,6 +29,7 @@
 #include "ar.h"
 #include "md5sum.h"
 #include "chunks.h"
+#include "filelist.h"
 #include "debfile.h"
 
 #ifndef HAVE_LIBARCHIVE
@@ -220,14 +221,13 @@ retvalue extractcontrol(char **control,const char *debfile) {
 
 static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct ar_archive *ar, struct archive *tar) {
 	struct archive_entry *entry;
-	char *filelist;
-	size_t size,len;
+	struct filelistcompressor c;
+	retvalue r;
 	int a;
 
-	size = 2000; len = 0;
-	filelist = malloc(size);
-	if( filelist == NULL )
-		return RET_ERROR_OOM;
+	r = filelistcompressor_setup(&c);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	archive_read_support_format_tar(tar);
 	a = archive_read_open(tar,ar,
@@ -235,7 +235,7 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 			ar_archivemember_read,
 			ar_archivemember_close);
 	if( a != ARCHIVE_OK ) {
-		free(filelist);
+		filelistcompressor_cancel(&c);
 		fprintf(stderr,"open data.tar.gz within '%s' failed: %d:%d:%s\n",
 				debfile,
 				a,archive_errno(tar),
@@ -254,30 +254,14 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 			continue;
 		mode = archive_entry_mode(entry);
 		if( !S_ISDIR(mode) ) {
-			size_t n_len = strlen(name);
-
-			if( len + n_len + 2 > size ) {
-				char *n;
-
-				if( size > 1024*1024*1024 ) {
-					fprintf(stderr, "Ridicilous long filelist for %s!\n",debfile);
-					free(filelist);
-					return RET_ERROR;
-				}
-				size = len + n_len + 2048;
-				n = realloc(filelist, size);
-				if( n == NULL ) {
-					free(filelist);
-					return RET_ERROR_OOM;
-				}
-				filelist = n;
-
+			r = filelistcompressor_add(&c, name, strlen(name));
+			if( RET_WAS_ERROR(r) ) {
+				filelistcompressor_cancel(&c);
+				return r;
 			}
-			memcpy(filelist + len, name, n_len+1);
-			len += n_len+1;
 		}
 		if( interrupted() ) {
-			free(filelist);
+			filelistcompressor_cancel(&c);
 			return RET_ERROR_INTERRUPTED;
 		}
 		a = archive_read_data_skip(tar);
@@ -287,7 +271,7 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 					archive_entry_pathname(entry),
 					debfile,
 					e, archive_error_string(tar));
-			free(filelist);
+			filelistcompressor_cancel(&c);
 			return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 		}
 	}
@@ -296,16 +280,10 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 		printf("Error reading data.tar.gz from %s: %d=%s\n",
 				debfile,
 				e, archive_error_string(tar));
-		free(filelist);
+		filelistcompressor_cancel(&c);
 		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 	}
-	filelist[len] = '\0';
-	*list = realloc(filelist, len+1);
-	if( *list == NULL ) {
-		free(filelist);
-		return RET_ERROR_OOM;
-	}
-	return RET_OK;
+	return filelistcompressor_finish(&c, list);
 }
 
 

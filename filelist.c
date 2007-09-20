@@ -297,3 +297,49 @@ retvalue filelist_write(struct filelist_list *list, struct filetorelease *file) 
 	free(buffer);
 	return r;
 }
+
+retvalue filelistcompressor_setup(/*@out@*/struct filelistcompressor *c) {
+	c->size = 2000; c->len = 0;
+	c->filelist = malloc(c->size);
+	if( c->filelist == NULL )
+		return RET_ERROR_OOM;
+	return RET_OK;
+}
+
+retvalue filelistcompressor_add(struct filelistcompressor *c, const char *name, size_t name_len) {
+	if( c->len + name_len + 2 > c->size ) {
+		char *n;
+
+		if( c->size > 1024*1024*1024 ) {
+			fprintf(stderr, "Ridicilous long filelist!\n");
+			return RET_ERROR;
+		}
+		c->size = c->len + name_len + 2048;
+		n = realloc(c->filelist, c->size);
+		if( n == NULL )
+			return RET_ERROR_OOM;
+		c->filelist = n;
+
+	}
+	memcpy(c->filelist + c->len, name, name_len+1);
+	c->len += name_len+1;
+	return RET_OK;
+}
+
+retvalue filelistcompressor_finish(struct filelistcompressor *c, /*@out@*/char **list) {
+	char *l;
+
+	c->filelist[c->len] = '\0';
+	l = realloc(c->filelist, c->len+1);
+	if( l == NULL ) {
+		free(c->filelist);
+		return RET_ERROR_OOM;
+	}
+	*list = l;
+	return RET_OK;
+}
+
+void filelistcompressor_cancel(struct filelistcompressor *c) {
+	free(c->filelist);
+}
+
