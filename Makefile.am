@@ -6,17 +6,19 @@ bin_PROGRAMS = reprepro changestool
 
 if HAVE_LIBARCHIVE
 ARCHIVE_USED = ar.c debfile.c
+ARCHIVE_CONTENTS = debfilecontents.c
 ARCHIVE_UNUSED = extractcontrol.c
 else
 ARCHIVE_USED = extractcontrol.c
-ARCHIVE_UNUSED = ar.c debfile.c
+ARCHIVE_CONTENTS =
+ARCHIVE_UNUSED = ar.c debfile.c debfilecontents.c
 endif
 
 AM_CPPFLAGS = -std=gnu99 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
 
-reprepro_SOURCES = configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED)
+reprepro_SOURCES = configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c copyfile.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED) $(ARCHIVE_CONTENTS)
 EXTRA_reprepro_SOURCE = $(ARCHIVE_UNUSED)
 
 changestool_SOURCES = tool.c chunkedit.c strlist.c md5sum.c md5.c mprintf.c chunks.c signature.c dirs.c names.c copyfile.c $(ARCHIVE_USED)
