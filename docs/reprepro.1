@@ -481,6 +481,15 @@ your sources.list file:
 .BR rerunnotifiers " [ " \fIcodenames\fP " ]"
 Run all external scripts specified in the \fBLog:\fP options of the
 specified distributions.
+.TP
+.B translatefilelists
+Translate the file list chache within
+.IB db /contents.cache.db
+into the new format used since reprepro 3.0.0.
+
+Make sure you have at least half of the space of the current
+.IB db /contents.cache.db
+file size available in that partition.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -534,8 +543,6 @@ of the specified .deb-file.
 .BI _fakeemptyfilelist filekey
 Insert an empty filelist for \fIfilekey\fP. This is a evil
 hack around broken .deb files that cannot be read by reprepro.
-.B control
-file of the specified .deb-file.
 .SH "CONFIG FILES"
 .B reprepo
 uses three config files, which are searched in

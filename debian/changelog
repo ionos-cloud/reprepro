@@ -7,8 +7,9 @@ reprepro (3.0.0-0) UNRELEASED; urgency=low
   - fix grammar error in manpage (Closes: 441300)
   - warn about unused tracking data (Closes: 426596)
   - add removesrc (Closes: 440101)
+  - contents.cache.db file format changed
 
- -- Bernhard R. Link <brlink@debian.org>  Sun, 16 Sep 2007 14:53:31 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 21 Sep 2007 18:02:18 +0200
 
 reprepro (2.2.4-1) unstable; urgency=high
 

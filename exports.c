@@ -426,7 +426,7 @@ retvalue export_target(const char *confdir, const char *relativedir, struct tabl
 			free(relfilename);
 			return r;
 		}
-		while( cursor_nexttempdata(packages, cursor,
+		while( cursor_nexttempdata(packages, cursor, NULL,
 					&chunk, &chunk_len) ) {
 			if( chunk_len == 0 )
 				continue;

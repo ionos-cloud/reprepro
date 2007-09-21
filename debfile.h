@@ -11,6 +11,6 @@
 retvalue extractcontrol(/*@out@*/char **control,const char *debfile);
 
 /* Read a list of files of <debfile> */
-retvalue getfilelist(/*@out@*/char **filelist, const char *debfile);
+retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/ size_t *size, const char *debfile);
 
 #endif

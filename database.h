@@ -27,6 +27,7 @@ retvalue database_listpackages(struct database *, /*@out@*/struct strlist *);
 retvalue database_droppackages(struct database *, const char *);
 retvalue database_openpackages(struct database *, const char *identifier, bool readonly, /*@out@*/struct table **);
 retvalue database_openreleasecache(struct database *, const char *codename, /*@out@*/struct table **);
+retvalue database_translate_filelists(struct database *);
 
 retvalue table_close(/*@only@*/struct table *);
 
@@ -46,9 +47,12 @@ retvalue table_checkkey(struct table *, const char *key);
 retvalue table_newglobaluniqcursor(struct table *, /*@out@*/struct cursor **);
 retvalue table_newduplicatecursor(struct table *, const char *key, /*@out@*/struct cursor **);
 bool cursor_nexttemp(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **);
-bool cursor_nexttempdata(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/size_t *);
+bool cursor_nexttempdata(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **, /*@out@*/size_t *);
 retvalue cursor_replace(struct table *, struct cursor *, const char *);
 retvalue cursor_delete(struct table *, struct cursor *, const char *);
 retvalue cursor_close(struct table *, /*@only@*/struct cursor *);
+
+/* concat mirrordir. return NULL if OutOfMemory */
+char *files_calcfullfilename(const struct database *,const char *filekey);
 
 #endif

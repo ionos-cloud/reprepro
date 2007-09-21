@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -39,11 +39,6 @@
 #include "database_p.h"
 
 extern int verbose;
-
-/* concat mirrordir. return NULL if OutOfMemory */
-inline char *files_calcfullfilename(const struct database *database,const char *filekey) {
-	return calc_dirconcat(database->mirrordir, filekey);
-}
 
 /* Add file's md5sum to database */
 retvalue files_add(struct database *database,const char *filekey,const char *md5sum) {
@@ -535,66 +530,6 @@ retvalue files_includefile(struct database *database,const char *sourcedir,const
 
 }
 
-retvalue files_addfilelist(struct database *database,const char *filekey,const char *filelist) {
-	const char *e;
-
-	e = filelist;
-	while( *e != '\0' ) {
-		while( *e != '\0' )
-			e++;
-		e++;
-	}
-	e++;
-
-	return table_adduniqlenrecord(database->contents, filekey,
-			filelist, e-filelist, true);
-}
-
-retvalue files_getfilelist(struct database *database,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
-	retvalue r;
-	const char *p;
-	size_t size;
-
-	r = table_gettemprecord(database->contents, filekey, &p, &size);
-	if( !RET_IS_OK(r) )
-		return r;
-
-	while( size > 0 && *p != '\0' ) {
-		size_t len = strlen(p);
-		filelist_add(filelist, package, p);
-		p += len + 1;
-		size -= len + 1;
-	}
-	if( size != 1 || *p != '\0' ) {
-		fprintf(stderr,"Corrupt filelist for %s in contents.cache.db!\n",
-				filekey);
-		return RET_ERROR;
-	}
-	return RET_OK;
-}
-
-retvalue files_genfilelist(struct database *database,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
-	char *debfilename = files_calcfullfilename(database, filekey);
-	char *contents;
-	const char *p;
-	retvalue result,r;
-
-	if( debfilename == NULL ) {
-		return RET_ERROR_OOM;
-	}
-	r = getfilelist(&contents, debfilename);
-	free(debfilename);
-	if( !RET_IS_OK(r) )
-		return r;
-	result = files_addfilelist(database, filekey, contents);
-	for( p = contents; *p != '\0'; p += strlen(p)+1 ) {
-		r = filelist_add(filelist, package, p);
-		RET_UPDATE(result,r);
-	}
-	free(contents);
-	return result;
-}
-
 retvalue files_regenerate_filelist(struct database *database, bool reread) {
 	struct cursor *cursor;
 	retvalue result,r;
@@ -615,6 +550,7 @@ retvalue files_regenerate_filelist(struct database *database, bool reread) {
 					database->contents, filekey) ) {
 				char *debfilename;
 				char *filelist;
+				size_t fls;
 
 				debfilename = files_calcfullfilename(database,
 						filekey);
@@ -623,7 +559,7 @@ retvalue files_regenerate_filelist(struct database *database, bool reread) {
 					break;
 				}
 
-				r = getfilelist(&filelist, debfilename);
+				r = getfilelist(&filelist, &fls, debfilename);
 				free(debfilename);
 				if( RET_IS_OK(r) ) {
 					if( verbose > 0 )
@@ -636,8 +572,10 @@ retvalue files_regenerate_filelist(struct database *database, bool reread) {
 							p += strlen(p)+1;
 						}
 					}
-					r = files_addfilelist(database,
-							filekey, filelist);
+					r = table_adduniqlenrecord(
+							database->contents,
+							filekey, filelist, fls,
+							true);
 					free(filelist);
 				}
 				RET_UPDATE(result,r);

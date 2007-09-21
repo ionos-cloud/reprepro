@@ -1048,7 +1048,7 @@ bool cursor_nexttemp(struct table *table, struct cursor *cursor, const char **ke
 	return true;
 }
 
-bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **data, size_t *len_p) {
+bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char **key, const char **data, size_t *len_p) {
 	DBT Key, Data;
 	int dbret;
 
@@ -1081,6 +1081,8 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 		cursor->r = RET_ERROR;
 		return false;
 	}
+	if( key != NULL )
+		*key = Key.data;
 	*data = Data.data;
 	*len_p = Data.size-1;
 	return true;
@@ -1238,9 +1240,24 @@ retvalue database_droppackages(struct database *database, const char *identifier
 
 retvalue database_openfiles(struct database *db, const char *mirrordir) {
 	retvalue r;
+	struct strlist identifiers;
 
 	assert( db->files == NULL && db->contents == NULL );
 	assert( db->mirrordir == NULL );
+
+	r = database_listsubtables(db, "contents.cache.db", &identifiers);
+	if( RET_IS_OK(r) ) {
+		if( strlist_in(&identifiers, "filelists") ) {
+			fprintf(stderr,
+"Your %s/contents.cache.db file still contains a table of cached filelists\n"
+"in the old (pre 3.0.0) format. You have to either delete that file (and loose\n"
+"all caches of filelists) or run reprepro with argument translatefilelists\n"
+"to translate the old caches into the new format.\n",	db->directory);
+			strlist_done(&identifiers);
+			return RET_ERROR;
+		}
+		strlist_done(&identifiers);
+	}
 
 	db->mirrordir = strdup(mirrordir);
 	if( db->mirrordir == NULL )
@@ -1254,7 +1271,7 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 		db->files = NULL;
 		return r;
 	}
-	r = database_table(db, "contents.cache.db", "filelists",
+	r = database_table(db, "contents.cache.db", "compressedfilelists",
 			DB_BTREE, 0, NULL, READWRITE, &db->contents);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
@@ -1273,4 +1290,91 @@ retvalue database_openreleasecache(struct database *database, const char *codena
 	if( RET_IS_OK(r) )
 		(*cachedb_p)->verbose = false;
 	return r;
+}
+
+/* concat mirrordir. return NULL if OutOfMemory */
+char *files_calcfullfilename(const struct database *database,const char *filekey) {
+	return calc_dirconcat(database->mirrordir, filekey);
+}
+
+retvalue database_translate_filelists(struct database *database) {
+	char *dbname, *tmpdbname;
+	struct table *oldtable, *newtable;
+	struct strlist identifiers;
+	int ret;
+	retvalue r;
+
+	r = database_listsubtables(database, "contents.cache.db",
+			&identifiers);
+	if( RET_IS_OK(r) ) {
+		if( strlist_in(&identifiers, "compressedfilelists") ) {
+			fprintf(stderr,
+"Your %s/contents.cache.db file already contains a new style database!\n",
+					database->directory);
+			strlist_done(&identifiers);
+			return RET_NOTHING;
+		}
+		strlist_done(&identifiers);
+	}
+
+	dbname = calc_dirconcat(database->directory, "contents.cache.db");
+	if( dbname == NULL )
+		return RET_ERROR_OOM;
+	tmpdbname = calc_dirconcat(database->directory, "old.contents.cache.db");
+	if( tmpdbname == NULL ) {
+		free(dbname);
+		return RET_ERROR_OOM;
+	}
+// TODO: check first if there is already a compressed database in there?
+	ret = rename(dbname, tmpdbname);
+	if( ret != 0 ) {
+		int e = errno;
+		fprintf(stderr, "Could not rename '%s' into '%s': %s(%d)\n",
+				dbname, tmpdbname, strerror(e), e);
+		return RET_ERRNO(e);
+	}
+	r = database_table(database, "old.contents.cache.db", "filelists",
+			DB_BTREE, 0, NULL, READONLY, &oldtable);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Could not find old-style database!\n");
+		r = RET_ERROR;
+	}
+	if( RET_IS_OK(r) )
+		r = database_table(database, "contents.cache.db",
+			"compressedfilelists",
+			DB_BTREE, 0, NULL, READWRITE, &newtable);
+	else
+		oldtable = NULL;
+	assert( r != RET_NOTHING );
+	if( RET_IS_OK(r) ) {
+		r = filelists_translate(oldtable, newtable);
+		if( r == RET_NOTHING )
+			r = RET_OK;
+	}
+	if( RET_IS_OK(r) ) {
+		r = table_close(newtable);
+		if( r == RET_NOTHING )
+			r = RET_OK;
+	}
+	(void)table_close(oldtable);
+	if( RET_IS_OK(r) )
+		unlink(tmpdbname);
+
+	if( RET_WAS_ERROR(r) ) {
+		ret = rename(tmpdbname, dbname);
+		if( ret != 0 ) {
+			int e = errno;
+			fprintf(stderr, "Could not rename '%s' back into '%s': %s(%d)\n",
+					dbname, tmpdbname, strerror(e), e);
+			free(tmpdbname);
+			free(dbname);
+			return RET_ERRNO(e);
+		}
+		free(tmpdbname);
+		free(dbname);
+		return r;
+	}
+	free(tmpdbname);
+	free(dbname);
+	return RET_OK;
 }

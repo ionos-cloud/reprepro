@@ -202,6 +202,12 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			int argc,const char *argv[])
 
+#define ACTION_T(name) static retvalue action_t_ ## name ( \
+			UNUSED(struct distribution *ddummy), \
+			struct database *database,		\
+			UNUSED(struct strlist* dummy3), \
+			UNUSED(int argc), UNUSED(const char *dummy4[]))
+
 #define ACTION_U_F(name) static retvalue action_f_ ## name ( \
 			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
@@ -265,19 +271,56 @@ ACTION_N(extractcontrol) {
 		printf("%s\n",control);
 	return result;
 }
+
 ACTION_N(extractfilelist) {
 	retvalue result;
 	char *filelist;
+	size_t fls, len;
+	size_t lengths[256];
+	const unsigned char *dirs[256];
+	int depth = 0, i, j;
 
 	assert( argc == 2 );
 
-	result = getfilelist(&filelist,argv[1]);
-
+	result = getfilelist(&filelist, &fls, argv[1]);
 	if( RET_IS_OK(result) ) {
-		const char *p = filelist;
+		const unsigned char *p = (unsigned char*)filelist;
 		while( *p != '\0' ) {
-			puts(p);
-			p += strlen(p)+1;
+			unsigned char c = *(p++);
+			if( c > 2 ) {
+				if( depth >= c )
+					depth -= c;
+				else
+					depth = 0;
+			} else if( c == 2 ) {
+				len = 0;
+				while( *p == 255 ) {
+					len +=255;
+					p++;
+				}
+				len += *(p++);
+				lengths[depth] = len;
+				dirs[depth++] = p;
+				p += len;
+			} else {
+				len = 0;
+				while( *p == 255 ) {
+					len +=255;
+					p++;
+				}
+				len += *(p++);
+				putchar('/');
+				for( i = 0 ; i < depth ; i++ ) {
+					const unsigned char *n = dirs[i];
+					j = lengths[i];
+					while( j-- > 0 )
+						putchar(*(n++));
+					putchar('/');
+				}
+				while( len-- > 0 )
+					putchar(*(p++));
+				putchar('\n');
+			}
 		}
 		free(filelist);
 	}
@@ -286,19 +329,25 @@ ACTION_N(extractfilelist) {
 
 ACTION_u_F(fakeemptyfilelist) {
 	assert( argc == 2 );
-	return files_addfilelist(database, argv[1], "");
+	return fakefilelist(database, argv[1]);
 }
-
 
 ACTION_u_F(generatefilelists) {
 	assert( argc == 2 || argc == 3 );
-	if( argc == 2 && strcmp(argv[1],"reread") != 0 ) {
-		fprintf(stderr,"Error: Unrecognized second argument '%s'\n"
-				"Syntax: reprepro generatefilelists [reread]\n",
+
+	if( argc == 2 )
+		return files_regenerate_filelist(database, false);
+	if( strcmp(argv[1], "reread") == 0 )
+		return files_regenerate_filelist(database, true);
+
+	fprintf(stderr,"Error: Unrecognized second argument '%s'\n"
+			"Syntax: reprepro generatefilelists [reread]\n",
 				argv[1]);
-		return RET_ERROR;
-	}
-	return files_regenerate_filelist(database, argc == 2);
+	return RET_ERROR;
+}
+
+ACTION_T(translatefilelists) {
+	return database_translate_filelists(database);
 }
 
 
@@ -2127,6 +2176,7 @@ ACTION_B(rerunnotifiers) {
 #define A_R(w) action_r_ ## w, NEED_DATABASE|NEED_REFERENCES
 #define A__F(w) action_f_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_NO_PACKAGES
 #define A__R(w) action_r_ ## w, NEED_DATABASE|NEED_REFERENCES|NEED_NO_PACKAGES
+#define A__T(w) action_t_ ## w, NEED_DATABASE|NEED_NO_PACKAGES|MAY_UNUSED
 #define A_RF(w) action_rf_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES
 /* to dereference files, one needs files and references database: */
 #define A_D(w) action_d_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
@@ -2228,6 +2278,8 @@ static const struct action {
 		2, 2, "[--delete] include <distribution> <.changes-file>"},
 	{"generatefilelists",	A_F(generatefilelists),
 		0, 1, "generatefilelists [reread]"},
+	{"translatefilelists",	A__T(translatefilelists),
+		0, 0, "translatefilelists"},
 	{"clearvanished",	A_D(clearvanished)|MAY_UNUSED,
 		0, 0, "[--delete] clearvanished"},
 	{"processincoming",	A_D(processincoming),
@@ -2246,6 +2298,7 @@ static const struct action {
 #undef A_R
 #undef A_RF
 #undef A_F
+#undef A__T
 
 static retvalue callaction(const struct action *action, int argc, const char *argv[]) {
 	retvalue result, r;

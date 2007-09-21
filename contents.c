@@ -112,7 +112,6 @@ struct addcontentsdata {
 
 static retvalue addpackagetocontents(struct database *database, UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const char *chunk, void *data) {
 	struct addcontentsdata *d = data;
-	const struct filelist_package *package;
 	retvalue r;
 	char *section, *filekey;
 
@@ -126,25 +125,8 @@ static retvalue addpackagetocontents(struct database *database, UNUSED(struct di
 		free(section);
 		return r;
 	}
-	r = filelist_newpackage(d->contents, packagename, section, &package);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = files_getfilelist(database, filekey, package, d->contents);
-	if( r == RET_NOTHING ) {
-		if( d->rate <= 1 || d->work <= d->leisure/(d->rate-1) ) {
-			if( verbose > 3 )
-				printf("Reading filelist for %s\n", filekey);
-			r = files_genfilelist(database, filekey, package, d->contents);
-			if( RET_IS_OK(r) )
-				d->work++;
-		} else {
-			d->leisure++;
-			if( verbose > 3 )
-				fprintf(stderr, "Missing filelist for %s\n", filekey);
-		}
-	} else if( RET_IS_OK(r) )
-		d->leisure++;
+	r = filelist_addpackage(d->contents, database,
+			packagename, section, filekey);
 
 	free(filekey);
 	free(section);

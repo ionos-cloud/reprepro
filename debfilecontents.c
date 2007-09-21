@@ -35,7 +35,7 @@
 #error Why did this file got compiled?
 #endif
 
-static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct ar_archive *ar, struct archive *tar) {
+static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const char *debfile, struct ar_archive *ar, struct archive *tar) {
 	struct archive_entry *entry;
 	struct filelistcompressor c;
 	retvalue r;
@@ -99,11 +99,11 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 		filelistcompressor_cancel(&c);
 		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 	}
-	return filelistcompressor_finish(&c, list);
+	return filelistcompressor_finish(&c, list, size);
 }
 
 
-retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
+retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile) {
 	struct ar_archive *ar;
 	retvalue r;
 
@@ -121,7 +121,8 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 
 				tar = archive_read_new();
 				archive_read_support_compression_gzip(tar);
-				r = read_data_tar(filelist, debfile, ar, tar);
+				r = read_data_tar(filelist, size,
+						debfile, ar, tar);
 				archive_read_finish(tar);
 				if( r != RET_NOTHING ) {
 					ar_close(ar);
@@ -143,7 +144,8 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 				tar = archive_read_new();
 				archive_read_support_compression_gzip(tar);
 				archive_read_support_compression_bzip2(tar);
-				r = read_data_tar(filelist, debfile, ar, tar);
+				r = read_data_tar(filelist, size,
+						debfile, ar, tar);
 				archive_read_finish(tar);
 				if( r != RET_NOTHING ) {
 					ar_close(ar);

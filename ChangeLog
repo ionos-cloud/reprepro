@@ -1,3 +1,10 @@
+2007-09-21  Bernhard R. Link <brlink@debian.org>
+	* save cached filelists of packages for Contents files
+	in a preprocessed form, needing only about half the disk
+	space and only half the time when generating the Contents file.
+	* new translatefilelists command to translate old to new format
+	* filelists reading no longer available without libarchive
+
 2007-09-19  Bernhard R. Link <brlink@debian.org>
 	* files.c uses database.c instead of accessing libdb directly
 	* release.c uses database.c instead of accessing libdb directly

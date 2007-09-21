@@ -532,9 +532,9 @@ stdout
 -v6*= looking for changes in 'B|cat|source'...
 -v1*= generating Contents-${FAKEARCHITECTURE}...
 -v4*=Reading filelist for pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
--d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(filelists).
+-d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(compressedfilelists).
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
--d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to contents.cache.db(filelists).
+-d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
 LOGDATE="$(date +'%Y-%m-%d %H:')"
 echo normalizing logfile: DATESTR is "$LOGDATE??:??"
@@ -625,9 +625,9 @@ stdout
 -v6*=  replacing './dists/B/cat/source/Sources' (gzipped)
 -v1*= generating Contents-${FAKEARCHITECTURE}...
 -v4*=Reading filelist for pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
--d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(filelists).
+-d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(compressedfilelists).
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
--d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(filelists).
+-d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
 function checklog() {
 	cat > results.log.expected

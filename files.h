@@ -73,16 +73,10 @@ retvalue files_checkpool(struct database *, bool fast);
 /* dump out all information */
 retvalue files_printmd5sums(struct database *);
 
-/* concat mirrordir. return NULL if OutOfMemory */
-char *files_calcfullfilename(const struct database *,const char *filekey);
-
 /* look for the given filekey and add it into the filesdatabase */
 retvalue files_detect(struct database *,const char *filekey);
 
-retvalue files_getfilelist(struct database *,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
-retvalue files_genfilelist(struct database *,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_regenerate_filelist(struct database *, bool redo);
-retvalue files_addfilelist(struct database *,const char *filekey,const char *filelist);
 
 /* hardlink file with known md5sum and add it to database */
 retvalue files_hardlink(struct database *,const char *tempfile, const char *filekey,const char *md5sum);

@@ -25,6 +25,9 @@ Updates between 2.2.4 and 3.0.0:
   * clearvanished removes tracking data from vanished distributions.
 - make update's ListHook relative to confdir (unless absolute)
 - added removesrc and removefilter
+- new format for contents.cache.db. Only needs half of the disk space and runtime
+  to generate Contents files, but you need to run translatefilelists to translate
+  the cached items.
 
 Updates between 2.2.3 and 2.2.4:
 - [SECURITY] fix bug causing a Release.gpg with only

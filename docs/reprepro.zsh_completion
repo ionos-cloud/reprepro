@@ -215,6 +215,8 @@ commands=( export:"export index files"
 	clearvanished:"remove empty databases"
 	gensnapshot:"generate a snapshot"
 	rerunnotifiers:"call notificators as if all packages were just included"
+	generatefilelists:"pre-prepare filelist caches for all binary packages"
+	translatefilelists:"translate pre-3.0.0 contents.cache.db into new format"
    	)
 hiddencommands=(
 	_detect:"look if the file belonging to a filekey exists and add to the database."
