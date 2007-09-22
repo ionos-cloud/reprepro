@@ -6,6 +6,7 @@
 	  triggers or disables contents generation if non-/empty.
 	* empty Architecturs/Components/UdebComponents in
   	  conf/updates and conf/pulls now mean nothing instead of all.
+	* minimal additional speedup when sorting filelists
 
 2007-09-21  Bernhard R. Link <brlink@debian.org>
 	* save cached filelists of packages for Contents files

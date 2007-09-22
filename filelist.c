@@ -37,6 +37,7 @@ struct dirlist;
 struct filelist {
 	struct filelist *nextl;
 	struct filelist *nextr;
+	int balance;
 	char *name;
 	size_t count;
 	const char *packages[];
@@ -117,10 +118,12 @@ static retvalue filelist_newpackage(struct filelist_list *filelist, const char *
 };
 
 static bool findfile(struct dirlist *parent, const char *packagename, const char *basefilename, size_t namelen) {
-	struct filelist *file, *n, **p;
+	struct filelist *file, *n, *last;
+	struct filelist **stack[128];
+	int stackpointer = 0;
 
-	p = &parent->files;
-	file = *p;
+	stack[stackpointer++] = &parent->files;
+	file = parent->files;
 
 	while( file != NULL ) {
 		int c = strncmp(basefilename, file->name, namelen);
@@ -130,24 +133,14 @@ static bool findfile(struct dirlist *parent, const char *packagename, const char
 			if( n == NULL )
 				return false;
 			n->packages[n->count++] = packagename;
-			parent->lastfile = n;
-			*p = n;
+			*(stack[--stackpointer]) = n;
 			return true;
 		} else if ( c > 0 ) {
-			/* Sorted lists give us a right shift,
-			 * go a bit more left to reduce that */
-			if( file->nextl == NULL &&
-					file->nextr != NULL &&
-					file->nextr->nextl == NULL ) {
-				file->nextr->nextl = file;
-				*p = file->nextr;
-				file->nextr = NULL;
-			} else
-				p = &file->nextr;
-			file = *p;
+			stack[stackpointer++] = &file->nextr;
+			file = file->nextr;
 		} else  {
-			p = &file->nextl;
-			file = *p;
+			stack[stackpointer++] = &file->nextl;
+			file = file->nextl;
 		}
 	}
 	n = malloc(sizeof(struct filelist)+sizeof(const char*));
@@ -156,14 +149,88 @@ static bool findfile(struct dirlist *parent, const char *packagename, const char
 	n->name = strndup(basefilename, namelen);
 	n->nextl = NULL;
 	n->nextr = NULL;
+	n->balance = 0;
 	n->count = 1;
 	n->packages[0] = packagename;
 	if( n->name == NULL ) {
 		free(n);
 		return false;
 	}
-	*p = n;
-	parent->lastfile = n;
+	*(stack[--stackpointer]) = n;
+	while( stackpointer > 0 ) {
+		file = *(stack[--stackpointer]);
+		if( file->nextl == n ) {
+			file->balance--;
+			if( file->balance > -1 )
+				break;
+			if( file->balance == -1 ) {
+				n = file;
+				continue;
+			}
+			if( n->balance == -1 ) {
+				file->nextl = n->nextr;
+				file->balance = 0;
+				n->nextr = file;
+				n->balance = 0;
+				*(stack[stackpointer]) = n;
+				break;
+			} else {
+				last = n->nextr;
+				file->nextl = last->nextr;
+				*(stack[stackpointer]) = last;
+				last->nextr = file;
+				n->nextr = last->nextl;
+				last->nextl = n;
+				if( last->balance == 0 ) {
+					file->balance = 0;
+					n->balance = 0;
+				} else if( last->balance < 0 ) {
+					file->balance = +1;
+					n->balance = 0;
+				} else {
+					file->balance = 0;
+					n->balance = -1;
+				}
+				last->balance = 0;
+				break;
+			}
+		} else {
+			file->balance++;
+			if( file->balance < 1 )
+				break;
+			if( file->balance == 1 ) {
+				n = file;
+				continue;
+			}
+			if( n->balance == 1 ) {
+				file->nextr = n->nextl;
+				file->balance = 0;
+				n->nextl = file;
+				n->balance = 0;
+				*(stack[stackpointer]) = n;
+				break;
+			} else {
+				last = n->nextl;
+				file->nextr = last->nextl;
+				*(stack[stackpointer]) = last;
+				last->nextl = file;
+				n->nextl = last->nextr;
+				last->nextr = n;
+				if( last->balance == 0 ) {
+					file->balance = 0;
+					n->balance = 0;
+				} else if( last->balance > 0 ) {
+					file->balance = -1;
+					n->balance = 0;
+				} else {
+					file->balance = 0;
+					n->balance = +1;
+				}
+				last->balance = 0;
+				break;
+			}
+		}
+	}
 	return true;
 }
 
@@ -220,7 +287,6 @@ static struct dirlist *finddir(struct dirlist *dir, cuchar *name, size_t namelen
 	d->subdirs = NULL;
 	d->lastsubdir = NULL;
 	d->files = NULL;
-	d->lastfile = NULL;
 	d->len = namelen;
 	memcpy(d->name, name, namelen);
 	*dir_p = d;
