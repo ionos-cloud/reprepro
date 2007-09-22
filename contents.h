@@ -12,18 +12,13 @@
 #endif
 
 struct contentsoptions {
-	size_t rate;
 	struct {
+		bool enabled:1;
 		bool udebs:1;
 		bool nodebs:1;
 	} flags;
 	compressionset compressions;
-	struct strlist architectures,
-		       components,
-		       ucomponents;
 };
-
-void contentsoptions_done(struct contentsoptions *options);
 
 struct distribution;
 struct configiterator;

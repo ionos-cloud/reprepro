@@ -71,7 +71,9 @@ static retvalue distribution_free(struct distribution *distribution) {
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
-		contentsoptions_done(&distribution->contents);
+		strlist_done(&distribution->contents_architectures);
+		strlist_done(&distribution->contents_components);
+		strlist_done(&distribution->contents_ucomponents);
 		override_free(distribution->overrides.deb);
 		override_free(distribution->overrides.udeb);
 		override_free(distribution->overrides.dsc);
@@ -247,23 +249,45 @@ CFfinishparse(distribution) {
 	}
 
 	if( notpropersuperset(&n->architectures, "Architectures",
-			    &n->contents.architectures, "ContentsArchitectures",
+			    &n->contents_architectures, "ContentsArchitectures",
 			    iter, n) ||
 	    notpropersuperset(&n->components, "Components",
-			    &n->contents.components, "ContentsComponents",
+			    &n->contents_components, "ContentsComponents",
 			    iter, n) ||
 	    notpropersuperset(&n->udebcomponents, "UDebComponents",
-			    &n->contents.ucomponents, "ContentsUComponents",
+			    &n->contents_ucomponents, "ContentsUComponents",
 			    iter, n) ||
 	    // TODO: instead of checking here make sure it can have more
-	    // in the rest of the code...
+	    // in the rest of the code...:
 	    notpropersuperset(&n->components, "Components",
 			    &n->udebcomponents, "UDebComponents",
 			    iter, n) ) {
 		(void)distribution_free(n);
 		return RET_ERROR;
 	}
-
+	/* overwrite creation of contents files based on given lists: */
+	if( n->contents_components_set ) {
+		if ( n->contents_components.count > 0 ) {
+			n->contents.flags.enabled = true;
+			n->contents.flags.nodebs = false;
+		} else {
+			n->contents.flags.nodebs = true;
+		}
+	}
+	if( n->contents_ucomponents_set ) {
+		if ( n->contents_ucomponents.count > 0 ) {
+			n->contents.flags.enabled = true;
+			n->contents.flags.udebs = true;
+		} else {
+			n->contents.flags.udebs = false;
+		}
+	}
+	if( n->contents_architectures_set ) {
+		if( n->contents_architectures.count > 0 )
+			n->contents.flags.enabled = true;
+		else
+			n->contents.flags.enabled = false;
+	}
 	/* prepare substructures */
 
 	r = createtargets(n);
@@ -299,9 +323,9 @@ CFuniqstrlistSETPROC(distribution, udebcomponents)
 CFuniqstrlistSETPROC(distribution, alsoaccept)
 CFstrlistSETPROC(distribution, updates)
 CFstrlistSETPROC(distribution, pulls)
-CFuniqstrlistSETPROCsub(distribution, contents, architectures)
-CFuniqstrlistSETPROCsub(distribution, contents, components)
-CFuniqstrlistSETPROCsub(distribution, contents, ucomponents)
+CFuniqstrlistSETPROCset(distribution, contents_architectures)
+CFuniqstrlistSETPROCset(distribution, contents_components)
+CFuniqstrlistSETPROCset(distribution, contents_ucomponents)
 CFexportmodeSETPROC(distribution, udeb)
 CFexportmodeSETPROC(distribution, deb)
 CFexportmodeSETPROC(distribution, dsc)
@@ -731,7 +755,7 @@ static retvalue export(struct distribution *distribution,
 				break;
 		}
 	}
-	if( !RET_WAS_ERROR(result) && distribution->contents.rate > 0 ) {
+	if( !RET_WAS_ERROR(result) && distribution->contents.flags.enabled ) {
 		r = contents_generate(database, distribution,
 				release, onlyneeded);
 	}

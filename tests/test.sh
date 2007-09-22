@@ -263,7 +263,7 @@ Log: logfile
 Codename: B
 Architectures: ${FAKEARCHITECTURE} source
 Components: dog cat
-Contents: 1
+Contents:
 Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF

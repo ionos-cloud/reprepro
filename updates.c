@@ -140,17 +140,20 @@ struct update_pattern {
 	bool ignorerelease;
 	//e.g. "VerifyRelease: B629A24C38C6029A" (NULL means not check)
 	/*@null@*/char *verifyrelease;
-	//e.g. "Architectures: i386 sparc mips" (empty means all)
+	//e.g. "Architectures: i386 sparc mips" (not set means all)
 	struct strlist architectures_from;
 	struct strlist architectures_into;
+	bool architectures_set;
 	//e.g. "Components: main>main non-free>non-free contrib>contrib"
 	// (empty means all)
 	struct strlist components_from;
 	struct strlist components_into;
+	bool components_set;
 	//e.g. "UDebComponents: main>main"
 	// (empty means all)
 	struct strlist udebcomponents_from;
 	struct strlist udebcomponents_into;
+	bool udebcomponents_set;
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;
@@ -315,11 +318,27 @@ CFvalueSETPROC(update_pattern, verifyrelease)
 CFlinelistSETPROC(update_pattern, config)
 CFtruthSETPROC(update_pattern, ignorerelease)
 CFscriptSETPROC(update_pattern, listhook)
-CFsplitstrlistSETPROC(update_pattern, architectures)
 CFsplitstrlistSETPROC(update_pattern, components)
 CFsplitstrlistSETPROC(update_pattern, udebcomponents)
 CFfilterlistSETPROC(update_pattern, filterlist)
 CFtermSETPROC(update_pattern, includecondition)
+CFUSETPROC(update_pattern, architectures) {
+	CFSETPROCVAR(update_pattern, this);
+	retvalue r;
+
+	this->architectures_set = true;
+	r = config_getsplitwords(iter, "Architectures",
+			&this->architectures_from,
+			&this->architectures_into);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+"Warning parsing %s, line %u: an empty Architectures field\n"
+"causes the whole pattern to do nothing.\n",
+				config_filename(iter),
+				config_markerline(iter));
+	}
+	return r;
+}
 
 static const struct configfield updateconfigfields[] = {
 	CFr("Name", update_pattern, name),
@@ -384,54 +403,65 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 	for( p = patterns ; p != NULL ; p = p->next ) {
 		if( !p->used )
 			continue;
-		found = strlist_preparefoundlist(&p->architectures_into);
-		if( found == NULL )
-			return;
-		for( d = distributions ; d != NULL ; d = d->next ) {
-			markfound(&d->updates, p->name, &p->architectures_into,
-					&d->architectures, found);
-		}
-		for( i = 0 ; i < p->architectures_into.count ; i++ ) {
-			if( found[i] )
+
+		if( p->architectures_set ) {
+			/* no architectures to update means nothing to do */
+			if( p->architectures_into.count == 0 )
 				continue;
-			fprintf(stderr,
+
+			found = strlist_preparefoundlist(&p->architectures_into);
+			if( found == NULL )
+				return;
+			for( d = distributions ; d != NULL ; d = d->next ) {
+				markfound(&d->updates, p->name, &p->architectures_into,
+						&d->architectures, found);
+			}
+			for( i = 0 ; i < p->architectures_into.count ; i++ ) {
+				if( found[i] )
+					continue;
+				fprintf(stderr,
 "Warning: Update-pattern '%s' wants to put something in architecture '%s',\n"
 "but no distribution using that rule has an architecture of that name.\n",
-				p->name, p->architectures_into.values[i]);
+						p->name, p->architectures_into.values[i]);
+			}
+			free(found);
 		}
-		free(found);
-		found = strlist_preparefoundlist(&p->components_into);
-		if( found == NULL )
-			return;
-		for( d = distributions ; d != NULL ; d = d->next ) {
-			markfound(&d->updates, p->name, &p->components_into,
-					&d->components, found);
-		}
-		for( i = 0 ; i < p->components_into.count ; i++ ) {
-			if( found[i] )
-				continue;
-			fprintf(stderr,
+		if( p->components_set && p->components_into.count > 0 ) {
+			found = strlist_preparefoundlist(&p->components_into);
+			if( found == NULL )
+				return;
+			for( d = distributions ; d != NULL ; d = d->next ) {
+				markfound(&d->updates, p->name, &p->components_into,
+						&d->components, found);
+			}
+			for( i = 0 ; i < p->components_into.count ; i++ ) {
+				if( found[i] )
+					continue;
+				fprintf(stderr,
 "Warning: Update-pattern '%s' wants to put something in component '%s',\n"
 "but no distribution using that rule has an component of that name.\n",
-				p->name, p->components_into.values[i]);
+						p->name, p->components_into.values[i]);
+			}
+			free(found);
 		}
-		free(found);
-		found = strlist_preparefoundlist(&p->udebcomponents_into);
-		if( found == NULL )
-			return;
-		for( d = distributions ; d != NULL ; d = d->next ) {
-			markfound(&d->updates, p->name, &p->udebcomponents_into,
-					&d->udebcomponents, found);
-		}
-		for( i = 0 ; i < p->udebcomponents_into.count ; i++ ) {
-			if( found[i] )
-				continue;
-			fprintf(stderr,
+		if( p->udebcomponents_set && p->udebcomponents_into.count > 0 ) {
+			found = strlist_preparefoundlist(&p->udebcomponents_into);
+			if( found == NULL )
+				return;
+			for( d = distributions ; d != NULL ; d = d->next ) {
+				markfound(&d->updates, p->name, &p->udebcomponents_into,
+						&d->udebcomponents, found);
+			}
+			for( i = 0 ; i < p->udebcomponents_into.count ; i++ ) {
+				if( found[i] )
+					continue;
+				fprintf(stderr,
 "Warning: Update-pattern '%s' wants to put something in udebcomponent '%s',\n"
 "but no distribution using that rule has an udebcomponent of that name.\n",
-				p->name, p->udebcomponents_into.values[i]);
+						p->name, p->udebcomponents_into.values[i]);
+			}
+			free(found);
 		}
-		free(found);
 	}
 }
 
@@ -611,15 +641,15 @@ static retvalue addorigintotarget(const char *listdir,struct update_origin *orig
 
 	assert( origin != NULL && origin->pattern != NULL);
 
-	if( p->architectures_into.count == 0 ) {
-		a_from = &distribution->architectures;
-		a_into = &distribution->architectures;
-	} else {
+	if( p->architectures_set ) {
 		a_from = &p->architectures_from;
 		a_into = &p->architectures_into;
+	} else {
+		a_from = &distribution->architectures;
+		a_into = &distribution->architectures;
 	}
 	if( strcmp(target->packagetype,"udeb") == 0 )  {
-		if( p->udebcomponents_from.count > 0 ) {
+		if( p->udebcomponents_set ) {
 			c_from = &p->udebcomponents_from;
 			c_into = &p->udebcomponents_into;
 		} else {
@@ -627,7 +657,7 @@ static retvalue addorigintotarget(const char *listdir,struct update_origin *orig
 			c_into = &distribution->udebcomponents;
 		}
 	} else {
-		if( p->components_from.count > 0 ) {
+		if( p->components_set ) {
 			c_from = &p->components_from;
 			c_into = &p->components_into;
 		} else {

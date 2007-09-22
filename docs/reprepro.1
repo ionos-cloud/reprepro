@@ -717,16 +717,12 @@ Enable the creation of Contents files listing all the files
 within the binary packages of a distribution.
 (Which is quite slow, you have been warned).
 
-The first argument is the rate at which to extract the files
-from packages.
-If it is 1, every file will be processed.
-If it is 2, at least half of the uncached files and at most half
-of all files are read to extract their filelist.
-If it is 3, at least a third of yet uncached files and at most a
-third of all files is read.
-And so on...
+In earlier versions, the first argument was a rate at which
+to extract file lists.
+As this did not work and was no longer easily possible after
+some factorisation, this is no longer supported.
 
-After that a space separated list of options can be given.
+The arguments of this field is a space separated list of options.
 If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
 (in a file called \fBuContents\-\fP\fIarchitecture\fP.)
 If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
@@ -737,19 +733,31 @@ of only gzipped.
 .TP
 .B ContentsArchitectures
 Limit generation of Contents files to the architectures given.
-If this field is not there or empty, all architectures are processed.
+If this field is not there, all architectures are processed.
+An empty field means no architectures are processed, thus not
+very useful.
 .TP
 .B ContentsComponents
-Limit what components are processed for the Contents files to
-the components given.
-If this field is not there or empty, all components are processed.
+Limit what components are processed for the \fBContents-\fP\fIarch\fP
+files to the components given.
+If this field is not there, all components are processed.
+An empty field is equivalent to specify \fBnodebs\fP in the
+\fBContents\fP field, while a non-empty field overrides a
+\fBnodebs\fP there.
 .TP
 .B ContentsUComponents
 Limit what components are processed for the uContents files to
 the components given.
-If this field is not there or empty, all components are processed.
-(Note unless you specify \fBudebs\fP in the \fBContents:\fP line,
-no udeb Components are processed at all.)
+If this field is not there and there is the \fBudebs\fP keyword
+in the Contents field, all .udebs of all components are put
+in the \fBuContents.\fP\fIarch\fP files.
+If this field is not there and there is no \fBudebs\fP keyword
+in the Contents field, no \fBuContents\fP-\fIarch\fP files are
+generated at all.
+A non-empty fields implies generation of \fBuContents\fP-\fIarch\fP
+files (just like the \fBudebs\fP keyword in the Contents field),
+while an empty one causes no \fBuContents-\fP\fIarch\fP files to
+be generated.
 .TP
 .B Uploaders
 Specified a file (relative to confdir if not starting with a slash)
@@ -858,9 +866,21 @@ is replaced by "<codename>/whatever"
 The components to update. Each item can be either the name
 of a component or a pair of a upstream component and a local
 component separated with ">". (e.g. "main>all contrib>all non\-free>notall")
-Items with a local part are ignored. If no items are there
-all from the updated distribution are taken. (Use some non existing
-like "none", if you want none).
+
+If this field is not there, all components from the distribution
+to update are tried.
+
+And emtpy field means no source or .deb packages are updated by this rule,
+but only .udeb packages, if there are any.
+
+A rule might list components not available in all distributions
+using this rule. In this case unknown components are silently
+ignored.
+(Unless you start reprepro with the \fB\-\-fast\fP option,
+it will warn about components unusable in all distributions using
+that rule. As exceptions, unusable components called \fBnone\fP
+are never warned about, for compatibility with versions prior to
+3.0.0 where and empty field had a different meaning.)
 .TP
 .B Architectures
 The architectures to update. If omitted all from the distribution
@@ -868,7 +888,7 @@ to update from. (As with components, you can use ">" to download
 from one Architecture and add into an other one. (This only determine
 in which Package list they land, it neither overwrites the Architecture
 line in its description, nor the one in the filename determined from this
-one. In other words, it is no really useful without additional things)
+one. In other words, it is no really useful without additional filtering)
 .TP
 .B UDebComponents
 Like
@@ -947,9 +967,17 @@ The codename of the distribution to pull packages from.
 .TP
 .B Components
 The components of the distribution to get from.
-Unknown items are ignored to ease rule reuse.
-If there are no items, all components from distribution are taken.
-(Use some non existing like "none", if you want none).
+
+If this field is not there,
+all components from the distribution to  update are tried.
+
+A rule might list components not available in all distributions using this
+rule. In this case unknown components are silently ignored.
+(Unless you start reprepro with the \-\-fast option,
+it will warn about components unusable in all distributions using that rule.
+As exception, unusable components called \fBnone\fP are never warned about,
+for compatibility with versions prior to 3.0.0 where and empty field had
+a different meaning.)
 .TP
 .B Architectures
 The architectures to update.

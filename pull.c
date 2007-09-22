@@ -51,13 +51,16 @@ struct pull_rule {
 	char *name;
 	//e.g. "From: woody"
 	char *from;
-	//e.g. "Architectures: i386 sparc mips" (empty means all)
+	//e.g. "Architectures: i386 sparc mips" (not set means all)
 	struct strlist architectures_from;
 	struct strlist architectures_into;
-	//e.g. "Components: main contrib" (empty means all)
+	bool architectures_set;
+	//e.g. "Components: main contrib" (not set means all)
 	struct strlist components;
-	//e.g. "UDebComponents: main" // (empty means all)
+	bool components_set;
+	//e.g. "UDebComponents: main" // (not set means all)
 	struct strlist udebcomponents;
+	bool udebcomponents_set;
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;
@@ -93,11 +96,28 @@ void pull_freerules(struct pull_rule *p) {
 CFlinkedlistinit(pull_rule)
 CFvalueSETPROC(pull_rule, name)
 CFvalueSETPROC(pull_rule, from)
-CFsplitstrlistSETPROC(pull_rule, architectures)
-CFuniqstrlistSETPROC(pull_rule, components)
-CFuniqstrlistSETPROC(pull_rule, udebcomponents)
+CFuniqstrlistSETPROCset(pull_rule, components)
+CFuniqstrlistSETPROCset(pull_rule, udebcomponents)
 CFfilterlistSETPROC(pull_rule, filterlist)
 CFtermSETPROC(pull_rule, includecondition)
+
+CFUSETPROC(pull_rule, architectures) {
+	CFSETPROCVAR(pull_rule, this);
+	retvalue r;
+
+	this->architectures_set = true;
+	r = config_getsplitwords(iter, "Architectures",
+			&this->architectures_from,
+			&this->architectures_into);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+"Warning parsing %s, line %u: an empty Architectures field\n"
+"causes the whole rule to do nothing.\n",
+				config_filename(iter),
+				config_markerline(iter));
+	}
+	return r;
+}
 
 static const struct configfield pullconfigfields[] = {
 	CFr("Name", pull_rule, name),
@@ -289,7 +309,7 @@ static retvalue pull_createsource(struct pull_rule *rule,
 	assert( rule != NULL );
 	assert( rule->distribution != NULL );
 
-	if( rule->architectures_into.count > 0 ) {
+	if( rule->architectures_set ) {
 		a_from = &rule->architectures_from;
 		a_into = &rule->architectures_into;
 	} else {
@@ -297,12 +317,12 @@ static retvalue pull_createsource(struct pull_rule *rule,
 		a_into = &rule->distribution->architectures;
 	}
 	if( strcmp(target->packagetype,"udeb") == 0 )  {
-		if( rule->udebcomponents.count > 0 )
+		if( rule->udebcomponents_set )
 			c = &rule->udebcomponents;
 		else
 			c = &rule->distribution->udebcomponents;
 	} else {
-		if( rule->components.count > 0 )
+		if( rule->components_set )
 			c = &rule->components;
 		else
 			c = &rule->distribution->components;

@@ -65,6 +65,12 @@ struct distribution {
 		} trackingoptions;
 	/* what content files to generate */
 	struct contentsoptions contents;
+	struct strlist contents_architectures,
+		       contents_components,
+		       contents_ucomponents;
+	bool contents_architectures_set,
+		       contents_components_set,
+		       contents_ucomponents_set;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* a filename to look for who is allowed to upload packages */

@@ -1,3 +1,12 @@
+2007-09-22  Bernhard R. Link <brlink@debian.org>
+	* make empty Architectures and Components fields
+	  in conf/distributions an error.
+	* Contents: fields no longer has a rate value,
+	  ContentsComponents/Architectures/UComponents
+	  triggers or disables contents generation if non-/empty.
+	* empty Architecturs/Components/UdebComponents in
+  	  conf/updates and conf/pulls now mean nothing instead of all.
+
 2007-09-21  Bernhard R. Link <brlink@debian.org>
 	* save cached filelists of packages for Contents files
 	in a preprocessed form, needing only about half the disk

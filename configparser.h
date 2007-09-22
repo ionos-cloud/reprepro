@@ -111,21 +111,34 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 #define CFcheckuniqstrlistSETPROC(sname, field, checker) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	return config_getuniqwords(iter, name, checker, &item->field); \
+	retvalue r; \
+	r = config_getuniqwords(iter, name, checker, &item->field); \
+	if( r == RET_NOTHING ) { \
+		fprintf(stderr, \
+"Error parsing %s, line %d, column %d:\n" \
+" An empty %s-field is not allowed.\n", config_filename(iter), \
+					config_line(iter), \
+					config_column(iter), \
+					name); \
+		r = RET_ERROR; \
+	} \
+	return r; \
 }
 #define CFuniqstrlistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	return config_getuniqwords(iter, name, NULL, &item->field); \
 }
-#define CFuniqstrlistSETPROCsub(sname, name, field) \
-static retvalue configparser_ ## sname ## _set_ ## name ## _ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
+#define CFuniqstrlistSETPROCset(sname, name) \
+static retvalue configparser_ ## sname ## _set_ ## name (UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
-	return config_getuniqwords(iter, name, NULL, &item->name.field); \
+	item->name ## _set = true; \
+	return config_getuniqwords(iter, name, NULL, &item->name); \
 }
 #define CFsplitstrlistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *confdir), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
+	item->field ## _set = true; \
 	return config_getsplitwords(iter, name, &item->field ## _from, &item->field ## _into); \
 }
 #define CFtruthSETPROC(sname, field) \
