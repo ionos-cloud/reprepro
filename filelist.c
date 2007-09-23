@@ -43,8 +43,11 @@ struct filelist {
 	const char *packages[];
 };
 struct dirlist {
-	struct dirlist *next, *parent, *subdirs;
-	/*@dependant@*/struct dirlist *lastsubdir;
+	struct dirlist *nextl;
+	struct dirlist *nextr;
+	int balance;
+	/*@dependant@*/ struct dirlist *parent;
+	struct dirlist *subdirs;
 	struct filelist *files;
 	/*@dependant@*/struct filelist *lastfile;
  	size_t len;
@@ -79,13 +82,13 @@ static void files_free(/*@only@*/struct filelist *list) {
 	free(list);
 }
 static void dirlist_free(/*@only@*/struct dirlist *list) {
-	while( list != NULL ) {
-		struct dirlist *h = list->next;
-		files_free(list->files);
-		dirlist_free(list->subdirs);
-		free(list);
-		list = h;
-	}
+	if( list == NULL )
+		return;
+	files_free(list->files);
+	dirlist_free(list->subdirs);
+	dirlist_free(list->nextl);
+	dirlist_free(list->nextr);
+	free(list);
 }
 void filelist_free(struct filelist_list *list) {
 
@@ -237,59 +240,126 @@ static bool findfile(struct dirlist *parent, const char *packagename, const char
 typedef const unsigned char cuchar;
 
 static struct dirlist *finddir(struct dirlist *dir, cuchar *name, size_t namelen) {
-	struct dirlist **dir_p, *d;
+	struct dirlist *d, *this, *parent, *h;
+	struct dirlist **stack[128];
+	int stackpointer = 0;
 
-	/* as we go through the list of packages alphabetically, there are
-	 * good chances the directory we look for is after the one last looked
-	 * at, so we just check this. (can easily gain 50% this way) */
-	dir_p = &dir->subdirs;
-	if( dir->lastsubdir != NULL ) {
-		int c;
-		d = dir->lastsubdir;
-		if( namelen < d->len ) {
-			c = memcmp(name, d->name, namelen);
-			if( c > 0 )
-				dir_p = &(d->next);
-		} else {
-			c = memcmp(name, d->name, d->len);
-			if( c == 0 && d->len == namelen )
-				return d;
-			else if( c >= 0)
-				dir_p = &(d->next);
-		}
-	}
-	while( (d=*dir_p) != NULL ) {
+	stack[stackpointer++] = &dir->subdirs;
+	d = dir->subdirs;
+
+	while( d != NULL ) {
 		int c;
 
 		if( namelen < d->len ) {
 			c = memcmp(name, d->name, namelen);
-			if( c <= 0 )
-				break;
-			else
-				dir_p = &(d->next);
+			if( c <= 0 ) {
+				stack[stackpointer++] = &d->nextl;
+				d = d->nextl;
+			} else {
+				stack[stackpointer++] = &d->nextr;
+				d = d->nextr;
+			}
 		} else {
 			c = memcmp(name, d->name, d->len);
 			if( c == 0 && d->len == namelen ) {
-				dir->lastsubdir = d;
 				return d;
 			} else if( c >= 0) {
-				dir_p = &(d->next);
-			} else
-				break;
+				stack[stackpointer++] = &d->nextr;
+				d = d->nextr;
+			} else {
+				stack[stackpointer++] = &d->nextl;
+				d = d->nextl;
+			}
 		}
 	}
-	/* not found, but belongs after before the found one */
+	/* not found, create it and rebalance */
 	d = malloc(sizeof(struct dirlist) + namelen );
 	if( d == NULL )
 		return d;
-	d->next = *dir_p;
-	d->parent = dir;
 	d->subdirs = NULL;
-	d->lastsubdir = NULL;
+	d->nextl = NULL;
+	d->nextr = NULL;
+	d->balance = 0;
+	d->parent = dir;
 	d->files = NULL;
 	d->len = namelen;
 	memcpy(d->name, name, namelen);
-	*dir_p = d;
+	*(stack[--stackpointer]) = d;
+	this = d;
+	while( stackpointer > 0 ) {
+		parent = *(stack[--stackpointer]);
+		if( parent->nextl == this ) {
+			parent->balance--;
+			if( parent->balance > -1 )
+				break;
+			if( parent->balance == -1 ) {
+				this = parent;
+				continue;
+			}
+			if( this->balance == -1 ) {
+				parent->nextl = this->nextr;
+				parent->balance = 0;
+				this->nextr = parent;
+				this->balance = 0;
+				*(stack[stackpointer]) = this;
+				break;
+			} else {
+				h = this->nextr;
+				parent->nextl = h->nextr;
+				*(stack[stackpointer]) = h;
+				h->nextr = parent;
+				this->nextr = h->nextl;
+				h->nextl = this;
+				if( h->balance == 0 ) {
+					parent->balance = 0;
+					this->balance = 0;
+				} else if( h->balance < 0 ) {
+					parent->balance = +1;
+					this->balance = 0;
+				} else {
+					parent->balance = 0;
+					this->balance = -1;
+				}
+				h->balance = 0;
+				break;
+			}
+		} else {
+			parent->balance++;
+			if( parent->balance < 1 )
+				break;
+			if( parent->balance == 1 ) {
+				this = parent;
+				continue;
+			}
+			if( this->balance == 1 ) {
+				parent->nextr = this->nextl;
+				parent->balance = 0;
+				this->nextl = parent;
+				this->balance = 0;
+				*(stack[stackpointer]) = this;
+				break;
+			} else {
+				h = this->nextl;
+				parent->nextr = h->nextl;
+				*(stack[stackpointer]) = h;
+				h->nextl = parent;
+				this->nextl = h->nextr;
+				h->nextr = this;
+				if( h->balance == 0 ) {
+					parent->balance = 0;
+					this->balance = 0;
+				} else if( h->balance > 0 ) {
+					parent->balance = -1;
+					this->balance = 0;
+				} else {
+					parent->balance = 0;
+					this->balance = +1;
+				}
+				h->balance = 0;
+				break;
+			}
+		}
+	}
 	return d;
 }
 
@@ -412,34 +482,42 @@ static void filelist_writefiles(char *dir, size_t len,
 	filelist_writefiles(dir,len,files->nextr,file);
 }
 
-static retvalue filelist_writedirs(char **buffer_p, size_t *size_p, char *start,
-		struct dirlist *dirs, struct filetorelease *file) {
-	struct dirlist *dir;
-	size_t len;
-	retvalue r;
+static retvalue filelist_writedirs(char **buffer_p, size_t *size_p, size_t ofs, struct dirlist *dir, struct filetorelease *file) {
 
-	for( dir = dirs ; dir != NULL ; dir = dir->next ) {
-		len = dir->len;
-		if( start+len+2 >= *buffer_p+*size_p ) {
+	if( dir->nextl != NULL ) {
+		retvalue r;
+		r = filelist_writedirs(buffer_p, size_p, ofs, dir->nextl, file);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	{	size_t len = dir->len;
+		register retvalue r;
+
+		if( ofs+len+2 >= *size_p ) {
 			*size_p += 1024*(1+(len/1024));
-			char *n = realloc( *buffer_p, *size_p );
+			char *n = realloc(*buffer_p, *size_p);
 			if( n == NULL ) {
 				free(*buffer_p);
 				*buffer_p = NULL;
 				return RET_ERROR_OOM;
 			}
-			start = n + (start - *buffer_p);
 			*buffer_p = n;
 		}
-		memcpy(start, dir->name, len);
-		start[len] = '/';
+		memcpy((*buffer_p) + ofs, dir->name, len);
+		(*buffer_p)[ofs + len] = '/';
 		// TODO: output files and directories sorted together instead
-		filelist_writefiles(*buffer_p,1+len+start-*buffer_p,dir->files,file);
-		r = filelist_writedirs(buffer_p,size_p,start+len+1,dir->subdirs,file);
+		filelist_writefiles(*buffer_p, ofs+len+1, dir->files, file);
+		if( dir->subdirs == NULL )
+			r = RET_OK;
+		else
+			r = filelist_writedirs(buffer_p, size_p, ofs+len+1,
+					dir->subdirs, file);
+		if( dir->nextr == NULL )
+			return r;
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
-	return RET_OK;
+	return filelist_writedirs(buffer_p, size_p, ofs, dir->nextr, file);
 }
 
 retvalue filelist_write(struct filelist_list *list, struct filetorelease *file) {
@@ -453,7 +531,11 @@ retvalue filelist_write(struct filelist_list *list, struct filetorelease *file) 
 	(void)release_writedata(file,header,sizeof(header)-1);
 	buffer[0] = '\0';
 	filelist_writefiles(buffer,0,list->root->files,file);
-	r = filelist_writedirs(&buffer,&size,buffer,list->root->subdirs,file);
+	if( list->root->subdirs != NULL )
+		r = filelist_writedirs(&buffer, &size, 0,
+				list->root->subdirs, file);
+	else
+		r = RET_OK;
 	free(buffer);
 	return r;
 }

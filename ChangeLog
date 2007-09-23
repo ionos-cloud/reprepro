@@ -1,3 +1,6 @@
+2007-09-23  Bernhard R. Link <brlink@debian.org>
+	* save another 2 seconds while sorting filelists for Contents files
+
 2007-09-22  Bernhard R. Link <brlink@debian.org>
 	* make empty Architectures and Components fields
 	  in conf/distributions an error.
