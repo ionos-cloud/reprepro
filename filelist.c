@@ -425,7 +425,10 @@ static retvalue filelist_writedirs(char **buffer_p, size_t *size_p, char *start,
 			char *n = realloc( *buffer_p, *size_p );
 			if( n == NULL ) {
 				free(*buffer_p);
+				*buffer_p = NULL;
+				return RET_ERROR_OOM;
 			}
+			start = n + (start - *buffer_p);
 			*buffer_p = n;
 		}
 		memcpy(start, dir->name, len);
