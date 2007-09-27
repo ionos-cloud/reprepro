@@ -225,7 +225,7 @@ Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Log notifier option -A misses an argument in ./conf/distributions, line 5, column 3
+*=Log notifier option -A misses an argument in ./conf/distributions, line 5, column 4
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
@@ -237,7 +237,7 @@ Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Error parsing config file ./conf/distributions, line 5, column $(( 4 + $FALEN )):
+*=Error parsing config file ./conf/distributions, line 5, column $(( 5 + $FALEN )):
 *=Unexpected end of line: name of notifier script missing!
 -v0*=There have been errors!
 EOF

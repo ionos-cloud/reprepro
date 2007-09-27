@@ -66,6 +66,11 @@ void config_overline(struct configiterator *iter) {
 
 	while( !iter->eol ) {
 		c = fgetc(iter->f);
+		if( c == '#' ) {
+			do {
+				c = fgetc(iter->f);
+			} while( c != EOF && c != '\n' );
+		}
 		if( c == EOF || c == '\n' )
 			iter->eol = true;
 		else
@@ -78,17 +83,15 @@ bool config_nextline(struct configiterator *iter) {
 
 	assert( iter->eol );
 	c = fgetc(iter->f);
-	if( c == EOF )
-		return false;
 	while( c == '#' ) {
 		do {
 			c = fgetc(iter->f);
 		} while( c != EOF && c != '\n' );
 		iter->line++;
 		c = fgetc(iter->f);
-		if( c == EOF )
-			return false;
 	}
+	if( c == EOF )
+		return false;
 	if( c == ' ' ) {
 		iter->line++;
 		iter->column = 1;
@@ -207,7 +210,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 		key[0] = c;
 		keylen = 1;
 
-		while( (c = fgetc(iter.f)) != EOF && c != ':' && c != '\n' && c != '\0') {
+		while( (c = fgetc(iter.f)) != EOF && c != ':' && c != '\n' && c != '#' && c != '\0') {
 			iter.column++;
 			if( c == ' ' ) {
 				fprintf(stderr, "Error parsing %s, line %u: Unexpected space in header name!\n",
@@ -316,6 +319,44 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 	return result;
 }
 
+static inline int config_nextchar(struct configiterator *iter) {
+	int c;
+	unsigned int realcolumn;
+
+	c = fgetc(iter->f);
+	realcolumn = iter->column + 1;
+	if( c == '#' ) {
+		do {
+			c = fgetc(iter->f);
+			realcolumn++;
+		} while( c != '\n' && c != EOF && c != '\r' );
+	}
+	if( c == '\r' ) {
+		while( c == '\r' ) {
+			realcolumn++;
+			c = fgetc(iter->f);
+		}
+		if( c != '\n' && c != EOF ) {
+			fprintf(stderr, "Warning parsing config file '%s', line '%u', column %u: CR not followed by LF!\n",
+					config_filename(iter),
+					config_line(iter),
+					realcolumn);
+
+		}
+	}
+	if( c == EOF ) {
+		fprintf(stderr, "Warning parsing config file '%s', line '%u': File ending without final LF!\n",
+				config_filename(iter),
+				config_line(iter));
+		/* fake a proper text file: */
+		c = '\n';
+	}
+	iter->column++;
+	if( c == '\n' )
+		iter->eol = true;
+	return c;
+}
+
 static inline int config_nextnonspace(struct configiterator *iter) {
 	int c;
 
@@ -326,13 +367,8 @@ static inline int config_nextnonspace(struct configiterator *iter) {
 			if( !config_nextline(iter) )
 				return EOF;
 		}
-		c = fgetc(iter->f);
-		iter->column++;
-		if( c == '\n' ) {
-			iter->eol = true;
-			continue;
-		}
-	} while( c == '\n' || c == '\r' || c == ' ' || c == '\t');
+		c = config_nextchar(iter);
+	} while( c == '\n' || c == ' ' || c == '\t');
 	return c;
 }
 
@@ -344,12 +380,9 @@ int config_nextnonspaceinline(struct configiterator *iter) {
 		iter->markercolumn = iter->column;
 		if( iter->eol )
 			return EOF;
-		c = fgetc(iter->f);
-		iter->column++;
-		if( c == '\n' ) {
-			iter->eol = true;
+		c = config_nextchar(iter);
+		if( c == '\n' )
 			return EOF;
-		}
 	} while( c == '\r' || c == ' ' || c == '\t');
 	return c;
 }
@@ -382,15 +415,10 @@ inline retvalue config_completeword(struct configiterator *iter, char firstc, ch
 		}
 		value[len] = c;
 		len++;
-		c = fgetc(iter->f);
-		if( c == EOF )
+		c = config_nextchar(iter);
+		if( c == '\n' )
 			break;
-		if( c == '\n' ) {
-			iter->eol = true;
-			break;
-		}
-		iter->column++;
-	} while( c != ' ' && c != '\t' && c != '\r' );
+	} while( c != ' ' && c != '\t' );
 	assert( len > 0 );
 	assert( len < size );
 	value[len] = '\0';
@@ -648,12 +676,8 @@ retvalue config_getall(struct configiterator *iter, char **result_p) {
 			if( !config_nextline(iter) )
 				break;
 		}
-		c = fgetc(iter->f);
-		if( c == '\n' )
-			iter->eol = true;
-		else
-			iter->column++;
-	} while( c != EOF );
+		c = config_nextchar(iter);
+	} while( true );
 	assert( len > 0 );
 	assert( len < size );
 	while( len > 0 && ( value[len-1] == ' ' || value[len-1] == '\t' ||
@@ -794,15 +818,8 @@ static retvalue config_getline(struct configiterator *iter, char **result_p) {
 		}
 		value[len] = c;
 		len++;
-		c = fgetc(iter->f);
-		if( c == EOF )
-			break;
-		if( c == '\n' ) {
-			iter->eol = true;
-			break;
-		}
-		iter->column++;
-	} while( true );
+		c = config_nextchar(iter);
+	} while( c != '\n' );
 	assert( len > 0 );
 	assert( len < size );
 	while( len > 0 &&

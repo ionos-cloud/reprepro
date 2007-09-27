@@ -574,13 +574,19 @@ The file
 is always needed and describes what distributions
 to manage, while
 .B updates
-is only needed when syncing with external repositories.
+is only needed when syncing with external repositories and
+.B pulls
+is only needed when syncing with repositories in the same reprepro database.
 
-The last both are in the format control files in Debian are in,
-i.e. paragraphs separated by blank lines consisting of
+The last three are in the format control files in Debian are in,
+i.e. paragraphs separated by empty lines consisting of
 fields. Each field consists of an fieldname, followed
 by a colon, possible whitespace and the data. A field
 ends with a newline not followed by a space or tab.
+
+Lines starting with # as first character are ignored,
+while in other lines the # character and
+everything after it till the newline character are ignored.
 .SS conf/distributions
 .TP
 .B Codename
