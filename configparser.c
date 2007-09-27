@@ -92,7 +92,7 @@ bool config_nextline(struct configiterator *iter) {
 	}
 	if( c == EOF )
 		return false;
-	if( c == ' ' ) {
+	if( c == ' ' || c == '\t' ) {
 		iter->line++;
 		iter->column = 1;
 		iter->eol = false;
@@ -221,8 +221,6 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 			if( c == '\t' ) {
 				fprintf(stderr, "Error parsing %s, line %u: Unexpected tabulator character in header name!\n",
 						iter.filename, iter.line);
-				if( this != NULL && keylen == 0 )
-					fputs("(Multi line headers have to start with a space character.)", stderr);
 				result = RET_ERROR;
 				break;
 			}
