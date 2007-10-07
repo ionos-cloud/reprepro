@@ -19,7 +19,11 @@ struct database {
 	bool locked, verbose;
 	int dircreationdepth;
 	bool nopackages, readonly, packagesdatabaseopen;
-	int version, compatibilityversion;
+	char *version, *lastsupportedversion,
+	     *dbversion, *lastsupporteddbversion;
+	struct {
+		bool createnewtables;
+	} capabilities ;
 };
 
 retvalue database_listsubtables(struct database *,const char *,/*@out@*/struct strlist *);

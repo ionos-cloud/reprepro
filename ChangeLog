@@ -1,3 +1,8 @@
+2007-10-07  Bernhard R. Link <brlink@debian.org>
+	* change db/version file to final format,
+	  abort if version or libdb version specified
+	  there cannot be fulfilled.
+
 2007-09-27  Bernhard R. Link <brlink@debian.org>
 	* allow comments starting within lines in config files
 	* also allow tab as first character for continued lines as

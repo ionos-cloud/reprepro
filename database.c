@@ -39,29 +39,25 @@
 #include "reference.h"
 #include "tracking.h"
 #include "copyfile.h"
+#include "dpkgversions.h"
 #include "distribution.h"
 #include "database_p.h"
 
 extern int verbose;
 
-/* Version numbers of the database:
- *
- * 0: compatibility (means no db/version file yet)
- *    used by reprepro until before 3.0.0
- *
- * 1: since reprepro 3.0.0
- *    - all packages.db database are created
- *      (i.e. missing ones means there is a new architecture/component)
- *
- * */
-
-#define CURRENT_VERSION 1
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+#define LIBDB_VERSION_STRING "bdb" TOSTRING(DB_VERSION_MAJOR) "." TOSTRING(DB_VERSION_MINOR) "." TOSTRING(DB_VERSION_PATCH)
 
 static void database_free(struct database *db) {
 	if( db == NULL )
 		return;
 	free(db->directory);
 	free(db->mirrordir);
+	free(db->version);
+	free(db->lastsupportedversion);
+	free(db->dbversion);
+	free(db->lastsupporteddbversion);
 	free(db);
 }
 
@@ -453,12 +449,42 @@ static retvalue warnunusedtracking(const struct strlist *codenames, const struct
 	return RET_OK;
 }
 
+static retvalue readline(char **result, FILE *f, const char *versionfilename) {
+	char buffer[21];
+	size_t l;
+
+	if( fgets(buffer, 20, f) == NULL ) {
+		int e = errno;
+		if( e == 0 ) {
+			fprintf(stderr, "Error reading '%s': unexpected empty file\n",
+					versionfilename);
+			return RET_ERROR;
+		} else {
+			fprintf(stderr, "Error reading '%s': %s(errno is %d)\n",
+					versionfilename, strerror(e), e);
+			return RET_ERRNO(e);
+		}
+	}
+	l = strlen(buffer);
+	while( l > 0 && ( buffer[l-1] == '\r' || buffer[l-1] == '\n' ) ) {
+		buffer[--l] = '\0';
+	}
+	if( l == 0 ) {
+		fprintf(stderr, "Error reading '%s': unexpcted empty line.\n",
+				versionfilename);
+		return RET_ERROR;
+	}
+	*result = strdup(buffer);
+	if( *result == NULL )
+		return RET_ERROR_OOM;
+	return RET_OK;
+}
+
 static retvalue readversionfile(struct database *db) {
 	char *versionfilename;
-	char buffer[20], *e;
 	FILE *f;
-	size_t l;
-	long v;
+	retvalue r;
+	int c;
 
 	versionfilename = calc_dirconcat(db->directory, "version");
 	if( versionfilename == NULL )
@@ -473,76 +499,95 @@ static retvalue readversionfile(struct database *db) {
 			free(versionfilename);
 			return RET_ERRNO(e);
 		}
-		db->version = 0;
-		db->compatibilityversion = 0;
+		db->version = NULL;
+		db->lastsupportedversion = NULL;
+		db->dbversion = NULL;
+		db->lastsupporteddbversion = NULL;
+		memset(&db->capabilities, 0, sizeof(db->capabilities));
 		free(versionfilename);
 		return RET_NOTHING;
 	}
-
-	if( fgets(buffer, 20, f) == NULL ) {
-		int e = errno;
-		if( e == 0 ) {
-			fprintf(stderr, "Error reading '%s': unexpected empty file\n",
-					versionfilename);
-			(void)fclose(f);
-			free(versionfilename);
-			return RET_ERROR;
-		} else {
-			fprintf(stderr, "Error reading '%s': %s(errno is %d)\n",
-					versionfilename, strerror(e), e);
-			(void)fclose(f);
-			free(versionfilename);
-			return RET_ERRNO(e);
-		}
-	}
-	l = strlen(buffer);
-	while( l > 0 && ( buffer[l-1] == '\r' || buffer[l-1] == '\n' ) ) {
-		buffer[--l] = '\0';
-	}
-	v = strtol(buffer, &e, 10);
-	if( l == 0 || e == NULL || *e != '\0' || v < 0 || v >= INT_MAX ) {
-		fprintf(stderr, "Error reading '%s': malformed first line.\n",
-				versionfilename);
+	/* first line is the version creating this database */
+	r = readline(&db->version, f, versionfilename);
+	if( RET_WAS_ERROR(r) ) {
 		(void)fclose(f);
 		free(versionfilename);
-		return RET_ERROR;
+		return r;
 	}
-	db->version = v;
-
 	/* second line says which versions of reprepro will be able to cope
 	 * with this database */
-
-	if( fgets(buffer, 20, f) == NULL ) {
-		int e = errno;
-		if( e == 0 ) {
-			fprintf(stderr, "Error reading '%s': no second line\n",
-					versionfilename);
-			(void)fclose(f);
-			free(versionfilename);
-			return RET_ERROR;
-		} else {
-			fprintf(stderr, "Error reading '%s': %s(errno is %d)\n",
-					versionfilename, strerror(e), e);
-			(void)fclose(f);
-			free(versionfilename);
-			return RET_ERRNO(e);
-		}
-	}
-	l = strlen(buffer);
-	while( l > 0 && ( buffer[l-1] == '\r' || buffer[l-1] == '\n' ) ) {
-		buffer[--l] = '\0';
-	}
-	v = strtol(buffer, &e, 10);
-	if( l == 0 || e == NULL || *e != '\0' || v < 0 || v >= INT_MAX ) {
-		fprintf(stderr, "Error reading '%s': malformed second line.\n",
-				versionfilename);
+	r = readline(&db->lastsupportedversion, f, versionfilename);
+	if( RET_WAS_ERROR(r) ) {
 		(void)fclose(f);
 		free(versionfilename);
-		return RET_ERROR;
+		return r;
 	}
-	db->compatibilityversion = v;
+	/* next line is the version of the underlying database library */
+	r = readline(&db->dbversion, f, versionfilename);
+	if( RET_WAS_ERROR(r) ) {
+		(void)fclose(f);
+		free(versionfilename);
+		return r;
+	}
+	/* and then the minimum version of this library needed. */
+	r = readline(&db->lastsupporteddbversion, f, versionfilename);
+	if( RET_WAS_ERROR(r) ) {
+		(void)fclose(f);
+		free(versionfilename);
+		return r;
+	}
 	(void)fclose(f);
 	free(versionfilename);
+
+	/* check for enabled capabilities in the version */
+
+	memset(&db->capabilities, 0, sizeof(db->capabilities));
+	r = dpkgversions_cmp(db->version, "3", &c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( c >= 0 )
+		db->capabilities.createnewtables = true;
+
+	/* ensure we can understand it */
+
+	r = dpkgversions_cmp(VERSION, db->lastsupportedversion, &c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( c < 0 ) {
+		fprintf(stderr,
+"According to %s/version this database was created with an future version\n"
+"and uses features this version will not be able to understand. Aborting...\n",
+				db->directory);
+		return RET_ERROR;
+	}
+
+	/* ensure it's a libdb database: */
+
+	if( strncmp(db->dbversion, "bdb", 3) != 0 ) {
+		fprintf(stderr,
+"According to %s/version this database was created with an yet unsupported\n"
+"database library. Aborting...\n",
+				db->directory);
+		return RET_ERROR;
+	}
+	if( strncmp(db->lastsupporteddbversion, "bdb", 3) != 0 ) {
+		fprintf(stderr,
+"According to %s/version this database was created with an yet unsupported\n"
+"database library. Aborting...\n",
+				db->directory);
+		return RET_ERROR;
+	}
+	r = dpkgversions_cmp(LIBDB_VERSION_STRING, db->lastsupporteddbversion, &c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( c < 0 ) {
+		fprintf(stderr,
+"According to %s/version this database was created with an future version\n"
+"%s of libdb the version this binary is linked against cannot yet\n"
+"understand. Aborting...\n",
+				db->directory, db->dbversion+3);
+		return RET_ERROR;
+	}
 	return RET_OK;
 }
 
@@ -563,11 +608,30 @@ static retvalue writeversionfile(struct database *db) {
 		free(versionfilename);
 		return RET_ERRNO(e);
 	}
-
-	fprintf(f, "%d\n%d\n", db->version, db->compatibilityversion);
-	fprintf(f, "bdb%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
-	fprintf(f, "bdb%d.%d.0\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
-	fprintf(f, "%s %s\n", PACKAGE, VERSION);
+	if( db->version == NULL )
+		fputs("0\n", f);
+	else {
+		fputs(db->version, f);
+		fputc('\n', f);
+	}
+	if( db->lastsupportedversion == NULL )
+		fputs("0\n", f);
+	else {
+		fputs(db->lastsupportedversion, f);
+		fputc('\n', f);
+	}
+	if( db->dbversion == NULL )
+		fprintf(f, "bdb%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
+	else {
+		fputs(db->dbversion, f);
+		fputc('\n', f);
+	}
+	if( db->lastsupporteddbversion == NULL )
+		fprintf(f, "bdb%d.%d.0\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
+	else {
+		fputs(db->lastsupporteddbversion, f);
+		fputc('\n', f);
+	}
 
 	e = ferror(f);
 
@@ -594,7 +658,14 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
 	struct target *t;
 	retvalue result = RET_NOTHING, r;
 
-	db->version = CURRENT_VERSION;
+	db->version = strdup(VERSION);
+	if( db->version == NULL )
+		return RET_ERROR_OOM;
+	db->lastsupportedversion = NULL;
+	db->dbversion = NULL;
+	db->lastsupporteddbversion = NULL;
+	memset(&db->capabilities, 0, sizeof(db->capabilities));
+	db->capabilities.createnewtables = true;
 	for( d = distributions ; d != NULL ; d = d->next ) {
 		for( t = d->targets ; t != NULL ; t = t->next ) {
 			r = target_initpackagesdb(t, db, READWRITE);
@@ -618,14 +689,6 @@ static retvalue preparepackages(struct database *db, bool fast, bool readonly, b
 	r = readversionfile(db);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
-	}
-
-	if( db->compatibilityversion > CURRENT_VERSION ) {
-		fprintf(stderr,
-"According to %s/version this database was created with an future version\n"
-"and uses features this version will not be able to understand. Aborting...\n",
-				db->directory);
-		return RET_ERROR;
 	}
 
 	packagesfilename = calc_dirconcat(db->directory, "packages.db");
