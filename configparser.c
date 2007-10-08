@@ -394,7 +394,7 @@ int config_nextnonspaceinline(struct configiterator *iter) {
 			iter->filename, iter->line, \
 			iter->column, ##  __VA_ARGS__);
 
-inline retvalue config_completeword(struct configiterator *iter, char firstc, char **result_p) {
+retvalue config_completeword(struct configiterator *iter, char firstc, char **result_p) {
 	size_t size = 0, len = 0;
 	char *value = NULL, *nv;
 	int c = firstc;
