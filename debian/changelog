@@ -1,4 +1,4 @@
-reprepro (3.0.0-0) UNRELEASED; urgency=low
+reprepro (3.0.0-1) unstable; urgency=low
 
   * new version
   - ignore SIGPIPE, as libgpgme can cause it (Closes: 437138)
@@ -9,7 +9,7 @@ reprepro (3.0.0-0) UNRELEASED; urgency=low
   - add removesrc (Closes: 440101)
   - contents.cache.db file format changed
 
- -- Bernhard R. Link <brlink@debian.org>  Fri, 21 Sep 2007 18:02:18 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Mon,  8 Oct 2007 12:38:10 +0200
 
 reprepro (2.2.4-1) unstable; urgency=high
 
