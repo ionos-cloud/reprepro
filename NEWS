@@ -2,7 +2,7 @@ Updates between 2.2.4 and 3.0.0:
 - new config file parser:
   * many error messages now with line numbers
   * native support of comments (i.e. lines starting with # are now ignored,
-    instead of treated as ignored headers)
+    instead of treated as ignored headers, # within lines is now comment, too)
   * better support of tabs
   * meaning of empty fields changed, empty now means nothing and not all.
 - always parse the whole distributions file first before doing anything else
@@ -16,6 +16,7 @@ Updates between 2.2.4 and 3.0.0:
   future version will stop accepting --overridedir and not search in that
   directory.
 - added db/version file to document database format
+  (so future versions can warn about incompatibilities)
 - cleaned up tracking handling a bit:
   * retrack no longer created tracking data for distribtions without tracking
   * retrack only recreates usage data, not all data
@@ -28,7 +29,8 @@ Updates between 2.2.4 and 3.0.0:
 - added removesrc and removefilter
 - new format for contents.cache.db. Only needs half of the disk space and runtime
   to generate Contents files, but you need to run translatefilelists to translate
-  the cached items. Also format and meaning of the Contents-fields changed, a
+  the cached items (or delete your contents.cache.db and let reprepro reread
+  all your .deb files). Also format and meaning of the Contents-fields changed, a
   rate no longer can be specified.
 
 Updates between 2.2.3 and 2.2.4:

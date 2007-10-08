@@ -181,6 +181,9 @@ Config: Acquire::Http::Proxy=http://proxy.myorg.de:8080
 VerifyRelease: A99951DAF9BB569BDB50AD90A70DAF536070D3A1|7EA391D72477203B58C04FBCB5D0C804ADB11277
 </pre>
 (If there are no Architecture, Components or UDebComponents, it will try all the distribution to update has. Fallback means a URL to try when the first cannot offer some file (Has to be the same method)).
+Note that the <tt>none</tt> argument to <tt>UDebComponents:</tt> is only needed for
+version before 3.0.0. Since 3.0.0 an empty field does the same, though <tt>none</tt>
+is still ignored for backward compatibility.
 </li>
 <li>Tell reprepro to update:
 <pre>
@@ -529,18 +532,22 @@ and searched with tools like
 To activate generating of these files by reprepro, you need a <tt class="config">Contents</tt> header in that distribution's declaration in <tt class="file">conf/distributions</tt>,
 like:
 <pre class="config">
+Contents:
+</pre>
+Versions before 3.0.0 need a ratio number there, like:
+<pre class="config">
 Contents: 1
 </pre>
 The number is the inverse ratio of not yet looked at and cached files to process in
 every run. The larger the more packages are missing. 1 means to list everything.
 <br>
-There can be a number of arguments after the number, and additional headers
-specifying which Architectures to generate Contents files for and which
+The arguments of the Contents field and other fields control
+which Architectures to generate Contents files for and which
 Components to include in those. For example
 <pre class="config">
-Contents: 1 udebs nodebs . .gz .bz2
+Contents: udebs nodebs . .gz .bz2
 ContentsArchitectures: ia64
-ContentsComponents: none
+ContentsComponents:
 ContentsUComponents: main
 </pre>
 means to not skip any packages, generate Contents for <tt class="suffix">.udeb</tt>
