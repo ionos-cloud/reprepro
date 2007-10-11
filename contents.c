@@ -77,6 +77,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 "Warning: Contents-headers in conf/distribution no longer need an\n"
 "rate argument. Treating the '0' as sign to not activate Contents-\n"
 "-generation, but it will cause an error in future version.\n", stderr);
+		distribution->contents.flags.enabled = false;
 	}
 
 #ifndef HAVE_LIBBZ2
