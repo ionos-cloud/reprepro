@@ -44,6 +44,7 @@ config.status: configure
 
 build-indep: build-indep-stamp
 build-arch: build-arch-stamp
+build: build-arch-stamp build-indep-stamp
 
 build-indep-stamp:
 	touch build-indep-stamp
