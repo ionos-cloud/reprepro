@@ -409,7 +409,7 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 			if( p->architectures_into.count == 0 )
 				continue;
 
-			found = strlist_preparefoundlist(&p->architectures_into);
+			found = strlist_preparefoundlist(&p->architectures_into, true);
 			if( found == NULL )
 				return;
 			for( d = distributions ; d != NULL ; d = d->next ) {
@@ -427,7 +427,7 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 			free(found);
 		}
 		if( p->components_set && p->components_into.count > 0 ) {
-			found = strlist_preparefoundlist(&p->components_into);
+			found = strlist_preparefoundlist(&p->components_into, true);
 			if( found == NULL )
 				return;
 			for( d = distributions ; d != NULL ; d = d->next ) {
@@ -445,7 +445,7 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 			free(found);
 		}
 		if( p->udebcomponents_set && p->udebcomponents_into.count > 0 ) {
-			found = strlist_preparefoundlist(&p->udebcomponents_into);
+			found = strlist_preparefoundlist(&p->udebcomponents_into, true);
 			if( found == NULL )
 				return;
 			for( d = distributions ; d != NULL ; d = d->next ) {

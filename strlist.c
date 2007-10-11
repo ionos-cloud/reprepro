@@ -269,7 +269,7 @@ bool strlist_intersects(const struct strlist *a, const struct strlist *b) {
 	return false;
 }
 
-bool *strlist_preparefoundlist(const struct strlist *list) {
+bool *strlist_preparefoundlist(const struct strlist *list, bool ignorenone) {
 	bool *found;
 	int i, j;
 
@@ -279,6 +279,10 @@ bool *strlist_preparefoundlist(const struct strlist *list) {
 	for( i = 0 ; i < list->count ; i++ ) {
 		if( found[i] )
 			continue;
+		if( ignorenone && strcmp(list->values[i], "none") == 0 ) {
+			found[i] = true;
+			continue;
+		}
 		for( j = i + 1 ; j < list->count ; j++ )
 			if( strcmp(list->values[i], list->values[j]) == 0 )
 				found[j] = true;

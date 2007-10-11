@@ -47,7 +47,7 @@ bool strlist_intersects(const struct strlist *, const struct strlist *);
 bool strlist_subset(const struct strlist *strlist, const struct strlist *subset, const char **missing);
 
 /* a list of bool for all values, duplicates already set to true */
-bool *strlist_preparefoundlist(const struct strlist *);
+bool *strlist_preparefoundlist(const struct strlist *, bool ignorenone);
 
 /* concatenate <prefix> <values separated by infix> <suffix> */
 char *strlist_concat(const struct strlist *, const char *prefix, const char *infix, const char *suffix);

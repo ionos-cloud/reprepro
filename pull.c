@@ -444,7 +444,7 @@ static void checkifarchitectureisused(const struct strlist *architectures, const
 	assert( rule != NULL );
 	if( architectures->count == 0 )
 		return;
-	found = strlist_preparefoundlist(architectures);
+	found = strlist_preparefoundlist(architectures, true);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -454,8 +454,6 @@ static void checkifarchitectureisused(const struct strlist *architectures, const
 	}
 	for( i = 0 ; i < architectures->count ; i++ ) {
 		if( found[i] )
-			continue;
-		if( strcmp(architectures->values[i], "none") == 0 )
 			continue;
 		fprintf(stderr,
 "Warning: pull rule '%s' wants to %s architecture '%s',\n"
@@ -476,7 +474,7 @@ static void checkifcomponentisused(const struct strlist *components, const struc
 	assert( rule != NULL );
 	if( components->count == 0 )
 		return;
-	found = strlist_preparefoundlist(components);
+	found = strlist_preparefoundlist(components, true);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -486,8 +484,6 @@ static void checkifcomponentisused(const struct strlist *components, const struc
 	}
 	for( i = 0 ; i < components->count ; i++ ) {
 		if( found[i] )
-			continue;
-		if( strcmp(components->values[i], "none") == 0 )
 			continue;
 		fprintf(stderr,
 "Warning: pull rule '%s' wants to %s component '%s',\n"
@@ -508,7 +504,7 @@ static void checkifudebcomponentisused(const struct strlist *udebcomponents, con
 	assert( rule != NULL );
 	if( udebcomponents->count == 0 )
 		return;
-	found = strlist_preparefoundlist(udebcomponents);
+	found = strlist_preparefoundlist(udebcomponents, true);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -518,8 +514,6 @@ static void checkifudebcomponentisused(const struct strlist *udebcomponents, con
 	}
 	for( i = 0 ; i < udebcomponents->count ; i++ ) {
 		if( found[i] )
-			continue;
-		if( strcmp(udebcomponents->values[i], "none") == 0 )
 			continue;
 		fprintf(stderr,
 "Warning: pull rule '%s' wants to %s udeb component '%s',\n"
