@@ -1249,7 +1249,7 @@ static retvalue database_table(struct database *database, const char *filename, 
 	} else
 		table->subname = NULL;
 	table->readonly = readonly;
-	table->verbose = verbose;
+	table->verbose = database->verbose;
 	r = database_opentable(database, filename, subtable, type, preflags, dupcompare, readonly, &table->berkleydb);
 	if( RET_WAS_ERROR(r) ) {
 		free(table->subname);
