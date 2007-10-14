@@ -208,7 +208,7 @@ CFfinishparse(incoming) {
 		fprintf(stderr, "Multiple definitions of '%s' within '%s': first started at line %u, second at line %u!\n",
 				d->name,
 				config_filename(iter),
-				d->i->lineno,
+				(unsigned int)d->i->lineno,
 				config_firstline(iter));
 		incoming_free(i);
 		incoming_free(d->i);
