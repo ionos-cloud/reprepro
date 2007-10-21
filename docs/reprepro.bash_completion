@@ -65,7 +65,7 @@ _reprepro()
 	ignores='ignore forbiddenchar 8bit emptyfilenamepart\
 		spaceonlyline malformedchunk unknownfield\
 		wrongdistribution missingfield brokenold\
-		undefinedtracking undefinedtarget\
+		undefinedtracking undefinedtarget unusedoption\
 		brokenversioncmp extension unusedarch surprisingarch\
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\
 		brokensignatures uploaders missingfile'

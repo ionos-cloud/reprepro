@@ -263,6 +263,7 @@ _arguments \
 		brokenversioncmp\:"ignore versions not parseable"\
 		extension\:"ignore unexpected suffixes of files"\
 		unusedarch\:"allow changes files to list achitectures not used"\
+		unusedoption\:"ignore command line options not used by an action"\
 		undefinedtarget\:"allow unspecified package databases"\
 		undefinedtracking\:"allow unspecified tracking databases"\
 		surprisingarch\:"do not protest when a changes file does not list a architecture it has files for"\
@@ -276,7 +277,7 @@ _arguments \
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
 		ignore forbiddenchar 8bit emptyfilenamepart\
-		spaceonlyline malformedchunk unknownfield\
+		spaceonlyline malformedchunk unknownfield unusedoption\
 		wrongdistribution missingfield brokenold brokenversioncmp\
 		extension unusedarch surprisingarch surprisingbinary
 		wrongsourceversion wrongversion brokensignatures

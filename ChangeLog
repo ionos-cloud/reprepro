@@ -1,3 +1,7 @@
+2007-10-21  Bernhard R. Link <brlink@debian.org>
+	* warn against -A,-C,-T,-S or -P given to an action not
+	using it, with new --ignore=unusedoption to ignore this.
+
 2007-10-07  Bernhard R. Link <brlink@debian.org>
 	* change db/version file to final format,
 	  abort if version or libdb version specified
