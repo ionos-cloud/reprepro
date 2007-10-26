@@ -1,3 +1,7 @@
+2007-10-26  Bernhard R. Link <brlink@debian.org>
+	* change --export default from "normal" (now also available
+	under the name "lookedat") to "changed".
+
 2007-10-21  Bernhard R. Link <brlink@debian.org>
 	* warn against -A,-C,-T,-S or -P given to an action not
 	using it, with new --ignore=unusedoption to ignore this.

@@ -100,7 +100,7 @@ static bool	askforpassphrase = false;
 static bool	guessgpgtty = true;
 static bool	skipold = true;
 static size_t   waitforlock = 0;
-static enum exportwhen export = EXPORT_NORMAL;
+static enum exportwhen export = EXPORT_CHANGED;
 int		verbose = 0;
 static bool	fast = false;
 static bool	verbosedatabase = false;
@@ -647,11 +647,9 @@ ACTION_D(n, n, y, removesrc) {
 			NULL, NULL, NULL,
 			package_source_fits, dereferenced, NULL,
 			&data);
-	if( RET_IS_OK(result) ) {
-		r = distribution_export(export, distribution,
-				confdir, distdir, database);
-		RET_ENDUPDATE(result, r);
-	}
+	r = distribution_export(export, distribution,
+			confdir, distdir, database);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -710,11 +708,9 @@ ACTION_D(y, n, y, removefilter) {
 			package_matches_condition, dereferenced,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
-	if( RET_IS_OK(result) ) {
-		r = distribution_export(export, distribution,
-				confdir, distdir, database);
-		RET_ENDUPDATE(result, r);
-	}
+	r = distribution_export(export, distribution,
+			confdir, distdir, database);
+	RET_ENDUPDATE(result, r);
 	if( tracks != NULL ) {
 		trackingdata_finish(tracks, &trackingdata,
 					database, dereferenced);
@@ -1835,6 +1831,8 @@ ACTION_D(y, y, y, include) {
 			packagetype, component, architecture,
 			section, priority, distribution,
 			argv[2], delete, dereferenced);
+	if( RET_WAS_ERROR(result) )
+		RET_UPDATE(distribution->status, result);
 
 	distribution_unloadoverrides(distribution);
 	distribution_unloaduploaders(distribution);
@@ -2516,6 +2514,10 @@ static void setexport(const char *optarg) {
 		return;
 	}
 	if( strcasecmp(optarg, "normal") == 0 ) {
+		CONFIGSET(export, EXPORT_NORMAL);
+		return;
+	}
+	if( strcasecmp(optarg, "lookedat") == 0 ) {
 		CONFIGSET(export, EXPORT_NORMAL);
 		return;
 	}

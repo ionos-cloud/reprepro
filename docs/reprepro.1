@@ -144,26 +144,32 @@ Overrides the section of inclusions. (Also override possible override files)
 .B \-P, \-\-priority \fIpriority\fP
 Overrides the priority of inclusions. (Also override possible override files)
 .TP
-.BR \-\-export= ( never | changed | normal | force )
+.BR \-\-export= ( never | changed | lookedat | force )
 This option specify whether and how the high level actions
 (e.g. install, update, pull, delete)
 should export the index files of the distributions they work with.
 .TP
-.BR \-\-export=normal " (default)"
-In this mode every distribution the action handled without error
-will be exported.
+.BR \-\-export=normal " (default till 3.0.0)"
+.BR \-\-export=lookedat " (alternative new name since 3.0.1)"
+In this mode every distribution the action handled will be exported,
+unless there was an error possibly corrupting it.
 .br
 \fINote\fP that only missing files and files whose intended content changed
 between before and after the action will be written.
 To get a guaranteed current export, use the \fBexport\fP action.
 .TP
-.BR \-\-export=changed
-Like \fBnormal\fP, but do not look for missing files in distributions where
-nothing changed.
+.BR \-\-export=changed " (default since 3.0.1)"
+In this mode every distribution actually changed will be exported,
+unless there was an error possibly corrupting it.
+(i.e. if nothing changed, not even missing files will be created.)
+.br
+\fINote\fP that only missing files and files whose intended content changed
+between before and after the action will be written.
+To get a guaranteed current export, use the \fBexport\fP action.
 .TP
 .BR \-\-export=force
-Like \fBnormal\fP, but exporting also happens for distributions where
-some error occurred.
+Always export all distributions looked at, even if there was some
+error possibly bringing it into a inconsistent state.
 .TP
 .BR \-\-export=never
 No index files are exported. You will have to call \fBexport\fP later.
