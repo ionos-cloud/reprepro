@@ -777,9 +777,9 @@ static retvalue export(struct distribution *distribution,
 		}
 		if( workleft ) {
 			fputs(
-"This means that from outside your repository will still look like before\n"
-"(and should still work in that old state), but the things you changed in this\n"
-"call will not be visible until you call export directly. (via reprepro export)\n"
+"This means that from outside your repository will still look like before (and\n"
+"should still work if this old state worked), but the things you changed in this\n"
+"call will not be visible until you call export directly (via reprepro export)\n"
 "(things will also get visible when something else changes the same file and\n"
 "thus creates a new export of that file, but even changes to other parts of the\n"
 "same distribution will not!\n",	stderr);
