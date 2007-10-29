@@ -1,3 +1,7 @@
+2007-10-29  Bernhard R. Link <brlink@debian.org>
+	* If exporting a distribution fails, warn if something is left
+	in a state that needs manual exporting.
+
 2007-10-26  Bernhard R. Link <brlink@debian.org>
 	* change --export default from "normal" (now also available
 	under the name "lookedat") to "changed".

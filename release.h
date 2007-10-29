@@ -57,6 +57,7 @@ struct target;
 retvalue release_directorydescription(struct release *release, const struct distribution *distribution, const struct target *target, const char *filename, bool onlyifneeded);
 
 void release_free(/*@only@*/struct release *release);
-retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool onlyneeded);
+retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyneeded);
+retvalue release_finish(/*@only@*/struct release *release, struct distribution *distribution);
 
 #endif

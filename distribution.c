@@ -706,11 +706,15 @@ retvalue distribution_snapshot(struct distribution *distribution,
 				break;
 		}
 	}
+	if( !RET_WAS_ERROR(result) ) {
+		result = release_prepare(release, distribution, false);
+		assert( result != RET_NOTHING );
+	}
 	if( RET_WAS_ERROR(result) ) {
 		release_free(release);
 		return result;
 	}
-	result = release_write(release, distribution, false);
+	result = release_finish(release, distribution);
 	if( RET_WAS_ERROR(result) )
 		return r;
 	id = mprintf("s=%s=%s", distribution->codename, name);
@@ -759,12 +763,31 @@ static retvalue export(struct distribution *distribution,
 		r = contents_generate(database, distribution,
 				release, onlyneeded);
 	}
-	if( RET_WAS_ERROR(result) )
+	if( !RET_WAS_ERROR(result) ) {
+		result = release_prepare(release,distribution,onlyneeded);
+		if( result == RET_NOTHING )
+			return result;
+	}
+	if( RET_WAS_ERROR(result) ) {
+		bool workleft = false;
 		release_free(release);
-	else {
+		fprintf(stderr, "ERROR: Could not finish exporting '%s'!\n", distribution->codename);
+		for( target=distribution->targets; target != NULL ; target = target->next ) {
+			workleft |= target->saved_wasmodified;
+		}
+		if( workleft ) {
+			fputs(
+"This means that from outside your repository will still look like before\n"
+"(and should still work in that old state), but the things you changed in this\n"
+"call will not be visible until you call export directly. (via reprepro export)\n"
+"(things will also get visible when something else changes the same file and\n"
+"thus creates a new export of that file, but even changes to other parts of the\n"
+"same distribution will not!\n",	stderr);
+		}
+	} else {
 		retvalue r;
 
-		r = release_write(release,distribution,onlyneeded);
+		r = release_finish(release,distribution);
 		RET_UPDATE(result,r);
 	}
 	if( RET_IS_OK(result) )
