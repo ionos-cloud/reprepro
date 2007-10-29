@@ -1,4 +1,6 @@
 TODO:
+	more translatefilelists todo: not warn about old databaseformat if database is emty
+			allow multiple conversions when old version was used in between
 	do not put/leave files in pool when include gets an older version than already there
 	write more automated test-cases
 	 (not even run in the testcase yet: reoverride, ... (probably many))
