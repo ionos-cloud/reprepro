@@ -1182,17 +1182,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		release->signedfile = NULL;
 		return r;
 	}
-	result = RET_OK;
-	if( release->cachedb != NULL ) {
-		/* now update the cache database, so we find those the next time */
-		r = storechecksums(release);
-		RET_UPDATE(result,r);
-
-		r = table_close(release->cachedb);
-		release->cachedb = NULL;
-		RET_ENDUPDATE(result, r);
-	}
-	return result;
+	return RET_OK;
 }
 
 /* Generate a main "Release" file for a distribution */
@@ -1244,6 +1234,18 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 "not useable! You should remove the reason for the failure\n"
 "(most likely bad access permissions) and export the affected distributions\n"
 "manually (via reprepro export codenames) as soon as possible!\n", stderr);
+	}
+	if( release->cachedb != NULL ) {
+		// TODO: split this in removing before and adding later?
+		// remember which file were changed in case of error, so
+		// only those are changed...
+		/* now update the cache database, so we find those the next time */
+		r = storechecksums(release);
+		RET_UPDATE(result,r);
+
+		r = table_close(release->cachedb);
+		release->cachedb = NULL;
+		RET_ENDUPDATE(result, r);
 	}
 	/* free everything */
 	release_free(release);
