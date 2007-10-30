@@ -1085,7 +1085,7 @@ static retvalue storechecksums(struct release *release) {
 /* Generate a main "Release" file for a distribution */
 retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
-	retvalue result, r;
+	retvalue r;
 	char buffer[100];
 	time_t t;
 	struct tm *gmt;
