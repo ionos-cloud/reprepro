@@ -453,7 +453,7 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 		r = filelist_addfiles(list, package, filekey, c, size);
 		if( contents != NULL )
 			r = table_adduniqsizedrecord(database->contents, filekey,
-					contents, size, true);
+					contents, size, true, false);
 	}
 	free(contents);
 	return r;
@@ -461,7 +461,7 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 
 retvalue fakefilelist(struct database *database, const char *filekey) {
 	return table_adduniqsizedrecord(database->contents, filekey,
-			"", 1, true);
+			"", 1, true, false);
 }
 
 static const char header[] = "FILE                                                    LOCATION\n";
@@ -693,7 +693,7 @@ retvalue filelists_translate(struct table *oldtable, struct table *newtable) {
 		if( !RET_IS_OK(r) )
 			break;
 		r = table_adduniqsizedrecord(newtable, filekey,
-				newdata, newdata_size, false);
+				newdata, newdata_size, false, false);
 		free(newdata);
 		if( RET_WAS_ERROR(r) )
 			break;

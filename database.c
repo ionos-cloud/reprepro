@@ -954,7 +954,7 @@ bool table_recordexists(struct table *table, const char *key) {
 	return true;
 }
 
-retvalue table_adduniqsizedrecord(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite) {
+retvalue table_adduniqsizedrecord(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite, bool nooverwrite) {
 	int dbret;
 	DBT Key, Data;
 
@@ -966,6 +966,10 @@ retvalue table_adduniqsizedrecord(struct table *table, const char *key, const ch
 	SETDBTl(Data, data, data_size);
 	dbret = table->berkleydb->put(table->berkleydb, NULL,
 			&Key, &Data, allowoverwrite?0:DB_NOOVERWRITE);
+	if( nooverwrite && dbret == DB_KEYEXIST ) {
+		/* if nooverwrite is set, do nothing and ignore: */
+		return RET_NOTHING;
+	}
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "put(uniq)");
 		return RET_DBERR(dbret);
@@ -981,7 +985,8 @@ retvalue table_adduniqsizedrecord(struct table *table, const char *key, const ch
 	return RET_OK;
 }
 retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
-	return table_adduniqsizedrecord(table, key, data, strlen(data)+1, false);
+	return table_adduniqsizedrecord(table, key, data, strlen(data)+1,
+			false, false);
 }
 
 retvalue table_deleterecord(struct table *table, const char *key, bool ignoremissing) {
