@@ -363,12 +363,12 @@ static struct dirlist *finddir(struct dirlist *dir, cuchar *name, size_t namelen
 	return d;
 }
 
-static retvalue filelist_addfiles(struct filelist_list *list, const struct filelist_package *package, const char *filekey, const char *datastart, size_t len) {
+static retvalue filelist_addfiles(struct filelist_list *list, const struct filelist_package *package, const char *filekey, const char *datastart, size_t size) {
 	struct dirlist *curdir = list->root;
 	const unsigned char *data = (const unsigned char *)datastart;
 
 	while( *data != '\0' ) {
-		if( (size_t)(data - (const unsigned char *)datastart) >= len ) {
+		if( (size_t)(data - (const unsigned char *)datastart) >= size-1 ) {
 			/* This might not catch everything, but we are only
 			 * accessing it readonly */
 			fprintf(stderr, "Corrupted file list data for %s\n",
@@ -414,6 +414,13 @@ static retvalue filelist_addfiles(struct filelist_list *list, const struct filel
 			while( d-- > 0 && curdir->parent != NULL )
 				curdir = curdir->parent;
 		}
+	}
+	if( (size_t)(data - (const unsigned char *)datastart) != size-1 ) {
+		fprintf(stderr, "Corrupted file list data for %s (format suggest %llu, is %llu)\n",
+				filekey,
+				(unsigned long long)(data - (const unsigned char *)datastart),
+				(unsigned long long)(size-1));
+		return RET_ERROR;
 	}
 	return RET_OK;
 }
