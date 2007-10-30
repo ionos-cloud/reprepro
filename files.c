@@ -572,7 +572,7 @@ retvalue files_regenerate_filelist(struct database *database, bool reread) {
 							p += strlen(p)+1;
 						}
 					}
-					r = table_adduniqlenrecord(
+					r = table_adduniqsizedrecord(
 							database->contents,
 							filekey, filelist, fls,
 							true);

@@ -954,7 +954,7 @@ bool table_recordexists(struct table *table, const char *key) {
 	return true;
 }
 
-retvalue table_adduniqlenrecord(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite) {
+retvalue table_adduniqsizedrecord(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite) {
 	int dbret;
 	DBT Key, Data;
 
@@ -981,7 +981,7 @@ retvalue table_adduniqlenrecord(struct table *table, const char *key, const char
 	return RET_OK;
 }
 retvalue table_adduniqrecord(struct table *table, const char *key, const char *data) {
-	return table_adduniqlenrecord(table, key, data, strlen(data)+1, false);
+	return table_adduniqsizedrecord(table, key, data, strlen(data)+1, false);
 }
 
 retvalue table_deleterecord(struct table *table, const char *key, bool ignoremissing) {

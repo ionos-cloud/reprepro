@@ -445,7 +445,7 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 	if( RET_IS_OK(r) ) {
 		r = filelist_addfiles(list, package, filekey, c, size);
 		if( contents != NULL )
-			r = table_adduniqlenrecord(database->contents, filekey,
+			r = table_adduniqsizedrecord(database->contents, filekey,
 					contents, size, true);
 	}
 	free(contents);
@@ -453,7 +453,7 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 }
 
 retvalue fakefilelist(struct database *database, const char *filekey) {
-	return table_adduniqlenrecord(database->contents, filekey,
+	return table_adduniqsizedrecord(database->contents, filekey,
 			"", 1, true);
 }
 
@@ -685,7 +685,7 @@ retvalue filelists_translate(struct table *oldtable, struct table *newtable) {
 		r = filelistcompressor_finish(&c, &newdata, &newdata_size);
 		if( !RET_IS_OK(r) )
 			break;
-		r = table_adduniqlenrecord(newtable, filekey,
+		r = table_adduniqsizedrecord(newtable, filekey,
 				newdata, newdata_size, false);
 		free(newdata);
 		if( RET_WAS_ERROR(r) )
