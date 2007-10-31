@@ -765,8 +765,10 @@ static retvalue export(struct distribution *distribution,
 	}
 	if( !RET_WAS_ERROR(result) ) {
 		result = release_prepare(release,distribution,onlyneeded);
-		if( result == RET_NOTHING )
+		if( result == RET_NOTHING ) {
+			release_free(release);
 			return result;
+		}
 	}
 	if( RET_WAS_ERROR(result) ) {
 		bool workleft = false;
