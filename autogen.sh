@@ -1,14 +1,22 @@
 #!/bin/sh
 set -e
 
-aclocal 
+aclocal
 autoheader
 automake -a -c
 autoconf
+rm -rf autom4te.cache || true
 
-if [ "x$1" = "x--configurein" ] ; then
+if [ "x$1" = "x--configure" ] ; then
+	shift
 	repreprodir="`pwd`"
-	mkdir -p -- "$2"
-	cd "$2" || exit 1
+	if [ $# > 0 ] ; then
+		mkdir -p -- "$1"
+		cd "$1" || exit 1
+	fi
+	shift
 	"$repreprodir"/configure --enable-maintainer-mode CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -DSTUPIDCC=1" "$@"
+else
+	echo "unsupported option $1" >&2
+	exit 1
 fi
