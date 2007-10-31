@@ -1,3 +1,11 @@
+2007-10-31  Bernhard R. Link <brlink@debian.org>
+	* translatefilelists now can be run when both old
+	and new style filelists are there (this can happen
+	when it was translated and an old version of reprepro
+	was run over this database. You should not do this,
+	but when it happens, translatefilelists can be used
+	now instead of having to reextract the lists).
+
 2007-10-29  Bernhard R. Link <brlink@debian.org>
 	* If exporting a distribution fails, warn if something is left
 	in a state that needs manual exporting.

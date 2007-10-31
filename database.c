@@ -1365,19 +1365,38 @@ char *files_calcfullfilename(const struct database *database,const char *filekey
 	return calc_dirconcat(database->mirrordir, filekey);
 }
 
+static retvalue table_copy(struct table *oldtable, struct table *newtable) {
+	retvalue r;
+	struct cursor *cursor;
+	const char *filekey, *data;
+	size_t data_len;
+
+	r = table_newglobaluniqcursor(oldtable, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+	while( cursor_nexttempdata(oldtable, cursor, &filekey,
+				&data, &data_len) ) {
+		r = table_adduniqsizedrecord(newtable, filekey,
+				data, data_len+1, false, true);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
 retvalue database_translate_filelists(struct database *database) {
 	char *dbname, *tmpdbname;
 	struct table *oldtable, *newtable;
 	struct strlist identifiers;
 	int ret;
-	retvalue r;
+	retvalue r, r2;
 
 	r = database_listsubtables(database, "contents.cache.db",
 			&identifiers);
 	if( RET_IS_OK(r) ) {
-		if( strlist_in(&identifiers, "compressedfilelists") ) {
+		if( !strlist_in(&identifiers, "filelists") ) {
 			fprintf(stderr,
-"Your %s/contents.cache.db file already contains a new style database!\n",
+"Your %s/contents.cache.db file does not contain an old style database!\n",
 					database->directory);
 			strlist_done(&identifiers);
 			return RET_NOTHING;
@@ -1393,7 +1412,6 @@ retvalue database_translate_filelists(struct database *database) {
 		free(dbname);
 		return RET_ERROR_OOM;
 	}
-// TODO: check first if there is already a compressed database in there?
 	ret = rename(dbname, tmpdbname);
 	if( ret != 0 ) {
 		int e = errno;
@@ -1401,30 +1419,44 @@ retvalue database_translate_filelists(struct database *database) {
 				dbname, tmpdbname, strerror(e), e);
 		return RET_ERRNO(e);
 	}
-	r = database_table(database, "old.contents.cache.db", "filelists",
-			DB_BTREE, 0, NULL, READONLY, &oldtable);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Could not find old-style database!\n");
-		r = RET_ERROR;
-	}
-	if( RET_IS_OK(r) )
-		r = database_table(database, "contents.cache.db",
+	newtable = NULL;
+	r = database_table(database, "contents.cache.db",
 			"compressedfilelists",
 			DB_BTREE, 0, NULL, READWRITE, &newtable);
-	else
-		oldtable = NULL;
 	assert( r != RET_NOTHING );
+	oldtable = NULL;
+	if( RET_IS_OK(r) ) {
+		r = database_table(database, "old.contents.cache.db", "filelists",
+				DB_BTREE, 0, NULL, READONLY, &oldtable);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Could not find old-style database!\n");
+			r = RET_ERROR;
+		}
+	}
 	if( RET_IS_OK(r) ) {
 		r = filelists_translate(oldtable, newtable);
 		if( r == RET_NOTHING )
 			r = RET_OK;
 	}
+	r2 = table_close(oldtable);
+	RET_ENDUPDATE(r, r2);
+	oldtable = NULL;
 	if( RET_IS_OK(r) ) {
-		r = table_close(newtable);
-		if( r == RET_NOTHING )
+		/* copy the new-style database, */
+		r = database_table(database, "old.contents.cache.db", "compressedfilelists",
+				DB_BTREE, 0, NULL, READONLY, &oldtable);
+		if( RET_IS_OK(r) ) {
+			/* if there is one... */
+			r = table_copy(oldtable, newtable);
+			r2 = table_close(oldtable);
+			RET_ENDUPDATE(r, r2);
+		}
+		if( r == RET_NOTHING ) {
 			r = RET_OK;
+		}
 	}
-	(void)table_close(oldtable);
+	r2 = table_close(newtable);
+	RET_ENDUPDATE(r, r2);
 	if( RET_IS_OK(r) )
 		unlink(tmpdbname);
 
