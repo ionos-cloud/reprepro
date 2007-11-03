@@ -98,11 +98,12 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 				break;
 			case '=':
 				f++;
-				if( *f != '=' ) {
+				if( *f == '=' )
+					f++;
+				else if( *f != ' ' ) {
 					*formula = f;
 					return RET_NOTHING;
 				}
-				f++;
 				comparison = tc_equal;
 				break;
 			case '!':
