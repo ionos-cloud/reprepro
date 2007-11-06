@@ -1,3 +1,10 @@
+reprepro (3.0.1-0) UNRELEASED; urgency=low
+
+  * new version
+  - fix c&p error in manpage, thanks to Raphael Geissert (Closes: 449210)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  6 Nov 2007 12:36:16 +0100
+
 reprepro (3.0.0-1) unstable; urgency=low
 
   * new version
