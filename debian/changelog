@@ -1,4 +1,4 @@
-reprepro (3.0.1-0) UNRELEASED; urgency=low
+reprepro (3.0.1-1) unstable; urgency=low
 
   * new version
   - fix c&p error in manpage, thanks to Raphael Geissert (Closes: 449210)
