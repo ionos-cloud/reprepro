@@ -7,7 +7,7 @@ automake -a -c
 autoconf
 rm -rf autom4te.cache || true
 
-if [ $# < 1 ] ; then
+if [ $# -lt 1 ] ; then
 	exit 0
 fi
 
