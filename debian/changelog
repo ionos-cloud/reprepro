@@ -2,8 +2,12 @@ reprepro (3.0.1-1) unstable; urgency=low
 
   * new version
   - fix c&p error in manpage, thanks to Raphael Geissert (Closes: 449210)
+  * move from XS-Vcs- to Vcs- headers
+  * move Homepage field into headers
+  * make apt recommends instead of depends, as only needed when updating
+    from other repositories.
 
- -- Bernhard R. Link <brlink@debian.org>  Tue,  6 Nov 2007 12:36:16 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 13 Nov 2007 11:43:21 +0100
 
 reprepro (3.0.0-1) unstable; urgency=low
 

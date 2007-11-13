@@ -4,12 +4,14 @@ Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
 Build-Depends: debhelper (>= 4.0.0), libgpgme11-dev, libdb4.3-dev, libz-dev, libbz2-dev, libarchive-dev
 Standards-Version: 3.7.2
-XS-Vcs-Browser: http://alioth.debian.org/plugins/scmcvs/cvsweb.php/mirrorer/?cvsroot=mirrorer
-XS-Vcs-Cvs: -d :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/mirrorer reprepro
+Vcs-Browser: http://alioth.debian.org/plugins/scmcvs/cvsweb.php/mirrorer/?cvsroot=mirrorer
+Vcs-Cvs: -d :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/mirrorer co reprepro
+Homepage: http://mirrorer.alioth.debian.org/
 
 Package: reprepro
 Architecture: any
-Depends: apt, ${shlibs:Depends}, ${reprepro:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${reprepro:Depends}, ${misc:Depends}
+Recommends: apt
 Suggests: gnupg-agent, inoticoming
 Description: debian package repository producer
  reprepro is a tool to manage a repository of Debian packages
@@ -20,5 +22,3 @@ Description: debian package repository producer
  so no database server is needed.
  Checking signatures of mirrored repositories and creating
  signatures of the generated Package indices is supported.
- .
- Homepage: http://mirrorer.alioth.debian.org/
