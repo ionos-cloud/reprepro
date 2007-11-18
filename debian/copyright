@@ -39,9 +39,13 @@ also under GPL as above.
 md5.[ch] are written by Colin Plumb in 1993 and modified by 
 Ian Jackson in 1995 and are in the public domain.
 
+sha1.c is based on something written by Steve Reid <sreid@sea-to-sky.net>,
+modified by James H. Brown <jbrown@burgoyne.com>, Saul Kravitz
+<Saul.Kravitz@celera.com> and Ralph Giles <giles@ghostscript.com>
+and in the public domain.
+
 docs/tiffany.example if derived from 
 http://ftp-master.debian.org/~ajt/tiffani/tiffani: 
 Copyright (C) 2004-5  Anthony Towns <aj@azure.humbug.org.au>
 Copyright (C) 2004-5  Andreas Barth <aba@not.so.argh.org>
 also under GPL as above.
-

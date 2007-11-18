@@ -17,6 +17,7 @@
 
 #include <errno.h>
 #include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -36,6 +37,7 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "chunks.h"
+#include "sha1.h"
 #include "md5.h"
 #include "md5sum.h"
 #include "copyfile.h"
@@ -47,6 +49,9 @@
 
 extern int verbose;
 
+#define INPUT_BUFFER_SIZE 1024
+#define GZBUFSIZE 40960
+#define BZBUFSIZE 40960
 
 struct release {
 	/* The base-directory of the distribution we are exporting */
@@ -59,7 +64,7 @@ struct release {
 	struct release_entry {
 		struct release_entry *next;
 		char *relativefilename;
-		char *md5sum;
+		char *checksums[cs_count];
 		/* both == NULL if not new, only final==NULL means delete */
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
@@ -72,12 +77,15 @@ struct release {
 
 void release_free(struct release *release) {
 	struct release_entry *e;
+	enum checksumtype cs;
 
 	free(release->dirofdist);
 	while( (e = release->files) != NULL ) {
 		release->files = e->next;
 		free(e->relativefilename);
-		free(e->md5sum);
+		for( cs = cs_md5sum ; cs < cs_count ; cs ++ ) {
+			free(e->checksums[cs]);
+		}
 		free(e->fullfinalfilename);
 		free(e->fulltemporaryfilename);
 		free(e);
@@ -96,6 +104,7 @@ const char *release_dirofdist(struct release *release) {
 
 static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relativefilename,
 		/*@only@*/ char *md5sum,
+		/*@only@*/ char *sha1sum,
 		/*@only@*/ /*@null@*/ char *fullfinalfilename,
 		/*@only@*/ /*@null@*/ char *fulltemporaryfilename ) {
 	struct release_entry *n,*p;
@@ -104,7 +113,8 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 		return RET_ERROR_OOM;
 	n->next = NULL;
 	n->relativefilename = relativefilename;
-	n->md5sum = md5sum;
+	n->checksums[cs_md5sum] = md5sum;
+	n->checksums[cs_sha1sum] = sha1sum;
 	n->fullfinalfilename = fullfinalfilename;
 	n->fulltemporaryfilename = fulltemporaryfilename;
 	if( release->files == NULL )
@@ -164,12 +174,12 @@ retvalue release_adddel(struct release *release,/*@only@*/char *reltmpfile) {
 		return RET_ERROR_OOM;
 	}
 	free(reltmpfile);
-	return newreleaseentry(release,NULL,NULL,NULL,filename);
+	return newreleaseentry(release,NULL,NULL,NULL,NULL,filename);
 }
 
 retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename) {
 	retvalue r;
-	char *filename,*finalfilename,*md5sum;
+	char *filename, *finalfilename, *md5sum, *sha1sum;
 
 	filename = calc_dirconcat(release->dirofdist,reltmpfile);
 	if( filename == NULL ) {
@@ -178,7 +188,7 @@ retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@on
 		return RET_ERROR_OOM;
 	}
 	free(reltmpfile);
-	r = md5sum_read(filename,&md5sum);
+	r = checksum_read(filename, &md5sum, &sha1sum);
 	if( !RET_IS_OK(r) ) {
 		free(relfilename);
 		free(filename);
@@ -192,146 +202,157 @@ retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@on
 		return RET_ERROR_OOM;
 	}
 	release->new = true;
-	return newreleaseentry(release,relfilename,md5sum,finalfilename,filename);
+	return newreleaseentry(release, relfilename,
+			md5sum, sha1sum, finalfilename, filename);
 }
 
 retvalue release_addold(struct release *release,/*@only@*/char *relfilename) {
 	retvalue r;
-	char *filename,*md5sum;
+	char *filename, *md5sum, *sha1sum;
 
 	filename = calc_dirconcat(release->dirofdist,relfilename);
 	if( filename == NULL ) {
 		free(filename);
 		return RET_ERROR_OOM;
 	}
-	r = md5sum_read(filename,&md5sum);
+	r = checksum_read(filename, &md5sum, &sha1sum);
 	free(filename);
 	if( !RET_IS_OK(r) ) {
 		free(relfilename);
 		return r;
 	}
-	return newreleaseentry(release,relfilename,md5sum,NULL,NULL);
+	return newreleaseentry(release, relfilename,
+			md5sum, sha1sum, NULL, NULL);
 }
 
-static retvalue getcachevalue(struct release *,const char *, char **);
+static char *calc_compressedname(const char *name, enum indexcompression ic) {
+	switch( ic ) {
+		case ic_uncompressed:
+			return strdup(name);
+		case ic_gzip:
+			return calc_addsuffix(name, "gz");
+#ifdef HAVE_LIBBZ2
+		case ic_bzip2:
+			return calc_addsuffix(name, "bz2");
+#endif
+		default:
+			assert( "Huh?" == NULL );
+			return NULL;
+	}
+}
+
 static retvalue release_usecached(struct release *release,
 				const char *relfilename,
 				compressionset compressions) {
 	retvalue result,r;
-	char *filename,*md5sum;
-	char *gzrelfilename,*gzmd5sum;
-#ifdef HAVE_LIBBZ2
-	char *bzrelfilename,*bzmd5sum;
-#endif
+	enum indexcompression ic;
+	enum checksumtype cs;
+	char *filename[ic_count];
+	char *checksums[ic_count][cs_count];
 
-	/* first look if the there are actual files, in case
-	 * the cache still lists them but they got lost */
-	filename = calc_dirconcat(release->dirofdist,relfilename);
-	if( filename == NULL ) {
-		return RET_ERROR_OOM;
-	}
-	if( (compressions & IC_FLAG(ic_uncompressed)) != 0 ) {
-		if( !isregularfile(filename) ) {
-			free(filename);
-			return RET_NOTHING;
+	memset(filename, 0, sizeof(filename));
+	memset(checksums, 0, sizeof(checksums));
+	result = RET_OK;
+
+	for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
+		if( ic != ic_uncompressed &&
+		    (compressions & IC_FLAG(ic)) == 0 )
+			continue;
+		filename[ic] = calc_compressedname(relfilename, ic);
+		if( filename[ic] == NULL ) {
+			result = RET_ERROR_OOM;
+			break;
 		}
 	}
-	if( (compressions & IC_FLAG(ic_gzip)) != 0 ) {
-		char *gzfilename;
-		gzfilename = calc_addsuffix(filename,"gz");
-		if( gzfilename == NULL ) {
-			free(filename);
-			return RET_ERROR_OOM;
+	if( RET_IS_OK(result) ) {
+		/* first look if the there are actual files, in case
+		 * the cache still lists them but they got lost */
+
+		for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
+			char *fullfilename;
+
+			if( (compressions & IC_FLAG(ic)) == 0 )
+				continue;
+			assert( filename[ic] != NULL );
+			fullfilename = calc_dirconcat(release->dirofdist,
+					filename[ic]);
+			if( fullfilename == NULL ) {
+				result = RET_ERROR_OOM;
+				break;
+			}
+			if( !isregularfile(fullfilename) ) {
+				free(fullfilename);
+				result = RET_NOTHING;
+				break;
+			}
+			free(fullfilename);
 		}
-		if( !isregularfile(gzfilename) ) {
-			free(filename);
-			free(gzfilename);
-			return RET_NOTHING;
-		}
-		free(gzfilename);
 	}
-#ifdef HAVE_LIBBZ2
-	if( (compressions & IC_FLAG(ic_bzip2)) != 0 ) {
-		char *bzfilename;
-		bzfilename = calc_addsuffix(filename,"bz2");
-		if( bzfilename == NULL ) {
-			free(filename);
-			return RET_ERROR_OOM;
-		}
-		if( !isregularfile(bzfilename) ) {
-			free(filename);
-			free(bzfilename);
-			return RET_NOTHING;
-		}
-		free(bzfilename);
+	if( RET_IS_OK(result) && release->cachedb == NULL )
+		result = RET_NOTHING;
+	if( !RET_IS_OK(result) ) {
+		for( ic = ic_uncompressed ; ic < ic_count ; ic++ )
+			free(filename[ic]);
+		return result;
 	}
-#endif
-	free(filename);
 
 	/* now that the files are there look into the cache
-	 * what md5sum they have. */
+	 * what checksums they have. */
 
-	filename = strdup(relfilename);
-	if( filename == NULL )
-		return RET_ERROR_OOM;
+	for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
+		char *combinedchecksum;
 
-	r = getcachevalue(release,relfilename,&md5sum);
-	if( !RET_IS_OK(r) ) {
-		free(filename);
-		return r;
-	}
-	if( (compressions & IC_FLAG(ic_gzip)) != 0 ) {
-		gzrelfilename = calc_addsuffix(relfilename,"gz");
-		if( gzrelfilename == NULL ) {
-			free(filename);
-			free(md5sum);
-			return RET_ERROR_OOM;
-		}
-		r = getcachevalue(release,gzrelfilename,&gzmd5sum);
+		if( filename[ic] == NULL )
+			continue;
+		r = table_getrecord(release->cachedb, filename[ic],
+				&combinedchecksum);
 		if( !RET_IS_OK(r) ) {
-			free(filename);
-			free(md5sum);
-			return r;
+			result = r;
+			break;
 		}
-	} else {
-		gzrelfilename = NULL;
-		gzmd5sum = NULL;
-	}
-#ifdef HAVE_LIBBZ2
-	if( (compressions & IC_FLAG(ic_bzip2)) != 0 ) {
-		bzrelfilename = calc_addsuffix(relfilename,"bz2");
-		if( bzrelfilename == NULL ) {
-			free(filename);
-			free(md5sum);
-			free(gzmd5sum);
-			free(gzrelfilename);
-			return RET_ERROR_OOM;
-		}
-		r = getcachevalue(release,bzrelfilename,&bzmd5sum);
+		r = checksum_dismantle(combinedchecksum, checksums[ic]);
+		free(combinedchecksum);
 		if( !RET_IS_OK(r) ) {
-			free(filename);
-			free(md5sum);
-			free(gzmd5sum);
-			free(gzrelfilename);
-			return r;
+			result = r;
+			break;
 		}
-	} else {
-		bzrelfilename = NULL;
-		bzmd5sum = NULL;
 	}
-#endif
-
-	result = newreleaseentry(release,filename,md5sum,NULL,NULL);
-	if( gzrelfilename != NULL ) {
-		r = newreleaseentry(release,gzrelfilename,gzmd5sum,NULL,NULL);
-		RET_UPDATE(result,r);
+	/* some files might not yet have some type of checksum available,
+	 * so calculate them (checking the other checksums match...): */
+	if( RET_IS_OK(result) ) {
+		for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
+			if( filename[ic] == NULL )
+				continue;
+			r = checksum_complete(release->dirofdist,
+					filename[ic], checksums[ic]);
+			if( !RET_IS_OK(r) ) {
+				result = r;
+				break;
+			}
+		}
 	}
-#ifdef HAVE_LIBBZ2
-	if( bzrelfilename != NULL ) {
-		r = newreleaseentry(release,bzrelfilename,bzmd5sum,NULL,NULL);
-		RET_UPDATE(result,r);
+	if( !RET_IS_OK(result) ) {
+		for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
+			if( filename[ic] == NULL )
+				continue;
+			free(filename[ic]);
+			for( cs = cs_md5sum ; cs < cs_count ; cs ++ ) {
+				free(checksums[ic][cs]);
+			}
+		}
+		return result;
 	}
-#endif
+	/* everything found, commit it: */
+	result = RET_OK;
+	for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
+		if( filename[ic] == NULL )
+			continue;
+		r = newreleaseentry(release, filename[ic],
+				checksums[ic][cs_md5sum],
+				checksums[ic][cs_sha1sum],
+				NULL, NULL);
+		RET_UPDATE(result, r);
+	}
 	return result;
 }
 
@@ -340,17 +361,17 @@ struct filetorelease {
 	struct openfile {
 		int fd;
 		struct MD5Context context;
+		struct SHA1_Context sha1_context;
 		off_t filesize;
 		char *relativefilename;
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
 	} f[ic_count];
+	/* input buffer, to checksum/compress data at once */
+	unsigned char *buffer; size_t waiting_bytes;
 	/* output buffer for gzip compression */
 	unsigned char *gzoutputbuffer; size_t gz_waiting_bytes;
 	z_stream gzstream;
-#ifdef OLDZLIB
-	uLong crc;
-#endif
 #ifdef HAVE_LIBBZ2
 	/* output buffer for bzip2 compression */
 	char *bzoutputbuffer; size_t bz_waiting_bytes;
@@ -371,6 +392,7 @@ void release_abortfile(struct filetorelease *file) {
 		free(file->f[i].fullfinalfilename);
 		free(file->f[i].fulltemporaryfilename);
 	}
+	free(file->buffer);
 	free(file->gzoutputbuffer);
 	if( file->gzstream.next_out != NULL ) {
 		deflateEnd(&file->gzstream);
@@ -419,7 +441,8 @@ static retvalue openfile(const char *dirofdist, struct openfile *f) {
 static retvalue writetofile(struct openfile *file, const unsigned char *data, size_t len) {
 
 	file->filesize += len;
-	MD5Update(&file->context,data,len);
+	MD5Update(&file->context, data, len);
+	SHA1Update(&file->sha1_context, data, len);
 
 	if( file->fd < 0 )
 		return RET_NOTHING;
@@ -441,35 +464,13 @@ static retvalue writetofile(struct openfile *file, const unsigned char *data, si
 	return RET_OK;
 }
 
-#define GZBUFSIZE 40960
-
 static retvalue	initgzcompression(struct filetorelease *f) {
 	int zret;
 
-#ifndef OLDZLIB
 	if( (zlibCompileFlags() & (1<<17)) !=0 ) {
 		fprintf(stderr,"libz compiled without .gz supporting code\n");
 		return RET_ERROR;
 	}
-#else
-	unsigned char header[10] = {
-		31,139, Z_DEFLATED,
-		/* flags */
-		0,
-		/* time */
-		0, 0, 0, 0,
-		/* xtra-flags */
-		0,
-		/* os (3 = unix, 255 = unknown)
-		 * using unknown to generate the same file
-		 * with or without OLDZLIB */
-		255};
-	retvalue r = writetofile(&f->f[ic_gzip],header,10);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	/* we have to calculate the crc ourself */
-	f->crc = crc32(0L, NULL, 0);
-#endif
 	f->gzoutputbuffer = malloc(GZBUFSIZE);
 	if( f->gzoutputbuffer == NULL )
 		return RET_ERROR_OOM;
@@ -480,7 +481,6 @@ static retvalue	initgzcompression(struct filetorelease *f) {
 	f->gzstream.zalloc = NULL;
 	f->gzstream.zfree = NULL;
 	f->gzstream.opaque = NULL;
-#ifndef OLDZLIB
 	zret = deflateInit2(&f->gzstream,
 			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */
 			Z_DEFAULT_COMPRESSION,
@@ -493,20 +493,7 @@ static retvalue	initgzcompression(struct filetorelease *f) {
 			/* default or Z_FILTERED or Z_HUFFMAN_ONLY or Z_RLE */
 			Z_DEFAULT_STRATEGY
 			);
-#else
-	zret = deflateInit2(&f->gzstream,
-			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */
-			Z_DEFAULT_COMPRESSION,
-			/* only possibility yet: */
-			Z_DEFLATED,
-			/* negative to no generate zlib header */
-			-MAX_WBITS,
-			/* how much memory to use 1-9 */
-			8,
-			/* default or Z_FILTERED or Z_HUFFMAN_ONLY or Z_RLE */
-			Z_DEFAULT_STRATEGY
-			);
-#endif
+	f->gz_waiting_bytes = GZBUFSIZE - f->gzstream.avail_out;
 	if( zret == Z_MEM_ERROR )
 		return RET_ERROR_OOM;
 	if( zret != Z_OK ) {
@@ -523,8 +510,6 @@ static retvalue	initgzcompression(struct filetorelease *f) {
 }
 
 #ifdef HAVE_LIBBZ2
-
-#define BZBUFSIZE 40960
 
 static retvalue	initbzcompression(struct filetorelease *f) {
 	int bzret;
@@ -580,6 +565,11 @@ static retvalue startfile(struct release *release,
 		free(filename);
 		return RET_ERROR_OOM;
 	}
+	n->buffer = malloc(INPUT_BUFFER_SIZE);
+	if( n->buffer == NULL ) {
+		release_abortfile(n);
+		return RET_ERROR_OOM;
+	}
 	for( i = ic_uncompressed ; i < ic_count ; i ++ ) {
 		n->f[i].fd = -1;
 	}
@@ -609,6 +599,7 @@ static retvalue startfile(struct release *release,
 			return r;
 		}
 		MD5Init(&n->f[ic_gzip].context);
+		SHA1Init(&n->f[ic_gzip].sha1_context);
 		r = initgzcompression(n);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(n);
@@ -629,6 +620,7 @@ static retvalue startfile(struct release *release,
 			return r;
 		}
 		MD5Init(&n->f[ic_bzip2].context);
+		SHA1Init(&n->f[ic_bzip2].sha1_context);
 		r = initbzcompression(n);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(n);
@@ -637,6 +629,7 @@ static retvalue startfile(struct release *release,
 	}
 #endif
 	MD5Init(&n->f[ic_uncompressed].context);
+	SHA1Init(&n->f[ic_uncompressed].sha1_context);
 	*file = n;
 	return RET_OK;
 }
@@ -665,7 +658,7 @@ retvalue release_startfile(struct release *release,
 }
 
 static retvalue releasefile(struct release *release, struct openfile *f) {
-	char *md5sum;
+	char *md5sum, *sha1sum;
 	retvalue r;
 
 	if( f->relativefilename == NULL ) {
@@ -682,7 +675,13 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = newreleaseentry(release,f->relativefilename,md5sum,
+	r = sha1_genstring(&sha1sum, &f->sha1_context);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		free(md5sum);
+		return r;
+	}
+	r = newreleaseentry(release,f->relativefilename, md5sum, sha1sum,
 			f->fullfinalfilename,
 			f->fulltemporaryfilename);
 	f->relativefilename = NULL;
@@ -691,20 +690,13 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 	return RET_OK;
 }
 
-static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
+static retvalue writegz(struct filetorelease *f) {
 	int zret;
 
 	assert( f->f[ic_gzip].fd >= 0  );
 
-	if( len == 0 )
-		return RET_NOTHING;
-
-#ifdef OLDZLIB
-	f->crc = crc32(f->crc,data,len);
-#endif
-
-	f->gzstream.next_in = (unsigned char*)data;
-	f->gzstream.avail_in = len;
+	f->gzstream.next_in = f->buffer;
+	f->gzstream.avail_in = INPUT_BUFFER_SIZE;
 
 	do {
 		f->gzstream.next_out = f->gzoutputbuffer + f->gz_waiting_bytes;
@@ -752,16 +744,11 @@ static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
 
 static retvalue finishgz(struct filetorelease *f) {
 	int zret;
-	unsigned char dummy;
-#ifdef OLDZLIB
-	unsigned char buffer[4];
-	retvalue r;
-#endif
 
 	assert( f->f[ic_gzip].fd >= 0  );
 
-	f->gzstream.next_in = &dummy;
-	f->gzstream.avail_in = 0;
+	f->gzstream.next_in = f->buffer;
+	f->gzstream.avail_in = f->waiting_bytes;
 
 	do {
 		f->gzstream.next_out = f->gzoutputbuffer + f->gz_waiting_bytes;
@@ -816,38 +803,19 @@ static retvalue finishgz(struct filetorelease *f) {
 		return RET_ERROR;
 	}
 
-#ifdef OLDZLIB
-	buffer[0] = f->crc & 0xFF;
-	buffer[1] = (f->crc >> (8*1)) & 0xFF;
-	buffer[2] = (f->crc >> (8*2)) & 0xFF;
-	buffer[3] = (f->crc >> (8*3)) & 0xFF;
-	r = writetofile(&f->f[ic_gzip],buffer,4);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	buffer[0] = f->f[ic_uncompressed].filesize & 0xFF;
-	buffer[1] = (f->f[ic_uncompressed].filesize >> (8*1)) & 0xFF;
-	buffer[2] = (f->f[ic_uncompressed].filesize >> (8*2)) & 0xFF;
-	buffer[3] = (f->f[ic_uncompressed].filesize >> (8*3)) & 0xFF;
-	r = writetofile(&f->f[ic_gzip],buffer,4);
-	if( RET_WAS_ERROR(r) )
-		return r;
-#endif
 
 	return RET_OK;
 }
 
 #ifdef HAVE_LIBBZ2
 
-static retvalue writebz(struct filetorelease *f, const char *data, size_t len) {
+static retvalue writebz(struct filetorelease *f) {
 	int bzret;
 
 	assert( f->f[ic_bzip2].fd >= 0  );
 
-	if( len == 0 )
-		return RET_NOTHING;
-
-	f->bzstream.next_in = (char*)data;
-	f->bzstream.avail_in = len;
+	f->bzstream.next_in = (char*)f->buffer;
+	f->bzstream.avail_in = INPUT_BUFFER_SIZE;
 
 	do {
 		f->bzstream.next_out = f->bzoutputbuffer + f->bz_waiting_bytes;
@@ -883,12 +851,11 @@ static retvalue writebz(struct filetorelease *f, const char *data, size_t len) {
 
 static retvalue finishbz(struct filetorelease *f) {
 	int bzret;
-	char dummy;
 
 	assert( f->f[ic_bzip2].fd >= 0  );
 
-	f->bzstream.next_in = &dummy;
-	f->bzstream.avail_in = 0;
+	f->bzstream.next_in = (char*)f->buffer;
+	f->bzstream.avail_in = f->waiting_bytes;
 
 	do {
 		f->bzstream.next_out = f->bzoutputbuffer + f->bz_waiting_bytes;
@@ -939,6 +906,12 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 		return r;
 	}
 
+	r = writetofile(&file->f[ic_uncompressed],
+			file->buffer, file->waiting_bytes);
+	if( RET_WAS_ERROR(r) ) {
+		release_abortfile(file);
+		return r;
+	}
 	if( file->f[ic_uncompressed].fd >= 0 ) {
 		if( close(file->f[ic_uncompressed].fd) != 0 ) {
 			int e = errno;
@@ -989,6 +962,7 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 		}
 		RET_UPDATE(result,r);
 	}
+	free(file->buffer);
 	free(file->gzoutputbuffer);
 #ifdef HAVE_LIBBZ2
 	free(file->bzoutputbuffer);
@@ -997,26 +971,64 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 	return result;
 }
 
-
-retvalue release_writedata(struct filetorelease *file, const char *data, size_t len) {
+static retvalue release_processbuffer(struct filetorelease *file) {
 	retvalue result,r;
 
 	result = RET_OK;
-	/* always call this so that md5sum is calculated */
-	r = writetofile(&file->f[ic_uncompressed],(const unsigned char*)data,len);
-	RET_UPDATE(result,r);
+	assert( file->waiting_bytes == INPUT_BUFFER_SIZE );
+
+	/* always call this - even if there is no uncompressed file
+	 * to generate - so that checksums are calculated */
+	r = writetofile(&file->f[ic_uncompressed],
+			file->buffer, INPUT_BUFFER_SIZE);
+	RET_UPDATE(result, r);
+
 	if( file->f[ic_gzip].relativefilename != NULL ) {
-		r = writegz(file,data,len);
-		RET_UPDATE(result,r);
+		r = writegz(file);
+		RET_UPDATE(result, r);
 	}
-	RET_UPDATE(file->state,result);
+	RET_UPDATE(file->state, result);
 #ifdef HAVE_LIBBZ2
 	if( file->f[ic_bzip2].relativefilename != NULL ) {
-		r = writebz(file,data,len);
+		r = writebz(file);
 		RET_UPDATE(result,r);
 	}
-	RET_UPDATE(file->state,result);
+	RET_UPDATE(file->state, result);
 #endif
+	return result;
+}
+
+retvalue release_writedata(struct filetorelease *file, const char *data, size_t len) {
+	retvalue result,r;
+	size_t free_bytes;
+
+	result = RET_OK;
+	/* move stuff into buffer, so stuff is not processed byte by byte */
+	free_bytes = INPUT_BUFFER_SIZE - file->waiting_bytes;
+	if( len < free_bytes ) {
+		memcpy(file->buffer + file->waiting_bytes, data, len);
+		file->waiting_bytes += len;
+		assert( file->waiting_bytes < INPUT_BUFFER_SIZE );
+		return RET_OK;
+	}
+	memcpy(file->buffer + file->waiting_bytes, data, free_bytes);
+	len -= free_bytes;
+	data += free_bytes;
+	file->waiting_bytes += free_bytes;
+	r = release_processbuffer(file);
+	RET_UPDATE(result, r);
+	while( len >= INPUT_BUFFER_SIZE ) {
+		/* should not hopefully not happen, as all this copying
+		 * is quite slow... */
+		memcpy(file->buffer, data, INPUT_BUFFER_SIZE);
+		len -= INPUT_BUFFER_SIZE;
+		data += INPUT_BUFFER_SIZE;
+		r = release_processbuffer(file);
+		RET_UPDATE(result, r);
+	}
+	memcpy(file->buffer, data, len);
+	file->waiting_bytes = len;
+	assert( file->waiting_bytes < INPUT_BUFFER_SIZE );
 	return result;
 }
 
@@ -1052,21 +1064,16 @@ retvalue release_directorydescription(struct release *release, const struct dist
 	return r;
 }
 
-static retvalue getcachevalue(struct release *r,const char *relfilename, char **md5sum) {
-
-	if( r->cachedb == NULL )
-		return RET_NOTHING;
-
-	return table_getrecord(r->cachedb, relfilename, md5sum);
-}
-
 static retvalue storechecksums(struct release *release) {
 	struct release_entry *file;
+	retvalue result, r;
+	char *combinedchecksum;
+
+	result = RET_OK;
 
 	for( file = release->files ; file != NULL ; file = file->next ) {
-		retvalue r;
 
-		if( file->md5sum == NULL || file->relativefilename == NULL )
+		if( file->relativefilename == NULL )
 			continue;
 
 		r = table_deleterecord(release->cachedb,
@@ -1074,12 +1081,17 @@ static retvalue storechecksums(struct release *release) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 
+		r = checksum_combine(&combinedchecksum, (const char**)file->checksums);
+		RET_UPDATE(result, r);
+		if( !RET_IS_OK(r) )
+			continue;
+
 		r = table_adduniqrecord(release->cachedb,
-				file->relativefilename, file->md5sum);
-		if( RET_WAS_ERROR(r) )
-			return r;
+				file->relativefilename, combinedchecksum);
+		RET_UPDATE(result, r);
+		free(combinedchecksum);
 	}
-	return RET_OK;
+	return result;
 }
 
 /* Generate a main "Release" file for a distribution */
@@ -1168,9 +1180,21 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 
 	writestring("\nMD5Sum:\n");
 	for( file = release->files ; file != NULL ; file = file->next ) {
-		if( file->md5sum != NULL && file->relativefilename != NULL ) {
+		if( file->checksums[cs_md5sum] != NULL
+		    && file->relativefilename != NULL ) {
 			writechar(' ');
-			writestring(file->md5sum);
+			writestring(file->checksums[cs_md5sum]);
+			writechar(' ');
+			writestring(file->relativefilename);
+			writechar('\n');
+		}
+	}
+	writestring("SHA1:\n");
+	for( file = release->files ; file != NULL ; file = file->next ) {
+		if( file->checksums[cs_sha1sum] != NULL
+		    && file->relativefilename != NULL ) {
+			writechar(' ');
+			writestring(file->checksums[cs_sha1sum]);
 			writechar(' ');
 			writestring(file->relativefilename);
 			writechar('\n');

@@ -149,6 +149,11 @@ cat <<EOF
 $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
+function sha1andsize() {
+cat <<EOF
+$(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
+EOF
+}
 
 dodo test ! -d db
 testrun - -b . _versioncompare 0 1 3<<EOF
@@ -1564,8 +1569,12 @@ EOF
 test -f dists/test1/Release
 test -f dists/test2/Release
 
-EMPTYGZMD5SUM=7029066c27ac6f5ef18d660d5741979a
-EMPTYBZ2MD5SUM=4059d198768f9f8dc9372dc1c54bc3c3
+EMPTYMD5="d41d8cd98f00b204e9800998ecf8427e 0"
+EMPTYGZMD5="7029066c27ac6f5ef18d660d5741979a 20"
+EMPTYBZ2MD5="4059d198768f9f8dc9372dc1c54bc3c3 14"
+EMPTYSHA1="da39a3ee5e6b4b0d3255bfef95601890afd80709 0"
+EMPTYGZSHA1="46c6643f07aa7f6bfe7118de926b86defc5087c4 20"
+EMPTYBZ2SHA1="64a543afbb5f4bf728636bdcbbe7a2ed0804adc2 14"
 cat > dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release.expected <<END
 Component: stupid
 Architecture: ${FAKEARCHITECTURE}
@@ -1582,22 +1591,39 @@ Date: normalized
 Architectures: ${FAKEARCHITECTURE}
 Components: stupid ugly
 MD5Sum:
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-${FAKEARCHITECTURE}/Packages
- $EMPTYGZMD5SUM 20 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
- $EMPTYBZ2MD5SUM 14 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $EMPTYMD5 stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2MD5 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
  $(mdandsize dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
- $EMPTYGZMD5SUM 20 stupid/source/Sources.gz
- $EMPTYBZ2MD5SUM 14 stupid/source/Sources.bz2
+ $EMPTYMD5 stupid/source/Sources
+ $EMPTYGZMD5 stupid/source/Sources.gz
+ $EMPTYBZ2MD5 stupid/source/Sources.bz2
  e38c7da133734e1fd68a7e344b94fe96 39 stupid/source/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-${FAKEARCHITECTURE}/Packages
- $EMPTYGZMD5SUM 20 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
- $EMPTYBZ2MD5SUM 14 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $EMPTYMD5 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2MD5 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
  $(mdandsize dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
- $EMPTYGZMD5SUM 20 ugly/source/Sources.gz
- $EMPTYBZ2MD5SUM 14 ugly/source/Sources.bz2
+ $EMPTYMD5 ugly/source/Sources
+ $EMPTYGZMD5 ugly/source/Sources.gz
+ $EMPTYBZ2MD5 ugly/source/Sources.bz2
  ed4ee9aa5d080f67926816133872fd02 37 ugly/source/Release
+SHA1:
+ $(sha1andsize dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages) stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA1 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA1 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha1andsize dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA1 stupid/source/Sources
+ $EMPTYGZSHA1 stupid/source/Sources.gz
+ $EMPTYBZ2SHA1 stupid/source/Sources.bz2
+ ff71705a4cadaec55de5a6ebbfcd726caf2e2606 39 stupid/source/Release
+ da39a3ee5e6b4b0d3255bfef95601890afd80709 0 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha1andsize dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA1 ugly/source/Sources
+ $EMPTYGZSHA1 ugly/source/Sources.gz
+ $EMPTYBZ2SHA1 ugly/source/Sources.bz2
+ b297876e9d6ee3ee6083160003755047ede22a96 37 ugly/source/Release
 END
 cat > dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release.expected <<END
 Archive: broken
@@ -1630,30 +1656,55 @@ Architectures: ${FAKEARCHITECTURE} coal
 Components: stupid ugly
 Description: test with all fields set
 MD5Sum:
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-${FAKEARCHITECTURE}/Packages
- $EMPTYGZMD5SUM 20 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $EMPTYMD5 stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2MD5 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
  $(mdandsize dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-coal/Packages
- $EMPTYGZMD5SUM 20 stupid/binary-coal/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-coal/Packages.bz2
+ $EMPTYMD5 stupid/binary-coal/Packages
+ $EMPTYGZMD5 stupid/binary-coal/Packages.gz
+ $EMPTYBZ2MD5 stupid/binary-coal/Packages.bz2
  10ae2f283e1abdd3facfac6ed664035d 144 stupid/binary-coal/Release
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
- $EMPTYGZMD5SUM 20 stupid/source/Sources.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/source/Sources.bz2
+ $EMPTYMD5 stupid/source/Sources
+ $EMPTYGZMD5 stupid/source/Sources.gz
+ $EMPTYBZ2MD5 stupid/source/Sources.bz2
  b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-${FAKEARCHITECTURE}/Packages
- $EMPTYGZMD5SUM 20 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $EMPTYMD5 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2MD5 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
  $(mdandsize dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-coal/Packages
- $EMPTYGZMD5SUM 20 ugly/binary-coal/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-coal/Packages.bz2
+ $EMPTYMD5 ugly/binary-coal/Packages
+ $EMPTYGZMD5 ugly/binary-coal/Packages.gz
+ $EMPTYBZ2MD5 ugly/binary-coal/Packages.bz2
  7a05de3b706d08ed06779d0ec2e234e9 142 ugly/binary-coal/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
- $EMPTYGZMD5SUM 20 ugly/source/Sources.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/source/Sources.bz2
+ $EMPTYMD5 ugly/source/Sources
+ $EMPTYGZMD5 ugly/source/Sources.gz
+ $EMPTYBZ2MD5 ugly/source/Sources.bz2
  e73a8a85315766763a41ad4dc6744bf5 144 ugly/source/Release
+SHA1:
+ $EMPTYSHA1 stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA1 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA1 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha1andsize dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA1 stupid/binary-coal/Packages
+ $EMPTYGZSHA1 stupid/binary-coal/Packages.gz
+ $EMPTYBZ2SHA1 stupid/binary-coal/Packages.bz2
+ $(sha1andsize dists/test2/stupid/binary-coal/Release) stupid/binary-coal/Release
+ $EMPTYSHA1 stupid/source/Sources
+ $EMPTYGZSHA1 stupid/source/Sources.gz
+ $EMPTYBZ2SHA1 stupid/source/Sources.bz2
+ $(sha1andsize dists/test2/stupid/source/Release) stupid/source/Release
+ $EMPTYSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha1andsize dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA1 ugly/binary-coal/Packages
+ $EMPTYGZSHA1 ugly/binary-coal/Packages.gz
+ $EMPTYBZ2SHA1 ugly/binary-coal/Packages.bz2
+ $(sha1andsize dists/test2/ugly/binary-coal/Release) ugly/binary-coal/Release
+ $EMPTYSHA1 ugly/source/Sources
+ $EMPTYGZSHA1 ugly/source/Sources.gz
+ $EMPTYBZ2SHA1 ugly/source/Sources.bz2
+ $(sha1andsize dists/test2/ugly/source/Release) ugly/source/Release
 END
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test2/Release
@@ -3272,7 +3323,7 @@ returns 255
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-echo " d41d8cd98f00b204e9800998ecf8427e 0 section priority filename_version.tar.gz" >> broken.changes
+echo " $EMPTYMD5 section priority filename_version.tar.gz" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
@@ -4117,7 +4168,7 @@ testrun - -b . --delete --delete include a broken.changes 3<<EOF
 returns 255
 EOF
 checknolog logab
-echo ' d41d8cd98f00b204e9800998ecf8427e 0 stupid/base superfluous ab_3-1.diff.gz' >> broken.changes
+echo " $EMPTYMD5 stupid/base superfluous ab_3-1.diff.gz" >> broken.changes
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 *=Cannot find file './ab_3-1.diff.gz' needed by 'broken.changes'!

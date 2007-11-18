@@ -1353,7 +1353,55 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 
 retvalue database_openreleasecache(struct database *database, const char *codename, struct table **cachedb_p) {
 	retvalue r;
-	r = database_table(database, "release.cache.db", codename,
+	char *oldcachefilename;
+
+	/* Since 3.1.0 it's release.caches.db, before release.cache.db.
+	 * The new file also contains the sha1 checksums and is extensible
+	 * for more in the future. Thus if there is only the old variant,
+	 * rename to the new. (So no old version by accident uses it and
+	 * puts the additional sha1 data into the md5sum fields.)
+	 * If both files are there, just delete both, as neither will
+	 * be very current then.
+	 * */
+
+	oldcachefilename = calc_dirconcat(database_directory(database),
+			"release.cache.db");
+	if( oldcachefilename == NULL )
+		return RET_ERROR_OOM;
+	if( isregularfile(oldcachefilename) ) {
+		char *newcachefilename;
+
+		newcachefilename = calc_dirconcat(database_directory(database),
+				"release.caches.db");
+		if( newcachefilename == NULL ) {
+			free(oldcachefilename);
+			return RET_ERROR_OOM;
+		}
+		if( isregularfile(newcachefilename)
+		    || rename(oldcachefilename, newcachefilename) != 0) {
+			fprintf(stderr,
+"Deleting old-style export cache file %s!\n"
+"This means that all index files (even unchanged) will be rewritten the\n"
+"next time parts of their distribution are changed. This should only\n"
+"happen once while migration from pre-3.1.0 to later versions.\n",
+					oldcachefilename);
+
+			if( unlink(oldcachefilename) != 0 ) {
+				int e = errno;
+				fprintf(stderr, "Cannot delete '%s': %s!",
+						oldcachefilename,
+						strerror(e));
+				free(oldcachefilename);
+				free(newcachefilename);
+				return RET_ERRNO(e);
+			}
+			(void)unlink(oldcachefilename);
+		}
+		free(newcachefilename);
+	}
+	free(oldcachefilename);
+
+	r = database_table(database, "release.caches.db", codename,
 			 DB_HASH, 0, NULL, READWRITE, cachedb_p);
 	if( RET_IS_OK(r) )
 		(*cachedb_p)->verbose = false;
