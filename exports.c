@@ -38,6 +38,7 @@
 #include "md5sum.h"
 #include "copyfile.h"
 #include "configparser.h"
+#include "filecntl.h"
 
 extern int verbose;
 
@@ -268,7 +269,6 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
-		long maxopen;
 		char *reltmpfilename;
 
 		if( dup2(io[1],3) < 0 ) {
@@ -276,18 +276,12 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 					io[1],errno);
 			exit(255);
 		}
-		/* Try to close all open fd but 0,1,2,3 */
-		maxopen = sysconf(_SC_OPEN_MAX);
-		if( maxopen > 0 ) {
-			int fd;
-			for( fd = 4 ; fd < maxopen ; fd++ )
-				(void)close(fd);
-		} else { // otherweise we have to hope...
-			if( io[0] != 3 )
-				(void)close(io[0]);
-			if( io[1] != 3 )
-				(void)close(io[1]);
-		}
+		/* "Doppelt haelt besser": */
+		if( io[0] != 3 )
+			(void)close(io[0]);
+		if( io[1] != 3 )
+			(void)close(io[1]);
+		closefrom(4);
 		/* backward compatibilty */
 		reltmpfilename = calc_addsuffix(relfilename,"new");
 		if( reltmpfilename == NULL ) {
@@ -308,6 +302,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		exit(255);
 	}
 	close(io[1]);
+	markcloseonexec(io[0]);
 
 	if( verbose > 6 )
 		printf("Called %s '%s' '%s.new' '%s' '%s'\n",

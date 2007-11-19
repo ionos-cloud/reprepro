@@ -1,3 +1,7 @@
+2007-11-19  Bernhard R. Link <brlink@debian.org>
+	* mark more filedescriptors closeonexec,
+	  support closefrom and F_CLOSEM when available.
+ 
 2007-11-18  Bernhard R. Link <brlink@debian.org>
 	* add sha1 hash calculation code
 	* add sha1 hashes of index files into Release files.

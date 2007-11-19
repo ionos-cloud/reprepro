@@ -35,6 +35,7 @@
 #include "target.h"
 #include "configparser.h"
 #include "log.h"
+#include "filecntl.h"
 
 extern int verbose;
 
@@ -547,34 +548,23 @@ static retvalue startchild(void) {
 	}
 	child = fork();
 	if( child == 0 ) {
-		int maxopen;
-
 		if( p->datalen > 0 ) {
 			dup2(filedes[0], 0);
 			if( filedes[0] != 0)
 				(void)close(filedes[0]);
 		}
 		/* Try to close all open fd but 0,1,2 */
-		maxopen = sysconf(_SC_OPEN_MAX);
-		if( maxopen > 0 ) {
-			int fd;
-			for( fd = 3 ; fd < maxopen ; fd++ )
-				(void)close(fd);
-		} else {
-			/* close at least the ones definitly causing problems*/
-			const struct notification_process *q;
-			for( q = processes; q != NULL ; q = q->next ) {
-				if( q != p && q->fd >= 0 )
-					(void)close(q->fd);
-			}
-		}
+		close(filedes[1]);
+		closefrom(3);
 		(void)execv(p->arguments[0], p->arguments);
 		fprintf(stderr, "Error executing '%s': %s\n", p->arguments[0],
 				strerror(errno));
 		_exit(255);
 	}
-	if( p->datalen > 0 )
+	if( p->datalen > 0 ) {
 		close(filedes[0]);
+		markcloseonexec(p->fd);
+	}
 	if( child < 0 ) {
 		int e = errno;
 		fprintf(stderr, "Error forking: %d=%s!\n", e, strerror(e));

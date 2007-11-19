@@ -78,6 +78,7 @@
 #include "donefile.h"
 #include "freespace.h"
 #include "configparser.h"
+#include "filecntl.h"
 
 extern int verbose;
 
@@ -1202,14 +1203,7 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
-		long maxopen;
-		/* Try to close all open fd but 0,1,2 */
-		maxopen = sysconf(_SC_OPEN_MAX);
-		if( maxopen > 0 ) {
-			int fd;
-			for( fd = 3 ; fd < maxopen ; fd++ )
-				close(fd);
-		} // otherweise we have to hope...
+		(void)closefrom(3);
 		execl(listhook,listhook,index->filename,newfilename,NULL);
 		fprintf(stderr,"Error while executing '%s': %d=%m\n",listhook,errno);
 		exit(255);

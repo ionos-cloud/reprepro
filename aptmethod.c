@@ -36,6 +36,7 @@
 #include "md5sum.h"
 #include "files.h"
 #include "aptmethod.h"
+#include "filecntl.h"
 
 extern int verbose;
 
@@ -304,7 +305,6 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
-		long maxopen;
 		char *methodname;
 		/* child: */
 		(void)close(stdin[1]);
@@ -317,22 +317,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
 			exit(255);
 		}
-		/* Try to close all open fd but 0,1,2 */
-		maxopen = sysconf(_SC_OPEN_MAX);
-		if( maxopen > 0 ) {
-			int fd;
-			for( fd = 3 ; fd < maxopen ; fd++ )
-				(void)close(fd);
-		} else {
-			/* closeat least the ones definitly causing problems*/
-			const struct aptmethod *m;
-			for( m = run->methods; m != NULL ; m = m->next ) {
-				if( m != method ) {
-					(void)close(m->stdin);
-					(void)close(m->stdout);
-				}
-			}
-		}
+		closefrom(3);
 
 		methodname = calc_dirconcat(methoddir,method->name);
 
@@ -350,6 +335,8 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,(int)f);
 	(void)close(stdin[0]);
 	(void)close(stdout[1]);
+	markcloseonexec(stdin[1]);
+	markcloseonexec(stdout[0]);
 	method->stdin = stdin[1];
 	method->stdout = stdout[0];
 	method->inputbuffer = NULL;
