@@ -26,6 +26,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <strings.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <signal.h>
 #include <stdio.h>
 #include <time.h>
 #include <malloc.h>

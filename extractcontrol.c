@@ -174,7 +174,7 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 				}
 			} else {
 				// WTH?
-				fprintf(stderr,"Who is %d, and why does this bother me?\n",pid);
+				fprintf(stderr,"Who is %d, and why does this bother me?\n",(int)pid);
 			}
 		}
 
@@ -207,7 +207,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	return r;
 }
 
-retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
+retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char *debfile) {
 	fprintf(stderr, "Extracing of filelist currently not implemented without libarchive.\n");
 	return RET_ERROR;
 #if 0

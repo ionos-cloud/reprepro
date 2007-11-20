@@ -75,7 +75,9 @@ void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64])
 {
     uint32_t a, b, c, d, e;
     uint32_t block[16];
+#if __BYTE_ORDER != __BIG_ENDIAN
     int i;
+#endif
 
     assert( sizeof(block) == 64*sizeof(uint8_t) );
 #if __BYTE_ORDER == __BIG_ENDIAN

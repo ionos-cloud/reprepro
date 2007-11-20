@@ -2,6 +2,10 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <malloc.h>
 
 #include "mprintf.h"
 
@@ -34,3 +38,34 @@ char * vmprintf(const char *fmt,va_list va) {
 	else
 		return p;
 }
+
+#ifndef HAVE_DPRINTF
+int dprintf(int fd, const char *format, ...){
+	char *buffer;
+	int ret;
+
+	va_list va;
+
+	va_start(va, format);
+	buffer = vmprintf(format, va);
+	va_end(va);
+	if( buffer == NULL )
+		return -1;
+	ret = write(fd, buffer, strlen(buffer));
+	free(buffer);
+	return ret;
+}
+#endif
+
+#ifndef HAVE_STRNDUP
+/* That's not the best possible strndup implementation, but it suffices for what
+ * it is used here */
+char *strndup(const char *str,size_t n) {
+	char *r = malloc(n+1);
+	if( r == NULL )
+		return r;
+	memcpy(r,str,n);
+	r[n] = '\0';
+	return r;
+}
+#endif

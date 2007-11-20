@@ -2889,7 +2889,13 @@ int main(int argc,char *argv[]) {
 	struct sigaction sa;
 
 	sigemptyset(&sa.sa_mask);
+#if defined(SA_ONESHOT)
 	sa.sa_flags = SA_ONESHOT;
+#elif defined(SA_RESETHAND)
+	sa.sa_flags = SA_RESETHAND;
+#else
+#       error "missing argument to sigaction!"
+#endif
 	sa.sa_handler = interrupt_signaled;
 	(void)sigaction(SIGTERM, &sa, NULL);
 	(void)sigaction(SIGABRT, &sa, NULL);

@@ -48,7 +48,7 @@ struct aptmethod {
 	char *baseuri;
 	/*@null@*/char *fallbackbaseuri;
 	/*@null@*/char *config;
-	int stdin,stdout;
+	int mstdin,mstdout;
 	pid_t child;
 
 	enum { ams_notstarted=0, ams_waitforcapabilities, ams_ok, ams_failed } status;
@@ -125,18 +125,18 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 
 	/* finally get rid of all the processes: */
 	for( method = run->methods ; method != NULL ; method = method->next ) {
-		if( method->stdin >= 0 ) {
-			(void)close(method->stdin);
+		if( method->mstdin >= 0 ) {
+			(void)close(method->mstdin);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdin of %d\n",(int)method->child);
+				fprintf(stderr,"Closing mstdin of %d\n",(int)method->child);
 		}
-		method->stdin = -1;
-		if( method->stdout >= 0 ) {
-			(void)close(method->stdout);
+		method->mstdin = -1;
+		if( method->mstdout >= 0 ) {
+			(void)close(method->mstdout);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdout %d\n",(int)method->child);
+				fprintf(stderr,"Closing mstdout %d\n",(int)method->child);
 		}
-		method->stdout = -1;
+		method->mstdout = -1;
 	}
 	while( run->methods != NULL ) {
 		pid_t pid;int status;
@@ -185,8 +185,8 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 	method = calloc(1,sizeof(struct aptmethod));
 	if( method == NULL )
 		return RET_ERROR_OOM;
-	method->stdin = -1;
-	method->stdout = -1;
+	method->mstdin = -1;
+	method->mstdout = -1;
 	method->child = -1;
 	method->status = ams_notstarted;
 	p = uri;
@@ -257,8 +257,8 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 
 inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmethod *method,const char *methoddir) {
 	pid_t f;
-	int stdin[2];
-	int stdout[2];
+	int mstdin[2];
+	int mstdout[2];
 	int r;
 
 	/* new try, new luck */
@@ -277,44 +277,44 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 
 	method->status = ams_waitforcapabilities;
 
-	r = pipe(stdin);
+	r = pipe(mstdin);
 	if( r < 0 ) {
 		int err = errno;
 		fprintf(stderr,"Error while creating pipe: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
-	r = pipe(stdout);
+	r = pipe(mstdout);
 	if( r < 0 ) {
 		int err = errno;
-		(void)close(stdin[0]);(void)close(stdin[1]);
+		(void)close(mstdin[0]);(void)close(mstdin[1]);
 		fprintf(stderr,"Error while pipe: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
 
 	if( interrupted() ) {
-		(void)close(stdin[0]);(void)close(stdin[1]);
-		(void)close(stdout[0]);(void)close(stdout[1]);
+		(void)close(mstdin[0]);(void)close(mstdin[1]);
+		(void)close(mstdout[0]);(void)close(mstdout[1]);
 		return RET_ERROR_INTERRUPTED;
 	}
 	f = fork();
 	if( f < 0 ) {
 		int err = errno;
-		(void)close(stdin[0]);(void)close(stdin[1]);
-		(void)close(stdout[0]);(void)close(stdout[1]);
+		(void)close(mstdin[0]);(void)close(mstdin[1]);
+		(void)close(mstdout[0]);(void)close(mstdout[1]);
 		fprintf(stderr,"Error while forking: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
 		char *methodname;
 		/* child: */
-		(void)close(stdin[1]);
-		(void)close(stdout[0]);
-		if( dup2(stdin[0],0) < 0 ) {
-			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
+		(void)close(mstdin[1]);
+		(void)close(mstdout[0]);
+		if( dup2(mstdin[0],0) < 0 ) {
+			fprintf(stderr,"Error while setting mstdin: %d=%m\n",errno);
 			exit(255);
 		}
-		if( dup2(stdout[1],1) < 0 ) {
-			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
+		if( dup2(mstdout[1],1) < 0 ) {
+			fprintf(stderr,"Error while setting mstdin: %d=%m\n",errno);
 			exit(255);
 		}
 		closefrom(3);
@@ -333,12 +333,12 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	method->child = f;
 	if( verbose > 10 )
 		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,(int)f);
-	(void)close(stdin[0]);
-	(void)close(stdout[1]);
-	markcloseonexec(stdin[1]);
-	markcloseonexec(stdout[0]);
-	method->stdin = stdin[1];
-	method->stdout = stdout[0];
+	(void)close(mstdin[0]);
+	(void)close(mstdout[1]);
+	markcloseonexec(mstdin[1]);
+	markcloseonexec(mstdout[0]);
+	method->mstdin = mstdin[1];
+	method->mstdout = mstdout[0];
 	method->inputbuffer = NULL;
 	method->input_size = 0;
 	method->alreadyread = 0;
@@ -857,7 +857,7 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 	assert( method->inputbuffer != NULL );
 	/* then read as much as the pipe is able to fill of our buffer */
 
-	r = read(method->stdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
+	r = read(method->mstdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
 
 	if( r < 0 ) {
 		int err = errno;
@@ -936,7 +936,7 @@ static retvalue senddata(struct aptmethod *method) {
 
 	l = method->output_length - method->alreadywritten;
 
-	r = write(method->stdin,method->command+method->alreadywritten,l);
+	r = write(method->mstdin,method->command+method->alreadywritten,l);
 	if( r < 0 ) {
 		int err;
 
@@ -971,13 +971,13 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 			continue;
 		}
 		/* Make sure we do not cope with this child any more */
-		if( method->stdin != -1 ) {
-			(void)close(method->stdin);
-			method->stdin = -1;
+		if( method->mstdin != -1 ) {
+			(void)close(method->mstdin);
+			method->mstdin = -1;
 		}
-		if( method->stdout != -1 ) {
-			(void)close(method->stdout);
-			method->stdout = -1;
+		if( method->mstdout != -1 ) {
+			(void)close(method->mstdout);
+			method->mstdout = -1;
 		}
 		method->child = -1;
 		if( method->status != ams_failed )
@@ -1017,9 +1017,9 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 	for( method = run->methods ; method != NULL ; method = method->next ) {
 		if( method->status == ams_ok &&
 		    ( method->command != NULL || method->nexttosend != NULL )) {
-			FD_SET(method->stdin,&writefds);
-			if( method->stdin > maxfd )
-				maxfd = method->stdin;
+			FD_SET(method->mstdin,&writefds);
+			if( method->mstdin > maxfd )
+				maxfd = method->mstdin;
 			(*workleft)++;
 			if( verbose > 19 )
 				fprintf(stderr,"want to write to '%s'\n",method->baseuri);
@@ -1027,9 +1027,9 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 		if( method->status == ams_waitforcapabilities ||
 				(method->status == ams_ok &&
 				method->tobedone != NULL ) ) {
-			FD_SET(method->stdout,&readfds);
-			if( method->stdout > maxfd )
-				maxfd = method->stdout;
+			FD_SET(method->mstdout,&readfds);
+			if( method->mstdout > maxfd )
+				maxfd = method->mstdout;
 			(*workleft)++;
 			if( verbose > 19 )
 				fprintf(stderr,"want to read from '%s'\n",method->baseuri);
@@ -1054,11 +1054,11 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 
 	maxfd = 0;
 	for( method = run->methods ; method != NULL ; method = method->next ) {
-		if( method->stdout != -1 && FD_ISSET(method->stdout,&readfds) ) {
+		if( method->mstdout != -1 && FD_ISSET(method->mstdout,&readfds) ) {
 			r = receivedata(method, database);
 			RET_UPDATE(result,r);
 		}
-		if( method->stdin != -1 && FD_ISSET(method->stdin,&writefds) ) {
+		if( method->mstdin != -1 && FD_ISSET(method->mstdin,&writefds) ) {
 			r = senddata(method);
 			RET_UPDATE(result,r);
 		}
