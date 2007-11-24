@@ -573,7 +573,7 @@ retvalue target_rereference(struct target *target, struct database *database) {
 	if( verbose > 2 )
 		printf("Referencing %s...\n", target->identifier);
 
-	r = table_newglobaluniqcursor(target->packages, &cursor);
+	r = table_newglobalcursor(target->packages, &cursor);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -695,7 +695,7 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 		fprintf(stderr,"Reapplying overrides packages in '%s'...\n",target->identifier);
 	}
 
-	r = table_newglobaluniqcursor(table, &cursor);
+	r = table_newglobalcursor(table, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;

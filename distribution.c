@@ -524,7 +524,7 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobaluniqcursor(t->packages, &cursor);
+		r = table_newglobalcursor(t->packages, &cursor);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			(void)target_closepackagesdb(t);
@@ -566,7 +566,7 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobaluniqcursor(t->packages, &cursor);
+		r = table_newglobalcursor(t->packages, &cursor);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			(void)target_closepackagesdb(t);
@@ -1052,7 +1052,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobaluniqcursor(t->packages, &cursor);
+		r = table_newglobalcursor(t->packages, &cursor);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			(void)target_closepackagesdb(t);

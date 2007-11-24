@@ -249,7 +249,7 @@ retvalue files_printmd5sums(struct database *database) {
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobaluniqcursor(database->files, &cursor);
+	r = table_newglobalcursor(database->files, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;
@@ -270,7 +270,7 @@ retvalue files_foreach(struct database *database,per_file_action action,void *pr
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-	r = table_newglobaluniqcursor(database->files, &cursor);
+	r = table_newglobalcursor(database->files, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;
@@ -309,7 +309,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 	const char *filekey, *md5sumexpected;
 	char *fullfilename;
 
-	r = table_newglobaluniqcursor(database->files, &cursor);
+	r = table_newglobalcursor(database->files, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;
@@ -537,7 +537,7 @@ retvalue files_regenerate_filelist(struct database *database, bool reread) {
 
 	assert( database->contents != NULL );
 
-	r = table_newglobaluniqcursor(database->files, &cursor);
+	r = table_newglobalcursor(database->files, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;

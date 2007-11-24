@@ -387,7 +387,33 @@ ACTION_R(n, n, n, y, removereferences) {
 
 
 ACTION_R(n, n, n, n, dumpreferences) {
-	return references_dump(database);
+	struct cursor *cursor;
+	retvalue result, r;
+	const char *found_to, *found_by;
+
+	r = table_newglobalcursor(database->references, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	result = RET_OK;
+	while( cursor_nexttemp(database->references, cursor,
+	                               &found_to, &found_by) ) {
+		if( fputs(found_by, stdout) == EOF ||
+		    putchar(' ') == EOF ||
+		    puts(found_to) == EOF ) {
+			result = RET_ERROR;
+			break;
+		}
+		result = RET_OK;
+		if( interrupted() ) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
+	}
+	r = cursor_close(database->references, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
+	return result;
 }
 
 static retvalue checkifreferenced(void *data,const char *filekey,UNUSED(const char *md5sum)) {
@@ -871,7 +897,7 @@ ACTION_B(n, n, n, dumpcontents) {
 	result = database_openpackages(database, argv[1], true, &packages);
 	if( RET_WAS_ERROR(result) )
 		return result;
-	r = table_newglobaluniqcursor(packages, &cursor);
+	r = table_newglobalcursor(packages, &cursor);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		(void)table_close(packages);
@@ -2387,6 +2413,8 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				x_section, x_priority,
 				x_architecture, x_component, x_packagetype,
 				argc, argv);
+		r = distribution_freelist(alldistributions);
+		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
@@ -2397,6 +2425,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
 			waitforlock, verbosedatabase || (verbose >= 30) );
 	if( !RET_IS_OK(result) ) {
+		(void)distribution_freelist(alldistributions);
 		return result;
 	}
 

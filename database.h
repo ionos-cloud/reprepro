@@ -40,12 +40,13 @@ retvalue table_gettemprecord(struct table *, const char *, /*@out@*/const char *
 
 retvalue table_adduniqsizedrecord(struct table *, const char *key, const char *data, size_t data_size, bool allowoverwrote, bool nooverwrite);
 retvalue table_adduniqrecord(struct table *, const char *key, const char *data);
+retvalue table_addrecord(struct table *, const char *key, const char *data, bool ignoredups);
 retvalue table_replacerecord(struct table *, const char *key, const char *data);
 retvalue table_deleterecord(struct table *, const char *key, bool ignoremissing);
-retvalue table_checkkey(struct table *, const char *key);
+retvalue table_checkrecord(struct table *, const char *key, const char *data);
+retvalue table_removerecord(struct table *, const char *key, const char *data);
 
-retvalue table_newglobaluniqcursor(struct table *, /*@out@*/struct cursor **);
-retvalue table_newduplicatecursor(struct table *, const char *key, /*@out@*/struct cursor **);
+retvalue table_newglobalcursor(struct table *, /*@out@*/struct cursor **);
 bool cursor_nexttemp(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **);
 bool cursor_nexttempdata(struct table *, struct cursor *, /*@out@*/const char **, /*@out@*/const char **, /*@out@*/size_t *);
 retvalue cursor_replace(struct table *, struct cursor *, const char *);

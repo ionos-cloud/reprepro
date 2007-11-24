@@ -138,34 +138,26 @@ static void releaselock(struct database *db) {
 
 retvalue database_close(struct database *db) {
 	retvalue result = RET_OK, r;
+
 	if( db->references != NULL) {
-		r = references_done(db->references);
-		db->references = NULL;
+		r = table_close(db->references);
 		RET_UPDATE(result, r);
+		db->references = NULL;
 	}
 	if( db->files != NULL ) {
-		table_close(db->files);
+		r = table_close(db->files);
+		RET_UPDATE(result, r);
 		db->files = NULL;
 	}
 	if( db->contents != NULL ) {
-		table_close(db->contents);
+		r = table_close(db->contents);
+		RET_UPDATE(result, r);
 		db->contents = NULL;
 	}
 	if( db->locked )
 		releaselock(db);
 	database_free(db);
-	return RET_OK;
-}
-
-retvalue database_openreferences(struct database *db) {
-	retvalue r;
-
-	assert( db->references == NULL );
-
-	r = references_initialize(&db->references, db);
-	if( !RET_IS_OK(r) )
-		db->references = NULL;
-	return r;
+	return result;
 }
 
 const char *database_directory(struct database *database) {
@@ -827,6 +819,7 @@ static void table_printerror(struct table *table, int dbret, const char *action)
 
 retvalue table_close(struct table *table) {
 	int dbret;
+	retvalue result;
 
 	if( table == NULL )
 		return RET_NOTHING;
@@ -837,13 +830,17 @@ retvalue table_close(struct table *table) {
 		dbret = 0;
 	} else
 		dbret = table->berkleydb->close(table->berkleydb, 0);
+	if( dbret != 0 ) {
+		fprintf(stderr, "db_close(%s, %s): %s\n",
+				table->name, table->subname,
+				db_strerror(dbret));
+		result = RET_DBERR(dbret);
+	} else
+		result = RET_OK;
 	free(table->name);
 	free(table->subname);
 	free(table);
-	if( dbret != 0 )
-		return RET_DBERR(dbret);
-	else
-		return RET_OK;
+	return result;
 }
 
 retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
@@ -912,6 +909,10 @@ retvalue table_gettemprecord(struct table *table, const char *key, const char **
 	}
 	if( Data.data == NULL )
 		return RET_ERROR_OOM;
+	if( data_p == NULL ) {
+		assert( size_p == NULL );
+		return RET_OK;
+	}
 	if( Data.size <= 0 ||
 	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
 		if( table->subname != NULL )
@@ -930,28 +931,103 @@ retvalue table_gettemprecord(struct table *table, const char *key, const char **
 	return RET_OK;
 }
 
+retvalue table_checkrecord(struct table *table, const char *key, const char *data) {
+	int dbret;
+	DBT Key, Data;
+	DBC *cursor;
+	retvalue r;
+
+	SETDBT(Key, key);
+	SETDBT(Data, data);
+	dbret = table->berkleydb->cursor(table->berkleydb, NULL, &cursor, 0);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "cursor");
+		return RET_DBERR(dbret);
+	}
+	dbret=cursor->c_get(cursor, &Key, &Data, DB_GET_BOTH);
+	if( dbret == 0 ) {
+		r = RET_OK;
+	} else if( dbret == DB_NOTFOUND ) {
+		r = RET_NOTHING;
+	} else {
+		table_printerror(table, dbret, "c_get");
+		(void)cursor->c_close(cursor);
+		return RET_DBERR(dbret);
+	}
+	dbret = cursor->c_close(cursor);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_close");
+		return RET_DBERR(dbret);
+	}
+	return r;
+}
+
+retvalue table_removerecord(struct table *table, const char *key, const char *data) {
+	int dbret;
+	DBT Key, Data;
+	DBC *cursor;
+	retvalue r;
+
+	SETDBT(Key, key);
+	SETDBT(Data, data);
+	dbret = table->berkleydb->cursor(table->berkleydb, NULL, &cursor, 0);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "cursor");
+		return RET_DBERR(dbret);
+	}
+	dbret=cursor->c_get(cursor, &Key, &Data, DB_GET_BOTH);
+
+	if( dbret == 0 )
+		dbret = cursor->c_del(cursor, 0);
+
+	if( dbret == 0 ) {
+		r = RET_OK;
+	} else if( dbret == DB_NOTFOUND ) {
+		r = RET_NOTHING;
+	} else {
+		table_printerror(table, dbret, "c_get");
+		(void)cursor->c_close(cursor);
+		return RET_DBERR(dbret);
+	}
+	dbret = cursor->c_close(cursor);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_close");
+		return RET_DBERR(dbret);
+	}
+	return r;
+}
+
 bool table_recordexists(struct table *table, const char *key) {
+	retvalue r;
+
+	r = table_gettemprecord(table, key, NULL, NULL);
+	return RET_IS_OK(r);
+}
+
+retvalue table_addrecord(struct table *table, const char *key, const char *data, bool ignoredups) {
 	int dbret;
 	DBT Key, Data;
 
 	assert( table != NULL );
-	if( table->berkleydb == NULL ) {
-		assert( table->readonly );
-		return false;
-	}
+	assert( !table->readonly && table->berkleydb != NULL );
 
 	SETDBT(Key, key);
-	CLEARDBT(Data);
-
-	dbret = table->berkleydb->get(table->berkleydb, NULL,
-			&Key, &Data, 0);
-	if( dbret == DB_NOTFOUND )
-		return false;
-	if( dbret != 0 ) {
-		table_printerror(table, dbret, "get");
-		return false;
+	SETDBT(Data, data);
+	dbret = table->berkleydb->put(table->berkleydb, NULL,
+			&Key, &Data, DB_NODUPDATA);
+	if( dbret != 0 && !(ignoredups && dbret == DB_KEYEXIST) ) {
+		table_printerror(table, dbret, "put");
+		return RET_DBERR(dbret);
 	}
-	return true;
+	if( table->verbose ) {
+		if( table->subname != NULL )
+			printf("db: '%s' added to %s(%s).\n",
+					key, table->name, table->subname);
+		else
+			printf("db: '%s' added to %s.\n",
+					key, table->name);
+	}
+	return RET_OK;
 }
 
 retvalue table_adduniqsizedrecord(struct table *table, const char *key, const char *data, size_t data_size, bool allowoverwrite, bool nooverwrite) {
@@ -1032,7 +1108,7 @@ struct cursor {
 	retvalue r;
 };
 
-retvalue table_newglobaluniqcursor(struct table *table, struct cursor **cursor_p) {
+retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 	struct cursor *cursor;
 	int dbret;
 
@@ -1272,6 +1348,22 @@ static retvalue database_table(struct database *database, const char *filename, 
 	return r;
 }
 
+retvalue database_openreferences(struct database *db) {
+	retvalue r;
+
+	assert( db->references == NULL );
+	r = database_table(db, "references.db", "references",
+			DB_BTREE, DB_DUPSORT, NULL, false, &db->references);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		db->references = NULL;
+		return r;
+	} else
+		db->references->verbose = false;
+	return RET_OK;
+}
+
+
 retvalue database_openpackages(struct database *database, const char *identifier, bool readonly, struct table **table_p) {
 	struct table *table IFSTUPIDCC(=NULL);
 	retvalue r;
@@ -1419,7 +1511,7 @@ static retvalue table_copy(struct table *oldtable, struct table *newtable) {
 	const char *filekey, *data;
 	size_t data_len;
 
-	r = table_newglobaluniqcursor(oldtable, &cursor);
+	r = table_newglobalcursor(oldtable, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	while( cursor_nexttempdata(oldtable, cursor, &filekey,

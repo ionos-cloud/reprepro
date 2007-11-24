@@ -160,7 +160,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 
 	/* Beginn with the packages currently in the archive */
 
-	r = table_newglobaluniqcursor(t->packages, &cursor);
+	r = table_newglobalcursor(t->packages, &cursor);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		r2 = target_closepackagesdb(t);
@@ -466,7 +466,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	r =  target_initpackagesdb(source, database, READONLY);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	result = table_newglobaluniqcursor(source->packages, &cursor);
+	result = table_newglobalcursor(source->packages, &cursor);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		r = target_closepackagesdb(source);

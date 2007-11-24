@@ -415,7 +415,7 @@ retvalue export_target(const char *confdir, const char *relativedir, struct tabl
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = table_newglobaluniqcursor(packages, &cursor);
+		r = table_newglobalcursor(packages, &cursor);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			free(relfilename);

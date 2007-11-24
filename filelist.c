@@ -668,7 +668,7 @@ retvalue filelists_translate(struct table *oldtable, struct table *newtable) {
 	size_t olddata_len, newdata_size;
 	char *newdata;
 
-	r = table_newglobaluniqcursor(oldtable, &cursor);
+	r = table_newglobalcursor(oldtable, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	while( cursor_nexttempdata(oldtable, cursor, &filekey,

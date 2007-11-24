@@ -1,3 +1,6 @@
+2007-11-24  Bernhard R. Link <brlink@debian.org>
+	* references.c uses database.c instead of accessing libdb directly
+
 2007-11-19  Bernhard R. Link <brlink@debian.org>
 	* mark more filedescriptors closeonexec,
 	  support closefrom and F_CLOSEM when available.

@@ -14,7 +14,7 @@ struct database {
 	char *mirrordir;
 	struct table *files, *contents;
 	/* for the references database: */
-	struct references *references;
+	struct table *references;
 	/* internal stuff: */
 	bool locked, verbose;
 	int dircreationdepth;
