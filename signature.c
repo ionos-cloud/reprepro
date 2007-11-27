@@ -37,6 +37,7 @@
 #include "md5sum.h"
 #include "chunks.h"
 #include "release.h"
+#include "readtextfile.h"
 #include "signature.h"
 
 extern int verbose;
@@ -556,9 +557,41 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 }
 #endif /* HAVE_LIBGPGME */
 
-/* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature) {
+static inline void extractchunk(const char *buffer, const char **begin, const char **end, const char **next) {
+	const char *startofchanges,*endofchanges,*afterchanges;
+
+	startofchanges = buffer;
+	while( *startofchanges == ' ' || *startofchanges == '\t' ||
+			*startofchanges == '\r' || *startofchanges =='\n' )
+		startofchanges++;
+
+	endofchanges = startofchanges;
+	afterchanges = NULL;
+	while( *endofchanges != '\0' ) {
+		if( *endofchanges == '\n' ) {
+			endofchanges++;
+			afterchanges = endofchanges;
+			while( *afterchanges =='\r' )
+				afterchanges++;
+			if( *afterchanges == '\n' )
+				break;
+			endofchanges = afterchanges;
+		} else
+			endofchanges++;
+	}
+
+	if( afterchanges == NULL )
+		afterchanges = endofchanges;
+	else
+		while( *afterchanges == '\n' || *afterchanges =='\r' )
+			afterchanges++;
+	*begin = startofchanges;
+	*end = endofchanges;
+	*next = afterchanges;
+}
+
 #ifdef HAVE_LIBGPGME
+static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature, bool *failed) {
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	gpgme_error_t err;
@@ -576,22 +609,22 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	/* I wished from_fd would actually read the data like this one does... */
-	err = gpgme_data_new_from_file(&dh_gpg, filename, 1);
-	if( err != 0 ) {
+	err = gpgme_data_new_from_mem(&dh_gpg, buffer, bufferlen, 0);
+	if( err != 0 )
 		return gpgerror(err);
-	}
+
 	err = gpgme_data_new(&dh);
 	if( err != 0 ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
-	err = gpgme_op_verify(context,dh_gpg,NULL,dh);
+	err = gpgme_op_verify(context, dh_gpg, NULL, dh);
 	if( gpgme_err_code(err) == GPG_ERR_NO_DATA ) {
 		if( verbose > -1 )
-			fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
+			fprintf(stderr,"Data seems not to be signed trying to use directly....\n");
 		gpgme_data_release(dh);
-		plain_data = gpgme_data_release_and_get_mem(dh_gpg,&plain_len);
+		gpgme_data_release(dh_gpg);
+		return RET_NOTHING;
 	} else {
 		if( err != 0 ) {
 			gpgme_data_release(dh_gpg);
@@ -599,7 +632,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 			return gpgerror(err);
 		}
 		if( validkeys != NULL || allkeys != NULL || brokensignature != NULL ) {
-			r = checksigs(filename,
+			r = checksigs(filenametoshow,
 				(validkeys!=NULL)?&validfingerprints:NULL,
 				(allkeys!=NULL)?&allfingerprints:NULL,
 				(brokensignature!=NULL)?&foundbroken:NULL);
@@ -613,18 +646,23 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 		plain_data = gpgme_data_release_and_get_mem(dh,&plain_len);
 		if( plain_data == NULL ) {
 			fprintf(stderr,
-"gpgme failed to extract the plain data out of '%s'.\n"
+"(not yet fatal) ERROR: libgpgme failed to extract the plain data out of\n"
+"'%s'.\n"
 "While it did so in a way indicating running out of memory, experience says\n"
 "this also happens when gpg returns a error code it does not understand.\n"
-"To check this please try running gpg --output '%s' manually.\n",
+"To check this please try running gpg --verify '%s' manually.\n"
+"Continuing extracting it ignoring all signatures...",
 					filenametoshow, filenametoshow);
-			return RET_ERROR_GPGME;
+			*failed = true;
+			return RET_NOTHING;
 		}
 	}
 
 	if( plain_data == NULL )
 		r = RET_ERROR_OOM;
 	else {
+		// TODO: check if the new extractchunk can be used...
+
 		startofchanges = plain_data;
 		while( (size_t)(startofchanges - plain_data) < plain_len &&
 				*startofchanges != '\0' && xisspace(*startofchanges)) {
@@ -688,89 +726,144 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 			strlist_done(&allfingerprints);
 	}
 	return r;
-#else /* HAVE_LIBGPGME */
-	char *chunk;
-	gzFile f;
-	retvalue r;
-	bool issigned = false, finished = false;
+}
+#endif /* HAVE_LIBGPGME */
 
-	f = gzopen(filename, "r");
-	if( !f ) {
-		fprintf(stderr, "Unable to open file %s: %m\n",
-				filenametoshow);
-		return RET_ERRNO(errno);
-	}
-	r = chunk_read(f, &chunk);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,
-				"Could only find spaces within '%s'!\n",
-				filenametoshow);
-		gzclose(f);
+/* Read a single chunk from a file, that may be signed. */
+retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature) {
+	char *chunk;
+	const char *startofchanges,*endofchanges,*afterchanges;
+	size_t chunklen;
+	retvalue r;
+	bool failed = false;
+
+	r = readtextfile(filename, filenametoshow, &chunk, &chunklen);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	if( chunklen == 0 ) {
+		fprintf(stderr, "Unexpected empty file '%s'!\n",
+					filenametoshow);
+		free(chunk);
 		return RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) ) {
-		gzclose(f);
+
+	extractchunk(chunk, &startofchanges, &endofchanges, &afterchanges);
+	if( endofchanges == startofchanges ) {
+		fprintf(stderr, "Could only find spaces within '%s'!\n",
+					filenametoshow);
+		free(chunk);
+		return RET_ERROR;
+	}
+
+	/* fast-track unsigned chunks: */
+	if( startofchanges[0] != '-' && *afterchanges == '\0' ) {
+		if( verbose > -1 )
+			fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
+		// TODO: warn if more than one chunk in it
+
+		if( startofchanges != chunk ) {
+			char *h;
+
+			h = strndup(startofchanges, endofchanges-startofchanges);
+			free(chunk);
+			if( h == NULL )
+				return RET_ERROR_OOM;
+			chunk = h;
+		} else if( *endofchanges != '\0' )
+			chunk[endofchanges-chunk] = '\0';
+		*chunkread = chunk;
+		if( validkeys != NULL )
+			strlist_init(validkeys);
+		if( allkeys != NULL )
+			strlist_init(allkeys);
+		if( brokensignature != NULL )
+			*brokensignature = false;
+		return RET_OK;
+	}
+
+	if( startofchanges[0] != '-' ) {
+		fprintf(stderr, "Error parsing '%s': Seems not to be signed but has spurious empty line.\n", filenametoshow);
+		free(chunk);
+		return RET_ERROR;
+	}
+
+#ifdef HAVE_LIBGPGME
+	r = extract_signed_data(chunk, chunklen, filenametoshow, chunkread,
+			validkeys, allkeys, brokensignature, &failed);
+	if( r != RET_NOTHING ) {
+		free(chunk);
 		return r;
 	}
+#endif
 
-	if( strncmp(chunk, "-----BEGIN", 10) == 0 ) {
-		char *endmarker;
+	/* We have no libgpgme, it failed, or could not find signature data,
+	 * trying to extract it manually, ignoring signatures: */
 
-		issigned = true;
-		if( verbose >= 0 ) {
-			fprintf(stderr,
-"Cannot extract signatures from '%s' as compiled without support for libgpgme!\n"
-"Trying to extract the content manually...\n", filenametoshow);
-		}
+	if( *afterchanges == '\0' ) {
+		fprintf(stderr,
+"First non-space character is a '-' but there is no empty line in\n"
+"'%s'.\n"
+"Unable to extract any data from it!\n", filenametoshow);
 		free(chunk);
-		r = chunk_read(f, &chunk);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Could not find any data within '%s'!\n",
+		return RET_ERROR;
+	}
+	if( strncmp(startofchanges, "-----BEGIN", 10) != 0 ) {
+		fprintf(stderr,
+"Strange content of '%s': First non-space character is '-',\n"
+"but it does not begin with '-----BEGIN'.\n", filenametoshow);
+		failed = true;
+#ifndef HAVE_LIBGPGME
+	} else {
+		fprintf(stderr,
+"Cannot check signatures from '%s' as compiled without support for libgpgme!\n"
+"Extracting the content manually without looking at the signature...\n", filenametoshow);
+#endif
+	}
+
+	extractchunk(afterchanges,
+			&startofchanges, &endofchanges, &afterchanges);
+
+	if( startofchanges == endofchanges ) {
+		fprintf(stderr,"Could not find any data within '%s'!\n",
+				filenametoshow);
+		free(chunk);
+		return RET_ERROR;
+	}
+
+	if( *afterchanges == '\0' ) {
+		const char *endmarker;
+
+		endmarker = strstr(startofchanges, "\n-----");
+		if( endmarker != NULL && endmarker < endofchanges ) {
+			endofchanges = endmarker+1;
+		} else {
+			fprintf(stderr,
+"ERROR: Could not find end marker of signed data within '%s'.\n"
+"Cannot determine what is data and what is not!\n",
 					filenametoshow);
-			gzclose(f);
+			free(chunk);
 			return RET_ERROR;
 		}
-		endmarker = strstr(chunk+10, "-----");
-		while( endmarker != NULL && *(endmarker-1) != '\n'
-				&& *(endmarker-1) != '\r' ) {
-			char *newline = strchr(endmarker, '\n');
-			if( newline == NULL )
-				endmarker = NULL;
-			else
-				endmarker = strstr(newline+1, "-----");
-		}
-		if( endmarker != NULL ) {
-			if( verbose > 0 )
-				fprintf(stderr,"Truncating at -----\n");
-			*endmarker ='\0';
-			finished = true;
-		}
+	} else if( strncmp(afterchanges, "-----", 5) != 0 ) {
+		fprintf(stderr,"ERROR: Spurious empty line within '%s'.\n"
+"Cannot determine what is data and what is not!\n",
+				filenametoshow);
+		free(chunk);
+		return RET_ERROR;
 	}
-	while( !finished ) {
-		char *chunk2;
-		r = chunk_read(f, &chunk2);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( r == RET_NOTHING )
-			break;
-		if( strncmp(chunk2, "-----", 5) == 0 ) {
-			if( !issigned ) {
-				fprintf(stderr, "Unexpected ---- in '%s'!\n",
-						filenametoshow);
-			} else {
-				finished = true;
 
-			}
-		} else {
-			fprintf(stderr, "Unexpected extra data in '%s'!",
-					filenametoshow);
-		}
-		free(chunk2);
-	}
-	// TODO: check result:
-	gzclose(f);
+	if( startofchanges != chunk ) {
+		char *h;
+
+		h = strndup(startofchanges, endofchanges-startofchanges);
+		free(chunk);
+		if( h == NULL )
+			return RET_ERROR_OOM;
+		chunk = h;
+	} else if( *endofchanges != '\0' )
+		chunk[endofchanges-chunk] = '\0';
+
 	*chunkread = chunk;
 	if( validkeys != NULL )
 		strlist_init(validkeys);
@@ -779,7 +872,6 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	if( brokensignature != NULL )
 		*brokensignature = false;
 	return RET_OK;
-#endif /* HAVE_LIBGPGME */
 }
 
 struct signedfile {
