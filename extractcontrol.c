@@ -28,6 +28,8 @@
 #include "error.h"
 #include "md5sum.h"
 #include "chunks.h"
+#include "filecntl.h"
+#include "readtextfile.h"
 #include "debfile.h"
 
 #ifdef HAVE_LIBARCHIVE
@@ -112,29 +114,26 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 
 	}
 
-	close(pipe1[0]);close(pipe1[1]);
-	close(pipe2[1]);
+	close(pipe1[0]); close(pipe1[1]);
+	markcloseonexec(pipe2[0]); close(pipe2[1]);
 
 	/* read data: */
 	if( RET_IS_OK(result) ) {
-		gzFile f;
-		//TODO: making a gzdopen here is kinda stupid...
-		f = gzdopen(pipe2[0],"r");
-		if( f == NULL ) {
-			fprintf(stderr,"Error opening gzip-stream for pipe!\n");
-			RET_UPDATE(result,RET_ERROR);
-		} else {
-			r = chunk_read(f,&controlchunk);
-			if( r == RET_NOTHING ) {
-				controlchunk = NULL;
-				fprintf(stderr,"Got no control information from .deb!\n");
-				/* only report error now if we haven't try everything yet */
-				if( brokentar )
-					r = RET_ERROR_MISSING;
-			}
-			RET_UPDATE(result,r);
-			gzclose(f);
+		r = readtextfilefd(pipe2[0],
+				brokentar?
+				"output from ar p <debfile> control.tar.gz | tar -XOzf - control":
+				"output from ar p <debfile> control.tar.gz | tar -XOzf - ./control", 
+				&controlchunk, NULL);
+		if( r == RET_NOTHING || (RET_IS_OK(r) && *controlchunk == '\0') ) {
+			r = RET_NOTHING;
+			free(controlchunk);
+			controlchunk = NULL;
+			fprintf(stderr,"Got no control information from .deb!\n");
+			/* only report error now if we haven't try everything yet */
+			if( brokentar )
+				r = RET_ERROR_MISSING;
 		}
+		RET_UPDATE(result,r);
 	}
 
 	/* avoid being a memory leak */
