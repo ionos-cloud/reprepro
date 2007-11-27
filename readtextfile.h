@@ -10,7 +10,7 @@
 #warning "What's hapening here?"
 #endif
 
-retvalue readtextfilefd(int, const char *, char **, /*@null@*/size_t *);
-retvalue readtextfile(const char *, const char *, char **, /*@null@*/size_t *);
+retvalue readtextfilefd(int, const char *, /*@out@*/char **, /*@null@*//*@out@*/size_t *);
+retvalue readtextfile(const char *, const char *, /*@out@*/char **, /*@null@*//*@out@*/size_t *);
 
 #endif
