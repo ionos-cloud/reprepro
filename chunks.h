@@ -1,8 +1,6 @@
 #ifndef REPREPRO_CHUNKS_H
 #define REPREPRO_CHUNKS_H
 
-#include <zlib.h>
-
 #ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
@@ -10,9 +8,6 @@
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
-
-/* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
-retvalue chunk_read(gzFile f,/*@out@*/char **chunk);
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,/*@out@*/char **value);

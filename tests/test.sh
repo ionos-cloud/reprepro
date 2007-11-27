@@ -723,7 +723,90 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
+*=Unexpected empty file 'test.changes'!
+-v0*=There have been errors!
+EOF
+echo > i/test.changes
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0=Data seems not to be signed trying to use directly...
 *=Could only find spaces within 'test.changes'!
+-v0*=There have been errors!
+EOF
+cat > i/test.changes <<EOF
+-chunk: 1
+
+
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0=Data seems not to be signed trying to use directly....
+*=First non-space character is a '-' but there is no empty line in
+*='test.changes'.
+*=Unable to extract any data from it!
+-v0*=There have been errors!
+EOF
+cat > i/test.changes <<EOF
+-chunk: 1
+
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0=Data seems not to be signed trying to use directly....
+*=First non-space character is a '-' but there is no empty line in
+*='test.changes'.
+*=Unable to extract any data from it!
+-v0*=There have been errors!
+EOF
+cat > i/test.changes <<EOF
+chunk: 1
+
+chunk: 2
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0*=There have been errors!
+*=Error parsing 'test.changes': Seems not to be signed but has spurious empty line.
+EOF
+cat > i/test.changes <<EOF
+-----BEGIN FAKE GPG SIGNED MAIL
+type: funny
+
+This is some content
+-----BEGIN FAKE SIGNATURE
+Hahaha!
+-----END FAKE SIGNATURE
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0=Data seems not to be signed trying to use directly....
+-v0=Cannot check signatures from 'test.changes' as compiled without support for libgpgme!
+-v0=Extracting the content manually without looking at the signature...
+*=In 'test.changes': Missing 'Source' field!
+-v0*=There have been errors!
+EOF
+cat > i/test.changes <<EOF
+-----BEGIN FAKE GPG SIGNED MAIL
+type: funny
+
+This is some content
+
+-----BEGIN FAKE SIGNATURE
+Hahaha!
+-----END FAKE SIGNATURE
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0=Data seems not to be signed trying to use directly....
+-v0=Cannot check signatures from 'test.changes' as compiled without support for libgpgme!
+-v0=Extracting the content manually without looking at the signature...
+*=In 'test.changes': Missing 'Source' field!
 -v0*=There have been errors!
 EOF
 cat > i/test.changes <<EOF
@@ -1047,9 +1130,10 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Could only find spaces within './temp/dscfilename_fileversion~.dsc'!
+*=Unexpected empty file './temp/dscfilename_fileversion~.dsc'!
 -v0*=There have been errors!
 EOF
+#*=Could only find spaces within './temp/dscfilename_fileversion~.dsc'!
 echo "Dummyheader:" > i/dscfilename_fileversion~.dsc
 DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes

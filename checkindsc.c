@@ -27,7 +27,6 @@
 #include <string.h>
 #include <malloc.h>
 #include <ctype.h>
-#include <zlib.h>
 #include "error.h"
 #include "strlist.h"
 #include "md5sum.h"

@@ -25,7 +25,6 @@
 #include <getopt.h>
 #include <string.h>
 #include <malloc.h>
-#include <zlib.h>
 #include "error.h"
 #include "md5sum.h"
 #include "chunks.h"

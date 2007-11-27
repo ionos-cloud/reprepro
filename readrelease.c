@@ -20,40 +20,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <zlib.h>
 #include "error.h"
 #include "names.h"
 #include "chunks.h"
+#include "readtextfile.h"
 #include "readrelease.h"
 
 /* get a strlist with the md5sums of a Release-file */
 retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
-	gzFile fi;
 	retvalue r;
 	char *chunk;
-	struct strlist files,checksuminfo;
-	char *filename,*md5sum;
+	struct strlist files, checksuminfo;
 	int i;
+	char *filename, *md5sum;
 
-	fi = gzopen(releasefile,"r");
-	if( fi == NULL ) {
-		fprintf(stderr,"Error opening %s: %m!\n",releasefile);
-		return RET_ERRNO(errno);
-	}
-	r = chunk_read(fi,&chunk);
-	i = gzclose(fi);
-	if( !RET_IS_OK(r) ) {
-		fprintf(stderr,"Error reading %s.\n",releasefile);
-		if( r == RET_NOTHING )
-			return RET_ERROR;
-		else
-			return r;
-	}
-	if( i < 0) {
-		fprintf(stderr,"Closing revealed reading error in %s.\n",releasefile);
-		free(chunk);
-		return RET_ZERRNO(i);
-	}
+	r = readtextfile(releasefile, releasefile, &chunk, NULL);
+	assert( r != RET_NOTHING );
+	if( !RET_IS_OK(r) )
+		return r;
 	r = chunk_getextralinelist(chunk,"MD5Sum",&files);
 	free(chunk);
 	if( r == RET_NOTHING ) {

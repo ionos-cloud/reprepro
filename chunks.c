@@ -31,6 +31,7 @@ extern int verbose;
 //TODO: this should now also be able to parse \r\n terminated lines instead
 // of only \n terminated oned. Though this has still to be tested properly...
 
+static retvalue chunk_read(gzFile f,char **chunk);
 /* Call action for each chunk in <filename> */
 retvalue chunk_foreach(const char *filename, chunkaction action, void *data, bool stopwhenok){
 	gzFile f;

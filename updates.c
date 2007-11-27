@@ -58,7 +58,6 @@
 #include <malloc.h>
 #include <string.h>
 #include <ctype.h>
-#include <zlib.h>
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"

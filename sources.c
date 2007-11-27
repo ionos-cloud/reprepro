@@ -16,6 +16,7 @@
 #include <config.h>
 
 #include <assert.h>
+#include <sys/types.h>
 #include <errno.h>
 #include <string.h>
 #include <strings.h>

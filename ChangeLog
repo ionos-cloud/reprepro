@@ -1,3 +1,9 @@
+2007-11-27  Bernhard R. Link <brlink@debian.org>
+	* rewrite support for reading text files containing a single
+	chunk. (Release, .dsc, .changes). Unsigned .dsc and .changes
+	files are no longer routed through libgpgme.
+	TODO: make --without-libarchive work again...
+
 2007-11-24  Bernhard R. Link <brlink@debian.org>
 	* references.c uses database.c instead of accessing libdb directly
 
