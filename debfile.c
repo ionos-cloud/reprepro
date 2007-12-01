@@ -37,8 +37,8 @@
 
 static retvalue read_control_file(char **control, const char *debfile, struct archive *tar, struct archive_entry *entry) {
 	int64_t size;
-	char *buffer, *startofchanges, *endofchanges, *afterchanges, *n;
-	size_t len;
+	char *buffer, *afterchanges, *n;
+	size_t len, controllen;
 	ssize_t got;
 
 	size = archive_entry_size(entry);
@@ -76,39 +76,26 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 			" perhaps the file is corrupt, perhaps libarchive!\n", debfile);
 	buffer[len] = '\0';
 
-	startofchanges = buffer;
-	while( *startofchanges != '\0' && xisspace(*startofchanges)) {
-		startofchanges++;
-	}
-	if( (size_t)(startofchanges-buffer) >= len) {
-		fprintf(stderr,"Could only find spaces within contol file of '%s'!\n",
+	controllen = chunk_extract(buffer, buffer, &afterchanges);
+
+	if( controllen == 0 ) {
+		fprintf(stderr,"Could only find spaces within control file of '%s'!\n",
 				debfile);
 		free(buffer);
 		return RET_ERROR;
 	}
-	len -= (startofchanges-buffer);
-	memmove(buffer, startofchanges, len+1);
-	endofchanges = buffer;
-	while( *endofchanges != '\0' &&
-		( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
-		endofchanges++;
-	}
-	afterchanges = endofchanges;
-	while(  *afterchanges != '\0' && xisspace(*afterchanges)) {
-		afterchanges++;
-	}
 	if( (size_t)(afterchanges - buffer) < len ) {
-		if( *afterchanges == '\0' ) {
-			fprintf(stderr,"Unexpected \\0 character within control file of '%s'!\n", debfile);
-			free(buffer);
-			return RET_ERROR;
-		}
-		fprintf(stderr,"Unexpected data after ending empty line in control file of '%s'!\n", debfile);
+		if( *afterchanges == '\0' )
+			fprintf(stderr,
+"Unexpected \\0 character within control file of '%s'!\n", debfile);
+		else
+			fprintf(stderr,
+"Unexpected data after ending empty line in control file of '%s'!\n", debfile);
 		free(buffer);
 		return RET_ERROR;
 	}
-	*afterchanges = '\0';
-	n = realloc(buffer, (afterchanges-buffer)+1);
+	assert( buffer[controllen] == '\0' );
+	n = realloc(buffer, controllen+1);
 	if( n == NULL ) {
 		free(buffer);
 		return RET_ERROR_OOM;

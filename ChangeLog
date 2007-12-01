@@ -1,3 +1,8 @@
+2007-12-01  Bernhard R. Link <brlink@debian.org>
+	* beautify control data read from .deb or .dsc/.changes files:
+	  remove all CR and make sure leading or trailing newlines do
+	  not hurt.
+
 2007-11-27  Bernhard R. Link <brlink@debian.org>
 	* rewrite support for reading text files containing a single
 	chunk. (Release, .dsc, .changes). Unsigned .dsc and .changes

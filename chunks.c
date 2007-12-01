@@ -741,3 +741,52 @@ char *chunk_replacefield(const char *chunk,const char *fieldname,const char *dat
 	return chunk_replacefields(chunk,&toadd,fieldname);
 }
 
+/* this is a bit wastefull, as with normaly perfect formated input, it just
+ * writes everything to itself in a inefficent way. But when there are \r
+ * in it or spaces before it or stuff like that, it will be in perfect
+ * form afterwards. */
+size_t chunk_extract(char *buffer, const char *start, char **next) {
+	const char *startofchanges, *endofchanges, *afterchanges;
+	char *p;
+
+	assert( start >= buffer);
+	p = buffer;
+	startofchanges = start;
+	while( *startofchanges == ' ' || *startofchanges == '\t' ||
+			*startofchanges == '\r' || *startofchanges =='\n' )
+		startofchanges++;
+
+	endofchanges = startofchanges;
+	afterchanges = NULL;
+	while( *endofchanges != '\0' ) {
+		if( *endofchanges == '\n' ) {
+			*(p++) = *(endofchanges++);
+			afterchanges = endofchanges;
+			while( *afterchanges =='\r' )
+				afterchanges++;
+			if( *afterchanges == '\n' )
+				break;
+			endofchanges = afterchanges;
+			afterchanges = NULL;
+		} else {
+			*(p++) = *(endofchanges++);
+		}
+	}
+
+	if( afterchanges == NULL ) {
+		afterchanges = endofchanges;
+		assert( *afterchanges == '\0' );
+		assert( p <= afterchanges );
+		*p = '\0';
+	} else {
+		assert( *afterchanges == '\n' );
+		afterchanges++;
+		assert( p < afterchanges );
+		*p = '\0';
+		while( *afterchanges == '\n' || *afterchanges =='\r' )
+			afterchanges++;
+	}
+	*next = buffer + (afterchanges-buffer);
+	return p-buffer;
+}
+

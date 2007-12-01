@@ -60,4 +60,7 @@ void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *f);
 /* check if all field names  are in allowedfieldnames */
 retvalue chunk_checkfields(const char *chunk, const char * const *allowedfieldnames, bool commentsallowed);
 
+/* reformat control data, removing leading spaces and CRs */
+size_t chunk_extract(char *buffer, const char *start, /*@out@*/char **next);
+
 #endif

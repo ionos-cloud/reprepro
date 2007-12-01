@@ -576,6 +576,7 @@ static inline void extractchunk(const char *buffer, const char **begin, const ch
 			if( *afterchanges == '\n' )
 				break;
 			endofchanges = afterchanges;
+			afterchanges = NULL;
 		} else
 			endofchanges++;
 	}
@@ -731,9 +732,9 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 
 /* Read a single chunk from a file, that may be signed. */
 retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature) {
-	char *chunk;
+	char *chunk, *h, *afterchunk;
 	const char *startofchanges,*endofchanges,*afterchanges;
-	size_t chunklen;
+	size_t chunklen, len;
 	retvalue r;
 	bool failed = false;
 
@@ -760,18 +761,12 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	if( startofchanges[0] != '-' && *afterchanges == '\0' ) {
 		if( verbose > -1 )
 			fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
-		// TODO: warn if more than one chunk in it
-
-		if( startofchanges != chunk ) {
-			char *h;
-
-			h = strndup(startofchanges, endofchanges-startofchanges);
-			free(chunk);
-			if( h == NULL )
-				return RET_ERROR_OOM;
+		len = chunk_extract(chunk, chunk, &afterchunk);
+		assert( *afterchunk == '\0' );
+		assert( chunk[len] == '\0' );
+		h = realloc(chunk, len + 1);
+		if( h != NULL )
 			chunk = h;
-		} else if( *endofchanges != '\0' )
-			chunk[endofchanges-chunk] = '\0';
 		*chunkread = chunk;
 		if( validkeys != NULL )
 			strlist_init(validkeys);
@@ -821,22 +816,24 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 #endif
 	}
 
-	extractchunk(afterchanges,
-			&startofchanges, &endofchanges, &afterchanges);
+	len = chunk_extract(chunk, afterchanges, &afterchunk);
 
-	if( startofchanges == endofchanges ) {
+	if( len == 0 ) {
 		fprintf(stderr,"Could not find any data within '%s'!\n",
 				filenametoshow);
 		free(chunk);
 		return RET_ERROR;
 	}
 
-	if( *afterchanges == '\0' ) {
+	if( *afterchunk == '\0' ) {
 		const char *endmarker;
 
-		endmarker = strstr(startofchanges, "\n-----");
-		if( endmarker != NULL && endmarker < endofchanges ) {
-			endofchanges = endmarker+1;
+		endmarker = strstr(chunk, "\n-----");
+		if( endmarker != NULL ) {
+			endmarker++;
+			assert( endmarker-chunk < len );
+			len = endmarker-chunk;
+			chunk[len] = '\0';
 		} else {
 			fprintf(stderr,
 "ERROR: Could not find end marker of signed data within '%s'.\n"
@@ -845,7 +842,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 			free(chunk);
 			return RET_ERROR;
 		}
-	} else if( strncmp(afterchanges, "-----", 5) != 0 ) {
+	} else if( strncmp(afterchunk, "-----", 5) != 0 ) {
 		fprintf(stderr,"ERROR: Spurious empty line within '%s'.\n"
 "Cannot determine what is data and what is not!\n",
 				filenametoshow);
@@ -853,17 +850,10 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 		return RET_ERROR;
 	}
 
-	if( startofchanges != chunk ) {
-		char *h;
-
-		h = strndup(startofchanges, endofchanges-startofchanges);
-		free(chunk);
-		if( h == NULL )
-			return RET_ERROR_OOM;
+	assert( chunk[len] == '\0' );
+	h = realloc(chunk, len + 1);
+	if( h != NULL )
 		chunk = h;
-	} else if( *endofchanges != '\0' )
-		chunk[endofchanges-chunk] = '\0';
-
 	*chunkread = chunk;
 	if( validkeys != NULL )
 		strlist_init(validkeys);

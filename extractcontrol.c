@@ -117,15 +117,33 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 	close(pipe1[0]); close(pipe1[1]);
 	markcloseonexec(pipe2[0]); close(pipe2[1]);
 
+	controlchunk = NULL;
+
 	/* read data: */
 	if( RET_IS_OK(result) ) {
+		size_t len; char *afterchanges;
+
 		r = readtextfilefd(pipe2[0],
 				brokentar?
 				"output from ar p <debfile> control.tar.gz | tar -XOzf - control":
-				"output from ar p <debfile> control.tar.gz | tar -XOzf - ./control", 
+				"output from ar p <debfile> control.tar.gz | tar -XOzf - ./control",
 				&controlchunk, NULL);
-		if( r == RET_NOTHING || (RET_IS_OK(r) && *controlchunk == '\0') ) {
-			r = RET_NOTHING;
+		if( RET_IS_OK(r) ) {
+			len = chunk_extract(controlchunk, controlchunk, &afterchanges);
+			if( len == 0 )
+				r = RET_NOTHING;
+			if( *afterchanges != '\0' ) {
+				fprintf(stderr,
+"Unexpected emtpy line in control information within '%s'\n"
+"(obtained via 'ar p %s control.tar.gz | tar -XOzf - %scontrol')\n",
+						debfilename, debfilename,
+						brokentar?"":"./");
+				free(controlchunk);
+				controlchunk = NULL;
+				r = RET_ERROR;
+			}
+		}
+		if( r == RET_NOTHING ) {
 			free(controlchunk);
 			controlchunk = NULL;
 			fprintf(stderr,"Got no control information from .deb!\n");
@@ -134,11 +152,8 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 				r = RET_ERROR_MISSING;
 		}
 		RET_UPDATE(result,r);
-	}
 
-	/* avoid being a memory leak */
-	if( !(RET_IS_OK(result)) )
-		controlchunk = NULL;
+	}
 
 	while( ar != -1 || tar != -1 ) {
 		pid=wait(&status);
