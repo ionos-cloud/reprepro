@@ -5,6 +5,9 @@ Updates between 3.0.1 and 3.1.0:
   uncompressed variants to be regenerated once uppon upgrade, but
   switching back and forth between previous versions and this or
   later versions will cause regenerating of unchanged files.
+- internal changes of reading of text files (.dsc/.changes/Release/
+  control from .deb). Should not make any difference with normal input,
+  and make the situation better with strange input.
 
 Updates between 3.0.0 and 3.0.1:
 - the default for --export is now "changed", as the old default was
