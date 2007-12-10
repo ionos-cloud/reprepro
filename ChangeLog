@@ -1,3 +1,6 @@
+2007-12-10  Bernhard R. Link <brlink@debian.org>
+	* support lzma compressed source packages
+
 2007-12-01  Bernhard R. Link <brlink@debian.org>
 	* beautify control data read from .deb or .dsc/.changes files:
 	  remove all CR and make sure leading or trailing newlines do
