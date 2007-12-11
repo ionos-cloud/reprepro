@@ -63,8 +63,6 @@ struct debpackage {
 	/* with deb_calclocations: */
 	const char *filekey;
 	struct strlist filekeys;
-	/* with deb_copyfiles or deb_checkfiles: */
-	char *md5sum;
 };
 
 void deb_free(/*@only@*/struct debpackage *pkg) {
@@ -73,7 +71,6 @@ void deb_free(/*@only@*/struct debpackage *pkg) {
 		free(pkg->component);
 		if( pkg->filekey != NULL )
 			strlist_done(&pkg->filekeys);
-		free(pkg->md5sum);
 	}
 	free(pkg);
 }
@@ -250,15 +247,8 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 		deb_free(pkg);
 		return RET_ERROR;
 	}
-	/* then looking if we already have this, or copy it in */
-	pkg->md5sum = strdup(givenmd5sum);
-	if( pkg->md5sum == NULL ) {
-		deb_free(pkg);
-		return RET_ERROR_OOM;
-	}
-	assert( pkg->md5sum != NULL );
 	/* Prepare everything that can be prepared beforehand */
-	r = binaries_complete(&pkg->deb, pkg->filekey, pkg->md5sum, oinfo,
+	r = binaries_complete(&pkg->deb, pkg->filekey, givenmd5sum, oinfo,
 			pkg->deb.section, pkg->deb.priority, &control);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
@@ -267,12 +257,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 	free(pkg->deb.control); pkg->deb.control = control;
 	*deb = pkg;
 	return RET_OK;
-}
-
-retvalue deb_hardlinkfiles(struct debpackage *deb,struct database *database,const char *debfilename) {
-	assert( deb != NULL );
-	assert( deb->filekey != NULL && deb-> md5sum != NULL );
-	return files_hardlink(database, debfilename, deb->filekey, deb->md5sum);
 }
 
 retvalue deb_addprepared(const struct debpackage *pkg,struct database *database,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
@@ -292,6 +276,7 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 	struct trackingdata trackingdata;
 	const struct overrideinfo *oinfo;
 	char *control;
+	char *md5sum;
 
 	r = deb_read(&pkg, debfilename, tracks != NULL );
 	if( RET_WAS_ERROR(r) ) {
@@ -302,15 +287,15 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 		deb_free(pkg);
 		return r;
 	}
-	r = files_include(database, debfilename, pkg->filekey, NULL, &pkg->md5sum, delete);
+	r = files_include(database, debfilename, pkg->filekey, NULL, &md5sum, delete);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
 	}
-	assert( pkg->md5sum != NULL );
 	/* Prepare everything that can be prepared beforehand */
-	r = binaries_complete(&pkg->deb, pkg->filekey, pkg->md5sum, oinfo,
+	r = binaries_complete(&pkg->deb, pkg->filekey, md5sum, oinfo,
 			pkg->deb.section, pkg->deb.priority, &control);
+	free(md5sum);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
