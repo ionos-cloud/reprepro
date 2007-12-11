@@ -5,6 +5,7 @@ reprepro (3.1.0-0) local-etch; urgency=low
     (modified format of release.caches.db file, thus 3.1.0)
   - modified reading of .dsc/.changes/.deb-contol files.
     Should hopefully not change anything except filtering out CRs in them.
+  - add support for .tar.lzma and .diff.lzma in source packages
 
  -- Bernhard R. Link <brlink@debian.org>  Sun,  2 Dec 2007 15:52:43 +0100
 

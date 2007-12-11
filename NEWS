@@ -8,6 +8,8 @@ Updates between 3.0.1 and 3.1.0:
 - internal changes of reading of text files (.dsc/.changes/Release/
   control from .deb). Should not make any difference with normal input,
   and make the situation better with strange input.
+- source packages now can have .tar und .diff lzma compressed
+  (still missing is support for lzma compressed binary packages)
 
 Updates between 3.0.0 and 3.0.1:
 - the default for --export is now "changed", as the old default was
