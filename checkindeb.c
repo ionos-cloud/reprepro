@@ -309,15 +309,12 @@ retvalue deb_addprepared(const struct debpackage *pkg,struct database *database,
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(struct database *database,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
+retvalue deb_add(struct database *database,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
 
-	if( givenfilekey != NULL && givenmd5sum != NULL ) {
-		assert( delete == D_INPLACE );
-	}
-	r = deb_prepare(&pkg,database,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,delete,tracks!=NULL,NULL,NULL,NULL);
+	r = deb_prepare(&pkg,database,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,NULL,NULL,delete,tracks!=NULL,NULL,NULL,NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

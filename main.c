@@ -1726,8 +1726,7 @@ ACTION_D(y, y, y, includedeb) {
 
 		r = deb_add(database, component, architecture,
 				section,priority,isudeb?"udeb":"deb",distribution,filename,
-				NULL,NULL,delete,
-				dereferenced,tracks);
+				delete, dereferenced,tracks);
 		RET_UPDATE(result, r);
 	}
 

@@ -19,7 +19,7 @@
  * package. (forcesection and forcepriority have higher priority than the
  * information there),
  * if dereferencedfilekeys is != NULL, add there filekeys that lost a reference */
-retvalue deb_add(struct database *,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcearchitecture,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,/*@null@*/const char *givenfilekey,/*@null@*/const char *givenmd5sum,int delete,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/trackingdb);
+retvalue deb_add(struct database *,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcearchitecture,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,int delete,/*@null@*/struct strlist *dereferencedfilekeys,/*@null@*/trackingdb);
 
 /* in two steps */
 struct debpackage;
