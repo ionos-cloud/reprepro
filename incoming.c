@@ -88,7 +88,6 @@ struct incoming {
 	struct strlist files;
 	bool *processed;
 	bool *delete;
-	struct strlist md5sums;
 	bool permit[pmf_COUNT];
 	bool cleanup[cuf_COUNT];
 	/* only to ease parsing: */
@@ -109,7 +108,6 @@ static void incoming_free(/*@only@*/ struct incoming *i) {
 	strlist_done(&i->files);
 	free(i->processed);
 	free(i->delete);
-	strlist_done(&i->md5sums);
 	free(i);
 }
 
@@ -149,9 +147,6 @@ static retvalue incoming_prepare(struct incoming *i) {
 		fprintf(stderr, "Error scaning '%s': %s\n", i->directory, strerror(e));
 		return RET_ERRNO(e);
 	}
-	r = strlist_init_n(i->files.count,&i->md5sums);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	i->processed = calloc(i->files.count, sizeof(bool));
 	if( i->processed == NULL )
 		return RET_ERROR_OOM;
