@@ -757,7 +757,6 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 				"deb",
 				distribution, fullfilename,
 				e->filekey, e->md5sum,
-				D_INPLACE, false,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_UDEB ) {
@@ -767,7 +766,6 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 				"udeb",
 				distribution, fullfilename,
 				e->filekey, e->md5sum,
-				D_INPLACE, false,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_DSC ) {
