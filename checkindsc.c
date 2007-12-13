@@ -153,7 +153,7 @@ static retvalue dsc_adddsc(struct dscpackage *pkg, /*@only@*/char *dscbasename, 
 }
 
 
-retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int delete, const char *expectedname, const char *expectedversion){
+retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *basename,const char *directory,const char *md5sum, const char *expectedname, const char *expectedversion){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -264,7 +264,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 
 			r = files_includefile(database, sourcedir,
 					basename, filekey, md5sum,
-					NULL, delete);
+					NULL, D_INPLACE);
 		}
 	}
 

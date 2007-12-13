@@ -24,7 +24,7 @@ retvalue dsc_add(struct database *,/*@null@*/const char *forcecomponent,/*@null@
  * delete should be D_INPLACE then
  */
 struct dscpackage *pkg;
-retvalue dsc_prepare(struct dscpackage **dsc,struct database *,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,struct distribution *distribution,/*@null@*/const char *sourcedir, const char *dscfilename,/*@null@*/const char *filekey,/*@null@*/const char *basename,/*@null@*/const char *directory,/*@null@*/const char *md5sum,int delete, const char *expectedname, const char *expectedversion);
+retvalue dsc_prepare(struct dscpackage **dsc, struct database *, const char *forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, /*@null@*/const char *sourcedir, const char *dscfilename, const char *basename, const char *directory, const char *md5sum, const char *expectedname, const char *expectedversion);
 retvalue dsc_addprepared(const struct dscpackage *pkg,struct database *,struct distribution *distribution,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata);
 void dsc_free(/*@only@*/struct dscpackage *pkg);
 

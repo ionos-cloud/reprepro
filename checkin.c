@@ -782,10 +782,9 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 						e->section, e->priority,
 						distribution,
 						sourcedirectory, fullfilename,
-						e->filekey, e->basename,
+						e->basename,
 						changes->srcdirectory,
 						e->md5sum,
-						D_INPLACE,
 						changes->source,
 						changes->sourceversion);
 			} else
