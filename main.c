@@ -1437,7 +1437,7 @@ ACTION_D(n, n, y, removealltracks) {
 	const char *codename;
 	int i;
 
-	if( !delete )
+	if( delete <= 0 )
 		for( i = 1 ; i < argc ; i ++ ) {
 			codename = argv[i];
 
