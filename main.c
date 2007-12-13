@@ -2994,6 +2994,8 @@ int main(int argc,char *argv[]) {
 		confdir=calc_dirconcat(mirrordir,"conf");
 	}
 
+	if( delete < D_COPY )
+		delete = D_COPY;
 	if( methoddir == NULL )
 		methoddir = strdup(STD_METHOD_DIR);
 	if( distdir == NULL )
