@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdio.h>
 
 #include "filecntl.h"
 
@@ -39,5 +40,14 @@ void markcloseonexec(int fd) {
 	l = fcntl(fd, F_GETFD, 0);
 	if( l >= 0 ) {
 		fcntl(fd, F_SETFD, l|FD_CLOEXEC);
+	}
+}
+
+void deletefile(const char *fullfilename) {
+	int err;
+
+	err = unlink(fullfilename);
+	if( err != 0 ) {
+		fprintf(stderr,"error while unlinking %s: %m\n",fullfilename);
 	}
 }

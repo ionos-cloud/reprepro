@@ -5,5 +5,6 @@
 void closefrom(int);
 #endif
 void markcloseonexec(int);
+void deletefile(const char *);
 
 #endif
