@@ -27,6 +27,7 @@
 #include <string.h>
 #include "error.h"
 #include "strlist.h"
+#include "filecntl.h"
 #include "names.h"
 #include "md5sum.h"
 #include "checksums.h"

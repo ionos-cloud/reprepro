@@ -42,7 +42,6 @@
 #include "md5.h"
 #include "md5sum.h"
 #include "checksums.h"
-#include "copyfile.h"
 #include "dirs.h"
 #include "names.h"
 #include "signature.h"
