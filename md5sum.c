@@ -32,6 +32,7 @@
 #include "md5.h"
 #include "sha1.h"
 #include "md5sum.h"
+#include "checksums.h"
 #include "names.h"
 
 extern int verbose;

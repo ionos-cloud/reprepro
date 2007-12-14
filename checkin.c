@@ -29,7 +29,7 @@
 #include "error.h"
 #include "ignore.h"
 #include "strlist.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "copyfile.h"
 #include "names.h"
 #include "dirs.h"
@@ -75,7 +75,7 @@ struct fileentry {
 	struct fileentry *next;
 	char *basename;
 	filetype type;
-	char *md5sum;
+	struct checksums *checksums;
 	char *section;
 	char *priority;
 	char *architecture;
@@ -125,7 +125,7 @@ static void freeentries(/*@only@*/struct fileentry *entry) {
 		free(entry->filekey);
 		free(entry->component);
 		free(entry->basename);
-		free(entry->md5sum);
+		checksums_free(entry->checksums);
 		free(entry->section);
 		free(entry->priority);
 		free(entry->architecture);
@@ -162,18 +162,24 @@ static void changes_free(/*@only@*/struct changes *changes) {
 static retvalue newentry(struct fileentry **entry,const char *fileline,const char *packagetypeonly,const char *forcearchitecture, const char *sourcename) {
 	struct fileentry *e;
 	retvalue r;
+	char *md5sum;
 
 	e = calloc(1,sizeof(struct fileentry));
 	if( e == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &e->type, &e->basename, &e->md5sum,
+	r = changes_parsefileline(fileline, &e->type, &e->basename, &md5sum,
 			&e->section, &e->priority, &e->architecture, &e->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(e);
 		return r;
 	}
 	assert( RET_IS_OK(r) );
+	r = checksums_set(&e->checksums, md5sum);
+	if( RET_WAS_ERROR(r) ) {
+		freeentries(e);
+		return r;
+	}
 	if( FE_SOURCE(e->type) && packagetypeonly != NULL && strcmp(packagetypeonly,"dsc")!=0) {
 		freeentries(e);
 		return RET_NOTHING;
@@ -635,17 +641,17 @@ static retvalue changes_checkfiles(struct database *database,const char *filenam
 		if( e->filekey == NULL )
 			return RET_ERROR_OOM;
 		/* do not copy yet, but only check if it could be included */
-		r = files_expect(database, e->filekey, e->md5sum);
+		r = files_canadd(database, e->filekey, e->checksums);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		/* If is was already there, remember that */
-		if( RET_IS_OK(r) ) {
+		if( r == RET_NOTHING ) {
 			e->wasalreadythere = true;
 		} else {
 		/* and if it needs inclusion check if there is a file */
 			char *fullfilename;
 
-			assert( r == RET_NOTHING );
+			assert(RET_IS_OK(r));
 			// TODO: add a --paranoid to also check md5sums before copying?
 
 			fullfilename = calc_dirconcat(changes->incomingdirectory,e->basename);
@@ -663,7 +669,7 @@ static retvalue changes_checkfiles(struct database *database,const char *filenam
 	return RET_OK;
 }
 
-static retvalue changes_includefiles(struct database *database,struct changes *changes,int delete) {
+static retvalue changes_includefiles(struct database *database,struct changes *changes) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -675,10 +681,8 @@ static retvalue changes_includefiles(struct database *database,struct changes *c
 		if( e->wasalreadythere )
 			continue;
 
-		r = files_includefile(database, changes->incomingdirectory,
-				e->basename, e->filekey, e->md5sum, NULL,
-				/* do not delete, we do that later outself */
-				(delete>=D_MOVE)?D_COPY:delete);
+		r = files_preincludefile(database, changes->incomingdirectory,
+				e->basename, e->filekey, &e->checksums);
 		if( RET_IS_OK(r) )
 			e->included = true;
 		if( RET_WAS_ERROR(r) )
@@ -756,7 +760,7 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 				e->section, e->priority,
 				"deb",
 				distribution, fullfilename,
-				e->filekey, e->md5sum,
+				e->filekey, e->checksums,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_UDEB ) {
@@ -765,7 +769,7 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 				e->section, e->priority,
 				"udeb",
 				distribution, fullfilename,
-				e->filekey, e->md5sum,
+				e->filekey, e->checksums,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_DSC ) {
@@ -784,7 +788,7 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 						sourcedirectory, fullfilename,
 						e->basename,
 						changes->srcdirectory,
-						e->md5sum,
+						e->checksums,
 						changes->source,
 						changes->sourceversion);
 			} else
@@ -945,7 +949,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 
 	/* add files in the pool */
 	if( !RET_WAS_ERROR(r) )
-		r = changes_includefiles(database, changes, delete);
+		r = changes_includefiles(database, changes);
 
 	if( !RET_WAS_ERROR(r) )
 		r = changes_checkpkgs(database, distribution, changes, directory);

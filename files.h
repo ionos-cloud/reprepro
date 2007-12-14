@@ -8,6 +8,9 @@
 #ifndef REPREPRO_DATABASE_H
 #include "database.h"
 #endif
+#ifndef REPREPRO_CHECKSUMS_H
+#include "checksums.h"
+#endif
 #include "filelist.h"
 
 struct filesdb;
@@ -39,6 +42,16 @@ retvalue files_printmissing(struct database *,const struct strlist *filekeys,con
 #define D_MOVE 		1
 /* move needed and delete unneeded files: */
 #define D_DELETE	2
+
+/* Include a given file into the pool
+ * return RET_NOTHING, if a file with the same checksums is already there
+ * return RET_OK, if copied and added
+ * return RET_ERROR_MISSING, if there is no file to copy.
+ * return RET_ERROR_WRONG_MD5 if wrong md5sum.
+ *  (the original file is not deleted in that case, even if delete is positive)
+ */
+retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@out@*/struct checksums **);
+retvalue files_preincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, /*@out@*/struct checksums **);
 
 /* Include a given file into the pool. i.e.:
  * 1) if <md5dum> != NULL
@@ -78,10 +91,15 @@ retvalue files_detect(struct database *,const char *filekey);
 
 retvalue files_regenerate_filelist(struct database *, bool redo);
 
-/* hardlink file with known md5sum and add it to database */
-retvalue files_hardlink(struct database *,const char *tempfile, const char *filekey,const char *md5sum);
+/* hardlink file with known checksums and add it to database */
+retvalue files_hardlinkandadd(struct database *, const char *tempfile, const char *filekey, const struct checksums *);
+
 /* check if file is already there (RET_NOTHING) or could be added (RET_OK)
  * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
 retvalue files_ready(struct database *,const char *filekey,const char *md5sum);
+
+/* check if file is already there (RET_NOTHING) or could be added (RET_OK)
+ * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
+retvalue files_canadd(struct database *, const char *filekey, const struct checksums *);
 
 #endif

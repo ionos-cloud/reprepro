@@ -6,16 +6,9 @@
 #warning "What's hapening here?"
 #endif
 
-enum checksumtype { cs_md5sum, cs_sha1sum, cs_count};
-
 /* Calculate the md5sum of the given file,
  * returns RET_NOTHING, if it does not exist.*/
 retvalue md5sum_read(const char *filename,/*@out@*/char **result);
-retvalue checksum_read(const char *filename, /*@out@*/char **md5sum, /*@out@*/char **sha1sum);
-retvalue checksum_complete(const char *directory, const char *filename, char *hashes[cs_count]);
-
-retvalue checksum_combine(char **, const char *[cs_count]);
-retvalue checksum_dismantle(const char *, char *[cs_count]);
 
 /* copy orig to dest and calculate the md5sum while dooing so.
  * return RET_NOTHING, if does not exist, and RET_ERROR_EXIST, if dest

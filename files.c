@@ -29,6 +29,7 @@
 #include "strlist.h"
 #include "names.h"
 #include "md5sum.h"
+#include "checksums.h"
 #include "dirs.h"
 #include "names.h"
 #include "files.h"
@@ -44,11 +45,32 @@ extern int verbose;
 retvalue files_add(struct database *database,const char *filekey,const char *md5sum) {
 	return table_adduniqrecord(database->files, filekey, md5sum);
 }
-
 static retvalue files_get(struct database *database,const char *filekey,/*@out@*/char **md5sum) {
 	return table_getrecord(database->files, filekey, md5sum);
 }
 
+static retvalue files_get_checksums(struct database *database, const char *filekey, /*@out@*/struct checksums **checksums_p) {
+	char *md5sum;
+	retvalue r;
+
+	r = table_getrecord(database->files, filekey, &md5sum);
+	if( !RET_IS_OK(r) )
+		return r;
+	return checksums_set(checksums_p, md5sum);
+}
+
+static retvalue files_add_checksums(struct database *database, const char *filekey, const struct checksums *checksums) {
+	retvalue r;
+	char *md5sum;
+
+	r = checksums_get(checksums, cs_md5sum, &md5sum);
+	assert( r != RET_NOTHING);
+	if( !RET_IS_OK(r) )
+		return r;
+	r = files_add(database, filekey, md5sum);
+	free(md5sum);
+	return r;
+}
 
 /* remove file's md5sum from database */
 retvalue files_remove(struct database *database, const char *filekey, bool ignoremissing) {
@@ -154,20 +176,55 @@ retvalue files_ready(struct database *database,const char *filekey,const char *m
 	return RET_NOTHING;
 }
 
-/* hardlink file with known md5sum and add it to database */
-retvalue files_hardlink(struct database *database,const char *tempfile, const char *filekey,const char *md5sum) {
+/* hardlink file with known checksums and add it to database */
+retvalue files_hardlinkandadd(struct database *database, const char *tempfile, const char *filekey, const struct checksums *checksums) {
 	retvalue r;
 
 	/* an additional check to make sure nothing tricks us into
 	 * overwriting it by another file */
-	r = files_ready(database, filekey, md5sum);
+	r = files_canadd(database, filekey, checksums);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = copyfile_hardlink(database->mirrordir, filekey, tempfile, md5sum);
+	r = copyfile_hardlink(database->mirrordir, filekey, tempfile, NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	return files_add(database, filekey, md5sum);
+	return files_add_checksums(database, filekey, checksums);
+}
+
+/* check for file in the database and if not found there, if it can be detected */
+retvalue files_canadd(struct database *database, const char *filekey, const struct checksums *checksums) {
+	retvalue r;
+	const char *md5fromdatabase;
+
+	r = table_gettemprecord(database->files, filekey,
+			&md5fromdatabase, NULL);
+	if( r == RET_NOTHING )
+		return RET_OK;
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( !checksums_matches(checksums, cs_md5sum, md5fromdatabase) ) {
+		char *md5sum;
+
+		r = checksums_get(checksums, cs_md5sum, &md5sum);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			fprintf(stderr,
+"File \"%s\" is already registered with other md5sum!\n"
+"(database:'%s')!\n",
+					filekey, md5fromdatabase);
+			return RET_ERROR_WRONG_MD5;
+		}
+		fprintf(stderr,
+"File \"%s\" is already registered with other md5sum!\n"
+"(expect: '%s', database:'%s')!\n",
+				filekey, md5sum, md5fromdatabase);
+		free(md5sum);
+		return RET_ERROR_WRONG_MD5;
+
+	}
+	// TODO: check other checksums here...
+	return RET_NOTHING;
 }
 
 /* check for file in the database and if not found there, if it can be detected */
@@ -589,3 +646,92 @@ retvalue files_regenerate_filelist(struct database *database, bool reread) {
 	RET_ENDUPDATE(result, r);
 	return result;
 }
+
+/* Include a yet unknown file into the pool */
+retvalue files_preinclude(struct database *database, const char *sourcefilename, const char *filekey, struct checksums **checksums_p) {
+	retvalue r;
+	struct checksums *checksums, *realchecksums;
+	bool improves;
+	char *fullfilename;
+
+	r = files_get_checksums(database, filekey, &checksums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) ) {
+		r = checksums_read(sourcefilename, &realchecksums);
+		if( r == RET_NOTHING )
+			r = RET_ERROR_MISSING;
+		if( RET_WAS_ERROR(r) ) {
+			checksums_free(checksums);
+			return r;
+		}
+		if( !checksums_check(checksums, realchecksums, &improves) ) {
+			fprintf(stderr,
+"ERROR: '%s' cannot be included as '%s'.\n"
+"Already existing files can only be included again, if they are the same, but:\n",
+				sourcefilename, filekey);
+			checksums_printdifferences(stderr, checksums, realchecksums);
+			checksums_free(checksums);
+			checksums_free(realchecksums);
+			return RET_ERROR_WRONG_MD5;
+		}
+		if( improves ) {
+			r = checksums_combine(&checksums, realchecksums);
+			if( RET_WAS_ERROR(r) ) {
+				checksums_free(checksums);
+				return r;
+			}
+			/* TODO:
+			r = files_add_improved(database, filekey, checksums);
+			if( RET_WAS_ERROR(r) ) {
+				checksums_free(checksums);
+				return r;
+			}*/
+		} else
+			checksums_free(realchecksums);
+		// args, this breaks retvalue semantics!
+		*checksums_p = checksums;
+		return RET_NOTHING;
+	}
+	assert( sourcefilename != NULL );
+	fullfilename = files_calcfullfilename(database, filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+	r = checksums_copyfile(fullfilename, sourcefilename, &checksums);
+	if( r == RET_ERROR_EXIST ) {
+		// TODO: deal with already existing files!
+		fprintf(stderr, "File '%s' does already exist!\n", fullfilename);
+	}
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
+		r = RET_ERROR_MISSING;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		return r;
+	}
+	free(fullfilename);
+
+	r = files_add_checksums(database, filekey, checksums);
+	if( RET_WAS_ERROR(r) ) {
+		checksums_free(checksums);
+		return r;
+	}
+	*checksums_p = checksums;
+	return RET_OK;
+}
+
+retvalue files_preincludefile(struct database *database, const char *sourcedir,const char *basename, const char *filekey, struct checksums **checksums_p) {
+	char *sourcefilename;
+	retvalue r;
+
+	assert( sourcedir != NULL );
+	sourcefilename = calc_dirconcat(sourcedir, basename);
+	if( sourcefilename == NULL )
+		return RET_ERROR_OOM;
+	r = files_preinclude(database, sourcefilename, filekey, checksums_p);
+	free(sourcefilename);
+	return r;
+
+}
+

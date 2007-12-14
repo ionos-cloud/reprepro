@@ -30,10 +30,11 @@
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"
+#include "filecntl.h"
 #include "strlist.h"
 #include "dirs.h"
 #include "names.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "chunks.h"
 #include "copyfile.h"
 #include "target.h"
@@ -400,7 +401,7 @@ struct candidate {
 		filetype type;
 		/* all NULL if it is the .changes itself,
 		 * otherwise the data from the .changes for this file: */
-		char *md5sum;
+		struct checksums *checksums;
 		char *section;
 		char *priority;
 		char *architecture;
@@ -440,7 +441,7 @@ struct candidate {
 };
 
 static void candidate_file_free(/*@only@*/struct candidate_file *f) {
-	free(f->md5sum);
+	checksums_free(f->checksums);
 	free(f->section);
 	free(f->priority);
 	free(f->architecture);
@@ -562,17 +563,23 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 
 static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, const char *fileline) {
 	struct candidate_file **p, *n;
-	char *basename;
+	char *basename, *md5sum;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct candidate_file));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &n->type, &basename, &n->md5sum,
+	r = changes_parsefileline(fileline, &n->type, &basename, &md5sum,
 			&n->section, &n->priority, &n->architecture, &n->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
+		return r;
+	}
+	r = checksums_set(&n->checksums, md5sum);
+	if( RET_WAS_ERROR(r) ) {
+		free(basename);
+		candidate_file_free(n);
 		return r;
 	}
 	n->ofs = strlist_ofs(&i->files, basename);
@@ -681,7 +688,9 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 static retvalue candidate_usefile(const struct incoming *i,const struct candidate *c,struct candidate_file *file) {
 	const char *basename;
 	char *origfile,*tempfilename;
+	struct checksums *readchecksums;
 	retvalue r;
+	bool improves;
 	const char *p;
 
 	if( file->used && file->tempfilename != NULL )
@@ -703,17 +712,38 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		return RET_ERROR_OOM;
 	}
 	unlink(tempfilename);
-	r = copy(tempfilename, origfile, file->md5sum, (file->md5sum==NULL)?&file->md5sum:NULL);
+	r = checksums_copyfile(tempfilename, origfile, &readchecksums);
 	free(origfile);
 	if( RET_WAS_ERROR(r) ) {
 		free(tempfilename);
-		// ...
 		return r;
 	}
+	if( file->checksums == NULL ) {
+		file->checksums = readchecksums;
+		file->tempfilename = tempfilename;
+		file->used = true;
+		return RET_OK;
+	}
+	if( !checksums_check(file->checksums, readchecksums, &improves) ) {
+		fprintf(stderr, "ERROR: File '%s' does not match expectations:\n", basename);
+		checksums_printdifferences(stderr, file->checksums, readchecksums);
+		checksums_free(readchecksums);
+		deletefile(tempfilename);
+		free(tempfilename);
+		return RET_ERROR_WRONG_MD5;
+	}
+	if( improves ) {
+		r = checksums_combine(&file->checksums, readchecksums);
+		if( RET_WAS_ERROR(r) ) {
+			deletefile(tempfilename);
+			free(tempfilename);
+			return r;
+		}
+	} else
+		checksums_free(readchecksums);
 	file->tempfilename = tempfilename;
 	file->used = true;
 	return RET_OK;
-
 }
 
 static inline retvalue getsectionprioritycomponent(const struct incoming *i,const struct candidate *c,const struct distribution *into,const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/char **component) {
@@ -822,8 +852,9 @@ static retvalue candidate_read_dsc(struct candidate_file *file) {
 	r = strlist_include(&file->dsc.basenames, p);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	p = strdup(file->md5sum);
-	if( p == NULL )
+	r = checksums_get(file->checksums, cs_md5sum, &p);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
 		return RET_ERROR_OOM;
 	r = strlist_include(&file->dsc.md5sums, p);
 	if( RET_WAS_ERROR(r) )
@@ -884,11 +915,11 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 
 	file = changesfile(c);
 
-	/* copy the .changes file, to get its md5sum and be sure it is
-	 * still there */
+	/* make sure the file is already copied */
 	assert( file->used );
-	assert( file->md5sum != NULL );
+	assert( file->checksums != NULL );
 
+	/* pseudo package containing the .changes file */
 	package = candidate_newpackage(per, c->files);
 	if( package == NULL )
 		return RET_ERROR_OOM;
@@ -910,7 +941,7 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 	package->files = calloc(1, sizeof(struct candidate_file *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(database, filekey, file->md5sum);
+	r = files_canadd(database, filekey, file->checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) )
@@ -963,12 +994,12 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	package->files = calloc(1, sizeof(struct candidate_file *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(database, filekey, file->md5sum);
+	r = files_canadd(database, filekey, file->checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) )
 		package->files[0] = file;
-	r = binaries_complete(&file->deb, filekey, file->md5sum, oinfo,
+	r = binaries_complete(&file->deb, filekey, file->checksums, oinfo,
 			section, priority, &package->control);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1046,7 +1077,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	package->files = calloc(package->filekeys.count,sizeof(struct candidate *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(database, package->filekeys.values[0], file->md5sum);
+	r = files_canadd(database, package->filekeys.values[0], file->checksums);
 	if( RET_IS_OK(r) )
 		package->files[0] = file;
 	if( RET_WAS_ERROR(r) )
@@ -1057,15 +1088,19 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 		const char *md5sum = file->dsc.md5sums.values[j];
 		struct candidate_file *f = c->files;
 
-		while( f != NULL && (f->md5sum == NULL ||
+		while( f != NULL && (f->checksums == NULL ||
 				     strcmp(BASENAME(i,f->ofs), basename) != 0) )
 			f = f->next;
 
-		if( f != NULL && strcmp(f->md5sum,md5sum) != 0 ) {
-			fprintf(stderr, "file '%s' is listed with md5sum '%s' in '%s' but with md5sum '%s' in '%s'!\n",
+		// TODO: is the error message sensible?
+		// perhaps currently, but in the future then .changes or .dsc
+		// can have additional hashes, they might not conflict with each
+		// other, but with the file's hash previously computed...
+		if( f != NULL && !checksums_matches(f->checksums, cs_md5sum, md5sum) ) {
+			fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
 					basename,
-					f->md5sum, BASENAME(i,c->ofs),
-					md5sum, BASENAME(i,file->ofs));
+					BASENAME(i,c->ofs),
+					BASENAME(i,file->ofs));
 			return RET_ERROR;
 		}
 		r = files_ready(database, filekey, md5sum);
@@ -1081,10 +1116,12 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 			 * here */
 
 			if( f == NULL ) {
-				/* if md5sum and size match, it's our file */
+				/* perhaps only the filename is wrong,
+				 * look for an file matching the checksum: */
 				f = c->files;
-				while( f != NULL && ( f->md5sum == NULL
-				                 || strcmp(f->md5sum,md5sum)) != 0 )
+				while( f != NULL && ( f->checksums == NULL ||
+					!checksums_matches(f->checksums,
+						cs_md5sum, md5sum)))
 					f = f->next;
 			}
 
@@ -1186,9 +1223,10 @@ static retvalue candidate_addfiles(struct database *database,struct candidate *c
 				if(  f == NULL )
 					continue;
 				assert(f->tempfilename != NULL);
-				r = files_hardlink(database, f->tempfilename,
+				r = files_hardlinkandadd(database,
+						f->tempfilename,
 						p->filekeys.values[j],
-						f->md5sum);
+						f->checksums);
 				if( !RET_IS_OK(r) )
 					/* when we did not add it, do not remove it: */
 					p->files[j] = NULL;

@@ -918,12 +918,12 @@ EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " md5sum size - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 mv i/debfilename_debfileversion~2_coal.deb i/debfilename_debfileversion~2_all.deb
-# // TODO: that should be ERROR: instead of WARNING:
 testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=WARNING: './i/debfilename_debfileversion~2_all.deb' has md5sum '$DEBMD5S', while 'md5sum size' was expected.
+*=ERROR: File 'debfilename_debfileversion~2_all.deb' does not match expectations:
+*=expected: md5sum size, got: $DEBMD5S
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
@@ -1121,7 +1121,8 @@ testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=WARNING: './i/dscfilename_fileversion~.dsc' has md5sum 'd41d8cd98f00b204e9800998ecf8427e 0', while 'md5sum size' was expected.
+*=ERROR: File 'dscfilename_fileversion~.dsc' does not match expectations:
+*=expected: md5sum size, got: d41d8cd98f00b204e9800998ecf8427e 0
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
@@ -1368,7 +1369,8 @@ returns 254
 stderr
 -v0=Data seems not to be signed trying to use directly...
 =Unknown filetype: 'md5sumindsc 666 - - strangefile_xyz', assuming to be source format...
-*=WARNING: './i/strangefile_xyz' has md5sum '31a1096ff883d52f0c1f39e652d6336f 33', while 'md5sumindsc 666' was expected.
+*=ERROR: File 'strangefile_xyz' does not match expectations:
+*=expected: md5sumindsc 666, got: 31a1096ff883d52f0c1f39e652d6336f 33
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
@@ -1383,7 +1385,7 @@ returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
 =Unknown filetype: '33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
-*=file 'strangefile_xyz' is listed with md5sum '33a1096ff883d52f0c1f39e652d6336f 33' in 'test.changes' but with md5sum '31a1096ff883d52f0c1f39e652d6336f 33' in 'dscfilename_fileversion~.dsc'!
+*=file 'strangefile_xyz' has conflicting checksums listed in 'test.changes' and 'dscfilename_fileversion~.dsc'!
 -v0*=There have been errors!
 EOF
 find pool -type f | LC_ALL=C sort -f > results

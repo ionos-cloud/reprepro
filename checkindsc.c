@@ -28,9 +28,11 @@
 #include <malloc.h>
 #include <ctype.h>
 #include "error.h"
+#include "filecntl.h"
 #include "strlist.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "names.h"
+#include "checksums.h"
 #include "dirs.h"
 #include "chunks.h"
 #include "checkindsc.h"
@@ -129,31 +131,29 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 
 /* Add the dsc-file to basenames,filekeys and md5sums, so that it will
  * be referenced and listed in the Sources.gz */
-static retvalue dsc_adddsc(struct dscpackage *pkg, /*@only@*/char *dscbasename, /*@only@*/char *dscmd5sum, /*@only@*/ char *dscfilekey) {
+static retvalue dsc_adddsc(struct dscpackage *pkg, /*@only@*/char *dscbasename, const struct checksums *checksums, /*@only@*/ char *dscfilekey) {
 	retvalue r;
+	char *dscmd5sum;
 
 	r = strlist_include(&pkg->dsc.basenames, dscbasename);
 	if( RET_WAS_ERROR(r) ) {
-		free(dscmd5sum);
 		free(dscfilekey);
 		return r;
 	}
-
-	r = strlist_include(&pkg->dsc.md5sums, dscmd5sum);
-	if( RET_WAS_ERROR(r) ) {
-		free(dscfilekey);
-		return r;
-	}
-
 	r = strlist_include(&pkg->filekeys, dscfilekey);
 	if( RET_WAS_ERROR(r) )
 		return r;
-
-	return RET_OK;
+	r = checksums_get(checksums, cs_md5sum, &dscmd5sum);
+	assert( r != RET_NOTHING );
+	if( r == RET_NOTHING )
+		r = RET_ERROR;
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return strlist_include(&pkg->dsc.md5sums, dscmd5sum);
 }
 
 
-retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *basename,const char *directory,const char *md5sum, const char *expectedname, const char *expectedversion){
+retvalue dsc_prepare(struct dscpackage **dsc, struct database *database, const char *forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *sourcedir, const char *dscfilename, const char *basename, const char *directory, const struct checksums *checksums, const char *expectedname, const char *expectedversion){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -165,7 +165,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 	assert( forcepriority != NULL );
 	assert( forcecomponent != NULL );
 	assert( basename != NULL );
-	assert( md5sum != NULL );
+	assert( checksums != NULL );
 	assert( expectedname != NULL );
 	assert( expectedversion != NULL );
 
@@ -235,10 +235,9 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 		return r;
 	}
 
-	dscmd5sum = strdup(md5sum);
-	if( dscmd5sum == NULL )
-		r = RET_ERROR_OOM;
-	else
+	r = checksums_get(checksums, cs_md5sum, &dscmd5sum);
+	assert( r != RET_NOTHING );
+	if( RET_IS_OK(r) )
 		r = strlist_include(&pkg->dsc.md5sums, dscmd5sum);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(pkg);
@@ -320,8 +319,6 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 	char *control;
 	int i;
 
-
-
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
 	if( !strlist_in(&distribution->architectures,"source") ) {
@@ -391,7 +388,8 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		return r;
 	}
 
-	{	char *dscbasename, *dscmd5sum, *dscfilekey;
+	{	char *dscbasename, *dscfilekey;
+		struct checksums *dscchecksums;
 
 		dscbasename = calc_source_basename(pkg->dsc.name, pkg->dsc.version);
 		destdirectory = calc_sourcedir(pkg->component, pkg->dsc.name);
@@ -406,22 +404,22 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			return r;
 		}
 		dscfilekey = calc_dirconcat(destdirectory, dscbasename);
-		dscmd5sum = NULL;
+		dscchecksums = NULL;
 		if( dscfilename == NULL )
 			r = RET_ERROR_OOM;
 		else
 			/* then look if we already have this, or copy it in */
-			r = files_include(database,
+			r = files_preinclude(database,
 					dscfilename, dscfilekey,
-					NULL, &dscmd5sum, delete);
+					&dscchecksums);
 
 		if( !RET_WAS_ERROR(r) )
-			r = dsc_adddsc(pkg, dscbasename, dscmd5sum, dscfilekey);
+			r = dsc_adddsc(pkg, dscbasename, dscchecksums, dscfilekey);
 		else {
-			free(dscmd5sum);
 			free(dscfilekey);
 			free(dscbasename);
 		}
+		checksums_free(dscchecksums);
 	}
 
 	assert( pkg->dsc.basenames.count == pkg->dsc.md5sums.count );
@@ -470,6 +468,11 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL);
 	dsc_free(pkg);
+
+	if( RET_IS_OK(r) && delete >= D_MOVE )
+		deletefile(dscfilename);
+	else if( r == RET_NOTHING && delete >= D_DELETE )
+		deletefile(dscfilename);
 
 	if( tracks != NULL ) {
 		retvalue r2;

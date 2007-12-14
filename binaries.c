@@ -507,29 +507,36 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 }
 
 /* do overwrites, add Filename, Size and md5sum to the control-item */
-retvalue binaries_complete(const struct deb_headers *pkg,const char *filekey,const char *md5sum,const struct overrideinfo *override,const char *section,const char *priority, char **newcontrol) {
-	const char *size;
+retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
 	struct fieldtoadd *replace;
 	char *newchunk;
+	retvalue r;
+	static const char *deb_checksum_headers[cs_count+1] = {"MD5sum", "SHA1", "Size"};
+	enum checksumtype type;
 
 	assert( section != NULL && priority != NULL);
-	assert( filekey != NULL && md5sum != NULL);
+	assert( filekey != NULL && checksums != NULL);
 
-	size = md5sum;
-	while( !xisblank(*size) && *size != '\0' )
-		size++;
-	replace = addfield_newn("MD5sum", md5sum, size-md5sum,NULL);
+	replace = NULL;
+	for( type = 0 ; type <= cs_count ; type++ ) {
+		const char *start;
+		size_t len;
+		r = checksums_getpart(checksums, type, &start, &len);
+		if( RET_IS_OK(r) ) {
+			replace = addfield_newn(deb_checksum_headers[type],
+					start, len, replace);
+			if( replace == NULL )
+				return RET_ERROR_OOM;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			addfield_free(replace);
+			return r;
+		}
+	}
+	replace = addfield_new("Filename", filekey, replace);
 	if( replace == NULL )
 		return RET_ERROR_OOM;
-	while( *size != '\0' && xisblank(*size) )
-		size++;
-	replace = addfield_new("Size", size, replace);
-	if( replace == NULL )
-		return RET_ERROR_OOM;
-	replace = addfield_new("Filename", filekey,replace);
-	if( replace == NULL )
-		return RET_ERROR_OOM;
-	replace = addfield_new(SECTION_FIELDNAME, section ,replace);
+	replace = addfield_new(SECTION_FIELDNAME, section, replace);
 	if( replace == NULL )
 		return RET_ERROR_OOM;
 	replace = addfield_new(PRIORITY_FIELDNAME, priority, replace);

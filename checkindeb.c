@@ -28,8 +28,9 @@
 #include <ctype.h>
 #include "error.h"
 #include "ignore.h"
+#include "filecntl.h"
 #include "strlist.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "names.h"
 #include "chunks.h"
 #include "checkindeb.h"
@@ -102,7 +103,7 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-static retvalue deb_preparelocation(struct debpackage *pkg, struct database *database, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
+static retvalue deb_preparelocation(struct debpackage *pkg, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
 	const struct strlist *components;
 	const struct overrideinfo *binoverride;
 	const struct overrideinfo *oinfo;
@@ -192,14 +193,14 @@ static retvalue deb_preparelocation(struct debpackage *pkg, struct database *dat
 }
 
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const char * const givenmd5sum, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
+retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const struct checksums * checksums, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
 	char *control;
 
 	assert( givenfilekey != NULL );
-	assert( givenmd5sum != NULL );
+	assert( checksums != NULL );
 	assert( allowed_binaries != NULL );
 	assert( expectedsourcepackage != NULL );
 	assert( expectedsourceversion != NULL );
@@ -236,7 +237,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 		return RET_ERROR;
 	}
 
-	r = deb_preparelocation(pkg, database, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
+	r = deb_preparelocation(pkg, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -248,7 +249,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 		return RET_ERROR;
 	}
 	/* Prepare everything that can be prepared beforehand */
-	r = binaries_complete(&pkg->deb, pkg->filekey, givenmd5sum, oinfo,
+	r = binaries_complete(&pkg->deb, pkg->filekey, checksums, oinfo,
 			pkg->deb.section, pkg->deb.priority, &control);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
@@ -276,26 +277,26 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 	struct trackingdata trackingdata;
 	const struct overrideinfo *oinfo;
 	char *control;
-	char *md5sum;
+	struct checksums *checksums;
 
 	r = deb_read(&pkg, debfilename, tracks != NULL );
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	r = deb_preparelocation(pkg, database, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
+	r = deb_preparelocation(pkg, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
 	}
-	r = files_include(database, debfilename, pkg->filekey, NULL, &md5sum, delete);
+	r = files_preinclude(database, debfilename, pkg->filekey, &checksums);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
 	}
 	/* Prepare everything that can be prepared beforehand */
-	r = binaries_complete(&pkg->deb, pkg->filekey, md5sum, oinfo,
+	r = binaries_complete(&pkg->deb, pkg->filekey, checksums, oinfo,
 			pkg->deb.section, pkg->deb.priority, &control);
-	free(md5sum);
+	checksums_free(checksums);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -325,6 +326,11 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 		r2 = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
 		RET_ENDUPDATE(r,r2);
 	}
+
+	if( RET_IS_OK(r) && delete >= D_MOVE ) {
+		deletefile(debfilename);
+	} else if( r == RET_NOTHING && delete >= D_DELETE )
+		deletefile(debfilename);
 
 	return r;
 }
