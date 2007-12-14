@@ -27,7 +27,6 @@
 #include <archive_entry.h>
 #include "error.h"
 #include "ar.h"
-#include "md5sum.h"
 #include "chunks.h"
 #include "debfile.h"
 

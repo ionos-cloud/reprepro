@@ -26,7 +26,6 @@
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "database_p.h"
 #include "reference.h"

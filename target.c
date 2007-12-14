@@ -35,7 +35,6 @@
 #include "binaries.h"
 #include "sources.h"
 #include "names.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "dpkgversions.h"
 #include "tracking.h"

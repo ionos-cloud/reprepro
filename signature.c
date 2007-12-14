@@ -34,7 +34,6 @@
 #include "strlist.h"
 #include "dirs.h"
 #include "names.h"
-#include "md5sum.h"
 #include "chunks.h"
 #include "release.h"
 #include "readtextfile.h"

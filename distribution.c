@@ -30,7 +30,6 @@
 #include "mprintf.h"
 #include "chunks.h"
 #include "sources.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "names.h"
 #include "release.h"

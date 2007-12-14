@@ -26,7 +26,6 @@
 #include "error.h"
 #include "mprintf.h"
 #include "chunks.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "names.h"
 #include "release.h"
