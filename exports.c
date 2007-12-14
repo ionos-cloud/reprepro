@@ -34,7 +34,6 @@
 #include "chunks.h"
 #include "database.h"
 #include "exports.h"
-#include "copyfile.h"
 #include "configparser.h"
 #include "filecntl.h"
 

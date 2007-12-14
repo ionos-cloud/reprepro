@@ -36,7 +36,6 @@
 #include "names.h"
 #include "checksums.h"
 #include "chunks.h"
-#include "copyfile.h"
 #include "target.h"
 #include "signature.h"
 #include "binaries.h"
@@ -1750,7 +1749,7 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 		}
 		if( verbose >= 3 )
 			printf("deleting '%s'...\n", fullfilename);
-		copyfile_delete(fullfilename);
+		deletefile(fullfilename);
 		free(fullfilename);
 	}
 	incoming_free(i);

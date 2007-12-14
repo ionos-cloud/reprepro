@@ -36,6 +36,7 @@
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
+#include "filecntl.h"
 #include "chunks.h"
 #include "sha1.h"
 #include "md5.h"

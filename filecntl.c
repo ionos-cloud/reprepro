@@ -9,10 +9,12 @@
 
 #include <limits.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include "filecntl.h"
 
@@ -50,4 +52,13 @@ void deletefile(const char *fullfilename) {
 	if( err != 0 ) {
 		fprintf(stderr,"error while unlinking %s: %m\n",fullfilename);
 	}
+}
+
+bool isregularfile(const char *fullfilename) {
+	struct stat s;
+	int i;
+
+	assert(fullfilename != NULL);
+	i = stat(fullfilename,&s);
+	return i == 0 && S_ISREG(s.st_mode);
 }

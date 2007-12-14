@@ -35,16 +35,6 @@
 
 extern int verbose;
 
-void copyfile_delete(const char *fullfilename) {
-	int err;
-
-	err = unlink(fullfilename);
-	if( err != 0 ) {
-		fprintf(stderr,"error while unlinking %s: %m\n",fullfilename);
-	}
-
-}
-
 retvalue copy(const char *fullfilename,const char *origfile,/*@null@*/const char *md5expected,/*@null@*//*@out@*/char **calculatedmd5sum) {
 	char *md5sum;
 	retvalue r;
@@ -154,24 +144,4 @@ retvalue copyfile_hardlink(const char *mirrordir, const char *filekey, const cha
 
 	free(fullfilename);
 	return RET_OK;
-}
-
-retvalue regularfileexists(const char *fullfilename) {
-	struct stat s;
-	int i;
-
-	i = stat(fullfilename,&s);
-	if( i == 0 && S_ISREG(s.st_mode) )
-		return RET_OK;
-	else
-		return RET_ERROR_MISSING;
-}
-
-bool isregularfile(const char *fullfilename) {
-	struct stat s;
-	int i;
-
-	assert(fullfilename != NULL);
-	i = stat(fullfilename,&s);
-	return i == 0 && S_ISREG(s.st_mode);
 }

@@ -476,7 +476,7 @@ retvalue files_include(struct database *database,const char *sourcefilename,cons
 			return r;
 		if( RET_IS_OK(r) ) {
 			if( delete >= D_MOVE ) {
-				copyfile_delete(sourcefilename);
+				deletefile(sourcefilename);
 			}
 			if( calculatedmd5sum != NULL ) {
 				char *n = strdup(md5sum);
@@ -516,7 +516,7 @@ retvalue files_include(struct database *database,const char *sourcefilename,cons
 			} else {
 				// The file has the md5sum we know already.
 				if( delete >= D_MOVE ) {
-					copyfile_delete(sourcefilename);
+					deletefile(sourcefilename);
 				}
 				if( calculatedmd5sum != NULL )
 					*calculatedmd5sum = md5indatabase;

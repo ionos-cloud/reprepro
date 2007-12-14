@@ -33,7 +33,6 @@
 #include "dirs.h"
 #include "names.h"
 #include "release.h"
-#include "copyfile.h"
 #include "tracking.h"
 #include "override.h"
 #include "log.h"
