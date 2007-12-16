@@ -262,8 +262,7 @@ retvalue dsc_prepare(struct dscpackage **dsc, struct database *database, const c
 			const char *md5sum = pkg->dsc.md5sums.values[i];
 
 			r = files_includefile(database, sourcedir,
-					basename, filekey, md5sum,
-					NULL, D_INPLACE);
+					basename, filekey, md5sum, D_INPLACE);
 		}
 	}
 
@@ -431,8 +430,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			const char *md5sum = pkg->dsc.md5sums.values[i];
 
 			r = files_includefile(database, origdirectory,
-					basename, filekey, md5sum,
-					NULL, delete);
+					basename, filekey, md5sum, delete);
 		}
 	}
 	free(origdirectory);

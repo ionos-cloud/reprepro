@@ -158,47 +158,6 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 	return RET_OK;
 }
 
-static inline retvalue calcnewcontrol(
-		const char *chunk, const char *package,
-		const struct strlist *basenames,
-		const char *component,const char *origdirectory,
-		/*@out@*/struct strlist *filekeys,/*@out@*/char **newchunk,/*@out@*/struct strlist *origfiles) {
-	char *directory;
-	retvalue r;
-
-	r = propersourcename(package);
-	assert( r != RET_NOTHING );
-	if( RET_IS_OK(r) )
-		r = properfilenames(basenames);
-	if( RET_WAS_ERROR(r) ) {
-		fprintf(stderr,"Forbidden characters in source package '%s'!\n",package);
-		return r;
-	}
-
-	directory = calc_sourcedir(component,package);
-	if( directory == NULL )
-		return RET_ERROR_OOM;
-
-	r = calc_dirconcats(directory,basenames,filekeys);
-	if( RET_WAS_ERROR(r) ) {
-		free(directory);
-		return r;
-	}
-	*newchunk = chunk_replacefield(chunk,"Directory",directory);
-	free(directory);
-	if( newchunk == NULL ) {
-		strlist_done(filekeys);
-		return RET_ERROR_OOM;
-	}
-	r = calc_dirconcats(origdirectory,basenames,origfiles);
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(filekeys);
-		free(*newchunk);
-		return r;
-	}
-	return RET_OK;
-}
-
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item) {
 	size_t len;
 	int i;
@@ -253,10 +212,11 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 	return r;
 }
 
-retvalue sources_getinstalldata(struct target *t,const char *packagename,UNUSED(const char *version),const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
+retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	retvalue r;
-	char *origdirectory;
-	struct strlist filelines,basenames;
+	char *origdirectory, *directory, *mychunk;
+	struct strlist filelines, myfilekeys;
+	struct checksumsarray files;
 
 	r = chunk_getextralinelist(chunk,"Files",&filelines);
 	if( r == RET_NOTHING ) {
@@ -265,46 +225,69 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,UNUSED(
 	}
 	if( RET_WAS_ERROR(r) )
   		return r;
-	r = chunk_getvalue(chunk,"Directory",&origdirectory);
+
+	r = checksumsarray_parse(&files, &filelines);
+	strlist_done(&filelines);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = chunk_getvalue(chunk, "Directory", &origdirectory);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing 'Directory' entry in '%s'!\n",chunk);
 		r = RET_ERROR;
 	}
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = getBasenamesAndMd5(&filelines,&basenames,md5sums);
-	strlist_done(&filelines);
 	if( RET_WAS_ERROR(r) ) {
-		free(origdirectory);
+		checksumsarray_done(&files);
 		return r;
 	}
-	r = properfilenames(&basenames);
+
+	r = propersourcename(packagename);
 	assert( r != RET_NOTHING );
+	if( RET_IS_OK(r) )
+		r = properfilenames(&files.names);
 	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,"Forbidden characters in source package '%s'!\n", packagename);
 		free(origdirectory);
-		strlist_done(&basenames);
-		strlist_done(md5sums);
+		checksumsarray_done(&files);
 		return r;
 	}
-	r = calcnewcontrol(chunk,packagename,&basenames,t->component,
-			origdirectory,filekeys,control,origfiles);
-	free(origdirectory);
-	strlist_done(&basenames);
+
+	directory = calc_sourcedir(t->component, packagename);
+	if( directory == NULL )
+		r = RET_ERROR_OOM;
+	else
+		r = calc_dirconcats(directory, &files.names, &myfilekeys);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(md5sums);
+		free(directory);
+		free(origdirectory);
+		checksumsarray_done(&files);
+		return r;
 	}
-	return r;
+	r = calc_inplacedirconcats(origdirectory, &files.names);
+	free(origdirectory);
+	if( !RET_WAS_ERROR(r) ) {
+		mychunk = chunk_replacefield(chunk, "Directory", directory);
+		if( mychunk == NULL )
+			r = RET_ERROR_OOM;
+	}
+	free(directory);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&myfilekeys);
+		checksumsarray_done(&files);
+		return r;
+	}
+	*control = mychunk;
+	strlist_move(filekeys, &myfilekeys);
+	checksumsarray_move(origfiles, &files);
+	return RET_OK;
 }
 
-retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct strlist *filekeys,/*@null@*/struct strlist *md5sums) {
+retvalue sources_getfilekeys(const char *chunk, struct strlist *filekeys) {
 	char *origdirectory;
-	struct strlist basenames,mymd5sums;
+	struct strlist basenames;
 	retvalue r;
 
-	if( md5sums != NULL )
-		r = parse_chunk(chunk,&origdirectory,&basenames,&mymd5sums);
-	else
-		r = parse_chunk(chunk,&origdirectory,&basenames,NULL);
+	r = parse_chunk(chunk, &origdirectory, &basenames, NULL);
 	if( r == RET_NOTHING ) {
 		//TODO: check if it is even text and do not print
 		//of looking binary??
@@ -319,13 +302,41 @@ retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct s
 	free(origdirectory);
 	strlist_done(&basenames);
 	if( RET_WAS_ERROR(r) ) {
-		if( md5sums != NULL )
-			strlist_done(&mymd5sums);
 		return r;
 	}
-	if( md5sums != NULL )
-		strlist_move(md5sums,&mymd5sums);
 	return r;
+}
+
+retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
+	char *origdirectory;
+	struct checksumsarray a;
+	struct strlist filelines;
+	retvalue r;
+
+	/* Read the directory given there */
+	r = chunk_getvalue(chunk, "Directory", &origdirectory);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	r = chunk_getextralinelist(chunk,"Files",&filelines);
+	if( !RET_IS_OK(r) ) {
+		free(origdirectory);
+		return r;
+	}
+	r = checksumsarray_parse(&a, &filelines);
+	strlist_done(&filelines);
+	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
+		return r;
+	}
+	r = calc_inplacedirconcats(origdirectory, &a.names);
+	free(origdirectory);
+	if( RET_WAS_ERROR(r) ) {
+		checksumsarray_done(&a);
+		return r;
+	}
+	checksumsarray_move(out, &a);
+	return RET_OK;
 }
 
 char *sources_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
@@ -378,7 +389,7 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 		return r;
 	}
 
-	r = sources_getfilekeys(t,chunk,&filekeys,NULL);
+	r = sources_getfilekeys(chunk, &filekeys);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Malformed source control:'%s'\n",chunk);
 		r = RET_ERROR;

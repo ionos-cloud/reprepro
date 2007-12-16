@@ -15,8 +15,9 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 /* Functions for the target.h-stuff: */
 retvalue sources_getname(struct target * t,const char *chunk,/*@out@*/char **packagename);
 retvalue sources_getversion(struct target *t,const char *chunk,/*@out@*/char **version);
-retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums,/*@out@*/struct strlist *origfiles);
-retvalue sources_getfilekeys(struct target *t,const char *chunk,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums);
+retvalue sources_getinstalldata(struct target *t, const char *packagename, const char *version, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
+retvalue sources_getfilekeys(const char *, /*@out@*/struct strlist *);
+retvalue sources_getchecksums(const char *, /*@out@*/struct checksumsarray *);
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);

@@ -13,6 +13,9 @@
 #ifndef REPREPRO_TRACKINGT_H
 #include "trackingt.h"
 #endif
+#ifndef REPREPRO_CHECKSUMS_H
+#include "checksums.h"
+#endif
 #ifndef REPREPRO_EXPORTS_H
 #include "exports.h"
 #endif
@@ -22,9 +25,10 @@ struct alloverrides;
 
 typedef retvalue get_name(struct target *,const char *,/*@out@*/char **);
 typedef retvalue get_version(struct target *,const char *,/*@out@*/char **);
-typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,/*@out@*/char **,/*@out@*/struct strlist *,/*@out@*/struct strlist *,/*@out@*/struct strlist *);
+typedef retvalue get_installdata(struct target *,const char *,const char *,const char *,/*@out@*/char **,/*@out@*/struct strlist *,/*@out@*/struct checksumsarray *);
 /* md5sums may be NULL */
-typedef retvalue get_filekeys(struct target *,const char *,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sum);
+typedef retvalue get_filekeys(const char *, /*@out@*/struct strlist *);
+typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 typedef retvalue do_reoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
@@ -47,6 +51,7 @@ struct target {
 	get_version *getversion;
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
+	get_checksums *getchecksums;
 	get_upstreamindex *getupstreamindex;
 	get_sourceandversion *getsourceandversion;
 	do_reoverride *doreoverride;

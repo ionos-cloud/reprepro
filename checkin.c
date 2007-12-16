@@ -988,7 +988,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 				r = files_include(database,
 					changesfilename,
 					changes->changesfilekey,
-					NULL, NULL, D_COPY);
+					NULL, D_COPY);
 			if( RET_WAS_ERROR(r) ) {
 				changes_free(changes);
 				trackingdata_done(&trackingdata);

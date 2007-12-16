@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -60,8 +60,7 @@ struct package_data {
 	/* the list of files that will belong to this:
 	 * same validity */
 	struct strlist new_filekeys;
-	struct strlist new_md5sums;
-	struct strlist new_origfiles;
+	struct checksumsarray new_origfiles;
 };
 
 struct upgradelist {
@@ -85,8 +84,7 @@ static void package_data_free(/*@only@*/struct package_data *data){
 	//free(data->new_from);
 	free(data->new_control);
 	strlist_done(&data->new_filekeys);
-	strlist_done(&data->new_md5sums);
-	strlist_done(&data->new_origfiles);
+	checksumsarray_done(&data->new_origfiles);
 	free(data);
 }
 
@@ -316,7 +314,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		new->new_version = version;
 		new->version = version;
 		version = NULL; //to be sure...
-		r = upgrade->target->getinstalldata(upgrade->target,new->name,new->new_version,chunk,&new->new_control,&new->new_filekeys,&new->new_md5sums,&new->new_origfiles);
+		r = upgrade->target->getinstalldata(upgrade->target, new->name, new->new_version, chunk, &new->new_control, &new->new_filekeys, &new->new_origfiles);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
 			return RET_ERROR_OOM;
@@ -331,7 +329,9 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		upgrade->last = new;
 	} else {
 		/* The package already exists: */
-		char *control;struct strlist files,md5sums,origfiles;
+		char *control;
+		struct strlist files;
+		struct checksumsarray origfiles;
 		int versioncmp;
 
 		upgrade->last = current;
@@ -421,7 +421,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 //		if( versioncmp >= 0 && current->version == current->version_in_use
 //				&& current->new_version != NULL ) {
 
-		r = upgrade->target->getinstalldata(upgrade->target,packagename,version,chunk,&control,&files,&md5sums,&origfiles);
+		r = upgrade->target->getinstalldata(upgrade->target, packagename, version, chunk, &control, &files, &origfiles);
 		free(packagename);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
@@ -434,8 +434,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 //		assert(upgrade->currentaptmethod!=NULL);
 		current->aptmethod = upgrade->currentaptmethod;
 		strlist_move(&current->new_filekeys,&files);
-		strlist_move(&current->new_md5sums,&md5sums);
-		strlist_move(&current->new_origfiles,&origfiles);
+		checksumsarray_move(&current->new_origfiles, &origfiles);
 		free(current->new_control);
 		current->new_control = control;
 	}
@@ -505,7 +504,7 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade,struct database *da
 		if( pkg->version == pkg->new_version ) {
 			retvalue r;
 			r = files_printmissing(database,
-					&pkg->new_filekeys,&pkg->new_md5sums,
+					&pkg->new_filekeys,
 					&pkg->new_origfiles);
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -527,8 +526,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 			assert(pkg->aptmethod != NULL);
 			r = downloadcache_addfiles(cache, database,
 				pkg->aptmethod,
-				&pkg->new_origfiles, &pkg->new_filekeys,
-				&pkg->new_md5sums);
+				&pkg->new_origfiles, &pkg->new_filekeys);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
@@ -582,7 +580,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted ) {
 			r = files_expectfiles(database,
-					&pkg->new_filekeys, &pkg->new_md5sums);
+					&pkg->new_filekeys,
+					pkg->new_origfiles.checksums);
 			if( ! RET_WAS_ERROR(r) ) {
 				/* upgrade (or possibly downgrade) */
 // TODO: trackingdata?
@@ -669,8 +668,9 @@ void upgradelist_dump(struct upgradelist *upgrade){
 					       " as '%s':\n files needed: ",
 					       pkg->name, pkg->new_version);
 				(void)strlist_fprint(stdout,&pkg->new_filekeys);
-				(void)printf("\n with md5sums: ");
-				(void)strlist_fprint(stdout,&pkg->new_md5sums);
+// TODO: readd
+//				(void)printf("\n with md5sums: ");
+//				(void)strlist_fprint(stdout,&pkg->new_md5sums);
 				if( verbose > 2)
 					(void)printf("\n installing as: '%s'\n",pkg->new_control);
 				else

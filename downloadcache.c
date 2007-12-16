@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -101,7 +101,7 @@ retvalue downloadcache_free(struct downloadcache *download) {
 /* queue a new file to be downloaded:
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
-retvalue downloadcache_add(struct downloadcache *cache,struct database *database,struct aptmethod *method,const char *orig,const char *filekey,const char *md5sum) {
+retvalue downloadcache_add(struct downloadcache *cache, struct database *database, struct aptmethod *method, const char *orig, const char *filekey, const struct checksums *checksums) {
 
 	const struct downloaditem *i;
 	struct downloaditem *item,**h,*parent;
@@ -109,16 +109,29 @@ retvalue downloadcache_add(struct downloadcache *cache,struct database *database
 	retvalue r;
 
 	assert( cache != NULL && method != NULL );
-	r = files_expect(database, filekey, md5sum);
+	r = files_expect(database, filekey, checksums);
 	if( r != RET_NOTHING )
 		return r;
 
 	i = searchforitem(cache,filekey,&parent,&h);
 	if( i != NULL ) {
-		if( strcmp(md5sum,i->todo->md5sum) == 0 )
-			return RET_NOTHING;
-		// TODO: print error;
-		return RET_ERROR_WRONG_MD5;
+		bool improves;
+
+		assert( i->todo->filekey != NULL );
+		if( !checksums_check(i->todo->checksums, checksums, &improves) ) {
+			fprintf(stderr,
+"ERROR: the same file is requested with conflicting checksums:\n"
+"'%s':\n",			i->todo->uri);
+			checksums_printdifferences(stderr,
+					i->todo->checksums, checksums);
+			return RET_ERROR_WRONG_MD5;
+		}
+		if( improves ) {
+			r = checksums_combine(&i->todo->checksums, checksums);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+		return RET_NOTHING;
 	}
 	item = malloc(sizeof(struct downloaditem));
 	if( item == NULL )
@@ -130,13 +143,14 @@ retvalue downloadcache_add(struct downloadcache *cache,struct database *database
 		return RET_ERROR_OOM;
 	}
 	(void)dirs_make_parent(fullfilename);
-	r = space_needed(cache->devices, fullfilename, md5sum);
+	r = space_needed(cache->devices, fullfilename, checksums);
 	if( RET_WAS_ERROR(r) ) {
 		free(fullfilename);
 		free(item);
 		return r;
 	}
-	r = aptmethod_queuefile(method,orig,fullfilename,md5sum,filekey,&item->todo);
+	r = aptmethod_queuefile(method, orig,
+			fullfilename, checksums, filekey, &item->todo);
 	free(fullfilename);
 	if( RET_WAS_ERROR(r) ) {
 		free(item);
@@ -154,23 +168,21 @@ retvalue downloadcache_add(struct downloadcache *cache,struct database *database
 retvalue downloadcache_addfiles(struct downloadcache *cache,
 		struct database *database,
 		struct aptmethod *method,
-		const struct strlist *origfiles,
-		const struct strlist *filekeys,
-		const struct strlist *md5sums) {
+		const struct checksumsarray *origfiles,
+		const struct strlist *filekeys) {
 	retvalue result,r;
 	int i;
 
-	assert(origfiles != NULL && filekeys != NULL && md5sums != NULL
-		&& origfiles->count == filekeys->count
-		&& md5sums->count == filekeys->count);
+	assert( origfiles != NULL && filekeys != NULL
+		&& origfiles->names.count == filekeys->count );
 
 	result = RET_NOTHING;
 
 	for( i = 0 ; i < filekeys->count ; i++ ) {
 		r = downloadcache_add(cache, database, method,
-			origfiles->values[i],
+			origfiles->names.values[i],
 			filekeys->values[i],
-			md5sums->values[i]);
+			origfiles->checksums[i]);
 		RET_UPDATE(result,r);
 	}
 	return result;

@@ -400,11 +400,12 @@ struct candidate {
 		filetype type;
 		/* all NULL if it is the .changes itself,
 		 * otherwise the data from the .changes for this file: */
-		struct checksums *checksums;
 		char *section;
 		char *priority;
 		char *architecture;
 		char *name;
+		/* like above, but updated once files are copied */
+		struct checksums *checksums;
 		/* set later */
 		bool used;
 		char *tempfilename;
@@ -734,12 +735,13 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 	if( improves ) {
 		r = checksums_combine(&file->checksums, readchecksums);
 		if( RET_WAS_ERROR(r) ) {
+			checksums_free(readchecksums);
 			deletefile(tempfilename);
 			free(tempfilename);
 			return r;
 		}
-	} else
-		checksums_free(readchecksums);
+	}
+	checksums_free(readchecksums);
 	file->tempfilename = tempfilename;
 	file->used = true;
 	return RET_OK;
@@ -1005,6 +1007,77 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
+static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const char *md5sum, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
+	struct candidate_file *f;
+	retvalue r;
+
+	f = c->files;
+	while( f != NULL && (f->checksums == NULL ||
+				strcmp(BASENAME(i, f->ofs), basename) != 0) )
+		f = f->next;
+
+	if( f == NULL ) {
+		char *m = strdup(md5sum);
+		struct checksums *checksums;
+
+		if( m == NULL )
+			return RET_ERROR_OOM;
+		r = checksums_set(&checksums, m);
+		if( RET_WAS_ERROR(r) )
+			return r;
+
+		r = files_canadd(database, filekey, checksums);
+		checksums_free(checksums);
+		if( !RET_IS_OK(r) )
+			return r;
+		/* no file by this name and also no file with these
+		 * characteristics in the pool, look for differently-names
+		 * file with the same characteristics: */
+
+		f = c->files;
+		while( f != NULL && ( f->checksums == NULL ||
+					!checksums_matches(f->checksums,
+						cs_md5sum, md5sum)))
+			f = f->next;
+
+		if( f == NULL ) {
+			fprintf(stderr, "file '%s' is needed for '%s', not yet registered in the pool and not found in '%s'\n",
+					basename, BASENAME(i, package_ofs),
+					BASENAME(i, c->ofs));
+			return RET_ERROR;
+		}
+		/* otherwise proceed with the found file: */
+	}
+
+	// TODO: is the error message sensible?
+	// perhaps currently, but in the future when .changes or .dsc
+	// can have additional hashes, they might not conflict with each
+	// other, but with the file's hash previously computed...
+	if( !checksums_matches(f->checksums, cs_md5sum, md5sum) ) {
+		fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
+				basename,
+				BASENAME(i, c->ofs),
+				BASENAME(i, package_ofs));
+		return RET_ERROR;
+	}
+	r = files_canadd(database, filekey, f->checksums);
+	if( r == RET_NOTHING ) {
+		/* already in the pool, mark as used (in the sense
+		 * of "only not needed because it is already there") */
+		f->used = true;
+
+	} else if( RET_IS_OK(r) ) {
+		/* don't have this file in the pool, make sure it is ready
+		 * here */
+
+		r = candidate_usefile(i, c, f);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		*foundfile_p = f;
+	}
+	return r;
+}
+
 static retvalue prepare_dsc(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section,*priority;
 	const struct overrideinfo *oinfo;
@@ -1082,60 +1155,11 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( j = 1 ; j < package->filekeys.count ; j++ ) {
-		const char *filekey = package->filekeys.values[j];
-		const char *basename = file->dsc.basenames.values[j];
-		const char *md5sum = file->dsc.md5sums.values[j];
-		struct candidate_file *f = c->files;
-
-		while( f != NULL && (f->checksums == NULL ||
-				     strcmp(BASENAME(i,f->ofs), basename) != 0) )
-			f = f->next;
-
-		// TODO: is the error message sensible?
-		// perhaps currently, but in the future then .changes or .dsc
-		// can have additional hashes, they might not conflict with each
-		// other, but with the file's hash previously computed...
-		if( f != NULL && !checksums_matches(f->checksums, cs_md5sum, md5sum) ) {
-			fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
-					basename,
-					BASENAME(i,c->ofs),
-					BASENAME(i,file->ofs));
-			return RET_ERROR;
-		}
-		r = files_ready(database, filekey, md5sum);
-		if( r == RET_NOTHING ) {
-			/* already in the pool, mark as used (in the sense
-			 * of "only not needed because it is already there") */
-
-			if( f != NULL )
-				f->used = true;
-
-		} else if( RET_IS_OK(r) ) {
-			/* don't have this file in the pool, make sure it is ready
-			 * here */
-
-			if( f == NULL ) {
-				/* perhaps only the filename is wrong,
-				 * look for an file matching the checksum: */
-				f = c->files;
-				while( f != NULL && ( f->checksums == NULL ||
-					!checksums_matches(f->checksums,
-						cs_md5sum, md5sum)))
-					f = f->next;
-			}
-
-			if( f == NULL ) {
-				fprintf(stderr, "file '%s' is needed for '%s', not yet registered in the pool and not found in '%s'\n",
-						basename, BASENAME(i,file->ofs),
-						BASENAME(i,c->ofs));
-				return RET_ERROR;
-			}
-
-			r = candidate_usefile(i,c, f);
-			if( RET_WAS_ERROR(r) )
-				return r;
-			package->files[j] = f;
-		}
+		r = prepare_source_file(database, i, c,
+				package->filekeys.values[j],
+				file->dsc.basenames.values[j],
+				file->dsc.md5sums.values[j],
+				file->ofs, &package->files[j]);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}

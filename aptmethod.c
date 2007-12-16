@@ -33,7 +33,7 @@
 #include "names.h"
 #include "dirs.h"
 #include "chunks.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "files.h"
 #include "aptmethod.h"
 #include "filecntl.h"
@@ -79,7 +79,8 @@ static void free_todolist(/*@only@*/ struct tobedone *todo) {
 
 		free(todo->filekey);
 		free(todo->filename);
-		free(todo->md5sum);
+		if( todo->filekey != NULL )
+			checksums_free(todo->checksums);
 		free(todo->uri);
 		free(todo);
 		todo = h;
@@ -350,7 +351,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 
 /**************************how to add files*****************************/
 
-/*@null@*/static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey) {
+/*@null@*/static inline struct tobedone *newtodo(const char *baseuri, const char *origfile, const char *destfile, /*@null@*/const struct checksums *checksums, /*@null@*/const char *filekey) {
 	struct tobedone *todo;
 
 	todo = malloc(sizeof(struct tobedone));
@@ -360,18 +361,20 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	todo->next = NULL;
 	todo->uri = calc_dirconcat(baseuri,origfile);
 	todo->filename = strdup(destfile);
-	if( filekey != NULL )
+	if( filekey != NULL ) {
+		assert( checksums != NULL );
 		todo->filekey = strdup(filekey);
-	else
-		todo->filekey = NULL;
-	if( md5sum != NULL ) {
-		todo->md5sum = strdup(md5sum);
 	} else
-		todo->md5sum = NULL;
+		todo->filekey = NULL;
+	if( checksums != NULL ) {
+		assert( filekey != NULL );
+		todo->checksums = checksums_dup(checksums);
+	} else
+		todo->checksums = NULL;
 	if( todo->uri == NULL || todo->filename == NULL ||
-			(md5sum != NULL && todo->md5sum == NULL) ||
+			(checksums != NULL && todo->checksums == NULL) ||
 			(filekey != NULL && todo->filekey == NULL) ) {
-		free(todo->md5sum);
+		checksums_free(todo->checksums);
 		free(todo->uri);
 		free(todo->filename);
 		free(todo);
@@ -380,14 +383,14 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, const char *destfile, const char *md5sum, const char *filekey, struct tobedone **t) {
+retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, const char *destfile, const struct checksums *checksums, const char *filekey, struct tobedone **t) {
 	struct tobedone *todo;
 
 	assert( origfile != NULL ); assert( destfile != NULL );
-	assert( md5sum != NULL ); assert( filekey != NULL );
+	assert( checksums != NULL ); assert( filekey != NULL );
 	assert( t != NULL );
 
-	todo = newtodo(method->baseuri, origfile, destfile, md5sum, filekey);
+	todo = newtodo(method->baseuri, origfile, destfile, checksums, filekey);
 	if( todo == NULL )
 		return RET_ERROR_OOM;
 
@@ -401,15 +404,16 @@ retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, con
 	return RET_OK;
 }
 
-retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile, const char *destfile, /*@null@*/const char *md5sum) {
+retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile, const char *destfile, /*@null@*/struct checksums **checksums_p) {
 	struct tobedone *todo;
 
 	if( origfile == NULL || destfile == NULL )
 		return RET_ERROR_OOM;
 
-	todo = newtodo(method->baseuri, origfile, destfile, md5sum, NULL);
+	todo = newtodo(method->baseuri, origfile, destfile, NULL, NULL);
 	if( todo == NULL )
 		return RET_ERROR_OOM;
+	todo->checksums_p = checksums_p;
 
 	if( method->lasttobedone == NULL )
 		method->nexttosend = method->lasttobedone = method->tobedone = todo;
@@ -423,8 +427,9 @@ retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(const struct tobedone *todo,const char *filename,const char *md5sum,struct database *database) {
-	char *calculatedmd5;
+static inline retvalue todo_done(struct tobedone *todo,const char *filename,const char *md5sum,struct database *database) {
+	struct checksums *checksums;
+	struct checksums **checksums_p;
 
 	/* if the file is somewhere else, copy it: */
 	if( strcmp(filename,todo->filename) != 0 ) {
@@ -434,14 +439,14 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 			if( verbose > 1 )
 				fprintf(stderr,
 "Copy file '%s' to '%s'...\n", filename, todo->filename);
-			r = md5sum_copy(filename, todo->filename,
-					&calculatedmd5);
+			r = checksums_copyfile(todo->filename, filename,
+					&checksums);
 		} else {
 			if( verbose > 1 )
 				fprintf(stderr,
 "Linking file '%s' to '%s'...\n", filename, todo->filename);
-			r = md5sum_place(filename, todo->filename,
-					&calculatedmd5);
+			r = checksums_linkorcopyfile(todo->filename, filename,
+					&checksums);
 		}
 		if( r == RET_NOTHING ) {
 			fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
@@ -449,41 +454,58 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 		}
 		if( RET_WAS_ERROR(r) )
 			return r;
-		/* this we trust more */
-		// todo: reimplement the pure copyfile without md5sum?
-		md5sum = calculatedmd5;
 	} else {
 		retvalue r;
-	/* if it should be in place, calculate its md5sum, if needed */
-		if( todo->md5sum != NULL && md5sum == NULL) {
-			r = md5sum_read(filename,&calculatedmd5);
+		/* if it is already in place, calculate its md5sum, if needed */
+		// TODO: use values supplied by method
+		// (research if methods nowadays supply more then md5sum)
+		if( todo->filekey != NULL || todo->checksums_p != NULL ) {
+			r = checksums_read(filename, &checksums);
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
 				r = RET_ERROR_MISSING;
 			}
 			if( RET_WAS_ERROR(r) )
 				return r;
-			md5sum = calculatedmd5;
 		} else
-			calculatedmd5 = NULL;
+			checksums = NULL;
 	}
 
+	if( todo->filekey != NULL )
+		checksums_p = &todo->checksums;
+	else
+		checksums_p = todo->checksums_p;
+
 	/* if we know what it should be, check it: */
-	if( todo->md5sum != NULL ) {
-		if( md5sum == NULL || strcmp(md5sum,todo->md5sum) != 0) {
-			fprintf(stderr,"Receiving '%s' wrong md5sum: got '%s' expected '%s'!\n",todo->uri,md5sum,todo->md5sum);
-			free(calculatedmd5);
+	if( checksums_p != NULL ) {
+		bool improves;
+
+		assert( checksums != NULL );
+		assert( *checksums_p != NULL );
+
+		if( !checksums_check(*checksums_p, checksums, &improves) ) {
+			fprintf(stderr,"Receiving '%s' wrong checksums: ", todo->uri);
+			checksums_printdifferences(stderr, *checksums_p,
+					checksums);
+			checksums_free(checksums);
 			return RET_ERROR_WRONG_MD5;
 		}
+		if( improves ) {
+			retvalue r;
+			r = checksums_combine(checksums_p, checksums);
+			if( RET_WAS_ERROR(r) ) {
+				checksums_free(checksums);
+				return r;
+			}
+		}
 	}
-	free(calculatedmd5); md5sum=NULL;
+	checksums_free(checksums);
 
 	if( todo->filekey != NULL ) {
 		retvalue r;
 
-		assert(todo->md5sum != NULL);
-
-		r = files_add(database, todo->filekey, todo->md5sum);
+		assert(todo->checksums != NULL);
+		r = files_add_checksums(database, todo->filekey, todo->checksums);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -595,7 +617,8 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 			}
 			free(todo->uri);
 			free(todo->filename);
-			free(todo->md5sum);
+			if( todo->filekey != NULL )
+				checksums_free(todo->checksums);
 			free(todo->filekey);
 			free(todo);
 			/* if everything is done, redo failed */

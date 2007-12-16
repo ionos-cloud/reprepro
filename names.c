@@ -204,38 +204,6 @@ char *calc_source_basename(const char *name,const char *version) {
 	return mprintf("%s_%s.dsc",name,v);
 }
 
-retvalue calc_extractsize(const char *checksum, off_t *size) {
-	off_t value;
-#if 0
-	/* over possible extensions (not yet implemented otherwise) */
-	while( *checksum == ':' ) {
-		checksum++;
-		while( *checksum != ' ' && *checksum != '\0' )
-			checksum++;
-		if( *checksum == ' ' )
-			checksum++;
-	}
-#endif
-	/* over md5 part */
-	while( *checksum != ' ' && *checksum != '\0' )
-		checksum++;
-	if( *checksum == ' ' )
-		checksum++;
-	if( *checksum < '0' || *checksum > '9' )
-		return RET_NOTHING;
-	value = *checksum - '0';
-	checksum++;
-	while( *checksum >= '0' && *checksum <= '9' ) {
-		value *= 10;
-		value += (*checksum - '0');
-		checksum++;
-	}
-	if( *checksum != '\0' )
-		return RET_NOTHING;
-	*size = value;
-	return RET_OK;
-}
-
 char *calc_concatmd5andsize(const char *md5sum,const char *size) {
 	/* this is not the only reference, as there are prints
 	 * with size as ofs_t, too */
@@ -286,6 +254,22 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 	}
 	return r;
 
+}
+
+retvalue calc_inplacedirconcats(const char *directory, struct strlist *files) {
+	int i;
+
+	assert(directory != NULL && files != NULL );
+	for( i = 0 ; i < files->count ; i++ ) {
+		char *file;
+
+		file = calc_dirconcat(directory, files->values[i]);
+		if( file == NULL )
+			return RET_ERROR_OOM;
+		free(files->values[i]);
+		files->values[i] = file;
+	}
+	return RET_OK;
 }
 
 void names_overversion(const char **version, bool epochsuppressed) {

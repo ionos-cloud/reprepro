@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006 Bernhard R. Link
+ *  Copyright (C) 2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -25,9 +25,11 @@
 
 #include "donefile.h"
 #include "names.h"
+#include "checksums.h"
 
-retvalue donefile_isold(const char *filename, const char *expected) {
+retvalue donefile_isold(const char *filename, const struct checksums *expected) {
 	char buffer[200];
+	const char *start;
 	size_t len;
 	ssize_t bytes;
 	int fd;
@@ -66,13 +68,25 @@ retvalue donefile_isold(const char *filename, const char *expected) {
 	free(donefilename);
 	(void)close(fd);
 	buffer[len] = '\0';
-	if( strcmp(expected, buffer) == 0 )
+	start = buffer;
+	/* for future extensibility: */
+	while( *start == ':' ) {
+		start++;
+		while( *start != ' ' && *start != '\0' )
+			start++;
+		if( *start == ' ' )
+			start++;
+	}
+	if( checksums_matches(expected, cs_md5sum, start) )
 		return RET_NOTHING;
 	else
 		return RET_OK;
 }
 
-retvalue donefile_create(const char *filename, const char *expected) {
+retvalue donefile_create(const char *filename, const struct checksums *checksums) {
+	retvalue r;
+	char *md5sum;
+	const char *start;
 	size_t len;
 	ssize_t written;
 	int fd;
@@ -82,6 +96,11 @@ retvalue donefile_create(const char *filename, const char *expected) {
 
 	if( donefilename == NULL )
 		return RET_ERROR_OOM;
+	r = checksums_get(checksums, cs_md5sum, &md5sum);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	fd = open(donefilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY|O_NOFOLLOW,
 			0666);
 	if( fd < 0 ) {
@@ -89,15 +108,18 @@ retvalue donefile_create(const char *filename, const char *expected) {
 		fprintf(stderr, "Error creating file %s: %d=%s\n",
 				donefilename, e, strerror(e));
 		free(donefilename);
+		free(md5sum);
 		return RET_ERRNO(e);
 	}
-	len = strlen(expected);
+	start = md5sum;
+	len = strlen(md5sum);
 	written = 0;
-	while( len > 0 && (written=write(fd, expected, len)) >= 0 ) {
-		expected += written;
+	while( len > 0 && (written=write(fd, start, len)) >= 0 ) {
+		start += written;
 		assert( len >= (size_t)written );
 		len -= written;
 	}
+	free(md5sum);
 	if( written < 0 ) {
 		int e = errno;
 		fprintf(stderr, "Error writing into %s: %d=%s\n",

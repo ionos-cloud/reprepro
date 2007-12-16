@@ -359,6 +359,8 @@ ACTION_F(n, n, n, n, addmd5sums) {
 	result = RET_NOTHING;
 
 	while( fgets(buffer,1999,stdin) != NULL ) {
+		char *md5sum; struct checksums *checksums;
+
 		c = strchr(buffer,'\n');
 		if( c == NULL ) {
 			fprintf(stderr,"Line too long\n");
@@ -371,8 +373,26 @@ ACTION_F(n, n, n, n, addmd5sums) {
 			return RET_ERROR;
 		}
 		*m = '\0'; m++;
-		r = files_add(database,buffer,m);
+		while( *m == ':' ) {
+			m++;
+			while( *m != ' ' && *m != '\0' )
+				m++;
+			if( *m == ' ' )
+				m++;
+		}
+		if( *m == '\0' ) {
+			fprintf(stderr,"Malformed line\n");
+			return RET_ERROR;
+		}
+		md5sum = strdup(m);
+		if( md5sum == NULL )
+			return RET_ERROR_OOM;
+		r = checksums_set(&checksums, md5sum);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = files_add_checksums(database, buffer, checksums);
 		RET_UPDATE(result,r);
+		checksums_free(checksums);
 
 	}
 	return result;
@@ -1220,7 +1240,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 		return result;
 	}
 
-	result = origtarget->getfilekeys(origtarget, chunk, &filekeys, NULL);
+	result = origtarget->getfilekeys(chunk, &filekeys);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		free(chunk);

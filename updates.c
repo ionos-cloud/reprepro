@@ -65,7 +65,6 @@
 #include "dirs.h"
 #include "names.h"
 #include "signature.h"
-#include "md5sum.h"
 #include "aptmethod.h"
 #include "updates.h"
 #include "upgradelist.h"
@@ -173,7 +172,7 @@ struct update_origin {
 	bool failed;
 	// is set when fetching packages..
 	/*@null@*/struct aptmethod *download;
-	/*@null@*/struct strlist checksums;
+	struct checksumsarray indexchecksums;
 };
 
 struct update_index {
@@ -250,7 +249,7 @@ static void updates_freeorigins(/*@only@*/struct update_origin *o) {
 		free(origin->suite_from);
 		free(origin->releasefile);
 		free(origin->releasegpgfile);
-		strlist_done(&origin->checksums);
+		checksumsarray_done(&origin->indexchecksums),
 		free(origin);
 	}
 }
@@ -1080,7 +1079,7 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 			return r;
 		}
 	}
-	r = release_getchecksums(origin->releasefile,&origin->checksums);
+	r = release_getchecksums(origin->releasefile, &origin->indexchecksums);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		origin->failed = true;
@@ -1110,31 +1109,60 @@ static inline retvalue queueindex(struct update_index *index) {
 
 	//TODO: this is a very crude hack, think of something better...
 	l = 7 + strlen(origin->suite_from); // == strlen("dists/%s/")
+	assert( strlen(index->upstream) > l );
 
-	for( i = 0 ; i+1 < origin->checksums.count ; i+=2 ) {
+	for( i = 0 ; i < origin->indexchecksums.names.count ; i++ ) {
+		retvalue r;
+		struct checksums *oldchecksums;
+		const char *filename = origin->indexchecksums.names.values[i];
+		const struct checksums *checksums =
+			origin->indexchecksums.checksums[i];
 
-		assert( strlen(index->upstream) > l );
-		if( strcmp(index->upstream+l,origin->checksums.values[i]) == 0 ){
-			retvalue r;
-			const char *md5sum = origin->checksums.values[i+1];
+		if( strcmp(index->upstream+l, filename) != 0 )
+			continue;
 
-			index->checksum_ofs = i+1;
-
-			r = md5sum_ensure(index->filename, md5sum, false);
-			if( r == RET_NOTHING ) {
-				donefile_delete(index->filename);
-				r = aptmethod_queueindexfile(origin->download,
-					index->upstream, index->filename,
-					md5sum);
-			} else if( RET_IS_OK(r) ) {
-				/* file is already there, but it might still need
-				 * processing as last time it was not due to some
-				 * error of some other file */
-				r = donefile_isold(index->filename, md5sum);
-			}
-			return r;
+		index->checksum_ofs = i;
+		r = checksums_cheaptest(index->filename, checksums);
+		if( r == RET_ERROR_WRONG_MD5 ) {
+			// TODO: once supporting .diff file,
+			// check if the old file is useable for
+			// that here...
+			deletefile(index->filename);
+			r = RET_NOTHING;
 		}
+		if( RET_IS_OK(r) )
+			r = checksums_read(index->filename, &oldchecksums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r != RET_NOTHING ) {
+			bool improves;
 
+			if( checksums_check(checksums, oldchecksums, &improves) ) {
+				if( improves )
+					r = checksums_combine(&origin->indexchecksums.checksums[i], oldchecksums);
+				checksums_free(oldchecksums);
+			} else {
+				// TODO: once supporting .diff file,
+				// check if the old file is useable for
+				// that here...
+				checksums_free(oldchecksums);
+				deletefile(index->filename);
+				r = RET_NOTHING;
+			}
+		}
+		if( r == RET_NOTHING ) {
+			donefile_delete(index->filename);
+			r = aptmethod_queueindexfile(origin->download,
+					index->upstream, index->filename,
+					&origin->indexchecksums.checksums[i]);
+			assert( r != RET_NOTHING );
+		} else if( RET_IS_OK(r) ) {
+			/* file is already there, but it might still need
+			 * processing as last time it was not due to some
+			 * error of some other file */
+			r = donefile_isold(index->filename, checksums);
+		}
+		return r;
 	}
 	fprintf(stderr,"Could not find '%s' within the Releasefile of '%s':\n'%s'\n",index->upstream,origin->pattern->name,origin->releasefile);
 	return RET_ERROR_WRONG_MD5;
@@ -1446,7 +1474,7 @@ static void markdone(struct update_target *target) {
 
 	for( index=target->indices ; index != NULL ; index=index->next ) {
 		const struct update_origin *origin = index->origin;
-		const char *md5sum;
+		const struct checksums *checksums;
 
 		if( origin == NULL )
 			/* No need to mark a delete rule as done */
@@ -1457,12 +1485,12 @@ static void markdone(struct update_target *target) {
 			continue;
 		if( index->checksum_ofs < 0 )
 			continue;
-		assert( index->checksum_ofs < origin->checksums.count );
-		md5sum = origin->checksums.values[index->checksum_ofs];
+		assert( index->checksum_ofs < origin->indexchecksums.names.count );
+		checksums = origin->indexchecksums.checksums[index->checksum_ofs];
 		if( index->original_filename == NULL )
-			donefile_create(index->filename, md5sum);
+			donefile_create(index->filename, checksums);
 		else
-			donefile_create(index->original_filename, md5sum);
+			donefile_create(index->original_filename, checksums);
 	}
 }
 

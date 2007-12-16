@@ -426,64 +426,6 @@ retvalue md5sum_place(const char *origfilename,const char *destfilename,
 	}
 }
 
-retvalue md5sum_ensure(const char *fullfilename, const char *md5sum, bool warnifwrong) {
-	retvalue ret;
-	int fd,i;
-	struct stat s;
-	off_t expectedsize;
-	retvalue r;
-
-	assert(md5sum != NULL);
-
-	fd = open(fullfilename,O_RDONLY);
-	if( fd < 0 ) {
-		i = errno;
-		if( i == EACCES || i == ENOENT )
-			return RET_NOTHING;
-		else {
-			fprintf(stderr,"Error opening '%s': %d=%m!\n",fullfilename,i);
-			return RET_ERRNO(i);
-		}
-	}
-	i = fstat(fd,&s);
-	if( i < 0 ) {
-		i = errno;
-		fprintf(stderr,"Error stating '%s': %d=%m!\n",fullfilename,i);
-		close(fd);
-		return RET_ERRNO(i);
-	}
-	r = calc_extractsize(md5sum, &expectedsize);
-
-	/* if length cannot be parsed, just proceed, otherwise only
-	 * calculare the actual file checksum, if the length matched */
-	if( !RET_IS_OK(r) || s.st_size == expectedsize ) {
-		char *foundmd5sum;
-
-		ret = md5sum_calc(fd,-1,&foundmd5sum,0);
-		close(fd);
-		if( RET_IS_OK(ret) ) {
-			if( strcmp(md5sum,foundmd5sum) == 0 ) {
-				free(foundmd5sum);
-				return RET_OK;
-			}
-			if( warnifwrong )
-				fprintf(stderr,"Unknown file \"%s\" has other md5sum (%s) than expected(%s), deleting it!\n",fullfilename,foundmd5sum,md5sum);
-			free(foundmd5sum);
-		}
-	} else {
-		close(fd);
-		if( warnifwrong )
-			fprintf(stderr,"Unknown file \"%s\" has other size (%llx) than expected(%llx), deleting it!\n",fullfilename,(long long)s.st_size,(long long)expectedsize);
-	}
-
-	if( unlink(fullfilename) == 0 ) {
-		return RET_NOTHING;
-	}
-	fprintf(stderr,"Could not delete '%s' out of the way!\n",fullfilename);
-	return RET_ERROR_WRONG_MD5;
-}
-
-
 retvalue md5sum_replace(const char *filename, const char *data, size_t len, char **result){
 	struct MD5Context context;
 	size_t todo; const char *towrite;

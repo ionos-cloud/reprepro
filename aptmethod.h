@@ -4,6 +4,9 @@
 #ifndef REPREPRO_DATABASE_H
 #include "database.h"
 #endif
+#ifndef REPREPRO_CHECKSUMS_H
+#include "checksums.h"
+#endif
 
 struct aptmethodrun;
 struct aptmethod;
@@ -16,20 +19,23 @@ struct tobedone {
 	char *uri;
 	/*@notnull@*/
 	char *filename;
-	/* if non-NULL, what is expected...*/
-	/*@null@*/
-	char *md5sum;
-	/* if non-NULL, add to the database after found (only if md5sum != NULL) */
+	/* if non-NULL, add to the database after found (needs md5sum != NULL) */
 	/*@null@*/
 	char *filekey;
+	union {
+		/* if filekey != NULL */
+		struct checksums *checksums;
+		/* if filekey == NULL: */
+		/*@null@*/ struct checksums **checksums_p;
+	};
 };
 
 retvalue aptmethod_initialize_run(/*@out@*/struct aptmethodrun **run);
 retvalue aptmethod_newmethod(struct aptmethodrun *, const char *uri, const char *fallbackuri, const struct strlist *config, /*@out@*/struct aptmethod **);
 
 /* md5sum can be NULL(filekey then, too): if todo != NULL, then *todo will be set */
-retvalue aptmethod_queuefile(struct aptmethod *, const char *origfile, const char *destfile, const char *md5sum, const char *filekey, /*@out@*/struct tobedone **);
-retvalue aptmethod_queueindexfile(struct aptmethod *, const char *origfile, const char *destfile, /*@null@*/const char *md5sum);
+retvalue aptmethod_queuefile(struct aptmethod *, const char *origfile, const char *destfile, const struct checksums *, const char *filekey, /*@out@*/struct tobedone **);
+retvalue aptmethod_queueindexfile(struct aptmethod *, const char *origfile, const char *destfile, /*@null@*/struct checksums **);
 
 retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struct database *);
 retvalue aptmethod_shutdown(/*@only@*/struct aptmethodrun *run);

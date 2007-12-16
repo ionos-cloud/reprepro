@@ -16,8 +16,9 @@
 /* Functions for the target.h-stuff: */
 retvalue binaries_getname(struct target *t,const char *chunk,char **packagename);
 retvalue binaries_getversion(struct target *t,const char *chunk,char **version);
-retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles);
-retvalue binaries_getfilekeys(struct target *t,const char *chunk,struct strlist *filekeys,struct strlist *md5sums);
+retvalue binaries_getinstalldata(struct target *t, const char *packagename, const char *version, const char *chunk, /*@out@*/char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
+retvalue binaries_getfilekeys(const char *chunk, /*@out@*/struct strlist *);
+retvalue binaries_getchecksums(const char *chunk, /*@out@*/struct checksumsarray *);
 char *binaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,

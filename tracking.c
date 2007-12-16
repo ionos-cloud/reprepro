@@ -1404,7 +1404,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			continue;
 		}
 		free(version);
-		r = target->getfilekeys(target, control, &filekeys, NULL);
+		r = target->getfilekeys(control, &filekeys);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			free(package);

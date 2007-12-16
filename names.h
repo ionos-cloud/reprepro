@@ -22,7 +22,6 @@ char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const cha
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype);
 char *calc_concatmd5andsize(const char *md5sum,const char *size);
 char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend);
-retvalue calc_extractsize(const char *checksum, /*@out@*/off_t *size);
 char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion);
 
 char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype);
@@ -30,6 +29,7 @@ char *calc_downloadedlistpattern(const char *codename);
 
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,/*@out@*/struct strlist *files);
+retvalue calc_inplacedirconcats(const char *directory, struct strlist *);
 
 /* split a "<md5> <size> <filename>" into md5sum and filename */
 retvalue calc_parsefileline(const char *fileline,/*@out@*/char **filename,/*@out@*//*@null@*/char **md5sum);

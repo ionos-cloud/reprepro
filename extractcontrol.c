@@ -26,7 +26,6 @@
 #include <string.h>
 #include <malloc.h>
 #include "error.h"
-#include "md5sum.h"
 #include "chunks.h"
 #include "filecntl.h"
 #include "readtextfile.h"
