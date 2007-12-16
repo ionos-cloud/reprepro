@@ -681,7 +681,7 @@ static retvalue changes_includefiles(struct database *database,struct changes *c
 		if( e->wasalreadythere )
 			continue;
 
-		r = files_preincludefile(database, changes->incomingdirectory,
+		r = files_checkincludefile(database, changes->incomingdirectory,
 				e->basename, e->filekey, &e->checksums);
 		if( RET_IS_OK(r) )
 			e->included = true;

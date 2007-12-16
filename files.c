@@ -678,6 +678,7 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 		}
 		if( improves ) {
 			r = checksums_combine(&checksums, realchecksums);
+			checksums_free(realchecksums);
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(checksums);
 				return r;
@@ -722,17 +723,83 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 	return RET_OK;
 }
 
-retvalue files_preincludefile(struct database *database, const char *sourcedir,const char *basename, const char *filekey, struct checksums **checksums_p) {
-	char *sourcefilename;
+retvalue files_checkincludefile(struct database *database, const char *sourcedir,const char *basename, const char *filekey, struct checksums **checksums_p) {
+	char *sourcefilename, *fullfilename;
+	struct checksums *checksums;
 	retvalue r;
+	bool improves;
+
+	assert( *checksums_p != NULL );
+
+	r = files_get_checksums(database, filekey, &checksums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( RET_IS_OK(r) ) {
+		if( !checksums_check(checksums, *checksums_p, &improves) ) {
+			fprintf(stderr,
+"ERROR: '%s/%s' cannot be included as '%s'.\n"
+"Already existing files can only be included again, if they are the same, but:\n",
+				sourcedir, basename, filekey);
+			checksums_printdifferences(stderr, checksums, *checksums_p);
+			checksums_free(checksums);
+			return RET_ERROR_WRONG_MD5;
+		}
+		if( improves ) {
+			r = checksums_combine(&checksums, *checksums_p);
+			if( RET_WAS_ERROR(r) ) {
+				checksums_free(checksums);
+				return r;
+			}
+			/* TODO:
+			r = files_add_improved(database, filekey, checksums);
+			if( RET_WAS_ERROR(r) ) {
+				checksums_free(checksums);
+				return r;
+			}*/
+		}
+		checksums_free(checksums);
+		return RET_NOTHING;
+	}
 
 	assert( sourcedir != NULL );
 	sourcefilename = calc_dirconcat(sourcedir, basename);
 	if( sourcefilename == NULL )
 		return RET_ERROR_OOM;
-	r = files_preinclude(database, sourcefilename, filekey, checksums_p);
-	free(sourcefilename);
-	return r;
 
+	fullfilename = files_calcfullfilename(database, filekey);
+	if( fullfilename == NULL ) {
+		free(sourcefilename);
+		return RET_ERROR_OOM;
+	}
+
+	r = checksums_copyfile(fullfilename, sourcefilename, &checksums);
+	if( r == RET_ERROR_EXIST ) {
+		// TODO: deal with already existing files!
+		fprintf(stderr, "File '%s' does already exist!\n", fullfilename);
+	}
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
+		r = RET_ERROR_MISSING;
+	}
+	if( !checksums_check(*checksums_p, checksums, &improves) ) {
+		deletefile(fullfilename);
+		fprintf(stderr, "ERROR: Unexpected content of file '%s'!\n", sourcefilename);
+		checksums_printdifferences(stderr, *checksums_p, checksums);
+		r = RET_ERROR_WRONG_MD5;
+	}
+	free(sourcefilename);
+	free(fullfilename);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	if( improves ) {
+		r = checksums_combine(checksums_p, checksums);
+		checksums_free(checksums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	} else
+		checksums_free(checksums);
+
+	return files_add_checksums(database, filekey, *checksums_p);
 }
 

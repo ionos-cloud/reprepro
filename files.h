@@ -51,7 +51,7 @@ retvalue files_printmissing(struct database *,const struct strlist *filekeys,con
  *  (the original file is not deleted in that case, even if delete is positive)
  */
 retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@out@*/struct checksums **);
-retvalue files_preincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, /*@out@*/struct checksums **);
+retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, /*@out@*/struct checksums **);
 
 /* Include a given file into the pool. i.e.:
  * 1) if <md5dum> != NULL
