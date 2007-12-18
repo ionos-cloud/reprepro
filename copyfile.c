@@ -68,45 +68,6 @@ retvalue copy(const char *fullfilename,const char *origfile,/*@null@*/const char
 	return r;
 }
 
-static retvalue move(const char *fullfilename,const char *origfile,/*@null@*/const char *md5expected,/*@out@*/char **md5sum) {
-	retvalue r;
-	// TODO: try a rename first, if md5sum is know and correct??
-
-	r = copy(fullfilename,origfile,md5expected,md5sum);
-	if( RET_IS_OK(r) ) {
-		if( verbose > 15 ) {
-			fprintf(stderr,"Deleting '%s' after copying away.\n",origfile);
-		}
-		if( unlink(origfile) != 0 ) {
-			fprintf(stderr,"Error deleting '%s': %m",origfile);
-		}
-	}
-	return r;
-}
-
-retvalue copyfile_move(const char *mirrordir,const char *filekey,const char *origfile,const char *md5expected,char **md5sum) {
-	retvalue r;
-	char *fullfilename;
-
-	fullfilename = calc_dirconcat(mirrordir,filekey);
-	if( fullfilename == NULL )
-		return RET_ERROR_OOM;
-	r = move(fullfilename,origfile,md5expected,md5sum);
-	free(fullfilename);
-	return r;
-}
-retvalue copyfile_copy(const char *mirrordir,const char *filekey,const char *origfile,const char *md5expected,char **md5sum) {
-	retvalue r;
-	char *fullfilename;
-
-	fullfilename = calc_dirconcat(mirrordir,filekey);
-	if( fullfilename == NULL )
-		return RET_ERROR_OOM;
-	r = copy(fullfilename,origfile,md5expected,md5sum);
-	free(fullfilename);
-	return r;
-}
-
 retvalue copyfile_hardlink(const char *mirrordir, const char *filekey, const char *tempfile, const char *md5sum) {
 	retvalue r;
 	int i,e;

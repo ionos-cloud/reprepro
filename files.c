@@ -46,9 +46,6 @@ extern int verbose;
 static retvalue files_add(struct database *database,const char *filekey,const char *md5sum) {
 	return table_adduniqrecord(database->files, filekey, md5sum);
 }
-static retvalue files_get(struct database *database,const char *filekey,/*@out@*/char **md5sum) {
-	return table_getrecord(database->files, filekey, md5sum);
-}
 
 static retvalue files_get_checksums(struct database *database, const char *filekey, /*@out@*/struct checksums **checksums_p) {
 	char *md5sum;
@@ -493,120 +490,6 @@ retvalue files_detect(struct database *database, const char *filekey) {
 	return r;
 }
 
-/* Include a given file into the pool. */
-retvalue files_include(struct database *database,const char *sourcefilename,const char *filekey, const char *md5sum, int delete) {
-	retvalue r;
-	char *md5sumfound;
-
-	if( md5sum != NULL ) {
-		char *m = strdup(md5sum);
-		struct checksums *checksums;
-		if( m == NULL )
-			return RET_ERROR_OOM;
-		r = checksums_set(&checksums, m);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		r = files_expect(database, filekey, checksums);
-		checksums_free(checksums);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( RET_IS_OK(r) ) {
-			if( delete >= D_MOVE ) {
-				deletefile(sourcefilename);
-			}
-			return RET_OK;
-		}
-	} else {
-		char *md5indatabase,*md5offile;
-
-		r = files_get(database, filekey, &md5indatabase);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( RET_IS_OK(r) ) {
-			if( delete == D_INPLACE ) {
-				free(md5indatabase);
-				return RET_OK;
-			}
-
-			r = md5sum_read(sourcefilename, &md5offile);
-			if( r == RET_NOTHING )
-				r = RET_ERROR_MISSING;
-			if( RET_WAS_ERROR(r) ) {
-				free(md5indatabase);
-				return r;
-			}
-			if( strcmp(md5indatabase,md5offile) != 0 ) {
-				fprintf(stderr,"File \"%s\" is already registered with other md5sum!\n(file: '%s', database:'%s')!\n",filekey,md5offile,md5indatabase);
-				free(md5offile);
-				free(md5indatabase);
-				return RET_ERROR_WRONG_MD5;
-			} else {
-				// The file has the md5sum we know already.
-				if( delete >= D_MOVE ) {
-					deletefile(sourcefilename);
-				}
-				free(md5indatabase);
-				free(md5offile);
-				return RET_NOTHING;
-			}
-		}
-	}
-	if( sourcefilename == NULL ) {
-		fprintf(stderr,"Unable to find %s/%s!\n",
-				database->mirrordir, filekey);
-		if( delete == D_INPLACE ) {
-			fprintf(stderr,"Perhaps you forgot to give dpkg-buildpackage the -sa option,\n or you cound try --ignore=missingfile\n");
-		}
-		return RET_ERROR_MISSING;
-	} if( delete == D_INPLACE ) {
-		if( IGNORING("Looking around if it is elsewhere", "To look around harder, ",missingfile,"Unable to find %s/%s!\n", database->mirrordir, filekey))
-			r = copyfile_copy(database->mirrordir, filekey,
-					sourcefilename, md5sum, &md5sumfound);
-		else
-			r = RET_ERROR_MISSING;
-		if( RET_WAS_ERROR(r) )
-			return r;
-	} else if( delete == D_COPY ) {
-		r = copyfile_copy(database->mirrordir, filekey, sourcefilename,
-				md5sum, &md5sumfound);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	} else {
-		assert( delete >= D_MOVE );
-		r = copyfile_move(database->mirrordir, filekey, sourcefilename,
-				md5sum, &md5sumfound);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-
-	r = files_add(database, filekey, md5sumfound);
-	if( RET_WAS_ERROR(r) ) {
-		free(md5sumfound);
-		return r;
-	}
-	free(md5sumfound);
-	return RET_OK;
-}
-
-/* same as above, but use sourcedir/basename instead of sourcefilename */
-retvalue files_includefile(struct database *database,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, int delete) {
-	char *sourcefilename;
-	retvalue r;
-
-	if( sourcedir == NULL ) {
-		assert(delete == D_INPLACE);
-		sourcefilename = NULL;
-	} else {
-		sourcefilename = calc_dirconcat(sourcedir,basename);
-		if( sourcefilename == NULL )
-			return RET_ERROR_OOM;
-	}
-	r = files_include(database, sourcefilename, filekey, md5sum, delete);
-	free(sourcefilename);
-	return r;
-
-}
-
 retvalue files_regenerate_filelist(struct database *database, bool reread) {
 	struct cursor *cursor;
 	retvalue result,r;
@@ -713,7 +596,10 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 		}
 		checksums_free(realchecksums);
 		// args, this breaks retvalue semantics!
-		*checksums_p = checksums;
+		if( checksums_p != NULL )
+			*checksums_p = checksums;
+		else
+			checksums_free(checksums);
 		return RET_NOTHING;
 	}
 	assert( sourcefilename != NULL );
@@ -740,7 +626,10 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 		checksums_free(checksums);
 		return r;
 	}
-	*checksums_p = checksums;
+	if( checksums_p != NULL )
+		*checksums_p = checksums;
+	else
+		checksums_free(checksums);
 	return RET_OK;
 }
 

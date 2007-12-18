@@ -45,7 +45,7 @@ retvalue release_getchecksums(const char *releasefile, struct checksumsarray *ou
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = checksumsarray_parse(out, &files);
+	r = checksumsarray_parse(out, &files, releasefile);
 	strlist_done(&files);
 	return r;
 }

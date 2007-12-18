@@ -1131,7 +1131,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Unexpected empty file './temp/dscfilename_fileversion~.dsc'!
+*=Unexpected empty file 'dscfilename_fileversion~.dsc'!
 -v0*=There have been errors!
 EOF
 #*=Could only find spaces within './temp/dscfilename_fileversion~.dsc'!
@@ -1143,7 +1143,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Missing 'Source'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Missing 'Source'-header in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Source: nameindsc" > i/dscfilename_fileversion~.dsc
@@ -1154,7 +1154,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find 'Format'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Cannot find 'Format'-header in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Format: 1.0" >> i/dscfilename_fileversion~.dsc
@@ -1165,7 +1165,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find 'Maintainer'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Cannot find 'Maintainer'-header in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Maintainer: guess who <me@nowhere>" >> i/dscfilename_fileversion~.dsc
@@ -1176,8 +1176,8 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find 'Standards-Version'-header in ./temp/dscfilename_fileversion~.dsc!
-*=Missing 'Version'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Cannot find 'Standards-Version'-header in dscfilename_fileversion~.dsc!
+*=Missing 'Version'-header in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Standards-Version: 0" >> i/dscfilename_fileversion~.dsc
@@ -1188,7 +1188,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Missing 'Version'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Missing 'Version'-header in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
@@ -1199,7 +1199,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Missing 'Files'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Missing 'Files'-header in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Files:  " >> i/dscfilename_fileversion~.dsc
@@ -1261,7 +1261,7 @@ returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Cannot find 'Format'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Cannot find 'Format'-header in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo -e "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
@@ -1321,6 +1321,7 @@ returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
 *=Error in parsing size or missing space afterwards!
+*=Error was parsing dscfilename_fileversion~.dsc
 -v0*=There have been errors!
 EOF
 sed -i "s/ sizeindsc / 666 /" i/dscfilename_fileversion~.dsc
@@ -2677,9 +2678,9 @@ testrun - -b . include test1 test.changes 3<<EOF
 returns 249
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Unable to find ./pool/stupid/t/test/test_1.orig.tar.gz!
+*=Unable to find pool/stupid/t/test/test_1.orig.tar.gz!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option,
-*= or you cound try --ignore=missingfile
+*= or you cound try --ignore=missingfile, to guess possible files to use.
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/t"
@@ -2704,8 +2705,9 @@ checknolog log2
 testrun - -b . --ignore=missingfile include test1 test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Unable to find ./pool/stupid/t/test/test_1.orig.tar.gz!
-*=Looking around if it is elsewhere as --ignore=missingfile given.
+*=Unable to find pool/stupid/t/test/test_1.orig.tar.gz!
+*=Perhaps you forgot to give dpkg-buildpackage the -sa option.
+*=Searching for it because --ignore=missingfile was given...
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
@@ -4408,9 +4410,9 @@ testout "" -b . dumpunreferenced
 dodiff results.empty results
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!
+*=Unable to find pool/all/a/ab/ab_3-1.tar.gz!
 =Perhaps you forgot to give dpkg-buildpackage the -sa option,
-= or you cound try --ignore=missingfile
+= or you cound try --ignore=missingfile, to guess possible files to use.
 -v0*=There have been errors!
 stdout
 -d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to files.db(md5sums).
@@ -4433,8 +4435,9 @@ test ! -f pool/all/a/ab/ab_3-1.dsc
 cat broken.changes
 testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!
-*=Looking around if it is elsewhere as --ignore=missingfile given.
+*=Unable to find pool/all/a/ab/ab_3-1.tar.gz!
+*=Perhaps you forgot to give dpkg-buildpackage the -sa option.
+*=Searching for it because --ignore=missingfile was given...
 stdout
 -d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to files.db(md5sums).

@@ -90,7 +90,9 @@ struct fileentry {
 	bool wasalreadythere;
 	bool included;
 	/* set between checkpkg and includepkg */
-	union { struct dscpackage *dsc; struct debpackage *deb;} pkg;
+	struct strlist needed_filekeys;
+	union { struct dsc_headers dsc;
+		struct debpackage *deb;} pkg;
 };
 
 struct changes {
@@ -132,8 +134,10 @@ static void freeentries(/*@only@*/struct fileentry *entry) {
 		free(entry->name);
 		if( entry->type == fe_DEB || entry->type == fe_UDEB)
 			deb_free(entry->pkg.deb);
-		 else if( entry->type == fe_DSC )
-			dsc_free(entry->pkg.dsc);
+		 else if( entry->type == fe_DSC ) {
+			 strlist_done(&entry->needed_filekeys);
+			 sources_done(&entry->pkg.dsc);
+		 }
 		free(entry);
 		entry = h;
 	}
@@ -738,7 +742,150 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 	return result;
 }
 
-static retvalue changes_checkpkgs(struct database *database,struct distribution *distribution,struct changes *changes, const char *sourcedirectory) {
+static retvalue changes_check_sourcefile(const char *changesfilename, struct changes *changes, struct fileentry *dsc, struct database *database, const char *basename, const char *filekey, struct checksums **checksums_p) {
+	retvalue r;
+	char *sourcedir;
+
+	r = files_expect(database, filekey, *checksums_p);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	// TODO: get additionals checksum out of database, as future
+	// source file completion code might need them...
+	if( RET_IS_OK(r) )
+		return RET_OK;
+	if( !IGNORABLE(missingfile) ) {
+		fprintf(stderr,
+"Unable to find %s!\n"
+"Perhaps you forgot to give dpkg-buildpackage the -sa option,\n"
+" or you cound try --ignore=missingfile, to guess possible files to use.\n", filekey);
+		return RET_ERROR_MISSING;
+	}
+	fprintf(stderr,
+"Unable to find %s!\n"
+"Perhaps you forgot to give dpkg-buildpackage the -sa option.\n"
+"Searching for it because --ignore=missingfile was given...\n", filekey);
+	r = dirs_getdirectory(changesfilename, &sourcedir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	r = files_checkincludefile(database, sourcedir, basename,
+			filekey, checksums_p);
+	free(sourcedir);
+	return r;
+}
+
+static retvalue dsc_prepare(const char *changesfilename, struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
+	retvalue r;
+	const struct overrideinfo *oinfo;
+	char *dscbasename;
+	char *control;
+	int i;
+	bool broken;
+
+	assert( dsc->section != NULL );
+	assert( dsc->priority != NULL );
+	assert( changes->srccomponent != NULL );
+	assert( dsc->basename != NULL );
+	assert( dsc->checksums != NULL );
+	assert( changes->source != NULL );
+	assert( changes->sourceversion != NULL );
+
+	/* First make sure this distribution has a source section at all,
+	 * for which it has to be listed in the "Architectures:"-field ;-) */
+	if( !strlist_in(&distribution->architectures,"source") ) {
+		fprintf(stderr,"Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",distribution->codename);
+		/* nota bene: this cannot be forced or ignored, as no target has
+		   been created for this. */
+		return RET_ERROR;
+	}
+
+	/* Then take a closer look in the file: */
+	r = sources_readdsc(&dsc->pkg.dsc, dscfilename, dscfilename, &broken);
+	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
+"'%s' contains only broken signatures.\n"
+"This most likely means the file was damaged (or edited improperly)\n",
+				dscfilename) )
+		r = RET_ERROR;
+	if( RET_IS_OK(r) )
+		r = propersourcename(dsc->pkg.dsc.name);
+	if( RET_IS_OK(r) )
+		r = properversion(dsc->pkg.dsc.version);
+	if( RET_IS_OK(r) )
+		r = properfilenames(&dsc->pkg.dsc.files.names);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( strcmp(changes->source, dsc->pkg.dsc.name) != 0 ) {
+		/* This cannot be ignored, as too much depends on it yet */
+		fprintf(stderr,
+"'%s' says it is '%s', while .changes file said it is '%s'\n",
+				dsc->basename, dsc->pkg.dsc.name, changes->source);
+		return RET_ERROR;
+	}
+	if( strcmp(changes->sourceversion, dsc->pkg.dsc.version) != 0 &&
+	    !IGNORING_(wrongversion,
+"'%s' says it is version '%s', while .changes file said it is '%s'\n",
+				dsc->basename, dsc->pkg.dsc.version,
+				changes->sourceversion)) {
+		return RET_ERROR;
+	}
+
+	oinfo = override_search(distribution->overrides.dsc, dsc->pkg.dsc.name);
+
+	free(dsc->pkg.dsc.section);
+	dsc->pkg.dsc.section = strdup(dsc->section);
+	if( dsc->pkg.dsc.section == NULL )
+		return RET_ERROR_OOM;
+	free(dsc->pkg.dsc.priority);
+	dsc->pkg.dsc.priority = strdup(dsc->priority);
+	if( dsc->pkg.dsc.priority == NULL )
+		return RET_ERROR_OOM;
+
+	assert( dsc->pkg.dsc.name != NULL && dsc->pkg.dsc.version != NULL );
+
+	/* Add the dsc file to the list of files in this source package: */
+	dscbasename = strdup(dsc->basename);
+	if( dscbasename == NULL )
+		r = RET_ERROR_OOM;
+	else
+		r = checksumsarray_include(&dsc->pkg.dsc.files,
+				dscbasename, dsc->checksums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* Calculate the filekeys: */
+	r = calc_dirconcats(changes->srcdirectory,
+			&dsc->pkg.dsc.files.names, &dsc->needed_filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* noone else might have looked yet, if we have them: */
+
+	assert( dsc->pkg.dsc.files.names.count == dsc->needed_filekeys.count );
+	for( i = 1 ; i < dsc->pkg.dsc.files.names.count ; i ++ ) {
+		if( !RET_WAS_ERROR(r) ) {
+			r = changes_check_sourcefile(changesfilename,
+				changes, dsc, database,
+				dsc->pkg.dsc.files.names.values[i],
+				dsc->needed_filekeys.values[i],
+				&dsc->pkg.dsc.files.checksums[i]);
+		}
+	}
+
+	if( !RET_WAS_ERROR(r) )
+		r = sources_complete(&dsc->pkg.dsc, changes->srcdirectory,
+				oinfo,
+				dsc->pkg.dsc.section, dsc->pkg.dsc.priority,
+				&control);
+	if( RET_IS_OK(r) ) {
+		free(dsc->pkg.dsc.control);
+		dsc->pkg.dsc.control = control;
+	}
+	return r;
+}
+
+
+static retvalue changes_checkpkgs(struct database *database,struct distribution *distribution,struct changes *changes, const char *changesfilename) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -781,16 +928,9 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 
 				assert(changes->srccomponent!=NULL);
 				assert(changes->srcdirectory!=NULL);
-				r = dsc_prepare(&e->pkg.dsc, database,
-						changes->srccomponent,
-						e->section, e->priority,
-						distribution,
-						sourcedirectory, fullfilename,
-						e->basename,
-						changes->srcdirectory,
-						e->checksums,
-						changes->source,
-						changes->sourceversion);
+				r = dsc_prepare(changesfilename, changes,
+						e, database,
+						distribution, fullfilename);
 			} else
 				r = RET_ERROR;
 		}
@@ -836,8 +976,11 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 			if( r == RET_NOTHING )
 				*missed_p = true;
 		} else if( e->type == fe_DSC ) {
-			r = dsc_addprepared(e->pkg.dsc, database,
-				distribution,dereferencedfilekeys,trackingdata);
+			r = dsc_addprepared(database, &e->pkg.dsc,
+					changes->srccomponent,
+					&e->needed_filekeys,
+					distribution, dereferencedfilekeys,
+					trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
 		}
@@ -865,7 +1008,6 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
-	char *directory;
 	bool somethingwasmissed;
 
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
@@ -921,16 +1063,6 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 		}
 	}
 
-	if( IGNORABLE(missingfile) ) {
-		r = dirs_getdirectory(changesfilename,&directory);
-		if( RET_WAS_ERROR(r) ) {
-			changes_free(changes);
-			return r;
-		}
-	} else
-		directory = NULL;
-
-
 	/* look for component, section and priority to be correct or guess them*/
 	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority);
 
@@ -952,9 +1084,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 		r = changes_includefiles(database, changes);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkpkgs(database, distribution, changes, directory);
-
-	free(directory);
+		r = changes_checkpkgs(database, distribution, changes, changesfilename);
 
 	if( RET_WAS_ERROR(r) ) {
 		changes_unincludefiles(database, changes);
@@ -985,10 +1115,10 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 				r = RET_ERROR_INTERRUPTED;
 			else
 			/* always D_COPY, and only delete it afterwards... */
-				r = files_include(database,
+				r = files_preinclude(database,
 					changesfilename,
 					changes->changesfilekey,
-					NULL, D_COPY);
+					NULL);
 			if( RET_WAS_ERROR(r) ) {
 				changes_free(changes);
 				trackingdata_done(&trackingdata);

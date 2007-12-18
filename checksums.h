@@ -58,7 +58,8 @@ struct checksumsarray {
 };
 void checksumsarray_move(/*@out@*/struct checksumsarray *, struct checksumsarray *);
 void checksumsarray_done(struct checksumsarray *);
-retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist *);
+retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist *, const char *filenametoshow);
+retvalue checksumsarray_include(struct checksumsarray *, /*@only@*/char *, const struct checksums *);
 
 /* stuff still in md5sums.c: */
 retvalue checksum_read(const char *filename, /*@out@*/char **md5sum, /*@out@*/char **sha1sum);

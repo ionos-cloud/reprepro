@@ -49,8 +49,8 @@ retvalue files_printmissing(struct database *, const struct strlist *filekeys, c
  * return RET_ERROR_WRONG_MD5 if wrong md5sum.
  *  (the original file is not deleted in that case, even if delete is positive)
  */
-retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@out@*/struct checksums **);
-retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, /*@out@*/struct checksums **);
+retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
+retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
 
 /* Include a given file into the pool. i.e.:
  * 1) if <md5dum> != NULL
@@ -69,10 +69,7 @@ retvalue files_checkincludefile(struct database *, const char *directory, const 
  *  (the original file is not deleted in that case, even if delete is positive)
  * 4) add it to the database
  */
-retvalue files_include(struct database *,const char *sourcefilename,const char *filekey, /*@null@*/const char *md5sum, int delete);
-
-/* same as above, but use sourcedir/basename instead of sourcefilename */
-retvalue files_includefile(struct database *,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, int delete);
+retvalue files_includefile(struct database *,const char *sourcedir,const char *basename, const char *filekey, const struct checksums *checksums);
 
 typedef retvalue per_file_action(void *data,const char *filekey,const char *md5sum);
 

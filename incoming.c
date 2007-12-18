@@ -838,28 +838,23 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 	return RET_OK;
 }
 
-static retvalue candidate_read_dsc(struct candidate_file *file) {
+static retvalue candidate_read_dsc(struct incoming *i, struct candidate_file *file) {
 	retvalue r;
 	bool broken = false;
 	char *p;
 
-	r = sources_readdsc(&file->dsc, file->tempfilename, &broken);
+	r = sources_readdsc(&file->dsc, file->tempfilename,
+			BASENAME(i, file->ofs), &broken);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	p = calc_source_basename(file->dsc.name,
 			file->dsc.version);
 	if( p == NULL )
 		return RET_ERROR_OOM;
-	r = strlist_include(&file->dsc.basenames, p);
-	if( RET_WAS_ERROR(r) )
+	r = checksumsarray_include(&file->dsc.files, p, file->checksums);
+	if( RET_WAS_ERROR(r) ) {
 		return r;
-	r = checksums_get(file->checksums, cs_md5sum, &p);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return RET_ERROR_OOM;
-	r = strlist_include(&file->dsc.md5sums, p);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	}
 	// TODO: take a look at "broken"...
 	return RET_OK;
 }
@@ -885,7 +880,7 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 		if( FE_BINARY(file->type) )
 			r = candidate_read_deb(i, c, file);
 		else if( file->type == fe_DSC )
-			r = candidate_read_dsc(file);
+			r = candidate_read_dsc(i, file);
 		else {
 			r = RET_ERROR;
 			assert( FE_BINARY(file->type) || file->type == fe_DSC );
@@ -1007,7 +1002,7 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
-static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const char *md5sum, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
+static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const struct checksums *checksums, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
 	struct candidate_file *f;
 	retvalue r;
 
@@ -1017,27 +1012,17 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 		f = f->next;
 
 	if( f == NULL ) {
-		char *m = strdup(md5sum);
-		struct checksums *checksums;
-
-		if( m == NULL )
-			return RET_ERROR_OOM;
-		r = checksums_set(&checksums, m);
-		if( RET_WAS_ERROR(r) )
-			return r;
-
 		r = files_canadd(database, filekey, checksums);
-		checksums_free(checksums);
 		if( !RET_IS_OK(r) )
 			return r;
 		/* no file by this name and also no file with these
-		 * characteristics in the pool, look for differently-names
+		 * characteristics in the pool, look for differently-named
 		 * file with the same characteristics: */
 
 		f = c->files;
 		while( f != NULL && ( f->checksums == NULL ||
-					!checksums_matches(f->checksums,
-						cs_md5sum, md5sum)))
+					!checksums_check(f->checksums,
+						checksums, NULL)))
 			f = f->next;
 
 		if( f == NULL ) {
@@ -1053,7 +1038,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 	// perhaps currently, but in the future when .changes or .dsc
 	// can have additional hashes, they might not conflict with each
 	// other, but with the file's hash previously computed...
-	if( !checksums_matches(f->checksums, cs_md5sum, md5sum) ) {
+	if( !checksums_check(f->checksums, checksums, NULL) ) {
 		fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
 				basename,
 				BASENAME(i, c->ofs),
@@ -1073,6 +1058,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 		r = candidate_usefile(i, c, f);
 		if( RET_WAS_ERROR(r) )
 			return r;
+		// TODO: update checksums to now received checksums?
 		*foundfile_p = f;
 	}
 	return r;
@@ -1130,7 +1116,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	if( RET_IS_OK(r) )
 		r = properversion(file->dsc.version);
 	if( RET_IS_OK(r) )
-		r = properfilenames(&file->dsc.basenames);
+		r = properfilenames(&file->dsc.files.names);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	oinfo = override_search(into->overrides.dsc, file->dsc.name);
@@ -1143,7 +1129,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	package->directory = calc_sourcedir(package->component, file->dsc.name);
 	if( package->directory == NULL )
 		return RET_ERROR_OOM;
-	r = calc_dirconcats(package->directory, &file->dsc.basenames, &package->filekeys);
+	r = calc_dirconcats(package->directory, &file->dsc.files.names, &package->filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	package->files = calloc(package->filekeys.count,sizeof(struct candidate *));
@@ -1157,8 +1143,8 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	for( j = 1 ; j < package->filekeys.count ; j++ ) {
 		r = prepare_source_file(database, i, c,
 				package->filekeys.values[j],
-				file->dsc.basenames.values[j],
-				file->dsc.md5sums.values[j],
+				file->dsc.files.names.values[j],
+				file->dsc.files.checksums[j],
 				file->ofs, &package->files[j]);
 		if( RET_WAS_ERROR(r) )
 			return r;

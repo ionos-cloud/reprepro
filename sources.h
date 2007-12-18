@@ -10,7 +10,7 @@
 #endif
 
 /* Calculate the filelines in a form suitable for chunk_replacefields: */
-retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,/*@out@*/char **item);
+retvalue sources_calcfilelines(const struct checksumsarray *, /*@out@*/char **item);
 
 /* Functions for the target.h-stuff: */
 retvalue sources_getname(struct target * t,const char *chunk,/*@out@*/char **packagename);
@@ -28,7 +28,7 @@ retvalue sources_getsourceandversion(struct target *,const char *chunk,const cha
 struct dsc_headers {
 	char *name, *version;
 	char *control;
-	struct strlist basenames, md5sums;
+	struct checksumsarray files;
 	/* normaly not in a .dsc file: */
 	/*@null@*/ char *section, *priority;
 };
@@ -38,7 +38,7 @@ struct dsc_headers {
  * - does not follow retvalue conventions, some fields may be set even when
  *   error returned
  * - no checks for sanity of values, left to the caller */
-retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool *broken);
+retvalue sources_readdsc(struct dsc_headers *, const char *filename, const char *filenametoshow, bool *broken);
 
 void sources_done(struct dsc_headers *);
 

@@ -69,121 +69,47 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 	return r;
 }
 
-static retvalue getBasenamesAndMd5(const struct strlist *filelines,/*@out@*/struct strlist *basenames,/*@out@*/struct strlist *md5sums) {
-	int i;
-	retvalue r;
-
-	assert( filelines != NULL && basenames != NULL && md5sums != NULL );
-
-	r = strlist_init_n(filelines->count,basenames);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = strlist_init_n(filelines->count,md5sums);
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(basenames);
-		return r;
-	}
-	r = RET_NOTHING;
-	for( i = 0 ; i < filelines->count ; i++ ) {
-		char *basename,*md5sum;
-		const char *fileline=filelines->values[i];
-
-		r = calc_parsefileline(fileline,&basename,&md5sum);
-		if( RET_WAS_ERROR(r) )
-			break;
-
-		r = strlist_add(md5sums,md5sum);
-		if( RET_WAS_ERROR(r) ) {
-			free(basename);
-			break;
-		}
-		r = strlist_add(basenames,basename);
-		if( RET_WAS_ERROR(r) ) {
-			break;
-		}
-		r = RET_OK;
-	}
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(basenames);
-		strlist_done(md5sums);
-	} else {
-		assert( filelines->count == basenames->count );
-		assert( filelines->count == md5sums->count );
-	}
-	return r;
-}
-
-/* get the intresting information out of a "Sources.gz"-chunk */
-static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@out@*/struct strlist *basefiles,/*@out@*/struct strlist *md5sums) {
-	retvalue r;
-	char *od;
-
-	if( origdirectory != NULL ) {
-		/* Read the directory given there */
-		r = chunk_getvalue(chunk,"Directory",&od);
-		if( !RET_IS_OK(r) ) {
-			return r;
-		}
-		if( verbose > 33 )
-			fprintf(stderr,"got: %s\n",od);
-	}
-
-
-	/* collect the given md5sum and size */
-
-  	if( basefiles != NULL ) {
-		struct strlist filelines;
-
-		r = chunk_getextralinelist(chunk,"Files",&filelines);
-		if( !RET_IS_OK(r) ) {
-			if( origdirectory != NULL )
-				free(od);
-  			return r;
-		}
-		if( md5sums != NULL )
-			r = getBasenamesAndMd5(&filelines,basefiles,md5sums);
-		else
-			r = getBasenames(&filelines,basefiles);
-		strlist_done(&filelines);
-		if( RET_WAS_ERROR(r) ) {
-			if( origdirectory != NULL )
-				free(od);
-  			return r;
-		}
-	} else
-		assert(md5sums == NULL); /* only together with basefiles */
-
-	if( origdirectory != NULL )
-		*origdirectory = od;
-	return RET_OK;
-}
-
-retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,char **item) {
+retvalue sources_calcfilelines(const struct checksumsarray *files, char **item) {
 	size_t len;
 	int i;
 	char *result;
+	retvalue r;
 
-	assert( basenames != NULL && md5sums != NULL && basenames->count == md5sums->count );
+	assert( files != NULL );
 
 	len = 1;
-	for( i=0 ; i < basenames->count ; i++ ) {
-		len += 3+strlen(basenames->values[i])+strlen(md5sums->values[i]);
+	for( i=0 ; i < files->names.count ; i++ ) {
+		const char *p; size_t md5len = 0; size_t sizelen = 0;
+
+		r = checksums_getpart(files->checksums[i], cs_md5sum, &p, &md5len);
+		assert( RET_IS_OK(r) );
+		r = checksums_getpart(files->checksums[i], cs_count, &p, &sizelen);
+		assert( RET_IS_OK(r) );
+
+		len += 4+strlen(files->names.values[i])+md5len+sizelen;
 	}
 	result = malloc(len*sizeof(char));
 	if( result == NULL )
 		return RET_ERROR_OOM;
 	*item = result;
 	*(result++) = '\n';
-	for( i=0 ; i < basenames->count ; i++ ) {
+	for( i=0 ; i < files->names.count ; i++ ) {
+		const char *p; size_t len;
 		*(result++) = ' ';
-		strcpy(result,md5sums->values[i]);
-		result += strlen(md5sums->values[i]);
+		r = checksums_getpart(files->checksums[i], cs_md5sum, &p, &len);
+		assert( RET_IS_OK(r) );
+		memcpy(result, p, len); result += len;
 		*(result++) = ' ';
-		strcpy(result,basenames->values[i]);
-		result += strlen(basenames->values[i]);
+		r = checksums_getpart(files->checksums[i], cs_count, &p, &len);
+		assert( RET_IS_OK(r) );
+		memcpy(result, p, len); result += len;
+		*(result++) = ' ';
+		strcpy(result, files->names.values[i]);
+		result += strlen(files->names.values[i]);
 		*(result++) = '\n';
 	}
 	*(--result) = '\0';
+	assert( result - *item == len-1 );
 	return RET_OK;
 }
 
@@ -226,7 +152,7 @@ retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSE
 	if( RET_WAS_ERROR(r) )
   		return r;
 
-	r = checksumsarray_parse(&files, &filelines);
+	r = checksumsarray_parse(&files, &filelines, packagename);
 	strlist_done(&filelines);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -286,24 +212,41 @@ retvalue sources_getfilekeys(const char *chunk, struct strlist *filekeys) {
 	char *origdirectory;
 	struct strlist basenames;
 	retvalue r;
+	struct strlist filelines;
 
-	r = parse_chunk(chunk, &origdirectory, &basenames, NULL);
+
+	/* Read the directory given there */
+	r = chunk_getvalue(chunk, "Directory", &origdirectory);
 	if( r == RET_NOTHING ) {
 		//TODO: check if it is even text and do not print
 		//of looking binary??
-		fprintf(stderr,"Does not look like source control: '%s'\n",chunk);
+		fprintf(stderr, "Does not look like source control: '%s'\n", chunk);
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
 		return r;
-	assert( RET_IS_OK(r) );
 
-	r = calc_dirconcats(origdirectory,&basenames,filekeys);
-	free(origdirectory);
-	strlist_done(&basenames);
+	r = chunk_getextralinelist(chunk, "Files", &filelines);
+	if( r == RET_NOTHING ) {
+		//TODO: check if it is even text and do not print
+		//of looking binary??
+		fprintf(stderr, "Does not look like source control: '%s'\n", chunk);
+		r = RET_ERROR;
+	}
 	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
 		return r;
 	}
+	r = getBasenames(&filelines, &basenames);
+	strlist_done(&filelines);
+	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
+		return r;
+	}
+
+	r = calc_dirconcats(origdirectory, &basenames, filekeys);
+	free(origdirectory);
+	strlist_done(&basenames);
 	return r;
 }
 
@@ -323,7 +266,7 @@ retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 		free(origdirectory);
 		return r;
 	}
-	r = checksumsarray_parse(&a, &filelines);
+	r = checksumsarray_parse(&a, &filelines, "source chunk");
 	strlist_done(&filelines);
 	if( RET_WAS_ERROR(r) ) {
 		free(origdirectory);
@@ -484,22 +427,24 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 	return r;
 }
 
-retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool *broken) {
+retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const char *filenametoshow, bool *broken) {
 	retvalue r;
 
-	r = signature_readsignedchunk(filename, filename, &dsc->control, NULL, NULL, broken);
+	r = signature_readsignedchunk(filename, filenametoshow,
+			&dsc->control, NULL, NULL, broken);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
 	if( verbose > 100 ) {
-		fprintf(stderr,"Extracted control chunk from '%s': '%s'\n",filename,dsc->control);
+		fprintf(stderr, "Extracted control chunk from '%s': '%s'\n",
+				filenametoshow, dsc->control);
 	}
 
 	/* first look for fields that should be there */
 
 	r = chunk_getname(dsc->control, "Source", &dsc->name, false);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
+		fprintf(stderr, "Missing 'Source'-header in %s!\n", filenametoshow);
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
@@ -507,32 +452,38 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool *br
 
 	/* This is needed and cannot be ignored unless 
 	 * sources_complete is changed to not need it */
-	r = checkvalue(filename,dsc->control,"Format");
+	r = checkvalue(filenametoshow, dsc->control, "Format");
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = checkvalue(filename,dsc->control,"Maintainer");
+	r = checkvalue(filenametoshow, dsc->control, "Maintainer");
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	/* only recommended, so ignore errors with this: */
-	(void) checkvalue(filename,dsc->control,"Standards-Version");
+	(void) checkvalue(filenametoshow, dsc->control, "Standards-Version");
 
-	r = getvalue(filename,dsc->control,"Version",&dsc->version);
+	r = getvalue(filenametoshow, dsc->control, "Version", &dsc->version);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = getvalue_n(dsc->control,SECTION_FIELDNAME,&dsc->section);
+	r = getvalue_n(dsc->control, SECTION_FIELDNAME, &dsc->section);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = getvalue_n(dsc->control,PRIORITY_FIELDNAME,&dsc->priority);
+	r = getvalue_n(dsc->control, PRIORITY_FIELDNAME, &dsc->priority);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = parse_chunk(dsc->control,NULL,&dsc->basenames,&dsc->md5sums);
+	struct strlist filelines;
+
+	r = chunk_getextralinelist(dsc->control, "Files", &filelines);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Files'-header in %s!\n",filename);
+		fprintf(stderr,"Missing 'Files'-header in %s!\n", filenametoshow);
 		return RET_ERROR;
 	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = checksumsarray_parse(&dsc->files, &filelines, filenametoshow);
+	strlist_done(&filelines);
 	return r;
 }
 
@@ -540,8 +491,7 @@ void sources_done(struct dsc_headers *dsc) {
 	free(dsc->name);
 	free(dsc->version);
 	free(dsc->control);
-	strlist_done(&dsc->basenames);
-	strlist_done(&dsc->md5sums);
+	checksumsarray_done(&dsc->files);
 	free(dsc->section);
 	free(dsc->priority);
 }
@@ -564,11 +514,10 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 		return RET_ERROR_OOM;
 	newchunk2  = chunk_replacefields(dsc->control,name,"Format");
 	addfield_free(name);
-	if( newchunk2 == NULL ) {
+	if( newchunk2 == NULL )
 		return RET_ERROR_OOM;
-	}
 
-	r = sources_calcfilelines(&dsc->basenames,&dsc->md5sums,&newfilelines);
+	r = sources_calcfilelines(&dsc->files, &newfilelines);
 	if( RET_WAS_ERROR(r) ) {
 		free(newchunk2);
 		return RET_ERROR_OOM;

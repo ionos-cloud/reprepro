@@ -158,7 +158,8 @@ bool checksums_check(const struct checksums *checksums, const struct checksums *
 	const char *md5indatabase = (void*)checksums;
 	const char *md5offile = (void*)realchecksums;
 
-	*improves = false;
+	if( improves != NULL )
+		*improves = false;
 	return strcmp(md5indatabase, md5offile) == 0;
 }
 
@@ -186,12 +187,13 @@ void checksumsarray_done(struct checksumsarray *array) {
 	free(array->checksums);
 }
 
-retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist *lines) {
+retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist *lines, const char *filenametoshow) {
 	retvalue r;
 	int i;
 	struct checksumsarray a;
 
-	r = strlist_init_n(lines->count, &a.names);
+	/* +1 because the caller is likely include an additional file later */
+	r = strlist_init_n(lines->count+1, &a.names);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	a.checksums = calloc(lines->count, sizeof(struct checksums *));
@@ -204,17 +206,34 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist *
 
 		r = calc_parsefileline(lines->values[i], &filename, &md5sum);
 		if( RET_WAS_ERROR(r) ) {
+			if( r != RET_ERROR_OOM )
+				fprintf(stderr, "Error was parsing %s\n",
+						filenametoshow);
+			if( i == 0 ) {
+				free(a.checksums);
+				a.checksums = NULL;
+			}
 			checksumsarray_done(&a);
 			return r;
 		}
 		r = checksums_set(&a.checksums[i], md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			free(filename);
+			if( i == 0 ) {
+				free(a.checksums);
+				a.checksums = NULL;
+			}
 			checksumsarray_done(&a);
 			return r;
 		}
 		r = strlist_add(&a.names, filename);
 		if( RET_WAS_ERROR(r) ) {
+			checksums_free(a.checksums[i]);
+			a.checksums[i] = NULL;
+			if( i == 0 ) {
+				free(a.checksums);
+				a.checksums = NULL;
+			}
 			checksumsarray_done(&a);
 			return r;
 		}
@@ -227,6 +246,34 @@ void checksumsarray_move(/*@out@*/struct checksumsarray *destination, struct che
 	strlist_move(&destination->names, &origin->names);
 	destination->checksums = origin->checksums;
 	origin->checksums = NULL;
+}
+
+retvalue checksumsarray_include(struct checksumsarray *a, /*@only@*/char *name, const struct checksums *checksums) {
+	retvalue r;
+	struct checksums **n;
+	int count = a->names.count;
+
+	n = malloc((count+1) * sizeof(struct checksums*));
+	if( n == NULL ) {
+		free(name);
+		return RET_ERROR_OOM;
+	}
+	n[0] = checksums_dup(checksums);
+	if( n[0] == NULL ) {
+		free(name);
+		free(n);
+		return RET_ERROR_OOM;
+	}
+	r = strlist_include(&a->names, name);
+	if( !RET_IS_OK(r) ) {
+		free(n);
+		return r;
+	}
+	assert( a->names.count == count + 1 );
+	memcpy(&n[1], a->checksums, count*sizeof(struct checksums*));
+	free(a->checksums);
+	a->checksums = n;
+	return RET_OK;
 }
 
 /* check if the file has the given md5sum (only cheap tests like size),

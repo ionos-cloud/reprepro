@@ -11,6 +11,9 @@
 #ifndef REPREPRO_DISTRIBUTION_H
 #include "distribution.h"
 #endif
+#ifndef REPREPRO_SOURCES_H
+#include "sources.h"
+#endif
 
 /* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guess it from the section.
@@ -23,10 +26,7 @@ retvalue dsc_add(struct database *,/*@null@*/const char *forcecomponent,/*@null@
  * (And all files are expected to already be in the pool),
  * delete should be D_INPLACE then
  */
-struct dscpackage *pkg;
-retvalue dsc_prepare(/*@out@*/struct dscpackage **, struct database *, const char *forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *sourcedir, const char *dscfilename, const char *basename, const char *directory, const struct checksums *, const char *expectedname, const char *expectedversion);
-retvalue dsc_addprepared(const struct dscpackage *pkg,struct database *,struct distribution *distribution,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata);
-void dsc_free(/*@only@*/struct dscpackage *pkg);
 
+retvalue dsc_addprepared(struct database *, const struct dsc_headers *, const char *component, const struct strlist *filekeys, struct distribution *distribution, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata);
 
 #endif
