@@ -34,18 +34,12 @@
 #include "dirs.h"
 #include "names.h"
 #include "files.h"
-#include "copyfile.h"
 #include "ignore.h"
 #include "filelist.h"
 #include "debfile.h"
 #include "database_p.h"
 
 extern int verbose;
-
-/* Add file's md5sum to database */
-static retvalue files_add(struct database *database,const char *filekey,const char *md5sum) {
-	return table_adduniqrecord(database->files, filekey, md5sum);
-}
 
 static retvalue files_get_checksums(struct database *database, const char *filekey, /*@out@*/struct checksums **checksums_p) {
 	char *md5sum;
@@ -65,7 +59,7 @@ retvalue files_add_checksums(struct database *database, const char *filekey, con
 	assert( r != RET_NOTHING);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = files_add(database, filekey, md5sum);
+	r = table_adduniqrecord(database->files, filekey, md5sum);
 	free(md5sum);
 	return r;
 }
@@ -161,7 +155,7 @@ retvalue files_hardlinkandadd(struct database *database, const char *tempfile, c
 	r = files_canadd(database, filekey, checksums);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = copyfile_hardlink(database->mirrordir, filekey, tempfile, NULL);
+	r = checksums_hardlink(database->mirrordir, filekey, tempfile, checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

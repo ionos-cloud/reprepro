@@ -35,6 +35,7 @@ bool checksums_matches(const struct checksums *,enum checksumtype, const char *)
 
 /* Copy file <origin> to file <destination>, calculating checksums */
 retvalue checksums_copyfile(const char *destination, const char *origin, /*@out@*/struct checksums **);
+retvalue checksums_hardlink(const char *directory, const char *filekey, const char *sourcefilename, const struct checksums *);
 
 retvalue checksums_linkorcopyfile(const char *destination, const char *origin, /*@out@*/struct checksums **);
 

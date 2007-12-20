@@ -37,6 +37,7 @@
 #include "names.h"
 #include "chunks.h"
 #include "files.h"
+#include "filelist.h"
 #include "database_p.h"
 #include "target.h"
 #include "reference.h"

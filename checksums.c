@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2007 Bernhard R. Link
+ *  Copyright (C) 2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -25,10 +25,13 @@
 #include <stdio.h>
 #include <assert.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 #include "error.h"
 #include "checksums.h"
+#include "filecntl.h"
 #include "names.h"
+#include "dirs.h"
 #include "md5sum.h"
 
 /* yet only an evil stub, putting the old md5sums in faked struct pointers
@@ -305,4 +308,127 @@ retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *c
 		return RET_OK;
 	else
 		return RET_ERROR_WRONG_MD5;
+}
+
+/* copy, only checking file size, perhaps add some paranoia checks later */
+static retvalue copy(const char *destination, const char *source, const struct checksums *checksums) {
+	off_t filesize = 0;
+	static const int bufsize = 16384;
+	char *buffer = malloc(bufsize);
+	ssize_t sizeread, towrite, written;
+	const char *start;
+	int e, i;
+	int infd, outfd;
+
+	if( buffer == NULL ) {
+		return RET_ERROR_OOM;
+	}
+
+	infd = open(source, O_RDONLY);
+	if( infd < 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d opening '%s': %s\n",
+				e, source, strerror(e));
+		free(buffer);
+		return RET_ERRNO(e);
+	}
+	outfd = open(destination, O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL, 0666);
+	if( outfd < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d creating '%s': %s\n",
+				e, destination, strerror(e));
+		close(infd);
+		free(buffer);
+		return RET_ERRNO(e);
+	}
+	filesize = 0;
+	do {
+		sizeread = read(infd, buffer, bufsize);
+		if( sizeread < 0 ) {
+			e = errno;
+			fprintf(stderr,"Error %d while reading %s: %s\n",
+					e, source, strerror(e));
+			free(buffer);
+			close(infd); close(outfd);
+			deletefile(destination);
+			return RET_ERRNO(e);;
+		}
+		filesize += sizeread;
+		towrite = sizeread;
+		start = buffer;
+		while( towrite > 0 ) {
+			written = write(outfd, start, towrite);
+			if( written < 0 ) {
+				e = errno;
+				fprintf(stderr,"Error %d while writing to %s: %s\n",
+						e, destination, strerror(e));
+				free(buffer);
+				close(infd); close(outfd);
+				deletefile(destination);
+				return RET_ERRNO(e);;
+			}
+			towrite -= written;
+			start += written;
+		}
+	} while( sizeread > 0 );
+	free(buffer);
+	i = close(infd);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d reading %s: %s\n",
+				e, source, strerror(e));
+		close(outfd);
+		deletefile(destination);
+		return RET_ERRNO(e);;
+	}
+	i = close(outfd);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d writing to %s: %s\n",
+				e, destination, strerror(e));
+		deletefile(destination);
+		return RET_ERRNO(e);;
+	}
+	// TODO: check filesize to match checksums
+	return RET_OK;
+}
+
+retvalue checksums_hardlink(const char *directory, const char *filekey, const char *sourcefilename, const struct checksums *checksums) {
+	retvalue r;
+	int i,e;
+	char *fullfilename = calc_fullfilename(directory, filekey);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+
+	i = link(sourcefilename, fullfilename);
+	e = errno;
+	if( i != 0 && e == EEXIST )  {
+		unlink(fullfilename);
+		errno = 0;
+		i = link(sourcefilename, fullfilename);
+		e = errno;
+	}
+	if( i != 0 && ( e == EACCES || e == ENOENT || e == ENOTDIR ) )  {
+		errno = 0;
+		(void)dirs_make_parent(fullfilename);
+		i = link(sourcefilename, fullfilename);
+		e = errno;
+	}
+	if( i != 0 ) {
+		if( e == EXDEV || e == EPERM || e == EMLINK ) {
+			r = copy(fullfilename, sourcefilename, checksums);
+			if( RET_WAS_ERROR(r) ) {
+				free(fullfilename);
+				return r;
+			}
+		} else {
+			fprintf(stderr,
+"Error %d creating hardlink of '%s' as '%s': %s\n",
+				e, sourcefilename, fullfilename, strerror(e));
+			free(fullfilename);
+			return RET_ERRNO(e);
+		}
+	}
+	free(fullfilename);
+	return RET_OK;
 }

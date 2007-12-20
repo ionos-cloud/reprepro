@@ -742,9 +742,8 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 	return result;
 }
 
-static retvalue changes_check_sourcefile(const char *changesfilename, struct changes *changes, struct fileentry *dsc, struct database *database, const char *basename, const char *filekey, struct checksums **checksums_p) {
+static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basename, const char *filekey, struct checksums **checksums_p) {
 	retvalue r;
-	char *sourcedir;
 
 	r = files_expect(database, filekey, *checksums_p);
 	if( RET_WAS_ERROR(r) )
@@ -755,26 +754,22 @@ static retvalue changes_check_sourcefile(const char *changesfilename, struct cha
 		return RET_OK;
 	if( !IGNORABLE(missingfile) ) {
 		fprintf(stderr,
-"Unable to find %s!\n"
+"Unable to find %s needed by %s!\n"
 "Perhaps you forgot to give dpkg-buildpackage the -sa option,\n"
-" or you cound try --ignore=missingfile, to guess possible files to use.\n", filekey);
+" or you cound try --ignore=missingfile, to guess possible files to use.\n",
+			filekey, dsc->basename);
 		return RET_ERROR_MISSING;
 	}
 	fprintf(stderr,
 "Unable to find %s!\n"
 "Perhaps you forgot to give dpkg-buildpackage the -sa option.\n"
 "Searching for it because --ignore=missingfile was given...\n", filekey);
-	r = dirs_getdirectory(changesfilename, &sourcedir);
-	if( RET_WAS_ERROR(r) )
-		return r;
 
-	r = files_checkincludefile(database, sourcedir, basename,
-			filekey, checksums_p);
-	free(sourcedir);
-	return r;
+	return files_checkincludefile(database, changes->incomingdirectory,
+			basename, filekey, checksums_p);
 }
 
-static retvalue dsc_prepare(const char *changesfilename, struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
+static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
 	retvalue r;
 	const struct overrideinfo *oinfo;
 	char *dscbasename;
@@ -864,7 +859,7 @@ static retvalue dsc_prepare(const char *changesfilename, struct changes *changes
 	assert( dsc->pkg.dsc.files.names.count == dsc->needed_filekeys.count );
 	for( i = 1 ; i < dsc->pkg.dsc.files.names.count ; i ++ ) {
 		if( !RET_WAS_ERROR(r) ) {
-			r = changes_check_sourcefile(changesfilename,
+			r = changes_check_sourcefile(
 				changes, dsc, database,
 				dsc->pkg.dsc.files.names.values[i],
 				dsc->needed_filekeys.values[i],
@@ -885,7 +880,7 @@ static retvalue dsc_prepare(const char *changesfilename, struct changes *changes
 }
 
 
-static retvalue changes_checkpkgs(struct database *database,struct distribution *distribution,struct changes *changes, const char *changesfilename) {
+static retvalue changes_checkpkgs(struct database *database, struct distribution *distribution, struct changes *changes) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -928,8 +923,7 @@ static retvalue changes_checkpkgs(struct database *database,struct distribution 
 
 				assert(changes->srccomponent!=NULL);
 				assert(changes->srcdirectory!=NULL);
-				r = dsc_prepare(changesfilename, changes,
-						e, database,
+				r = dsc_prepare(changes, e, database,
 						distribution, fullfilename);
 			} else
 				r = RET_ERROR;
@@ -1084,7 +1078,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 		r = changes_includefiles(database, changes);
 
 	if( !RET_WAS_ERROR(r) )
-		r = changes_checkpkgs(database, distribution, changes, changesfilename);
+		r = changes_checkpkgs(database, distribution, changes);
 
 	if( RET_WAS_ERROR(r) ) {
 		changes_unincludefiles(database, changes);

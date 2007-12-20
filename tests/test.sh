@@ -2678,7 +2678,7 @@ testrun - -b . include test1 test.changes 3<<EOF
 returns 249
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Unable to find pool/stupid/t/test/test_1.orig.tar.gz!
+*=Unable to find pool/stupid/t/test/test_1.orig.tar.gz needed by test_1-2.dsc!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option,
 *= or you cound try --ignore=missingfile, to guess possible files to use.
 -v0*=There have been errors!
@@ -4410,8 +4410,8 @@ testout "" -b . dumpunreferenced
 dodiff results.empty results
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Unable to find pool/all/a/ab/ab_3-1.tar.gz!
-=Perhaps you forgot to give dpkg-buildpackage the -sa option,
+*=Unable to find pool/all/a/ab/ab_3-1.tar.gz needed by ab_3-1.dsc!
+*=Perhaps you forgot to give dpkg-buildpackage the -sa option,
 = or you cound try --ignore=missingfile, to guess possible files to use.
 -v0*=There have been errors!
 stdout

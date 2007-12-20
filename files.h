@@ -8,9 +8,7 @@
 #ifndef REPREPRO_DATABASE_H
 #include "database.h"
 #endif
-#include "filelist.h"
 
-struct filesdb;
 struct checksums;
 struct checksumsarray;
 
@@ -52,25 +50,6 @@ retvalue files_printmissing(struct database *, const struct strlist *filekeys, c
 retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
 retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
 
-/* Include a given file into the pool. i.e.:
- * 1) if <md5dum> != NULL
- *    check if <filekey> with <md5sum> is already there,
- *    return RET_NOTHING if it is.
- *    return n RET_ERROR_WRONG_MD5 if wrong md5sum.
- * 2) Look if there is already a file in the pool with correct md5sum.
- * and add it to the database if yes.
- * return RET_OK, if done, (and set *calculatedmd5sum)
- * 3) copy or move file (depending on delete) file to destination,
- * making sure it has the correct <md5sum> if given,
- * or computing it, if <claculatemd5sum> is given.
- * return RET_OK, if done,
- * return RET_ERROR_MISSING, if there is no file to copy.
- * return RET_ERROR_WRONG_MD5 if wrong md5sum.
- *  (the original file is not deleted in that case, even if delete is positive)
- * 4) add it to the database
- */
-retvalue files_includefile(struct database *,const char *sourcedir,const char *basename, const char *filekey, const struct checksums *checksums);
-
 typedef retvalue per_file_action(void *data,const char *filekey,const char *md5sum);
 
 /* callback for each registered file */
@@ -89,10 +68,6 @@ retvalue files_regenerate_filelist(struct database *, bool redo);
 
 /* hardlink file with known checksums and add it to database */
 retvalue files_hardlinkandadd(struct database *, const char *tempfile, const char *filekey, const struct checksums *);
-
-/* check if file is already there (RET_NOTHING) or could be added (RET_OK)
- * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
-retvalue files_ready(struct database *,const char *filekey,const char *md5sum);
 
 /* check if file is already there (RET_NOTHING) or could be added (RET_OK)
  * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */

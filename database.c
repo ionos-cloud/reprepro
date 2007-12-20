@@ -37,6 +37,7 @@
 #include "dirs.h"
 #include "filecntl.h"
 #include "files.h"
+#include "filelist.h"
 #include "reference.h"
 #include "tracking.h"
 #include "dpkgversions.h"
