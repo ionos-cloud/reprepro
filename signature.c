@@ -423,8 +423,8 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 			written = write(fd,p,signature_len);
 			if( written < 0 ) {
 				int e = errno;
-				fprintf(stderr, "Error writing to %s: %s\n",
-						signaturename,
+				fprintf(stderr, "Error %d writing to %s: %s\n",
+						e, signaturename,
 						strerror(e));
 				free(signature_data);
 				return RET_ERRNO(e);
@@ -440,8 +440,8 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		ret = close(fd);
 		if( ret < 0 ) {
 			int e = errno;
-			fprintf(stderr, "Error writing to %s: %s\n",
-					signaturename,
+			fprintf(stderr, "Error %d writing to %s: %s\n",
+					e, signaturename,
 					strerror(e));
 			return RET_ERRNO(e);
 		}
@@ -956,8 +956,8 @@ void signedfile_write(struct signedfile *f, const void *data, size_t len) {
 			written = write(f->fd, data, len);
 			if( written < 0 ) {
 				int e = errno;
-				fprintf(stderr, "Error writing to file '%s': %s\n",
-						f->newplainfilename,
+				fprintf(stderr, "Error %d writing to file '%s': %s\n",
+						e, f->newplainfilename,
 						strerror(e));
 				(void)close(f->fd);
 				(void)unlink(f->newplainfilename);
@@ -980,8 +980,8 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options) {
 		f->fd = -1;
 		if( ret < 0 ) {
 			int e = errno;
-			fprintf(stderr, "Error writing to file '%s': %s\n",
-					f->newplainfilename,
+			fprintf(stderr, "Error %d writing to file '%s': %s\n",
+					e, f->newplainfilename,
 					strerror(e));
 			(void)unlink(f->newplainfilename);
 			free(f->newplainfilename);
