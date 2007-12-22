@@ -22,13 +22,19 @@ struct checksums *checksums_dup(const struct checksums *);
 retvalue checksums_set(/*@out@*/struct checksums **, /*@only@*/char *);
 
 retvalue checksums_init(/*@out@*/struct checksums **, /*@only@*/char *size, /*@only@*/char *md5);
+retvalue checksums_parse(/*@out@*/struct checksums **, const char *);
 
-/* extract a single checksum from the combined data: */
 retvalue checksums_get(const struct checksums *, enum checksumtype, /*@out@*/char **);
-retvalue checksums_getfilesize(const struct checksums *, off_t *);
+retvalue checksums_getfilesize(const struct checksums *, /*@out@*/off_t *);
+
+/* get 0-terminated combined textual representation of the checksums,
+ * including the size (including the trailing '\0'): */
+retvalue checksums_getcombined(const struct checksums *, /*@out@*/const char **, /*@out@*/size_t *size_p);
 
 /* get a static pointer to a specific part of a checksum (wihtout size) */
-retvalue checksums_getpart(const struct checksums *, enum checksumtype, /*@out@*/const char **, /*@out@*/size_t *);
+bool checksums_getpart(const struct checksums *, enum checksumtype, /*@out@*/const char **, /*@out@*/size_t *);
+/* extract a single checksum from the combined data: */
+bool checksums_gethashpart(const struct checksums *, enum checksumtype, /*@out@*/const char **hash_p, /*@out@*/size_t *hashlen_p, /*@out@*/const char **size_p, /*@out@*/size_t *sizelen_p);
 
 /* check if a single checksum fits */
 bool checksums_matches(const struct checksums *,enum checksumtype, const char *);
@@ -49,6 +55,11 @@ retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *)
 /* check if checksum of filekey in database and checksum of actual file, set improve if some new has is in the last */
 bool checksums_check(const struct checksums *, const struct checksums *, /*@out@*/bool *improves);
 
+/* Collect missing checksums (if all are there always RET_OK without checking).
+ * if the file is not there, return RET_NOTHING,
+ * if it is but not matches, return RET_ERROR_WRONG_MD5 */
+retvalue checksums_complete(struct checksums **, const char *directory, const char *filename);
+
 void checksums_printdifferences(FILE *,const struct checksums *expected, const struct checksums *got);
 
 retvalue checksums_combine(struct checksums **checksums, const struct checksums *by);
@@ -62,10 +73,23 @@ void checksumsarray_done(struct checksumsarray *);
 retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist *, const char *filenametoshow);
 retvalue checksumsarray_include(struct checksumsarray *, /*@only@*/char *, const struct checksums *);
 
-/* stuff still in md5sums.c: */
-retvalue checksum_read(const char *filename, /*@out@*/char **md5sum, /*@out@*/char **sha1sum);
-retvalue checksum_complete(const char *directory, const char *filename, char *hashes[cs_count]);
-retvalue checksum_combine(char **, const char *[cs_count]);
-retvalue checksum_dismantle(const char *, char *[cs_count]);
+
+#ifdef CHECKSUMS_CONTEXT
+#ifndef MD5_H
+#include "md5.h"
+#endif
+#ifndef REPREPRO_SHA1_H
+#include "sha1.h"
+#endif
+
+struct checksumscontext {
+	struct MD5Context md5;
+	struct SHA1_Context sha1;
+};
+
+void checksumscontext_init(/*@out@*/struct checksumscontext *);
+void checksumscontext_update(struct checksumscontext *, const unsigned char *, size_t);
+retvalue checksums_from_context(/*@out@*/struct checksums **, struct checksumscontext *);
+#endif
 
 #endif

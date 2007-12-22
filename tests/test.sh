@@ -154,6 +154,13 @@ cat <<EOF
 $(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
+EMPTYMD5ONLY="d41d8cd98f00b204e9800998ecf8427e"
+EMPTYMD5="d41d8cd98f00b204e9800998ecf8427e 0"
+EMPTYGZMD5="7029066c27ac6f5ef18d660d5741979a 20"
+EMPTYBZ2MD5="4059d198768f9f8dc9372dc1c54bc3c3 14"
+EMPTYSHA1="da39a3ee5e6b4b0d3255bfef95601890afd80709 0"
+EMPTYGZSHA1="46c6643f07aa7f6bfe7118de926b86defc5087c4 20"
+EMPTYBZ2SHA1="64a543afbb5f4bf728636bdcbbe7a2ed0804adc2 14"
 
 dodo test ! -d db
 testrun - -b . _versioncompare 0 1 3<<EOF
@@ -716,7 +723,9 @@ Version: 1:versionindeb~1
 Source: sourceindeb (sourceversionindeb)
 EOF
 dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
-DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+DEBMD5="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1)"
+DEBSIZE="$(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+DEBMD5S="$DEBMD5 $DEBSIZE"
 cat > i/test.changes <<EOF
 EOF
 testrun - -b . processincoming default 3<<EOF
@@ -870,7 +879,7 @@ EOF
 # as it does not look for the file, but scanned the directory
 # and looked for it, there is no problem here, though it might
 # look like one
-echo " md5sum size - - ../ööü_v_all.deb" >> i/test.changes
+echo " ffff 666 - - ../ööü_v_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
@@ -879,7 +888,7 @@ stderr
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " md5sum size - - \300\257.\300\257_v_funny.deb" >> i/test.changes
+echo -e " ffff 666 - - \300\257.\300\257_v_funny.deb" >> i/test.changes
 touch "$(echo -e 'i/\300\257.\300\257_v_funny.deb')"
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -889,7 +898,7 @@ stderr
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " md5sum size - - \300\257.\300\257_v_all.deb" >> i/test.changes
+echo -e " ffff 666 - - \300\257.\300\257_v_all.deb" >> i/test.changes
 mv "$(echo -e 'i/\300\257.\300\257_v_funny.deb')" "$(echo -e 'i/\300\257.\300\257_v_all.deb')"
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -907,7 +916,7 @@ stderr
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo -e " md5sum size - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+echo -e " ffff 1 - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -915,15 +924,26 @@ stderr
 *='coal' is not listed in the Architecture header of 'test.changes' but file 'debfilename_debfileversion~2_coal.deb' looks like it!
 -v0*=There have been errors!
 EOF
+mv i/debfilename_debfileversion~2_coal.deb i/debfilename_debfileversion~2_all.deb
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo -e " md5sum size - - debfilename_debfileversion~2_all.deb" >> i/test.changes
-mv i/debfilename_debfileversion~2_coal.deb i/debfilename_debfileversion~2_all.deb
+# TODO: this error message has to be improved:
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0=Data seems not to be signed trying to use directly...
+*=Malformed checksums representation (invalid md5sum): 'md5sum size'!
+-v0*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " ffff 666 - - debfilename_debfileversion~2_all.deb" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
 -v0=Data seems not to be signed trying to use directly...
 *=ERROR: File 'debfilename_debfileversion~2_all.deb' does not match expectations:
-*=expected: md5sum size, got: $DEBMD5S
+*=md5 expected: ffff, got: $DEBMD5
+*=size expected: 666, got: $DEBSIZE
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
@@ -1099,7 +1119,7 @@ Architecture: all
 Version: 1:versioninchanges
 Distribution: A
 Files: 
- md5sum size - - dscfilename_fileversion~.dsc
+ ffff 666 - - dscfilename_fileversion~.dsc
 EOF
 testrun - -b . processincoming default 3<<EOF
 returns 255
@@ -1122,7 +1142,8 @@ returns 254
 stderr
 -v0=Data seems not to be signed trying to use directly...
 *=ERROR: File 'dscfilename_fileversion~.dsc' does not match expectations:
-*=expected: md5sum size, got: d41d8cd98f00b204e9800998ecf8427e 0
+*=md5 expected: ffff, got: $EMPTYMD5ONLY
+*=size expected: 666, got: 0
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
@@ -1320,6 +1341,19 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
+*=Error in parsing md5hash or missing space afterwards!
+*=Error was parsing dscfilename_fileversion~.dsc
+-v0*=There have been errors!
+EOF
+sed -i "s/ md5sumindsc / dddddddddddddddddddddddddddddddd /" i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
+# this is a stupid error message, needs to get some context
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+-v0=Data seems not to be signed trying to use directly...
 *=Error in parsing size or missing space afterwards!
 *=Error was parsing dscfilename_fileversion~.dsc
 -v0*=There have been errors!
@@ -1336,21 +1370,21 @@ stderr
 *=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
 -v0*=There have been errors!
 EOF
-echo " md5suminchanges 666 - - strangefile" >> i/test.changes
+echo " 11111111111111111111111111111111 666 - - strangefile" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=No underscore in filename in 'md5suminchanges 666 - - strangefile'!
+*=No underscore in filename in '11111111111111111111111111111111 666 - - strangefile'!
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo " md5suminchanges 666 - - strangefile_xyz" >> i/test.changes
+echo " 11111111111111111111111111111111 666 - - strangefile_xyz" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: 'md5suminchanges 666 - - strangefile_xyz', assuming to be source format...
+=Unknown filetype: '11111111111111111111111111111111 666 - - strangefile_xyz', assuming to be source format...
 *=In 'test.changes': file 'strangefile_xyz' not found in the incoming dir!
 -v0*=There have been errors!
 EOF
@@ -1359,19 +1393,20 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: 'md5suminchanges 666 - - strangefile_xyz', assuming to be source format...
+=Unknown filetype: '11111111111111111111111111111111 666 - - strangefile_xyz', assuming to be source format...
 *=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
-echo " md5sumindsc 666 - - strangefile_xyz" >> i/test.changes
+echo " dddddddddddddddddddddddddddddddd 666 - - strangefile_xyz" >> i/test.changes
 testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: 'md5sumindsc 666 - - strangefile_xyz', assuming to be source format...
+=Unknown filetype: 'dddddddddddddddddddddddddddddddd 666 - - strangefile_xyz', assuming to be source format...
 *=ERROR: File 'strangefile_xyz' does not match expectations:
-*=expected: md5sumindsc 666, got: 31a1096ff883d52f0c1f39e652d6336f 33
+*=md5 expected: dddddddddddddddddddddddddddddddd, got: 31a1096ff883d52f0c1f39e652d6336f
+*=size expected: 666, got: 33
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
@@ -1725,12 +1760,6 @@ EOF
 test -f dists/test1/Release
 test -f dists/test2/Release
 
-EMPTYMD5="d41d8cd98f00b204e9800998ecf8427e 0"
-EMPTYGZMD5="7029066c27ac6f5ef18d660d5741979a 20"
-EMPTYBZ2MD5="4059d198768f9f8dc9372dc1c54bc3c3 14"
-EMPTYSHA1="da39a3ee5e6b4b0d3255bfef95601890afd80709 0"
-EMPTYGZSHA1="46c6643f07aa7f6bfe7118de926b86defc5087c4 20"
-EMPTYBZ2SHA1="64a543afbb5f4bf728636bdcbbe7a2ed0804adc2 14"
 cat > dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release.expected <<END
 Component: stupid
 Architecture: ${FAKEARCHITECTURE}

@@ -232,7 +232,7 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 	if( RET_WAS_ERROR(r) ) {
 		free(a.checksums);
 		strlist_done(&a.names);
-		return RET_ERROR_OOM;
+		return r;
 	}
 	checksumsarray_move(filekeys, &a);
 	return RET_OK;
@@ -510,7 +510,6 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
 	struct fieldtoadd *replace;
 	char *newchunk;
-	retvalue r;
 	static const char *deb_checksum_headers[cs_count+1] = {"MD5sum", "SHA1", "Size"};
 	enum checksumtype type;
 
@@ -521,16 +520,11 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	for( type = 0 ; type <= cs_count ; type++ ) {
 		const char *start;
 		size_t len;
-		r = checksums_getpart(checksums, type, &start, &len);
-		if( RET_IS_OK(r) ) {
+		if( checksums_getpart(checksums, type, &start, &len) ) {
 			replace = addfield_newn(deb_checksum_headers[type],
 					start, len, replace);
 			if( replace == NULL )
 				return RET_ERROR_OOM;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			addfield_free(replace);
-			return r;
 		}
 	}
 	replace = addfield_new("Filename", filekey, replace);

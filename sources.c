@@ -73,18 +73,18 @@ retvalue sources_calcfilelines(const struct checksumsarray *files, char **item) 
 	size_t len;
 	int i;
 	char *result;
-	retvalue r;
 
 	assert( files != NULL );
 
 	len = 1;
 	for( i=0 ; i < files->names.count ; i++ ) {
-		const char *p; size_t md5len = 0; size_t sizelen = 0;
+		const char *md5, *size;
+		size_t md5len = 0, sizelen = 0;
+		bool found;
 
-		r = checksums_getpart(files->checksums[i], cs_md5sum, &p, &md5len);
-		assert( RET_IS_OK(r) );
-		r = checksums_getpart(files->checksums[i], cs_count, &p, &sizelen);
-		assert( RET_IS_OK(r) );
+		found = checksums_gethashpart(files->checksums[i], cs_md5sum,
+				&md5, &md5len, &size, &sizelen);
+		assert( found );
 
 		len += 4+strlen(files->names.values[i])+md5len+sizelen;
 	}
@@ -94,15 +94,17 @@ retvalue sources_calcfilelines(const struct checksumsarray *files, char **item) 
 	*item = result;
 	*(result++) = '\n';
 	for( i=0 ; i < files->names.count ; i++ ) {
-		const char *p; size_t len;
+		const char *md5, *size;
+		size_t md5len, sizelen;
+		bool found;
+
 		*(result++) = ' ';
-		r = checksums_getpart(files->checksums[i], cs_md5sum, &p, &len);
-		assert( RET_IS_OK(r) );
-		memcpy(result, p, len); result += len;
+		found = checksums_gethashpart(files->checksums[i], cs_md5sum,
+				&md5, &md5len, &size, &sizelen);
+		assert( found );
+		memcpy(result, md5, md5len); result += md5len;
 		*(result++) = ' ';
-		r = checksums_getpart(files->checksums[i], cs_count, &p, &len);
-		assert( RET_IS_OK(r) );
-		memcpy(result, p, len); result += len;
+		memcpy(result, size, sizelen); result += sizelen;
 		*(result++) = ' ';
 		strcpy(result, files->names.values[i]);
 		result += strlen(files->names.values[i]);

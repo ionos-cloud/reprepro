@@ -312,10 +312,16 @@ retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) 
 
 	/* ... and ends with the following spaces. */
 	md5end = md5;
-	while( *md5end != '\0' && !xisspace(*md5end) )
+	while( (*md5end >= '0' && *md5end <= '9') ||
+			(*md5end >= 'a' && *md5end <= 'f' ) ||
+			(*md5end >= 'A' && *md5end <= 'F' ) )
 		md5end++;
+	if( *md5end == '\0' ) {
+		fprintf(stderr, "Expecting more data after md5sum!\n");
+		return RET_ERROR;
+	}
 	if( !xisspace(*md5end) ) {
-		fprintf(stderr,"Expecting more data after md5sum!\n");
+		fprintf(stderr, "Error in parsing md5hash or missing space afterwards!\n");
 		return RET_ERROR;
 	}
 	/* Then the size of the file is expected: */

@@ -33,6 +33,7 @@
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
+#define CHECKSUMS_CONTEXT visible
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -65,7 +66,7 @@ struct release {
 	struct release_entry {
 		struct release_entry *next;
 		char *relativefilename;
-		char *checksums[cs_count];
+		struct checksums *checksums;
 		/* both == NULL if not new, only final==NULL means delete */
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
@@ -78,15 +79,12 @@ struct release {
 
 void release_free(struct release *release) {
 	struct release_entry *e;
-	enum checksumtype cs;
 
 	free(release->dirofdist);
 	while( (e = release->files) != NULL ) {
 		release->files = e->next;
 		free(e->relativefilename);
-		for( cs = cs_md5sum ; cs < cs_count ; cs ++ ) {
-			free(e->checksums[cs]);
-		}
+		checksums_free(e->checksums);
 		free(e->fullfinalfilename);
 		free(e->fulltemporaryfilename);
 		free(e);
@@ -104,8 +102,7 @@ const char *release_dirofdist(struct release *release) {
 }
 
 static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relativefilename,
-		/*@only@*/ char *md5sum,
-		/*@only@*/ char *sha1sum,
+		/*@only@*/ struct checksums *checksums,
 		/*@only@*/ /*@null@*/ char *fullfinalfilename,
 		/*@only@*/ /*@null@*/ char *fulltemporaryfilename ) {
 	struct release_entry *n,*p;
@@ -114,8 +111,7 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 		return RET_ERROR_OOM;
 	n->next = NULL;
 	n->relativefilename = relativefilename;
-	n->checksums[cs_md5sum] = md5sum;
-	n->checksums[cs_sha1sum] = sha1sum;
+	n->checksums = checksums;
 	n->fullfinalfilename = fullfinalfilename;
 	n->fulltemporaryfilename = fulltemporaryfilename;
 	if( release->files == NULL )
@@ -175,12 +171,13 @@ retvalue release_adddel(struct release *release,/*@only@*/char *reltmpfile) {
 		return RET_ERROR_OOM;
 	}
 	free(reltmpfile);
-	return newreleaseentry(release,NULL,NULL,NULL,NULL,filename);
+	return newreleaseentry(release,NULL,NULL,NULL,filename);
 }
 
 retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename) {
 	retvalue r;
-	char *filename, *finalfilename, *md5sum, *sha1sum;
+	char *filename, *finalfilename;
+	struct checksums *checksums;
 
 	filename = calc_dirconcat(release->dirofdist,reltmpfile);
 	if( filename == NULL ) {
@@ -189,7 +186,7 @@ retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@on
 		return RET_ERROR_OOM;
 	}
 	free(reltmpfile);
-	r = checksum_read(filename, &md5sum, &sha1sum);
+	r = checksums_read(filename, &checksums);
 	if( !RET_IS_OK(r) ) {
 		free(relfilename);
 		free(filename);
@@ -199,31 +196,31 @@ retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@on
 	if( finalfilename == NULL ) {
 		free(relfilename);
 		free(filename);
-		free(md5sum);
+		checksums_free(checksums);
 		return RET_ERROR_OOM;
 	}
 	release->new = true;
 	return newreleaseentry(release, relfilename,
-			md5sum, sha1sum, finalfilename, filename);
+			checksums, finalfilename, filename);
 }
 
 retvalue release_addold(struct release *release,/*@only@*/char *relfilename) {
 	retvalue r;
-	char *filename, *md5sum, *sha1sum;
+	char *filename;
+	struct checksums *checksums;
 
 	filename = calc_dirconcat(release->dirofdist,relfilename);
 	if( filename == NULL ) {
 		free(filename);
 		return RET_ERROR_OOM;
 	}
-	r = checksum_read(filename, &md5sum, &sha1sum);
+	r = checksums_read(filename, &checksums);
 	free(filename);
 	if( !RET_IS_OK(r) ) {
 		free(relfilename);
 		return r;
 	}
-	return newreleaseentry(release, relfilename,
-			md5sum, sha1sum, NULL, NULL);
+	return newreleaseentry(release, relfilename, checksums, NULL, NULL);
 }
 
 static char *calc_compressedname(const char *name, enum indexcompression ic) {
@@ -247,9 +244,8 @@ static retvalue release_usecached(struct release *release,
 				compressionset compressions) {
 	retvalue result,r;
 	enum indexcompression ic;
-	enum checksumtype cs;
 	char *filename[ic_count];
-	char *checksums[ic_count][cs_count];
+	struct checksums *checksums[ic_count];
 
 	memset(filename, 0, sizeof(filename));
 	memset(checksums, 0, sizeof(checksums));
@@ -311,7 +307,8 @@ static retvalue release_usecached(struct release *release,
 			result = r;
 			break;
 		}
-		r = checksum_dismantle(combinedchecksum, checksums[ic]);
+		r = checksums_parse(&checksums[ic], combinedchecksum);
+		// TODO: handle malformed checksums better?
 		free(combinedchecksum);
 		if( !RET_IS_OK(r) ) {
 			result = r;
@@ -324,8 +321,15 @@ static retvalue release_usecached(struct release *release,
 		for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
 			if( filename[ic] == NULL )
 				continue;
-			r = checksum_complete(release->dirofdist,
-					filename[ic], checksums[ic]);
+			r = checksums_complete(&checksums[ic],
+					release->dirofdist, filename[ic]);
+			if( r == RET_ERROR_WRONG_MD5 ) {
+				fprintf(stderr,
+"WARNING: '%s/%s' is different from recorded checksums.\n"
+"(This was only catched because some new checksum type was not yet available.)\n"
+"Triggering recreation of that file.\n", release->dirofdist, filename[ic]);
+				r = RET_NOTHING;
+			}
 			if( !RET_IS_OK(r) ) {
 				result = r;
 				break;
@@ -337,9 +341,7 @@ static retvalue release_usecached(struct release *release,
 			if( filename[ic] == NULL )
 				continue;
 			free(filename[ic]);
-			for( cs = cs_md5sum ; cs < cs_count ; cs ++ ) {
-				free(checksums[ic][cs]);
-			}
+			checksums_free(checksums[ic]);
 		}
 		return result;
 	}
@@ -349,21 +351,19 @@ static retvalue release_usecached(struct release *release,
 		if( filename[ic] == NULL )
 			continue;
 		r = newreleaseentry(release, filename[ic],
-				checksums[ic][cs_md5sum],
-				checksums[ic][cs_sha1sum],
+				checksums[ic],
 				NULL, NULL);
 		RET_UPDATE(result, r);
 	}
 	return result;
 }
 
+
 struct filetorelease {
 	retvalue state;
 	struct openfile {
 		int fd;
-		struct MD5Context context;
-		struct SHA1_Context sha1_context;
-		off_t filesize;
+		struct checksumscontext context;
 		char *relativefilename;
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
@@ -441,9 +441,7 @@ static retvalue openfile(const char *dirofdist, struct openfile *f) {
 
 static retvalue writetofile(struct openfile *file, const unsigned char *data, size_t len) {
 
-	file->filesize += len;
-	MD5Update(&file->context, data, len);
-	SHA1Update(&file->sha1_context, data, len);
+	checksumscontext_update(&file->context, data, len);
 
 	if( file->fd < 0 )
 		return RET_NOTHING;
@@ -599,8 +597,7 @@ static retvalue startfile(struct release *release,
 			release_abortfile(n);
 			return r;
 		}
-		MD5Init(&n->f[ic_gzip].context);
-		SHA1Init(&n->f[ic_gzip].sha1_context);
+		checksumscontext_init(&n->f[ic_gzip].context);
 		r = initgzcompression(n);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(n);
@@ -620,8 +617,7 @@ static retvalue startfile(struct release *release,
 			release_abortfile(n);
 			return r;
 		}
-		MD5Init(&n->f[ic_bzip2].context);
-		SHA1Init(&n->f[ic_bzip2].sha1_context);
+		checksumscontext_init(&n->f[ic_bzip2].context);
 		r = initbzcompression(n);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(n);
@@ -629,8 +625,7 @@ static retvalue startfile(struct release *release,
 		}
 	}
 #endif
-	MD5Init(&n->f[ic_uncompressed].context);
-	SHA1Init(&n->f[ic_uncompressed].sha1_context);
+	checksumscontext_init(&n->f[ic_uncompressed].context);
 	*file = n;
 	return RET_OK;
 }
@@ -659,7 +654,7 @@ retvalue release_startfile(struct release *release,
 }
 
 static retvalue releasefile(struct release *release, struct openfile *f) {
-	char *md5sum, *sha1sum;
+	struct checksums *checksums;
 	retvalue r;
 
 	if( f->relativefilename == NULL ) {
@@ -672,23 +667,16 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 	  	|| (f->fullfinalfilename != NULL
 		  && f->fulltemporaryfilename != NULL));
 
-	r = md5sum_genstring(&md5sum,&f->context,f->filesize);
-	assert( r != RET_NOTHING );
+	r = checksums_from_context(&checksums, &f->context);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = sha1_genstring(&sha1sum, &f->sha1_context);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) ) {
-		free(md5sum);
-		return r;
-	}
-	r = newreleaseentry(release,f->relativefilename, md5sum, sha1sum,
+	r = newreleaseentry(release, f->relativefilename, checksums,
 			f->fullfinalfilename,
 			f->fulltemporaryfilename);
 	f->relativefilename = NULL;
 	f->fullfinalfilename = NULL;
 	f->fulltemporaryfilename = NULL;
-	return RET_OK;
+	return r;
 }
 
 static retvalue writegz(struct filetorelease *f) {
@@ -1068,7 +1056,9 @@ retvalue release_directorydescription(struct release *release, const struct dist
 static retvalue storechecksums(struct release *release) {
 	struct release_entry *file;
 	retvalue result, r;
-	char *combinedchecksum;
+	const char *combinedchecksum;
+	/* size including trailing '\0' character: */
+	size_t size;
 
 	result = RET_OK;
 
@@ -1082,15 +1072,15 @@ static retvalue storechecksums(struct release *release) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 
-		r = checksum_combine(&combinedchecksum, (const char**)file->checksums);
+		r = checksums_getcombined(file->checksums, &combinedchecksum, &size);
 		RET_UPDATE(result, r);
 		if( !RET_IS_OK(r) )
 			continue;
 
-		r = table_adduniqrecord(release->cachedb,
-				file->relativefilename, combinedchecksum);
+		r = table_adduniqsizedrecord(release->cachedb,
+				file->relativefilename, combinedchecksum, size,
+				false, false);
 		RET_UPDATE(result, r);
-		free(combinedchecksum);
 	}
 	return result;
 }
@@ -1103,6 +1093,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	time_t t;
 	struct tm *gmt;
 	struct release_entry *file;
+	enum checksumtype cs;
 	int i;
 
 	// TODO: check for existance of Release file here first?
@@ -1178,24 +1169,26 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		writestring("\nNotAutomatic: ");
 		writestring(distribution->notautomatic);
 	}
+	writechar('\n');
 
-	writestring("\nMD5Sum:\n");
-	for( file = release->files ; file != NULL ; file = file->next ) {
-		if( file->checksums[cs_md5sum] != NULL
-		    && file->relativefilename != NULL ) {
+	static const char * const release_checksum_headers[cs_count] =
+		{ "MD5Sum:\n", "SHA1:\n" };
+
+	for( cs = cs_md5sum ; cs < cs_count ; cs++ ) {
+		assert( release_checksum_headers[cs] != NULL );
+		writestring(release_checksum_headers[cs]);
+		for( file = release->files ; file != NULL ; file = file->next ) {
+			const char *hash, *size;
+			size_t hashlen, sizelen;
+			if( file->relativefilename == NULL )
+				continue;
+			if( !checksums_gethashpart(file->checksums, cs,
+					&hash, &hashlen, &size, &sizelen) )
+				continue;
 			writechar(' ');
-			writestring(file->checksums[cs_md5sum]);
+			signedfile_write(release->signedfile, hash, hashlen);
 			writechar(' ');
-			writestring(file->relativefilename);
-			writechar('\n');
-		}
-	}
-	writestring("SHA1:\n");
-	for( file = release->files ; file != NULL ; file = file->next ) {
-		if( file->checksums[cs_sha1sum] != NULL
-		    && file->relativefilename != NULL ) {
-			writechar(' ');
-			writestring(file->checksums[cs_sha1sum]);
+			signedfile_write(release->signedfile, size, sizelen);
 			writechar(' ');
 			writestring(file->relativefilename);
 			writechar('\n');
