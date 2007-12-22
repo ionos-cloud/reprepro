@@ -80,11 +80,11 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, /*@only@*/char 
 	const char *p;
 	struct checksums *n;
 
-	while( *size == '0' )
+	while( *size == '0' && size[1] >= '0' && size[1] <= '9' )
 		size++;
 
 	md5len = strlen(md5);
-	sizelen = strlen(md5);
+	sizelen = strlen(size);
 
 	p = md5;
 	while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')

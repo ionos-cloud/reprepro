@@ -1138,8 +1138,10 @@ static inline retvalue queueindex(struct update_index *index) {
 			bool improves;
 
 			if( checksums_check(checksums, oldchecksums, &improves) ) {
-				if( improves )
+				if( improves ) {
 					r = checksums_combine(&origin->indexchecksums.checksums[i], oldchecksums);
+					checksums = origin->indexchecksums.checksums[i];
+				}
 				checksums_free(oldchecksums);
 			} else {
 				// TODO: once supporting .diff file,
