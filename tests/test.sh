@@ -133,6 +133,7 @@ H
 'd i
 Filename: $FILENAME
 Size: $(stat -c "%s" "$FILENAME")
+SHA1: $(sha1sum "$FILENAME" | cut -d' ' -f1)
 MD5sum: $(md5sum "$FILENAME" | cut -d' ' -f1)
 .
 $ a

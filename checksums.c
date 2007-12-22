@@ -34,7 +34,6 @@
 #include "filecntl.h"
 #include "names.h"
 #include "dirs.h"
-#include "md5sum.h"
 
 /* The internal representation of a checksum, as written to the databases,
  * is \(:[1-9a-z]:[^ ]\+ \)*[0-9a-fA-F]\+ [0-9]\+
@@ -329,26 +328,6 @@ bool checksums_matches(const struct checksums *checksums,enum checksumtype type,
 		   checksums->parts[cs_count].len + 1) != 0 )
 		return false;
 	return true;
-}
-
-retvalue checksums_copyfile(const char *dest, const char *orig, struct checksums **checksum_p) {
-	char *md5sum;
-	retvalue r;
-
-	r = md5sum_copy(orig, dest, &md5sum);
-	if( RET_IS_OK(r) )
-		r = checksums_set(checksum_p, md5sum);
-	return r;
-}
-
-retvalue checksums_linkorcopyfile(const char *dest, const char *orig, struct checksums **checksum_p) {
-	char *md5sum;
-	retvalue r;
-
-	r = md5sum_place(orig, dest, &md5sum);
-	if( RET_IS_OK(r) )
-		r = checksums_set(checksum_p, md5sum);
-	return r;
 }
 
 static inline bool differ(const struct checksums *a, const struct checksums *b, enum checksumtype type) {
@@ -874,3 +853,102 @@ retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **ch
 	}
 	return checksums_from_context(checksums_p, &context);
 }
+
+retvalue checksums_copyfile(const char *destination, const char *source, struct checksums **checksums_p) {
+	struct checksumscontext context;
+	static const int bufsize = 16384;
+	unsigned char *buffer = malloc(bufsize);
+	ssize_t sizeread, towrite, written;
+	const unsigned char *start;
+	int e, i;
+	int infd, outfd;
+
+	if( buffer == NULL ) {
+		return RET_ERROR_OOM;
+	}
+
+	infd = open(source, O_RDONLY);
+	if( infd < 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d opening '%s': %s\n",
+				e, source, strerror(e));
+		free(buffer);
+		return RET_ERRNO(e);
+	}
+	outfd = open(destination, O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL, 0666);
+	if( outfd < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d creating '%s': %s\n",
+				e, destination, strerror(e));
+		close(infd);
+		free(buffer);
+		return RET_ERRNO(e);
+	}
+	checksumscontext_init(&context);
+	do {
+		sizeread = read(infd, buffer, bufsize);
+		if( sizeread < 0 ) {
+			e = errno;
+			fprintf(stderr,"Error %d while reading %s: %s\n",
+					e, source, strerror(e));
+			free(buffer);
+			close(infd); close(outfd);
+			deletefile(destination);
+			return RET_ERRNO(e);;
+		}
+		checksumscontext_update(&context, buffer, sizeread);
+		towrite = sizeread;
+		start = buffer;
+		while( towrite > 0 ) {
+			written = write(outfd, start, towrite);
+			if( written < 0 ) {
+				e = errno;
+				fprintf(stderr,"Error %d while writing to %s: %s\n",
+						e, destination, strerror(e));
+				free(buffer);
+				close(infd); close(outfd);
+				deletefile(destination);
+				return RET_ERRNO(e);;
+			}
+			towrite -= written;
+			start += written;
+		}
+	} while( sizeread > 0 );
+	free(buffer);
+	i = close(infd);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d reading %s: %s\n",
+				e, source, strerror(e));
+		close(outfd);
+		deletefile(destination);
+		return RET_ERRNO(e);;
+	}
+	i = close(outfd);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d writing to %s: %s\n",
+				e, destination, strerror(e));
+		deletefile(destination);
+		return RET_ERRNO(e);;
+	}
+	return checksums_from_context(checksums_p, &context);
+}
+
+retvalue checksums_linkorcopyfile(const char *destination, const char *source, struct checksums **checksums_p) {
+	int i;
+	retvalue r;
+
+	// TODO: is this needed? perhaps move this duty to the caller...
+	r = dirs_make_parent(destination);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	unlink(destination);
+	i = link(source, destination);
+	if( i == 0 )
+		return checksums_read(destination, checksums_p);
+	else
+		return checksums_copyfile(destination, source, checksums_p);
+}
+

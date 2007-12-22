@@ -29,7 +29,6 @@
 #include "strlist.h"
 #include "filecntl.h"
 #include "names.h"
-#include "md5sum.h"
 #include "checksums.h"
 #include "dirs.h"
 #include "names.h"
@@ -361,30 +360,65 @@ retvalue files_foreach(struct database *database,per_file_action action,void *pr
 	return result;
 }
 
-static retvalue getfilesize(/*@out@*/off_t *s,const char *md5sum) {
-	const char *p;
+static retvalue checkpoolfilefast(const char *fullfilename, const struct checksums *expected) {
+	retvalue r;
+	struct stat s;
+	int i, e;
+	off_t expectedsize;
 
-	p = md5sum;
-	while( *p != '\0' && !xisspace(*p) ) {
-		p++;
+	r = checksums_getfilesize(expected, &expectedsize);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	i = stat(fullfilename, &s);
+	if( i < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d checking status of '%s': %s\n",
+				e, fullfilename, strerror(e));
+		return RET_ERROR_MISSING;
+	} else if( !S_ISREG(s.st_mode)) {
+		fprintf(stderr, "Not a regular file: '%s'\n", fullfilename);
+		return RET_ERROR;
+	} else if( s.st_size != expectedsize ) {
+		fprintf(stderr,
+				"WRONG SIZE of '%s': expected %lld found %lld\n",
+				fullfilename,
+				(long long)expectedsize,
+				(long long)s.st_size);
+		return RET_ERROR;
+	} else
+		return RET_OK;
+}
+
+static retvalue checkpoolfile(const char *fullfilename, const struct checksums *expected, bool *improveable) {
+	struct checksums *actual;
+	retvalue r;
+	bool improves;
+
+	r = checksums_read(fullfilename, &actual);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Missing file '%s'!\n", fullfilename);
+		r = RET_ERROR_MISSING;
+	} else if( RET_IS_OK(r) ) {
+		if( !checksums_check(expected, actual, &improves) ) {
+			fprintf(stderr, "WRONG CHECKSUMS of '%s':\n",
+					fullfilename);
+			checksums_printdifferences(stderr, expected, actual);
+			r = RET_ERROR_WRONG_MD5;
+		} else if( improves )
+			*improveable = true;
+		checksums_free(actual);
 	}
-	if( *p != '\0' ) {
-		while( *p != '\0' && xisspace(*p) )
-			p++;
-		if( *p != '\0' ) {
-			*s = (off_t)atoll(p);
-			return RET_OK;
-		}
-	}
-	fprintf(stderr,"Strange md5sum as missing space: '%s'\n",md5sum);
-	return RET_ERROR;
+	return r;
 }
 
 retvalue files_checkpool(struct database *database, bool fast) {
 	retvalue result, r;
 	struct cursor *cursor;
 	const char *filekey, *md5sumexpected;
+	struct checksums *expected;
 	char *fullfilename;
+	bool improveable = false;
 
 	r = table_newglobalcursor(database->files, &cursor);
 	if( !RET_IS_OK(r) )
@@ -392,64 +426,23 @@ retvalue files_checkpool(struct database *database, bool fast) {
 	result = RET_NOTHING;
 	while( cursor_nexttemp(database->files, cursor,
 				&filekey, &md5sumexpected) ) {
+		r = checksums_parse(&expected,  md5sumexpected);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result,r);
+			continue;
+		}
 		fullfilename = files_calcfullfilename(database, filekey);
 		if( fullfilename == NULL ) {
 			result = RET_ERROR_OOM;
+			checksums_free(expected);
 			break;
 		}
-		if( fast ) {
-			struct stat s;
-			int i;
-			off_t expectedsize;
-
-			r = getfilesize(&expectedsize, md5sumexpected);
-			assert( r != RET_NOTHING );
-			if( RET_WAS_ERROR(r) ) {
-				free(fullfilename);
-				RET_UPDATE(result, r);
-				continue;
-			}
-			i = stat(fullfilename,&s);
-			if( i < 0 ) {
-				fprintf(stderr,
-"Error checking status of '%s': %m\n", fullfilename);
-				r = RET_ERROR_MISSING;
-			} else {
-				if( !S_ISREG(s.st_mode)) {
-					fprintf(stderr,
-"Not a regular file: '%s'\n",fullfilename);
-					r = RET_ERROR;
-				} else if( s.st_size != expectedsize ) {
-					fprintf(stderr,
-"WRONG SIZE of '%s': expected %lld(from '%s') found %lld\n",
-						fullfilename,
-						(long long)expectedsize,
-						md5sumexpected,
-						(long long)s.st_size);
-					r = RET_ERROR;
-				} else
-					r = RET_OK;
-			}
-		} else {
-			char *realmd5sum;
-
-			r = md5sum_read(fullfilename, &realmd5sum);
-			if( r == RET_NOTHING ) {
-				fprintf(stderr,"Missing file '%s'!\n",
-						fullfilename);
-				r = RET_ERROR_MISSING;
-			} else if( RET_IS_OK(r) ) {
-				if( strcmp(realmd5sum,md5sumexpected) != 0 ) {
-					fprintf(stderr,
-"WRONG MD5SUM of '%s': found '%s' expected '%s'\n",
-						fullfilename, realmd5sum,
-						md5sumexpected);
-					r = RET_ERROR_WRONG_MD5;
-				}
-				free(realmd5sum);
-			}
-		}
+		if( fast )
+			r = checkpoolfilefast(fullfilename, expected);
+		else
+			r = checkpoolfile(fullfilename, expected, &improveable);
 		free(fullfilename);
+		checksums_free(expected);
 		RET_UPDATE(result,r);
 	}
 	r = cursor_close(database->files, cursor);
@@ -600,6 +593,7 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 	fullfilename = files_calcfullfilename(database, filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
+	(void)dirs_make_parent(fullfilename);
 	r = checksums_copyfile(fullfilename, sourcefilename, &checksums);
 	if( r == RET_ERROR_EXIST ) {
 		// TODO: deal with already existing files!
@@ -676,6 +670,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 		return RET_ERROR_OOM;
 	}
 
+	(void)dirs_make_parent(fullfilename);
 	r = checksums_copyfile(fullfilename, sourcefilename, &checksums);
 	if( r == RET_ERROR_EXIST ) {
 		// TODO: deal with already existing files!

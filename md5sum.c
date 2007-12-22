@@ -38,7 +38,7 @@ extern int verbose;
 
 static const char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 
-retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize) {
+static retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize) {
 	unsigned char buffer[16];
 	char result[33],*md5sum;
 	unsigned int i;
@@ -131,84 +131,6 @@ retvalue md5sum_read(const char *filename,char **result){
 	} else {
 		*result = NULL;
 		return ret;
-	}
-}
-
-retvalue md5sum_copy(const char *origfilename,const char *destfilename,
-			char **result){
-	retvalue r;
-	int fdr,fdw;
-	int i;
-
-	assert(result != NULL);
-
-	r = dirs_make_parent(destfilename);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	fdr = open(origfilename,O_RDONLY);
-	if( fdr < 0 ) {
-		i = errno;
-		if( i  == EACCES || i == ENOENT )
-			return RET_NOTHING;
-		fprintf(stderr,"Error opening '%s': %d=%m\n",origfilename,i);
-		return RET_ERRNO(i);
-	}
-	fdw = open(destfilename,O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL,0666);
-	if( fdw < 0 ) {
-		i = errno;
-		if( i == EEXIST ) {
-			close(fdr);
-			return RET_ERROR_EXIST;
-		}
-		fprintf(stderr,"Error creating '%s': %d=%m\n",destfilename,i);
-		close(fdr);
-		return RET_ERRNO(i);
-	}
-
-
-	r = md5sum_calc(fdr,fdw,result,0);
-	close(fdr);
-	i = close(fdw);
-	if( RET_WAS_ERROR(r) ) {
-		*result = NULL;
-		return r;
-	}
-	if( i < 0 ) {
-		i = errno;
-		fprintf(stderr,"Error writing to '%s': %d=%m\n",destfilename,i);
-		unlink(destfilename);
-		free(*result);
-		*result = NULL;
-		return RET_ERRNO(i);
-	}
-	return RET_OK;
-}
-/* same as above, but delete existing files and try to hardlink first. */
-retvalue md5sum_place(const char *origfilename,const char *destfilename,
-			char **result) {
-	int i;
-	retvalue r;
-
-	r = dirs_make_parent(destfilename);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	unlink(destfilename);
-	i = link(origfilename,destfilename);
-	if( i == 0 ) {
-		return md5sum_read(destfilename,result);
-	} else {
-		if( verbose > 1 ) {
-			fprintf(stderr,"Linking failed, copying file '%s' to '%s'...\n",origfilename,destfilename);
-		}
-
-		r = md5sum_copy(origfilename,destfilename,result);
-		if( r == RET_ERROR_EXIST ) {
-			fprintf(stderr,"File '%s' already exists and could not be removed to link/copy '%s' there!\n",destfilename,origfilename);
-
-		}
-		return r;
 	}
 }
 

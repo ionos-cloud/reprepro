@@ -18,7 +18,7 @@ AM_CPPFLAGS = -std=gnu99 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
 
-reprepro_SOURCES = checksums.c readtextfile.c filecntl.c sha1.c configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c md5sum.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED) $(ARCHIVE_CONTENTS)
+reprepro_SOURCES = checksums.c readtextfile.c filecntl.c sha1.c configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED) $(ARCHIVE_CONTENTS)
 EXTRA_reprepro_SOURCE = $(ARCHIVE_UNUSED)
 
 changestool_SOURCES = readtextfile.c filecntl.c tool.c chunkedit.c strlist.c md5sum.c sha1.c md5.c mprintf.c chunks.c signature.c dirs.c names.c $(ARCHIVE_USED)
