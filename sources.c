@@ -111,7 +111,7 @@ retvalue sources_calcfilelines(const struct checksumsarray *files, char **item) 
 		*(result++) = '\n';
 	}
 	*(--result) = '\0';
-	assert( result - *item == len-1 );
+	assert( (size_t)(result - *item) == len-1 );
 	return RET_OK;
 }
 

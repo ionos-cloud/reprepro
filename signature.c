@@ -830,7 +830,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 		endmarker = strstr(chunk, "\n-----");
 		if( endmarker != NULL ) {
 			endmarker++;
-			assert( endmarker-chunk < len );
+			assert( (size_t)(endmarker-chunk) < len );
 			len = endmarker-chunk;
 			chunk[len] = '\0';
 		} else {
