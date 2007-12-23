@@ -427,13 +427,18 @@ retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(struct tobedone *todo,const char *filename,const char *md5sum,struct database *database) {
-	struct checksums *checksums;
+static inline retvalue todo_done(struct tobedone *todo, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
+	retvalue r;
+	struct checksums *checksums = NULL;
 	struct checksums **checksums_p;
 
+	if( todo->filekey != NULL )
+		checksums_p = &todo->checksums;
+	else
+		checksums_p = todo->checksums_p;
+
 	/* if the file is somewhere else, copy it: */
-	if( strcmp(filename,todo->filename) != 0 ) {
-		retvalue r;
+	if( strcmp(filename, todo->filename) != 0 ) {
 		/* never link index files, but copy them */
 		if( todo->filekey == NULL ) {
 			if( verbose > 1 )
@@ -452,29 +457,28 @@ static inline retvalue todo_done(struct tobedone *todo,const char *filename,cons
 			fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
 			r = RET_ERROR_MISSING;
 		}
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			checksums_free(checksumsfromapt);
 			return r;
-	} else {
-		retvalue r;
-		/* if it is already in place, calculate its md5sum, if needed */
-		// TODO: use values supplied by method
-		// (research if methods nowadays supply more then md5sum)
-		if( todo->filekey != NULL || todo->checksums_p != NULL ) {
-			r = checksums_read(filename, &checksums);
-			if( r == RET_NOTHING ) {
-				fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
-				r = RET_ERROR_MISSING;
-			}
-			if( RET_WAS_ERROR(r) )
-				return r;
-		} else
-			checksums = NULL;
+		}
 	}
 
-	if( todo->filekey != NULL )
-		checksums_p = &todo->checksums;
-	else
-		checksums_p = todo->checksums_p;
+	if( checksums_p != NULL && checksums == NULL ) {
+		/* trust apt-method if it gave some checksums */
+		checksums = checksumsfromapt;
+		if( checksums == NULL )
+			r = checksums_read(filename, &checksums);
+		else
+			/* but make sure it computed all we would have, too */
+			r = checksums_complete(&checksums, filename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Cannot open '%s', though it whould have been there now!\n",filename);
+			r = RET_ERROR_MISSING;
+		}
+		if( RET_WAS_ERROR(r) )
+			return r;
+	} else
+		checksums_free(checksumsfromapt);
 
 	/* if we know what it should be, check it: */
 	if( checksums_p != NULL ) {
@@ -502,8 +506,6 @@ static inline retvalue todo_done(struct tobedone *todo,const char *filename,cons
 	checksums_free(checksums);
 
 	if( todo->filekey != NULL ) {
-		retvalue r;
-
 		assert(todo->checksums != NULL);
 		r = files_add_checksums(database, todo->filekey, todo->checksums);
 		if( RET_WAS_ERROR(r) )
@@ -593,14 +595,14 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 }
 
 /* look where a received file has to go to: */
-static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename,/*@null@*/const char *md5sum,struct database *database) {
+static retvalue uridone(struct aptmethod *method, const char *uri, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
 	while( todo != NULL ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
-			r = todo_done(todo, filename, md5sum, database);
+			r = todo_done(todo, filename, checksumsfromapt, database);
 
 			/* remove item: */
 			if( lasttodo == NULL )
@@ -634,6 +636,7 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 	}
 	/* huh? */
 	fprintf(stderr,"Received unexpected file '%s' at '%s'!\n",uri,filename);
+	checksums_free(checksumsfromapt);
 	return RET_ERROR;
 }
 
@@ -691,8 +694,14 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 }
 
 static inline retvalue goturidone(struct aptmethod *method,const char *chunk,struct database *database) {
-	retvalue r;
-	char *uri,*filename,*md5,*size,*md5sum;
+	static const char * const method_hash_names[cs_count+1] =
+		{ "MD5-Hash", "SHA1-Hash", // "SHA256-Hash"
+		  "Size" };
+	retvalue result, r;
+	char *uri, *filename;
+	enum checksumtype type;
+	char *hashes[cs_count+1];
+	struct checksums *checksums = NULL;
 
 	//TODO: is it worth the mess to make this in-situ?
 
@@ -714,28 +723,32 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 		return r;
 	}
 
-	md5sum = NULL;
-	r = chunk_getvalue(chunk,"MD5-Hash",&md5);
-	if( RET_IS_OK(r) ) {
-		r = chunk_getvalue(chunk,"Size",&size);
-		if( RET_IS_OK(r) ) {
-			md5sum = calc_concatmd5andsize(md5,size);
-			if( md5sum == NULL )
-				r = RET_ERROR_OOM;
-			free(size);
-		}
-		free(md5);
+	result = RET_NOTHING;
+	for( type = cs_md5sum ; type <= cs_count ; type++ ) {
+		hashes[type] = NULL;
+		r = chunk_getvalue(chunk, method_hash_names[type],
+				&hashes[type]);
+		RET_UPDATE(result, r);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		free(uri);
-		free(filename);
-		return r;
+	if( RET_IS_OK(result) && hashes[cs_md5sum] == NULL ) {
+		/* the lenny version also has this, better ask for
+		 * in case the old MD5-Hash vanishes in the future */
+		r = chunk_getvalue(chunk, "MD5Sum-Hash", &hashes[cs_md5sum]);
+		RET_UPDATE(result, r);
 	}
-
- 	r = uridone(method, uri, filename, md5sum, database);
+	if( RET_WAS_ERROR(result) ) {
+		free(uri); free(filename);
+		for( type = cs_md5sum ; type <= cs_count ; type++ )
+			free(hashes[type]);
+		return result;
+	}
+	if( RET_IS_OK(result) ) {
+		/* ignore errors, we can recompute them from the file */
+		(void)checksums_init(&checksums, hashes);
+	}
+ 	r = uridone(method, uri, filename, checksums, database);
 	free(uri);
 	free(filename);
-	free(md5sum);
 	return r;
 }
 

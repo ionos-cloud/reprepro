@@ -316,17 +316,24 @@ static retvalue release_usecached(struct release *release,
 	 * so calculate them (checking the other checksums match...): */
 	if( RET_IS_OK(result) ) {
 		for( ic = ic_uncompressed ; ic < ic_count ; ic++ ) {
+			char *fullfilename;
 			if( filename[ic] == NULL )
 				continue;
-			r = checksums_complete(&checksums[ic],
-					release->dirofdist, filename[ic]);
+			fullfilename = calc_dirconcat(release->dirofdist,
+					filename[ic]);
+			if( fullfilename == NULL )
+				r = RET_ERROR_OOM;
+			else
+				r = checksums_complete(&checksums[ic],
+					fullfilename);
 			if( r == RET_ERROR_WRONG_MD5 ) {
 				fprintf(stderr,
-"WARNING: '%s/%s' is different from recorded checksums.\n"
+"WARNING: '%s' is different from recorded checksums.\n"
 "(This was only catched because some new checksum type was not yet available.)\n"
-"Triggering recreation of that file.\n", release->dirofdist, filename[ic]);
+"Triggering recreation of that file.\n", fullfilename);
 				r = RET_NOTHING;
 			}
+			free(fullfilename);
 			if( !RET_IS_OK(r) ) {
 				result = r;
 				break;

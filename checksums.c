@@ -73,26 +73,38 @@ retvalue checksums_set(struct checksums **result, char *md5sum) {
 	return r;
 }
 
-retvalue checksums_init(/*@out@*/struct checksums **checksums_p, /*@only@*/char *size, /*@only@*/char *md5) {
-	size_t md5len;
-	size_t sizelen;
-	const char *p;
+retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs_count+1]) {
+	const char *p, *size;
+	char *d;
 	struct checksums *n;
+	enum checksumtype type;
+	size_t len, hashlens[cs_count+1];
 
+	/* everything assumes yet that those are available */
+	if( hashes[cs_count] == NULL || hashes[cs_md5sum] == NULL ) {
+		for( type = cs_md5sum ; type <= cs_count ; type++ )
+			free(hashes[type]);
+		*checksums_p = NULL;
+		return RET_OK;
+	}
+
+	size = hashes[cs_count];
 	while( *size == '0' && size[1] >= '0' && size[1] <= '9' )
 		size++;
 
-	md5len = strlen(md5);
-	sizelen = strlen(size);
+	hashlens[cs_md5sum] = strlen(hashes[cs_md5sum]);
+	hashlens[cs_count] = strlen(size);
+	len = hashlens[cs_md5sum] + 1 + hashlens[cs_count];
 
-	p = md5;
+	p = hashes[cs_md5sum];
 	while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')
 			                || (*p >= 'A' && *p <= 'F') )
 		p++;
 	if( *p != '\0' ) {
 		// TODO: find way to give more meaningfull error message
-		fprintf(stderr, "Invalid md5 hash: '%s'\n", md5);
-		free(md5); free(size);
+		fprintf(stderr, "Invalid md5 hash: '%s'\n", hashes[cs_md5sum]);
+		for( type = cs_md5sum ; type <= cs_count ; type++ )
+			free(hashes[type]);
 		return RET_ERROR;
 	}
 	p = size;
@@ -101,27 +113,63 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, /*@only@*/char 
 	if( *p != '\0' ) {
 		// TODO: find way to give more meaningfull error message
 		fprintf(stderr, "Invalid size: '%s'\n", size);
-		free(md5); free(size);
+		for( type = cs_md5sum ; type <= cs_count ; type++ )
+			free(hashes[type]);
 		return RET_ERROR;
 	}
 
-	n = malloc(sizeof(struct checksums) + md5len + sizelen + 2);
-	if( n == NULL ) {
-		free(md5); free(size);
-		return RET_ERROR_OOM;
+	for( type = cs_md5sum + 1 ; type < cs_count ; type++ ) {
+		if( hashes[type] == NULL )
+			continue;
+		p = hashes[type];
+		while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')
+				|| (*p >= 'A' && *p <= 'F') )
+			p++;
+		if( *p != '\0' ) {
+			// TODO: find way to give more meaningfull error message
+			fprintf(stderr, "Invalid hash: '%s'\n", hashes[type]);
+			for( type = cs_md5sum ; type <= cs_count ; type++ )
+				free(hashes[type]);
+			return RET_ERROR;
+		}
+		hashlens[type] = p - hashes[type];
+		len += strlen(" :x:") + hashlens[type];
 	}
 
+	n = malloc(sizeof(struct checksums) + len + 1);
+	if( n == NULL ) {
+		for( type = cs_md5sum ; type <= cs_count ; type++ )
+			free(hashes[type]);
+		return RET_ERROR_OOM;
+	}
 	memset(n, 0, sizeof(struct checksums));
-	n->parts[cs_md5sum].ofs = 0;
-	n->parts[cs_md5sum].len = md5len;
-	memcpy(n->representation, md5, md5len);
-	n->representation[md5len] = ' ';
-	n->parts[cs_count].ofs = md5len+1;
-	n->parts[cs_count].len = sizelen;
-	memcpy(n->representation + md5len + 1, size, sizelen + 1);
-	// n->representation[md5len + 1 + sizelen] = '\0';
+	d = n->representation;
 
-	free(md5);free(size);
+	for( type = cs_md5sum + 1 ; type < cs_count ; type++ ) {
+		if( hashes[type] == NULL )
+			continue;
+		*(d++) = ':';
+		*(d++) = '1' + (type - cs_sha1sum);
+		*(d++) = ':';
+		n->parts[type].ofs = d - n->representation;
+		n->parts[type].len = hashlens[type];
+		memcpy(d, hashes[type], hashlens[type]);
+		d += hashlens[type];
+		*(d++) = ' ';
+	}
+	n->parts[cs_md5sum].ofs = d - n->representation;
+	n->parts[cs_md5sum].len = hashlens[cs_md5sum];
+	memcpy(d, hashes[cs_md5sum], hashlens[cs_md5sum]);
+	d += hashlens[cs_md5sum];
+	*(d++) = ' ';
+	n->parts[cs_count].ofs = d - n->representation;
+	n->parts[cs_count].len = hashlens[cs_count];
+	memcpy(d, size, hashlens[cs_count] + 1);
+	d += hashlens[cs_count] + 1;
+	assert( (size_t)(d-n->representation) == len + 1 );
+
+	for( type = cs_md5sum ; type <= cs_count ; type++ )
+		free(hashes[type]);
 	*checksums_p = n;
 	return RET_OK;
 }
@@ -216,7 +264,7 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 		return RET_ERROR;
 	}
 	*d = '\0';
-	assert( d - n->representation <= len );
+	assert( (size_t)(d - n->representation) <= len );
 	*checksums_p = n;
 	return RET_OK;
 }
@@ -447,7 +495,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 	while( *o != '\0' )
 		*(d++) = *(o++);
 	n->parts[cs_count].len = d - start;
-	assert( d - n->representation <= len );
+	assert( (size_t)(d - n->representation) <= len );
 	*(d++) = '\0';
 	*checksums_p = realloc(n, sizeof(struct checksums)
 	                          + (d-n->representation));
@@ -459,7 +507,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 
 void checksumsarray_done(struct checksumsarray *array) {
 	if( array->names.count > 0 ) {
-		size_t i;
+		int i;
 		for( i = 0 ; i < array->names.count ; i++ ) {
 			checksums_free(array->checksums[i]);
 		}
@@ -772,9 +820,8 @@ retvalue checksums_from_context(struct checksums **out, struct checksumscontext 
 /* Collect missing checksums.
  * if the file is not there, return RET_NOTHING.
  * return RET_ERROR_WRONG_MD5 if already existing do not match */
-retvalue checksums_complete(struct checksums **checksums_p, const char *directory, const char *filename) {
+retvalue checksums_complete(struct checksums **checksums_p, const char *fullfilename) {
 	retvalue r;
-	char *fullfilename;
 	struct checksums *realchecksums;
 	bool improves;
 
@@ -782,16 +829,10 @@ retvalue checksums_complete(struct checksums **checksums_p, const char *director
 	    (*checksums_p)->parts[cs_sha1sum].len != 0 )
 		return RET_OK;
 
-	fullfilename = calc_dirconcat(directory, filename);
-	if( fullfilename == NULL )
-		return RET_ERROR_OOM;
 	r = checksums_cheaptest(fullfilename, realchecksums);
-	if( !RET_IS_OK(r) ) {
-		free(fullfilename);
+	if( !RET_IS_OK(r) )
 		return r;
-	}
 	r = checksums_read(fullfilename, &realchecksums);
-	free(fullfilename);
 	if( !RET_IS_OK(r) )
 		return r;
 	if( checksums_check(*checksums_p, realchecksums, &improves) ) {
@@ -946,9 +987,9 @@ retvalue checksums_linkorcopyfile(const char *destination, const char *source, s
 
 	unlink(destination);
 	i = link(source, destination);
-	if( i == 0 )
-		return checksums_read(destination, checksums_p);
-	else
+	if( i != 0 )
 		return checksums_copyfile(destination, source, checksums_p);
+	*checksums_p = NULL;
+	return RET_OK;
 }
 

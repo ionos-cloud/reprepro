@@ -21,7 +21,8 @@ struct checksums *checksums_dup(const struct checksums *);
 /* create a checksum record from an md5sum: */
 retvalue checksums_set(/*@out@*/struct checksums **, /*@only@*/char *);
 
-retvalue checksums_init(/*@out@*/struct checksums **, /*@only@*/char *size, /*@only@*/char *md5);
+/* hashes[*] is free'd */
+retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_count+1]);
 retvalue checksums_parse(/*@out@*/struct checksums **, const char *);
 
 retvalue checksums_get(const struct checksums *, enum checksumtype, /*@out@*/char **);
@@ -58,7 +59,7 @@ bool checksums_check(const struct checksums *, const struct checksums *, /*@out@
 /* Collect missing checksums (if all are there always RET_OK without checking).
  * if the file is not there, return RET_NOTHING,
  * if it is but not matches, return RET_ERROR_WRONG_MD5 */
-retvalue checksums_complete(struct checksums **, const char *directory, const char *filename);
+retvalue checksums_complete(struct checksums **, const char *fullfilename);
 
 void checksums_printdifferences(FILE *,const struct checksums *expected, const struct checksums *got);
 

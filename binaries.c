@@ -38,31 +38,38 @@
 
 extern int verbose;
 
-/* get md5sums out of a "Packages.gz"-chunk. */
-static retvalue binaries_parse_md5sum(const char *chunk, /*@out@*/struct checksums **checksums_p) {
-	retvalue r;
-	/* collect the given md5sum and size */
+static const char * const deb_checksum_headers[cs_count+1] = {"MD5sum", "SHA1",
+	// "SHA256",
+	"Size"};
 
-	char *pmd5, *psize;
+/* get checksums out of a "Packages"-chunk. */
+static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct checksums **checksums_p) {
+	retvalue result, r;
+	char *checksums[cs_count+1];
+	enum checksumtype type;
 
-	r = chunk_getvalue(chunk,"MD5sum",&pmd5);
-	if( r == RET_NOTHING ) {
+	result = RET_NOTHING;
+
+	for( type = 0 ; type <= cs_count ; type++ ) {
+		checksums[type] = NULL;
+		r = chunk_getvalue(chunk, deb_checksum_headers[type],
+				&checksums[type]);
+		RET_UPDATE(result, r);
+	}
+	if( checksums[cs_md5sum] == NULL ) {
 		fprintf(stderr,"Missing 'MD5sum'-line in binary control chunk:\n '%s'\n",chunk);
-		r = RET_ERROR_MISSING;
+		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	r = chunk_getvalue(chunk,"Size",&psize);
-	if( r == RET_NOTHING ) {
+	if( checksums[cs_count] == NULL ) {
 		fprintf(stderr,"Missing 'Size'-line in binary control chunk:\n '%s'\n",chunk);
-		r = RET_ERROR_MISSING;
+		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		free(pmd5);
-		return r;
+	if( RET_WAS_ERROR(result) ) {
+		for( type = 0 ; type <= cs_count ; type++ )
+			free(checksums[type]);
+		return result;
 	}
-	return checksums_init(checksums_p, psize, pmd5);
+	return checksums_init(checksums_p, checksums);
 }
 
 /* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
@@ -227,7 +234,7 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 		strlist_done(&a.names);
 		return RET_ERROR_OOM;
 	}
-	r = binaries_parse_md5sum(chunk, a.checksums);
+	r = binaries_parse_checksums(chunk, a.checksums);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		free(a.checksums);
@@ -506,11 +513,10 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 	return RET_OK;
 }
 
-/* do overwrites, add Filename, Size and md5sum to the control-item */
+/* do overwrites, add Filename and Checksums to the control-item */
 retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
 	struct fieldtoadd *replace;
 	char *newchunk;
-	static const char *deb_checksum_headers[cs_count+1] = {"MD5sum", "SHA1", "Size"};
 	enum checksumtype type;
 
 	assert( section != NULL && priority != NULL);
