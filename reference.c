@@ -58,8 +58,9 @@ retvalue references_check(struct database *database,const char *referee,const st
 retvalue references_increment(struct database *database,const char *needed,const char *neededby) {
 	retvalue r;
 
-	r = table_addrecord(database->references, needed, neededby, false);
-	if( RET_IS_OK(r) && verbose > 8 ) 
+	r = table_addrecord(database->references, needed,
+			neededby, strlen(neededby), false);
+	if( RET_IS_OK(r) && verbose > 8 )
 		printf("Adding reference to '%s' by '%s'\n", needed,neededby);
 	return r;
 }
@@ -110,8 +111,8 @@ retvalue references_add(struct database *database,const char *identifier,const s
 
 	for( i = 0 ; i < files->count ; i++ ) {
 		const char *filekey = files->values[i];
-		r = table_addrecord(database->references, filekey, identifier,
-				true);
+		r = table_addrecord(database->references, filekey,
+				identifier, strlen(identifier), true);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -173,7 +174,8 @@ retvalue references_remove(struct database *database,const char *neededby,
 			if( verbose > 8 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
 					found_to,neededby);
-			r = cursor_delete(database->references, cursor, found_to);
+			r = cursor_delete(database->references, cursor,
+					found_to, NULL);
 			RET_UPDATE(result, r);
 			if( RET_IS_OK(r) && dereferenced != NULL ) {
 				r = strlist_add_dup(dereferenced, found_to);

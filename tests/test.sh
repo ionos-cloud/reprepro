@@ -6,22 +6,22 @@ testrun() {
 rules=$1
 shift
 if test "x$rules" = "x" ; then
-	"$TESTTOOL" -C $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
+	"$TESTTOOL" -C $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
 elif test "x$rules" = "x-" ; then
-	"$TESTTOOL" -r -C $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
+	"$TESTTOOL" -r -C $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
 else
-	"$TESTTOOL" -r -C $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@" 3<"$rules".rules
+	"$TESTTOOL" -r -C $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@" 3<"$rules".rules
 fi
 }
 testout() {
 rules=$1
 shift
 if test "x$rules" = "x" ; then
-	"$TESTTOOL" -o results $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
+	"$TESTTOOL" -o results $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
 elif test "x$rules" = "x-" ; then
-	"$TESTTOOL" -o results -r $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
+	"$TESTTOOL" -o results -r $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
 else
-	"$TESTTOOL" -o results -r $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@" 3<"$rules".rules
+	"$TESTTOOL" -o results -r $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@" 3<"$rules".rules
 fi
 }
 dogrep() {
@@ -46,6 +46,7 @@ export FALEN=${#FAKEARCHITECTURE}
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_SUP=""
+VARTESTOPTIONS=""
 
 if [ "x$1" == "x--delete" ] ; then
 	rm -r "$WORKDIR" || true
@@ -105,8 +106,15 @@ if [ "3" -le "$#" ] ; then
 else
 	REPREPRO="$SRCDIR/reprepro"
 fi
+if true ; then
 TESTOPTIONS="-D x=0 -D d=1 $TESTOPTIONS"
 VERBOSITY="--verbosedb $VERBOSITY"
+TRACKINGTESTOPTIONS="-D t=1"
+NOTRACKINGTESTOPTIONS="-D t=0"
+else
+TRACKINGTESTOPTIONS="-D t=0"
+NOTRACKINGTESTOPTIONS="-D t=0"
+fi
 TESTS="$SRCDIR/tests"
 UPDATETYPE=update
 export PATH="$TESTS:$PATH"
@@ -1915,6 +1923,7 @@ stdout
 -d1*=db: 'simple-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'simple' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'simple' added to packages.db(test1|stupid|source).
+-d1*=db: 'simple' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -1946,6 +1955,7 @@ stdout
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
+-d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -2582,6 +2592,7 @@ stdout
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
+-d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -2612,6 +2623,7 @@ stdout
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|source).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
+-d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
@@ -2635,6 +2647,7 @@ stdout
 -v2*=Created directory "./pool/stupid/s/simple"
 -d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
 -d1*=db: 'simple' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'simple' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2750,6 +2763,7 @@ stdout
 -d1*=db: 'test-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'test' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'test' added to packages.db(test1|stupid|source).
+-d1*=db: 'test' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2781,6 +2795,7 @@ stdout
 -d1*=db: 'testb-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'testb' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'testb' added to packages.db(test1|stupid|source).
+-d1*=db: 'testb' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2812,6 +2827,7 @@ stdout
 -d1*=db: 'testb' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'testb' removed from packages.db(test1|stupid|source).
 -d1*=db: 'testb' added to packages.db(test1|stupid|source).
+-d1*=db: 'testb' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2847,6 +2863,7 @@ stdout
 -d1*=db: '4test-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: '4test' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: '4test' added to packages.db(test1|stupid|source).
+-d1*=db: '4test' added to tracking.db(test1).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -2965,6 +2982,8 @@ sed -i -e 's/^Tracking: keep/Tracking: all/' conf/distributions
 testrun -  -b . tidytracks 3<<EOF
 stdout
 -v0*=Looking for old tracks in test1...
+-d1*=db: 'testb' '1:2-2' removed from tracking.db(test1).
+-d1*=db: 'bloat+-0a9z.app' '99:0.9-A:Z+a:z-0+aA.9zZ' removed from tracking.db(test1).
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 -d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
@@ -3138,6 +3157,7 @@ sed -i -e 's/^Tracking: minimal/Tracking: minimal includechanges/' conf/distribu
 testrun -  -b . retrack 3<<EOF
 stdout
 -v1*=Chasing test1...
+-d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
 -x1*=  Tracking test1|stupid|${FAKEARCHITECTURE}...
 -x1*=  Tracking test1|stupid|source...
 -x1*=  Tracking test1|ugly|${FAKEARCHITECTURE}...
@@ -3958,6 +3978,7 @@ Components: all
 Pull: froma
 Log: logab
 EOF
+VARTESTOPTIONS="$TRACKINGTESTOPTIONS"
 else
 cat >> conf/distributions <<EOF
 
@@ -3972,6 +3993,7 @@ Components: all
 Pull: froma
 Log: logab
 EOF
+VARTESTOPTIONS="$NOTRACKINGTESTOPTIONS"
 fi
 checknolog logab
 
@@ -4086,6 +4108,7 @@ stdout
 -d1*=db: 'aa-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' added to packages.db(a|all|source).
+-t1*=db: 'aa' added to tracking.db(a).
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -4169,6 +4192,8 @@ stdout
 -d1*=db: 'aa' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' removed from packages.db(a|all|source).
 -d1*=db: 'aa' added to packages.db(a|all|source).
+-t1*=db: 'aa' added to tracking.db(a).
+-t1*=db: 'aa' '1-1' removed from tracking.db(a).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -4258,6 +4283,8 @@ stdout
 -d1*=db: 'aa' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'aa' removed from packages.db(a|all|source).
 -d1*=db: 'aa' added to packages.db(a|all|source).
+-t1*=db: 'aa' added to tracking.db(a).
+-t1*=db: 'aa' '1-2' removed from tracking.db(a).
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.dsc
 -d1*=db: 'pool/all/a/aa/aa_1-2.dsc' removed from files.db(md5sums).
@@ -4307,6 +4334,7 @@ stdout
 -d1*=db: 'ab-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab' added to packages.db(a|all|source).
+-t1*=db: 'ab' added to tracking.db(a).
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
@@ -4383,6 +4411,7 @@ stdout
 -d1*=db: 'ab-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab' removed from packages.db(a|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ab' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-t1*=db: 'ab' added to tracking.db(a).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
@@ -4474,6 +4503,7 @@ stdout
 -d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to files.db(md5sums).
 -d1*=db: 'ab' removed from packages.db(a|all|source).
 -d1*=db: 'ab' added to packages.db(a|all|source).
+-t1*=db: 'ab' '2-1' removed from tracking.db(a).
 -v5*=Deleting 'broken.changes'.
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
@@ -4670,6 +4700,7 @@ stdout
 -d1*=db: 'ab' removed from packages.db(a|all|${FAKEARCHITECTURE}).
 -v1*=removing 'ab' from 'a|all|source'...
 -d1*=db: 'ab' removed from packages.db(a|all|source).
+-t1*=db: 'ab' '3-1' removed from tracking.db(a).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
@@ -4699,6 +4730,7 @@ stdout
 -d1*=db: 'ab' removed from packages.db(a|all|${FAKEARCHITECTURE}).
 -v1*=removing 'ab' from 'a|all|source'...
 -d1*=db: 'ab' removed from packages.db(a|all|source).
+-t1*=db: 'ab' '3-1' removed from tracking.db(a).
 -v0*=Exporting indices...
 -v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)

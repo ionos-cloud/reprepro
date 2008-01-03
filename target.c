@@ -284,7 +284,7 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 	if( verbose > 0 )
 		printf("removing '%s' from '%s'...\n",
 				name, target->identifier);
-	result = cursor_delete(target->packages, cursor, name);
+	result = cursor_delete(target->packages, cursor, name, NULL);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = true;
 		if( oldsource != NULL && oldsversion != NULL ) {
@@ -725,7 +725,8 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 			break;
 		}
 		if( RET_IS_OK(r) ) {
-			r = cursor_replace(table, cursor, newcontrolchunk);
+			r = cursor_replace(table, cursor,
+				newcontrolchunk, strlen(newcontrolchunk));
 			free(newcontrolchunk);
 			if( RET_WAS_ERROR(r) )
 				return r;

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2007 Bernhard R. Link
+ *  Copyright (C) 2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -49,6 +49,9 @@ extern int verbose;
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #define LIBDB_VERSION_STRING "bdb" TOSTRING(DB_VERSION_MAJOR) "." TOSTRING(DB_VERSION_MINOR) "." TOSTRING(DB_VERSION_PATCH)
+#define CLEARDBT(dbt) { memset(&dbt, 0, sizeof(dbt)); }
+#define SETDBT(dbt, datastr) {const char *my = datastr; memset(&dbt, 0, sizeof(dbt)); dbt.data = (void *)my; dbt.size = strlen(my) + 1;}
+#define SETDBTl(dbt, datastr, datasize) {const char *my = datastr; memset(&dbt, 0, sizeof(dbt)); dbt.data = (void *)my; dbt.size = datasize;}
 
 static void database_free(struct database *db) {
 	if( db == NULL )
@@ -167,7 +170,7 @@ const char *database_directory(struct database *database) {
 	return database->directory;
 }
 
-retvalue database_opentable(struct database *database,const char *filename,const char *subtable,DBTYPE type,u_int32_t preflags,int (*dupcompare)(DB *,const DBT *,const DBT *), bool readonly, DB **result) {
+static retvalue database_opentable(struct database *database, const char *filename, const char *subtable, DBTYPE type, u_int32_t preflags, int (*dupcompare)(DB *,const DBT *,const DBT *), bool readonly, /*@out@*/DB **result) {
 	char *fullfilename;
 	DB *table;
 	int dbret;
@@ -886,6 +889,47 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 	return RET_OK;
 }
 
+retvalue table_getpair(struct table *table, const char *key, const char *value, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
+	int dbret;
+	DBT Key, Data;
+	size_t valuelen = strlen(value);
+
+	assert( table != NULL );
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		return RET_NOTHING;
+	}
+
+	SETDBT(Key, key);
+	SETDBTl(Data, value, valuelen + 1);
+
+	dbret = table->berkleydb->get(table->berkleydb, NULL,
+			&Key, &Data, DB_GET_BOTH);
+	if( dbret == DB_NOTFOUND || dbret == DB_KEYEMPTY )
+		return RET_NOTHING;
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "get(BOTH)");
+		return RET_DBERR(dbret);
+	}
+	if( Data.data == NULL )
+		return RET_ERROR_OOM;
+	if( Data.size < valuelen + 2  ||
+	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not paired) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not paired) data!",
+					table->name);
+		return RET_ERROR;
+	}
+	*data_p = ((const char*)Data.data) + valuelen + 1;
+	*datalen_p = Data.size - valuelen - 2;
+	return RET_OK;
+}
+
 retvalue table_gettemprecord(struct table *table, const char *key, const char **data_p, size_t *size_p) {
 	int dbret;
 	DBT Key, Data;
@@ -1005,7 +1049,7 @@ bool table_recordexists(struct table *table, const char *key) {
 	return RET_IS_OK(r);
 }
 
-retvalue table_addrecord(struct table *table, const char *key, const char *data, bool ignoredups) {
+retvalue table_addrecord(struct table *table, const char *key, const char *data, size_t datalen, bool ignoredups) {
 	int dbret;
 	DBT Key, Data;
 
@@ -1013,7 +1057,7 @@ retvalue table_addrecord(struct table *table, const char *key, const char *data,
 	assert( !table->readonly && table->berkleydb != NULL );
 
 	SETDBT(Key, key);
-	SETDBT(Data, data);
+	SETDBTl(Data, data, datalen + 1);
 	dbret = table->berkleydb->put(table->berkleydb, NULL,
 			&Key, &Data, DB_NODUPDATA);
 	if( dbret != 0 && !(ignoredups && dbret == DB_KEYEXIST) ) {
@@ -1106,6 +1150,7 @@ retvalue table_replacerecord(struct table *table, const char *key, const char *d
 
 struct cursor {
 	DBC *cursor;
+	uint32_t flags;
 	retvalue r;
 };
 
@@ -1124,18 +1169,167 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 		return RET_ERROR_OOM;
 
 	cursor->cursor = NULL;
+	cursor->flags = DB_NEXT;
 	cursor->r = RET_OK;
 	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
 			&cursor->cursor, 0);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "cursor");
+		free(cursor);
 		return RET_DBERR(dbret);
 	}
 	*cursor_p = cursor;
 	return RET_OK;
 }
 
-retvalue table_newduplicatecursor(struct table *, const char *key, struct cursor **);
+static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@null@*//*@out@*/const char **key_p, /*@out@*/const char **value_p, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
+	const char *separator;
+
+	if( Key.size <= 0 || Data.size <= 0 ||
+	    ((const char*)Key.data)[Key.size-1] != '\0' ||
+	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not null-terminated) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not null-terminated) data!",
+					table->name);
+		return RET_ERROR;
+	}
+	separator = memchr(Data.data, '\0', Data.size-1);
+	if( separator == NULL ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted data!",
+					table->name);
+		return RET_ERROR;
+	}
+	if( key_p != NULL )
+		*key_p = Key.data;
+	*value_p = Data.data;
+	*data_p = separator + 1;
+	*datalen_p = Data.size - (separator - (const char*)Data.data) - 2;
+	return RET_OK;
+}
+
+retvalue table_newduplicatecursor(struct table *table, const char *key, struct cursor **cursor_p, const char **value_p, const char **data_p, size_t *datalen_p) {
+	struct cursor *cursor;
+	int dbret;
+	DBT Key, Data;
+	retvalue r;
+
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		*cursor_p = NULL;
+		return RET_NOTHING;
+	}
+
+	cursor = calloc(1, sizeof(struct cursor));
+	if( cursor == NULL )
+		return RET_ERROR_OOM;
+
+	cursor->cursor = NULL;
+	cursor->flags = DB_NEXT_DUP;
+	cursor->r = RET_OK;
+	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+			&cursor->cursor, 0);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "cursor");
+		free(cursor);
+		return RET_DBERR(dbret);
+	}
+	SETDBT(Key, key);
+	CLEARDBT(Data);
+	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_SET);
+	if( dbret == DB_KEYEMPTY || dbret == DB_KEYEMPTY ) {
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
+		return RET_NOTHING;
+	}
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "c_get(DB_SET)");
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
+		return RET_DBERR(dbret);
+	}
+	r = parse_pair(table, Key, Data, NULL, value_p, data_p, datalen_p);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
+		return r;
+	}
+
+	*cursor_p = cursor;
+	return RET_OK;
+}
+
+retvalue table_newpairedcursor(struct table *table, const char *key, const char *value, struct cursor **cursor_p, const char **data_p, size_t *datalen_p) {
+	struct cursor *cursor;
+	int dbret;
+	DBT Key, Data;
+	retvalue r;
+	size_t valuelen = strlen(value);
+
+	if( table->berkleydb == NULL ) {
+		assert( table->readonly );
+		*cursor_p = NULL;
+		return RET_NOTHING;
+	}
+
+	cursor = calloc(1, sizeof(struct cursor));
+	if( cursor == NULL )
+		return RET_ERROR_OOM;
+
+	cursor->cursor = NULL;
+	/* cursor_next is not allowed with this type: */
+	cursor->flags = DB_GET_BOTH;
+	cursor->r = RET_OK;
+	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+			&cursor->cursor, 0);
+	if( dbret != 0 ) {
+		table_printerror(table, dbret, "cursor");
+		free(cursor);
+		return RET_DBERR(dbret);
+	}
+	SETDBT(Key, key);
+	SETDBTl(Data, value, valuelen + 1);
+	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_GET_BOTH);
+	if( dbret != 0 ) {
+		if( dbret == DB_KEYEMPTY || dbret == DB_KEYEMPTY ) {
+			table_printerror(table, dbret, "c_get(DB_GET_BOTH)");
+			r = RET_DBERR(dbret);
+		} else
+			r = RET_NOTHING;
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
+		return r;
+	}
+	if( Data.size < valuelen + 2  ||
+	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
+		if( table->subname != NULL )
+			fprintf(stderr,
+"Database %s(%s) returned corrupted (not paired) data!",
+					table->name, table->subname);
+		else
+			fprintf(stderr,
+"Database %s returned corrupted (not paired) data!",
+					table->name);
+		return RET_ERROR;
+	}
+	if( data_p != NULL )
+		*data_p = ((const char*)Data.data) + valuelen + 1;
+	if( datalen_p != NULL )
+		*datalen_p = Data.size - valuelen - 2;
+	*cursor_p = cursor;
+	return RET_OK;
+}
 
 retvalue cursor_close(struct table *table, struct cursor *cursor) {
 	int dbret;
@@ -1233,7 +1427,39 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 	return true;
 }
 
-retvalue cursor_replace(struct table *table, struct cursor *cursor, const char *data) {
+bool cursor_nextpair(struct table *table, struct cursor *cursor, /*@null@*/const char **key_p, const char **value_p, const char **data_p, size_t *datalen_p) {
+	DBT Key, Data;
+	int dbret;
+	retvalue r;
+
+	if( cursor == NULL )
+		return false;
+
+	CLEARDBT(Key);
+	CLEARDBT(Data);
+
+	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data,
+			cursor->flags);
+	if( dbret == DB_NOTFOUND )
+		return false;
+
+	if( dbret != 0 ) {
+		table_printerror(table, dbret,
+				(cursor->flags==DB_NEXT)?"c_get(DB_NEXT)":
+				(cursor->flags==DB_NEXT_DUP)?"c_get(DB_NEXT_DUP)":
+				"c_get(DB_???NEXT)");
+		cursor->r = RET_DBERR(dbret);
+		return false;
+	}
+	r = parse_pair(table, Key, Data, key_p, value_p, data_p, datalen_p);
+	if( RET_WAS_ERROR(r) ) {
+		cursor->r = r;
+		return false;
+	}
+	return true;
+}
+
+retvalue cursor_replace(struct table *table, struct cursor *cursor, const char *data, size_t datalen) {
 	DBT Key, Data;
 	int dbret;
 
@@ -1241,7 +1467,7 @@ retvalue cursor_replace(struct table *table, struct cursor *cursor, const char *
 	assert( !table->readonly );
 
 	CLEARDBT(Key);
-	SETDBT(Data, data);
+	SETDBTl(Data, data, datalen + 1);
 
 	dbret = cursor->cursor->c_put(cursor->cursor, &Key, &Data, DB_CURRENT);
 
@@ -1252,7 +1478,7 @@ retvalue cursor_replace(struct table *table, struct cursor *cursor, const char *
 	return RET_OK;
 }
 
-retvalue cursor_delete(struct table *table, struct cursor *cursor, const char *key) {
+retvalue cursor_delete(struct table *table, struct cursor *cursor, const char *key, const char *value) {
 	int dbret;
 
 	assert( cursor != NULL );
@@ -1265,12 +1491,21 @@ retvalue cursor_delete(struct table *table, struct cursor *cursor, const char *k
 		return RET_DBERR(dbret);
 	}
 	if( table->verbose ) {
-		if( table->subname != NULL )
-			printf("db: '%s' removed from %s(%s).\n",
-					key, table->name, table->subname);
+		if( value != NULL )
+			if( table->subname != NULL )
+				printf("db: '%s' '%s' removed from %s(%s).\n",
+						key, value,
+						table->name, table->subname);
+			else
+				printf("db: '%s' '%s' removed from %s.\n",
+						key, value, table->name);
 		else
-			printf("db: '%s' removed from %s.\n",
-					key, table->name);
+			if( table->subname != NULL )
+				printf("db: '%s' removed from %s(%s).\n",
+						key, table->name, table->subname);
+			else
+				printf("db: '%s' removed from %s.\n",
+						key, table->name);
 	}
 	return RET_OK;
 }
@@ -1364,6 +1599,37 @@ retvalue database_openreferences(struct database *db) {
 	return RET_OK;
 }
 
+/* only compare the first 0-terminated part of the data */
+static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
+	if( a->size < b->size )
+		return strncmp(a->data, b->data, a->size);
+	else
+		return strncmp(a->data, b->data, b->size);
+}
+
+retvalue database_opentracking(struct database *database, const char *codename, bool readonly, struct table **table_p) {
+	struct table *table IFSTUPIDCC(=NULL);
+	retvalue r;
+
+	if( database->nopackages ) {
+		fputs("Internal Error: Accessing packages databse while that was not prepared!\n", stderr);
+		return RET_ERROR;
+	}
+	if( database->trackingdatabaseopen ) {
+		fputs("Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
+		return RET_ERROR;
+	}
+
+	r = database_table(database, "tracking.db", codename,
+			DB_BTREE, DB_DUPSORT, paireddatacompare, readonly, &table);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	table->flagreset = &database->trackingdatabaseopen;
+	database->trackingdatabaseopen = true;
+	*table_p = table;
+	return RET_OK;
+}
 
 retvalue database_openpackages(struct database *database, const char *identifier, bool readonly, struct table **table_p) {
 	struct table *table IFSTUPIDCC(=NULL);
