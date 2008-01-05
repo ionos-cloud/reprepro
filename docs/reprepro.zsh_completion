@@ -221,7 +221,8 @@ commands=( export:"export index files"
 hiddencommands=(
 	_detect:"look if the file belonging to a filekey exists and add to the database."
 	_forget:"forget a file specified by filekey."
-	_listmd5sums:"print a list of filekeys and their checksums"
+	_listmd5sums:"print a list of filekeys and their md5 hashes"
+	_listchecksums:"print a list of filekeys and their checksums"
 	_addm5sums:"add checksums to database"
 	_dumpcontents:"output contents of a part of the repository"
 	_addreference:"mark a filekey needed by an identifier"
@@ -320,7 +321,7 @@ case "$state" in
 		fi
 		;;
 
-	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_addmd5sums)
+	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums)
 		;;
 	 (_dumpcontents|_removereferences)
 		if [[ "$state" = "first argument" ]] ; then

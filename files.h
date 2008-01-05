@@ -50,7 +50,7 @@ retvalue files_printmissing(struct database *, const struct strlist *filekeys, c
 retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
 retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
 
-typedef retvalue per_file_action(void *data,const char *filekey,const char *md5sum);
+typedef retvalue per_file_action(void *data, const char *filekey);
 
 /* callback for each registered file */
 retvalue files_foreach(struct database *,per_file_action action,void *data);
@@ -60,6 +60,7 @@ retvalue files_checkpool(struct database *, bool fast);
 
 /* dump out all information */
 retvalue files_printmd5sums(struct database *);
+retvalue files_printchecksums(struct database *);
 
 /* look for the given filekey and add it into the filesdatabase */
 retvalue files_detect(struct database *,const char *filekey);

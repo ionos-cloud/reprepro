@@ -20,6 +20,7 @@ struct checksums *checksums_dup(const struct checksums *);
 
 /* create a checksum record from an md5sum: */
 retvalue checksums_set(/*@out@*/struct checksums **, /*@only@*/char *);
+retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@only@*//*@null@*/ char *md5sum);
 
 /* hashes[*] is free'd */
 retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_count+1]);
@@ -30,7 +31,7 @@ retvalue checksums_getfilesize(const struct checksums *, /*@out@*/off_t *);
 
 /* get 0-terminated combined textual representation of the checksums,
  * including the size (including the trailing '\0'): */
-retvalue checksums_getcombined(const struct checksums *, /*@out@*/const char **, /*@out@*/size_t *size_p);
+retvalue checksums_getcombined(const struct checksums *, /*@out@*/const char **, /*@out@*/size_t *);
 
 /* get a static pointer to a specific part of a checksum (wihtout size) */
 bool checksums_getpart(const struct checksums *, enum checksumtype, /*@out@*/const char **, /*@out@*/size_t *);

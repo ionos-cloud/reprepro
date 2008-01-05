@@ -174,6 +174,27 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	return RET_OK;
 }
 
+retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@only@*//*@null@*/ char *md5sum) {
+	size_t md5len;
+	retvalue r;
+
+	if( md5sum != NULL ) {
+		md5len = strlen(md5sum);
+		if( len < md5len ||
+		    strcmp(combinedchecksum + len - md5len, md5sum) != 0 ) {
+			fprintf(stderr, "WARNING: repairing inconsistent checksum data from database!\n");
+			len = md5len;
+			combinedchecksum = md5sum;
+		}
+	}
+	// This comes from our database, so it surely well formed
+	// (as alreadyassumed above), so this should be possible to
+	// do faster than that...
+	r = checksums_parse(checksums_p, combinedchecksum);
+	free(md5sum);
+	return r;
+}
+
 retvalue checksums_parse(struct checksums **checksums_p, const char *combinedchecksum) {
 	struct checksums *n;
 	size_t len = strlen(combinedchecksum);
@@ -331,7 +352,7 @@ retvalue checksums_get(const struct checksums *checksums, enum checksumtype type
 }
 
 
-retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const char **data_p, /*@out@*/size_t *size_p) {
+retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
 	size_t len;
 
 	assert( checksums != NULL );
@@ -339,7 +360,7 @@ retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const
 	assert( checksums->representation[len] == '\0' );
 
 	*data_p = checksums->representation;
-	*size_p = len + 1;
+	*datalen_p = len;
 	return RET_OK;
 }
 
@@ -395,7 +416,7 @@ bool checksums_check(const struct checksums *checksums, const struct checksums *
 	for( type = cs_md5sum ; type <= cs_count ; type++ ) {
 		if( differ(checksums, realchecksums, type) )
 			return false;
-		if( checksums->parts[type].len == 0 || 
+		if( checksums->parts[type].len == 0 &&
 		    realchecksums->parts[type].len != 0 )
 			additional = true;
 	}

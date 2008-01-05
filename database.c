@@ -148,10 +148,15 @@ retvalue database_close(struct database *db) {
 		RET_UPDATE(result, r);
 		db->references = NULL;
 	}
-	if( db->files != NULL ) {
-		r = table_close(db->files);
+	if( db->oldmd5sums != NULL ) {
+		r = table_close(db->oldmd5sums);
 		RET_UPDATE(result, r);
-		db->files = NULL;
+		db->oldmd5sums = NULL;
+	}
+	if( db->checksums != NULL ) {
+		r = table_close(db->checksums);
+		RET_UPDATE(result, r);
+		db->checksums = NULL;
 	}
 	if( db->contents != NULL ) {
 		r = table_close(db->contents);
@@ -164,13 +169,38 @@ retvalue database_close(struct database *db) {
 	return result;
 }
 
+static retvalue database_hasdatabasefile(const struct database *database, const char *filename, bool *exists_p) {
+	char *fullfilename;
+
+	fullfilename = calc_dirconcat(database->directory, filename);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+	*exists_p = isregularfile(fullfilename);
+	free(fullfilename);
+	return RET_OK;
+}
+
 const char *database_directory(struct database *database) {
 	/* this has to make sure the database directory actually
 	 * exists. Though locking before already does so */
 	return database->directory;
 }
 
-static retvalue database_opentable(struct database *database, const char *filename, const char *subtable, DBTYPE type, u_int32_t preflags, int (*dupcompare)(DB *,const DBT *,const DBT *), bool readonly, /*@out@*/DB **result) {
+enum database_type {
+	dbt_QUERY,
+	dbt_BTREE, dbt_BTREEDUP, dbt_BTREEPAIRS,
+	dbt_HASH,
+	dbt_COUNT /* must be last */
+};
+const uint32_t types[dbt_COUNT] = {
+	DB_UNKNOWN,
+	DB_BTREE, DB_BTREE, DB_BTREE,
+	DB_HASH
+};
+
+static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b);
+
+static retvalue database_opentable(struct database *database, const char *filename, const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
 	char *fullfilename;
 	DB *table;
 	int dbret;
@@ -185,18 +215,17 @@ static retvalue database_opentable(struct database *database, const char *filena
 		free(fullfilename);
 		return RET_DBERR(dbret);
 	}
-	if( preflags != 0 ) {
-		dbret = table->set_flags(table, preflags);
+	if( type == dbt_BTREEDUP || type == dbt_BTREEPAIRS ) {
+		dbret = table->set_flags(table, DB_DUPSORT);
 		if( dbret != 0 ) {
-			table->err(table, dbret, "db_set_flags(%u):",
-					(unsigned int)preflags);
+			table->err(table, dbret, "db_set_flags(DB_DUPSORT):");
 			(void)table->close(table, 0);
 			free(fullfilename);
 			return RET_DBERR(dbret);
 		}
 	}
-	if( dupcompare != NULL ) {
-		dbret = table->set_dup_compare(table, dupcompare);
+	if( type == dbt_BTREEPAIRS ) {
+		dbret = table->set_dup_compare(table,  paireddatacompare);
 		if( dbret != 0 ) {
 			table->err(table, dbret, "db_set_dup_compare:");
 			(void)table->close(table, 0);
@@ -216,9 +245,8 @@ static retvalue database_opentable(struct database *database, const char *filena
 #error Unexpected LIBDB_VERSION!
 #endif
 #endif
-	dbret = DB_OPEN(table, fullfilename, subtable, type,
-			readonly?DB_RDONLY:DB_CREATE);
-	if( dbret == ENOENT && readonly ) {
+	dbret = DB_OPEN(table, fullfilename, subtable, types[type], flags);
+	if( dbret == ENOENT && !ISSET(flags, DB_CREATE) ) {
 		(void)table->close(table, 0);
 		free(fullfilename);
 		return RET_NOTHING;
@@ -248,7 +276,7 @@ retvalue database_listsubtables(struct database *database,const char *filename,s
 	struct strlist ids;
 
 	r = database_opentable(database, filename, NULL,
-			DB_UNKNOWN, 0, NULL, true, &table);
+			dbt_QUERY, DB_RDONLY, &table);
 	if( !RET_IS_OK(r) )
 		return r;
 
@@ -304,6 +332,7 @@ retvalue database_listsubtables(struct database *database,const char *filename,s
 		return RET_OK;
 	}
 }
+
 retvalue database_dropsubtable(struct database *database, const char *table, const char *subtable) {
 	char *filename;
 	DB *db;
@@ -679,24 +708,18 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
 
 static retvalue preparepackages(struct database *db, bool fast, bool readonly, bool allowunused, struct distribution *distributions) {
 	retvalue r;
-	char *packagesfilename, *trackingfilename;
 	bool packagesfileexists, trackingfileexists;
 
 	r = readversionfile(db);
-	if( RET_WAS_ERROR(r) ) {
+	if( RET_WAS_ERROR(r) )
 		return r;
-	}
 
-	packagesfilename = calc_dirconcat(db->directory, "packages.db");
-	if( packagesfilename == NULL )
-		return RET_ERROR_OOM;
-	packagesfileexists = isregularfile(packagesfilename);
-	free(packagesfilename);
-	trackingfilename = calc_dirconcat(db->directory, "tracking.db");
-	if( trackingfilename == NULL )
-		return RET_ERROR_OOM;
-	trackingfileexists = isregularfile(trackingfilename);
-	free(trackingfilename);
+	r = database_hasdatabasefile(db, "packages.db", &packagesfileexists);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = database_hasdatabasefile(db, "tracking.db", &trackingfileexists);
+	if( RET_WAS_ERROR(r) )
+		return r;
 
 	if( !packagesfileexists && !trackingfileexists ) {
 		// TODO: handle readonly, but only once packages files may no
@@ -812,12 +835,12 @@ struct table {
 static void table_printerror(struct table *table, int dbret, const char *action) {
 	if( table->subname != NULL )
 		table->berkleydb->err(table->berkleydb, dbret,
-				"%sWithin %s subtable %s at %s:",
+				"%sWithin %s subtable %s at %s",
 				databaseerror, table->name, table->subname,
 				action);
 	else
 		table->berkleydb->err(table->berkleydb, dbret,
-				"%sWithin %s at %s:",
+				"%sWithin %s at %s",
 				databaseerror, table->name, action);
 }
 
@@ -930,7 +953,7 @@ retvalue table_getpair(struct table *table, const char *key, const char *value, 
 	return RET_OK;
 }
 
-retvalue table_gettemprecord(struct table *table, const char *key, const char **data_p, size_t *size_p) {
+retvalue table_gettemprecord(struct table *table, const char *key, const char **data_p, size_t *datalen_p) {
 	int dbret;
 	DBT Key, Data;
 
@@ -955,7 +978,7 @@ retvalue table_gettemprecord(struct table *table, const char *key, const char **
 	if( Data.data == NULL )
 		return RET_ERROR_OOM;
 	if( data_p == NULL ) {
-		assert( size_p == NULL );
+		assert( datalen_p == NULL );
 		return RET_OK;
 	}
 	if( Data.size <= 0 ||
@@ -971,8 +994,8 @@ retvalue table_gettemprecord(struct table *table, const char *key, const char **
 		return RET_ERROR;
 	}
 	*data_p = Data.data;
-	if( size_p != NULL )
-		*size_p = Data.size;
+	if( datalen_p != NULL )
+		*datalen_p = Data.size - 1;
 	return RET_OK;
 }
 
@@ -1423,7 +1446,7 @@ bool cursor_nexttempdata(struct table *table, struct cursor *cursor, const char 
 	if( key != NULL )
 		*key = Key.data;
 	*data = Data.data;
-	*len_p = Data.size-1;
+	*len_p = Data.size - 1;
 	return true;
 }
 
@@ -1543,7 +1566,7 @@ bool table_isempty(struct table *table) {
 /********************************************************************************
  * Open the different types of tables with their needed flags:                  *
  ********************************************************************************/
-static retvalue database_table(struct database *database, const char *filename, const char *subtable, DBTYPE type, u_int32_t preflags, int (*dupcompare)(DB *,const DBT *,const DBT *), bool readonly, /*@out@*/struct table **table_p) {
+static retvalue database_table(struct database *database, const char *filename, const char *subtable, enum database_type type, uint32_t flags, /*@out@*/struct table **table_p) {
 	struct table *table;
 	retvalue r;
 
@@ -1565,9 +1588,9 @@ static retvalue database_table(struct database *database, const char *filename, 
 		}
 	} else
 		table->subname = NULL;
-	table->readonly = readonly;
+	table->readonly = ISSET(flags, DB_RDONLY);
 	table->verbose = database->verbose;
-	r = database_opentable(database, filename, subtable, type, preflags, dupcompare, readonly, &table->berkleydb);
+	r = database_opentable(database, filename, subtable, type, flags, &table->berkleydb);
 	if( RET_WAS_ERROR(r) ) {
 		free(table->subname);
 		free(table->name);
@@ -1575,10 +1598,17 @@ static retvalue database_table(struct database *database, const char *filename, 
 		return r;
 	}
 	if( r == RET_NOTHING ) {
-		assert( readonly );
-		/* sometimes we don't want a return here, when? */
-		table->berkleydb = NULL;
-		r = RET_OK;
+		if( ISSET(flags, DB_RDONLY) ) {
+			/* sometimes we don't want a return here, when? */
+			table->berkleydb = NULL;
+			r = RET_OK;
+		} else {
+			free(table->subname);
+			free(table->name);
+			free(table);
+			return r;
+		}
+
 	}
 	*table_p = table;
 	return r;
@@ -1589,7 +1619,7 @@ retvalue database_openreferences(struct database *db) {
 
 	assert( db->references == NULL );
 	r = database_table(db, "references.db", "references",
-			DB_BTREE, DB_DUPSORT, NULL, false, &db->references);
+			dbt_BTREEDUP, DB_CREATE, &db->references);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		db->references = NULL;
@@ -1621,7 +1651,7 @@ retvalue database_opentracking(struct database *database, const char *codename, 
 	}
 
 	r = database_table(database, "tracking.db", codename,
-			DB_BTREE, DB_DUPSORT, paireddatacompare, readonly, &table);
+			dbt_BTREEPAIRS, readonly?DB_RDONLY:DB_CREATE, &table);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1645,7 +1675,7 @@ retvalue database_openpackages(struct database *database, const char *identifier
 	}
 
 	r = database_table(database, "packages.db", identifier,
-			DB_BTREE, 0, NULL, readonly, &table);
+			dbt_BTREE, readonly?DB_RDONLY:DB_CREATE, &table);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1668,8 +1698,10 @@ retvalue database_droppackages(struct database *database, const char *identifier
 retvalue database_openfiles(struct database *db, const char *mirrordir) {
 	retvalue r;
 	struct strlist identifiers;
+	bool checksumsexisted;
 
-	assert( db->files == NULL && db->contents == NULL );
+	assert( db->checksums == NULL && db->oldmd5sums == NULL );
+	assert( db->contents == NULL );
 	assert( db->mirrordir == NULL );
 
 	r = database_listsubtables(db, "contents.cache.db", &identifiers);
@@ -1689,22 +1721,44 @@ retvalue database_openfiles(struct database *db, const char *mirrordir) {
 	db->mirrordir = strdup(mirrordir);
 	if( db->mirrordir == NULL )
 		return RET_ERROR_OOM;
-	r = database_table(db, "files.db", "md5sums",
-			DB_BTREE, 0, NULL, READWRITE, &db->files);
+
+	r = database_hasdatabasefile(db, "checksums.db", &checksumsexisted);
+	r = database_table(db, "checksums.db", "pool",
+			dbt_BTREE, DB_CREATE,
+			&db->checksums);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		free(db->mirrordir);
 		db->mirrordir = NULL;
-		db->files = NULL;
+		db->checksums = NULL;
+		db->oldmd5sums = NULL;
 		return r;
 	}
+	r = database_table(db, "files.db", "md5sums",
+			dbt_BTREE,
+			(db->capabilities.nomd5legacy || checksumsexisted)?
+				0 : DB_CREATE,
+			&db->oldmd5sums);
+	if( r == RET_NOTHING )
+		db->capabilities.nomd5legacy = true;
+	else if( RET_WAS_ERROR(r) ) {
+		(void)table_close(db->checksums);
+		free(db->mirrordir);
+		db->mirrordir = NULL;
+		db->checksums = NULL;
+		db->oldmd5sums = NULL;
+		return r;
+	}
+	// TODO: only create this file once it is actually needed...
 	r = database_table(db, "contents.cache.db", "compressedfilelists",
-			DB_BTREE, 0, NULL, READWRITE, &db->contents);
+			dbt_BTREE, DB_CREATE, &db->contents);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
-		(void)table_close(db->files);
+		(void)table_close(db->checksums);
+		(void)table_close(db->oldmd5sums);
 		db->mirrordir = NULL;
-		db->files = NULL;
+		db->checksums = NULL;
+		db->oldmd5sums = NULL;
 		db->contents = NULL;
 	}
 	return r;
@@ -1761,7 +1815,7 @@ retvalue database_openreleasecache(struct database *database, const char *codena
 	free(oldcachefilename);
 
 	r = database_table(database, "release.caches.db", codename,
-			 DB_HASH, 0, NULL, READWRITE, cachedb_p);
+			 dbt_HASH, DB_CREATE, cachedb_p);
 	if( RET_IS_OK(r) )
 		(*cachedb_p)->verbose = false;
 	return r;
@@ -1829,12 +1883,12 @@ retvalue database_translate_filelists(struct database *database) {
 	newtable = NULL;
 	r = database_table(database, "contents.cache.db",
 			"compressedfilelists",
-			DB_BTREE, 0, NULL, READWRITE, &newtable);
+			dbt_BTREE, DB_CREATE, &newtable);
 	assert( r != RET_NOTHING );
 	oldtable = NULL;
 	if( RET_IS_OK(r) ) {
 		r = database_table(database, "old.contents.cache.db", "filelists",
-				DB_BTREE, 0, NULL, READONLY, &oldtable);
+				dbt_BTREE, DB_RDONLY, &oldtable);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr, "Could not find old-style database!\n");
 			r = RET_ERROR;
@@ -1851,7 +1905,7 @@ retvalue database_translate_filelists(struct database *database) {
 	if( RET_IS_OK(r) ) {
 		/* copy the new-style database, */
 		r = database_table(database, "old.contents.cache.db", "compressedfilelists",
-				DB_BTREE, 0, NULL, READONLY, &oldtable);
+				dbt_BTREE, DB_RDONLY, &oldtable);
 		if( RET_IS_OK(r) ) {
 			/* if there is one... */
 			r = table_copy(oldtable, newtable);

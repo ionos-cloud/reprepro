@@ -1062,7 +1062,7 @@ static retvalue storechecksums(struct release *release) {
 	retvalue result, r;
 	const char *combinedchecksum;
 	/* size including trailing '\0' character: */
-	size_t size;
+	size_t len;
 
 	result = RET_OK;
 
@@ -1076,13 +1076,13 @@ static retvalue storechecksums(struct release *release) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 
-		r = checksums_getcombined(file->checksums, &combinedchecksum, &size);
+		r = checksums_getcombined(file->checksums, &combinedchecksum, &len);
 		RET_UPDATE(result, r);
 		if( !RET_IS_OK(r) )
 			continue;
 
 		r = table_adduniqsizedrecord(release->cachedb,
-				file->relativefilename, combinedchecksum, size,
+				file->relativefilename, combinedchecksum, len+1,
 				false, false);
 		RET_UPDATE(result, r);
 	}

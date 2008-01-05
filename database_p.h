@@ -12,7 +12,7 @@ struct database {
 	char *directory;
 	/* for the files database: */
 	char *mirrordir;
-	struct table *files, *contents;
+	struct table *checksums, *oldmd5sums, *contents;
 	/* for the references database: */
 	struct table *references;
 	/* internal stuff: */
@@ -24,6 +24,8 @@ struct database {
 	     *dbversion, *lastsupporteddbversion;
 	struct {
 		bool createnewtables;
+		/* if set, only a checksums.db file, no files.db: */
+		bool nomd5legacy;
 	} capabilities ;
 };
 

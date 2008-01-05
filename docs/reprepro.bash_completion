@@ -189,7 +189,7 @@ _reprepro()
 			translatefilelists\
 			generatefilelists clearvanished copy processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
-			_listmd5sums _addmd5sums _dumpcontents\
+			_listmd5sums _listchecksums _addmd5sums _dumpcontents\
 			_removereferences _addreference _versioncompare _fakeemptyfilelist'
 
 		if [[ "$cur" == -* ]]; then

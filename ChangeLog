@@ -1,3 +1,12 @@
+2008-01-04  Bernhard R. Link <brlink@debian.org>
+	* add checksums.db to store all checksums (as opposed to only md5sums
+	in files.db). The old files.db persists for compatibility, but when
+	checksums.db is up to date (when repository is generated with new
+	reprepro or to be implemented collectnewchecksums was run) the old
+	files.db can be deleted and only checksums.db is used then. (Of
+	course you should not run an older reprepro with that repository
+	then, ever).
+
 2008-01-03  Bernhard R. Link <brlink@debian.org>
 	* tracking.c uses database.c instead of libdb directly
 

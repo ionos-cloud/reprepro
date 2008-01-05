@@ -430,14 +430,14 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 	char *debfilename, *contents = NULL;
 	retvalue r;
 	const char *c;
-	size_t size;
+	size_t len;
 
 	r = filelist_newpackage(list, packagename, section, &package);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = table_gettemprecord(database->contents, filekey, &c, &size);
+	r = table_gettemprecord(database->contents, filekey, &c, &len);
 	if( r == RET_NOTHING ) {
 		if( verbose > 3 )
 			printf("Reading filelist for %s\n", filekey);
@@ -445,15 +445,16 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 		if( debfilename == NULL ) {
 			return RET_ERROR_OOM;
 		}
-		r = getfilelist(&contents, &size, debfilename);
+		r = getfilelist(&contents, &len, debfilename);
+		len--;
 		free(debfilename);
 		c = contents;
 	}
 	if( RET_IS_OK(r) ) {
-		r = filelist_addfiles(list, package, filekey, c, size);
+		r = filelist_addfiles(list, package, filekey, c, len + 1);
 		if( contents != NULL )
 			r = table_adduniqsizedrecord(database->contents, filekey,
-					contents, size, true, false);
+					contents, len + 1, true, false);
 	}
 	free(contents);
 	return r;

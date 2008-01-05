@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -436,7 +436,7 @@ ACTION_R(n, n, n, n, dumpreferences) {
 	return result;
 }
 
-static retvalue checkifreferenced(void *data,const char *filekey,UNUSED(const char *md5sum)) {
+static retvalue checkifreferenced(void *data, const char *filekey) {
 	struct database *database = data;
 	retvalue r;
 
@@ -457,7 +457,7 @@ ACTION_RF(n, n, n, dumpunreferenced) {
 	return result;
 }
 
-static retvalue deleteifunreferenced(void *data,const char *filekey,UNUSED(const char *md5sum)) {
+static retvalue deleteifunreferenced(void *data, const char *filekey) {
 	struct database *database = data;
 	retvalue r;
 
@@ -904,6 +904,10 @@ ACTION_F(n, n, n, y, forget) {
 
 ACTION_F(n, n, n, n, listmd5sums) {
 	return files_printmd5sums(database);
+}
+
+ACTION_F(n, n, n, n, listchecksums) {
+	return files_printchecksums(database);
 }
 
 ACTION_B(n, n, n, dumpcontents) {
@@ -2264,7 +2268,9 @@ static const struct action {
 	{"_forget", 		A__F(forget),
 		-1, -1, NULL},
 	{"_listmd5sums",	A__F(listmd5sums),
-		0, 0, "_listmd5sums "},
+		0, 0, "_listmd5sums"},
+	{"_listchecksums",	A__F(listchecksums),
+		0, 0, "_listchecksums"},
 	{"_addmd5sums",		A__F(addmd5sums),
 		0, 0, "_addmd5sums < data"},
 	{"_dumpcontents", 	A_ROB(dumpcontents)|MAY_UNUSED,
