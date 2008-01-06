@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -308,7 +308,7 @@ struct checksums *checksums_dup(const struct checksums *checksums) {
 
 bool checksums_getpart(const struct checksums *checksums, enum checksumtype type, const char **sum_p, size_t *size_p) {
 
-	assert( type >= cs_md5sum && type <= cs_count );
+	assert( type <= cs_count );
 
 	if( checksums->parts[type].len == 0 )
 		return false;
@@ -318,7 +318,6 @@ bool checksums_getpart(const struct checksums *checksums, enum checksumtype type
 }
 
 bool checksums_gethashpart(const struct checksums *checksums, enum checksumtype type, const char **hash_p, size_t *hashlen_p, const char **size_p, size_t *sizelen_p) {
-	assert( type >= 0 );
 	assert( type < cs_count );
 	if( checksums->parts[type].len == 0 )
 		return false;
@@ -381,7 +380,7 @@ retvalue checksums_getfilesize(const struct checksums *checksums, off_t *size_p)
 bool checksums_matches(const struct checksums *checksums,enum checksumtype type, const char *sum) {
 	size_t len = checksums->parts[type].len;
 
-	assert( type >= 0 && type < cs_count );
+	assert( type < cs_count );
 
 	if( len == 0 )
 		return true;
@@ -629,7 +628,7 @@ retvalue checksumsarray_include(struct checksumsarray *a, /*@only@*/char *name, 
 
 /* check if the file has the given md5sum (only cheap tests like size),
  * RET_NOTHING means file does not exist, RET_ERROR_WRONG_MD5 means wrong size */
-retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *checksums) {
+retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *checksums, bool complain) {
 	off_t expectedsize;
 	retvalue r;
 	int i;
@@ -654,8 +653,13 @@ retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *c
 
 	if( s.st_size == expectedsize )
 		return RET_OK;
-	else
-		return RET_ERROR_WRONG_MD5;
+	if( complain )
+		fprintf(stderr,
+			"WRONG SIZE of '%s': expected %lld found %lld\n",
+			fullfilename,
+			(long long)expectedsize,
+			(long long)s.st_size);
+	return RET_ERROR_WRONG_MD5;
 }
 
 /* copy, only checking file size, perhaps add some paranoia checks later */
@@ -838,6 +842,11 @@ retvalue checksums_from_context(struct checksums **out, struct checksumscontext 
 	return RET_OK;
 }
 
+bool checksums_iscomplete(const struct checksums *checksums) {
+	return checksums->parts[cs_md5sum].len != 0 &&
+	    checksums->parts[cs_sha1sum].len != 0;
+}
+
 /* Collect missing checksums.
  * if the file is not there, return RET_NOTHING.
  * return RET_ERROR_WRONG_MD5 if already existing do not match */
@@ -846,11 +855,10 @@ retvalue checksums_complete(struct checksums **checksums_p, const char *fullfile
 	struct checksums *realchecksums;
 	bool improves;
 
-	if( (*checksums_p)->parts[cs_md5sum].len != 0 &&
-	    (*checksums_p)->parts[cs_sha1sum].len != 0 )
+	if( checksums_iscomplete(*checksums_p) )
 		return RET_OK;
 
-	r = checksums_cheaptest(fullfilename, realchecksums);
+	r = checksums_cheaptest(fullfilename, *checksums_p, false);
 	if( !RET_IS_OK(r) )
 		return r;
 	r = checksums_read(fullfilename, &realchecksums);

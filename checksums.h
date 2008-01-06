@@ -52,10 +52,13 @@ retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **);
 
 /* check if the file has the given md5sum (only cheap tests like size),
  * RET_NOTHING means file does not exist, RET_ERROR_WRONG_MD5 means wrong size */
-retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *);
+retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *, bool);
 
 /* check if checksum of filekey in database and checksum of actual file, set improve if some new has is in the last */
 bool checksums_check(const struct checksums *, const struct checksums *, /*@out@*/bool *improves);
+
+/* return true, iff all supported checksums are available */
+bool checksums_iscomplete(const struct checksums *);
 
 /* Collect missing checksums (if all are there always RET_OK without checking).
  * if the file is not there, return RET_NOTHING,

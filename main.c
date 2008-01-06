@@ -360,7 +360,7 @@ ACTION_F(n, n, n, n, addmd5sums) {
 	result = RET_NOTHING;
 
 	while( fgets(buffer,1999,stdin) != NULL ) {
-		char *md5sum; struct checksums *checksums;
+		struct checksums *checksums;
 
 		c = strchr(buffer,'\n');
 		if( c == NULL ) {
@@ -374,21 +374,11 @@ ACTION_F(n, n, n, n, addmd5sums) {
 			return RET_ERROR;
 		}
 		*m = '\0'; m++;
-		while( *m == ':' ) {
-			m++;
-			while( *m != ' ' && *m != '\0' )
-				m++;
-			if( *m == ' ' )
-				m++;
-		}
 		if( *m == '\0' ) {
 			fprintf(stderr,"Malformed line\n");
 			return RET_ERROR;
 		}
-		md5sum = strdup(m);
-		if( md5sum == NULL )
-			return RET_ERROR_OOM;
-		r = checksums_set(&checksums, md5sum);
+		r = checksums_setall(&checksums, m, strlen(m), NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		r = files_add_checksums(database, buffer, checksums);
@@ -1622,6 +1612,13 @@ ACTION_F(n, n, n, y, checkpool) {
 
 	return files_checkpool(database, argc == 2);
 }
+
+/* Update checksums of existing files */
+
+ACTION_F(n, n, n, n, collectnewchecksums) {
+
+	return files_collectnewchecksums(database);
+}
 /*****************reapplying override info***************/
 
 ACTION_F(y, n, y, y, reoverride) {
@@ -2271,6 +2268,8 @@ static const struct action {
 		0, 0, "_listmd5sums"},
 	{"_listchecksums",	A__F(listchecksums),
 		0, 0, "_listchecksums"},
+	{"_addchecksums",	A__F(addmd5sums),
+		0, 0, "_addchecksums < data"},
 	{"_addmd5sums",		A__F(addmd5sums),
 		0, 0, "_addmd5sums < data"},
 	{"_dumpcontents", 	A_ROB(dumpcontents)|MAY_UNUSED,
@@ -2299,6 +2298,8 @@ static const struct action {
 		0, -1, "check [<distributions>]"},
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
+	{"collectnewchecksums", A_F(collectnewchecksums),
+		0, 0, "collectnewchecksums"},
 	{"checkpool", 		A_F(checkpool),
 		0, 1, "checkpool [fast]"},
 	{"rereference", 	A_R(rereference),

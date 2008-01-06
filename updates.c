@@ -1122,7 +1122,7 @@ static inline retvalue queueindex(struct update_index *index) {
 			continue;
 
 		index->checksum_ofs = i;
-		r = checksums_cheaptest(index->filename, checksums);
+		r = checksums_cheaptest(index->filename, checksums, false);
 		if( r == RET_ERROR_WRONG_MD5 ) {
 			// TODO: once supporting .diff file,
 			// check if the old file is useable for

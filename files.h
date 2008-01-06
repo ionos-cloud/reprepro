@@ -57,6 +57,8 @@ retvalue files_foreach(struct database *,per_file_action action,void *data);
 
 /* check if all files are corect. (skip md5sum if fast is true) */
 retvalue files_checkpool(struct database *, bool fast);
+/* calculate all missing hashes */
+retvalue files_collectnewchecksums(struct database *);
 
 /* dump out all information */
 retvalue files_printmd5sums(struct database *);
