@@ -322,13 +322,32 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			&pkg->filekeys, distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL);
 
-	//TODO: delete the other files again, too
-	dsc_free(pkg);
+	/* delete source files, if they are to be */
+	if( ( RET_IS_OK(r) && delete >= D_MOVE ) ||
+			( r == RET_NOTHING && delete >= D_DELETE ) ) {
+		char *origdirectory, *fullfilename;
+		retvalue r2;
 
-	if( RET_IS_OK(r) && delete >= D_MOVE )
-		deletefile(dscfilename);
-	else if( r == RET_NOTHING && delete >= D_DELETE )
-		deletefile(dscfilename);
+		r2 = dirs_getdirectory(dscfilename, &origdirectory);
+		if( RET_IS_OK(r2) ) {
+			for( i = 0 ; i < pkg->dsc.files.names.count ; i++ ) {
+				fullfilename = calc_dirconcat(origdirectory,
+						pkg->dsc.files.names.values[i]);
+				if( fullfilename == NULL ) {
+					r = RET_ERROR_OOM;
+					break;
+				}
+				if( isregularfile(fullfilename) )
+					deletefile(fullfilename);
+				free(fullfilename);
+			}
+			free(origdirectory);
+		}
+		RET_ENDUPDATE(r, r2);
+	}
+	// TODO: delete files included into the pool, if inclusion failed
+	// TODO: how to decide inclusion failed and nothing after that?
+	dsc_free(pkg);
 
 	if( tracks != NULL ) {
 		retvalue r2;
