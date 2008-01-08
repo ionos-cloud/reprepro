@@ -300,7 +300,7 @@ retvalue ubinaries_doreoverride(const struct distribution *distribution,const ch
 	return RET_OK;
 }
 
-retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const char *chunk, trackingdb tracks,struct database *database) {
+retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *database) {
 	retvalue r;
 	const char *sourcename;
 	char *fsourcename,*sourceversion,*arch,*filekey;

@@ -740,7 +740,7 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 
 /* export a database */
 
-retvalue target_export(struct target *target, const char *confdir, struct database *database, bool onlyneeded, bool snapshot, struct release *release) {
+retvalue target_export(struct target *target, struct database *database, bool onlyneeded, bool snapshot, struct release *release) {
 	retvalue result,r;
 	bool onlymissing;
 
@@ -758,7 +758,7 @@ retvalue target_export(struct target *target, const char *confdir, struct databa
 	/* not exporting if file is already there? */
 	onlymissing = onlyneeded && !target->wasmodified;
 
-	result = export_target(confdir,target->relativedirectory,
+	result = export_target(target->relativedirectory,
 				target->packages,
 				target->exportmode,
 				release,

@@ -363,7 +363,7 @@ retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const
 	return RET_OK;
 }
 
-retvalue checksums_getfilesize(const struct checksums *checksums, off_t *size_p) {
+off_t checksums_getfilesize(const struct checksums *checksums) {
 	const char *p = checksums->representation + checksums->parts[cs_count].ofs;
 	off_t filesize;
 
@@ -373,8 +373,7 @@ retvalue checksums_getfilesize(const struct checksums *checksums, off_t *size_p)
 		p++;
 	}
 	assert( *p == '\0' );
-	*size_p = filesize;
-	return RET_OK;
+	return filesize;
 }
 
 bool checksums_matches(const struct checksums *checksums,enum checksumtype type, const char *sum) {
@@ -630,7 +629,6 @@ retvalue checksumsarray_include(struct checksumsarray *a, /*@only@*/char *name, 
  * RET_NOTHING means file does not exist, RET_ERROR_WRONG_MD5 means wrong size */
 retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *checksums, bool complain) {
 	off_t expectedsize;
-	retvalue r;
 	int i;
 	struct stat s;
 
@@ -646,10 +644,7 @@ retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *c
 		}
 	}
 
-	r = checksums_getfilesize(checksums, &expectedsize);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
+	expectedsize = checksums_getfilesize(checksums);
 
 	if( s.st_size == expectedsize )
 		return RET_OK;
@@ -664,7 +659,7 @@ retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *c
 
 /* copy, only checking file size, perhaps add some paranoia checks later */
 static retvalue copy(const char *destination, const char *source, const struct checksums *checksums) {
-	off_t filesize = 0;
+	off_t filesize = 0, expected;
 	static const int bufsize = 16384;
 	char *buffer = malloc(bufsize);
 	ssize_t sizeread, towrite, written;
@@ -741,7 +736,17 @@ static retvalue copy(const char *destination, const char *source, const struct c
 		deletefile(destination);
 		return RET_ERRNO(e);;
 	}
-	// TODO: check filesize to match checksums
+	expected = checksums_getfilesize(checksums);
+	if( filesize != expected ) {
+		fprintf(stderr,
+"Error copying %s to %s:\n"
+" File seems to be of size %llu, while %llu was expected!\n",
+				source, destination,
+				(unsigned long long)filesize,
+				(unsigned long long)expected);
+		deletefile(destination);
+		return RET_ERROR_WRONG_MD5;
+	}
 	return RET_OK;
 }
 

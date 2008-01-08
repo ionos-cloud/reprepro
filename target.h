@@ -32,7 +32,7 @@ typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
 typedef retvalue do_reoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-typedef retvalue do_retrack(struct target *,const char *packagename,const char *controlchunk,trackingdb,struct database *);
+typedef retvalue do_retrack(const char *packagename, const char *controlchunk, trackingdb, struct database *);
 typedef retvalue get_sourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
 struct target {
@@ -70,7 +70,7 @@ retvalue target_initialize_binary(const char *codename,const char *component,con
 retvalue target_initialize_source(const char *codename,const char *component,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
 retvalue target_free(struct target *target);
 
-retvalue target_export(struct target *target, const char *confdir, struct database *, bool onlyneeded, bool snapshot, struct release *release);
+retvalue target_export(struct target *target, struct database *, bool onlyneeded, bool snapshot, struct release *release);
 
 retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 

@@ -1250,12 +1250,13 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 	}
 	RET_UPDATE(result,r);
 	if( RET_WAS_ERROR(result) && somethingwasdone ) {
-		fputs(
+		fprintf(stderr,
 "ATTENTION: some files were already moved to place, some could not be.\n"
-"The generated index files might be in a inconsistent state and currently\n"
-"not useable! You should remove the reason for the failure\n"
+"The generated index files for %s might be in a inconsistent state\n"
+"and currently not useable! You should remove the reason for the failure\n"
 "(most likely bad access permissions) and export the affected distributions\n"
-"manually (via reprepro export codenames) as soon as possible!\n", stderr);
+"manually (via reprepro export codenames) as soon as possible!\n",
+			distribution->codename);
 	}
 	if( release->cachedb != NULL ) {
 		// TODO: split this in removing before and adding later?

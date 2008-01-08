@@ -312,7 +312,7 @@ retvalue sources_doreoverride(const struct distribution *distribution,const char
 	return RET_OK;
 }
 
-retvalue sources_retrack(struct target *t,const char *sourcename,const char *chunk, trackingdb tracks,struct database *database) {
+retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb tracks, struct database *database) {
 	retvalue r;
 	char *sourceversion;
 	struct trackedpackage *pkg;

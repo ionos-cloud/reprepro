@@ -21,7 +21,7 @@ retvalue sources_getchecksums(const char *, /*@out@*/struct checksumsarray *);
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-retvalue sources_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,struct database *);
+retvalue sources_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *);
 retvalue sources_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
 /* Functions for checkindsc.c and incoming.c: */

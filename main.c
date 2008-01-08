@@ -551,7 +551,7 @@ ACTION_D(y, n, y, remove) {
 
 	logger_wait();
 
-	r = distribution_export(export, distribution, confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	if( d.trackingdata != NULL ) {
@@ -667,7 +667,7 @@ ACTION_D(n, n, y, removesrc) {
 						distribution->codename);
 			}
 		} else {
-			r = distribution_export(export, distribution, confdir, distdir, database);
+			r = distribution_export(export, distribution, distdir, database);
 			RET_ENDUPDATE(result,r);
 		}
 		r = tracking_done(tracks);
@@ -683,8 +683,7 @@ ACTION_D(n, n, y, removesrc) {
 			NULL, NULL, NULL,
 			package_source_fits, dereferenced, NULL,
 			&data);
-	r = distribution_export(export, distribution,
-			confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -744,8 +743,7 @@ ACTION_D(y, n, y, removefilter) {
 			package_matches_condition, dereferenced,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
-	r = distribution_export(export, distribution,
-			confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result, r);
 	if( tracks != NULL ) {
 		trackingdata_finish(tracks, &trackingdata,
@@ -951,7 +949,7 @@ ACTION_F(n, n, y, y, export) {
 			printf("Exporting %s...\n",d->codename);
 		}
 
-		r = distribution_fullexport(d, confdir, distdir, database);
+		r = distribution_fullexport(d, distdir, database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && export != EXPORT_FORCE) {
 			return r;
@@ -1000,8 +998,7 @@ ACTION_D(n, n, y, update) {
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1044,8 +1041,7 @@ ACTION_D(n, n, y, predelete) {
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result, r);
 
 	return result;
@@ -1081,7 +1077,7 @@ ACTION_D(n, n, y, iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir, database, distdir, methoddir, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
+		result = updates_iteratedupdate(database, distdir, methoddir, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -1151,8 +1147,7 @@ ACTION_D(n, n, y, pull) {
 	pull_freerules(rules);
 	pull_freedistributions(p);
 
-	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1315,7 +1310,7 @@ ACTION_D(y, n, y, copy) {
 	d.removedfiles = NULL;
 	d.destination = NULL;
 
-	r = distribution_export(export, destination, confdir, distdir, database);
+	r = distribution_export(export, destination, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1363,7 +1358,7 @@ ACTION_R(n, n, y, y, rereference) {
 static retvalue package_retrack(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
 	trackingdb tracks = data;
 
-	return target->doretrack(target, packagename, controlchunk,
+	return target->doretrack(packagename, controlchunk,
 			tracks, database);
 }
 
@@ -1653,7 +1648,7 @@ ACTION_F(y, n, y, y, reoverride) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	r = distribution_exportlist(export, alldistributions, confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1758,7 +1753,7 @@ ACTION_D(y, y, y, includedeb) {
 
 	logger_wait();
 
-	r = distribution_export(export, distribution, confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1816,8 +1811,7 @@ ACTION_D(y, y, y, includedsc) {
 	distribution_unloadoverrides(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export, distribution,
-			confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1884,7 +1878,7 @@ ACTION_D(y, y, y, include) {
 	distribution_unloaduploaders(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export,distribution,confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -2132,7 +2126,7 @@ ACTION_D(n, n, y, processincoming) {
 	logger_wait();
 
 	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+			distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -2149,11 +2143,7 @@ ACTION_R(n, n, y, y, gensnapshot) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = distribution_snapshot(distribution,
-	                               confdir, distdir,
-				       database,
-	                               argv[2]);
-	return result;
+	return distribution_snapshot(distribution, distdir, database, argv[2]);
 }
 
 

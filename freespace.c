@@ -180,9 +180,7 @@ retvalue space_needed(struct devices *devices, const char *filename, const struc
 	r = device_find_or_create(devices, s.st_dev, buffer, &device);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = checksums_getfilesize(checksums, &filesize);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	filesize = checksums_getfilesize(checksums);
 	blocks = (filesize + device->blocksize - 1) / device->blocksize;
 	device->needed += 1 + blocks;
 

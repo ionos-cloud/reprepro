@@ -256,7 +256,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 
 /**************************Fire up a method*****************************/
 
-inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmethod *method,const char *methoddir) {
+inline static retvalue aptmethod_startup(struct aptmethod *method, const char *methoddir) {
 	pid_t f;
 	int mstdin[2];
 	int mstdout[2];
@@ -1111,7 +1111,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struc
 
 	/* fire up all methods, removing those that do not work: */
 	for( method = run->methods; method != NULL ; method = method->next ) {
-		r = aptmethod_startup(run,method,methoddir);
+		r = aptmethod_startup(method, methoddir);
 		/* do not remove failed methods here any longer,
 		 * and not remove methods having nothing to do,
 		 * as this breaks when no index files are downloaded

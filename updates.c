@@ -2057,7 +2057,7 @@ static retvalue singledistributionupdate(struct database *database, const char *
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir, struct database *database, const char *distdir, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum exportwhen export, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
+retvalue updates_iteratedupdate(struct database *database, const char *distdir, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum exportwhen export, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -2087,7 +2087,7 @@ retvalue updates_iteratedupdate(const char *confdir, struct database *database, 
 		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
 		r = distribution_export(export, d->distribution,
-				confdir, distdir, database);
+				distdir, database);
 		RET_UPDATE(result,r);
 	}
 	return result;

@@ -119,7 +119,7 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 		return r;
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,
-"Error parsing %s, line %u, column %u: Unexpected and of field!\n"
+"Error parsing %s, line %u, column %u: Unexpected end of field!\n"
 "Filename to use for index files (Packages, Sources, ...) missing.\n",
 			config_filename(iter),
 			config_markerline(iter), config_markercolumn(iter));
@@ -144,7 +144,7 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 	}
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,
-"Error parsing %s, line %u, column %u: Unexpected and of field!\n"
+"Error parsing %s, line %u, column %u: Unexpected end of field!\n"
 "Compression identifiers ('.', '.gz' or '.bz2') missing.\n",
 			config_filename(iter),
 			config_markerline(iter), config_markercolumn(iter));
@@ -188,8 +188,17 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 			return r;
 	}
 	if( r != RET_NOTHING ) {
-		free(mode->hook);
-		mode->hook = word;
+		if( word[0] == '/' ) {
+			free(mode->hook);
+			mode->hook = word;
+		} else {
+			char *fullfilename = calc_dirconcat(confdir, word);
+			free(word);
+			if( fullfilename == NULL )
+				return RET_ERROR_OOM;
+			free(mode->hook);
+			mode->hook = fullfilename;
+		}
 	}
 	r = config_getword(iter, &word);
 	if( RET_WAS_ERROR(r) )
@@ -240,7 +249,7 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 	}
 }
 
-static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, const char *relfilename, const char *mode, struct release *release) {
+static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilename, const char *mode, struct release *release) {
 	pid_t f,c;
 	int status;
 	int io[2];
@@ -284,18 +293,9 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		if( reltmpfilename == NULL ) {
 			exit(255);
 		}
-		if( hook[0] == '/' )
-			(void)execl(hook,hook,release_dirofdist(release),reltmpfilename,relfilename,mode,NULL);
-		else {
-			char *fullfilename = calc_dirconcat(confdir,hook);
-			if( fullfilename == NULL ) {
-				fprintf(stderr,"Out of Memory!\n");
-				exit(255);
-
-			}
-			(void)execl(fullfilename,fullfilename,release_dirofdist(release),reltmpfilename,relfilename,mode,NULL);
-		}
-		fprintf(stderr,"Error while executing '%s': %d=%m\n",hook,errno);
+		(void)execl(hook, hook, release_dirofdist(release),
+				reltmpfilename, relfilename, mode, NULL);
+		fprintf(stderr, "Error while executing '%s': %d=%m\n", hook, errno);
 		exit(255);
 	}
 	close(io[1]);
@@ -379,7 +379,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir, const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
+retvalue export_target(const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
@@ -446,8 +446,7 @@ retvalue export_target(const char *confdir, const char *relativedir, struct tabl
 		status = "old";
 	}
 	if( !snapshot )
-		r = callexporthook(confdir,
-					exportmode->hook,
+		r = callexporthook(exportmode->hook,
 					relfilename,
 					status,
 					release);

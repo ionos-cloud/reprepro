@@ -689,6 +689,9 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 	p->datasent = 0;
 	p->data = NULL;
 	// TODO: implement --withcontrol
+	// until that changeschunk is not yet needed:
+	changeschunk = changeschunk;
+
 	if( runningchildren() < 1 )
 		startchild();
 	return RET_OK;
@@ -810,6 +813,8 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 	p->datasent = 0;
 	p->data = NULL;
 	// TODO: implement --withcontrol
+	// until that control is not yet needed:
+	control = control; oldcontrol = oldcontrol;
 	if( runningchildren() < 1 )
 		startchild();
 	return RET_OK;

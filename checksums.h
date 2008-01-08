@@ -27,7 +27,7 @@ retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_count+1]);
 retvalue checksums_parse(/*@out@*/struct checksums **, const char *);
 
 retvalue checksums_get(const struct checksums *, enum checksumtype, /*@out@*/char **);
-retvalue checksums_getfilesize(const struct checksums *, /*@out@*/off_t *);
+off_t checksums_getfilesize(const struct checksums *);
 
 /* get 0-terminated combined textual representation of the checksums,
  * including the size (including the trailing '\0'): */

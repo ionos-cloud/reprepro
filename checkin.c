@@ -897,7 +897,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {
-			r = deb_prepare(&e->pkg.deb, database,
+			r = deb_prepare(&e->pkg.deb,
 				e->component, e->architecture,
 				e->section, e->priority,
 				"deb",
@@ -906,7 +906,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_UDEB ) {
-			r = deb_prepare(&e->pkg.deb, database,
+			r = deb_prepare(&e->pkg.deb,
 				e->component, e->architecture,
 				e->section, e->priority,
 				"udeb",
