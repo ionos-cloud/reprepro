@@ -2,178 +2,7 @@
 
 set -e
 
-testrun() {
-rules=$1
-shift
-if test "x$rules" = "x" ; then
-	"$TESTTOOL" -C $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
-elif test "x$rules" = "x-" ; then
-	"$TESTTOOL" -r -C $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
-else
-	"$TESTTOOL" -r -C $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@" 3<"$rules".rules
-fi
-}
-testout() {
-rules=$1
-shift
-if test "x$rules" = "x" ; then
-	"$TESTTOOL" -o results $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
-elif test "x$rules" = "x-" ; then
-	"$TESTTOOL" -o results -r $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@"
-else
-	"$TESTTOOL" -o results -r $VARTESTOPTIONS $TESTOPTIONS "$REPREPRO" $VERBOSITY "$@" 3<"$rules".rules
-fi
-}
-dogrep() {
-echo grep -q "$@"
-grep -q "$@"
-}
-dongrep() {
-echo "!grep" -q "$@"
-! grep -q "$@"
-}
-dodiff() {
-echo diff -u "$@"
-diff -u "$@"
-}
-dodo() {
-echo "$@"
-"$@"
-}
-
-export FAKEARCHITECTURE=abacus
-export FALEN=${#FAKEARCHITECTURE}
-WORKDIR="`pwd`/testdir"
-USE_VALGRIND=""
-VALGRIND_SUP=""
-VARTESTOPTIONS=""
-
-if [ "x$1" == "x--delete" ] ; then
-	rm -r "$WORKDIR" || true
-	shift
-fi
-if [ "x$1" == "x--valgrind" ] ; then
-	USE_VALGRIND=1
-	shift
-fi
-if [ "x$1" == "x--valgrind-supp" ] ; then
-	USE_VALGRIND=1
-	shift
-	VALGRIND_SUP="$1"
-	shift
-fi
-
-mkdir "$WORKDIR"
-cd "$WORKDIR"
-
-if [ "1" -gt "$#" ] || [ "3" -lt "$#" ] ; then
-	echo "Syntax: test.sh <src-dir> [<testtool-binary>] [<reprepro-binary>]" >&2
-	exit 1
-fi
-SRCDIR="$1"
-if [ -z "$TESTOPTIONS" ] ; then
-	if [ -z "$USE_VALGRIND" ] ; then
-		TESTOPTIONS="-e -a"
-	elif [ -z "$VALGRIND_SUP" ] ; then
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$SRCDIR/valgrind.supp"
-	else
-		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$VALGRIND_SUP"
-	fi
-fi
-#TESTOPTIONS="-D v=-1 $TESTOPTIONS"
-#VERBOSITY="-s"
-#TESTOPTIONS="-D v=0 $TESTOPTIONS"
-#VERBOSITY=""
-#TESTOPTIONS="-D v=1 $TESTOPTIONS"
-#VERBOSITY="-v"
-#TESTOPTIONS="-D v=2 $TESTOPTIONS"
-#VERBOSITY="-vv"
-#TESTOPTIONS="-D v=3 $TESTOPTIONS"
-#VERBOSITY="-vvv"
-#TESTOPTIONS="-D v=4 $TESTOPTIONS"
-#VERBOSITY="-vvvv"
-#TESTOPTIONS="-D v=5 $TESTOPTIONS"
-#VERBOSITY="-vvvvv"
-TESTOPTIONS="-D v=6 $TESTOPTIONS"
-VERBOSITY="-vvvvvv"
-if [ "2" -le "$#" ] ; then
-	TESTTOOL="$2"
-else
-	TESTTOOL=testtool
-fi
-if [ "3" -le "$#" ] ; then
-	REPREPRO="$3"
-else
-	REPREPRO="$SRCDIR/reprepro"
-fi
-if true ; then
-if test -n "$TESTNEWFILESDB" ; then
-	TESTOPTIONS="-D x=0 -D e=0 -D d=1 $TESTOPTIONS"
-else
-	TESTOPTIONS="-D x=0 -D e=1 -D d=1 $TESTOPTIONS"
-fi
-VERBOSITY="--verbosedb $VERBOSITY"
-TRACKINGTESTOPTIONS="-D t=1"
-NOTRACKINGTESTOPTIONS="-D t=0"
-else
-TRACKINGTESTOPTIONS="-D t=0"
-NOTRACKINGTESTOPTIONS="-D t=0"
-fi
-TESTS="$SRCDIR/tests"
-UPDATETYPE=update
-export PATH="$TESTS:$PATH"
-if ! [ -x "$REPREPRO" ] ; then
-	echo "Could not find $REPREPRO!" >&2
-	exit 1
-fi
-TESTTOOLVERSION="`$TESTTOOL --version`"
-case $TESTTOOLVERSION in
-	"testtool version "*) ;;
-	*) echo "Failed to get version of testtool($TESTTOOL)"
-	   exit 1
-	   ;;
-esac
-touch results.empty
-function printindexpart() {
-	FILENAME="$1"
-	dpkg-deb -I "$FILENAME" control >"$FILENAME".control
-	ed -s "$FILENAME".control << EOF
-H
-/^Description:/ kd
-/^Priority/ m 'd-1
-/^Section/ m 'd-1
-'d i
-Filename: $FILENAME
-Size: $(stat -c "%s" "$FILENAME")
-SHA1: $(sha1sum "$FILENAME" | cut -d' ' -f1)
-MD5sum: $(md5sum "$FILENAME" | cut -d' ' -f1)
-.
-$ a
-
-.
-w
-q
-EOF
-cat "$FILENAME".control
-rm "$FILENAME".control
-}
-function mdandsize() {
-cat <<EOF
-$(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
-EOF
-}
-function sha1andsize() {
-cat <<EOF
-$(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
-EOF
-}
-EMPTYMD5ONLY="d41d8cd98f00b204e9800998ecf8427e"
-EMPTYMD5="d41d8cd98f00b204e9800998ecf8427e 0"
-EMPTYGZMD5="7029066c27ac6f5ef18d660d5741979a 20"
-EMPTYBZ2MD5="4059d198768f9f8dc9372dc1c54bc3c3 14"
-EMPTYSHA1="da39a3ee5e6b4b0d3255bfef95601890afd80709 0"
-EMPTYGZSHA1="46c6643f07aa7f6bfe7118de926b86defc5087c4 20"
-EMPTYBZ2SHA1="64a543afbb5f4bf728636bdcbbe7a2ed0804adc2 14"
+source $(dirname $0)/test.inc
 
 dodo test ! -d db
 testrun - -b . _versioncompare 0 1 3<<EOF
@@ -2387,7 +2216,7 @@ simple			install
 bloat+-0a9z.app-addons	install
 END
 
-testrun - -b . $UPDATETYPE test1 3<<EOF
+testrun - -b . update test1 3<<EOF
 stderr
 *=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
@@ -2455,7 +2284,7 @@ DATESTR add test1 deb stupid ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:0.9-A
 EOF
 checknolog log1
 checknolog log2
-testrun - -b . $UPDATETYPE test1 3<<EOF
+testrun - -b . update test1 3<<EOF
 =WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
@@ -2464,7 +2293,7 @@ testrun - -b . $UPDATETYPE test1 3<<EOF
 EOF
 checklog log1 < /dev/null
 checknolog log2
-testrun - --nolistsdownload -b . $UPDATETYPE test1 3<<EOF
+testrun - --nolistsdownload -b . update test1 3<<EOF
 -v0*=Ignoring --skipold because of --nolistsdownload
 =WARNING: Single-Instance not yet supported!
 =WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
@@ -4148,7 +3977,7 @@ Components: all
 Pull: froma
 Log: logab
 EOF
-VARTESTOPTIONS="$TRACKINGTESTOPTIONS"
+setoptions unchanged "" "" tracking
 else
 cat >> conf/distributions <<EOF
 
@@ -4163,7 +3992,7 @@ Components: all
 Pull: froma
 Log: logab
 EOF
-VARTESTOPTIONS="$NOTRACKINGTESTOPTIONS"
+setoptions unchanged "" ""
 fi
 checknolog logab
 
