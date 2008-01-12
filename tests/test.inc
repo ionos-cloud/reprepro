@@ -42,6 +42,9 @@ echo "$@"
 }
 
 function setverbosity() {
+	if test "x$1" = "xdefault" ; then
+		set -- "$DEFAULTVERBOSITY"
+	fi
 	case "$1" in
 		-1)
 			VERBOSITYOPTIONS="-D v=-1"
@@ -71,7 +74,7 @@ function setverbosity() {
 			VERBOSITYOPTIONS="-D v=5"
 			VERBOSITY="-vvvvv"
 			;;
-		6|default)
+		6)
 			VERBOSITYOPTIONS="-D v=6"
 			VERBOSITY="-vvvvvv"
 			;;
@@ -90,6 +93,7 @@ USE_VALGRIND=""
 VALGRIND_SUP=""
 VERBOSEDB="1"
 TESTNEWFILESDB=""
+DEFAULTVERBOSITY=6
 
 while [ $# -gt 0 ] ; do
 	case "$1" in
@@ -114,6 +118,11 @@ while [ $# -gt 0 ] ; do
 			;;
 		--testnewfilesdb)
 			TESTNEWFILESDB="1"
+			shift
+			;;
+		--verbosity)
+			shift
+			DEFAULTVERBOSITY="$1"
 			shift
 			;;
 		--noverbosedb)
