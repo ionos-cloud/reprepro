@@ -2047,6 +2047,7 @@ ACTION_D(n, n, n, clearvanished) {
 				if( !table_isempty(packages) ) {
 					fprintf(stderr,
 "There are still packages in '%s', not removing (give --delete to do so)!\n", identifier);
+					(void)table_close(packages);
 					continue;
 				}
 				r = table_close(packages);
