@@ -205,7 +205,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, const char * const forcec
 	assert( expectedsourcepackage != NULL );
 	assert( expectedsourceversion != NULL );
 
-	/* First taking a closer look to the file: */
+	/* First taking a closer look in the file: */
 
 	r = deb_read(&pkg,debfilename, true);
 	if( RET_WAS_ERROR(r) ) {
@@ -219,7 +219,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, const char * const forcec
 		return RET_ERROR;
 	}
 	if( strcmp(pkg->deb.source, expectedsourcepackage) != 0 ) {
-		/* this cannot ne ignored easily, as it determines
+		/* this cannot be ignored easily, as it determines
 		 * the directory this file is stored into */
 	    fprintf(stderr,
 "'%s' lists source package '%s', but .changes says it is '%s'!\n",
