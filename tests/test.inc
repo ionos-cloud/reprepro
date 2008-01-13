@@ -260,9 +260,18 @@ cat <<EOF
 $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
+function sha() {
+echo -n ":1:"
+sha1sum "$1" | cut -d' ' -f1
+}
 function sha1andsize() {
 cat <<EOF
 $(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
+EOF
+}
+function fullchecksum() {
+cat <<EOF
+$(sha "$1") $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
 EMPTYMD5ONLY="d41d8cd98f00b204e9800998ecf8427e"

@@ -682,13 +682,15 @@ static retvalue changes_includefiles(struct database *database,struct changes *c
 	for( e = changes->files; e != NULL ; e = e->next ) {
 		assert( e->filekey != NULL );
 
-		if( e->wasalreadythere )
+		if( e->wasalreadythere && checksums_iscomplete(e->checksums) )
 			continue;
 
 		r = files_checkincludefile(database, changes->incomingdirectory,
 				e->basename, e->filekey, &e->checksums);
 		if( RET_IS_OK(r) )
 			e->included = true;
+		assert( e->included || e->wasalreadythere );
+		assert( !(e->included && e->wasalreadythere) );
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}

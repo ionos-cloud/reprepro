@@ -930,13 +930,13 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 				checksums_free(checksums);
 				return r;
 			}
-			/* TODO:
-			r = files_add_improved(database, filekey, checksums);
+			r = files_replace_checksums(database, filekey,
+					checksums);
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(realchecksums);
 				checksums_free(checksums);
 				return r;
-			}*/
+			}
 		}
 		checksums_free(realchecksums);
 		// args, this breaks retvalue semantics!
@@ -978,6 +978,93 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 	return RET_OK;
 }
 
+static retvalue checkimproveorinclude(struct database *database, const char *sourcedir, const char *basename, const char *filekey, struct checksums **checksums_p, bool *improving) {
+	retvalue r;
+	struct checksums *checksums = NULL;
+	bool improves, copied = false;
+	char *fullfilename = files_calcfullfilename(database, filekey);
+
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+
+	if( checksums_iscomplete(*checksums_p) ) {
+		r = checksums_cheaptest(fullfilename, *checksums_p, true);
+		if( r != RET_NOTHING ) {
+			free(fullfilename);
+			return r;
+		}
+	} else {
+		r = checksums_read(fullfilename, &checksums);
+		if( RET_WAS_ERROR(r) ) {
+			free(fullfilename);
+			return r;
+		}
+	}
+	if( r == RET_NOTHING ) {
+		char *sourcefilename = calc_dirconcat(sourcedir, basename);
+
+		if( sourcefilename == NULL ) {
+			free(fullfilename);
+			return RET_ERROR_OOM;
+		}
+
+		fprintf(stderr,
+"WARNING: file %s was lost!\n"
+"(i.e. found in the database, but not in the pool)\n"
+"trying to compensate...\n",
+				filekey);
+		(void)dirs_make_parent(fullfilename);
+		r = checksums_copyfile(fullfilename, sourcefilename,
+				&checksums);
+		if( r == RET_ERROR_EXIST ) {
+			fprintf(stderr,
+"File '%s' seems to be missing and existing at the same time!\n"
+"To confused to continue...\n", 		fullfilename);
+		}
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
+			r = RET_ERROR_MISSING;
+		}
+		free(sourcefilename);
+		if( RET_WAS_ERROR(r) ) {
+			free(fullfilename);
+			return r;
+		}
+		copied = true;
+	}
+
+	assert( checksums != NULL );
+
+	if( !checksums_check(*checksums_p, checksums, &improves) ) {
+		if( copied ) {
+			deletefile(fullfilename);
+			fprintf(stderr,
+"ERROR: Unexpected content of file '%s/%s'!\n", sourcedir, basename);
+		} else
+// TODO: if the database only listed some of the currently supported checksums,
+// and the caller of checkincludefile supplied some (which none yet does), but
+// not all (which needs at least three checksums, i.e. not applicaple before
+// sha256 get added), then this might also be called if the file in the pool
+// just has the same checksums as previously recorded (e.g. a md5sum collision)
+// but the new file was listed with another secondary hash than the original.
+// In that situation it might be a bit misleading...
+			fprintf(stderr,
+"ERROR: file %s is damaged!\n"
+"(i.e. found in the database, but with different checksums in the pool)\n",
+				filekey);
+		checksums_printdifferences(stderr, *checksums_p, checksums);
+		r = RET_ERROR_WRONG_MD5;
+	}
+	if( improves ) {
+		r = checksums_combine(checksums_p, checksums);
+		if( RET_IS_OK(r) )
+			*improving = true;
+	}
+	checksums_free(checksums);
+	free(fullfilename);
+	return r;
+}
+
 retvalue files_checkincludefile(struct database *database, const char *sourcedir,const char *basename, const char *filekey, struct checksums **checksums_p) {
 	char *sourcefilename, *fullfilename;
 	struct checksums *checksums;
@@ -990,6 +1077,19 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) ) {
+		/* there are three sources now:
+		 *  - the checksums from the database (may have some we
+		 *    do not even know about, and may miss some we can
+		 *    generate)
+		 *  - the checksums provided (typically only md5sum,
+		 *    as this comes from a .changes or .dsc)
+		 *  - the checksums of the file
+		 *
+		 *  to make things more complicated, the file should only
+		 *  be read if needed, as this needs time.
+		 *  And it can happen the file got lost in the pool, then
+		 *  this is the best place to replace it.
+		 */
 		if( !checksums_check(checksums, *checksums_p, &improves) ) {
 			fprintf(stderr,
 "ERROR: '%s/%s' cannot be included as '%s'.\n"
@@ -999,21 +1099,21 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 			checksums_free(checksums);
 			return RET_ERROR_WRONG_MD5;
 		}
-		if( improves ) {
+		r = RET_NOTHING;
+		if( improves )
 			r = checksums_combine(&checksums, *checksums_p);
-			if( RET_WAS_ERROR(r) ) {
-				checksums_free(checksums);
-				return r;
-			}
-			/* TODO:
-			r = files_add_improved(database, filekey, checksums);
-			if( RET_WAS_ERROR(r) ) {
-				checksums_free(checksums);
-				return r;
-			}*/
-		}
-		checksums_free(checksums);
-		return RET_NOTHING;
+		if( !RET_WAS_ERROR(r) )
+			r = checkimproveorinclude(database, sourcedir,
+				basename, filekey, &checksums, &improves);
+		if( !RET_WAS_ERROR(r) && improves )
+			r = files_replace_checksums(database, filekey,
+					checksums);
+		if( RET_IS_OK(r) )
+			r = RET_NOTHING;
+		/* return the combined checksum */
+		checksums_free(*checksums_p);
+		*checksums_p = checksums;
+		return r;
 	}
 
 	assert( sourcedir != NULL );
@@ -1036,6 +1136,11 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 	if( r == RET_NOTHING ) {
 		fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
 		r = RET_ERROR_MISSING;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(fullfilename);
+		free(sourcefilename);
+		return r;
 	}
 	if( !checksums_check(*checksums_p, checksums, &improves) ) {
 		deletefile(fullfilename);
