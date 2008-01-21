@@ -1,3 +1,3 @@
 
-EXTRA_DIST = test.sh genpackage.sh dpkg-architecture debtest.sh tooltest.sh
-MAINTAINERCLEANFILES = Makefile.in
+EXTRA_DIST = test.sh testchecksums.sh test.inc genpackage.sh dpkg-architecture debtest.sh tooltest.sh
+MAINTAINERCLEANFILES = $(srcdir)/Makefile.in
