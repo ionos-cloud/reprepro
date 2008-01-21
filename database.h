@@ -16,10 +16,10 @@ struct distribution;
 struct table;
 struct cursor;
 
-retvalue database_create(struct database **, const char *dbdir, struct distribution *, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb);
-retvalue database_close(struct database *);
+retvalue database_create(/*@out@*/struct database **, const char *dbdir, struct distribution *, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb);
+retvalue database_close(/*@only@*/struct database *);
 
-const char *database_directory(struct database *);
+/*@observer@*/ const char *database_directory(struct database *);
 
 retvalue database_openfiles(struct database *, const char *mirrordir);
 retvalue database_openreferences(struct database *);
@@ -37,7 +37,7 @@ bool table_isempty(struct table *);
 bool table_recordexists(struct table *, const char *);
 /* retrieve a record from the database, return RET_NOTHING if there is none: */
 retvalue table_getrecord(struct table *, const char *, /*@out@*/char **);
-retvalue table_gettemprecord(struct table *, const char *, /*@out@*/const char **, /*@out@*/ size_t *);
+retvalue table_gettemprecord(struct table *, const char *, /*@out@*//*@null@*/const char **, /*@out@*//*@null@*/size_t *);
 retvalue table_getpair(struct table *, const char *, const char *, /*@out@*/const char **, /*@out@*/size_t *);
 
 retvalue table_adduniqsizedrecord(struct table *, const char *key, const char *data, size_t data_size, bool allowoverwrote, bool nooverwrite);

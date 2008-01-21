@@ -16,7 +16,7 @@ struct checksums;
 void checksums_free(/*@only@*//*@null@*/struct checksums *);
 
 /* duplicate a checksum record, NULL means OOM */
-struct checksums *checksums_dup(const struct checksums *);
+/*@null@*/struct checksums *checksums_dup(const struct checksums *);
 
 /* create a checksum record from an md5sum: */
 retvalue checksums_set(/*@out@*/struct checksums **, /*@only@*/char *);
@@ -69,12 +69,13 @@ void checksums_printdifferences(FILE *,const struct checksums *expected, const s
 
 retvalue checksums_combine(struct checksums **checksums, const struct checksums *by);
 
+typedef /*@only@*/ struct checksums *ownedchecksums;
 struct checksumsarray {
 	struct strlist names;
-	/*@null@*/struct checksums **checksums;
+	/*@null@*/ownedchecksums *checksums;
 };
-void checksumsarray_move(/*@out@*/struct checksumsarray *, struct checksumsarray *);
-void checksumsarray_done(struct checksumsarray *);
+void checksumsarray_move(/*@out@*/struct checksumsarray *, /*@special@*/struct checksumsarray *array)/*@requires maxSet(array->names.values) >= array->names.count /\ maxSet(array->checksums) >= array->names.count @*/ /*@releases array->checksums, array->names.values @*/;
+void checksumsarray_done(/*@special@*/struct checksumsarray *array) /*@requires maxSet(array->names.values) >= array->names.count /\ maxSet(array->checksums) >= array->names.count @*/ /*@releases array->checksums, array->names.values @*/;
 retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist *, const char *filenametoshow);
 retvalue checksumsarray_include(struct checksumsarray *, /*@only@*/char *, const struct checksums *);
 

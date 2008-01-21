@@ -37,7 +37,7 @@ static bool isbinarydata(const char *buffer, size_t len, const char *source) {
 	unsigned char c;
 
 	for( i = 0 ; i < len ; i++ ) {
-		c = buffer[i];
+		c = (unsigned char)buffer[i];
 		if( c < ' ' && c != '\t' && c != '\n' && c != '\r' ) {
 			fprintf(stderr, "Unexpected binary character \\%03hho in %s\n",
 					c, source);
@@ -61,7 +61,7 @@ retvalue readtextfilefd(int fd, const char *source, char **data, size_t *len) {
 
 		/* text files are normaly small, so it does not hurt to check
 		 * the whole of them always */
-		if( isbinarydata(buffer + readdata, readbytes, source) ) {
+		if( isbinarydata(buffer + readdata, (size_t)readbytes, source) ) {
 			free(buffer);
 			return RET_ERROR;
 		}
@@ -91,6 +91,9 @@ retvalue readtextfilefd(int fd, const char *source, char **data, size_t *len) {
 	}
 	h = realloc(buffer, readdata + 1);
 	if( h == NULL ) {
+#ifdef SPLINT
+		h = NULL;
+#endif
 		if( readdata >= buffersize ) {
 			free(buffer);
 			return RET_ERROR_OOM;

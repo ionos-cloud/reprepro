@@ -33,7 +33,7 @@ void closefrom(int lowfd) {
 	if( maxopen < 0 )
 		maxopen = 1024;
 	for( fd = lowfd ; fd <= maxopen ; fd++ )
-		close(fd);
+		(void)close(fd);
 }
 #endif
 
@@ -41,7 +41,7 @@ void markcloseonexec(int fd) {
 	long l;
 	l = fcntl(fd, F_GETFD, 0);
 	if( l >= 0 ) {
-		fcntl(fd, F_SETFD, l|FD_CLOEXEC);
+		(void)fcntl(fd, F_SETFD, l|FD_CLOEXEC);
 	}
 }
 

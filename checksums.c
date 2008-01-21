@@ -45,10 +45,15 @@
  * Checksums are parsed and stored in a structure for fast access of their
  * known parts:
  */
+#ifdef SPLINT
+typedef size_t hashlen_t;
+#else
+typedef unsigned short hashlen_t;
+#endif
 
 struct checksums {
 	struct { unsigned short ofs;
-		unsigned short len;
+		hashlen_t len;
 	} parts[cs_count+1];
 	char representation[];
 };
@@ -132,7 +137,7 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 				free(hashes[type]);
 			return RET_ERROR;
 		}
-		hashlens[type] = p - hashes[type];
+		hashlens[type] = (size_t)(p - hashes[type]);
 		len += strlen(" :x:") + hashlens[type];
 	}
 
@@ -152,18 +157,18 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 		*(d++) = '1' + (type - cs_sha1sum);
 		*(d++) = ':';
 		n->parts[type].ofs = d - n->representation;
-		n->parts[type].len = hashlens[type];
+		n->parts[type].len = (hashlen_t)hashlens[type];
 		memcpy(d, hashes[type], hashlens[type]);
 		d += hashlens[type];
 		*(d++) = ' ';
 	}
 	n->parts[cs_md5sum].ofs = d - n->representation;
-	n->parts[cs_md5sum].len = hashlens[cs_md5sum];
+	n->parts[cs_md5sum].len = (hashlen_t)hashlens[cs_md5sum];
 	memcpy(d, hashes[cs_md5sum], hashlens[cs_md5sum]);
 	d += hashlens[cs_md5sum];
 	*(d++) = ' ';
 	n->parts[cs_count].ofs = d - n->representation;
-	n->parts[cs_count].len = hashlens[cs_count];
+	n->parts[cs_count].len = (hashlen_t)hashlens[cs_count];
 	memcpy(d, size, hashlens[cs_count] + 1);
 	d += hashlens[cs_count] + 1;
 	assert( (size_t)(d-n->representation) == len + 1 );
@@ -199,9 +204,9 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 	struct checksums *n;
 	size_t len = strlen(combinedchecksum);
 	const char *p = combinedchecksum;
-	char *d;
+	/*@dependent@*/char *d;
 	char type;
-	const char *start;
+	/*@dependent@*/const char *start;
 
 	n = malloc(sizeof(struct checksums) + len + 1);
 	if( n == NULL )
@@ -229,7 +234,7 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 			n->parts[cs_sha1sum].ofs = d - n->representation;
 			while( *p != ' ' && *p != '\0' )
 				*(d++) = *(p++);
-			n->parts[cs_sha1sum].len = d - start;
+			n->parts[cs_sha1sum].len = (hashlen_t)(d - start);
 		} else {
 			while( *p != ' ' && *p != '\0' )
 				*(d++) = *(p++);
@@ -255,7 +260,7 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 			return RET_ERROR;
 		}
 	}
-	n->parts[cs_md5sum].len = d - start;
+	n->parts[cs_md5sum].len = (hashlen_t)(d - start);
 	*(d++) = ' ';
 	while( *p == ' ' )
 		p++;
@@ -275,7 +280,7 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 			return RET_ERROR;
 		}
 	}
-	n->parts[cs_count].len = d - start;
+	n->parts[cs_count].len = (hashlen_t)(d - start);
 	if( d == start ) {
 		// TODO: how to get some context in this?
 		fprintf(stderr,
@@ -300,7 +305,7 @@ struct checksums *checksums_dup(const struct checksums *checksums) {
 
 	n = malloc(sizeof(struct checksums) + len + 1);
 	if( n == NULL )
-		return n;
+		return NULL;
 	memcpy(n, checksums, sizeof(struct checksums) + len + 1);
 	assert( n->representation[len] == '\0' );
 	return n;
@@ -369,7 +374,7 @@ off_t checksums_getfilesize(const struct checksums *checksums) {
 
 	filesize = 0;
 	while( *p <= '9' && *p >= '0' ) {
-		filesize = filesize*10 + (*p-'0');
+		filesize = filesize*10 + (size_t)(*p-'0');
 		p++;
 	}
 	assert( *p == '\0' );
@@ -377,7 +382,7 @@ off_t checksums_getfilesize(const struct checksums *checksums) {
 }
 
 bool checksums_matches(const struct checksums *checksums,enum checksumtype type, const char *sum) {
-	size_t len = checksums->parts[type].len;
+	size_t len = (size_t)checksums->parts[type].len;
 
 	assert( type < cs_count );
 
@@ -440,12 +445,13 @@ void checksums_printdifferences(FILE *f, const struct checksums *expected, const
 	}
 }
 
-retvalue checksums_combine(struct checksums **checksums_p, const struct checksums *by) {
+retvalue checksums_combine(struct checksums **checksums_p, const struct checksums *by) /*@requires only *checksums_p @*/ /*@ensures only *checksums_p @*/ {
 	struct checksums *old = *checksums_p, *n;
 	size_t len = old->parts[cs_count].ofs + old->parts[cs_count].len
 		    + by->parts[cs_count].ofs + by->parts[cs_count].len;
 	const char *o, *b, *start;
-	char *d, typeid;
+	char /*@dependent@*/ *d;
+	char typeid;
 
 	n = malloc(sizeof(struct checksums)+ len + 1);
 	if( n == NULL )
@@ -465,7 +471,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 				n->parts[cs_sha1sum].ofs = d - n->representation;
 				while( *o != ' ' && *o != '\0' )
 					*(d++) = *(o++);
-				n->parts[cs_sha1sum].len = d - start;
+				n->parts[cs_sha1sum].len = (hashlen_t)(d - start);
 			} else
 				while( *o != ' ' && *o != '\0' )
 					*(d++) = *(o++);
@@ -490,7 +496,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 				n->parts[cs_sha1sum].ofs = d - n->representation;
 				while( *b != ' ' && *b != '\0' )
 					*(d++) = *(b++);
-				n->parts[cs_sha1sum].len = d - start;
+				n->parts[cs_sha1sum].len = (hashlen_t)(d - start);
 			} else
 				while( *b != ' ' && *b != '\0' )
 					*(d++) = *(b++);
@@ -504,7 +510,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 	start = d;
 	while( *o != ' ' && *o != '\0' )
 		*(d++) = *(o++);
-	n->parts[cs_md5sum].len = d - start;
+	n->parts[cs_md5sum].len = (hashlen_t)(d - start);
 	assert( *o == ' ' );
 	if( *o == ' ' )
 		*(d++) = *(o++);
@@ -513,7 +519,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 	start = d;
 	while( *o != '\0' )
 		*(d++) = *(o++);
-	n->parts[cs_count].len = d - start;
+	n->parts[cs_count].len = (hashlen_t)(d - start);
 	assert( (size_t)(d - n->representation) <= len );
 	*(d++) = '\0';
 	*checksums_p = realloc(n, sizeof(struct checksums)
@@ -527,6 +533,7 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 void checksumsarray_done(struct checksumsarray *array) {
 	if( array->names.count > 0 ) {
 		int i;
+		assert( array->checksums != NULL );
 		for( i = 0 ; i < array->names.count ; i++ ) {
 			checksums_free(array->checksums[i]);
 		}
@@ -545,8 +552,13 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist *
 	r = strlist_init_n(lines->count+1, &a.names);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	if( lines->count == 0 ) {
+		a.checksums = NULL;
+		checksumsarray_move(out, &a);
+		return RET_OK;
+	}
 	a.checksums = calloc(lines->count, sizeof(struct checksums *));
-	if( lines->count > 0 && a.checksums == NULL ) {
+	if( a.checksums == NULL ) {
 		strlist_done(&a.names);
 		return RET_ERROR_OOM;
 	}
@@ -615,11 +627,15 @@ retvalue checksumsarray_include(struct checksumsarray *a, /*@only@*/char *name, 
 	}
 	r = strlist_include(&a->names, name);
 	if( !RET_IS_OK(r) ) {
+		checksums_free(n[0]);
 		free(n);
 		return r;
 	}
 	assert( a->names.count == count + 1 );
-	memcpy(&n[1], a->checksums, count*sizeof(struct checksums*));
+	if( count > 0 ) {
+		assert( a->checksums != NULL );
+		memcpy(&n[1], a->checksums, count*sizeof(struct checksums*));
+	}
 	free(a->checksums);
 	a->checksums = n;
 	return RET_OK;
@@ -660,7 +676,7 @@ retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *c
 /* copy, only checking file size, perhaps add some paranoia checks later */
 static retvalue copy(const char *destination, const char *source, const struct checksums *checksums) {
 	off_t filesize = 0, expected;
-	static const int bufsize = 16384;
+	static const size_t bufsize = 16384;
 	char *buffer = malloc(bufsize);
 	ssize_t sizeread, towrite, written;
 	const char *start;
@@ -684,7 +700,7 @@ static retvalue copy(const char *destination, const char *source, const struct c
 		e = errno;
 		fprintf(stderr, "Error %d creating '%s': %s\n",
 				e, destination, strerror(e));
-		close(infd);
+		(void)close(infd);
 		free(buffer);
 		return RET_ERRNO(e);
 	}
@@ -696,7 +712,7 @@ static retvalue copy(const char *destination, const char *source, const struct c
 			fprintf(stderr,"Error %d while reading %s: %s\n",
 					e, source, strerror(e));
 			free(buffer);
-			close(infd); close(outfd);
+			(void)close(infd); (void)close(outfd);
 			deletefile(destination);
 			return RET_ERRNO(e);;
 		}
@@ -704,13 +720,13 @@ static retvalue copy(const char *destination, const char *source, const struct c
 		towrite = sizeread;
 		start = buffer;
 		while( towrite > 0 ) {
-			written = write(outfd, start, towrite);
+			written = write(outfd, start, (size_t)towrite);
 			if( written < 0 ) {
 				e = errno;
 				fprintf(stderr,"Error %d while writing to %s: %s\n",
 						e, destination, strerror(e));
 				free(buffer);
-				close(infd); close(outfd);
+				(void)close(infd); (void)close(outfd);
 				deletefile(destination);
 				return RET_ERRNO(e);;
 			}
@@ -724,7 +740,7 @@ static retvalue copy(const char *destination, const char *source, const struct c
 		e = errno;
 		fprintf(stderr,"Error %d reading %s: %s\n",
 				e, source, strerror(e));
-		close(outfd);
+		(void)close(outfd);
 		deletefile(destination);
 		return RET_ERRNO(e);;
 	}
@@ -760,7 +776,7 @@ retvalue checksums_hardlink(const char *directory, const char *filekey, const ch
 	i = link(sourcefilename, fullfilename);
 	e = errno;
 	if( i != 0 && e == EEXIST )  {
-		unlink(fullfilename);
+		(void)unlink(fullfilename);
 		errno = 0;
 		i = link(sourcefilename, fullfilename);
 		e = errno;
@@ -838,7 +854,7 @@ retvalue checksums_from_context(struct checksums **out, struct checksumscontext 
 	*(d++) = ' ';
 	n->parts[cs_count].ofs = 2*MD5_DIGEST_SIZE + 2*SHA1_DIGEST_SIZE + 5;
 	assert( d - n->representation == n->parts[cs_count].ofs);
-	n->parts[cs_count].len = snprintf(d,
+	n->parts[cs_count].len = (hashlen_t)snprintf(d,
 			2*MD5_DIGEST_SIZE + 2*SHA1_DIGEST_SIZE + 26
 			- (d - n->representation), "%lld",
 			(long long)context->sha1.count);
@@ -883,7 +899,7 @@ retvalue checksums_complete(struct checksums **checksums_p, const char *fullfile
 
 retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **checksums_p) {
 	struct checksumscontext context;
-	static const int bufsize = 16384;
+	static const size_t bufsize = 16384;
 	unsigned char *buffer = malloc(bufsize);
 	ssize_t sizeread;
 	int e, i;
@@ -899,8 +915,10 @@ retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **ch
 	if( infd < 0 ) {
 		e = errno;
 		if( (e == EACCES || e == ENOENT) &&
-				!isregularfile(fullfilename) )
+				!isregularfile(fullfilename) ) {
+			free(buffer);
 			return RET_NOTHING;
+		}
 		fprintf(stderr,"Error %d opening '%s': %s\n",
 				e, fullfilename, strerror(e));
 		free(buffer);
@@ -913,10 +931,10 @@ retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **ch
 			fprintf(stderr,"Error %d while reading %s: %s\n",
 					e, fullfilename, strerror(e));
 			free(buffer);
-			close(infd);
+			(void)close(infd);
 			return RET_ERRNO(e);;
 		}
-		checksumscontext_update(&context, buffer, sizeread);
+		checksumscontext_update(&context, buffer, (size_t)sizeread);
 	} while( sizeread > 0 );
 	free(buffer);
 	i = close(infd);
@@ -931,7 +949,7 @@ retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **ch
 
 retvalue checksums_copyfile(const char *destination, const char *source, struct checksums **checksums_p) {
 	struct checksumscontext context;
-	static const int bufsize = 16384;
+	static const size_t bufsize = 16384;
 	unsigned char *buffer = malloc(bufsize);
 	ssize_t sizeread, towrite, written;
 	const unsigned char *start;
@@ -955,7 +973,7 @@ retvalue checksums_copyfile(const char *destination, const char *source, struct 
 		e = errno;
 		fprintf(stderr, "Error %d creating '%s': %s\n",
 				e, destination, strerror(e));
-		close(infd);
+		(void)close(infd);
 		free(buffer);
 		return RET_ERRNO(e);
 	}
@@ -967,21 +985,21 @@ retvalue checksums_copyfile(const char *destination, const char *source, struct 
 			fprintf(stderr,"Error %d while reading %s: %s\n",
 					e, source, strerror(e));
 			free(buffer);
-			close(infd); close(outfd);
+			(void)close(infd); (void)close(outfd);
 			deletefile(destination);
 			return RET_ERRNO(e);;
 		}
-		checksumscontext_update(&context, buffer, sizeread);
+		checksumscontext_update(&context, buffer, (size_t)sizeread);
 		towrite = sizeread;
 		start = buffer;
 		while( towrite > 0 ) {
-			written = write(outfd, start, towrite);
+			written = write(outfd, start, (size_t)towrite);
 			if( written < 0 ) {
 				e = errno;
 				fprintf(stderr,"Error %d while writing to %s: %s\n",
 						e, destination, strerror(e));
 				free(buffer);
-				close(infd); close(outfd);
+				(void)close(infd); (void)close(outfd);
 				deletefile(destination);
 				return RET_ERRNO(e);;
 			}
@@ -995,7 +1013,7 @@ retvalue checksums_copyfile(const char *destination, const char *source, struct 
 		e = errno;
 		fprintf(stderr,"Error %d reading %s: %s\n",
 				e, source, strerror(e));
-		close(outfd);
+		(void)close(outfd);
 		deletefile(destination);
 		return RET_ERRNO(e);;
 	}
@@ -1019,7 +1037,8 @@ retvalue checksums_linkorcopyfile(const char *destination, const char *source, s
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	unlink(destination);
+	(void)unlink(destination);
+	errno = 0;
 	i = link(source, destination);
 	if( i != 0 )
 		return checksums_copyfile(destination, source, checksums_p);

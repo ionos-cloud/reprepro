@@ -2939,7 +2939,7 @@ int main(int argc,char *argv[]) {
 	sa.sa_flags = SA_ONESHOT;
 #elif defined(SA_RESETHAND)
 	sa.sa_flags = SA_RESETHAND;
-#else
+#elif !defined(SPLINT)
 #       error "missing argument to sigaction!"
 #endif
 	sa.sa_handler = interrupt_signaled;

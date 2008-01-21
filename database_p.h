@@ -12,15 +12,15 @@ struct database {
 	char *directory;
 	/* for the files database: */
 	char *mirrordir;
-	struct table *checksums, *oldmd5sums, *contents;
+	/*@null@*/ struct table *checksums, *oldmd5sums, *contents;
 	/* for the references database: */
-	struct table *references;
+	/*@null@*/ struct table *references;
 	/* internal stuff: */
 	bool locked, verbose;
 	int dircreationdepth;
 	bool nopackages, readonly,
 	     packagesdatabaseopen, trackingdatabaseopen;
-	char *version, *lastsupportedversion,
+	/*@null@*/ char *version, *lastsupportedversion,
 	     *dbversion, *lastsupporteddbversion;
 	struct {
 		bool createnewtables;

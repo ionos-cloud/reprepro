@@ -36,7 +36,7 @@ strictbooleancheck:
 
 SPLINT=splint
 SPLITFLAGSFORVIM= -linelen 10000 -locindentspaces 0
-SPLINTFLAGS= +posixlib $(SPLITFLAGSFORVIM)
+SPLINTFLAGS= +posixlib -booltype bool -fixedformalarray +charint $(SPLITFLAGSFORVIM)
 
 splint:
-	$(SPLINT) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) -D_GNU_SOURCE=1 $(SPLINTFLAGS) $(reprepro_SOURCES)
+	$(SPLINT) -DSPLINT=1 $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) -D_GNU_SOURCE=1 $(SPLINTFLAGS) $(foreach file,$(reprepro_SOURCES),$(srcdir)/$(file))

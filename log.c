@@ -42,10 +42,10 @@
 
 extern int verbose;
 
-/*@null@*/ static struct logfile {
-	struct logfile *next;
+/*@null@*/ static /*@refcounted@*/ struct logfile {
+	/*@null@*/struct logfile *next;
 	char *filename;
-	size_t refcount;
+	/*@refs@*/size_t refcount;
 	int fd;
 } *logfile_root = NULL;
 
@@ -206,7 +206,7 @@ struct notificator {
 	bool withcontrol, changesacceptrule;
 };
 
-static void notificator_done(struct notificator *n) {
+static void notificator_done(/*@special@*/struct notificator *n) /*@releases n->scriptname,n->packagename,n->component,n->architecture@*/{
 	free(n->scriptname);
 	free(n->packagetype);
 	free(n->component);
@@ -393,11 +393,11 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, st
 }
 
 /*@null@*/ static struct notification_process {
-	struct notification_process *next;
+	/*@null@*/struct notification_process *next;
 	char **arguments;
 	/* data to send to the process */
 	size_t datalen, datasent;
-	char *data;
+	/*@null@*/char *data;
 	/* process */
 	pid_t child;
 	int fd;
@@ -504,7 +504,7 @@ static void feedchildren(bool wait) {
 "Error '%s' while sending data to '%s', sending SIGABRT to it!\n",
 						strerror(e),
 						p->arguments[0]);
-				kill(p->child, SIGABRT);
+				(void)kill(p->child, SIGABRT);
 			}
 			p->datasent += sent;
 			if( p->datasent >= p->datalen ) {
@@ -557,7 +557,7 @@ static retvalue startchild(void) {
 				(void)close(filedes[0]);
 		}
 		/* Try to close all open fd but 0,1,2 */
-		close(filedes[1]);
+		(void)close(filedes[1]);
 		closefrom(3);
 		(void)execv(p->arguments[0], p->arguments);
 		fprintf(stderr, "Error executing '%s': %s\n", p->arguments[0],
@@ -565,7 +565,7 @@ static retvalue startchild(void) {
 		_exit(255);
 	}
 	if( p->datalen > 0 ) {
-		close(filedes[0]);
+		(void)close(filedes[0]);
 		markcloseonexec(p->fd);
 	}
 	if( child < 0 ) {
@@ -590,7 +590,7 @@ static retvalue startchild(void) {
 				return RET_ERROR;
 			}
 			if( (polldata.revents & POLLHUP) != 0 ) {
-				close(p->fd);
+				(void)close(p->fd);
 				p->fd = -1;
 				return RET_OK;
 			}
@@ -607,12 +607,11 @@ static retvalue startchild(void) {
 "Error '%s' while sending data to '%s', sending SIGABRT to it!\n",
 							strerror(e),
 							p->arguments[0]);
-					kill(p->child, SIGABRT);
+					(void)kill(p->child, SIGABRT);
 					return RET_ERRNO(e);
 				}
 				p->datasent += written;
 				if( p->datasent >= p->datalen ) {
-					int ret;
 					free(p->data);
 					p->data = NULL;
 					ret = close(p->fd);
@@ -840,7 +839,7 @@ void logger_warn_waiting(void) {
 	struct notification_process *p;
 
 	if( processes != NULL ) {
-		fputs(
+		(void)fputs(
 "WARNING: some notificator hooks were not run!\n"
 "(most likely due to receiving an interruption request)\n"
 "You will either have to run them by hand or run rerunnotifiers if\n"
@@ -851,20 +850,20 @@ void logger_warn_waiting(void) {
 			if( c == NULL )
 				continue;
 			while( *c != NULL ) {
-				fputc('"', stderr);
-				fputs(*c, stderr);
-				fputc('"', stderr);
+				(void)fputc('"', stderr);
+				(void)fputs(*c, stderr);
+				(void)fputc('"', stderr);
 				c++;
 				if( *c != NULL )
-					fputc(' ', stderr);
+					(void)fputc(' ', stderr);
 			}
-			fputc('\n', stderr);
+			(void)fputc('\n', stderr);
 		}
 	}
 }
 
 struct logger {
-	/*@dependent@*/struct logfile *logfile;
+	/*@dependent@*//*@null@*/struct logfile *logfile;
 	size_t notificator_count;
 	struct notificator *notificators;
 };

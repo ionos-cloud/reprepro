@@ -10,6 +10,6 @@ struct SHA1_Context {
 
 void SHA1Init(/*@out@*/struct SHA1_Context *context);
 void SHA1Update(struct SHA1_Context *context, const uint8_t *data, const size_t len);
-void SHA1Final(struct SHA1_Context *context, uint8_t digest[SHA1_DIGEST_SIZE]);
+void SHA1Final(struct SHA1_Context *context, /*@out@*/uint8_t digest[SHA1_DIGEST_SIZE]);
 
 #endif

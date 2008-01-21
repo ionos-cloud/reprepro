@@ -32,7 +32,7 @@ struct constant {
 #define CFr(name, sname, field) {name, sizeof(name)-1, configparser_ ## sname ## _set_ ## field, true}
 #define CF(name, sname, field) {name, sizeof(name)-1, configparser_ ## sname ## _set_ ## field, false}
 
-const char *config_filename(const struct configiterator *) __attribute__((pure));
+/*@observer@*/const char *config_filename(const struct configiterator *) __attribute__((pure));
 unsigned int config_line(const struct configiterator *) __attribute__((pure));
 unsigned int config_column(const struct configiterator *) __attribute__((pure));
 unsigned int config_firstline(const struct configiterator *) __attribute__((pure));
@@ -42,17 +42,17 @@ retvalue config_getflags(struct configiterator *, const char *, const struct con
 int config_nextnonspaceinline(struct configiterator *iter);
 retvalue config_getlines(struct configiterator *,struct strlist *);
 retvalue config_getwords(struct configiterator *,struct strlist *);
-retvalue config_getall(struct configiterator *iter, char **result_p);
-retvalue config_getword(struct configiterator *, char **);
-retvalue config_getwordinline(struct configiterator *, char **);
-retvalue config_getonlyword(struct configiterator *, const char *, checkfunc, char **);
+retvalue config_getall(struct configiterator *iter, /*@out@*/char **result_p);
+retvalue config_getword(struct configiterator *, /*@out@*/char **);
+retvalue config_getwordinline(struct configiterator *, /*@out@*/char **);
+retvalue config_getonlyword(struct configiterator *, const char *, checkfunc, /*@out@*/char **);
 retvalue config_getuniqwords(struct configiterator *, const char *, checkfunc, struct strlist *);
 retvalue config_getsplitwords(struct configiterator *, const char *, struct strlist *, struct strlist *);
 retvalue config_gettruth(struct configiterator *, const char *, bool *);
 retvalue config_getnumber(struct configiterator *, const char *, long long *, long long minval, long long maxval);
 retvalue config_getconstant(struct configiterator *, const struct constant *, int *);
 #define config_getenum(iter,type,constants,result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
-retvalue config_completeword(struct configiterator *, char, char **);
+retvalue config_completeword(struct configiterator *, char, /*@out@*/char **);
 void config_overline(struct configiterator *);
 bool config_nextline(struct configiterator *);
 retvalue configfile_parse(const char *confdir, const char *filename, bool ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);

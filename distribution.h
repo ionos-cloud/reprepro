@@ -93,7 +93,6 @@ struct distribution {
 };
 
 retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);
-// retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 /* set lookedat, start logger, ... */
 retvalue distribution_prepareforwriting(struct distribution *distribution);

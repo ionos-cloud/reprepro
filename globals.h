@@ -27,8 +27,8 @@ typedef int _Bool;
 #define READONLY true
 #define READWRITE false
 
-#define ISSET(a,b) (a&b)!=0
-#define NOTSET(a,b) (a&b)==0
+#define ISSET(a,b) ((a&b)!=0)
+#define NOTSET(a,b) ((a&b)==0)
 
 #ifdef STUPIDCC
 #define IFSTUPIDCC(a) a

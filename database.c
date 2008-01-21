@@ -53,7 +53,7 @@ extern int verbose;
 #define SETDBT(dbt, datastr) {const char *my = datastr; memset(&dbt, 0, sizeof(dbt)); dbt.data = (void *)my; dbt.size = strlen(my) + 1;}
 #define SETDBTl(dbt, datastr, datasize) {const char *my = datastr; memset(&dbt, 0, sizeof(dbt)); dbt.data = (void *)my; dbt.size = datasize;}
 
-static void database_free(struct database *db) {
+static void database_free(/*@only@*/ struct database *db) {
 	if( db == NULL )
 		return;
 	free(db->directory);
@@ -169,7 +169,7 @@ retvalue database_close(struct database *db) {
 	return result;
 }
 
-static retvalue database_hasdatabasefile(const struct database *database, const char *filename, bool *exists_p) {
+static retvalue database_hasdatabasefile(const struct database *database, const char *filename, /*@out@*/bool *exists_p) {
 	char *fullfilename;
 
 	fullfilename = calc_dirconcat(database->directory, filename);
@@ -200,7 +200,7 @@ const uint32_t types[dbt_COUNT] = {
 
 static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b);
 
-static retvalue database_opentable(struct database *database, const char *filename, const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
+static retvalue database_opentable(struct database *database, const char *filename, /*@null@*/const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
 	char *fullfilename;
 	DB *table;
 	int dbret;
@@ -394,20 +394,20 @@ static retvalue warnidentifers(struct database *db, const struct strlist *identi
 		fprintf(stderr,
 "Error: packages database contains unused '%s' database.\n", identifier);
 		if( ignored[IGN_undefinedtarget] == 0 ) {
-			fputs(
+			(void)fputs(
 "This either means you removed a distribution, component or architecture from\n"
 "the distributions config file without calling clearvanished, or your config\n"
 "does not belong to this database.\n",
 					stderr);
 		}
 		if( IGNORABLE(undefinedtarget) ) {
-			fputs("Ignoring as --ignore=undefinedtarget given.\n",
+			(void)fputs("Ignoring as --ignore=undefinedtarget given.\n",
 					stderr);
 			ignored[IGN_undefinedtarget]++;
 			continue;
 		}
 
-		fputs("To ignore use --ignore=undefinedtarget.\n", stderr);
+		(void)fputs("To ignore use --ignore=undefinedtarget.\n", stderr);
 		return RET_ERROR;
 	}
 	for( d = distributions ; d != NULL ; d = d->next ) {
@@ -449,32 +449,32 @@ static retvalue warnunusedtracking(const struct strlist *codenames, const struct
 "Error: tracking database contains unused '%s' database.\n", codename);
 		if( ignored[IGN_undefinedtracking] == 0 ) {
 			if( d == NULL )
-				fputs(
+				(void)fputs(
 "This either means you removed a distribution from the distributions config\n"
 "file without calling clearvanished (or at least removealltracks), you were\n"
 "bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your\n"
 "config does not belong to this database.\n",
 						stderr);
 			else
-				fputs(
+				(void)fputs(
 "This either means you removed the Tracking: options from this distribution without\n"
 "calling removealltracks for it, or your config does not belong to this database.\n",
 						stderr);
 		}
 		if( IGNORABLE(undefinedtracking) ) {
-			fputs("Ignoring as --ignore=undefinedtracking given.\n",
+			(void)fputs("Ignoring as --ignore=undefinedtracking given.\n",
 					stderr);
 			ignored[IGN_undefinedtracking]++;
 			continue;
 		}
 
-		fputs("To ignore use --ignore=undefinedtracking.\n", stderr);
+		(void)fputs("To ignore use --ignore=undefinedtracking.\n", stderr);
 		return RET_ERROR;
 	}
 	return RET_OK;
 }
 
-static retvalue readline(char **result, FILE *f, const char *versionfilename) {
+static retvalue readline(/*@out@*/char **result, FILE *f, const char *versionfilename) {
 	char buffer[21];
 	size_t l;
 
@@ -626,36 +626,35 @@ static retvalue writeversionfile(struct database *db) {
 		return RET_ERROR_OOM;
 	f = fopen(versionfilename, "w");
 	if( f == NULL ) {
-		int e = errno;
-
+		e = errno;
 		fprintf(stderr, "Error creating '%s': %s(errno is %d)\n",
 					versionfilename, strerror(e), e);
 		free(versionfilename);
 		return RET_ERRNO(e);
 	}
 	if( db->version == NULL )
-		fputs("0\n", f);
+		(void)fputs("0\n", f);
 	else {
-		fputs(db->version, f);
-		fputc('\n', f);
+		(void)fputs(db->version, f);
+		(void)fputc('\n', f);
 	}
 	if( db->lastsupportedversion == NULL )
-		fputs("0\n", f);
+		(void)fputs("0\n", f);
 	else {
-		fputs(db->lastsupportedversion, f);
-		fputc('\n', f);
+		(void)fputs(db->lastsupportedversion, f);
+		(void)fputc('\n', f);
 	}
 	if( db->dbversion == NULL )
 		fprintf(f, "bdb%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
 	else {
-		fputs(db->dbversion, f);
-		fputc('\n', f);
+		(void)fputs(db->dbversion, f);
+		(void)fputc('\n', f);
 	}
 	if( db->lastsupporteddbversion == NULL )
 		fprintf(f, "bdb%d.%d.0\n", DB_VERSION_MAJOR, DB_VERSION_MINOR);
 	else {
-		fputs(db->lastsupporteddbversion, f);
-		fputc('\n', f);
+		(void)fputs(db->lastsupporteddbversion, f);
+		(void)fputc('\n', f);
 	}
 
 	e = ferror(f);
@@ -1206,9 +1205,9 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 }
 
 static inline retvalue parse_pair(struct table *table, DBT Key, DBT Data, /*@null@*//*@out@*/const char **key_p, /*@out@*/const char **value_p, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
-	const char *separator;
+	/*@dependant@*/ const char *separator;
 
-	if( Key.size <= 0 || Data.size <= 0 ||
+	if( Key.size == 0 || Data.size == 0 ||
 	    ((const char*)Key.data)[Key.size-1] != '\0' ||
 	    ((const char*)Data.data)[Data.size-1] != '\0' ) {
 		if( table->subname != NULL )
@@ -1344,6 +1343,8 @@ retvalue table_newpairedcursor(struct table *table, const char *key, const char 
 			fprintf(stderr,
 "Database %s returned corrupted (not paired) data!",
 					table->name);
+		(void)cursor->cursor->c_close(cursor->cursor);
+		free(cursor);
 		return RET_ERROR;
 	}
 	if( data_p != NULL )
@@ -1642,11 +1643,11 @@ retvalue database_opentracking(struct database *database, const char *codename, 
 	retvalue r;
 
 	if( database->nopackages ) {
-		fputs("Internal Error: Accessing packages databse while that was not prepared!\n", stderr);
+		(void)fputs("Internal Error: Accessing packages databse while that was not prepared!\n", stderr);
 		return RET_ERROR;
 	}
 	if( database->trackingdatabaseopen ) {
-		fputs("Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
+		(void)fputs("Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
 		return RET_ERROR;
 	}
 
@@ -1666,11 +1667,11 @@ retvalue database_openpackages(struct database *database, const char *identifier
 	retvalue r;
 
 	if( database->nopackages ) {
-		fputs("Internal Error: Accessing packages databse while that was not prepared!\n", stderr);
+		(void)fputs("Internal Error: Accessing packages databse while that was not prepared!\n", stderr);
 		return RET_ERROR;
 	}
 	if( database->packagesdatabaseopen ) {
-		fputs("Internal Error: Trying to open multiple packages databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
+		(void)fputs("Internal Error: Trying to open multiple packages databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
 		return RET_ERROR;
 	}
 
@@ -1878,6 +1879,8 @@ retvalue database_translate_filelists(struct database *database) {
 		int e = errno;
 		fprintf(stderr, "Could not rename '%s' into '%s': %s(%d)\n",
 				dbname, tmpdbname, strerror(e), e);
+		free(dbname);
+		free(tmpdbname);
 		return RET_ERRNO(e);
 	}
 	newtable = NULL;
@@ -1919,7 +1922,7 @@ retvalue database_translate_filelists(struct database *database) {
 	r2 = table_close(newtable);
 	RET_ENDUPDATE(r, r2);
 	if( RET_IS_OK(r) )
-		unlink(tmpdbname);
+		(void)unlink(tmpdbname);
 
 	if( RET_WAS_ERROR(r) ) {
 		ret = rename(tmpdbname, dbname);

@@ -137,7 +137,7 @@ static retvalue incoming_prepare(struct incoming *i) {
 			continue;
 		r = strlist_add_dup(&i->files, ent->d_name) ;
 		if( RET_WAS_ERROR(r) ) {
-			closedir(dir);
+			(void)closedir(dir);
 			return r;
 		}
 	}
