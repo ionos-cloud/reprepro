@@ -25,7 +25,7 @@ changestool_SOURCES = readtextfile.c filecntl.c tool.c chunkedit.c strlist.c md5
 
 noinst_HEADERS = checksums.h readtextfile.h filecntl.h sha1.h configparser.h database_p.h database.h freespace.h log.h changes.h incoming.h guesscomponent.h md5.h md5sum.h dirs.h files.h chunks.h reference.h binaries.h sources.h checks.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h debfile.h checkindeb.h checkindsc.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h pull.h ar.h filelist.h contents.h chunkedit.h uploaderslist.h
 
-MAINTAINERCLEANFILES = Makefile.in configure install-sh stamp-h.in aclocal.m4 config.h.in mkinstalldirs config.guess config.sub missing
+MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/configure $(srcdir)/install-sh $(srcdir)/stamp-h.in $(srcdir)/aclocal.m4 $(srcdir)/config.h.in $(srcdir)/mkinstalldirs $(srcdir)/config.guess $(srcdir)/config.sub $(srcdir)/missing
 
 maintainer-clean-local:
 	-rm -rf autom4te.cache
