@@ -778,8 +778,6 @@ static retvalue export(struct distribution *distribution, const char *distdir, s
 "same distribution will not!\n",	stderr);
 		}
 	} else {
-		retvalue r;
-
 		r = release_finish(release,distribution);
 		RET_UPDATE(result,r);
 	}

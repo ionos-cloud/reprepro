@@ -258,7 +258,7 @@ ACTION_N(n, n, printargs) {
 	for( i=0 ; i < argc ; i++ ) {
 		fprintf(stderr,"%s\n",argv[i]);
 	}
-	return 0;
+	return RET_OK;
 }
 
 ACTION_N(n, n, extractcontrol) {
@@ -2476,8 +2476,6 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				if( deletederef ) {
 					if( dereferencedfilekeys.count > 0 ) {
 					    if( RET_IS_OK(result) && !interrupted() ) {
-						retvalue r;
-
 						logger_wait();
 
 						if( verbose >= 0 )

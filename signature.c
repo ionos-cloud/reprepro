@@ -1015,7 +1015,7 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options) {
 }
 
 retvalue signedfile_finalize(struct signedfile *f, bool *toolate) {
-	int result = RET_OK, r;
+	retvalue result = RET_OK, r;
 	int e;
 
 	if( f->newsignfilename != NULL && f->signfilename != NULL ) {

@@ -90,10 +90,11 @@ retvalue donefile_create(const char *filename, const struct checksums *checksums
 	size_t len;
 	ssize_t written;
 	int fd;
+	char *donefilename;
+
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
-	char *donefilename = calc_addsuffix(filename,"done");
-
+	donefilename = calc_addsuffix(filename,"done");
 	if( donefilename == NULL )
 		return RET_ERROR_OOM;
 	r = checksums_get(checksums, cs_md5sum, &md5sum);

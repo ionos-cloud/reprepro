@@ -431,6 +431,7 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 
 retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const char *filenametoshow, bool *broken) {
 	retvalue r;
+	struct strlist filelines;
 
 	r = signature_readsignedchunk(filename, filenametoshow,
 			&dsc->control, NULL, NULL, broken);
@@ -475,7 +476,6 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 	r = getvalue_n(dsc->control, PRIORITY_FIELDNAME, &dsc->priority);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	struct strlist filelines;
 
 	r = chunk_getextralinelist(dsc->control, "Files", &filelines);
 	if( r == RET_NOTHING ) {

@@ -1099,6 +1099,8 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	struct release_entry *file;
 	enum checksumtype cs;
 	int i;
+	static const char * const release_checksum_headers[cs_hashCOUNT] =
+		{ "MD5Sum:\n", "SHA1:\n" };
 
 	// TODO: check for existance of Release file here first?
 	if( onlyifneeded && !release->new ) {
@@ -1174,9 +1176,6 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		writestring(distribution->notautomatic);
 	}
 	writechar('\n');
-
-	static const char * const release_checksum_headers[cs_hashCOUNT] =
-		{ "MD5Sum:\n", "SHA1:\n" };
 
 	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
 		assert( release_checksum_headers[cs] != NULL );

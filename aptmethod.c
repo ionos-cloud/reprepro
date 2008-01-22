@@ -495,7 +495,6 @@ static inline retvalue todo_done(struct tobedone *todo, const char *filename, /*
 			return RET_ERROR_WRONG_MD5;
 		}
 		if( improves ) {
-			retvalue r;
 			r = checksums_combine(checksums_p, checksums);
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(checksums);
