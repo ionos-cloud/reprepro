@@ -9,7 +9,17 @@
 #include "strlist.h"
 #endif
 
-enum checksumtype { cs_md5sum, cs_sha1sum, cs_count };
+enum checksumtype {
+		/* must be first */
+		cs_md5sum,
+		/* additionall hashes: */
+#define cs_firstEXTENDED cs_sha1sum
+		cs_sha1sum,
+#define cs_hashCOUNT cs_length
+		/* must be last but one */
+		cs_length,
+		/* must be last */
+		cs_COUNT };
 
 struct checksums;
 
@@ -23,7 +33,7 @@ retvalue checksums_set(/*@out@*/struct checksums **, /*@only@*/char *);
 retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@only@*//*@null@*/ char *md5sum);
 
 /* hashes[*] is free'd */
-retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_count+1]);
+retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_COUNT]);
 retvalue checksums_parse(/*@out@*/struct checksums **, const char *);
 
 retvalue checksums_get(const struct checksums *, enum checksumtype, /*@out@*/char **);

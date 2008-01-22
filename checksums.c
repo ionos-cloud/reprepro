@@ -54,11 +54,14 @@ typedef unsigned short hashlen_t;
 struct checksums {
 	struct { unsigned short ofs;
 		hashlen_t len;
-	} parts[cs_count+1];
+	} parts[cs_COUNT];
 	char representation[];
 };
+#define checksums_hashpart(c,t) ((c)->representation + (c)->parts[t].ofs)
+#define checksums_totallength(c) ((c)->parts[cs_length].ofs + (c)->parts[cs_length].len)
 
-static const char * const hash_name[cs_count+1] =
+
+static const char * const hash_name[cs_COUNT] =
 	{ "md5", "sha1", "size" };
 
 void checksums_free(struct checksums *checksums) {
@@ -78,28 +81,28 @@ retvalue checksums_set(struct checksums **result, char *md5sum) {
 	return r;
 }
 
-retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs_count+1]) {
+retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs_COUNT]) {
 	const char *p, *size;
 	char *d;
 	struct checksums *n;
 	enum checksumtype type;
-	size_t len, hashlens[cs_count+1];
+	size_t len, hashlens[cs_COUNT];
 
 	/* everything assumes yet that those are available */
-	if( hashes[cs_count] == NULL || hashes[cs_md5sum] == NULL ) {
-		for( type = cs_md5sum ; type <= cs_count ; type++ )
+	if( hashes[cs_length] == NULL || hashes[cs_md5sum] == NULL ) {
+		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 			free(hashes[type]);
 		*checksums_p = NULL;
 		return RET_OK;
 	}
 
-	size = hashes[cs_count];
+	size = hashes[cs_length];
 	while( *size == '0' && size[1] >= '0' && size[1] <= '9' )
 		size++;
 
 	hashlens[cs_md5sum] = strlen(hashes[cs_md5sum]);
-	hashlens[cs_count] = strlen(size);
-	len = hashlens[cs_md5sum] + 1 + hashlens[cs_count];
+	hashlens[cs_length] = strlen(size);
+	len = hashlens[cs_md5sum] + 1 + hashlens[cs_length];
 
 	p = hashes[cs_md5sum];
 	while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')
@@ -108,7 +111,7 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	if( *p != '\0' ) {
 		// TODO: find way to give more meaningfull error message
 		fprintf(stderr, "Invalid md5 hash: '%s'\n", hashes[cs_md5sum]);
-		for( type = cs_md5sum ; type <= cs_count ; type++ )
+		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 			free(hashes[type]);
 		return RET_ERROR;
 	}
@@ -118,12 +121,12 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	if( *p != '\0' ) {
 		// TODO: find way to give more meaningfull error message
 		fprintf(stderr, "Invalid size: '%s'\n", size);
-		for( type = cs_md5sum ; type <= cs_count ; type++ )
+		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 			free(hashes[type]);
 		return RET_ERROR;
 	}
 
-	for( type = cs_md5sum + 1 ; type < cs_count ; type++ ) {
+	for( type = cs_firstEXTENDED ; type < cs_hashCOUNT ; type++ ) {
 		if( hashes[type] == NULL )
 			continue;
 		p = hashes[type];
@@ -133,7 +136,7 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 		if( *p != '\0' ) {
 			// TODO: find way to give more meaningfull error message
 			fprintf(stderr, "Invalid hash: '%s'\n", hashes[type]);
-			for( type = cs_md5sum ; type <= cs_count ; type++ )
+			for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 				free(hashes[type]);
 			return RET_ERROR;
 		}
@@ -143,18 +146,18 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 
 	n = malloc(sizeof(struct checksums) + len + 1);
 	if( n == NULL ) {
-		for( type = cs_md5sum ; type <= cs_count ; type++ )
+		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 			free(hashes[type]);
 		return RET_ERROR_OOM;
 	}
 	memset(n, 0, sizeof(struct checksums));
 	d = n->representation;
 
-	for( type = cs_md5sum + 1 ; type < cs_count ; type++ ) {
+	for( type = cs_firstEXTENDED ; type < cs_hashCOUNT ; type++ ) {
 		if( hashes[type] == NULL )
 			continue;
 		*(d++) = ':';
-		*(d++) = '1' + (type - cs_sha1sum);
+		*(d++) = '1' + (char)(type - cs_sha1sum);
 		*(d++) = ':';
 		n->parts[type].ofs = d - n->representation;
 		n->parts[type].len = (hashlen_t)hashlens[type];
@@ -167,13 +170,13 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	memcpy(d, hashes[cs_md5sum], hashlens[cs_md5sum]);
 	d += hashlens[cs_md5sum];
 	*(d++) = ' ';
-	n->parts[cs_count].ofs = d - n->representation;
-	n->parts[cs_count].len = (hashlen_t)hashlens[cs_count];
-	memcpy(d, size, hashlens[cs_count] + 1);
-	d += hashlens[cs_count] + 1;
+	n->parts[cs_length].ofs = d - n->representation;
+	n->parts[cs_length].len = (hashlen_t)hashlens[cs_length];
+	memcpy(d, size, hashlens[cs_length] + 1);
+	d += hashlens[cs_length] + 1;
 	assert( (size_t)(d-n->representation) == len + 1 );
 
-	for( type = cs_md5sum ; type <= cs_count ; type++ )
+	for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 		free(hashes[type]);
 	*checksums_p = n;
 	return RET_OK;
@@ -264,7 +267,7 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 	*(d++) = ' ';
 	while( *p == ' ' )
 		p++;
-	n->parts[cs_count].ofs = d - n->representation;
+	n->parts[cs_length].ofs = d - n->representation;
 	while( *p == '0' && ( p[1] >= '0' && p[1] <= '9' ) )
 		p++;
 	start = d;
@@ -280,7 +283,7 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 			return RET_ERROR;
 		}
 	}
-	n->parts[cs_count].len = (hashlen_t)(d - start);
+	n->parts[cs_length].len = (hashlen_t)(d - start);
 	if( d == start ) {
 		// TODO: how to get some context in this?
 		fprintf(stderr,
@@ -300,7 +303,7 @@ struct checksums *checksums_dup(const struct checksums *checksums) {
 	size_t len;
 
 	assert( checksums != NULL );
-	len = checksums->parts[cs_count].ofs + checksums->parts[cs_count].len;
+	len = checksums_totallength(checksums);
 	assert( checksums->representation[len] == '\0' );
 
 	n = malloc(sizeof(struct checksums) + len + 1);
@@ -313,23 +316,23 @@ struct checksums *checksums_dup(const struct checksums *checksums) {
 
 bool checksums_getpart(const struct checksums *checksums, enum checksumtype type, const char **sum_p, size_t *size_p) {
 
-	assert( type <= cs_count );
+	assert( type < cs_COUNT );
 
 	if( checksums->parts[type].len == 0 )
 		return false;
 	*size_p = checksums->parts[type].len;
-	*sum_p = checksums->representation + checksums->parts[type].ofs;
+	*sum_p = checksums_hashpart(checksums, type);
 	return true;
 }
 
 bool checksums_gethashpart(const struct checksums *checksums, enum checksumtype type, const char **hash_p, size_t *hashlen_p, const char **size_p, size_t *sizelen_p) {
-	assert( type < cs_count );
+	assert( type < cs_hashCOUNT );
 	if( checksums->parts[type].len == 0 )
 		return false;
 	*hashlen_p = checksums->parts[type].len;
-	*hash_p = checksums->representation + checksums->parts[type].ofs;
-	*sizelen_p = checksums->parts[cs_count].len;
-	*size_p = checksums->representation + checksums->parts[cs_count].ofs;
+	*hash_p = checksums_hashpart(checksums, type);
+	*sizelen_p = checksums->parts[cs_length].len;
+	*size_p = checksums_hashpart(checksums, cs_length);
 	return true;
 }
 
@@ -360,7 +363,7 @@ retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const
 	size_t len;
 
 	assert( checksums != NULL );
-	len = checksums->parts[cs_count].ofs + checksums->parts[cs_count].len;
+	len = checksums->parts[cs_length].ofs + checksums->parts[cs_length].len;
 	assert( checksums->representation[len] == '\0' );
 
 	*data_p = checksums->representation;
@@ -369,7 +372,7 @@ retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const
 }
 
 off_t checksums_getfilesize(const struct checksums *checksums) {
-	const char *p = checksums->representation + checksums->parts[cs_count].ofs;
+	const char *p = checksums_hashpart(checksums, cs_length);
 	off_t filesize;
 
 	filesize = 0;
@@ -384,20 +387,18 @@ off_t checksums_getfilesize(const struct checksums *checksums) {
 bool checksums_matches(const struct checksums *checksums,enum checksumtype type, const char *sum) {
 	size_t len = (size_t)checksums->parts[type].len;
 
-	assert( type < cs_count );
+	assert( type < cs_hashCOUNT );
 
 	if( len == 0 )
 		return true;
 
-	if( strncmp(sum, checksums->representation + checksums->parts[type].ofs,
-				len) != 0 )
+	if( strncmp(sum, checksums_hashpart(checksums, type), len) != 0 )
 		return false;
 	if( sum[len] != ' ' )
 		return false;
 	/* assuming count is the last part: */
-	if( strncmp(sum + len + 1,
-	           checksums->representation + checksums->parts[cs_count].ofs,
-		   checksums->parts[cs_count].len + 1) != 0 )
+	if( strncmp(sum + len + 1, checksums_hashpart(checksums, cs_length),
+		   checksums->parts[cs_length].len + 1) != 0 )
 		return false;
 	return true;
 }
@@ -407,8 +408,8 @@ static inline bool differ(const struct checksums *a, const struct checksums *b, 
 		return false;
 	if( a->parts[type].len != b->parts[type].len )
 		return true;
-	return memcmp(a->representation + a->parts[type].ofs,
-			b->representation + b->parts[type].ofs,
+	return memcmp(checksums_hashpart(a, type),
+			checksums_hashpart(b, type),
 			a->parts[type].len) != 0;
 }
 
@@ -416,7 +417,7 @@ bool checksums_check(const struct checksums *checksums, const struct checksums *
 	enum checksumtype type;
 	bool additional = false;
 
-	for( type = cs_md5sum ; type <= cs_count ; type++ ) {
+	for( type = cs_md5sum ; type < cs_COUNT ; type++ ) {
 		if( differ(checksums, realchecksums, type) )
 			return false;
 		if( checksums->parts[type].len == 0 &&
@@ -431,24 +432,21 @@ bool checksums_check(const struct checksums *checksums, const struct checksums *
 void checksums_printdifferences(FILE *f, const struct checksums *expected, const struct checksums *got) {
 	enum checksumtype type;
 
-	for( type = cs_md5sum ; type <= cs_count ; type++ ) {
+	for( type = cs_md5sum ; type < cs_COUNT ; type++ ) {
 		if( differ(expected, got, type) ) {
 			fprintf(f, "%s expected: %.*s, got: %.*s\n",
 					hash_name[type],
 					(int)expected->parts[type].len,
-					expected->representation +
-					 expected->parts[type].ofs,
+					checksums_hashpart(expected, type),
 					(int)got->parts[type].len,
-					got->representation +
-					 got->parts[type].ofs);
+					checksums_hashpart(got, type));
 		}
 	}
 }
 
 retvalue checksums_combine(struct checksums **checksums_p, const struct checksums *by) /*@requires only *checksums_p @*/ /*@ensures only *checksums_p @*/ {
 	struct checksums *old = *checksums_p, *n;
-	size_t len = old->parts[cs_count].ofs + old->parts[cs_count].len
-		    + by->parts[cs_count].ofs + by->parts[cs_count].len;
+	size_t len = checksums_totallength(old) + checksums_totallength(by);
 	const char *o, *b, *start;
 	char /*@dependent@*/ *d;
 	char typeid;
@@ -515,11 +513,11 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 	if( *o == ' ' )
 		*(d++) = *(o++);
 	/* and now the size */
-	n->parts[cs_count].ofs = d - n->representation;
+	n->parts[cs_length].ofs = d - n->representation;
 	start = d;
 	while( *o != '\0' )
 		*(d++) = *(o++);
-	n->parts[cs_count].len = (hashlen_t)(d - start);
+	n->parts[cs_length].len = (hashlen_t)(d - start);
 	assert( (size_t)(d - n->representation) <= len );
 	*(d++) = '\0';
 	*checksums_p = realloc(n, sizeof(struct checksums)
@@ -852,13 +850,13 @@ retvalue checksums_from_context(struct checksums **out, struct checksumscontext 
 		*(d++) = tab[md5buffer[i] & 0xF];
 	}
 	*(d++) = ' ';
-	n->parts[cs_count].ofs = 2*MD5_DIGEST_SIZE + 2*SHA1_DIGEST_SIZE + 5;
-	assert( d - n->representation == n->parts[cs_count].ofs);
-	n->parts[cs_count].len = (hashlen_t)snprintf(d,
+	n->parts[cs_length].ofs = 2*MD5_DIGEST_SIZE + 2*SHA1_DIGEST_SIZE + 5;
+	assert( d - n->representation == n->parts[cs_length].ofs);
+	n->parts[cs_length].len = (hashlen_t)snprintf(d,
 			2*MD5_DIGEST_SIZE + 2*SHA1_DIGEST_SIZE + 26
 			- (d - n->representation), "%lld",
 			(long long)context->sha1.count);
-	assert( strlen(d) == n->parts[cs_count].len );
+	assert( strlen(d) == n->parts[cs_length].len );
 	*out = n;
 	return RET_OK;
 }

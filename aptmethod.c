@@ -694,13 +694,13 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 }
 
 static inline retvalue goturidone(struct aptmethod *method,const char *chunk,struct database *database) {
-	static const char * const method_hash_names[cs_count+1] =
+	static const char * const method_hash_names[cs_COUNT] =
 		{ "MD5-Hash", "SHA1-Hash", // "SHA256-Hash"
 		  "Size" };
 	retvalue result, r;
 	char *uri, *filename;
 	enum checksumtype type;
-	char *hashes[cs_count+1];
+	char *hashes[cs_COUNT];
 	struct checksums *checksums = NULL;
 
 	//TODO: is it worth the mess to make this in-situ?
@@ -724,7 +724,7 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 	}
 
 	result = RET_NOTHING;
-	for( type = cs_md5sum ; type <= cs_count ; type++ ) {
+	for( type = cs_md5sum ; type < cs_COUNT ; type++ ) {
 		hashes[type] = NULL;
 		r = chunk_getvalue(chunk, method_hash_names[type],
 				&hashes[type]);
@@ -738,7 +738,7 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 	}
 	if( RET_WAS_ERROR(result) ) {
 		free(uri); free(filename);
-		for( type = cs_md5sum ; type <= cs_count ; type++ )
+		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 			free(hashes[type]);
 		return result;
 	}

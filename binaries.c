@@ -38,19 +38,19 @@
 
 extern int verbose;
 
-static const char * const deb_checksum_headers[cs_count+1] = {"MD5sum", "SHA1",
+static const char * const deb_checksum_headers[cs_COUNT] = {"MD5sum", "SHA1",
 	// "SHA256",
 	"Size"};
 
 /* get checksums out of a "Packages"-chunk. */
 static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct checksums **checksums_p) {
 	retvalue result, r;
-	char *checksums[cs_count+1];
+	char *checksums[cs_COUNT];
 	enum checksumtype type;
 
 	result = RET_NOTHING;
 
-	for( type = 0 ; type <= cs_count ; type++ ) {
+	for( type = 0 ; type < cs_COUNT ; type++ ) {
 		checksums[type] = NULL;
 		r = chunk_getvalue(chunk, deb_checksum_headers[type],
 				&checksums[type]);
@@ -60,12 +60,12 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 		fprintf(stderr,"Missing 'MD5sum'-line in binary control chunk:\n '%s'\n",chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
-	if( checksums[cs_count] == NULL ) {
+	if( checksums[cs_length] == NULL ) {
 		fprintf(stderr,"Missing 'Size'-line in binary control chunk:\n '%s'\n",chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
 	if( RET_WAS_ERROR(result) ) {
-		for( type = 0 ; type <= cs_count ; type++ )
+		for( type = 0 ; type < cs_COUNT ; type++ )
 			free(checksums[type]);
 		return result;
 	}
@@ -523,7 +523,7 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	assert( filekey != NULL && checksums != NULL);
 
 	replace = NULL;
-	for( type = 0 ; type <= cs_count ; type++ ) {
+	for( type = 0 ; type < cs_COUNT ; type++ ) {
 		const char *start;
 		size_t len;
 		if( checksums_getpart(checksums, type, &start, &len) ) {

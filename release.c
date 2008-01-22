@@ -1175,10 +1175,10 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	}
 	writechar('\n');
 
-	static const char * const release_checksum_headers[cs_count] =
+	static const char * const release_checksum_headers[cs_hashCOUNT] =
 		{ "MD5Sum:\n", "SHA1:\n" };
 
-	for( cs = cs_md5sum ; cs < cs_count ; cs++ ) {
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
 		assert( release_checksum_headers[cs] != NULL );
 		writestring(release_checksum_headers[cs]);
 		for( file = release->files ; file != NULL ; file = file->next ) {
