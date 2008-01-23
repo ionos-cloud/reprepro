@@ -89,9 +89,11 @@ static retvalue database_lock(struct database *db, size_t waitforlock) {
 		int e = errno;
 		if( e == EEXIST ) {
 			if( tries < waitforlock && ! interrupted() ) {
+				unsigned int timetosleep = 10;
 				if( verbose >= 0 )
 					printf("Could not aquire lock: %s already exists!\nWaiting 10 seconds before trying again.\n", lockfile);
-				sleep(10);
+				while( timetosleep > 0 )
+					timetosleep = sleep(timetosleep);
 				tries++;
 				fd = open(lockfile,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_NOCTTY,S_IRUSR|S_IWUSR);
 				continue;
@@ -804,7 +806,7 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 
 	r = preparepackages(n, fast, readonly, allowunused, alldistributions);
 	if( RET_WAS_ERROR(r) ) {
-		database_close(n);
+		(void)database_close(n);
 		return r;
 	}
 

@@ -769,7 +769,7 @@ static retvalue export(struct distribution *distribution, const char *distdir, s
 			workleft |= target->saved_wasmodified;
 		}
 		if( workleft ) {
-			fputs(
+			(void)fputs(
 "This means that from outside your repository will still look like before (and\n"
 "should still work if this old state worked), but the things you changed in this\n"
 "call will not be visible until you call export directly (via reprepro export)\n"

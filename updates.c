@@ -371,7 +371,7 @@ retvalue updates_getpatterns(const char *confdir, struct update_pattern **patter
 		r = RET_OK;
 	} else {
 		if( r == RET_ERROR_UNKNOWNFIELD )
-			fputs("To ignore unknown fields use --ignore=unknownfield\n", stderr);
+			(void)fputs("To ignore unknown fields use --ignore=unknownfield\n", stderr);
 		updates_freepatterns(update);
 	}
 	return r;
@@ -925,7 +925,8 @@ retvalue updates_clearlists(const char *listdir,struct update_distribution *dist
 		dir = opendir(listdir);
 		if( dir == NULL ) {
 			int e = errno;
-			fprintf(stderr,"Error opening directory '%s' (error %d=%m)!\n",listdir,e);
+			fprintf(stderr,"Error %d opening directory '%s': %s!\n",
+					e, listdir, strerror(e));
 			free(pattern);
 			return RET_ERRNO(e);
 		}
@@ -933,7 +934,12 @@ retvalue updates_clearlists(const char *listdir,struct update_distribution *dist
 				d->origins,
 				d->targets);
 		free(pattern);
-		closedir(dir);
+		if( closedir(dir) != 0 ) {
+			int e = errno;
+			fprintf(stderr, "Error %d closing directory '%s': %s!\n",
+					e, listdir, strerror(e));
+			return RET_ERRNO(e);
+		}
 		if( RET_WAS_ERROR(r) ) {
 			return r;
 		}

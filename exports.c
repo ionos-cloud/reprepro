@@ -54,7 +54,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 	assert( buffersize > 50 );
 	*buffer++ = ' '; buffersize--;
 	*buffer++ = '('; buffersize--;
-	for( ic = 0 ; ic < ic_count ; ic++ ) {
+	for( ic = ic_first ; ic < ic_count ; ic++ ) {
 		if( (mode->compressions & IC_FLAG(ic)) != 0 ) {
 			size_t l = strlen(compression_names[ic]);
 			assert( buffersize > l+3 );

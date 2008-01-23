@@ -98,7 +98,7 @@ bool config_nextline(struct configiterator *iter) {
 		iter->eol = false;
 		return true;
 	}
-	ungetc(c, iter->f);
+	(void)ungetc(c, iter->f);
 	return false;
 }
 
@@ -277,7 +277,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 			c = fgetc(iter.f);
 			iter.column++;
 		} while( c == ' ' || c == '\t' );
-		ungetc(c, iter.f);
+		(void)ungetc(c, iter.f);
 
 		iter.eol = false;
 		if( i < fieldcount ) {

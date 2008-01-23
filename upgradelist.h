@@ -23,7 +23,7 @@ struct logger;
 struct upgradelist;
 
 retvalue upgradelist_initialize(struct upgradelist **ul,/*@dependent@*/struct target *target,struct database *);
-retvalue upgradelist_free(/*@only@*/struct upgradelist *upgrade);
+void upgradelist_free(/*@only@*/struct upgradelist *upgrade);
 
 void upgradelist_dump(struct upgradelist *upgrade);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,struct database *);

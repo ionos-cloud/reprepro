@@ -721,7 +721,7 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) ) {
 			if( verbose > 0 )
-				fputs("target_reoverride: Stopping procession of further packages due to previous errors\n", stderr);
+				(void)fputs("target_reoverride: Stopping procession of further packages due to previous errors\n", stderr);
 			break;
 		}
 		if( RET_IS_OK(r) ) {

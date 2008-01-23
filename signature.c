@@ -172,19 +172,19 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	fd = open(release, O_RDONLY|O_NOCTTY);
 	if( fd < 0 ) {
 		int e = errno;
-		close(gpgfd);
+		(void)close(gpgfd);
 		fprintf(stderr, "Error opening '%s': %s\n", release, strerror(e));
 		return RET_ERRNO(e);
 	}
 	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
 	if( err != 0 ) {
-		close(gpgfd);close(fd);
+		(void)close(gpgfd); (void)close(fd);
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_fd(&dh, fd);
 	if( err != 0 ) {
 		gpgme_data_release(dh_gpg);
-		close(gpgfd);close(fd);
+		(void)close(gpgfd); (void)close(fd);
 		return gpgerror(err);
 	}
 
@@ -907,9 +907,9 @@ static retvalue newpossiblysignedfile(const char *directory, const char *basenam
 	return RET_OK;
 }
 
-retvalue signedfile_free(struct signedfile *f) {
+void signedfile_free(struct signedfile *f) {
 	if( f == NULL )
-		return RET_NOTHING;
+		return;
 	assert( f->fd < 0 );
 	if( f->newplainfilename != NULL ) {
 		(void)unlink(f->newplainfilename);
@@ -922,7 +922,7 @@ retvalue signedfile_free(struct signedfile *f) {
 	}
 	free(f->signfilename);
 	free(f);
-	return RET_OK;
+	return;
 }
 
 retvalue signature_startsignedfile(const char *directory, const char *basename, UNUSED(const char *options), struct signedfile **out) {

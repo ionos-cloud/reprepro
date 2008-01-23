@@ -125,7 +125,7 @@ O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), 
 					free(variable); \
 					variable = strdup(value); \
 					if( variable == NULL ) { \
-						fputs("Out of Memory!",stderr); \
+						(void)fputs("Out of Memory!",stderr); \
 						exit(EXIT_FAILURE); \
 					} }
 
@@ -311,17 +311,17 @@ ACTION_N(n, n, extractfilelist) {
 					p++;
 				}
 				len += *(p++);
-				putchar('/');
+				(void)putchar('/');
 				for( i = 0 ; i < depth ; i++ ) {
 					const unsigned char *n = dirs[i];
 					j = lengths[i];
 					while( j-- > 0 )
-						putchar(*(n++));
-					putchar('/');
+						(void)putchar(*(n++));
+					(void)putchar('/');
 				}
 				while( len-- > 0 )
-					putchar(*(p++));
-				putchar('\n');
+					(void)putchar(*(p++));
+				(void)putchar('\n');
 			}
 		}
 		free(filelist);
@@ -1937,7 +1937,7 @@ ACTION_C(n, n, createsymlinks) {
 		buffer = calloc(1,bufsize);
 		if( linkname == NULL || buffer == NULL ) {
 			free(linkname);free(buffer);
-			fputs("Out of Memory!\n",stderr);
+			(void)fputs("Out of Memory!\n",stderr);
 			return RET_ERROR_OOM;
 		}
 
@@ -2230,7 +2230,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 static const struct action {
 	const char *name;
 	retvalue (*start)(
-			/*@null@*//*@only@*/struct distribution *,
+			/*@null@*/struct distribution *,
 			/*@null@*/struct database*,
 			/*@null@*/struct strlist *dereferencedfilekeys,
 			/*@null@*/const char *priority,
@@ -3055,9 +3055,9 @@ int main(int argc,char *argv[]) {
 			free(x_priority);
 			if( RET_WAS_ERROR(r) ) {
 				if( r == RET_ERROR_OOM )
-					fputs("Out of Memory!\n",stderr);
+					(void)fputs("Out of Memory!\n",stderr);
 				else if( verbose >= 0 )
-					fputs("There have been errors!\n",stderr);
+					(void)fputs("There have been errors!\n",stderr);
 			}
 			exit(EXIT_RET(r));
 		} else

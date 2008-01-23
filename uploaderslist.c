@@ -323,7 +323,7 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *con
 	}
 	u = calloc(1,sizeof(struct uploaders));
 	if( u == NULL ) {
-		fclose(f);
+		(void)fclose(f);
 		free(fullfilename);
 		return RET_ERROR_OOM;
 	}
@@ -332,7 +332,7 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *con
 		lineno++;
 		r = parseuploaderline(buffer,filename,lineno,u);
 		if( RET_WAS_ERROR(r) ) {
-			fclose(f);
+			(void)fclose(f);
 			free(fullfilename);
 			uploaders_free(u);
 			return r;

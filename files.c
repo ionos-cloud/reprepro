@@ -364,9 +364,12 @@ retvalue files_printmissing(struct database *database, const struct strlist *fil
 		}
 		if( r == RET_NOTHING ) {
 			/* File missing */
-			fputs(origfile, stdout); putchar(' ');
-			fputs(database->mirrordir, stdout); putchar('/');
-			fputs(filekey, stdout); putchar('\n');
+			(void)fputs(origfile, stdout);
+			(void)putchar(' ');
+			(void)fputs(database->mirrordir, stdout);
+			(void)putchar('/');
+			(void)fputs(filekey, stdout);
+			(void)putchar('\n');
 			RET_UPDATE(ret,RET_OK);
 		} else
 			RET_UPDATE(ret,r);
@@ -388,7 +391,8 @@ retvalue files_printmd5sums(struct database *database) {
 		while( cursor_nexttemp(database->checksums, cursor,
 					&filekey, &checksum) ) {
 			result = RET_OK;
-			fputs(filekey, stdout);putchar(' ');
+			(void)fputs(filekey, stdout);
+			(void)putchar(' ');
 			while( *checksum == ':' ) {
 				while( *checksum != ' ' &&
 				       *checksum != '\0' )
@@ -396,7 +400,8 @@ retvalue files_printmd5sums(struct database *database) {
 				if( *checksum == ' ' )
 					checksum++;
 			}
-			fputs(checksum, stdout);putchar('\n');
+			(void)fputs(checksum, stdout);
+			(void)putchar('\n');
 		}
 		r = cursor_close(database->checksums, cursor);
 		RET_ENDUPDATE(result, r);
@@ -409,8 +414,10 @@ retvalue files_printmd5sums(struct database *database) {
 	while( cursor_nexttemp(database->oldmd5sums, cursor,
 				&filekey, &checksum) ) {
 		result = RET_OK;
-		fputs(filekey, stdout);putchar(' ');
-		fputs(checksum, stdout);putchar('\n');
+		(void)fputs(filekey, stdout);
+		(void)putchar(' ');
+		(void)fputs(checksum, stdout);
+		(void)putchar('\n');
 	}
 	r = cursor_close(database->oldmd5sums, cursor);
 	RET_ENDUPDATE(result, r);
@@ -431,8 +438,10 @@ retvalue files_printchecksums(struct database *database) {
 		while( cursor_nexttemp(database->checksums, cursor,
 					&filekey, &checksum) ) {
 			result = RET_OK;
-			fputs(filekey, stdout);putchar(' ');
-			fputs(checksum, stdout);putchar('\n');
+			(void)fputs(filekey, stdout);
+			(void)putchar(' ');
+			(void)fputs(checksum, stdout);
+			(void)putchar('\n');
 		}
 		r = cursor_close(database->checksums, cursor);
 		RET_ENDUPDATE(result, r);
@@ -445,17 +454,18 @@ retvalue files_printchecksums(struct database *database) {
 	while( cursor_nexttempdata(database->oldmd5sums, cursor,
 				&filekey, &md5sum, &md5sumlen) ) {
 		result = RET_OK;
-		fputs(filekey, stdout);putchar(' ');
+		(void)fputs(filekey, stdout);
+		(void)putchar(' ');
 		r = table_gettemprecord(database->checksums, filekey,
 				&checksum, &checksumlen);
 		if( r == RET_NOTHING || checksumlen <= md5sumlen ||
 				strcmp(checksum + checksumlen - md5sumlen,
 					md5sum) != 0 )
-			fputs(md5sum, stdout);
+			(void)fputs(md5sum, stdout);
 		else if( RET_IS_OK(r) )
-			fputs(checksum, stdout);
+			(void)fputs(checksum, stdout);
 		RET_UPDATE(result, r);
-		putchar('\n');
+		(void)putchar('\n');
 	}
 	r = cursor_close(database->oldmd5sums, cursor);
 	RET_ENDUPDATE(result, r);
@@ -726,7 +736,7 @@ static retvalue collectnewchecksums(struct database *database, const char *filek
 			printf(
 "Warning: pool file '%s' got outdated extended hashes.\n", filekey);
 			if( ! havewarned ) {
-				puts(
+				(void)puts(
 "This can happen if you used pre-3.3 versions of reprepro in between.\n"
 "This is anticipated and should cause no problems, as long as you rerun\n"
 "collectnewchecksums before you switch to a future version no longer\n"
@@ -868,12 +878,12 @@ static retvalue regenerate_filelist(void *data, const char *filekey) {
 	free(debfilename);
 	if( RET_IS_OK(r) ) {
 		if( verbose > 0 )
-			puts(filekey);
+			(void)puts(filekey);
 		if( verbose > 6 ) {
 			const char *p = filelist;
 			while( *p != '\0' ) {
-				putchar(' ');
-				puts(p);
+				(void)putchar(' ');
+				(void)puts(p);
 				p += strlen(p)+1;
 			}
 		}

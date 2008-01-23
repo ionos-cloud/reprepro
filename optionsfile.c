@@ -36,7 +36,7 @@ void optionsfile_parse(const char *confdir,const struct option *longopts,
 
 	filename = mprintf("%s/options",confdir);
 	if( filename == NULL ) {
-		fputs("Out of memory!\n",stderr);
+		(void)fputs("Out of memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
 

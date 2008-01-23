@@ -152,7 +152,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 
 	r = target_initpackagesdb(t, database, READONLY);
 	if( RET_WAS_ERROR(r) ) {
-		(void)upgradelist_free(upgrade);
+		upgradelist_free(upgrade);
 		return r;
 	}
 
@@ -163,7 +163,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 	if( RET_WAS_ERROR(r) ) {
 		r2 = target_closepackagesdb(t);
 		RET_UPDATE(r,r2);
-		(void)upgradelist_free(upgrade);
+		upgradelist_free(upgrade);
 		return r;
 	}
 	while( cursor_nexttemp(t->packages, cursor,
@@ -179,7 +179,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 	RET_UPDATE(r,r2);
 
 	if( RET_WAS_ERROR(r) ) {
-		(void)upgradelist_free(upgrade);
+		upgradelist_free(upgrade);
 		return r;
 	}
 
@@ -189,11 +189,11 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,struct 
 	return RET_OK;
 }
 
-retvalue upgradelist_free(struct upgradelist *upgrade) {
+void upgradelist_free(struct upgradelist *upgrade) {
 	struct package_data *l;
 
 	if( upgrade == NULL )
-		return RET_NOTHING;
+		return;
 
 	l = upgrade->list;
 	while( l != NULL ) {
@@ -203,7 +203,7 @@ retvalue upgradelist_free(struct upgradelist *upgrade) {
 	}
 
 	free(upgrade);
-	return RET_OK;
+	return;
 }
 
 static retvalue upgradelist_trypackage(void *data,const char *chunk){

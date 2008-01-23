@@ -451,7 +451,7 @@ static void candidate_file_free(/*@only@*/struct candidate_file *f) {
 	if( f->type == fe_DSC )
 		sources_done(&f->dsc);
 	if( f->tempfilename != NULL ) {
-		unlink(f->tempfilename);
+		(void)unlink(f->tempfilename);
 		free(f->tempfilename);
 		f->tempfilename = NULL;
 	}
@@ -711,7 +711,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		free(tempfilename);
 		return RET_ERROR_OOM;
 	}
-	unlink(tempfilename);
+	(void)unlink(tempfilename);
 	r = checksums_copyfile(tempfilename, origfile, &readchecksums);
 	free(origfile);
 	if( RET_WAS_ERROR(r) ) {
@@ -1240,7 +1240,8 @@ static retvalue candidate_addfiles(struct database *database,struct candidate *c
 					/* when we did not add it, do not remove it: */
 					p->files[j] = NULL;
 				if( RET_WAS_ERROR(r) ) {
-					candidate_removefiles(database, c, d, p, j);
+					(void)candidate_removefiles(database,
+							c, d, p, j);
 					return r;
 				}
 			}
@@ -1330,7 +1331,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 		r = trackingdata_summon(tracks, c->source, c->sourceversion,
 				&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
-			tracking_done(tracks);
+			(void)tracking_done(tracks);
 			return r;
 		}
 		if( into->trackingoptions.needsources ) {
@@ -1601,7 +1602,7 @@ static retvalue candidate_add(const char *confdir, const char *overridedir,struc
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( interrupted() ) {
-		candidate_removefiles(database,c,NULL,NULL,0);
+		(void)candidate_removefiles(database,c,NULL,NULL,0);
 		return RET_ERROR_INTERRUPTED;
 	}
 	r = RET_OK;

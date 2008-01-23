@@ -610,7 +610,7 @@ static void print(const char *codename,const struct trackedpackage *pkg){
 		printf(" %s %c %d\n",filekey,
 				pkg->filetypes[i],pkg->refcounts[i]);
 	}
-	fputs("\n",stdout);
+	(void)fputs("\n",stdout);
 }
 
 retvalue tracking_printall(trackingdb t) {

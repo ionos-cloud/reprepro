@@ -14,6 +14,7 @@
 
 struct release;
 
+#define ic_first ic_uncompressed
 enum indexcompression {ic_uncompressed=0, ic_gzip,
 #ifdef HAVE_LIBBZ2
 			ic_bzip2,

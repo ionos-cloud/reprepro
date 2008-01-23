@@ -389,7 +389,7 @@ void release_abortfile(struct filetorelease *file) {
 
 	for( i = ic_uncompressed ; i < ic_count ; i++ ) {
 		if( file->f[i].fd >= 0 ) {
-			close(file->f[i].fd);
+			(void)close(file->f[i].fd);
 			if( file->f[i].fulltemporaryfilename != NULL )
 				(void)unlink(file->f[i].fulltemporaryfilename);
 		}
@@ -400,12 +400,12 @@ void release_abortfile(struct filetorelease *file) {
 	free(file->buffer);
 	free(file->gzoutputbuffer);
 	if( file->gzstream.next_out != NULL ) {
-		deflateEnd(&file->gzstream);
+		(void)deflateEnd(&file->gzstream);
 	}
 #ifdef HAVE_LIBBZ2
 	free(file->bzoutputbuffer);
 	if( file->bzstream.next_out != NULL ) {
-		BZ2_bzCompressEnd(&file->bzstream);
+		(void)BZ2_bzCompressEnd(&file->bzstream);
 	}
 #endif
 }
