@@ -188,7 +188,7 @@ static bool findfile(struct dirlist *parent, const char *packagename, const char
 					file->balance = 0;
 					n->balance = 0;
 				} else if( last->balance < 0 ) {
-					file->balance = +1;
+					file->balance = 1;
 					n->balance = 0;
 				} else {
 					file->balance = 0;
@@ -227,7 +227,7 @@ static bool findfile(struct dirlist *parent, const char *packagename, const char
 					n->balance = 0;
 				} else {
 					file->balance = 0;
-					n->balance = +1;
+					n->balance = 1;
 				}
 				last->balance = 0;
 				break;
@@ -314,7 +314,7 @@ static struct dirlist *finddir(struct dirlist *dir, cuchar *name, size_t namelen
 					parent->balance = 0;
 					this->balance = 0;
 				} else if( h->balance < 0 ) {
-					parent->balance = +1;
+					parent->balance = 1;
 					this->balance = 0;
 				} else {
 					parent->balance = 0;
@@ -353,7 +353,7 @@ static struct dirlist *finddir(struct dirlist *dir, cuchar *name, size_t namelen
 					this->balance = 0;
 				} else {
 					parent->balance = 0;
-					this->balance = +1;
+					this->balance = 1;
 				}
 				h->balance = 0;
 				break;
@@ -368,6 +368,8 @@ static retvalue filelist_addfiles(struct filelist_list *list, const struct filel
 	const unsigned char *data = (const unsigned char *)datastart;
 
 	while( *data != '\0' ) {
+		int d;
+
 		if( (size_t)(data - (const unsigned char *)datastart) >= size-1 ) {
 			/* This might not catch everything, but we are only
 			 * accessing it readonly */
@@ -375,7 +377,7 @@ static retvalue filelist_addfiles(struct filelist_list *list, const struct filel
 					filekey);
 			return RET_ERROR;
 		}
-		int d = *(data++);
+		d = *(data++);
 		if( d == 1 ) {
 			size_t len = 0;
 			while( *data == 255 ) {
@@ -502,8 +504,10 @@ static retvalue filelist_writedirs(char **buffer_p, size_t *size_p, size_t ofs, 
 		register retvalue r;
 
 		if( ofs+len+2 >= *size_p ) {
+			char *n;
+
 			*size_p += 1024*(1+(len/1024));
-			char *n = realloc(*buffer_p, *size_p);
+			n = realloc(*buffer_p, *size_p);
 			if( n == NULL ) {
 				free(*buffer_p);
 				*buffer_p = NULL;
