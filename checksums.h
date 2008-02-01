@@ -29,8 +29,8 @@ void checksums_free(/*@only@*//*@null@*/struct checksums *);
 /*@null@*/struct checksums *checksums_dup(const struct checksums *);
 
 /* create a checksum record from an md5sum: */
-retvalue checksums_set(/*@out@*/struct checksums **, /*@only@*/char *);
-retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@only@*//*@null@*/ char *md5sum);
+retvalue checksums_set(/*@out@*/struct checksums **, const char *);
+retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum);
 
 /* hashes[*] is free'd */
 retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_COUNT]);

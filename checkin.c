@@ -180,6 +180,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	}
 	assert( RET_IS_OK(r) );
 	r = checksums_set(&e->checksums, md5sum);
+	free(md5sum);
 	if( RET_WAS_ERROR(r) ) {
 		freeentries(e);
 		return r;

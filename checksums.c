@@ -69,16 +69,12 @@ void checksums_free(struct checksums *checksums) {
 }
 
 /* create a checksum record from an md5sum: */
-retvalue checksums_set(struct checksums **result, char *md5sum) {
-	retvalue r;
-
+retvalue checksums_set(struct checksums **result, const char *md5sum) {
 	// TODO: depreceate this function?
 	// or reimplement it? otherwise the error messaged might be even
 	// wronger. (and checking things from the database could be done
 	// faster than stuff from outside)
-	r = checksums_parse(result, md5sum);
-	free(md5sum);
-	return r;
+	return checksums_parse(result, md5sum);
 }
 
 retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs_COUNT]) {
@@ -182,7 +178,7 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	return RET_OK;
 }
 
-retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@only@*//*@null@*/ char *md5sum) {
+retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum) {
 	size_t md5len;
 	retvalue r;
 
@@ -199,7 +195,6 @@ retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *c
 	// (as alreadyassumed above), so this should be possible to
 	// do faster than that...
 	r = checksums_parse(checksums_p, combinedchecksum);
-	free(md5sum);
 	return r;
 }
 
@@ -576,6 +571,7 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist *
 			return r;
 		}
 		r = checksums_set(&a.checksums[i], md5sum);
+		free(md5sum);
 		if( RET_WAS_ERROR(r) ) {
 			free(filename);
 			if( i == 0 ) {

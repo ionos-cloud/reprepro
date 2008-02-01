@@ -577,6 +577,7 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 		return r;
 	}
 	r = checksums_set(&n->checksums, md5sum);
+	free(md5sum);
 	if( RET_WAS_ERROR(r) ) {
 		free(basename);
 		candidate_file_free(n);
