@@ -142,6 +142,8 @@ static void releaselock(struct database *db) {
 	db->locked = false;
 }
 
+static retvalue writeversionfile(struct database *);
+
 retvalue database_close(struct database *db) {
 	retvalue result = RET_OK, r;
 
@@ -165,6 +167,8 @@ retvalue database_close(struct database *db) {
 		RET_UPDATE(result, r);
 		db->contents = NULL;
 	}
+	r = writeversionfile(db);
+	RET_UPDATE(result, r);
 	if( db->locked )
 		releaselock(db);
 	database_free(db);
@@ -507,7 +511,7 @@ static retvalue readline(/*@out@*/char **result, FILE *f, const char *versionfil
 	return RET_OK;
 }
 
-static retvalue readversionfile(struct database *db) {
+static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 	char *versionfilename;
 	FILE *f;
 	retvalue r;
@@ -526,12 +530,18 @@ static retvalue readversionfile(struct database *db) {
 			free(versionfilename);
 			return RET_ERRNO(e);
 		}
-		db->version = NULL;
+		free(versionfilename);
+		if( nopackagesyet ) {
+			/* set to default for new packages.db files: */
+			db->version = strdup(VERSION);
+			if( db->version == NULL )
+				return RET_ERROR_OOM;
+			db->capabilities.createnewtables = true;
+		} else
+			db->version = NULL;
 		db->lastsupportedversion = NULL;
 		db->dbversion = NULL;
 		db->lastsupporteddbversion = NULL;
-		memset(&db->capabilities, 0, sizeof(db->capabilities));
-		free(versionfilename);
 		return RET_NOTHING;
 	}
 	/* first line is the version creating this database */
@@ -568,12 +578,16 @@ static retvalue readversionfile(struct database *db) {
 
 	/* check for enabled capabilities in the version */
 
-	memset(&db->capabilities, 0, sizeof(db->capabilities));
 	r = dpkgversions_cmp(db->version, "3", &c);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( c >= 0 )
 		db->capabilities.createnewtables = true;
+	r = dpkgversions_cmp(db->lastsupportedversion, "3.3.0", &c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( c >= 0 )
+		db->capabilities.nomd5legacy = true;
 
 	/* ensure we can understand it */
 
@@ -619,11 +633,11 @@ static retvalue readversionfile(struct database *db) {
 }
 
 static retvalue writeversionfile(struct database *db) {
-	char *versionfilename;
+	char *versionfilename, *finalversionfilename;
 	FILE *f;
-	int e;
+	int i, e;
 
-	versionfilename = calc_dirconcat(db->directory, "version");
+	versionfilename = calc_dirconcat(db->directory, "version.new");
 	if( versionfilename == NULL )
 		return RET_ERROR_OOM;
 	f = fopen(versionfilename, "w");
@@ -640,9 +654,23 @@ static retvalue writeversionfile(struct database *db) {
 		(void)fputs(db->version, f);
 		(void)fputc('\n', f);
 	}
-	if( db->lastsupportedversion == NULL )
-		(void)fputs("0\n", f);
-	else {
+	if( db->lastsupportedversion == NULL ) {
+		if( db->capabilities.nomd5legacy )
+			(void)fputs("3.3.0\n", f);
+		else
+			(void)fputs("0\n", f);
+	} else if( db->capabilities.nomd5legacy ) {
+		int c;
+		retvalue r;
+
+		r = dpkgversions_cmp(db->lastsupportedversion, "3.3.0", &c);
+		if( !RET_IS_OK(r) || c < 0 )
+			(void)fputs("3.3.0\n", f);
+		else {
+			(void)fputs(db->lastsupportedversion, f);
+			(void)fputc('\n', f);
+		}
+	} else {
 		(void)fputs(db->lastsupportedversion, f);
 		(void)fputc('\n', f);
 	}
@@ -665,6 +693,7 @@ static retvalue writeversionfile(struct database *db) {
 		fprintf(stderr, "Error writing '%s': %s(errno is %d)\n",
 				versionfilename, strerror(e), e);
 		(void)fclose(f);
+		unlink(versionfilename);
 		free(versionfilename);
 		return RET_ERRNO(e);
 	}
@@ -672,9 +701,29 @@ static retvalue writeversionfile(struct database *db) {
 		e = errno;
 		fprintf(stderr, "Error writing '%s': %s(errno is %d)\n",
 				versionfilename, strerror(e), e);
+		unlink(versionfilename);
 		free(versionfilename);
 		return RET_ERRNO(e);
 	}
+	finalversionfilename = calc_dirconcat(db->directory, "version");
+	if( finalversionfilename == NULL ) {
+		unlink(versionfilename);
+		free(versionfilename);
+		return RET_ERROR_OOM;
+	}
+
+	i = rename(versionfilename, finalversionfilename);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d moving '%s' to '%s': %s\n",
+				e, versionfilename, finalversionfilename,
+				strerror(e));
+		(void)unlink(versionfilename);
+		free(versionfilename);
+		free(finalversionfilename);
+		return RET_ERRNO(e);
+	}
+	free(finalversionfilename);
 	free(versionfilename);
 	return RET_OK;
 }
@@ -684,14 +733,6 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
 	struct target *t;
 	retvalue result = RET_NOTHING, r;
 
-	db->version = strdup(VERSION);
-	if( db->version == NULL )
-		return RET_ERROR_OOM;
-	db->lastsupportedversion = NULL;
-	db->dbversion = NULL;
-	db->lastsupporteddbversion = NULL;
-	memset(&db->capabilities, 0, sizeof(db->capabilities));
-	db->capabilities.createnewtables = true;
 	for( d = distributions ; d != NULL ; d = d->next ) {
 		for( t = d->targets ; t != NULL ; t = t->next ) {
 			r = target_initpackagesdb(t, db, READWRITE);
@@ -707,72 +748,15 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
 	return result;
 }
 
-static retvalue preparepackages(struct database *db, bool fast, bool readonly, bool allowunused, struct distribution *distributions) {
-	retvalue r;
-	bool packagesfileexists, trackingfileexists;
-
-	r = readversionfile(db);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = database_hasdatabasefile(db, "packages.db", &packagesfileexists);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = database_hasdatabasefile(db, "tracking.db", &trackingfileexists);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	if( !packagesfileexists && !trackingfileexists ) {
-		// TODO: handle readonly, but only once packages files may no
-		// longer be generated when it is active...
-
-		// TODO: if version > 0, there should already be one...
-
-		return createnewdatabase(db, distributions);
-	}
-
-	if( !allowunused && !fast && packagesfileexists )  {
-		struct strlist identifiers;
-
-		r = database_listpackages(db, &identifiers);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( RET_IS_OK(r) ) {
-			r = warnidentifers(db, &identifiers,
-					distributions, readonly);
-			if( RET_WAS_ERROR(r) ) {
-				strlist_done(&identifiers);
-				return r;
-			}
-			strlist_done(&identifiers);
-		}
-	}
-	if( !allowunused && !fast && trackingfileexists )  {
-		struct strlist codenames;
-
-		r = tracking_listdistributions(db, &codenames);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( RET_IS_OK(r) ) {
-			r = warnunusedtracking(&codenames, distributions);
-			if( RET_WAS_ERROR(r) ) {
-				strlist_done(&codenames);
-				return r;
-			}
-			strlist_done(&codenames);
-		}
-	}
-	return RET_OK;
-}
-
 /* Initialize a database.
  * - if not fast, make all kind of checks for consistency (TO BE IMPLEMENTED),
  * - if readonly, do not create but return with RET_NOTHING
  * - lock database, waiting a given amount of time if already locked
  */
-retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb) {
+retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb, bool legacymd5format) {
 	struct database *n;
 	retvalue r;
+	bool packagesfileexists, trackingfileexists, nopackagesyet;
 
 	if( readonly && !isdir(dbdir) ) {
 		if( verbose >= 0 )
@@ -797,6 +781,23 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 	}
 	n->readonly = readonly;
 	n->verbose = verbosedb;
+	n->capabilities.nomd5legacy = !legacymd5format;
+
+	r = database_hasdatabasefile(n, "packages.n", &packagesfileexists);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = database_hasdatabasefile(n, "tracking.n", &trackingfileexists);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	nopackagesyet = !packagesfileexists && !trackingfileexists;
+
+	r = readversionfile(n, nopackagesyet);
+	if( RET_WAS_ERROR(r) ) {
+		releaselock(n);
+		database_free(n);
+		return r;
+	}
 
 	if( nopackages ) {
 		n->nopackages = true;
@@ -804,10 +805,57 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 		return RET_OK;
 	}
 
-	r = preparepackages(n, fast, readonly, allowunused, alldistributions);
-	if( RET_WAS_ERROR(r) ) {
-		(void)database_close(n);
-		return r;
+	if( nopackagesyet ) {
+		// TODO: handle readonly, but only once packages files may no
+		// longer be generated when it is active...
+
+		r = createnewdatabase(n, alldistributions);
+		if( RET_WAS_ERROR(r) ) {
+			releaselock(n);
+			database_free(n);
+			return r;
+		}
+	}
+
+	/* from now on we should call db_close, as other stuff was handled,
+	 * so writing the version file cannot harm (and not doing so could) */
+
+	if( !allowunused && !fast && packagesfileexists )  {
+		struct strlist identifiers;
+
+		r = database_listpackages(n, &identifiers);
+		if( RET_WAS_ERROR(r) ) {
+			database_close(n);
+			return r;
+		}
+		if( RET_IS_OK(r) ) {
+			r = warnidentifers(n, &identifiers,
+					alldistributions, readonly);
+			if( RET_WAS_ERROR(r) ) {
+				strlist_done(&identifiers);
+				database_close(n);
+				return r;
+			}
+			strlist_done(&identifiers);
+		}
+	}
+	if( !allowunused && !fast && trackingfileexists )  {
+		struct strlist codenames;
+
+		r = tracking_listdistributions(n, &codenames);
+		if( RET_WAS_ERROR(r) ) {
+			database_close(n);
+			return r;
+		}
+		if( RET_IS_OK(r) ) {
+			r = warnunusedtracking(&codenames, alldistributions);
+			if( RET_WAS_ERROR(r) ) {
+				strlist_done(&codenames);
+				database_close(n);
+				return r;
+			}
+			strlist_done(&codenames);
+		}
 	}
 
 	*result = n;

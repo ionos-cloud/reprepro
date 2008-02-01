@@ -16,7 +16,7 @@ struct distribution;
 struct table;
 struct cursor;
 
-retvalue database_create(/*@out@*/struct database **, const char *dbdir, struct distribution *, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb);
+retvalue database_create(/*@out@*/struct database **, const char *dbdir, struct distribution *, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb, bool legacymd5format);
 retvalue database_close(/*@only@*/struct database *);
 
 /*@observer@*/ const char *database_directory(struct database *);

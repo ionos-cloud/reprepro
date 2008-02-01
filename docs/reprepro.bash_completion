@@ -74,7 +74,7 @@ _reprepro()
 	--keepunneededlists --keepdirectories\
 	--ask-passphrase --nonothingiserror --listsdownload\
 	--nokeepunreferencesfiles --nokeepunneededfiles --nokeepdirectories\
-	--noask-passphrase --skipold --noskipold'
+	--noask-passphrase --skipold --noskipold --nooldfilesdb --oldfilesdb'
 	options='-b -i --basedir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \

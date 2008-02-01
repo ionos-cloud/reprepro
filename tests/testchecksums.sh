@@ -35,6 +35,7 @@ CONFEND
 
 DISTRI=ATest PACKAGE=package EPOCH="" VERSION=999.999.999 REVISION="-999.999" SECTION="otherofs" genpackage.sh
 if test -n "$TESTNEWFILESDB" ; then
+	echo nooldfilesdb >> conf/options
 	dodo test ! -f db/files.db
 fi
 testrun - -b . include ATest test.changes 3<<EOF
@@ -199,6 +200,110 @@ pool/everything/p/package/package_999.999.999-999.999.tar.gz $(fullchecksum pack
 pool/everything/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(fullchecksum package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
 EOF
 dodiff results.expected results
+
+testrun - -b . checkpool 3<<EOF
+EOF
+
+testrun - -b . collectnewchecksums 3<<EOF
+EOF
+
+cp db/checksums.db db/checksums.saved.db
+if test -z "$TESTNEWFILESDB" ; then
+cp db/files.db db/files.saved.db
+fi
+
+testrun - -b . _forget pool/everything/p/package/package_999.999.999-999.999.tar.gz 3<<EOF
+stdout
+-d1*=db: 'pool/everything/p/package/package_999.999.999-999.999.tar.gz' removed from checksums.db(pool).
+-e1*=db: 'pool/everything/p/package/package_999.999.999-999.999.tar.gz' removed from files.db(md5sums).
+EOF
+
+if test -z "$TESTNEWFILESDB" ; then
+cp db/checksums.db db/checksums.crippled.db
+cp db/files.db db/files.crippled.db
+fi
+
+testout - -b . _listchecksums 3<<EOF
+EOF
+cat > results.expected <<EOF
+pool/elsewhere/p/package/package-addons_999.999.999-999.999_all.deb $(sha package-addons_999.999.999-999.999_all.deb) :9:futuristicchecksum $(mdandsize package-addons_999.999.999-999.999_all.deb)
+pool/elsewhere/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(sha package_999.999.999-999.999_${FAKEARCHITECTURE}.deb) :9:futuristicchecksum $(mdandsize package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+pool/everything/p/package/package-addons_999.999.999-999.999_all.deb $(fullchecksum package-addons_999.999.999-999.999_all.deb)
+pool/everything/p/package/package_999.999.999-999.999.dsc $(fullchecksum package_999.999.999-999.999.dsc)
+pool/everything/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(fullchecksum package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+EOF
+dodiff results.expected results
+
+if test -z "$TESTNEWFILESDB" ; then
+cp db/checksums.saved.db db/checksums.db
+
+testout - -b . _listchecksums 3<<EOF
+EOF
+cat > results.expected <<EOF
+pool/elsewhere/p/package/package-addons_999.999.999-999.999_all.deb $(sha package-addons_999.999.999-999.999_all.deb) :9:futuristicchecksum $(mdandsize package-addons_999.999.999-999.999_all.deb)
+pool/elsewhere/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(sha package_999.999.999-999.999_${FAKEARCHITECTURE}.deb) :9:futuristicchecksum $(mdandsize package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+pool/everything/p/package/package-addons_999.999.999-999.999_all.deb $(fullchecksum package-addons_999.999.999-999.999_all.deb)
+pool/everything/p/package/package_999.999.999-999.999.dsc $(fullchecksum package_999.999.999-999.999.dsc)
+pool/everything/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(fullchecksum package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+EOF
+dodiff results.expected results
+
+fi
+
+testrun - -b . checkpool 3<<EOF
+EOF
+
+testrun - -b . collectnewchecksums 3<<EOF
+EOF
+
+testout - -b . _listchecksums 3<<EOF
+EOF
+cat > results.expected <<EOF
+pool/elsewhere/p/package/package-addons_999.999.999-999.999_all.deb $(sha package-addons_999.999.999-999.999_all.deb) :9:futuristicchecksum $(mdandsize package-addons_999.999.999-999.999_all.deb)
+pool/elsewhere/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(sha package_999.999.999-999.999_${FAKEARCHITECTURE}.deb) :9:futuristicchecksum $(mdandsize package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+pool/everything/p/package/package-addons_999.999.999-999.999_all.deb $(fullchecksum package-addons_999.999.999-999.999_all.deb)
+pool/everything/p/package/package_999.999.999-999.999.dsc $(fullchecksum package_999.999.999-999.999.dsc)
+pool/everything/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(fullchecksum package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+EOF
+dodiff results.expected results
+
+if test -z "$TESTNEWFILESDB" ; then
+cp db/files.saved.db db/files.db
+cp db/checksums.crippled.db db/checksums.db
+
+testout - -b . _listchecksums 3<<EOF
+EOF
+cat > results.expected <<EOF
+pool/elsewhere/p/package/package-addons_999.999.999-999.999_all.deb $(sha package-addons_999.999.999-999.999_all.deb) :9:futuristicchecksum $(mdandsize package-addons_999.999.999-999.999_all.deb)
+pool/elsewhere/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(sha package_999.999.999-999.999_${FAKEARCHITECTURE}.deb) :9:futuristicchecksum $(mdandsize package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+pool/everything/p/package/package-addons_999.999.999-999.999_all.deb $(fullchecksum package-addons_999.999.999-999.999_all.deb)
+pool/everything/p/package/package_999.999.999-999.999.dsc $(fullchecksum package_999.999.999-999.999.dsc)
+pool/everything/p/package/package_999.999.999-999.999.tar.gz $(mdandsize package_999.999.999-999.999.tar.gz)
+pool/everything/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(fullchecksum package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+EOF
+dodiff results.expected results
+
+
+testrun - -b . collectnewchecksums 3<<EOF
+stdout
+-e1=db: 'pool/everything/p/package/package_999.999.999-999.999.tar.gz' added to files.db(md5sums).
+stdout
+-d1*=db: 'pool/everything/p/package/package_999.999.999-999.999.tar.gz' added to checksums.db(pool).
+EOF
+
+testout - -b . _listchecksums 3<<EOF
+EOF
+cat > results.expected <<EOF
+pool/elsewhere/p/package/package-addons_999.999.999-999.999_all.deb $(sha package-addons_999.999.999-999.999_all.deb) :9:futuristicchecksum $(mdandsize package-addons_999.999.999-999.999_all.deb)
+pool/elsewhere/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(sha package_999.999.999-999.999_${FAKEARCHITECTURE}.deb) :9:futuristicchecksum $(mdandsize package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+pool/everything/p/package/package-addons_999.999.999-999.999_all.deb $(fullchecksum package-addons_999.999.999-999.999_all.deb)
+pool/everything/p/package/package_999.999.999-999.999.dsc $(fullchecksum package_999.999.999-999.999.dsc)
+pool/everything/p/package/package_999.999.999-999.999.tar.gz $(fullchecksum package_999.999.999-999.999.tar.gz)
+pool/everything/p/package/package_999.999.999-999.999_${FAKEARCHITECTURE}.deb $(fullchecksum package_999.999.999-999.999_${FAKEARCHITECTURE}.deb)
+EOF
+dodiff results.expected results
+fi
+
 
 if test x$STANDALONE = xtrue ; then
 	set +v +x

@@ -255,6 +255,14 @@ Don't set the environment variable
 even when it is not set, stdin is terminal and
 .B /proc/self/fd/0
 is a readable symbolic link.
+.TP
+.B \-\-nooldfilesdb
+Do not create a files.db file, but only newer checksums.db file.
+This will make it impossible for reprepro versions before 3.3.0 to
+access this repository.
+Versions before 3.0 will not recognize that and destroy it.
+Thus it is still switched off by default, even though it gives an space
+and speed improvement.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"

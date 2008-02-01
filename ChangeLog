@@ -1,3 +1,8 @@
+2008-02-01  Bernhard R. Link <brlink@debian.org>
+	* new --nooldfilesdb switch to only use new-style checksum database
+	* improve db/version generation, set minimum required reprepro version
+	to 3.3.0 when only using checksums.db
+
 2008-01-13  Bernhard R. Link <brlink@debian.org>
 	* improve collecting of not yet known checksums and using
 	already recorded checksums in the database

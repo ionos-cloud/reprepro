@@ -104,6 +104,7 @@ static enum exportwhen export = EXPORT_CHANGED;
 int		verbose = 0;
 static bool	fast = false;
 static bool	verbosedatabase = false;
+static bool	oldfilesdb = true;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
@@ -114,7 +115,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase);
+O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -2440,7 +2441,8 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	result = database_create(&database, dbdir, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
 			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
-			waitforlock, verbosedatabase || (verbose >= 30) );
+			waitforlock, verbosedatabase || (verbose >= 30),
+			oldfilesdb);
 	if( !RET_IS_OK(result) ) {
 		(void)distribution_freelist(alldistributions);
 		return result;
@@ -2531,6 +2533,8 @@ LO_NOSKIPOLD,
 LO_NOGUESSGPGTTY,
 LO_VERBOSEDB,
 LO_NOVERBOSEDB,
+LO_OLDFILESDB,
+LO_NOOLDFILESDB,
 LO_EXPORT,
 LO_DISTDIR,
 LO_DBDIR,
@@ -2718,6 +2722,12 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NOVERBOSEDB:
 					CONFIGSET(verbosedatabase, false);
+					break;
+				case LO_OLDFILESDB:
+					CONFIGSET(oldfilesdb, true);
+					break;
+				case LO_NOOLDFILESDB:
+					CONFIGSET(oldfilesdb, false);
 					break;
 				case LO_EXPORT:
 					setexport(optarg);
@@ -2915,6 +2925,9 @@ int main(int argc,char *argv[]) {
 		{"noverbosedb", no_argument, &longoption, LO_NOVERBOSEDB},
 		{"verbosedatabase", no_argument, &longoption, LO_VERBOSEDB},
 		{"noverbosedatabase", no_argument, &longoption, LO_NOVERBOSEDB},
+		{"oldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
+		{"nooldfilesdb", no_argument, &longoption, LO_NOOLDFILESDB},
+		{"nonooldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
