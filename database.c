@@ -783,10 +783,10 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 	n->verbose = verbosedb;
 	n->capabilities.nomd5legacy = !legacymd5format;
 
-	r = database_hasdatabasefile(n, "packages.n", &packagesfileexists);
+	r = database_hasdatabasefile(n, "packages.db", &packagesfileexists);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = database_hasdatabasefile(n, "tracking.n", &trackingfileexists);
+	r = database_hasdatabasefile(n, "tracking.db", &trackingfileexists);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -817,7 +817,7 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 		}
 	}
 
-	/* from now on we should call db_close, as other stuff was handled,
+	/* from now on we should call database_close, as other stuff was handled,
 	 * so writing the version file cannot harm (and not doing so could) */
 
 	if( !allowunused && !fast && packagesfileexists )  {
