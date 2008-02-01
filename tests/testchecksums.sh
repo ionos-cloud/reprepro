@@ -251,7 +251,24 @@ dodiff results.expected results
 fi
 
 testrun - -b . checkpool 3<<EOF
+*=WARNING: file 'pool/everything/p/package/package_999.999.999-999.999.tar.gz'
+*=is listed in checksums.db but not the legacy (but still binding) files.db!
+*=This should normaly only happen if information about the file was collected
+*=by a version at least 3.3.0 and deleted by an earlier version. But then the
+*=file should be deleted, too. But it seems to still be there. Strange.
 EOF
+
+dodo mv pool/everything/p/package/package_999.999.999-999.999.tar.gz s
+
+testrun - -b . checkpool 3<<EOF
+*=WARNING: file 'pool/everything/p/package/package_999.999.999-999.999.tar.gz'
+*=is listed in checksums.db but not the legacy (but still binding) files.db!
+*=This should normaly only happen if information about the file was collected
+*=by a version at least 3.3.0 and deleted by an earlier version. But then the
+*=file should be deleted, too. But it seems to still be there. Strange.
+EOF
+
+dodo mv s pool/everything/p/package/package_999.999.999-999.999.tar.gz
 
 testrun - -b . collectnewchecksums 3<<EOF
 EOF

@@ -41,7 +41,7 @@
 extern int verbose;
 
 static retvalue files_get_checksums(struct database *database, const char *filekey, /*@out@*/struct checksums **checksums_p) {
-	char *md5sum = NULL;
+	const char *md5sum = NULL;
 	const char *checksums;
 	size_t checksumslen;
 	retvalue r;
@@ -49,15 +49,13 @@ static retvalue files_get_checksums(struct database *database, const char *filek
 	if( database->oldmd5sums != NULL ) {
 		/* if there is an old-style files.db, then this is the
 		 * official source: */
-		r = table_getrecord(database->oldmd5sums, filekey, &md5sum);
+		r = table_gettemprecord(database->oldmd5sums, filekey, &md5sum, NULL);
 		if( !RET_IS_OK(r) )
 			return r;
 		r = table_gettemprecord(database->checksums, filekey,
 				&checksums, &checksumslen);
-		if( RET_WAS_ERROR(r) ) {
-			free(md5sum);
+		if( RET_WAS_ERROR(r) )
 			return r;
-		}
 		if( r == RET_NOTHING )
 			return checksums_set(checksums_p, md5sum);
 	} else {
@@ -527,9 +525,9 @@ static retvalue checkpoolfile(const char *fullfilename, const struct checksums *
 
 retvalue files_checkpool(struct database *database, bool fast) {
 	retvalue result, r;
-	struct cursor *cursor;
-	const char *filekey, *combined, *m;
-	char *md5sum;
+	struct cursor *cursor, *cursor2;
+	const char *filekey, *md5sum;
+	const char *filekey2, *combined;
 	size_t combinedlen;
 	struct checksums *expected;
 	char *fullfilename;
@@ -569,20 +567,66 @@ retvalue files_checkpool(struct database *database, bool fast) {
 		r = cursor_close(database->checksums, cursor);
 		RET_ENDUPDATE(result, r);
 	} else {
+		bool havemd5sums;
+		int c IFSTUPIDCC(=-1);
+
 		r = table_newglobalcursor(database->oldmd5sums, &cursor);
-		if( !RET_IS_OK(r) )
+		if( RET_WAS_ERROR(r) )
 			return r;
-		while( cursor_nexttemp(database->oldmd5sums, cursor,
-					&filekey, &m) ) {
-			md5sum = strdup(m);
-			if( md5sum == NULL ) {
-				result = RET_ERROR_OOM;
-				break;
+		havemd5sums = r != RET_NOTHING;
+		r = table_newglobalcursor(database->checksums, &cursor2);
+		if( RET_WAS_ERROR(r) ) {
+			(void)cursor_close(database->oldmd5sums, cursor);
+			return r;
+		}
+#define nextcombined() if( !cursor_nexttempdata(database->checksums, \
+					cursor2, &filekey2, \
+					&combined, &combinedlen) ) \
+			filekey2 = NULL;
+		if( r == RET_NOTHING )
+			filekey2 = NULL;
+		else
+			nextcombined();
+		while( havemd5sums && cursor_nexttemp(database->oldmd5sums,
+					cursor, &filekey, &md5sum) ) {
+			while( filekey2 != NULL &&
+			       (c = strcmp(filekey2, filekey)) < 0 ) {
+				fullfilename = files_calcfullfilename(database,
+						filekey);
+				if( fullfilename == NULL ) {
+					result = RET_ERROR_OOM;
+					break;
+				}
+				if( isregularfile(fullfilename) ) {
+					fprintf(stderr,
+"WARNING: file '%s'\n"
+"is listed in checksums.db but not the legacy (but still binding) files.db!\n"
+"This should normaly only happen if information about the file was collected\n"
+"by a version at least 3.3.0 and deleted by an earlier version. But then the\n"
+"file should be deleted, too. But it seems to still be there. Strange.\n",
+						filekey2);
+				} else {
+					static bool firstwarning = true;
+					fprintf(stderr,
+"deleting left over entry for file '%s'\n"
+"listed in checksums.db but not the legacy (but still canonical) files.db!\n",
+						filekey);
+					if( firstwarning ) {
+						(void)fputs(
+"This should only happen when information about it was collected with a\n"
+"version of at least 3.3.0 of reprepro but deleted later with a earlier\n"
+"version. But in that case it is normal.\n",			stderr);
+						firstwarning = false;
+					}
+					(void)cursor_delete(
+							database->checksums,
+							cursor2, filekey2,
+							NULL);
+				}
+				free(fullfilename);
+				nextcombined();
 			}
-			r = table_gettemprecord(database->checksums,
-					filekey, &combined, &combinedlen);
-			RET_UPDATE(result, r);
-			if( !RET_IS_OK(r)) {
+			if( filekey == NULL || c > 0 ) {
 				r = checksums_set(&expected, md5sum);
 				improveable = true;
 			} else {
@@ -596,17 +640,19 @@ retvalue files_checkpool(struct database *database, bool fast) {
 "this should only happening if the file was removed and readded using an\n"
 "old (pre-3.3) version of reprepro. Proceeding with the new-style checksum\n"
 "of '%s' deleted.\n",					filekey);
-					(void)table_deleterecord(
+					(void)cursor_delete(
 							database->checksums,
-							filekey, true);
+							cursor2, filekey2, NULL);
 					r = checksums_set(&expected, md5sum);
 					improveable = true;
 				} else {
-					free(md5sum);
 					r = checksums_setall(&expected,
 						combined, combinedlen, NULL);
 				}
+				/* extended checksum processed. next! */
+				nextcombined();
 			}
+#undef nextcombined
 			if( RET_WAS_ERROR(r) ) {
 				RET_UPDATE(result, r);
 				continue;
@@ -631,8 +677,8 @@ retvalue files_checkpool(struct database *database, bool fast) {
 		}
 		r = cursor_close(database->oldmd5sums, cursor);
 		RET_ENDUPDATE(result, r);
-		// TODO: check checksums.db for entries not found in
-		// files.db
+		r = cursor_close(database->checksums, cursor2);
+		RET_ENDUPDATE(result, r);
 	}
 	if( improveable && verbose >= 0 )
 		printf(
@@ -813,6 +859,7 @@ retvalue files_collectnewchecksums(struct database *database) {
 		r = table_newglobalcursor(database->oldmd5sums, &cursor);
 		if( !RET_IS_OK(r) )
 			return r;
+		// TODO: also look for overlooked checksums items here...
 		while( cursor_nexttemp(database->oldmd5sums, cursor,
 					&filekey, &m) ) {
 			r = collectnewchecksums(database, filekey, m);
