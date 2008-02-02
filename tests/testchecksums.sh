@@ -261,11 +261,13 @@ EOF
 dodo mv pool/everything/p/package/package_999.999.999-999.999.tar.gz s
 
 testrun - -b . checkpool 3<<EOF
-*=WARNING: file 'pool/everything/p/package/package_999.999.999-999.999.tar.gz'
-*=is listed in checksums.db but not the legacy (but still binding) files.db!
-*=This should normaly only happen if information about the file was collected
-*=by a version at least 3.3.0 and deleted by an earlier version. But then the
-*=file should be deleted, too. But it seems to still be there. Strange.
+*=deleting left over entry for file 'pool/everything/p/package/package_999.999.999-999.999.tar.gz'
+*=listed in checksums.db but not the legacy (but still canonical) files.db!
+*=This should only happen when information about it was collected with a
+*=version of at least 3.3.0 of reprepro but deleted later with a earlier
+*=version. But in that case it is normal.
+stdout
+-d1*=db: 'pool/everything/p/package/package_999.999.999-999.999.tar.gz' removed from checksums.db(pool).
 EOF
 
 dodo mv s pool/everything/p/package/package_999.999.999-999.999.tar.gz

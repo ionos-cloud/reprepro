@@ -523,6 +523,40 @@ static retvalue checkpoolfile(const char *fullfilename, const struct checksums *
 	return r;
 }
 
+static retvalue leftoverchecksum(struct database *database, struct cursor *cursor2, const char *filekey2) {
+	char *fullfilename;
+
+	fullfilename = files_calcfullfilename(database, filekey2);
+	if( fullfilename == NULL )
+		return RET_ERROR_OOM;
+	if( isregularfile(fullfilename) ) {
+		fprintf(stderr,
+"WARNING: file '%s'\n"
+"is listed in checksums.db but not the legacy (but still binding) files.db!\n"
+"This should normaly only happen if information about the file was collected\n"
+"by a version at least 3.3.0 and deleted by an earlier version. But then the\n"
+"file should be deleted, too. But it seems to still be there. Strange.\n",
+				filekey2);
+	} else {
+		static bool firstwarning = true;
+		fprintf(stderr,
+"deleting left over entry for file '%s'\n"
+"listed in checksums.db but not the legacy (but still canonical) files.db!\n",
+				filekey2);
+		if( firstwarning ) {
+			(void)fputs(
+"This should only happen when information about it was collected with a\n"
+"version of at least 3.3.0 of reprepro but deleted later with a earlier\n"
+"version. But in that case it is normal.\n",			stderr);
+			firstwarning = false;
+		}
+		(void)cursor_delete(database->checksums, cursor2, filekey2,
+				NULL);
+	}
+	free(fullfilename);
+	return RET_NOTHING;
+}
+
 retvalue files_checkpool(struct database *database, bool fast) {
 	retvalue result, r;
 	struct cursor *cursor, *cursor2;
@@ -591,39 +625,11 @@ retvalue files_checkpool(struct database *database, bool fast) {
 					cursor, &filekey, &md5sum) ) {
 			while( filekey2 != NULL &&
 			       (c = strcmp(filekey2, filekey)) < 0 ) {
-				fullfilename = files_calcfullfilename(database,
-						filekey);
-				if( fullfilename == NULL ) {
-					result = RET_ERROR_OOM;
+				r = leftoverchecksum(database, cursor2, filekey2);
+				if( RET_WAS_ERROR(r) ) {
+					result = r;
 					break;
 				}
-				if( isregularfile(fullfilename) ) {
-					fprintf(stderr,
-"WARNING: file '%s'\n"
-"is listed in checksums.db but not the legacy (but still binding) files.db!\n"
-"This should normaly only happen if information about the file was collected\n"
-"by a version at least 3.3.0 and deleted by an earlier version. But then the\n"
-"file should be deleted, too. But it seems to still be there. Strange.\n",
-						filekey2);
-				} else {
-					static bool firstwarning = true;
-					fprintf(stderr,
-"deleting left over entry for file '%s'\n"
-"listed in checksums.db but not the legacy (but still canonical) files.db!\n",
-						filekey);
-					if( firstwarning ) {
-						(void)fputs(
-"This should only happen when information about it was collected with a\n"
-"version of at least 3.3.0 of reprepro but deleted later with a earlier\n"
-"version. But in that case it is normal.\n",			stderr);
-						firstwarning = false;
-					}
-					(void)cursor_delete(
-							database->checksums,
-							cursor2, filekey2,
-							NULL);
-				}
-				free(fullfilename);
 				nextcombined();
 			}
 			if( filekey == NULL || c > 0 ) {
@@ -652,7 +658,6 @@ retvalue files_checkpool(struct database *database, bool fast) {
 				/* extended checksum processed. next! */
 				nextcombined();
 			}
-#undef nextcombined
 			if( RET_WAS_ERROR(r) ) {
 				RET_UPDATE(result, r);
 				continue;
@@ -677,6 +682,12 @@ retvalue files_checkpool(struct database *database, bool fast) {
 		}
 		r = cursor_close(database->oldmd5sums, cursor);
 		RET_ENDUPDATE(result, r);
+		while( filekey2 != NULL ) {
+			r = leftoverchecksum(database, cursor2, filekey2);
+			RET_UPDATE(result, r);
+			nextcombined();
+		}
+#undef nextcombined
 		r = cursor_close(database->checksums, cursor2);
 		RET_ENDUPDATE(result, r);
 	}
