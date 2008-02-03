@@ -2,38 +2,45 @@ Some tipps what to do if (hopefully never), your database gets
 corrupted:
 
 First there are three different databases used, residing in three
-files in your --dbdir (normally db/): 
+files in your --dbdir (normally db/):
 
 1) references.db
 This file only contains the information which file in the pool/
 is needed by which target (i.e. which type/distribution/
-component/architecture quadrupple). This is simply repairable by 
+component/architecture quadrupple). This is simply repairable by
 deleting references.db and running "rereference".
 
 The current state of this database can be seen with "dumpreferences".
 All references from some specific target can be removed with
 "_removereferences".
 
-2) files.db
-This file contains the information which files in the pool/ dir
-are known. Files not in here will not be deleted with 
-"deleteunreferenced". Files being wrong here will not realized
+2) files.db and checksums.db
+These file contain the information which files in the pool/ dir
+are known and what checksums they have. Files not in here will not be
+deleted with "deleteunreferenced". Files being wrong here will not realized
 (and thus not corrected even if told to be newly included)
 
-To get this database in textform use "_listmd5sums" without argument,
-to add items manually pipe it into "_addmd5sums". (Filenames
+If both files exist, files.db is the canonical information and checksums.db
+can be regenerated with a call to collectnewchecksums.
+If only checksums.db is there, only that it used. (This means: if you
+have called collectnewchecksums since you last used a version prior to 3.3
+with this repository, you can just delete files.db. But make sure to
+never ever use a version prior to 3.0 on this repository after that.)
+
+To get this database in textform use "_listchecksums" without argument,
+to add items manually pipe it into "_addchecksums". (Filenames
 are handled as strings, so be careful).
 
-If the database is completely lost, you can regain it by moving
-files.db out of the way and running:
-find $BASEDIR/pool -type f -printf "pool/%P\n" | reprepro -b $BASEDIR _detect  
+If the database is completely lost or broken, you can regain it by moving
+files.db and checksums.db out of the way and running:
+find $BASEDIR/pool -type f -printf "pool/%P\n" | reprepro -b $BASEDIR _detect
 (or cd $BASEDIR && find pool -type f -print | reprepro -b . _detect)
 
 Also single files can be removed or added by "_forget" and "_detect".
 (Again note filekeys will be handled as strings, so leading "./", double
  slashes, "/./", symlinks  and the like make them differ).
 
-3) packages.db
+4) packages.db
 This file contains multiple databases, one for each target, containing
 the chunks from the Packages or Sources files, indixed by package name.
 
@@ -55,7 +62,6 @@ where the other files belong to. Otherwise removing references.db and calling
 "rereference" and then "dumpunreferenced" will give you a list of files not
 yet anywhere.
 
-
 Last but not least, there are also the "check" and "checkpool" commands, which
 can give some hints about inconsitencies. (Check will also readd files missing
-from files.db if they are needed by packages)
+from files.db+checksums.db if they are needed by packages but in the pool)

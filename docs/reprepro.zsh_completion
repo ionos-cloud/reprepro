@@ -201,6 +201,7 @@ commands=( export:"export index files"
 	processincoming:"process files from an incoming directory"
 	check:"check if all references are correct"
 	checkpool:"check if all files are still there and correct"
+	collectnewchecksums:"calculate missing file hashes"
 	rereference:"recreate references"
 	dumpreferences:"dump reference information"
 	dumpunreferenced:"dump files without reference (i.e. unneded)"
@@ -223,7 +224,8 @@ hiddencommands=(
 	_forget:"forget a file specified by filekey."
 	_listmd5sums:"print a list of filekeys and their md5 hashes"
 	_listchecksums:"print a list of filekeys and their checksums"
-	_addm5sums:"add checksums to database"
+	_addmd5sums:"add checksums to database"
+	_addchecksums:"add checksums to database"
 	_dumpcontents:"output contents of a part of the repository"
 	_addreference:"mark a filekey needed by an identifier"
 	_removereferences:"remove all references by an identifer"
@@ -322,7 +324,7 @@ case "$state" in
 		fi
 		;;
 
-	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums)
+	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums)
 		;;
 	 (_dumpcontents|_removereferences)
 		if [[ "$state" = "first argument" ]] ; then
