@@ -2623,7 +2623,7 @@ dodiff results.empty results
 
 echo "now testing .orig.tar.gz handling"
 tar -czf test_1.orig.tar.gz test.changes
-PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh -si
+PACKAGE=test EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh -sd
 testrun - -b . include test1 test.changes 3<<EOF
 returns 249
 stderr
