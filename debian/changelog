@@ -1,4 +1,4 @@
-reprepro (3.3.0-0) local-etch; urgency=low
+reprepro (3.3.0-1) unstable; urgency=low
 
   * new version
   - modified reading of .dsc/.changes/.deb-contol files.
@@ -7,7 +7,7 @@ reprepro (3.3.0-0) local-etch; urgency=low
   - add support for sha1 hashes (and prepare additional hashes to come)
   * increase debhelper compatiblity to 5, standards-version to 3.7.3
 
- -- Bernhard R. Link <brlink@debian.org>  Sun,  3 Feb 2008 22:00:34 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 09 Feb 2008 16:58:18 +0100
 
 reprepro (3.0.1-1) unstable; urgency=low
 

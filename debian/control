@@ -2,7 +2,7 @@ Source: reprepro
 Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
-Build-Depends: debhelper (>= 5.0.0), libgpgme11-dev, libdb4.3-dev, libz-dev, libbz2-dev, libarchive-dev
+Build-Depends: debhelper (>= 5), libgpgme11-dev, libdb4.3-dev, libz-dev, libbz2-dev, libarchive-dev
 Standards-Version: 3.7.3
 Vcs-Browser: http://alioth.debian.org/plugins/scmcvs/cvsweb.php/mirrorer/?cvsroot=mirrorer
 Vcs-Cvs: -d :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/mirrorer co reprepro
@@ -13,7 +13,7 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${reprepro:Depends}, ${misc:Depends}
 Recommends: apt
 Suggests: gnupg-agent, inoticoming
-Description: debian package repository producer
+Description: Debian package repository producer
  reprepro is a tool to manage a repository of Debian packages
  (.deb, .udeb, .dsc, ...). It stores files either being
  injected manually or downloaded from some other repository
