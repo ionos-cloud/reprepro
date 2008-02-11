@@ -2761,7 +2761,7 @@ static void handle_option(int c,const char *optarg) {
 				case LO_WAITFORLOCK:
 					CONFIGSET(waitforlock, parse_number(
 							"--waitforlock",
-							optarg, SIZE_MAX));
+							optarg, LONG_MAX));
 					break;
 				case LO_SPACECHECK:
 					if( strcasecmp(optarg, "none") == 0 ) {
