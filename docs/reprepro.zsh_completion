@@ -13,7 +13,7 @@
 #
 # make sure compinit is called after those lines in .zshrc
 
-local context state line confdir distfile incomingfile incomingdir basedir confdirset basedirset
+local context state line confdir distfile incomingfile incomingdir outdir basedir confdirset basedirset
 typeset -A opt_args
 local -a codenames architectures list commands hiddencommands
 
@@ -48,7 +48,12 @@ function _reprepro_calcbasedir ()
 function _reprepro_filekeys ()
 {
 	_reprepro_calcbasedir
-	list=( $basedir )
+	if [[ -n "$opt_args[--outdir]" ]]; then
+		outdir=${opt_args[--outdir]}
+	else
+		outdir=$basedir
+	fi
+	list=( $outdir )
 	_files -W list
 }
 
@@ -238,7 +243,8 @@ _arguments \
 	'*'{-v,-V,--verbose}'[be more verbose]' \
 	'*--silent[be less verbose]' \
 	'*--delete[Delete files after inclusion]' \
-	'(-b --basedir)'{-b,--basedir}'[Base drectoryset]:basedir:_files -/' \
+	'(-b --basedir)'{-b,--basedir}'[Base drectory]:basedir:_files -/' \
+	'--outdir[Directory where pool and dist are in]:out dir:_files -/' \
 	'--confdir[Directory where config files are]:config dir:_files -/' \
 	'--distdir[Directory where index files will be exported to]:dist dir:_files -/' \
 	'--logdir[Directory where log files will be generated]:log dir:_files -/' \

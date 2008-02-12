@@ -1,6 +1,12 @@
+2008-02-12  Bernhard R. Link <brlink@debian.org>
+	* Add --outdir directive to set the directory the pool
+	hierarchy is put under (and the dists hierarchy unless
+	--distdir puts it somewhere else).
+
 2008-02-11  Bernhard R. Link <brlink@debian.org>
 	* fix --waitforlock parsing on 64 bit size_t architectures.
 	  (Thanks to Arno Renevier for reporting the bug)
+
 2008-02-01  Bernhard R. Link <brlink@debian.org>
 	* new --nooldfilesdb switch to only use new-style checksum database
 	* improve db/version generation, set minimum required reprepro version

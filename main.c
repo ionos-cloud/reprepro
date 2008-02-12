@@ -75,7 +75,8 @@
 
 /* global options */
 static char /*@only@*/ /*@notnull@*/ // *g*
-	*mirrordir = NULL ,
+	*basedir = NULL,
+	*outdir = NULL,
 	*distdir = NULL,
 	*dbdir = NULL,
 	*listdir = NULL,
@@ -115,7 +116,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
+O(fast), O(outdir), O(basedir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -2123,7 +2124,7 @@ ACTION_D(n, n, y, processincoming) {
 	for( d = alldistributions ; d != NULL ; d = d->next )
 		d->selected = true;
 
-	result = process_incoming(mirrordir, confdir, overridedir, database, dereferenced, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
+	result = process_incoming(basedir, confdir, overridedir, database, dereferenced, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
 
 	logger_wait();
 
@@ -2455,7 +2456,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	if( RET_IS_OK(result) ) {
 
 		if( ISSET(needs,NEED_FILESDB) )
-			result = database_openfiles(database, mirrordir);
+			result = database_openfiles(database, outdir);
 
 		assert( result != RET_NOTHING );
 		if( RET_IS_OK(result) ) {
@@ -2536,6 +2537,7 @@ LO_NOVERBOSEDB,
 LO_OLDFILESDB,
 LO_NOOLDFILESDB,
 LO_EXPORT,
+LO_OUTDIR,
 LO_DISTDIR,
 LO_DBDIR,
 LO_LOGDIR,
@@ -2605,9 +2607,9 @@ static void handle_option(int c,const char *optarg) {
 " -i  --ignore <flag>:               Ignore errors of type <flag>.\n"
 "     --keepunreferencedfiles:       Do not delete files no longer needed.\n"
 "     --delete:                      Delete included files if reasonable.\n"
-" -b, --basedir <dir>:               Base-dir (will overwrite prior given\n"
-"                                                        -d, -D, -L, -c).\n"
-"     --distdir <dir>:               Directory to place the \"dists\" dir in.\n"
+" -b, --basedir <dir>:               Base directory\n"
+"     --outdir <dir>:                Set pool and dists base directory\n"
+"     --distdir <dir>:               Override dists directory.\n"
 "     --dbdir <dir>:                 Directory to place the database in.\n"
 "     --listdir <dir>:               Directory to place downloaded lists in.\n"
 "     --confdir <dir>:               Directory to search configuration in.\n"
@@ -2732,6 +2734,9 @@ static void handle_option(int c,const char *optarg) {
 				case LO_EXPORT:
 					setexport(optarg);
 					break;
+				case LO_OUTDIR:
+					CONFIGDUP(outdir, optarg);
+					break;
 				case LO_DISTDIR:
 					CONFIGDUP(distdir,optarg);
 					break;
@@ -2803,7 +2808,7 @@ static void handle_option(int c,const char *optarg) {
 			fprintf(stderr, "Ignoring no longer existing option -f/--force!\n");
 			break;
 		case 'b':
-			CONFIGDUP(mirrordir,optarg);
+			CONFIGDUP(basedir, optarg);
 			break;
 		case 'i':
 			r = set_ignore(optarg, true, config_state);
@@ -2888,6 +2893,7 @@ int main(int argc,char *argv[]) {
 		{"unignore", required_argument, &longoption, LO_UNIGNORE},
 		{"noignore", required_argument, &longoption, LO_UNIGNORE},
 		{"methoddir", required_argument, &longoption, LO_METHODDIR},
+		{"outdir", required_argument, &longoption, LO_OUTDIR},
 		{"distdir", required_argument, &longoption, LO_DISTDIR},
 		{"dbdir", required_argument, &longoption, LO_DBDIR},
 		{"listdir", required_argument, &longoption, LO_LISTDIR},
@@ -2983,20 +2989,19 @@ int main(int argc,char *argv[]) {
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
 	config_state = CONFIG_OWNER_ENVIRONMENT;
-	if( mirrordir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
-		CONFIGDUP(mirrordir,getenv("REPREPRO_BASE_DIR"));
+	if( basedir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
+		CONFIGDUP(basedir, getenv("REPREPRO_BASE_DIR"));
 	}
 	if( confdir == NULL && getenv("REPREPRO_CONFIG_DIR") != NULL ) {
 		CONFIGDUP(confdir,getenv("REPREPRO_CONFIG_DIR"));
 	}
 
-	if( mirrordir == NULL ) {
-		mirrordir=strdup(STD_BASE_DIR);
-	}
-	if( confdir == NULL && mirrordir != NULL )
-		confdir=calc_dirconcat(mirrordir,"conf");
+	if( basedir == NULL )
+		basedir = strdup(STD_BASE_DIR);
+	if( confdir == NULL && basedir != NULL )
+		confdir = calc_dirconcat(basedir, "conf");
 
-	if( mirrordir == NULL || confdir == NULL ) {
+	if( basedir == NULL || confdir == NULL ) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
@@ -3020,25 +3025,27 @@ int main(int argc,char *argv[]) {
 	/* basedir might have changed, so recalculate */
 	if( owner_confdir == CONFIG_OWNER_DEFAULT ) {
 		free(confdir);
-		confdir=calc_dirconcat(mirrordir,"conf");
+		confdir = calc_dirconcat(basedir, "conf");
 	}
-
 	if( delete < D_COPY )
 		delete = D_COPY;
 	if( methoddir == NULL )
 		methoddir = strdup(STD_METHOD_DIR);
-	if( distdir == NULL )
-		distdir=calc_dirconcat(mirrordir,"dists");
+	if( outdir == NULL )
+		outdir = strdup(basedir);
+	if( distdir == NULL && outdir != NULL )
+		distdir = calc_dirconcat(outdir, "dists");
 	if( dbdir == NULL )
-		dbdir=calc_dirconcat(mirrordir,"db");
+		dbdir = calc_dirconcat(basedir, "db");
 	if( logdir == NULL )
-		logdir=calc_dirconcat(mirrordir,"logs");
+		logdir = calc_dirconcat(basedir, "logs");
 	if( listdir == NULL )
-		listdir=calc_dirconcat(mirrordir,"lists");
+		listdir = calc_dirconcat(basedir, "lists");
 	if( overridedir == NULL )
-		overridedir=calc_dirconcat(mirrordir,"override");
-	if( distdir == NULL || dbdir == NULL || listdir == NULL || logdir == NULL
-			|| confdir == NULL || overridedir == NULL || methoddir == NULL) {
+		overridedir = calc_dirconcat(basedir, "override");
+	if( outdir == NULL || distdir == NULL || dbdir == NULL ||
+	    listdir == NULL || logdir == NULL || confdir == NULL ||
+	    overridedir == NULL || methoddir == NULL) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
@@ -3059,7 +3066,8 @@ int main(int argc,char *argv[]) {
 			free(logdir);
 			free(confdir);
 			free(overridedir);
-			free(mirrordir);
+			free(basedir);
+			free(outdir);
 			free(methoddir);
 			free(x_component);
 			free(x_architecture);
@@ -3085,7 +3093,8 @@ int main(int argc,char *argv[]) {
 	free(logdir);
 	free(confdir);
 	free(overridedir);
-	free(mirrordir);
+	free(basedir);
+	free(outdir);
 	free(methoddir);
 	free(x_component);
 	free(x_architecture);

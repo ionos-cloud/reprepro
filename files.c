@@ -169,7 +169,7 @@ retvalue files_deleteandremove(struct database *database, const char *filekey, b
 	} else if(rmdirs) {
 		/* try to delete parent directories, until one gives
 		 * errors (hopefully because it still contains files) */
-		size_t fixedpartlen = strlen(database->mirrordir);
+		size_t fixedpartlen = strlen(database->filesdir);
 		char *p;
 
 		while( (p = strrchr(filename,'/')) != NULL ) {
@@ -215,7 +215,7 @@ retvalue files_hardlinkandadd(struct database *database, const char *tempfile, c
 	r = files_canadd(database, filekey, checksums);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = checksums_hardlink(database->mirrordir, filekey, tempfile, checksums);
+	r = checksums_hardlink(database->filesdir, filekey, tempfile, checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -364,7 +364,7 @@ retvalue files_printmissing(struct database *database, const struct strlist *fil
 			/* File missing */
 			(void)fputs(origfile, stdout);
 			(void)putchar(' ');
-			(void)fputs(database->mirrordir, stdout);
+			(void)fputs(database->filesdir, stdout);
 			(void)putchar('/');
 			(void)fputs(filekey, stdout);
 			(void)putchar('\n');
