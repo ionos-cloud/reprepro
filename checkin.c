@@ -340,10 +340,6 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	R;
 	r = check(filename,c,"Maintainer");
 	R;
-	r = check(filename,c,"Description");
-	R;
-	r = check(filename,c,"Changes");
-	R;
 	r = chunk_getextralinelist(c->control,"Files",&filelines);
 	E("Missing 'Files' field!");
 	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture);

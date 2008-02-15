@@ -3,8 +3,10 @@ reprepro (3.3.1-0) UNRELEASED; urgency=low
   * new release
   - fix --waitforlock on 64 bit architectures (Closes: 465141)
   - add --outdir to set directory pool and dists are put (Closes: 465213)
+  - ignore missing Changes and Description lines in .changes files
+    (Closes: 465831)
 
- -- Bernhard R. Link <brlink@debian.org>  Tue, 12 Feb 2008 16:42:57 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 15 Feb 2008 18:11:10 +0100
 
 reprepro (3.3.0-1) unstable; urgency=low
 
