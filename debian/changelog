@@ -5,8 +5,10 @@ reprepro (3.3.1-0) UNRELEASED; urgency=low
   - add --outdir to set directory pool and dists are put (Closes: 465213)
   - ignore missing Changes and Description lines in .changes files
     (Closes: 465831)
+  * change Vcs-Cvs to format from cvs understandable to one debcheckout
+    likes. (Closes: 465924)
 
- -- Bernhard R. Link <brlink@debian.org>  Fri, 15 Feb 2008 18:11:10 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 15 Feb 2008 18:37:13 +0100
 
 reprepro (3.3.0-1) unstable; urgency=low
 
