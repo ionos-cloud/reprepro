@@ -3459,8 +3459,6 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Urgency' field!
 *=In 'broken.changes': Missing 'Maintainer' field!
-*=In 'broken.changes': Missing 'Description' field!
-*=In 'broken.changes': Missing 'Changes' field!
 =Ignoring as --ignore=missingfield given.
 *=In 'broken.changes': Missing 'Files' field!
 -v0*=There have been errors!
@@ -3472,8 +3470,6 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=In 'broken.changes': Missing 'Urgency' field!
 *=In 'broken.changes': Missing 'Maintainer' field!
-*=In 'broken.changes': Missing 'Description' field!
-*=In 'broken.changes': Missing 'Changes' field!
 *=broken.changes: Not enough files in .changes!
 =Ignoring as --ignore=missingfield given.
 -v0*=There have been errors!
@@ -3488,8 +3484,6 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=In 'broken.changes': Missing 'Description' field!
-=In 'broken.changes': Missing 'Changes' field!
 *=Warning: Strange file 'filename_version.tar.gz'!
 =Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
@@ -3506,8 +3500,6 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=In 'broken.changes': Missing 'Description' field!
-=In 'broken.changes': Missing 'Changes' field!
 =Warning: Strange file 'filename_version.tar.gz'!
 =Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
@@ -3528,8 +3520,6 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=In 'broken.changes': Missing 'Description' field!
-=In 'broken.changes': Missing 'Changes' field!
 =Warning: Strange file 'filename_version.tar.gz'!
 *=Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
