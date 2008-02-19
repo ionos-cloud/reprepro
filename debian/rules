@@ -18,6 +18,9 @@ else
 	CFLAGS += -O2
 endif
 
+ifneq (,$(findstring reprepro:libdb4.6,$(DEB_BUILD_OPTIONS)))
+	DBFLAGS = --with-libdb=4.6
+else
 ifneq (,$(findstring reprepro:libdb3,$(DEB_BUILD_OPTIONS)))
 	DBFLAGS = --with-libdb=3
 else
@@ -25,6 +28,7 @@ ifneq (,$(findstring reprepro:libdb4.4,$(DEB_BUILD_OPTIONS)))
 	DBFLAGS = --with-libdb=4.4
 else
 	DBFLAGS = --with-libdb=4.3
+endif
 endif
 endif
 ifneq (,$(findstring reprepro:nolibarchive,$(DEB_BUILD_OPTIONS)))

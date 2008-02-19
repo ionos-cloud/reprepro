@@ -37,6 +37,9 @@ AC_ARG_WITH(libdb,
 	4.4)
 	DB_WANT_VERSION=4.4
 	;;
+	4.6)
+	DB_WANT_VERSION=4.6
+	;;
 	/*)
 	DB_WANT_VERSION=any
 	DBLIBS="-L$withval/lib"
@@ -77,13 +80,25 @@ elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x4" ; then
 	elif test "$DB_WANT_VERSION" != "4.4" ; then
 		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
 	fi
+elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x6" ; then
+	if test "$DB_WANT_VERSION" = "any" ; then
+		DB_WANT_VERSION=4.6
+	elif test "$DB_WANT_VERSION" != "4.6" ; then
+		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
+	fi
 else
 	AC_MSG_ERROR([Unsupported libdb major $DB_VERSION_MAJOR minor $DB_VERSION_MINOR
-Only 4.3 (stronly recommended) or 3.2 or 4.4 are supported])
+Only 4.3 (stronly recommended) or 3.2 or 4.4 or 4.6 are supported])
 fi
 
 # now we have a header with the expected version, check for the library:
 case "$DB_WANT_VERSION" in
+4.6)
+	AC_CHECK_LIB(db-4.6,db_create,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),46)
+			DBLIBS="-ldb-4.6 $DBLIBS"
+	],[AC_MSG_ERROR(["no libdb-4.6 found"])],[$DBLIBS])
+;;
 4.4)
 	AC_CHECK_LIB(db-4.4,db_create,[dnl
 			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),44)
