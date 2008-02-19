@@ -1259,7 +1259,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 
 	result = target_addpackage(dsttarget, d->destination->logger,
 			d->db, d->name, version, chunk,
-			&filekeys, true, d->removedfiles,
+			&filekeys, NULL, true, d->removedfiles,
 			NULL, '?');
 	free(version);
 	free(chunk);

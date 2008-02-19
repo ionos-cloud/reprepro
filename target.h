@@ -81,7 +81,7 @@ retvalue target_closepackagesdb(struct target *target);
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
-retvalue target_addpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *, enum filetype);
+retvalue target_addpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *version, const char *control, const struct strlist *filekeys, /*@null@*/ bool *usedmarker, bool downgrade, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *, enum filetype);
 retvalue target_checkaddpackage(struct target *target, const char *name, const char *version, bool tracking, bool permitnewerold);
 retvalue target_removepackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, /*@null@*/const char *oldpversion, /*@null@*/struct strlist *dereferencedfilekeys, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */

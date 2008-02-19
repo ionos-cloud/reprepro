@@ -260,11 +260,12 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, const char * const forcec
 	return RET_OK;
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg,struct database *database,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
+retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, const char *forcearchitecture, const char *packagetype, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, bool *usedmarker) {
 	return binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			trackingdata,
-			pkg->component, &pkg->filekeys, pkg->deb.control);
+			pkg->component, &pkg->filekeys, usedmarker,
+			pkg->deb.control);
 }
 
 /* insert the given .deb into the mirror in <component> in the <distribution>
@@ -278,6 +279,7 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 	const struct overrideinfo *oinfo;
 	char *control;
 	struct checksums *checksums;
+	bool fileused = false;
 
 	r = deb_read(&pkg, debfilename, tracks != NULL );
 	if( RET_WAS_ERROR(r) ) {
@@ -288,7 +290,9 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 		deb_free(pkg);
 		return r;
 	}
-	r = files_preinclude(database, debfilename, pkg->filekey, &checksums);
+	r = files_preinclude(database, debfilename, pkg->filekey, &checksums,
+			&fileused);
+	fileused = !fileused;
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -298,6 +302,8 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 			pkg->deb.section, pkg->deb.priority, &control);
 	checksums_free(checksums);
 	if( RET_WAS_ERROR(r) ) {
+		if( !fileused )
+			files_deleteandremove(database, pkg->filekey, true, false);
 		deb_free(pkg);
 		return r;
 	}
@@ -309,6 +315,9 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 				pkg->deb.source, pkg->deb.sourceversion,
 				&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
+			if( !fileused )
+				files_deleteandremove(database, pkg->filekey,
+						true, false);
 			deb_free(pkg);
 			return r;
 		}
@@ -317,7 +326,11 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 	r = binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL,
-			pkg->component, &pkg->filekeys, pkg->deb.control);
+			pkg->component, &pkg->filekeys, &fileused,
+			pkg->deb.control);
+	assert( !RET_IS_OK(r) || fileused );
+	if( !fileused )
+		files_deleteandremove(database, pkg->filekey, true, false);
 	RET_UPDATE(distribution->status, r);
 	deb_free(pkg);
 

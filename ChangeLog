@@ -1,3 +1,7 @@
+2008-02-19  Bernhard R. Link <brlink@debian.org>
+	* Try harder not to leave any newly added files
+	to the pool in the case of an error.
+
 2008-02-15  Bernhard R. Link <brlink@debian.org>
 	* Also ignore missing Changes and Description lines
 	in .changes files with "include".

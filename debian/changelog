@@ -1,19 +1,20 @@
 reprepro (3.3.1-0) UNRELEASED; urgency=low
 
-  * new release
+  * bugfix release
   - fix --waitforlock on 64 bit architectures (Closes: 465141)
   - add --outdir to set directory pool and dists are put (Closes: 465213)
   - ignore missing Changes and Description lines in .changes files
     (Closes: 465831)
+  - include* commands try harder to remove added files not used.
   * change Vcs-Cvs to format from cvs understandable to one debcheckout
     likes. (Closes: 465924)
 
- -- Bernhard R. Link <brlink@debian.org>  Fri, 15 Feb 2008 18:37:13 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 19 Feb 2008 19:58:46 +0100
 
 reprepro (3.3.0-1) unstable; urgency=low
 
   * new version
-  - modified reading of .dsc/.changes/.deb-contol files.
+  - modified reading of .dsc/.changes/.deb-control files.
     Should hopefully not change anything except filtering out CRs in them.
   - add support for .tar.lzma and .diff.lzma in source packages
   - add support for sha1 hashes (and prepare additional hashes to come)

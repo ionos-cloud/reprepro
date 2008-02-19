@@ -109,6 +109,7 @@ struct changes {
 	const char *srccomponent;
 	/* != NULL if changesfile was put into pool/ */
 	/*@null@*/ char *changesfilekey;
+	bool includedchangesfile;
 	/* the directory where source files are put into */
 	char *srcdirectory;
 	/* (only to warn if multiple are used) */
@@ -682,10 +683,10 @@ static retvalue changes_includefiles(struct database *database,struct changes *c
 		if( e->wasalreadythere && checksums_iscomplete(e->checksums) )
 			continue;
 
-		r = files_checkincludefile(database, changes->incomingdirectory,
-				e->basename, e->filekey, &e->checksums);
-		if( RET_IS_OK(r) )
-			e->included = true;
+		e->included = false;
+		r = files_checkincludefile(database,
+				changes->incomingdirectory, e->basename,
+				e->filekey, &e->checksums, &e->included);
 		assert( e->included || e->wasalreadythere );
 		assert( !(e->included && e->wasalreadythere) );
 		if( RET_WAS_ERROR(r) )
@@ -706,7 +707,38 @@ static void changes_unincludefiles(struct database *database,struct changes *cha
 
 		(void)files_deleteandremove(database, e->filekey, true, false);
 	}
+	if( changes->includedchangesfile )
+		(void)files_deleteandremove(database, changes->changesfilekey,
+			true, false);
 }
+
+static void check_all_files_included(struct database *database, struct changes *changes, bool unusedpartsexpected) {
+	struct fileentry *e;
+	retvalue r;
+
+	for( e = changes->files; e != NULL ; e = e->next ) {
+
+		if( e->filekey == NULL || e->wasalreadythere || !e->included )
+			continue;
+
+		if( unusedpartsexpected ) {
+			(void)files_deleteandremove(database, e->filekey, true, false);
+			continue;
+		}
+
+		fprintf(stderr, "Warning: File '%s' was listed in the .changes\n"
+			" but looks like not used. Checking for references...\n",
+			e->filekey);
+		r = references_isused(database, e->filekey);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, " indeed unused, deleting it...\n");
+			(void)files_deleteandremove(database, e->filekey, true, false);
+		} else if( RET_IS_OK(r) ) {
+			fprintf(stderr, " It looks used. Strange. Please report this bug.\n");
+		}
+	}
+}
+
 /* delete the files included */
 static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) {
 	struct fileentry *e;
@@ -743,6 +775,7 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 
 static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basename, const char *filekey, struct checksums **checksums_p) {
 	retvalue r;
+	bool dummy = false;
 
 	r = files_expect(database, filekey, *checksums_p);
 	if( RET_WAS_ERROR(r) )
@@ -764,8 +797,10 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 "Perhaps you forgot to give dpkg-buildpackage the -sa option.\n"
 "Searching for it because --ignore=missingfile was given...\n", filekey);
 
+	// TODO: if this is included and a error occours, it currently stays.
+	// how can this be fixed?
 	return files_checkincludefile(database, changes->incomingdirectory,
-			basename, filekey, checksums_p);
+			basename, filekey, checksums_p, &dummy);
 }
 
 static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
@@ -936,9 +971,11 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 
 	return r;
 }
+
 static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata, bool *missed_p) {
 	struct fileentry *e;
 	retvalue result,r;
+	bool markedasused;
 
 	*missed_p = false;
 	r = distribution_prepareforwriting(distribution);
@@ -953,29 +990,48 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 			e = e->next;
 			continue;
 		}
-		if( interrupted() ) {
+		if( interrupted() )
 			return RET_ERROR_INTERRUPTED;
-		}
+		markedasused = false;
 		if( e->type == fe_DEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
 				e->architecture, "deb",
-				distribution, dereferencedfilekeys, trackingdata);
+				distribution, dereferencedfilekeys,
+				trackingdata, &markedasused);
 			if( r == RET_NOTHING )
 				*missed_p = true;
+			if( markedasused )
+				e->included = false;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
 				e->architecture, "udeb",
-				distribution,dereferencedfilekeys,trackingdata);
+				distribution,dereferencedfilekeys,
+				trackingdata, &markedasused);
 			if( r == RET_NOTHING )
 				*missed_p = true;
+			if( markedasused )
+				e->included = false;
 		} else if( e->type == fe_DSC ) {
 			r = dsc_addprepared(database, &e->pkg.dsc,
 					changes->srccomponent,
-					&e->needed_filekeys,
+					&e->needed_filekeys, &markedasused,
 					distribution, dereferencedfilekeys,
 					trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
+			if( markedasused ) {
+				struct fileentry *f;
+				const struct strlist *referenced = &e->needed_filekeys;
+
+				/* mark any file no longer allowed to be deleted */
+
+				for( f = changes->files ; f != NULL ; f = f->next ) {
+					if( !f->included )
+						continue;
+					if( strlist_in(referenced, f->filekey) )
+						f->included = false;
+				}
+			}
 		}
 		RET_UPDATE(result, r);
 
@@ -1088,6 +1144,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	if( tracks != NULL ) {
 		r = trackingdata_summon(tracks,changes->source,changes->sourceversion,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
+			changes_unincludefiles(database, changes);
 			changes_free(changes);
 			return r;
 		}
@@ -1100,6 +1157,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 				calc_dirconcat(changes->srcdirectory,basename);
 			free(basename);
 			if( changes->changesfilekey == NULL ) {
+				changes_unincludefiles(database, changes);
 				changes_free(changes);
 				trackingdata_done(&trackingdata);
 				return RET_ERROR_OOM;
@@ -1107,12 +1165,12 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 			if( interrupted() )
 				r = RET_ERROR_INTERRUPTED;
 			else
-			/* always D_COPY, and only delete it afterwards... */
 				r = files_preinclude(database,
 					changesfilename,
 					changes->changesfilekey,
-					NULL);
+					NULL, &changes->includedchangesfile);
 			if( RET_WAS_ERROR(r) ) {
+				changes_unincludefiles(database, changes);
 				changes_free(changes);
 				trackingdata_done(&trackingdata);
 				return r;
@@ -1122,6 +1180,7 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	if( interrupted() ) {
 		if( tracks != NULL )
 			trackingdata_done(&trackingdata);
+		changes_unincludefiles(database, changes);
 		changes_free(changes);
 		return RET_ERROR_INTERRUPTED;
 	}
@@ -1135,9 +1194,12 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 		if( tracks != NULL ) {
 			trackingdata_done(&trackingdata);
 		}
+		changes_unincludefiles(database, changes);
 		changes_free(changes);
 		return result;
 	}
+
+	check_all_files_included(database, changes, somethingwasmissed);
 
 	if( tracks != NULL ) {
 		if( changes->changesfilekey != NULL ) {
@@ -1153,6 +1215,8 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 					ft_CHANGES, changesfilekey, false,
 					database);
 			RET_ENDUPDATE(result,r);
+			/* no longer delete when done */
+			changes->includedchangesfile = false;
 		}
 		r = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
 		RET_ENDUPDATE(result,r);
