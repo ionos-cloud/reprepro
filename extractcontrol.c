@@ -135,7 +135,7 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 				fprintf(stderr,
 "Unexpected emtpy line in control information within '%s'\n"
 "(obtained via 'ar p %s control.tar.gz | tar -XOzf - %scontrol')\n",
-						debfilename, debfilename,
+						debfile, debfile,
 						brokentar?"":"./");
 				free(controlchunk);
 				controlchunk = NULL;

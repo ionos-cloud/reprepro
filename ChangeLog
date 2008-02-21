@@ -1,3 +1,7 @@
+2008-02-21  Bernhard R. Link <brlink@debian.org>
+	* make --without-libarchive compile again, thanks to
+	Jesus Roncero for noticing.
+
 2008-02-19  Bernhard R. Link <brlink@debian.org>
 	* Try harder not to leave any newly added files
 	to the pool in the case of an error.
