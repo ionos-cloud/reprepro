@@ -240,7 +240,9 @@ static retvalue database_opentable(struct database *database, const char *filena
 		}
 	}
 
-#if LIBDB_VERSION == 44
+#if LIBDB_VERSION == 46
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#elif LIBDB_VERSION == 44
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
 #elif LIBDB_VERSION == 43
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
