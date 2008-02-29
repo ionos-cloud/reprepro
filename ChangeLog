@@ -1,3 +1,6 @@
+2008-02-29  Bernhard R. Link <brlink@debian.org>
+	* improve documentation of listfilter command
+
 2008-02-21  Bernhard R. Link <brlink@debian.org>
 	* make --without-libarchive compile again, thanks to
 	Jesus Roncero for noticing.
