@@ -1,3 +1,7 @@
+2008-01-01  Bernhard R. Link <brlink@debian.org>
+	* cleaning: port changestool to new checksums code,
+	  finaly removing the old md5sum code.
+
 2008-02-29  Bernhard R. Link <brlink@debian.org>
 	* improve documentation of listfilter command
 

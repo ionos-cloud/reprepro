@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -25,6 +25,7 @@
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
+#include "checksums.h"
 #include "names.h"
 
 extern int verbose;
@@ -204,27 +205,6 @@ char *calc_source_basename(const char *name,const char *version) {
 	return mprintf("%s_%s.dsc",name,v);
 }
 
-char *calc_concatmd5andsize(const char *md5sum,const char *size) {
-	/* this is not the only reference, as there are prints
-	 * with size as ofs_t, too */
-	return mprintf("%s %s",md5sum,size);
-}
-
-char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend) {
-	char *result;
-
-	result = malloc(2+(md5end-md5start)+(sizeend-sizestart));
-	if( result== NULL )
-		return result;
-	memcpy(result,md5start,(md5end-md5start));
-	result[(md5end-md5start)] = ' ';
-	memcpy(result+(md5end-md5start)+1,sizestart,sizeend-sizestart);
-	result[(md5end-md5start)+1+(sizeend-sizestart)] = '\0';
-
-	return result;
-
-}
-
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,
 						struct strlist *files) {
@@ -295,9 +275,9 @@ void names_overversion(const char **version, bool epochsuppressed) {
 }
 
 /* split a "<md5> <size> <filename>" into md5sum and filename */
-retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) {
+retvalue calc_parsefileline(const char *fileline, char **filename, struct checksums **checksums) {
 	const char *md5,*md5end,*size,*sizeend,*fn,*fnend;
-	char *md5as,*filen;
+	char *filen;
 
 	assert( fileline != NULL );
 	if( *fileline == '\0' )
@@ -346,18 +326,15 @@ retvalue calc_parsefileline(const char *fileline,char **filename,char **md5sum) 
 	filen = strndup(fn,fnend-fn);
 	if( filen == NULL )
 		return RET_ERROR_OOM;
-	if( md5sum != NULL ) {
-		md5as = malloc((md5end-md5)+2+(sizeend-size));
-		if( md5as == NULL ) {
-			free(filen);
-			return RET_ERROR_OOM;
-		}
-		strncpy(md5as,md5,md5end-md5);
-		md5as[md5end-md5] = ' ';
-		strncpy(md5as+1+(md5end-md5),size,sizeend-size);
-		md5as[(md5end-md5)+1+(sizeend-size)] = '\0';
+	if( checksums != NULL ) {
+		retvalue r;
 
-		*md5sum = md5as;
+		r = checksums_set(checksums, md5, md5end - md5,
+				size, sizeend - size);
+		if( RET_WAS_ERROR(r) ) {
+			free(filen);
+			return r;
+		}
 	}
 	if( filename != NULL )
 		*filename = filen;

@@ -7,8 +7,6 @@ typedef	enum { fe_UNKNOWN=0,fe_DEB,fe_UDEB,fe_DSC,fe_DIFF,fe_ORIG,fe_TAR} filety
 #define FE_BINARY(ft) ( (ft) == fe_DEB || (ft) == fe_UDEB )
 #define FE_SOURCE(ft) ( (ft) == fe_DIFF || (ft) == fe_ORIG || (ft) == fe_TAR || (ft) == fe_DSC || (ft) == fe_UNKNOWN)
 
-retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type,
-		/*@out@*/char **result_basename, /*@out@*/char **result_md5sum,
-		/*@out@*/char **result_section, /*@out@*/char **result_priority,
-		/*@out@*/char **result_architecture, /*@out@*/char **result_name);
+struct checksums;
+retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type, /*@out@*/char **result_basename, /*@out@*/struct checksums **, /*@out@*/char **result_section, /*@out@*/char **result_priority, /*@out@*/char **result_architecture, /*@out@*/char **result_name);
 #endif

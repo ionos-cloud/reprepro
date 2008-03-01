@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -24,12 +24,10 @@
 #include <sys/types.h>
 #include "error.h"
 #include "names.h"
+#include "checksums.h"
 #include "changes.h"
 
-retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type,
-		/*@out@*/char **result_basename, /*@out@*/char **result_md5sum,
-		/*@out@*/char **result_section, /*@out@*/char **result_priority,
-		/*@out@*/char **result_architecture, /*@out@*/char **result_name) {
+retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type, /*@out@*/char **result_basename, /*@out@*/struct checksums **result_checksums, /*@out@*/char **result_section, /*@out@*/char **result_priority, /*@out@*/char **result_architecture, /*@out@*/char **result_name) {
 
 	const char *p,*md5start,*md5end;
 	const char *sizestart,*sizeend;
@@ -39,20 +37,37 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	const char *archstart,*archend;
 	const char *versionstart,*typestart;
 	filetype type;
-	char *md5sum,*section,*priority,*basename,*architecture,*name;
+	char *section, *priority, *basename, *architecture, *name;
+	retvalue r;
 
 	p = fileline;
 	while( *p !='\0' && xisspace(*p) )
 		p++;
 	md5start = p;
-	while( *p !='\0' && !xisspace(*p) )
+	while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') )
 		p++;
+	if( *p == '\0' ) {
+		fprintf(stderr,"Missing md5sum in '%s'!\n", fileline);
+		return RET_ERROR;
+	}
+	if( !xisspace(*p) ) {
+		fprintf(stderr,"Malformed md5 hash in '%s'!\n", fileline);
+		return RET_ERROR;
+	}
 	md5end = p;
 	while( *p !='\0' && xisspace(*p) )
 		p++;
 	sizestart = p;
-	while( *p !='\0' && !xisspace(*p) )
+	while( *p >= '0' && *p <= '9' )
 		p++;
+	if( *p == '\0' ) {
+		fprintf(stderr,"Missing size (second argument) in '%s'!\n", fileline);
+		return RET_ERROR;
+	}
+	if( !xisspace(*p) ) {
+		fprintf(stderr,"Malformed size (second argument) in '%s'!\n", fileline);
+		return RET_ERROR;
+	}
 	sizeend = p;
 	while( *p !='\0' && xisspace(*p) )
 		p++;
@@ -166,19 +181,25 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		archstart = "source";
 		archend = archstart + 6;
 	}
-	md5sum = names_concatmd5sumandsize(md5start,md5end,sizestart,sizeend);
 	section = strndup(sectionstart,sectionend-sectionstart);
 	priority = strndup(priostart,prioend-priostart);
 	basename = strndup(filestart,fileend-filestart);
 	architecture = strndup(archstart,archend-archstart);
 	name = strndup(filestart,nameend-filestart);
-	if( md5sum == NULL || section == NULL || priority == NULL ||
+	if( section == NULL || priority == NULL ||
 	    basename == NULL || architecture == NULL || name == NULL ) {
-		free(md5sum);free(section);free(priority);
-		free(basename);free(architecture);free(name);
+		free(section); free(priority);
+		free(basename); free(architecture); free(name);
 		return RET_ERROR_OOM;
 	}
-	*result_md5sum = md5sum;
+	r = checksums_set(result_checksums, md5start, md5end - md5start,
+			sizestart, sizeend - sizestart);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		free(section); free(priority);
+		free(basename); free(architecture); free(name);
+		return r;
+	}
 	*result_section = section;
 	*result_priority = priority;
 	*result_basename = basename;

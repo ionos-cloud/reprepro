@@ -20,8 +20,6 @@ char *calc_filekey(const char *component,const char *sourcename,const char *file
 char *calc_fullfilename(const char *mirrordir,const char *filekey);
 char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const char *filename);
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype);
-char *calc_concatmd5andsize(const char *md5sum,const char *size);
-char *names_concatmd5sumandsize(const char *md5start,const char *md5end,const char *sizestart,const char *sizeend);
 char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion);
 
 char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype);
@@ -32,7 +30,8 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 retvalue calc_inplacedirconcats(const char *directory, struct strlist *);
 
 /* split a "<md5> <size> <filename>" into md5sum and filename */
-retvalue calc_parsefileline(const char *fileline,/*@out@*/char **filename,/*@out@*//*@null@*/char **md5sum);
+struct checksums;
+retvalue calc_parsefileline(const char *fileline, /*@out@*/char **filename, /*@out@*//*@null@*/struct checksums **);
 
 /* move over a version number, if epochsuppresed is true, colons may happen even without epoch there */
 void names_overversion(const char **version, bool epochsuppressed);

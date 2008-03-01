@@ -68,13 +68,34 @@ void checksums_free(struct checksums *checksums) {
 	free(checksums);
 }
 
-/* create a checksum record from an md5sum: */
-retvalue checksums_set(struct checksums **result, const char *md5sum) {
-	// TODO: depreceate this function?
-	// or reimplement it? otherwise the error messaged might be even
-	// wronger. (and checking things from the database could be done
-	// faster than stuff from outside)
-	return checksums_parse(result, md5sum);
+retvalue checksums_set(struct checksums **result, const char *md5, size_t md5len, const char *size, size_t sizelen) {
+	char *d;
+	struct checksums *n;
+	size_t len;
+
+	assert( md5 != NULL && size != NULL);
+
+	len = md5len + 1 + sizelen;
+
+	n = malloc(sizeof(struct checksums) + len + 1);
+	if( n == NULL )
+		return RET_ERROR_OOM;
+	memset(n, 0, sizeof(struct checksums));
+	d = n->representation;
+
+	n->parts[cs_md5sum].ofs = 0;
+	n->parts[cs_md5sum].len = md5len;
+	memcpy(d, md5, md5len);
+	d += md5len;
+	*(d++) = ' ';
+	n->parts[cs_length].ofs = d - n->representation;
+	n->parts[cs_length].len = sizelen;
+	memcpy(d, size, sizelen);
+	d += sizelen;
+	*d = '\0';
+	assert( (size_t)(d-n->representation) == len );
+	*result = n;
+	return RET_OK;
 }
 
 retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs_COUNT]) {
@@ -331,28 +352,15 @@ bool checksums_gethashpart(const struct checksums *checksums, enum checksumtype 
 	return true;
 }
 
-retvalue checksums_get(const struct checksums *checksums, enum checksumtype type, char **result) {
-	const char *hash, *size;
-	size_t hashlen, sizelen;
-
-	if( checksums_gethashpart(checksums, type,
-				&hash, &hashlen, &size, &sizelen) ) {
-		char *checksum;
-
-		checksum = malloc(hashlen + sizelen + 2);
-		if( checksum == NULL )
-			return RET_ERROR_OOM;
-		memcpy(checksum, hash, hashlen);
-		checksum[hashlen] = ' ';
-		memcpy(checksum+hashlen+1, size, sizelen);
-		checksum[hashlen+1+sizelen] = '\0';
-		*result = checksum;
-		return RET_OK;
-
-	} else
-		return RET_NOTHING;
+const char *checksums_getmd5sum(const struct checksums *checksums) {
+	assert( checksums->parts[cs_md5sum].len != 0 &&
+		checksums->parts[cs_length].len != 0 &&
+		checksums->parts[cs_md5sum].ofs +
+		checksums->parts[cs_md5sum].len + 1 ==
+		checksums->parts[cs_length].ofs);
+	/* using the knowledge about the format, this is just what is wanted: */
+	return checksums_hashpart(checksums, cs_md5sum);
 }
-
 
 retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
 	size_t len;
@@ -556,24 +564,13 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist *
 		return RET_ERROR_OOM;
 	}
 	for( i = 0 ; i < lines->count ; i++ ) {
-		char *filename, *md5sum;
+		char *filename;
 
-		r = calc_parsefileline(lines->values[i], &filename, &md5sum);
+		r = calc_parsefileline(lines->values[i], &filename, &a.checksums[i]);
 		if( RET_WAS_ERROR(r) ) {
 			if( r != RET_ERROR_OOM )
 				fprintf(stderr, "Error was parsing %s\n",
 						filenametoshow);
-			if( i == 0 ) {
-				free(a.checksums);
-				a.checksums = NULL;
-			}
-			checksumsarray_done(&a);
-			return r;
-		}
-		r = checksums_set(&a.checksums[i], md5sum);
-		free(md5sum);
-		if( RET_WAS_ERROR(r) ) {
-			free(filename);
 			if( i == 0 ) {
 				free(a.checksums);
 				a.checksums = NULL;
@@ -1040,3 +1037,77 @@ retvalue checksums_linkorcopyfile(const char *destination, const char *source, s
 	return RET_OK;
 }
 
+retvalue checksums_replace(const char *filename, const char *data, size_t len, struct checksums **checksums_p){
+	struct checksumscontext context;
+	size_t todo; const char *towrite;
+	char *tempfilename;
+	struct checksums *checksums;
+	int fd, ret;
+	retvalue r;
+
+	tempfilename = calc_addsuffix(filename, "new");
+	if( tempfilename == NULL )
+		return RET_ERROR_OOM;
+
+	fd = open(tempfilename, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY, 0666);
+	if( fd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "ERROR creating '%s': %s\n", tempfilename,
+				strerror(e));
+		free(tempfilename);
+		return RET_ERRNO(e);
+	}
+
+	todo = len; towrite = data;
+	while( todo > 0 ) {
+		ssize_t written = write(fd, towrite, todo);
+		if( written >= 0 ) {
+			todo -= written;
+			towrite += written;
+		} else {
+			int e = errno;
+			close(fd);
+			fprintf(stderr, "Error writing to '%s': %s\n",
+					tempfilename, strerror(e));
+			unlink(tempfilename);
+			free(tempfilename);
+			return RET_ERRNO(e);
+		}
+	}
+	ret = close(fd);
+	if( ret < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error writing to '%s': %s\n",
+				tempfilename, strerror(e));
+		unlink(tempfilename);
+		free(tempfilename);
+		return RET_ERRNO(e);
+	}
+
+	if( checksums_p != NULL ) {
+		checksumscontext_init(&context);
+		checksumscontext_update(&context, (const unsigned char *)data, len);
+		r = checksums_from_context(&checksums, &context);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			unlink(tempfilename);
+			free(tempfilename);
+			return r;
+		}
+	} else
+		checksums = NULL;
+	ret = rename(tempfilename, filename);
+	if( ret < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error moving '%s' to '%s': %s\n",
+				tempfilename, filename,  strerror(e));
+		unlink(tempfilename);
+		free(tempfilename);
+		checksums_free(checksums);
+		return RET_ERRNO(e);
+	}
+	free(tempfilename);
+	if( checksums_p != NULL )
+		*checksums_p = checksums;
+	return RET_OK;
+}

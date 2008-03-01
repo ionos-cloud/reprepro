@@ -167,25 +167,18 @@ static void changes_free(/*@only@*/struct changes *changes) {
 static retvalue newentry(struct fileentry **entry,const char *fileline,const char *packagetypeonly,const char *forcearchitecture, const char *sourcename) {
 	struct fileentry *e;
 	retvalue r;
-	char *md5sum;
 
 	e = calloc(1,sizeof(struct fileentry));
 	if( e == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &e->type, &e->basename, &md5sum,
+	r = changes_parsefileline(fileline, &e->type, &e->basename, &e->checksums,
 			&e->section, &e->priority, &e->architecture, &e->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(e);
 		return r;
 	}
 	assert( RET_IS_OK(r) );
-	r = checksums_set(&e->checksums, md5sum);
-	free(md5sum);
-	if( RET_WAS_ERROR(r) ) {
-		freeentries(e);
-		return r;
-	}
 	if( FE_SOURCE(e->type) && packagetypeonly != NULL && strcmp(packagetypeonly,"dsc")!=0) {
 		freeentries(e);
 		return RET_NOTHING;
