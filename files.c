@@ -986,7 +986,6 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 		}
 		if( improves ) {
 			r = checksums_combine(&checksums, realchecksums);
-			checksums_free(realchecksums);
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(realchecksums);
 				checksums_free(checksums);

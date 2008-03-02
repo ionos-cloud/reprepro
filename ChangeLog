@@ -1,4 +1,7 @@
-2008-01-01  Bernhard R. Link <brlink@debian.org>
+2008-03-02  Bernhard R. Link <brlink@debian.org>
+	* fix double free error in checksums upgrade case of includedeb
+
+2008-03-01  Bernhard R. Link <brlink@debian.org>
 	* cleaning: port changestool to new checksums code,
 	  finaly removing the old md5sum code.
 

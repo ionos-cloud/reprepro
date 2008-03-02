@@ -1,3 +1,10 @@
+reprepro (3.3.2-1) unstable; urgency=low
+
+  * fix stupid c&p error in includedeb triggered by not uptodate files
+    database (Closes: 468650)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  2 Mar 2008 16:24:57 +0100
+
 reprepro (3.3.1-1) unstable; urgency=low
 
   * bugfix release
