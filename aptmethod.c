@@ -325,7 +325,7 @@ inline static retvalue aptmethod_startup(struct aptmethod *method, const char *m
 		if( dup2(mstdout[1],1) < 0 ) {
 			int e = errno;
 			fprintf(stderr, "Error %d while setting stdout: %s\n",
-					e, stderror(e));
+					e, strerror(e));
 			exit(255);
 		}
 		closefrom(3);
@@ -925,7 +925,7 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 
 	if( r < 0 ) {
 		int e = errno;
-		fprintf(stderr, "Error %e reading pipe from aptmethod: %s\n",
+		fprintf(stderr, "Error %d reading pipe from aptmethod: %s\n",
 				e, strerror(e));
 		method->status = ams_failed;
 		return RET_ERRNO(e);
@@ -1006,7 +1006,7 @@ static retvalue senddata(struct aptmethod *method) {
 		int e = errno;
 
 		fprintf(stderr, "Error %d writing to pipe: %s\n",
-				e, stderror(e));
+				e, strerror(e));
 		//TODO: disable the whole method??
 		method->status = ams_failed;
 		return RET_ERRNO(e);
@@ -1115,7 +1115,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 		int e = errno;
 		//TODO: handle (e == EINTR) && interrupted() specially
 		fprintf(stderr, "Select returned error %d: %s\n",
-				e, stderror(e));
+				e, strerror(e));
 		*workleft = -1;
 		// TODO: what to do here?
 		return RET_ERRNO(e);
