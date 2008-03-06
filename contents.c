@@ -83,7 +83,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	if( flags[cf_bz2] ) {
 		fprintf(stderr,
 "Warning: Ignoring request to generate .bz2'ed Contents files.\n"
-"(not compiled with libbzip2, so no support available.)\n"
+"(bzip2 support disabled at build time.)\n"
 "Request was in %s in the Contents-header ending in line %u\n",
 			config_filename(iter), config_line(iter));
 		flags[cf_bz2] = false;

@@ -112,16 +112,20 @@ retvalue propersourcename(const char *string) {
 			REJECTLOWCHARS(s,string,"sourcename");
 			REJECTCHARIF( *s == '/', s,string, "sourcename");
 			if( overlongUTF8(s) ) {
-				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting sourcename '%s'!\n",string);
+				fprintf(stderr,
+"This could contain an overlong UTF8 sequence, rejecting source name '%s'!\n",
+					string);
 				return RET_ERROR;
 			}
 			if( !IGNORING(
-"Not rejecting","To ignore this",forbiddenchar,"Character 0x%02hhx not allowed in sourcename: '%s'!\n",*s,string) ) {
+"Not rejecting", "To ignore this", forbiddenchar,
+"Character 0x%02hhx not allowed in sourcename: '%s'!\n", *s, string) ) {
 				return RET_ERROR;
 			}
 			if( ISSET(*s,0x80) ) {
 				if( !IGNORING(
-"Not rejecting","To ignore this",8bit,"8bit character in sourcename: '%s'!\n",string) ) {
+"Not rejecting", "To ignore this", 8bit,
+"8bit character in source name: '%s'!\n",	string) ) {
 					return RET_ERROR;
 				}
 			}
@@ -142,7 +146,7 @@ retvalue properfilename(const char *string) {
 	}
 	if( (string[0] == '.' && string[1] == '\0') ||
 		(string[0] == '.' && string[1] == '.' && string[2] == '\0') ) {
-		fprintf(stderr,"Filename not allowed: '%s'!\n",string);
+		fprintf(stderr, "File name not allowed: '%s'!\n", string);
 		return RET_ERROR;
 	}
 	for( s = string ; *s != '\0'  ; s++ ) {
@@ -150,11 +154,14 @@ retvalue properfilename(const char *string) {
 		REJECTCHARIF( *s == '/' ,s,string,"filename");
 		if( ISSET(*s,0x80) ) {
 			if( overlongUTF8(s) ) {
-				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filename '%s'!\n",string);
+				fprintf(stderr,
+"This could contain an overlong UTF8 sequence, rejecting file name '%s'!\n",
+						string);
 				return RET_ERROR;
 			}
 			if( !IGNORING(
-"Not rejecting","To ignore this",8bit,"8bit character in filename: '%s'!\n",string)) {
+"Not rejecting", "To ignore this", 8bit,
+"8bit character in file name: '%s'!\n",		string)) {
 				return RET_ERROR;
 			}
 		}
@@ -240,13 +247,15 @@ retvalue properfilenamepart(const char *string) {
 		REJECTCHARIF( *s == '/' ,s,string,"filenamepart");
 		if( ISSET(*s,0x80) ) {
 			if( overlongUTF8(s) ) {
-				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting filenamepart '%s'!\n",string);
+				fprintf(stderr,
+"This could contain an overlong UTF8 sequence, rejecting part of file name '%s'!\n",
+					string);
 				return RET_ERROR;
 			}
 			if( !IGNORING(
-"Not rejecting","To ignore this",8bit,"8bit character in filenamepart: '%s'!\n",string)) {
+"Not rejecting", "To ignore this", 8bit, "8bit character in part of file name: '%s'!\n",
+					string))
 				return RET_ERROR;
-			}
 		}
 	}
 	return RET_OK;
@@ -290,18 +299,20 @@ retvalue properversion(const char *string) {
 			REJECTLOWCHARS(s,string,"version");
 			REJECTCHARIF( *s == '/' ,s,string,"version");
 			if( overlongUTF8(s) ) {
-				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting version '%s'!\n",string);
+				fprintf(stderr,
+"This could contain an overlong UTF8 sequence, rejecting version '%s'!\n",
+						string);
 				return RET_ERROR;
 			}
 			if( !IGNORING(
-"Not rejecting","To ignore this",forbiddenchar,"Character '%c' not allowed in version: '%s'!\n",*s,string) ) {
+"Not rejecting", "To ignore this", forbiddenchar,
+"Character '%c' not allowed in version: '%s'!\n",	*s, string) )
 				return RET_ERROR;
-			}
 			if( ISSET(*s,0x80) ) {
 				if( !IGNORING(
-"Not rejecting","To ignore this",8bit,"8bit character in version: '%s'!\n",string) ) {
+"Not rejecting", "To ignore this", 8bit,
+"8bit character in version: '%s'!\n",	string) )
 					return RET_ERROR;
-				}
 			}
 		}
 	}
@@ -345,11 +356,14 @@ retvalue properpackagename(const char *string) {
 			REJECTLOWCHARS(s,string,"package name");
 			REJECTCHARIF( *s == '/' ,s,string,"package name");
 			if( overlongUTF8(s) ) {
-				fprintf(stderr,"This could contain an overlong UTF8-sequence, rejecting package name '%s'!\n",string);
+				fprintf(stderr,
+"This could contain an overlong UTF8 sequence, rejecting package name '%s'!\n",
+						string);
 				return RET_ERROR;
 			}
 			if( !IGNORING(
-"Not rejecting","To ignore this",forbiddenchar,"Character 0x%02hhx not allowed in package name: '%s'!\n",*s,string) ) {
+"Not rejecting", "To ignore this", forbiddenchar,
+"Character 0x%02hhx not allowed in package name: '%s'!\n", *s, string) ) {
 				return RET_ERROR;
 			}
 			if( ISSET(*s,0x80) ) {

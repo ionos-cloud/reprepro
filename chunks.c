@@ -40,7 +40,8 @@ retvalue chunk_foreach(const char *filename, chunkaction action, void *data, boo
 
 	f = gzopen(filename,"r");
 	if( f == NULL ) {
-		fprintf(stderr,"Unable to open file %s: %m\n",filename);
+		fprintf(stderr, "Unable to open file %s: %s\n",
+				filename, strerror(errno));
 		return RET_ERRNO(errno);
 	}
 	result = RET_NOTHING;
@@ -477,7 +478,8 @@ retvalue chunk_getname(const char *chunk, const char *name, char **pkgname, bool
 			// TODO: perhaps check for wellformed version
 			p++;
 		if( *p != ')' ) {
-			fprintf(stderr,"Error: Field '%s' misses closing parathesis!\n",name);
+			fprintf(stderr,
+"Error: Field '%s' misses closing parenthesis!\n", name);
 			return RET_ERROR;
 		}
 		p++;
@@ -485,7 +487,8 @@ retvalue chunk_getname(const char *chunk, const char *name, char **pkgname, bool
 	while( *p != '\0' && *p != '\n' && xisspace(*p) )
 		p++;
 	if( *p != '\0' && *p != '\n' ) {
-		fprintf(stderr,"Error: Field '%s' contains trailing junk starting with '%c'!\n",name,*p);
+		fprintf(stderr,
+"Error: Field '%s' contains trailing junk starting with '%c'!\n", name, *p);
 		return RET_ERROR;
 	}
 
@@ -544,9 +547,11 @@ retvalue chunk_getnameandversion(const char *chunk,const char *name,
 		if( *p != ')' ) {
 			free(v);
 			if( *p == '\0' || *p == '\n' )
-				fprintf(stderr,"Error: Field '%s' misses closing parathesis!\n",name);
+				fprintf(stderr,
+"Error: Field '%s' misses closing parenthesis!\n",	name);
 			else
-				fprintf(stderr,"Error: Field '%s' has multipe words after '('!\n",name);
+				fprintf(stderr,
+"Error: Field '%s' has multipe words after '('!\n",	name);
 			return RET_ERROR;
 		}
 		p++;
