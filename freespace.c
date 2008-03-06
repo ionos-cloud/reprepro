@@ -213,7 +213,7 @@ retvalue space_check(struct devices *devices) {
 		}
 		if( device->blocksize != s.f_bsize ) {
 			fprintf(stderr,
-"The blocksize of the filesystem belonging to '%s' has changed.\n"
+"The block size of the filesystem belonging to '%s' has changed.\n"
 "Either something was mounted or unmounted while reprepro was running,\n"
 "or some symlinks were changed. Aborting as utterly confused.\n",
 					device->somepath);

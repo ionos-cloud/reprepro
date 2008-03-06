@@ -122,7 +122,7 @@ retvalue sources_getname(UNUSED(struct target *t),const char *control,char **pac
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Package name in chunk:'%s'\n",control);
+		fprintf(stderr, "Missing 'Package' field in chunk:'%s'\n", control);
 		return RET_ERROR;
 	}
 	return r;
@@ -134,7 +134,7 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Version in chunk:'%s'\n",control);
+		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", control);
 		return RET_ERROR;
 	}
 	return r;
@@ -327,7 +327,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 
 	r = chunk_getvalue(chunk,"Version",&sourceversion);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", chunk);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -336,7 +336,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 
 	r = sources_getfilekeys(chunk, &filekeys);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Malformed source control:'%s'\n",chunk);
+		fprintf(stderr, "Malformed source control:'%s'\n", chunk);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -379,7 +379,7 @@ retvalue sources_getsourceandversion(UNUSED(struct target *t),const char *chunk,
 
 	r = chunk_getvalue(chunk,"Version",&sourceversion);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", chunk);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {

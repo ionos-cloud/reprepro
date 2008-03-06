@@ -367,7 +367,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, st
 			if( c != EOF ) {
 				fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
-"Unexpected data at end of notifier after scriptname '%s'\n",
+"Unexpected data at end of notifier after script name '%s'\n",
 					config_filename(iter),
 					config_line(iter), config_column(iter),
 					script);
@@ -452,7 +452,7 @@ static int catchchildren(void) {
 					p->arguments[0]);
 		} else if( WIFEXITED(status) && WEXITSTATUS(status) != 0 ) {
 			fprintf(stderr,
-"Notification process '%s' returned with exitcode %d!\n",
+"Notification process '%s' returned with exit code %d!\n",
 					p->arguments[0],
 					(int)(WEXITSTATUS(status)));
 		}

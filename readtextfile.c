@@ -69,7 +69,7 @@ retvalue readtextfilefd(int fd, const char *source, char **data, size_t *len) {
 		assert( readdata <= buffersize );
 		if( readdata + 1024 >= buffersize ) {
 			if( buffersize >= 10*1024*1024 ) {
-				fprintf(stderr, "Ridicilous large %s\n", source);
+				fprintf(stderr, "Ridiculously large %s\n", source);
 				free(buffer);
 				return RET_ERROR;
 			}

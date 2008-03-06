@@ -674,14 +674,14 @@ retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	if( modecount > 1 ) {
 		fprintf(stderr,
 "Error parsing config file %s, line %u:\n"
-"Only one of 'keep','all' or 'minimal' can be in one Tracking-header.\n",
+"Only one of 'keep','all' or 'minimal' can be in one Tracking header.\n",
 			config_filename(iter), config_line(iter));
 		return RET_ERROR;
 	}
 	if( modecount < 1 ) {
 		fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
-"Tracking-mode ('keep','all' or 'minimal') expected.\n",
+"Tracking mode ('keep','all' or 'minimal') expected.\n",
 			config_filename(iter), config_line(iter), config_column(iter));
 		return RET_ERROR;
 	}

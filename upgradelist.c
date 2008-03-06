@@ -129,7 +129,7 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 			/* this should only happen if the underlying
 			 * database-method get changed, so just throwing
 			 * out here */
-			fprintf(stderr,"Package-database is not sorted!!!\n");
+			fprintf(stderr, "Package database is not sorted!!!\n");
 			assert(false);
 			exit(EXIT_FAILURE);
 		}

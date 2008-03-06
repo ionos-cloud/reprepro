@@ -14,6 +14,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <errno.h>
+#include <string.h>
 #include <assert.h>
 
 #include "filecntl.h"
@@ -46,11 +48,13 @@ void markcloseonexec(int fd) {
 }
 
 void deletefile(const char *fullfilename) {
-	int err;
+	int ret, e;
 
-	err = unlink(fullfilename);
-	if( err != 0 ) {
-		fprintf(stderr,"error while unlinking %s: %m\n",fullfilename);
+	ret = unlink(fullfilename);
+	if( ret != 0 ) {
+		e = errno;
+		fprintf(stderr, "error %d unlinking %s: %s\n",
+				e, fullfilename, strerror(e));
 	}
 }
 

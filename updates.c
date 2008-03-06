@@ -419,7 +419,7 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 				if( found[i] )
 					continue;
 				fprintf(stderr,
-"Warning: Update-pattern '%s' wants to put something in architecture '%s',\n"
+"Warning: Update pattern '%s' wants to put something in architecture '%s',\n"
 "but no distribution using that rule has an architecture of that name.\n",
 						p->name, p->architectures_into.values[i]);
 			}
@@ -437,7 +437,7 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 				if( found[i] )
 					continue;
 				fprintf(stderr,
-"Warning: Update-pattern '%s' wants to put something in component '%s',\n"
+"Warning: Update pattern '%s' wants to put something in component '%s',\n"
 "but no distribution using that rule has an component of that name.\n",
 						p->name, p->components_into.values[i]);
 			}
@@ -455,7 +455,7 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 				if( found[i] )
 					continue;
 				fprintf(stderr,
-"Warning: Update-pattern '%s' wants to put something in udebcomponent '%s',\n"
+"Warning: Update pattern '%s' wants to put something in udebcomponent '%s',\n"
 "but no distribution using that rule has an udebcomponent of that name.\n",
 						p->name, p->udebcomponents_into.values[i]);
 			}
@@ -878,7 +878,8 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 				return RET_OK;
 			/* this should not happen... */
 			e = errno;
-			fprintf(stderr,"Error reading dir '%s': %d=%m!\n",listdir,e);
+			fprintf(stderr, "Error %d reading dir '%s': %s!\n",
+					e, listdir, strerror(e));
 			return RET_ERRNO(e);
 		}
 		namelen = _D_EXACT_NAMLEN(r);
@@ -901,7 +902,8 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 		e = unlink(fullfilename);
 		if( e != 0 ) {
 			e = errno;
-			fprintf(stderr,"Error unlinking '%s': %d=%m.\n",fullfilename,e);
+			fprintf(stderr, "Error %d unlinking '%s': %s.\n",
+					e, fullfilename, strerror(e));
 			free(fullfilename);
 			return RET_ERRNO(e);
 		}
@@ -1172,7 +1174,10 @@ static inline retvalue queueindex(struct update_index *index) {
 		}
 		return r;
 	}
-	fprintf(stderr,"Could not find '%s' within the Releasefile of '%s':\n'%s'\n",index->upstream,origin->pattern->name,origin->releasefile);
+	fprintf(stderr,
+"Could not find '%s' within the Release file of '%s':\n'%s'\n",
+			index->upstream, origin->pattern->name,
+			origin->releasefile);
 	return RET_ERROR_WRONG_MD5;
 }
 
@@ -1232,15 +1237,19 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 		return RET_ERROR_OOM;
 	f = fork();
 	if( f < 0 ) {
-		int err = errno;
+		int e = errno;
 		free(newfilename);
-		fprintf(stderr,"Error while forking for listhook: %d=%m\n",err);
-		return RET_ERRNO(err);
+		fprintf(stderr, "Error %d while forking for listhook: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
 	}
 	if( f == 0 ) {
+		int e;
 		(void)closefrom(3);
 		execl(listhook,listhook,index->filename,newfilename,NULL);
-		fprintf(stderr,"Error while executing '%s': %d=%m\n",listhook,errno);
+		e = errno;
+		fprintf(stderr, "Error %d while executing '%s': %s\n",
+				e, listhook, strerror(e));
 		exit(255);
 	}
 	if( verbose > 5 )
@@ -1251,9 +1260,10 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 	do {
 		c = waitpid(f,&status,WUNTRACED);
 		if( c < 0 ) {
-			int err = errno;
-			fprintf(stderr,"Error while waiting for hook '%s' to finish: %d=%m\n",listhook,err);
-			return RET_ERRNO(err);
+			int e = errno;
+			fprintf(stderr, "Error %d while waiting for hook '%s' to finish: %s\n",
+					e, listhook, strerror(e));
+			return RET_ERRNO(e);
 		}
 	} while( c != f );
 	if( WIFEXITED(status) ) {
@@ -1321,7 +1331,8 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 			return UD_HOLD;
 		case flt_error:
 			/* cannot yet be handled! */
-			fprintf(stderr,"Packagename marked to be unexpected('error'): '%s'!\n",package);
+			fprintf(stderr,
+"Package name marked to be unexpected('error'): '%s'!\n", package);
 			return UD_ERROR;
 		case flt_install:
 			break;

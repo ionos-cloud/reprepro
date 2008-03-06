@@ -1770,11 +1770,11 @@ ACTION_D(y, y, y, includedsc) {
 	assert( argc == 3 );
 
 	if( architecture != NULL && strcmp(architecture,"source") != 0 ) {
-		fprintf(stderr,"Cannot put a source-package anywhere else than in architecture 'source'!\n");
+		fprintf(stderr, "Cannot put a source package anywhere else than in architecture 'source'!\n");
 		return RET_ERROR;
 	}
 	if( packagetype != NULL && strcmp(packagetype,"dsc") != 0 ) {
-		fprintf(stderr,"Cannot put a source-package anywhere else than in type 'dsc'!\n");
+		fprintf(stderr, "Cannot put a source package anywhere else than in type 'dsc'!\n");
 		return RET_ERROR;
 	}
 	if( !endswith(argv[2],".dsc") && !IGNORING_(extension,
@@ -1947,8 +1947,10 @@ ACTION_C(n, n, createsymlinks) {
 		if( ret < 0 && errno == ENOENT ) {
 			ret = symlink(d->codename,linkname);
 			if( ret != 0 ) {
-				r = RET_ERRNO(errno);
-				fprintf(stderr,"Error creating symlink %s->%s: %d=%m\n",linkname,d->codename,errno);
+				int e = errno;
+				r = RET_ERRNO(e);
+				fprintf(stderr,
+"Error %d creating symlink %s->%s: %s\n", e, linkname, d->codename, strerror(e));
 				RET_UPDATE(result,r);
 			} else {
 				if( verbose > 0 ) {
@@ -1977,8 +1979,10 @@ ACTION_C(n, n, createsymlinks) {
 					unlink(linkname);
 					ret = symlink(d->codename,linkname);
 					if( ret != 0 ) {
-						r = RET_ERRNO(errno);
-						fprintf(stderr,"Error creating symlink %s->%s: %d=%m\n",linkname,d->codename,errno);
+						int e = errno;
+						r = RET_ERRNO(e);
+						fprintf(stderr,
+"Error %d creating symlink %s->%s: %s\n", e, linkname, d->codename, strerror(e));
 						RET_UPDATE(result,r);
 					} else {
 						if( verbose > 0 ) {
@@ -1990,8 +1994,10 @@ ACTION_C(n, n, createsymlinks) {
 				}
 			}
 		} else {
-			r = RET_ERRNO(errno);
-			fprintf(stderr,"Error checking %s, perhaps not a symlink?: %d=%m\n",linkname,errno);
+			int e = errno;
+			r = RET_ERRNO(e);
+			fprintf(stderr,
+"Error %d checking %s, perhaps not a symlink?: %s\n", e, linkname, strerror(e));
 			RET_UPDATE(result,r);
 		}
 
@@ -2491,7 +2497,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 					    } else {
 						    fprintf(stderr,
 "Not deleting possibly left over files due to previous errors.\n"
-"(To avoid the files in the still existing index files vanishing)\n"
+"(To keep the files in the still existing index files from vanishing)\n"
 "Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
 					    }
 					}

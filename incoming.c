@@ -144,7 +144,7 @@ static retvalue incoming_prepare(struct incoming *i) {
 	ret = closedir(dir);
 	if( ret != 0 ) {
 		int e = errno;
-		fprintf(stderr, "Error scaning '%s': %s\n", i->directory, strerror(e));
+		fprintf(stderr, "Error scanning '%s': %s\n", i->directory, strerror(e));
 		return RET_ERRNO(e);
 	}
 	i->processed = calloc(i->files.count, sizeof(bool));
@@ -230,7 +230,7 @@ CFfinishparse(incoming) {
 	}
 	if( i->default_into == NULL && i->allow.count == 0 ) {
 		fprintf(stderr,
-"There ia neither a 'Allow' nor a 'Default' definition in rule '%s'\n"
+"There is neither an 'Allow' nor a 'Default' definition in rule '%s'\n"
 "(starting at line %u, ending at line %u of %s)!\n"
 "Aborting as nothing would be let in.\n",
 				d->name,

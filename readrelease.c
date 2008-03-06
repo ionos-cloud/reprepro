@@ -39,7 +39,7 @@ retvalue release_getchecksums(const char *releasefile, struct checksumsarray *ou
 	r = chunk_getextralinelist(chunk,"MD5Sum",&files);
 	free(chunk);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing MD5Sum-field in Release file!\n");
+		fprintf(stderr, "Missing 'MD5Sum' field in Release file!\n");
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )

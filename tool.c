@@ -2338,7 +2338,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 
 	if( strcasecmp(command, "verify") == 0 ) {
 		if( argc > 1 ) {
-			fprintf(stderr, "Too many argument!\n");
+			fprintf(stderr, "Too many arguments!\n");
 			r = RET_ERROR;
 		} else if( file_exists )
 			r = verify(changesfilename, changesdata);
@@ -2471,7 +2471,7 @@ int main(int argc,char *argv[]) {
 
 	changesfilename = argv[optind];
 	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes") ) {
-		fprintf(stderr, "first argument does not ending with '.changes'\n");
+		fprintf(stderr, "first argument not ending with '.changes'\n");
 		exit(EXIT_FAILURE);
 	}
 	file_exists = isregularfile(changesfilename);
