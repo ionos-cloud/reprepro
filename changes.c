@@ -95,7 +95,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	}
 	if( *md5start == '\0' || *sizestart == '\0' || *sectionstart == '\0'
 			|| *priostart == '\0' || *filestart == '\0' ) {
-		fprintf(stderr,"Not five arguments in '%s'!\n",fileline);
+		fprintf(stderr, "Wrong number of arguments in '%s' (5 expected)!\n",
+				fileline);
 		return RET_ERROR;
 	}
 
@@ -104,9 +105,11 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		p++;
 	if( *p != '_' ) {
 		if( *p == '\0' )
-			fprintf(stderr,"No underscore in filename in '%s'!\n",fileline);
+			fprintf(stderr, "No underscore found in file name in '%s'!\n",
+					fileline);
 		else
-			fprintf(stderr,"Unexpected character '%c' in filename in '%s'!\n",*p,fileline);
+			fprintf(stderr, "Unexpected character '%c' in file name in '%s'!\n",
+					*p, fileline);
 		return RET_ERROR;
 	}
 	nameend = p;
@@ -117,7 +120,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	// this check gets the broken things.
 	names_overversion(&p, true);
 	if( *p != '\0' && *p != '_' ) {
-		fprintf(stderr,"Unexpected character '%c' in filename within '%s'!\n",*p,fileline);
+		fprintf(stderr, "Unexpected character '%c' in file name within '%s'!\n",
+				*p, fileline);
 		return RET_ERROR;
 	}
 	if( *p == '_' ) {
@@ -128,7 +132,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		while( *p !='\0' && *p != '.' )
 			p++;
 		if( *p != '.' ) {
-			fprintf(stderr,"Expect something of the form name_version_arch.[u]deb but got '%s'!\n",filestart);
+			fprintf(stderr,
+"'%s' is not of the expected form name_version_arch.[u]deb!\n", filestart);
 			return RET_ERROR;
 		}
 		archend = p;
@@ -141,11 +146,12 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		else if( p-typestart == 4 && strncmp(typestart,"udeb",4) == 0 )
 			type = fe_UDEB;
 		else {
-			fprintf(stderr,"'%s' looks neighter like .deb nor like .udeb!\n",filestart);
+			fprintf(stderr, "'%s' is not .deb or .udeb!\n", filestart);
 			return RET_ERROR;
 		}
 		if( strncmp(archstart,"source",6) == 0 ) {
-			fprintf(stderr,"How can a .[u]deb be architecture 'source'?('%s')\n",filestart);
+			fprintf(stderr,
+"Architecture 'source' not allowed for .[u]debs ('%s')!\n", filestart);
 			return RET_ERROR;
 		}
 	} else {
@@ -176,7 +182,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			type = fe_DIFF;
 		else {
 			type = fe_UNKNOWN;
-			fprintf(stderr,"Unknown filetype: '%s', assuming to be source format...\n",fileline);
+			fprintf(stderr,
+"Unknown file type: '%s', assuming source format...\n", fileline);
 		}
 		archstart = "source";
 		archend = archstart + 6;
