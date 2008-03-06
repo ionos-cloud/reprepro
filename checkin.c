@@ -192,7 +192,9 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		return RET_NOTHING;
 	}
 	if( strcmp(e->architecture, "source") == 0 && strcmp(e->name, sourcename) != 0 ) {
-		fprintf(stderr,"Warning: Strange file '%s'!\nLooks like source but does not start with '%s_' as I would have guessed!\nI hope you know what you do.\n",e->basename,sourcename);
+		fprintf(stderr,
+"Warning: File '%s' looks like source but does not start with '%s_'!\n",
+				e->basename, sourcename);
 	}
 
 	if( forcearchitecture != NULL ) {
@@ -290,7 +292,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	R;
 	if( broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
-"This most likely means the file was damaged (or edited improperly)\n",
+"This most likely means the file was damaged or edited improperly.\n",
 				filename) ) {
 		r = RET_ERROR;
 		R;
@@ -382,7 +384,8 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 				return RET_ERROR_OOM;
 		}
 		if( strcmp(e->section,"unknown") == 0 ) {
-			fprintf(stderr,"Section '%s' of '%s' is not valid!\n",e->section,filename);
+			fprintf(stderr, "Invalid section '%s' of '%s'!\n",
+					e->section, filename);
 			return RET_ERROR;
 		}
 		if( strncmp(e->section,"byhand",6) == 0 ) {
@@ -419,7 +422,10 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		if( changes->firstcomponent == NULL ) {
 			changes->firstcomponent = e->component;
 		} else if( strcmp(changes->firstcomponent,e->component) != 0)  {
-				fprintf(stderr,"Warning: %s contains files guessed to be in different components ('%s' vs '%s)!\nI hope you know what you do and this is not the cause of some broken override file.\n",filename,e->component,changes->firstcomponent);
+				fprintf(stderr,
+"Warning: %s contains files guessed to be in different components ('%s' vs '%s)!\n",
+					filename, e->component,
+					changes->firstcomponent);
 		}
 
 		if( FE_SOURCE(e->type) ) {
@@ -486,7 +492,9 @@ static inline retvalue checkforarchitecture(const struct fileentry *e,const char
 	while( e !=NULL && strcmp(e->architecture,architecture) != 0 )
 		e = e->next;
 	if( e == NULL ) {
-		if( !IGNORING_(unusedarch,"Architecture-header lists architecture '%s', but no files for this!\n",architecture))
+		if( !IGNORING_(unusedarch,
+"Architecture header lists architecture '%s', but no files for it!\n",
+				architecture))
 			return RET_ERROR;
 	}
 	return RET_OK;
@@ -548,7 +556,8 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		if( e->type == fe_DSC ) {
 			char *calculatedname;
 			if( havedsc ) {
-				fprintf(stderr,"I don't know what to do with multiple .dsc files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .dsc files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			havedsc = true;
@@ -556,26 +565,31 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 			if( calculatedname == NULL )
 				return RET_ERROR_OOM;
 			if( strcmp(calculatedname,e->basename) != 0 ) {
-				fprintf(stderr,"dsc-filename is '%s' instead of the expected '%s'!\n",e->basename,calculatedname);
+				fprintf(stderr,
+"dsc file name is '%s' instead of the expected '%s'!\n",
+					e->basename, calculatedname);
 				free(calculatedname);
 				return RET_ERROR;
 			}
 			free(calculatedname);
 		} else if( e->type == fe_DIFF ) {
 			if( havediff ) {
-				fprintf(stderr,"I don't know what to do with multiple .diff files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .diff files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			havediff = true;
 		} else if( e->type == fe_ORIG ) {
 			if( haveorig ) {
-				fprintf(stderr,"I don't know what to do with multiple .orig.tar.gz files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .orig.tar.gz files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			haveorig = true;
 		} else if( e->type == fe_TAR ) {
 			if( havetar ) {
-				fprintf(stderr,"I don't know what to do with multiple .tar.gz files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .tar.gz files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			havetar = true;
@@ -720,7 +734,7 @@ static void check_all_files_included(struct database *database, struct changes *
 		}
 
 		fprintf(stderr, "Warning: File '%s' was listed in the .changes\n"
-			" but looks like not used. Checking for references...\n",
+			" but seems unused. Checking for references...\n",
 			e->filekey);
 		r = references_isused(database, e->filekey);
 		if( r == RET_NOTHING ) {
@@ -781,14 +795,14 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 		fprintf(stderr,
 "Unable to find %s needed by %s!\n"
 "Perhaps you forgot to give dpkg-buildpackage the -sa option,\n"
-" or you cound try --ignore=missingfile, to guess possible files to use.\n",
+" or you could try --ignore=missingfile to guess possible files to use.\n",
 			filekey, dsc->basename);
 		return RET_ERROR_MISSING;
 	}
 	fprintf(stderr,
 "Unable to find %s!\n"
 "Perhaps you forgot to give dpkg-buildpackage the -sa option.\n"
-"Searching for it because --ignore=missingfile was given...\n", filekey);
+"--ignore=missingfile was given, searching for file...\n", filekey);
 
 	// TODO: if this is included and a error occours, it currently stays.
 	// how can this be fixed?
@@ -825,7 +839,7 @@ static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, stru
 	r = sources_readdsc(&dsc->pkg.dsc, dscfilename, dscfilename, &broken);
 	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
-"This most likely means the file was damaged (or edited improperly)\n",
+"This most likely means the file was damaged or edited improperly\n",
 				dscfilename) )
 		r = RET_ERROR;
 	if( RET_IS_OK(r) )
@@ -1241,7 +1255,9 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 				printf("Deleting '%s'.\n",changesfilename);
 			}
 			if( unlink(changesfilename) != 0 ) {
-				fprintf(stderr,"Error deleting '%s': %m\n",changesfilename);
+				int e = errno;
+				fprintf(stderr, "Error %d deleting '%s': %s\n",
+						e, changesfilename, strerror(e));
 			}
 		}
 	}
