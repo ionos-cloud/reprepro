@@ -1,3 +1,9 @@
+reprepro (3.3.2-2) UNRELEASED; urgency=low
+
+  * incorporate improvements of messages by Marc Haber (Closes: 469646)
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  6 Mar 2008 18:35:46 +0100
+
 reprepro (3.3.2-1) unstable; urgency=low
 
   * bugfix release
