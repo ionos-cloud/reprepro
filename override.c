@@ -107,7 +107,7 @@ retvalue override_read(const char *confdir, const char *overridedir, const char 
 			if( verbose >= -1 )
 				fprintf(stderr,
 "Warning: usage of a seperate directory for override files is obsolete.\n"
-"Please put in conf dir instead for compatility with future versions.\n");
+"For compatility with future versions, override files should be in conf dir.\n");
 		} else {
 			fn = calc_dirconcat(confdir, filename);
 			if( fn == NULL )
@@ -120,7 +120,8 @@ retvalue override_read(const char *confdir, const char *overridedir, const char 
 
 	if( file == NULL ) {
 		int e = errno;
-		fprintf(stderr,"Error opening override file '%s': %m\n",filename);
+		fprintf(stderr, "Error %d opening override file '%s': %s\n",
+				e, filename, strerror(e));
 		return RET_ERRNO(e);
 	}
 	while( fgets(buffer,1000,file) != NULL ){
@@ -135,7 +136,8 @@ retvalue override_read(const char *confdir, const char *overridedir, const char 
 				(void)fclose(file);
 				return RET_ERROR;
 			}
-			fprintf(stderr,"Missing line-terminator in '%s'!\n",filename);
+			fprintf(stderr, "Missing line terminator in '%s'!\n",
+					filename);
 		} else {
 			l--;
 			buffer[l] = '\0';
