@@ -129,13 +129,15 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 		if( method->mstdin >= 0 ) {
 			(void)close(method->mstdin);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing mstdin of %d\n",(int)method->child);
+				fprintf(stderr, "Closing stdin of %d\n",
+						(int)method->child);
 		}
 		method->mstdin = -1;
 		if( method->mstdout >= 0 ) {
 			(void)close(method->mstdout);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing mstdout %d\n",(int)method->child);
+				fprintf(stderr, "Closing stdout of %d\n",
+						(int)method->child);
 		}
 		method->mstdout = -1;
 	}
@@ -197,7 +199,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 		p++;
 	}
 	if( *p == '\0' ) {
-		fprintf(stderr,"Did not find colon in method-URI '%s'!\n",uri);
+		fprintf(stderr, "No colon found in method-URI '%s'!\n", uri);
 		free(method);
 		return RET_ERROR;
 	}
@@ -280,16 +282,18 @@ inline static retvalue aptmethod_startup(struct aptmethod *method, const char *m
 
 	r = pipe(mstdin);
 	if( r < 0 ) {
-		int err = errno;
-		fprintf(stderr,"Error while creating pipe: %d=%m\n",err);
-		return RET_ERRNO(err);
+		int e = errno;
+		fprintf(stderr, "Error %d creating pipe: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
 	}
 	r = pipe(mstdout);
 	if( r < 0 ) {
-		int err = errno;
-		(void)close(mstdin[0]);(void)close(mstdin[1]);
-		fprintf(stderr,"Error while pipe: %d=%m\n",err);
-		return RET_ERRNO(err);
+		int e = errno;
+		(void)close(mstdin[0]); (void)close(mstdin[1]);
+		fprintf(stderr, "Error %d in pipe syscall: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
 	}
 
 	if( interrupted() ) {
@@ -299,23 +303,29 @@ inline static retvalue aptmethod_startup(struct aptmethod *method, const char *m
 	}
 	f = fork();
 	if( f < 0 ) {
-		int err = errno;
-		(void)close(mstdin[0]);(void)close(mstdin[1]);
-		(void)close(mstdout[0]);(void)close(mstdout[1]);
-		fprintf(stderr,"Error while forking: %d=%m\n",err);
-		return RET_ERRNO(err);
+		int e = errno;
+		(void)close(mstdin[0]); (void)close(mstdin[1]);
+		(void)close(mstdout[0]); (void)close(mstdout[1]);
+		fprintf(stderr, "Error %d forking: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
 	}
 	if( f == 0 ) {
 		char *methodname;
+		int e;
 		/* child: */
 		(void)close(mstdin[1]);
 		(void)close(mstdout[0]);
 		if( dup2(mstdin[0],0) < 0 ) {
-			fprintf(stderr,"Error while setting mstdin: %d=%m\n",errno);
+			int e = errno;
+			fprintf(stderr, "Error %d while setting stdin: %s\n",
+					e, strerror(e));
 			exit(255);
 		}
 		if( dup2(mstdout[1],1) < 0 ) {
-			fprintf(stderr,"Error while setting mstdin: %d=%m\n",errno);
+			int e = errno;
+			fprintf(stderr, "Error %d while setting stdout: %s\n",
+					e, stderror(e));
 			exit(255);
 		}
 		closefrom(3);
@@ -327,7 +337,9 @@ inline static retvalue aptmethod_startup(struct aptmethod *method, const char *m
 
 		(void)execl(methodname,methodname,NULL);
 
-		fprintf(stderr,"Error while executing '%s': %d=%m\n",methodname,errno);
+		e = errno;
+		fprintf(stderr, "Error %d while executing '%s': %s\n",
+				e, methodname, strerror(e));
 		exit(255);
 	}
 	/* the main program continues... */
@@ -427,7 +439,7 @@ retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(struct tobedone *todo, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
+static inline retvalue todo_done(struct tobedone *todo, const char *method, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
 	retvalue r;
 	struct checksums *checksums = NULL;
 	struct checksums **checksums_p;
@@ -454,7 +466,8 @@ static inline retvalue todo_done(struct tobedone *todo, const char *filename, /*
 					&checksums);
 		}
 		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
+			fprintf(stderr, "Cannot open '%s', obtained from '%s' method.\n",
+					filename, method);
 			r = RET_ERROR_MISSING;
 		}
 		if( RET_WAS_ERROR(r) ) {
@@ -472,7 +485,8 @@ static inline retvalue todo_done(struct tobedone *todo, const char *filename, /*
 			/* but make sure it computed all we would have, too */
 			r = checksums_complete(&checksums, filename);
 		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Cannot open '%s', though it whould have been there now!\n",filename);
+			fprintf(stderr, "Cannot open '%s', though '%s' method claims to have put it there!\n",
+					filename, method);
 			r = RET_ERROR_MISSING;
 		}
 		if( RET_WAS_ERROR(r) )
@@ -488,7 +502,8 @@ static inline retvalue todo_done(struct tobedone *todo, const char *filename, /*
 		assert( *checksums_p != NULL );
 
 		if( !checksums_check(*checksums_p, checksums, &improves) ) {
-			fprintf(stderr,"Receiving '%s' wrong checksums: ", todo->uri);
+			fprintf(stderr, "Wrong checksum during receive of '%s':\n",
+					todo->uri);
 			checksums_printdifferences(stderr, *checksums_p,
 					checksums);
 			checksums_free(checksums);
@@ -588,7 +603,8 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 		todo = todo->next;
 	}
 	/* huh? If if have not asked for it, how can there be errors? */
-	fprintf(stderr,"Error with unexpected file '%s':\n'%s'!\n",uri,message);
+	fprintf(stderr, "Method '%s' reported error with unrequested file '%s':\n'%s'!\n",
+			method->name, uri, message);
 	free(message);
 	return RET_ERROR;
 }
@@ -601,7 +617,8 @@ static retvalue uridone(struct aptmethod *method, const char *uri, const char *f
 	while( todo != NULL ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
-			r = todo_done(todo, filename, checksumsfromapt, database);
+			r = todo_done(todo, method->name, filename,
+					checksumsfromapt, database);
 
 			/* remove item: */
 			if( lasttodo == NULL )
@@ -634,7 +651,8 @@ static retvalue uridone(struct aptmethod *method, const char *uri, const char *f
 		todo = todo->next;
 	}
 	/* huh? */
-	fprintf(stderr,"Received unexpected file '%s' at '%s'!\n",uri,filename);
+	fprintf(stderr, "Method '%s' retrieved unexpected file '%s' at '%s'!\n",
+			method->name, uri, filename);
 	checksums_free(checksumsfromapt);
 	return RET_ERROR;
 }
@@ -669,9 +687,10 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 	r = chunk_gettruth(chunk,"Single-Instance");
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( r != RET_NOTHING ) {
-		fprintf(stderr,"WARNING: Single-Instance not yet supported!\n");
-	}
+// TODO: what to do with this?
+//	if( r != RET_NOTHING ) {
+//		fprintf(stderr,"WARNING: Single-instance not yet supported!\n");
+//	}
 	r = chunk_gettruth(chunk,"Send-Config");
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -706,7 +725,9 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 
 	r = chunk_getvalue(chunk,"URI",&uri);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing URI-header in uridone got from method!\n");
+		fprintf(stderr,
+"Missing URI header in uridone received from '%s' method!\n",
+				method->name);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
@@ -714,7 +735,9 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 
 	r = chunk_getvalue(chunk,"Filename",&filename);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing Filename-header in uridone got from method!\n");
+		fprintf(stderr,
+"Missing Filename header in uridone received from '%s' method!\n",
+				method->name);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -757,7 +780,8 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 
 	r = chunk_getvalue(chunk,"URI",&uri);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing URI-header in urierror got from method!\n");
+		fprintf(stderr,
+"Missing URI header in urierror received from '%s' method!\n", method->name);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
@@ -785,7 +809,8 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 	while( *input == '\n' || *input == '\r' )
 		input++;
 	if( *input == '\0' ) {
-		fprintf(stderr,"Unexpected many newlines from methdod!\n");
+		fprintf(stderr,
+"Unexpected number of newlines from '%s' method!\n", method->name);
 		return RET_NOTHING;
 	}
 	p = input;
@@ -814,7 +839,8 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					}
 					return RET_OK;
 				default:
-					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					fprintf(stderr,
+"Error or unsupported message received: '%s'\n",	input);
 					return RET_ERROR;
 			}
 		case '2':
@@ -833,7 +859,8 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 						logmessage(method,p,"got");
 					return goturidone(method, p, database);
 				default:
-					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					fprintf(stderr,
+"Error or unsupported message received: '%s'\n",	input);
 					return RET_ERROR;
 			}
 
@@ -850,14 +877,16 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					r = RET_ERROR;
 					break;
 				default:
-					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
+					fprintf(stderr,
+"Error or unsupported message received: '%s'\n",	input);
 					r = RET_ERROR;
 			}
 			/* a failed download is not a error yet, as it might
 			 * be redone from another source later */
 			return r;
 		default:
-			fprintf(stderr,"unexpected data from method: '%s'\n",input);
+			fprintf(stderr, "Unexpected data from '%s' method: '%s'\n",
+					method->name, input);
 			return RET_ERROR;
 	}
 }
@@ -877,7 +906,7 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 		char *newptr;
 
 		if( method->input_size >= (size_t)128000 ) {
-			fprintf(stderr,"Ridiculous long answer from method!\n");
+			fprintf(stderr, "Ridiculously long answer from method!\n");
 			method->status = ams_failed;
 			return RET_ERROR;
 		}
@@ -895,10 +924,11 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 	r = read(method->mstdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
 
 	if( r < 0 ) {
-		int err = errno;
-		fprintf(stderr,"Error reading pipe from aptmethod: %d=%m\n",err);
+		int e = errno;
+		fprintf(stderr, "Error %e reading pipe from aptmethod: %s\n",
+				e, strerror(e));
 		method->status = ams_failed;
-		return RET_ERRNO(err);
+		return RET_ERRNO(e);
 	}
 	method->alreadyread += r;
 
@@ -912,7 +942,7 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 
 		while( r > 0 ) {
 			if( *p == '\0' ) {
-				fprintf(stderr,"Zeros in output from method!\n");
+				fprintf(stderr, "Unexpected Zeroes in method output!\n");
 				method->status = ams_failed;
 				return RET_ERROR;
 			} else if( *p == '\n' ) {
@@ -973,13 +1003,13 @@ static retvalue senddata(struct aptmethod *method) {
 
 	r = write(method->mstdin,method->command+method->alreadywritten,l);
 	if( r < 0 ) {
-		int err;
+		int e = errno;
 
-		err = errno;
-		fprintf(stderr,"Error writing to pipe: %d=%m\n",err);
+		fprintf(stderr, "Error %d writing to pipe: %s\n",
+				e, stderror(e));
 		//TODO: disable the whole method??
 		method->status = ams_failed;
-		return RET_ERRNO(err);
+		return RET_ERRNO(e);
 	} else if( (size_t)r < l ) {
 		method->alreadywritten += r;
 		return RET_OK;
@@ -1002,7 +1032,9 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 				break;
 		}
 		if( method == NULL ) {
-			fprintf(stderr,"Unexpected child died(maybe gpg if signing/verifing was done): %d\n",(int)child);
+			fprintf(stderr,
+"Unexpected child died (maybe gpg died if signing/verifing was done): %d\n",
+					(int)child);
 			continue;
 		}
 		/* Make sure we do not cope with this child any more */
@@ -1024,7 +1056,10 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 
 			exitcode = WEXITSTATUS(status);
 			if( exitcode != 0 ) {
-				fprintf(stderr,"Method %s://%s exited with non-zero exit-code %d!\n",method->name,method->baseuri,exitcode);
+				fprintf(stderr,
+"Method %s://%s exited with non-zero exit code %d!\n",
+					method->name, method->baseuri,
+					exitcode);
 				method->status = ams_notstarted;
 				result = RET_ERROR;
 			}
@@ -1077,12 +1112,13 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 	// TODO: think about a timeout...
 	v = select(maxfd+1,&readfds,&writefds,NULL,NULL);
 	if( v < 0 ) {
-		int err = errno;
-		//TODO: handle (err == EINTR) && interrupted() specially
-		fprintf(stderr,"Select returned error: %d=%m\n",err);
+		int e = errno;
+		//TODO: handle (e == EINTR) && interrupted() specially
+		fprintf(stderr, "Select returned error %d: %s\n",
+				e, stderror(e));
 		*workleft = -1;
 		// TODO: what to do here?
-		return RET_ERRNO(errno);
+		return RET_ERRNO(e);
 	}
 
 	result = RET_NOTHING;
