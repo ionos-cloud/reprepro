@@ -129,8 +129,8 @@ retvalue uploaders_permissions(struct uploaders *u,const char *fingerprint,const
 		if( ( c < '0' || c > '9' ) && ( c <'A' && c > 'F') ) {
 			fprintf(stderr,
 "Strange character '%c'(=%hhu) in fingerprint '%s'.\n"
-"Finding appropriate rules in the uploaders file might fail due to this.\n",
-					c,c,fingerprint);
+"Search for appropriate rules in the uploaders file might fail.\n",
+					c, c, fingerprint);
 			break;
 		}
 		reversed[i] = c;
@@ -170,18 +170,25 @@ static struct uploadpermissions *addfingerprint(struct uploaders *u, const char 
 		if( uploader->len < len ) {
 			if( memcmp(uploader->reversed_fingerprint,
 			            reversed, uploader->len) == 0 ) {
-				fprintf(stderr, "%s:%lu: Warning: key '%.*s' shadowed by earlier shorter definition for '%.*s'!\n", filename, lineno, (int)len, fingerprint, (int)uploader->len, fingerprint);
+				fprintf(stderr,
+"%s:%lu: Warning: key '%.*s' shadowed by earlier, shorter definition for '%.*s'!\n",
+						filename, lineno, (int)len,
+						fingerprint, (int)uploader->len,
+						fingerprint);
 			}
 			continue;
 		} else if( uploader->len > len ) {
 			if( memcmp(uploader->reversed_fingerprint, reversed, len) == 0 ) {
-				fprintf(stderr, "%s:%lu: Warning: key '%.*s' might shadow earlier longer definition in future versions of reprepro!\n", filename, lineno, (int)len, fingerprint);
+				fprintf(stderr,
+"%s:%lu: Warning: key '%.*s' might shadow earlier, longer definition in future versions of reprepro!\n",
+					filename, lineno, (int)len, fingerprint);
 			}
 			continue;
 		}
 		if( memcmp(uploader->reversed_fingerprint, reversed, len) != 0 )
 			continue;
-		fprintf(stderr, "%s:%lu: Warning: key '%*s' defined multiple times!\n", filename, lineno, (int)len, fingerprint);
+		fprintf(stderr, "%s:%lu: Warning: key '%*s' defined multiple times!\n",
+				filename, lineno, (int)len, fingerprint);
 		free(reversed);
 		return &uploader->permissions;
 	}
@@ -263,7 +270,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		if( *q != '\0' ) {
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n", filename, (long)lineno, (int)(1+q-buffer));
 			if( *q == ' ' )
-				fprintf(stderr, " Hint: fingerprint has to be specified without spaces.\n");
+				fprintf(stderr, " Hint: no spaces allowed in fingerprint specification.\n");
 			return RET_ERROR;
 		}
 		permissions = addfingerprint(u, p, q-p, filename, lineno);

@@ -117,14 +117,14 @@ retvalue files_remove(struct database *database, const char *filekey, bool ignor
 		(void)table_deleterecord(database->checksums, filekey, true);
 		r = table_deleterecord(database->oldmd5sums, filekey, true);
 		if( r == RET_NOTHING && !ignoremissing ) {
-			fprintf(stderr, "To be forgotten filekey '%s' was not known.\n",
+			fprintf(stderr, "Unable to forget unknown filekey '%s'.\n",
 					filekey);
 			return RET_ERROR_MISSING;
 		}
 	} else {
 		r = table_deleterecord(database->checksums, filekey, true);
 		if( r == RET_NOTHING && !ignoremissing ) {
-			fprintf(stderr, "To be forgotten filekey '%s' was not known.\n",
+			fprintf(stderr, "Unable to forget unknown filekey '%s'.\n",
 					filekey);
 			return RET_ERROR_MISSING;
 		}
@@ -153,8 +153,8 @@ retvalue files_deleteandremove(struct database *database, const char *filekey, b
 			if( !ignoreifnot )
 				fprintf(stderr,"%s not found, forgetting anyway\n",filename);
 		} else {
-			fprintf(stderr, "error while unlinking %s: %m(%d)\n",
-					filename, en);
+			fprintf(stderr, "error %d while unlinking %s: %s\n",
+					en, filename, strerror(en));
 			free(filename);
 			return r;
 		}
@@ -184,7 +184,8 @@ retvalue files_deleteandremove(struct database *database, const char *filekey, b
 					//other error was first and it
 					//is not empty so we do not have
 					//to remove it anyway...
-					fprintf(stderr,"ignoring error trying to rmdir %s: %m(%d)\n",filename,en);
+					fprintf(stderr,
+"ignoring error %d trying to rmdir %s: %s\n", en, filename, strerror(en));
 				}
 				/* parent directories will contain this one
 				 * thus not be empty, in other words:
@@ -267,7 +268,7 @@ retvalue files_expect(struct database *database, const char *filekey, const stru
 	if( r == RET_ERROR_WRONG_MD5) {
 		fprintf(stderr,
 "Deleting unexpected file '%s'!\n"
-"(found in pool but not in the database and file size is wrong.)\n ",
+"(found in pool but not in database and file size is wrong.)\n ",
 				filename);
 		if( unlink(filename) == 0 )
 			r = RET_NOTHING;
