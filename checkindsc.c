@@ -125,7 +125,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	r = sources_readdsc(&dsc->dsc, filename, filename, &broken);
 	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
-"This most likely means the file was damaged (or edited improperly)\n",
+"This most likely means the file was damaged or edited improperly\n",
 				filename) )
 		r = RET_ERROR;
 	if( RET_IS_OK(r) )
@@ -224,12 +224,12 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 	}
 
 	if( pkg->dsc.section == NULL ) {
-		fprintf(stderr, "No section was given for '%s', skipping.\n",pkg->dsc.name);
+		fprintf(stderr, "No section for '%s', skipping.\n", pkg->dsc.name);
 		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
 	if( pkg->dsc.priority == NULL ) {
-		fprintf(stderr, "No priority was given for '%s', skipping.\n",pkg->dsc.name);
+		fprintf(stderr, "No priority for '%s', skipping.\n", pkg->dsc.name);
 		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
