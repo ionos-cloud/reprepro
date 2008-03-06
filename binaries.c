@@ -57,11 +57,13 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 		RET_UPDATE(result, r);
 	}
 	if( checksums[cs_md5sum] == NULL ) {
-		fprintf(stderr,"Missing 'MD5sum'-line in binary control chunk:\n '%s'\n",chunk);
+		fprintf(stderr, "Missing 'MD5sum' line in binary control chunk:\n '%s'\n",
+				chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
 	if( checksums[cs_length] == NULL ) {
-		fprintf(stderr,"Missing 'Size'-line in binary control chunk:\n '%s'\n",chunk);
+		fprintf(stderr, "Missing 'Size' line in binary control chunk:\n '%s'\n",
+				chunk);
 		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
 	if( RET_WAS_ERROR(result) ) {
@@ -127,7 +129,8 @@ retvalue binaries_getfilekeys(const char *chunk, struct strlist *files) {
 	r = chunk_getvalue(chunk,"Filename",&filename);
 	if( !RET_IS_OK(r) ) {
 		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Does not look like binary control: '%s'\n",chunk);
+			fprintf(stderr, "Data does not look like binary control: '%s'\n",
+					chunk);
 			r = RET_ERROR;
 		}
 		return r;
@@ -174,7 +177,7 @@ retvalue binaries_getname(UNUSED(struct target *t),const char *control,char **pa
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Package name in chunk:'%s'\n",control);
+		fprintf(stderr, "Missing 'Package' field in chunk:'%s'\n", control);
 		return RET_ERROR;
 	}
 	return r;
@@ -186,7 +189,7 @@ retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char *
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Version in chunk:'%s'\n",control);
+		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", control);
 		return RET_ERROR;
 	}
 	return r;
@@ -201,7 +204,7 @@ retvalue binaries_getinstalldata(struct target *t, const char *packagename, cons
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	} else if( r == RET_NOTHING ) {
-		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
+		fprintf(stderr, "Does not look like a binary package: '%s'!\n", chunk);
 		return RET_ERROR;
 	}
 	r = binaries_getchecksums(chunk, &origfilekeys);
@@ -333,14 +336,16 @@ retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb
 		}
 		if( r == RET_NOTHING ) {
 			free(fsourcename);
-			fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+			fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n",
+					chunk);
 			return RET_ERROR;
 		}
 	}
 
 	r = chunk_getvalue(chunk,"Architecture",&arch);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Architecture in chunk:'%s'\n",chunk);
+		fprintf(stderr, "No Architecture field in chunk:'%s'\n",
+				chunk);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -358,7 +363,8 @@ retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb
 	r = chunk_getvalue(chunk,"Filename",&filekey);
 	if( !RET_IS_OK(r) ) {
 		if( r == RET_NOTHING ) {
-			fprintf(stderr,"Did not find a Filename in chunk: '%s'\n",chunk);
+			fprintf(stderr, "No Filename field in chunk: '%s'\n",
+					chunk);
 			r = RET_ERROR;
 		}
 		free(sourceversion);
@@ -407,7 +413,7 @@ retvalue binaries_getsourceandversion(UNUSED(struct target *t),const char *chunk
 		}
 		if( r == RET_NOTHING ) {
 			free(sourcename);
-			fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+			fprintf(stderr, "No Version field in chunk:'%s'\n", chunk);
 			return RET_ERROR;
 		}
 	}
@@ -421,7 +427,8 @@ static inline retvalue getvalue(const char *filename,const char *chunk,const cha
 
 	r = chunk_getvalue(chunk,field,value);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find %s-header in control file of %s!\n",field,filename);
+		fprintf(stderr, "No %s-header in %s's control file!\n",
+				field, filename);
 		r = RET_ERROR;
 	}
 	return r;
@@ -432,7 +439,8 @@ static inline retvalue checkvalue(const char *filename,const char *chunk,const c
 
 	r = chunk_checkfield(chunk,field);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find %s-header in control file of %s!\n",field,filename);
+		fprintf(stderr, "No %s-header in %s's control file!\n",
+				field, filename);
 		r = RET_ERROR;
 	}
 	return r;
@@ -467,7 +475,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 
 	r = chunk_getname(deb->control, "Package", &deb->name, false);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Package' field in %s!\n",filename);
+		fprintf(stderr, "Missing 'Package' field in %s!\n", filename);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
