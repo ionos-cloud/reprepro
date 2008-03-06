@@ -511,7 +511,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		if( !strlist_in(&changes->architectures,forcearchitecture) ){
 			// TODO: check if this is sensible
 			if( !IGNORING_(surprisingarch,
-				     "Architecture-header does not list the"
+				     "Architecture header does not list the"
 				     " architecture '%s' to be forced in!\n",
 					forcearchitecture))
 				return RET_ERROR_MISSING;

@@ -427,7 +427,7 @@ static inline retvalue getvalue(const char *filename,const char *chunk,const cha
 
 	r = chunk_getvalue(chunk,field,value);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr, "No %s-header in %s's control file!\n",
+		fprintf(stderr, "No %s field in %s's control file!\n",
 				field, filename);
 		r = RET_ERROR;
 	}
@@ -439,7 +439,7 @@ static inline retvalue checkvalue(const char *filename,const char *chunk,const c
 
 	r = chunk_checkfield(chunk,field);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr, "No %s-header in %s's control file!\n",
+		fprintf(stderr, "No %s field in %s's control file!\n",
 				field, filename);
 		r = RET_ERROR;
 	}

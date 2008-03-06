@@ -402,7 +402,7 @@ static inline retvalue getvalue(const char *filename,const char *chunk,const cha
 
 	r = chunk_getvalue(chunk,field,value);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing '%s'-header in %s!\n",field,filename);
+		fprintf(stderr,"Missing '%s' field in %s!\n",field,filename);
 		r = RET_ERROR;
 	}
 	return r;
@@ -413,7 +413,7 @@ static inline retvalue checkvalue(const char *filename,const char *chunk,const c
 
 	r = chunk_checkfield(chunk,field);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find '%s'-header in %s!\n",field,filename);
+		fprintf(stderr,"Cannot find '%s' field in %s!\n",field,filename);
 		r = RET_ERROR;
 	}
 	return r;
@@ -447,7 +447,7 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 
 	r = chunk_getname(dsc->control, "Source", &dsc->name, false);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'Source'-header in %s!\n", filenametoshow);
+		fprintf(stderr, "Missing 'Source' field in %s!\n", filenametoshow);
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
@@ -479,7 +479,7 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 
 	r = chunk_getextralinelist(dsc->control, "Files", &filelines);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Files'-header in %s!\n", filenametoshow);
+		fprintf(stderr,"Missing 'Files' field in %s!\n", filenametoshow);
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )

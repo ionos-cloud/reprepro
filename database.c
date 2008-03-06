@@ -462,7 +462,7 @@ static retvalue warnunusedtracking(const struct strlist *codenames, const struct
 			if( d == NULL )
 				(void)fputs(
 "This either means you removed a distribution from the distributions config\n"
-"file without calling clearvanished (or at least removealltracks), you \n"
+"file without calling clearvanished (or at least removealltracks), you\n"
 "experienced a bug in retrack in versions < 3.0.0, you found a new bug or your\n"
 "config does not belong to this database.\n",
 						stderr);

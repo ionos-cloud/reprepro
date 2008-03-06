@@ -1226,7 +1226,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		}
 		if( file->dsc->name == NULL )
 			fprintf(stderr,
-"ERROR: '%s' does not contain a 'Source:'-header!\n", file->fullfilename);
+"ERROR: '%s' does not contain a 'Source:' header!\n", file->fullfilename);
 		else if( changes->name != NULL &&
 				strcmp(changes->name, file->dsc->name) != 0 )
 			fprintf(stderr,
@@ -1235,7 +1235,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 				file->dsc->name, changes->name);
 		if( file->dsc->version == NULL )
 			fprintf(stderr,
-"ERROR: '%s' does not contain a 'Version:'-header!\n", file->fullfilename);
+"ERROR: '%s' does not contain a 'Version:' header!\n", file->fullfilename);
 		else if( changes->version != NULL &&
 				strcmp(changes->version, file->dsc->version) != 0 )
 			fprintf(stderr,
@@ -1453,7 +1453,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 
 			if( b->description != NULL && !b->missedinheader ) {
 				fprintf(stderr,
-"ERROR: '%s' has binary '%s' in 'Binary:' and 'Description:'-header, but no files for it found!\n",
+"ERROR: '%s' has binary '%s' in 'Binary:' and 'Description:' header, but no files for it found!\n",
 					changesfilename, b->name);
 			} else if( b->description != NULL) {
 				fprintf(stderr,
@@ -1478,7 +1478,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		}
 		if( b->missedinheader ) {
 				fprintf(stderr,
-"ERROR: '%s' does not list '%s' in its Binary-header!\n",
+"ERROR: '%s' does not list '%s' in its Binary header!\n",
 					changesfilename, b->name);
 		}
 		// TODO: check if the files have the names they should
@@ -1517,7 +1517,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					deb->shortdescription);
 		if( deb->name == NULL )
 			fprintf(stderr,
-"ERROR: '%s' does not contain a 'Package:'-header!\n", file->fullfilename);
+"ERROR: '%s' does not contain a 'Package:' header!\n", file->fullfilename);
 		if( deb->sourcename != NULL ) {
 			if( strcmp(changes->name, deb->sourcename) != 0 )
 				fprintf(stderr,
@@ -1533,7 +1533,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		}
 		if( deb->version == NULL )
 			fprintf(stderr,
-"ERROR: '%s' does not contain a 'Version:'-header!\n", file->fullfilename);
+"ERROR: '%s' does not contain a 'Version:' header!\n", file->fullfilename);
 		if( deb->sourceversion != NULL ) {
 			if( strcmp(changes->version, deb->sourceversion) != 0 )
 				fprintf(stderr,

@@ -801,7 +801,7 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 	if( strcmp(c->source, file->deb.source) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		// (beware if tracking is active)
-		fprintf(stderr, "Source-header '%s' of '%s' and source name '%s' within the file '%s' do not match!\n",
+		fprintf(stderr, "Source header '%s' of '%s' and source name '%s' within the file '%s' do not match!\n",
 				c->source, BASENAME(i,c->ofs),
 				file->deb.source, BASENAME(i,file->ofs));
 		return RET_ERROR;
@@ -815,7 +815,7 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 		return RET_ERROR;
 	}
 	if( ! strlist_in(&c->binaries, file->deb.name) ) {
-		fprintf(stderr, "Name '%s' of binary '%s' is not listed in Binaries-header of '%s'!\n",
+		fprintf(stderr, "Name '%s' of binary '%s' is not listed in Binaries header of '%s'!\n",
 				file->deb.name, BASENAME(i,file->ofs),
 				BASENAME(i,c->ofs));
 		return RET_ERROR;
@@ -1093,7 +1093,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	if( strcmp(c->source, file->dsc.name) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		// (beware if tracking is active)
-		fprintf(stderr, "Source-header '%s' of '%s' and name '%s' within the file '%s' do not match!\n",
+		fprintf(stderr, "Source header '%s' of '%s' and name '%s' within the file '%s' do not match!\n",
 				c->source, BASENAME(i,c->ofs),
 				file->dsc.name, BASENAME(i,file->ofs));
 		return RET_ERROR;
