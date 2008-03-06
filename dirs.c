@@ -32,15 +32,16 @@ extern int verbose;
 
 /* create directory dirname. */
 static retvalue dirs_check(const char *dirname) {
-	int ret;
+	int ret, e;
 
 	ret = mkdir(dirname,0775);
 	if( ret == 0 ) {
 		if( verbose > 1)
 			printf("Created directory \"%s\"\n",dirname);
 		return RET_OK;
-	} else if( ret < 0 && errno != EEXIST ) {
-		fprintf(stderr,"Can not create directory \"%s\": %m\n",dirname);
+	} else if( ret < 0 && ( e = errno ) != EEXIST ) {
+		fprintf(stderr, "Error %d creating directory \"%s\": %s\n",
+				e, dirname, strerror(e));
 		return RET_ERROR;
 	}
 	return RET_NOTHING;
@@ -109,7 +110,7 @@ retvalue dir_create_needed(const char *directory, int *createddepth) {
 		/* normaly ENOENT should be the only problem, but check the others
 		 * to be nice to annoying filesystems */
 		} else if( e != ENOENT && e != EACCES && e != EPERM ) {
-			fprintf(stderr,"Can not create directory \"%s\": %s(%d)m\n",
+			fprintf(stderr, "Cannot create directory \"%s\": %s(%d)\n",
 					this, strerror(e), e);
 			free(this);
 			return RET_ERRNO(e);

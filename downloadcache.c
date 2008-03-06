@@ -120,7 +120,7 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 		assert( i->todo->filekey != NULL );
 		if( !checksums_check(i->todo->checksums, checksums, &improves) ) {
 			fprintf(stderr,
-"ERROR: the same file is requested with conflicting checksums:\n"
+"ERROR: Same file is requested with conflicting checksums:\n"
 "'%s':\n",			i->todo->uri);
 			checksums_printdifferences(stderr,
 					i->todo->checksums, checksums);

@@ -401,7 +401,7 @@ retvalue distribution_readall(const char *confdir, const char *logdir, struct di
 			ARRAYCOUNT(distributionconfigfields),
 			&mydata);
 	if( result == RET_ERROR_UNKNOWNFIELD )
-		fprintf(stderr, "To ignore unknown fields use --ignore=unknownfield\n");
+		fprintf(stderr, "Use --ignore=unknownfield to ignore unknown fields\n");
 	if( RET_WAS_ERROR(result) ) {
 		distribution_freelist(mydata.distributions);
 		return result;
@@ -771,9 +771,9 @@ static retvalue export(struct distribution *distribution, const char *distdir, s
 		if( workleft ) {
 			(void)fputs(
 "This means that from outside your repository will still look like before (and\n"
-"should still work if this old state worked), but the things you changed in this\n"
+"should still work if this old state worked), but the changes intended with this\n"
 "call will not be visible until you call export directly (via reprepro export)\n"
-"(things will also get visible when something else changes the same file and\n"
+"Changes will also get visible when something else changes the same file and\n"
 "thus creates a new export of that file, but even changes to other parts of the\n"
 "same distribution will not!\n",	stderr);
 		}
