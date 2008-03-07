@@ -24,7 +24,7 @@ bool interrupted(void);
 };
 typedef enum retvalue_enum retvalue;
 
-#define FAILEDTOALLOC(x) unlikely(X == NULL)
+#define FAILEDTOALLOC(x) unlikely(x == NULL)
 
 #define RET_IS_OK(r) likely((r) == RET_OK)
 #define RET_WAS_NO_ERROR(r) likely((r) >= (retvalue)0)
