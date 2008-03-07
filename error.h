@@ -24,9 +24,11 @@ bool interrupted(void);
 };
 typedef enum retvalue_enum retvalue;
 
-#define RET_IS_OK(r) ((r) == RET_OK)
-#define RET_WAS_NO_ERROR(r) ((r) >= (retvalue)0)
-#define RET_WAS_ERROR(r) ((r) < (retvalue)0)
+#define FAILEDTOALLOC(x) unlikely(X == NULL)
+
+#define RET_IS_OK(r) likely((r) == RET_OK)
+#define RET_WAS_NO_ERROR(r) likely((r) >= (retvalue)0)
+#define RET_WAS_ERROR(r) unlikely((r) < (retvalue)0)
 
 /* update a return value, so that it contains the first error-code
  * and otherwise is RET_OK, if anything was RET_OK */
