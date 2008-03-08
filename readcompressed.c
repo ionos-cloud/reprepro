@@ -20,6 +20,7 @@
 #include <limits.h>
 #include <malloc.h>
 #include <string.h>
+#include <stdio.h>
 #include <zlib.h>
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
