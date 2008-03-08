@@ -140,22 +140,41 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 	return r;
 }
 
+static const char *source_checksum_names[cs_hashCOUNT] = {
+	"Files", "Checksums-sha1"
+};
+
 retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	retvalue r;
 	char *origdirectory, *directory, *mychunk;
-	struct strlist filelines, myfilekeys;
+	struct strlist myfilekeys;
+	struct strlist filelines[cs_hashCOUNT];
 	struct checksumsarray files;
+	enum checksumtype cs;
 
-	r = chunk_getextralinelist(chunk,"Files",&filelines);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Files' entry in '%s'!\n",chunk);
-		r = RET_ERROR;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( source_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(chunk, source_checksum_names[cs],
+				&filelines[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum ) {
+				fprintf(stderr,
+"Missing 'Files' entry in '%s'!\n", 		chunk);
+				r = RET_ERROR;
+			} else
+				strlist_init(&filelines[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&filelines[cs]);
+			}
+			return r;
+		}
 	}
-	if( RET_WAS_ERROR(r) )
-  		return r;
-
-	r = checksumsarray_parse(&files, &filelines, packagename);
-	strlist_done(&filelines);
+	r = checksumsarray_parse(&files, filelines, packagename);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		strlist_done(&filelines[cs]);
+	}
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -255,25 +274,44 @@ retvalue sources_getfilekeys(const char *chunk, struct strlist *filekeys) {
 retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 	char *origdirectory;
 	struct checksumsarray a;
-	struct strlist filelines;
 	retvalue r;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 
 	/* Read the directory given there */
 	r = chunk_getvalue(chunk, "Directory", &origdirectory);
 	if( !RET_IS_OK(r) )
 		return r;
 
-	r = chunk_getextralinelist(chunk,"Files",&filelines);
-	if( !RET_IS_OK(r) ) {
-		free(origdirectory);
-		return r;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( source_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(chunk, source_checksum_names[cs],
+				&filelines[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum ) {
+				fprintf(stderr,
+"Missing 'Files' entry in '%s'!\n", 		chunk);
+				r = RET_ERROR;
+			} else
+				strlist_init(&filelines[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&filelines[cs]);
+			}
+			free(origdirectory);
+			return r;
+		}
 	}
-	r = checksumsarray_parse(&a, &filelines, "source chunk");
-	strlist_done(&filelines);
+	r = checksumsarray_parse(&a, filelines, "source chunk");
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		strlist_done(&filelines[cs]);
+	}
 	if( RET_WAS_ERROR(r) ) {
 		free(origdirectory);
 		return r;
 	}
+
 	r = calc_inplacedirconcats(origdirectory, &a.names);
 	free(origdirectory);
 	if( RET_WAS_ERROR(r) ) {
@@ -431,7 +469,8 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 
 retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const char *filenametoshow, bool *broken) {
 	retvalue r;
-	struct strlist filelines;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 
 	r = signature_readsignedchunk(filename, filenametoshow,
 			&dsc->control, NULL, NULL, broken);
@@ -477,15 +516,29 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = chunk_getextralinelist(dsc->control, "Files", &filelines);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Files' field in %s!\n", filenametoshow);
-		return RET_ERROR;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( source_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(dsc->control,
+				source_checksum_names[cs], &filelines[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum ) {
+				fprintf(stderr,
+"Missing 'Files' field in '%s'!\n",		filenametoshow);
+				r = RET_ERROR;
+			} else
+				strlist_init(&filelines[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&filelines[cs]);
+			}
+			return r;
+		}
 	}
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = checksumsarray_parse(&dsc->files, &filelines, filenametoshow);
-	strlist_done(&filelines);
+	r = checksumsarray_parse(&dsc->files, filelines, filenametoshow);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		strlist_done(&filelines[cs]);
+	}
 	return r;
 }
 

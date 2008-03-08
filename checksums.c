@@ -544,10 +544,12 @@ void checksumsarray_done(struct checksumsarray *array) {
 	free(array->checksums);
 }
 
-retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist *lines, const char *filenametoshow) {
+retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l[cs_hashCOUNT], const char *filenametoshow) {
 	retvalue r;
 	int i;
 	struct checksumsarray a;
+	const struct strlist *lines = &l[cs_md5sum];
+	assert( lines != NULL );
 
 	/* +1 because the caller is likely include an additional file later */
 	r = strlist_init_n(lines->count+1, &a.names);

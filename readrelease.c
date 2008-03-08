@@ -30,22 +30,41 @@
 retvalue release_getchecksums(const char *releasefile, struct checksumsarray *out) {
 	retvalue r;
 	char *chunk;
-	struct strlist files;
+	struct strlist files[cs_hashCOUNT];
+	static const char *release_checksum_names[cs_hashCOUNT] = {
+		"MD5Sum", "SHA1" // , "SHA256"
+	};
+	enum checksumtype cs;
 
 	r = readtextfile(releasefile, releasefile, &chunk, NULL);
 	assert( r != RET_NOTHING );
 	if( !RET_IS_OK(r) )
 		return r;
-	r = chunk_getextralinelist(chunk,"MD5Sum",&files);
-	free(chunk);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'MD5Sum' field in Release file!\n");
-		return RET_ERROR;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( release_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(chunk, release_checksum_names[cs],
+				&files[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum ) {
+				fprintf(stderr,
+"Missing 'MD5Sum' field in Release file '%s'!\n",	releasefile);
+				r = RET_ERROR;
+			} else
+				strlist_init(&files[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&files[cs]);
+			}
+			free(chunk);
+			return r;
+		}
 	}
-	if( RET_WAS_ERROR(r) )
-		return r;
+	free(chunk);
 
-	r = checksumsarray_parse(out, &files, releasefile);
-	strlist_done(&files);
+	r = checksumsarray_parse(out, files, releasefile);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		strlist_done(&files[cs]);
+	}
 	return r;
 }
