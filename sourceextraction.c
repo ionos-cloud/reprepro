@@ -20,7 +20,15 @@
 #include <limits.h>
 #include <malloc.h>
 #include <string.h>
+#include <stdio.h>
+#ifdef HAVE_LIBARCHIVE
+#include <archive.h>
+#include <archive_entry.h>
+#endif
+
 #include "error.h"
+#include "filecntl.h"
+#include "chunks.h"
 #include "readcompressed.h"
 #include "sourceextraction.h"
 
@@ -136,9 +144,13 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 	destlength = s - p;
 	/* ignore all files that are not x/debian/control */
 	while( strcmp(s, "debian/control") != 0 ) {
+		if( unlikely(interrupted()) )
+			return RET_ERROR_INTERRUPTED;
 		if( !readcompressed_getline(f, &p) )
 			return RET_NOTHING;
 		while( memcmp(p, "@@ -", 4) == 0) {
+			if( unlikely(interrupted()) )
+				return RET_ERROR_INTERRUPTED;
 			p += 4;
 			while( *p != ',' ) {
 				if( unlikely(*p == '\0') )
@@ -244,6 +256,8 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 	if( unlikely(*p != '@') )
 		return RET_NOTHING;
 	while( lines_out > 0 ) {
+		if( unlikely(interrupted()) )
+			return RET_ERROR_INTERRUPTED;
 		if( !readcompressed_getline(f, &p) )
 			return RET_NOTHING;
 
@@ -312,6 +326,126 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 	return RET_NOTHING;
 }
 
+#ifdef HAVE_LIBARCHIVE
+static retvalue read_source_control_file(struct sourceextraction *e, struct archive *tar, struct archive_entry *entry) {
+	// TODO: implement...
+	size_t size, len, controllen;
+	ssize_t got;
+	char *buffer, *aftercontrol;
+
+	size = archive_entry_size(entry);
+	if( size <= 0 )
+		return RET_NOTHING;
+	if( size > 10*1024*1024 )
+		return RET_NOTHING;
+	buffer = malloc(size+2);
+	if( FAILEDTOALLOC(buffer) )
+		return RET_ERROR_OOM;
+	len = 0;
+	while( (got = archive_read_data(tar, buffer+len, ((size_t)size+1)-len)) > 0
+			&& !interrupted() ) {
+		len += got;
+		if( len > size ) {
+			free(buffer);
+			return RET_NOTHING;
+		}
+	}
+	if( unlikely(interrupted()) ) {
+		free(buffer);
+		return RET_ERROR_INTERRUPTED;
+	}
+	if( got < 0 ) {
+		free(buffer);
+		return RET_NOTHING;
+	}
+	buffer[len] = '\0';
+	// TODO: allow a saved .diff for this file applied here
+
+	controllen = chunk_extract(buffer, buffer, &aftercontrol);
+
+	(void)chunk_getvalue(buffer, "Section", e->section_p);
+	(void)chunk_getvalue(buffer, "Priority", e->priority_p);
+	free(buffer);
+	return RET_OK;
+}
+
+static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, enum compression c, /*@out@*/bool *found_p) {
+	struct archive *tar;
+	struct archive_entry *entry;
+	int a;
+	retvalue r;
+
+	/* While an .tar, especially an .orig.tar can be very ugly (they should be
+	 * pristine upstream tars, so dpkg-source works around a lot of ugliness),
+	 * we are looking for debian/control. This is unlikely to be in an ugly
+	 * upstream tar verbatimly. */
+
+	if( !isregularfile(filename) )
+		return RET_NOTHING;
+
+	tar = archive_read_new();
+	if( FAILEDTOALLOC(tar) )
+		return RET_ERROR_OOM;
+	archive_read_support_format_tar(tar);
+	if( c == c_gzipped )
+		archive_read_support_compression_gzip(tar);
+	if( c == c_bzipped )
+		archive_read_support_compression_bzip2(tar);
+
+	a = archive_read_open_file(tar, filename, 4096);
+	if( a != ARCHIVE_OK ) {
+		fprintf(stderr,
+"Error %d trying to extract control information from %s:\n"
+"%s\n",		archive_errno(tar), filename, archive_error_string(tar));
+		archive_read_finish(tar);
+		return RET_ERROR;
+	}
+	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
+		const char *name = archive_entry_pathname(entry);
+		const char *s;
+		bool iscontrol;
+
+		if( name[0] == '.' && name[1] == '/' )
+			name += 2;
+		s = strchr(name, '/');
+		if( s == NULL )
+			// TODO: is this already enough to give up totally?
+			iscontrol = false;
+		else
+			iscontrol = strcmp(s+1, "debian/control") == 0;
+
+		if( !iscontrol ) {
+			a = archive_read_data_skip(tar);
+			if( a != ARCHIVE_OK ) {
+				int e = archive_errno(tar);
+				printf("Error %d skipping %s within %s: %s\n",
+						e, name, filename,
+						archive_error_string(tar));
+				archive_read_finish(tar);
+				return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
+			}
+			if( interrupted() )
+				return RET_ERROR_INTERRUPTED;
+		} else {
+			r = read_source_control_file(e, tar, entry);
+			archive_read_finish(tar);
+			*found_p = true;
+			return r;
+		}
+	}
+	if( a != ARCHIVE_EOF ) {
+		int e = archive_errno(tar);
+		fprintf(stderr, "Error %d reading %s: %s\n",
+				e, filename, archive_error_string(tar));
+		archive_read_finish(tar);
+		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
+	}
+	archive_read_finish(tar);
+	*found_p = false;
+	return RET_OK;
+}
+#endif
+
 /* full file name of requested files ready to analyse */
 retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfilename) {
 	retvalue r;
@@ -349,10 +483,17 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 	assert( !unsupportedcompression(e->tarcompression) );
 	e->tarfile = -1;
 
-	// TODO: implement this. This is a bit more complicated because those
-	// are native upstream tars and dpkg-source has even special code to
-	// handle all kind of broken tars.
+#ifdef HAVE_LIBARCHIVE
+	r = parse_tarfile(e, fullfilename, e->tarcompression, &found);
+	if( !RET_IS_OK(r) )
+		e->failed = true;
+	else if( found )
+		/* do not look in the tar, we found debian/control */
+		e->completed = true;
+	return r;
+#else
 	return RET_NOTHING;
+#endif
 }
 
 retvalue sourceextraction_finish(struct sourceextraction *e) {

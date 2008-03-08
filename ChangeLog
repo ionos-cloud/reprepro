@@ -1,6 +1,6 @@
 2008-03-08  Bernhard R. Link <brlink@debian.org>
 	* When missing section or priority reprepro's includedsc and
-	changestool's add[dsc] look into the .diff file.
+	changestool's add[dsc] look into the .diff and the .tar file.
 	* changestool's add* commands look for files in the current directory
 	first, adddsc for files referenced in the directory of the dsc file.
 

@@ -2,6 +2,8 @@ reprepro (3.3.2-2) UNRELEASED; urgency=low
 
   * incorporate improvements of messages by Marc Haber (Closes: 469646)
   * add missing colons to DebIndicies example (Closes: 469810)
+  * includedsc supports extraction of Section and Priority from .diff and
+    .tar files (Closes: 469673)
 
  -- Bernhard R. Link <brlink@debian.org>  Thu,  6 Mar 2008 18:35:46 +0100
 
