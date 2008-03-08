@@ -44,6 +44,7 @@
 #include "ignore.h"
 #include "override.h"
 #include "log.h"
+#include "sourceextraction.h"
 
 extern int verbose;
 
@@ -223,13 +224,72 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		}
 	}
 
+	r = dirs_getdirectory(dscfilename, &origdirectory);
+	if( RET_WAS_ERROR(r) ) {
+		dsc_free(pkg, database);
+		return r;
+	}
+
+	if( pkg->dsc.section == NULL || pkg->dsc.priority == NULL ) {
+		struct sourceextraction *extraction;
+
+		extraction = sourceextraction_init(
+			(pkg->dsc.section == NULL)?&pkg->dsc.section:NULL,
+			(pkg->dsc.priority == NULL)?&pkg->dsc.priority:NULL);
+		if( FAILEDTOALLOC(extraction) ) {
+			free(origdirectory);
+			dsc_free(pkg, database);
+			return RET_ERROR_OOM;
+		}
+		for( i = 1 ; i < pkg->dsc.files.names.count ; i ++ )
+			sourceextraction_setpart(extraction, i,
+					pkg->dsc.files.names.values[i]);
+		while( sourceextraction_needs(extraction, &i) ) {
+			char *fullfilename = calc_dirconcat(origdirectory,
+					pkg->dsc.files.names.values[i]);
+			if( FAILEDTOALLOC(fullfilename) ) {
+				free(origdirectory);
+				dsc_free(pkg, database);
+				return RET_ERROR_OOM;
+			}
+			/* while it would nice to try at the pool if we
+			 * do not have the file here, to know its location
+			 * in the pool we need to know the component. And
+			 * for the component we might need the section first */
+			// TODO: but if forcecomponent is set it might be possible.
+			r = sourceextraction_analyse(extraction, fullfilename);
+			free(fullfilename);
+			if( RET_WAS_ERROR(r) ) {
+				free(origdirectory);
+				dsc_free(pkg, database);
+				sourceextraction_abort(extraction);
+				return r;
+			}
+		}
+		r = sourceextraction_finish(extraction);
+		if( RET_WAS_ERROR(r) ) {
+			free(origdirectory);
+			dsc_free(pkg, database);
+			return r;
+		}
+	}
+
+	if( pkg->dsc.section == NULL && pkg->dsc.priority == NULL ) {
+		fprintf(stderr, "No section and no priority for '%s', skipping.\n",
+				pkg->dsc.name);
+		free(origdirectory);
+		dsc_free(pkg, database);
+		return RET_ERROR;
+	}
 	if( pkg->dsc.section == NULL ) {
 		fprintf(stderr, "No section for '%s', skipping.\n", pkg->dsc.name);
+		free(origdirectory);
 		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
 	if( pkg->dsc.priority == NULL ) {
 		fprintf(stderr, "No priority for '%s', skipping.\n", pkg->dsc.name);
+		free(origdirectory);
 		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
@@ -240,17 +300,12 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			pkg->dsc.name, pkg->dsc.section, forcecomponent,
 			&pkg->component);
 	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
 		dsc_free(pkg, database);
 		return r;
 	}
 	if( verbose > 0 && forcecomponent == NULL ) {
 		fprintf(stderr,"%s: component guessed as '%s'\n",dscfilename,pkg->component);
-	}
-
-	r = dirs_getdirectory(dscfilename, &origdirectory);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg, database);
-		return r;
 	}
 
 	pkg->deleteonfailure = calloc(pkg->dsc.files.names.count+1, sizeof(bool));

@@ -38,6 +38,7 @@
 #include "chunkedit.h"
 #include "signature.h"
 #include "debfile.h"
+#include "sourceextraction.h"
 
 /* for compatibility with used code */
 int verbose=0;
@@ -1935,6 +1936,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 			return RET_ERROR_OOM;
 		dsc->files[i].file = file;
 		/* make them appear in the .changes file if not there: */
+		// TODO: add missing checksums here from file
 		if( file->checksumsfromchanges == NULL ) {
 			file->checksumsfromchanges = checksums_dup(checksums);
 			if( file->checksumsfromchanges == NULL )
@@ -1964,6 +1966,44 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 		f->priority = strdup(dsc->priority);
 		if( f->priority == NULL )
 			return RET_ERROR_OOM;
+	}
+	if( f->section == NULL || f->priority == NULL ) {
+		struct sourceextraction *extraction;
+		int j;
+
+		extraction = sourceextraction_init(
+				(f->section == NULL)?&f->section:NULL,
+				(f->priority == NULL)?&f->priority:NULL);
+		if( extraction == NULL )
+			return RET_ERROR_OOM;
+		for( j = 0 ; j < dsc->filecount ; j++ ) {
+			sourceextraction_setpart(extraction, j,
+						dsc->files[j].basename);
+		}
+		while( sourceextraction_needs(extraction, &j) ) {
+			if( dsc->files[j].file->fullfilename == NULL ) {
+				/* look for file */
+				// TODO: add path of dsc here...
+				r = findfile(dsc->files[j].basename, c, NULL,
+					&dsc->files[j].file->fullfilename);
+				if( RET_WAS_ERROR(r) ) {
+					sourceextraction_abort(extraction);
+					return r;
+				}
+				if( r == RET_NOTHING ||
+				    dsc->files[j].file->fullfilename == NULL )
+					break;
+			}
+			r = sourceextraction_analyse(extraction,
+					dsc->files[j].file->fullfilename);
+			if( RET_WAS_ERROR(r) ) {
+				sourceextraction_abort(extraction);
+				return r;
+			}
+		}
+		r = sourceextraction_finish(extraction);
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	/* update information in the main .changes file if not there already */
 	if( c->maintainer == NULL && dsc->maintainer != NULL ) {

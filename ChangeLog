@@ -1,3 +1,7 @@
+2008-03-08  Bernhard R. Link <brlink@debian.org>
+	* When missing section or priority reprepro's includedsc and
+	changestool's add[dsc] look into the .diff file.
+
 2008-03-06  Bernhard R. Link <brlink@debian.org>
 	* fix/improve some messages, based uppon many suggestions
 	by Marc Haber.

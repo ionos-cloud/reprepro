@@ -387,9 +387,12 @@ like .orig.tar.gz, .tar.gz and/or .diff.gz) in the specified
 distribution, applying override information and guessing all values
 not given and guessable.
 
-Note that as .dsc files do not contain section or priority, but the
-Sources.gz file does, you have to either specify a DscOverride or
-given them via
+Note that .dsc files do not contain section or priority, but the
+Sources.gz file needs them.
+reprepro tries to parse .diff and .tar files for
+it, but is only able to resolve easy cases.
+If reprepro fails to extract those automatically,
+you have to either specify a DscOverride or give them via
 .B \-S
 and
 .B \-P
