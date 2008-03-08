@@ -265,11 +265,23 @@ static struct fileentry *add_fileentry(struct changes *c, const char *basename, 
 	return f;
 }
 
-static retvalue searchforfile(const char *changesdir, const char *basename,
-		const struct strlist *searchpath, char **result) {
+static retvalue searchforfile(const char *changesdir, const char *basename, /*@null@*/const struct strlist *searchpath, /*@null@*/const char *searchfirstin, char **result) {
 	int i; bool found;
-	char *fullname = calc_dirconcat(changesdir,basename);
-	if( fullname == NULL )
+	char *fullname;
+
+	if( searchfirstin != NULL ) {
+		fullname = calc_dirconcat(searchfirstin, basename);
+		if( FAILEDTOALLOC(fullname) )
+			return RET_ERROR_OOM;
+		if( isregularfile(fullname) ) {
+			*result = fullname;
+			return RET_OK;
+		}
+		free(fullname);
+	}
+
+	fullname = calc_dirconcat(changesdir, basename);
+	if( FAILEDTOALLOC(fullname) )
 		return RET_ERROR_OOM;
 
 	found = isregularfile(fullname);
@@ -295,13 +307,14 @@ static retvalue searchforfile(const char *changesdir, const char *basename,
 	}
 }
 
-static retvalue findfile(const char *filename, const struct changes *c, const struct strlist *searchpath, char **result) {
+static retvalue findfile(const char *filename, const struct changes *c, /*@null@*/const struct strlist *searchpath, /*@null@*/const char *searchfirstin, char **result) {
 	char *fullfilename;
 
 	if( rindex(filename,'/') == NULL ) {
 		retvalue r;
 
-		r = searchforfile(c->basedir, filename, searchpath, &fullfilename);
+		r = searchforfile(c->basedir, filename,
+				searchpath, searchfirstin, &fullfilename);
 		if( !RET_IS_OK(r) )
 			return r;
 	} else {
@@ -739,7 +752,8 @@ static retvalue processfiles(const char *changesfilename, struct changes *change
 	for( file = changes->files; file != NULL ; file = file->next ) {
 		assert( file->fullfilename == NULL );
 
-		r = searchforfile(dir, file->basename, searchpath, &file->fullfilename);
+		r = searchforfile(dir, file->basename, searchpath, NULL,
+				&file->fullfilename);
 
 		if( RET_IS_OK(r) ) {
 			if( file->type == ft_DSC )
@@ -1827,14 +1841,15 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 		return RET_NOTHING;
 }
 
-static retvalue adddsc(struct changes *c, const char *dscfilename) {
+static retvalue adddsc(struct changes *c, const char *dscfilename, const struct strlist *searchpath) {
 	retvalue r;
 	struct fileentry *f;
 	struct dscfile *dsc;
 	char *fullfilename, *basename;
+	char *origdirectory;
 	size_t i;
 
-	r = findfile(dscfilename, c, NULL, &fullfilename);
+	r = findfile(dscfilename, c, searchpath, ".", &fullfilename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
@@ -1902,12 +1917,21 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 		return RET_ERROR_OOM;
 	}
 
+	r = dirs_getdirectory(fullfilename, &origdirectory);
+	if( RET_WAS_ERROR(r) ) {
+		dscfile_free(dsc);
+		free(origdirectory);
+		free(fullfilename);
+		return RET_ERROR_OOM;
+	}
+
 	// TODO: add rename/copy option to be activated when old and new
 	// basename differ
 
 	r = add_file(c, basename, fullfilename, ft_DSC, &f);
 	if( RET_WAS_ERROR(r) ) {
 		dscfile_free(dsc);
+		free(origdirectory);
 		free(fullfilename);
 		free(basename);
 		return r;
@@ -1915,6 +1939,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 	if( r == RET_NOTHING ) {
 		fprintf(stderr, "ERROR: '%s' already contains a file of the same name!\n", c->filename);
 		dscfile_free(dsc);
+		free(origdirectory);
 		free(fullfilename);
 		free(basename);
 		// TODO: check instead if it is already the same...
@@ -1932,40 +1957,49 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 		file = add_fileentry(c, basefilename,
 				strlen(basefilename),
 				true);
-		if( file == NULL )
+		if( file == NULL ) {
+			free(origdirectory);
 			return RET_ERROR_OOM;
+		}
 		dsc->files[i].file = file;
 		/* make them appear in the .changes file if not there: */
 		// TODO: add missing checksums here from file
 		if( file->checksumsfromchanges == NULL ) {
 			file->checksumsfromchanges = checksums_dup(checksums);
-			if( file->checksumsfromchanges == NULL )
+			if( file->checksumsfromchanges == NULL ) {
+				free(origdirectory);
 				return RET_ERROR_OOM;
+			}
 		} // TODO: otherwise warn if not the same
 	}
 
 	c->modified = true;
 	r = checksums_read(f->fullfilename, &f->realchecksums);
 	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
 		return r;
 	}
 	f->checksumsfromchanges = checksums_dup(f->realchecksums);
 	if( f->checksumsfromchanges == NULL ) {
+		free(origdirectory);
 		return RET_ERROR_OOM;;
 	}
-	/* for a "extended" dsc with section or priority or
-	 * for the future code for parsing .diff and .tar.gz  */
+	/* for a "extended" dsc with section or priority */
 	if( dsc->section != NULL ) {
 		free(f->section);
 		f->section = strdup(dsc->section);
-		if( f->section == NULL )
+		if( FAILEDTOALLOC(f->section) ) {
+			free(origdirectory);
 			return RET_ERROR_OOM;
+		}
 	}
 	if( dsc->priority != NULL ) {
 		free(f->priority);
 		f->priority = strdup(dsc->priority);
-		if( f->priority == NULL )
+		if( FAILEDTOALLOC(f->priority) ) {
+			free(origdirectory);
 			return RET_ERROR_OOM;
+		}
 	}
 	if( f->section == NULL || f->priority == NULL ) {
 		struct sourceextraction *extraction;
@@ -1974,8 +2008,10 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 		extraction = sourceextraction_init(
 				(f->section == NULL)?&f->section:NULL,
 				(f->priority == NULL)?&f->priority:NULL);
-		if( extraction == NULL )
+		if( FAILEDTOALLOC(extraction) ) {
+			free(origdirectory);
 			return RET_ERROR_OOM;
+		}
 		for( j = 0 ; j < dsc->filecount ; j++ ) {
 			sourceextraction_setpart(extraction, j,
 						dsc->files[j].basename);
@@ -1983,11 +2019,12 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 		while( sourceextraction_needs(extraction, &j) ) {
 			if( dsc->files[j].file->fullfilename == NULL ) {
 				/* look for file */
-				// TODO: add path of dsc here...
-				r = findfile(dsc->files[j].basename, c, NULL,
+				r = findfile(dsc->files[j].basename, c,
+					searchpath, origdirectory,
 					&dsc->files[j].file->fullfilename);
 				if( RET_WAS_ERROR(r) ) {
 					sourceextraction_abort(extraction);
+					free(origdirectory);
 					return r;
 				}
 				if( r == RET_NOTHING ||
@@ -1998,13 +2035,17 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 					dsc->files[j].file->fullfilename);
 			if( RET_WAS_ERROR(r) ) {
 				sourceextraction_abort(extraction);
+				free(origdirectory);
 				return r;
 			}
 		}
 		r = sourceextraction_finish(extraction);
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			free(origdirectory);
 			return r;
+		}
 	}
+	free(origdirectory);
 	/* update information in the main .changes file if not there already */
 	if( c->maintainer == NULL && dsc->maintainer != NULL ) {
 		c->maintainer = strdup(dsc->maintainer);
@@ -2019,13 +2060,13 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 	return RET_OK;
 }
 
-static retvalue adddscs(const char *changesfilename, struct changes *c, int argc, char **argv) {
+static retvalue adddscs(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of .dsc files to include expected!\n");
 		return RET_ERROR;
 	}
 	while( argc > 0 ) {
-		retvalue r = adddsc(c, argv[0]);
+		retvalue r = adddsc(c, argv[0], searchpath);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		argc--; argv++;
@@ -2037,7 +2078,7 @@ static retvalue adddscs(const char *changesfilename, struct changes *c, int argc
 		return RET_NOTHING;
 }
 
-static retvalue adddeb(struct changes *c, const char *debfilename) {
+static retvalue adddeb(struct changes *c, const char *debfilename, const struct strlist *searchpath) {
 	retvalue r;
 	struct fileentry *f;
 	struct binaryfile *deb;
@@ -2045,7 +2086,7 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	enum filetype type;
 	char *fullfilename, *basename;
 
-	r = findfile(debfilename, c, NULL, &fullfilename);
+	r = findfile(debfilename, c, searchpath, ".", &fullfilename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
@@ -2207,13 +2248,13 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	return RET_OK;
 }
 
-static retvalue adddebs(const char *changesfilename, struct changes *c, int argc, char **argv) {
+static retvalue adddebs(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of .deb files to include expected!\n");
 		return RET_ERROR;
 	}
 	while( argc > 0 ) {
-		retvalue r = adddeb(c, argv[0]);
+		retvalue r = adddeb(c, argv[0], searchpath);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		argc--; argv++;
@@ -2225,13 +2266,13 @@ static retvalue adddebs(const char *changesfilename, struct changes *c, int argc
 		return RET_NOTHING;
 }
 
-static retvalue addrawfile(struct changes *c, const char *filename) {
+static retvalue addrawfile(struct changes *c, const char *filename, const struct strlist *searchpath) {
 	retvalue r;
 	struct fileentry *f;
 	char *fullfilename, *basefilename;
 	struct checksums *checksums;
 
-	r = findfile(filename, c, NULL, &fullfilename);
+	r = findfile(filename, c, searchpath, ".", &fullfilename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
@@ -2299,13 +2340,13 @@ static retvalue addrawfile(struct changes *c, const char *filename) {
 	return RET_OK;
 }
 
-static retvalue addrawfiles(const char *changesfilename, struct changes *c, int argc, char **argv) {
+static retvalue addrawfiles(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of files to add (without further parsing) expected!\n");
 		return RET_ERROR;
 	}
 	while( argc > 0 ) {
-		retvalue r = addrawfile(c, argv[0]);
+		retvalue r = addrawfile(c, argv[0], searchpath);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		argc--; argv++;
@@ -2317,7 +2358,7 @@ static retvalue addrawfiles(const char *changesfilename, struct changes *c, int 
 		return RET_NOTHING;
 }
 
-static retvalue addfiles(const char *changesfilename, struct changes *c, int argc, char **argv) {
+static retvalue addfiles(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of files to add expected!\n");
 		return RET_ERROR;
@@ -2329,11 +2370,11 @@ static retvalue addfiles(const char *changesfilename, struct changes *c, int arg
 
 		if( (l > 4 && strcmp(filename+l-4, ".deb") == 0) ||
 		    (l > 5 && strcmp(filename+l-5, ".udeb") == 0) )
-			r = adddeb(c, filename);
+			r = adddeb(c, filename, searchpath);
 		else if( (l > 4 && strcmp(filename+l-4, ".dsc") == 0) )
-			r = adddsc(c, filename);
+			r = adddsc(c, filename, searchpath);
 		else
-			r = addrawfile(c, argv[0]);
+			r = addrawfile(c, argv[0], searchpath);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		argc--; argv++;
@@ -2370,7 +2411,7 @@ static retvalue setdistribution(const char *changesfilename, struct changes *c, 
 			CHANGES_WRITE_DISTRIBUTIONS);
 }
 
-static int execute_command(int argc, char **argv, const char *changesfilename, bool file_exists, bool create_file, struct changes *changesdata) {
+static int execute_command(int argc, char **argv, const char *changesfilename, const struct strlist *searchpath, bool file_exists, bool create_file, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
 
@@ -2405,7 +2446,8 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 		}
 	} else if( strcasecmp(command, "addrawfile") == 0 ) {
 		if( file_exists || create_file )
-			r = addrawfiles(changesfilename, changesdata, argc-1, argv+1);
+			r = addrawfiles(changesfilename, changesdata,
+					argc-1, argv+1, searchpath);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2413,7 +2455,8 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 		}
 	} else if( strcasecmp(command, "adddsc") == 0 ) {
 		if( file_exists || create_file )
-			r = adddscs(changesfilename, changesdata, argc-1, argv+1);
+			r = adddscs(changesfilename, changesdata,
+					argc-1, argv+1, searchpath);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2421,7 +2464,8 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 		}
 	} else if( strcasecmp(command, "adddeb") == 0 ) {
 		if( file_exists || create_file )
-			r = adddebs(changesfilename, changesdata, argc-1, argv+1);
+			r = adddebs(changesfilename, changesdata,
+					argc-1, argv+1, searchpath);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2429,7 +2473,8 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 		}
 	} else if( strcasecmp(command, "add") == 0 ) {
 		if( file_exists || create_file )
-			r = addfiles(changesfilename, changesdata, argc-1, argv+1);
+			r = addfiles(changesfilename, changesdata,
+					argc-1, argv+1, searchpath);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2437,7 +2482,8 @@ static int execute_command(int argc, char **argv, const char *changesfilename, b
 		}
 	} else if( strcasecmp(command, "setdistribution") == 0 ) {
 		if( file_exists )
-			r = setdistribution(changesfilename, changesdata, argc-1, argv+1);
+			r = setdistribution(changesfilename, changesdata,
+					argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2550,7 +2596,7 @@ int main(int argc,char *argv[]) {
 	if( !RET_WAS_ERROR(r) ) {
 		argc -= (optind+1);
 		argv += (optind+1);
-		r = execute_command(argc, argv, changesfilename,
+		r = execute_command(argc, argv, changesfilename, &searchpath,
 		                    file_exists, create_file, changesdata);
 	}
 	changes_free(changesdata);

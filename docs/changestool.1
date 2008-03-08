@@ -98,20 +98,26 @@ might choke in that case.
 .B adddeb \fIfilenames\fP
 Add the \fB.deb\fP and \fB.udeb\fP files specified by their filenames to
 the \fB.changes\fP file.
-Filenames without a slash will be searched in the directory the changes
-file resides in and in the directories specified by the \fB\-\-searchpath\fP.
+Filenames without a slash will be searched
+in the current directory,
+the directory the changes file resides in
+and in the directories specified by the \fB\-\-searchpath\fP.
 .TP
 .B adddsc \fIfilenames\fP
 Add the \fB.dsc\fP files specified by their filenames to
 the \fB.changes\fP file.
-Filenames without a slash will be searched in the directory the changes
-file resides in and in the directories specified by the \fB\-\-searchpath\fP.
+Filenames without a slash will be searched
+in the the current directory,
+in the directory the changes file resides in
+and in the directories specified by the \fB\-\-searchpath\fP.
 .TP
 .B addrawfile \fIfilenames\fP
 Add the files specified by their filenames to
 the \fB.changes\fP file.
-Filenames without a slash will be searched in the directory the changes
-file resides in and in the directories specified by the \fB\-\-searchpath\fP.
+Filenames without a slash will be searched
+in the currect directory,
+in the directory the changes file resides in
+and in the directories specified by the \fB\-\-searchpath\fP.
 .TP
 .B add \fIfilenames\fP
 Behave like \fBadddsc\fP for filenames ending in \fB.dsc\fP,
