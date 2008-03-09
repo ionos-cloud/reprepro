@@ -29,10 +29,6 @@ char *calc_downloadedlistpattern(const char *codename);
 retvalue calc_dirconcats(const char *directory, const struct strlist *basefilenames,/*@out@*/struct strlist *files);
 retvalue calc_inplacedirconcats(const char *directory, struct strlist *);
 
-/* split a "<md5> <size> <filename>" into md5sum and filename */
-struct checksums;
-retvalue calc_parsefileline(const char *fileline, /*@out@*/char **filename, /*@out@*//*@null@*/struct checksums **);
-
 /* move over a version number, if epochsuppresed is true, colons may happen even without epoch there */
 void names_overversion(const char **version, bool epochsuppressed);
 

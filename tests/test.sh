@@ -1204,8 +1204,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Error in parsing md5hash or missing space afterwards!
-*=Error was parsing dscfilename_fileversion~.dsc
+*=Error parsing md5 checksum line ' md5sumindsc sizeindsc strangefile' within 'dscfilename_fileversion~.dsc'
 -v0*=There have been errors!
 EOF
 sed -i "s/ md5sumindsc / dddddddddddddddddddddddddddddddd /" i/dscfilename_fileversion~.dsc
@@ -1217,8 +1216,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Error in parsing size or missing space afterwards!
-*=Error was parsing dscfilename_fileversion~.dsc
+*=Error parsing md5 checksum line ' dddddddddddddddddddddddddddddddd sizeindsc strangefile' within 'dscfilename_fileversion~.dsc'
 -v0*=There have been errors!
 EOF
 sed -i "s/ sizeindsc / 666 /" i/dscfilename_fileversion~.dsc

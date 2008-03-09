@@ -25,7 +25,6 @@
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
-#include "checksums.h"
 #include "names.h"
 
 extern int verbose;
@@ -272,76 +271,6 @@ void names_overversion(const char **version, bool epochsuppressed) {
 			|| *n == '-' || *n == '+' || (hadepoch && *n == ':') )
 		n++;
 	*version = n;
-}
-
-/* split a "<md5> <size> <filename>" into md5sum and filename */
-retvalue calc_parsefileline(const char *fileline, char **filename, struct checksums **checksums) {
-	const char *md5,*md5end,*size,*sizeend,*fn,*fnend;
-	char *filen;
-
-	assert( fileline != NULL );
-	if( *fileline == '\0' )
-		return RET_NOTHING;
-
-	/* the md5sums begins after the (perhaps) heading spaces ...  */
-	md5 = fileline;
-	while( xisspace(*md5) )
-		md5++;
-	if( *md5 == '\0' )
-		return RET_NOTHING;
-
-	/* ... and ends with the following spaces. */
-	md5end = md5;
-	while( (*md5end >= '0' && *md5end <= '9') ||
-			(*md5end >= 'a' && *md5end <= 'f' ) ||
-			(*md5end >= 'A' && *md5end <= 'F' ) )
-		md5end++;
-	if( *md5end == '\0' ) {
-		fprintf(stderr, "Expecting more data after md5sum!\n");
-		return RET_ERROR;
-	}
-	if( !xisspace(*md5end) ) {
-		fprintf(stderr, "Error in parsing md5hash or missing space afterwards!\n");
-		return RET_ERROR;
-	}
-	/* Then the size of the file is expected: */
-	size = md5end;
-	while( xisspace(*size) )
-		size++;
-	sizeend = size;
-	while( xisdigit(*sizeend) )
-		sizeend++;
-	if( !xisspace(*sizeend) ) {
-		fprintf(stderr,"Error in parsing size or missing space afterwards!\n");
-		return RET_ERROR;
-	}
-	/* Then the filename */
-	fn = sizeend;
-	while( xisspace(*fn) )
-		fn++;
-	fnend = fn;
-	while( *fnend != '\0' && !xisspace(*fnend) )
-		fnend++;
-
-	filen = strndup(fn,fnend-fn);
-	if( filen == NULL )
-		return RET_ERROR_OOM;
-	if( checksums != NULL ) {
-		retvalue r;
-
-		r = checksums_set(checksums, md5, md5end - md5,
-				size, sizeend - size);
-		if( RET_WAS_ERROR(r) ) {
-			free(filen);
-			return r;
-		}
-	}
-	if( filename != NULL )
-		*filename = filen;
-	else
-		free(filen);
-
-	return RET_OK;
 }
 
 char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion) {

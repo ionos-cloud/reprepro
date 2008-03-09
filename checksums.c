@@ -199,6 +199,66 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	return RET_OK;
 }
 
+struct hashes {
+	struct hash_data {
+		const char *start; size_t len;
+	} hashes[cs_COUNT];
+};
+
+static retvalue checksums_initialize(/*@out@*/struct checksums **checksums_p, const struct hash_data *hashes) {
+	char *d;
+	struct checksums *n;
+	enum checksumtype type;
+	size_t len;
+
+	/* everything assumes yet that those are available */
+	if( hashes[cs_length].start == NULL || hashes[cs_md5sum].start == NULL ) {
+		*checksums_p = NULL;
+		return RET_ERROR;
+	}
+
+	len = hashes[cs_md5sum].len + 1 + hashes[cs_length].len;
+
+	for( type = cs_firstEXTENDED ; type < cs_hashCOUNT ; type++ ) {
+		if( hashes[type].start == NULL )
+			continue;
+		len += strlen(" :x:") + hashes[type].len;
+	}
+
+	n = malloc(sizeof(struct checksums) + len + 1);
+	if( FAILEDTOALLOC(n) )
+		return RET_ERROR_OOM;
+
+	memset(n, 0, sizeof(struct checksums));
+	d = n->representation;
+
+	for( type = cs_firstEXTENDED ; type < cs_hashCOUNT ; type++ ) {
+		if( hashes[type].start == NULL )
+			continue;
+		*(d++) = ':';
+		*(d++) = '1' + (char)(type - cs_firstEXTENDED);
+		*(d++) = ':';
+		n->parts[type].ofs = d - n->representation;
+		n->parts[type].len = (hashlen_t)hashes[type].len;
+		memcpy(d, hashes[type].start, hashes[type].len);
+		d += hashes[type].len;
+		*(d++) = ' ';
+	}
+	n->parts[cs_md5sum].ofs = d - n->representation;
+	n->parts[cs_md5sum].len = (hashlen_t)hashes[cs_md5sum].len;
+	memcpy(d, hashes[cs_md5sum].start, hashes[cs_md5sum].len);
+	d += hashes[cs_md5sum].len;
+	*(d++) = ' ';
+	n->parts[cs_length].ofs = d - n->representation;
+	n->parts[cs_length].len = (hashlen_t)hashes[cs_length].len;
+	memcpy(d, hashes[cs_length].start, hashes[cs_length].len);
+	d += hashes[cs_length].len;
+	*(d++) = '\0';
+	assert( (size_t)(d-n->representation) == len + 1 );
+	*checksums_p = n;
+	return RET_OK;
+}
+
 retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum) {
 	size_t md5len;
 	retvalue r;
@@ -548,51 +608,124 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 	retvalue r;
 	int i;
 	struct checksumsarray a;
-	const struct strlist *lines = &l[cs_md5sum];
-	assert( lines != NULL );
+	struct strlist filenames;
+	size_t count = l[cs_md5sum].count;
+	struct hashes *parsed;
+	enum checksumtype cs;
 
-	/* +1 because the caller is likely include an additional file later */
-	r = strlist_init_n(lines->count+1, &a.names);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( lines->count == 0 ) {
-		a.checksums = NULL;
-		checksumsarray_move(out, &a);
-		return RET_OK;
-	}
-	a.checksums = calloc(lines->count, sizeof(struct checksums *));
-	if( a.checksums == NULL ) {
-		strlist_done(&a.names);
+	parsed = calloc(count, sizeof(struct hashes));
+	if( FAILEDTOALLOC(parsed) ) {
 		return RET_ERROR_OOM;
 	}
-	for( i = 0 ; i < lines->count ; i++ ) {
-		char *filename;
+	strlist_init_n(count + 1, &filenames);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		for( i = 0 ; i < l[cs].count ; i++ ) {
+			const char *line = l[cs].values[i];
+			const char *p = line,
+			      *hash_start, *size_start, *filename;
+			size_t hash_len, size_len;
+			int fileofs;
 
-		r = calc_parsefileline(lines->values[i], &filename, &a.checksums[i]);
-		if( RET_WAS_ERROR(r) ) {
-			if( r != RET_ERROR_OOM )
-				fprintf(stderr, "Error was parsing %s\n",
+			while( *p == ' ' || *p == '\t' )
+				p++;
+			hash_start = p;
+			while( (*p >= '0' && *p <= '9') ||
+					(*p >= 'a' && *p <= 'f' ) )
+				p++;
+			hash_len = p - hash_start;
+			while( *p == ' ' || *p == '\t' )
+				p++;
+			while( *p == '0' && p[1] >= '0' && p[1] <= '9' )
+				p++;
+			size_start = p;
+			while( (*p >= '0' && *p <= '9') )
+				p++;
+			size_len = p - size_start;
+			while( *p == ' ' || *p == '\t' )
+				p++;
+			filename = p;
+			while( *p != '\0' && *p != ' ' && *p != '\t'
+			       && *p != '\r' && *p != '\n' )
+				p++;
+			if( unlikely( size_len == 0 || hash_len == 0
+				   || filename == p || *p != '\0' ) ) {
+				fprintf(stderr,
+"Error parsing %s checksum line ' %s' within '%s'\n",
+						hash_name[cs], line,
 						filenametoshow);
-			if( i == 0 ) {
-				free(a.checksums);
-				a.checksums = NULL;
+				strlist_done(&filenames);
+				free(parsed);
+				return RET_ERROR;
+			} else if( cs == cs_md5sum ) {
+				fileofs = filenames.count;
+				r = strlist_add_dup(&filenames, filename);
+				if( RET_WAS_ERROR(r) ) {
+					strlist_done(&filenames);
+					free(parsed);
+					return r;
+				}
+				parsed[fileofs].hashes[cs_md5sum].start = hash_start;
+				parsed[fileofs].hashes[cs_md5sum].len = hash_len;
+				parsed[fileofs].hashes[cs_length].start = size_start;
+				parsed[fileofs].hashes[cs_length].len = size_len;
+			} else {
+				struct hash_data *hashes;
+
+				// TODO: suboptimal, as we know where
+				// it likely is...
+				fileofs = strlist_ofs(&filenames, filename);
+				if( fileofs == -1 ) {
+				// TODO: future versions might add files
+				// her to the previous know ones instead,
+				// once md5sum hash may be empty...
+					fprintf(stderr,
+"WARNING: %s checksum line ' %s' in '%s' has no corresponding Files line!\n",
+						hash_name[cs], line,
+						filenametoshow);
+				}
+				hashes = parsed[fileofs].hashes;
+				if( unlikely( hashes[cs_length].len
+				              != size_len
+				          || memcmp(hashes[cs_length].start,
+				               size_start, size_len) != 0) ) {
+					fprintf(stderr,
+"WARNING: %s checksum line ' %s' in '%s' contradicts 'Files' filesize!\n",
+						hash_name[cs], line,
+						filenametoshow);
+					continue;
+				}
+				hashes[cs].start = hash_start;
+				hashes[cs].len = hash_len;
 			}
-			checksumsarray_done(&a);
-			return r;
 		}
-		r = strlist_add(&a.names, filename);
+	}
+	assert( count == filenames.count );
+
+	if( filenames.count == 0 ) {
+		strlist_done(&filenames);
+		strlist_init(&out->names);
+		out->checksums = NULL;
+		free(parsed);
+		return RET_OK;
+	}
+	a.checksums = calloc(filenames.count+1, sizeof(struct checksums *));
+	if( FAILEDTOALLOC(a.checksums) ) {
+		strlist_done(&filenames);
+		free(parsed);
+		return RET_ERROR_OOM;
+	}
+	strlist_move(&a.names, &filenames);
+
+	for( i = 0 ; i < a.names.count ; i++ ) {
+		r = checksums_initialize(a.checksums + i, parsed[i].hashes);
 		if( RET_WAS_ERROR(r) ) {
-			checksums_free(a.checksums[i]);
-			a.checksums[i] = NULL;
-			if( i == 0 ) {
-				free(a.checksums);
-				a.checksums = NULL;
-			}
+			free(parsed);
 			checksumsarray_done(&a);
 			return r;
 		}
 	}
 	checksumsarray_move(out, &a);
+	free(parsed);
 	return RET_OK;
 }
 

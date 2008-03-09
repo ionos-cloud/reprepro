@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -36,6 +36,51 @@
 
 extern int verbose;
 
+/* split a "<md5> <size> <filename>" into md5sum and filename */
+static retvalue calc_parsefileline(const char *fileline, /*@out@*/char **filename) {
+	const char *p, *fn, *fnend;
+	char *filen;
+
+	assert( fileline != NULL );
+	if( *fileline == '\0' )
+		return RET_NOTHING;
+
+	/* the md5sums begins after the (perhaps) heading spaces ...  */
+	p = fileline;
+	while( *p != '\0' && (*p == ' ' || *p == '\t') )
+		p++;
+	if( *p == '\0' )
+		return RET_NOTHING;
+	/* ... and ends with the following spaces. */
+	while( *p != '\0' && !(*p == ' ' || *p == '\t') )
+		p++;
+	if( *p == '\0' ) {
+		fprintf(stderr, "Expecting more data after md5sum!\n");
+		return RET_ERROR;
+	}
+	/* Then the size of the file is expected: */
+	while( (*p == ' ' || *p == '\t') )
+		p++;
+	while( *p !='\0' && !(*p == ' ' || *p == '\t') )
+		p++;
+	if( *p == '\0' ) {
+		fprintf(stderr, "Expecting more data after size!\n");
+		return RET_ERROR;
+	}
+	/* Then the filename */
+	fn = p;
+	while( (*fn == ' ' || *fn == '\t') )
+		fn++;
+	fnend = fn;
+	while( *fnend != '\0' && !(*fnend == ' ' || *fnend == '\t') )
+		fnend++;
+
+	filen = strndup(fn, fnend-fn);
+	if( FAILEDTOALLOC(filen) )
+		return RET_ERROR_OOM;
+	*filename = filen;
+	return RET_OK;
+}
 
 static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct strlist *basenames) {
 	int i;
@@ -51,7 +96,7 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 		char *basename;
 		const char *fileline=filelines->values[i];
 
-		r = calc_parsefileline(fileline,&basename,NULL);
+		r = calc_parsefileline(fileline, &basename);
 		if( RET_WAS_ERROR(r) )
 			break;
 
