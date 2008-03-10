@@ -996,10 +996,11 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
-static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const struct checksums **checksums_p, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
+static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, struct checksums **checksums_p, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
 	struct candidate_file *f;
 	const struct checksums * const checksums = *checksums_p;
 	retvalue r;
+	bool improves;
 
 	f = c->files;
 	while( f != NULL && (f->checksums == NULL ||
@@ -1029,16 +1030,21 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 		/* otherwise proceed with the found file: */
 	}
 
-	// TODO: is the error message sensible?
-	// perhaps currently, but in the future when .changes or .dsc
-	// can have additional hashes, they might not conflict with each
-	// other, but with the file's hash previously computed...
-	if( !checksums_check(f->checksums, checksums, NULL) ) {
+	if( !checksums_check(f->checksums, checksums, &improves) ) {
 		fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
 				basename,
 				BASENAME(i, c->ofs),
 				BASENAME(i, package_ofs));
 		return RET_ERROR;
+	}
+	if( improves ) {
+		/* put additional checksums from the .dsc to the information
+		 * found in .changes, so that a file matching those in .changes
+		 * but not in .dsc is detected */
+		r = checksums_combine(&f->checksums, checksums);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	r = files_canadd(database, filekey, f->checksums);
 	if( r == RET_NOTHING ) {
