@@ -996,8 +996,9 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
-static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const struct checksums *checksums, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
+static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const struct checksums **checksums_p, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
 	struct candidate_file *f;
+	const struct checksums * const checksums = *checksums_p;
 	retvalue r;
 
 	f = c->files;
@@ -1054,6 +1055,10 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 			return r;
 		// TODO: update checksums to now received checksums?
 		*foundfile_p = f;
+	}
+	if( !RET_WAS_ERROR(r) && !checksums_iscomplete(checksums) ) {
+		/* update checksums so the source index can show them */
+		r = checksums_combine(checksums_p, f->checksums);
 	}
 	return r;
 }
@@ -1138,7 +1143,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 		r = prepare_source_file(database, i, c,
 				package->filekeys.values[j],
 				file->dsc.files.names.values[j],
-				file->dsc.files.checksums[j],
+				&file->dsc.files.checksums[j],
 				file->ofs, &package->files[j]);
 		if( RET_WAS_ERROR(r) )
 			return r;

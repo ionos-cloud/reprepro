@@ -335,8 +335,10 @@ mkdir i
 testrun "" -b . processincoming default
 (cd i ; PACKAGE=bird EPOCH="" VERSION=1 REVISION="" SECTION="tasty" genpackage.sh)
 echo returned: $?
-DSCMD5S="$(md5sum i/bird_1.dsc | cut -d' ' -f1) $(stat -c '%s' i/bird_1.dsc)"
-TARMD5S="$(md5sum i/bird_1.tar.gz | cut -d' ' -f1) $(stat -c '%s' i/bird_1.tar.gz)"
+DSCMD5S="$(mdandsize i/bird_1.dsc)"
+TARMD5S="$(mdandsize i/bird_1.tar.gz)"
+DSCSHA1S="$(sha1andsize i/bird_1.dsc)"
+TARSHA1S="$(sha1andsize i/bird_1.tar.gz)"
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -445,7 +447,11 @@ Directory: pool/dog/b/bird
 'f a
  $DSCMD5S bird_1.dsc
 .
+g/^Checksums-/.,$d
 $ a
+Checksums-Sha1: 
+ $DSCSHA1S bird_1.dsc
+ $TARSHA1S bird_1.tar.gz
 
 .
 w
@@ -562,7 +568,11 @@ Directory: pool/cat/b/bird
 'f a
  $DSCMD5S bird_1.dsc
 .
+g/^Checksums-/.,$d
 $ a
+Checksums-Sha1: 
+ $DSCSHA1S bird_1.dsc
+ $TARSHA1S bird_1.tar.gz
 
 .
 w
@@ -570,6 +580,8 @@ q
 EOF
 BIRDDSCMD5S="$DSCMD5S"
 BIRDTARMD5S="$TARMD5S"
+BIRDDSCSHA1S="$DSCSHA1S"
+BIRDTARSHA1S="$TARSHA1S"
 gunzip -c dists/B/cat/source/Sources.gz > results
 dodiff results.expected results
 
@@ -1273,8 +1285,10 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz" >> i/dscfilename_fileversion~.dsc
-DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc)"
+DSCSHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
 DSCFILENAMEMD5S="$DSCMD5S"
+DSCFILENAMESHA1S="$DSCSHA1S"
 echo -e '$-1,$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
@@ -1344,7 +1358,11 @@ Directory: pool/dog/b/bird
 'f a
  $BIRDDSCMD5S bird_1.dsc
 .
+g/^Checksums-/.,$d
 $ a
+Checksums-Sha1: 
+ $BIRDDSCSHA1S bird_1.dsc
+ $BIRDTARSHA1S bird_1.tar.gz
 
 .
 w
@@ -1527,6 +1545,9 @@ Directory: pool/dog/d/dscfilename
 Files: 
  $DSCFILENAMEMD5S dscfilename_newversion~.dsc
  31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz
+Checksums-Sha1: 
+ $DSCFILENAMESHA1S dscfilename_newversion~.dsc
+ 4453da6ca46859b207c5b55af6213ff8369cd383 33 strangefile_xyz
 
 EOF
 dodiff results.expected results
