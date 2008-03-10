@@ -1071,7 +1071,6 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find 'Standards-Version' field in dscfilename_fileversion~.dsc!
 *=Missing 'Version' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF

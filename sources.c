@@ -501,9 +501,6 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	/* only recommended, so ignore errors with this: */
-	(void) checkvalue(filenametoshow, dsc->control, "Standards-Version");
-
 	r = getvalue(filenametoshow, dsc->control, "Version", &dsc->version);
 	if( RET_WAS_ERROR(r) )
 		return r;

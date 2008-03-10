@@ -2,6 +2,8 @@
 	* write Checksums-Sha1 to Sources.gz when available and
 	remove Checksums-Sha256 to avoid problems with not yet being
 	able to add the .dsc file.
+	* Do not warn about missing Standards-Version as newer dpkg-source
+	no longer include them.
 
 2008-03-09  Bernhard R. Link <brlink@debian.org>
 	* read Checksums-Sha1 in .dsc files
