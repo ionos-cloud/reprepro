@@ -676,6 +676,26 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	return newchunk;
 }
 
+struct fieldtoadd *aodfield_new(const char *field, const char *data, struct fieldtoadd *next) {
+	struct fieldtoadd *n;
+
+	assert(field != NULL);
+
+	n = malloc(sizeof(struct fieldtoadd));
+ 	if( n == NULL ) {
+ 		addfield_free(next);
+ 		return NULL;
+ 	}
+	n->field = field;
+	n->len_field = strlen(field);
+	n->data = data;
+	if( data != NULL )
+		n->len_data = strlen(data);
+	else
+		n->len_data = 0;
+	n->next = next;
+	return n;
+}
 struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next) {
 	struct fieldtoadd *n;
 

@@ -1148,8 +1148,9 @@ stderr
 -v0*=There have been errors!
 EOF
 echo -e "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
-DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc )"
 OLDDSCFILENAMEMD5S="$DSCMD5S"
+OLDDSCFILENAMESHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
 checknolog logfile
@@ -1360,6 +1361,8 @@ Section: dummy
 Directory: pool/dog/d/dscfilename
 Files: 
  $OLDDSCFILENAMEMD5S dscfilename_versionindsc.dsc
+Checksums-Sha1: 
+ $OLDDSCFILENAMESHA1S dscfilename_versionindsc.dsc
 
 EOF
 dodiff results.expected results

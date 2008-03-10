@@ -729,6 +729,75 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 	return RET_OK;
 }
 
+retvalue checksumsarray_genfilelist(const struct checksumsarray *a, char **md5_p, char **sha1_p, char **sha256_p) {
+	size_t lens[cs_hashCOUNT];
+	bool missing[cs_hashCOUNT];
+	char *filelines[cs_hashCOUNT];
+	int i;
+	enum checksumtype cs;
+	size_t filenamelen[a->names.count];
+
+	memset(missing, 0, sizeof(missing));
+	memset(lens, 0, sizeof(lens));
+
+	for( i=0 ; i < a->names.count ; i++ ) {
+		const struct checksums *checksums = a->checksums[i];
+		size_t len;
+
+		filenamelen[i] = strlen(a->names.values[i]);
+
+		len = 4 + filenamelen[i] + checksums->parts[cs_length].len;
+		assert( checksums != NULL );
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+			if( checksums->parts[cs].len == 0 )
+				missing[cs] = true;
+			lens[cs] += len + checksums->parts[cs].len;
+		}
+	}
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		if( missing[cs] )
+			filelines[cs] = NULL;
+		else {
+			filelines[cs] = malloc(lens[cs] + 1);
+			if( FAILEDTOALLOC(filelines[cs]) ) {
+				while( cs-- > cs_md5sum )
+					free(filelines[cs]);
+				return RET_ERROR_OOM;
+			}
+		}
+	}
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		char *p;
+
+		if( missing[cs] )
+			continue;
+
+		p = filelines[cs];
+		*(p++) = '\n';
+		for( i=0 ; i < a->names.count ; i++ ) {
+			const struct checksums *c = a->checksums[i];
+
+			*(p++) = ' ';
+			memcpy(p, checksums_hashpart(c, cs), c->parts[cs].len);
+			p +=  c->parts[cs].len;
+			*(p++) = ' ';
+			memcpy(p, checksums_hashpart(c, cs_length),
+					c->parts[cs_length].len);
+			p +=  c->parts[cs_length].len;
+			*(p++) = ' ';
+			memcpy(p, a->names.values[i], filenamelen[i]);
+			p += filenamelen[i];
+			*(p++) = '\n';
+		}
+		*(--p) = '\0';
+		assert( (size_t)(p - filelines[cs]) == lens[cs]);
+	}
+	*md5_p = filelines[cs_md5sum];
+	*sha1_p = filelines[cs_sha1sum];
+	*sha256_p = NULL;
+	return RET_OK;
+}
+
 void checksumsarray_move(/*@out@*/struct checksumsarray *destination, struct checksumsarray *origin) {
 	strlist_move(&destination->names, &origin->names);
 	destination->checksums = origin->checksums;

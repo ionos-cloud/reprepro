@@ -114,52 +114,6 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 	return r;
 }
 
-retvalue sources_calcfilelines(const struct checksumsarray *files, char **item) {
-	size_t len;
-	int i;
-	char *result;
-
-	assert( files != NULL );
-
-	len = 1;
-	for( i=0 ; i < files->names.count ; i++ ) {
-		const char *md5, *size;
-		size_t md5len = 0, sizelen = 0;
-		bool found;
-
-		found = checksums_gethashpart(files->checksums[i], cs_md5sum,
-				&md5, &md5len, &size, &sizelen);
-		assert( found );
-
-		len += 4+strlen(files->names.values[i])+md5len+sizelen;
-	}
-	result = malloc(len*sizeof(char));
-	if( result == NULL )
-		return RET_ERROR_OOM;
-	*item = result;
-	*(result++) = '\n';
-	for( i=0 ; i < files->names.count ; i++ ) {
-		const char *md5, *size;
-		size_t md5len, sizelen;
-		bool found;
-
-		*(result++) = ' ';
-		found = checksums_gethashpart(files->checksums[i], cs_md5sum,
-				&md5, &md5len, &size, &sizelen);
-		assert( found );
-		memcpy(result, md5, md5len); result += md5len;
-		*(result++) = ' ';
-		memcpy(result, size, sizelen); result += sizelen;
-		*(result++) = ' ';
-		strcpy(result, files->names.values[i]);
-		result += strlen(files->names.values[i]);
-		*(result++) = '\n';
-	}
-	*(--result) = '\0';
-	assert( (size_t)(result - *item) == len-1 );
-	return RET_OK;
-}
-
 retvalue sources_getname(UNUSED(struct target *t),const char *control,char **packagename){
 	retvalue r;
 
@@ -186,7 +140,7 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 }
 
 static const char *source_checksum_names[cs_hashCOUNT] = {
-	"Files", "Checksums-sha1"
+	"Files", "Checksums-Sha1"
 };
 
 retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
@@ -601,7 +555,7 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	struct fieldtoadd *name;
 	struct fieldtoadd *replace;
 	char *newchunk,*newchunk2;
-	char *newfilelines;
+	char *newfilelines, *newsha1lines, *newsha256lines;
 
 	assert(section != NULL && priority != NULL);
 
@@ -617,12 +571,18 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	if( newchunk2 == NULL )
 		return RET_ERROR_OOM;
 
-	r = sources_calcfilelines(&dsc->files, &newfilelines);
+	r = checksumsarray_genfilelist(&dsc->files,
+			&newfilelines, &newsha1lines, &newsha256lines);
 	if( RET_WAS_ERROR(r) ) {
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
-	replace = addfield_new("Files",newfilelines,NULL);
+	assert( newfilelines != NULL );
+	replace = aodfield_new("Checksums-Sha256", newsha256lines, NULL);
+	if( replace != NULL )
+		replace = aodfield_new("Checksums-Sha1", newsha1lines, replace);
+	if( replace != NULL )
+		replace = addfield_new("Files", newfilelines, replace);
 	if( replace != NULL )
 		replace = addfield_new("Directory",directory,replace);
 	if( replace != NULL )
@@ -634,12 +594,16 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	if( replace != NULL )
 		replace = override_addreplacefields(override,replace);
 	if( replace == NULL ) {
+		free(newsha256lines);
+		free(newsha1lines);
 		free(newfilelines);
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
 
 	newchunk  = chunk_replacefields(newchunk2,replace,"Files");
+	free(newsha256lines);
+	free(newsha1lines);
 	free(newfilelines);
 	free(newchunk2);
 	addfield_free(replace);

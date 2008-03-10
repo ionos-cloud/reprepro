@@ -50,6 +50,7 @@ struct fieldtoadd {
  * replacing older fields of this name, if they are already there. */
 /*@null@*/ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis);
 /*@null@*/struct fieldtoadd *deletefield_new(/*@dependent@*/const char *field,/*@only@*//*@null@*/struct fieldtoadd *next);
+/*@null@*/struct fieldtoadd *aodfield_new(/*@dependent@*/const char *field, /*@dependent@*//*@null@*/const char *data, /*@only@*/struct fieldtoadd *next);
 /*@null@*/struct fieldtoadd *addfield_new(/*@dependent@*/const char *field,/*@dependent@*//*@null@*/const char *data,/*@only@*/struct fieldtoadd *next);
 /*@null@*/struct fieldtoadd *addfield_newn(/*@dependent@*/const char *field,/*@dependent@*//*@null@*/const char *data,size_t len,/*@only@*/struct fieldtoadd *next);
 void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *f);
