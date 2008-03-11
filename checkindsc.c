@@ -241,7 +241,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			dsc_free(pkg, database);
 			return RET_ERROR_OOM;
 		}
-		for( i = 1 ; i < pkg->dsc.files.names.count ; i ++ )
+		for( i = 0 ; i < pkg->dsc.files.names.count ; i ++ )
 			sourceextraction_setpart(extraction, i,
 					pkg->dsc.files.names.values[i]);
 		while( sourceextraction_needs(extraction, &i) ) {
