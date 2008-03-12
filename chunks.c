@@ -612,7 +612,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	result = RET_NOTHING;
 	do {
 		/* are we at the place to add the fields yet? */
-		if(!fieldsadded && strncmp(c,beforethis,len_beforethis) == 0
+		if(!fieldsadded && strncasecmp(c,beforethis,len_beforethis) == 0
 				&& c[len_beforethis] == ':' ) {
 			/* add them now: */
 			f = toadd;
@@ -634,7 +634,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 		/* is this one of the fields we added/will add? */
 		f = toadd;
 		while( f != NULL ) {
-			if(strncmp(c,f->field,f->len_field) == 0
+			if(strncasecmp(c,f->field,f->len_field) == 0
 					&& c[f->len_field] == ':' )
 				break;
 			f = f->next;

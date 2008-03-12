@@ -1,3 +1,7 @@
+2008-03-12  Bernhard R. Link <brlink@debian.org>
+	* Bugfix: When replacing fields only those matching with
+	the same case were replaced.
+
 2008-03-10  Bernhard R. Link <brlink@debian.org>
 	* write Checksums-Sha1 to Sources.gz when available and
 	remove Checksums-Sha256 to avoid problems with not yet being
