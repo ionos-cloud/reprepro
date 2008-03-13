@@ -1703,9 +1703,36 @@ static bool isarg(int argc, char **argv, const char *name) {
 	return false;
 }
 
+static bool improvedchecksum_supported(const struct changes *c, bool improvedfilehashes[cs_hashCOUNT]) {
+	enum checksumtype cs;
+	struct fileentry *file;
+
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		if( !improvedfilehashes[cs] )
+			continue;
+		for( file = c->files; file != NULL ; file = file->next ) {
+			const char *dummy1, *dummy3;
+			size_t dummy2, dummy4;
+
+			if( file->checksumsfromchanges == NULL )
+				continue;
+
+			if( !checksums_gethashpart(file->checksumsfromchanges,
+						cs,
+						&dummy1, &dummy2,
+						&dummy3, &dummy4))
+				break;
+		}
+		if( file == NULL )
+			return true;
+	}
+	return false;
+}
+
 static retvalue updatechecksums(const char *changesfilename, struct changes *c, int argc, char **argv) {
 	retvalue r;
 	struct fileentry *file;
+	bool improvedfilehashes[cs_hashCOUNT];
 
 	r = getchecksums(c);
 	if( RET_WAS_ERROR(r) )
@@ -1713,6 +1740,7 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 	/* first update all .dsc files and perhaps recalculate their checksums */
 	for( file = c->files; file != NULL ; file = file->next ) {
 		unsigned int i;
+		bool improvedhash[cs_hashCOUNT];
 
 		if( file->type != ft_DSC )
 			continue;
@@ -1723,6 +1751,8 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 					file->basename);
 			continue;
 		}
+		memset(improvedhash, 0, sizeof(improvedhash));
+
 		assert( file->fullfilename != NULL );
 		for( i = 0 ; i < file->dsc->expected.names.count ; i++ ) {
 			const char *basename = file->dsc->expected.names.values[i];
@@ -1764,7 +1794,9 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 					continue;
 				}
 				/* future versions might be able to store them in the dsc */
-				r = checksums_combine(expected_p, sfile->realchecksums);
+				r = checksums_combine(expected_p,
+						sfile->realchecksums,
+						improvedhash);
 				if( RET_WAS_ERROR(r) )
 					return r;
 				file->dsc->checksumsimproved = true;
@@ -1781,6 +1813,8 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 				return RET_ERROR_OOM;
 			file->dsc->modified = true;
 		}
+		checksumsarray_resetunsupported(&file->dsc->expected,
+				improvedhash);
 		// TODO: once .dsc files can store shas, decide if it needs
 		// an update for those here:
 		if( file->dsc->modified ) {
@@ -1789,6 +1823,7 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 				return r;
 		}
 	}
+	memset(improvedfilehashes, 0, sizeof(improvedfilehashes));
 	for( file = c->files; file != NULL ; file = file->next ) {
 		bool improves;
 
@@ -1804,7 +1839,7 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 				continue;
 			/* future versions might store sha sums in .changes: */
 			r = checksums_combine(&file->checksumsfromchanges,
-					file->realchecksums);
+					file->realchecksums, improvedfilehashes);
 			if( RET_WAS_ERROR(r) )
 				return r;
 			c->checksumsimproved = true;
@@ -1823,9 +1858,9 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 	}
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
+	} else if( improvedchecksum_supported(c, improvedfilehashes) ) {
+		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
 	} else
-		// TODO: once .changes files can store shas, decide if it needs
-		// an update for those here:
 		return RET_NOTHING;
 }
 
