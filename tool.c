@@ -129,7 +129,7 @@ struct dscfile {
 	// TODO: check Architectures?
 	struct checksumsarray expected;
 	struct fileentry **uplink;
-	bool parsed, modified, checksumsimproved;
+	bool parsed, modified;
 };
 
 static void dscfile_free(struct dscfile *p) {
@@ -186,7 +186,7 @@ struct changes {
 		bool missedinheader, uncheckable;
 	} *binaries;
 	struct fileentry *files;
-	bool modified, checksumsimproved;
+	bool modified;
 };
 
 static void fileentry_free(struct fileentry *f) {
@@ -1738,6 +1738,13 @@ static bool improvedchecksum_supported(const struct changes *c, bool improvedfil
 	return false;
 }
 
+static bool anyset(bool *list, size_t count) {
+	while( count > 0 )
+		if( list[count--] )
+			return true;
+	return false;
+}
+
 static retvalue updatechecksums(const char *changesfilename, struct changes *c, int argc, char **argv) {
 	retvalue r;
 	struct fileentry *file;
@@ -1808,7 +1815,6 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 						improvedhash);
 				if( RET_WAS_ERROR(r) )
 					return r;
-				file->dsc->checksumsimproved = true;
 				continue;
 			}
 			fprintf(stderr,
@@ -1824,9 +1830,7 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 		}
 		checksumsarray_resetunsupported(&file->dsc->expected,
 				improvedhash);
-		// TODO: once .dsc files can store shas, decide if it needs
-		// an update for those here:
-		if( file->dsc->modified ) {
+		if( file->dsc->modified | anyset(improvedhash, cs_hashCOUNT) ) {
 			r = write_dsc_file(file, DSC_WRITE_FILES);
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -1851,7 +1855,6 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 					file->realchecksums, improvedfilehashes);
 			if( RET_WAS_ERROR(r) )
 				return r;
-			c->checksumsimproved = true;
 			continue;
 		}
 		fprintf(stderr,
