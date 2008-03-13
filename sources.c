@@ -139,10 +139,6 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 	return r;
 }
 
-static const char *source_checksum_names[cs_hashCOUNT] = {
-	"Files", "Checksums-Sha1"
-};
-
 retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	retvalue r;
 	char *origdirectory, *directory, *mychunk;

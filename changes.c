@@ -27,7 +27,7 @@
 #include "checksums.h"
 #include "changes.h"
 
-retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type, /*@out@*/char **result_basename, /*@out@*/struct checksums **result_checksums, /*@out@*/char **result_section, /*@out@*/char **result_priority, /*@out@*/char **result_architecture, /*@out@*/char **result_name) {
+retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type, /*@out@*/char **result_basename, /*@out@*/struct hash_data *hash_p, /*@out@*/struct hash_data *size_p, /*@out@*/char **result_section, /*@out@*/char **result_priority, /*@out@*/char **result_architecture, /*@out@*/char **result_name) {
 
 	const char *p,*md5start,*md5end;
 	const char *sizestart,*sizeend;
@@ -38,7 +38,6 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	const char *versionstart,*typestart;
 	filetype type;
 	char *section, *priority, *basename, *architecture, *name;
-	retvalue r;
 
 	p = fileline;
 	while( *p !='\0' && xisspace(*p) )
@@ -56,6 +55,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	}
 	md5end = p;
 	while( *p !='\0' && xisspace(*p) )
+		p++;
+	while( *p == '0' && p[1] >= '0' && p[1] <= '9' )
 		p++;
 	sizestart = p;
 	while( *p >= '0' && *p <= '9' )
@@ -199,14 +200,10 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		free(basename); free(architecture); free(name);
 		return RET_ERROR_OOM;
 	}
-	r = checksums_set(result_checksums, md5start, md5end - md5start,
-			sizestart, sizeend - sizestart);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) ) {
-		free(section); free(priority);
-		free(basename); free(architecture); free(name);
-		return r;
-	}
+	hash_p->start = md5start;
+	hash_p->len = md5end - md5start;
+	size_p->start = sizestart;
+	size_p->len = sizeend - sizestart;
 	*result_section = section;
 	*result_priority = priority;
 	*result_basename = basename;

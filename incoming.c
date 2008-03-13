@@ -564,14 +564,23 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, const char *fileline) {
 	struct candidate_file **p, *n;
 	char *basename;
+	struct hashes hashes;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct candidate_file));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &n->type, &basename, &n->checksums,
+	memset(&hashes, 0, sizeof(hashes));
+
+	r = changes_parsefileline(fileline, &n->type, &basename,
+			&hashes.hashes[cs_md5sum], &hashes.hashes[cs_length],
 			&n->section, &n->priority, &n->architecture, &n->name);
+	if( RET_WAS_ERROR(r) ) {
+		free(n);
+		return r;
+	}
+	r = checksums_initialize(&n->checksums, hashes.hashes);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
 		return r;

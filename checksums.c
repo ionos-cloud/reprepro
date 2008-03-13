@@ -35,6 +35,14 @@
 #include "names.h"
 #include "dirs.h"
 
+const char * const changes_checksum_names[] = {
+	"Files", "Checksums-Sha1" //, "Checksums-Sha256"
+};
+const char * const source_checksum_names[] = {
+	"Files", "Checksums-Sha1" //, "Checksums-Sha256"
+};
+
+
 /* The internal representation of a checksum, as written to the databases,
  * is \(:[1-9a-z]:[^ ]\+ \)*[0-9a-fA-F]\+ [0-9]\+
  * first some hashes, whose type is determined by a single character
@@ -66,36 +74,6 @@ static const char * const hash_name[cs_COUNT] =
 
 void checksums_free(struct checksums *checksums) {
 	free(checksums);
-}
-
-retvalue checksums_set(struct checksums **result, const char *md5, size_t md5len, const char *size, size_t sizelen) {
-	char *d;
-	struct checksums *n;
-	size_t len;
-
-	assert( md5 != NULL && size != NULL);
-
-	len = md5len + 1 + sizelen;
-
-	n = malloc(sizeof(struct checksums) + len + 1);
-	if( n == NULL )
-		return RET_ERROR_OOM;
-	memset(n, 0, sizeof(struct checksums));
-	d = n->representation;
-
-	n->parts[cs_md5sum].ofs = 0;
-	n->parts[cs_md5sum].len = md5len;
-	memcpy(d, md5, md5len);
-	d += md5len;
-	*(d++) = ' ';
-	n->parts[cs_length].ofs = d - n->representation;
-	n->parts[cs_length].len = sizelen;
-	memcpy(d, size, sizelen);
-	d += sizelen;
-	*d = '\0';
-	assert( (size_t)(d-n->representation) == len );
-	*result = n;
-	return RET_OK;
 }
 
 retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs_COUNT]) {
@@ -598,6 +576,48 @@ void checksumsarray_done(struct checksumsarray *array) {
 		assert( array->checksums == NULL );
 	strlist_done(&array->names);
 	free(array->checksums);
+}
+
+retvalue hashline_parse(const char *filenametoshow, const char *line, enum checksumtype cs, const char **basename_p, struct hash_data *data_p, struct hash_data *size_p) {
+	const char *p = line;
+	const char *hash_start, *size_start, *filename;
+	size_t hash_len, size_len;
+
+	while( *p == ' ' || *p == '\t' )
+		p++;
+	hash_start = p;
+	while( (*p >= '0' && *p <= '9') ||
+			(*p >= 'a' && *p <= 'f' ) )
+		p++;
+	hash_len = p - hash_start;
+	while( *p == ' ' || *p == '\t' )
+		p++;
+	while( *p == '0' && p[1] >= '0' && p[1] <= '9' )
+		p++;
+	size_start = p;
+	while( (*p >= '0' && *p <= '9') )
+		p++;
+	size_len = p - size_start;
+	while( *p == ' ' || *p == '\t' )
+		p++;
+	filename = p;
+	while( *p != '\0' && *p != ' ' && *p != '\t'
+			&& *p != '\r' && *p != '\n' )
+		p++;
+	if( unlikely( size_len == 0 || hash_len == 0
+				|| filename == p || *p != '\0' ) ) {
+		fprintf(stderr,
+				"Error parsing %s checksum line ' %s' within '%s'\n",
+				hash_name[cs], line,
+				filenametoshow);
+		return RET_ERROR;
+	}
+	*basename_p = filename;
+	data_p->start = hash_start;
+	data_p->len = hash_len;
+	size_p->start = size_start;
+	size_p->len = size_len;
+	return RET_OK;
 }
 
 retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l[cs_hashCOUNT], const char *filenametoshow) {

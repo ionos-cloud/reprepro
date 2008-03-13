@@ -66,13 +66,6 @@ static void about(bool help) {
 		exit(EXIT_FAILURE);
 }
 
-static const char * const changes_checksum_names[] = {
-	"Files", "Checksums-Sha1" //, "Checksums-Sha256"
-};
-static const char * const source_checksum_names[] = {
-	"Files", "Checksums-Sha1" //, "Checksums-Sha256"
-};
-
 struct binaryfile {
 	struct binaryfile *next; // in binaries.files list
 	struct binary *binary; // parent

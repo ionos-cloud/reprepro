@@ -93,6 +93,8 @@ struct fileentry {
 	struct strlist needed_filekeys;
 	union { struct dsc_headers dsc;
 		struct debpackage *deb;} pkg;
+	/* only valid while parsing: */
+	struct hashes hashes;
 };
 
 struct changes {
@@ -172,7 +174,9 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	if( e == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &e->type, &e->basename, &e->checksums,
+	r = changes_parsefileline(fileline, &e->type, &e->basename,
+			&e->hashes.hashes[cs_md5sum],
+			&e->hashes.hashes[cs_length],
 			&e->section, &e->priority, &e->architecture, &e->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(e);
@@ -244,6 +248,56 @@ static retvalue changes_parsefilelines(const char *filename,struct changes *chan
 	return result;
 }
 
+static retvalue changes_addhashes(const char *filename, struct changes *changes, enum checksumtype cs, struct strlist *filelines) {
+	int i;
+	retvalue r;
+
+	for( i = 0 ; i < filelines->count ; i++ ) {
+		struct hash_data data, size;
+		const char *fileline = filelines->values[i];
+		struct fileentry *e;
+		const char *basename;
+
+		r = hashline_parse(filename, fileline, cs, &basename, &data, &size);
+		if( r == RET_NOTHING )
+			continue;
+		if( RET_WAS_ERROR(r) )
+			return r;
+		e = changes->files;
+		while( e != NULL && strcmp(e->basename, basename) != 0 )
+			e = e->next;
+		if( e == NULL ) {
+			fprintf(stderr,
+"In '%s': file '%s' listed in '%s' but not in 'Files'\n",
+				filename, basename, changes_checksum_names[cs]);
+			return RET_ERROR;
+		}
+		if( e->hashes.hashes[cs_length].len != size.len ||
+				memcmp(e->hashes.hashes[cs_length].start,
+					size.start, size.len) != 0 ) {
+			fprintf(stderr,
+"In '%s': file '%s' listed in '%s' with different size than in 'Files'\n",
+				filename, basename, changes_checksum_names[cs]);
+			return RET_ERROR;
+		}
+		e->hashes.hashes[cs] = data;
+	}
+	return RET_OK;
+}
+
+static retvalue changes_finishhashes(struct changes *changes) {
+	struct fileentry *e;
+	retvalue r;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		r = checksums_initialize(&e->checksums, e->hashes.hashes);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+
 static retvalue check(const char *filename,struct changes *changes,const char *field) {
 	retvalue r;
 
@@ -262,7 +316,8 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture) {
 	retvalue r;
 	struct changes *c;
-	struct strlist filelines;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 	bool broken;
 	int versioncmp;
 
@@ -336,10 +391,34 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	R;
 	r = check(filename,c,"Maintainer");
 	R;
-	r = chunk_getextralinelist(c->control,"Files",&filelines);
+	r = chunk_getextralinelist(c->control,
+			changes_checksum_names[cs_md5sum],
+			&filelines[cs_md5sum]);
 	E("Missing 'Files' field!");
-	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture);
-	strlist_done(&filelines);
+	r = changes_parsefilelines(filename, c, &filelines[cs_md5sum],
+			packagetypeonly, forcearchitecture);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&filelines[cs_md5sum]);
+		changes_free(c);
+		return r;
+	}
+	for( cs = cs_firstEXTENDED ; cs < cs_hashCOUNT ; cs++ ) {
+		r = chunk_getextralinelist(c->control,
+				changes_checksum_names[cs], &filelines[cs]);
+		if( RET_IS_OK(r) )
+			r = changes_addhashes(filename, c, cs, &filelines[cs]);
+		else
+			strlist_init(&filelines[cs]);
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum )
+				strlist_done(&filelines[cs]);
+			changes_free(c);
+			return r;
+		}
+	}
+	r = changes_finishhashes(c);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ )
+		strlist_done(&filelines[cs]);
 	R;
 	r = dirs_getdirectory(filename,&c->incomingdirectory);
 	R;
