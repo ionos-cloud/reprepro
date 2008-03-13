@@ -199,13 +199,7 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	return RET_OK;
 }
 
-struct hashes {
-	struct hash_data {
-		const char *start; size_t len;
-	} hashes[cs_COUNT];
-};
-
-static retvalue checksums_initialize(/*@out@*/struct checksums **checksums_p, const struct hash_data *hashes) {
+retvalue checksums_initialize(struct checksums **checksums_p, const struct hash_data *hashes) {
 	char *d;
 	struct checksums *n;
 	enum checksumtype type;

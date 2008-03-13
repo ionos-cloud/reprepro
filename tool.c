@@ -164,7 +164,7 @@ struct fileentry {
 	int refcount;
 };
 struct changes;
-static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool source);
+static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool source, /*@null@*//*@out@*/size_t *ofs_p);
 
 struct changes {
 	/* the filename of the .changes file */
@@ -234,14 +234,17 @@ static void changes_free(struct changes *c) {
 	free(c);
 }
 
-static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool source) {
+static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool source, size_t *ofs_p) {
 	struct fileentry **fp = &c->files;
 	struct fileentry *f;
+	size_t ofs = 0;
+
 	while( (f=*fp) != NULL ) {
 		if( f->namelen == len &&
 				strncmp(basename,f->basename,len) == 0 )
 			break;
 		fp = &f->next;
+		ofs++;
 	}
 	if( f == NULL ) {
 		f = calloc(1,sizeof(struct fileentry));
@@ -259,6 +262,8 @@ static struct fileentry *add_fileentry(struct changes *c, const char *basename, 
 				break;
 		}
 	}
+	if( ofs_p != NULL )
+		*ofs_p = ofs;
 	return f;
 }
 
@@ -417,28 +422,49 @@ static retvalue parse_changes_description(struct changes *c, struct strlist *tmp
 	return RET_OK;
 }
 
-static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
+static retvalue parse_changes_files(struct changes *c, struct strlist filelines[cs_hashCOUNT]) {
 	int i;
 	struct fileentry *f;
 	retvalue r;
+	struct hashes *hashes;
+	struct strlist *tmp;
+	size_t ofs, count = 0;
+	enum checksumtype cs;
+
+	tmp = &filelines[cs_md5sum];
+	hashes = calloc(tmp->count, sizeof(struct hashes));
+	if( FAILEDTOALLOC(hashes) )
+		return RET_ERROR_OOM;
 
 	for( i = 0 ; i < tmp->count ; i++ ) {
-		const char *p,*md5start, *md5end, *sizestart, *sizeend, *sectionstart, *sectionend, *priostart, *prioend, *filestart, *fileend;
+		char *p;
+		const char *md5start, *md5end, *sizestart, *sizeend, *sectionstart, *sectionend, *priostart, *prioend, *filestart, *fileend;
 		p = tmp->values[i];
 #undef xisspace
 #define xisspace(c) (c == ' ' || c == '\t')
 		while( *p !='\0' && xisspace(*p) )
 			p++;
 		md5start = p;
+		while( (*p >= '0' && *p <= '9') ||
+				(*p >= 'A' && *p <= 'F' ) ||
+				(*p >= 'a' && *p <= 'f' ) ) {
+			if( *p >= 'A' && *p <= 'F' )
+				(*p) += 'a' - 'A';
+			p++;
+		}
+		md5end = p;
 		while( *p !='\0' && !xisspace(*p) )
 			p++;
-		md5end = p;
 		while( *p !='\0' && xisspace(*p) )
 			p++;
+		while( *p == '0' && ( '0' <= p[1] && p[1] <= '9' ) )
+			p++;
 		sizestart = p;
-		while( *p !='\0' && !xisspace(*p) )
+		while( (*p >= '0' && *p <= '9') )
 			p++;
 		sizeend = p;
+		while( *p !='\0' && !xisspace(*p) )
+			p++;
 		while( *p !='\0' && xisspace(*p) )
 			p++;
 		sectionstart = p;
@@ -463,17 +489,22 @@ static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 			fprintf(stderr,"Unexpected sixth argument in '%s'!\n", tmp->values[i]);
 			return RET_ERROR;
 		}
-		f = add_fileentry(c, filestart, fileend-filestart, false);
-		if( f->checksumsfromchanges != NULL ) {
+		if( fileend - filestart == 0 )
+			continue;
+		f = add_fileentry(c, filestart, fileend-filestart, false, &ofs);
+		assert( ofs <= count );
+		if( ofs == count )
+			count++;
+		if( hashes[ofs].hashes[cs_md5sum].start != NULL ) {
 			fprintf(stderr, "WARNING: Multiple occourance of '%s' in .changes file!\nIgnoring all but the first one.\n",
 					f->basename);
 			continue;
 		}
-		r = checksums_set(&f->checksumsfromchanges,
-				md5start, md5end - md5start,
-				sizestart, sizeend - sizestart);
-		if( RET_WAS_ERROR(r) )
-			return r;
+		hashes[ofs].hashes[cs_md5sum].start = md5start;
+		hashes[ofs].hashes[cs_md5sum].len = md5end - md5start;
+		hashes[ofs].hashes[cs_length].start = sizestart;
+		hashes[ofs].hashes[cs_length].len = sizeend - sizestart;
+
 		if( sectionend - sectionstart == 1 && *sectionstart == '-' ) {
 			f->section = NULL;
 		} else {
@@ -489,6 +520,76 @@ static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 				return RET_ERROR_OOM;
 		}
 	}
+	const char * const hashname[cs_hashCOUNT] = {"Md5", "Sha1" /*, "Sha256"*/ };
+	for( cs = cs_firstEXTENDED ; cs < cs_hashCOUNT ; cs++ ) {
+		tmp = &filelines[cs];
+
+		for( i = 0 ; i < tmp->count ; i++ ) {
+			char *p;
+			const char *hashstart, *hashend, *sizestart, *sizeend, *filestart, *fileend;;
+			p = tmp->values[i];
+			while( *p !='\0' && xisspace(*p) )
+				p++;
+			hashstart = p;
+			while( (*p >= '0' && *p <= '9') ||
+					(*p >= 'A' && *p <= 'F' ) ||
+					(*p >= 'a' && *p <= 'f' ) ) {
+				if( *p >= 'A' && *p <= 'F' )
+					(*p) += 'a' - 'A';
+				p++;
+			}
+			hashend = p;
+			while( *p !='\0' && !xisspace(*p) )
+				p++;
+			while( *p !='\0' && xisspace(*p) )
+				p++;
+			while( *p == '0' && ( '0' <= p[1] && p[1] <= '9' ) )
+				p++;
+			sizestart = p;
+			while( (*p >= '0' && *p <= '9') )
+				p++;
+			sizeend = p;
+			while( *p !='\0' && !xisspace(*p) )
+				p++;
+			while( *p !='\0' && xisspace(*p) )
+				p++;
+			filestart = p;
+			while( *p !='\0' && !xisspace(*p) )
+				p++;
+			fileend = p;
+			while( *p !='\0' && xisspace(*p) )
+				p++;
+			if( *p != '\0' ) {
+				fprintf(stderr,"Unexpected forth argument in '%s'!\n", tmp->values[i]);
+				return RET_ERROR;
+			}
+			if( fileend - filestart == 0 )
+				continue;
+			f = add_fileentry(c, filestart, fileend-filestart, false, &ofs);
+			assert( ofs <= count );
+			// until md5sums are no longer obligatory:
+			if( ofs == count )
+				continue;
+			if( hashes[ofs].hashes[cs].start != NULL ) {
+				fprintf(stderr, "WARNING: Multiple occourance of '%s' in Checksums-'%s' of .changes file!\nIgnoring all but the first one.\n",
+						f->basename, hashname[cs]);
+				continue;
+			}
+			hashes[ofs].hashes[cs].start = hashstart;
+			hashes[ofs].hashes[cs].len = hashend - hashstart;
+			// TODO: compare instead:
+			// hashes[ofs].hashes[cs_length].start = sizestart;
+			// hashes[ofs].hashes[cs_length].len = sizeend - sizestart;
+		}
+	}
+	ofs = 0;
+	for( f = c->files ; f != NULL ; f = f->next, ofs++ ) {
+		r = checksums_initialize(&f->checksumsfromchanges,
+				hashes[ofs].hashes);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	assert( count == ofs );
 
 	return RET_OK;
 }
@@ -594,7 +695,7 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 		const char *basename = n->expected.names.values[i];
 		n->uplink[i] = add_fileentry(changes,
 				basename, strlen(basename),
-				true);
+				true, NULL);
 		if( n->uplink[i] == NULL ) {
 			dscfile_free(n);
 			return RET_ERROR_OOM;
@@ -818,6 +919,8 @@ static retvalue processfiles(const char *changesfilename, struct changes *change
 static retvalue parse_changes(const char *changesfile, const char *chunk, struct changes **changes, const struct strlist *searchpath) {
 	retvalue r;
 	struct strlist tmp;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 #define R if( RET_WAS_ERROR(r) ) { changes_free(n); return r; }
 
 	struct changes *n = calloc(1,sizeof(struct changes));
@@ -886,12 +989,28 @@ static retvalue parse_changes(const char *changesfile, const char *chunk, struct
 			return RET_ERROR_OOM;
 		}
 	}
-
-	r = chunk_getextralinelist(chunk, "Files", &tmp);
-	R;
-	if( RET_IS_OK(r) ) {
-		r = parse_changes_files(n, &tmp);
-		strlist_done(&tmp);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( changes_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(chunk,
+				changes_checksum_names[cs], &filelines[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum )
+				break;
+			strlist_init(&filelines[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&filelines[cs]);
+			}
+			changes_free(n);
+			return r;
+		}
+	}
+	if( cs == cs_hashCOUNT ) {
+		r = parse_changes_files(n, filelines);
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+			strlist_done(&filelines[cs]);
+		}
 		if( RET_WAS_ERROR(r) ) {
 			changes_free(n);
 			return RET_ERROR_OOM;
@@ -1740,7 +1859,7 @@ static bool improvedchecksum_supported(const struct changes *c, bool improvedfil
 
 static bool anyset(bool *list, size_t count) {
 	while( count > 0 )
-		if( list[count--] )
+		if( list[--count] )
 			return true;
 	return false;
 }
@@ -2049,7 +2168,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename, const struct 
 
 		file = add_fileentry(c, basefilename,
 				strlen(basefilename),
-				true);
+				true, NULL);
 		if( file == NULL ) {
 			free(origdirectory);
 			return RET_ERROR_OOM;

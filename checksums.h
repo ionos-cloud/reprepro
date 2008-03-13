@@ -23,6 +23,13 @@ enum checksumtype {
 
 struct checksums;
 
+struct hashes {
+	struct hash_data {
+		const char *start; size_t len;
+	} hashes[cs_COUNT];
+};
+
+
 void checksums_free(/*@only@*//*@null@*/struct checksums *);
 
 /* duplicate a checksum record, NULL means OOM */
@@ -32,7 +39,8 @@ void checksums_free(/*@only@*//*@null@*/struct checksums *);
 retvalue checksums_set(/*@out@*/struct checksums **result, const char *md5, size_t md5len, const char *size, size_t sizelen);
 retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum);
 
-/* hashes[*] is free'd */
+retvalue checksums_initialize(/*@out@*/struct checksums **checksums_p, const struct hash_data *);
+/* hashes[*] is free'd: */
 retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_COUNT]);
 retvalue checksums_parse(/*@out@*/struct checksums **, const char *);
 
