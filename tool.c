@@ -66,6 +66,13 @@ static void about(bool help) {
 		exit(EXIT_FAILURE);
 }
 
+static const char * const changes_checksum_names[] = {
+	"Files", "Checksums-Sha1" //, "Checksums-Sha256"
+};
+static const char * const source_checksum_names[] = {
+	"Files", "Checksums-Sha1" //, "Checksums-Sha256"
+};
+
 struct binaryfile {
 	struct binaryfile *next; // in binaries.files list
 	struct binary *binary; // parent
@@ -489,9 +496,6 @@ static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 	struct dscfile *n;
 	struct strlist filelines[cs_hashCOUNT];
-	static const char *source_checksum_names[cs_hashCOUNT] = {
-		        "Files", "Checksums-sha1"
-	};
 	enum checksumtype cs;
 	retvalue r;
 
@@ -612,15 +616,31 @@ static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
 	char *control; size_t controllen;
 	struct checksums *checksums;
 	char *destfilename;
+	enum checksumtype cs;
 
 	if( flagset(DSC_WRITE_FILES) ) {
-		cef = cef_newfield("Files", CEF_ADD, CEF_LATE, dsc->expected.names.count, NULL);
-		if( cef == NULL )
-			return RET_ERROR_OOM;
-		for( i = 0 ; i < dsc->expected.names.count ; i++ ) {
-			const char *basename = dsc->expected.names.values[i];
-			const char *md5sum = checksums_getmd5sum(dsc->expected.checksums[i]);
-			cef_setline(cef, i, 2, md5sum, basename, NULL);
+		cef = NULL;
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+			cef = cef_newfield(source_checksum_names[cs],
+					CEF_ADD, CEF_LATE,
+					dsc->expected.names.count, cef);
+			if( cef == NULL )
+				return RET_ERROR_OOM;
+			for( i = 0 ; i < dsc->expected.names.count ; i++ ) {
+				const char *basename = dsc->expected.names.values[i];
+				const char *hash, *size;
+				size_t hashlen, sizelen;
+
+				if( !checksums_gethashpart(dsc->expected.checksums[i],
+							cs, &hash, &hashlen,
+							&size, &sizelen) ) {
+					assert( cs != cs_md5sum );
+					cef = cef_pop(cef);
+					break;
+				}
+				cef_setline2(cef, i, hash, hashlen, size, sizelen,
+						1, basename, NULL);
+			}
 		}
 	} else
 		cef = NULL;
@@ -902,6 +922,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 	struct tm *tm; time_t t;
 	unsigned int i;
 	struct strlist binaries;
+	enum checksumtype cs;
 
 	strlist_init(&binaries);
 
@@ -911,22 +932,35 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 	}
 
 	if( flagset(CHANGES_WRITE_FILES) ) {
-		cef = cef_newfield("Files", CEF_ADD, CEF_LATE, filecount, NULL);
-		if( cef == NULL )
-			return RET_ERROR_OOM;
-		i = 0;
-		for( f = c->files; f != NULL ; f = f->next ) {
-			const char *md5sum;
-			if( f->checksumsfromchanges == NULL )
-				continue;
-			md5sum = checksums_getmd5sum(f->checksumsfromchanges);
-			cef_setline(cef, i, 4, md5sum,
-					f->section?f->section:"-",
-					f->priority?f->priority:"-",
-					f->basename, NULL);
-			i++;
+		cef = NULL;
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+			cef = cef_newfield(changes_checksum_names[cs],
+					CEF_ADD, CEF_LATE, filecount, cef);
+			if( cef == NULL )
+				return RET_ERROR_OOM;
+			i = 0;
+			for( f = c->files; f != NULL ; f = f->next ) {
+				const char *hash, *size;
+				size_t hashlen, sizelen;
+
+				if( f->checksumsfromchanges == NULL )
+					continue;
+				if( !checksums_gethashpart(f->checksumsfromchanges,
+							cs, &hash, &hashlen,
+							&size, &sizelen) ) {
+					assert( cs != cs_md5sum );
+					cef = cef_pop(cef);
+					break;
+				}
+				cef_setline2(cef, i, hash, hashlen, size, sizelen,
+						3,
+						f->section?f->section:"-",
+						f->priority?f->priority:"-",
+						f->basename, NULL);
+				i++;
+			}
+			assert( f != NULL || i == filecount );
 		}
-		assert( i == filecount );
 	} else {
 		cef = cef_newfield("Files", CEF_KEEP, CEF_LATE, 0, NULL);
 		if( cef == NULL )
