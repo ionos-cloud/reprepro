@@ -507,7 +507,7 @@ void checksums_printdifferences(FILE *f, const struct checksums *expected, const
 	}
 }
 
-retvalue checksums_combine(struct checksums **checksums_p, const struct checksums *by) /*@requires only *checksums_p @*/ /*@ensures only *checksums_p @*/ {
+retvalue checksums_combine(struct checksums **checksums_p, const struct checksums *by, bool *improvedhashes) /*@requires only *checksums_p @*/ /*@ensures only *checksums_p @*/ {
 	struct checksums *old = *checksums_p, *n;
 	size_t len = checksums_totallength(old) + checksums_totallength(by);
 	const char *o, *b, *start;
@@ -553,6 +553,8 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 			*(d++) = *(b++);
 			*(d++) = *(b++);
 			if( typeid == '1' ) {
+				if( improvedhashes != NULL)
+					improvedhashes[cs_sha1sum] = true;
 				start = d;
 				n->parts[cs_sha1sum].ofs = d - n->representation;
 				while( *b != ' ' && *b != '\0' )
@@ -802,6 +804,19 @@ void checksumsarray_move(/*@out@*/struct checksumsarray *destination, struct che
 	strlist_move(&destination->names, &origin->names);
 	destination->checksums = origin->checksums;
 	origin->checksums = NULL;
+}
+
+void checksumsarray_resetunsupported(const struct checksumsarray *a, bool *types) {
+	int i;
+	enum checksumtype cs;
+
+	for( i = 0 ; i < a->names.count ; i++ ) {
+		struct checksums *c = a->checksums[i];
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+			if( c->parts[cs].len == 0 )
+				types[cs] = false;
+		}
+	}
 }
 
 retvalue checksumsarray_include(struct checksumsarray *a, /*@only@*/char *name, const struct checksums *checksums) {
@@ -1066,7 +1081,7 @@ bool checksums_iscomplete(const struct checksums *checksums) {
 /* Collect missing checksums.
  * if the file is not there, return RET_NOTHING.
  * return RET_ERROR_WRONG_MD5 if already existing do not match */
-retvalue checksums_complete(struct checksums **checksums_p, const char *fullfilename) {
+retvalue checksums_complete(struct checksums **checksums_p, const char *fullfilename, bool *improvedchecksums) {
 	retvalue r;
 	struct checksums *realchecksums;
 	bool improves;
@@ -1083,7 +1098,8 @@ retvalue checksums_complete(struct checksums **checksums_p, const char *fullfile
 	if( checksums_check(*checksums_p, realchecksums, &improves) ) {
 		assert(improves);
 
-		r = checksums_combine(checksums_p, realchecksums);
+		r = checksums_combine(checksums_p, realchecksums,
+				improvedchecksums);
 		checksums_free(realchecksums);
 		return r;
 	} else {

@@ -727,7 +727,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		return RET_ERROR_WRONG_MD5;
 	}
 	if( improves ) {
-		r = checksums_combine(&file->checksums, readchecksums);
+		r = checksums_combine(&file->checksums, readchecksums, NULL);
 		if( RET_WAS_ERROR(r) ) {
 			checksums_free(readchecksums);
 			deletefile(tempfilename);
@@ -1041,7 +1041,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 		/* put additional checksums from the .dsc to the information
 		 * found in .changes, so that a file matching those in .changes
 		 * but not in .dsc is detected */
-		r = checksums_combine(&f->checksums, checksums);
+		r = checksums_combine(&f->checksums, checksums, NULL);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -1064,7 +1064,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 	}
 	if( !RET_WAS_ERROR(r) && !checksums_iscomplete(checksums) ) {
 		/* update checksums so the source index can show them */
-		r = checksums_combine(checksums_p, f->checksums);
+		r = checksums_combine(checksums_p, f->checksums, NULL);
 	}
 	return r;
 }

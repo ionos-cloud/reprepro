@@ -77,11 +77,11 @@ bool checksums_iscomplete(const struct checksums *);
 /* Collect missing checksums (if all are there always RET_OK without checking).
  * if the file is not there, return RET_NOTHING,
  * if it is but not matches, return RET_ERROR_WRONG_MD5 */
-retvalue checksums_complete(struct checksums **, const char *fullfilename);
+retvalue checksums_complete(struct checksums **, const char *fullfilename, /*@null@*/ bool improvedhashes[cs_hashCOUNT]);
 
 void checksums_printdifferences(FILE *,const struct checksums *expected, const struct checksums *got);
 
-retvalue checksums_combine(struct checksums **checksums, const struct checksums *by);
+retvalue checksums_combine(struct checksums **checksums, const struct checksums *by, /*@null@*/bool improvedhashes[cs_hashCOUNT]);
 
 typedef /*@only@*/ struct checksums *ownedchecksums;
 struct checksumsarray {
@@ -93,6 +93,7 @@ void checksumsarray_done(/*@special@*/struct checksumsarray *array) /*@requires 
 retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist [cs_hashCOUNT], const char *filenametoshow);
 retvalue checksumsarray_genfilelist(const struct checksumsarray *, /*@out@*/char **, /*@out@*/char **, /*@out@*/char **);
 retvalue checksumsarray_include(struct checksumsarray *, /*@only@*/char *, const struct checksums *);
+void checksumsarray_resetunsupported(const struct checksumsarray *, bool[cs_hashCOUNT]);
 
 
 #ifdef CHECKSUMS_CONTEXT

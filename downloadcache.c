@@ -127,7 +127,8 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 			return RET_ERROR_WRONG_MD5;
 		}
 		if( improves ) {
-			r = checksums_combine(&i->todo->checksums, checksums);
+			r = checksums_combine(&i->todo->checksums,
+					checksums, NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}

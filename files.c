@@ -764,7 +764,7 @@ static retvalue collectnewchecksums(struct database *database, const char *filek
 "wrong. I suggest comparing the output of _listchecksums with the files\n"
 "actually found in the pool.\n",	filekey);
 		if( improves ) {
-			r = checksums_combine(&expected, real);
+			r = checksums_combine(&expected, real, NULL);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(expected);
@@ -839,7 +839,7 @@ retvalue files_collectnewchecksums(struct database *database) {
 				checksums_free(expected);
 				break;
 			}
-			r = checksums_complete(&expected, fullfilename);
+			r = checksums_complete(&expected, fullfilename, NULL);
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Missing file '%s'!\n", fullfilename);
 				r = RET_ERROR_MISSING;
@@ -986,7 +986,7 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 			return RET_ERROR_WRONG_MD5;
 		}
 		if( improves ) {
-			r = checksums_combine(&checksums, realchecksums);
+			r = checksums_combine(&checksums, realchecksums, NULL);
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(realchecksums);
 				checksums_free(checksums);
@@ -1119,7 +1119,7 @@ static retvalue checkimproveorinclude(struct database *database, const char *sou
 		r = RET_ERROR_WRONG_MD5;
 	}
 	if( improves ) {
-		r = checksums_combine(checksums_p, checksums);
+		r = checksums_combine(checksums_p, checksums, NULL);
 		if( RET_IS_OK(r) )
 			*improving = true;
 	}
@@ -1165,7 +1165,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 		}
 		r = RET_NOTHING;
 		if( improves )
-			r = checksums_combine(&checksums, *checksums_p);
+			r = checksums_combine(&checksums, *checksums_p, NULL);
 		if( !RET_WAS_ERROR(r) )
 			r = checkimproveorinclude(database, sourcedir,
 				basename, filekey, &checksums, &improves);
@@ -1219,7 +1219,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 		return r;
 	}
 	if( improves ) {
-		r = checksums_combine(checksums_p, checksums);
+		r = checksums_combine(checksums_p, checksums, NULL);
 		checksums_free(checksums);
 		if( RET_WAS_ERROR(r) )
 			return r;

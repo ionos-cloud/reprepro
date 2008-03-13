@@ -1147,7 +1147,7 @@ static inline retvalue queueindex(struct update_index *index) {
 
 			if( checksums_check(checksums, oldchecksums, &improves) ) {
 				if( improves ) {
-					r = checksums_combine(&origin->indexchecksums.checksums[i], oldchecksums);
+					r = checksums_combine(&origin->indexchecksums.checksums[i], oldchecksums, NULL);
 					checksums = origin->indexchecksums.checksums[i];
 				}
 				checksums_free(oldchecksums);

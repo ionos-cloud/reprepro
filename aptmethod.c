@@ -483,7 +483,7 @@ static inline retvalue todo_done(struct tobedone *todo, const char *method, cons
 			r = checksums_read(filename, &checksums);
 		else
 			/* but make sure it computed all we would have, too */
-			r = checksums_complete(&checksums, filename);
+			r = checksums_complete(&checksums, filename, NULL);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr, "Cannot open '%s', though '%s' method claims to have put it there!\n",
 					filename, method);
@@ -510,7 +510,7 @@ static inline retvalue todo_done(struct tobedone *todo, const char *method, cons
 			return RET_ERROR_WRONG_MD5;
 		}
 		if( improves ) {
-			r = checksums_combine(checksums_p, checksums);
+			r = checksums_combine(checksums_p, checksums, NULL);
 			if( RET_WAS_ERROR(r) ) {
 				checksums_free(checksums);
 				return r;

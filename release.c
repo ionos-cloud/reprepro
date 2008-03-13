@@ -325,7 +325,7 @@ static retvalue release_usecached(struct release *release,
 				r = RET_ERROR_OOM;
 			else
 				r = checksums_complete(&checksums[ic],
-					fullfilename);
+					fullfilename, NULL);
 			if( r == RET_ERROR_WRONG_MD5 ) {
 				fprintf(stderr,
 "WARNING: '%s' is different from recorded checksums.\n"
