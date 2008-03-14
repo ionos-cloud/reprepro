@@ -414,6 +414,8 @@ struct candidate {
 		struct deb_headers deb;
 		/* - only for fe_DSC types */
 		struct dsc_headers dsc;
+		/* only valid while parsing */
+		struct hashes h;
 	} *files;
 	struct candidate_perdistribution {
 		struct candidate_perdistribution *next;
@@ -564,23 +566,15 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, const char *fileline) {
 	struct candidate_file **p, *n;
 	char *basename;
-	struct hashes hashes;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct candidate_file));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 
-	memset(&hashes, 0, sizeof(hashes));
-
 	r = changes_parsefileline(fileline, &n->type, &basename,
-			&hashes.hashes[cs_md5sum], &hashes.hashes[cs_length],
+			&n->h.hashes[cs_md5sum], &n->h.hashes[cs_length],
 			&n->section, &n->priority, &n->architecture, &n->name);
-	if( RET_WAS_ERROR(r) ) {
-		free(n);
-		return r;
-	}
-	r = checksums_initialize(&n->checksums, hashes.hashes);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
 		return r;
@@ -601,14 +595,69 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 	return RET_OK;
 }
 
+static retvalue candidate_addhashes(struct incoming *i, struct candidate *c, enum checksumtype cs, const struct strlist *lines) {
+	int j;
+
+	for( j = 0 ; j < lines->count ; j++ ) {
+		const char *fileline = lines->values[j];
+		struct candidate_file *f;
+		const char *basename;
+		struct hash_data hash, size;
+		retvalue r;
+
+		r = hashline_parse(BASENAME(i, c->ofs), fileline, cs,
+				&basename, &hash, &size);
+		if( !RET_IS_OK(r) )
+			return r;
+		f = c->files;
+		while( f != NULL && strcmp(BASENAME(i, f->ofs), basename) != 0 )
+			f = f->next;
+		if( f == NULL ) {
+			fprintf(stderr,
+"Warning: Ignoring file '%s' listed in '%s' but not in '%s' of '%s'!\n",
+					basename, changes_checksum_names[cs],
+					changes_checksum_names[cs_md5sum],
+					BASENAME(i, c->ofs));
+			continue;
+		}
+		if( f->h.hashes[cs_length].len != size.len ||
+				memcmp(f->h.hashes[cs_length].start,
+					size.start, size.len) != 0 ) {
+			fprintf(stderr,
+"Error: Different size of '%s' listed in '%s' and '%s' of '%s'!\n",
+					basename, changes_checksum_names[cs],
+					changes_checksum_names[cs_md5sum],
+					BASENAME(i, c->ofs));
+			return RET_ERROR;
+		}
+		f->h.hashes[cs] = hash;
+	}
+	return RET_OK;
+}
+
+static retvalue candidate_finalizechecksums(struct incoming *i, struct candidate *c) {
+	struct candidate_file *f;
+	retvalue r;
+
+	/* store collected hashes as checksums structs,
+	 * starting after .changes file: */
+	for( f = c->files->next ; f != NULL ; f = f->next ) {
+		r = checksums_initialize(&f->checksums, f->h.hashes);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
 static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 	retvalue r;
-	struct strlist filelines;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 	int j;
 #define R if( RET_WAS_ERROR(r) ) return r;
-#define E(err) { \
+#define E(err,...) { \
 		if( r == RET_NOTHING ) { \
-			fprintf(stderr,"In '%s': " err "\n",BASENAME(i,c->ofs)); \
+			fprintf(stderr, "In '%s': " err "\n",BASENAME(i,c->ofs), ## __VA_ARGS__ ); \
 			r = RET_ERROR; \
 	  	} \
 		if( RET_WAS_ERROR(r) ) return r; \
@@ -644,16 +693,36 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 	}
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field!");
-	r = chunk_getextralinelist(c->control,"Files",&filelines);
-	E("Missing 'Files' field!");
-	for( j = 0 ; j < filelines.count ; j++ ) {
-		r = candidate_addfileline(i, c, filelines.values[j]);
+	r = chunk_getextralinelist(c->control,
+			changes_checksum_names[cs_md5sum],
+			&filelines[cs_md5sum]);
+	E("Missing '%s' field!", changes_checksum_names[cs_md5sum]);
+	for( j = 0 ; j < filelines[cs_md5sum].count ; j++ ) {
+		r = candidate_addfileline(i, c, filelines[cs_md5sum].values[j]);
 		if( RET_WAS_ERROR(r) ) {
-			strlist_done(&filelines);
+			strlist_done(&filelines[cs_md5sum]);
 			return r;
 		}
 	}
-	strlist_done(&filelines);
+	for( cs = cs_firstEXTENDED ; cs < cs_hashCOUNT ; cs++ ) {
+		r = chunk_getextralinelist(c->control,
+				changes_checksum_names[cs], &filelines[cs]);
+
+		if( RET_IS_OK(r) )
+			r = candidate_addhashes(i, c, cs, &filelines[cs]);
+		else
+			strlist_init(&filelines[cs]);
+
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum )
+				strlist_done(&filelines[cs]);
+			return r;
+		}
+	}
+	r = candidate_finalizechecksums(i, c);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ )
+		strlist_done(&filelines[cs]);
+	R;
 	if( c->files == NULL || c->files->next == NULL ) {
 		fprintf(stderr,"In '%s': Empty 'Files' section!\n",
 				BASENAME(i,c->ofs));

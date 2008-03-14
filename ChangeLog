@@ -1,3 +1,6 @@
+2008-03-14  Bernhard R. Link <brlink@debian.org>
+	* read Checksums-Sha1 in .changes file in processincoming
+
 2008-03-13  Bernhard R. Link <brlink@debian.org>
 	* changestool can write Checksums-Sha1 headers now
 	* read Checksums-Sha1 in .changes file in the include command
