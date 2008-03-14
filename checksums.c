@@ -185,6 +185,7 @@ retvalue checksums_initialize(struct checksums **checksums_p, const struct hash_
 
 	/* everything assumes yet that those are available */
 	if( hashes[cs_length].start == NULL || hashes[cs_md5sum].start == NULL ) {
+		assert( 0 == 1 );
 		*checksums_p = NULL;
 		return RET_ERROR;
 	}
