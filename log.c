@@ -653,6 +653,7 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 	arguments[i++] = strdup(name);
 	arguments[i++] = strdup(version);
 	arguments[i++] = strdup(safefilename);
+	arguments[i++] = strdup(origfilename);
 	if( filekey != NULL )
 		arguments[i++] = strdup(filekey);
 	assert( i == count );
