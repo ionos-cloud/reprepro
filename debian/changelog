@@ -4,8 +4,10 @@ reprepro (3.3.2-2) UNRELEASED; urgency=low
   * add missing colons to DebIndicies example (Closes: 469810)
   * includedsc supports extraction of Section and Priority from .diff and
     .tar files (Closes: 469673)
+  * set REPREPRO_CAUSING_FILE environment variable in log scripts to the
+    file causing this change. (Closes: 469651)
 
- -- Bernhard R. Link <brlink@debian.org>  Thu,  6 Mar 2008 18:35:46 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 17 Mar 2008 22:34:44 +0100
 
 reprepro (3.3.2-1) unstable; urgency=low
 

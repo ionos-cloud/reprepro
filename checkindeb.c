@@ -40,6 +40,7 @@
 #include "guesscomponent.h"
 #include "tracking.h"
 #include "override.h"
+#include "log.h"
 
 extern int verbose;
 
@@ -284,6 +285,8 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 	char *control;
 	struct checksums *checksums;
 	bool fileused = false;
+
+	causingfile = debfilename;
 
 	r = deb_read(&pkg, debfilename, tracks != NULL );
 	if( RET_WAS_ERROR(r) ) {

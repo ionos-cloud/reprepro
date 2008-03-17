@@ -1145,6 +1145,8 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	struct trackingdata trackingdata;
 	bool somethingwasmissed;
 
+	causingfile = changesfilename;
+
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
 	if( RET_WAS_ERROR(r) )
 		return r;

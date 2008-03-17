@@ -1556,6 +1556,8 @@ retvalue updates_update(struct database *database, const char *methoddir, struct
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 
+	causingfile = NULL;
+
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = distribution_prepareforwriting(d->distribution);
 		if( RET_WAS_ERROR(r) )
@@ -1791,6 +1793,8 @@ retvalue updates_predelete(struct database *database, const char *methoddir, str
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
+
+	causingfile = NULL;
 
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = distribution_prepareforwriting(d->distribution);
@@ -2077,6 +2081,8 @@ static retvalue singledistributionupdate(struct database *database, const char *
 retvalue updates_iteratedupdate(struct database *database, const char *distdir, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum exportwhen export, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
+
+	causingfile = NULL;
 
 	if( nolistsdownload ) {
 		if( verbose >= 0 )

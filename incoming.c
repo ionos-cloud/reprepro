@@ -1395,6 +1395,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 	struct distribution *into = d->into;
 	trackingdb tracks;
 	const char *changesfilekey = NULL;
+	char *origfilename;
 
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
@@ -1423,6 +1424,10 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 			// TODO, but better before we start adding...
 		}
 	}
+
+	origfilename = calc_dirconcat(i->directory,
+			BASENAME(i, changesfile(c)->ofs));
+	causingfile = origfilename;
 
 	r = RET_OK;
 	for( p = d->packages ; p != NULL ; p = p->next ) {
@@ -1475,11 +1480,15 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
 	}
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		free(origfilename);
 		return r;
+	}
 	logger_logchanges(into->logger, into->codename,
 			c->source, c->changesversion, c->control,
 			changesfile(c)->tempfilename, changesfilekey);
+	free(origfilename);
+	causingfile = NULL;
 	return RET_OK;
 }
 

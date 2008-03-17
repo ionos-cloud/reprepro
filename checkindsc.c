@@ -185,6 +185,8 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 	bool usedmarker = false;
 	int i;
 
+	causingfile = dscfilename;
+
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
 	if( !strlist_in(&distribution->architectures,"source") ) {
