@@ -677,8 +677,144 @@ Repeating the <tt class="option">--delete</tt> option will also delete
 unused files.
 <br>
 TO BE CONTINUED.
-<h3><a name="incoming">Processing and incoming queue</a></h3>
-TO BE DOCUMENTED
+<h3><a name="incoming">Processing an incoming queue</a></h3>
+Using the <tt class="command">processincoming</tt> command reprepro
+can automatically process incoming queues.
+While this is still improveable (reprepro still misses ways to send
+mails and especially an easy way to send rejection mails to the
+uploader directly), it makes it easy to have an directory where you
+place your packages and reprepro will automatically include them.
+<br>
+To get this working you need three things:
+<ul>
+<li><a href="#processincoming-incoming-config">
+a file <tt class="file">conf/incoming</tt> describing your incoming directories,
+</a></li>
+<li><a href="#processincoming-dist-config">
+a <tt class="file">conf/distribution</tt> file describing your distributions
+(as always with reprepro)
+and
+</a></li>
+<li><a href="#processincoming-calling">
+a way to get reprepro called to process it.
+</a></li>
+</ul>
+<a name="processincoming-incoming-config">
+<h4>The file <tt class="file">conf/incoming</tt></h4></a>
+describes the different incoming queues.
+As usual the different chunks are separated by empty lines.
+Each chunk can have the following fields:
+<dl><dt>Name</dt><dd>This
+is the name of the incoming queue, that <tt class="command">processincoming</tt>
+wants as argument.</dd>
+<dt>IncomingDir</dt><dd>The actual directory to look for
+<tt class="suffix">.changes</tt> files.</dd>
+<dt>TempDir</dt><dd>To ensure integrity of the processed files and their
+permissions,
+every file is first copied from the incoming directory to this directory.
+Only the user reprepro runs as needs write permissions here.
+It speeds things up if this directory is in the same partition as the pool.
+<dt>Allow</dt><dd>
+This field lists the distributions this incoming queue might inject packages
+into.
+Each item can be a pair of a name of a distribution to accept and a distribution
+to put it into.
+Each upload has each item in its <tt class="field">Distribution:</tt> field
+compared first to last to each of this items and is put in the first distribution
+accepting it. For example
+<pre>
+Allow: stable>etch stable>etch-proposed-updates mystuff unstable>sid
+</pre>
+will put a <tt class="suffix">.changes</tt> file with
+<tt class="field">Distribution: stable</tt> into etch.
+If that is not possible (e.g. because etch has a
+<tt class="field">UploadersList</tt> option not allowing this) it will
+be put into etch-proposed-updates.
+And a <tt class="suffix">.changes</tt> file with
+<tt class="field">Distribution: unstable</tt> will be put into sid, while
+with <tt class="field">Distribution: mystuff</tt> will end up in mystuff.
+<br>
+If there is a <tt class="field">Default</tt> field, the <tt class="field">Allow</tt>
+field is optional.</dd>
+<dt>Default</dt><dd>
+Every upload not catched by an item of the <tt class="field">Allow</tt>
+field is put into the distribution specified by this.
+<br>
+If there is a <tt class="field">Allow</tt> field, the <tt class="field">Default</tt>
+field is optional.</dd>
+<dt>Multiple</dt><dd>
+This field only makes a difference if a <tt class="suffix">.changes</tt> file
+has multiple distributions listed in its <tt class="field">Distribution:</tt>
+field.
+Without this field every of this distributions is tried according to the
+above rules until the package is added somewhere.
+With this field it is tried for each distribution, so a package can be upload
+to multiple distributions at the same time.
+</dd>
+<dt>Permit</dt><dd>
+A list of options to allow things otherwise causing errors.
+(see the manpage for possible values).
+<br>This field os optional.</dd>
+<dt>Cleanup</dt><dd>
+Determines when and what files to delete from the incoming queue.
+By default only sucessfully processed <tt class="suffix">.changes</tt> files
+and the files references by those are deleted.
+For a list of possible options take a look into the man page.
+<br>This field os optional.</dd>
+</dl>
+<a name="processincoming-dist-config">
+<h4><tt class="file">conf/distribution</tt> for <tt class="command">processincoming</tt></h4></a>
+There are no special requirements on the <tt class="file">conf/distribution</tt>
+file by processincoming. So even a simple
+<pre>
+Codename: mystuff
+Architectures: i386 source
+Components: main non-free contrib bad
+</pre>
+will work.
+<br>
+The <tt class="field">Uploaders</tt> field can list a file limiting
+uploads to this distribution to specific keys and
+<tt class="field">AlsoAcceptFor</tt> is used to resolve unknown names
+in <tt class="file">conf/incoming</tt>'s <tt class="field">Allow</tt>
+and <tt class="field">Default</tt> fields.
+<a name="processincoming-calling">
+<h4>Getting <tt class="command">processincoming</tt> called.</h4></a>
+While you can just call <tt class="command">reprepro processincoming</tt> manually,
+having an incoming queue needing manual intervention takes all the fun out of
+having an incoming queue, so usually so automatic way is choosen:
+<ul>
+<li>Dupload and dput have ways to call an hook after an package was uploaded.
+This can be an ssh to the host calling reprepro.
+The disavantage is having to configure this in every
+<tt class="file">.dupload.conf</tt> on every host you want to upload and give
+everyone access to ssh and permissions on the archive who should upload.
+The advantage is you can configure reprepro to have interactive scripts or
+ask for passphrases.
+</li>
+<li>Install a cron-job calling reprepro every 5 minutes. Cron is usually
+available everywhere and getting the output sent by mail to you or a mailing
+list is easy.
+The annoying part is having to wait almost 5 minutes for the processing.
+</li>
+<li>Use something like <a href="http://packages.debian.org/inoticoming"><tt class="external">inoticoming</tt></a>.
+Linux has a syscall called inotify, allowing a program to be run whenever
+something happens to a file.
+One program making use of this is inoticoming. I watches a directory using
+this facility and whenever a <tt class="suffix">.changes</tt> file is completed
+it can call reprepro for you.
+(As this happens directly, make sure you always upload the <tt class="suffix">.changes</tt>
+file last, dupload and dput always ensure this).
+This can be combined with Debian's cron-extension to have a program started at
+boot time with the <tt>@boot</tt> directive.
+For example with a crontab like:
+<pre>
+MAILTO=myaddress@somewhere.tld
+
+@reboot inoticoming --logfile /my/basedir/logs/i.log /my/basedir/incoming/ --stderr-to-log --stdout-to-log --suffix '.changes' --chdir /my/basedir reprepro -b /my/basedir --waitforlock 100 processincoming local {} \;
+</pre>
+</li>
+</ul>
 <h2><a name="incoming">Incoming directories</a></h2>
 TO BE DOCUMENTED
 <h2><a name="morroring">Mirroring</a></h2>
