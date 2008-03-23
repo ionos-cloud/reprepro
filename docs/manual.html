@@ -906,22 +906,38 @@ Some low level commands to access this are (take a look at the manpage for how t
 <dt class="command">_removereferences</dt><dd>remove everything referenced by a given identifier</dd>
 <dt class="command">_addreference</dt><dd>manually add a reference</dd>
 </dl>
-<h3>files.db</h3>
-This file contains what reprepro knows about your <tt class="dir">pool</tt> directory,
-i.e. what files it things are there with what sizes and md5sums.
-If you manually put files there or remove them, you should tell reprepro about that.
+<h3>files.db / checksums.db</h3>
+These files contains what reprepro knows about your <tt class="dir">pool/</tt> directory,
+i.e. what files it things are there with what sizes and checksums.
+The file <tt class="filename">files.db</tt> is used by reprepro before version 3.3
+and kept for backwards compatibility.
+If your repository was only used with newer versions you can savely delete it.
+Otherwise you should run <tt class="command">collectnewchecksums</tt> before deleting
+it.
+The file <tt class="filename">checksums.db</tt> is the new file used since
+version 3.3.
+It can store more checksums types (<tt class="filename">files.db</tt> only contained
+md5sums, <tt class="filename">checksums.db</tt> can store arbitrary checksums and
+reprepro can even cope with it containing checksum types it does not yet know of)
+but for compatibility with pre-3.3 versions is not the canonical source of information
+as long as a <tt class="filename">files.db</tt> file exists).
+<br>
+If you manually put files in the pool or remove them, you should tell reprepro about that.
 (it sometimes looks for files there without being told, but it never forgets files
 except when it would have deleted them anyway).
 Some low level commands (take a look at the man page for how to use them):
 <dl class="commands">
+<dt class="command">collectnewchecksums</dt><dd>Make sure every file is listed in <tt class="filename">checksums.db</tt> and with all checksum types your reprepro supports.</dd>
 <dt class="command">checkpool fast</dt><dd>Make sure all files are still there.</dd>
 <dt class="command">checkpool</dt><dd>Make sure all files are still there and correct.</dd>
 <dt class="command">dumpunreferenced</dt><dd>Show all known files without reference.</dd>
 <dt class="command">deleteunreferenced</dt><dd>Delete all known files without reference.</dd>
-<dt class="command">_listmd5sums</dt><dd>Dump this database</dd>
+<dt class="command">_listmd5sums</dt><dd>Dump this database (old style)</dd>
+<dt class="command">_listchecksums</dt><dd>Dump this database (new style)</dd>
 <dt class="command">_detect</dt><dd>Add files to the database</dd>
 <dt class="command">_forget</dt><dd>Forget that some file is there</dd>
 <dt class="command">_addmd5sums</dt><dd>Create the database from dumped data</dd>
+<dt class="command">_addchecksums</dt><dd>dito</dd>
 <h3>release.cache.db</h3>
 In this file reprepro remembers what it already wrote to the <tt class="dir">dists</tt>
 directory,
