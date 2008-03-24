@@ -45,7 +45,7 @@ Sections of this document:
  <li><a href="#include">Including via command line</a></li>
  <li><a href="#incoming">Processing an incoming queue</a></li>
  </ul></li>
-<li><a href="#morroring">Mirroring</a> (TODO)</li>
+<li><a href="#mirroring">Mirroring</a></li>
 <li><a href="#propagation">Propagation of packages</a> (TODO)</li>
 <li><a href="#snapshosts">Snapshots</a> (TODO)</li>
 <li><a href="#tracking">Source package tracking</a> (TODO)</li>
@@ -814,8 +814,110 @@ MAILTO=myaddress@somewhere.tld
 </pre>
 </li>
 </ul>
-<h2><a name="morroring">Mirroring</a></h2>
-TO BE DOCUMENTED
+<h2><a name="mirroring">Mirroring / Updating</a></h2>
+Reprepro can fetch packages from other repositories.
+For this it uses apt's methods from <tt class="dir">/usr/lib/apt/methods/</tt>
+so everything (http, ftp, ...) that works with apt should also work with reprepro.
+Note that this works on the level of packages, even though you can tell reprepro
+to create a distribution having always the same packages as some remote repository,
+the repository as a whole may not look exactly the same but only have the same set
+of packages in the same versions.
+<br>
+You can also only mirror a specific subset of packages, merge multiple repositories
+into one distribution, or even have distributions mixing remote and local packages.
+<br>
+Each distribution to receive packages from other repositories needs an
+<tt class="field">Update:</tt> field listing the update rules applied to it.
+Those update rules are listed in <tt class="file">conf/updates</tt>.
+There is also the magic <tt>-</tt> update rule, which tells reprepro to delete
+all packages not readded by later rules.
+<br>
+To make reprepro to update all distributions call <tt>reprepro update</tt>
+without further arguments, or give the distributions to update as additional
+arguments.
+<br>
+Let's start with some examples:
+<h3><a name="update-examples">Updating examples</a></h3>
+Let's assume you have the following <tt class="file">conf/distributions</tt>
+<pre>
+Codename: etch
+Architectures: i386 source
+Components: main contrib
+Update: local - debian security
+
+Codename: mystuff
+Architectures: abacus source
+Components: main bad
+Update: debiantomystuff
+</pre>
+and the following <tt class="file">conf/updates</tt>
+<pre>
+Name: local
+Method: http://ftp.myorg.tld/debian
+
+Name: debian
+Method: http://ftp.de.debian.org/debian
+VerifyRelease: A70DAF536070D3A1
+Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
+
+Name: security
+Suite: */updates
+Method: http://security.eu.debian.org/
+Fallback: http://security.debian.org/
+VerifyRelease: A70DAF536070D3A1
+Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
+
+Name: debiantomystuff
+Suite: sid
+Method: http://ftp.de.debian.org/debian
+Architectures: i386&gt;abacus source
+Components: main non-free&gt;bad contrib&gt;bad
+FilterFormula: Architecture (== all)| !Architecture
+FilterList: deinstall list
+</pre>
+and a file <tt class="file">conf/list</tt> with some
+output as <tt>dpkg --get-selections</tt> is printing.
+<br>
+If you then run
+<tt class="command">reprepro update etch</tt> or
+<tt class="command">reprepro checkupdate etch</tt>,
+reprepro looks at etch's <tt class="field">Update:</tt> line
+and finds four rules. The first is the <tt>local</tt> rule,
+which only has a method, so that means it will download the
+<tt class="file">Release</tt> file from
+<tt>http://ftp.myorg.tld/debian/dists/etch/Release</tt> and
+(unless it already has downloaded them before or that
+repository does not have all of them) downloads the
+<tt>binary-i386/Packages.gz</tt>
+and <tt>source/Sources.gz</tt> files for main and contrib.
+The same is done for the <tt>debian</tt> and <tt>security</tt>
+rules.
+As they have a <tt class="field">VerifyRelease</tt> field,
+Release.gpg is also downloaded and checked to be signed with the
+given key
+(which you should have imported to you <tt class="external">gpg</tt>
+keyring before).
+As security has a <tt class="field">Suite:</tt> field, not the codename,
+but the content of this field (with an possible<tt>*</tt> replaced by the codename),
+is used as distribution to get.
+<br>
+Then it will parse for each part of the distribution, parse the files it
+get from left to right.
+For each package it starts with the version currently in the distribution,
+if there is a newer on in <tt>local</tt> it will mark this.
+Then there is the delete rule <tt>-</tt>, which will mark it to be deleted
+(but remembers what was there, so if later the version in the distribution
+or the version in <tt>local</tt> are newest, it will get them from here avoiding
+slow downloads from far away). Then it will look into <tt>debian</tt> and then
+in <tt>security</tt>, if they have a newer version (or the same version, clearing
+the deletion mark).
+<br>
+If you issued <tt class="command">checkupdate</tt> reprepro will print what it would
+do now, otherwise it tries to download all the needed files and when it got all,
+change the packages in the distribution to the new ones, export the index files
+for this distribution and finaly delete old files no longer needed.
+<br>
+TO BE CONTINUED.
 <h2><a name="propagation">Propagation of packages</a></h2>
 You can copy packages between distributions using the pull and copy
 commands.<br>
