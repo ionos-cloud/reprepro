@@ -6,8 +6,9 @@ reprepro (3.3.2-2) UNRELEASED; urgency=low
     .tar files (Closes: 469673)
   * set REPREPRO_CAUSING_FILE environment variable in log scripts to the
     file causing this change. (Closes: 469651)
+  * add a doc-base file hinting to the manual
 
- -- Bernhard R. Link <brlink@debian.org>  Mon, 17 Mar 2008 22:34:44 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 24 Mar 2008 16:38:52 +0100
 
 reprepro (3.3.2-1) unstable; urgency=low
 
