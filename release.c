@@ -59,6 +59,7 @@ struct release {
 	bool new;
 	/* snapshot */
 	bool snapshot;
+	/*@null@*/char *fakesuite;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -78,6 +79,7 @@ void release_free(struct release *release) {
 	struct release_entry *e;
 
 	free(release->dirofdist);
+	free(release->fakesuite);
 	while( (e = release->files) != NULL ) {
 		release->files = e->next;
 		free(e->relativefilename);
@@ -150,6 +152,14 @@ retvalue release_initsnapshot(const char *distdir, const char *codename, const c
 	n = calloc(1,sizeof(struct release));
 	n->dirofdist = mprintf("%s/%s/snapshots/%s",distdir,codename,name);
 	if( n->dirofdist == NULL ) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
+	/* apt only removes the last /... part but we create two,
+	 * so stop it generating warnings by faking a suite */
+	n->fakesuite = mprintf("%s/snapshots/%s", codename, name);
+	if( n->fakesuite == NULL ) {
+		free(n->dirofdist);
 		free(n);
 		return RET_ERROR_OOM;
 	}
@@ -1142,7 +1152,11 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		writestring(distribution->label);
 		writechar('\n');
 	}
-	if( distribution->suite != NULL ) {
+	if( release->fakesuite != NULL ) {
+		writestring("Suite: ");
+		writestring(release->fakesuite);
+		writechar('\n');
+	} else if( distribution->suite != NULL ) {
 		writestring("Suite: ");
 		writestring(distribution->suite);
 		writechar('\n');

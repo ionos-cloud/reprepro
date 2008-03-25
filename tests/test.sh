@@ -1436,7 +1436,8 @@ EOF
 # Remove contents from original, to make them more look alike:
 for n in dists/B/Release dists/B/snapshots/now/Release dists/A/Release dists/A/snapshots/now/Release ; do
 	ed -s $n <<EOF
-g/Date:/s/ .*/ unified/
+g/^Date: /s/ .*/ unified/
+g,^Suite: ./snapshots/now$,d
 w
 q
 EOF
