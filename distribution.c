@@ -93,7 +93,7 @@ static retvalue distribution_free(struct distribution *distribution) {
 		return RET_OK;
 }
 
-/* allow premature free'ing of overrides to save some memorty */
+/* allow premature free'ing of overrides to save some memory */
 void distribution_unloadoverrides(struct distribution *distribution) {
 	override_free(distribution->overrides.deb);
 	override_free(distribution->overrides.udeb);

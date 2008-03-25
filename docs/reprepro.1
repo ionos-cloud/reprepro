@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2007-10-08" "reprepro" REPREPRO
+.TH REPREPRO 1 "2008-03-25" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -1225,7 +1225,7 @@ Though it hopefully rejects overlong UTF-8 sequences, there might
 be other characters your filesystem confuses with special characters,
 thus creating filenames possibly equivalent to
 \fB/mirror/pool/main/../../../etc/shadow\fP
-(Which should be save, as you do not run reprepro as root, do you?)
+(Which should be safe, as you do not run reprepro as root, do you?)
 or simply overwriting your conf/distributions file adding some commands
 in there. So do not use this if you are paranoid, unless you are paranoid
 enough to have checked the code of your libs, kernel and filesystems.
@@ -1238,7 +1238,7 @@ Do not stop when finding a line not starting with a space but
 no colon(:) in it. These are otherwise rejected as they have no
 defined meaning.
 .TP
-.B missingfield \fR(save to ignore)
+.B missingfield \fR(safe to ignore)
 Ignore missing fields in a .changes file that are only checked but
 not processed.
 Those include: Format, Date, Urgency, Maintainer, Description, Changes
@@ -1290,7 +1290,7 @@ are doing.
 Ignore unknown fields in the config files, instead of refusing to run
 then.
 .TP
-.B unusedarch \fR(save to ignore)
+.B unusedarch \fR(safe to ignore)
 No longer reject a .changes file containing no files for any of the
 architectures listed in the Architecture-header within it.
 .TP
@@ -1302,7 +1302,7 @@ specified action (like \fB\-\-architecture\fP).
 The include command will accept packages that would otherwise been
 rejected by the uploaders file.
 .TP
-.B wrongdistribution \fR(save to ignore)
+.B wrongdistribution \fR(safe to ignore)
 Do not error out if a .changes file is to be placed in a
 distribution not listed in that files' Distributions: header.
 .TP

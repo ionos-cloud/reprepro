@@ -945,7 +945,7 @@
 	* Release 0.1.1
 
 2005-02-07  Bernhard R. Link <brlink@debian.org>
-	* Fix --onlyacceptsigned to savely handle unknown
+	* Fix --onlyacceptsigned to safely handle unknown
 	keys or multiple keys of different state.
 
 2005-02-06  Bernhard R. Link <brlink@debian.org>

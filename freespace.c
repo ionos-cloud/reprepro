@@ -232,7 +232,7 @@ retvalue space_check(struct devices *devices) {
 		           device->needed >= device->available - device->reserved ) {
 			fprintf(stderr,
 "NOT ENOUGH FREE SPACE on filesystem 0x%lx (the filesystem '%s' is on)\n"
-"available blocks %llu, needed blocks %llu (+%llu savety margin), block size is %llu.\n"
+"available blocks %llu, needed blocks %llu (+%llu safety margin), block size is %llu.\n"
 "(Take a look at --spacecheck in the manpage for more information.)\n",
 				(unsigned long)device->id, device->somepath,
 				(unsigned long long)device->available,
