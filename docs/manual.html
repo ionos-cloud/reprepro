@@ -6,6 +6,7 @@
 html { color: #000; background: #fefefe; font-family: serif; margin: 1em; border: 0; padding: 0; line-height: 120%; }
 body { margin: 0; border: 0; padding: 0; }
 pre { text-align: left; border: #f0f0f0 1px solid;  padding: 1px;}
+pre.shell { text-align: left; border: none; border-left: #f0f0f0 1px solid;  padding: 2px;}
 h1, h2, h3 { text-align: left; font-family: sans-serif; background-color: #f0f0ff; color: #3c3c3c; border: #a7a7a7 1px solid;  padding: 10px;}
 h1 { font-size: 180%; line-height: 150%; }
 h2 { font-size: 150% }
@@ -46,7 +47,7 @@ Sections of this document:
  <li><a href="#incoming">Processing an incoming queue</a></li>
  </ul></li>
 <li><a href="#mirroring">Mirroring</a></li>
-<li><a href="#propagation">Propagation of packages</a> (TODO)</li>
+<li><a href="#propagation">Propagation of packages</a></li>
 <li><a href="#snapshosts">Snapshots</a> (TODO)</li>
 <li><a href="#tracking">Source package tracking</a> (TODO)</li>
 <li><a href="#maintainance">Maintenance</a></li>
@@ -95,13 +96,13 @@ options.
 <li>Create a subdirectory called <tt>conf</tt> in there.</li>
 <li>In the <tt>conf/</tt> subdirectory create a file called <tt>distributions</tt>,
 with content like:
-<pre>
+<pre class="file">
 Codename: mystuff
 Components: main bad
 Architectures: sparc i386 source
 </pre>
 or with content like:
-<pre>
+<pre class="file">
 Codename: andy
 Suite: rusty
 Components: main bad
@@ -116,23 +117,23 @@ appear which are described later).
 </li>
 <li>If your <tt>conf/distributions</tt> file contained a <tt>Suite:</tt> and you
 are to lazy to generate the symlinks yourself, call:
-<pre>
+<pre class="shell">
 reprepro -b $YOURBASEDIR createsymlinks
 </pre>
 </li>
 <li>Include some package, like:
-<pre>
+<pre class="shell">
 reprepro -b $YOURBASEDIR include mystuff mypackage.changes
 </pre>
 or:
-<pre>
+<pre class="shell">
 reprepro -b $YOURBASEDIR includedeb mystuff mypackage.deb
 </pre>
 </li>
 <li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
 directories. They contain everything needed to apt-get from.
 Tell apt to include it by adding the following to your <tt>sources.list</tt>:
-<pre>
+<pre class="file">
 deb file:///$YOURBASEDIR mystuff main bad
 </pre>
 or make it available via http or ftp and do the same <tt>http://</tt> or <tt>ftp://</tt> source.</li>
@@ -145,7 +146,7 @@ all packages of etch plus security updates:
 <li>Create a subdirectory called <tt>conf</tt> in there (if not already existent).</li>
 <li>In the <tt>conf/</tt> subdirectory create a file called <tt>distributions</tt>,
 with content like (or add to that file after an empty line):
-<pre>
+<pre class="file">
 Origin: Debian
 Label: Debian
 Suite: stable
@@ -164,7 +165,7 @@ then add the <tt>debian</tt> and <tt>security</tt> rules, which still have to be
 <li>In the <tt>conf/</tt> subdirectory create a file called <tt>updates</tt>,
 with content like (or add to that file after an empty line:):
 or with content like:
-<pre>
+<pre class="file">
 Name: security
 Method: http://security.debian.org/debian-security
 Fallback: ftp://klecker.debian.org/debian-security
@@ -185,14 +186,14 @@ version before 3.0.0. Since 3.0.0 an empty field does the same, though <tt>none<
 is still ignored for backward compatibility.
 </li>
 <li>Tell reprepro to update:
-<pre>
+<pre class="shell">
 reprepro -b $YOURBASEDIR update etch
 </pre>
 </li>
 <li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
 directories. They contain everything needed to apt-get from.
 Tell apt to include it by adding the following to your <tt>sources.list</tt>:
-<pre>
+<pre class="shell">
 deb file:///$YOURBASEDIR etch main
 </pre>
 or make it available via http or ftp.</li>
@@ -721,7 +722,7 @@ to put it into.
 Each upload has each item in its <tt class="field">Distribution:</tt> field
 compared first to last to each of this items and is put in the first distribution
 accepting it. For example
-<pre>
+<pre class="line">
 Allow: stable>etch stable>etch-proposed-updates mystuff unstable>sid
 </pre>
 will put a <tt class="suffix">.changes</tt> file with
@@ -765,7 +766,7 @@ For a list of possible options take a look into the man page.
 <h4><tt class="file">conf/distribution</tt> for <tt class="command">processincoming</tt></h4></a>
 There are no special requirements on the <tt class="file">conf/distribution</tt>
 file by processincoming. So even a simple
-<pre>
+<pre class="file">
 Codename: mystuff
 Architectures: i386 source
 Components: main non-free contrib bad
@@ -807,7 +808,7 @@ file last, dupload and dput always ensure this).
 This can be combined with Debian's cron-extension to have a program started at
 boot time with the <tt>@boot</tt> directive.
 For example with a crontab like:
-<pre>
+<pre class="file">
 MAILTO=myaddress@somewhere.tld
 
 @reboot inoticoming --logfile /my/basedir/logs/i.log /my/basedir/incoming/ --stderr-to-log --stdout-to-log --suffix '.changes' --chdir /my/basedir reprepro -b /my/basedir --waitforlock 100 processincoming local {} \;
@@ -839,7 +840,7 @@ arguments.
 Let's start with some examples:
 <h3><a name="update-examples">Updating examples</a></h3>
 Let's assume you have the following <tt class="file">conf/distributions</tt>
-<pre>
+<pre class="file">
 Codename: etch
 Architectures: i386 source
 Components: main contrib
@@ -851,7 +852,7 @@ Components: main bad
 Update: debiantomystuff
 </pre>
 and the following <tt class="file">conf/updates</tt>
-<pre>
+<pre class="file">
 Name: local
 Method: http://ftp.myorg.tld/debian
 
@@ -919,9 +920,58 @@ for this distribution and finaly delete old files no longer needed.
 <br>
 TO BE CONTINUED.
 <h2><a name="propagation">Propagation of packages</a></h2>
-You can copy packages between distributions using the pull and copy
-commands.<br>
-TO BE DOCUMENTED
+You can copy packages between distributions using the
+<tt class="command">pull</tt> and <tt class="command">copy</tt> commands.
+<br>
+With the <tt class="command">copy</tt> command you can copy packages
+by name from one distribution to the other within the same repository.
+<br>
+With the <tt class="command">pull</tt> command you can pull all packages
+(or a subset defined by some list, or exceptions by some list, or by some
+formula, or ...) from one distribution to another within the same formula.
+<br>
+Note that both assume the filenames of the corresponding packages in the
+pool will not differ, so you cannot move packages from one component to another.
+<br>
+Let's just look at a little example, more information can be found in the man page.
+<br>
+Assume you upload all new packages to a distribution and you want another
+so you can keep using an old version until you know the newer works, too.
+One way would be to use something like the following
+<tt class="file">conf/distributions</tt>:
+<pre class="file">
+Codename: development
+Suite: unstable
+Components: main extra
+Architectures: i386 source
+
+Codename: bla
+Suite: testing
+Components: main extra
+Architectures: i386 source
+Pull: from_development
+</pre>
+and <tt class="file">conf/pulls</tt>:
+<pre class="file">
+Name: from_development
+From: development
+</pre>
+i.e. you have two distributions, bla and development.
+Now you can just upload stuff to development (or it's alias unstable).
+And when you want a single package to go to testing, you can use the copy
+command:
+<pre class="shell">
+reprepro copy bla development name1 name2 name3
+</pre>
+If you do not want to copy all pakages of a given name, but only some
+of them, you can use <tt>-A</tt>, <tt>-T</tt> and <tt>-C</tt>:
+<pre class="shell">
+reprepro -T deb -A i386 copy bla development name1
+</pre>
+will copy <tt class="suffix">.deb</tt> packages called name1 from the i386
+parts of the distribution.
+<br>
+TO BE CONTINUED
 <h2><a name="snapshosts">Snapshots</a></h2>
 There is a gensnapshot command.<br>
 TO BE DOCUMENTED
