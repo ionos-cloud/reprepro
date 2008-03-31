@@ -915,7 +915,7 @@ stderr
 *=No section found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
-echo "Section: test" >> pkg/DEBIAN/control
+echo "Section: sectiontest" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
@@ -2565,7 +2565,7 @@ DATESTR replace test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:9.0
 DATESTR replace test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR replace test1 dsc ugly source bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -S test -P test includedeb test1 simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
+testrun - -b . -S sectiontest -P prioritytest includedeb test1 simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
 stderr
 -v1*=simple_1_${FAKEARCHITECTURE}.deb: component guessed as 'stupid'
 stdout
@@ -2583,10 +2583,12 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+dodo zgrep '^Section: sectiontest' dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+dodo zgrep '^Priority: prioritytest' dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages.gz
 checklog log1 <<EOF
 DATESTR add test1 deb stupid ${FAKEARCHITECTURE} simple 1
 EOF
-testrun - -b . -S test -P test includedsc test1 simple_1.dsc 3<<EOF
+testrun - -b . -S sectiontest -P prioritytest includedsc test1 simple_1.dsc 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1*=simple_1.dsc: component guessed as 'stupid'
@@ -2604,6 +2606,8 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+dodo zgrep '^Section: sectiontest' dists/test1/stupid/source/Sources.gz
+dodo zgrep '^Priority: prioritytest' dists/test1/stupid/source/Sources.gz
 checklog log1 <<EOF
 DATESTR add test1 dsc stupid source simple 1
 EOF

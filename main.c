@@ -169,8 +169,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct distribution *dummy2), \
 			UNUSED(struct database *dummy),	\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -180,8 +180,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			struct distribution *alldistributions, \
 			UNUSED(struct database *dummy),	\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -191,8 +191,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			u(struct distribution *,alldistributions), \
 			struct database *database,	\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -202,8 +202,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			d(struct distribution *, alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -213,8 +213,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -224,8 +224,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			d(struct distribution *,alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -235,8 +235,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			u(struct distribution *, alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -246,8 +246,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			struct distribution *alldistributions, \
 			struct database *database,		\
 			struct strlist* dereferenced, 	\
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\

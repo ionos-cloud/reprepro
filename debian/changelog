@@ -7,9 +7,10 @@ reprepro (3.3.2-2) UNRELEASED; urgency=low
   * set REPREPRO_CAUSING_FILE environment variable in log scripts to the
     file causing this change. (Closes: 469651)
   * fix save vs safe misspellings (Closes: 472577)
+  * fix -S and -P mixup (Closes: 473609)
   * add a doc-base file hinting to the manual
 
- -- Bernhard R. Link <brlink@debian.org>  Tue, 25 Mar 2008 11:36:04 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 31 Mar 2008 20:59:36 +0200
 
 reprepro (3.3.2-1) unstable; urgency=low
 
