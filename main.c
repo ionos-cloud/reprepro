@@ -592,7 +592,7 @@ static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct d
 	char *sourcename, *sourceversion;
 	retvalue r;
 
-	r = target->getsourceandversion(target, control, packagename,
+	r = target->getsourceandversion(control, packagename,
 			&sourcename, &sourceversion);
 	if( !RET_IS_OK(r) )
 		return r;
@@ -767,7 +767,7 @@ static retvalue list_in_target(void *data, struct target *target,
 
 	result = table_getrecord(target->packages, packagename, &control);
 	if( RET_IS_OK(result) ) {
-		r = (*target->getversion)(target, control, &version);
+		r = target->getversion(control, &version);
 		if( RET_IS_OK(r) ) {
 			printf("%s: %s %s\n",target->identifier,packagename,version);
 			free(version);
@@ -805,7 +805,7 @@ static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distr
 
 	r = term_decidechunk(condition, control);
 	if( RET_IS_OK(r) ) {
-		r = (*target->getversion)(target, control, &version);
+		r = target->getversion(control, &version);
 		if( RET_IS_OK(r) ) {
 			printf("%s: %s %s\n", target->identifier,
 			                      packagename, version);
@@ -1225,7 +1225,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 		return result;
 	}
 
-	result = origtarget->getversion(origtarget, chunk, &version);
+	result = origtarget->getversion(chunk, &version);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		free(chunk);

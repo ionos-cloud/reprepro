@@ -1170,7 +1170,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			free(package);
 			continue;
 		}
-		r = target->getsourceandversion(target, control, package,
+		r = target->getsourceandversion(control, package,
 				&source, &version);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {

@@ -612,9 +612,9 @@ static inline retvalue newindex(struct update_index **indices,
 		return RET_ERROR_OOM;
 	}
 	index->original_filename = NULL;
-	index->upstream = (*target->getupstreamindex)(target,
-		origin->suite_from,component_from,architecture_from);
-	if( index->upstream == NULL ) {
+	index->upstream = target->getupstreamindex(origin->suite_from,
+			component_from, architecture_from);
+	if( FAILEDTOALLOC(index->upstream) ) {
 		free(index->filename);
 		free(index);
 		return RET_ERROR_OOM;

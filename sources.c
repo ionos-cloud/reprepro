@@ -114,7 +114,7 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 	return r;
 }
 
-retvalue sources_getname(UNUSED(struct target *t),const char *control,char **packagename){
+retvalue sources_getname(const char *control, char **packagename){
 	retvalue r;
 
 	r = chunk_getvalue(control,"Package",packagename);
@@ -126,7 +126,7 @@ retvalue sources_getname(UNUSED(struct target *t),const char *control,char **pac
 	}
 	return r;
 }
-retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **version) {
+retvalue sources_getversion(const char *control, char **version) {
 	retvalue r;
 
 	r = chunk_getvalue(control,"Version",version);
@@ -139,7 +139,7 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 	return r;
 }
 
-retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+retvalue sources_getinstalldata(const struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *type_p) {
 	retvalue r;
 	char *origdirectory, *directory, *mychunk;
 	struct strlist myfilekeys;
@@ -221,6 +221,8 @@ retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSE
 	*control = mychunk;
 	strlist_move(filekeys, &myfilekeys);
 	checksumsarray_move(origfiles, &files);
+	if( type_p != NULL )
+		*type_p = ft_SOURCE;
 	return RET_OK;
 }
 
@@ -317,8 +319,7 @@ retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 	return RET_OK;
 }
 
-char *sources_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
-		const char *component_from,UNUSED(const char *architecture)) {
+char *sources_getupstreamindex(const char *suite_from, const char *component_from, UNUSED(const char *architecture)) {
 	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
 }
 
@@ -402,7 +403,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 	return tracking_save(tracks, pkg);
 }
 
-retvalue sources_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {
+retvalue sources_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version) {
 	retvalue r;
 	char *sourceversion;
 	char *sourcename;

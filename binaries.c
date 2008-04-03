@@ -75,7 +75,7 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 }
 
 /* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
-static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,const char *packagetype,const char *version,/*@out@*/char **sourcename,/*@out@*/char **basename) {
+static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, const char *packagetype, const char *version, /*@out@*/char **sourcename, /*@out@*/char **basename, /*@out@*/enum filetype *ft_p) {
 	retvalue r;
 	char *parch;
 	char *mysourcename,*mybasename;
@@ -99,6 +99,10 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 		free(mysourcename);
 		return r;
 	}
+	if( strcmp(parch, "all") == 0 )
+		*ft_p = ft_ALL_BINARY;
+	else
+		*ft_p = ft_ARCH_BINARY;
 	r = properpackagename(packagename);
 	if( !RET_WAS_ERROR(r) )
 		r = properversion(version);
@@ -170,7 +174,7 @@ static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,c
 	return RET_OK;
 }
 
-retvalue binaries_getname(UNUSED(struct target *t),const char *control,char **packagename){
+retvalue binaries_getname(const char *control, char **packagename){
 	retvalue r;
 
 	r = chunk_getvalue(control,"Package",packagename);
@@ -182,7 +186,7 @@ retvalue binaries_getname(UNUSED(struct target *t),const char *control,char **pa
 	}
 	return r;
 }
-retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char **version) {
+retvalue binaries_getversion(const char *control, char **version) {
 	retvalue r;
 
 	r = chunk_getvalue(control,"Version",version);
@@ -195,12 +199,14 @@ retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char *
 	return r;
 }
 
-retvalue binaries_getinstalldata(struct target *t, const char *packagename, const char *version, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *type_p) {
 	char *sourcename IFSTUPIDCC(=NULL) ,*basename IFSTUPIDCC(=NULL);
 	struct checksumsarray origfilekeys;
 	retvalue r;
+	enum filetype ft IFSTUPIDCC(='?');
 
-	r = binaries_parse_chunk(chunk,packagename,t->packagetype,version,&sourcename,&basename);
+	r = binaries_parse_chunk(chunk, packagename, t->packagetype,
+			version, &sourcename, &basename, &ft);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	} else if( r == RET_NOTHING ) {
@@ -213,13 +219,16 @@ retvalue binaries_getinstalldata(struct target *t, const char *packagename, cons
 		return r;
 	}
 
-	r = calcnewcontrol(chunk,sourcename,basename,t->component,filekeys,control);
+	r = calcnewcontrol(chunk, sourcename, basename,
+			t->component, filekeys, control);
 	if( RET_WAS_ERROR(r) ) {
 		checksumsarray_done(&origfilekeys);
 	} else {
 		assert( r != RET_NOTHING );
 		checksumsarray_move(origfiles, &origfilekeys);
 	}
+	if( type_p != NULL )
+		*type_p = ft;
 	free(sourcename);free(basename);
 	return r;
 }
@@ -248,12 +257,10 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 	return RET_OK;
 }
 
-char *binaries_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
-		const char *component_from,const char *architecture) {
+char *binaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture) {
 	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
 }
-char *ubinaries_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
-		const char *component_from,const char *architecture) {
+char *ubinaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture) {
 	return mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",suite_from,component_from,architecture);
 }
 
@@ -388,7 +395,7 @@ retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb
 	return tracking_save(tracks, pkg);
 }
 
-retvalue binaries_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {
+retvalue binaries_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version) {
 	retvalue r;
 	char *sourcename,*sourceversion;
 
