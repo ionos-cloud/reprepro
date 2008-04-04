@@ -2,6 +2,7 @@
 	* add copysrc and copyfilter
 	* reimplement copy command (should no longer invalidate
 	  tracking information)
+	* warn against impossible -T values
 
 2008-03-31  Bernhard R. Link <brlink@debian.org>
 	* bugfix: no longer confuse -S and -P (introduced in 3.0.1)

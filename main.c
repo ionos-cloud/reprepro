@@ -2794,6 +2794,13 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(x_architecture, optarg);
 			break;
 		case 'T':
+			if( strcmp(optarg, "dsc") != 0 &&
+			    strcmp(optarg, "deb") != 0 &&
+			    strcmp(optarg, "udeb") != 0 ) {
+				fprintf(stderr, "Unknown packagetype '%s' (only dsc deb and udeb are known)!\n",
+						optarg);
+				exit(EXIT_FAILURE);
+			}
 			if( x_packagetype != NULL &&
 					strcmp(x_packagetype, optarg) != 0) {
 				fprintf(stderr,"Multiple '-T's are not supported!\n");
