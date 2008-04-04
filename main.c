@@ -61,6 +61,7 @@
 #include "incoming.h"
 #include "override.h"
 #include "log.h"
+#include "copypackages.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -1184,98 +1185,9 @@ ACTION_B(n, n, y, checkpull) {
 	return result;
 }
 
-struct copy_data {
-	struct distribution *destination;
-	/*@temp@*/struct database *db;
-	/*@temp@*/const char *name;
-	/*@temp@*/struct strlist *removedfiles;
-};
-
-static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
-		struct distribution *distribution) {
-	retvalue result,r;
-	struct copy_data *d = data;
-	char *chunk,*version;
-	struct strlist filekeys;
-	struct target *dsttarget;
-
-	result = target_initpackagesdb(origtarget, d->db, READONLY);
-	if( RET_WAS_ERROR(result) ) {
-		RET_UPDATE(distribution->status,result);
-		return result;
-	}
-
-	dsttarget = distribution_gettarget(d->destination, origtarget->component,
-					origtarget->architecture,
-					origtarget->packagetype);
-	if( dsttarget == NULL ) {
-		if( verbose > 2 )
-			printf("Not looking into '%s' as no matching target in '%s'!\n",
-					origtarget->identifier,
-					d->destination->codename);
-		result = RET_NOTHING;
-	} else
-		result = table_getrecord(origtarget->packages, d->name, &chunk);
-	if( result == RET_NOTHING && verbose > 2 )
-		printf("No instance of '%s' found in '%s'!\n",
-				d->name, origtarget->identifier);
-	r = target_closepackagesdb(origtarget);
-	RET_ENDUPDATE(result,r);
-	if( !RET_IS_OK(result) ) {
-		return result;
-	}
-
-	result = origtarget->getversion(chunk, &version);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
-		free(chunk);
-		return result;
-	}
-
-	result = origtarget->getfilekeys(chunk, &filekeys);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
-		free(chunk);
-		free(version);
-		return result;
-	}
-	if( verbose >= 1 ) {
-		printf("Moving '%s' from '%s' to '%s'.\n",
-				d->name,
-				origtarget->identifier,
-				dsttarget->identifier);
-	}
-
-	result = target_initpackagesdb(dsttarget, d->db, READWRITE);
-	if( RET_WAS_ERROR(result) ) {
-		RET_UPDATE(d->destination->status,result);
-		free(chunk);
-		free(version);
-		strlist_done(&filekeys);
-		return result;
-	}
-
-	assert( logger_isprepared(d->destination->logger) );
-
-	result = target_addpackage(dsttarget, d->destination->logger,
-			d->db, d->name, version, chunk,
-			&filekeys, NULL, true, d->removedfiles,
-			NULL, '?');
-	free(version);
-	free(chunk);
-	strlist_done(&filekeys);
-
-	r = target_closepackagesdb(dsttarget);
-	RET_ENDUPDATE(result,r);
-	RET_UPDATE(d->destination->status,result);
-	return result;
-}
-
 ACTION_D(y, n, y, copy) {
-	struct distribution *destination,*source;
+	struct distribution *destination, *source;
 	retvalue result, r;
-	struct copy_data d;
-	int i;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
@@ -1283,34 +1195,17 @@ ACTION_D(y, n, y, copy) {
 		return result;
 	result = distribution_get(alldistributions, argv[2], false, &source);
 	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
+	if( RET_WAS_ERROR(result) )
 		return result;
-	}
 	result = distribution_prepareforwriting(destination);
-	if( RET_WAS_ERROR(result) ) {
+	if( RET_WAS_ERROR(result) )
 		return result;
-	}
 
-	if( destination->tracking != dt_NONE ) {
-		fprintf(stderr, "WARNING: copy does not yet support trackingdata and will ignore trackingdata in '%s'!\n", destination->codename);
-	}
+	r = copy_by_name(database, destination, source, argc-3, argv+3,
+			component, architecture, packagetype, dereferenced);
+	RET_ENDUPDATE(result,r);
 
-	d.destination = destination;
-	d.db = database;
-	d.removedfiles = dereferenced;
-	for( i = 3; i < argc ; i++ ) {
-		d.name = argv[i];
-		if( verbose > 0 )
-			printf("Looking for '%s' in '%s' to be copied to '%s'...\n",
-					d.name, source->codename,
-					destination->codename);
-		result = distribution_foreach_part(source,component,architecture,packagetype,copy,&d);
-	}
 	logger_wait();
-
-	d.db = NULL;
-	d.removedfiles = NULL;
-	d.destination = NULL;
 
 	r = distribution_export(export, destination, distdir, database);
 	RET_ENDUPDATE(result,r);
