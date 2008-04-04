@@ -1214,6 +1214,62 @@ ACTION_D(y, n, y, copy) {
 
 }
 
+ACTION_D(y, n, y, copysrc) {
+	struct distribution *destination, *source;
+	retvalue result, r;
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_get(alldistributions, argv[2], false, &source);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = copy_by_source(database, destination, source, argc-3, argv+3,
+			component, architecture, packagetype, dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(y, n, y, copyfilter) {
+	struct distribution *destination, *source;
+	retvalue result, r;
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_get(alldistributions, argv[2], false, &source);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = copy_by_formula(database, destination, source, argv[3],
+			component, architecture, packagetype, dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
 /***********************rereferencing*************************/
 ACTION_R(n, n, y, y, rereference) {
 	retvalue result, r;
@@ -2226,6 +2282,10 @@ static const struct action {
 		0, -1, "pull [<distributions>]"},
 	{"copy",		A_Dact(copy),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>"},
+	{"copysrc",		A_Dact(copysrc),
+		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copysrc <destination-distribution> <source-distribution> <source-package-name> [<source versions>]"},
+	{"copyfilter",		A_Dact(copyfilter),
+		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copysrc <destination-distribution> <source-distribution> <formula>"},
 	{"checkpull",		A_B(checkpull),
 		0, -1, "checkpull [<distributions>]"},
 	{"includedeb",		A_Dactsp(includedeb),

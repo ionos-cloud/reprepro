@@ -198,7 +198,8 @@ _reprepro()
 			predelete pull collectnewchecksums\
 			checkpull includedeb includeudeb includedsc include\
 			translatefilelists\
-			generatefilelists clearvanished copy processincoming gensnapshot'
+			generatefilelists clearvanished copy copysrc copyfilter\
+			processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
 			_listmd5sums _listchecksums _addchecksums _dumpcontents\
 			_removereferences _addreference _versioncompare _fakeemptyfilelist'
@@ -327,7 +328,7 @@ _reprepro()
 			fi
 			return 0;
 			;;
-		copy)
+		copy|copysrc|copyfilter)
 			# first argument is a codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
 				parse_config

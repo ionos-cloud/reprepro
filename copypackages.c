@@ -431,12 +431,6 @@ retvalue copy_by_name(struct database *database, struct distribution *into, stru
 	return r;
 }
 
-static retvalue notyetimplemented(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
-	return RET_NOTHING;
-}
-
-#define by_filter notyetimplemented
-
 static retvalue by_source(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	struct cursor *cursor;
@@ -511,15 +505,53 @@ retvalue copy_by_source(struct database *database, struct distribution *into, st
 	return r;
 }
 
-// retvalue copy_by_filter(struct database *database, struct distribution *into, struct distribution *from, const char *filter, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, struct strlist *dereferenced) {
-// 	struct package_list list;
-// 	retvalue r;
-// 
-// 	memset(&list, 0, sizeof(list));
-// 	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_filter, formula);
-// 	if( !RET_IS_OK(r) )
-// 		return r;
-// 	r = packagelist_add(database, into, &list, dereferenced);
-// 	packagelist_done(&list);
-// 	return r;
-// }
+static retvalue by_formula(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
+	term *condition = data;
+	struct cursor *cursor;
+	const char *packagename, *chunk;
+	retvalue result, r;
+
+	r = table_newglobalcursor(fromtarget->packages, &cursor);
+	assert( r != RET_NOTHING );
+	if( !RET_IS_OK(r) )
+		return r;
+	result = RET_NOTHING;
+	while( cursor_nexttemp(fromtarget->packages, cursor,
+				&packagename, &chunk) ) {
+		r = term_decidechunk(condition, chunk);
+		if( r == RET_NOTHING )
+			continue;
+		if( RET_WAS_ERROR(r) ) {
+			cursor_close(fromtarget->packages, cursor);
+			return r;
+		}
+		r = list_prepareadd(database, list, desttarget, chunk);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			return result;
+	}
+	r = cursor_close(fromtarget->packages, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
+retvalue copy_by_formula(struct database *database, struct distribution *into, struct distribution *from, const char *filter, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, struct strlist *dereferenced) {
+	struct package_list list;
+	term *condition;
+	retvalue r;
+
+	memset(&list, 0, sizeof(list));
+
+	r = term_compile(&condition, filter,
+			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_formula, condition);
+	term_free(condition);
+	if( !RET_IS_OK(r) )
+		return r;
+	r = packagelist_add(database, into, &list, dereferenced);
+	packagelist_done(&list);
+	return r;
+}

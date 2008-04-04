@@ -8,9 +8,10 @@ reprepro (3.3.2-2) UNRELEASED; urgency=low
     file causing this change. (Closes: 469651)
   * fix save vs safe misspellings (Closes: 472577)
   * fix -S and -P mixup (Closes: 473609)
+  * add copysrc and copyfilter commands (Closes: 465219)
   * add a doc-base file hinting to the manual
 
- -- Bernhard R. Link <brlink@debian.org>  Mon, 31 Mar 2008 20:59:36 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  4 Apr 2008 16:13:11 +0200
 
 reprepro (3.3.2-1) unstable; urgency=low
 
