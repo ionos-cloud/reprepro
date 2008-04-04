@@ -4701,18 +4701,17 @@ test -f pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
 testrun - -b . copy b a ab ac 3<<EOF
 stdout
 -v9*=Adding reference to 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' by 'b|all|${FAKEARCHITECTURE}'
--v1*=Moving 'ab' from 'a|all|${FAKEARCHITECTURE}' to 'b|all|${FAKEARCHITECTURE}'.
+-v1*=Adding 'ab' '3-1' to 'b|all|${FAKEARCHITECTURE}'.
 -v3*=Not looking into 'a|all|source' as no matching target in 'b'!
--v3*=No instance of 'ab' found in 'a|all|source'!
--v3*=No instance of 'ac' found in 'a|all|${FAKEARCHITECTURE}'!
--v3*=No instance of 'ac' found in 'a|all|source'!
--v1*=Looking for 'ab' in 'a' to be copied to 'b'...
 -d1*=db: 'ab' added to packages.db(b|all|${FAKEARCHITECTURE}).
--v1*=Looking for 'ac' in 'a' to be copied to 'b'...
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 EOF
+# readd?
+#-v3*=No instance of 'ab' found in 'a|all|source'!
+#-v3*=No instance of 'ac' found in 'a|all|${FAKEARCHITECTURE}'!
+#-v3*=No instance of 'ac' found in 'a|all|source'!
 checklog logab <<EOF
 DATESTR add b deb all ${FAKEARCHITECTURE} ab 3-1
 EOF
