@@ -1,3 +1,6 @@
+2008-04-05  Bernhard R. Link <brlink@debian.org>
+	* add restore restoresrc restorefilter and _addpackage
+
 2008-04-04  Bernhard R. Link <brlink@debian.org>
 	* add copysrc and copyfilter
 	* reimplement copy command (should no longer invalidate

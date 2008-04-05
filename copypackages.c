@@ -32,6 +32,8 @@
 #include "terms.h"
 #include "dpkgversions.h"
 #include "tracking.h"
+#include "filecntl.h"
+#include "mprintf.h"
 #include "copypackages.h"
 
 extern int verbose;
@@ -337,14 +339,8 @@ static retvalue copy_by_func(struct package_list *list, struct database *databas
 	result = RET_NOTHING;
 	for( origtarget = from->targets ; origtarget != NULL ;
 			origtarget = origtarget->next ) {
-		if( component != NULL &&
-				strcmp(component, origtarget->component) != 0 )
-			continue;
-		if( architecture != NULL &&
-				strcmp(architecture, origtarget->architecture) != 0 )
-			continue;
-		if( packagetype != NULL &&
-				strcmp(packagetype, origtarget->packagetype) != 0 )
+		if( !target_matches(origtarget,
+				component, architecture, packagetype) )
 			continue;
 		desttarget = distribution_gettarget(into,
 				origtarget->component,
@@ -457,8 +453,10 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 			return r;
 		}
 		/* only include if source name matches */
-		if( strcmp(source, d->argv[0]) != 0 )
+		if( strcmp(source, d->argv[0]) != 0 ) {
+			free(source); free(sourceversion);
 			continue;
+		}
 		if( d->argc > 1 ) {
 			int i, c;
 
@@ -469,6 +467,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 				assert( r != RET_NOTHING );
 				if( RET_WAS_ERROR(r) ) {
 					cursor_close(fromtarget->packages, cursor);
+					free(source); free(sourceversion);
 					return r;
 				}
 				if( c == 0 )
@@ -476,9 +475,12 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 			}
 			/* there are source versions specified and
 			 * the source version of this package differs */
-			if( i == 0 )
+			if( i == 0 ) {
+				free(source); free(sourceversion);
 				continue;
+			}
 		}
+		free(source); free(sourceversion);
 		r = list_prepareadd(database, list, desttarget, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -544,7 +546,7 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 
 	r = term_compile(&condition, filter,
 			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
-	if( RET_WAS_ERROR(r) ) {
+	if( !RET_IS_OK(r) ) {
 		return r;
 	}
 	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_formula, condition);
@@ -553,5 +555,248 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 		return r;
 	r = packagelist_add(database, into, &list, dereferenced);
 	packagelist_done(&list);
+	return r;
+}
+
+struct copy_from_file_data {
+	struct package_list *list;
+	struct database *database;
+	struct distribution *distribution;
+	const char *filename;
+	struct target *target;
+	void *privdata;
+};
+
+static retvalue choose_by_name(void *data, const char *chunk) {
+	struct copy_from_file_data *d = data;
+	const struct namelist *l = d->privdata;
+	char *packagename;
+	int i;
+	retvalue r;
+
+	r = d->target->getname(chunk, &packagename);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	for( i = 0 ; i < l->argc ; i++ ) {
+		if( strcmp(packagename, l->argv[i]) == 0 )
+			break;
+	}
+	free(packagename);
+	if( i >= l->argc )
+		return RET_NOTHING;
+	return list_prepareadd(d->database, d->list, d->target, chunk);
+}
+
+static retvalue choose_by_source(void *data, const char *chunk) {
+	struct copy_from_file_data *d = data;
+	const struct namelist *l = d->privdata;
+	char *packagename, *source, *sourceversion;
+	retvalue r;
+
+	r = d->target->getname(chunk, &packagename);
+	if( !RET_IS_OK(r) )
+		return r;
+	r = d->target->getsourceandversion(chunk, packagename,
+			&source, &sourceversion);
+	free(packagename);
+	if( !RET_IS_OK(r) )
+		return r;
+	assert( l->argv > 0 );
+	/* only include if source name matches */
+	if( strcmp(source, l->argv[0]) != 0 ) {
+		free(source); free(sourceversion);
+		return RET_NOTHING;
+	}
+	if( l->argc > 1 ) {
+		int i, c;
+
+		i = l->argc;
+		while( --i > 0 ) {
+			r = dpkgversions_cmp(sourceversion,
+					l->argv[i], &c);
+			assert( r != RET_NOTHING );
+			if( RET_WAS_ERROR(r) ) {
+				free(source); free(sourceversion);
+				return r;
+			}
+			if( c == 0 )
+				break;
+		}
+		/* there are source versions specified and
+		 * the source version of this package differs */
+		if( i == 0 ) {
+			free(source); free(sourceversion);
+			return RET_NOTHING;
+		}
+	}
+	free(source); free(sourceversion);
+	return list_prepareadd(d->database, d->list, d->target, chunk);
+}
+
+static retvalue choose_by_condition(void *data, const char *chunk) {
+	struct copy_from_file_data *d = data;
+	term *condition = d->privdata;
+	retvalue r;
+
+	r = term_decidechunk(condition, chunk);
+	if( !RET_IS_OK(r) )
+		return r;
+	return list_prepareadd(d->database, d->list, d->target, chunk);
+}
+
+retvalue copy_from_file(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *filename, int argc, const char **argv, struct strlist *dereferenced) {
+	retvalue result, r;
+	struct target *target;
+	struct copy_from_file_data data;
+	struct package_list list;
+	struct namelist d = {argc, argv};
+
+	assert( architecture != NULL );
+	assert( component != NULL );
+	assert( packagetype != NULL );
+
+	memset(&list, 0, sizeof(list));
+	target = distribution_gettarget(into,
+			component, architecture, packagetype);
+	if( target == NULL ) {
+		if( !strlist_in(&into->architectures, architecture) ) {
+			fprintf(stderr, "Distribution '%s' does not contain architecture '%s!'\n",
+					into->codename, architecture);
+		}
+		if( strcmp(packagetype, "udeb") != 0 ) {
+			if( !strlist_in(&into->components, component) ) {
+				fprintf(stderr,
+"Distribution '%s' does not contain component '%s!'\n",
+						into->codename, component);
+			}
+		} else {
+			if( !strlist_in(&into->udebcomponents, component) ) {
+				fprintf(stderr,
+"Distribution '%s' does not contain udeb component '%s!'\n",
+						into->codename, component);
+			}
+		}
+		/* -A source needing -T dsc and vice versa already checked
+		 * in main.c */
+		fprintf(stderr,
+"No matching part of distribution '%s' found!\n",
+						into->codename);
+		return RET_ERROR;
+	}
+	data.list = &list;
+	data.database = database;
+	data.distribution = into;
+	data.filename = filename;
+	data.target = target;
+	data.privdata = &d;
+	result = chunk_foreach(filename, choose_by_name, &data, false);
+	if( !RET_IS_OK(result) )
+		return result;
+	r = packagelist_add(database, into, &list, dereferenced);
+	packagelist_done(&list);
+	return r;
+}
+
+static retvalue restore_from_snapshot(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, chunkaction action, void *d, struct strlist *dereferenced) {
+	retvalue result, r;
+	struct copy_from_file_data data;
+	struct package_list list;
+	char *basedir;
+
+	basedir = calc_snapshotbasedir(distdir, into->codename, snapshotname);
+	if( FAILEDTOALLOC(basedir) )
+		return RET_ERROR_OOM;
+
+	memset(&list, 0, sizeof(list));
+	data.list = &list;
+	data.database = database;
+	data.distribution = into;
+	data.privdata = d;
+	result = RET_NOTHING;
+	for( data.target = into->targets ; data.target != NULL ;
+			data.target = data.target->next ) {
+		char *filename;
+
+		if( !target_matches(data.target,
+				component, architecture, packagetype) )
+			continue;
+
+		/* we do not know what compressions where used back then
+		 * and not even how the file was named, just look for
+		 * how the file is named now and try all readable
+		 * compressions */
+
+		filename = calc_dirconcat3(
+				basedir, data.target->relativedirectory,
+				data.target->exportmode->filename);
+		if( filename != NULL && !isregularfile(filename) ) {
+			/* no uncompressed file found, try .gz */
+			free(filename);
+			filename = mprintf("%s/%s/%s.gz",
+					basedir, data.target->relativedirectory,
+					data.target->exportmode->filename);
+		}
+		if( filename != NULL && !isregularfile(filename) ) {
+			free(filename);
+			fprintf(stderr,
+"Could not find '%s/%s/%s' nor '%s/%s/%s.gz',\n"
+"ignoring that part of the snapshot.\n",
+					basedir, data.target->relativedirectory,
+					data.target->exportmode->filename,
+					basedir, data.target->relativedirectory,
+					data.target->exportmode->filename);
+			continue;
+		}
+		if( FAILEDTOALLOC(filename) ) {
+			free(basedir);
+			return RET_ERROR_OOM;
+		}
+
+		data.filename = filename;
+		r = chunk_foreach(filename, action, &data, false);
+		free(filename);
+		if( RET_WAS_ERROR(r) ) {
+			free(basedir);
+			return r;
+		}
+		RET_UPDATE(result, r);
+	}
+	free(basedir);
+	if( !RET_IS_OK(result) )
+		return result;
+	r = packagelist_add(database, into, &list, dereferenced);
+	packagelist_done(&list);
+	return r;
+}
+
+retvalue restore_by_name(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
+	struct namelist d = {argc, argv};
+	return restore_from_snapshot(distdir, database, into,
+			component, architecture, packagetype,
+			snapshotname, choose_by_name, &d, dereferenced);
+}
+
+retvalue restore_by_source(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
+	struct namelist d = {argc, argv};
+	return restore_from_snapshot(distdir, database, into,
+			component, architecture, packagetype,
+			snapshotname, choose_by_source, &d, dereferenced);
+}
+
+retvalue restore_by_formula(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, const char *filter, struct strlist *dereferenced) {
+	term *condition;
+	retvalue r;
+
+	r = term_compile(&condition, filter,
+			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	if( !RET_IS_OK(r) ) {
+		return r;
+	}
+	r = restore_from_snapshot(distdir, database, into,
+			component, architecture, packagetype,
+			snapshotname, choose_by_condition, condition,
+			dereferenced);
+	term_free(condition);
 	return r;
 }

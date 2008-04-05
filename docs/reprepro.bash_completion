@@ -1,6 +1,6 @@
 _reprepro()
 {
-	local cur prev commands options noargoptions i state cmd ignores hiddencommands commands codenames confdir outdir basedir architectures components importrules
+	local cur prev commands options noargoptions i state cmd ignores hiddencommands commands codenames confdir outdir basedir architectures components importrules snapshots
 
 	confdir=""
 	basedir=""
@@ -33,6 +33,40 @@ _reprepro()
 			codenames="experimental woody sarge sid etch whatever-you-defined"
 			architectures="source i386 abacus whatever-you-defined"
 			components="main contrib non-free whatever-you-defined"
+		fi
+	}
+	function parse_config_for_distdir() {
+		local conffile
+		if [[ -n "$confdir" ]] ; then
+			conffile="$confdir/options"
+		elif [[ -n "$basedir" ]] ; then
+			conffile="$basedir/conf/options"
+		else
+			conffile="./conf/options"
+		fi
+		if [ -z "$basedir" ] && [[ -e "$conffile" ]] ; then
+			if grep -q '^basedir ' -- "$conffile" 2>/dev/null ; then
+				basedir="$(grep '^basedir ' -- "$conffile" 2>/dev/null | sed -e 's/^basedir *//')"
+			fi
+		fi
+		if [ -z "$outdir" ] && [[ -e "$conffile" ]] ; then
+			if grep -q '^outdir ' -- "$conffile" 2>/dev/null ; then
+				outdir="$(grep '^outdir ' -- "$conffile" 2>/dev/null | sed -e 's/^outdir *//')"
+			fi
+		fi
+		if [ -z "$distdir" ] && [[ -e "$conffile" ]] ; then
+			if grep -q '^distdir ' -- "$conffile" 2>/dev/null ; then
+				distdir="$(grep '^distdir ' -- "$conffile" 2>/dev/null | sed -e 's/^distdir *//')"
+			fi
+		fi
+		if [ -z "$basedir" ] ; then
+			basedir="."
+		fi
+		if [ -z "$outdir" ] && ! [ -z "$basedir" ] ; then
+			outdir="$basedir"
+		fi
+		if [ -z "$distdir" ] && ! [ -z "$outdir" ] ; then
+			distdir="$outdir/dists"
 		fi
 	}
 	function parse_incoming() {
@@ -96,6 +130,10 @@ _reprepro()
 				outdir="${cur#--basedir=}"
 				i=$((i+1))
 				;;
+			--distdir=*)
+				distdir="${cur#--basedir=}"
+				i=$((i+1))
+				;;
 			--confdir=*)
 				confdir="${cur#--confdir=}"
 				i=$((i+1))
@@ -111,6 +149,11 @@ _reprepro()
 			--outdir)
 				prev="$cur"
 				outdir="${COMP_WORDS[i+1]}"
+				i=$((i+2))
+				;;
+			--distdir=*)
+				prev="$cur"
+				distdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
 				;;
 			--confdir)
@@ -199,10 +242,12 @@ _reprepro()
 			checkpull includedeb includeudeb includedsc include\
 			translatefilelists\
 			generatefilelists clearvanished copy copysrc copyfilter\
+			restore restoresrc restorefilter\
 			processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
 			_listmd5sums _listchecksums _addchecksums _dumpcontents\
-			_removereferences _addreference _versioncompare _fakeemptyfilelist'
+			_removereferences _addreference _versioncompare _fakeemptyfilelist\
+			_addpackage'
 
 		if [[ "$cur" == -* ]]; then
 			case "$cur" in 
@@ -339,6 +384,23 @@ _reprepro()
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
 				parse_config
 				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
+				return 0
+			fi
+			# here we could look for package names existing in
+			# that distribution, but that would be slow...
+			;;
+		restore|restoresrc|restorefilter)
+			# first argument is a codename
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				parse_config
+				COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
+				return 0
+			fi
+			# second argument is snapshot of that name
+			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then
+				parse_config_for_distdir
+				snapshots="$( ls "$distdir/${COMP_WORDS[i]}/snapshots" )"
+				COMPREPLY=( $( compgen -W "$snapshots" -- $cur ) )
 				return 0
 			fi
 			# here we could look for package names existing in

@@ -493,6 +493,16 @@ Copy packages matching the given formula (see \fBlistfilter\fP).
 (all versions if no version is specified).
 No overrides are read, nothing is changed.
 .TP
+.B restore \fIcodename\fP \fIsnapshot\fP \fIpackages...\fP
+.TP
+.B restoresrc \fIcodename\fP \fIsnapshot\fP \fIsource-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
+.TP
+.B restorefilter \fIdestination-codename\fP \fIsnapshot\fP \fIformula\fP
+Like the copy commands, but do not copy from another distribution,
+but from an snapshot generated with \fBgensnapshot\fP.
+Note that this blindly trusts the contents of the files in your \fBdists/\fP
+directory and does no checking.
+.TP
 .B clearvanished
 Remove all package databases that no longer appear in \fBconf/distributions\fP.
 If \fB\-\-delete\fP is specified, it will not stop if there are still
@@ -590,9 +600,14 @@ file of the specified .deb-file.
 Look what reprepro believes to be the list of files
 of the specified .deb-file.
 .TP
-.BI _fakeemptyfilelist filekey
+.BI _fakeemptyfilelist " filekey"
 Insert an empty filelist for \fIfilekey\fP. This is a evil
 hack around broken .deb files that cannot be read by reprepro.
+.TP
+.B _addpackage \fIcodenam\fP \fIfilename\fP \fIpackages...\fP
+Add packages from the specified filename to part specified
+by \fB-C\fP \fB-A\fP and \fB-T\fP of the specified distribution.
+Very strange things can happen if you use it improperly.
 .SH "CONFIG FILES"
 .B reprepo
 uses three config files, which are searched in
