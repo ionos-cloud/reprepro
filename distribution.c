@@ -423,11 +423,7 @@ retvalue distribution_foreach_part(struct distribution *distribution,const char 
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( component != NULL && strcmp(component,t->component) != 0 )
-			continue;
-		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
-			continue;
-		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+		if( !target_matches(t, component, architecture, packagetype) )
 			continue;
 		r = action(data,t,distribution);
 		RET_UPDATE(result,r);
@@ -444,11 +440,7 @@ retvalue distribution_foreach_rwopenedpart(struct distribution *distribution,str
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( component != NULL && strcmp(component,t->component) != 0 )
-			continue;
-		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
-			continue;
-		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+		if( !target_matches(t, component, architecture, packagetype) )
 			continue;
 		r = target_initpackagesdb(t, database, READWRITE);
 		RET_UPDATE(result, r);
@@ -475,11 +467,7 @@ retvalue distribution_foreach_roopenedpart(struct distribution *distribution,str
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( component != NULL && strcmp(component,t->component) != 0 )
-			continue;
-		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
-			continue;
-		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+		if( !target_matches(t, component, architecture, packagetype) )
 			continue;
 		r = target_initpackagesdb(t, database, READONLY);
 		RET_UPDATE(result, r);
@@ -504,11 +492,7 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( component != NULL && strcmp(component,t->component) != 0 )
-			continue;
-		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
-			continue;
-		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+		if( !target_matches(t, component, architecture, packagetype) )
 			continue;
 		if( target_action != NULL ) {
 			r = target_action(database, distribution, t, data);

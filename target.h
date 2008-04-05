@@ -94,4 +94,14 @@ retvalue package_referenceforsnapshot(struct database *, struct distribution *, 
 retvalue target_reoverride(void *, struct target *, struct distribution *);
 
 retvalue package_rerunnotifiers(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
+
+static inline bool target_matches(const struct target *t, const char *component, const char *architecture, const char *packagetype) {
+	if( component != NULL && strcmp(component,t->component) != 0 )
+		return false;
+	if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+		return false;
+	if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+		return false;
+	return true;
+}
 #endif
