@@ -150,7 +150,7 @@ retvalue release_initsnapshot(const char *distdir, const char *codename, const c
 	struct release *n;
 
 	n = calloc(1,sizeof(struct release));
-	n->dirofdist = mprintf("%s/%s/snapshots/%s",distdir,codename,name);
+	n->dirofdist = calc_snapshotbasedir(distdir, codename, name);
 	if( n->dirofdist == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;

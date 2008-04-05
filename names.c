@@ -313,3 +313,7 @@ char *calc_changes_basename(const char *name,const char *version,const struct st
 	assert( (size_t)(p-n) == l );
 	return n;
 }
+
+char *calc_snapshotbasedir(const char *distdir, const char *codename, const char *name) {
+	return mprintf("%s/%s/snapshots/%s", distdir, codename, name);
+}

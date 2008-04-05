@@ -21,6 +21,7 @@ char *calc_fullfilename(const char *mirrordir,const char *filekey);
 char *calc_fullsrcfilename(const char *mirrordir,const char *directory,const char *filename);
 char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype);
 char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion);
+char *calc_snapshotbasedir(const char *distdir, const char *codename, const char *name);
 
 char *calc_downloadedlistfile(const char *listdir,const char *codename,const char *origin,const char *component,const char *architecture,const char *packagetype);
 char *calc_downloadedlistpattern(const char *codename);
