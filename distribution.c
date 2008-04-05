@@ -416,23 +416,6 @@ retvalue distribution_readall(const char *confdir, const char *logdir, struct di
 	return RET_OK;
 }
 
-/* call <action> for each part of <distribution>. */
-retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
-	retvalue result,r;
-	struct target *t;
-
-	result = RET_NOTHING;
-	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
-			continue;
-		r = action(data,t,distribution);
-		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
-			return result;
-	}
-	return result;
-}
-
 /* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
 retvalue distribution_foreach_rwopenedpart(struct distribution *distribution,struct database *database,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
 	retvalue result,r;
