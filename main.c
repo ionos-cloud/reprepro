@@ -1782,20 +1782,6 @@ ACTION_D(y, y, y, include) {
 				"(Did you mean includedeb or includedsc?)\n") )
 		return RET_ERROR;
 
-	if( architecture != NULL && packagetype != NULL ) {
-		if( strcmp(packagetype,"dsc") == 0 ) {
-			if( strcmp(architecture,"source") != 0 ) {
-				fprintf(stderr,"Error: Only -A source is possible with -T dsc!\n");
-				return RET_ERROR;
-			}
-		} else {
-			if( strcmp(architecture,"source") == 0 ) {
-				fprintf(stderr,"Error: -A source is not possible with -T deb or -T udeb!\n");
-				return RET_ERROR;
-			}
-		}
-	}
-
 	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
@@ -2363,6 +2349,23 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				action->name) )
 			return RET_ERROR;
 	}
+	if( ISSET(needs, NEED_ACT) &&
+	    x_architecture != NULL && x_packagetype != NULL ) {
+		if( strcmp(x_packagetype, "dsc") == 0 ) {
+			if( strcmp(x_architecture,"source") != 0 ) {
+				fprintf(stderr,
+"Error: Only -A source is possible with -T dsc!\n");
+				return RET_ERROR;
+			}
+		} else {
+			if( strcmp(x_architecture, "source") == 0 ) {
+				fprintf(stderr,
+"Error: -A source is not possible with -T deb or -T udeb!\n");
+				return RET_ERROR;
+			}
+		}
+	}
+
 	if( !ISSET(needs, NEED_SP) && ( x_section != NULL ) ) {
 		if( !IGNORING_(unusedoption,
 "Action '%s' cannot take a section option!\n"

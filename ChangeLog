@@ -2,7 +2,8 @@
 	* add copysrc and copyfilter
 	* reimplement copy command (should no longer invalidate
 	  tracking information)
-	* warn against impossible -T values
+	* warn against impossible -T values and impossible
+	  -A -T combinations (source is dsc and dsc is source)
 
 2008-03-31  Bernhard R. Link <brlink@debian.org>
 	* bugfix: no longer confuse -S and -P (introduced in 3.0.1)
