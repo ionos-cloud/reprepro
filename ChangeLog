@@ -50,7 +50,7 @@
 	first, adddsc for files referenced in the directory of the dsc file.
 
 2008-03-06  Bernhard R. Link <brlink@debian.org>
-	* fix/improve some messages, based uppon many suggestions
+	* fix/improve some messages, based upon many suggestions
 	by Marc Haber.
 
 2008-03-02  Bernhard R. Link <brlink@debian.org>
@@ -58,7 +58,7 @@
 
 2008-03-01  Bernhard R. Link <brlink@debian.org>
 	* cleaning: port changestool to new checksums code,
-	  finaly removing the old md5sum code.
+	  finally removing the old md5sum code.
 
 2008-02-29  Bernhard R. Link <brlink@debian.org>
 	* improve documentation of listfilter command
