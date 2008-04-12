@@ -697,7 +697,8 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 			free(p);
 			return RET_ERROR_OOM;
 		}
-	}
+	} else
+		p->causingfile = NULL;
 	p->arguments = arguments;
 	p->next = NULL;
 	p->child = 0;
