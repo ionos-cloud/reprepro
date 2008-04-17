@@ -1,3 +1,7 @@
+2008-04-17  Bernhard R. Link <brlink@debian.org>
+	* fix free of uninitialized pointer when calling log notifiers
+	while removing (this time for real)
+
 2008-04-12  Bernhard R. Link <brlink@debian.org>
 	* move assertion to not abort() on wrong md5sums in include
 	command, but cleanly error out.
