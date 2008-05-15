@@ -39,3 +39,11 @@
    fun:gpgme_data_new_from_file
    fun:signature_readsignedchunk
 }
+{
+   gpgme11-gpgme_data_release_and_get_mem_leak2
+   Memcheck:Leak
+   fun:calloc
+   obj:*/libgpgme.so.*
+   fun:gpgme_data_new
+   fun:signature_readsignedchunk
+}

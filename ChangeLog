@@ -1,3 +1,11 @@
+2008-05-15  Bernhard R. Link <brlink@debian.org>
+	* Print warning when not including when not including a
+	package because of unknown key/expire/revocation.
+	(In addition to the warning with -v about those problems
+	 with a signature and in addition to the message of not
+	 including a package at all if that was the only chance to
+	 get it in)
+
 2008-04-17  Bernhard R. Link <brlink@debian.org>
 	* fix free of uninitialized pointer when calling log notifiers
 	while removing (this time for real)
