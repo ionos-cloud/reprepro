@@ -1,3 +1,10 @@
+reprepro (3.4.2-1) unstable; urgency=high
+
+  * new bugfix release
+  - do not segfault uppong remove with Log-script (closes: 480993)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 16 May 2008 12:06:43 +0200
+
 reprepro (3.4.1-1) unstable; urgency=high
 
   * new bugfix release
