@@ -583,7 +583,8 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 /* mark all distributions matching one of the first argc argv */
 retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat) {
 	struct distribution *d;
-	bool *found;
+	bool found[argc], unusable_as_suite[argc];
+	struct distribution *has_suite[argc];
 	int i;
 
 	assert( alldistributions != NULL );
@@ -595,9 +596,9 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 		}
 		return RET_OK;
 	}
-	found = calloc(argc, sizeof(bool));
-	if( found == NULL )
-		return RET_ERROR_OOM;
+	memset(found, 0, sizeof(found));
+	memset(unusable_as_suite, 0, sizeof(unusable_as_suite));
+	memset(has_suite, 0, sizeof(has_suite));
 
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		for( i = 0 ; i < argc ; i++ ) {
@@ -607,28 +608,56 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 				d->selected = true;
 				if( lookedat )
 					d->lookedat = lookedat;
+			} else if( d->suite != NULL &&
+					strcmp(argv[i], d->suite) == 0 ) {
+				if( has_suite[i] != NULL )
+					unusable_as_suite[i] = true;
+				has_suite[i] = d;
 			}
 		}
 	}
 	for( i = 0 ; i < argc ; i++ ) {
 		if( !found[i] ) {
+			if( has_suite[i] != NULL && !unusable_as_suite[i] ) {
+				has_suite[i]->selected = true;
+				if( lookedat )
+					has_suite[i]->lookedat = lookedat;
+				continue;
+			}
 			fprintf(stderr, "No distribution definition of '%s' found in distributions'!\n", argv[i]);
-			free(found);
+			if( unusable_as_suite[i] )
+				fprintf(stderr,
+"(It is not the codename of any distribution and there are multiple\n"
+"distributions with this as suite name.)\n");
 			return RET_ERROR_MISSING;
 		}
 	}
-	free(found);
 	return RET_OK;
 }
 
 retvalue distribution_get(struct distribution *alldistributions, const char *name, bool lookedat, struct distribution **distribution) {
-	struct distribution *d;
+	struct distribution *d, *d2;
 
 	d = alldistributions;
 	while( d != NULL && strcmp(name, d->codename) != 0 )
 		d = d->next;
 	if( d == NULL ) {
-		fprintf(stderr,"Cannot find definition of distribution '%s'!\n", name);
+		for( d2 = alldistributions; d2 != NULL ; d2 = d2->next ) {
+			if( d2->suite == NULL )
+				continue;
+			if( strcmp(name, d2->suite) != 0 )
+				continue;
+			if( d != NULL ) {
+				fprintf(stderr,
+"No distribution has '%s' as codename, but multiple as suite name,\n"
+"thus it cannot be used to determine a distribution.\n", name);
+				return RET_ERROR_MISSING;
+			}
+			d = d2;
+		}
+	}
+	if( d == NULL ) {
+		fprintf(stderr, "Cannot find definition of distribution '%s'!\n", name);
 		return RET_ERROR_MISSING;
 	}
 	d->selected = true;

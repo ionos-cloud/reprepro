@@ -3,6 +3,8 @@
 	header and limiting to some files with -A or -T, do
 	not errounously complain about not expecting the
 	skipped files in Checksums-* headers
+	* Look at suite names when no distribution with the
+	requested codename exists.
 
 2008-05-15  Bernhard R. Link <brlink@debian.org>
 	* Print warning when not including when not including a

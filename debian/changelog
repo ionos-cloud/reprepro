@@ -2,8 +2,9 @@ reprepro (3.4.3-0) UNRELEASED; urgency=low
 
   * put --delete in reprepro.1's description of createsymlinks at the correct
     place. (Closes: 481404)
+  * allow suite names in command line arguments (Closes: 481402)
 
- -- Bernhard R. Link <brlink@debian.org>  Fri, 16 May 2008 16:57:48 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 16 May 2008 18:34:07 +0200
 
 reprepro (3.4.2-1) unstable; urgency=high
 
