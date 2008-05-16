@@ -257,6 +257,9 @@ EOF
 cat "$FILENAME".control
 rm "$FILENAME".control
 }
+function withoutchecksums() {
+awk 'BEGIN{inheader=0} /^Checksums-.*: / || (inheader && /^ /)  {inheader = 1; next} {inheader = 0 ; print}' "$@"
+}
 function mdandsize() {
 cat <<EOF
 $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
