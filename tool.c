@@ -513,7 +513,7 @@ static retvalue parse_changes_files(struct changes *c, struct strlist filelines[
 				return RET_ERROR_OOM;
 		}
 	}
-	const char * const hashname[cs_hashCOUNT] = {"Md5", "Sha1" /*, "Sha256"*/ };
+	const char * const hashname[cs_hashCOUNT] = {"Md5", "Sha1", "Sha256" };
 	for( cs = cs_firstEXTENDED ; cs < cs_hashCOUNT ; cs++ ) {
 		tmp = &filelines[cs];
 

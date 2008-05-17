@@ -44,6 +44,9 @@ modified by James H. Brown <jbrown@burgoyne.com>, Saul Kravitz
 <Saul.Kravitz@celera.com> and Ralph Giles <giles@ghostscript.com>
 and in the public domain.
 
+sha256.c is based on a file called sha256crypt.c, which is
+Released into the Public Domain by Ulrich Drepper <drepper@redhat.com>.
+
 docs/tiffany.example if derived from
 http://ftp-master.debian.org/~ajt/tiffani/tiffani:
 Copyright (C) 2004-5  Anthony Towns <aj@azure.humbug.org.au>

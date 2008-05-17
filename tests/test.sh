@@ -339,6 +339,8 @@ DSCMD5S="$(mdandsize i/bird_1.dsc)"
 TARMD5S="$(mdandsize i/bird_1.tar.gz)"
 DSCSHA1S="$(sha1andsize i/bird_1.dsc)"
 TARSHA1S="$(sha1andsize i/bird_1.tar.gz)"
+DSCSHA2S="$(sha2andsize i/bird_1.dsc)"
+TARSHA2S="$(sha2andsize i/bird_1.tar.gz)"
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -451,6 +453,9 @@ $ a
 Checksums-Sha1: 
  $DSCSHA1S bird_1.dsc
  $TARSHA1S bird_1.tar.gz
+Checksums-Sha256: 
+ $DSCSHA2S bird_1.dsc
+ $TARSHA2S bird_1.tar.gz
 
 .
 w
@@ -571,6 +576,9 @@ $ a
 Checksums-Sha1: 
  $DSCSHA1S bird_1.dsc
  $TARSHA1S bird_1.tar.gz
+Checksums-Sha256: 
+ $DSCSHA2S bird_1.dsc
+ $TARSHA2S bird_1.tar.gz
 
 .
 w
@@ -580,6 +588,8 @@ BIRDDSCMD5S="$DSCMD5S"
 BIRDTARMD5S="$TARMD5S"
 BIRDDSCSHA1S="$DSCSHA1S"
 BIRDTARSHA1S="$TARSHA1S"
+BIRDDSCSHA2S="$DSCSHA2S"
+BIRDTARSHA2S="$TARSHA2S"
 gunzip -c dists/B/cat/source/Sources.gz > results
 dodiff results.expected results
 
@@ -1160,6 +1170,7 @@ printf "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
 DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc )"
 OLDDSCFILENAMEMD5S="$DSCMD5S"
 OLDDSCFILENAMESHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
+OLDDSCFILENAMESHA2S="$(sha2andsize i/dscfilename_fileversion~.dsc)"
 printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
 checknolog logfile
@@ -1284,8 +1295,10 @@ printf '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz" >> i/dscfilename_fileversion~.dsc
 DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc)"
 DSCSHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
+DSCSHA2S="$(sha2andsize i/dscfilename_fileversion~.dsc)"
 DSCFILENAMEMD5S="$DSCMD5S"
 DSCFILENAMESHA1S="$DSCSHA1S"
+DSCFILENAMESHA2S="$DSCSHA2S"
 printf '$-1,$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
@@ -1359,6 +1372,9 @@ $ a
 Checksums-Sha1: 
  $BIRDDSCSHA1S bird_1.dsc
  $BIRDTARSHA1S bird_1.tar.gz
+Checksums-Sha256: 
+ $BIRDDSCSHA2S bird_1.dsc
+ $BIRDTARSHA2S bird_1.tar.gz
 
 .
 w
@@ -1377,6 +1393,8 @@ Files:
  $OLDDSCFILENAMEMD5S dscfilename_versionindsc.dsc
 Checksums-Sha1: 
  $OLDDSCFILENAMESHA1S dscfilename_versionindsc.dsc
+Checksums-Sha256: 
+ $OLDDSCFILENAMESHA2S dscfilename_versionindsc.dsc
 
 EOF
 dodiff results.expected results
@@ -1545,6 +1563,9 @@ Files:
 Checksums-Sha1: 
  $DSCFILENAMESHA1S dscfilename_newversion~.dsc
  4453da6ca46859b207c5b55af6213ff8369cd383 33 strangefile_xyz
+Checksums-Sha256: 
+ $DSCFILENAMESHA2S dscfilename_newversion~.dsc
+ c40fcf711220c0ce210159d43b22f1f59274819bf3575e11cc0057ed1988a575 33 strangefile_xyz
 
 EOF
 dodiff results.expected results
@@ -1692,7 +1713,7 @@ SHA1:
  $EMPTYGZSHA1 stupid/source/Sources.gz
  $EMPTYBZ2SHA1 stupid/source/Sources.bz2
  ff71705a4cadaec55de5a6ebbfcd726caf2e2606 39 stupid/source/Release
- da39a3ee5e6b4b0d3255bfef95601890afd80709 0 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages
  $EMPTYGZSHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
  $EMPTYBZ2SHA1 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
  $(sha1andsize dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
@@ -1700,6 +1721,23 @@ SHA1:
  $EMPTYGZSHA1 ugly/source/Sources.gz
  $EMPTYBZ2SHA1 ugly/source/Sources.bz2
  b297876e9d6ee3ee6083160003755047ede22a96 37 ugly/source/Release
+SHA256:
+ $(sha2andsize dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages) stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA2 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA2 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha2andsize dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA2 stupid/source/Sources
+ $EMPTYGZSHA2 stupid/source/Sources.gz
+ $EMPTYBZ2SHA2 stupid/source/Sources.bz2
+ b88352d8e0227a133e2236c3a8961581562ee285980fc20bb79626d0d208aa51 39 stupid/source/Release
+ $EMPTYSHA2 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA2 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA2 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha2andsize dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA2 ugly/source/Sources
+ $EMPTYGZSHA2 ugly/source/Sources.gz
+ $EMPTYBZ2SHA2 ugly/source/Sources.bz2
+ edb5450a3f98a140b938c8266b8b998ba8f426c80ac733fe46423665d5770d9f 37 ugly/source/Release
 END
 cat > dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release.expected <<END
 Archive: broken
@@ -1781,6 +1819,31 @@ SHA1:
  $EMPTYGZSHA1 ugly/source/Sources.gz
  $EMPTYBZ2SHA1 ugly/source/Sources.bz2
  $(sha1andsize dists/test2/ugly/source/Release) ugly/source/Release
+SHA256:
+ $EMPTYSHA2 stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA2 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA2 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha2andsize dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA2 stupid/binary-coal/Packages
+ $EMPTYGZSHA2 stupid/binary-coal/Packages.gz
+ $EMPTYBZ2SHA2 stupid/binary-coal/Packages.bz2
+ $(sha2andsize dists/test2/stupid/binary-coal/Release) stupid/binary-coal/Release
+ $EMPTYSHA2 stupid/source/Sources
+ $EMPTYGZSHA2 stupid/source/Sources.gz
+ $EMPTYBZ2SHA2 stupid/source/Sources.bz2
+ $(sha2andsize dists/test2/stupid/source/Release) stupid/source/Release
+ $EMPTYSHA2 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZSHA2 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2SHA2 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(sha2andsize dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
+ $EMPTYSHA2 ugly/binary-coal/Packages
+ $EMPTYGZSHA2 ugly/binary-coal/Packages.gz
+ $EMPTYBZ2SHA2 ugly/binary-coal/Packages.bz2
+ $(sha2andsize dists/test2/ugly/binary-coal/Release) ugly/binary-coal/Release
+ $EMPTYSHA2 ugly/source/Sources
+ $EMPTYGZSHA2 ugly/source/Sources.gz
+ $EMPTYBZ2SHA2 ugly/source/Sources.bz2
+ $(sha2andsize dists/test2/ugly/source/Release) ugly/source/Release
 END
 printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
 printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test2/Release

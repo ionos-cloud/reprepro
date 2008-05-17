@@ -245,6 +245,7 @@ H
 'd i
 Filename: $FILENAME
 Size: $(stat -c "%s" "$FILENAME")
+SHA256: $(sha256sum "$FILENAME" | cut -d' ' -f1)
 SHA1: $(sha1sum "$FILENAME" | cut -d' ' -f1)
 MD5sum: $(md5sum "$FILENAME" | cut -d' ' -f1)
 .
@@ -274,9 +275,18 @@ cat <<EOF
 $(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
+function sha2() {
+echo -n ":2:"
+sha256sum "$1" | cut -d' ' -f1
+}
+function sha2andsize() {
+cat <<EOF
+$(sha256sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
+EOF
+}
 function fullchecksum() {
 cat <<EOF
-$(sha "$1") $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
+$(sha "$1") $(sha2 "$1") $(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
 EOF
 }
 EMPTYMD5ONLY="d41d8cd98f00b204e9800998ecf8427e"
@@ -286,5 +296,8 @@ EMPTYBZ2MD5="4059d198768f9f8dc9372dc1c54bc3c3 14"
 EMPTYSHA1="da39a3ee5e6b4b0d3255bfef95601890afd80709 0"
 EMPTYGZSHA1="46c6643f07aa7f6bfe7118de926b86defc5087c4 20"
 EMPTYBZ2SHA1="64a543afbb5f4bf728636bdcbbe7a2ed0804adc2 14"
+EMPTYSHA2="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 0"
+EMPTYGZSHA2="59869db34853933b239f1e2219cf7d431da006aa919635478511fabbfc8849d2 20"
+EMPTYBZ2SHA2="d3dda84eb03b9738d118eb2be78e246106900493c0ae07819ad60815134a8058 14"
 
 setoptions default "" ""

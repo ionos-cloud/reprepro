@@ -15,6 +15,7 @@ enum checksumtype {
 		/* additionall hashes: */
 #define cs_firstEXTENDED cs_sha1sum
 		cs_sha1sum,
+		cs_sha256sum,
 #define cs_hashCOUNT cs_length
 		/* must be last but one */
 		cs_length,
@@ -113,10 +114,14 @@ retvalue hashline_parse(const char *filenametoshow, const char *line, enum check
 #ifndef REPREPRO_SHA1_H
 #include "sha1.h"
 #endif
+#ifndef REPREPRO_SHA256_H
+#include "sha256.h"
+#endif
 
 struct checksumscontext {
 	struct MD5Context md5;
 	struct SHA1_Context sha1;
+	struct SHA256_Context sha256;
 };
 
 void checksumscontext_init(/*@out@*/struct checksumscontext *);

@@ -38,9 +38,8 @@
 
 extern int verbose;
 
-static const char * const deb_checksum_headers[cs_COUNT] = {"MD5sum", "SHA1",
-	// "SHA256",
-	"Size"};
+static const char * const deb_checksum_headers[cs_COUNT] = {
+	"MD5sum", "SHA1", "SHA256", "Size"};
 
 /* get checksums out of a "Packages"-chunk. */
 static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct checksums **checksums_p) {

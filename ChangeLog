@@ -1,3 +1,6 @@
+2008-05-17  Bernhard R. Link <brlink@debian.org>
+	* Add support for sha256.
+
 2008-05-16  Bernhard R. Link <brlink@debian.org>
 	* When include'ing a .changes file with Checksums
 	header and limiting to some files with -A or -T, do
