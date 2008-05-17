@@ -1,5 +1,7 @@
 2008-05-17  Bernhard R. Link <brlink@debian.org>
 	* Add support for sha256.
+	* changestool puts Files: last, makes it easier
+	to use some versions of dupload.
 
 2008-05-16  Bernhard R. Link <brlink@debian.org>
 	* When include'ing a .changes file with Checksums

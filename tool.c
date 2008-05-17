@@ -1045,7 +1045,7 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 
 	if( flagset(CHANGES_WRITE_FILES) ) {
 		cef = NULL;
-		for( cs = cs_hashCOUNT ; (cs--) > cs_md5sum ;  ) {
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++  ) {
 			cef = cef_newfield(changes_checksum_names[cs],
 					CEF_ADD, CEF_LATE, filecount, cef);
 			if( cef == NULL )
