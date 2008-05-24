@@ -160,7 +160,7 @@ reprepro (2.0.0-1) experimental; urgency=low
 
   * new release
   - contains a little bit of factorisation that might break stuff, thus .0.0
-  - new action "processincomming" to get packages from an incoming directory
+  - new action "processincoming" to get packages from an incoming directory
   - new action "gensnapshot" to export a durable state of a distribution
   - adds AlsoAcceptFor header, thanks for the suggestion (Closes: 406597)
 
