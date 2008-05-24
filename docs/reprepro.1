@@ -305,17 +305,18 @@ as list, but does not list a single package, but all packages
 matching the given condition.
 
 The format of the formulas is those of the dependency lines in
-Debian packages with some extras.
+Debian packages' control files with some extras.
 That means a formula consists of names of fields with a possible
 condition for its content in parentheses.
 These atoms can be combined with
 an exclamation mark '!' (meaning not),
 an pipe symbol '|' (meaning or) and
 an coma ',' (meaning and).
-Additionally parentheses can be used to change binding.
+Additionally parentheses can be used to change binding
+(otherwise '!' binds more than '|' than ',').
 
-The values checked are directly the headers in the repspective index file
-compared alphabetically.
+The values given in the search expression are directly alphabetically
+compared to the headers in the respective index file.
 That means that each part \fIFieldname\fP\fB (\fP\fIcmp\fP\fB \fP\fIvalue\fP\fB)\fP
 of the formula will be true for exactly those package that have
 in the \fBPackage\fP or \fBSources\fP file a line starting with \fIfieldname\fP
@@ -324,7 +325,8 @@ and a value is alphabetically \fIcmp\fP to \fIvalue\fP.
 Examples:
 
 .B reprepro \-b . listfilter test2 'Section (== admin)'
-will list all packags in distribtuion test2 with an Section field
+will list all packags in distribtuion test2 with an Section field and the value
+of that field being \fBadmin\fP.
 
 .B reprepro \-b . \-T deb listfilter test2 'Source (== \fIblub\fP) | ( !Source , Package (== \fIblub\fP) )'
 will find all .deb Packages with either an Source field blub or
