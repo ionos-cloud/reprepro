@@ -122,7 +122,7 @@ Updates between 2.1.0 and 2.2.0:
 - new notifier type for accepted changes files
 - bugs fixed:
   * not tidy tracking dependencies on package remove
-  * forgot to call some slow notifiers in processincomming
+  * forgot to call some slow notifiers in processincoming
 - new --wait-for-lock option
 - check free space on update (new --spaceheck option to switch this off)
 - extended the changestool helper (add, adddsc, addrawfile, setdistribution)
