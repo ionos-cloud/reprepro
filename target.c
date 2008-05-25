@@ -169,8 +169,8 @@ retvalue target_closepackagesdb(struct target *target) {
 
 /* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
  * filekeys that lost references */
-retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, const char *oldpversion, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
-	char *oldpversion_ifunknown = NULL;
+retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result,r;
 	char *oldsource,*oldsversion;
@@ -178,15 +178,15 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 	assert( target != NULL && target->packages != NULL );
 	assert( oldcontrol != NULL && name != NULL );
 
-	if( logger != NULL && oldpversion == NULL ) {
+	if( logger != NULL ) {
 		/* need to get the version for logging, if not available */
-		r = target->getversion(oldcontrol, &oldpversion_ifunknown);
-		if( RET_IS_OK(r) )
-			oldpversion = oldpversion_ifunknown;
+		r = target->getversion(oldcontrol, &oldpversion);
+		if( !RET_IS_OK(r) )
+			oldpversion = NULL;
 	}
 	r = target->getfilekeys(oldcontrol, &files);
 	if( RET_WAS_ERROR(r) ) {
-		free(oldpversion_ifunknown);
+		free(oldpversion);
 		return r;
 	}
 	if( trackingdata != NULL ) {
@@ -219,13 +219,13 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 		RET_UPDATE(result, r);
 	} else
 		strlist_done(&files);
-	free(oldpversion_ifunknown);
+	free(oldpversion);
 	return result;
 }
 
 /* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
  * filekeys that lost references */
-retvalue target_removepackage(struct target *target,struct logger *logger,struct database *database,const char *name,const char *oldpversion,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
+retvalue target_removepackage(struct target *target, struct logger *logger, struct database *database, const char *name, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
 	char *oldchunk;
 	retvalue r;
 
@@ -242,7 +242,7 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 		return RET_NOTHING;
 	}
 	r = target_removereadpackage(target, logger, database,
-			name, oldchunk, oldpversion, dereferencedfilekeys,
+			name, oldchunk, dereferencedfilekeys,
 			trackingdata);
 	free(oldchunk);
 	return r;
@@ -250,8 +250,8 @@ retvalue target_removepackage(struct target *target,struct logger *logger,struct
 
 
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target *target, struct logger *logger, struct database *database, struct cursor *cursor, const char *name, const char *control, const char *oldpversion, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
-	char *oldpversion_ifunknown = NULL;
+retvalue target_removepackage_by_cursor(struct target *target, struct logger *logger, struct database *database, struct cursor *cursor, const char *name, const char *control, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result, r;
 	char *oldsource, *oldsversion;
@@ -259,15 +259,15 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 	assert(target != NULL && target->packages != NULL );
 	assert( name != NULL && control != NULL);
 
-	if( logger != NULL && oldpversion == NULL ) {
+	if( logger != NULL ) {
 		/* need to get the version for logging, if not available */
-		r = target->getversion(control, &oldpversion_ifunknown);
-		if( RET_IS_OK(r) )
-			oldpversion = oldpversion_ifunknown;
+		r = target->getversion(control, &oldpversion);
+		if( !RET_IS_OK(r) )
+			oldpversion = NULL;
 	}
 	r = target->getfilekeys(control, &files);
 	if( RET_WAS_ERROR(r) ) {
-		free(oldpversion_ifunknown);
+		free(oldpversion);
 		return r;
 	}
 	if( trackingdata != NULL ) {
@@ -300,7 +300,7 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 		RET_UPDATE(result, r);
 	} else
 		strlist_done(&files);
-	free(oldpversion_ifunknown);
+	free(oldpversion);
 	return result;
 }
 

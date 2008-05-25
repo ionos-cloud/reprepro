@@ -493,7 +493,7 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->count ; i++ ){
 		r = target_removepackage(target, d->logger, d->db,
-				d->names[i], NULL,
+				d->names[i],
 				d->removedfiles, d->trackingdata);
 		if( RET_IS_OK(r) ) {
 			if( ! d->gotremoved[i] )

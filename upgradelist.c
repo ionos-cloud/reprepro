@@ -560,7 +560,6 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 				r = target_removepackage(upgrade->target,
 						logger, database,
 						pkg->name,
-						pkg->version_in_use,
 						dereferencedfilekeys, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r))
@@ -614,7 +613,6 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 				r = target_removepackage(upgrade->target,
 						logger, database,
 						pkg->name,
-						pkg->version_in_use,
 						dereferencedfilekeys, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )

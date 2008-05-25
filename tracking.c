@@ -1222,7 +1222,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		/* that is a bit wasteful, as it parses some stuff again, but
 		 * but that is better than reimplementing logger here */
 		r = target_removereadpackage(target, distribution->logger,
-				database, package, control, NULL,
+				database, package, control,
 				dereferenced, NULL);
 		free(control);
 		free(package);

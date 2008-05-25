@@ -1052,7 +1052,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 			if( RET_IS_OK(r) ) {
 				r = target_removepackage_by_cursor(t,
 					distribution->logger, database, cursor,
-					package, control, NULL, dereferenced,
+					package, control, dereferenced,
 					trackingdata);
 				RET_UPDATE(result, r);
 				RET_UPDATE(distribution->status, r);
