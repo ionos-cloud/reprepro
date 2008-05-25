@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2007 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -250,14 +250,17 @@ retvalue target_removepackage(struct target *target, struct logger *logger, stru
 
 
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target *target, struct logger *logger, struct database *database, struct cursor *cursor, const char *name, const char *control, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct database *database, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+	struct target * const target = tc->target;
+	const char * const name = tc->lastname;
+	const char * const control = tc->lastcontrol;
 	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result, r;
 	char *oldsource, *oldsversion;
 
-	assert(target != NULL && target->packages != NULL );
-	assert( name != NULL && control != NULL);
+	assert( target != NULL && target->packages != NULL );
+	assert( name != NULL && control != NULL );
 
 	if( logger != NULL ) {
 		/* need to get the version for logging, if not available */
@@ -282,7 +285,7 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 	if( verbose > 0 )
 		printf("removing '%s' from '%s'...\n",
 				name, target->identifier);
-	result = cursor_delete(target->packages, cursor, name, NULL);
+	result = cursor_delete(target->packages, tc->cursor, tc->lastname, NULL);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = true;
 		if( oldsource != NULL && oldsversion != NULL ) {
@@ -568,10 +571,8 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 
 retvalue target_rereference(struct target *target, struct database *database) {
 	retvalue result,r;
-	struct cursor *cursor;
+	struct target_cursor iterator;
 	const char *package, *control;
-
-	assert(target->packages!=NULL);
 
 	if( verbose > 1 ) {
 		if( verbose > 2 )
@@ -586,11 +587,11 @@ retvalue target_rereference(struct target *target, struct database *database) {
 	if( verbose > 2 )
 		printf("Referencing %s...\n", target->identifier);
 
-	r = table_newglobalcursor(target->packages, &cursor);
+	r = target_openiterator(target, database, READONLY, &iterator);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
-	while( cursor_nexttemp(target->packages, cursor, &package, &control) ) {
+	while( target_nextpackage(&iterator, &package, &control) ) {
 		struct strlist filekeys;
 
 		r = target->getfilekeys(control, &filekeys);
@@ -607,7 +608,7 @@ retvalue target_rereference(struct target *target, struct database *database) {
 		strlist_done(&filekeys);
 		RET_UPDATE(result, r);
 	}
-	r = cursor_close(target->packages, cursor);
+	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -742,7 +743,7 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 /* export a database */
 
 retvalue target_export(struct target *target, struct database *database, bool onlyneeded, bool snapshot, struct release *release) {
-	retvalue result,r;
+	retvalue result;
 	bool onlymissing;
 
 	if( verbose > 5 ) {
@@ -752,20 +753,14 @@ retvalue target_export(struct target *target, struct database *database, bool on
 			printf(" exporting '%s'...\n",target->identifier);
 	}
 
-	r = target_initpackagesdb(target, database, READONLY);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
 	/* not exporting if file is already there? */
 	onlymissing = onlyneeded && !target->wasmodified;
 
 	result = export_target(target->relativedirectory,
-				target->packages,
+				target, database,
 				target->exportmode,
 				release,
 				onlymissing, snapshot);
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result,r);
 
 	if( !RET_WAS_ERROR(result) && !snapshot ) {
 		target->saved_wasmodified =

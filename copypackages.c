@@ -354,14 +354,8 @@ static retvalue copy_by_func(struct package_list *list, struct database *databas
 					into->codename);
 			continue;
 		}
-		r = target_initpackagesdb(origtarget, database, READONLY);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
-			return result;
 		r = action(list, database, into, from, desttarget, origtarget, data);
 		RET_UPDATE(result,r);
-		r = target_closepackagesdb(origtarget);
-		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(result) )
 			return result;
 	}
@@ -378,6 +372,9 @@ static retvalue by_name(struct package_list *list, struct database *database, st
 	retvalue result, r;
 	int i;
 
+	r = target_initpackagesdb(fromtarget, database, READONLY);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	result = RET_NOTHING;
 	for( i = 0 ; i < d->argc ; i++ ) {
 		const char *name = d->argv[i];
@@ -386,14 +383,17 @@ static retvalue by_name(struct package_list *list, struct database *database, st
 		r = table_getrecord(fromtarget->packages, name, &chunk);
 		if( r == RET_NOTHING )
 			continue;
+		RET_ENDUPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
-			return r;
+			break;
 		r = list_prepareadd(database, list, desttarget, chunk);
 		free(chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
-			return result;
+			break;
 	}
+	r = target_closepackagesdb(fromtarget);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -429,19 +429,18 @@ retvalue copy_by_name(struct database *database, struct distribution *into, stru
 
 static retvalue by_source(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
-	struct cursor *cursor;
+	struct target_cursor iterator IFSTUPIDCC(={});
 	const char *packagename, *chunk;
 	retvalue result, r;
 
 	assert( d->argc > 0 );
 
-	r = table_newglobalcursor(fromtarget->packages, &cursor);
+	r = target_openiterator(fromtarget, database, READONLY, &iterator);
 	assert( r != RET_NOTHING );
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;
-	while( cursor_nexttemp(fromtarget->packages, cursor,
-				&packagename, &chunk) ) {
+	while( target_nextpackage(&iterator, &packagename, &chunk) ) {
 		char *source, *sourceversion;
 
 		r = fromtarget->getsourceandversion(chunk, packagename,
@@ -449,8 +448,8 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 		if( r == RET_NOTHING )
 			continue;
 		if( RET_WAS_ERROR(r) ) {
-			cursor_close(fromtarget->packages, cursor);
-			return r;
+			result = r;
+			break;
 		}
 		/* only include if source name matches */
 		if( strcmp(source, d->argv[0]) != 0 ) {
@@ -466,8 +465,8 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 						d->argv[i], &c);
 				assert( r != RET_NOTHING );
 				if( RET_WAS_ERROR(r) ) {
-					cursor_close(fromtarget->packages, cursor);
 					free(source); free(sourceversion);
+					(void)target_closeiterator(&iterator);
 					return r;
 				}
 				if( c == 0 )
@@ -484,9 +483,9 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 		r = list_prepareadd(database, list, desttarget, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
-			return result;
+			break;
 	}
-	r = cursor_close(fromtarget->packages, cursor);
+	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -509,30 +508,29 @@ retvalue copy_by_source(struct database *database, struct distribution *into, st
 
 static retvalue by_formula(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
-	struct cursor *cursor;
+	struct target_cursor iterator IFSTUPIDCC(={});
 	const char *packagename, *chunk;
 	retvalue result, r;
 
-	r = table_newglobalcursor(fromtarget->packages, &cursor);
+	r = target_openiterator(fromtarget, database, READONLY, &iterator);
 	assert( r != RET_NOTHING );
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;
-	while( cursor_nexttemp(fromtarget->packages, cursor,
-				&packagename, &chunk) ) {
+	while( target_nextpackage(&iterator, &packagename, &chunk) ) {
 		r = term_decidechunk(condition, chunk);
 		if( r == RET_NOTHING )
 			continue;
 		if( RET_WAS_ERROR(r) ) {
-			cursor_close(fromtarget->packages, cursor);
-			return r;
+			result = r;
+			break;
 		}
 		r = list_prepareadd(database, list, desttarget, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
-			return result;
+			break;
 	}
-	r = cursor_close(fromtarget->packages, cursor);
+	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

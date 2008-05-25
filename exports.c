@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2007 Bernhard R. Link
+ *  Copyright (C) 2005,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -33,6 +33,7 @@
 #include "names.h"
 #include "chunks.h"
 #include "database.h"
+#include "target.h"
 #include "exports.h"
 #include "configparser.h"
 #include "filecntl.h"
@@ -386,7 +387,7 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 	}
 }
 
-retvalue export_target(const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
+retvalue export_target(const char *relativedir, struct target *target, struct database *database,  const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
@@ -394,7 +395,7 @@ retvalue export_target(const char *relativedir, struct table *packages, const st
 	char buffer[100];
 	const char *chunk;
 	size_t chunk_len;
-	struct cursor *cursor;
+	struct target_cursor iterator;
 
 	relfilename = calc_dirconcat(relativedir,exportmode->filename);
 	if( relfilename == NULL )
@@ -419,13 +420,13 @@ retvalue export_target(const char *relativedir, struct table *packages, const st
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = table_newglobalcursor(packages, &cursor);
+		r = target_openiterator(target, database, READONLY, &iterator);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			free(relfilename);
 			return r;
 		}
-		while( cursor_nexttempdata(packages, cursor, NULL,
+		while( target_nextpackage_len(&iterator, NULL,
 					&chunk, &chunk_len) ) {
 			if( chunk_len == 0 )
 				continue;
@@ -434,7 +435,7 @@ retvalue export_target(const char *relativedir, struct table *packages, const st
 			if( chunk[chunk_len-1] != '\n' )
 				(void)release_writestring(file, "\n");
 		}
-		r = cursor_close(packages, cursor);
+		r = target_closeiterator(&iterator);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			free(relfilename);

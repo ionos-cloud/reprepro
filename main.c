@@ -1404,13 +1404,7 @@ ACTION_R(n, n, y, y, rereference) {
 			printf("Referencing %s...\n",d->codename);
 		}
 		for( t = d->targets ; t != NULL ; t = t->next ) {
-			r = target_initpackagesdb(t, database, READONLY);
-			RET_UPDATE(result, r);
-			if( RET_WAS_ERROR(r) )
-				continue;
 			r = target_rereference(t, database);
-			RET_UPDATE(result, r);
-			r = target_closepackagesdb(t);
 			RET_UPDATE(result, r);
 		}
 		r = tracking_rereference(database, d);

@@ -22,6 +22,5 @@ struct configiterator;
 retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct configiterator *iter);
 void exportmode_done(struct exportmode *mode);
 
-retvalue export_target(const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlymissing, bool snapshot);
-
+retvalue export_target(const char *relativedir, struct target *, struct database *, const struct exportmode *, struct release *, bool onlyifmissing, bool snapshot);
 #endif
