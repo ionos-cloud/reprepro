@@ -2733,7 +2733,7 @@ int main(int argc,char *argv[]) {
 	bool create_file = false;
 	struct strlist validkeys,keys;
 	struct strlist searchpath;
-	struct changes *changesdata;
+	struct changes *changesdata IFSTUPIDCC(=NULL);
 	retvalue r;
 
 	strlist_init(&searchpath);

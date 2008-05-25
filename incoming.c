@@ -1019,7 +1019,7 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 }
 
 static retvalue prepare_deb(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
-	const char *section,*priority, *filekey;
+	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL), *filekey;
 	const struct overrideinfo *oinfo;
 	struct candidate_package *package;
 	const struct distribution *into = per->into;
@@ -1149,7 +1149,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 }
 
 static retvalue prepare_dsc(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
-	const char *section,*priority;
+	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL);
 	const struct overrideinfo *oinfo;
 	struct candidate_package *package;
 	const struct distribution *into = per->into;
@@ -1746,7 +1746,7 @@ static retvalue candidate_add(const char *confdir, const char *overridedir,struc
 }
 
 static retvalue process_changes(const char *confdir,const char *overridedir,struct database *database,struct strlist *dereferenced,struct incoming *i,int ofs) {
-	struct candidate *c;
+	struct candidate *c IFSTUPIDCC(=NULL);
 	struct candidate_file *file;
 	retvalue r;
 	int j,k;

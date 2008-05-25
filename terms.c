@@ -202,7 +202,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 	/* for the global list */
 	struct term_atom *first,*last;
 	/* the atom just read */
-	struct term_atom *atom;
+	struct term_atom *atom IFSTUPIDCC(=NULL);
 	struct {/*@dependent@*/struct term_atom *firstinand,*firstinor;} levels[50];
 	int lastinitializeddepth=-1;
 	int depth=0;
