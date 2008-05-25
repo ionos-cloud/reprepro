@@ -1698,15 +1698,24 @@ ACTION_F(y, n, y, y, reoverride) {
 
 		r = distribution_loadalloverrides(d, confdir, overridedir);
 		if( RET_IS_OK(r) ) {
-			r = distribution_foreach_rwopenedpart(d, database,
-					component, architecture, packagetype,
-					target_reoverride, NULL);
+			struct target *t;
+
+			for( t = d->targets ; t != NULL ; t = t->next ) {
+				if( !target_matches(t,
+				      component, architecture, packagetype) )
+					continue;
+				r = target_reoverride(t, d, database);
+				RET_UPDATE(result, r);
+				// TODO: how to seperate this in those affecting d
+				// and those that do not?
+				RET_UPDATE(d->status, r);
+			}
 			distribution_unloadoverrides(d);
 		} else if( r == RET_NOTHING ) {
 			fprintf(stderr,"No override files, thus nothing to do for %s.\n",d->codename);
 		}
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(result) )
 			break;
 	}
 	r = distribution_exportlist(export, alldistributions, distdir, database);

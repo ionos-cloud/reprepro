@@ -698,11 +698,10 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 
 /* Reapply override information */
 
-retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct distribution *distribution) {
-	struct cursor *cursor;
+retvalue target_reoverride(struct target *target, struct distribution *distribution, struct database *database) {
+	struct target_cursor iterator;
 	retvalue result, r;
 	const char *package, *controlchunk;
-	struct table *table = target->packages;
 
 	assert(target->packages!=NULL);
 	assert(distribution!=NULL);
@@ -711,11 +710,11 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 		fprintf(stderr,"Reapplying overrides packages in '%s'...\n",target->identifier);
 	}
 
-	r = table_newglobalcursor(table, &cursor);
+	r = target_openiterator(target, database, READWRITE, &iterator);
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;
-	while( cursor_nexttemp(table, cursor, &package, &controlchunk) ) {
+	while( target_nextpackage(&iterator, &package, &controlchunk) ) {
 		char *newcontrolchunk = NULL;
 
 		r = target->doreoverride(distribution, package, controlchunk,
@@ -727,15 +726,17 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 			break;
 		}
 		if( RET_IS_OK(r) ) {
-			r = cursor_replace(table, cursor,
+			r = cursor_replace(target->packages, iterator.cursor,
 				newcontrolchunk, strlen(newcontrolchunk));
 			free(newcontrolchunk);
-			if( RET_WAS_ERROR(r) )
-				return r;
+			if( RET_WAS_ERROR(r) ) {
+				result = r;
+				break;
+			}
 			target->wasmodified = true;
 		}
 	}
-	r = cursor_close(table, cursor);
+	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
 	return result;
 }

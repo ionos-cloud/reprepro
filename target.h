@@ -148,7 +148,7 @@ retvalue target_removepackage_by_cursor(struct target_cursor *, /*@null@*/struct
 retvalue package_check(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 retvalue target_rereference(struct target *, struct database *);
 retvalue package_referenceforsnapshot(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
-retvalue target_reoverride(void *, struct target *, struct distribution *);
+retvalue target_reoverride(struct target *, struct distribution *, struct database *);
 
 retvalue package_rerunnotifiers(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 
