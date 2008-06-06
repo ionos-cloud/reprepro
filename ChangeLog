@@ -1,3 +1,7 @@
+2008-06-06  Bernhard R. Link <brlink@debian.org>
+	* switch to 'new' AC_INIT and AM_INIT_AUTOMAKE syntax,
+	move automaitcally included autoconf to ac/ subdir
+
 2008-05-17  Bernhard R. Link <brlink@debian.org>
 	* Add support for sha256.
 	* changestool puts Files: last, makes it easier
