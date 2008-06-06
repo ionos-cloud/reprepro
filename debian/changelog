@@ -1,4 +1,4 @@
-reprepro (3.5.0-0) UNRELEASED; urgency=low
+reprepro (3.5.0-1) unstable; urgency=medium
 
   * new version
   - put --delete in reprepro.1's description of createsymlinks at the correct
