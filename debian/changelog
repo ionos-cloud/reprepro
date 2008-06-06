@@ -9,8 +9,11 @@ reprepro (3.5.0-1) unstable; urgency=medium
   - fix misspelling of incoming (Closes: 482655)
   * make build-depend on libarchive-dev temporarily versioned to allow
     easier migration to testing.
+  * support parallel=n and only use noopt when space-delimited
+  * rename reprepro specific DEB_BUILD_OPTIONS from reprepro:* to reprepro-*
+  * bump standards-version to 3.8.0
 
- -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Jun 2008 10:15:32 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Jun 2008 11:00:03 +0200
 
 reprepro (3.4.2-1) unstable; urgency=high
 

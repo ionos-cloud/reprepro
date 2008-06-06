@@ -11,30 +11,31 @@ DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
 
 CFLAGS = -Wall -g
-
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
 else
 	CFLAGS += -O2
 endif
-
-ifneq (,$(findstring reprepro:libdb4.6,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-libdb4.6,$(DEB_BUILD_OPTIONS)))
 	DBFLAGS = --with-libdb=4.6
 else
-ifneq (,$(findstring reprepro:libdb3,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-libdb3,$(DEB_BUILD_OPTIONS)))
 	DBFLAGS = --with-libdb=3
 else
-ifneq (,$(findstring reprepro:libdb4.4,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-libdb4.4,$(DEB_BUILD_OPTIONS)))
 	DBFLAGS = --with-libdb=4.4
 else
 	DBFLAGS = --with-libdb=4.3
 endif
 endif
 endif
-ifneq (,$(findstring reprepro:nolibarchive,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-nolibarchive,$(DEB_BUILD_OPTIONS)))
 	ARCHIVEFLAGS= --without-libarchive
 else
 	ARCHIVEFLAGS= --with-libarchive
+endif
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	PARFLAGS = -j$(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 
 config.status: configure
@@ -54,7 +55,7 @@ build-indep-stamp:
 	touch build-indep-stamp
 build-arch-stamp:  config.status
 	dh_testdir
-	$(MAKE)
+	$(MAKE) $(PARFLAGS)
 	touch build-arch-stamp
 
 clean:
@@ -76,7 +77,7 @@ install-arch: build-arch
 	dh_installdirs
 
 	# install the package into debian/reprepro.
-	$(MAKE) install DESTDIR=$(CURDIR)/debian/reprepro
+	$(MAKE) $(PARFLAGS) install DESTDIR=$(CURDIR)/debian/reprepro
 	install -D -m 644 docs/reprepro.bash_completion debian/reprepro/etc/bash_completion.d/reprepro
 
 
