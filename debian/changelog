@@ -1,3 +1,11 @@
+reprepro (3.5.1-0) UNRELEASED; urgency=low
+
+  * new bugfix version
+  - no error when trying to removing nonexistant package with
+    removesrc in a distribution with tracking enabled. (Closes: 484792)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Jun 2008 22:57:47 +0200
+
 reprepro (3.5.0-1) unstable; urgency=medium
 
   * new version

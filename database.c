@@ -1324,7 +1324,7 @@ retvalue table_newduplicatecursor(struct table *table, const char *key, struct c
 	SETDBT(Key, key);
 	CLEARDBT(Data);
 	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_SET);
-	if( dbret == DB_KEYEMPTY || dbret == DB_KEYEMPTY ) {
+	if( dbret == DB_NOTFOUND || dbret == DB_KEYEMPTY ) {
 		(void)cursor->cursor->c_close(cursor->cursor);
 		free(cursor);
 		return RET_NOTHING;
@@ -1379,7 +1379,7 @@ retvalue table_newpairedcursor(struct table *table, const char *key, const char 
 	SETDBTl(Data, value, valuelen + 1);
 	dbret = cursor->cursor->c_get(cursor->cursor, &Key, &Data, DB_GET_BOTH);
 	if( dbret != 0 ) {
-		if( dbret == DB_KEYEMPTY || dbret == DB_KEYEMPTY ) {
+		if( dbret == DB_NOTFOUND || dbret == DB_KEYEMPTY ) {
 			table_printerror(table, dbret, "c_get(DB_GET_BOTH)");
 			r = RET_DBERR(dbret);
 		} else
