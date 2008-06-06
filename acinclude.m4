@@ -1,3 +1,6 @@
+dnl CHECK_ENUM and GET_DEFINE autoconf macros are
+dnl Copyright 2004,2006 Bernhard R. Link
+dnl and hereby in the public domain
 # Check for an enum, which seem to be forgotten in autoconf,
 # as this can neighter be checked with cpp, nor is it a symbol
 m4_define([CHECK_ENUM],
