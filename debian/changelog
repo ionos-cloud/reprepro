@@ -1,13 +1,16 @@
 reprepro (3.5.0-0) UNRELEASED; urgency=low
 
-  * put --delete in reprepro.1's description of createsymlinks at the correct
+  * new version
+  - put --delete in reprepro.1's description of createsymlinks at the correct
     place. (Closes: 481404)
-  * allow suite names in command line arguments (Closes: 481402)
-  * add support for Sha256
-  * improve documentation of listfilter (Closes: 475558)
-  * fix misspelling of incoming (Closes: 482655)
+  - allow suite names in command line arguments (Closes: 481402)
+  - add support for Sha256
+  - improve documentation of listfilter (Closes: 475558)
+  - fix misspelling of incoming (Closes: 482655)
+  * make build-depend on libarchive-dev temporarily versioned to allow
+    easier migration to testing.
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 24 May 2008 11:53:46 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Jun 2008 10:15:32 +0200
 
 reprepro (3.4.2-1) unstable; urgency=high
 
