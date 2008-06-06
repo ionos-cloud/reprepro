@@ -9,33 +9,36 @@
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
+# dpkg-buildpackage generates , policy suggests spaces, oh well...
+export DEB_BUILD_OPTIONS
+BUILDOPTS:=$(shell echo "$$DEB_BUILD_OPTIONS" | sed 's/,/ /g')
 
 CFLAGS = -Wall -g
-ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter noopt,$(BUILDOPTS)))
 	CFLAGS += -O0
 else
 	CFLAGS += -O2
 endif
-ifneq (,$(filter reprepro-libdb4.6,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-libdb4.6,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=4.6
 else
-ifneq (,$(filter reprepro-libdb3,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-libdb3,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=3
 else
-ifneq (,$(filter reprepro-libdb4.4,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-libdb4.4,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=4.4
 else
 	DBFLAGS = --with-libdb=4.3
 endif
 endif
 endif
-ifneq (,$(filter reprepro-nolibarchive,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter reprepro-nolibarchive,$(BUILDOPTS)))
 	ARCHIVEFLAGS= --without-libarchive
 else
 	ARCHIVEFLAGS= --with-libarchive
 endif
-ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
-	PARFLAGS = -j$(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+ifneq (,$(filter parallel=%,$(BUILDOPTS)))
+	PARFLAGS = -j$(patsubst parallel=%,%,$(filter parallel=%,$(BUILDOPTS)))
 endif
 
 config.status: configure
