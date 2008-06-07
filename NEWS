@@ -1,3 +1,7 @@
+Updates between 3.5.0 and 3.5.1:
+- support upcoming version 3 format source packages
+  (priority and section extraction only for wig&pen and quilt format)
+
 Updates between 3.4.2 and 3.5.0:
 - allow suite names as command line arguments
   (when there is not codename of this name and only one distribution
