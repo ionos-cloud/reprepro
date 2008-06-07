@@ -1384,7 +1384,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 	for( file = changes->files; file != NULL ; file = file->next ) {
 		const char *name, *version, *p;
 		size_t namelen, versionlen, l;
-		bool has_tar, has_diff, has_orig;
+		bool has_tar, has_diff, has_orig, has_format_tar;
 
 		if( file->type != ft_DSC )
 			continue;
@@ -1520,12 +1520,15 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					(unsigned int)versionlen, version);
 		}
 		has_tar = false;
+		has_format_tar = false;
 		has_diff = false;
 		has_orig = false;
 		for( j = 0 ; j < file->dsc->expected.names.count ; j++ ) {
 			const char *basename = file->dsc->expected.names.values[j];
 			const struct fileentry *sfile = file->dsc->uplink[j];
-			size_t expectedversionlen;
+			size_t expectedversionlen, expectedformatlen;
+			const char *expectedformat;
+			bool istar = false, versionok;
 
 			switch( sfile->type ) {
 				case ft_UNKNOWN:
@@ -1537,16 +1540,13 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 				case ft_TAR_GZ:
 				case ft_TAR_BZ2:
 				case ft_TAR_LZMA:
-					if( has_tar || has_orig )
-						fprintf(stderr,
-"ERROR: '%s' lists multiple .tar files!\n",
-						file->fullfilename);
+					istar = true;
 					has_tar = true;
 					break;
 				case ft_ORIG_TAR_GZ:
 				case ft_ORIG_TAR_BZ2:
 				case ft_ORIG_TAR_LZMA:
-					if( has_tar || has_orig )
+					if( has_orig )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
@@ -1568,17 +1568,21 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			if( name == NULL ) // TODO: try extracting it from this
 				continue;
 			if( strncmp(sfile->basename, name, namelen) != 0
-					|| sfile->basename[namelen] != '_' )
+					|| sfile->basename[namelen] != '_' ) {
 				fprintf(stderr,
 "ERROR: '%s' does not begin with '%*s_' as expected!\n",
 					sfile->basename,
 					(unsigned int)namelen, name);
+				/* cannot check further */
+				continue;
+			}
 
 			if( version == NULL )
 				continue;
 
-			if(sfile->type == ft_ORIG_TAR_GZ
-					|| sfile->type == ft_ORIG_TAR_BZ2) {
+			if( sfile->type == ft_ORIG_TAR_GZ
+					|| sfile->type == ft_ORIG_TAR_BZ2
+					|| sfile->type == ft_ORIG_TAR_LZMA ) {
 				const char *p, *revision;
 				revision = NULL;
 				for( p=version; *p != '\0'; p++ ) {
@@ -1592,19 +1596,53 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			} else
 				expectedversionlen = versionlen;
 
-			if( strncmp(sfile->basename+namelen+1,
-					version, expectedversionlen) != 0
-				|| ( sfile->type != ft_UNKNOWN &&
-					strcmp(sfile->basename+namelen+1
-						+expectedversionlen,
-					typesuffix[sfile->type]) != 0 ))
+			versionok = strncmp(sfile->basename+namelen+1,
+					version, expectedversionlen) == 0;
+			if( istar ) {
+				const char *p;
+
+				if( !versionok ) {
+					fprintf(stderr,
+"ERROR: '%s' does not start with '%*s_%*s' as expected!\n",
+						sfile->basename,
+						(unsigned int)namelen, name,
+						(unsigned int)expectedversionlen,
+						version);
+					continue;
+				}
+				expectedformat = sfile->basename + namelen + 1 +
+					expectedversionlen;
+				if( strncmp(expectedformat, ".tar.", 5) == 0 )
+					expectedformatlen = 0;
+				else if( (p = strchr(expectedformat + 1, '.') ) == NULL )
+					expectedformatlen = 0;
+				else {
+					expectedformatlen = p - expectedformat;
+					has_format_tar = true;
+				}
+			} else {
+				expectedformat = "";
+				expectedformatlen = 0;
+			}
+
+			if( !versionok ) {
+				if( sfile->type == ft_UNKNOWN )
+					continue;
+				if( strcmp(sfile->basename+namelen+1
+						+expectedversionlen
+						+expectedformatlen,
+						typesuffix[sfile->type]) == 0 )
+					continue;
 				fprintf(stderr,
-"ERROR: '%s' is not called '%*s_%*s%s' as expected!\n",
+"ERROR: '%s' is not called '%*s_%*s%*s%s' as expected!\n",
 					sfile->basename,
 					(unsigned int)namelen, name,
 					(unsigned int)expectedversionlen,
 					version,
+					(unsigned int)expectedformatlen,
+					expectedformat,
 					typesuffix[sfile->type]);
+			}
 		}
 		if( !has_tar && !has_orig )
 			if( has_diff )
@@ -1619,7 +1657,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			fprintf(stderr,
 "ERROR: '%s' lists a .diff, but the .tar is not called .orig.tar!\n",
 					file->fullfilename);
-		else if( !has_diff && has_orig )
+		else if( !has_format_tar && !has_diff && has_orig )
 			fprintf(stderr,
 "ERROR: '%s' lists a .orig.tar, but no .diff!\n",
 					file->fullfilename);

@@ -1,3 +1,7 @@
+2008-06-07  Bernhard R. Link <brlink@debian.org>
+	* remove some checks that fail for version 2 or 3 debian
+	source packages. (in reprepro include and changestool verify)
+
 2008-06-06  Bernhard R. Link <brlink@debian.org>
 	* switch to 'new' AC_INIT and AM_INIT_AUTOMAKE syntax,
 	move automaitcally included autoconf to ac/ subdir

@@ -673,22 +673,13 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 			}
 			haveorig = true;
 		} else if( e->type == fe_TAR ) {
-			if( havetar ) {
-				fprintf(stderr,
-"I don't know what to do with multiple .tar.gz files in '%s'!\n", filename);
-				return RET_ERROR;
-			}
 			havetar = true;
 		}
 
 		e = e->next;
 	}
 
-	if( havetar && haveorig ) {
-		fprintf(stderr,"I don't know what to do having a .tar.gz and a .orig.tar.gz in '%s'!\n",filename);
-		return RET_ERROR;
-	}
-	if( havetar && havediff ) {
+	if( havetar && !haveorig && havediff ) {
 		fprintf(stderr,"I don't know what to do having a .tar.gz not being a .orig.tar.gz and a .diff.gz in '%s'!\n",filename);
 		return RET_ERROR;
 	}
@@ -701,7 +692,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		fprintf(stderr,"I don't know what to do with a source-upload not containing a .dsc in '%s'!\n",filename);
 		return RET_ERROR;
 	}
-	if( havedsc && !havediff && !havetar ) {
+	if( havedsc && !havediff && !haveorig && !havetar ) {
 		fprintf(stderr,"I don't know what to do having a .dsc without a .diff.gz or .tar.gz in '%s'!\n",filename);
 		return RET_ERROR;
 	}
