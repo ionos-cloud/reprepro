@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <malloc.h>
 #include <string.h>

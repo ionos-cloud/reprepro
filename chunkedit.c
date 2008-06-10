@@ -17,6 +17,7 @@
 
 #include <sys/types.h>
 #include <errno.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <string.h>
 #include <stdio.h>

@@ -21,6 +21,7 @@
 #include <limits.h>
 #include <string.h>
 #include <strings.h>
+#include <stdlib.h>
 #include <malloc.h>
 #include <stdio.h>
 #include "error.h"

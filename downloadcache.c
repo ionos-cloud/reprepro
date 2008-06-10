@@ -17,7 +17,7 @@
 
 #include <sys/types.h>
 #include <assert.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include "error.h"
