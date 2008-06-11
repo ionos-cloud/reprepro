@@ -298,7 +298,8 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 			exit(255);
 		}
 		(void)execl(hook, hook, release_dirofdist(release),
-				reltmpfilename, relfilename, mode, NULL);
+				reltmpfilename, relfilename, mode,
+				ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "Error %d while executing '%s': %s\n",
 				e, hook, strerror(e));

@@ -335,7 +335,7 @@ inline static retvalue aptmethod_startup(struct aptmethod *method, const char *m
 		if( methodname == NULL )
 			exit(255);
 
-		(void)execl(methodname,methodname,NULL);
+		(void)execl(methodname, methodname, ENDOFARGUMENTS);
 
 		e = errno;
 		fprintf(stderr, "Error %d while executing '%s': %s\n",

@@ -1246,7 +1246,8 @@ static retvalue calllisthook(const char *listhook,struct update_index *index) {
 	if( f == 0 ) {
 		int e;
 		(void)closefrom(3);
-		execl(listhook,listhook,index->filename,newfilename,NULL);
+		execl(listhook, listhook, index->filename, newfilename,
+				ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "Error %d while executing '%s': %s\n",
 				e, listhook, strerror(e));

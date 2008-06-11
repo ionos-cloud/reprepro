@@ -61,4 +61,6 @@ enum config_option_owner { 	CONFIG_OWNER_DEFAULT=0,
 #ifndef _D_EXACT_NAMELEN
 #define _D_EXACT_NAMELEN(r) strlen((r)->d_name)
 #endif
+/* for systems defining NULL to 0 instead of the nicer (void*)0 */
+#define ENDOFARGUMENTS ((char *)0)
 #endif

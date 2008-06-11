@@ -85,7 +85,9 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		//TODO without explicit path
-		ret = execl("/usr/bin/ar","ar","p",debfile,"control.tar.gz",NULL);
+		ret = execl("/usr/bin/ar",
+				"ar", "p", debfile, "control.tar.gz",
+				ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "ar call failed with error %d: %s\n",
 				e, strerror(e));
@@ -111,7 +113,8 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 		close(pipe2[0]);close(pipe2[1]);
 		//TODO without explicit path
 		execl("/bin/tar", "tar", "-xOzf", "-",
-				brokentar?"control":"./control", NULL);
+				brokentar?"control":"./control",
+				ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "tar call failed with error %d: %s\n",
 				e, strerror(e));
@@ -281,7 +284,9 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		//TODO without explicit path
-		ret = execl("/usr/bin/ar","ar","p",debfile,"data.tar.gz",NULL);
+		ret = execl("/usr/bin/ar",
+				"ar", "p", debfile, "data.tar.gz",
+				ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "ar call failed with error %d: %s\n",
 				e, strerror(e));
@@ -306,7 +311,7 @@ retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		//TODO without explicit path
-		execl("/bin/tar","tar","-tzf","-",NULL);
+		execl("/bin/tar", "tar", "-tzf", "-", ENDOFARGUMENTS);
 		e = errno;
 		fprintf(stderr, "tar call failed with error %d: %s\n",
 				e, strerror(e));
