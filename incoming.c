@@ -636,7 +636,7 @@ static retvalue candidate_addhashes(struct incoming *i, struct candidate *c, enu
 	return RET_OK;
 }
 
-static retvalue candidate_finalizechecksums(struct incoming *i, struct candidate *c) {
+static retvalue candidate_finalizechecksums(struct candidate *c) {
 	struct candidate_file *f;
 	retvalue r;
 
@@ -720,7 +720,7 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 			return r;
 		}
 	}
-	r = candidate_finalizechecksums(i, c);
+	r = candidate_finalizechecksums(c);
 	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ )
 		strlist_done(&filelines[cs]);
 	R;

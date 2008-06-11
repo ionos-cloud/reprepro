@@ -737,7 +737,7 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 			}
 		}
 	}
-	assert( count == filenames.count );
+	assert( count == (size_t)filenames.count );
 
 	if( filenames.count == 0 ) {
 		strlist_done(&filenames);

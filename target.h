@@ -84,6 +84,7 @@ struct target_cursor {
 	const char *lastname;
 	const char *lastcontrol;
 };
+#define TARGET_CURSOR_ZERO {NULL, NULL, NULL, NULL}
 /* wrapper around initpackagesdb and table_newglobalcursor */
 static inline retvalue target_openiterator(struct target *t, struct database *db, bool readonly, /*@out@*/struct target_cursor *tc) {
 	retvalue r, r2;

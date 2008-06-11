@@ -1246,6 +1246,8 @@ ACTION_D(y, n, y, copyfilter) {
 	struct distribution *destination, *source;
 	retvalue result, r;
 
+	assert( argc == 3 );
+
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
@@ -1324,6 +1326,8 @@ ACTION_D(y, n, y, restoresrc) {
 ACTION_D(y, n, y, restorefilter) {
 	struct distribution *destination;
 	retvalue result, r;
+
+	assert( argc == 3 );
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );

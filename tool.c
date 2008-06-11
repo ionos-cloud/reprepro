@@ -676,7 +676,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 	struct dscfile *n;
 	retvalue r;
-	size_t i;
+	int i;
 
 	if( dscfile->fullfilename == NULL )
 		return RET_NOTHING;
@@ -704,7 +704,7 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 
 static retvalue write_dsc_file(struct fileentry *dscfile, unsigned int flags) {
 	struct dscfile *dsc = dscfile->dsc;
-	unsigned int i;
+	int i;
 	struct chunkeditfield *cef;
 	retvalue r;
 	char *control; size_t controllen;
@@ -1378,13 +1378,14 @@ static void verify_binary_name(const char *basename, const char *name, const cha
 static retvalue verify(const char *changesfilename, struct changes *changes) {
 	retvalue r;
 	struct fileentry *file;
-	unsigned int j;
+	size_t k;
 
 	printf("Checking Source packages...\n");
 	for( file = changes->files; file != NULL ; file = file->next ) {
 		const char *name, *version, *p;
 		size_t namelen, versionlen, l;
 		bool has_tar, has_diff, has_orig, has_format_tar;
+		int i;
 
 		if( file->type != ft_DSC )
 			continue;
@@ -1523,9 +1524,9 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		has_format_tar = false;
 		has_diff = false;
 		has_orig = false;
-		for( j = 0 ; j < file->dsc->expected.names.count ; j++ ) {
-			const char *basename = file->dsc->expected.names.values[j];
-			const struct fileentry *sfile = file->dsc->uplink[j];
+		for( i = 0 ; i < file->dsc->expected.names.count ; i++ ) {
+			const char *basename = file->dsc->expected.names.values[i];
+			const struct fileentry *sfile = file->dsc->uplink[i];
 			size_t expectedversionlen, expectedformatlen;
 			const char *expectedformat;
 			bool istar = false, versionok;
@@ -1663,8 +1664,8 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					file->fullfilename);
 	}
 	printf("Checking Binary consistency...\n");
-	for( j = 0 ; j < changes->binarycount ; j++ ) {
-		struct binary *b = &changes->binaries[j];
+	for( k = 0 ; k < changes->binarycount ; k++ ) {
+		struct binary *b = &changes->binaries[k];
 
 		if( b->files == NULL && !b->uncheckable ) {
 			/* no files - not even conjectured -, headers must be wrong */
@@ -1833,7 +1834,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		}
 
 		if( file->type == ft_DSC ) {
-			unsigned int i;
+			int i;
 
 			if( file->dsc == NULL ) {
 				fprintf(stderr,
@@ -1905,7 +1906,7 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 		return r;
 	/* first update all .dsc files and perhaps recalculate their checksums */
 	for( file = c->files; file != NULL ; file = file->next ) {
-		unsigned int i;
+		int i;
 		bool improvedhash[cs_hashCOUNT];
 
 		if( file->type != ft_DSC )
@@ -2030,7 +2031,7 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 	struct fileentry *file;
 
 	for( file = c->files; file != NULL ; file = file->next ) {
-		unsigned int i;
+		int i;
 
 		if( file->type != ft_DSC )
 			continue;
@@ -2090,7 +2091,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename, const struct 
 	struct dscfile *dsc;
 	char *fullfilename, *basename;
 	char *origdirectory;
-	size_t i;
+	int i;
 
 	r = findfile(dscfilename, c, searchpath, ".", &fullfilename);
 	if( RET_WAS_ERROR(r) )

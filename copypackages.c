@@ -368,7 +368,7 @@ struct namelist {
 	const char **argv;
 };
 
-static retvalue by_name(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_name(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	retvalue result, r;
 	int i;
@@ -428,9 +428,9 @@ retvalue copy_by_name(struct database *database, struct distribution *into, stru
 	return r;
 }
 
-static retvalue by_source(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_source(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
-	struct target_cursor iterator IFSTUPIDCC(={});
+	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 	const char *packagename, *chunk;
 	retvalue result, r;
 
@@ -507,9 +507,9 @@ retvalue copy_by_source(struct database *database, struct distribution *into, st
 	return r;
 }
 
-static retvalue by_formula(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, struct target *desttarget, struct target *fromtarget, void *data) {
+static retvalue by_formula(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	term *condition = data;
-	struct target_cursor iterator IFSTUPIDCC(={});
+	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 	const char *packagename, *chunk;
 	retvalue result, r;
 
@@ -601,7 +601,7 @@ static retvalue choose_by_source(void *data, const char *chunk) {
 	free(packagename);
 	if( !RET_IS_OK(r) )
 		return r;
-	assert( l->argv > 0 );
+	assert( l->argc > 0 );
 	/* only include if source name matches */
 	if( strcmp(source, l->argv[0]) != 0 ) {
 		free(source); free(sourceversion);
