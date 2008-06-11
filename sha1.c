@@ -43,13 +43,17 @@ removed wiping of temp data (as not needed for public data)
 multiple modifications to make it more what I consider readable.
 using endian.h now.
 multiple more modifications...
+
+Modified 06/2008
+by Bernhard R. Link <brlink@debian.org>
+Still 100% public domain:
+use WORDS_BIGENDIAN instead of endian.h
 */
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <endian.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -75,12 +79,12 @@ void SHA1_Transform(uint32_t state[5], const uint8_t buffer[64])
 {
     uint32_t a, b, c, d, e;
     uint32_t block[16];
-#if __BYTE_ORDER != __BIG_ENDIAN
+#ifndef WORDS_BIGENDIAN
     int i;
 #endif
 
     assert( sizeof(block) == 64*sizeof(uint8_t) );
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
     memcpy(block, buffer, sizeof(block));
 #else
     for( i = 0 ; i < 16 ; i++ ) {

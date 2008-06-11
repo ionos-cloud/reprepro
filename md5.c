@@ -20,7 +20,6 @@
  * Still in the public domain.
  *
  * Changed to no longer need things from dpkg,
- * but using endian.h instead.
  * and made MD5Transfor static...
  *  - Bernhard R. Link <brlink@debian.org>
  * Still in public domain.
@@ -28,7 +27,6 @@
 
 #include <config.h>
 
-#include <endian.h>		/* for __BYTE_ORDER */
 #include <string.h>		/* for memcpy() */
 #include <sys/types.h>		/* for stupid systems */
 #include <netinet/in.h>		/* for ntohl() */
@@ -37,7 +35,7 @@
 static void
 MD5Transform(UWORD32 buf[4], UWORD32 const in[16]);
 
-#if __BYTE_ORDER == __BIG_ENDIAN
+#ifdef WORDS_BIGENDIAN
 static void
 byteSwap(UWORD32 *buf, unsigned words)
 {
@@ -50,11 +48,9 @@ byteSwap(UWORD32 *buf, unsigned words)
 	} while (--words);
 }
 #else
-#if __BYTE_ORDER == __LITTLE_ENDIAN
+/* I'm assuming there is only big and little endian, PDP_ENDIAN users
+ * will have bad luck... */
 #define byteSwap(buf,words)
-#else
-#error "only supporting little or big endian currently"
-#endif
 #endif
 
 /*
