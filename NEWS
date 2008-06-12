@@ -54,7 +54,7 @@ Updates between 3.0.1 and 3.1.0:
 - add sha1 hashes to the generated Release files.
   the changes semantics needed in the release.caches.db file for this
   should be transient. This will only cause index files without
-  uncompressed variants to be regenerated once uppon upgrade, but
+  uncompressed variants to be regenerated once upon upgrade, but
   switching back and forth between previous versions and this or
   later versions will cause regenerating of unchanged files.
 - internal changes of reading of text files (.dsc/.changes/Release/
