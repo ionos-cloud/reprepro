@@ -13,9 +13,13 @@
 
 # DEPENDENCIES: dpkg >= 1.13.9
 
+if test ${REPREPRO_BASE_DIR:+set} = set ; then
+	cd "${REPREPRO_BASE_DIR}" || exit 1
+fi
+
 # You will either always have to call it with the basedir as
-# your current directory, or uncomment the following to be
-# your base directory.
+# your current directory, have REPREPRO_BASE_DIR set
+# or uncomment the following to be your base directory.
 
 # cd /path/to/your/repository
 
@@ -23,7 +27,7 @@
 
 CHANGELOGDIR=changelogs
 
-# Set to avoid using some predefined TEMPDIR or even /tmp as
+# Set to avoid using some predefined TMPDIR or even /tmp as
 # tempdir:
 
 # TMPDIR=/var/cache/whateveryoucreated

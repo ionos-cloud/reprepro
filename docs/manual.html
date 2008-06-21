@@ -1008,7 +1008,9 @@ in the reprepro source or
 <a href="file:///usr/share/doc/reprepro/examples/">/usr/share/doc/reprepro/examples/</a>
 of your installed reprepro package into your <tt class="directory">conf/</tt> directory
 (or somewhere else, then you will need an absolute path later), perhaps
-change some directories specified in it and add something like the following lines
+change some directories specified in it (unless you will only ever call reprepro from
+your basedir or have REPREPRO_BASE_DIR environment variable always set)
+and add something like the following lines
 to all distributions in <tt class="file">conf/distributions</tt> that should use
 this feature:
 <pre class="config">
