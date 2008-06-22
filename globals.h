@@ -63,4 +63,18 @@ enum config_option_owner { 	CONFIG_OWNER_DEFAULT=0,
 #endif
 /* for systems defining NULL to 0 instead of the nicer (void*)0 */
 #define ENDOFARGUMENTS ((char *)0)
+
+/* global information */
+extern struct global_config {
+	const char *basedir;
+	const char *outdir;
+	const char *distdir;
+	const char *confdir;
+	const char *methoddir;
+	const char *logdir;
+	const char *listdir;
+	/* deprecated: */
+	const char *overridedir;
+} global;
+
 #endif

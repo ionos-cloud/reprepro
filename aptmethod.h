@@ -37,7 +37,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *, const char *uri, const char 
 retvalue aptmethod_queuefile(struct aptmethod *, const char *origfile, const char *destfile, const struct checksums *, const char *filekey, /*@out@*/struct tobedone **);
 retvalue aptmethod_queueindexfile(struct aptmethod *, const char *origfile, const char *destfile, /*@null@*/struct checksums **);
 
-retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struct database *);
-retvalue aptmethod_shutdown(/*@only@*/struct aptmethodrun *run);
+retvalue aptmethod_download(struct aptmethodrun *, struct database *);
+retvalue aptmethod_shutdown(/*@only@*/struct aptmethodrun *);
 
 #endif

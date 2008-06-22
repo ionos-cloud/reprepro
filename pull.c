@@ -128,11 +128,11 @@ static const struct configfield pullconfigfields[] = {
 	CF("FilterList", pull_rule, filterlist)
 };
 
-retvalue pull_getrules(const char *confdir,struct pull_rule **rules) {
+retvalue pull_getrules(struct pull_rule **rules) {
 	struct pull_rule *pull = NULL;
 	retvalue r;
 
-	r = configfile_parse(confdir, "pulls", IGNORABLE(unknownfield),
+	r = configfile_parse("pulls", IGNORABLE(unknownfield),
 			configparser_pull_rule_init, linkedlistfinish,
 			pullconfigfields, ARRAYCOUNT(pullconfigfields), &pull);
 	if( RET_IS_OK(r) )

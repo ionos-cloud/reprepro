@@ -1,3 +1,7 @@
+2008-06-22  Bernhard R. Link <brlink@debian.org>
+	* move some directoy variables to global variables,
+	some related cleanup in the code
+
 2008-06-07  Bernhard R. Link <brlink@debian.org>
 	* remove some checks that fail for version 2 or 3 debian
 	source packages. (in reprepro include and changestool verify)

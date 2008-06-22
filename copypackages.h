@@ -11,8 +11,8 @@ retvalue copy_by_formula(struct database *, struct distribution *into, struct di
 
 retvalue copy_from_file(struct database *, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *filename, int, const char **, struct strlist *dereferenced);
 
-retvalue restore_by_name(const char *distdir, struct database *, struct distribution *, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, const char *snapshotname, int, const char **, struct strlist *dereferenced);
-retvalue restore_by_source(const char *distdir, struct database *, struct distribution *, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, const char *snapshotname, int, const char **, struct strlist *dereferenced);
-retvalue restore_by_formula(const char *distdir, struct database *, struct distribution *, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, const char *snapshotname, const char *filter, struct strlist *dereferenced);
+retvalue restore_by_name(struct database *, struct distribution *, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, const char *snapshotname, int, const char **, struct strlist *dereferenced);
+retvalue restore_by_source(struct database *, struct distribution *, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, const char *snapshotname, int, const char **, struct strlist *dereferenced);
+retvalue restore_by_formula(struct database *, struct distribution *, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, const char *snapshotname, const char *filter, struct strlist *dereferenced);
 
 #endif

@@ -307,7 +307,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 
 
 
-static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *confdir, const char *filename) {
+static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *filename) {
 	char *fullfilename = NULL;
 	FILE *f;
 	size_t lineno=0;
@@ -316,7 +316,7 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *con
 	retvalue r;
 
 	if( filename[0] != '/' ) {
-		fullfilename = calc_dirconcat(confdir, filename);
+		fullfilename = calc_conffile(filename);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		filename = fullfilename;
@@ -357,7 +357,7 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *con
 	return RET_OK;
 }
 
-retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *confdir, const char *filename) {
+retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *filename) {
 	retvalue r;
 	struct uploaders *u;
 	size_t len;
@@ -370,7 +370,7 @@ retvalue uploaders_get(/*@out@*/struct uploaders **list, const char *confdir, co
 	                      memcmp(u->filename,filename,len) != 0 ) )
 		u = u->next;
 	if( u == NULL ) {
-		r = uploaders_load(&u, confdir, filename);
+		r = uploaders_load(&u, filename);
 		if( !RET_IS_OK(r) )
 			return r;
 		assert( u != NULL );

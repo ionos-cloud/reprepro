@@ -160,7 +160,6 @@ struct read_incoming_data {
 	/*@temp@*/const char *name;
 	/*@temp@*/struct distribution *distributions;
 	struct incoming *i;
-	/*@temp@*/const char *basedir;
 };
 
 static retvalue translate(struct distribution *distributions, struct strlist *names, struct distribution ***r) {
@@ -211,7 +210,7 @@ CFfinishparse(incoming) {
 		return RET_ERROR;
 	}
 	if( i->tempdir[0] != '/' ) {
-		char *n = calc_dirconcat(d->basedir, i->tempdir);
+		char *n = calc_dirconcat(global.basedir, i->tempdir);
 		if( n == NULL ) {
 			incoming_free(i);
 			return RET_ERROR_OOM;
@@ -220,7 +219,7 @@ CFfinishparse(incoming) {
 		i->tempdir = n;
 	}
 	if( i->directory[0] != '/' ) {
-		char *n = calc_dirconcat(d->basedir, i->directory);
+		char *n = calc_dirconcat(global.basedir, i->directory);
 		if( n == NULL ) {
 			incoming_free(i);
 			return RET_ERROR_OOM;
@@ -352,16 +351,15 @@ static const struct configfield incomingconfigfields[] = {
 	CF("Permit", incoming, permit)
 };
 
-static retvalue incoming_init(const char *basedir,const char *confdir, struct distribution *distributions, const char *name, /*@out@*/struct incoming **result) {
+static retvalue incoming_init(struct distribution *distributions, const char *name, /*@out@*/struct incoming **result) {
 	retvalue r;
 	struct read_incoming_data imports;
 
 	imports.name = name;
 	imports.distributions = distributions;
 	imports.i = NULL;
-	imports.basedir = basedir;
 
-	r = configfile_parse(confdir, "incoming", IGNORABLE(unknownfield),
+	r = configfile_parse("incoming", IGNORABLE(unknownfield),
 			startparseincoming, finishparseincoming,
 			incomingconfigfields, ARRAYCOUNT(incomingconfigfields),
 			&imports);
@@ -369,7 +367,7 @@ static retvalue incoming_init(const char *basedir,const char *confdir, struct di
 		return r;
 	if( imports.i == NULL ) {
 		fprintf(stderr, "No definition for '%s' found in '%s/incoming'!\n",
-				name, confdir);
+				name, global.confdir);
 		return RET_ERROR_MISSING;
 	}
 
@@ -1533,7 +1531,7 @@ static inline bool isallowed(UNUSED(struct incoming *i), UNUSED(struct candidate
 	return permissions->allowall;
 }
 
-static retvalue candidate_checkpermissions(const char *confdir, struct incoming *i, struct candidate *c, struct distribution *into) {
+static retvalue candidate_checkpermissions(struct incoming *i, struct candidate *c, struct distribution *into) {
 	retvalue r;
 	int j;
 
@@ -1541,7 +1539,7 @@ static retvalue candidate_checkpermissions(const char *confdir, struct incoming 
 	if( into->uploaders == NULL )
 		return RET_OK;
 
-	r = distribution_loaduploaders(into, confdir);
+	r = distribution_loaduploaders(into);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	assert(into->uploaderslist != NULL);
@@ -1638,7 +1636,7 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 	return RET_OK;
 }
 
-static retvalue candidate_add(const char *confdir, const char *overridedir,struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
+static retvalue candidate_add(struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
@@ -1652,7 +1650,7 @@ static retvalue candidate_add(const char *confdir, const char *overridedir,struc
 		return r;
 
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		r = distribution_loadalloverrides(d->into, confdir, overridedir);
+		r = distribution_loadalloverrides(d->into);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1745,7 +1743,7 @@ static retvalue candidate_add(const char *confdir, const char *overridedir,struc
 	return RET_OK;
 }
 
-static retvalue process_changes(const char *confdir,const char *overridedir,struct database *database,struct strlist *dereferenced,struct incoming *i,int ofs) {
+static retvalue process_changes(struct database *database, struct strlist *dereferenced, struct incoming *i, int ofs) {
 	struct candidate *c IFSTUPIDCC(=NULL);
 	struct candidate_file *file;
 	retvalue r;
@@ -1773,7 +1771,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 			// TODO: implement "*"
 			if( strcmp(name, i->allow.values[j]) == 0 ) {
 				tried = true;
-				r = candidate_checkpermissions(confdir, i, c,
+				r = candidate_checkpermissions(i, c,
 						i->allow_into[j]);
 				if( r == RET_NOTHING )
 					continue;
@@ -1793,7 +1791,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 	}
 	if( c->perdistribution == NULL && i->default_into != NULL ) {
 		tried = true;
-		r = candidate_checkpermissions(confdir, i, c, i->default_into);
+		r = candidate_checkpermissions(i, c, i->default_into);
 		if( RET_WAS_ERROR(r) ) {
 			candidate_free(c);
 			return r;
@@ -1824,7 +1822,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 				i->files.values[ofs]);
 			r = RET_ERROR;
 		} else
-			r = candidate_add(confdir, overridedir, database,
+			r = candidate_add(database,
 					dereferenced,
 					i, c);
 		if( RET_WAS_ERROR(r) && i->cleanup[cuf_on_error] ) {
@@ -1842,14 +1840,14 @@ static retvalue process_changes(const char *confdir,const char *overridedir,stru
 }
 
 /* tempdir should ideally be on the same partition like the pooldir */
-retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir,struct database *database,struct strlist *dereferenced,struct distribution *distributions,const char *name,const char *changesfilename) {
+retvalue process_incoming(struct database *database, struct strlist *dereferenced, struct distribution *distributions, const char *name, const char *changesfilename) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
 
 	result = RET_NOTHING;
 
-	r = incoming_init(basedir, confdir, distributions, name, &i);
+	r = incoming_init(distributions, name, &i);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -1863,7 +1861,7 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 		if( changesfilename != NULL && strcmp(basename, changesfilename) != 0 )
 			continue;
 		/* a .changes file, check it */
-		r = process_changes(confdir, overridedir, database, dereferenced, i, j);
+		r = process_changes(database, dereferenced, i, j);
 		RET_UPDATE(result, r);
 	}
 

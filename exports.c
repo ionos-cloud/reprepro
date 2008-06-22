@@ -111,7 +111,7 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*
 }
 
 // TODO: check for scripts in confdir early...
-retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct configiterator *iter) {
+retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 	retvalue r;
 	char *word;
 
@@ -193,9 +193,9 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 			free(mode->hook);
 			mode->hook = word;
 		} else {
-			char *fullfilename = calc_dirconcat(confdir, word);
+			char *fullfilename = calc_conffile(word);
 			free(word);
-			if( fullfilename == NULL )
+			if( FAILEDTOALLOC(fullfilename) )
 				return RET_ERROR_OOM;
 			free(mode->hook);
 			mode->hook = fullfilename;

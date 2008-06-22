@@ -1015,7 +1015,7 @@ static retvalue copy(const char *destination, const char *source, const struct c
 retvalue checksums_hardlink(const char *directory, const char *filekey, const char *sourcefilename, const struct checksums *checksums) {
 	retvalue r;
 	int i,e;
-	char *fullfilename = calc_fullfilename(directory, filekey);
+	char *fullfilename = calc_dirconcat(directory, filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 

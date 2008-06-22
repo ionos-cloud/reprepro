@@ -51,10 +51,10 @@ const char *causingfile = NULL;
 	int fd;
 } *logfile_root = NULL;
 
-static retvalue logfile_reference(const char *logdir,/*@only@*/char *filename,/*@out@*/struct logfile **logfile) {
+static retvalue logfile_reference(/*@only@*/char *filename, /*@out@*/struct logfile **logfile) {
 	struct logfile *l;
 
-	assert( logdir != NULL && filename != NULL );
+	assert( global.logdir != NULL && filename != NULL );
 
 	for( l = logfile_root ; l != NULL ; l = l->next ) {
 		if( strcmp(l->filename, filename) == 0 ) {
@@ -72,7 +72,7 @@ static retvalue logfile_reference(const char *logdir,/*@only@*/char *filename,/*
 	if( filename[0] == '/' )
 		l->filename = filename;
 	else {
-		l->filename = calc_dirconcat(logdir,filename);
+		l->filename = calc_dirconcat(global.logdir, filename);
 		free(filename);
 	}
 	if( l->filename == NULL ) {
@@ -215,7 +215,7 @@ static void notificator_done(/*@special@*/struct notificator *n) /*@releases n->
 	free(n->architecture);
 }
 
-static retvalue notificator_parse(struct notificator *n, const char *confdir, struct configiterator *iter) {
+static retvalue notificator_parse(struct notificator *n, struct configiterator *iter) {
 	retvalue r;
 	int c;
 
@@ -379,7 +379,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, st
 			if( script[0] == '/' )
 				n->scriptname = script;
 			else {
-				n->scriptname = calc_dirconcat(confdir, script);
+				n->scriptname = calc_conffile(script);
 				free(script);
 			}
 			if( n->scriptname == NULL )
@@ -916,7 +916,7 @@ void logger_free(struct logger *logger) {
 	free(logger);
 }
 
-retvalue logger_init(const char *confdir,const char *logdir,struct configiterator *iter,struct logger **logger_p) {
+retvalue logger_init(struct configiterator *iter, struct logger **logger_p) {
 	struct logger *n;
 	retvalue r;
 	char *logfilename;
@@ -949,7 +949,7 @@ retvalue logger_init(const char *confdir,const char *logdir,struct configiterato
 	}
 	if( logfilename != NULL ) {
 		assert( *logfilename != '\0');
-		r = logfile_reference(logdir, logfilename, &n->logfile);
+		r = logfile_reference(logfilename, &n->logfile);
 		if( RET_WAS_ERROR(r) ) {
 			free(n);
 			return r;
@@ -970,7 +970,7 @@ retvalue logger_init(const char *confdir,const char *logdir,struct configiterato
 		}
 		n->notificators = newnot;
 		r = notificator_parse(&n->notificators[n->notificator_count++],
-				confdir, iter);
+				 iter);
 		if( RET_WAS_ERROR(r) ) {
 			/* a bit ugly: also free the just failed item here */
 			logger_free(n);

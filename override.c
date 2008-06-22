@@ -88,7 +88,7 @@ static inline retvalue newoverrideinfo(const char *firstpart,const char *secondp
 	return RET_OK;
 }
 
-retvalue override_read(const char *confdir, const char *overridedir, const char *filename, struct overrideinfo **info) {
+retvalue override_read(const char *filename, struct overrideinfo **info) {
 	struct overrideinfo *root = NULL ,*last = NULL;
 	FILE *file;
 	char buffer[1001];
@@ -98,7 +98,7 @@ retvalue override_read(const char *confdir, const char *overridedir, const char 
 		return RET_OK;
 	}
 	if( filename[0] != '/' ) {
-		char *fn = calc_dirconcat(overridedir,filename);
+		char *fn = calc_dirconcat(global.overridedir, filename);
 		if( fn == NULL )
 			return RET_ERROR_OOM;
 		file = fopen(fn, "r");
@@ -109,7 +109,7 @@ retvalue override_read(const char *confdir, const char *overridedir, const char 
 "Warning: usage of a seperate directory for override files is obsolete.\n"
 "For compatility with future versions, override files should be in conf dir.\n");
 		} else {
-			fn = calc_dirconcat(confdir, filename);
+			fn = calc_conffile(filename);
 			if( fn == NULL )
 				return RET_ERROR_OOM;
 			file = fopen(fn, "r");

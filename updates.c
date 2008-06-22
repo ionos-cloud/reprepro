@@ -209,6 +209,85 @@ struct update_distribution {
 	struct update_target *targets;
 };
 
+// This escaping is quite harsh, but so nothing bad can happen...
+static inline size_t escapedlen(const char *p) {
+	size_t l = 0;
+	if( *p == '-' ) {
+		l = 3;
+		p++;
+	}
+	while( *p != '\0' ) {
+		if( (*p < 'A' || *p > 'Z' ) && (*p < 'a' || *p > 'z' ) && ( *p < '0' || *p > '9') && *p != '-' )
+			l +=3;
+		else
+			l++;
+		p++;
+	}
+	return l;
+}
+
+static inline char *escapecpy(char *dest,const char *orig) {
+	static char hex[16] = "0123456789ABCDEF";
+	if( *orig == '-' ) {
+		orig++;
+		*dest = '%'; dest++;
+		*dest = '2'; dest++;
+		*dest = 'D'; dest++;
+	}
+	while( *orig != '\0' ) {
+		if( (*orig < 'A' || *orig > 'Z' ) && (*orig < 'a' || *orig > 'z' ) && ( *orig < '0' || *orig > '9') && *orig != '-' ) {
+			*dest = '%'; dest++;
+			*dest = hex[(*orig >> 4)& 0xF ]; dest++;
+			*dest = hex[*orig & 0xF ]; dest++;
+		} else {
+			*dest = *orig;
+			dest++;
+		}
+		orig++;
+	}
+	return dest;
+}
+
+static char *calc_downloadedlistfile(const char *codename, const char *origin, const char *component, const char *architecture, const char *packagetype) {
+	size_t l_listdir, len, l_packagetype;
+	char *result,*p;
+
+	l_listdir = strlen(global.listdir),
+	len = escapedlen(codename) + escapedlen(origin) + escapedlen(component) + escapedlen(architecture);
+	l_packagetype = strlen(packagetype);
+	p = result = malloc(l_listdir + len + l_packagetype + 7);
+	if( FAILEDTOALLOC(result) )
+		return result;
+	memcpy(p, global.listdir, l_listdir);
+	p += l_listdir;
+	*p = '/'; p++;
+	p = escapecpy(p,codename);
+	*p = '_'; p++;
+	p = escapecpy(p,origin);
+	*p = '_'; p++;
+	strcpy(p,packagetype); p += l_packagetype;
+	*p = '_'; p++;
+	p = escapecpy(p,component);
+	*p = '_'; p++;
+	p = escapecpy(p,architecture);
+	*p = '\0';
+	return result;
+}
+
+static char *calc_downloadedlistpattern(const char *codename) {
+	size_t len;
+	char *result,*p;
+
+	len = escapedlen(codename);
+	p = result = malloc(len + 2);
+	if( FAILEDTOALLOC(result) )
+		return result;
+	p = escapecpy(p,codename);
+	*p = '_'; p++;
+	*p = '\0';
+	return result;
+}
+
 static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	if( update == NULL )
 		return;
@@ -355,11 +434,11 @@ static const struct configfield updateconfigfields[] = {
 	CF("FilterList", update_pattern, filterlist)
 };
 
-retvalue updates_getpatterns(const char *confdir, struct update_pattern **patterns) {
+retvalue updates_getpatterns(struct update_pattern **patterns) {
 	struct update_pattern *update = NULL;
 	retvalue r;
 
-	r = configfile_parse(confdir, "updates", IGNORABLE(unknownfield),
+	r = configfile_parse("updates", IGNORABLE(unknownfield),
 			configparser_update_pattern_init, linkedlistfinish,
 			updateconfigfields, ARRAYCOUNT(updateconfigfields),
 			&update);
@@ -480,7 +559,7 @@ static retvalue new_deleterule(struct update_origin **origins) {
 	return RET_OK;
 }
 
-static retvalue instance_pattern(const char *listdir, struct update_pattern *pattern, const struct distribution *distribution, struct update_origin **origins) {
+static retvalue instance_pattern(struct update_pattern *pattern, const struct distribution *distribution, struct update_origin **origins) {
 
 	struct update_origin *update;
 
@@ -515,13 +594,17 @@ static retvalue instance_pattern(const char *listdir, struct update_pattern *pat
 	update->download = NULL;
 
 	if( !pattern->ignorerelease ) {
-		update->releasefile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","data","rel");
+		update->releasefile = calc_downloadedlistfile(
+				distribution->codename, pattern->name,
+				"Release", "data", "rel");
 		if( update->releasefile == NULL ) {
 			updates_freeorigins(update);
 			return RET_ERROR_OOM;
 		}
 		if( pattern->verifyrelease != NULL ) {
-			update->releasegpgfile = calc_downloadedlistfile(listdir,distribution->codename,pattern->name,"Release","gpg","rel");
+			update->releasegpgfile = calc_downloadedlistfile(
+					distribution->codename, pattern->name,
+					"Release", "gpg", "rel");
 			if( update->releasegpgfile == NULL ) {
 				updates_freeorigins(update);
 				return RET_ERROR_OOM;
@@ -533,7 +616,7 @@ static retvalue instance_pattern(const char *listdir, struct update_pattern *pat
 	return RET_OK;
 }
 
-static retvalue getorigins(const char *listdir, struct update_pattern *patterns, const struct distribution *distribution, struct update_origin **origins) {
+static retvalue getorigins(struct update_pattern *patterns, const struct distribution *distribution, struct update_origin **origins) {
 	struct update_origin *updates = NULL;
 	retvalue result;
 	int i;
@@ -568,7 +651,7 @@ static retvalue getorigins(const char *listdir, struct update_pattern *patterns,
 		}
 		IFSTUPIDCC(update = NULL;)
 
-		r = instance_pattern(listdir,pattern,distribution,&update);
+		r = instance_pattern(pattern, distribution, &update);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -590,11 +673,7 @@ static retvalue getorigins(const char *listdir, struct update_pattern *patterns,
  * Step 3: calculate which remote indices are to be retrieved and processed *
  ****************************************************************************/
 
-static inline retvalue newindex(struct update_index **indices,
-		const char *listdir,
-		struct update_origin *origin,struct target *target,
-		const char *architecture_from,
-		const char *component_from) {
+static inline retvalue newindex(struct update_index **indices, struct update_origin *origin,struct target *target, const char *architecture_from, const char *component_from) {
 	struct update_index *index;
 
 	index = malloc(sizeof(struct update_index));
@@ -603,9 +682,9 @@ static inline retvalue newindex(struct update_index **indices,
 
 	assert( origin != NULL && origin->pattern != NULL);
 
-	index->filename = calc_downloadedlistfile(listdir,
-			target->codename,origin->pattern->name,
-			component_from,architecture_from,
+	index->filename = calc_downloadedlistfile(
+			target->codename, origin->pattern->name,
+			component_from, architecture_from,
 			target->packagetype);
 	if( index->filename == NULL ) {
 		free(index);
@@ -628,10 +707,7 @@ static inline retvalue newindex(struct update_index **indices,
 }
 
 
-static retvalue addorigintotarget(const char *listdir,struct update_origin *origin,
-		struct target *target,
-		struct distribution *distribution,
-		struct update_target *updatetargets ) {
+static retvalue addorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
 	const struct update_pattern *p = origin->pattern;
 	const struct strlist *c_from,*c_into;
 	const struct strlist *a_from,*a_into;
@@ -673,8 +749,8 @@ static retvalue addorigintotarget(const char *listdir,struct update_origin *orig
 			if( strcmp(c_into->values[ci],target->component) != 0 )
 				continue;
 
-			r = newindex(&updatetargets->indices,listdir,origin,target,
-					a_from->values[ai],c_from->values[ci]);
+			r = newindex(&updatetargets->indices, origin,target,
+					a_from->values[ai], c_from->values[ci]);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -693,7 +769,7 @@ static retvalue adddeleteruletotarget(struct update_target *updatetargets ) {
 	return RET_OK;
 }
 
-static retvalue gettargets(const char *listdir,struct update_origin *origins,struct distribution *distribution,struct update_target **ts) {
+static retvalue gettargets(struct update_origin *origins, struct distribution *distribution, struct update_target **ts) {
 	struct target *target;
 	struct update_origin *origin;
 	struct update_target *updatetargets;
@@ -712,8 +788,8 @@ static retvalue gettargets(const char *listdir,struct update_origin *origins,str
 			if( origin->pattern == NULL )
 				r = adddeleteruletotarget(updatetargets);
 			else
-				r = addorigintotarget(listdir,origin,target,
-						distribution,updatetargets);
+				r = addorigintotarget(origin, target,
+						distribution, updatetargets);
 			if( RET_WAS_ERROR(r) ) {
 				updates_freetargets(updatetargets);
 				return r;
@@ -756,7 +832,7 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 	return result;
 }
 
-retvalue updates_calcindices(const char *listdir, struct update_pattern *patterns, struct distribution *distributions, bool fast, struct update_distribution **update_distributions) {
+retvalue updates_calcindices(struct update_pattern *patterns, struct distribution *distributions, bool fast, struct update_distribution **update_distributions) {
 	struct distribution *distribution;
 	struct update_distribution *u_ds;
 	retvalue r;
@@ -780,7 +856,7 @@ retvalue updates_calcindices(const char *listdir, struct update_pattern *pattern
 		u_d->next = u_ds;
 		u_ds = u_d;
 
-		r = getorigins(listdir,patterns,distribution,&u_d->origins);
+		r = getorigins(patterns, distribution, &u_d->origins);
 
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -800,7 +876,7 @@ retvalue updates_calcindices(const char *listdir, struct update_pattern *pattern
 			if( RET_WAS_ERROR(r) )
 				break;
 
-			r = gettargets(listdir,u_d->origins,distribution,&u_d->targets);
+			r = gettargets(u_d->origins, distribution, &u_d->targets);
 			if( RET_WAS_ERROR(r) )
 				break;
 		}
@@ -858,12 +934,10 @@ static bool foundinindices(struct update_target *targets, size_t nameoffset, con
 	return false;
 }
 
-static retvalue listclean_distribution(const char *listdir,DIR *dir, const char *pattern,
-		struct update_origin *origins,
-		struct update_target *targets) {
+static retvalue listclean_distribution(DIR *dir, const char *pattern, struct update_origin *origins, struct update_target *targets) {
 	struct dirent *r;
 	size_t patternlen = strlen(pattern);
-	size_t nameoffset = strlen(listdir)+1;
+	size_t nameoffset = strlen(global.listdir)+1;
 
 	while( true ) {
 		size_t namelen;
@@ -879,7 +953,7 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 			/* this should not happen... */
 			e = errno;
 			fprintf(stderr, "Error %d reading dir '%s': %s!\n",
-					e, listdir, strerror(e));
+					e, global.listdir, strerror(e));
 			return RET_ERRNO(e);
 		}
 		namelen = _D_EXACT_NAMLEN(r);
@@ -889,7 +963,7 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 			continue;
 		if( foundinindices(targets,nameoffset,r->d_name) )
 			continue;
-		fullfilename = calc_dirconcat(listdir,r->d_name);
+		fullfilename = calc_dirconcat(global.listdir, r->d_name);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( verbose >= 0 ) {
@@ -912,7 +986,7 @@ static retvalue listclean_distribution(const char *listdir,DIR *dir, const char 
 	return RET_OK;
 }
 
-retvalue updates_clearlists(const char *listdir,struct update_distribution *distributions) {
+retvalue updates_clearlists(struct update_distribution *distributions) {
 	struct update_distribution *d;
 
 	for( d = distributions ; d != NULL ; d = d->next ) {
@@ -924,22 +998,20 @@ retvalue updates_clearlists(const char *listdir,struct update_distribution *dist
 		if( pattern == NULL )
 			return RET_ERROR_OOM;
 		// TODO: check if it is always created before...
-		dir = opendir(listdir);
+		dir = opendir(global.listdir);
 		if( dir == NULL ) {
 			int e = errno;
 			fprintf(stderr,"Error %d opening directory '%s': %s!\n",
-					e, listdir, strerror(e));
+					e, global.listdir, strerror(e));
 			free(pattern);
 			return RET_ERRNO(e);
 		}
-		r = listclean_distribution(listdir,dir,pattern,
-				d->origins,
-				d->targets);
+		r = listclean_distribution(dir, pattern, d->origins, d->targets);
 		free(pattern);
 		if( closedir(dir) != 0 ) {
 			int e = errno;
 			fprintf(stderr, "Error %d closing directory '%s': %s!\n",
-					e, listdir, strerror(e));
+					e, global.listdir, strerror(e));
 			return RET_ERRNO(e);
 		}
 		if( RET_WAS_ERROR(r) ) {
@@ -1520,7 +1592,7 @@ static void markdone(struct update_target *target) {
  * the apt methods to actually download what was enqueued.                  *
  ****************************************************************************/
 
-static retvalue updates_downloadlists(const char *methoddir, struct aptmethodrun *run, struct update_distribution *distributions, bool skipold, bool *anythingtodo) {
+static retvalue updates_downloadlists(struct aptmethodrun *run, struct update_distribution *distributions, bool skipold, bool *anythingtodo) {
 	retvalue r,result;
 
 	/* first get all "Release" and "Release.gpg" files */
@@ -1529,7 +1601,7 @@ static retvalue updates_downloadlists(const char *methoddir, struct aptmethodrun
 		return result;
 	}
 
-	r = aptmethod_download(run,methoddir,NULL);
+	r = aptmethod_download(run, NULL);
 	RET_UPDATE(result,r);
 	if( RET_WAS_ERROR(r) ) {
 		return result;
@@ -1542,7 +1614,7 @@ static retvalue updates_downloadlists(const char *methoddir, struct aptmethodrun
 		return result;
 	}
 
-	r = aptmethod_download(run,methoddir,NULL);
+	r = aptmethod_download(run, NULL);
 	RET_UPDATE(result,r);
 	if( RET_WAS_ERROR(r) ) {
 		return result;
@@ -1551,7 +1623,7 @@ static retvalue updates_downloadlists(const char *methoddir, struct aptmethodrun
 	return result;
 }
 
-retvalue updates_update(struct database *database, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
+retvalue updates_update(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1587,7 +1659,7 @@ retvalue updates_update(struct database *database, const char *methoddir, struct
 	} else {
 		bool anythingtodo = !skipold;
 
-		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo);
+		r = updates_downloadlists(run, distributions, skipold, &anythingtodo);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) ) {
 			aptmethod_shutdown(run);
@@ -1658,7 +1730,7 @@ retvalue updates_update(struct database *database, const char *methoddir, struct
 		printf("Getting packages...\n");
 	r = downloadcache_free(cache);
 	RET_ENDUPDATE(result,r);
-	r = aptmethod_download(run, methoddir, database);
+	r = aptmethod_download(run, database);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
 		printf("Shutting down aptmethods...\n");
@@ -1715,7 +1787,7 @@ static void updates_dump(struct update_distribution *distribution) {
 	}
 }
 
-retvalue updates_checkupdate(struct database *database, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
+retvalue updates_checkupdate(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	struct update_distribution *d;
 	retvalue result,r;
 	struct aptmethodrun *run;
@@ -1741,7 +1813,7 @@ retvalue updates_checkupdate(struct database *database, const char *methoddir, s
 			fprintf(stderr,"Warning: As --nolistsdownload is given, index files are NOT checked.\n");
 	} else {
 		bool anythingtodo = !skipold;
-		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo);
+		r = updates_downloadlists(run, distributions, skipold, &anythingtodo);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) ) {
 			aptmethod_shutdown(run);
@@ -1790,7 +1862,7 @@ retvalue updates_checkupdate(struct database *database, const char *methoddir, s
  * delete. (Assuming no unexpected errors occur, like a file missing upstream.*
  *****************************************************************************/
 
-retvalue updates_predelete(struct database *database, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys) {
+retvalue updates_predelete(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run;
@@ -1825,7 +1897,7 @@ retvalue updates_predelete(struct database *database, const char *methoddir, str
 	} else {
 		bool anythingtodo = !skipold;
 
-		r = updates_downloadlists(methoddir,run,distributions,skipold,&anythingtodo);
+		r = updates_downloadlists(run, distributions, skipold, &anythingtodo);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) ) {
 			aptmethod_shutdown(run);
@@ -1902,7 +1974,7 @@ retvalue updates_predelete(struct database *database, const char *methoddir, str
  * in the same run, update the targets one after the other.                  *
  *****************************************************************************/
 
-static retvalue singledistributionupdate(struct database *database, const char *methoddir, struct update_distribution *d, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
+static retvalue singledistributionupdate(struct database *database, struct update_distribution *d, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 	struct update_origin *origin;
@@ -1943,7 +2015,7 @@ static retvalue singledistributionupdate(struct database *database, const char *
 				return r;
 			}
 		}
-		r = aptmethod_download(run,methoddir,NULL);
+		r = aptmethod_download(run, NULL);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) ) {
 			aptmethod_shutdown(run);
@@ -1981,7 +2053,7 @@ static retvalue singledistributionupdate(struct database *database, const char *
 			}
 			if( target->nothingnew )
 				continue;
-			r = aptmethod_download(run,methoddir,NULL);
+			r = aptmethod_download(run, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) ) {
 				aptmethod_shutdown(run);
@@ -2044,7 +2116,7 @@ static retvalue singledistributionupdate(struct database *database, const char *
 		}
 		if( verbose >= 0 )
 			fprintf(stderr,"Getting packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = aptmethod_download(run, methoddir, database);
+		r = aptmethod_download(run, database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) ) {
 			(void)downloadcache_free(cache);
@@ -2079,7 +2151,7 @@ static retvalue singledistributionupdate(struct database *database, const char *
 	return result;
 }
 
-retvalue updates_iteratedupdate(struct database *database, const char *distdir, const char *methoddir, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum exportwhen export, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
+retvalue updates_iteratedupdate(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum exportwhen export, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -2105,13 +2177,12 @@ retvalue updates_iteratedupdate(struct database *database, const char *distdir, 
 		if( d->distribution->tracking != dt_NONE ) {
 			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
 		}
-		r = singledistributionupdate(database, methoddir, d,
+		r = singledistributionupdate(database, d,
 				nolistsdownload, skipold, dereferencedfilekeys,
 				mode, reserveddb, reservedother);
 		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
-		r = distribution_export(export, d->distribution,
-				distdir, database);
+		r = distribution_export(export, d->distribution, database);
 		RET_UPDATE(result,r);
 	}
 	return result;

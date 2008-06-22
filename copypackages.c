@@ -697,13 +697,13 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	return r;
 }
 
-static retvalue restore_from_snapshot(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, chunkaction action, void *d, struct strlist *dereferenced) {
+static retvalue restore_from_snapshot(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, chunkaction action, void *d, struct strlist *dereferenced) {
 	retvalue result, r;
 	struct copy_from_file_data data;
 	struct package_list list;
 	char *basedir;
 
-	basedir = calc_snapshotbasedir(distdir, into->codename, snapshotname);
+	basedir = calc_snapshotbasedir(into->codename, snapshotname);
 	if( FAILEDTOALLOC(basedir) )
 		return RET_ERROR_OOM;
 
@@ -769,21 +769,21 @@ static retvalue restore_from_snapshot(const char *distdir, struct database *data
 	return r;
 }
 
-retvalue restore_by_name(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
+retvalue restore_by_name(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
 	struct namelist d = {argc, argv};
-	return restore_from_snapshot(distdir, database, into,
+	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_name, &d, dereferenced);
 }
 
-retvalue restore_by_source(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
+retvalue restore_by_source(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
 	struct namelist d = {argc, argv};
-	return restore_from_snapshot(distdir, database, into,
+	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_source, &d, dereferenced);
 }
 
-retvalue restore_by_formula(const char *distdir, struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, const char *filter, struct strlist *dereferenced) {
+retvalue restore_by_formula(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, const char *filter, struct strlist *dereferenced) {
 	term *condition;
 	retvalue r;
 
@@ -792,7 +792,7 @@ retvalue restore_by_formula(const char *distdir, struct database *database, stru
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}
-	r = restore_from_snapshot(distdir, database, into,
+	r = restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_condition, condition,
 			dereferenced);
