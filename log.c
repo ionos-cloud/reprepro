@@ -567,6 +567,11 @@ static retvalue startchild(void) {
 			setenv("REPREPRO_CAUSING_FILE", p->causingfile, true);
 		else
 			unsetenv("REPREPRO_CAUSING_FILE");
+		setenv("REPREPRO_BASE_DIR", global.basedir, true);
+		setenv("REPREPRO_OUT_DIR", global.outdir, true);
+		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_DIST_DIR", global.distdir, true);
+		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		(void)execv(p->arguments[0], p->arguments);
 		fprintf(stderr, "Error executing '%s': %s\n", p->arguments[0],
 				strerror(errno));

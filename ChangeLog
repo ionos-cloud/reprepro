@@ -1,6 +1,9 @@
 2008-06-22  Bernhard R. Link <brlink@debian.org>
 	* move some directoy variables to global variables,
 	some related cleanup in the code
+	* set REPREPRO_BASE_DIR, REPREPRO_OUT_DIR, REPREPRO_DIST_DIR,
+	REPREPRO_CONF_DIR and REPREPRO_LOG_DIR when calling log notifiers,
+	apt methods, update hooks or export hooks.
 
 2008-06-07  Bernhard R. Link <brlink@debian.org>
 	* remove some checks that fail for version 2 or 3 debian

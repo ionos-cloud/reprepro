@@ -13,13 +13,22 @@
 
 # DEPENDENCIES: dpkg >= 1.13.9
 
-if test ${REPREPRO_BASE_DIR:+set} = set ; then
-	cd "${REPREPRO_BASE_DIR}" || exit 1
+if test "x${REPREPRO_OUT_DIR:+set}" = xset ; then
+	# Note: due to cd, REPREPRO_*_DIR will no longer
+	# be usable. And only things relative to outdir will work...
+	# (as the filekeys given to this are, though for changesfiles
+	# and CAUSING_FILE it would be different)
+	cd "${REPREPRO_OUT_DIR}" || exit 1
+else
+	cat "This script is written for reprepro 3.5.1 upwoards" >&2
+	cat "for an older version, disable that warning and add" >&2
+	cat "a proper cd or always use from the basedir" >&2
+	exit 1
 fi
 
 # You will either always have to call it with the basedir as
-# your current directory, have REPREPRO_BASE_DIR set
-# or uncomment the following to be your base directory.
+# your current directory, use reprepro >= 3.5.1
+# or uncomment and edit the following to be your base directory.
 
 # cd /path/to/your/repository
 
@@ -167,7 +176,7 @@ elif [ "x$ACTION" = "xreplace" ] ; then
 fi
 
 exit 0
-# Copyright 2007 Bernhard R. Link <brlink@debian.org>
+# Copyright 2007,2008 Bernhard R. Link <brlink@debian.org>
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License version 2 as

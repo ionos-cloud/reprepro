@@ -1,6 +1,10 @@
 Updates between 3.5.0 and 3.5.1:
 - support upcoming version 3 format source packages
   (priority and section extraction only for wig&pen and quilt format)
+- set environment variables REPREPRO_*_DIR when calling hooks.
+  (note that those are set to the last set values, so for example
+   REPREPRO_CONF_DIR will be the directory with 'distributions' in it,
+   not necessarily the one with 'options' in it that was parsed).
 
 Updates between 3.4.2 and 3.5.0:
 - allow suite names as command line arguments

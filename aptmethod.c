@@ -334,6 +334,13 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 		if( FAILEDTOALLOC(methodname) )
 			exit(255);
 
+		/* not really useful here, unless someone write reprepro
+		 * specific modules (which I hope noone will) */
+		setenv("REPREPRO_BASE_DIR", global.basedir, true);
+		setenv("REPREPRO_OUT_DIR", global.outdir, true);
+		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_DIST_DIR", global.distdir, true);
+		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		(void)execl(methodname, methodname, ENDOFARGUMENTS);
 
 		e = errno;
