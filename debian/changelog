@@ -1,10 +1,13 @@
-reprepro (3.5.1-0) UNRELEASED; urgency=low
+reprepro (3.5.1-1) unstable; urgency=low
 
   * new bugfix version
   - no error when trying to removing nonexistant package with
     removesrc in a distribution with tracking enabled. (Closes: 484792)
+  - support for format 3.0 source packages
+  - improve portability (Closes: 485552)
+  * revert to unversioned libarchive-dev build-dependency
 
- -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Jun 2008 22:57:47 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 23 Jun 2008 16:55:52 +0200
 
 reprepro (3.5.0-1) unstable; urgency=medium
 
