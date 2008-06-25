@@ -60,6 +60,8 @@ struct release {
 	/* snapshot */
 	bool snapshot;
 	/*@null@*/char *fakesuite;
+	/*@null@*/char *fakecodename;
+	/*@null@*/const char *fakecomponentprefix;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -80,6 +82,7 @@ void release_free(struct release *release) {
 
 	free(release->dirofdist);
 	free(release->fakesuite);
+	free(release->fakecodename);
 	while( (e = release->files) != NULL ) {
 		release->files = e->next;
 		free(e->relativefilename);
@@ -124,8 +127,9 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 	return RET_OK;
 }
 
-retvalue release_init(struct release **release, struct database *database, const char *codename) {
+retvalue release_init(struct release **release, struct database *database, const char *codename, const char *suite, const char *fakecomponentprefix) {
 	struct release *n;
+	size_t len, suitelen, codenamelen;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct release));
@@ -134,10 +138,43 @@ retvalue release_init(struct release **release, struct database *database, const
 		free(n);
 		return RET_ERROR_OOM;
 	}
+	if( fakecomponentprefix != NULL ) {
+		len = strlen(fakecomponentprefix);
+		codenamelen = strlen(codename);
+
+		n->fakecomponentprefix = fakecomponentprefix;
+		if( codenamelen > len &&
+		    codename[codenamelen - len - 1] == '/' &&
+		    memcmp(codename + (codenamelen - len),
+		           fakecomponentprefix, len) == 0) {
+			n->fakecodename = strndup(codename,
+					codenamelen - len - 1);
+			if( FAILEDTOALLOC(n->fakecodename) ) {
+				free(n->dirofdist);
+				free(n);
+				return RET_ERROR_OOM;
+			}
+		}
+		if( suite != NULL && (suitelen = strlen(suite)) > len &&
+		    suite[suitelen - len - 1] == '/' &&
+		    memcmp(suite + (suitelen - len),
+		           fakecomponentprefix, len) == 0) {
+			n->fakesuite = strndup(suite,
+					suitelen - len - 1);
+			if( FAILEDTOALLOC(n->fakesuite) ) {
+				free(n->fakecodename);
+				free(n->dirofdist);
+				free(n);
+				return RET_ERROR_OOM;
+			}
+		}
+	}
 	r = database_openreleasecache(database, codename, &n->cachedb);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		n->cachedb = NULL;
+		free(n->fakecodename);
+		free(n->fakesuite);
 		free(n->dirofdist);
 		free(n);
 		return r;
@@ -163,6 +200,8 @@ retvalue release_initsnapshot(const char *codename, const char *name, struct rel
 		free(n);
 		return RET_ERROR_OOM;
 	}
+	n->fakecodename = NULL;
+	n->fakecomponentprefix = NULL;
 	n->cachedb = NULL;
 	n->snapshot = true;
 	*release = n;
@@ -1162,7 +1201,10 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		writechar('\n');
 	}
 	writestring("Codename: ");
-	writestring(distribution->codename);
+	if( release->fakecodename != NULL )
+		writestring(release->fakecodename);
+	else
+		writestring(distribution->codename);
 	if( distribution->version != NULL ) {
 		writestring("\nVersion: ");
 		writestring(distribution->version);
@@ -1180,6 +1222,10 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	writestring("\nComponents:");
 	for( i = 0 ; i < distribution->components.count ; i++ ) {
 		writechar(' ');
+		if( release->fakecomponentprefix != NULL ) {
+			writestring(release->fakecomponentprefix);
+			writechar('/');
+		}
 		writestring(distribution->components.values[i]);
 	}
 	if( distribution->description != NULL ) {

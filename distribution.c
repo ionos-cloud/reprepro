@@ -328,6 +328,7 @@ CFexportmodeSETPROC(distribution, dsc)
 CFcheckuniqstrlistSETPROC(distribution, components, checkforcomponent)
 CFcheckuniqstrlistSETPROC(distribution, architectures, checkforarchitecture)
 CFcheckvalueSETPROC(distribution, codename, checkforcodename)
+CFcheckvalueSETPROC(distribution, fakecomponentprefix, checkfordirectoryandidentifier)
 
 CFUSETPROC(distribution, Contents) {
 	CFSETPROCVAR(distribution, d);
@@ -356,6 +357,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("Description",	distribution,	description),
 	CF("DscIndices",	distribution,	dsc),
 	CF("DscOverride",	distribution,	dsc_override),
+	CF("FakeComponentPrefix", distribution,	fakecomponentprefix),
 	CF("Label",		distribution,	label),
 	CF("Log",		distribution,	logger),
 	CF("NotAutomatic",	distribution,	notautomatic),
@@ -705,7 +707,9 @@ static retvalue export(struct distribution *distribution, struct database *datab
 
 	assert( distribution != NULL );
 
-	r = release_init(&release, database, distribution->codename);
+	r = release_init(&release, database,
+			distribution->codename, distribution->suite,
+			distribution->fakecomponentprefix);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
