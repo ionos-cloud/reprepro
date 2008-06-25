@@ -1946,9 +1946,30 @@ ACTION_D(y, y, y, include) {
 
 /***********************createsymlinks***********************************/
 
+static bool mayaliasas(const struct distribution *alldistributions, const char *part, const char *cnpart) {
+	const struct distribution *d;
+
+	/* here it is only checked whether there is something that could
+	 * cause this link to exist. No tests whether this really will
+	 * cause it to be created (or already existing). */
+
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( d->suite == NULL )
+			continue;
+		if( strcmp(d->suite, part) == 0 &&
+				strcmp(d->codename, cnpart) == 0)
+			return true;
+		if( strcmp(d->codename, part) == 0 &&
+				strcmp(d->suite, cnpart) == 0)
+			return true;
+	}
+	return false;
+}
+
 ACTION_C(n, n, createsymlinks) {
 	retvalue result,r;
 	struct distribution *d,*d2;
+	bool warned_slash = false;
 
 	r = dirs_make_recursive(global.distdir);
 	if( RET_WAS_ERROR(r) )
@@ -1964,6 +1985,7 @@ ACTION_C(n, n, createsymlinks) {
 		char *linkname,*buffer;
 		size_t bufsize;
 		int ret;
+		const char *separator_in_suite;
 
 		if( !d->selected )
 			continue;
@@ -1990,6 +2012,55 @@ ACTION_C(n, n, createsymlinks) {
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
 			continue;
+		}
+
+		separator_in_suite = strchr(d->suite, '/');
+		if( separator_in_suite != NULL ) {
+			/* things with / in it are tricky:
+			 * relative symbolic links are hard,
+			 * perhaps something else already moved
+			 * the earlier ones, ... */
+			const char *separator_in_codename;
+			size_t ofs_in_suite = separator_in_suite - d->suite;
+			char *part = strndup(d->suite, ofs_in_suite);
+
+			if( FAILEDTOALLOC(part) )
+				return RET_ERROR_OOM;
+
+			/* check if this is some case we do not want to warn about: */
+
+			separator_in_codename = strchr(d->codename, '/');
+			if( separator_in_codename != NULL &&
+			    strcmp(separator_in_codename,
+			           separator_in_suite) == 0 ) {
+				/* all but the first is common: */
+				size_t cnofs = separator_in_codename - d->codename;
+				char *cnpart = strndup(d->codename, cnofs);
+				if( FAILEDTOALLOC(cnpart) ) {
+					free(part);
+					return RET_ERROR_OOM;
+				}
+				if( mayaliasas(alldistributions, part, cnpart) ) {
+					if( verbose > 1 )
+					fprintf(stderr,
+"Not creating '%s' -> '%s' because of the '/' in it.\n"
+"Hopefully something else will link '%s' -> '%s' then this is not needed.\n",
+						d->suite, d->codename,
+						part, cnpart);
+					free(part);
+					free(cnpart);
+					continue;
+				}
+				free(cnpart);
+			}
+			free(part);
+			if( verbose >= 0 && !warned_slash )
+				fprintf(stderr,
+"Creating symlinks with '/' in them is not yet supported:\n");
+			warned_slash = true;
+			fprintf(stderr,
+"Not creating '%s' -> '%s' because of '/'.\n", d->suite, d->codename);
+				continue;
 		}
 
 		linkname = calc_dirconcat(global.distdir, d->suite);
