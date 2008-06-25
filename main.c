@@ -3105,6 +3105,7 @@ int main(int argc,char *argv[]) {
 	}
 
 	config_state = CONFIG_OWNER_FILE;
+	global.confdir = x_confdir;
 	optionsfile_parse(longopts, handle_option);
 
 	if( guessgpgtty && (getenv("GPG_TTY")==NULL) && isatty(0) ) {
