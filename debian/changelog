@@ -1,3 +1,10 @@
+reprepro (3.5.2-1) unstable; urgency=low
+
+  * new bugfix release
+  - repair option file processing broken in 3.5.0
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 25 Jun 2008 09:33:20 +0200
+
 reprepro (3.5.1-1) unstable; urgency=low
 
   * new bugfix version
