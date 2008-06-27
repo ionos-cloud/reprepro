@@ -49,6 +49,7 @@ static retvalue distribution_free(struct distribution *distribution) {
 	if( distribution != NULL ) {
 		free(distribution->codename);
 		free(distribution->suite);
+		free(distribution->fakecomponentprefix);
 		free(distribution->version);
 		free(distribution->origin);
 		free(distribution->notautomatic);
