@@ -1,21 +1,14 @@
 aclocal.m4
 stamp-h.in
 Makefile.in
-install-sh
-mkinstalldirs
 configure
 config.h.in
-missing
 Makefile
 config.h
 config.log
-depcomp
 stamp-h*
 config.cache
 config.status
-config.guess
-config.sub
-autom4te.cache
 debug.log
 .deps
 reprepro
@@ -24,3 +17,4 @@ changestool
 .deps
 old
 test
+ac
