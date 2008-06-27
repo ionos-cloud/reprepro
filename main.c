@@ -2054,11 +2054,13 @@ ACTION_C(n, n, createsymlinks) {
 				free(cnpart);
 			}
 			free(part);
-			if( verbose >= 0 && !warned_slash )
+			if( verbose >= 0 && !warned_slash ) {
 				fprintf(stderr,
 "Creating symlinks with '/' in them is not yet supported:\n");
-			warned_slash = true;
-			fprintf(stderr,
+				warned_slash = true;
+			}
+			if( verbose >= 0 )
+				fprintf(stderr,
 "Not creating '%s' -> '%s' because of '/'.\n", d->suite, d->codename);
 				continue;
 		}
@@ -2129,6 +2131,7 @@ ACTION_C(n, n, createsymlinks) {
 "Error %d checking %s, perhaps not a symlink?: %s\n", e, linkname, strerror(e));
 			RET_UPDATE(result,r);
 		}
+		free(linkname);free(buffer);
 
 		RET_UPDATE(result,r);
 	}
