@@ -1,9 +1,11 @@
-reprepro (3.5.2-1) unstable; urgency=low
+reprepro (3.5.3-1) unstable; urgency=medium
 
   * new bugfix release
   - repair option file processing broken in 3.5.0
+  - add FakeComponentPrefix to work around apt's / handling in codenames
+  (Closes: 487955)
 
- -- Bernhard R. Link <brlink@debian.org>  Wed, 25 Jun 2008 09:33:20 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 27 Jun 2008 17:11:23 +0200
 
 reprepro (3.5.1-1) unstable; urgency=low
 
