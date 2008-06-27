@@ -366,12 +366,13 @@ static retvalue copy_by_func(struct package_list *list, struct database *databas
 struct namelist {
 	int argc;
 	const char **argv;
+	bool *warnedabout;
 };
 
 static retvalue by_name(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
 	struct namelist *d = data;
 	retvalue result, r;
-	int i;
+	int i, j;
 
 	r = target_initpackagesdb(fromtarget, database, READONLY);
 	if( RET_WAS_ERROR(r) )
@@ -380,6 +381,16 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 	for( i = 0 ; i < d->argc ; i++ ) {
 		const char *name = d->argv[i];
 		char *chunk;
+
+		for( j = 0 ; j < i ; j++ )
+			if( strcmp(d->argv[i], d->argv[j]) == 0 )
+				break;
+		if( j < i ) {
+			if( verbose > 0 && ! d->warnedabout[j])
+				fprintf(stderr, "Hint: '%s' was listed multiple times listed, ignoring all but first!\n", d->argv[i]);
+			d->warnedabout[j] = true;
+			continue;
+		}
 
 		r = table_getrecord(fromtarget->packages, name, &chunk);
 		if( r == RET_NOTHING )
@@ -416,11 +427,15 @@ static void packagelist_done(struct package_list *list) {
 
 retvalue copy_by_name(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, struct strlist *dereferenced) {
 	struct package_list list;
-	struct namelist names = { argc, argv };
+	struct namelist names = { argc, argv, calloc(argc, sizeof(bool)) };
 	retvalue r;
+
+	if( FAILEDTOALLOC(names.warnedabout) )
+		return RET_ERROR_OOM;
 
 	memset(&list, 0, sizeof(list));
 	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_name, &names);
+	free(names.warnedabout);
 	if( !RET_IS_OK(r) )
 		return r;
 	r = packagelist_add(database, into, &list, dereferenced);
