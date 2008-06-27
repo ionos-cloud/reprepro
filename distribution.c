@@ -335,7 +335,7 @@ CFUSETPROC(distribution, Contents) {
 	CFSETPROCVAR(distribution, d);
 	return contentsoptions_parse(d, iter);
 }
-CFuSETPROC(distribution, logger) {
+CFUSETPROC(distribution, logger) {
 	CFSETPROCVAR(distribution, d);
 	return logger_init(iter, &d->logger);
 }
