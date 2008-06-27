@@ -423,6 +423,27 @@ SHA256:
 EOF
 sed -e 's/^Date: .*/Date: unified/' dists/foo/updates/Release > results
 dodiff results.expected results
+testrun - -b . createsymlinks 3<<EOF
+stderr
+-v0*=Creating symlinks with '/' in them is not yet supported:
+-v0*=Not creating 'bla/updates' -> 'foo/updates' because of '/'.
+stdout
+EOF
+cat >> conf/distributions <<EOF
+
+Codename: foo
+Suite: bla
+Architectures: ooooooooooooooooooooooooooooooooooooooooo
+Components:
+ x
+EOF
+testrun - -b . createsymlinks 3<<EOF
+stderr
+-v2*=Not creating 'bla/updates' -> 'foo/updates' because of the '/' in it.
+-v2*=Hopefully something else will link 'bla' -> 'foo' then this is not needed.
+stdout
+-v1*=Created ./dists/bla->foo
+EOF
 rm -r -f db conf dists
 mkdir -p conf
 cat > conf/distributions <<EOF
