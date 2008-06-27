@@ -13,7 +13,7 @@ DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 export DEB_BUILD_OPTIONS
 BUILDOPTS:=$(shell echo "$$DEB_BUILD_OPTIONS" | sed 's/,/ /g')
 
-CFLAGS = -Wall -g
+CFLAGS = -Wall -g -Wextra -Wmissing-prototypes -Wstrict-prototypes
 ifneq (,$(filter noopt,$(BUILDOPTS)))
 	CFLAGS += -O0
 else
