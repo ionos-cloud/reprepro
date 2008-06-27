@@ -1,5 +1,7 @@
 Updates between 3.5.1 and 3.5.2:
 - fix bug in optionsfilename generation introduced in 3.5.1
+- add FakeComponentPrefix to cope with apt's problems with
+  / in distribution names.
 
 Updates between 3.5.0 and 3.5.1:
 - support upcoming version 3 format source packages

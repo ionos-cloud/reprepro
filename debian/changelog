@@ -1,4 +1,4 @@
-reprepro (3.5.3-1) unstable; urgency=medium
+reprepro (3.5.2-1) unstable; urgency=medium
 
   * new bugfix release
   - repair option file processing broken in 3.5.0
