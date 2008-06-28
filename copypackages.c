@@ -386,8 +386,8 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 			if( strcmp(d->argv[i], d->argv[j]) == 0 )
 				break;
 		if( j < i ) {
-			if( verbose > 0 && ! d->warnedabout[j])
-				fprintf(stderr, "Hint: '%s' was listed multiple times listed, ignoring all but first!\n", d->argv[i]);
+			if( verbose >= 0 && ! d->warnedabout[j])
+				fprintf(stderr, "Hint: '%s' was listed multiple times, ignoring all but first!\n", d->argv[i]);
 			d->warnedabout[j] = true;
 			continue;
 		}

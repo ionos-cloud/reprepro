@@ -433,9 +433,9 @@ cat >> conf/distributions <<EOF
 
 Codename: foo
 Suite: bla
-Architectures: ooooooooooooooooooooooooooooooooooooooooo
+Architectures: ooooooooooooooooooooooooooooooooooooooooo source
 Components:
- x
+ x a
 EOF
 testrun - -b . createsymlinks 3<<EOF
 stderr
@@ -444,7 +444,76 @@ stderr
 stdout
 -v1*=Created ./dists/bla->foo
 EOF
-rm -r -f db conf dists
+# check a .dsc with nothing in it:
+cat > test.dsc <<EOF
+
+EOF
+testrun - -b . includedsc foo test.dsc 3<<EOF
+return 255
+stderr
+*=Could only find spaces within 'test.dsc'!
+-v0*=There have been errors!
+stdout
+EOF
+cat > test.dsc <<EOF
+Format: 0.0
+Source: test
+Version: 0
+Maintainer: me <guess@who>
+Section: section
+Priority: priority
+Files:
+EOF
+testrun - -C a -b . includedsc foo test.dsc 3<<EOF
+stderr
+-v0=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/a"
+-v2*=Created directory "./pool/a/t"
+-v2*=Created directory "./pool/a/t/test"
+-d1*=db: 'pool/a/t/test/test_0.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/a/t/test/test_0.dsc' added to checksums.db(pool).
+-d1*=db: 'test' added to packages.db(foo|a|source).
+-v0*=Exporting indices...
+-v2*=Created directory "./dists/foo/x"
+-v2*=Created directory "./dists/foo/x/binary-ooooooooooooooooooooooooooooooooooooooooo"
+-v6*= looking for changes in 'foo|x|ooooooooooooooooooooooooooooooooooooooooo'...
+-v6*=  creating './dists/foo/x/binary-ooooooooooooooooooooooooooooooooooooooooo/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/x/source"
+-v6*= looking for changes in 'foo|x|source'...
+-v6*=  creating './dists/foo/x/source/Sources' (gzipped)
+-v2*=Created directory "./dists/foo/a"
+-v2*=Created directory "./dists/foo/a/binary-ooooooooooooooooooooooooooooooooooooooooo"
+-v6*= looking for changes in 'foo|a|ooooooooooooooooooooooooooooooooooooooooo'...
+-v6*=  creating './dists/foo/a/binary-ooooooooooooooooooooooooooooooooooooooooo/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/a/source"
+-v6*= looking for changes in 'foo|a|source'...
+-v6*=  creating './dists/foo/a/source/Sources' (gzipped)
+EOF
+testrun - -b . copy foo/updates foo test test test test 3<<EOF
+stderr
+-v0*=Hint: 'test' was listed multiple times, ignoring all but first!
+stdout
+-v3*=Not looking into 'foo|x|ooooooooooooooooooooooooooooooooooooooooo' as no matching target in 'foo/updates'!
+-v3*=Not looking into 'foo|x|source' as no matching target in 'foo/updates'!
+-v3*=Not looking into 'foo|a|ooooooooooooooooooooooooooooooooooooooooo' as no matching target in 'foo/updates'!
+-v1*=Adding 'test' '0' to 'foo/updates|a|source'.
+-d1*=db: 'test' added to packages.db(foo/updates|a|source).
+-v*=Exporting indices...
+-v6*= looking for changes in 'foo/updates|a|x'...
+-v6*= looking for changes in 'u|foo/updates|a|x'...
+-v6*= looking for changes in 'foo/updates|a|source'...
+-v6*=  replacing './dists/foo/updates/a/source/Sources' (gzipped)
+-v6*= looking for changes in 'foo/updates|bb|x'...
+-v6*= looking for changes in 'foo/updates|bb|source'...
+-v6*= looking for changes in 'foo/updates|ccc|x'...
+-v6*= looking for changes in 'foo/updates|ccc|source'...
+-v6*= looking for changes in 'foo/updates|dddd|x'...
+-v6*= looking for changes in 'u|foo/updates|dddd|x'...
+-v6*= looking for changes in 'foo/updates|dddd|source'...
+EOF
+rm -r -f db conf dists pool
 mkdir -p conf
 cat > conf/distributions <<EOF
 
