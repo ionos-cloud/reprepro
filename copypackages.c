@@ -508,7 +508,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 
 retvalue copy_by_source(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, struct strlist *dereferenced) {
 	struct package_list list;
-	struct namelist names = { argc, argv };
+	struct namelist names = { argc, argv, NULL };
 	retvalue r;
 
 	memset(&list, 0, sizeof(list));
@@ -664,7 +664,7 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	struct target *target;
 	struct copy_from_file_data data;
 	struct package_list list;
-	struct namelist d = {argc, argv};
+	struct namelist d = {argc, argv, NULL};
 
 	assert( architecture != NULL );
 	assert( component != NULL );
@@ -785,14 +785,14 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 }
 
 retvalue restore_by_name(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
-	struct namelist d = {argc, argv};
+	struct namelist d = {argc, argv, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_name, &d, dereferenced);
 }
 
 retvalue restore_by_source(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
-	struct namelist d = {argc, argv};
+	struct namelist d = {argc, argv, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_source, &d, dereferenced);
