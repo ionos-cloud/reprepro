@@ -176,7 +176,20 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 #define CFstartparseVAR(sname,r) struct sname **r = (void*)result_p_ ## sname
 #define CFfinishparse(sname) static retvalue finishparse ## sname(void *privdata_ ## sname, void *thisdata_ ## sname, void **lastdata_p_ ##sname, bool complete, struct configiterator *iter)
 #define CFfinishparseVARS(sname,this,last,mydata) struct sname *this = thisdata_ ## sname, **last = (void*)lastdata_p_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
-
+#define CFhashesSETPROC(sname, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	retvalue r; \
+	r = config_getflags(iter, name, hashnames, item->field, false, "(allowed values: sha1 and sha256)"); \
+	if( !RET_IS_OK(r) ) \
+		return r; \
+	if( item->field[cs_md5sum] ) { \
+		fprintf(stderr, "%s:%u: Due to internal limitation, md5 hashes cannot yet be ignored. Sorry.\n", \
+				config_filename(iter), config_firstline(iter)); \
+		return RET_ERROR; \
+	}\
+	return RET_OK; \
+}
 
 // TODO: better error reporting:
 #define CFtermSETPROC(sname, field) \

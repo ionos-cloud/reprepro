@@ -158,6 +158,8 @@ struct update_pattern {
 	struct filterlist filterlist;
 	// NULL means nothing to execute after lists are downloaded...
 	/*@null@*/char *listhook;
+	/* checksums to not read check in Release file: */
+	bool ignorehashes[cs_hashCOUNT];
 	bool used;
 };
 
@@ -417,6 +419,7 @@ CFUSETPROC(update_pattern, architectures) {
 	}
 	return r;
 }
+CFhashesSETPROC(update_pattern, ignorehashes);
 
 static const struct configfield updateconfigfields[] = {
 	CFr("Name", update_pattern, name),
@@ -428,6 +431,7 @@ static const struct configfield updateconfigfields[] = {
 	CF("Components", update_pattern, components),
 	CF("UDebComponents", update_pattern, udebcomponents),
 	CF("IgnoreRelease", update_pattern, ignorerelease),
+	CF("IgnoreHashes", update_pattern, ignorehashes),
 	CF("VerifyRelease", update_pattern, verifyrelease),
 	CF("ListHook", update_pattern, listhook),
 	CF("FilterFormula", update_pattern, includecondition),
@@ -1159,7 +1163,9 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 			return r;
 		}
 	}
-	r = release_getchecksums(origin->releasefile, &origin->indexchecksums);
+	r = release_getchecksums(origin->releasefile,
+			origin->pattern->ignorehashes,
+			&origin->indexchecksums);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		origin->failed = true;

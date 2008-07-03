@@ -27,7 +27,7 @@
 #include "readrelease.h"
 
 /* get a strlist with the md5sums of a Release-file */
-retvalue release_getchecksums(const char *releasefile, struct checksumsarray *out) {
+retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hashCOUNT], struct checksumsarray *out) {
 	retvalue r;
 	char *chunk;
 	struct strlist files[cs_hashCOUNT];
@@ -41,6 +41,10 @@ retvalue release_getchecksums(const char *releasefile, struct checksumsarray *ou
 	if( !RET_IS_OK(r) )
 		return r;
 	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		if( ignore[cs] ) {
+			strlist_init(&files[cs]);
+			continue;
+		}
 		assert( release_checksum_names[cs] != NULL );
 		r = chunk_getextralinelist(chunk, release_checksum_names[cs],
 				&files[cs]);
