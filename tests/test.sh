@@ -318,15 +318,6 @@ stdout
 -v6*= exporting 'foo/updates|dddd|source'...
 -v6*=  replacing './dists/foo/updates/dddd/source/Sources' (gzipped)
 EOF
-function md5releaseline() {
- echo "$(mdandsize dists/"$1"/"$2") $2"
-}
-function sha1releaseline() {
- echo "$(sha1andsize dists/"$1"/"$2") $2"
-}
-function sha2releaseline() {
- echo "$(sha2andsize dists/"$1"/"$2") $2"
-}
 cat > results.expected <<EOF
 Suite: bla
 Codename: foo
@@ -2790,7 +2781,15 @@ simple			install
 bloat+-0a9z.app-addons	install
 END
 
+cp dists/test2/Release dists/test2/Release.safe
+ed -s dists/test2/Release <<EOF
+g/stupid.source.Sources/s/^ ................................ / ffffffffffffffffffffffffffffffff /
+w
+q
+EOF
+
 testrun - -b . update test1 3<<EOF
+returns 254
 stderr
 *=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
@@ -2804,10 +2803,107 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
+*=md5 expected: ffffffffffffffffffffffffffffffff, got: $(md5 dists/test2/stupid/source/Sources.gz)
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
+-v0*=There have been errors!
+stdout
+-v2*=Created directory "./lists"
+EOF
+
+cp dists/test2/Release.safe dists/test2/Release
+ed -s dists/test2/Release <<EOF
+g/stupid.source.Sources/s/^ ........................................ / 1111111111111111111111111111111111111111 /
+w
+q
+EOF
+
+testrun - -b . update test1 3<<EOF
+returns 254
+stderr
+*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
+=WARNING: Single-Instance not yet supported!
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
+*=sha1 expected: 1111111111111111111111111111111111111111, got: $(sha1 dists/test2/stupid/source/Sources.gz)
+-v0*=There have been errors!
+stdout
+EOF
+
+cp dists/test2/Release.safe dists/test2/Release
+ed -s dists/test2/Release <<EOF
+g/stupid.source.Sources/s/^ ................................................................ / 9999999999999999999999999999999999999999999999999999999999999999 /
+w
+q
+EOF
+
+testrun - -b . update test1 3<<EOF
+returns 254
+stderr
+*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
+=WARNING: Single-Instance not yet supported!
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
+*=sha256 expected: 9999999999999999999999999999999999999999999999999999999999999999, got: $(sha256 dists/test2/stupid/source/Sources.gz)
+-v0*=There have been errors!
+stdout
+EOF
+
+cp conf/updates conf/updates.safe
+cat >> conf/updates <<EOF
+IgnoreHashes: sha2
+EOF
+
+testrun - -b . update test1 3<<EOF
+returns 248
+stderr
+*=Error parsing config file ./conf/updates, line 8, column 15:
+*=Unknown flag in IgnoreHashes header.(allowed values: sha1 and sha256)
+*=To ignore unknown fields use --ignore=unknownfield
+-v0*=There have been errors!
+stdout
+EOF
+
+cp conf/updates.safe conf/updates
+cat >> conf/updates <<EOF
+IgnoreHashes: sha1
+EOF
+
+testrun - -b . update test1 3<<EOF
+returns 254
+stderr
+*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
+=WARNING: Single-Instance not yet supported!
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
+*=sha256 expected: 9999999999999999999999999999999999999999999999999999999999999999, got: $(sha256 dists/test2/stupid/source/Sources.gz)
+-v0*=There have been errors!
+stdout
+EOF
+
+cp conf/updates.safe conf/updates
+cat >> conf/updates <<EOF
+IgnoreHashes: sha256
+EOF
+
+testrun - -b . update test1 3<<EOF
+stderr
+*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
+=WARNING: Single-Instance not yet supported!
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_ugly_source' './lists/test1_Test2toTest1_dsc_ugly_source_changed'
 -v6*=Listhook successfully returned!
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
@@ -2816,7 +2912,6 @@ stderr
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_coal' './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 stdout
--v2*=Created directory "./lists"
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
@@ -2848,6 +2943,10 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
+
+mv dists/test2/Release.safe dists/test2/Release
+mv conf/updates.safe conf/updates
+
 checklog log1 <<EOF
 DATESTR add test1 dsc ugly source simple 1
 DATESTR add test1 deb ugly ${FAKEARCHITECTURE} simple 1
