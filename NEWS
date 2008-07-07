@@ -1,3 +1,6 @@
+Updates between 3.5.2 and 3.5.3:
+- add IgnoreHashes option
+
 Updates between 3.5.1 and 3.5.2:
 - fix bug in optionsfilename generation introduced in 3.5.1
 - add FakeComponentPrefix to cope with apt's problems with
