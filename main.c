@@ -761,8 +761,6 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
-
-
 static retvalue list_in_target(void *data, struct target *target,
 		UNUSED(struct distribution *distribution)) {
 	retvalue r,result;
@@ -783,21 +781,40 @@ static retvalue list_in_target(void *data, struct target *target,
 	return result;
 }
 
+static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct distribution *dummy2), struct target *target, const char *package, const char *control, UNUSED(void *dummy3)) {
+	retvalue r;
+	char *version;
+
+	r = target->getversion(control, &version);
+	if( RET_IS_OK(r) ) {
+		printf("%s: %s %s\n", target->identifier, package, version);
+		free(version);
+	} else {
+		printf("Could not retrieve version from %s in %s\n",
+				package, target->identifier);
+	}
+	return r;
+}
+
 ACTION_B(y, n, y, list) {
-	retvalue r,result;
+	retvalue r;
 	struct distribution *distribution;
 
-	assert( argc == 3 );
+	assert( argc >= 2 );
 
 	r = distribution_get(alldistributions, argv[1], false, &distribution);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = distribution_foreach_roopenedpart(distribution, database,
+	if( argc == 2 )
+		return distribution_foreach_package(distribution, database,
+			component, architecture, packagetype,
+			list_package, NULL, NULL);
+	else
+		return distribution_foreach_roopenedpart(distribution, database,
 			component, architecture, packagetype,
 			list_in_target, (void*)argv[2]);
-	return result;
 }
 
 
@@ -2417,7 +2434,7 @@ static const struct action {
 	{"removesrc", 		A_D(removesrc),
 		2, 3, "removesrc <codename> <source-package-names> [<source-version>]"},
 	{"list", 		A_ROBact(list),
-		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>"},
+		1, 2, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> [<package-name>]"},
 	{"listfilter", 		A_ROBact(listfilter),
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>"},
 	{"removefilter", 	A_Dact(removefilter),

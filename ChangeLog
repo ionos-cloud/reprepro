@@ -1,3 +1,9 @@
+2008-07-12
+	* make list package argument optional, listing all
+	packages if not there.
+	* fix bug causing assert() instead of proper error message
+	if list gets too many arguments.
+
 2008-07-03
 	* add IgnoreHashes directive for conf/updates
 

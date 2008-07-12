@@ -289,7 +289,7 @@ would be linked from the same suite name, or if the link
 already exists (though when \fB\-\-delete\fP is given it
 will delete already existing symlinks)
 .TP
-.B list \fIcodename\fP \fIpackagename\fP
+.B list \fIcodename\fP \fR[\fP \fIpackagename\fP \fR]\fP
 List all packages (source and binary, except when
 .B \-T
 or
@@ -299,6 +299,7 @@ is given) with the given name in all components (except when
 is given) and architectures (except when
 .B \-A
 is given) of the specified distribution.
+If no package name is given, list everything.
 .TP
 .B listfilter \fIcodename\fP \fIcondition\fP
 as list, but does not list a single package, but all packages
