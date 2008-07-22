@@ -310,7 +310,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 				&new->new_origfiles, &new->new_filetype);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
-			return RET_ERROR_OOM;
+			return r;
 		}
 		if( insertafter != NULL ) {
 			new->next = insertafter->next;

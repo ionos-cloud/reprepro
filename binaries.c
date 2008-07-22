@@ -257,13 +257,6 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 	return RET_OK;
 }
 
-char *binaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture) {
-	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
-}
-char *ubinaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture) {
-	return mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",suite_from,component_from,architecture);
-}
-
 retvalue binaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
 	const struct overrideinfo *o;
 	struct fieldtoadd *fields;

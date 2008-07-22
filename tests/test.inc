@@ -2,6 +2,8 @@
 
 set -e
 
+export LC_ALL=C
+
 testrun() {
 rules=$1
 shift

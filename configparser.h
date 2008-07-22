@@ -176,6 +176,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 #define CFstartparseVAR(sname,r) struct sname **r = (void*)result_p_ ## sname
 #define CFfinishparse(sname) static retvalue finishparse ## sname(void *privdata_ ## sname, void *thisdata_ ## sname, void **lastdata_p_ ##sname, bool complete, struct configiterator *iter)
 #define CFfinishparseVARS(sname,this,last,mydata) struct sname *this = thisdata_ ## sname, **last = (void*)lastdata_p_ ## sname; struct read_ ## sname ## _data *mydata = privdata_ ## sname
+#define CFUfinishparseVARS(sname,this,last,mydata) struct sname *this = thisdata_ ## sname
 #define CFhashesSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \

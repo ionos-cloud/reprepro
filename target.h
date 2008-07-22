@@ -29,7 +29,6 @@ typedef retvalue get_installdata(const struct target *,const char *,const char *
 /* md5sums may be NULL */
 typedef retvalue get_filekeys(const char *, /*@out@*/struct strlist *);
 typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
-typedef char *get_upstreamindex(const char *suite_from, const char *component_from, const char *architecture);
 typedef retvalue do_reoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 typedef retvalue do_retrack(const char *packagename, const char *controlchunk, trackingdb, struct database *);
 typedef retvalue get_sourceandversion(const char *chunk, const char *packagename, /*@out@*/char **source, /*@out@*/char **version);
@@ -51,7 +50,6 @@ struct target {
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
 	get_checksums *getchecksums;
-	get_upstreamindex *getupstreamindex;
 	get_sourceandversion *getsourceandversion;
 	do_reoverride *doreoverride;
 	do_retrack *doretrack;

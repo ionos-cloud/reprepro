@@ -320,10 +320,6 @@ retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 	return RET_OK;
 }
 
-char *sources_getupstreamindex(const char *suite_from, const char *component_from, UNUSED(const char *architecture)) {
-	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
-}
-
 retvalue sources_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
 	const struct overrideinfo *o;
 	struct fieldtoadd *fields;

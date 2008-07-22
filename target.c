@@ -45,7 +45,7 @@
 
 extern int verbose;
 
-static retvalue target_initialize(const char *codename, const char *component, const char *architecture, /*@observer@*/const char *packagetype, get_name getname, get_version getversion, get_installdata getinstalldata, get_filekeys getfilekeys, get_checksums getchecksums, get_upstreamindex getupstreamindex, get_sourceandversion getsourceandversion, do_reoverride doreoverride,do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
+static retvalue target_initialize(const char *codename, const char *component, const char *architecture, /*@observer@*/const char *packagetype, get_name getname, get_version getversion, get_installdata getinstalldata, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride,do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -74,7 +74,6 @@ static retvalue target_initialize(const char *codename, const char *component, c
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
 	t->getchecksums = getchecksums;
-	t->getupstreamindex = getupstreamindex;
 	t->getsourceandversion = getsourceandversion;
 	t->doreoverride = doreoverride;
 	t->doretrack = doretrack;
@@ -87,7 +86,6 @@ retvalue target_initialize_ubinary(const char *codename, const char *component, 
 			binaries_getname, binaries_getversion,
 			binaries_getinstalldata,
 			binaries_getfilekeys, binaries_getchecksums,
-			ubinaries_getupstreamindex,
 			binaries_getsourceandversion,
 			ubinaries_doreoverride, binaries_retrack,
 			mprintf("%s/debian-installer/binary-%s",component,architecture),
@@ -98,7 +96,6 @@ retvalue target_initialize_binary(const char *codename, const char *component, c
 			binaries_getname, binaries_getversion,
 			binaries_getinstalldata,
 			binaries_getfilekeys, binaries_getchecksums,
-			binaries_getupstreamindex,
 			binaries_getsourceandversion,
 			binaries_doreoverride, binaries_retrack,
 			mprintf("%s/binary-%s",component,architecture),
@@ -110,7 +107,7 @@ retvalue target_initialize_source(const char *codename, const char *component,co
 			sources_getname, sources_getversion,
 			sources_getinstalldata,
 			sources_getfilekeys, sources_getchecksums,
-			sources_getupstreamindex, sources_getsourceandversion,
+			sources_getsourceandversion,
 			sources_doreoverride, sources_retrack,
 			mprintf("%s/source",component), exportmode, target);
 }
