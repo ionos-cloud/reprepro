@@ -506,4 +506,4 @@ stdout
 -v6*= looking for changes in 'foo/updates|dddd|source'...
 EOF
 rm -r -f db conf dists pool
-echo "Test $0 completed sucessfully"
+testsuccess

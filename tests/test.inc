@@ -322,7 +322,11 @@ EMPTYBZ2SHA2="d3dda84eb03b9738d118eb2be78e246106900493c0ae07819ad60815134a8058 1
 
 function runtest() {
 	echo "Running test '$1'.."
+	TESTNAME=" $1"
 	source "$(dirname $0)/test$1.sh"
+}
+function testsuccess() {
+	echo "Test$TESTNAME completed successfully"
 }
 
 setoptions default "" ""

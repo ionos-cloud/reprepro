@@ -1557,4 +1557,4 @@ testout "" -b . dumpunreferenced
 dodiff results.empty results
 
 rm -r conf db pool dists i pkg
-echo "Test $0 completed sucessfully"
+testsuccess
