@@ -141,8 +141,6 @@ MD5Sum:
  $(mdandsize flatsource/Packages.gz) Packages.gz
 EOF
 
-# TODO: make those not tell nonskip for those not having skip...
-
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
@@ -153,15 +151,15 @@ stderr
 -v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
 stdout
 -v0*=Calculating packages to get...
--v0*=  nothing new for '1234|bb|source' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|yyyyyyyyyy' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
 -v3*=  processing updates for '1234|a|source'
 -v5*=  reading './lists/1234_flattest_dsc_a_flat'
--v0*=  nothing new for 'u|1234|a|yyyyyyyyyy' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
 -v5*=  reading './lists/1234_flattest_deb_a_flat'
--v0*=  nothing new for 'u|1234|a|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 #-v5*=  reading './lists/1234_flattest_deb_a_flat'
 -v0*=Getting packages...
@@ -186,14 +184,14 @@ stderr
 -v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
 stdout
 -v0*=Calculating packages to get...
--v0*=  nothing new for '1234|bb|source' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|yyyyyyyyyy' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
--v0*=  nothing new for 'u|1234|a|yyyyyyyyyy' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
 -v5*=  reading './lists/1234_flattest_deb_a_flat'
--v0*=  nothing new for 'u|1234|a|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 #-v5*=  reading './lists/1234_flattest_deb_a_flat'
 -v0*=Getting packages...
@@ -221,11 +219,11 @@ stderr
 -v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
 stdout
 -v0*=Calculating packages to get...
--v0*=  nothing new for '1234|bb|source' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|yyyyyyyyyy' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
--v0*=  nothing new for 'u|1234|a|yyyyyyyyyy' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
 -v5*=  reading './lists/1234_flattest_deb_a_flat'
 stderr
@@ -262,14 +260,14 @@ stderr
 -v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
 stdout
 -v0*=Calculating packages to get...
--v0*=  nothing new for '1234|bb|source' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|yyyyyyyyyy' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
--v0*=  nothing new for 'u|1234|a|yyyyyyyyyy' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
 -v5*=  reading './lists/1234_flattest_deb_a_flat'
--v0*=  nothing new for 'u|1234|a|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 #-v5*=  reading './lists/1234_flattest_deb_a_flat'
 -v2=Created directory "./pool"
@@ -295,14 +293,14 @@ stderr
 -v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_0_all.deb'...
 stdout
 -v0*=Calculating packages to get...
--v0*=  nothing new for '1234|bb|source' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|yyyyyyyyyy' (use --noskipold to process anyway)
--v0*=  nothing new for '1234|bb|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
--v0*=  nothing new for 'u|1234|a|yyyyyyyyyy' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
 -v5*=  reading './lists/1234_flattest_deb_a_flat'
--v0*=  nothing new for 'u|1234|a|x' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 #-v5*=  reading './lists/1234_flattest_deb_a_flat'
 -v2=Created directory "./pool"

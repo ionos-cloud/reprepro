@@ -1627,9 +1627,14 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 	retvalue result,r;
 
 	if( u->nothingnew ) {
-		if( verbose >= 0 ) {
-		fprintf(out,"  nothing new for '%s' (use --noskipold to process anyway)\n",u->target->identifier);
-		}
+		if( u->indices == NULL && verbose >= 4 )
+			fprintf(out,
+"  nothing to do for '%s'\n",
+				u->target->identifier);
+		else if( u->indices != NULL && verbose >= 0 )
+			fprintf(out,
+"  nothing new for '%s' (use --noskipold to process anyway)\n",
+				u->target->identifier);
 		return RET_NOTHING;
 	}
 	if( verbose > 2 )
