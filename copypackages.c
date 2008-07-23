@@ -154,28 +154,22 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct packa
 	assert( package == NULL );
 }
 
-static retvalue list_prepareadd(struct database *database, struct package_list *list, struct target *target, const char *chunk) {
-	char *packagename, *version;
+static retvalue list_prepareadd(struct database *database, struct package_list *list, struct target *target, const char *packagename, const char *chunk) {
+	char *version;
 	char *source, *sourceversion;
 	struct package *new IFSTUPIDCC(=NULL);
 	retvalue r;
 	int i;
 
-	r = target->getname(chunk, &packagename);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
 	r = target->getversion(chunk, &version);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
-		free(packagename);
 		return r;
 	}
 	r = target->getsourceandversion(chunk, packagename,
 			&source, &sourceversion);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
-		free(packagename);
 		free(version);
 		return r;
 	}
@@ -183,7 +177,6 @@ static retvalue list_prepareadd(struct database *database, struct package_list *
 			packagename, version, &new);
 	free(source); source = NULL;
 	free(sourceversion); sourceversion = NULL;
-	free(packagename); packagename = NULL;
 	free(version); version = NULL;
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -398,7 +391,7 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 		RET_ENDUPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = list_prepareadd(database, list, desttarget, chunk);
+		r = list_prepareadd(database, list, desttarget, name, chunk);
 		free(chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -496,7 +489,8 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 			}
 		}
 		free(source); free(sourceversion);
-		r = list_prepareadd(database, list, desttarget, chunk);
+		r = list_prepareadd(database, list, desttarget,
+				packagename, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -541,7 +535,8 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 			result = r;
 			break;
 		}
-		r = list_prepareadd(database, list, desttarget, chunk);
+		r = list_prepareadd(database, list, desttarget,
+				packagename, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -596,10 +591,12 @@ static retvalue choose_by_name(void *data, const char *chunk) {
 		if( strcmp(packagename, l->argv[i]) == 0 )
 			break;
 	}
-	free(packagename);
 	if( i >= l->argc )
 		return RET_NOTHING;
-	return list_prepareadd(d->database, d->list, d->target, chunk);
+	r = list_prepareadd(d->database, d->list, d->target,
+			packagename, chunk);
+	free(packagename);
+	return r;
 }
 
 static retvalue choose_by_source(void *data, const char *chunk) {
@@ -613,12 +610,14 @@ static retvalue choose_by_source(void *data, const char *chunk) {
 		return r;
 	r = d->target->getsourceandversion(chunk, packagename,
 			&source, &sourceversion);
-	free(packagename);
-	if( !RET_IS_OK(r) )
+	if( !RET_IS_OK(r) ) {
+		free(packagename);
 		return r;
+	}
 	assert( l->argc > 0 );
 	/* only include if source name matches */
 	if( strcmp(source, l->argv[0]) != 0 ) {
+		free(packagename);
 		free(source); free(sourceversion);
 		return RET_NOTHING;
 	}
@@ -631,6 +630,7 @@ static retvalue choose_by_source(void *data, const char *chunk) {
 					l->argv[i], &c);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) ) {
+				free(packagename);
 				free(source); free(sourceversion);
 				return r;
 			}
@@ -640,23 +640,34 @@ static retvalue choose_by_source(void *data, const char *chunk) {
 		/* there are source versions specified and
 		 * the source version of this package differs */
 		if( i == 0 ) {
+			free(packagename);
 			free(source); free(sourceversion);
 			return RET_NOTHING;
 		}
 	}
 	free(source); free(sourceversion);
-	return list_prepareadd(d->database, d->list, d->target, chunk);
+	r = list_prepareadd(d->database, d->list, d->target,
+			packagename, chunk);
+	free(packagename);
+	return r;
 }
 
 static retvalue choose_by_condition(void *data, const char *chunk) {
 	struct copy_from_file_data *d = data;
 	term *condition = d->privdata;
+	char *packagename;
 	retvalue r;
 
 	r = term_decidechunk(condition, chunk);
 	if( !RET_IS_OK(r) )
 		return r;
-	return list_prepareadd(d->database, d->list, d->target, chunk);
+	r = d->target->getname(chunk, &packagename);
+	if( !RET_IS_OK(r) )
+		return r;
+	r = list_prepareadd(d->database, d->list, d->target,
+			packagename, chunk);
+	free(packagename);
+	return r;
 }
 
 retvalue copy_from_file(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *filename, int argc, const char **argv, struct strlist *dereferenced) {
