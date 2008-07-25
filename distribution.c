@@ -28,7 +28,6 @@
 #include <time.h>
 #include "error.h"
 #include "mprintf.h"
-#include "chunks.h"
 #include "sources.h"
 #include "dirs.h"
 #include "names.h"
