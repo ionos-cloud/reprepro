@@ -676,6 +676,7 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	result = indexfile_open(&i, filename);
 	if( !RET_IS_OK(result) )
 		return result;
+	result = RET_NOTHING;
 	while( indexfile_getnext(i, &packagename, &version, &control,
 				target, false) ) {
 		result = choose_by_name(target,
@@ -685,18 +686,15 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 					packagename, version, control);
 		free(packagename);
 		free(version);
-		if( RET_WAS_ERROR(result) ) {
-			r = indexfile_close(i);
-			RET_ENDUPDATE(result, r);
-			return result;
-		}
+		if( RET_WAS_ERROR(result) )
+			break;
 	}
 	r = indexfile_close(i);
-	if( !RET_IS_OK(r) )
-		return r;
-	r = packagelist_add(database, into, &list, dereferenced);
+	RET_ENDUPDATE(result, r);
+	if( RET_IS_OK(result) )
+		result = packagelist_add(database, into, &list, dereferenced);
 	packagelist_done(&list);
-	return r;
+	return result;
 }
 
 typedef retvalue chooseaction(struct target *, const char *, const char *, const char *, void *);
