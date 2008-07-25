@@ -26,13 +26,6 @@ retvalue chunk_gettruth(const char *chunk,const char *name);
 /* return RET_OK, if field is found, RET_NOTHING, if not */
 retvalue chunk_checkfield(const char *chunk,const char *name);
 
-
-typedef retvalue chunkaction(/*@temp@*/void *data,/*@temp@*/const char *chunk);
-
-/* Call action for each chunk in <filename>,
- * until error or until ok when <stopwhenok> */
-retvalue chunk_foreach(const char *filename, chunkaction action, /*@null@*/ /*@temp@*/void *data, bool stopwhenok);
-
 /* modifications of a chunk: */
 struct fieldtoadd {
 	/*@null@*/struct fieldtoadd *next;

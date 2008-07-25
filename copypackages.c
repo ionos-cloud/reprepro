@@ -27,7 +27,7 @@
 #include "error.h"
 #include "ignore.h"
 #include "strlist.h"
-#include "chunks.h"
+#include "indexfile.h"
 #include "files.h"
 #include "target.h"
 #include "terms.h"
@@ -154,17 +154,19 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct packa
 	assert( package == NULL );
 }
 
-static retvalue list_prepareadd(struct database *database, struct package_list *list, struct target *target, const char *packagename, const char *chunk) {
+static retvalue list_prepareadd(struct database *database, struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, const char *chunk) {
 	char *version;
 	char *source, *sourceversion;
 	struct package *new IFSTUPIDCC(=NULL);
 	retvalue r;
 	int i;
 
-	r = target->getversion(chunk, &version);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) ) {
-		return r;
+	if( v == NULL ) {
+		r = target->getversion(chunk, &version);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
 	}
 	r = target->getsourceandversion(chunk, packagename,
 			&source, &sourceversion);
@@ -174,10 +176,10 @@ static retvalue list_prepareadd(struct database *database, struct package_list *
 		return r;
 	}
 	r = list_newpackage(list, target, source, sourceversion,
-			packagename, version, &new);
+			packagename, (v==NULL)?version:v, &new);
 	free(source); source = NULL;
 	free(sourceversion); sourceversion = NULL;
-	free(version); version = NULL;
+	if( v == NULL ) free(version); version = NULL;
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -391,7 +393,8 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 		RET_ENDUPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = list_prepareadd(database, list, desttarget, name, chunk);
+		r = list_prepareadd(database, list, desttarget,
+				name, NULL, chunk);
 		free(chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -490,7 +493,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 		}
 		free(source); free(sourceversion);
 		r = list_prepareadd(database, list, desttarget,
-				packagename, chunk);
+				packagename, NULL, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -536,7 +539,7 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 			break;
 		}
 		r = list_prepareadd(database, list, desttarget,
-				packagename, chunk);
+				packagename, NULL, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -567,25 +570,9 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 	return r;
 }
 
-struct copy_from_file_data {
-	struct package_list *list;
-	struct database *database;
-	struct distribution *distribution;
-	const char *filename;
-	struct target *target;
-	void *privdata;
-};
-
-static retvalue choose_by_name(void *data, const char *chunk) {
-	struct copy_from_file_data *d = data;
-	const struct namelist *l = d->privdata;
-	char *packagename;
+static retvalue choose_by_name(UNUSED(struct target *target), const char *packagename, UNUSED(const char *version), UNUSED(const char *chunk), void *privdata) {
+	const struct namelist *l = privdata;
 	int i;
-	retvalue r;
-
-	r = d->target->getname(chunk, &packagename);
-	if( !RET_IS_OK(r) )
-		return r;
 
 	for( i = 0 ; i < l->argc ; i++ ) {
 		if( strcmp(packagename, l->argv[i]) == 0 )
@@ -593,31 +580,23 @@ static retvalue choose_by_name(void *data, const char *chunk) {
 	}
 	if( i >= l->argc )
 		return RET_NOTHING;
-	r = list_prepareadd(d->database, d->list, d->target,
-			packagename, chunk);
-	free(packagename);
-	return r;
+	return RET_OK;
 }
 
-static retvalue choose_by_source(void *data, const char *chunk) {
-	struct copy_from_file_data *d = data;
-	const struct namelist *l = d->privdata;
-	char *packagename, *source, *sourceversion;
+static retvalue choose_by_source(struct target *target, const char *packagename, UNUSED(const char *versiondummy), const char *chunk, void *privdata) {
+	const struct namelist *l = privdata;
+	char *source, *sourceversion;
 	retvalue r;
 
-	r = d->target->getname(chunk, &packagename);
-	if( !RET_IS_OK(r) )
-		return r;
-	r = d->target->getsourceandversion(chunk, packagename,
+	// TODO: why doesn't this use version?
+	r = target->getsourceandversion(chunk, packagename,
 			&source, &sourceversion);
 	if( !RET_IS_OK(r) ) {
-		free(packagename);
 		return r;
 	}
 	assert( l->argc > 0 );
 	/* only include if source name matches */
 	if( strcmp(source, l->argv[0]) != 0 ) {
-		free(packagename);
 		free(source); free(sourceversion);
 		return RET_NOTHING;
 	}
@@ -630,7 +609,6 @@ static retvalue choose_by_source(void *data, const char *chunk) {
 					l->argv[i], &c);
 			assert( r != RET_NOTHING );
 			if( RET_WAS_ERROR(r) ) {
-				free(packagename);
 				free(source); free(sourceversion);
 				return r;
 			}
@@ -640,42 +618,28 @@ static retvalue choose_by_source(void *data, const char *chunk) {
 		/* there are source versions specified and
 		 * the source version of this package differs */
 		if( i == 0 ) {
-			free(packagename);
 			free(source); free(sourceversion);
 			return RET_NOTHING;
 		}
 	}
 	free(source); free(sourceversion);
-	r = list_prepareadd(d->database, d->list, d->target,
-			packagename, chunk);
-	free(packagename);
-	return r;
+	return RET_OK;
 }
 
-static retvalue choose_by_condition(void *data, const char *chunk) {
-	struct copy_from_file_data *d = data;
-	term *condition = d->privdata;
-	char *packagename;
-	retvalue r;
+static retvalue choose_by_condition(UNUSED(struct target *target), UNUSED(const char *packagename), UNUSED(const char *version), const char *chunk, void *privdata) {
+	term *condition = privdata;
 
-	r = term_decidechunk(condition, chunk);
-	if( !RET_IS_OK(r) )
-		return r;
-	r = d->target->getname(chunk, &packagename);
-	if( !RET_IS_OK(r) )
-		return r;
-	r = list_prepareadd(d->database, d->list, d->target,
-			packagename, chunk);
-	free(packagename);
-	return r;
+	return term_decidechunk(condition, chunk);
 }
 
 retvalue copy_from_file(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *filename, int argc, const char **argv, struct strlist *dereferenced) {
+	struct indexfile *i;
 	retvalue result, r;
 	struct target *target;
-	struct copy_from_file_data data;
 	struct package_list list;
 	struct namelist d = {argc, argv, NULL};
+	char *packagename, *version;
+	const char *control;
 
 	assert( architecture != NULL );
 	assert( component != NULL );
@@ -709,24 +673,38 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 						into->codename);
 		return RET_ERROR;
 	}
-	data.list = &list;
-	data.database = database;
-	data.distribution = into;
-	data.filename = filename;
-	data.target = target;
-	data.privdata = &d;
-	result = chunk_foreach(filename, choose_by_name, &data, false);
+	result = indexfile_open(&i, filename);
 	if( !RET_IS_OK(result) )
 		return result;
+	while( indexfile_getnext(i, &packagename, &version, &control,
+				target, false) ) {
+		result = choose_by_name(target,
+				packagename, version, control, &d);
+		if( RET_IS_OK(result) )
+			result = list_prepareadd(database, &list, target,
+					packagename, version, control);
+		free(packagename);
+		free(version);
+		if( RET_WAS_ERROR(result) ) {
+			r = indexfile_close(i);
+			RET_ENDUPDATE(result, r);
+			return result;
+		}
+	}
+	r = indexfile_close(i);
+	if( !RET_IS_OK(r) )
+		return r;
 	r = packagelist_add(database, into, &list, dereferenced);
 	packagelist_done(&list);
 	return r;
 }
 
-static retvalue restore_from_snapshot(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, chunkaction action, void *d, struct strlist *dereferenced) {
+typedef retvalue chooseaction(struct target *, const char *, const char *, const char *, void *);
+
+static retvalue restore_from_snapshot(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, chooseaction action, void *d, struct strlist *dereferenced) {
 	retvalue result, r;
-	struct copy_from_file_data data;
 	struct package_list list;
+	struct target *target;
 	char *basedir;
 
 	basedir = calc_snapshotbasedir(into->codename, snapshotname);
@@ -734,16 +712,14 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 		return RET_ERROR_OOM;
 
 	memset(&list, 0, sizeof(list));
-	data.list = &list;
-	data.database = database;
-	data.distribution = into;
-	data.privdata = d;
 	result = RET_NOTHING;
-	for( data.target = into->targets ; data.target != NULL ;
-			data.target = data.target->next ) {
-		char *filename;
+	for( target = into->targets ; target != NULL ;
+			target = target->next ) {
+		char *filename, *packagename, *version;
+		const char *control;
+		struct indexfile *i;
 
-		if( !target_matches(data.target,
+		if( !target_matches(target,
 				component, architecture, packagetype) )
 			continue;
 
@@ -753,39 +729,50 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 		 * compressions */
 
 		filename = calc_dirconcat3(
-				basedir, data.target->relativedirectory,
-				data.target->exportmode->filename);
+				basedir, target->relativedirectory,
+				target->exportmode->filename);
 		if( filename != NULL && !isregularfile(filename) ) {
 			/* no uncompressed file found, try .gz */
 			free(filename);
 			filename = mprintf("%s/%s/%s.gz",
-					basedir, data.target->relativedirectory,
-					data.target->exportmode->filename);
+					basedir, target->relativedirectory,
+					target->exportmode->filename);
 		}
 		if( filename != NULL && !isregularfile(filename) ) {
 			free(filename);
 			fprintf(stderr,
 "Could not find '%s/%s/%s' nor '%s/%s/%s.gz',\n"
 "ignoring that part of the snapshot.\n",
-					basedir, data.target->relativedirectory,
-					data.target->exportmode->filename,
-					basedir, data.target->relativedirectory,
-					data.target->exportmode->filename);
+					basedir, target->relativedirectory,
+					target->exportmode->filename,
+					basedir, target->relativedirectory,
+					target->exportmode->filename);
 			continue;
 		}
 		if( FAILEDTOALLOC(filename) ) {
-			free(basedir);
-			return RET_ERROR_OOM;
+			result = RET_ERROR_OOM;
+			break;
 		}
-
-		data.filename = filename;
-		r = chunk_foreach(filename, action, &data, false);
+		result = indexfile_open(&i, filename);
+		if( !RET_IS_OK(result) )
+			break;
+		while( indexfile_getnext(i, &packagename, &version, &control,
+					target, false) ) {
+			result = action(target,
+					packagename, version, control, d);
+			if( RET_IS_OK(result) )
+				result = list_prepareadd(database, &list, target,
+						packagename, version, control);
+			free(packagename);
+			free(version);
+			if( RET_WAS_ERROR(result) )
+				break;
+		}
+		r = indexfile_close(i);
+		RET_ENDUPDATE(result, r);
 		free(filename);
-		if( RET_WAS_ERROR(r) ) {
-			free(basedir);
-			return r;
-		}
-		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(result) )
+			break;
 	}
 	free(basedir);
 	if( !RET_IS_OK(result) )

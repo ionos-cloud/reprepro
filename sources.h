@@ -13,7 +13,6 @@
 retvalue sources_calcfilelines(const struct checksumsarray *, /*@out@*/char **item);
 
 /* Functions for the target.h-stuff: */
-retvalue sources_getname(const char *chunk, /*@out@*/char **packagename);
 retvalue sources_getversion(const char *chunk, /*@out@*/char **version);
 retvalue sources_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *);
 retvalue sources_getfilekeys(const char *, /*@out@*/struct strlist *);

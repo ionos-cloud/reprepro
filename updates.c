@@ -1677,7 +1677,8 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 				file->origin->download,
 				file->filename,
 				ud_decide_by_pattern,
-				(void*)file->origin->pattern);
+				(void*)file->origin->pattern,
+				file->origin->pattern->flat != NULL);
 		if( RET_WAS_ERROR(r) ) {
 			u->incomplete = true;
 			u->ignoredelete = true;

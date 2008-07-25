@@ -115,18 +115,6 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 	return r;
 }
 
-retvalue sources_getname(const char *control, char **packagename){
-	retvalue r;
-
-	r = chunk_getvalue(control,"Package",packagename);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'Package' field in chunk:'%s'\n", control);
-		return RET_ERROR;
-	}
-	return r;
-}
 retvalue sources_getversion(const char *control, char **version) {
 	retvalue r;
 

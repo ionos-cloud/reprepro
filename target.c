@@ -45,7 +45,7 @@
 
 extern int verbose;
 
-static retvalue target_initialize(const char *codename, const char *component, const char *architecture, /*@observer@*/const char *packagetype, get_name getname, get_version getversion, get_installdata getinstalldata, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride,do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
+static retvalue target_initialize(const char *codename, const char *component, const char *architecture, /*@observer@*/const char *packagetype, get_version getversion, get_installdata getinstalldata, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride,do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -69,7 +69,6 @@ static retvalue target_initialize(const char *codename, const char *component, c
 		(void)target_free(t);
 		return RET_ERROR_OOM;
 	}
-	t->getname = getname;
 	t->getversion = getversion;
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
@@ -83,7 +82,7 @@ static retvalue target_initialize(const char *codename, const char *component, c
 
 retvalue target_initialize_ubinary(const char *codename, const char *component, const char *architecture, const struct exportmode *exportmode, struct target **target) {
 	return target_initialize(codename, component, architecture, "udeb",
-			binaries_getname, binaries_getversion,
+			binaries_getversion,
 			binaries_getinstalldata,
 			binaries_getfilekeys, binaries_getchecksums,
 			binaries_getsourceandversion,
@@ -93,7 +92,7 @@ retvalue target_initialize_ubinary(const char *codename, const char *component, 
 }
 retvalue target_initialize_binary(const char *codename, const char *component, const char *architecture, const struct exportmode *exportmode, struct target **target) {
 	return target_initialize(codename, component, architecture, "deb",
-			binaries_getname, binaries_getversion,
+			binaries_getversion,
 			binaries_getinstalldata,
 			binaries_getfilekeys, binaries_getchecksums,
 			binaries_getsourceandversion,
@@ -104,7 +103,7 @@ retvalue target_initialize_binary(const char *codename, const char *component, c
 
 retvalue target_initialize_source(const char *codename, const char *component,const struct exportmode *exportmode,struct target **target) {
 	return target_initialize(codename, component, "source", "dsc",
-			sources_getname, sources_getversion,
+			sources_getversion,
 			sources_getinstalldata,
 			sources_getfilekeys, sources_getchecksums,
 			sources_getsourceandversion,

@@ -174,18 +174,6 @@ static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,c
 	return RET_OK;
 }
 
-retvalue binaries_getname(const char *control, char **packagename){
-	retvalue r;
-
-	r = chunk_getvalue(control,"Package",packagename);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'Package' field in chunk:'%s'\n", control);
-		return RET_ERROR;
-	}
-	return r;
-}
 retvalue binaries_getversion(const char *control, char **version) {
 	retvalue r;
 

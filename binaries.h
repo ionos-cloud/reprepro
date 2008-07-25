@@ -14,7 +14,6 @@
 
 
 /* Functions for the target.h-stuff: */
-retvalue binaries_getname(const char *chunk,char **packagename);
 retvalue binaries_getversion(const char *chunk,char **version);
 retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, /*@out@*/char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *);
 retvalue binaries_getfilekeys(const char *chunk, /*@out@*/struct strlist *);

@@ -23,7 +23,6 @@
 struct target;
 struct alloverrides;
 
-typedef retvalue get_name(const char *, /*@out@*/char **);
 typedef retvalue get_version(const char *, /*@out@*/char **);
 typedef retvalue get_installdata(const struct target *,const char *,const char *,const char *,/*@out@*/char **,/*@out@*/struct strlist *,/*@out@*/struct checksumsarray *,/*@null@*//*@out@*/enum filetype *);
 /* md5sums may be NULL */
@@ -45,7 +44,6 @@ struct target {
 	/* the directory relative to <distdir>/<codename>/ to use */
 	char *relativedirectory;
 	/* functions to use on the packages included */
-	get_name *getname;
 	get_version *getversion;
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;

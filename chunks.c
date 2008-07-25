@@ -21,125 +21,12 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <zlib.h>
 #include <assert.h>
 #include "error.h"
 #include "chunks.h"
 #include "names.h"
 
 extern int verbose;
-
-//TODO: this should now also be able to parse \r\n terminated lines instead
-// of only \n terminated oned. Though this has still to be tested properly...
-
-static retvalue chunk_read(gzFile f,char **chunk);
-/* Call action for each chunk in <filename> */
-retvalue chunk_foreach(const char *filename, chunkaction action, void *data, bool stopwhenok){
-	gzFile f;
-	retvalue result,ret;
-	char *chunk;
-
-	f = gzopen(filename,"r");
-	if( f == NULL ) {
-		fprintf(stderr, "Unable to open file %s: %s\n",
-				filename, strerror(errno));
-		return RET_ERRNO(errno);
-	}
-	result = RET_NOTHING;
-	while( (ret = chunk_read(f,&chunk)) == RET_OK ) {
-		if( interrupted() ) {
-			RET_UPDATE(result, RET_ERROR_INTERRUPTED);
-			free(chunk);
-			break;
-		}
-		ret = action(data,chunk);
-
-		free(chunk);
-
-		if( RET_WAS_ERROR(ret) ) {
-			if( verbose > 0 )
-				fprintf(stderr,"Stop reading further chunks from '%s' due to previous errors.\n",filename);
-			break;
-		}
-		RET_UPDATE(result,ret);
-		if( stopwhenok && RET_IS_OK(ret) )
-			break;
-	}
-	RET_UPDATE(result,ret);
-	//TODO: check result:
-	gzclose(f);
-	return result;
-}
-
-/* get the next chunk from file f ( return RET_NOTHING, if there are none )*/
-retvalue chunk_read(gzFile f,char **chunk) {
-	char *buffer,*bhead;
-	size_t size,already,without,l;
-	bool afternewline = false;
-
-	size = 4096;
-	already = 0; without = 0;
-	bhead = buffer = (char*)malloc(size);
-	if( buffer == NULL )
-		return RET_ERROR_OOM;
-	while( gzgets(f,bhead,size-1-already) != NULL ) {
-		char *p;
-		p = bhead;
-		while( *p != '\0' ) {
-			if( *p != '\r' && *p != '\n' )
-				without = 1 + p - buffer;
-			p++;
-		}
-		if( without == 0 ) {
-			/* ignore leading newlines... */
-			bhead = buffer;
-			already = 0;
-			continue;
-		}
-		l = strlen(bhead);
-		/* if we are after a newline, and have a new newline,
-		 * and only '\r' in between, then return the chunk: */
-		if( afternewline && without < already && l!=0 && bhead[l-1] == '\n' ) {
-			break;
-		}
-		already += l;
-		if( l != 0 ) // a bit of parania...
-			afternewline = bhead[l-1] == '\n';
-		if( size-already < 1024 ) {
-			char *n;
-			if( size >= 513*1024*1024 ) {
-				fprintf(stderr,"Will not process chunks larger than half a gigabyte!\n");
-				free(buffer);
-				return RET_ERROR;
-			}
-			size *= 2;
-			n = realloc(buffer,size);
-			if( n == NULL ) {
-				free(buffer);
-				return RET_ERROR_OOM;
-			}
-			buffer = n;
-		}
-		bhead = buffer + already;
-	}
-	if( without == 0 ) {
-		free(buffer);
-		return RET_NOTHING;
-	} else {
-		char *n;
-		/* we do not want to include the final newlines */
-		buffer[without] = '\0';
-		n = realloc(buffer,without+1);
-		if( n == NULL ) {
-			/* guess this will not happen, but... */
-			free(buffer);
-			return RET_ERROR_OOM;
-		}
-		buffer = n;
-		*chunk = buffer;
-		return RET_OK;
-	}
-}
 
 /* point to a specified field in a chunk */
 static const char *chunk_getfield(const char *name,const char *chunk) {
