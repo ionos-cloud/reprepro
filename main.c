@@ -1346,7 +1346,7 @@ ACTION_D(y, n, y, restorefilter) {
 	struct distribution *destination;
 	retvalue result, r;
 
-	assert( argc == 3 );
+	assert( argc == 4 );
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );

@@ -1,6 +1,7 @@
 2008-07-25
 	* refactor indexfile parsing. (Needed for future changes,
 	perhaps speeding some things up a tiny littly bit).
+	* fix logic error causing restorefilter aborting
 
 2008-07-23
 	* Do not claim --noskipold makes a difference in the update output
