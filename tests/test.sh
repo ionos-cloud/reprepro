@@ -6,6 +6,7 @@ source $(dirname $0)/test.inc
 
 runtest flat
 runtest subcomponents
+runtest snapshotcopyrestore
 runtest various1
 
 echo "Running various other old test..."

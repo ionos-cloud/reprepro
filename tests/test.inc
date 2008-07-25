@@ -236,6 +236,11 @@ mkdir "$WORKDIR"
 cd "$WORKDIR"
 
 touch results.empty
+cat > empty.rules <<EOF
+stdout
+stderr
+returns 0
+EOF
 function md5() {
 md5sum "$1" | cut -d' ' -f1
 }
