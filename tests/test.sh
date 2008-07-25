@@ -3214,8 +3214,8 @@ stdout
 -v2*=Created directory "./pool/all/a/ac"
 -e1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' added to checksums.db(pool).
--e1*=db: 'pool/all/a/ac/ac_1-1_abacus.deb' added to files.db(md5sums).
--d1*=db: 'pool/all/a/ac/ac_1-1_abacus.deb' added to checksums.db(pool).
+-e1*=db: 'pool/all/a/ac/ac_1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ac/ac_1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -d1*=db: 'ac-addons' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -d1*=db: 'ac' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -v5*=Deleting 'test.changes'.

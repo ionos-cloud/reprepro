@@ -1441,7 +1441,7 @@ q
 EOF
 done
 mkdir tmp
-mv dists/B/Contents-abacus.gz tmp
+mv dists/B/Contents-${FAKEARCHITECTURE}.gz tmp
 mv dists/B/snapshots/now dists/B.snapshot
 mv dists/A/snapshots/now dists/A.snapshot
 printf 'g/Contents-/d\nw\nq\n' | ed -s dists/B/Release
@@ -1451,7 +1451,7 @@ dodiff -r -u dists/B.snapshot dists/B
 dodiff -r -u dists/A.snapshot dists/A
 rm -r dists/A.snapshot
 rm -r dists/B.snapshot
-mv tmp/Contents-abacus.gz dists/B/
+mv tmp/Contents-${FAKEARCHITECTURE}.gz dists/B/
 ##
 printf '$d\nw\nq\n' | ed -s i/test.changes
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
