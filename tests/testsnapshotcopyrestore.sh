@@ -564,5 +564,5 @@ EOF
 testrun empty -b . dumpunreferenced
 testrun empty -b . dumpreferences
 
-rm -r conf db dists importindex
+rm -r conf db dists importindex logs
 testsuccess
