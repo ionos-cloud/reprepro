@@ -151,55 +151,91 @@ static retvalue indexfile_get(struct indexfile *f) {
 bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, const char **control_p, const struct target *target, bool allowwrongarchitecture) {
 	retvalue r;
 	bool ignorecruft = false; // TODO
-	char *packagename, *version;
+	char *packagename, *version, *architecture;
 	const char *control;
 
+	packagename = NULL; version = NULL;
 	do {
+		free(packagename); packagename = NULL;
+		free(version); version = NULL;
 		r = indexfile_get(f);
-		if( !RET_IS_OK(r) ) {
-			RET_UPDATE(f->status, r);
-			return false;
-		}
+		if( !RET_IS_OK(r) )
+			break;
 		control = f->buffer;
 		r = chunk_getvalue(control, "Package", &packagename);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr,
-					"Error parsing %s line %d: Chunk without 'Package:' field!\n",
-					f->filename, f->linenumber);
+"Error parsing %s line %d to %d: Chunk without 'Package:' field!\n",
+					f->filename,
+					f->startlinenumber, f->linenumber);
 			if( !ignorecruft )
 				r = RET_ERROR_MISSING;
 			else
 				continue;
 		}
-		if( RET_WAS_ERROR(r) ) {
-			RET_UPDATE(f->status, r);
-			return false;
-		}
+		if( RET_WAS_ERROR(r) )
+			break;
 
 		r = chunk_getvalue(control, "Version", &version);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr,
-					"Error parsing %s line %d: Chunk without 'Version:' field!\n",
-					f->filename, f->linenumber);
+"Error parsing %s line %d to %d: Chunk without 'Version:' field!\n",
+					f->filename,
+					f->startlinenumber, f->linenumber);
 			if( !ignorecruft )
 				r = RET_ERROR_MISSING;
-			else {
-				free(packagename);
+			else
 				continue;
+		}
+		if( RET_WAS_ERROR(r) )
+			break;
+		r = chunk_getvalue(control, "Architecture", &architecture);
+		if( RET_WAS_ERROR(r) )
+			break;
+		if( r == RET_NOTHING )
+			architecture = NULL;
+		if( strcmp(target->packagetype, "dsc") == 0 ) {
+			free(architecture);
+		} else {
+			/* check if architecture fits for target and error
+			    out if not ignorewrongarchitecture */
+			if( architecture == NULL ) {
+				fprintf(stderr,
+"Error parsing %s line %d to %d: Chunk without 'Architecture:' field!\n",
+						f->filename,
+						f->startlinenumber, f->linenumber);
+				if( !ignorecruft ) {
+					r = RET_ERROR_MISSING;
+					break;
+				} else
+					continue;
+			} else if( strcmp(architecture, "all") != 0 &&
+			           strcmp(architecture,
+						target->architecture) != 0) {
+				if( allowwrongarchitecture ) {
+					free(architecture);
+					continue;
+				} else {
+					fprintf(stderr,
+"Error parsing %s line %d to %d: Wrong 'Architecture:' field '%s' (need 'all' or '%s')!\n",
+						f->filename,
+						f->startlinenumber, f->linenumber,
+						architecture,
+						target->architecture);
+					r = RET_ERROR;
+				}
 			}
+			free(architecture);
 		}
-		if( RET_WAS_ERROR(r) ) {
-			free(packagename);
-			RET_UPDATE(f->status, r);
-			return false;
-		}
-		if( strcmp(target->architecture, "source") != 0 ) {
-		// check if architecture fits for target and error
-		// out if not ignorewrongarchitecture
-		}
+		if( RET_WAS_ERROR(r) )
+			break;
 		*control_p = control;
 		*name_p = packagename;
 		*version_p = version;
 		return true;
 	} while( true );
+	free(packagename);
+	free(version);
+	RET_UPDATE(f->status, r);
+	return false;
 }

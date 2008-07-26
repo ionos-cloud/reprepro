@@ -484,13 +484,6 @@ CFfinishparse(update_pattern) {
 				config_line(iter));
 			return RET_ERROR;
 		}
-		if( n->suite_from != NULL && n->flat != NULL ) {
-			fprintf(stderr,
-"%s:%u to %u: Update pattern may not contain Suite and Flat fields ad the same time.\n",
-				config_filename(iter), config_firstline(iter),
-				config_line(iter));
-			return RET_ERROR;
-		}
 	}
 	return linkedlistfinish(privdata_update_pattern, thisdata_update_pattern,
 			lastdata_p_update_pattern, complete, iter);
@@ -765,7 +758,7 @@ static inline struct update_index_file *addindexfile(struct update_origin *origi
 	file->filename = f;
 	if( strcmp(packagetype, "deb") == 0 ) {
 		if( origin->pattern->flat != NULL ) {
-			u = strdup("Packages.gz");
+			u = mprintf("%s/Packages.gz", origin->suite_from);
 			uc = "Packages.gz";
 		} else {
 			u = mprintf("dists/%s/%s/binary-%s/Packages.gz",
@@ -781,7 +774,7 @@ static inline struct update_index_file *addindexfile(struct update_origin *origi
 		uc = u + strlen(origin->suite_from) + 7; /* "dists/%s/" */
 	} else if( strcmp(packagetype, "dsc") == 0 ) {
 		if( origin->pattern->flat != NULL ) {
-			u = strdup("Sources.gz");
+			u = mprintf("%s/Sources.gz", origin->suite_from);
 			uc = "Sources.gz";
 		} else {
 			u = mprintf("dists/%s/%s/source/Sources.gz",
@@ -1236,9 +1229,9 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 	}
 
 	if( p->flat != NULL )
-		toget = strdup("Release");
+		toget = mprintf("%s/Release", origin->suite_from);
 	else
-		toget = mprintf("dists/%s/Release",origin->suite_from);
+		toget = mprintf("dists/%s/Release", origin->suite_from);
 	r = aptmethod_queueindexfile(origin->download,
 			toget, origin->releasefile, NULL);
 	free(toget);
@@ -1247,7 +1240,7 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 
 	if( p->verifyrelease != NULL ) {
 		if( p->flat != NULL )
-			toget = strdup("Release.gpg");
+			toget = mprintf("%s/Release.gpg", origin->suite_from);
 		else
 			toget = mprintf("dists/%s/Release.gpg",
 					origin->suite_from);

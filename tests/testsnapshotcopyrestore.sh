@@ -107,7 +107,7 @@ EOF
 testrun - -b . -T deb -A ${FAKEARCHITECTURE} -C dog _addpackage B importindex bar foo 3<<EOF
 returns 249
 stderr
-*=Error parsing importindex line 1: Chunk without 'Package:' field!
+*=Error parsing importindex line 1 to 1: Chunk without 'Package:' field!
 -v0*=There have been errors!
 stdout
 EOF

@@ -1026,6 +1026,29 @@ If this is present, no
 file will be downloaded and thus the md5sums of the other
 index files will not be checked.
 .TP
+.B Flat
+If this field is in an update rule, is is supposed to be a
+flat repository, i.e. an repository without an \fBdists\fP
+dir and no subdirectories for the index files.
+(If the corresponding \fBsources.list\fP line has the suite
+end with an slash, then you might need this one.)
+The argument for the \fBFlat:\fP field is the Component to
+put those packages into.
+No \fBComponents\fP or \fBUDebComponents\fP
+fields are allowed in an flat update rule.
+If the \fBArchitecture\fP field has any \fB>\fP items,
+the part left of the "\fB>\fP" is ignored.
+.br
+For example the \fBsources.list\fP line
+ deb http://cran.r-project.org/bin/linux/debian etch-cran/
+.br
+would translate to
+.br
+ Name: R
+ Method: http://cran.r-project.org/bin/linux/debian
+ Suite: etch-cran
+ Flat: whatevercomponentyoudlikethepackagesin
+.TP
 .B IgnoreHashes
 This directive tells reprepro to not check the listed
 hashes in the downloaded Release file (and only in the Release file).

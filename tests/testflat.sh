@@ -17,7 +17,8 @@ EOF
 cat > conf/updates.base <<EOF
 Name: flattest
 Flat: a
-Method: file:$WORKDIR/flatsource
+Method: file:$WORKDIR
+Suite: flatsource
 EOF
 
 testrun - -b . export 1234 3<<EOF
@@ -66,7 +67,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 5: Update pattern may not contain Components and Flat fields ad the same time.
+*=./conf/updates:1 to 6: Update pattern may not contain Components and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF
@@ -79,7 +80,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 5: Update pattern may not contain UDebComponents and Flat fields ad the same time.
+*=./conf/updates:1 to 6: Update pattern may not contain UDebComponents and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF
@@ -203,7 +204,7 @@ cat > flatsource/Packages.gz <<EOF
 Package: test
 Architecture: all
 Version: 0
-Filename: test.deb
+Filename: flatsource/test.deb
 EOF
 cat > flatsource/Release <<EOF
 MD5Sum:
@@ -232,7 +233,7 @@ stderr
 *= 'Package: test
 *=Architecture: all
 *=Version: 0
-*=Filename: test.deb'
+*=Filename: flatsource/test.deb'
 -v1*=Stop reading further chunks from './lists/1234_flattest_deb_a_flat' due to previous errors.
 -v0*=There have been errors!
 return 249
@@ -242,7 +243,7 @@ cat > flatsource/Packages.gz <<EOF
 Package: test
 Architecture: all
 Version: 0
-Filename: test.deb
+Filename: flatsource/test.deb
 Size: 0
 MD5Sum: $EMPTYMD5ONLY
 EOF
@@ -327,7 +328,62 @@ stdout
 -v6*= looking for changes in '1234|bb|source'...
 EOF
 
-# Todo: check architecture dependant packages (still needs support in upgradelist)
+cat > flatsource/Packages.gz <<EOF
+Package: test
+Architecture: yyyyyyyyyy
+Version: 1
+Filename: flatsource/test.deb
+Size: 0
+MD5Sum: $EMPTYMD5ONLY
+EOF
+cat > flatsource/Release <<EOF
+MD5Sum:
+ $(mdandsize flatsource/Sources.gz) Sources.gz
+ $(mdandsize flatsource/Packages.gz) Packages.gz
+EOF
+
+testrun - -b . update 1234 3<<EOF
+stderr
+-v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
+-v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
+-v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
+-v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
+-v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_1_yyyyyyyyyy.deb'...
+stdout
+-v0*=Calculating packages to get...
+-v4*=  nothing to do for '1234|bb|source'
+-v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
+-v4*=  nothing to do for '1234|bb|x'
+-v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
+-v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
+-v3*=  processing updates for '1234|a|yyyyyyyyyy'
+-v5*=  reading './lists/1234_flattest_deb_a_flat'
+-v4*=  nothing to do for 'u|1234|a|x'
+-v3*=  processing updates for '1234|a|x'
+-v2=Created directory "./pool"
+-v2=Created directory "./pool/a"
+-v2=Created directory "./pool/a/t"
+-v2=Created directory "./pool/a/t/test"
+-v0*=Getting packages...
+-e1*=db: 'pool/a/t/test/test_1_yyyyyyyyyy.deb' added to files.db(md5sums).
+-d1*=db: 'pool/a/t/test/test_1_yyyyyyyyyy.deb' added to checksums.db(pool).
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+-d1*=db: 'test' removed from packages.db(1234|a|yyyyyyyyyy).
+-d1*=db: 'test' added to packages.db(1234|a|yyyyyyyyyy).
+-v0*=Exporting indices...
+-v6*= looking for changes in '1234|a|x'...
+-v6*= looking for changes in 'u|1234|a|x'...
+-v6*= looking for changes in '1234|a|yyyyyyyyyy'...
+-v6*=  replacing './dists/1234/a/binary-yyyyyyyyyy/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'u|1234|a|yyyyyyyyyy'...
+-v6*= looking for changes in '1234|a|source'...
+-v6*= looking for changes in '1234|bb|x'...
+-v6*= looking for changes in '1234|bb|yyyyyyyyyy'...
+-v6*= looking for changes in '1234|bb|source'...
+-v0*=Deleting files no longer referenced...
+EOF
 
 rm -r -f db conf dists pool lists flatsource
 testsuccess
