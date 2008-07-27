@@ -442,9 +442,9 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 		return r;
 
 	result = RET_NOTHING;
+	upgrade->last = NULL;
 	while( indexfile_getnext(i, &packagename, &version, &control,
 				upgrade->target, ignorewrongarchitecture) ) {
-		upgrade->last = NULL;
 		r = upgradelist_trypackage(upgrade, method, decide, decide_data,
 				packagename, packagename, version, control);
 		RET_UPDATE(result, r);
@@ -470,7 +470,6 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	struct target_cursor iterator;
 
 	upgrade->last = NULL;
-
 	r = target_openiterator(source, database, READONLY, &iterator);
 	if( RET_WAS_ERROR(r) )
 		return r;
