@@ -455,7 +455,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 			break;
 		}
 		if( interrupted() ) {
-			r = RET_ERROR_INTERRUPTED;
+			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
 	}
@@ -491,7 +491,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 		if( RET_WAS_ERROR(r) )
 			break;
 		if( interrupted() ) {
-			r = RET_ERROR_INTERRUPTED;
+			result = RET_ERROR_INTERRUPTED;
 			break;
 		}
 	}
