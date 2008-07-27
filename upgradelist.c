@@ -454,6 +454,10 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 "Stop reading further chunks from '%s' due to previous errors.\n", filename);
 			break;
 		}
+		if( interrupted() ) {
+			r = RET_ERROR_INTERRUPTED;
+			break;
+		}
 	}
 	r = indexfile_close(i);
 	RET_ENDUPDATE(result, r);
@@ -486,6 +490,10 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
+		if( interrupted() ) {
+			r = RET_ERROR_INTERRUPTED;
+			break;
+		}
 	}
 	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result,r);
