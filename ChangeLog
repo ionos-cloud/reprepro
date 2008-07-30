@@ -1,3 +1,6 @@
+2008-07-27
+	* buffered read of index files upon "update".
+
 2008-07-26
 	* add support to retrieve packages from flat repositories.
 

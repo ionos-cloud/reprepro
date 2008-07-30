@@ -37,7 +37,7 @@ struct indexfile {
 	int linenumber, startlinenumber;
 	retvalue status;
 	char *buffer;
-	size_t size;
+	int size, ofs, content;
 };
 
 extern int verbose;
@@ -52,7 +52,6 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 		free(f);
 		return RET_ERROR_OOM;
 	}
-	// TODO: gzopen and gzgets are slow like hell, improve !
 	f->f = gzopen(filename, "r");
 	if( f->f == NULL ) {
 		fprintf(stderr, "Unable to open file %s: %s\n",
@@ -64,8 +63,11 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 	f->linenumber = 0;
 	f->startlinenumber = 0;
 	f->status = RET_OK;
-	f->size = 4096;
-	f->buffer = malloc(f->size);
+	f->size = 256*1024;
+	f->ofs = 0;
+	f->content = 0;
+	/* +1 for *d = '\0' in eof case */
+	f->buffer = malloc(f->size + 1);
 	if( FAILEDTOALLOC(f->buffer) ) {
 		(void)gzclose(f->f);
 		free(f);
@@ -89,62 +91,84 @@ retvalue indexfile_close(struct indexfile *f) {
 	return r;
 }
 
-//TODO: this should now also be able to parse \r\n terminated lines instead
-// of only \n terminated oned. Though this has still to be tested properly...
-//
-//TODO: as said above, gzgets is too slow...
-
 static retvalue indexfile_get(struct indexfile *f) {
-	char *bhead;
-	size_t already, without, l;
-	bool afternewline = false;
+	char *p, *d, *e, *start;
+	bool afternewline, nothingyet;
+	int bytes_read;
 
-	already = 0; without = 0;
-	bhead = f->buffer;
-	f->startlinenumber = f->linenumber + 1;
-	while( gzgets(f->f, bhead, f->size-1-already) != NULL ) {
-		f->linenumber++;
-		char *p;
-		p = bhead;
-		while( *p != '\0' ) {
-			if( *p != '\r' && *p != '\n' )
-				without = 1 + p - f->buffer;
-			p++;
-		}
-		if( without == 0 ) {
-			/* ignore leading newlines... */
-			bhead = f->buffer;
-			already = 0;
-			continue;
-		}
-		l = strlen(bhead);
-		/* if we are after a newline, and have a new newline,
-		 * and only '\r' in between, then return the chunk: */
-		if( afternewline && without < already && l!=0 && bhead[l-1] == '\n' ) {
-			break;
-		}
-		already += l;
-		if( l != 0 ) // a bit of parania...
-			afternewline = bhead[l-1] == '\n';
-		if( f->size-already < 1024 ) {
-			char *n;
-			if( f->size >= 513*1024*1024 ) {
-				fprintf(stderr, "Will not process chunks larger than half a gigabyte!\n");
-				return RET_ERROR;
+	d = f->buffer;
+	afternewline = true;
+	nothingyet = true;
+	do {
+		start = f->buffer + f->ofs;
+		p = start ;
+		e = p + f->content;
+
+		// TODO: if the chunk_get* are more tested with strange
+		// input, this could be kept in-situ and only chunk_edit
+		// beautifying this chunk...
+
+		while( p < e ) {
+			/* just ignore '\r', even if not line-end... */
+			if( *p == '\r' ) {
+				p++;
+				continue;
 			}
-			n = realloc(f->buffer, f->size*2 );
-			if( FAILEDTOALLOC(n) )
-				return RET_ERROR_OOM;
-			f->buffer = n;
-			f->size *= 2;
+			if( *p == '\n' ) {
+				f->linenumber++;
+				if( afternewline ) {
+					p++;
+					f->content -= (p - start);
+					f->ofs += (p - start);
+					assert( f->ofs == (p - f->buffer));
+					if( nothingyet )
+						/* restart */
+						return indexfile_get(f);
+					if( d > f->buffer && *(d-1) == '\n' )
+						d--;
+					*d = '\0';
+					return RET_OK;
+				}
+				afternewline = true;
+				nothingyet = false;
+			} else
+				afternewline = false;
+			if( unlikely(*p == '\0') ) {
+				*(d++) = ' ';
+				p++;
+			} else
+				*(d++) = *(p++);
 		}
-		bhead = f->buffer + already;
-	}
-	if( without == 0 )
+		/* ** out of data, read new ** */
+
+		/* start at beginning of free space */
+		f->ofs = (d - f->buffer);
+		f->content = 0;
+
+		if( f->size - f->ofs <= 2048 ) {
+			/* resize buffer if running low
+			 * (what ridicilous long package chunks do you have?) */
+			assert(0);
+			// TODO...
+		}
+
+		bytes_read = gzread(f->f, d, f->size - f->ofs);
+		if( bytes_read < 0 )
+			return RET_ERROR;
+		else if( bytes_read == 0 )
+			break;
+		f->content = bytes_read;
+	} while( true );
+
+	if( d == f->buffer )
 		return RET_NOTHING;
-	assert( without < f->size );
-	/* we do not want to include the final newlines */
-	f->buffer[without] = '\0';
+
+	/* end of file reached, return what we got so far */
+	assert( f->content == 0 );
+	assert( d-f->buffer <= f->size );
+	if( d > f->buffer && *(d-1) == '\n' )
+		d--;
+	*d = '\0';
 	return RET_OK;
 }
 
@@ -158,6 +182,7 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 	do {
 		free(packagename); packagename = NULL;
 		free(version); version = NULL;
+		f->startlinenumber = f->linenumber + 1;
 		r = indexfile_get(f);
 		if( !RET_IS_OK(r) )
 			break;
