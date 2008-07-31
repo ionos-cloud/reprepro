@@ -1,3 +1,6 @@
+2008-07-30
+	* fix double-free whith --export=never
+
 2008-07-27
 	* buffered read of index files upon "update".
 
