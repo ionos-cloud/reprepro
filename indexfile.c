@@ -162,7 +162,7 @@ static retvalue indexfile_get(struct indexfile *f) {
 "Error parsing %s line %d: Ridiculous long (>= 256K) control chunk!\n",
 					f->filename,
 					f->startlinenumber);
-			f->filed = true;
+			f->failed = true;
 			return RET_ERROR;
 		}
 
