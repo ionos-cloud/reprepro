@@ -1,3 +1,6 @@
+2008-08-03
+	* remove iteratedupdate
+
 2008-07-30
 	* fix double-free whith --export=never
 

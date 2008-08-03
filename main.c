@@ -1069,43 +1069,6 @@ ACTION_D(n, n, y, predelete) {
 	return result;
 }
 
-ACTION_D(n, n, y, iteratedupdate) {
-	retvalue result;
-	struct update_pattern *patterns;
-	struct update_distribution *u_distributions;
-
-	result = dirs_make_recursive(global.listdir);
-	if( RET_WAS_ERROR(result) ) {
-		return result;
-	}
-
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	result = updates_getpatterns(&patterns);
-	if( RET_WAS_ERROR(result) )
-		return result;
-
-	result = updates_calcindices(patterns, alldistributions, fast,
-			&u_distributions);
-	if( RET_WAS_ERROR(result) ) {
-		updates_freepatterns(patterns);
-		return result;
-	}
-
-	if( !keepunneededlists ) {
-		result = updates_clearlists(u_distributions);
-	}
-	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(database, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
-	updates_freeupdatedistributions(u_distributions);
-	updates_freepatterns(patterns);
-
-	return result;
-}
-
 ACTION_B(n, n, y, checkupdate) {
 	retvalue result;
 	struct update_pattern *patterns;
@@ -2470,8 +2433,6 @@ static const struct action {
 		3, 3, "removetrack <distribution> <sourcename> <version>"},
 	{"update",		A_D(update),
 		0, -1, "update [<distributions>]"},
-	{"iteratedupdate",	A_D(iteratedupdate),
-		0, -1, "iteratedupdate [<distributions>]"},
 	{"checkupdate",		A_B(checkupdate),
 		0, -1, "checkupdate [<distributions>]"},
 	{"predelete",		A_D(predelete),

@@ -194,7 +194,6 @@ commands=( export:"export index files"
 	listfilter:"list packages matching filter"
 	remove:"remove packages"
 	update:"update from external source"
-	iteratedupdate:"update step-by-step from external source"
 	checkupdate:"check what would be updated"
 	predelete:"delete what would be removed or superseeded by an update"
 	pull:"update from another local distribtuion"
@@ -326,7 +325,7 @@ case "$state" in
 
  (first argument|second argument|third argument|argument)
 	case "$words[1]" in
-	 (export|update|iteratedupdate|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks)
+	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks)
 		_reprepro_codenames
 		;;
 	 (checkpool)

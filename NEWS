@@ -1,8 +1,9 @@
-Updates between 3.5.2 and 3.5.3:
+Updates between 3.5.2 and 3.6.0:
 - add IgnoreHashes option
 - allow list to list all packages if not package name specified.
 - support retrieving packages from flat repositories
 - speed up updating by buffering zlib's reading of index files
+- remove iteratedupdate
 
 Updates between 3.5.1 and 3.5.2:
 - fix bug in optionsfilename generation introduced in 3.5.1
