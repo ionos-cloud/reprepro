@@ -1699,8 +1699,9 @@ ACTION_F(y, n, y, y, reoverride) {
 			distribution_unloadoverrides(d);
 		} else if( r == RET_NOTHING ) {
 			fprintf(stderr,"No override files, thus nothing to do for %s.\n",d->codename);
+		} else {
+			RET_UPDATE(result, r);
 		}
-		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
 			break;
 	}
