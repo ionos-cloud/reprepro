@@ -71,27 +71,18 @@ clean:
 
 	dh_clean
 
-install: install-indep install-arch
-install-indep: build-indep
-install-arch: build-arch
+# Build architecture-independent files here.
+binary-indep: build-indep
+# We have nothing to do.
+
+# Build architecture-dependent files here.
+binary-arch: build-arch
 	dh_testdir
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
-
-	# install the package into debian/reprepro.
 	$(MAKE) $(PARFLAGS) install DESTDIR=$(CURDIR)/debian/reprepro
 	install -D -m 644 docs/reprepro.bash_completion debian/reprepro/etc/bash_completion.d/reprepro
-
-
-# Build architecture-independent files here.
-binary-indep: build-indep install-indep
-# We have nothing to do.
-
-# Build architecture-dependent files here.
-binary-arch: build-arch install-arch
-	dh_testdir
-	dh_testroot
 	dh_installchangelogs ChangeLog
 	dh_installdocs
 	# I really discourage building packages directly from CVS
@@ -124,4 +115,4 @@ binary-arch: build-arch install-arch
 	dh_builddeb
 
 binary: binary-indep binary-arch
-.PHONY: build build-arch build-indep clean binary-indep binary-arch binary install install-arch install-indep
+.PHONY: build build-arch build-indep clean binary-indep binary-arch binary
