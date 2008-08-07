@@ -1,3 +1,10 @@
+reprepro (3.6.1-1) experimental; urgency=low
+
+  * new bugfix release
+  - make reoverride work again (LP: #206663)
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  7 Aug 2008 21:13:45 +0200
+
 reprepro (3.6.0-1) experimental; urgency=low
 
   * new upstream release

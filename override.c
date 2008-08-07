@@ -277,3 +277,20 @@ struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override
 
 }
 
+retvalue override_allreplacefields(const struct overrideinfo *override, struct fieldtoadd **fields_p) {
+	int i;
+	struct fieldtoadd *fields = NULL;
+
+	assert( override != NULL );
+
+	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
+			fields = addfield_new(
+				override->fields.values[i],override->fields.values[i+1],
+				fields);
+			if( fields == NULL )
+				return RET_ERROR_OOM;
+
+	}
+	*fields_p = fields;
+	return RET_OK;
+}

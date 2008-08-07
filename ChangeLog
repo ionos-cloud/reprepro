@@ -1,5 +1,6 @@
 2008-08-07
 	* make reoverride work again...
+	  (and not ignore section and priority)
 
 2008-08-03
 	* remove iteratedupdate
