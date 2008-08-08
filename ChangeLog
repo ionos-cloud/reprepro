@@ -1,3 +1,6 @@
+2008-08-08
+	* fix handling of libbz2 return codes
+
 2008-08-07
 	* make reoverride work again...
 	  (and not ignore section and priority)
