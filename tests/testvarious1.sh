@@ -492,15 +492,6 @@ stdout
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
 -d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
-function checklog() {
-	cat > results.log.expected
-	LOGDATE="$(date +'%Y-%m-%d %H:')"
-	echo normalizing "$1": DATESTR is "$LOGDATE??:??"
-	sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/"$1"
-	dodiff results.log.expected logs/"$1"
-	rm logs/"$1"
-
-}
 checklog logfile <<EOF
 DATESTR add B dsc dog source bird 1
 DATESTR add B deb dog ${FAKEARCHITECTURE} bird 1
