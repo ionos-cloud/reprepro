@@ -1,3 +1,9 @@
+reprepro (3.6.2-1) UNRELEASED; urgency=low
+
+  * allow multiple export hooks at once (Closes: 495303)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 16 Aug 2008 16:54:57 +0200
+
 reprepro (3.6.1-1) experimental; urgency=medium
 
   * new bugfix release

@@ -13,8 +13,8 @@ struct exportmode {
 	/* Generate a Release file next to the Indexfile , if non-null*/
 	/*@null@*/
 	char *release;
-	/* programm to start after all are generated */
-	char *hook;
+	/* programms to start after all are generated */
+	struct strlist hooks;
 };
 
 retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*@null@*/const char *release, const char *indexfile);
