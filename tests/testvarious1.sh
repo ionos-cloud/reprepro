@@ -343,9 +343,6 @@ stdout
 EOF
 sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
 cp -a i i2
-function checknolog() {
-	dodo test ! -f logs/"$1"
-}
 checknolog logfile
 if test -n "$TESTNEWFILESDB" ; then
 	dodo test ! -f db/files.db

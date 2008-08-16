@@ -241,6 +241,9 @@ stdout
 stderr
 returns 0
 EOF
+function checknolog() {
+	dodo test ! -f logs/"$1"
+}
 function md5() {
 md5sum "$1" | cut -d' ' -f1
 }
