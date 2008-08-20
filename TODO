@@ -8,6 +8,8 @@ TODO:
 	check for harmful override entries (Package, Source, ....)
 	also support .bz2 Index file download
 	also support pdiff download when mirroring
+	Fields to exclude architectures and components in update rules,
+	 (or alternatively allow ! in inclusion lists).
 
 half far goals:
 	handle components, architectures and types as numeric atoms for filters
