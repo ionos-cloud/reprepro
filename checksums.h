@@ -79,6 +79,11 @@ retvalue checksums_replace(const char *filename, const char *, size_t len, /*@ou
  * RET_NOTHING means file does not exist, RET_ERROR_WRONG_MD5 means wrong size */
 retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *, bool);
 
+/* check if filename has specified checksums, if not return RET_ERROR_WRONG_MD5,
+ * if it has, and checksums_p put the improved checksum there (*checksums_p should
+ * either be NULL or checksums */
+retvalue checksums_test(const char *, const struct checksums *, /*@null@*/struct checksums **);
+
 /* check if checksum of filekey in database and checksum of actual file, set improve if some new has is in the last */
 bool checksums_check(const struct checksums *, const struct checksums *, /*@out@*/bool *improves);
 
@@ -88,7 +93,7 @@ bool checksums_iscomplete(const struct checksums *);
 /* Collect missing checksums (if all are there always RET_OK without checking).
  * if the file is not there, return RET_NOTHING,
  * if it is but not matches, return RET_ERROR_WRONG_MD5 */
-retvalue checksums_complete(struct checksums **, const char *fullfilename, /*@null@*/ bool improvedhashes[cs_hashCOUNT]);
+retvalue checksums_complete(struct checksums **, const char *fullfilename);
 
 void checksums_printdifferences(FILE *,const struct checksums *expected, const struct checksums *got);
 

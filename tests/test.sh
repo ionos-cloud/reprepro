@@ -4,6 +4,7 @@ set -e
 
 source $(dirname $0)/test.inc
 
+runtest check
 runtest flat
 runtest subcomponents
 runtest snapshotcopyrestore

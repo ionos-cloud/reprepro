@@ -248,8 +248,7 @@ retvalue files_canadd(struct database *database, const char *filekey, const stru
 retvalue files_expect(struct database *database, const char *filekey, const struct checksums *checksums) {
 	retvalue r;
 	char *filename;
-	struct checksums *filechecksums;
-	bool improves;
+	struct checksums *improvedchecksums = NULL;
 
 	r = files_canadd(database, filekey, checksums);
 	if( r == RET_NOTHING )
@@ -263,12 +262,12 @@ retvalue files_expect(struct database *database, const char *filekey, const stru
 		return RET_ERROR_OOM;
 
 	/* first check if a possible manually put (or left over from previous
-	 * downloads attepts) file is there and has the correct file size */
-	r = checksums_cheaptest(filename, checksums, false);
+	 * downloads attepts) file is there and is correct */
+	r = checksums_test(filename, checksums, &improvedchecksums);
 	if( r == RET_ERROR_WRONG_MD5) {
 		fprintf(stderr,
 "Deleting unexpected file '%s'!\n"
-"(found in pool but not in database and file size is wrong.)\n ",
+"(not in database and wrong in pool)\n ",
 				filename);
 		if( unlink(filename) == 0 )
 			r = RET_NOTHING;
@@ -277,40 +276,20 @@ retvalue files_expect(struct database *database, const char *filekey, const stru
 			fprintf(stderr,
 "Error %d deleting '%s': %s!\n", e, filename, strerror(e));
 		}
-	}
-	/* if it is, check its checksums */
-	if( RET_IS_OK(r) )
-		r = checksums_read(filename, &filechecksums);
-	if( !RET_IS_OK(r) ) {
-		free(filename);
-		return r;
-	}
-
-	if( !checksums_check(checksums, filechecksums, &improves) ) {
-		fprintf(stderr,
-"Deleting unexpected file '%s'!\n"
-"(found in pool but checksums are different from file to be added.)\n ",
-				filename);
-		if( unlink(filename) == 0 )
-			r = RET_NOTHING;
-		else {
-			int e = errno;
-			fprintf(stderr,
-"Error %d deleting '%s': %s!\n", e, filename, strerror(e));
-			r = RET_ERROR_WRONG_MD5;
-		}
-		checksums_free(filechecksums);
-		free(filename);
-		return r;
 	}
 	free(filename);
+	if( !RET_IS_OK(r) )
+		return r;
 
 	// TODO: some callers might want the updated checksum when
 	// improves is true, how to get them there?
 
 	/* add found file to database */
-	r = files_add_checksums(database, filekey, filechecksums);
-	checksums_free(filechecksums);
+	if( improvedchecksums != NULL ) {
+		r = files_add_checksums(database, filekey, improvedchecksums);
+		checksums_free(improvedchecksums);
+	} else
+		r = files_add_checksums(database, filekey, checksums);
 	assert( r != RET_NOTHING );
 	return r;
 }
@@ -855,7 +834,7 @@ retvalue files_collectnewchecksums(struct database *database) {
 				checksums_free(expected);
 				break;
 			}
-			r = checksums_complete(&expected, fullfilename, NULL);
+			r = checksums_complete(&expected, fullfilename);
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Missing file '%s'!\n", fullfilename);
 				r = RET_ERROR_MISSING;

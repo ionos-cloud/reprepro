@@ -489,7 +489,7 @@ static inline retvalue todo_done(struct tobedone *todo, const char *method, cons
 			r = checksums_read(filename, &checksums);
 		else
 			/* but make sure it computed all we would have, too */
-			r = checksums_complete(&checksums, filename, NULL);
+			r = checksums_complete(&checksums, filename);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr, "Cannot open '%s', though '%s' method claims to have put it there!\n",
 					filename, method);
