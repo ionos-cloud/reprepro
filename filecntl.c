@@ -47,7 +47,7 @@ void markcloseonexec(int fd) {
 	}
 }
 
-void deletefile(const char *fullfilename) {
+int deletefile(const char *fullfilename) {
 	int ret, e;
 
 	ret = unlink(fullfilename);
@@ -55,7 +55,9 @@ void deletefile(const char *fullfilename) {
 		e = errno;
 		fprintf(stderr, "error %d unlinking %s: %s\n",
 				e, fullfilename, strerror(e));
+		return (e != 0)?e:EINVAL;
 	}
+	return 0;;
 }
 
 bool isregularfile(const char *fullfilename) {

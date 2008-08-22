@@ -5,7 +5,7 @@
 void closefrom(int);
 #endif
 void markcloseonexec(int);
-void deletefile(const char *);
+int deletefile(const char *);
 bool isregularfile(const char *);
 
 #endif
