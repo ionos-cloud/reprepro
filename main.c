@@ -2501,6 +2501,8 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 
 	assert(action != NULL);
 
+	causingcommand = argv[0];
+
 	if( action->minargs >= 0 && argc < 1 + action->minargs ) {
 		fprintf(stderr, "Error: Too few arguments for command '%s'!\nSyntax: reprepro %s\n",
 				argv[0], action->wrongargmessage);

@@ -43,6 +43,7 @@
 extern int verbose;
 
 const char *causingfile = NULL;
+const char *causingcommand = NULL;
 
 /*@null@*/ static /*@refcounted@*/ struct logfile {
 	/*@null@*/struct logfile *next;
@@ -205,6 +206,7 @@ struct notificator {
 	/*@null@*/char *packagetype;
 	/*@null@*/char *component;
 	/*@null@*/char *architecture;
+	/*@null@*/char *command;
 	bool withcontrol, changesacceptrule;
 };
 
@@ -248,6 +250,12 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 						value_p = &n->component;
 					else if( word[1] == 'T' )
 						value_p = &n->packagetype;
+					else
+						error = true;
+					break;
+				case 5:
+					if( strcmp(word, "--via") == 0 )
+						value_p = &n->command;
 					else
 						error = true;
 					break;
@@ -398,6 +406,7 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 	/*@null@*/struct notification_process *next;
 	char **arguments;
 	/*@null@*/char *causingfile;
+	/*@null@*/const char *causingcommand;
 	/* data to send to the process */
 	size_t datalen, datasent;
 	/*@null@*/char *data;
@@ -567,6 +576,10 @@ static retvalue startchild(void) {
 			setenv("REPREPRO_CAUSING_FILE", p->causingfile, true);
 		else
 			unsetenv("REPREPRO_CAUSING_FILE");
+		if( p->causingcommand != NULL )
+			setenv("REPREPRO_CAUSING_COMMAND", p->causingcommand, true);
+		else
+			unsetenv("REPREPRO_CAUSING_COMMAND");
 		setenv("REPREPRO_BASE_DIR", global.basedir, true);
 		setenv("REPREPRO_OUT_DIR", global.outdir, true);
 		setenv("REPREPRO_CONF_DIR", global.confdir, true);
@@ -653,6 +666,10 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 	feedchildren(false);
 	if( !n->changesacceptrule )
 		return RET_NOTHING;
+	if( n->command != NULL &&
+			strcmp(n->command, causingcommand) != 0 ) {
+		return RET_NOTHING;
+	}
 	count = 6; /* script "accepted" codename name version safename */
 	if( filekey != NULL )
 		count++;
@@ -693,6 +710,7 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 		free(arguments);
 		return RET_ERROR_OOM;
 	}
+	p->causingcommand = causingcommand;
 	if( causingfile != NULL ) {
 		p->causingfile = strdup(causingfile);
 		if( FAILEDTOALLOC(p->causingfile) ) {
@@ -745,6 +763,12 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 	}
 	if( n->packagetype != NULL &&
 			strcmp(n->packagetype,target->packagetype) != 0 ) {
+		if( runningchildren() < 1 )
+			startchild();
+		return RET_NOTHING;
+	}
+	if( n->command != NULL &&
+			strcmp(n->command, causingcommand) != 0 ) {
 		if( runningchildren() < 1 )
 			startchild();
 		return RET_NOTHING;
@@ -828,6 +852,7 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 		free(arguments);
 		return RET_ERROR_OOM;
 	}
+	p->causingcommand = causingcommand;
 	if( causingfile != NULL ) {
 		size_t j;
 		p->causingfile = strdup(causingfile);

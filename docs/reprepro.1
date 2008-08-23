@@ -929,6 +929,8 @@ parts of the distribution.
 An script with argument \fB\-\-changes\fP is called when a \fB.changes\fP
 file was accepted by \fBinclude\fP or \fBprocessincoming\fP (and with other
 arguments).
+Both type of scripts can have an \fB\-\-via=\fP\fIcommand\fP specified,
+in which case it is only called when caused by reprepro command \fIcommand\fP.
 
 For information how it is called and some examples take a look
 at manual.html in reprepro's source or

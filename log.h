@@ -12,6 +12,8 @@ enum log_action { LOG_PACKAGE_ADD, LOG_PACKAGE_REPLACE, LOG_PACKAGE_REMOVE};
 
 /* file causing the current logger_log* run */
 extern /*@null@*/ const char *causingfile;
+/* command causing the current logger_log* run */
+extern /*@null@*/ const char *causingcommand;
 
 retvalue logger_init(struct configiterator *, /*@out@*/struct logger **);
 void logger_free(/*@only@*/struct logger *);
