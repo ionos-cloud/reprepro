@@ -70,16 +70,16 @@ void sourceextraction_setpart(struct sourceextraction *e, int i, const char *bas
 		return;
 
 	if( endswith(basename, bl, ".gz" ) ) {
-		c = c_gzipped;
+		c = c_gzip;
 		bl -= 3;
 	} else if( endswith(basename, bl, ".bz2" ) ) {
-		c = c_bzipped;
+		c = c_bzip2;
 		bl -= 4;
 	} else if( endswith(basename, bl, ".lzma" ) ) {
-		c = c_bzipped;
+		c = c_lzma;
 		bl -= 5;
 	} else {
-		c = c_uncompressed;
+		c = c_none;
 	}
 	if( endswith(basename, bl, ".dsc" ) )
 		return;
@@ -112,14 +112,13 @@ bool sourceextraction_needs(struct sourceextraction *e, int *ofs_p) {
 		*ofs_p = e->difffile;
 		return true;
 #ifdef HAVE_LIBARCHIVE
-	} else if( e->debiantarfile >= 0 &&
-			! unsupportedcompression(e->debiancompression) ) {
+	} else if( e->debiantarfile >= 0 && e->debiancompression <= c_bzip2 ) {
 		*ofs_p = e->debiantarfile;
 		return true;
 #endif
 	} else if( e->tarfile >= 0 ) {
 #ifdef HAVE_LIBARCHIVE
-		if( unsupportedcompression(e->tarcompression) )
+		if( e->debiancompression > c_bzip2 )
 			// TODO: errormessage
 			return false;
 		*ofs_p = e->tarfile;
@@ -399,9 +398,9 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 	if( FAILEDTOALLOC(tar) )
 		return RET_ERROR_OOM;
 	archive_read_support_format_tar(tar);
-	if( c == c_gzipped )
+	if( c == c_gzip )
 		archive_read_support_compression_gzip(tar);
-	if( c == c_bzipped )
+	if( c == c_bzip2 )
 		archive_read_support_compression_bzip2(tar);
 
 	a = archive_read_open_file(tar, filename, 4096);
@@ -494,7 +493,6 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 #ifdef HAVE_LIBARCHIVE
 	if( e->debiantarfile >= 0 ) {
 		e->debiantarfile = -1;
-		assert( !unsupportedcompression(e->debiancompression) );
 		r = parse_tarfile(e, fullfilename, e->debiancompression, &found);
 		if( !RET_IS_OK(r) )
 			e->failed = true;
@@ -507,7 +505,6 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 
 	/* if it's not the diff nor the .debian.tar, look into the .tar file: */
 	assert( e->tarfile >= 0 );
-	assert( !unsupportedcompression(e->tarcompression) );
 	e->tarfile = -1;
 
 #ifdef HAVE_LIBARCHIVE

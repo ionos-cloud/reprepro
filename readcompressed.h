@@ -1,17 +1,9 @@
 #ifndef REPREPRO_READCOMPRESSED_H
 #define REPREPRO_READCOMPRESSED_H
 
-// TODO: this might be moved to some common code for also parsing index files
-// later...
+// TODO: integrate this into uncompress.c...
 
-
-enum compression { c_uncompressed, c_gzipped, c_bzipped, c_lzmad };
-
-#ifdef HAVE_LIBBZ2
-#define unsupportedcompression(x) ( x > c_bzipped )
-#else
-#define unsupportedcompression(x) ( x >= c_bzipped )
-#endif
+#define unsupportedcompression(x) ( x >= c_bzip2 )
 
 struct readcompressed;
 

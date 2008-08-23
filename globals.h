@@ -77,4 +77,6 @@ extern struct global_config {
 	const char *overridedir;
 } global;
 
+enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_COUNT };
+
 #endif

@@ -30,6 +30,9 @@
 #include "error.h"
 #include "readcompressed.h"
 
+#define c_uncompressed c_none
+#define c_gzipped c_gzip
+
 extern int verbose;
 
 struct readcompressed {
