@@ -17,6 +17,7 @@
 	  way files are named there is less strange...
 	- many other changes are possible now and will hopefully
 	  be implemented soon.
+	- support downloading .bz2 indices
 
 2008-08-22
 	* some internal cleanup preparing for future changes...

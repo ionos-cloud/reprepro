@@ -777,25 +777,25 @@ stderr
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
--v1*=Uncompress './lists/Test2toTest1_test2_ugly_Sources.gz' into './lists/Test2toTest1_test2_ugly_Sources'...
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages.gz' into './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'...
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_coal_Packages.gz' into './lists/Test2toTest1_test2_deb_ugly_coal_Packages'...
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
-*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
-*=md5 expected: ffffffffffffffffffffffffffffffff, got: $(md5 dists/test2/stupid/source/Sources.gz)
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages.gz' into './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'...
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_coal_Packages.gz' into './lists/Test2toTest1_test2_deb_stupid_coal_Packages'...
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
+-v1*=Uncompress './lists/Test2toTest1_test2_ugly_Sources.bz2' into './lists/Test2toTest1_test2_ugly_Sources'...
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.bz2'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'...
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.bz2'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_coal_Packages.bz2' into './lists/Test2toTest1_test2_deb_ugly_coal_Packages'...
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2':
+*=md5 expected: ffffffffffffffffffffffffffffffff, got: $(md5 dists/test2/stupid/source/Sources.bz2)
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.bz2'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'...
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.bz2'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_coal_Packages.bz2' into './lists/Test2toTest1_test2_deb_stupid_coal_Packages'...
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./lists"
@@ -815,10 +815,10 @@ stderr
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
-*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
-*=sha1 expected: 1111111111111111111111111111111111111111, got: $(sha1 dists/test2/stupid/source/Sources.gz)
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2':
+*=sha1 expected: 1111111111111111111111111111111111111111, got: $(sha1 dists/test2/stupid/source/Sources.bz2)
 -v0*=There have been errors!
 stdout
 EOF
@@ -837,10 +837,10 @@ stderr
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
-*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
-*=sha256 expected: 9999999999999999999999999999999999999999999999999999999999999999, got: $(sha256 dists/test2/stupid/source/Sources.gz)
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2':
+*=sha256 expected: 9999999999999999999999999999999999999999999999999999999999999999, got: $(sha256 dists/test2/stupid/source/Sources.bz2)
 -v0*=There have been errors!
 stdout
 EOF
@@ -872,10 +872,10 @@ stderr
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
-*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
-*=sha256 expected: 9999999999999999999999999999999999999999999999999999999999999999, got: $(sha256 dists/test2/stupid/source/Sources.gz)
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
+*=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2':
+*=sha256 expected: 9999999999999999999999999999999999999999999999999999999999999999, got: $(sha256 dists/test2/stupid/source/Sources.bz2)
 -v0*=There have been errors!
 stdout
 EOF
@@ -891,7 +891,7 @@ stderr
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
--v1*=Uncompress './lists/Test2toTest1_test2_stupid_Sources.gz' into './lists/Test2toTest1_test2_stupid_Sources'...
+-v1*=Uncompress './lists/Test2toTest1_test2_stupid_Sources.bz2' into './lists/Test2toTest1_test2_stupid_Sources'...
 -v6*=Called /bin/cp './lists/Test2toTest1_test2_ugly_Sources' './lists/_test1_dsc_ugly_source_Test2toTest1_Test2toTest1_test2_ugly_Sources'
 -v6*=Listhook successfully returned!
 -v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages' './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'

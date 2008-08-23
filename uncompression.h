@@ -8,7 +8,11 @@ extern const char * const uncompression_suffix[c_COUNT];
  * or uncompress (possibly multiple files) on the filesystem,
  * controled by aptmethods */
 
+#ifdef HAVE_LIBBZ2
+#define uncompression_supported(c) ((c) == c_gzip || (c) == c_none || (c) == c_bzip2)
+#else
 #define uncompression_supported(c) ((c) == c_gzip || (c) == c_none)
+#endif
 
 /* we got an pid, check if it is a uncompressor we care for */
 retvalue uncompress_checkpid(pid_t, int);

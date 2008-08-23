@@ -23,6 +23,9 @@
 #include <assert.h>
 #include <string.h>
 #include <zlib.h>
+#ifdef HAVE_LIBBZ2
+#include <bzlib.h>
+#endif
 #include <fcntl.h>
 
 #include "globals.h"
@@ -128,6 +131,88 @@ static inline retvalue builtin_gunzip(const char *compressed, const char *destin
 	return RET_OK;
 }
 
+#ifdef HAVE_LIBBZ2
+static inline retvalue builtin_bunzip2(const char *compressed, const char *destination) {
+	BZFILE *f;
+	char buffer[4096];
+	int bytes_read, bytes_written, written;
+	int destfd;
+	int e, i, zerror;
+
+	f = BZ2_bzopen(compressed, "r");
+	if( f == NULL ) {
+		// TODO: better error message...
+		fprintf(stderr, "Could not read %s\n",
+				compressed);
+		return RET_ERROR;
+	}
+	destfd = open(destination, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY, 0666);
+	if( destfd < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d creating '%s': %s\n",
+				e, destination, strerror(e));
+		BZ2_bzclose(f);
+		return RET_ERRNO(e);
+	}
+	do {
+		bytes_read = BZ2_bzread(f, buffer, 4096);
+		if( bytes_read <= 0 )
+			break;
+
+		bytes_written = 0;
+		while( bytes_written < bytes_read ) {
+			written = write(destfd, buffer + bytes_written,
+					bytes_read - bytes_written);
+			if( written < 0 ) {
+				e = errno;
+				fprintf(stderr,
+						"Error %d writing to '%s': %s\n", e, destination, strerror(e) );
+				close(destfd);
+				BZ2_bzclose(f);
+				return RET_ERRNO(e);
+			}
+			bytes_written += written;
+		}
+	} while( true );
+	e = errno;
+	if( bytes_read < 0 ) {
+		const char *msg = BZ2_bzerror(f, &zerror);
+
+		if( zerror != Z_ERRNO ) {
+			fprintf(stderr, "libbz2 Error %d reading from '%s': %s!\n",
+					zerror, compressed, msg);
+			(void)close(destfd);
+			return RET_ERROR;
+		}
+		e = errno;
+		(void)BZ2_bzclose(f);
+	} else {
+		BZ2_bzclose(f);
+		e = errno;
+		zerror = 0;
+	}
+	if( zerror == Z_ERRNO ) {
+		fprintf(stderr, "Error %d reading from '%s': %s!\n",
+				e, compressed, strerror(e));
+		(void)close(destfd);
+		return RET_ERRNO(e);
+	} else if( zerror < 0 ) {
+		fprintf(stderr, "libbz2 Error %d reading from '%s'!\n",
+				zerror, compressed);
+		(void)close(destfd);
+		return RET_ERROR;
+	}
+	i = close(destfd);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d writing to '%s': %s!\n",
+				e, destination, strerror(e));
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+#endif
+
 retvalue uncompress_queue_file(const char *compressed, const char *destination, enum compression compression, finishaction *action, void *privdata, bool *done_p) {
 	retvalue r;
 
@@ -136,10 +221,20 @@ retvalue uncompress_queue_file(const char *compressed, const char *destination, 
 				compressed, destination);
 	}
 
-	assert( compression == c_gzip );
 
 	(void)unlink(destination);
-	r = builtin_gunzip(compressed, destination);
+	switch( compression ) {
+		case c_gzip:
+			r = builtin_gunzip(compressed, destination);
+			break;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			r = builtin_bunzip2(compressed, destination);
+			break;
+#endif
+		default:
+			assert( compression != compression );
+	}
 	if( RET_WAS_ERROR(r) ) {
 		(void)unlink(destination);
 		return r;
@@ -156,10 +251,19 @@ retvalue uncompress_file(const char *compressed, const char *destination, enum c
 				compressed, destination);
 	}
 
-	assert( compression == c_gzip );
-
 	(void)unlink(destination);
-	r = builtin_gunzip(compressed, destination);
+	switch( compression ) {
+		case c_gzip:
+			r = builtin_gunzip(compressed, destination);
+			break;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			r = builtin_bunzip2(compressed, destination);
+			break;
+#endif
+		default:
+			assert( compression != compression );
+	}
 	if( RET_WAS_ERROR(r) ) {
 		(void)unlink(destination);
 		return r;
