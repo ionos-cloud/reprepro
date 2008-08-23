@@ -120,7 +120,7 @@ retvalue distribution_remove_packages(struct distribution *, struct database *, 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 /* like distribtion_getpart, but returns NULL if there is no such target */
-/*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
+/*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 retvalue distribution_fullexport(struct distribution *distribution, struct database *);
 

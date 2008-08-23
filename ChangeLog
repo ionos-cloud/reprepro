@@ -1,3 +1,23 @@
+2008-08-23
+	* massive refactorisation of the update code to retrieve
+	  remote index files. Most important modifications:
+	- when the same remote distribution is needed by multiple
+	  updates, then the index files are only downloaded once.
+	  (still needs futher changes to allow better detection
+	   of the same source).
+	- ListHooks are called once per use (should mostly only
+	  make a difference for flat sources or with settings
+	  where this is needed).
+	- --nolistsdownload not only not downloads lists and has
+	  no other effects (checksums still checked, --noskipold
+	  no longer implied).
+	- deleting of old no longer needed lists (the default
+	  --nokeepunneeded) no longer exists.
+	- index files are stored uncompressed in lists/ and the
+	  way files are named there is less strange...
+	- many other changes are possible now and will hopefully
+	  be implemented soon.
+
 2008-08-22
 	* some internal cleanup preparing for future changes...
 

@@ -61,6 +61,7 @@
 #include "override.h"
 #include "log.h"
 #include "copypackages.h"
+#include "uncompression.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -3217,6 +3218,9 @@ int main(int argc,char *argv[]) {
 	global.logdir = x_logdir;
 	global.methoddir = x_methoddir;
 	global.listdir = x_listdir;
+
+	uncompressions_check();
+
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {

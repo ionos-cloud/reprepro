@@ -779,18 +779,23 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
+-v1*=Uncompress './lists/Test2toTest1_test2_ugly_Sources.gz' into './lists/Test2toTest1_test2_ugly_Sources'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages.gz' into './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_coal_Packages.gz' into './lists/Test2toTest1_test2_deb_ugly_coal_Packages'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
 *=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz':
 *=md5 expected: ffffffffffffffffffffffffffffffff, got: $(md5 dists/test2/stupid/source/Sources.gz)
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages.gz' into './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_coal_Packages.gz' into './lists/Test2toTest1_test2_deb_stupid_coal_Packages'...
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./lists"
@@ -886,25 +891,26 @@ stderr
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_ugly_source' './lists/test1_Test2toTest1_dsc_ugly_source_changed'
+-v1*=Uncompress './lists/Test2toTest1_test2_stupid_Sources.gz' into './lists/Test2toTest1_test2_stupid_Sources'...
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_ugly_Sources' './lists/_test1_dsc_ugly_source_Test2toTest1_Test2toTest1_test2_ugly_Sources'
 -v6*=Listhook successfully returned!
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_coal' './lists/test1_Test2toTest1_deb_ugly_coal_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_stupid_source' './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_coal' './lists/test1_Test2toTest1_deb_stupid_coal_changed'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages' './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_ugly_coal_Packages' './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_coal_Packages'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_stupid_Sources' './lists/_test1_dsc_stupid_source_Test2toTest1_Test2toTest1_test2_stupid_Sources'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages' './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_stupid_coal_Packages' './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_coal_Packages'
 stdout
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
--v5*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
+-v5*=  reading './lists/_test1_dsc_ugly_source_Test2toTest1_Test2toTest1_test2_ugly_Sources'
 -v3*=  processing updates for 'test1|ugly|${FAKEARCHITECTURE}'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
+-v5*=  reading './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_coal_Packages'
 -v3*=  processing updates for 'test1|stupid|source'
--v5*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
+-v5*=  reading './lists/_test1_dsc_stupid_source_Test2toTest1_Test2toTest1_test2_stupid_Sources'
 -v3*=  processing updates for 'test1|stupid|${FAKEARCHITECTURE}'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
+-v5*=  reading './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_coal_Packages'
 -v0*=Getting packages...
 -v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
@@ -944,34 +950,33 @@ testrun - -b . update test1 3<<EOF
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
+stdout
 *=Nothing to do found. (Use --noskipold to force processing)
 EOF
 checklog log1 < /dev/null
 checknolog log2
-testrun - --nolistsdownload -b . update test1 3<<EOF
--v0*=Ignoring --skipold because of --nolistsdownload
+testrun - --nolistsdownload --noskipold -b . update test1 3<<EOF
 =WARNING: Single-Instance not yet supported!
 =WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
--v0*=Warning: As --nolistsdownload is given, index files are NOT checked.
--v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_ugly_source' './lists/test1_Test2toTest1_dsc_ugly_source_changed'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_ugly_Sources' './lists/_test1_dsc_ugly_source_Test2toTest1_Test2toTest1_test2_ugly_Sources'
 -v6*=Listhook successfully returned!
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_coal' './lists/test1_Test2toTest1_deb_ugly_coal_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_stupid_source' './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_coal' './lists/test1_Test2toTest1_deb_stupid_coal_changed'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages' './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_ugly_coal_Packages' './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_coal_Packages'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_stupid_Sources' './lists/_test1_dsc_stupid_source_Test2toTest1_Test2toTest1_test2_stupid_Sources'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages' './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'
+-v6*=Called /bin/cp './lists/Test2toTest1_test2_deb_stupid_coal_Packages' './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_coal_Packages'
 stdout
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
--v5*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
+-v5*=  reading './lists/_test1_dsc_ugly_source_Test2toTest1_Test2toTest1_test2_ugly_Sources'
 -v3*=  processing updates for 'test1|ugly|${FAKEARCHITECTURE}'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
+-v5*=  reading './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/_test1_deb_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_ugly_coal_Packages'
 -v3*=  processing updates for 'test1|stupid|source'
--v5*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
+-v5*=  reading './lists/_test1_dsc_stupid_source_Test2toTest1_Test2toTest1_test2_stupid_Sources'
 -v3*=  processing updates for 'test1|stupid|${FAKEARCHITECTURE}'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
+-v5*=  reading './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'
+-v5*=  reading './lists/_test1_deb_stupid_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_deb_stupid_coal_Packages'
 -v0*=Getting packages...
 -v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
@@ -3300,13 +3305,14 @@ testrun - -b . predelete b 3<<EOF
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
--v6*=Called /bin/cp './lists/b_froma_deb_all_${FAKEARCHITECTURE}' './lists/b_froma_deb_all_${FAKEARCHITECTURE}_changed'
+-v1*=Uncompress './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages.gz' into './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages'...
+-v6*=Called /bin/cp './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages' './lists/_b_deb_all_${FAKEARCHITECTURE}_froma_froma_a_deb_all_${FAKEARCHITECTURE}_Packages'
 -v6*=Listhook successfully returned!
 stdout
 -v0*=Removing obsolete or to be replaced packages...
 -v3*=  processing updates for 'b|all|${FAKEARCHITECTURE}'
 -v5*=  marking everything to be deleted
--v5*=  reading './lists/b_froma_deb_all_${FAKEARCHITECTURE}_changed'
+-v5*=  reading './lists/_b_deb_all_${FAKEARCHITECTURE}_froma_froma_a_deb_all_${FAKEARCHITECTURE}_Packages'
 -d1*=db: 'ac-addons' removed from packages.db(b|all|${FAKEARCHITECTURE}).
 -v1*=removing 'ab' from 'b|all|${FAKEARCHITECTURE}'...
 -d1*=db: 'ab' removed from packages.db(b|all|${FAKEARCHITECTURE}).

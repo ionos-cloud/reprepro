@@ -1190,9 +1190,10 @@ static retvalue senddata(struct aptmethod *method) {
 		assert( strchr(todo->uri, '\n') == NULL &&
 		        strchr(todo->filename,'\n') == NULL );
 		/* http-aptmethod seems to loose the last byte if the file is already
-		 * in place, so we better unlink the target first... */
-		if( todo->compression == c_none )
-			unlink(todo->filename);
+		 * in place, so we better unlink the target first...
+		 * but this is done elsewhere already
+		unlink(todo->filename);
+		*/
 		method->command = mprintf(
 			 "600 URI Acquire\nURI: %s\nFilename: %s%s\n\n",
 			 todo->uri, todo->filename,

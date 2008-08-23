@@ -189,9 +189,12 @@ Ignore errors of type \fIwhat\fP. See the section \fBERROR IGNORING\fP
 for possible values.
 .TP
 .B \-\-nolistsdownload
-When running \fBupdate\fP or \fBcheckupdate\fP do not download any Release
-or index files (and also do not check them). This is hardly useful except
-when you just run one of those command for the same distributions.
+When running \fBupdate\fP, \fBcheckupdate\fP or \fBpredelete\fP do not download
+any Release or index files.
+This is hardly useful except when you just run one of those
+command for the same distributions.
+And even then reprepro is usually good in
+not downloading except \fBRelease\fP and \fBRelease.gpg\fP files again.
 .TP
 .B \-\-keepunreferencedfiles
 Do not delete files that are no longer used because the package they
@@ -374,6 +377,9 @@ Delete all files in \fIlistdir\fP (default \fIbasedir\fP\fB/lists\fP) that do no
 belong to any update rule for any distribution.
 I.e. all files are deleted in that directory that no \fbupdate\fP
 command in the current configuration can use.
+(The files are usually left there, so if they are needed again they
+do not need to be downloaded again. Though in many easy cases not
+even those files will be needed.)
 .TP
 .BR pull " [ " \fIcodenames\fP " ]"
 pull in newer packages into the specified distributions (all if none given)
@@ -1088,6 +1094,14 @@ If this is given, it is executed for all downloaded index files
 with the downloaded list as first and a filename that will
 be used instead of this. (e.g. "ListHook: /bin/cp" works
 but does nothing.)
+
+If a file will be read multiple times, it is processed multiple
+times, with the environment variables
+.BR REPREPRO_FILTER_CODENAME ", " REPREPRO_FILTER_PACKAGETYPE ", "
+.BR REPREPRO_FILTER_COMPONENT " and " REPREPRO_FILTER_ARCHITECTURE
+set to the where this file will be added and
+.B REPREPRO_FILTER_PATTERN
+to the name of the update rule causing it.
 .SS conf/pulls
 This file contains the rules for pulling packages from one
 distribution to another.
