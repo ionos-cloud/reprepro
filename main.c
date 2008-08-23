@@ -98,7 +98,6 @@ static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
 static bool	keepunreferenced = false;
-static bool	keepunneededlists = false;
 static bool	keepdirectories = false;
 static bool	askforpassphrase = false;
 static bool	guessgpgtty = true;
@@ -119,7 +118,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -1010,9 +1009,6 @@ ACTION_D(n, n, y, update) {
 	}
 	assert( RET_IS_OK(result) );
 
-	if( !keepunneededlists ) {
-		result = updates_clearlists(u_distributions);
-	}
 	if( !RET_WAS_ERROR(result) )
 		result = updates_update(database, u_distributions,
 				nolistsdownload, skipold, dereferenced,
@@ -1055,9 +1051,6 @@ ACTION_D(n, n, y, predelete) {
 	}
 	assert( RET_IS_OK(result) );
 
-	if( !keepunneededlists ) {
-		result = updates_clearlists(u_distributions);
-	}
 	if( !RET_WAS_ERROR(result) )
 		result = updates_predelete(database, u_distributions, nolistsdownload, skipold, dereferenced);
 	updates_freeupdatedistributions(u_distributions);
@@ -1104,6 +1097,15 @@ ACTION_B(n, n, y, checkupdate) {
 
 	return result;
 }
+
+ACTION_C(n, n, cleanlists) {
+
+	// TODO: when this is implemented, also log the database?
+	fprintf(stderr, "Sorry, not yet implemented.\n");
+
+	return RET_ERROR;
+}
+
 /***********************migrate*******************************/
 
 ACTION_D(n, n, y, pull) {
@@ -2474,6 +2476,8 @@ static const struct action {
 		2, 2, "gensnapshot <distribution> <date or other name>"},
 	{"rerunnotifiers",	A_Bact(rerunnotifiers),
 		0, -1, "rerunnotifiers [<distributions>]"},
+	{"cleanlists",		A_C(cleanlists),
+		0, 0,  "cleanlists"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N
@@ -2816,10 +2820,13 @@ static void handle_option(int c,const char *optarg) {
 					CONFIGSET(keepunreferenced, false);
 					break;
 				case LO_KEEPUNNEEDEDLISTS:
-					CONFIGSET(keepunneededlists, true);
+					/* this is the only option now and ignored
+					 * for compatibility reasond */
 					break;
 				case LO_NOKEEPUNNEEDEDLISTS:
-					CONFIGSET(keepunneededlists, false);
+					fprintf(stderr,
+"Warning: --nokeepuneededlists no longer exists.\n"
+"Use cleanlists to clean manually.\n");
 					break;
 				case LO_KEEPDIRECTORIES:
 					CONFIGSET(keepdirectories, true);

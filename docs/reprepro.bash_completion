@@ -106,9 +106,9 @@ _reprepro()
 		brokensignatures uploaders missingfile'
 	noargoptions='--delete --nodelete --help -h --verbose -v\
 	--nothingiserror --nolistsdownload --keepunreferencedfiles\
-	--keepunneededlists --keepdirectories\
+	--keepdirectories\
 	--ask-passphrase --nonothingiserror --listsdownload\
-	--nokeepunreferencesfiles --nokeepunneededfiles --nokeepdirectories\
+	--nokeepunreferencesfiles --nokeepdirectories\
 	--noask-passphrase --skipold --noskipold --nooldfilesdb --oldfilesdb'
 	options='-b -i --basedir --outdir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\
@@ -238,6 +238,7 @@ _reprepro()
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
 			tidytracks removealltracks removetrack update checkupdate \
+			cleanlists \
 			predelete pull collectnewchecksums\
 			checkpull includedeb includeudeb includedsc include\
 			translatefilelists\
@@ -306,7 +307,7 @@ _reprepro()
 			fi
 			;;
 
-		collectnewchecksums)
+		collectnewchecksums|cleanlists)
 			return 0
 			;;
 

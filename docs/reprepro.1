@@ -198,15 +198,6 @@ Do not delete files that are no longer used because the package they
 are from is deleted/replaced with a newer version from the last distribution
 it was in.
 .TP
-.B \-\-keepunneededlists
-Do not try to delete files from \fBlists/\fP before updating, that seem to
-belong to one of the updated distributions but will not be needed.
-Those file may happen to exist when you removed
-some Update: rule or changed Components/Architectures/... .
-This is mostly only useful if you want to temporarily disable some update
-rule and want to avoid downloading their index files again when you read
-it later.
-.TP
 .B \-\-keepdirectories
 Do not try to rmdir parent directories after files or directories
 have been removed from them.
@@ -377,6 +368,12 @@ This will also blow up pindex files if you are using the tiffany
 example or something similar.
 So be careful when using this option or better get some more space so
 that update works.
+.TP
+.B cleanlists
+Delete all files in \fIlistdir\fP (default \fIbasedir\fP\fB/lists\fP) that do not
+belong to any update rule for any distribution.
+I.e. all files are deleted in that directory that no \fbupdate\fP
+command in the current configuration can use.
 .TP
 .BR pull " [ " \fIcodenames\fP " ]"
 pull in newer packages into the specified distributions (all if none given)

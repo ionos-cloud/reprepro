@@ -196,6 +196,7 @@ commands=( export:"export index files"
 	update:"update from external source"
 	checkupdate:"check what would be updated"
 	predelete:"delete what would be removed or superseeded by an update"
+	cleanlists:"clean unneeded downloaded list files"
 	pull:"update from another local distribtuion"
 	checkpull:"check what would be pulled"
 	includedeb:"include a .deb file"
@@ -302,7 +303,6 @@ _arguments \
 	'(--nonothingiserror)--nothingiserror[Return error code when nothing was done]' \
 	'(--listsdownload --nonolistsdownload)--nolistsdownload[Do not download Release nor index files]' \
 	'(--nokeepunreferencedfiles)--keepunreferencedfiles[Do not delete files that are no longer used]' \
-	'(--nokeepunneededlists)--keepunneededlists[Do not delete downloaded list files that seem to be no longer used]' \
 	'(--nokeepdirectories)--keepdirectories[Do not remove directories when they get emtpy]' \
 	'(--noask-passphrase)--ask-passphrase[Ask for passphrases (insecure)]' \
   	'(--nonoskipold --skipold)--noskipold[Do not ignore parts where no new index file is available]' \
@@ -334,7 +334,7 @@ case "$state" in
 		fi
 		;;
 
-	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums)
+	 (cleanlists|clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums)
 		;;
 	 (_dumpcontents|_removereferences)
 		if [[ "$state" = "first argument" ]] ; then
