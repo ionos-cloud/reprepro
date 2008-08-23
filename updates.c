@@ -180,14 +180,14 @@ struct update_origin {
 	struct checksumsarray indexchecksums;
 	/* index files used */
 	struct update_index_file *files;
+	char *basedir;
 };
 
 struct update_index_file {
 	struct update_index_file *next;
 	struct update_origin *origin;
 	char *filename;
-	char *upstream;
-	const char *upstream_check;
+	char *upstream_check;
 	/* != NULL if filename was changed by ListHook, then the original */
 	char *original_filename;
 	/* index into origin's checkfile, -1 = none */
@@ -348,6 +348,7 @@ static void updates_freeorigins(/*@only@*/struct update_origin *o) {
 		origin = o;
 		o = origin->next;
 		free(origin->suite_from);
+		free(origin->basedir);
 		free(origin->releasefile);
 		free(origin->releasegpgfile);
 		checksumsarray_done(&origin->indexchecksums);
@@ -355,7 +356,7 @@ static void updates_freeorigins(/*@only@*/struct update_origin *o) {
 			struct update_index_file *file = origin->files;
 			origin->files = file->next;
 
-			free(file->upstream);
+			free(file->upstream_check);
 			free(file->filename);
 			free(file->original_filename);
 			free(file);
@@ -643,6 +644,15 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 		free(update);
 		return RET_ERROR_OOM;
 	}
+	if( pattern->flat != NULL )
+		update->basedir = strdup(update->suite_from);
+	else
+		update->basedir = mprintf("dists/%s", update->suite_from);
+	if( update->basedir == NULL ) {
+		free(update->suite_from);
+		free(update);
+		return RET_ERROR_OOM;
+	}
 	pattern->used = true;
 
 	update->distribution = distribution;
@@ -732,7 +742,7 @@ static retvalue getorigins(struct update_pattern *patterns, const struct distrib
 
 static inline struct update_index_file *addindexfile(struct update_origin *origin, const char *codename, const char *architecture_from, const char *component_from, const char *packagetype) {
 	struct update_index_file *file, *i;
-	char *f, *u; const char *uc;
+	char *f, *u;
 
 	assert( origin != NULL && origin->pattern != NULL);
 
@@ -757,30 +767,21 @@ static inline struct update_index_file *addindexfile(struct update_origin *origi
 	}
 	file->filename = f;
 	if( strcmp(packagetype, "deb") == 0 ) {
-		if( origin->pattern->flat != NULL ) {
-			u = mprintf("%s/Packages.gz", origin->suite_from);
-			uc = "Packages.gz";
-		} else {
-			u = mprintf("dists/%s/%s/binary-%s/Packages.gz",
-				origin->suite_from,
+		if( origin->pattern->flat != NULL )
+			u = strdup("Packages.gz");
+		else
+			u = mprintf("%s/binary-%s/Packages.gz",
 				component_from, architecture_from);
-			uc = u + strlen(origin->suite_from) + 7; /* "dists/%s/" */
-		}
 
 	} else if( strcmp(packagetype, "udeb") == 0 ) {
-		u = mprintf("dists/%s/%s/debian-installer/binary-%s/Packages.gz",
-				origin->suite_from,
+		u = mprintf("%s/debian-installer/binary-%s/Packages.gz",
 				component_from, architecture_from);
-		uc = u + strlen(origin->suite_from) + 7; /* "dists/%s/" */
 	} else if( strcmp(packagetype, "dsc") == 0 ) {
-		if( origin->pattern->flat != NULL ) {
-			u = mprintf("%s/Sources.gz", origin->suite_from);
-			uc = "Sources.gz";
-		} else {
-			u = mprintf("dists/%s/%s/source/Sources.gz",
-					origin->suite_from, component_from);
-			uc = u + strlen(origin->suite_from) + 7; /* "dists/%s/" */
-		}
+		if( origin->pattern->flat != NULL )
+			u = strdup("Sources.gz");
+		else
+			u = mprintf("%s/source/Sources.gz",
+					component_from);
 
 	} else {
 		u = NULL;
@@ -791,8 +792,7 @@ static inline struct update_index_file *addindexfile(struct update_origin *origi
 		free(file);
 		return NULL;
 	}
-	file->upstream = u;
-	file->upstream_check = uc;
+	file->upstream_check = u;
 	file->origin = origin;
 	file->checksum_ofs = -1;
 	file->next = origin->files;
@@ -1217,7 +1217,6 @@ static retvalue updates_startup(struct aptmethodrun *run,struct update_distribut
  ****************************************************************************/
 
 static inline retvalue queuemetalists(struct update_origin *origin) {
-	char *toget;
 	retvalue r;
 	const struct update_pattern *p = origin->pattern;
 
@@ -1228,25 +1227,14 @@ static inline retvalue queuemetalists(struct update_origin *origin) {
 		return RET_ERROR;
 	}
 
-	if( p->flat != NULL )
-		toget = mprintf("%s/Release", origin->suite_from);
-	else
-		toget = mprintf("dists/%s/Release", origin->suite_from);
-	r = aptmethod_queueindexfile(origin->download,
-			toget, origin->releasefile, NULL);
-	free(toget);
+	r = aptmethod_queueindexfile(origin->download, origin->basedir, "Release",
+			origin->releasefile, NULL, c_none, NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	if( p->verifyrelease != NULL ) {
-		if( p->flat != NULL )
-			toget = mprintf("%s/Release.gpg", origin->suite_from);
-		else
-			toget = mprintf("dists/%s/Release.gpg",
-					origin->suite_from);
-		r = aptmethod_queueindexfile(origin->download,
-				toget, origin->releasegpgfile, NULL);
-		free(toget);
+		r = aptmethod_queueindexfile(origin->download, origin->basedir,
+				"Release.gpg", origin->releasegpgfile, NULL, c_none, NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1340,8 +1328,8 @@ static inline retvalue queueindex(struct update_index_file *index) {
 		retvalue r;
 		/* TODO: save the content to make sure it is the old instead */
 		donefile_delete(index->filename);
-		r = aptmethod_queueindexfile(origin->download,
-				index->upstream, index->filename, NULL);
+		r = aptmethod_queueindexfile(origin->download, origin->basedir,
+				index->upstream_check, index->filename, NULL, c_none, NULL);
 		if( RET_WAS_ERROR(r) )
 			index->failed = true;
 		index->new = true;
@@ -1400,9 +1388,10 @@ static inline retvalue queueindex(struct update_index_file *index) {
 	}
 	index->queued = true;
 	if( RET_IS_OK(r) ) {
-		r = aptmethod_queueindexfile(origin->download,
-					index->upstream, index->filename,
-					&origin->indexchecksums.checksums[i]);
+		r = aptmethod_queueindexfile(origin->download, origin->basedir,
+					index->upstream_check, index->filename,
+					&origin->indexchecksums.checksums[i],
+					c_none, NULL);
 		assert( r != RET_NOTHING );
 	} else if( r == RET_NOTHING ) {
 		/* file is already there, but it might still need
