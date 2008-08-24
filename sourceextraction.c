@@ -30,7 +30,7 @@
 #include "error.h"
 #include "filecntl.h"
 #include "chunks.h"
-#include "readcompressed.h"
+#include "uncompression.h"
 #include "sourceextraction.h"
 
 struct sourceextraction {
@@ -106,7 +106,7 @@ bool sourceextraction_needs(struct sourceextraction *e, int *ofs_p) {
 	if( e->failed || e->completed )
 		return false;
 	if( e->difffile >= 0 ) {
-		if( unsupportedcompression(e->diffcompression) )
+		if( !uncompression_supported(e->diffcompression) )
 			// TODO: errormessage
 			return false;
 		*ofs_p = e->difffile;
@@ -130,20 +130,96 @@ bool sourceextraction_needs(struct sourceextraction *e, int *ofs_p) {
 		return false;
 }
 
-static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, /*@null@*/char **priority_p, bool *found_p) {
+static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, /*@null@*/char **priority_p, bool *found_p) {
 	size_t destlength, lines_in, lines_out;
 	const char *p, *s;
+#define BUFSIZE 4096
+	char buffer[BUFSIZE];
+	int bytes_read, used = 0, filled = 0;
+
+	inline bool u_getline(void);
+	inline bool u_getline(void) {
+		do {
+		if( filled - used > 0 ) {
+			char *n;
+
+			p = buffer + used;
+			n = memchr(p, '\n', filled - used);
+			if( n != NULL ) {
+				used += 1 + (n - p);
+				*n = '\0';
+				while( --n >= p && *n == '\r' )
+					*n = '\0';
+				return true;
+			}
+		} else { assert( filled == used );
+			filled = 0;
+			used = 0;
+		}
+		if( filled == BUFSIZE ) {
+			if( used == 0 )
+				/* overlong line */
+				return false;
+			memmove(buffer, buffer + used, filled - used);
+			filled -= used;
+			used = 0;
+		}
+		bytes_read = uncompress_read(f, buffer + filled, BUFSIZE - filled);
+		if( bytes_read <= 0 )
+			return false;
+		filled += bytes_read;
+		} while( true );
+	}
+	inline char u_overlinegetchar(void);
+	inline char u_overlinegetchar(void) {
+		const char *n;
+		char ch;
+
+		if( filled - used > 0 ) {
+			ch = buffer[used];
+		} else { assert( filled == used );
+			used = 0;
+			bytes_read = uncompress_read(f, buffer, BUFSIZE);
+			if( bytes_read <= 0 ) {
+				filled = 0;
+				return '\0';
+			}
+			filled = bytes_read;
+			ch = buffer[0];
+		}
+		if( ch == '\n' )
+			return '\0';
+
+		/* over rest of the line */
+		n = memchr(buffer + used, '\n', filled - used);
+		if( n != NULL ) {
+			used = 1 + (n - buffer);
+			return ch;
+		}
+		used = 0;
+		filled = 0;
+		/* need to read more to get to the end of the line */
+		do { /* these lines can be long */
+			bytes_read = uncompress_read(f, buffer, BUFSIZE);
+			if( bytes_read <= 0 )
+				return false;
+			n = memchr(buffer, '\n', bytes_read);
+		} while( n == NULL );
+		used = 1 + (n - buffer);
+		filled = bytes_read;
+		return ch;
+	}
 
 	/* we are assuming the exact format dpkg-source generates here... */
 
-	if( !readcompressed_getline(f, &p) ) {
-		/* empty file */
+	if( !u_getline() ) {
+		/* empty or strange file */
 		*found_p = false;
 		return RET_OK;
 	}
 	if( unlikely(memcmp(p, "--- ", 4) != 0) )
 		return RET_NOTHING;
-	if( !readcompressed_getline(f, &p) )
+	if( !u_getline() )
 		/* so short a file? */
 		return RET_NOTHING;
 	if( unlikely(memcmp(p, "+++ ", 4) != 0) )
@@ -157,7 +233,7 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 	while( strcmp(s, "debian/control") != 0 ) {
 		if( unlikely(interrupted()) )
 			return RET_ERROR_INTERRUPTED;
-		if( !readcompressed_getline(f, &p) )
+		if( !u_getline() )
 			return RET_NOTHING;
 		while( memcmp(p, "@@ -", 4) == 0) {
 			if( unlikely(interrupted()) )
@@ -197,7 +273,7 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 			while( lines_in > 0 || lines_out > 0 ) {
 				char ch;
 
-				ch = readcompressed_overlinegetchar(f);
+				ch = u_overlinegetchar();
 				switch( ch ) {
 					case '+':
 						if( unlikely(lines_out == 0) )
@@ -208,6 +284,7 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 						if( unlikely(lines_out == 0) )
 							return RET_NOTHING;
 						lines_out--;
+						/* no break */
 					case '-':
 						if( unlikely(lines_in == 0) )
 							return RET_NOTHING;
@@ -217,7 +294,7 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 						return RET_NOTHING;
 				}
 			}
-			if( !readcompressed_getline(f, &p) ) {
+			if( !u_getline() ) {
 				*found_p = false;
 				/* nothing found successfully */
 				return RET_OK;
@@ -225,7 +302,7 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 		}
 		if( unlikely(memcmp(p, "--- ", 4) != 0) )
 			return RET_NOTHING;
-		if( !readcompressed_getline(f, &p) )
+		if( !u_getline() )
 			return RET_NOTHING;
 		if( unlikely(memcmp(p, "+++ ", 4) != 0) )
 			return RET_NOTHING;
@@ -235,7 +312,7 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 		s++;
 	}
 	/* found debian/control */
-	if( !readcompressed_getline(f, &p) )
+	if( !u_getline() )
 		return RET_NOTHING;
 	if( unlikely(memcmp(p, "@@ -", 4) != 0) )
 		return RET_NOTHING;
@@ -269,7 +346,7 @@ static retvalue parsediff(struct readcompressed *f, /*@null@*/char **section_p, 
 	while( lines_out > 0 ) {
 		if( unlikely(interrupted()) )
 			return RET_ERROR_INTERRUPTED;
-		if( !readcompressed_getline(f, &p) )
+		if( !u_getline() )
 			return RET_NOTHING;
 
 		switch( *(p++) ) {
@@ -467,21 +544,22 @@ retvalue sourceextraction_analyse(struct sourceextraction *e, const char *fullfi
 	assert( e->difffile >= 0 );
 #endif
 	if( e->difffile >= 0 ) {
-		struct readcompressed *f;
+		struct compressedfile *f;
 
-		assert( !unsupportedcompression(e->diffcompression) );
+		assert( uncompression_supported(e->diffcompression) );
 		e->difffile = -1;
 
-		r = readcompressed_open(&f, fullfilename, e->diffcompression);
+		r = uncompress_open(&f, fullfilename, e->diffcompression);
 		if( !RET_IS_OK(r) ) {
 			e->failed = true;
-			return r;
+			/* being unable to read a file is no hard error... */
+			return RET_NOTHING;
 		}
 		r = parsediff(f, e->section_p, e->priority_p, &found);
 		if( RET_IS_OK(r) )
-			r = readcompressed_close(f);
+			r = uncompress_close(f);
 		else
-			readcompressed_abort(f);
+			(void)uncompress_close(f);
 		if( !RET_IS_OK(r) )
 			e->failed = true;
 		else if( found )

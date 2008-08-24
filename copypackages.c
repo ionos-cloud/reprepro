@@ -673,7 +673,7 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 						into->codename);
 		return RET_ERROR;
 	}
-	result = indexfile_open(&i, filename);
+	result = indexfile_open(&i, filename, c_none);
 	if( !RET_IS_OK(result) )
 		return result;
 	result = RET_NOTHING;
@@ -704,6 +704,7 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 	struct package_list list;
 	struct target *target;
 	char *basedir;
+	enum compression compression;
 
 	basedir = calc_snapshotbasedir(into->codename, snapshotname);
 	if( FAILEDTOALLOC(basedir) )
@@ -726,16 +727,28 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 		 * how the file is named now and try all readable
 		 * compressions */
 
+		compression = c_none;
 		filename = calc_dirconcat3(
 				basedir, target->relativedirectory,
 				target->exportmode->filename);
 		if( filename != NULL && !isregularfile(filename) ) {
 			/* no uncompressed file found, try .gz */
 			free(filename);
+			compression = c_gzip;
 			filename = mprintf("%s/%s/%s.gz",
 					basedir, target->relativedirectory,
 					target->exportmode->filename);
 		}
+#ifdef HAVE_LIBBZ2
+		if( filename != NULL && !isregularfile(filename) ) {
+			/* no uncompressed or .gz file found, try .bz2 */
+			free(filename);
+			compression = c_bzip2;
+			filename = mprintf("%s/%s/%s.bz2",
+					basedir, target->relativedirectory,
+					target->exportmode->filename);
+		}
+#endif
 		if( filename != NULL && !isregularfile(filename) ) {
 			free(filename);
 			fprintf(stderr,
@@ -751,7 +764,7 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 			result = RET_ERROR_OOM;
 			break;
 		}
-		result = indexfile_open(&i, filename);
+		result = indexfile_open(&i, filename, compression);
 		if( !RET_IS_OK(result) )
 			break;
 		while( indexfile_getnext(i, &packagename, &version, &control,

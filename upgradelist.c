@@ -437,7 +437,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 	const char *control;
 	retvalue result, r;
 
-	r = indexfile_open(&i, filename);
+	r = indexfile_open(&i, filename, c_none);
 	if( !RET_IS_OK(r) )
 		return r;
 

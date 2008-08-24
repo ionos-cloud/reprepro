@@ -21,18 +21,18 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <zlib.h>
 #include <assert.h>
 #include "error.h"
 #include "chunks.h"
 #include "names.h"
+#include "uncompression.h"
 #include "indexfile.h"
 
 /* the purpose of this code is to read index files, either from a snapshot
  * previously generated or downloaded while updating. */
 
 struct indexfile {
-	gzFile f;
+	struct compressedfile *f;
 	char *filename;
 	int linenumber, startlinenumber;
 	retvalue status;
@@ -43,8 +43,9 @@ struct indexfile {
 
 extern int verbose;
 
-retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
+retvalue indexfile_open(struct indexfile **file_p, const char *filename, enum compression compression) {
 	struct indexfile *f = calloc(1, sizeof(struct indexfile));
+	retvalue r;
 
 	if( FAILEDTOALLOC(f) )
 		return RET_ERROR_OOM;
@@ -53,10 +54,9 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 		free(f);
 		return RET_ERROR_OOM;
 	}
-	f->f = gzopen(filename, "r");
-	if( f->f == NULL ) {
-		fprintf(stderr, "Unable to open file %s: %s\n",
-				filename, strerror(errno));
+	r = uncompress_open(&f->f, filename, compression);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
 		free(f->filename);
 		free(f);
 		return RET_ERRNO(errno);
@@ -70,7 +70,8 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 	/* +1 for *d = '\0' in eof case */
 	f->buffer = malloc(f->size + 1);
 	if( FAILEDTOALLOC(f->buffer) ) {
-		(void)gzclose(f->f);
+		(void)uncompress_close(f->f);
+		free(f->filename);
 		free(f);
 		return RET_ERROR_OOM;
 	}
@@ -81,12 +82,11 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 retvalue indexfile_close(struct indexfile *f) {
 	retvalue r;
 
-	//TODO: check result:
-	gzclose(f->f);
+	r = uncompress_close(f->f);
 
 	free(f->filename);
 	free(f->buffer);
-	r = f->status;
+	RET_UPDATE(r, f->status);
 	free(f);
 
 	return r;
@@ -166,7 +166,7 @@ static retvalue indexfile_get(struct indexfile *f) {
 			return RET_ERROR;
 		}
 
-		bytes_read = gzread(f->f, d, f->size - f->ofs);
+		bytes_read = uncompress_read(f->f, d, f->size - f->ofs);
 		if( bytes_read < 0 )
 			return RET_ERROR;
 		else if( bytes_read == 0 )

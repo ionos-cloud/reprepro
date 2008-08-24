@@ -1,3 +1,8 @@
+2008-08-24
+	* unify reading of compressed files, adding support for:
+	- extracting section and priority from a .diff.bz2
+	- restoring from a snapshot with only .bz2 indices
+
 2008-08-23
 	* massive refactorisation of the update code to retrieve
 	  remote index files. Most important modifications:

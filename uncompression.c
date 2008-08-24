@@ -37,6 +37,10 @@ extern int verbose;
 const char * const uncompression_suffix[c_COUNT] = {
 	"", ".gz", ".bz2", ".lzma" };
 
+
+/*@null@*/ char *extern_uncompressors[c_COUNT] = { NULL, NULL, NULL, NULL};
+
+
 /* we got an pid, check if it is a uncompressor we care for */
 retvalue uncompress_checkpid(pid_t pid, int status) {
 	// nothing is forked, so nothing to do
@@ -52,30 +56,27 @@ void uncompressions_check(void) {
 	// nothing yet to check
 }
 
-static inline retvalue builtin_gunzip(const char *compressed, const char *destination) {
-	gzFile f;
+static inline retvalue builtin_uncompress(const char *compressed, const char *destination, enum compression compression) {
+	struct compressedfile *f;
 	char buffer[4096];
 	int bytes_read, bytes_written, written;
 	int destfd;
-	int e, i, zerror;
+	int e;
+	retvalue r;
 
-	f = gzopen(compressed, "r");
-	if( f == NULL ) {
-		// TODO: better error message...
-		fprintf(stderr, "Could not read %s\n",
-				compressed);
-		return RET_ERROR;
-	}
+	r = uncompress_open(&f, compressed, compression);
+	if( !RET_IS_OK(r) )
+		return r;
 	destfd = open(destination, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY, 0666);
 	if( destfd < 0 ) {
 		e = errno;
 		fprintf(stderr, "Error %d creating '%s': %s\n",
 				e, destination, strerror(e));
-		gzclose(f);
+		(void)uncompress_close(f);
 		return RET_ERRNO(e);
 	}
 	do {
-		bytes_read = gzread(f, buffer, 4096);
+		bytes_read = uncompress_read(f, buffer, 4096);
 		if( bytes_read <= 0 )
 			break;
 
@@ -88,41 +89,18 @@ static inline retvalue builtin_gunzip(const char *compressed, const char *destin
 				fprintf(stderr,
 						"Error %d writing to '%s': %s\n", e, destination, strerror(e) );
 				close(destfd);
-				gzclose(f);
+				(void)uncompress_close(f);
 				return RET_ERRNO(e);
 			}
 			bytes_written += written;
 		}
 	} while( true );
-	e = errno;
-	if( bytes_read < 0 ) {
-		const char *msg = gzerror(f, &zerror);
-
-		if( zerror != Z_ERRNO ) {
-			fprintf(stderr, "Zlib Error %d reading from '%s': %s!\n",
-					zerror, compressed, msg);
-			(void)close(destfd);
-			return RET_ERROR;
-		}
-		e = errno;
-		(void)gzclose(f);
-	} else {
-		zerror = gzclose(f);
-		e = errno;
-	}
-	if( zerror == Z_ERRNO ) {
-		fprintf(stderr, "Error %d reading from '%s': %s!\n",
-				e, compressed, strerror(e));
+	r = uncompress_close(f);
+	if( RET_WAS_ERROR(r) ) {
 		(void)close(destfd);
-		return RET_ERRNO(e);
-	} else if( zerror < 0 ) {
-		fprintf(stderr, "Zlib Error %d reading from '%s'!\n",
-				zerror, compressed);
-		(void)close(destfd);
-		return RET_ERROR;
+		return r;
 	}
-	i = close(destfd);
-	if( i != 0 ) {
+	if( close(destfd) != 0 ) {
 		e = errno;
 		fprintf(stderr, "Error %d writing to '%s': %s!\n",
 				e, destination, strerror(e));
@@ -130,88 +108,6 @@ static inline retvalue builtin_gunzip(const char *compressed, const char *destin
 	}
 	return RET_OK;
 }
-
-#ifdef HAVE_LIBBZ2
-static inline retvalue builtin_bunzip2(const char *compressed, const char *destination) {
-	BZFILE *f;
-	char buffer[4096];
-	int bytes_read, bytes_written, written;
-	int destfd;
-	int e, i, zerror;
-
-	f = BZ2_bzopen(compressed, "r");
-	if( f == NULL ) {
-		// TODO: better error message...
-		fprintf(stderr, "Could not read %s\n",
-				compressed);
-		return RET_ERROR;
-	}
-	destfd = open(destination, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY, 0666);
-	if( destfd < 0 ) {
-		e = errno;
-		fprintf(stderr, "Error %d creating '%s': %s\n",
-				e, destination, strerror(e));
-		BZ2_bzclose(f);
-		return RET_ERRNO(e);
-	}
-	do {
-		bytes_read = BZ2_bzread(f, buffer, 4096);
-		if( bytes_read <= 0 )
-			break;
-
-		bytes_written = 0;
-		while( bytes_written < bytes_read ) {
-			written = write(destfd, buffer + bytes_written,
-					bytes_read - bytes_written);
-			if( written < 0 ) {
-				e = errno;
-				fprintf(stderr,
-						"Error %d writing to '%s': %s\n", e, destination, strerror(e) );
-				close(destfd);
-				BZ2_bzclose(f);
-				return RET_ERRNO(e);
-			}
-			bytes_written += written;
-		}
-	} while( true );
-	e = errno;
-	if( bytes_read < 0 ) {
-		const char *msg = BZ2_bzerror(f, &zerror);
-
-		if( zerror != Z_ERRNO ) {
-			fprintf(stderr, "libbz2 Error %d reading from '%s': %s!\n",
-					zerror, compressed, msg);
-			(void)close(destfd);
-			return RET_ERROR;
-		}
-		e = errno;
-		(void)BZ2_bzclose(f);
-	} else {
-		BZ2_bzclose(f);
-		e = errno;
-		zerror = 0;
-	}
-	if( zerror == Z_ERRNO ) {
-		fprintf(stderr, "Error %d reading from '%s': %s!\n",
-				e, compressed, strerror(e));
-		(void)close(destfd);
-		return RET_ERRNO(e);
-	} else if( zerror < 0 ) {
-		fprintf(stderr, "libbz2 Error %d reading from '%s'!\n",
-				zerror, compressed);
-		(void)close(destfd);
-		return RET_ERROR;
-	}
-	i = close(destfd);
-	if( i != 0 ) {
-		e = errno;
-		fprintf(stderr, "Error %d writing to '%s': %s!\n",
-				e, destination, strerror(e));
-		return RET_ERROR;
-	}
-	return RET_OK;
-}
-#endif
 
 retvalue uncompress_queue_file(const char *compressed, const char *destination, enum compression compression, finishaction *action, void *privdata, bool *done_p) {
 	retvalue r;
@@ -223,15 +119,17 @@ retvalue uncompress_queue_file(const char *compressed, const char *destination, 
 
 
 	(void)unlink(destination);
+
+	if( extern_uncompressors[compression] != NULL ) {
+		// TODO...
+	}
 	switch( compression ) {
 		case c_gzip:
-			r = builtin_gunzip(compressed, destination);
-			break;
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
-			r = builtin_bunzip2(compressed, destination);
-			break;
 #endif
+			r = builtin_uncompress(compressed, destination, compression);
+			break;
 		default:
 			assert( compression != compression );
 	}
@@ -254,15 +152,17 @@ retvalue uncompress_file(const char *compressed, const char *destination, enum c
 	(void)unlink(destination);
 	switch( compression ) {
 		case c_gzip:
-			r = builtin_gunzip(compressed, destination);
-			break;
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
-			r = builtin_bunzip2(compressed, destination);
-			break;
 #endif
+			r = builtin_uncompress(compressed, destination, compression);
+			break;
 		default:
-			assert( compression != compression );
+			r = RET_ERROR;
+			if( extern_uncompressors[compression] != NULL ) {
+				// TODO...
+			} else
+				assert( compression != compression );
 	}
 	if( RET_WAS_ERROR(r) ) {
 		(void)unlink(destination);
@@ -270,3 +170,176 @@ retvalue uncompress_file(const char *compressed, const char *destination, enum c
 	}
 	return RET_OK;
 }
+
+struct compressedfile {
+	char *filename;
+	enum compression compression;
+	int error;
+	union {
+		int fd;
+		gzFile gz;
+		BZFILE *bz;
+	};
+};
+
+retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *filename, enum compression compression) {
+	struct compressedfile *f;
+	int e = errno;
+
+	f = calloc(1, sizeof(struct compressedfile));
+	if( FAILEDTOALLOC(f) )
+		return RET_ERROR_OOM;
+	f->filename = strdup(filename);
+	if( FAILEDTOALLOC(f->filename) ) {
+		free(f);
+		return RET_ERROR_OOM;
+	}
+	f->compression = compression;
+
+	switch( compression ) {
+		case c_none:
+			f->fd = open(filename, O_RDONLY|O_NOCTTY);
+			if( f->fd < 0 ) {
+				e = errno;
+				free(f->filename);
+				free(f);
+				// if( e == || e == )
+				//	return RET_NOTHING;
+				fprintf(stderr, "Error %d opening '%s': %s!\n",
+						e, filename, strerror(e));
+				return RET_ERRNO(e);
+			}
+			break;
+		case c_gzip:
+			f->gz = gzopen(filename, "r");
+			if( f->gz == NULL ) {
+				// TODO: better error message...
+				fprintf(stderr, "Could not read %s\n", filename);
+				free(f->filename);
+				free(f);
+				return RET_ERROR;
+			}
+			break;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			f->bz = BZ2_bzopen(filename, "r");
+			if( f->bz == NULL ) {
+				// TODO: better error message...
+				fprintf(stderr, "Could not read %s\n",
+						filename);
+				free(f->filename);
+				free(f);
+				return RET_ERROR;
+			}
+			break;
+#endif
+		default:
+			assert( NULL == "internal error in uncompression" );
+	}
+	*file_p = f;
+	return RET_OK;
+}
+
+int uncompress_read(struct compressedfile *file, void *buffer, int size) {
+	ssize_t s;
+	int i;
+
+	switch( file->compression ) {
+		case c_none:
+			s = read(file->fd, buffer, size);
+			if( s < 0 )
+				file->error = errno;
+			return s;
+		case c_gzip:
+			i = gzread(file->gz, buffer, size);
+			file->error = errno;
+			return i;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			i = BZ2_bzread(file->bz, buffer, size);
+			file->error = errno;
+			return i;
+#endif
+		default:
+			// TODO: external program
+			return -1;
+	}
+}
+
+retvalue uncompress_close(struct compressedfile *file) {
+	const char *msg;
+	bool error;
+	retvalue result = RET_OK;
+	int zerror;
+
+	if( file == NULL )
+		return RET_OK;
+
+	switch( file->compression ) {
+		case c_none:
+			if( file->error != 0 ) {
+				error = true;
+				(void)close(file->fd);
+			} else if( close(file->fd) != 0 ) {
+				file->error = errno;
+				error = true;
+			} else
+				error = false;
+			break;
+		case c_gzip:
+			msg = gzerror(file->gz, &zerror);
+			if( zerror == Z_ERRNO )
+				error = true;
+			else if( zerror < 0 ) {
+				fprintf(stderr,
+"Zlib Error %d reading from '%s': %s!\n", zerror, file->filename, msg);
+				(void)gzclose(file->gz);
+				result = RET_ERROR;
+				error = true;
+				break;
+			} else
+				error = false;
+			zerror = gzclose(file->gz);
+			if( zerror == Z_ERRNO ) {
+				error = true;
+			} if( zerror < 0 && !error ) {
+				result = RET_ERROR;
+				fprintf(stderr,
+"Zlib Error %d reading from '%s'!\n", zerror, file->filename);
+				break;
+			}
+			break;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			msg = BZ2_bzerror(file->bz, &zerror);
+			if( zerror == Z_ERRNO )
+				error = true;
+			else if( zerror < 0 ) {
+				fprintf(stderr,
+"libBZ2 Error %d reading from '%s': %s!\n", zerror, file->filename, msg);
+				(void)BZ2_bzclose(file->bz);
+				result = RET_ERROR;
+				error = true;
+				break;
+			} else
+				error = false;
+			/* no return? does this mean no checksums? */
+			BZ2_bzclose(file->bz);
+			break;
+#endif
+		default:
+			// TODO: external helpers...
+			assert( NULL == "Internal uncompression error");
+			error = true;
+	}
+	if( error && result == RET_OK ) {
+		fprintf(stderr,
+"Error %d reading from '%s': %s!\n", file->error, file->filename,
+					strerror(file->error));
+		result = RET_ERRNO(file->error);
+	}
+	free(file->filename);
+	free(file);
+	return result;
+}
+
