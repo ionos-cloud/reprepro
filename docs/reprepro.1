@@ -503,10 +503,17 @@ for files no longer to keep.
 Copy the given packages from one distribution to another.
 No overrides are read, nothing is changed.
 .TP
-.B copysrc \fIdestination-codename\fP \fIsource-codename\fP \fIsourc-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
-Copy packages with the given source name and version
-(all versions if no version is specified).
-No overrides are read, nothing is changed.
+.B copysrc \fIdestination-codename\fP \fIsource-codename\fP \fIsource-package\fP \fR[\fP\fIversions\fP\fR]\fP
+look at each package
+(where package means, as usual, every package be it dsc, deb or udeb)
+in the distribution specified by \fIsource-codename\fP
+and identifies the relevant source package for each.
+All packages matching the specified \fIsource-package\fP name
+(and any \fIversion\fP if specified)
+are copied to the destination-codename distribution.
+The packages are copied verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+copied.
 .TP
 .B copyfilter \fIdestination-codename\fP \fIsource-codename\fP \fIformula\fP
 Copy packages matching the given formula (see \fBlistfilter\fP).
