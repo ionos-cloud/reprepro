@@ -9,6 +9,9 @@ void ar_close(/*@only@*/struct ar_archive *);
 /* RET_OK = next is there, RET_NOTHING = eof, < 0 = error */
 retvalue ar_nextmember(struct ar_archive *,/*@out@*/char **filename);
 
+/* set compression for the next member */
+void ar_archivemember_setcompression(struct ar_archive *, enum compression);
+
 /* the following can be used for libarchive to read an file in the ar
  * after ar_nextmember returned sucessfully.
  * All references get invalid after the ar_nextmember is called again.  */

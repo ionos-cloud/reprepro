@@ -17,19 +17,25 @@
 #include <config.h>
 
 #include <errno.h>
+#include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <assert.h>
 #include <string.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <poll.h>
 #include <zlib.h>
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
-#include <fcntl.h>
 
 #include "globals.h"
 #include "error.h"
+#include "mprintf.h"
+#include "filecntl.h"
 #include "uncompression.h"
 
 extern int verbose;
@@ -40,20 +46,298 @@ const char * const uncompression_suffix[c_COUNT] = {
 
 /*@null@*/ char *extern_uncompressors[c_COUNT] = { NULL, NULL, NULL, NULL};
 
+/*@null@*/ static struct uncompress_task {
+	struct uncompress_task *next;
+	enum compression compression;
+	char *compressedfilename;
+	char *uncompressedfilename;
+	/* when != NULL, call when finished */
+	/*@null@*/finishaction *callback;
+	/*@null@*/void *privdata;
+	/* if already started, the pid > 0 */
+	pid_t pid;
+} *tasks = NULL;
+
+static void uncompress_task_free(/*@only@*/struct uncompress_task *t) {
+	free(t->compressedfilename);
+	free(t->uncompressedfilename);
+	free(t);
+}
+
+static retvalue startchild(enum compression c, int stdinfd, int stdoutfd, /*@out@*/pid_t *pid_p) {
+	int e, i;
+	pid_t pid;
+
+	pid = fork();
+	if( pid < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d forking: %s\n", e, strerror(e));
+		(void)close(stdinfd);
+		(void)close(stdoutfd);
+		return RET_ERRNO(e);
+	}
+	if( pid == 0 ) {
+		/* setup child */
+		i = dup2(stdoutfd, 1);
+		if( i < 0 ) {
+			e = errno;
+			fprintf(stderr, "Error %d in dup(%d, 1): %s\n",
+					e, stdoutfd, strerror(e));
+			raise(SIGUSR2);
+		}
+		i = dup2(stdinfd, 0);
+		if( i < 0 ) {
+			e = errno;
+			fprintf(stderr, "Error %d in dup(%d, 0): %s\n",
+					e, stdinfd, strerror(e));
+			raise(SIGUSR2);
+		}
+		closefrom(3);
+		execlp(extern_uncompressors[c], extern_uncompressors[c],
+				ENDOFARGUMENTS);
+		e = errno;
+		fprintf(stderr, "Error %d starting '%s': %s\n",
+				e, extern_uncompressors[c], strerror(e));
+		raise(SIGUSR2);
+		exit(EXIT_FAILURE);
+	}
+	(void)close(stdinfd);
+	(void)close(stdoutfd);
+	*pid_p = pid;
+	return RET_OK;
+}
+
+static retvalue startpipeoutchild(enum compression c, int fd, /*@out@*/int *pipefd, /*@out@*/pid_t *pid_p) {
+	int i, e, filedes[2];
+	retvalue r;
+
+	i = pipe(filedes);
+	if( i < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
+		(void)close(fd);
+		return RET_ERRNO(e);
+	}
+	markcloseonexec(filedes[0]);
+	r = startchild(c, fd, filedes[1], pid_p);
+	if( RET_WAS_ERROR(r) )
+		(void)close(filedes[0]);
+	else
+		*pipefd = filedes[0];
+	return r;
+}
+
+static retvalue startpipeinoutchild(enum compression c, /*@out@*/int *infd, /*@out@*/int *outfd, /*@out@*/pid_t *pid_p) {
+	int i, e, infiledes[2];
+	retvalue r;
+
+	i = pipe(infiledes);
+	if( i < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d creating pipe: %s\n", e, strerror(e));
+		return RET_ERRNO(e);
+	}
+	markcloseonexec(infiledes[1]);
+	r = startpipeoutchild(c, infiledes[0], outfd, pid_p);
+	if( RET_WAS_ERROR(r) )
+		(void)close(infiledes[1]);
+	else
+		*infd = infiledes[1];
+	return r;
+}
+
+static void uncompress_start_queued(void) {
+	struct uncompress_task *t;
+	int running_count = 0;
+	int e, stdinfd, stdoutfd;
+
+	for( t = tasks ; t != NULL ; t = t->next ) {
+		if( t->pid > 0 )
+			running_count++;
+	}
+	// TODO: make the maximum number configurable,
+	// until that 1 is the best guess...
+	if( running_count >= 1 )
+		return;
+	t = tasks;
+	while( t != NULL && t->pid > 0 )
+		t = t->next;
+	if( t == NULL )
+		/* nothing to do... */
+		return;
+	if( verbose > 1 ) {
+		fprintf(stderr, "Uncompress '%s' into '%s' using '%s'...\n",
+				t->compressedfilename,
+				t->uncompressedfilename,
+				extern_uncompressors[t->compression]);
+	}
+	stdinfd = open(t->compressedfilename, O_RDONLY|O_NOCTTY);
+	if( stdinfd < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d opening %s: %s\n",
+				e, t->compressedfilename,
+				strerror(e));
+		return ; // RET_ERRNO(e);
+	}
+	stdoutfd = open(t->uncompressedfilename,
+			O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW, 0666);
+	if( stdoutfd < 0 ) {
+		close(stdinfd);
+		e = errno;
+		fprintf(stderr, "Error %d creating %s: %s\n",
+				e, t->uncompressedfilename,
+				strerror(e));
+		return ; // RET_ERRNO(e);
+	}
+	// return
+	startchild(t->compression, stdinfd, stdoutfd, &t->pid);
+}
+
+static inline retvalue builtin_uncompress(const char *compressed, const char *destination, enum compression compression);
 
 /* we got an pid, check if it is a uncompressor we care for */
 retvalue uncompress_checkpid(pid_t pid, int status) {
-	// nothing is forked, so nothing to do
-	return RET_NOTHING;
+	struct uncompress_task *t, **t_p;
+	retvalue r;
+	bool error = false;
+
+	if( pid <= 0 )
+		return RET_NOTHING;
+	t_p = &tasks;
+	while( (t = (*t_p)) != NULL && t->pid != pid )
+		t_p = &t->next;
+	if( t == NULL ) {
+		/* not one we started */
+		return RET_NOTHING;
+	}
+	if( WIFEXITED(status) ) {
+		if( WEXITSTATUS(status) != 0 ) {
+			fprintf(stderr, "'%s' < %s > %s exited with errorcode %d!\n",
+					extern_uncompressors[t->compression],
+					t->compressedfilename,
+					t->uncompressedfilename,
+					(int)(WEXITSTATUS(status)));
+			error = true;
+		}
+	} else if( WIFSIGNALED(status) ) {
+		if( WTERMSIG(status) != SIGUSR2 )
+			fprintf(stderr, "'%s' < %s > %s killed by signal %d!\n",
+					extern_uncompressors[t->compression],
+					t->compressedfilename,
+					t->uncompressedfilename,
+					(int)(WTERMSIG(status)));
+		error = true;
+	} else {
+		fprintf(stderr, "'%s' < %s > %s terminated abnormally!\n",
+				extern_uncompressors[t->compression],
+					t->compressedfilename,
+					t->uncompressedfilename);
+		error = true;
+	}
+	if( error ) {
+		/* no need to leave partial stuff around */
+		(void)unlink(t->uncompressedfilename);
+	}
+	if( !error && verbose > 10 )
+		printf("'%s' < %s > %s finished successfully!\n",
+				extern_uncompressors[t->compression],
+					t->compressedfilename,
+					t->uncompressedfilename);
+	if( error && uncompression_builtin(t->compression) ) {
+		/* try builtin method instead */
+		r = builtin_uncompress(t->compressedfilename,
+				t->uncompressedfilename, t->compression);
+		if( RET_WAS_ERROR(r) ) {
+			(void)unlink(t->uncompressedfilename);
+		} else if( RET_IS_OK(r) ) {
+			error = false;
+		}
+	}
+	/* call the notification, if asked for */
+	if( t->callback != NULL ) {
+		r = t->callback(t->privdata, t->compressedfilename, error, false);
+		if( r == RET_NOTHING )
+			r = RET_OK;
+	} else if( error )
+		r = RET_ERROR;
+	else
+		r = RET_OK;
+	/* take out of the chain and free */
+	*t_p = t->next;
+	uncompress_task_free(t);
+	uncompress_start_queued();
+	return r;
 }
+
 bool uncompress_running(void) {
-	// nothing is forked, so nothing to do
-	return false;
+	uncompress_start_queued();
+	return tasks != NULL;
+}
+
+/* check if a program is available. This is needed because things like execlp
+ * are to late (we want to know if downloading a Packages.bz2 does make sense
+ * when compiled without libbz2 before actually calling the uncompressor) */
+
+static void search_binary(/*@null@*/const char *setting, const char *default_program, /*@out@*/char **program_p) {
+	char *program;
+	const char *path, *colon;
+
+	/* not set or empty means default */
+	if( setting == NULL || setting[0] == '\0' )
+		setting = default_program;
+	/* all-caps NONE means I do not want any... */
+	if( strcmp(setting, "NONE") == 0 )
+		return;
+	/* look for the file, look in $PATH if not qualified,
+	 * only check existance, if someone it putting files not executable
+	 * by us there it is their fault (as being executeable by us is hard
+	 * to check) */
+	if( strchr(setting, '/') != NULL ) {
+		if( !isregularfile(setting) )
+			return;
+		if( access(setting, X_OK) != 0 )
+			return;
+		program = strdup(setting);
+	} else {
+		path = getenv("PATH");
+		if( path == NULL )
+			return;
+		program = NULL;
+		while( program == NULL && path[0] != '\0' ) {
+			if( path[0] == ':' ) {
+				path++;
+				continue;
+			}
+			colon = strchr(path, ':');
+			if( colon == NULL )
+				colon = path + strlen(path);
+			assert( colon > path );
+			program = mprintf("%.*s/%s", (int)(colon - path), path,
+					setting);
+			if( program == NULL )
+				return;
+			if( !isregularfile(program) ||
+					access(program, X_OK) != 0 ) {
+				free(program);
+				program = NULL;
+			}
+			if( *colon == ':' )
+				path = colon + 1;
+			else
+				path = colon;
+		}
+	}
+	if( program == NULL )
+		return;
+
+	*program_p = program;
 }
 
 /* check for existance of external programs */
-void uncompressions_check(void) {
-	// nothing yet to check
+void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma) {
+	search_binary(gunzip,  "gunzip",  &extern_uncompressors[c_gzip]);
+	search_binary(bunzip2, "bunzip2", &extern_uncompressors[c_bzip2]);
+	search_binary(unlzma,  "unlzma",  &extern_uncompressors[c_lzma]);
 }
 
 static inline retvalue builtin_uncompress(const char *compressed, const char *destination, enum compression compression) {
@@ -109,60 +393,108 @@ static inline retvalue builtin_uncompress(const char *compressed, const char *de
 	return RET_OK;
 }
 
+static retvalue uncompress_queue_external(enum compression compression, const char *compressed, const char *uncompressed, /*@null@*/finishaction *action, /*@null@*/void *privdata) {
+	struct uncompress_task *t, **t_p;
+
+	t_p = &tasks;
+	while( (t = (*t_p)) != NULL )
+		t_p = &t->next;
+
+	t = calloc(1, sizeof(struct uncompress_task));
+	if( FAILEDTOALLOC(t) )
+		return RET_ERROR_OOM;
+
+	t->compressedfilename = strdup(compressed);
+	t->uncompressedfilename = strdup(uncompressed);
+	if( FAILEDTOALLOC(t->compressedfilename) ||
+	    FAILEDTOALLOC(t->uncompressedfilename) ) {
+		uncompress_task_free(t);
+		return RET_ERROR_OOM;
+	}
+	t->compression = compression;
+	t->callback = action;
+	t->privdata = privdata;
+	*t_p = t;
+	uncompress_start_queued();
+	return RET_OK;
+}
+
 retvalue uncompress_queue_file(const char *compressed, const char *destination, enum compression compression, finishaction *action, void *privdata, bool *done_p) {
 	retvalue r;
 
+	(void)unlink(destination);
+	if( extern_uncompressors[compression] != NULL ) {
+		r = uncompress_queue_external(compression, compressed, destination, action, privdata);
+		if( r != RET_NOTHING ) {
+			*done_p = false;
+			return r;
+		}
+		if( !uncompression_builtin(compression) )
+			return RET_ERROR;
+	}
 	if( verbose > 1 ) {
 		fprintf(stderr, "Uncompress '%s' into '%s'...\n",
 				compressed, destination);
 	}
-
-
-	(void)unlink(destination);
-
-	if( extern_uncompressors[compression] != NULL ) {
-		// TODO...
-	}
-	switch( compression ) {
-		case c_gzip:
-#ifdef HAVE_LIBBZ2
-		case c_bzip2:
-#endif
-			r = builtin_uncompress(compressed, destination, compression);
-			break;
-		default:
-			assert( compression != compression );
-	}
+	assert( uncompression_builtin(compression) );
+	r = builtin_uncompress(compressed, destination, compression);
 	if( RET_WAS_ERROR(r) ) {
 		(void)unlink(destination);
-		return r;
+		return action(privdata, compressed, true, true);
 	}
 	*done_p = true;
-	return action(privdata, compressed, true);
+	return action(privdata, compressed, false, true);
 }
 
 retvalue uncompress_file(const char *compressed, const char *destination, enum compression compression) {
 	retvalue r;
 
-	if( verbose > 1 ) {
-		fprintf(stderr, "Uncompress '%s' into '%s'...\n",
-				compressed, destination);
-	}
+	/* not allowed within a aptmethod session */
+	assert( tasks == NULL );
 
 	(void)unlink(destination);
-	switch( compression ) {
-		case c_gzip:
-#ifdef HAVE_LIBBZ2
-		case c_bzip2:
-#endif
-			r = builtin_uncompress(compressed, destination, compression);
-			break;
-		default:
+	if( uncompression_builtin(compression) ) {
+		if( verbose > 1 ) {
+			fprintf(stderr, "Uncompress '%s' into '%s'...\n",
+					compressed, destination);
+		}
+		r = builtin_uncompress(compressed, destination, compression);
+	} else if( extern_uncompressors[compression] != NULL ) {
+		r = uncompress_queue_external(compression,
+				compressed, destination, NULL, NULL);
+		if( r == RET_NOTHING )
 			r = RET_ERROR;
-			if( extern_uncompressors[compression] != NULL ) {
-				// TODO...
-			} else
-				assert( compression != compression );
+		if( RET_IS_OK(r) ) {
+			/* wait for the child to finish... */
+			assert( tasks != NULL && tasks->next == NULL );
+
+			do {
+				int status;
+				pid_t pid;
+
+				pid = wait(&status);
+
+				if( pid < 0 ) {
+					int e = errno;
+
+					if( interrupted() ) {
+						r = RET_ERROR_INTERRUPTED;
+						break;
+					}
+					if( e == EINTR )
+						continue;
+					fprintf(stderr,
+"Error %d waiting for uncompression child %lu: %s\n",
+						e, (unsigned long)pid,
+						strerror(e));
+					r = RET_ERRNO(e);
+				} else
+					r = uncompress_checkpid(pid, status);
+			} while( r == RET_NOTHING );
+		}
+	} else {
+		assert( "Impossible uncompress error" == NULL );
+		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
 		(void)unlink(destination);
@@ -175,8 +507,15 @@ struct compressedfile {
 	char *filename;
 	enum compression compression;
 	int error;
+	pid_t pid;
+	int fd, infd, pipeinfd;
+	off_t len;
+	struct intermediate_buffer {
+		char *buffer;
+		int ofs;
+		int ready;
+	} intermediate;
 	union {
-		int fd;
 		gzFile gz;
 		BZFILE *bz;
 	};
@@ -184,7 +523,8 @@ struct compressedfile {
 
 retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *filename, enum compression compression) {
 	struct compressedfile *f;
-	int e = errno;
+	int fd, e;
+	retvalue r;
 
 	f = calloc(1, sizeof(struct compressedfile));
 	if( FAILEDTOALLOC(f) )
@@ -195,6 +535,10 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 		return RET_ERROR_OOM;
 	}
 	f->compression = compression;
+	f->fd = -1;
+	f->infd = -1;
+	f->pipeinfd = -1;
+	f->len = -1;
 
 	switch( compression ) {
 		case c_none:
@@ -209,7 +553,8 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 						e, filename, strerror(e));
 				return RET_ERRNO(e);
 			}
-			break;
+			*file_p = f;
+			return RET_OK;
 		case c_gzip:
 			f->gz = gzopen(filename, "r");
 			if( f->gz == NULL ) {
@@ -219,7 +564,8 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 				free(f);
 				return RET_ERROR;
 			}
-			break;
+			*file_p = f;
+			return RET_OK;
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
 			f->bz = BZ2_bzopen(filename, "r");
@@ -231,13 +577,201 @@ retvalue uncompress_open(/*@out@*/struct compressedfile **file_p, const char *fi
 				free(f);
 				return RET_ERROR;
 			}
+			*file_p = f;
+			return RET_OK;
+#endif
+		default:
+			assert( extern_uncompressors[compression] != NULL );
+	}
+	/* call external helper instead */
+	fd = open(f->filename, O_RDONLY|O_NOCTTY);
+	if( fd < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d opening '%s': %s\n", e,
+				f->filename, strerror(e));
+		return RET_ERRNO(e);
+	}
+	r = startpipeoutchild(compression, fd, &f->fd, &f->pid);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	*file_p = f;
+	return RET_OK;
+}
+
+static int intermediate_size = 0;
+
+retvalue uncompress_fdopen(struct compressedfile **file_p, int fd, off_t len, enum compression compression, int *errno_p, const char **msg_p) {
+	struct compressedfile *f;
+	retvalue r;
+
+	f = calloc(1, sizeof(struct compressedfile));
+	if( FAILEDTOALLOC(f) ) {
+		*errno_p = ENOMEM;
+		*msg_p = "Out of memory";
+		return RET_ERROR_OOM;
+	}
+	f->filename = NULL;
+	f->compression = compression;
+	f->infd = fd;
+	f->fd = -1;
+	f->pipeinfd = -1;
+	f->len = len;
+
+	switch( compression ) {
+		case c_none:
+			f->fd = fd;
+			f->infd = -1;
+			break;
+		case c_gzip:
+			// TODO: perhaps rather implement your own reading and
+			// uncompression, this way length read cannot be controlled
+			f->gz = gzdopen(dup(fd), "r");
+			if( f->gz == NULL ) {
+				*errno_p = errno;
+				*msg_p = strerror(errno);
+				// TODO: better error message...
+				fprintf(stderr, "Error opening internal gz uncompression using zlib...\n");
+				free(f);
+				return RET_ERROR;
+			}
+			break;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			f->bz = BZ2_bzdopen(dup(fd), "r");
+			if( f->bz == NULL ) {
+				*errno_p = errno;
+				*msg_p = strerror(errno);
+				// TODO: better error message...
+				fprintf(stderr, "Error opening internal bz2 uncompression using libbz2\n");
+				free(f);
+				return RET_ERROR;
+			}
 			break;
 #endif
 		default:
-			assert( NULL == "internal error in uncompression" );
+			if( intermediate_size == 0 ) {
+				/* pipes are guaranteed to swallow a full
+				 * page without blocking if poll
+				 * tells you can write */
+				long l = sysconf(_SC_PAGESIZE);
+				if( l <= 0 )
+					intermediate_size = 512;
+				else if( l > 4096 )
+					intermediate_size = 4096;
+				else
+					intermediate_size = l;
+			}
+			f->intermediate.buffer = malloc(intermediate_size);
+			f->intermediate.ready = 0;
+			f->intermediate.ofs = 0;
+			if( FAILEDTOALLOC(f->intermediate.buffer) ) {
+				*errno_p = ENOMEM;
+				*msg_p = "Out of memory";
+				free(f);
+				return RET_ERROR_OOM;
+			}
+			r = startpipeinoutchild(f->compression,
+					&f->pipeinfd, &f->fd, &f->pid);
+			if( RET_WAS_ERROR(r) ) {
+				*errno_p = -EINVAL;
+				*msg_p = "Error starting external uncompressor";
+				free(f->intermediate.buffer);
+				free(f);
+				return r;
+			}
 	}
 	*file_p = f;
 	return RET_OK;
+}
+
+static inline int pipebackforth(struct compressedfile *file, void *buffer, int size) {
+	/* we have to make sure we only read when things are available and only
+	 * write when there is still space in the pipe, otherwise we can end up
+	 * in a because we are waiting for the output of a program that cannot
+	 * generate output because it needs more input from us first or because
+	 * we wait for a program to accept input that waits for us to consume the
+	 * output... */
+	struct pollfd p[2];
+	ssize_t written;
+	int i;
+
+	do {
+
+		p[0].fd = file->pipeinfd;
+		p[0].events = POLLOUT;
+		p[1].fd = file->fd;
+		p[1].events = POLLIN;
+
+		/* wait till there is something to do */
+		i = poll(p, 2, -1);
+		if( i < 0 ) {
+			if( errno == EINTR )
+				continue;
+			file->error = errno;
+			return -1;
+		}
+		if( (p[0].revents & POLLERR ) != 0 ) {
+			file->error = EIO;
+			return -1;
+		}
+		if( (p[0].revents & POLLHUP ) != 0 ) {
+			/* not being able to send when we have something
+			 * is an error */
+			if( file->len > 0 || file->intermediate.ready > 0 ) {
+				file->error = EIO;
+				return -1;
+			}
+			(void)close(file->pipeinfd);
+			file->pipeinfd = -1;
+			/* wait for the rest */
+			return read(file->fd, buffer, size);
+
+		}
+		if( (p[0].revents & POLLOUT) != 0 ) {
+			struct intermediate_buffer *im = &file->intermediate;
+
+			if( im->ready < 0 )
+				return -1;
+
+			if( im->ready == 0 ) {
+				// TODO: check if splice is safe or will create
+				// dead-locks...
+				int isize = intermediate_size;
+				im->ofs = 0;
+
+				if( file->len >= 0 && isize > file->len )
+					isize = file->len;
+				if( isize == 0 )
+					im->ready = 0;
+				else
+					im->ready = read(file->infd,
+							im->buffer + im->ofs,
+							isize);
+				if( im->ready < 0 ) {
+					file->error = errno;
+					return -1;
+				}
+				if( im->ready == 0 ) {
+					(void)close(file->pipeinfd);
+					file->pipeinfd = -1;
+					/* wait for the rest */
+					return read(file->fd, buffer, size);
+				}
+				file->len -= im->ready;
+			}
+			written = write(file->pipeinfd, im->buffer + im->ofs,
+					im->ready);
+			if( written < 0 ) {
+				file->error = errno;
+				return -1;
+			}
+			im->ofs += written;
+			im->ready -= written;
+		}
+
+		if( (p[1].revents & POLLIN) != 0 )
+			return read(file->fd, buffer, size);
+	} while( true );
 }
 
 int uncompress_read(struct compressedfile *file, void *buffer, int size) {
@@ -246,9 +780,14 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 
 	switch( file->compression ) {
 		case c_none:
+			if( file->len == 0 )
+				return 0;
+			if( file->len > 0 && size > file->len )
+				size = file->len;
 			s = read(file->fd, buffer, size);
 			if( s < 0 )
 				file->error = errno;
+			file->len -= s;
 			return s;
 		case c_gzip:
 			i = gzread(file->gz, buffer, size);
@@ -261,85 +800,188 @@ int uncompress_read(struct compressedfile *file, void *buffer, int size) {
 			return i;
 #endif
 		default:
-			// TODO: external program
-			return -1;
+			if( file->pipeinfd != -1 ) {
+				/* things more complicated, as perhaps
+				   something needs writing first... */
+				return pipebackforth(file, buffer, size);
+			}
+			s = read(file->fd, buffer, size);
+			if( s < 0 )
+				file->error = errno;
+			return s;
 	}
 }
 
-retvalue uncompress_close(struct compressedfile *file) {
+static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p, const char **msg_p) {
+	retvalue result;
 	const char *msg;
-	bool error;
-	retvalue result = RET_OK;
-	int zerror;
+	int zerror, e;
+	pid_t pid;
+	int status;
+#define ERRORBUFFERSIZE 100
+	static char errorbuffer[ERRORBUFFERSIZE];
 
 	if( file == NULL )
 		return RET_OK;
+	free(file->intermediate.buffer);
 
 	switch( file->compression ) {
 		case c_none:
 			if( file->error != 0 ) {
-				error = true;
-				(void)close(file->fd);
-			} else if( close(file->fd) != 0 ) {
-				file->error = errno;
-				error = true;
+				*errno_p = file->error;
+				*msg_p = strerror(file->error);
+				return RET_ERRNO(file->error);
 			} else
-				error = false;
-			break;
+				return RET_OK;
 		case c_gzip:
+			file->fd = -1;
 			msg = gzerror(file->gz, &zerror);
-			if( zerror == Z_ERRNO )
-				error = true;
-			else if( zerror < 0 ) {
-				fprintf(stderr,
-"Zlib Error %d reading from '%s': %s!\n", zerror, file->filename, msg);
+			if( zerror == Z_ERRNO ) {
+				*errno_p = file->error;
 				(void)gzclose(file->gz);
-				result = RET_ERROR;
-				error = true;
-				break;
-			} else
-				error = false;
+				*msg_p = strerror(file->error);
+				return RET_ERRNO(file->error);
+			} else if( zerror < 0 ) {
+				*errno_p = -EINVAL;
+				snprintf(errorbuffer, ERRORBUFFERSIZE,
+						"Zlib error %d: %s",
+						zerror, msg);
+				*msg_p = errorbuffer;
+				(void)gzclose(file->gz);
+				return RET_ERROR_Z;
+			}
 			zerror = gzclose(file->gz);
 			if( zerror == Z_ERRNO ) {
-				error = true;
-			} if( zerror < 0 && !error ) {
-				result = RET_ERROR;
-				fprintf(stderr,
-"Zlib Error %d reading from '%s'!\n", zerror, file->filename);
-				break;
-			}
-			break;
+				*errno_p = file->error;
+				*msg_p = strerror(file->error);
+				return RET_ERRNO(file->error);
+			} if( zerror < 0 ) {
+				*errno_p = -EINVAL;
+				snprintf(errorbuffer, ERRORBUFFERSIZE,
+						"Zlib error %d", zerror);
+				*msg_p = errorbuffer;
+				return RET_ERROR_Z;
+			} else
+				return RET_OK;
 #ifdef HAVE_LIBBZ2
 		case c_bzip2:
+			file->fd = -1;
 			msg = BZ2_bzerror(file->bz, &zerror);
-			if( zerror == Z_ERRNO )
-				error = true;
-			else if( zerror < 0 ) {
-				fprintf(stderr,
-"libBZ2 Error %d reading from '%s': %s!\n", zerror, file->filename, msg);
-				(void)BZ2_bzclose(file->bz);
-				result = RET_ERROR;
-				error = true;
-				break;
-			} else
-				error = false;
-			/* no return? does this mean no checksums? */
+			if( zerror < 0 ) {
+				*errno_p = -EINVAL;
+				snprintf(errorbuffer, ERRORBUFFERSIZE,
+						"libbz2 error %d: %s",
+						zerror, msg);
+				*msg_p = errorbuffer;
+				BZ2_bzclose(file->bz);
+				return RET_ERROR_BZ2;
+			}
+			/* no return value? does this mean no checksums? */
 			BZ2_bzclose(file->bz);
-			break;
+			return RET_OK;
 #endif
 		default:
-			// TODO: external helpers...
-			assert( NULL == "Internal uncompression error");
-			error = true;
+			(void)close(file->fd);
+			if( file->pipeinfd != -1 )
+				(void)close(file->pipeinfd);
+			file->fd = file->infd;
+			file->infd = -1;
+			result = RET_OK;
+			if( file->pid <= 0 )
+				return RET_OK;
+			do {
+				pid = waitpid(file->pid, &status, 0);
+				e = errno;
+				if( interrupted() ) {
+					*errno_p = EINTR;
+					*msg_p = "Interrupted";
+					result = RET_ERROR_INTERRUPTED;
+				}
+			} while( pid == -1 && (e == EINTR || e == EAGAIN) );
+			if( pid == -1 ) {
+				*errno_p = e;
+				*msg_p = strerror(file->error);
+				return RET_ERRNO(e);
+			}
+			if( WIFEXITED(status) ) {
+				if( WEXITSTATUS(status) == 0 )
+					return result;
+				else {
+					*errno_p = -EINVAL;
+					snprintf(errorbuffer, ERRORBUFFERSIZE,
+						"%s exited with code %d",
+						extern_uncompressors[file->compression],
+						(int)(WEXITSTATUS(status)));
+					*msg_p = errorbuffer;
+					return RET_ERROR;
+				}
+			} else if( WIFSIGNALED(status) && WTERMSIG(status) != SIGUSR2 ) {
+				*errno_p = -EINVAL;
+				snprintf(errorbuffer, ERRORBUFFERSIZE,
+						"%s killed by signal %d",
+						extern_uncompressors[file->compression],
+						(int)(WTERMSIG(status)));
+				*msg_p = errorbuffer;
+				return RET_ERROR;
+			} else {
+				*errno_p = -EINVAL;
+				snprintf(errorbuffer, ERRORBUFFERSIZE,
+						"%s failed",
+						extern_uncompressors[file->compression]);
+				*msg_p = errorbuffer;
+				return RET_ERROR;
+			}
+			return result;
 	}
-	if( error && result == RET_OK ) {
+	/* not reached */
+}
+
+retvalue uncompress_fdclose(struct compressedfile *file, int *errno_p, const char **msg_p) {
+	retvalue result;
+
+	if( file == NULL )
+		return RET_OK;
+
+	assert( file->filename == NULL );
+
+	result = uncompress_commonclose(file, errno_p, msg_p);
+
+	free(file);
+	return result;
+}
+
+retvalue uncompress_close(struct compressedfile *file) {
+	const char *msg;
+	retvalue r;
+	int e;
+
+	if( file == NULL )
+		return RET_OK;
+
+	assert( file->filename != NULL );
+
+	r = uncompress_commonclose(file, &e, &msg);
+	if( RET_IS_OK(r) ) {
+		if( file->fd >= 0 && close(file->fd) != 0 ) {
+			e = errno;
+			fprintf(stderr,
+"Error %d reading from %s: %s!\n", e, file->filename, strerror(e));
+		}
+		free(file->filename);
+		free(file);
+		return r;
+	}
+	if( file->fd >= 0 )
+		(void)close(file->fd);
+	if( e == -EINVAL ) {
 		fprintf(stderr,
-"Error %d reading from '%s': %s!\n", file->error, file->filename,
-					strerror(file->error));
-		result = RET_ERRNO(file->error);
+"Error reading from %s: %s!\n", file->filename, msg);
+	} else {
+		fprintf(stderr,
+"Error %d reading from %s: %s!\n", e, file->filename, msg);
 	}
 	free(file->filename);
 	free(file);
-	return result;
+	return r;
 }
 

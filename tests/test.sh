@@ -4,6 +4,7 @@ set -e
 
 source $(dirname $0)/test.inc
 
+runtest uncompress
 runtest check
 runtest flat
 runtest subcomponents
@@ -779,23 +780,23 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_ugly_Sources.bz2' into './lists/Test2toTest1_test2_ugly_Sources'...
+-v1*=Uncompress './lists/Test2toTest1_test2_ugly_Sources.bz2' into './lists/Test2toTest1_test2_ugly_Sources' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages'...
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_deb_ugly_${FAKEARCHITECTURE}_Packages' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_coal_Packages.bz2' into './lists/Test2toTest1_test2_deb_ugly_coal_Packages'...
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_ugly_coal_Packages.bz2' into './lists/Test2toTest1_test2_deb_ugly_coal_Packages' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
 *=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2':
 *=md5 expected: ffffffffffffffffffffffffffffffff, got: $(md5 dists/test2/stupid/source/Sources.bz2)
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages'...
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_deb_stupid_${FAKEARCHITECTURE}_Packages' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_coal_Packages.bz2' into './lists/Test2toTest1_test2_deb_stupid_coal_Packages'...
+-v1*=Uncompress './lists/Test2toTest1_test2_deb_stupid_coal_Packages.bz2' into './lists/Test2toTest1_test2_deb_stupid_coal_Packages' using '/bin/bunzip2'...
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./lists"
@@ -3305,7 +3306,7 @@ testrun - -b . predelete b 3<<EOF
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
--v1*=Uncompress './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages.gz' into './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages'...
+-v1*=Uncompress './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages.gz' into './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages' using '/bin/gunzip'...
 -v6*=Called /bin/cp './lists/froma_a_deb_all_${FAKEARCHITECTURE}_Packages' './lists/_b_deb_all_${FAKEARCHITECTURE}_froma_froma_a_deb_all_${FAKEARCHITECTURE}_Packages'
 -v6*=Listhook successfully returned!
 stdout

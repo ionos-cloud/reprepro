@@ -111,14 +111,21 @@ bool sourceextraction_needs(struct sourceextraction *e, int *ofs_p) {
 			return false;
 		*ofs_p = e->difffile;
 		return true;
+	} else if( e->debiantarfile >= 0 ) {
 #ifdef HAVE_LIBARCHIVE
-	} else if( e->debiantarfile >= 0 && e->debiancompression <= c_bzip2 ) {
+#warning TODO: think about adding support for other decompressions here, too.
+		if( e->debiancompression > c_bzip2 )
+			// TODO: errormessage
+			return false;
 		*ofs_p = e->debiantarfile;
 		return true;
+#else
+		return false;
 #endif
 	} else if( e->tarfile >= 0 ) {
 #ifdef HAVE_LIBARCHIVE
-		if( e->debiancompression > c_bzip2 )
+		// TODO: dito
+		if( e->tarcompression > c_bzip2 )
 			// TODO: errormessage
 			return false;
 		*ofs_p = e->tarfile;
@@ -475,6 +482,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 	if( FAILEDTOALLOC(tar) )
 		return RET_ERROR_OOM;
 	archive_read_support_format_tar(tar);
+	archive_read_support_format_gnutar(tar);
 	if( c == c_gzip )
 		archive_read_support_compression_gzip(tar);
 	if( c == c_bzip2 )

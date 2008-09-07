@@ -526,11 +526,17 @@ static inline retvalue todo_done(struct tobedone *todo, const char *method, cons
 }
 
 /* check uncompressed file */
-static inline retvalue indexfile_done(void *data, const char *compressed, bool early) {
+static inline retvalue indexfile_done(void *data, const char *compressed, bool failed, bool early) {
 	struct tobedone *todo = data;
 	retvalue r;
 	struct checksums *checksums;
 	bool improves;
+
+	if( failed ) {
+		if( !early )
+			todo_free(todo);
+		return RET_ERROR;
+	}
 
 	/* file got uncompressed, check if it has the correct checksum */
 
@@ -825,6 +831,8 @@ static retvalue uridone(struct aptmethod *method, const char *uri, const char *f
 				r = todo_done(todo, method->name, filename,
 						checksumsfromapt, database);
 
+			// TODO: check if unlinking can be done before so the
+			// free stuff can be implemented easier
 			/* remove item: */
 			if( lasttodo == NULL )
 				method->tobedone = todo->next;
@@ -1377,7 +1385,7 @@ retvalue aptmethod_download(struct aptmethodrun *run, struct database *database)
 	  r = readwrite(run, &workleft, database);
 	  RET_UPDATE(result,r);
 	  // TODO: check interrupted here...
-	} while( workleft > 0 );
+	} while( workleft > 0 || uncompress_running() );
 
 	return result;
 }

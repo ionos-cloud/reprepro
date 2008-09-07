@@ -94,7 +94,10 @@ static char /*@only@*/ /*@null@*/
 	*x_priority = NULL,
 	*x_component = NULL,
 	*x_architecture = NULL,
-	*x_packagetype = NULL;
+	*x_packagetype = NULL,
+	*gunzip = NULL,
+	*bunzip2 = NULL,
+	*unlzma = NULL;
 static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
@@ -119,7 +122,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -266,6 +269,54 @@ ACTION_N(n, n, printargs) {
 	return RET_OK;
 }
 
+ACTION_N(n, n, dumpuncompressors) {
+	enum compression c;
+
+	assert( argc == 1 );
+	for( c = 0 ; c < c_COUNT ; c++ ) {
+		if( c == c_none )
+			continue;
+		printf("%s: ", uncompression_suffix[c]);
+		if( uncompression_builtin(c) ) {
+			if( extern_uncompressors[c] != NULL )
+				printf("built-in + '%s'\n",
+						extern_uncompressors[c]);
+			else
+				printf("built-in\n");
+		} else if( extern_uncompressors[c] != NULL )
+			printf("'%s'\n", extern_uncompressors[c]);
+		else switch( c ) {
+			case c_bzip2:
+				printf("not supported (install bzip2 or use --bunzip2 to tell where bunzip2 is).\n");
+
+				break;
+			case c_lzma:
+				printf("not supported (install lzma or use --unlzma to tell where unlzma is).\n");
+				break;
+			default:
+				printf("not supported\n");
+		}
+	}
+	return RET_OK;
+}
+ACTION_N(n, n, uncompress) {
+	enum compression c;
+
+	assert( argc == 4 );
+	c = c_none + 1;
+	while( c < c_COUNT && strcmp(argv[1], uncompression_suffix[c]) != 0 )
+		c++;
+	if( c >= c_COUNT ) {
+		fprintf(stderr, "Unknown compression format '%s'\n", argv[1]);
+		return RET_ERROR;
+	}
+	if( !uncompression_supported(c) ) {
+		fprintf(stderr, "Cannot uncompress format '%s'\nCheck __dumpuncompressors for more details.\n", argv[1]);
+		return RET_ERROR;
+	}
+	return uncompress_file(argv[2], argv[3], c);
+}
+
 ACTION_N(n, n, extractcontrol) {
 	retvalue result;
 	char *control;
@@ -274,8 +325,10 @@ ACTION_N(n, n, extractcontrol) {
 
 	result = extractcontrol(&control,argv[1]);
 
-	if( RET_IS_OK(result) )
-		printf("%s\n",control);
+	if( RET_IS_OK(result) ) {
+		puts(control);
+		free(control);
+	}
 	return result;
 }
 
@@ -2367,6 +2420,10 @@ static const struct action {
 } all_actions[] = {
 	{"__d", 		A_N(printargs),
 		-1, -1, NULL},
+	{"__dumpuncompressors",	A_N(dumpuncompressors),
+		0, 0, "__dumpuncompressors"},
+	{"__uncompress",	A_N(uncompress),
+		3, 3, "__uncompress .gz|.bz2|.lzma <compressed-filename> <into-filename>"},
 	{"__extractcontrol",	A_N(extractcontrol),
 		1, 1, "__extractcontrol <.deb-file>"},
 	{"__extractfilelist",	A_N(extractfilelist),
@@ -2701,6 +2758,9 @@ LO_WAITFORLOCK,
 LO_SPACECHECK,
 LO_SAFETYMARGIN,
 LO_DBSAFETYMARGIN,
+LO_GUNZIP,
+LO_BUNZIP2,
+LO_UNLZMA,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -2943,6 +3003,15 @@ static void handle_option(int c,const char *optarg) {
 							"--dbsafetymargin",
 							optarg, LONG_MAX));
 					break;
+				case LO_GUNZIP:
+					CONFIGDUP(gunzip, optarg);
+					break;
+				case LO_BUNZIP2:
+					CONFIGDUP(bunzip2, optarg);
+					break;
+				case LO_UNLZMA:
+					CONFIGDUP(unlzma, optarg);
+					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
 					exit(EXIT_FAILURE);
@@ -3105,6 +3174,9 @@ int main(int argc,char *argv[]) {
 		{"spacecheck", required_argument, &longoption, LO_SPACECHECK},
 		{"safetymargin", required_argument, &longoption, LO_SAFETYMARGIN},
 		{"dbsafetymargin", required_argument, &longoption, LO_DBSAFETYMARGIN},
+		{"gunzip", required_argument, &longoption, LO_GUNZIP},
+		{"bunzip2", required_argument, &longoption, LO_BUNZIP2},
+		{"unlzma", required_argument, &longoption, LO_UNLZMA},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
@@ -3221,7 +3293,10 @@ int main(int argc,char *argv[]) {
 	global.methoddir = x_methoddir;
 	global.listdir = x_listdir;
 
-	uncompressions_check();
+	uncompressions_check(gunzip, bunzip2, unlzma);
+	free(gunzip);
+	free(bunzip2);
+	free(unlzma);
 
 	a = all_actions;
 	while( a->name != NULL ) {

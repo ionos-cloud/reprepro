@@ -1,3 +1,11 @@
+2008-09-07
+	* add support for external uncompression programs
+	- speeding up updating, as downloading and uncompressing
+	  can happen at the same time
+	- support lzma compressed .deb and .diff (when unlzma is available)
+	- supporting .bz2 compressed files even when compiled without libbz2
+	  (but needing runtime bunzip2 then)
+
 2008-08-24
 	* unify reading of compressed files, adding support for:
 	- extracting section and priority from a .diff.bz2

@@ -27,6 +27,7 @@
 #include <archive.h>
 #include <archive_entry.h>
 #include "error.h"
+#include "uncompression.h"
 #include "ar.h"
 #include "chunks.h"
 #include "debfile.h"
@@ -110,7 +111,8 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 	retvalue r;
 
 	archive_read_support_format_tar(tar);
-	a = archive_read_open(tar,ar,
+	archive_read_support_format_gnutar(tar);
+	a = archive_read_open(tar, ar,
 			ar_archivemember_open,
 			ar_archivemember_read,
 			ar_archivemember_close);
@@ -155,6 +157,7 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 retvalue extractcontrol(char **control,const char *debfile) {
 	struct ar_archive *ar;
 	retvalue r;
+	bool hadcandidate = false;
 
 	r = ar_open(&ar,debfile);
 	if( RET_WAS_ERROR(r) )
@@ -162,15 +165,31 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	assert( r != RET_NOTHING);
 	do {
 		char *filename;
+		enum compression c;
 
 		r = ar_nextmember(ar, &filename);
 		if( RET_IS_OK(r) ) {
-			if( strcmp(filename,"control.tar.gz") == 0 ) {
+			if( strncmp(filename, "control.tar", 11) != 0 ) {
+				free(filename);
+				continue;
+			}
+			hadcandidate = true;
+			for( c = 0 ; c < c_COUNT ; c++ ) {
+				if( strcmp(filename + 11,
+						uncompression_suffix[c]) == 0)
+					break;
+			}
+			if( c >= c_COUNT ) {
+				free(filename);
+				continue;
+			}
+			ar_archivemember_setcompression(ar, c);
+			if( uncompression_supported(c) ) {
 				struct archive *tar;
 
 				tar = archive_read_new();
-				archive_read_support_compression_gzip(tar);
 				r = read_control_tar(control, debfile, ar, tar);
+				// TODO run archive_read_close to get error messages?
 				archive_read_finish(tar);
 				if( r != RET_NOTHING ) {
 					ar_close(ar);
@@ -179,28 +198,15 @@ retvalue extractcontrol(char **control,const char *debfile) {
 				}
 
 			}
-/* see below for a discussion about this #ifdef */
-#ifdef HAVE_LIBBZ2
-			if( strcmp(filename,"control.tar.bz2") == 0 ) {
-				struct archive *tar;
-
-				tar = archive_read_new();
-				archive_read_support_compression_gzip(tar);
-				archive_read_support_compression_bzip2(tar);
-				r = read_control_tar(control, debfile, ar, tar);
-				archive_read_finish(tar);
-				if( r != RET_NOTHING ) {
-					ar_close(ar);
-					free(filename);
-					return r;
-				}
-
-			}
-#endif
 			free(filename);
 		}
 	} while( RET_IS_OK(r) );
 	ar_close(ar);
-	fprintf(stderr,"Could not find a control.tar.gz file within '%s'!\n",debfile);
+	if( hadcandidate )
+		fprintf(stderr,
+"Could not find a suitable control.tar file within '%s'!\n", debfile);
+	else
+		fprintf(stderr,
+"Could not find a control.tar file within '%s'!\n", debfile);
 	return RET_ERROR_MISSING;
 }

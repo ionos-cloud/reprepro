@@ -10,6 +10,8 @@ bool interrupted(void);
 /* retvalue is simply an int.
  * just named to show it follows the given semantics */
 /*@numabstract@*/ enum retvalue_enum {
+	RET_ERROR_BZ2 = -11,
+	RET_ERROR_Z = -10,
 	RET_ERROR_INTERRUPTED = -9,
 	RET_ERROR_UNKNOWNFIELD = -8,
 	RET_ERROR_MISSING = -7,
@@ -39,9 +41,6 @@ typedef enum retvalue_enum retvalue;
 
 /* code a errno in a error */
 #define RET_ERRNO(err) ((err>0)?((retvalue)-err):RET_ERROR)
-
-/* code a zlib-error in a error */
-#define RET_ZERRNO(zerr) ((zerr>=Z_OK)?RET_OK:((zerr==Z_ERRNO)?RET_ERRNO(errno):((retvalue)(-5000+zerr))))
 
 /* code a db-error in a error */
 // TODO: to be implemented...

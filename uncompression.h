@@ -10,14 +10,12 @@ extern /*@null@*/ char *extern_uncompressors[c_COUNT];
  * controled by aptmethods */
 
 #ifdef HAVE_LIBBZ2
-#define ONLYWITHBZ2(a) a
+#define uncompression_builtin(c) ((c) == c_bzip2 || (c) == c_gzip)
 #else
-#define ONLYWITHBZ2(a)
+#define uncompression_builtin(c) ((c) == c_gzip)
 #endif
-#define uncompression_supported(c) ( \
-		ONLYWITHBZ2( (c) == c_bzip2 || ) \
-		(c) == c_gzip || \
-		(c) == c_none || \
+#define uncompression_supported(c) ( (c) == c_none || \
+		uncompression_builtin(c) || \
 		extern_uncompressors[c] != NULL)
 
 /**** functions for aptmethod.c ****/
@@ -27,7 +25,7 @@ retvalue uncompress_checkpid(pid_t, int);
 /* still waiting for a client to exit */
 bool uncompress_running(void);
 
-typedef retvalue finishaction(void *, const char *, bool);
+typedef retvalue finishaction(void *, const char *, bool /*failed*/, bool /*early*/);
 /* uncompress and call action when finished */
 retvalue uncompress_queue_file(const char *, const char *, enum compression, finishaction *, void *, bool *);
 
@@ -35,7 +33,7 @@ retvalue uncompress_queue_file(const char *, const char *, enum compression, fin
 
 retvalue uncompress_file(const char *, const char *, enum compression);
 
-/**** functions for indexfile.c (uncompressing to memory) ****/
+/**** functions for indexfile.c (uncompressing to memory) and ar.c ****/
 // and perhaps also sourceextraction.c
 
 struct compressedfile;
@@ -43,11 +41,14 @@ struct compressedfile;
 retvalue uncompress_open(/*@out@*/struct compressedfile **, const char *, enum compression);
 int uncompress_read(struct compressedfile *, void *buffer, int);
 retvalue uncompress_close(/*@only@*/struct compressedfile *);
+retvalue uncompress_fdclose(/*@only@*/struct compressedfile *, int *, const char **);
+
+retvalue uncompress_fdopen(/*@out@*/struct compressedfile **, int, off_t, enum compression, int *, const char **);
 
 /**** general initialisation ****/
 
 /* check for existance of external programs */
-void uncompressions_check(void);
+void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma);
 
 #endif
 
