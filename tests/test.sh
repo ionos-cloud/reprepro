@@ -60,7 +60,7 @@ touch "dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.deprecated"
 set -v
 checknolog logfile
 if test -n "$TESTNEWFILESDB" ; then
-	dodo test ! -f db/files.db
+	dodo test '!' -f db/files.db
 fi
 testrun - -b . export 3<<EOF
 stdout
@@ -110,7 +110,9 @@ stdout
 EOF
 dodo test '!' -e "dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.deprecated"
 if test -n "$TESTNEWFILESDB" ; then
-	dodo rm db/files.db
+	dodo test '!' -f db/files.db
+else
+	dodo test -f db/files.db
 fi
 test -f dists/test1/Release
 test -f dists/test2/Release
