@@ -1,4 +1,6 @@
 TODO:
+        think about a way to make removesrc work on all distributions ('*'?)
+	write something for manual.html how to manually modify snapshots...
 	write more automated test-cases
 	 (not even run in the testcase yet: reoverride, ... (probably many))
 	finish import from incoming dir, implement sending mails to uploader
