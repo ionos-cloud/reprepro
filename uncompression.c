@@ -356,7 +356,7 @@ static inline retvalue builtin_uncompress(const char *compressed, const char *de
 		e = errno;
 		fprintf(stderr, "Error %d creating '%s': %s\n",
 				e, destination, strerror(e));
-		(void)uncompress_close(f);
+		uncompress_abort(f);
 		return RET_ERRNO(e);
 	}
 	do {
@@ -373,7 +373,7 @@ static inline retvalue builtin_uncompress(const char *compressed, const char *de
 				fprintf(stderr,
 						"Error %d writing to '%s': %s\n", e, destination, strerror(e) );
 				close(destfd);
-				(void)uncompress_close(f);
+				uncompress_abort(f);
 				return RET_ERRNO(e);
 			}
 			bytes_written += written;
@@ -936,6 +936,152 @@ static retvalue uncompress_commonclose(struct compressedfile *file, int *errno_p
 	/* not reached */
 }
 
+/* check if there has been an error yet for this stream */
+retvalue uncompress_error(struct compressedfile *file) {
+	int e, zerror, status;
+	const char *msg;
+	pid_t pid;
+
+	if( file == NULL )
+		return RET_NOTHING;
+
+	switch( file->compression ) {
+		case c_none:
+			if( file->error == 0 )
+				return RET_OK;
+			break;
+		case c_gzip:
+			msg = gzerror(file->gz, &zerror);
+			if( zerror == 0 )
+				return RET_OK;
+			if( zerror != Z_ERRNO ) {
+				fprintf(stderr, "Zlib error %d uncompressing file '%s': %s\n",
+						zerror,
+						file->filename,
+						msg);
+				return RET_ERROR_Z;
+			}
+			break;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			msg = BZ2_bzerror(file->bz, &zerror);
+			if( zerror < 0 ) {
+				fprintf(stderr, "libbz2 error %d uncompressing file '%s': %s\n",
+						zerror,
+						file->filename,
+						msg);
+				return RET_ERROR_BZ2;
+			} else
+				return RET_OK;
+#endif
+		default:
+			if( file->error != 0 )
+				break;
+			if( file->pid <= 0 )
+				return RET_OK;
+			pid = waitpid(file->pid, &status, WNOHANG);
+			if( pid < 0 ) {
+				e = errno;
+				fprintf(stderr, "Error looking for child %lu (a '%s'): %s\n",
+						(long unsigned)file->pid,
+						extern_uncompressors[file->compression],
+						strerror(e));
+				return RET_ERRNO(e);
+			}
+			if( pid != file->pid ) {
+				/* still running */
+				return RET_OK;
+			}
+			file->pid = -1;
+			if( WIFEXITED(status) ) {
+				if( WEXITSTATUS(status) == 0 )
+					return RET_OK;
+				else {
+					fprintf(stderr,
+						"%s exited with code %d\n",
+						extern_uncompressors[file->compression],
+						(int)(WEXITSTATUS(status)));
+					return RET_ERROR;
+				}
+			} else if( WIFSIGNALED(status) && WTERMSIG(status) != SIGUSR2 ) {
+				fprintf(stderr,
+						"%s killed by signal %d\n",
+						extern_uncompressors[file->compression],
+						(int)(WTERMSIG(status)));
+				return RET_ERROR;
+			} else {
+				fprintf(stderr,
+						"%s failed\n",
+						extern_uncompressors[file->compression]);
+				return RET_ERROR;
+			}
+	}
+	/* an error, but which? */
+	if( file->error != 0 ) {
+		fprintf(stderr, "Error %d uncompressing file '%s': %s\n",
+				file->error, file->filename,
+				strerror(file->error));
+		return RET_ERRNO(file->error);
+	} else
+		return RET_ERROR;
+}
+
+
+
+void uncompress_abort(struct compressedfile *file) {
+	pid_t pid;
+	int e, status;
+
+	if( file == NULL )
+		return;
+
+	switch( file->compression ) {
+		case c_none:
+			if( file->fd >= 0 )
+				(void)close(file->fd);
+			break;
+		case c_gzip:
+			(void)gzclose(file->gz);
+			break;
+#ifdef HAVE_LIBBZ2
+		case c_bzip2:
+			BZ2_bzclose(file->bz);
+			break;
+#endif
+		default:
+			/* kill before closing, to avoid it getting
+			 * a sigpipe */
+			if( file->pid > 0 )
+				kill(file->pid, SIGTERM);
+			if( file->infd >= 0 )
+				(void)close(file->infd);
+			if( file->fd >= 0 )
+				(void)close(file->fd);
+			if( file->pipeinfd != -1 )
+				(void)close(file->pipeinfd);
+			do {
+				pid = waitpid(file->pid, &status, 0);
+				e = errno;
+				if( interrupted() ) {
+					break;
+				}
+			} while( pid == -1 && (e == EINTR || e == EAGAIN) );
+			if( pid == -1 )
+				break;
+			if( WIFEXITED(status) ) {
+				break;
+			} else if( WIFSIGNALED(status)
+					&& WTERMSIG(status) != SIGTERM
+					&& WTERMSIG(status) != SIGUSR2 ) {
+				fprintf(stderr, "%s killed by signal %d",
+						extern_uncompressors[file->compression],
+						(int)(WTERMSIG(status)));
+			}
+	}
+	free(file->filename);
+	free(file);
+}
+
 retvalue uncompress_fdclose(struct compressedfile *file, int *errno_p, const char **msg_p) {
 	retvalue result;
 
@@ -984,4 +1130,3 @@ retvalue uncompress_close(struct compressedfile *file) {
 	free(file);
 	return r;
 }
-

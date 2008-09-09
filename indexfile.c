@@ -70,7 +70,7 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename, enum co
 	/* +1 for *d = '\0' in eof case */
 	f->buffer = malloc(f->size + 1);
 	if( FAILEDTOALLOC(f->buffer) ) {
-		(void)uncompress_close(f->f);
+		uncompress_abort(f->f);
 		free(f->filename);
 		free(f);
 		return RET_ERROR_OOM;

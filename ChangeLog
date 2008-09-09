@@ -1,3 +1,10 @@
+2008-09-09
+	* also support external uncompression programs for
+	  .orig.tar/.debian.tar/.tar uncompression, i.e.:
+	- support Section/Priority extraction from lzma compressed dsc packages
+	- libarchive no longer needs to be linked against zlib/libbz2
+	* fix some corner cases in .diff parsing
+
 2008-09-07
 	* add support for external uncompression programs
 	- speeding up updating, as downloading and uncompressing

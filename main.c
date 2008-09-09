@@ -62,6 +62,7 @@
 #include "log.h"
 #include "copypackages.h"
 #include "uncompression.h"
+#include "sourceextraction.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -384,6 +385,70 @@ ACTION_N(n, n, extractfilelist) {
 		}
 		free(filelist);
 	}
+	return result;
+}
+
+ACTION_N(n, n, extractsourcesection) {
+	struct dsc_headers dsc;
+	struct sourceextraction *extraction;
+	char *section = NULL, *priority = NULL, *directory, *filename;
+	retvalue result, r;
+	bool broken;
+	int i;
+
+	assert( argc == 2 );
+
+	r = sources_readdsc(&dsc, argv[1], argv[1], &broken);
+	if( !RET_IS_OK(r) )
+		return r;
+	if( broken && !IGNORING_(brokensignatures,
+"'%s' contains only broken signatures.\n"
+"This most likely means the file was damaged or edited improperly\n",
+				argv[1]) )
+		return RET_ERROR;
+	r = dirs_getdirectory(argv[1], &directory);
+	if( RET_WAS_ERROR(r) ) {
+		sources_done(&dsc);
+		return r;
+	}
+	assert( RET_IS_OK(r) );
+
+	extraction = sourceextraction_init(&section, &priority);
+	if( FAILEDTOALLOC(extraction) ) {
+		sources_done(&dsc);
+		return RET_ERROR_OOM;
+	}
+	for( i = 0 ; i < dsc.files.names.count ; i ++ )
+		sourceextraction_setpart(extraction, i,
+				dsc.files.names.values[i]);
+	result = RET_OK;
+	while( sourceextraction_needs(extraction, &i) ) {
+		filename = calc_dirconcat(directory, dsc.files.names.values[i]);
+		if( FAILEDTOALLOC(filename) ) {
+			result = RET_ERROR_OOM;
+			break;
+		}
+		r = sourceextraction_analyse(extraction, filename);
+		free(filename);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+	}
+	free(directory);
+	if( RET_WAS_ERROR(result) ) {
+		sourceextraction_abort(extraction);
+	} else {
+		r = sourceextraction_finish(extraction);
+		RET_UPDATE(result, r);
+	}
+	if( RET_IS_OK(result) ) {
+		if( section != NULL )
+			printf("Section: %s\n", section);
+		if( priority != NULL )
+			printf("Priority: %s\n", priority);
+	}
+	sources_done(&dsc);
 	return result;
 }
 
@@ -1154,6 +1219,7 @@ ACTION_B(n, n, y, checkupdate) {
 
 ACTION_C(n, n, cleanlists) {
 
+#warning TODO: do not forget to implement this...
 	// TODO: when this is implemented, also log the database?
 	fprintf(stderr, "Sorry, not yet implemented.\n");
 
@@ -2424,6 +2490,8 @@ static const struct action {
 		0, 0, "__dumpuncompressors"},
 	{"__uncompress",	A_N(uncompress),
 		3, 3, "__uncompress .gz|.bz2|.lzma <compressed-filename> <into-filename>"},
+	{"__extractsourcesection", A_N(extractsourcesection),
+		1, 1, "__extractsourcesection <.dsc-file>"},
 	{"__extractcontrol",	A_N(extractcontrol),
 		1, 1, "__extractcontrol <.deb-file>"},
 	{"__extractfilelist",	A_N(extractfilelist),

@@ -40,6 +40,8 @@ struct compressedfile;
 
 retvalue uncompress_open(/*@out@*/struct compressedfile **, const char *, enum compression);
 int uncompress_read(struct compressedfile *, void *buffer, int);
+retvalue uncompress_error(/*@const@*/struct compressedfile *);
+void uncompress_abort(/*@only@*/struct compressedfile *);
 retvalue uncompress_close(/*@only@*/struct compressedfile *);
 retvalue uncompress_fdclose(/*@only@*/struct compressedfile *, int *, const char **);
 
