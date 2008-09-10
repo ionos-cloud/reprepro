@@ -543,9 +543,15 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 	a = archive_read_open(tar, file, compressedfile_open,
 			compressedfile_read, compressedfile_close);
 	if( a != ARCHIVE_OK ) {
-		fprintf(stderr,
+		int err = archive_errno(tar);
+		if( err != -EINVAL && err != 0 )
+			fprintf(stderr,
 "Error %d trying to extract control information from %s:\n"
-"%s\n",		archive_errno(tar), filename, archive_error_string(tar));
+"%s\n",			err, filename, archive_error_string(tar));
+		else
+			fprintf(stderr,
+"Error trying to extract control information from %s:\n"
+"%s\n",			filename, archive_error_string(tar));
 		archive_read_finish(tar);
 		return RET_ERROR;
 	}
