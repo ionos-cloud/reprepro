@@ -140,7 +140,6 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 	char buffer[BUFSIZE];
 	int bytes_read, used = 0, filled = 0;
 
-	inline bool u_getline(void);
 	inline bool u_getline(void) {
 		do {
 		if( filled - used > 0 ) {
@@ -173,7 +172,6 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 		filled += bytes_read;
 		} while( true );
 	}
-	inline char u_overlinegetchar(void);
 	inline char u_overlinegetchar(void) {
 		const char *n;
 		char ch;
