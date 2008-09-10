@@ -202,7 +202,95 @@ stdout
 *=Priority: extra
 EOF
 
-# now check only partial reading of the .diff:
+# It would be nice to damage the .lzma file here, but that has a problem:
+# A random damage to the file will usually lead to some garbage output
+# before lzma realizes the error.
+# Once reprepro sees the garbage (which will usually not be a valid diff)
+# it will decide it is a format it does not understand and abort further
+# reading giving up.
+# This is a race condition with one of the following results:
+#   reprepro is much faster: no error output (as unknown format is no error,
+#                                             but only no success)
+#   reprepro a bit faster: unlzma can still output an error, but not
+#                          is terminated by reprepro before issuing an error code.
+#   unlzma is faster: reprepro will see an child returning with error...
+#
+# Thus we can only fake a damaged file by replacing the uncompressor:
+
+testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
+returns 255
+=Data seems not to be signed trying to use directly...
+*=brokenunlzma.sh: claiming broken archive
+*=Error reading from ./fake_1-1.diff.lzma: $SRCDIR/tests/brokenunlzma.sh exited with code 1!
+-v0*=There have been errors!
+stdout
+EOF
+
+mv fake_1-1.debian.tar.lzma save.tar.lzma
+
+# a missing file is no error, but no success either...
+testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
+=Data seems not to be signed trying to use directly...
+stdout
+EOF
+
+cp save.tar.lzma fake_1.orig.tar.lzma
+# a missing file is no error, but no success either (and not reading further files)
+testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
+=Data seems not to be signed trying to use directly...
+stdout
+EOF
+
+dodo mkdir debian
+dodo touch debian/test
+echo tar -cf - fake2 \| lzma \> fake_1-1.debian.tar.lzma
+tar -cf - fake2 | lzma > fake_1-1.debian.tar.lzma
+rm -r debian
+
+testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
+=Data seems not to be signed trying to use directly...
+stdout
+*=Section: admin
+*=Priority: extra
+EOF
+
+touch breakon2nd
+testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
+returns 255
+=Data seems not to be signed trying to use directly...
+*=brokenunlzma.sh: claiming broken archive
+*=Error reading from ./fake_1-1.debian.tar.lzma: $SRCDIR/tests/brokenunlzma.sh exited with code 1!
+-v0*=There have been errors!
+stdout
+EOF
+
+testrun - --unlzma=brokenunlzma.sh __extractsourcesection fake_1-1.dsc 3<<EOF
+returns 255
+=Data seems not to be signed trying to use directly...
+*=brokenunlzma.sh: claiming broken archive
+*=Error reading from ./fake_1-1.diff.lzma: $SRCDIR/tests/brokenunlzma.sh exited with code 1!
+-v0*=There have been errors!
+stdout
+EOF
+
+# destroying the header should hopefully be reproduceable failure...
+dd if=/dev/zero of=fake_1-1.debian.tar.lzma bs=5 count=1
+
+testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
+returns 255
+=Data seems not to be signed trying to use directly...
+*=/usr/bin/unlzma: Read error
+*=Error 84 trying to extract control information from ./fake_1-1.debian.tar.lzma:
+*=Empty input file: Invalid or incomplete multibyte or wide character
+-v0*=There have been errors!
+stdout
+EOF
+
+mv save.tar.lzma fake_1-1.debian.tar.lzma
+rm fake_1.orig.tar.lzma
+
+# now check only partial reading of the .diff
+# (i.e. diff containing a control):
 rm fake-1/debian/control
 cat > fake-1/debian/control <<EOF
 Package: fake
@@ -238,6 +326,14 @@ stdout
 EOF
 
 rm testfile* smallfile*
-# TODO: test error messages of truncated files and files with errors in the
-# compressed stream...
+
+testrun - --unlzma=false __extractsourcesection fake_1-1.dsc 3<<EOF
+returns 255
+=Data seems not to be signed trying to use directly...
+*=Error reading from ./fake_1-1.diff.lzma: /bin/false exited with code 1!
+-v0*=There have been errors!
+stdout
+EOF
+
+rm fake*
 testsuccess
