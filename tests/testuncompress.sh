@@ -243,8 +243,8 @@ EOF
 
 dodo mkdir debian
 dodo touch debian/test
-echo tar -cf - fake2 \| lzma \> fake_1-1.debian.tar.lzma
-tar -cf - fake2 | lzma > fake_1-1.debian.tar.lzma
+echo tar -cf - debian \| lzma \> fake_1-1.debian.tar.lzma
+tar -cf - debian | lzma > fake_1-1.debian.tar.lzma
 rm -r debian
 
 testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
