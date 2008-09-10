@@ -553,6 +553,7 @@ static retvalue parse_tarfile(struct sourceextraction *e, const char *filename, 
 "Error trying to extract control information from %s:\n"
 "%s\n",			filename, archive_error_string(tar));
 		archive_read_finish(tar);
+		uncompress_abort(file);
 		return RET_ERROR;
 	}
 	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
