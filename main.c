@@ -449,6 +449,8 @@ ACTION_N(n, n, extractsourcesection) {
 			printf("Priority: %s\n", priority);
 	}
 	sources_done(&dsc);
+	free(section);
+	free(priority);
 	return result;
 }
 
