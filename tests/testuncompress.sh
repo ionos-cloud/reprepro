@@ -273,18 +273,19 @@ returns 255
 stdout
 EOF
 
-# destroying the header should hopefully be reproduceable failure...
-dd if=/dev/zero of=fake_1-1.debian.tar.lzma bs=5 count=1
 
-testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
-returns 255
-=Data seems not to be signed trying to use directly...
-*=/usr/bin/unlzma: Read error
-*=Error 84 trying to extract control information from ./fake_1-1.debian.tar.lzma:
-*=Empty input file: Invalid or incomplete multibyte or wide character
--v0*=There have been errors!
-stdout
-EOF
+# sadly different output depending on libarchive version....
+# dd if=/dev/zero of=fake_1-1.debian.tar.lzma bs=5 count=1
+# 
+# testrun - __extractsourcesection fake_1-1.dsc 3<<EOF
+# returns 255
+# =Data seems not to be signed trying to use directly...
+# *=/usr/bin/unlzma: Read error
+# *=Error 84 trying to extract control information from ./fake_1-1.debian.tar.lzma:
+# *=Empty input file: Invalid or incomplete multibyte or wide character
+# -v0*=There have been errors!
+# stdout
+# EOF
 
 mv save.tar.lzma fake_1-1.debian.tar.lzma
 rm fake_1.orig.tar.lzma
