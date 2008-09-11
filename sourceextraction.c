@@ -62,36 +62,36 @@ void sourceextraction_abort(struct sourceextraction *e) {
 #define endswith(name, len, with) (len >= sizeof(with) && memcmp(name+(len+1-sizeof(with)), with, sizeof(with)-1) == 0 )
 
 /* register a file part of this source */
-void sourceextraction_setpart(struct sourceextraction *e, int i, const char *basename) {
-	size_t bl = strlen(basename);
+void sourceextraction_setpart(struct sourceextraction *e, int i, const char *basefilename) {
+	size_t bl = strlen(basefilename);
 	enum compression c;
 
 	if( e->failed )
 		return;
 
-	if( endswith(basename, bl, ".gz" ) ) {
+	if( endswith(basefilename, bl, ".gz" ) ) {
 		c = c_gzip;
 		bl -= 3;
-	} else if( endswith(basename, bl, ".bz2" ) ) {
+	} else if( endswith(basefilename, bl, ".bz2" ) ) {
 		c = c_bzip2;
 		bl -= 4;
-	} else if( endswith(basename, bl, ".lzma" ) ) {
+	} else if( endswith(basefilename, bl, ".lzma" ) ) {
 		c = c_lzma;
 		bl -= 5;
 	} else {
 		c = c_none;
 	}
-	if( endswith(basename, bl, ".dsc" ) )
+	if( endswith(basefilename, bl, ".dsc" ) )
 		return;
-	else if( endswith(basename, bl, ".diff" ) ) {
+	else if( endswith(basefilename, bl, ".diff" ) ) {
 		e->difffile = i;
 		e->diffcompression = c;
 		return;
-	} else if( endswith(basename, bl, ".debian.tar" ) ) {
+	} else if( endswith(basefilename, bl, ".debian.tar" ) ) {
 		e->debiantarfile = i;
 		e->debiancompression = c;
 		return;
-	} else if( endswith(basename, bl, ".tar" ) ) {
+	} else if( endswith(basefilename, bl, ".tar" ) ) {
 		e->tarfile = i;
 		e->tarcompression = c;
 		return;

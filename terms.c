@@ -30,14 +30,14 @@
 #include "chunks.h"
 #include "terms.h"
 
-void term_free(term *term) {
-	while( term != NULL ) {
-		struct term_atom *next = term->next;
-		free(term->key);
-		free(term->comparewith);
-		strlist_done(&term->architectures);
-		free(term);
-		term = next;
+void term_free(term *t) {
+	while( t != NULL ) {
+		struct term_atom *next = t->next;
+		free(t->key);
+		free(t->comparewith);
+		strlist_done(&t->architectures);
+		free(t);
+		t = next;
 	}
 }
 
@@ -197,7 +197,7 @@ static void andterm(term *termtochange, /*@dependent@*/term *termtoand) {
 	}
 }
 
-retvalue term_compile(term **term, const char *origformula, int options) {
+retvalue term_compile(term **term_p, const char *origformula, int options) {
 	const char *formula = origformula;
 	/* for the global list */
 	struct term_atom *first,*last;
@@ -307,7 +307,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 		term_free(first);
 		return RET_ERROR;
 	}
-	*term = first;
+	*term_p = first;
 	return RET_OK;
 }
 

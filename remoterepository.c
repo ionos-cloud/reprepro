@@ -132,7 +132,7 @@ struct remote_index {
 
 struct cachedlistfile {
 	struct cachedlistfile *next;
-	const char *basename;
+	const char *basefilename;
 	int partcount;
 	const char *parts[5];
 	/* might be used by some rule */
@@ -190,7 +190,7 @@ static inline void cachedlistfile_freelist(/*|only@*/struct cachedlistfile *c) {
 	}
 }
 
-static /*@null@*/ struct cachedlistfile *cachedlistfile_new(const char *basename, size_t len, size_t listdirlen) {
+static /*@null@*/ struct cachedlistfile *cachedlistfile_new(const char *basefilename, size_t len, size_t listdirlen) {
 	struct cachedlistfile *c;
 	size_t l;
 	char *p;
@@ -208,15 +208,15 @@ static /*@null@*/ struct cachedlistfile *cachedlistfile_new(const char *basename
 	p += listdirlen;
 	*(p++) = '/';
 	assert( (size_t)(p - c->fullfilename) == listdirlen + 1 );
-	c->basename = p;
-	memcpy(p, basename, len); p += len;
+	c->basefilename = p;
+	memcpy(p, basefilename, len); p += len;
 	*(p++) = '\0';
 	assert( (size_t)(p - c->fullfilename) == listdirlen + len + 2 );
 
 	c->parts[0] = p;
 	c->partcount = 1;
 	l = len;
-	while( l-- > 0 && (ch = *(basename++)) != '\0' ) {
+	while( l-- > 0 && (ch = *(basefilename++)) != '\0' ) {
 		if( ch == '_' ) {
 			*(p++) = '\0';
 			if( c->partcount < 5 )
@@ -229,8 +229,8 @@ static /*@null@*/ struct cachedlistfile *cachedlistfile_new(const char *basename
 				c->partcount = 0;
 				return c;
 			}
-			first = *(basename++);
-			second = *(basename++);
+			first = *(basefilename++);
+			second = *(basefilename++);
 			if( first >= '0' && first <= '9' )
 				*p = (first - '0') << 4;
 			else if( first >= 'a' && first <= 'f' )
@@ -627,7 +627,7 @@ retvalue remote_preparemetalists(struct aptmethodrun *run, bool nodownload) {
 }
 
 bool remote_index_isnew(/*@null@*/const struct remote_index *ri, struct donefile *done) {
-	const char *basename;
+	const char *basefilename;
 	struct checksums *checksums;
 	bool hashes_missing, improves;
 
@@ -636,9 +636,9 @@ bool remote_index_isnew(/*@null@*/const struct remote_index *ri, struct donefile
 		return true;
 	/* if not there or the wrong files comes next, then something
 	 * has changed and we better reload everything */
-	if( !donefile_nextindex(done, &basename, &checksums) )
+	if( !donefile_nextindex(done, &basefilename, &checksums) )
 		return true;
-	if( strcmp(basename, ri->cachebasename) != 0 ) {
+	if( strcmp(basefilename, ri->cachebasename) != 0 ) {
 		checksums_free(checksums);
 		return true;
 	}
@@ -689,10 +689,10 @@ static inline void remote_index_oldfiles(struct remote_index *ri, /*@null@*/stru
 	for( o = oldfiles ; o != NULL ; o = o->next ) {
 		if( o->deleted )
 			continue;
-		if( strncmp(o->basename, ri->cachebasename, l) != 0 )
+		if( strncmp(o->basefilename, ri->cachebasename, l) != 0 )
 			continue;
 		for( c = 0 ; c < c_COUNT ; c++ )
-			if( strcmp(o->basename + l,
+			if( strcmp(o->basefilename + l,
 			           uncompression_suffix[c]) == 0 ) {
 				old[c] = o;
 				o->needed = true;

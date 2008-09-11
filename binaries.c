@@ -75,7 +75,7 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 }
 
 /* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
-static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, const char *packagetype, const char *version, /*@out@*/char **sourcename, /*@out@*/char **basename, /*@out@*/enum filetype *ft_p) {
+static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, const char *packagetype, const char *version, /*@out@*/char **sourcename_p, /*@out@*/char **basename_p, /*@out@*/enum filetype *ft_p) {
 	retvalue r;
 	char *parch;
 	char *mysourcename,*mybasename;
@@ -119,8 +119,8 @@ static retvalue binaries_parse_chunk(const char *chunk, const char *packagename,
 		return RET_ERROR_OOM;
 	}
 
-	*basename = mybasename;
-	*sourcename = mysourcename;
+	*basename_p = mybasename;
+	*sourcename_p = mysourcename;
 	return RET_OK;
 }
 
@@ -143,7 +143,7 @@ retvalue binaries_getfilekeys(const char *chunk, struct strlist *files) {
 	return r;
 }
 
-static retvalue calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys) {
+static retvalue calcfilekeys(const char *component, const char *sourcename, const char *basefilename, struct strlist *filekeys) {
 	char *filekey;
 	retvalue r;
 
@@ -151,17 +151,17 @@ static retvalue calcfilekeys(const char *component,const char *sourcename,const 
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	filekey =  calc_filekey(component,sourcename,basename);
+	filekey =  calc_filekey(component, sourcename, basefilename);
 	if( filekey == NULL )
 		return RET_ERROR_OOM;
 	r = strlist_init_singleton(filekey,filekeys);
 	return r;
 }
 
-static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,const char *basename,const char *component,struct strlist *filekeys,char **newchunk) {
+static inline retvalue calcnewcontrol(const char *chunk, const char *sourcename, const char *basefilename, const char *component, struct strlist *filekeys, char **newchunk) {
 	retvalue r;
 
-	r = calcfilekeys(component,sourcename,basename,filekeys);
+	r = calcfilekeys(component, sourcename, basefilename, filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -188,13 +188,13 @@ retvalue binaries_getversion(const char *control, char **version) {
 }
 
 retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *type_p) {
-	char *sourcename IFSTUPIDCC(=NULL) ,*basename IFSTUPIDCC(=NULL);
+	char *sourcename IFSTUPIDCC(=NULL), *basefilename IFSTUPIDCC(=NULL);
 	struct checksumsarray origfilekeys;
 	retvalue r;
 	enum filetype ft IFSTUPIDCC(='?');
 
 	r = binaries_parse_chunk(chunk, packagename, t->packagetype,
-			version, &sourcename, &basename, &ft);
+			version, &sourcename, &basefilename, &ft);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	} else if( r == RET_NOTHING ) {
@@ -203,11 +203,11 @@ retvalue binaries_getinstalldata(const struct target *t, const char *packagename
 	}
 	r = binaries_getchecksums(chunk, &origfilekeys);
 	if( RET_WAS_ERROR(r) ) {
-		free(sourcename);free(basename);
+		free(sourcename); free(basefilename);
 		return r;
 	}
 
-	r = calcnewcontrol(chunk, sourcename, basename,
+	r = calcnewcontrol(chunk, sourcename, basefilename,
 			t->component, filekeys, control);
 	if( RET_WAS_ERROR(r) ) {
 		checksumsarray_done(&origfilekeys);
@@ -217,7 +217,7 @@ retvalue binaries_getinstalldata(const struct target *t, const char *packagename
 	}
 	if( type_p != NULL )
 		*type_p = ft;
-	free(sourcename);free(basename);
+	free(sourcename); free(basefilename);
 	return r;
 }
 
@@ -695,15 +695,15 @@ retvalue binaries_checkadddeb(const struct deb_headers *deb, struct database *da
 
 retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *deb,const char *packagetype,struct strlist *filekeys) {
 	retvalue r;
-	char *basename;
+	char *basefilename;
 
-	basename = calc_binary_basename(deb->name, deb->version,
+	basefilename = calc_binary_basename(deb->name, deb->version,
 			deb->architecture, packagetype);
-	if( basename == NULL )
+	if( FAILEDTOALLOC(basefilename) )
 		return RET_ERROR_OOM;
 
-	r = calcfilekeys(component, deb->source, basename, filekeys);
-	free(basename);
+	r = calcfilekeys(component, deb->source, basefilename, filekeys);
+	free(basefilename);
 	return r;
 }
 

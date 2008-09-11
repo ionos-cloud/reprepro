@@ -564,28 +564,30 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 
 static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, const char *fileline) {
 	struct candidate_file **p, *n;
-	char *basename;
+	char *basefilename;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct candidate_file));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &n->type, &basename,
+	r = changes_parsefileline(fileline, &n->type, &basefilename,
 			&n->h.hashes[cs_md5sum], &n->h.hashes[cs_length],
 			&n->section, &n->priority, &n->architecture, &n->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
 		return r;
 	}
-	n->ofs = strlist_ofs(&i->files, basename);
+	n->ofs = strlist_ofs(&i->files, basefilename);
 	if( n->ofs < 0 ) {
-		fprintf(stderr,"In '%s': file '%s' not found in the incoming dir!\n", i->files.values[c->ofs], basename);
-		free(basename);
+		fprintf(stderr,
+"In '%s': file '%s' not found in the incoming dir!\n",
+				i->files.values[c->ofs], basefilename);
+		free(basefilename);
 		candidate_file_free(n);
 		return RET_ERROR_MISSING;
 	}
-	free(basename);
+	free(basefilename);
 
 	p = &c->files;
 	while( *p != NULL )
@@ -600,21 +602,21 @@ static retvalue candidate_addhashes(struct incoming *i, struct candidate *c, enu
 	for( j = 0 ; j < lines->count ; j++ ) {
 		const char *fileline = lines->values[j];
 		struct candidate_file *f;
-		const char *basename;
+		const char *basefilename;
 		struct hash_data hash, size;
 		retvalue r;
 
 		r = hashline_parse(BASENAME(i, c->ofs), fileline, cs,
-				&basename, &hash, &size);
+				&basefilename, &hash, &size);
 		if( !RET_IS_OK(r) )
 			return r;
 		f = c->files;
-		while( f != NULL && strcmp(BASENAME(i, f->ofs), basename) != 0 )
+		while( f != NULL && strcmp(BASENAME(i, f->ofs), basefilename) != 0 )
 			f = f->next;
 		if( f == NULL ) {
 			fprintf(stderr,
 "Warning: Ignoring file '%s' listed in '%s' but not in '%s' of '%s'!\n",
-					basename, changes_checksum_names[cs],
+					basefilename, changes_checksum_names[cs],
 					changes_checksum_names[cs_md5sum],
 					BASENAME(i, c->ofs));
 			continue;
@@ -624,7 +626,7 @@ static retvalue candidate_addhashes(struct incoming *i, struct candidate *c, enu
 					size.start, size.len) != 0 ) {
 			fprintf(stderr,
 "Error: Different size of '%s' listed in '%s' and '%s' of '%s'!\n",
-					basename, changes_checksum_names[cs],
+					basefilename, changes_checksum_names[cs],
 					changes_checksum_names[cs_md5sum],
 					BASENAME(i, c->ofs));
 			return RET_ERROR;
@@ -757,7 +759,7 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 
 /* Is used before any other candidate fields are set */
 static retvalue candidate_usefile(const struct incoming *i,const struct candidate *c,struct candidate_file *file) {
-	const char *basename;
+	const char *basefilename;
 	char *origfile,*tempfilename;
 	struct checksums *readchecksums;
 	retvalue r;
@@ -767,17 +769,19 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 	if( file->used && file->tempfilename != NULL )
 		return RET_OK;
 	assert(file->tempfilename == NULL);
-	basename = BASENAME(i,file->ofs);
-	for( p = basename; *p != '\0' ; p++ ) {
+	basefilename = BASENAME(i, file->ofs);
+	for( p = basefilename; *p != '\0' ; p++ ) {
 		if( (0x80 & *(const unsigned char *)p) != 0 ) {
-			fprintf(stderr, "Invalid filename '%s' listed in '%s': contains 8-bit characters\n", basename, BASENAME(i,c->ofs));
+			fprintf(stderr,
+"Invalid filename '%s' listed in '%s': contains 8-bit characters\n",
+					basefilename, BASENAME(i, c->ofs));
 			return RET_ERROR;
 		}
 	}
-	tempfilename = calc_dirconcat(i->tempdir, basename);
+	tempfilename = calc_dirconcat(i->tempdir, basefilename);
 	if( tempfilename == NULL )
 		return RET_ERROR_OOM;
-	origfile = calc_dirconcat(i->directory, basename);
+	origfile = calc_dirconcat(i->directory, basefilename);
 	if( origfile == NULL ) {
 		free(tempfilename);
 		return RET_ERROR_OOM;
@@ -796,8 +800,11 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		return RET_OK;
 	}
 	if( !checksums_check(file->checksums, readchecksums, &improves) ) {
-		fprintf(stderr, "ERROR: File '%s' does not match expectations:\n", basename);
-		checksums_printdifferences(stderr, file->checksums, readchecksums);
+		fprintf(stderr,
+"ERROR: File '%s' does not match expectations:\n",
+				basefilename);
+		checksums_printdifferences(stderr,
+				file->checksums, readchecksums);
 		checksums_free(readchecksums);
 		deletefile(tempfilename);
 		free(tempfilename);
@@ -964,7 +971,7 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 
 static retvalue candidate_preparechangesfile(struct database *database,const struct candidate *c,struct candidate_perdistribution *per) {
 	retvalue r;
-	char *basename, *filekey;
+	char *basefilename, *filekey;
 	struct candidate_package *package;
 	struct candidate_file *file;
 	const char *component = NULL;
@@ -991,12 +998,13 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 	if( package == NULL )
 		return RET_ERROR_OOM;
 
-	basename = calc_changes_basename(c->source, c->changesversion, &c->architectures);
-	if( basename == NULL )
+	basefilename = calc_changes_basename(c->source, c->changesversion,
+			&c->architectures);
+	if( basefilename == NULL )
 		return RET_ERROR_OOM;
 
-	filekey = calc_filekey(component, c->source, basename);
-	free(basename);
+	filekey = calc_filekey(component, c->source, basefilename);
+	free(basefilename);
 	if( filekey == NULL )
 		return RET_ERROR_OOM;
 
@@ -1073,7 +1081,7 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
-static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, struct checksums **checksums_p, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
+static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basefilename, struct checksums **checksums_p, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
 	struct candidate_file *f;
 	const struct checksums * const checksums = *checksums_p;
 	retvalue r;
@@ -1081,7 +1089,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 
 	f = c->files;
 	while( f != NULL && (f->checksums == NULL ||
-				strcmp(BASENAME(i, f->ofs), basename) != 0) )
+				strcmp(BASENAME(i, f->ofs), basefilename) != 0) )
 		f = f->next;
 
 	if( f == NULL ) {
@@ -1100,7 +1108,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 
 		if( f == NULL ) {
 			fprintf(stderr, "file '%s' is needed for '%s', not yet registered in the pool and not found in '%s'\n",
-					basename, BASENAME(i, package_ofs),
+					basefilename, BASENAME(i, package_ofs),
 					BASENAME(i, c->ofs));
 			return RET_ERROR;
 		}
@@ -1109,7 +1117,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 
 	if( !checksums_check(f->checksums, checksums, &improves) ) {
 		fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
-				basename,
+				basefilename,
 				BASENAME(i, c->ofs),
 				BASENAME(i, package_ofs));
 		return RET_ERROR;
@@ -1745,7 +1753,6 @@ static retvalue candidate_add(struct database *database, struct strlist *derefer
 
 static retvalue process_changes(struct database *database, struct strlist *dereferenced, struct incoming *i, int ofs) {
 	struct candidate *c IFSTUPIDCC(=NULL);
-	struct candidate_file *file;
 	retvalue r;
 	int j,k;
 	bool broken = false, tried = false;
@@ -1805,6 +1812,8 @@ static retvalue process_changes(struct database *database, struct strlist *deref
 				      "No distribution found for '%s'!\n",
 			i->files.values[ofs]);
 		if( i->cleanup[cuf_on_deny]  ) {
+			struct candidate_file *file;
+
 			i->delete[c->ofs] = true;
 			for( file = c->files ; file != NULL ; file = file->next ) {
 				// TODO: implement same-owner check
@@ -1852,13 +1861,14 @@ retvalue process_incoming(struct database *database, struct strlist *dereference
 		return r;
 
 	for( j = 0 ; j < i->files.count ; j ++ ) {
-		const char *basename = i->files.values[j];
-		size_t l = strlen(basename);
+		const char *basefilename = i->files.values[j];
+		size_t l = strlen(basefilename);
 #define C_SUFFIX ".changes"
 #define C_LEN strlen(C_SUFFIX)
-		if( l <= C_LEN || strcmp(basename+(l-C_LEN),C_SUFFIX) != 0 )
+		if( l <= C_LEN ||
+		    strcmp(basefilename + (l - C_LEN ), C_SUFFIX) != 0 )
 			continue;
-		if( changesfilename != NULL && strcmp(basename, changesfilename) != 0 )
+		if( changesfilename != NULL && strcmp(basefilename, changesfilename) != 0 )
 			continue;
 		/* a .changes file, check it */
 		r = process_changes(database, dereferenced, i, j);

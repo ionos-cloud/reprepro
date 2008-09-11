@@ -481,7 +481,7 @@ static int catchchildren(void) {
 	return returned;
 }
 
-static void feedchildren(bool wait) {
+static void feedchildren(bool dowait) {
 	struct notification_process *p;
 	fd_set w;
 	int ret;
@@ -498,7 +498,7 @@ static void feedchildren(bool wait) {
 	}
 	if( number == 0 )
 		return;
-	ret = select(number, NULL, &w, NULL, wait?NULL:&tv);
+	ret = select(number, NULL, &w, NULL, dowait?NULL:&tv);
 	if( ret < 0 ) {
 		// TODO...
 		return;

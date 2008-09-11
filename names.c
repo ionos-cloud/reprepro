@@ -113,7 +113,7 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 	for( i = 0 ; i < basefilenames->count ; i++ ) {
 		char *file;
 
-		file = calc_dirconcat(directory,basefilenames->values[i]);
+		file = calc_dirconcat(directory, basefilenames->values[i]);
 		if( file == NULL ) {
 			strlist_done(files);
 			return RET_ERROR_OOM;

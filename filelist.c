@@ -469,7 +469,7 @@ retvalue fakefilelist(struct database *database, const char *filekey) {
 }
 
 static const char header[] = "FILE                                                    LOCATION\n";
-static const char separator[] = "\t    ";
+static const char separator_chars[] = "\t    ";
 
 static void filelist_writefiles(char *dir, size_t len,
 		struct filelist *files, struct filetorelease *file) {
@@ -481,7 +481,8 @@ static void filelist_writefiles(char *dir, size_t len,
 	filelist_writefiles(dir,len,files->nextl,file);
 		(void)release_writedata(file,dir,len);
 		(void)release_writestring(file,files->name);
-		(void)release_writedata(file,separator,sizeof(separator)-1);
+		(void)release_writedata(file, separator_chars,
+				sizeof(separator_chars) - 1);
 		first = true;
 		for( i = 0 ; i < files->count ; i ++ ) {
 			if( !first )

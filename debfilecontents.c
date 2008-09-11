@@ -89,7 +89,7 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 		}
 		a = archive_read_data_skip(tar);
 		if( a != ARCHIVE_OK ) {
-			int e = archive_errno(tar);
+			e = archive_errno(tar);
 			if( e == -EINVAL ) {
 				r = RET_ERROR;
 				fprintf(stderr,
@@ -111,7 +111,7 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 		}
 	}
 	if( a != ARCHIVE_EOF ) {
-		int e = archive_errno(tar);
+		e = archive_errno(tar);
 		if( e == -EINVAL ) {
 			r = RET_ERROR;
 			fprintf(stderr,

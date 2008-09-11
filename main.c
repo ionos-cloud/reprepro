@@ -2264,9 +2264,9 @@ ACTION_D(n, n, n, clearvanished) {
 	for( d = alldistributions; d != NULL ; d = d->next ) {
 		struct target *t;
 		for( t = d->targets; t != NULL ; t = t->next ) {
-			int i = strlist_ofs(&identifiers, t->identifier);
-			if( i >= 0 ) {
-				inuse[i] = true;
+			int ofs = strlist_ofs(&identifiers, t->identifier);
+			if( ofs >= 0 ) {
+				inuse[ofs] = true;
 				if( verbose > 6 )
 					printf(
 "Marking '%s' as used.\n", t->identifier);
@@ -2835,28 +2835,30 @@ LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
 
-static void setexport(const char *optarg) {
-	if( strcasecmp(optarg, "never") == 0 ) {
+static void setexport(const char *argument) {
+	if( strcasecmp(argument, "never") == 0 ) {
 		CONFIGSET(export, EXPORT_NEVER);
 		return;
 	}
-	if( strcasecmp(optarg, "changed") == 0 ) {
+	if( strcasecmp(argument, "changed") == 0 ) {
 		CONFIGSET(export, EXPORT_CHANGED);
 		return;
 	}
-	if( strcasecmp(optarg, "normal") == 0 ) {
+	if( strcasecmp(argument, "normal") == 0 ) {
 		CONFIGSET(export, EXPORT_NORMAL);
 		return;
 	}
-	if( strcasecmp(optarg, "lookedat") == 0 ) {
+	if( strcasecmp(argument, "lookedat") == 0 ) {
 		CONFIGSET(export, EXPORT_NORMAL);
 		return;
 	}
-	if( strcasecmp(optarg, "force") == 0 ) {
+	if( strcasecmp(argument, "force") == 0 ) {
 		CONFIGSET(export, EXPORT_FORCE);
 		return;
 	}
-	fprintf(stderr,"Error: --export needs an argument of 'never', 'normal' or 'force', but got '%s'\n", optarg);
+	fprintf(stderr,
+"Error: --export needs an argument of 'never', 'normal' or 'force', but got '%s'\n",
+			argument);
 	exit(EXIT_FAILURE);
 }
 
@@ -2876,7 +2878,7 @@ static unsigned long long parse_number(const char *name, const char *argument, l
 	return l;
 }
 
-static void handle_option(int c,const char *optarg) {
+static void handle_option(int c, const char *argument) {
 	retvalue r;
 
 	switch( c ) {
@@ -2935,7 +2937,7 @@ static void handle_option(int c,const char *optarg) {
 		case '\0':
 			switch( longoption ) {
 				case LO_UNIGNORE:
-					r = set_ignore(optarg, false, config_state);
+					r = set_ignore(argument, false, config_state);
 					if( RET_WAS_ERROR(r) ) {
 						exit(EXIT_FAILURE);
 					}
@@ -3016,33 +3018,33 @@ static void handle_option(int c,const char *optarg) {
 					CONFIGSET(oldfilesdb, false);
 					break;
 				case LO_EXPORT:
-					setexport(optarg);
+					setexport(argument);
 					break;
 				case LO_OUTDIR:
-					CONFIGDUP(x_outdir, optarg);
+					CONFIGDUP(x_outdir, argument);
 					break;
 				case LO_DISTDIR:
-					CONFIGDUP(x_distdir,optarg);
+					CONFIGDUP(x_distdir, argument);
 					break;
 				case LO_DBDIR:
-					CONFIGDUP(dbdir,optarg);
+					CONFIGDUP(dbdir, argument);
 					break;
 				case LO_LISTDIR:
-					CONFIGDUP(x_listdir,optarg);
+					CONFIGDUP(x_listdir, argument);
 					break;
 				case LO_OVERRIDEDIR:
 					if( verbose >= -1 )
 						fprintf(stderr, "Warning: --overridedir is obsolete. \nPlease put override files in the conf dir for compatibility with future version.\n");
-					CONFIGDUP(x_overridedir,optarg);
+					CONFIGDUP(x_overridedir, argument);
 					break;
 				case LO_CONFDIR:
-					CONFIGDUP(x_confdir,optarg);
+					CONFIGDUP(x_confdir, argument);
 					break;
 				case LO_LOGDIR:
-					CONFIGDUP(x_logdir,optarg);
+					CONFIGDUP(x_logdir, argument);
 					break;
 				case LO_METHODDIR:
-					CONFIGDUP(x_methoddir,optarg);
+					CONFIGDUP(x_methoddir, argument);
 					break;
 				case LO_VERSION:
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
@@ -3050,37 +3052,37 @@ static void handle_option(int c,const char *optarg) {
 				case LO_WAITFORLOCK:
 					CONFIGSET(waitforlock, parse_number(
 							"--waitforlock",
-							optarg, LONG_MAX));
+							argument, LONG_MAX));
 					break;
 				case LO_SPACECHECK:
-					if( strcasecmp(optarg, "none") == 0 ) {
+					if( strcasecmp(argument, "none") == 0 ) {
 						CONFIGSET(spacecheckmode, scm_NONE);
-					} else if( strcasecmp(optarg, "full") == 0 ) {
+					} else if( strcasecmp(argument, "full") == 0 ) {
 						CONFIGSET(spacecheckmode, scm_FULL);
 					} else {
 						fprintf(stderr,
-"Unknown --spacecheck argument: '%s'!\n", optarg);
+"Unknown --spacecheck argument: '%s'!\n", argument);
 						exit(EXIT_FAILURE);
 					}
 					break;
 				case LO_SAFETYMARGIN:
 					CONFIGSET(reservedotherspace, parse_number(
 							"--safetymargin",
-							optarg, LONG_MAX));
+							argument, LONG_MAX));
 					break;
 				case LO_DBSAFETYMARGIN:
 					CONFIGSET(reserveddbspace, parse_number(
 							"--dbsafetymargin",
-							optarg, LONG_MAX));
+							argument, LONG_MAX));
 					break;
 				case LO_GUNZIP:
-					CONFIGDUP(gunzip, optarg);
+					CONFIGDUP(gunzip, argument);
 					break;
 				case LO_BUNZIP2:
-					CONFIGDUP(bunzip2, optarg);
+					CONFIGDUP(bunzip2, argument);
 					break;
 				case LO_UNLZMA:
-					CONFIGDUP(unlzma, optarg);
+					CONFIGDUP(unlzma, argument);
 					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
@@ -3101,60 +3103,60 @@ static void handle_option(int c,const char *optarg) {
 			fprintf(stderr, "Ignoring no longer existing option -f/--force!\n");
 			break;
 		case 'b':
-			CONFIGDUP(x_basedir, optarg);
+			CONFIGDUP(x_basedir, argument);
 			break;
 		case 'i':
-			r = set_ignore(optarg, true, config_state);
+			r = set_ignore(argument, true, config_state);
 			if( RET_WAS_ERROR(r) ) {
 				exit(EXIT_FAILURE);
 			}
 			break;
 		case 'C':
 			if( x_component != NULL &&
-					strcmp(x_component, optarg) != 0) {
+					strcmp(x_component, argument) != 0) {
 				fprintf(stderr,"Multiple '-C' are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_component, optarg);
+			CONFIGDUP(x_component, argument);
 			break;
 		case 'A':
 			if( x_architecture != NULL &&
-					strcmp(x_architecture, optarg) != 0) {
+					strcmp(x_architecture, argument) != 0) {
 				fprintf(stderr,"Multiple '-A's are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_architecture, optarg);
+			CONFIGDUP(x_architecture, argument);
 			break;
 		case 'T':
-			if( strcmp(optarg, "dsc") != 0 &&
-			    strcmp(optarg, "deb") != 0 &&
-			    strcmp(optarg, "udeb") != 0 ) {
+			if( strcmp(argument, "dsc") != 0 &&
+			    strcmp(argument, "deb") != 0 &&
+			    strcmp(argument, "udeb") != 0 ) {
 				fprintf(stderr, "Unknown packagetype '%s' (only dsc deb and udeb are known)!\n",
-						optarg);
+						argument);
 				exit(EXIT_FAILURE);
 			}
 			if( x_packagetype != NULL &&
-					strcmp(x_packagetype, optarg) != 0) {
+					strcmp(x_packagetype, argument) != 0) {
 				fprintf(stderr,"Multiple '-T's are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_packagetype, optarg);
+			CONFIGDUP(x_packagetype, argument);
 			break;
 		case 'S':
 			if( x_section != NULL &&
-					strcmp(x_section, optarg) != 0) {
+					strcmp(x_section, argument) != 0) {
 				fprintf(stderr,"Multiple '-S' are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_section, optarg);
+			CONFIGDUP(x_section, argument);
 			break;
 		case 'P':
 			if( x_priority != NULL &&
-					strcmp(x_priority, optarg) != 0) {
+					strcmp(x_priority, argument) != 0) {
 				fprintf(stderr,"Multiple '-P's are mpt supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_priority, optarg);
+			CONFIGDUP(x_priority, argument);
 			break;
 		case '?':
 			/* getopt_long should have already given an error msg */
@@ -3179,8 +3181,8 @@ bool interrupted(void) {
 		return false;
 }
 
-static void interrupt_signaled(int signal) /*__attribute__((signal))*/;
-static void interrupt_signaled(UNUSED(int signal)) {
+static void interrupt_signaled(int) /*__attribute__((signal))*/;
+static void interrupt_signaled(UNUSED(int s)) {
 	was_interrupted = true;
 }
 

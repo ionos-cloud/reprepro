@@ -328,13 +328,13 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 		(void)close(mstdin[1]);
 		(void)close(mstdout[0]);
 		if( dup2(mstdin[0],0) < 0 ) {
-			int e = errno;
+			e = errno;
 			fprintf(stderr, "Error %d while setting stdin: %s\n",
 					e, strerror(e));
 			exit(255);
 		}
 		if( dup2(mstdout[1],1) < 0 ) {
-			int e = errno;
+			e = errno;
 			fprintf(stderr, "Error %d while setting stdout: %s\n",
 					e, strerror(e));
 			exit(255);

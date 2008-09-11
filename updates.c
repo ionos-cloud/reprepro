@@ -665,25 +665,25 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 			continue;
 
 		for( ci = 0 ; ci < c_into->count ; ci++ ) {
-			struct update_index_connector *index;
+			struct update_index_connector *uindex;
 
 			if( strcmp(c_into->values[ci],target->component) != 0 )
 				continue;
 
-			index = calloc(1, sizeof(struct update_index_connector));
-			if( index == NULL )
+			uindex = calloc(1, sizeof(struct update_index_connector));
+			if( uindex == NULL )
 				return RET_ERROR_OOM;
 
-			index->origin = origin;
-			index->remote = remote_index(origin->from,
+			uindex->origin = origin;
+			uindex->remote = remote_index(origin->from,
 					a_from->values[ai], c_from->values[ci],
 					target->packagetype);
-			if( FAILEDTOALLOC(index->remote) ) {
-				free(index);
+			if( FAILEDTOALLOC(uindex->remote) ) {
+				free(uindex);
 				return RET_ERROR_OOM;
 			}
-			index->next = updatetargets->indices;
-			updatetargets->indices = index;
+			uindex->next = updatetargets->indices;
+			updatetargets->indices = uindex;
 		}
 	}
 	return RET_OK;
@@ -707,38 +707,38 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 		return RET_NOTHING;
 
 	for( ai = 0 ; ai < a_into->count ; ai++ ) {
-		struct update_index_connector *index;
+		struct update_index_connector *uindex;
 
 		if( strcmp(a_into->values[ai], target->architecture) != 0 )
 			continue;
 
 		if( strcmp(p->flat, target->component) != 0 )
 				continue;
-		index = calloc(1, sizeof(struct update_index_connector));
-		if( index == NULL )
+		uindex = calloc(1, sizeof(struct update_index_connector));
+		if( uindex == NULL )
 			return RET_ERROR_OOM;
 
-		index->origin = origin;
-		index->remote = remote_flat_index(origin->from,
+		uindex->origin = origin;
+		uindex->remote = remote_flat_index(origin->from,
 				target->packagetype);
-		if( FAILEDTOALLOC(index->remote) ) {
-			free(index);
+		if( FAILEDTOALLOC(uindex->remote) ) {
+			free(uindex);
 			return RET_ERROR_OOM;
 		}
-		index->next = updatetargets->indices;
-		updatetargets->indices = index;
+		uindex->next = updatetargets->indices;
+		updatetargets->indices = uindex;
 	}
 	return RET_OK;
 }
 
 static retvalue adddeleteruletotarget(struct update_target *updatetargets) {
-	struct update_index_connector *index;
+	struct update_index_connector *uindex;
 
-	index = calloc(1, sizeof(struct update_index_connector));
-	if( FAILEDTOALLOC(index) )
+	uindex = calloc(1, sizeof(struct update_index_connector));
+	if( FAILEDTOALLOC(uindex) )
 		return RET_ERROR_OOM;
-	index->next = updatetargets->indices;
-	updatetargets->indices = index;
+	uindex->next = updatetargets->indices;
+	updatetargets->indices = uindex;
 	return RET_OK;
 }
 
@@ -992,7 +992,7 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 static retvalue calllisthooks(struct update_distribution *d) {
 	retvalue result,r;
 	struct update_target *target;
-	struct update_index_connector *index;
+	struct update_index_connector *uindex;
 
 	result = RET_NOTHING;
 	for( target = d->targets; target != NULL ; target = target->next ) {
@@ -1000,17 +1000,17 @@ static retvalue calllisthooks(struct update_distribution *d) {
 			continue;
 		/* if anything is new, we will to need to look at
 		 * all (in case there are delete rules) */
-		for( index=target->indices ; index != NULL ;
-				index=index->next ) {
-			if( index->remote == NULL )
+		for( uindex = target->indices ; uindex != NULL ;
+				uindex = uindex->next ) {
+			if( uindex->remote == NULL )
 				continue;
-			if( index->origin->pattern->listhook == NULL )
+			if( uindex->origin->pattern->listhook == NULL )
 				continue;
-			if( index->failed )
+			if( uindex->failed )
 				continue;
-			r = calllisthook(target, index);
+			r = calllisthook(target, uindex);
 			if( RET_WAS_ERROR(r) ) {
-				index->failed = true;
+				uindex->failed = true;
 				return r;
 			}
 			RET_UPDATE(result,r);
@@ -1069,7 +1069,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 
 
 static inline retvalue searchformissing(FILE *out,struct database *database,struct update_target *u) {
-	struct update_index_connector *index;
+	struct update_index_connector *uindex;
 	retvalue result,r;
 
 	if( u->nothingnew ) {
@@ -1091,10 +1091,10 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 
 	result = RET_NOTHING;
 
-	for( index=u->indices ; index != NULL ; index=index->next ) {
+	for( uindex = u->indices ; uindex != NULL ; uindex = uindex->next ) {
 		const char *filename;
 
-		if( index->origin == NULL ) {
+		if( uindex->origin == NULL ) {
 			if( verbose > 4 )
 				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
@@ -1107,12 +1107,12 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 			continue;
 		}
 
-		if( index->afterhookfilename != NULL )
-			filename = index->afterhookfilename;
+		if( uindex->afterhookfilename != NULL )
+			filename = uindex->afterhookfilename;
 		else
-			filename = remote_index_file(index->remote);
+			filename = remote_index_file(uindex->remote);
 
-		if( index->failed || index->origin->failed ) {
+		if( uindex->failed || uindex->origin->failed ) {
 			if( verbose >= 1 )
 				fprintf(stderr,"  missing '%s'\n", filename);
 			u->incomplete = true;
@@ -1123,11 +1123,11 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 		if( verbose > 4 )
 			fprintf(out,"  reading '%s'\n", filename);
 		r = upgradelist_update(u->upgradelist,
-				remote_aptmethod(index->origin->from),
+				remote_aptmethod(uindex->origin->from),
 				filename,
 				ud_decide_by_pattern,
-				(void*)index->origin->pattern,
-				index->origin->pattern->flat != NULL);
+				(void*)uindex->origin->pattern,
+				uindex->origin->pattern->flat != NULL);
 		if( RET_WAS_ERROR(r) ) {
 			u->incomplete = true;
 			u->ignoredelete = true;

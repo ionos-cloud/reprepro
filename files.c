@@ -1036,7 +1036,7 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 	return RET_OK;
 }
 
-static retvalue checkimproveorinclude(struct database *database, const char *sourcedir, const char *basename, const char *filekey, struct checksums **checksums_p, bool *improving) {
+static retvalue checkimproveorinclude(struct database *database, const char *sourcedir, const char *basefilename, const char *filekey, struct checksums **checksums_p, bool *improving) {
 	retvalue r;
 	struct checksums *checksums = NULL;
 	bool improves, copied = false;
@@ -1059,7 +1059,7 @@ static retvalue checkimproveorinclude(struct database *database, const char *sou
 		}
 	}
 	if( r == RET_NOTHING ) {
-		char *sourcefilename = calc_dirconcat(sourcedir, basename);
+		char *sourcefilename = calc_dirconcat(sourcedir, basefilename);
 
 		if( sourcefilename == NULL ) {
 			free(fullfilename);
@@ -1097,7 +1097,7 @@ static retvalue checkimproveorinclude(struct database *database, const char *sou
 		if( copied ) {
 			deletefile(fullfilename);
 			fprintf(stderr,
-"ERROR: Unexpected content of file '%s/%s'!\n", sourcedir, basename);
+"ERROR: Unexpected content of file '%s/%s'!\n", sourcedir, basefilename);
 		} else
 // TODO: if the database only listed some of the currently supported checksums,
 // and the caller of checkincludefile supplied some (which none yet does), but
@@ -1123,7 +1123,7 @@ static retvalue checkimproveorinclude(struct database *database, const char *sou
 	return r;
 }
 
-retvalue files_checkincludefile(struct database *database, const char *sourcedir,const char *basename, const char *filekey, struct checksums **checksums_p, bool *newlyincluded_p) {
+retvalue files_checkincludefile(struct database *database, const char *sourcedir, const char *basefilename, const char *filekey, struct checksums **checksums_p, bool *newlyincluded_p) {
 	char *sourcefilename, *fullfilename;
 	struct checksums *checksums;
 	retvalue r;
@@ -1153,7 +1153,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 			fprintf(stderr,
 "ERROR: '%s/%s' cannot be included as '%s'.\n"
 "Already existing files can only be included again, if they are the same, but:\n",
-				sourcedir, basename, filekey);
+				sourcedir, basefilename, filekey);
 			checksums_printdifferences(stderr, checksums, *checksums_p);
 			checksums_free(checksums);
 			return RET_ERROR_WRONG_MD5;
@@ -1163,7 +1163,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 			r = checksums_combine(&checksums, *checksums_p, NULL);
 		if( !RET_WAS_ERROR(r) )
 			r = checkimproveorinclude(database, sourcedir,
-				basename, filekey, &checksums, &improves);
+				basefilename, filekey, &checksums, &improves);
 		if( !RET_WAS_ERROR(r) && improves )
 			r = files_replace_checksums(database, filekey,
 					checksums);
@@ -1176,7 +1176,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 	}
 
 	assert( sourcedir != NULL );
-	sourcefilename = calc_dirconcat(sourcedir, basename);
+	sourcefilename = calc_dirconcat(sourcedir, basefilename);
 	if( sourcefilename == NULL )
 		return RET_ERROR_OOM;
 

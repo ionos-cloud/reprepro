@@ -368,7 +368,6 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 					&pkg->deleteonfailure[i]);
 		}
 	}
-	free(origdirectory);
 
 	/* Calculate the chunk to include: */
 
@@ -380,18 +379,21 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		free(pkg->dsc.control);
 		pkg->dsc.control = control;
 	} else {
+		free(origdirectory);
 		dsc_free(pkg, database);
 		return r;
 	}
 
 	if( interrupted() ) {
 		dsc_free(pkg, database);
+		free(origdirectory);
 		return RET_ERROR_INTERRUPTED;
 	}
 
 	if( tracks != NULL ) {
 		r = trackingdata_summon(tracks,pkg->dsc.name,pkg->dsc.version,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
+			free(origdirectory);
 			dsc_free(pkg, database);
 			return r;
 		}
@@ -409,26 +411,21 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 	/* delete source files, if they are to be */
 	if( ( RET_IS_OK(r) && delete >= D_MOVE ) ||
 			( r == RET_NOTHING && delete >= D_DELETE ) ) {
-		char *origdirectory, *fullfilename;
-		retvalue r2;
+		char *fullfilename;
 
-		r2 = dirs_getdirectory(dscfilename, &origdirectory);
-		if( RET_IS_OK(r2) ) {
-			for( i = 0 ; i < pkg->dsc.files.names.count ; i++ ) {
-				fullfilename = calc_dirconcat(origdirectory,
-						pkg->dsc.files.names.values[i]);
-				if( fullfilename == NULL ) {
-					r = RET_ERROR_OOM;
-					break;
-				}
-				if( isregularfile(fullfilename) )
-					deletefile(fullfilename);
-				free(fullfilename);
+		for( i = 0 ; i < pkg->dsc.files.names.count ; i++ ) {
+			fullfilename = calc_dirconcat(origdirectory,
+					pkg->dsc.files.names.values[i]);
+			if( fullfilename == NULL ) {
+				r = RET_ERROR_OOM;
+				break;
 			}
-			free(origdirectory);
+			if( isregularfile(fullfilename) )
+				deletefile(fullfilename);
+			free(fullfilename);
 		}
-		RET_ENDUPDATE(r, r2);
 	}
+	free(origdirectory);
 	dsc_free(pkg, database);
 
 	if( tracks != NULL ) {

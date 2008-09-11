@@ -1101,7 +1101,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 	component_len = strlen(target->component);
 	arch_len = strlen(target->architecture);
 	for( i = 0 ; i < pkg->filekeys.count ; i++) {
-		const char *s, *basename, *filekey = pkg->filekeys.values[i];
+		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
 		char *package, *control, *source, *version;
 		struct strlist filekeys;
 
@@ -1145,13 +1145,13 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			continue;
 		/* get this package, check it has the right source and version,
 		 * and if yes, remove... */
-		basename = strrchr(filekey, '/');
-		if( basename == NULL )
-			basename = filekey;
+		basefilename = strrchr(filekey, '/');
+		if( basefilename == NULL )
+			basefilename = filekey;
 		else
-			basename++;
-		s = strchr(basename, '_');
-		package = strndup(basename, s-basename);
+			basefilename++;
+		s = strchr(basefilename, '_');
+		package = strndup(basefilename, s - basefilename);
 		if( package == NULL )
 				return RET_ERROR_OOM;
 		r = table_getrecord(target->packages, package, &control);

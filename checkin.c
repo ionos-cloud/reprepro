@@ -205,12 +205,16 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		if( strcmp(forcearchitecture,"source") != 0 &&
 				strcmp(e->architecture,"all") == 0 ) {
 			if( verbose > 2 )
-				fprintf(stderr,"Placing '%s' only in architecture '%s' as requested.\n",e->basename,forcearchitecture);
+				fprintf(stderr,
+"Placing '%s' only in architecture '%s' as requested.\n",
+					e->basename, forcearchitecture);
 			free(e->architecture);
 			e->architecture = strdup(forcearchitecture);
 		} else if( strcmp(forcearchitecture,e->architecture) != 0) {
 			if( verbose > 1 )
-				fprintf(stderr,"Skipping '%s' as not for architecture '%s'.\n",e->basename,forcearchitecture);
+				fprintf(stderr,
+"Skipping '%s' as not for architecture '%s'.\n",
+					e->basename, forcearchitecture);
 			freeentries(e);
 			return RET_NOTHING;
 		}
@@ -256,15 +260,15 @@ static retvalue changes_addhashes(const char *filename, struct changes *changes,
 		struct hash_data data, size;
 		const char *fileline = filelines->values[i];
 		struct fileentry *e;
-		const char *basename;
+		const char *basefilename;
 
-		r = hashline_parse(filename, fileline, cs, &basename, &data, &size);
+		r = hashline_parse(filename, fileline, cs, &basefilename, &data, &size);
 		if( r == RET_NOTHING )
 			continue;
 		if( RET_WAS_ERROR(r) )
 			return r;
 		e = changes->files;
-		while( e != NULL && strcmp(e->basename, basename) != 0 )
+		while( e != NULL && strcmp(e->basename, basefilename) != 0 )
 			e = e->next;
 		if( e == NULL ) {
 			if( ignoresomefiles )
@@ -274,7 +278,7 @@ static retvalue changes_addhashes(const char *filename, struct changes *changes,
 				continue;
 			fprintf(stderr,
 "In '%s': file '%s' listed in '%s' but not in 'Files'\n",
-				filename, basename, changes_checksum_names[cs]);
+				filename, basefilename, changes_checksum_names[cs]);
 			return RET_ERROR;
 		}
 		if( e->hashes.hashes[cs_length].len != size.len ||
@@ -282,7 +286,7 @@ static retvalue changes_addhashes(const char *filename, struct changes *changes,
 					size.start, size.len) != 0 ) {
 			fprintf(stderr,
 "In '%s': file '%s' listed in '%s' with different size than in 'Files'\n",
-				filename, basename, changes_checksum_names[cs]);
+				filename, basefilename, changes_checksum_names[cs]);
 			return RET_ERROR;
 		}
 		e->hashes.hashes[cs] = data;
@@ -536,7 +540,9 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			// Let's just check here, perhaps
 			if( e->type == fe_UDEB &&
 					!strlist_in(&distribution->udebcomponents,e->component)) {
-				fprintf(stderr,"Cannot put file '%s' into component '%s', as it is not listed in UDebComponents!\n",e->basename,e->component);
+				fprintf(stderr,
+"Cannot put file '%s' into component '%s', as it is not listed in UDebComponents!\n",
+					e->basename, e->component);
 				return RET_ERROR;
 			}
 		} else {
@@ -636,7 +642,8 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	while( e != NULL ) {
 		if( !strlist_in(&changes->architectures,e->architecture) ) {
 			if( !IGNORING_(surprisingarch,
-			"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",e->basename,e->architecture))
+"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",
+					e->basename, e->architecture))
 				r = RET_ERROR;
 		}
 		if( e->type == fe_DSC ) {
@@ -845,11 +852,11 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 					e->basename);
 
 		if( unlink(fullorigfilename) != 0 ) {
-			int e = errno;
+			int err = errno;
 			fprintf(stderr, "Error deleting '%s': %d=%s\n",
-					fullorigfilename, e, strerror(e));
-			r = RET_ERRNO(e);
-			RET_UPDATE(result,r);
+					fullorigfilename, err, strerror(err));
+			r = RET_ERRNO(err);
+			RET_UPDATE(result, r);
 		}
 		free(fullorigfilename);
 	}
@@ -857,7 +864,7 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 	return result;
 }
 
-static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basename, const char *filekey, struct checksums **checksums_p) {
+static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basefilename, const char *filekey, struct checksums **checksums_p) {
 	retvalue r;
 	bool dummy = false;
 
@@ -884,7 +891,7 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 	// TODO: if this is included and a error occours, it currently stays.
 	// how can this be fixed?
 	return files_checkincludefile(database, changes->incomingdirectory,
-			basename, filekey, checksums_p, &dummy);
+			basefilename, filekey, checksums_p, &dummy);
 }
 
 static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
@@ -1235,13 +1242,16 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 			return r;
 		}
 		if( distribution->trackingoptions.includechanges ) {
-			char *basename;
+			char *basefilename;
 			assert( changes->srcdirectory != NULL );
 
-			basename = calc_changes_basename(changes->source, changes->changesversion, &changes->architectures);
+			basefilename = calc_changes_basename(changes->source,
+					changes->changesversion,
+					&changes->architectures);
 			changes->changesfilekey =
-				calc_dirconcat(changes->srcdirectory,basename);
-			free(basename);
+				calc_dirconcat(changes->srcdirectory,
+						basefilename);
+			free(basefilename);
 			if( changes->changesfilekey == NULL ) {
 				changes_unincludefiles(database, changes);
 				changes_free(changes);

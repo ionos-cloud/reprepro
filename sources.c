@@ -94,14 +94,14 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 		return r;
 	r = RET_NOTHING;
 	for( i = 0 ; i < filelines->count ; i++ ) {
-		char *basename IFSTUPIDCC(=NULL);
-		const char *fileline=filelines->values[i];
+		char *basefilename IFSTUPIDCC(=NULL);
+		const char *fileline = filelines->values[i];
 
-		r = calc_parsefileline(fileline, &basename);
+		r = calc_parsefileline(fileline, &basefilename);
 		if( RET_WAS_ERROR(r) )
 			break;
 
-		r = strlist_add(basenames,basename);
+		r = strlist_add(basenames, basefilename);
 		if( RET_WAS_ERROR(r) ) {
 			break;
 		}

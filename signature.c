@@ -423,7 +423,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		while( signature_len > 0 ) {
 			written = write(fd,p,signature_len);
 			if( written < 0 ) {
-				int e = errno;
+				e = errno;
 				fprintf(stderr, "Error %d writing to %s: %s\n",
 						e, signaturename,
 						strerror(e));
@@ -440,7 +440,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 #endif
 		ret = close(fd);
 		if( ret < 0 ) {
-			int e = errno;
+			e = errno;
 			fprintf(stderr, "Error %d writing to %s: %s\n",
 					e, signaturename,
 					strerror(e));
@@ -871,14 +871,14 @@ struct signedfile {
 };
 
 
-static retvalue newpossiblysignedfile(const char *directory, const char *basename, struct signedfile **out) {
+static retvalue newpossiblysignedfile(const char *directory, const char *basefilename, struct signedfile **out) {
 	struct signedfile *n;
 
 	n = calloc(1, sizeof(struct signedfile));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	n->fd = -1;
-	n->plainfilename = calc_dirconcat(directory, basename);
+	n->plainfilename = calc_dirconcat(directory, basefilename);
 	if( n->plainfilename == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;
@@ -926,11 +926,11 @@ void signedfile_free(struct signedfile *f) {
 	return;
 }
 
-retvalue signature_startsignedfile(const char *directory, const char *basename, UNUSED(const char *options), struct signedfile **out) {
+retvalue signature_startsignedfile(const char *directory, const char *basefilename, UNUSED(const char *options), struct signedfile **out) {
 	retvalue r;
 	struct signedfile *n;
 
-	r = newpossiblysignedfile(directory, basename, &n);
+	r = newpossiblysignedfile(directory, basefilename, &n);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	// create object to place data into...
@@ -938,11 +938,11 @@ retvalue signature_startsignedfile(const char *directory, const char *basename, 
 	return RET_OK;
 }
 
-retvalue signature_startunsignedfile(const char *directory, const char *basename, struct signedfile **out) {
+retvalue signature_startunsignedfile(const char *directory, const char *basefilename, struct signedfile **out) {
 	retvalue r;
 	struct signedfile *n;
 
-	r = newpossiblysignedfile(directory, basename, &n);
+	r = newpossiblysignedfile(directory, basefilename, &n);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	*out = n;
