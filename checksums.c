@@ -43,6 +43,9 @@ const char * const changes_checksum_names[] = {
 const char * const source_checksum_names[] = {
 	"Files", "Checksums-Sha1", "Checksums-Sha256"
 };
+const char * const release_checksum_names[cs_hashCOUNT] = {
+	"MD5Sum", "SHA1", "SHA256"
+};
 
 
 /* The internal representation of a checksum, as written to the databases,

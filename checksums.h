@@ -26,6 +26,7 @@ struct checksums;
 
 extern const char * const changes_checksum_names[];
 extern const char * const source_checksum_names[];
+extern const char * const release_checksum_names[];
 extern const struct constant *hashnames;
 
 struct hashes {

@@ -31,9 +31,6 @@ retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hash
 	retvalue r;
 	char *chunk;
 	struct strlist files[cs_hashCOUNT];
-	static const char *release_checksum_names[cs_hashCOUNT] = {
-		"MD5Sum", "SHA1", "SHA256"
-	};
 	enum checksumtype cs;
 
 	r = readtextfile(releasefile, releasefile, &chunk, NULL);
