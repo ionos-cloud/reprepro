@@ -170,6 +170,8 @@ struct update_pattern {
 	bool components_set;
 	bool udebcomponents_set;
 	bool config_set;
+	/* to check circular references */
+	bool visited;
 
 	bool used;
 	struct remote_repository *repository;
@@ -431,6 +433,8 @@ CFfinishparse(update_pattern) {
 
 retvalue updates_getpatterns(struct update_pattern **patterns) {
 	struct update_pattern *update = NULL, *u, *v;
+	bool progress;
+	int i;
 	retvalue r;
 
 	r = configfile_parse("updates", IGNORABLE(unknownfield),
@@ -459,14 +463,43 @@ retvalue updates_getpatterns(struct update_pattern **patterns) {
 				v = v->next;
 			if( v == NULL ) {
 				fprintf(stderr,
-"%s/updates: Update pattern '%s' references unknown pattern '%s' via From:!\n",
+"%s/updates: Update pattern '%s' references unknown pattern '%s' via From!\n",
 					global.confdir, u->name, u->from);
 				updates_freepatterns(update);
 				return RET_ERROR;
 			}
 			u->pattern_from = v;
 		}
-#warning TODO: check for circular references...
+		/* check for circular references */
+		do {
+			progress = false;
+			for( u = update ; u != NULL ; u = u->next ) {
+				if( u->visited )
+					continue;
+				if( u->pattern_from == NULL ||
+						u->pattern_from->visited ) {
+					u->visited = true;
+					progress = true;
+				}
+			}
+		} while( progress );
+		u = update;
+		while( u != NULL && u->visited )
+			u = u->next;
+		if( u != NULL ) {
+			/* The actual error is more likely found later.
+			 * If someone creates a cycle and a chain into that
+			 * more than 1000 rules long, having a slightly
+			 * misleading error message will be the last of
+			 * their problems... */
+			for( i = 0 ; i < 1000 ; i++ ) {
+				u = u->pattern_from;
+				assert( u != NULL && !u->visited );
+			}
+			fprintf(stderr, "Error: Update rule '%s' part of circular From-referencing.\n", u->name);
+			updates_freepatterns(update);
+			return RET_ERROR;
+		}
 		*patterns = update;
 	} else if( r == RET_NOTHING ) {
 		assert( update == NULL );
@@ -524,6 +557,7 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 	bool *found;
 	int i;
 
+#warning this does not yet find problems in fields from referenced rules...
 	for( p = patterns ; p != NULL ; p = p->next ) {
 		if( !p->used )
 			continue;

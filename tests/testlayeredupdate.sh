@@ -10,6 +10,90 @@ mkdir -p conf dists
 echo "export never" > conf/options
 cat > conf/distributions <<EOF
 Codename: codename1
+Update: notexisting
+Components: component
+Architectures: architecture
+EOF
+cat > conf/updates <<EOF
+Name: chainb5
+From: chainb4
+
+Name: chainb4
+From: chainb3
+
+Name: chainb3
+From: chainb2
+
+Name: chainb2
+From: chainb1
+
+Name: chainb1
+From: circular2
+
+Name: circular1
+From: circular2
+
+Name: circular2
+From: circular1
+
+Name: chaina1
+From: circular1
+
+Name: chaina2
+From: chaina1
+
+Name: chaina3
+From: chaina2
+
+Name: chaina4
+From: chaina3
+
+Name: chaina5
+From: chaina4
+
+Name: chaina6
+From: chaina5
+EOF
+
+mkdir lists db
+
+testrun - -b . update 3<<EOF
+returns 255
+stderr
+*=Error: Update rule 'circular1' part of circular From-referencing.
+-v0*=There have been errors!
+stdout
+EOF
+
+cat > conf/updates <<EOF
+Name: name
+From: broken
+EOF
+
+testrun - -b . update 3<<EOF
+returns 255
+stderr
+*=./conf/updates: Update pattern 'name' references unknown pattern 'broken' via From!
+-v0*=There have been errors!
+stdout
+EOF
+
+cat > conf/updates <<EOF
+EOF
+
+testrun - -b . update 3<<EOF
+returns 255
+stderr
+*=Cannot find definition of upgrade-rule 'notexisting' for distribution 'codename1'!
+-v0*=There have been errors!
+stdout
+EOF
+
+rm -r db
+mkdir db
+
+cat > conf/distributions <<EOF
+Codename: codename1
 Components: a bb
 UDebComponents: a
 Architectures: x yyyyyyyyyy source
@@ -20,6 +104,31 @@ Components: a bb
 Architectures: x yyyyyyyyyy
 Update: c - a
 EOF
+cat > conf/updates <<EOF
+Name: base
+VerifyRelease: blindtrust
+Method: file:$WORKDIR/testsource
+Components: error1
+
+Name: a
+Components: a
+From: base
+
+Name: b
+Components: a
+From: base
+
+Name: c
+From: base
+EOF
+
+#testrun - -b . update 3<<EOF
+#returns 255
+#stderr
+#-v0*=There have been errors!
+#stdout
+#EOF
+
 cat > conf/updates <<EOF
 Name: base
 VerifyRelease: blindtrust
@@ -38,8 +147,6 @@ Name: c
 Suite: *
 From: base
 EOF
-
-mkdir lists db
 
 testrun - -b . update codename2 3<<EOF
 returns 255
@@ -482,5 +589,4 @@ EOF
 dodiff results2.expected results
 
 rm -r -f db conf dists pool lists testsource
-echo "TODO: write tests for the error messages (unknown Update rules, unknown From: rules, unused stuf, ..."
 testsuccess
