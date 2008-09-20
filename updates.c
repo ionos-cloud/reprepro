@@ -922,8 +922,8 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 	int status;
 
 	/* distribution, component, architecture and pattern specific... */
-	newfilename = genlistsfilename(oldbasefilename, 6, "",
-			ut->target->codename, ut->target->packagetype,
+	newfilename = genlistsfilename(oldbasefilename, 5, "",
+			ut->target->codename,
 			ut->target->component, ut->target->architecture,
 			origin->pattern->name, ENDOFARGUMENTS);
 	if( FAILEDTOALLOC(newfilename) )

@@ -955,18 +955,16 @@ struct remote_index *remote_index(struct remote_distribution *rd, const char *ar
 	if( strcmp(packagetype, "deb") == 0 ) {
 		filename_in_release = mprintf("%s/binary-%s/Packages",
 				component, architecture);
-		cachefilename = genlistsfilename("Packages", 5,
+		cachefilename = genlistsfilename("Packages", 4,
 				rd->repository->name, rd->suite,
-				packagetype, component, architecture,
-				ENDOFARGUMENTS);
+				component, architecture, ENDOFARGUMENTS);
 	} else if( strcmp(packagetype, "udeb") == 0 ) {
 		filename_in_release = mprintf(
 				"%s/debian-installer/binary-%s/Packages",
 				component, architecture);
-		cachefilename = genlistsfilename("uPackages", 5,
+		cachefilename = genlistsfilename("uPackages", 4,
 				rd->repository->name, rd->suite,
-				packagetype, component, architecture,
-				ENDOFARGUMENTS);
+				component, architecture, ENDOFARGUMENTS);
 	} else if( strcmp(packagetype, "dsc") == 0 ) {
 		filename_in_release = mprintf("%s/source/Sources",
 				component);
@@ -985,9 +983,9 @@ struct remote_index *remote_flat_index(struct remote_distribution *rd, const cha
 	assert( rd->flat );
 	if( strcmp(packagetype, "deb") == 0 ) {
 		filename_in_release = strdup("Packages");
-		cachefilename = genlistsfilename("Packages", 3,
+		cachefilename = genlistsfilename("Packages", 2,
 				rd->repository->name, rd->suite,
-				packagetype, ENDOFARGUMENTS);
+				ENDOFARGUMENTS);
 	} else if( strcmp(packagetype, "dsc") == 0 ) {
 		filename_in_release = strdup("Sources");
 		cachefilename = genlistsfilename("Sources", 2,

@@ -149,7 +149,7 @@ stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_deb_Packages' using '/bin/gunzip'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
@@ -159,10 +159,10 @@ stdout
 -v5*=  reading './lists/flattest_flatsource_Sources'
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/flattest_flatsource_deb_Packages'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/flattest_flatsource_deb_Packages'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v0*=Getting packages...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
@@ -186,7 +186,7 @@ stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_deb_Packages' using '/bin/gunzip'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
@@ -195,10 +195,10 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/flattest_flatsource_deb_Packages'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/flattest_flatsource_deb_Packages'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v0*=Getting packages...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
@@ -225,7 +225,7 @@ stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_deb_Packages' using '/bin/gunzip'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
@@ -234,7 +234,7 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/flattest_flatsource_deb_Packages'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 stderr
 *=Missing 'Size' line in binary control chunk:
 *=Missing 'MD5sum' line in binary control chunk:
@@ -242,7 +242,7 @@ stderr
 *=Architecture: all
 *=Version: 0
 *=Filename: flatsource/test.deb'
--v1*=Stop reading further chunks from './lists/flattest_flatsource_deb_Packages' due to previous errors.
+-v1*=Stop reading further chunks from './lists/flattest_flatsource_Packages' due to previous errors.
 -v0*=There have been errors!
 return 249
 EOF
@@ -270,7 +270,7 @@ stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_deb_Packages' using '/bin/gunzip'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
@@ -279,10 +279,10 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/flattest_flatsource_deb_Packages'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/flattest_flatsource_deb_Packages'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v2=Created directory "./pool"
 -v2=Created directory "./pool/a"
 -v2=Created directory "./pool/a/t"
@@ -312,10 +312,10 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/flattest_flatsource_deb_Packages'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/flattest_flatsource_deb_Packages'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v2=Created directory "./pool"
 -v2=Created directory "./pool/a"
 -v2=Created directory "./pool/a/t"
@@ -363,7 +363,7 @@ stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_deb_Packages' using '/bin/gunzip'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
 -v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_1_yyyyyyyyyy.deb'...
 stdout
@@ -374,7 +374,7 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/flattest_flatsource_deb_Packages'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 -v2=Created directory "./pool"
