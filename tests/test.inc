@@ -51,34 +51,42 @@ function setverbosity() {
 		-1)
 			VERBOSITYOPTIONS="-D v=-1"
 			VERBOSITY="-s"
+			verbosity=-1
 			;;
 		0)
 			VERBOSITYOPTIONS="-D v=0"
 			VERBOSITY=""
+			verbosity=0
 			;;
 		1)
 			VERBOSITYOPTIONS="-D v=1"
 			VERBOSITY="-v"
+			verbosity=1
 			;;
 		2)
 			VERBOSITYOPTIONS="-D v=2"
 			VERBOSITY="-vv"
+			verbosity=2
 			;;
 		3)
 			VERBOSITYOPTIONS="-D v=3"
 			VERBOSITY="-vvv"
+			verbosity=3
 			;;
 		4)
 			VERBOSITYOPTIONS="-D v=4"
 			VERBOSITY="-vvvv"
+			verbosity=4
 			;;
 		5)
 			VERBOSITYOPTIONS="-D v=5"
 			VERBOSITY="-vvvvv"
+			verbosity=5
 			;;
 		6)
 			VERBOSITYOPTIONS="-D v=6"
 			VERBOSITY="-vvvvvv"
+			verbosity=6
 			;;
 		unchanged)
 			;;

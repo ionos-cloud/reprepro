@@ -10,7 +10,7 @@
  * argument will only take effect if called the first time */
 retvalue signature_init(bool allowpassphrase);
 
-retvalue signature_check(const char *options, const char *releasegpg, const char *release);
+retvalue signature_check(const struct strlist *options, const char *releasegpg, const char *release);
 retvalue signature_sign(const char *options, const char *filename, const char *signeturename);
 
 /* Read a single chunk from a file, that may be signed. */

@@ -1,3 +1,10 @@
+2008-09-18
+	* update rules can include other rules with From: allowing
+	  leaner conf/updates file and avoiding duplicate downloading
+	  of upstream indices.
+	* do not process distributions without Updates: field upon
+	  update/checkupdate/predelete...
+
 2008-09-09
 	* also support external uncompression programs for
 	  .orig.tar/.debian.tar/.tar uncompression, i.e.:

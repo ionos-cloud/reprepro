@@ -101,6 +101,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 #define CFlinelistSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
+	item->field ## _set = true; \
 	return config_getlines(iter, &item->field); \
 }
 #define CFstrlistSETPROC(sname, field) \
@@ -144,6 +145,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 #define CFtruthSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
+	item->field ## _set = true; \
 	return config_gettruth(iter, name, &item->field); \
 }
 #define CFtruthSETPROC2(sname, name, field) \
@@ -181,6 +183,7 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \
 	retvalue r; \
+	item->field ## _set = true; \
 	r = config_getflags(iter, name, hashnames, item->field, false, "(allowed values: sha1 and sha256)"); \
 	if( !RET_IS_OK(r) ) \
 		return r; \

@@ -38,6 +38,8 @@
 #include "uncompression.h"
 #include "remoterepository.h"
 
+extern int verbose;
+
 /* This is code to handle lists from remote repositories.
    Those are stored in the lists/ (or --listdir) directory
    and needs some maintaince:
@@ -89,14 +91,15 @@ struct remote_distribution {
 
 	/* if true, do not download or check Release file */
 	bool ignorerelease;
-	/* if != NULL, get Release.gpg and check with this options */
-	/*@null@*/char *verifyrelease;
 	/* hashes to ignore */
 	bool ignorehashes[cs_hashCOUNT];
 
+	/* list of key descriptions to check against, each must match */
+	struct strlist verify;
+
 	/* local copy of Release and Release.gpg file, once and if available */
-	/*@null@*/char *releasefile;
-	/*@null@*/char *releasegpgfile;
+	char *releasefile;
+	char *releasegpgfile;
 
 	/* filenames and checksums from the Release file */
 	struct checksumsarray remotefiles;
@@ -153,7 +156,7 @@ static void remote_distribution_free(/*@only@*/struct remote_distribution *d) {
 	if( d == NULL )
 		return;
 	free(d->suite);
-	free(d->verifyrelease);
+	strlist_done(&d->verify);
 	free(d->releasefile);
 	free(d->releasegpgfile);
 	free(d->suite_base_dir);
@@ -429,6 +432,7 @@ char *genlistsfilename(const char *type, unsigned int count, ...) {
 
 struct remote_distribution *remote_distribution_prepare(struct remote_repository *repository, const char *suite, bool ignorerelease, const char *verifyrelease, bool flat, bool *ignorehashes) {
 	struct remote_distribution *n, **last;
+	enum checksumtype cs;
 
 	last = &repository->distributions;
 	while( *last != NULL && strcmp((*last)->suite, suite) != 0 )
@@ -436,8 +440,42 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 
 	if( *last != NULL ) {
 		n = *last;
-		assert( strcmp(n->verifyrelease, verifyrelease) == 0 );
-		assert( n->ignorerelease == ignorerelease );
+		assert( n->flat == flat );
+
+		if( (n->ignorerelease && !ignorerelease) ||
+		    (!n->ignorerelease && ignorerelease) ) {
+			// TODO a hint which two are at fault would be nice,
+			// but how to get the information...
+			if( verbose >= 0 )
+				fprintf(stderr,
+"Warning: I was told to both ignore Release files for Suite '%s'\n"
+"from remote repository '%s' and to not ignore it. Going to not ignore!\n",
+						suite, repository->name);
+			n->ignorerelease = false;
+		}
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+			if( (n->ignorehashes[cs] && !ignorehashes[cs]) ||
+			    (!n->ignorehashes[cs] && ignorehashes[cs]) ) {
+				// TODO dito
+				if( verbose >= 0 )
+					fprintf(stderr,
+"Warning: I was told to both ignore '%s' for Suite '%s'\n"
+"from remote repository '%s' and to not ignore it. Going to not ignore!\n",
+						suite,
+						release_checksum_names[cs],
+						repository->name);
+				n->ignorehashes[cs] = false;
+			}
+		}
+		if( verifyrelease != NULL
+				&& strcmp(verifyrelease, "blindtrust") != 0
+				&& !strlist_in(&n->verify, verifyrelease) ) {
+			retvalue r;
+
+			r = strlist_add_dup(&n->verify, verifyrelease);
+			if( RET_WAS_ERROR(r) )
+				return NULL;
+		}
 		return n;
 	}
 
@@ -447,10 +485,15 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 	n->repository = repository;
 	n->suite = strdup(suite);
 	n->ignorerelease = ignorerelease;
-	if( verifyrelease != NULL )
-		n->verifyrelease = strdup(verifyrelease);
-	else
-		n->verifyrelease = NULL;
+	if( verifyrelease != NULL && strcmp(verifyrelease, "blindtrust") != 0 ) {
+		retvalue r;
+
+		r = strlist_add_dup(&n->verify, verifyrelease);
+		if( RET_WAS_ERROR(r) ) {
+			remote_distribution_free(n);
+			return NULL;
+		}
+	}
 	memcpy(n->ignorehashes, ignorehashes, sizeof(bool [cs_hashCOUNT]));
 	n->flat = flat;
 	if( flat )
@@ -458,26 +501,21 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 	else
 		n->suite_base_dir = calc_dirconcat("dists", suite);
 	if( FAILEDTOALLOC(n->suite) ||
-			(verifyrelease != NULL
-			   && FAILEDTOALLOC(n->verifyrelease)) ||
 			FAILEDTOALLOC(n->suite_base_dir) ) {
 		remote_distribution_free(n);
 		return NULL;
 	}
-	if( !ignorerelease ) {
-		n->releasefile = genlistsfilename("Release", 2,
-				repository->name, suite, ENDOFARGUMENTS);
-		if( FAILEDTOALLOC(n->releasefile) ) {
-			remote_distribution_free(n);
-			return NULL;
-		}
-		if( verifyrelease != NULL ) {
-			n->releasegpgfile = calc_addsuffix(n->releasefile, "gpg");
-			if( FAILEDTOALLOC(n->releasefile) ) {
-				remote_distribution_free(n);
-				return NULL;
-			}
-		}
+	/* ignorerelease can be unset later, so always calculate the filename */
+	n->releasefile = genlistsfilename("Release", 2,
+			repository->name, suite, ENDOFARGUMENTS);
+	if( FAILEDTOALLOC(n->releasefile) ) {
+		remote_distribution_free(n);
+		return NULL;
+	}
+	n->releasegpgfile = calc_addsuffix(n->releasefile, "gpg");
+	if( FAILEDTOALLOC(n->releasefile) ) {
+		remote_distribution_free(n);
+		return NULL;
 	}
 	*last = n;
 	return n;
@@ -498,7 +536,7 @@ static retvalue remote_distribution_metalistqueue(struct remote_distribution *d)
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	if( d->verifyrelease != NULL ) {
+	if( d->verify.count != 0 ) {
 		(void)unlink(d->releasegpgfile);
 		r = aptmethod_queueindexfile(repository->download,
 				d->suite_base_dir, "Release.gpg",
@@ -566,15 +604,17 @@ static retvalue process_remoterelease(struct remote_distribution *rd) {
 	struct remote_index *ri;
 	retvalue r;
 
-	if( rd->releasegpgfile != NULL ) {
-		r = signature_check(rd->verifyrelease,
+	if( rd->verify.count != 0 ) {
+		r = signature_check(&rd->verify,
 				rd->releasegpgfile,
 				rd->releasefile);
-		if( r == RET_NOTHING ) {
+		assert( r != RET_NOTHING );
+		if( r == RET_NOTHING )
+			r = RET_ERROR_BADSIG;
+		if( r == RET_ERROR_BADSIG ) {
 			fprintf(stderr,
-					"Error: No accepted signature found for remote repository %s (%s %s)!\n",
-					rr->name,
-					rr->method, rd->suite);
+"Error: Not enough signatures found for remote repository %s (%s %s)!\n",
+					rr->name, rr->method, rd->suite);
 			r = RET_ERROR_BADSIG;
 		}
 		if( RET_WAS_ERROR(r) )

@@ -752,6 +752,7 @@ dodiff results.expected results
 cat >conf/updates <<END
 Name: Test2toTest1
 Method: copy:$WORKDIR
+VerifyRelease: blindtrust
 Suite: test2
 Architectures: coal>${FAKEARCHITECTURE} ${FAKEARCHITECTURE} source
 FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
@@ -856,7 +857,7 @@ EOF
 testrun - -b . update test1 3<<EOF
 returns 248
 stderr
-*=Error parsing config file ./conf/updates, line 8, column 15:
+*=Error parsing config file ./conf/updates, line 9, column 15:
 *=Unknown flag in IgnoreHashes header.(allowed values: sha1 and sha256)
 *=To ignore unknown fields use --ignore=unknownfield
 -v0*=There have been errors!
@@ -2048,13 +2049,7 @@ stderr
 *=experienced a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=Ignoring as --ignore=undefinedtracking given.
-stdout
--v2=Created directory "./lists"
--v0*=Calculating packages to get...
--v0*=Getting packages...
--v1=Freeing some memory...
--v1*=Shutting down aptmethods...
--v0*=Installing (and possibly deleting) packages...
+-v0*=Nothing to do, because no distribution has an Update: field.
 EOF
 testrun - -b . clearvanished 3<<EOF
 stdout
@@ -3299,6 +3294,7 @@ echo "Update: - froma" >> conf/distributions
 cat >conf/updates <<END
 Name: froma
 Method: copy:$WORKDIR
+VerifyRelease: blindtrust
 Suite: a
 ListHook: /bin/cp
 END

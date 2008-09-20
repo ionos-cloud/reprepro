@@ -1124,7 +1124,13 @@ ACTION_D(n, n, y, update) {
 
 	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
-	if( RET_WAS_ERROR(result) ) {
+	if( !RET_IS_OK(result) ) {
+		if( result == RET_NOTHING ) {
+			if( argc == 1 )
+				fputs("Nothing to do, because no distribution has an Update: field.\n", stderr);
+			else
+				fputs("Nothing to do, because none of the selected distributions has an Update: field.\n", stderr);
+		}
 		updates_freepatterns(patterns);
 		return result;
 	}
@@ -1166,7 +1172,13 @@ ACTION_D(n, n, y, predelete) {
 
 	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
-	if( RET_WAS_ERROR(result) ) {
+	if( !RET_IS_OK(result) ) {
+		if( result == RET_NOTHING ) {
+			if( argc == 1 )
+				fputs("Nothing to do, because no distribution has an Update: field.\n", stderr);
+			else
+				fputs("Nothing to do, because none of the selected distributions has an Update: field.\n", stderr);
+		}
 		updates_freepatterns(patterns);
 		return result;
 	}
@@ -1205,7 +1217,13 @@ ACTION_B(n, n, y, checkupdate) {
 
 	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
-	if( RET_WAS_ERROR(result) ) {
+	if( !RET_IS_OK(result) ) {
+		if( result == RET_NOTHING ) {
+			if( argc == 1 )
+				fputs("Nothing to do, because no distribution has an Updates: field.\n", stderr);
+			else
+				fputs("Nothing to do, because none of the selected distributions has an Update: field.\n", stderr);
+		}
 		updates_freepatterns(patterns);
 		return result;
 	}

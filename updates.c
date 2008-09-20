@@ -128,32 +128,30 @@ struct update_pattern {
 	struct update_pattern *next;
 	//e.g. "Name: woody"
 	char *name;
+	/* another pattern to take value from */
+	char *from;
+	/*@dependent@*/struct update_pattern *pattern_from;
 	//e.g. "Method: ftp://ftp.uni-freiburg.de/pub/linux/debian"
-	char *method;
+	/*@null@*/ char *method;
 	//e.g. "Fallback: ftp://ftp.debian.org/pub/linux/debian"
-	char *fallback; // can be other server or dir, but must be same method
+	/*@null@*/ char *fallback; // can be other server or dir, but must be same method
 	//e.g. "Config: Dir=/"
 	struct strlist config;
 	//e.g. "Suite: woody" or "Suite: <asterix>/updates" (NULL means "*")
 	/*@null@*/char *suite_from;
-	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
-	bool ignorerelease;
 	//e.g. "VerifyRelease: B629A24C38C6029A" (NULL means not check)
 	/*@null@*/char *verifyrelease;
 	//e.g. "Architectures: i386 sparc mips" (not set means all)
 	struct strlist architectures_from;
 	struct strlist architectures_into;
-	bool architectures_set;
 	//e.g. "Components: main>main non-free>non-free contrib>contrib"
 	// (empty means all)
 	struct strlist components_from;
 	struct strlist components_into;
-	bool components_set;
 	//e.g. "UDebComponents: main>main"
 	// (empty means all)
 	struct strlist udebcomponents_from;
 	struct strlist udebcomponents_into;
-	bool udebcomponents_set;
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;
@@ -163,8 +161,17 @@ struct update_pattern {
 	bool ignorehashes[cs_hashCOUNT];
 	/* the name of the flat component, causing flat mode if non-NULL*/
 	/*@null@*/char *flat;
-	bool used;
+	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
+	bool ignorerelease;
+	/* if the specific field is there (to destinguish from an empty one) */
+	bool ignorehashes_set;
+	bool ignorerelease_set;
+	bool architectures_set;
+	bool components_set;
+	bool udebcomponents_set;
+	bool config_set;
 
+	bool used;
 	struct remote_repository *repository;
 };
 
@@ -214,6 +221,7 @@ struct update_target {
 struct update_distribution {
 	struct update_distribution *next;
 	struct distribution *distribution;
+	struct update_pattern **patterns;
 	struct update_origin *origins;
 	struct update_target *targets;
 };
@@ -222,6 +230,7 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	if( update == NULL )
 		return;
 	free(update->name);
+	free(update->from);
 	free(update->method);
 	free(update->fallback);
 	free(update->suite_from);
@@ -285,6 +294,7 @@ void updates_freeupdatedistributions(struct update_distribution *d) {
 		struct update_distribution *next;
 
 		next = d->next;
+		free(d->patterns);
 		updates_freetargets(d->targets);
 		updates_freeorigins(d->origins);
 		free(d);
@@ -317,6 +327,7 @@ CFlinkedlistinit(update_pattern)
 CFvalueSETPROC(update_pattern, name)
 CFvalueSETPROC(update_pattern, suite_from)
 CFvalueSETPROC(update_pattern, flat)
+CFvalueSETPROC(update_pattern, from)
 CFurlSETPROC(update_pattern, method)
 CFurlSETPROC(update_pattern, fallback)
 /* what here? */
@@ -349,7 +360,8 @@ CFhashesSETPROC(update_pattern, ignorehashes);
 
 static const struct configfield updateconfigfields[] = {
 	CFr("Name", update_pattern, name),
-	CFr("Method", update_pattern, method),
+	CF("From", update_pattern, from),
+	CF("Method", update_pattern, method),
 	CF("Fallback", update_pattern, fallback),
 	CF("Config", update_pattern, config),
 	CF("Suite", update_pattern, suite_from),
@@ -383,6 +395,34 @@ CFfinishparse(update_pattern) {
 				config_line(iter));
 			return RET_ERROR;
 		}
+		if( n->from != NULL && n->method != NULL ) {
+			fprintf(stderr,
+"%s:%u to %u: Update pattern may not contain From: and Method: fields ad the same time.\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter));
+			return RET_ERROR;
+		}
+		if( n->from == NULL && n->method == NULL ) {
+			fprintf(stderr,
+"%s:%u to %u: Update pattern must either contain a Methods: field or reference another one with a From: field.\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter));
+			return RET_ERROR;
+		}
+		if( n->from != NULL && n->fallback != NULL ) {
+			fprintf(stderr,
+"%s:%u to %u: Update pattern may not contain From: and Fallback: fields ad the same time.\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter));
+			return RET_ERROR;
+		}
+		if( n->from != NULL && n->config_set ) {
+			fprintf(stderr,
+"%s:%u to %u: Update pattern may not contain From: and Config: fields ad the same time.\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter));
+			return RET_ERROR;
+		}
 	}
 	return linkedlistfinish(privdata_update_pattern, thisdata_update_pattern,
 			lastdata_p_update_pattern, complete, iter);
@@ -390,7 +430,7 @@ CFfinishparse(update_pattern) {
 
 
 retvalue updates_getpatterns(struct update_pattern **patterns) {
-	struct update_pattern *update = NULL;
+	struct update_pattern *update = NULL, *u, *v;
 	retvalue r;
 
 	r = configfile_parse("updates", IGNORABLE(unknownfield),
@@ -398,9 +438,37 @@ retvalue updates_getpatterns(struct update_pattern **patterns) {
 			finishparseupdate_pattern,
 			updateconfigfields, ARRAYCOUNT(updateconfigfields),
 			&update);
-	if( RET_IS_OK(r) )
+	if( RET_IS_OK(r) ) {
+		for( u = update ; u != NULL ; u = u->next ) {
+			v = update;
+			while( v != NULL &&
+			       ( v == u || strcmp(v->name, u->name) != 0 ) )
+				v = v->next;
+			if( v != NULL ) {
+				// TODO: store line information...
+				fprintf(stderr,
+"%s/updates: Multiple update patterns named '%s'!\n",
+					global.confdir, u->name);
+				updates_freepatterns(update);
+				return RET_ERROR;
+			}
+			if( u->from == NULL )
+				continue;
+			v = update;
+			while( v != NULL && strcmp(v->name, u->from) != 0 )
+				v = v->next;
+			if( v == NULL ) {
+				fprintf(stderr,
+"%s/updates: Update pattern '%s' references unknown pattern '%s' via From:!\n",
+					global.confdir, u->name, u->from);
+				updates_freepatterns(update);
+				return RET_ERROR;
+			}
+			u->pattern_from = v;
+		}
+#warning TODO: check for circular references...
 		*patterns = update;
-	else if( r == RET_NOTHING ) {
+	} else if( r == RET_NOTHING ) {
 		assert( update == NULL );
 		*patterns = NULL;
 		r = RET_OK;
@@ -412,12 +480,18 @@ retvalue updates_getpatterns(struct update_pattern **patterns) {
 	return r;
 }
 
-static inline void markfound(const struct strlist *updates, const char *patternname, const struct strlist *searched, const struct strlist *have, bool *found) {
+static inline void markfound(int count, struct update_pattern * const *patterns, const struct update_pattern *lookfor, const struct strlist *searched, const struct strlist *have, bool *found, bool (*hasattribute)(const struct update_pattern*)) {
 	int i, j, o;
 
-	for( i = 0 ; i < updates->count ; i++ ) {
-		if( strcmp(updates->values[i], patternname) != 0 )
+	for( i = 0 ; i < count ; i++ ) {
+		const struct update_pattern *p = patterns[i];
+
+		/* check if this uses this attribute */
+		while( p != NULL && !hasattribute(p) )
+			p = p->pattern_from;
+		if( p != lookfor )
 			continue;
+
 		for( j = 0 ; j < have->count ; j++ ) {
 			o = strlist_ofs(searched, have->values[j]);
 			if( o >= 0 )
@@ -427,9 +501,25 @@ static inline void markfound(const struct strlist *updates, const char *patternn
 	}
 }
 
-/* TODO: move this into parsing? */
-static void checkpatternsforunused(const struct update_pattern *patterns, const struct distribution *distributions) {
-	const struct distribution *d;
+static inline bool hasarchitectures(const struct update_pattern *p) {
+	return p->architectures_set;
+}
+static inline bool hascomponents(const struct update_pattern *p) {
+	return p->components_set;
+}
+static inline bool hasudebcomponents(const struct update_pattern *p) {
+	return p->udebcomponents_set;
+}
+
+struct unused_distribution {
+	const struct distribution *distribution;
+	struct unused_distribution *next;
+	struct update_pattern **patterns;
+};
+
+static void checkpatternsforunused(const struct update_pattern *patterns, const struct update_distribution *used, struct unused_distribution *unused) {
+	const struct update_distribution *ud;
+	const struct unused_distribution *uu;
 	const struct update_pattern *p;
 	bool *found;
 	int i;
@@ -446,9 +536,19 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 			found = strlist_preparefoundlist(&p->architectures_into, true);
 			if( found == NULL )
 				return;
-			for( d = distributions ; d != NULL ; d = d->next ) {
-				markfound(&d->updates, p->name, &p->architectures_into,
-						&d->architectures, found);
+			for( ud = used ; ud != NULL ; ud = ud->next ) {
+				markfound(ud->distribution->updates.count,
+						ud->patterns, p,
+						&p->architectures_into,
+						&ud->distribution->architectures,
+						found, hasarchitectures);
+			}
+			for( uu = unused ; uu != NULL ; uu = uu->next ) {
+				markfound(uu->distribution->updates.count,
+						uu->patterns, p,
+						&p->architectures_into,
+						&uu->distribution->architectures,
+						found, hasarchitectures);
 			}
 			for( i = 0 ; i < p->architectures_into.count ; i++ ) {
 				if( found[i] )
@@ -464,9 +564,19 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 			found = strlist_preparefoundlist(&p->components_into, true);
 			if( found == NULL )
 				return;
-			for( d = distributions ; d != NULL ; d = d->next ) {
-				markfound(&d->updates, p->name, &p->components_into,
-						&d->components, found);
+			for( ud = used ; ud != NULL ; ud = ud->next ) {
+				markfound(ud->distribution->updates.count,
+						ud->patterns, p,
+						&p->components_into,
+						&ud->distribution->components,
+						found, hascomponents);
+			}
+			for( uu = unused ; uu != NULL ; uu = uu->next ) {
+				markfound(uu->distribution->updates.count,
+						uu->patterns, p,
+						&p->components_into,
+						&uu->distribution->components,
+						found, hascomponents);
 			}
 			for( i = 0 ; i < p->components_into.count ; i++ ) {
 				if( found[i] )
@@ -482,9 +592,19 @@ static void checkpatternsforunused(const struct update_pattern *patterns, const 
 			found = strlist_preparefoundlist(&p->udebcomponents_into, true);
 			if( found == NULL )
 				return;
-			for( d = distributions ; d != NULL ; d = d->next ) {
-				markfound(&d->updates, p->name, &p->udebcomponents_into,
-						&d->udebcomponents, found);
+			for( ud = used ; ud != NULL ; ud = ud->next ) {
+				markfound(ud->distribution->updates.count,
+						ud->patterns, p,
+						&p->udebcomponents_into,
+						&ud->distribution->udebcomponents,
+						found, hasudebcomponents);
+			}
+			for( uu = unused ; uu != NULL ; uu = uu->next ) {
+				markfound(uu->distribution->updates.count,
+						uu->patterns, p,
+						&p->udebcomponents_into,
+						&uu->distribution->udebcomponents,
+						found, hasudebcomponents);
 			}
 			for( i = 0 ; i < p->udebcomponents_into.count ; i++ ) {
 				if( found[i] )
@@ -518,22 +638,33 @@ static retvalue new_deleterule(struct update_origin **origins) {
 static retvalue instance_pattern(struct update_pattern *pattern, const struct distribution *distribution, struct update_origin **origins) {
 
 	struct update_origin *update;
+	/*@dependant@*/struct update_pattern *declaration, *p;
+	bool ignorehashes[cs_hashCOUNT], ignorerelease;
+	const char *verifyrelease;
+
 
 	update = calloc(1,sizeof(struct update_origin));
 	if( update == NULL )
 		return RET_ERROR_OOM;
 
-	if( pattern->suite_from == NULL || strcmp(pattern->suite_from,"*")== 0)
+	/* look for first specified suite: */
+	p = pattern;
+	while( p != NULL && p->suite_from == NULL )
+		p = p->pattern_from;
+
+	if( p->suite_from == NULL || strcmp(p->suite_from, "*") == 0)
 		update->suite_from = strdup(distribution->codename);
 	else {
-		if( pattern->suite_from[0] == '*' &&
-				pattern->suite_from[1] == '/' )
-			update->suite_from = calc_dirconcat(distribution->codename,pattern->suite_from+2);
-		else if( strchr(pattern->suite_from,'*') == NULL )
-			update->suite_from = strdup(pattern->suite_from);
+		if( p->suite_from[0] == '*' && p->suite_from[1] == '/' )
+			update->suite_from = calc_dirconcat(
+					distribution->codename,
+					p->suite_from + 2);
+		else if( strchr(p->suite_from, '*') == NULL )
+			update->suite_from = strdup(p->suite_from);
 		else {
 			//TODO: implement this...
-			fprintf(stderr,"Unsupported pattern '%s'\n",pattern->suite_from);
+			fprintf(stderr, "Unsupported pattern '%s'\n",
+					p->suite_from);
 			free(update);
 			return RET_ERROR;
 		}
@@ -543,24 +674,68 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 		return RET_ERROR_OOM;
 	}
 	if( !pattern->used ) {
-		pattern->repository = remote_repository_prepare(pattern->name,
-				pattern->method, pattern->fallback, &pattern->config);
-		if( FAILEDTOALLOC(pattern->repository) ) {
+		declaration = pattern;
+		while( declaration->pattern_from != NULL )
+			declaration = declaration->pattern_from;
+		if( declaration->repository == NULL )
+			declaration->repository = remote_repository_prepare(
+					declaration->name, declaration->method,
+					declaration->fallback,
+					&declaration->config);
+		if( FAILEDTOALLOC(declaration->repository) ) {
 			free(update->suite_from);
 			free(update);
 			return RET_ERROR_OOM;
 		}
 		pattern->used = true;
+	} else {
+		declaration = pattern;
+		while( declaration->pattern_from != NULL )
+			declaration = declaration->pattern_from;
+		assert( declaration->repository != NULL );
 	}
 
 	update->distribution = distribution;
 	update->pattern = pattern;
 	update->failed = false;
 
-	update->from = remote_distribution_prepare(pattern->repository,
-			update->suite_from, pattern->ignorerelease,
-			pattern->verifyrelease, pattern->flat,
-			pattern->ignorehashes);
+	/* find the first set values: */
+	p = pattern;
+	while( p != NULL && p->verifyrelease == NULL )
+		p = p->pattern_from;
+	if( p == NULL )
+		verifyrelease = NULL;
+	else
+		verifyrelease = p->verifyrelease;
+	if( verifyrelease == NULL && verbose >= 0 ) {
+		fprintf(stderr,
+"Warning: No VerifyRelease line in '%s' or any rule it includes via 'From:'.\n"
+"Release.gpg cannot be checked unless you tell which key to check with.\n"
+"(To avoid this warning and not check signatures add 'VerifyRelease: blindtrust').\n",
+				pattern->name);
+
+	}
+	p = pattern;
+	while( p != NULL && !p->ignorerelease_set )
+		p = p->pattern_from;
+	if( p == NULL )
+		ignorerelease = false;
+	else
+		ignorerelease = p->ignorerelease;
+	p = pattern;
+	while( p != NULL && !p->ignorehashes_set )
+		p = p->pattern_from;
+	if( p == NULL )
+		memset(ignorehashes, 0, sizeof(ignorehashes));
+	else {
+		assert( sizeof(ignorehashes) == sizeof(p->ignorehashes));
+		memcpy(ignorehashes, p->ignorehashes, sizeof(ignorehashes));
+	}
+
+	update->from = remote_distribution_prepare(declaration->repository,
+			update->suite_from, ignorerelease,
+			verifyrelease, declaration->flat,
+			ignorehashes);
 	if( FAILEDTOALLOC(update->from) ) {
 		updates_freeorigins(update);
 		return RET_ERROR_OOM;
@@ -570,42 +745,66 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 	return RET_OK;
 }
 
-static retvalue getorigins(struct update_pattern *patterns, const struct distribution *distribution, struct update_origin **origins) {
+static retvalue findpatterns(struct update_pattern *patterns, const struct distribution *distribution, struct update_pattern ***patterns_p) {
+	int i;
+	struct update_pattern **used_patterns;
+
+	if( distribution->updates.count == 0 )
+		return RET_NOTHING;
+
+	used_patterns = calloc(distribution->updates.count,
+					sizeof(struct update_pattern));
+	if( FAILEDTOALLOC(used_patterns) )
+		return RET_ERROR_OOM;
+
+	for( i = 0; i < distribution->updates.count ; i++ ) {
+		const char *name = distribution->updates.values[i];
+		struct update_pattern *pattern;
+
+		if( strcmp(name, "-") == 0 )
+			continue;
+
+		pattern = patterns;
+		while( pattern != NULL && strcmp(name, pattern->name) != 0 )
+			pattern = pattern->next;
+		if( pattern == NULL ) {
+			fprintf(stderr,
+"Cannot find definition of upgrade-rule '%s' for distribution '%s'!\n",
+						name, distribution->codename);
+			if( distribution->selected ) {
+				free(used_patterns);
+				return RET_ERROR;
+			} else
+				fprintf(stderr,
+"This is no error now as '%s' is not used, bug might cause spurious warnings...\n",
+						distribution->codename);
+		}
+		used_patterns[i] = pattern;
+	}
+	*patterns_p = used_patterns;
+	return RET_OK;
+}
+
+static retvalue getorigins(struct update_distribution *d) {
+	const struct distribution *distribution = d->distribution;
 	struct update_origin *updates = NULL;
 	retvalue result;
 	int i;
 
+	assert( d->patterns != NULL );
+
 	result = RET_NOTHING;
 	for( i = 0; i < distribution->updates.count ; i++ ) {
-		const char *name = distribution->updates.values[i];
-		struct update_pattern *pattern;
+		struct update_pattern *pattern = d->patterns[i];
 		struct update_origin *update IFSTUPIDCC(=NULL);
 		retvalue r;
 
-		if( strcmp(name,"-") == 0 ) {
-			r = new_deleterule(&update);
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) )
-				break;
-			if( RET_IS_OK(r) ) {
-				update->next = updates;
-				updates = update;
-			}
-			continue;
-		}
-
-		for( pattern = patterns ; pattern != NULL ; pattern = pattern->next ) {
-			if( strcmp(name,pattern->name) == 0 )
-				break;
-		}
 		if( pattern == NULL ) {
-			fprintf(stderr,"Cannot find definition of upgrade-rule '%s' for distribution '%s'!\n",name,distribution->codename);
-			RET_UPDATE(result,RET_ERROR);
-			break;
+			assert( strcmp(distribution->updates.values[i], "-") == 0);
+			r = new_deleterule(&update);
+		} else {
+			r = instance_pattern(pattern, distribution, &update);
 		}
-		IFSTUPIDCC(update = NULL;)
-
-		r = instance_pattern(pattern, distribution, &update);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -618,7 +817,7 @@ static retvalue getorigins(struct update_pattern *patterns, const struct distrib
 	if( RET_WAS_ERROR(result) ) {
 		updates_freeorigins(updates);
 	} else {
-		*origins = updates;
+		d->origins = updates;
 	}
 	return result;
 }
@@ -628,14 +827,17 @@ static retvalue getorigins(struct update_pattern *patterns, const struct distrib
  ****************************************************************************/
 
 static retvalue addorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
-	const struct update_pattern *p = origin->pattern;
+	const struct update_pattern *p;
 	const struct strlist *c_from, *c_into;
 	const struct strlist *a_from, *a_into;
 	int ai,ci;
 
 	assert( origin != NULL && origin->pattern != NULL);
 
-	if( p->architectures_set ) {
+	p = origin->pattern;
+	while( p != NULL && !p->architectures_set )
+		p = p->pattern_from;
+	if( p != NULL ) {
 		a_from = &p->architectures_from;
 		a_into = &p->architectures_into;
 	} else {
@@ -643,7 +845,9 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 		a_into = &distribution->architectures;
 	}
 	if( strcmp(target->packagetype,"udeb") == 0 )  {
-		if( p->udebcomponents_set ) {
+		while( p != NULL && !p->udebcomponents_set )
+			p = p->pattern_from;
+		if( p != NULL ) {
 			c_from = &p->udebcomponents_from;
 			c_into = &p->udebcomponents_into;
 		} else {
@@ -651,7 +855,9 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 			c_into = &distribution->udebcomponents;
 		}
 	} else {
-		if( p->components_set ) {
+		while( p != NULL && !p->components_set )
+			p = p->pattern_from;
+		if( p != NULL ) {
 			c_from = &p->components_from;
 			c_into = &p->components_into;
 		} else {
@@ -795,6 +1001,8 @@ static inline retvalue findmissingupdate(const struct distribution *distribution
 	if( count != distribution->updates.count ) {
 		int i;
 
+		// TODO: why is this here? can this actually happen?
+
 		for( i=0;i<distribution->updates.count;i++ ){
 			const char *update = distribution->updates.values[i];
 			struct update_origin *u;
@@ -820,51 +1028,90 @@ static inline retvalue findmissingupdate(const struct distribution *distribution
 retvalue updates_calcindices(struct update_pattern *patterns, struct distribution *distributions, bool fast, struct update_distribution **update_distributions) {
 	struct distribution *distribution;
 	struct update_distribution *u_ds;
-	retvalue r;
+	struct unused_distribution *unused = NULL;
+	retvalue result, r;
 
 	u_ds = NULL;
-	r = RET_OK;
+	result = RET_NOTHING;
 
 	for( distribution = distributions ; distribution != NULL ;
 			       distribution = distribution->next ) {
 		struct update_distribution *u_d;
+		struct update_pattern **translated_updates IFSTUPIDCC(= NULL);
 
-		if( !distribution->selected )
+		if( fast && !distribution->selected )
 			continue;
+
+		/* finding the parsed updates has to be done for all
+		 * distributions when we want to check for unused things */
+
+		r = findpatterns(patterns, distribution, &translated_updates);
+		if( r == RET_NOTHING )
+			continue;
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+
+		if( !distribution->selected ) {
+			struct unused_distribution *u;
+
+			u = malloc(sizeof(struct unused_distribution));
+			if( FAILEDTOALLOC(u) ) {
+				r = RET_ERROR_OOM;
+				break;
+			}
+			u->next = unused;
+			u->distribution = distribution;
+			u->patterns = translated_updates;
+			unused = u;
+			continue;
+		}
 
 		u_d = calloc(1,sizeof(struct update_distribution));
 		if( FAILEDTOALLOC(u_d) ) {
-			r = RET_ERROR_OOM;
+			free(translated_updates);
+			result = RET_ERROR_OOM;
 			break;
 		}
 
 		u_d->distribution = distribution;
+		u_d->patterns = translated_updates;
 		u_d->next = u_ds;
 		u_ds = u_d;
 
-		r = getorigins(patterns, distribution, &u_d->origins);
-
+		r = getorigins(u_d);
 		if( RET_WAS_ERROR(r) )
 			break;
 		if( RET_IS_OK(r) ) {
 			/* Check if we got all: */
 			r = findmissingupdate(distribution, u_d->origins);
-			if( RET_WAS_ERROR(r) )
+			if( RET_WAS_ERROR(r) ) {
+				result = r;
 				break;
+			}
 
 			r = gettargets(u_d->origins, distribution, &u_d->targets);
-			if( RET_WAS_ERROR(r) )
+			if( RET_WAS_ERROR(r) ) {
+				result = r;
 				break;
+			}
 		}
-		r = RET_OK;
+		result = RET_OK;
 	}
-	if( RET_IS_OK(r) ) {
+	if( RET_IS_OK(result) ) {
 		if( !fast )
-			checkpatternsforunused(patterns, distributions);
+			checkpatternsforunused(patterns, u_ds, unused);
 		*update_distributions = u_ds;
 	} else
 		updates_freeupdatedistributions(u_ds);
-	return r;
+	while( unused != NULL ) {
+		struct unused_distribution *h = unused->next;
+		free(unused->patterns);
+		free(unused);
+		unused = h;
+	}
+	return result;
 }
 
 /****************************************************************************

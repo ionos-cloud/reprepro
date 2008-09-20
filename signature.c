@@ -117,7 +117,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
-			/* nothing more to check, so nothing fullfilled */
+			/* nothing more to check, so nothing fulfilled */
 			return RET_NOTHING;
 		p = keypart;
 		while( *p != '\0' && !xisspace(*p) && *p != '|' )
@@ -144,7 +144,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 }
 #endif /* HAVE_LIBGPGME */
 
-retvalue signature_check(const char *options, const char *releasegpg, const char *release) {
+retvalue signature_check(const struct strlist *requirements, const char *releasegpg, const char *release) {
 	retvalue r;
 #ifdef HAVE_LIBGPGME
 	gpgme_error_t err;
@@ -152,7 +152,11 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	gpgme_data_t dh,dh_gpg;
 	gpgme_verify_result_t result;
 	gpgme_signature_t s;
+	bool totalfulfilled[requirements->count], keyfulfills[requirements->count];
+	int i,j;
 #endif /* HAVE_LIBGPGME */
+
+	assert( requirements->count > 0 );
 
 	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
@@ -162,6 +166,8 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		return r;
 
 #ifdef HAVE_LIBGPGME
+	for( i = 0 ; i < requirements->count ; i++ )
+		totalfulfilled[i] = false;
 	/* Read the file and its signature into memory: */
 	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
 	if( gpgfd < 0 ) {
@@ -203,10 +209,19 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		return RET_ERROR_GPGME;
 	}
 	for( s = result->signatures ; s != NULL ; s = s->next ) {
-		r = containskey(options, s->fpr);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( r == RET_NOTHING ) {
+		bool keyused = false;
+
+		for( i = 0 ; i < requirements->count ; i++ ) {
+			r = containskey(requirements->values[i], s->fpr);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( RET_IS_OK(r) ) {
+				keyused = true;
+				keyfulfills[i] = true;
+			} else
+				keyfulfills[i] = false;
+		}
+		if( !keyused ) {
 			if( gpgme_err_code(s->status) == GPG_ERR_NO_ERROR &&
 					verbose > 10 ) {
 				printf("Valid signature with key '%s', but that key is not looked at.\n", s->fpr);
@@ -223,16 +238,22 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 "WARNING: valid signature in '%s' with '%s', which has been expired.\n"
 "         as the key was manually specified it is still accepted!\n",
 						releasegpg, s->fpr);
-				return RET_OK;
+				for( i = 0 ; i < requirements->count ; i++ ) {
+					if( keyfulfills[i] )
+						totalfulfilled[i] = true;
+				}
+				continue;
 			case GPG_ERR_CERT_REVOKED:
-				if( verbose >= 0 ) {
-					fprintf(stderr,
+				fprintf(stderr,
 "WARNING\n"
 "WARNING: valid signature in '%s' with '%s', which has been revoked.\n"
 "WARNING: as the key was manually specified it is still accepted!\n"
 "WARNING\n", releasegpg, s->fpr);
+				for( i = 0 ; i < requirements->count ; i++ ) {
+					if( keyfulfills[i] )
+						totalfulfilled[i] = true;
 				}
-				return RET_OK;
+				continue;
 			case GPG_ERR_SIG_EXPIRED:
 				if( verbose > 0 ) {
 					time_t timestamp = s->timestamp,
@@ -280,7 +301,27 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			gpgme_err_code(s->status));
 		return RET_ERROR_GPGME;
 	}
-	return RET_NOTHING;
+	for( i = 0 ; i < requirements->count ; i++ ) {
+		if( totalfulfilled[i] )
+			continue;
+		j = 0;
+		while( j < requirements->count && !totalfulfilled[j] )
+			j++;
+		if( j >= requirements->count ) {
+			/* none of the requirements matches */
+			fprintf(stderr,
+"Error: No accepted signature for '%s' found in '%s'!\n",
+					release, releasegpg);
+		} else {
+			fprintf(stderr,
+"Error: '%s' misses requirement '%s'.\n"
+"At least one other requirement on that file was not missed,\n"
+"but all requirements have to be fulfilled to accept it.\n",
+					releasegpg, requirements->values[i]);
+		}
+		return RET_ERROR_BADSIG;
+	}
+	return RET_OK;
 #else /* HAVE_LIBGPGME */
 	fprintf(stderr,
 "ERROR: Cannot check signature as this reprepro binary is compiled with support\n"

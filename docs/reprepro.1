@@ -1018,6 +1018,16 @@ leading spaces).
 .P
 For example: Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
 .TP
+.B From
+The name of an other update rule this rules derives from.
+The rule containing the \fBFrom\fP may not contain
+.BR Method ", " Fallback " or " Config "."
+All other fields are used from the rule referenced in \fBFrom\fP, unless
+found in this containing the \fBFrom\fP.
+The rule referenced in \fBFrom\fP may itself contain a \fBFrom\fP.
+Reprepro will only assume two remove index files are the same,
+if both get their \fBMethod\fP information from the same rule.
+.TP
 .B Suite
 The suite to update from. If this is not present, the codename
 of the distribution using this one is used. Also "*/whatever"

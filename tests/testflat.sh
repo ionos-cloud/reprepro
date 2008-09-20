@@ -17,6 +17,7 @@ EOF
 cat > conf/updates.base <<EOF
 Name: flattest
 Flat: a
+VerifyRelease: blindtrust
 Method: file:$WORKDIR
 Suite: flatsource
 EOF
@@ -67,7 +68,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 6: Update pattern may not contain Components and Flat fields ad the same time.
+*=./conf/updates:1 to 7: Update pattern may not contain Components and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF
@@ -80,7 +81,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 6: Update pattern may not contain UDebComponents and Flat fields ad the same time.
+*=./conf/updates:1 to 7: Update pattern may not contain UDebComponents and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF

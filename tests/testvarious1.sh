@@ -25,13 +25,11 @@ touch conf/updates
 dodo test ! -d db
 testrun - -b . checkupdate test 3<<EOF
 stderr
-*=Nothing to do found. (Use --noskipold to force processing)
+-v0*=Nothing to do, because none of the selected distributions has an Update: field.
 stdout
 -v2*=Created directory "./db"
 -v2=Created directory "./lists"
-#-v2*=Removed empty directory "./db"
 EOF
-#dodo test ! -d db
 rm -r -f lists
 rm -r -f db conf
 dodo test ! -d d/ab
