@@ -765,10 +765,8 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 	for( c = 0 ; c < c_COUNT ; c++ ) {
 		if( old[c] == NULL )
 			continue;
-		if( ri->ofs[c_none] >= 0 ) {
-			// TODO: check if it could be used
-			// (might be good if it could not be unpacked last
-			// time due to no space left on device)
+		if( c != c_none && ri->ofs[c] >= 0 ) {
+			/* check if it can be used */
 			r = checksums_test(old[c]->fullfilename,
 					rd->remotefiles.checksums[ri->ofs[c]],
 					&rd->remotefiles.checksums[ri->ofs[c]]);
