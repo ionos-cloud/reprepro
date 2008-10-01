@@ -136,12 +136,6 @@ static retvalue configparser_ ## sname ## _set_ ## name (UNUSED(void *dummy), co
 	item->name ## _set = true; \
 	return config_getuniqwords(iter, name, NULL, &item->name); \
 }
-#define CFsplitstrlistSETPROC(sname, field) \
-static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
-	struct sname *item = data; \
-	item->field ## _set = true; \
-	return config_getsplitwords(iter, name, &item->field ## _from, &item->field ## _into); \
-}
 #define CFtruthSETPROC(sname, field) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
 	struct sname *item = data; \

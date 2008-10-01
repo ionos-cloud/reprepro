@@ -62,6 +62,7 @@
 #include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
+#include "atoms.h"
 #include "dirs.h"
 #include "names.h"
 #include "signature.h"
@@ -337,24 +338,92 @@ CFvalueSETPROC(update_pattern, verifyrelease)
 CFlinelistSETPROC(update_pattern, config)
 CFtruthSETPROC(update_pattern, ignorerelease)
 CFscriptSETPROC(update_pattern, listhook)
-CFsplitstrlistSETPROC(update_pattern, components)
-CFsplitstrlistSETPROC(update_pattern, udebcomponents)
 CFfilterlistSETPROC(update_pattern, filterlist)
 CFtermSETPROC(update_pattern, includecondition)
+
+CFUSETPROC(update_pattern, components) {
+	CFSETPROCVAR(update_pattern, this);
+	retvalue r;
+	int i;
+
+	this->components_set = true;
+	r = config_getsplitwords(iter, "Components",
+			&this->components_from,
+			&this->components_into);
+	if( RET_IS_OK(r) ) {
+		// TODO: instead of this save numbers directly...
+		for( i = 0 ; i < this->components_into.count ; i++ ) {
+			component_t c;
+			c = component_find(this->components_into.values[i]);
+			if( c == atom_unknown ) {
+				fprintf(stderr,
+"Warning parsing %s, line %u: unknown component '%s' will be ignored!\n",
+					config_filename(iter),
+					config_markerline(iter),
+					this->components_into.values[i]);
+			}
+		}
+	}
+	return r;
+}
+
+CFUSETPROC(update_pattern, udebcomponents) {
+	CFSETPROCVAR(update_pattern, this);
+	retvalue r;
+	int i;
+
+	this->udebcomponents_set = true;
+	r = config_getsplitwords(iter, "UdebComponents",
+			&this->udebcomponents_from,
+			&this->udebcomponents_into);
+	if( RET_IS_OK(r) ) {
+		// TODO: instead of this save numbers directly...
+		for( i = 0 ; i < this->udebcomponents_into.count ; i++ ) {
+			component_t c;
+			c = component_find(this->udebcomponents_into.values[i]);
+			if( c == atom_unknown ) {
+				fprintf(stderr,
+"Warning parsing %s, line %u: unknown udeb component '%s' will be ignored!\n",
+					config_filename(iter),
+					config_markerline(iter),
+					this->udebcomponents_into.values[i]);
+			}
+		}
+	}
+	return r;
+}
+
 CFUSETPROC(update_pattern, architectures) {
 	CFSETPROCVAR(update_pattern, this);
 	retvalue r;
+	int i;
 
 	this->architectures_set = true;
 	r = config_getsplitwords(iter, "Architectures",
 			&this->architectures_from,
 			&this->architectures_into);
 	if( r == RET_NOTHING ) {
+		strlist_init(&this->architectures_from);
+		strlist_init(&this->architectures_into);
 		fprintf(stderr,
 "Warning parsing %s, line %u: an empty Architectures field\n"
 "causes the whole pattern to do nothing.\n",
 				config_filename(iter),
 				config_markerline(iter));
+	}
+	if( RET_IS_OK(r) ) {
+		// TODO: instead of this save numbers directly...
+		for( i = 0 ; i < this->architectures_into.count ; i++ ) {
+			architecture_t a;
+			a = architecture_find(this->architectures_into.values[i]);
+			if( a == atom_unknown ) {
+				fprintf(stderr,
+"Warning parsing %s, line %u: unknown architecture '%s' will be ignored!\n",
+					config_filename(iter),
+					config_markerline(iter),
+					this->architectures_into.values[i]);
+			}
+		}
 	}
 	return r;
 }
@@ -542,115 +611,6 @@ static inline bool hascomponents(const struct update_pattern *p) {
 }
 static inline bool hasudebcomponents(const struct update_pattern *p) {
 	return p->udebcomponents_set;
-}
-
-struct unused_distribution {
-	const struct distribution *distribution;
-	struct unused_distribution *next;
-	struct update_pattern **patterns;
-};
-
-static void checkpatternsforunused(const struct update_pattern *patterns, const struct update_distribution *used, struct unused_distribution *unused) {
-	const struct update_distribution *ud;
-	const struct unused_distribution *uu;
-	const struct update_pattern *p;
-	bool *found;
-	int i;
-
-#warning this does not yet find problems in fields from referenced rules...
-	for( p = patterns ; p != NULL ; p = p->next ) {
-		if( !p->used )
-			continue;
-
-		if( p->architectures_set ) {
-			/* no architectures to update means nothing to do */
-			if( p->architectures_into.count == 0 )
-				continue;
-
-			found = strlist_preparefoundlist(&p->architectures_into, true);
-			if( found == NULL )
-				return;
-			for( ud = used ; ud != NULL ; ud = ud->next ) {
-				markfound(ud->distribution->updates.count,
-						ud->patterns, p,
-						&p->architectures_into,
-						&ud->distribution->architectures,
-						found, hasarchitectures);
-			}
-			for( uu = unused ; uu != NULL ; uu = uu->next ) {
-				markfound(uu->distribution->updates.count,
-						uu->patterns, p,
-						&p->architectures_into,
-						&uu->distribution->architectures,
-						found, hasarchitectures);
-			}
-			for( i = 0 ; i < p->architectures_into.count ; i++ ) {
-				if( found[i] )
-					continue;
-				fprintf(stderr,
-"Warning: Update pattern '%s' wants to put something in architecture '%s',\n"
-"but no distribution using that rule has an architecture of that name.\n",
-						p->name, p->architectures_into.values[i]);
-			}
-			free(found);
-		}
-		if( p->components_set && p->components_into.count > 0 ) {
-			found = strlist_preparefoundlist(&p->components_into, true);
-			if( found == NULL )
-				return;
-			for( ud = used ; ud != NULL ; ud = ud->next ) {
-				markfound(ud->distribution->updates.count,
-						ud->patterns, p,
-						&p->components_into,
-						&ud->distribution->components,
-						found, hascomponents);
-			}
-			for( uu = unused ; uu != NULL ; uu = uu->next ) {
-				markfound(uu->distribution->updates.count,
-						uu->patterns, p,
-						&p->components_into,
-						&uu->distribution->components,
-						found, hascomponents);
-			}
-			for( i = 0 ; i < p->components_into.count ; i++ ) {
-				if( found[i] )
-					continue;
-				fprintf(stderr,
-"Warning: Update pattern '%s' wants to put something in component '%s',\n"
-"but no distribution using that rule has an component of that name.\n",
-						p->name, p->components_into.values[i]);
-			}
-			free(found);
-		}
-		if( p->udebcomponents_set && p->udebcomponents_into.count > 0 ) {
-			found = strlist_preparefoundlist(&p->udebcomponents_into, true);
-			if( found == NULL )
-				return;
-			for( ud = used ; ud != NULL ; ud = ud->next ) {
-				markfound(ud->distribution->updates.count,
-						ud->patterns, p,
-						&p->udebcomponents_into,
-						&ud->distribution->udebcomponents,
-						found, hasudebcomponents);
-			}
-			for( uu = unused ; uu != NULL ; uu = uu->next ) {
-				markfound(uu->distribution->updates.count,
-						uu->patterns, p,
-						&p->udebcomponents_into,
-						&uu->distribution->udebcomponents,
-						found, hasudebcomponents);
-			}
-			for( i = 0 ; i < p->udebcomponents_into.count ; i++ ) {
-				if( found[i] )
-					continue;
-				fprintf(stderr,
-"Warning: Update pattern '%s' wants to put something in udebcomponent '%s',\n"
-"but no distribution using that rule has an udebcomponent of that name.\n",
-						p->name, p->udebcomponents_into.values[i]);
-			}
-			free(found);
-		}
-	}
 }
 
 /****************************************************************************
@@ -1062,7 +1022,6 @@ static inline retvalue findmissingupdate(const struct distribution *distribution
 retvalue updates_calcindices(struct update_pattern *patterns, struct distribution *distributions, bool fast, struct update_distribution **update_distributions) {
 	struct distribution *distribution;
 	struct update_distribution *u_ds;
-	struct unused_distribution *unused = NULL;
 	retvalue result, r;
 
 	u_ds = NULL;
@@ -1073,11 +1032,8 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 		struct update_distribution *u_d;
 		struct update_pattern **translated_updates IFSTUPIDCC(= NULL);
 
-		if( fast && !distribution->selected )
+		if( !distribution->selected )
 			continue;
-
-		/* finding the parsed updates has to be done for all
-		 * distributions when we want to check for unused things */
 
 		r = findpatterns(patterns, distribution, &translated_updates);
 		if( r == RET_NOTHING )
@@ -1085,21 +1041,6 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 		if( RET_WAS_ERROR(r) ) {
 			result = r;
 			break;
-		}
-
-		if( !distribution->selected ) {
-			struct unused_distribution *u;
-
-			u = malloc(sizeof(struct unused_distribution));
-			if( FAILEDTOALLOC(u) ) {
-				r = RET_ERROR_OOM;
-				break;
-			}
-			u->next = unused;
-			u->distribution = distribution;
-			u->patterns = translated_updates;
-			unused = u;
-			continue;
 		}
 
 		u_d = calloc(1,sizeof(struct update_distribution));
@@ -1134,17 +1075,9 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 		result = RET_OK;
 	}
 	if( RET_IS_OK(result) ) {
-		if( !fast )
-			checkpatternsforunused(patterns, u_ds, unused);
 		*update_distributions = u_ds;
 	} else
 		updates_freeupdatedistributions(u_ds);
-	while( unused != NULL ) {
-		struct unused_distribution *h = unused->next;
-		free(unused->patterns);
-		free(unused);
-		unused = h;
-	}
 	return result;
 }
 

@@ -1238,7 +1238,6 @@ ACTION_B(n, n, y, checkupdate) {
 }
 
 ACTION_C(n, n, cleanlists) {
-
 #warning TODO: do not forget to implement this...
 	// TODO: when this is implemented, also log the database?
 	fprintf(stderr, "Sorry, not yet implemented.\n");

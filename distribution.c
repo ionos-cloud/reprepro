@@ -28,6 +28,7 @@
 #include <time.h>
 #include "error.h"
 #include "mprintf.h"
+#include "atoms.h"
 #include "sources.h"
 #include "dirs.h"
 #include "names.h"
@@ -222,6 +223,7 @@ CFfinishparse(distribution) {
 	CFfinishparseVARS(distribution,n,last_p,mydata);
 	struct distribution *d;
 	retvalue r;
+	int i;
 
 	if( !complete ) {
 		distribution_free(n);
@@ -241,6 +243,32 @@ CFfinishparse(distribution) {
 				n->firstline, n->lastline);
 			distribution_free(n);
 			return RET_ERROR;
+		}
+	}
+
+	//TODO: instead of doing this, save numbers directly in parsing...
+	for( i = 0 ; i < n->architectures.count ; i++ ) {
+		architecture_t a;
+		r = architecture_intern(n->architectures.values[i], &a);
+		if( RET_WAS_ERROR(r) ) {
+			distribution_free(n);
+			return r;
+		}
+	}
+	for( i = 0 ; i < n->components.count ; i++ ) {
+		component_t a;
+		r = component_intern(n->components.values[i], &a);
+		if( RET_WAS_ERROR(r) ) {
+			distribution_free(n);
+			return r;
+		}
+	}
+	for( i = 0 ; i < n->udebcomponents.count ; i++ ) {
+		component_t a;
+		r = component_intern(n->udebcomponents.values[i], &a);
+		if( RET_WAS_ERROR(r) ) {
+			distribution_free(n);
+			return r;
 		}
 	}
 

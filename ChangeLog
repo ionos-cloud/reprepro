@@ -1,3 +1,10 @@
+2008-10-01
+	* warn if an update rule references local components or architectures
+	  that were not seen in conf/distributions (old behaviour was to check
+	  if any distribution that references this rule had this architecture,
+	  but that was too complex with the new rule-can-reference-rule
+	  possibilities).
+
 2008-09-18
 	* update rules can include other rules with From: allowing
 	  leaner conf/updates file and avoiding duplicate downloading

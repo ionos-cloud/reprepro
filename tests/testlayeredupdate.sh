@@ -89,6 +89,36 @@ stderr
 stdout
 EOF
 
+cat > conf/distributions <<EOF
+Codename: codename1
+Update: test
+Components: component
+Architectures: architecture
+EOF
+cat > conf/updates <<EOF
+Name: test
+Components: comonent
+Architectures: achitecture
+VerifyRelease: blindtrust
+Method: file:///notexistant
+EOF
+
+testrun - -b . update 3<<EOF
+returns 255
+stderr
+*=Warning parsing ./conf/updates, line 2: unknown component 'comonent' will be ignored!
+*=Warning parsing ./conf/updates, line 3: unknown architecture 'achitecture' will be ignored!
+*=aptmethod error receiving 'file:///notexistant/dists/codename1/Release':
+*='File not found'
+-v0*=There have been errors!
+stdout
+EOF
+
+cat > conf/updates <<EOF
+Name: test
+Components: comonent
+EOF
+
 rm -r db
 mkdir db
 
