@@ -3387,6 +3387,12 @@ int main(int argc,char *argv[]) {
 	free(bunzip2);
 	free(unlzma);
 
+	r = atoms_init();
+	if( r == RET_ERROR_OOM )
+		(void)fputs("Out of Memory!\n",stderr);
+	if( RET_WAS_ERROR(r) )
+		exit(EXIT_RET(r));
+
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
