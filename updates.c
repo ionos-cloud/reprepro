@@ -686,7 +686,7 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 	while( p != NULL && p->suite_from == NULL )
 		p = p->pattern_from;
 
-	if( p->suite_from == NULL || strcmp(p->suite_from, "*") == 0)
+	if( p == NULL || strcmp(p->suite_from, "*") == 0)
 		update->suite_from = strdup(distribution->codename);
 	else {
 		if( p->suite_from[0] == '*' && p->suite_from[1] == '/' )
