@@ -33,6 +33,7 @@
 #include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
+#include "atoms.h"
 #include "dirs.h"
 #include "names.h"
 #include "files.h"
