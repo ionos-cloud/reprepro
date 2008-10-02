@@ -444,56 +444,6 @@ retvalue distribution_readall(struct distribution **distributions) {
 	return RET_OK;
 }
 
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
-retvalue distribution_foreach_rwopenedpart(struct distribution *distribution,struct database *database,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
-	retvalue result,r;
-	struct target *t;
-
-	result = RET_NOTHING;
-	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
-			continue;
-		r = target_initpackagesdb(t, database, READWRITE);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
-			return result;
-		r = action(data, t, distribution);
-		RET_UPDATE(result, r);
-		// TODO: how to seperate this in those affecting distribution
-		// and those that do not?
-		RET_UPDATE(distribution->status, r);
-		r = target_closepackagesdb(t);
-		RET_UPDATE(distribution->status, r);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(result) )
-			return result;
-	}
-	return result;
-}
-
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
-retvalue distribution_foreach_roopenedpart(struct distribution *distribution,struct database *database,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
-	retvalue result,r;
-	struct target *t;
-
-	result = RET_NOTHING;
-	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
-			continue;
-		r = target_initpackagesdb(t, database, READONLY);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
-			return result;
-		r = action(data, t, distribution);
-		RET_UPDATE(result, r);
-		r = target_closepackagesdb(t);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(result) )
-			return result;
-	}
-	return result;
-}
-
 /* call <action> for each package */
 retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result,r;

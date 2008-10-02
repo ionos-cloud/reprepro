@@ -108,12 +108,6 @@ typedef retvalue each_package_action(struct database *, struct distribution *, s
 retvalue distribution_foreach_package(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action, each_target_action, void *);
 retvalue distribution_foreach_package_c(struct distribution *, struct database *, const struct strlist *components, const char *architecture, const char *packagetype, each_package_action, void *);
 
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
-retvalue distribution_foreach_roopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb,
- * setting distribution->status to some error if there are any*/
-retvalue distribution_foreach_rwopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
-
 /* delete every package decider returns RET_OK for */
 retvalue distribution_remove_packages(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *, void *);
 
@@ -121,6 +115,7 @@ retvalue distribution_remove_packages(struct distribution *, struct database *, 
 
 /* like distribtion_getpart, but returns NULL if there is no such target */
 /*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
+// /*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 retvalue distribution_fullexport(struct distribution *distribution, struct database *);
 

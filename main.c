@@ -603,24 +603,19 @@ ACTION_R(n, n, n, y, addreference) {
 	return references_increment(database, argv[1], argv[2]);
 }
 
-
-struct remove_args {/*@temp@*/struct database *db; int count; /*@temp@*/ const char * const *names; bool *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;struct logger *logger;};
-
-static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
-		UNUSED(struct distribution *dummy)) {
+static retvalue remove_from_target(struct database *db, struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved, struct strlist *removedfiles) {
 	retvalue result,r;
 	int i;
-	struct remove_args *d = data;
 
 	result = RET_NOTHING;
-	for( i = 0 ; i < d->count ; i++ ){
-		r = target_removepackage(target, d->logger, d->db,
-				d->names[i],
-				d->removedfiles, d->trackingdata);
+	for( i = 0 ; i < count ; i++ ){
+		r = target_removepackage(target, distribution->logger, db,
+				names[i], removedfiles, trackingdata);
+		RET_UPDATE(distribution->status, r);
 		if( RET_IS_OK(r) ) {
-			if( ! d->gotremoved[i] )
-				d->todo--;
-			d->gotremoved[i] = true;
+			if( !gotremoved[i] )
+				(*todo)--;
+			gotremoved[i] = true;
 		}
 		RET_UPDATE(result,r);
 	}
@@ -630,7 +625,10 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 ACTION_D(y, n, y, remove) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct remove_args d;
+	struct target *t;
+	bool *gotremoved;
+	int todo;
+
 	trackingdb tracks;
 	struct trackingdata trackingdata;
 
@@ -653,55 +651,63 @@ ACTION_D(y, n, y, remove) {
 			(void)tracking_done(tracks);
 			return r;
 		}
-		d.trackingdata = &trackingdata;
-	} else {
-		d.trackingdata = NULL;
 	}
 
-	d.count = argc-2;
-	d.names = argv+2;
-	d.todo = d.count;
-	d.gotremoved = calloc(d.count,sizeof(*d.gotremoved));
-	d.db = database;
-	d.removedfiles = dereferenced;
-	d.logger = distribution->logger;
-	if( d.gotremoved == NULL )
+	todo = argc-2;
+	gotremoved = calloc(argc-2, sizeof(*gotremoved));
+	result = RET_NOTHING;
+	if( FAILEDTOALLOC(gotremoved) )
 		result = RET_ERROR_OOM;
-	else
-		result = distribution_foreach_rwopenedpart(distribution, database,
-				component, architecture, packagetype,
-				remove_from_target, &d);
-	d.db = NULL;
-	d.removedfiles = NULL;
+	else for( t = distribution->targets ; t != NULL ; t = t->next ) {
+		 if( !target_matches(t, component, architecture, packagetype) )
+			 continue;
+		 r = target_initpackagesdb(t, database, READWRITE);
+		 RET_UPDATE(result, r);
+		 if( RET_WAS_ERROR(r) )
+			 break;
+		 r = remove_from_target(database,
+				 distribution,
+				 (distribution->tracking != dt_NONE)?&trackingdata:NULL,
+				 t, argc-2, argv+2,
+				 &todo, gotremoved, dereferenced);
+		 RET_UPDATE(result, r);
+		 r = target_closepackagesdb(t);
+		 RET_UPDATE(distribution->status, r);
+		 RET_UPDATE(result, r);
+		 if( RET_WAS_ERROR(result) )
+			 break;
+	}
 
 	logger_wait();
 
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result,r);
 
-	if( d.trackingdata != NULL ) {
+	if( distribution->tracking != dt_NONE ) {
 		if( RET_WAS_ERROR(result) )
-			trackingdata_done(d.trackingdata);
+			trackingdata_done(&trackingdata);
 		else
-			trackingdata_finish(tracks, d.trackingdata, database, dereferenced);
+			trackingdata_finish(tracks, &trackingdata, database, dereferenced);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
-	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {
-		(void)fputs("Not removed as not found: ",stderr);
-		while( d.count > 0 ) {
-			d.count--;
-			assert(d.gotremoved != NULL);
-			if( ! d.gotremoved[d.count] ) {
-				(void)fputs(d.names[d.count],stderr);
-				d.todo--;
-				if( d.todo > 0 )
-					(void)fputs(", ",stderr);
+	if( verbose >= 0 && !RET_WAS_ERROR(result) && todo > 0 ) {
+		int i = argc - 2;
+
+		(void)fputs("Not removed as not found: ", stderr);
+		while( i > 0 ) {
+			i--;
+			assert(gotremoved != NULL);
+			if( !gotremoved[i] ) {
+				(void)fputs(argv[2 + i], stderr);
+				todo--;
+				if( todo > 0 )
+					(void)fputs(", ", stderr);
 			}
 		}
-		(void)fputc('\n',stderr);
+		(void)fputc('\n', stderr);
 	}
-	free(d.gotremoved);
+	free(gotremoved);
 	return result;
 }
 
@@ -880,11 +886,13 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
-static retvalue list_in_target(void *data, struct target *target,
-		UNUSED(struct distribution *distribution)) {
+static retvalue list_in_target(struct database *database, struct target *target, const char *packagename) {
 	retvalue r,result;
-	const char *packagename = data;
 	char *control,*version;
+
+	r = target_initpackagesdb(target, database, READONLY);
+	if( !RET_IS_OK(r) )
+		return r;
 
 	result = table_getrecord(target->packages, packagename, &control);
 	if( RET_IS_OK(result) ) {
@@ -897,6 +905,8 @@ static retvalue list_in_target(void *data, struct target *target,
 		}
 		free(control);
 	}
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -918,6 +928,7 @@ static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct dist
 ACTION_B(y, n, y, list) {
 	retvalue r;
 	struct distribution *distribution;
+	struct target *t;
 
 	assert( argc >= 2 );
 
@@ -930,10 +941,14 @@ ACTION_B(y, n, y, list) {
 		return distribution_foreach_package(distribution, database,
 			component, architecture, packagetype,
 			list_package, NULL, NULL);
-	else
-		return distribution_foreach_roopenedpart(distribution, database,
-			component, architecture, packagetype,
-			list_in_target, (void*)argv[2]);
+	else for( t = distribution->targets ; t != NULL ; t = t->next ) {
+		if( !target_matches(t, component, architecture, packagetype) )
+			continue;
+		r = list_in_target(database, t, argv[2]);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return r;
 }
 
 
