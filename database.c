@@ -201,7 +201,7 @@ enum database_type {
 	dbt_HASH,
 	dbt_COUNT /* must be last */
 };
-const uint32_t types[dbt_COUNT] = {
+static const uint32_t types[dbt_COUNT] = {
 	DB_UNKNOWN,
 	DB_BTREE, DB_BTREE, DB_BTREE,
 	DB_HASH
