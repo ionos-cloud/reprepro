@@ -469,7 +469,7 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 		const char *errormessage = check(value);
 		if( errormessage != NULL ) {
 			configparser_errorlast(iter,
-"Malformed %s header content '%s': %s\n", header, value, errormessage);
+"Malformed %s content '%s': %s", header, value, errormessage);
 			free(value);
 			checkerror_free(errormessage);
 			return RET_ERROR;
@@ -499,7 +499,7 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 			return RET_ERROR;
 		} else if( check != NULL && (errormessage = check(value)) != NULL ) {
 			configparser_errorlast(iter,
-"Malformed %s header element '%s': %s\n", header, value, errormessage);
+"Malformed %s element '%s': %s", header, value, errormessage);
 			checkerror_free(errormessage);
 			free(value);
 			strlist_done(&data);
@@ -531,7 +531,7 @@ retvalue config_getinternatomlist(struct configiterator *iter, const char *heade
 		}
 		if( check != NULL && (errormessage = check(value)) != NULL ) {
 			configparser_errorlast(iter,
-"Malformed %s header element '%s': %s\n", header, value, errormessage);
+"Malformed %s element '%s': %s", header, value, errormessage);
 			checkerror_free(errormessage);
 			free(value);
 			atomlist_done(&data);
@@ -679,7 +679,7 @@ retvalue config_getatomsublist(struct configiterator *iter, const char *header, 
 		atom = atom_find(type, value);
 		if( !atom_defined(atom) || !atomlist_in(superset, atom) ) {
 			configparser_errorlast(iter,
-"'%s' not alloed in %s as it was not in %s.", value, header, superset_header);
+"'%s' not allowed in %s as it was not in %s.", value, header, superset_header);
 			free(value);
 			atomlist_done(&data);
 			return RET_ERROR;

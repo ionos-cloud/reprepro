@@ -2689,7 +2689,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	if( !ISSET(needs, NEED_ACT) && ( x_architecture != NULL ) ) {
 		if( !IGNORING_(unusedoption,
 "Action '%s' cannot be restricted to an architecture!\n"
-"neither --archiecture or -A make sense here.\n",
+"neither --archiecture nor -A make sense here.\n",
 				action->name) )
 			return RET_ERROR;
 	}
@@ -2749,7 +2749,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 			if( !atom_defined(architecture) ) {
 				fprintf(stderr,
 "Error: Architecture '%s' as given to --architecture is not know.\n"
-"(it does not appear as architecture in %s/distributions (did you mistype?).\n",
+"(it does not appear as architecture in %s/distributions (did you mistype?))\n",
 					x_architecture, global.confdir);
 				(void)distribution_freelist(alldistributions);
 				return RET_ERROR;
@@ -2760,7 +2760,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 			if( !atom_defined(component) ) {
 				fprintf(stderr,
 "Error: Component '%s' as given to --component is not know.\n"
-"(it does not appear as component in %s/distributions (did you mistype?).\n",
+"(it does not appear as component in %s/distributions (did you mistype?))\n",
 					x_component, global.confdir);
 				(void)distribution_freelist(alldistributions);
 				return RET_ERROR;
