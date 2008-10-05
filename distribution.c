@@ -588,7 +588,9 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 					has_suite[i]->lookedat = lookedat;
 				continue;
 			}
-			fprintf(stderr, "No distribution definition of '%s' found in distributions'!\n", argv[i]);
+			fprintf(stderr,
+"No distribution definition of '%s' found in '%s/distributions'!\n",
+				argv[i], global.confdir);
 			if( unusable_as_suite[i] )
 				fprintf(stderr,
 "(It is not the codename of any distribution and there are multiple\n"
