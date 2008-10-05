@@ -159,7 +159,7 @@ export FALEN=${#FAKEARCHITECTURE}
 # new dpkg-dev supports a fake architecture without tricks (and the old tricks no longer work):
 export DEB_HOST_ARCH="$FAKEARCHITECTURE"
 
-if [ "1" -gt "$#" ] || [ "2" -lt "$#" ] ; then
+if [ "2" -lt "$#" ] ; then
 	echo "Syntax: test.sh [<testtool-binary>] [<reprepro-binary>]" >&2
 	exit 1
 fi
