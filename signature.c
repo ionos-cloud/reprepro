@@ -662,7 +662,7 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 	}
 	err = gpgme_op_verify(context, dh_gpg, NULL, dh);
 	if( gpgme_err_code(err) == GPG_ERR_NO_DATA ) {
-		if( verbose > -1 )
+		if( verbose > 5 )
 			fprintf(stderr,"Data seems not to be signed trying to use directly....\n");
 		gpgme_data_release(dh);
 		gpgme_data_release(dh_gpg);
@@ -800,7 +800,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 
 	/* fast-track unsigned chunks: */
 	if( startofchanges[0] != '-' && *afterchanges == '\0' ) {
-		if( verbose > -1 )
+		if( verbose > 5 )
 			fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
 		len = chunk_extract(chunk, chunk, &afterchunk);
 		assert( *afterchunk == '\0' );
