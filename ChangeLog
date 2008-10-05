@@ -3,6 +3,9 @@
 	  Causes multiple checks for unknown identifiers to be earlier or
 	  more strict. (And fields in conf/distributions have more
 	  restrictions w.r.t their order).
+	* change bug in (tracking enabled) removesrc to cause malformed
+	  tracking data when a source package's track record contains a
+	  file no longer found in any distribution
 
 2008-10-01
 	* warn if an update rule references local components or architectures
