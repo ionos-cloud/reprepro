@@ -1098,8 +1098,8 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 
 	result = RET_NOTHING;
 
-	component_len = strlen(target->component);
-	arch_len = strlen(target->architecture);
+	component_len = strlen(atoms_components[target->component_atom]);
+	arch_len = strlen(atoms_architectures[target->architecture_atom]);
 	for( i = 0 ; i < pkg->filekeys.count ; i++) {
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
 		char *package, *control, *source, *version;
@@ -1109,21 +1109,22 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			continue;
 		if( strncmp(filekey, "pool/", 5) != 0 )
 			continue;
-		if( strncmp(filekey+5, target->component, component_len) != 0 )
+		if( strncmp(filekey+5, atoms_components[target->component_atom],
+					component_len) != 0 )
 			continue;
 		if( filekey[5+component_len] != '/' )
 			continue;
 		/* check this file could actuall be in this target */
 		if( pkg->filetypes[i] == ft_ALL_BINARY ) {
-			if( strcmp(target->packagetype, "dsc") == 0 )
+			if( target->packagetype_atom == pt_dsc )
 				continue;
 			s = strrchr(filekey, '.');
 			if( s == NULL )
 				continue;
-			if( strcmp(s+1, target->packagetype) != 0)
+			if( strcmp(s+1, atoms_packagetypes[target->packagetype_atom]) != 0)
 				continue;
 		} else if( pkg->filetypes[i] == ft_SOURCE ) {
-			if( strcmp(target->packagetype, "dsc") != 0 )
+			if( target->packagetype_atom != pt_dsc )
 				continue;
 			s = strrchr(filekey, '.');
 			if( s == NULL )
@@ -1131,15 +1132,15 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			if( strcmp(s+1, "dsc") != 0)
 				continue;
 		} else if( pkg->filetypes[i] == ft_ARCH_BINARY ) {
-			if( strcmp(target->packagetype, "dsc") == 0 )
+			if( target->packagetype_atom == pt_dsc )
 				continue;
 			s = strrchr(filekey, '_');
 			if( s == NULL )
 				continue;
 			s++;
-			if( strncmp(s, target->architecture, arch_len) != 0
+			if( strncmp(s, atoms_architectures[target->architecture_atom], arch_len) != 0
 			    || s[arch_len] != '.'
-			    || strcmp(s+arch_len+1, target->packagetype) != 0)
+			    || strcmp(s+arch_len+1, atoms_packagetypes[target->packagetype_atom]) != 0)
 				continue;
 		} else
 			continue;

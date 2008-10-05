@@ -89,11 +89,15 @@ return 255
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
+Codename: getmoreatoms
+Architectures: funny coal
+Components: dog
+
 Codename: A
 Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
- -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
+# -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
 
 Codename: B
 Architectures: ${FAKEARCHITECTURE} source
@@ -101,7 +105,7 @@ Components: dog cat
 Contents:
 Log: logfile
 CONFEND
-testrun - -b . export 3<<EOF
+testrun - -b . export B A 3<<EOF
 stdout
 -v2*=Created directory "./db"
 -v1*=Exporting B...

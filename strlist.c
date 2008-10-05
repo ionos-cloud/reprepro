@@ -270,27 +270,6 @@ bool strlist_intersects(const struct strlist *a, const struct strlist *b) {
 	return false;
 }
 
-bool *strlist_preparefoundlist(const struct strlist *list, bool ignorenone) {
-	bool *found;
-	int i, j;
-
-	found = calloc(list->count, sizeof(bool));
-	if( found == NULL )
-		return found;
-	for( i = 0 ; i < list->count ; i++ ) {
-		if( found[i] )
-			continue;
-		if( ignorenone && strcmp(list->values[i], "none") == 0 ) {
-			found[i] = true;
-			continue;
-		}
-		for( j = i + 1 ; j < list->count ; j++ )
-			if( strcmp(list->values[i], list->values[j]) == 0 )
-				found[j] = true;
-	}
-	return found;
-}
-
 char *strlist_concat(const struct strlist *list, const char *prefix, const char *infix, const char *suffix) {
 	size_t l, prefix_len, infix_len, suffix_len, line_len;
 	char *c, *n;

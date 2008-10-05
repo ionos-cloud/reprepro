@@ -30,17 +30,6 @@
 
 extern int verbose;
 
-char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype) {
-	// TODO: add checks to all data possibly given into here...
-	assert( strchr(codename,'|') == NULL && strchr(component,'|') == NULL && strchr(architecture,'|') == NULL );
-	assert( codename != NULL ); assert( component != NULL );
-	assert( architecture != NULL ); assert( packagetype != NULL );
-	if( packagetype[0] == 'u' )
-		return mprintf("u|%s|%s|%s",codename,component,architecture);
-	else
-		return mprintf("%s|%s|%s",codename,component,architecture);
-}
-
 char *calc_addsuffix(const char *str1,const char *str2) {
 	return mprintf("%s.%s",str1,str2);
 }
@@ -51,50 +40,6 @@ char *calc_dirconcat(const char *str1,const char *str2) {
 
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3) {
 	return mprintf("%s/%s/%s",str1,str2,str3);
-}
-
-char *calc_sourcedir(const char *component,const char *sourcename) {
-
-	assert( *sourcename != '\0' );
-
-	if( sourcename[0] == 'l' && sourcename[1] == 'i' && sourcename[2] == 'b' && sourcename[3] != '\0' )
-
-		return mprintf("pool/%s/lib%c/%s",component,sourcename[3],sourcename);
-	else if( *sourcename != '\0' )
-		return mprintf("pool/%s/%c/%s",component,sourcename[0],sourcename);
-	else
-		return NULL;
-}
-
-char *calc_filekey(const char *component,const char *sourcename,const char *filename) {
-	if( sourcename[0] == 'l' && sourcename[1] == 'i' && sourcename[2] == 'b' && sourcename[3] != '\0' )
-
-		return mprintf("pool/%s/lib%c/%s/%s",component,sourcename[3],sourcename,filename);
-	else if( *sourcename != '\0' )
-		return mprintf("pool/%s/%c/%s/%s",component,sourcename[0],sourcename,filename);
-	else
-		return NULL;
-}
-
-
-char *calc_binary_basename(const char *name,const char *version,const char *arch,const char *packagetype) {
-	const char *v;
-	assert( name != NULL && version != NULL && arch != NULL && packagetype != NULL );
-	v = strchr(version,':');
-	if( v != NULL )
-		v++;
-	else
-		v = version;
-	return mprintf("%s_%s_%s.%s",name,v,arch,packagetype);
-}
-
-char *calc_source_basename(const char *name,const char *version) {
-	const char *v = strchr(version,':');
-	if( v != NULL )
-		v++;
-	else
-		v = version;
-	return mprintf("%s_%s.dsc",name,v);
 }
 
 /* Create a strlist consisting out of calc_dirconcat'ed entries of the old */

@@ -26,6 +26,7 @@
 
 #include "error.h"
 #include "names.h"
+#include "atoms.h"
 #include "configparser.h"
 
 extern int verbose;
@@ -512,6 +513,192 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 		}
 	}
 	strlist_move(result_p, &data);
+	return RET_OK;
+}
+
+retvalue config_getinternatomlist(struct configiterator *iter, const char *header, enum atom_type type, checkfunc check, struct atomlist *result_p) {
+	char *value;
+	retvalue r;
+	struct atomlist data;
+	const char *errormessage;
+	atom_t atom;
+
+	atomlist_init(&data);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+		if( check != NULL && (errormessage = check(value)) != NULL ) {
+			configparser_errorlast(iter,
+"Malformed %s header element '%s': %s\n", header, value, errormessage);
+			checkerror_free(errormessage);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		r = atom_intern(type, value, &atom);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = atomlist_add_uniq(&data, atom);
+		if( r == RET_NOTHING ) {
+			configparser_errorlast(iter,
+"Unexpected duplicate '%s' within %s header.", value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		free(value);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+	}
+	atomlist_move(result_p, &data);
+	return RET_OK;
+}
+
+retvalue config_getatomlist(struct configiterator *iter, const char *header, enum atom_type type, struct atomlist *result_p) {
+	char *value;
+	retvalue r;
+	struct atomlist data;
+	atom_t atom;
+
+	atomlist_init(&data);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+		atom = atom_find(type, value);
+		if( !atom_defined(atom) ) {
+			configparser_errorlast(iter,
+"Not previously seen %s '%s' within '%s' header.", atomtypes[type], value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		r = atomlist_add_uniq(&data, atom);
+		if( r == RET_NOTHING ) {
+			configparser_errorlast(iter,
+"Unexpected duplicate '%s' within %s header.", value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		free(value);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+	}
+	atomlist_move(result_p, &data);
+	return RET_OK;
+}
+
+retvalue config_getsplitatoms(struct configiterator *iter, const char *header, enum atom_type type, struct atomlist *from_p, struct atomlist *into_p) {
+	char *value, *separator;
+	atom_t origin, destination;
+	retvalue r;
+	struct atomlist data_from, data_into;
+
+	atomlist_init(&data_from);
+	atomlist_init(&data_into);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return r;
+		}
+		separator = strchr(value, '>');
+		if( separator == NULL ) {
+			separator = value;
+			destination = atom_find(type, value);
+			origin = destination;;
+		} else if( separator == value ) {
+			destination = atom_find(type, separator + 1);
+			origin = destination;;
+		} else if( separator[1] == '\0' ) {
+			*separator = '\0';
+			separator = value;
+			destination = atom_find(type, value);
+			origin = destination;;
+		} else {
+			*separator = '\0';
+			separator++;
+			origin = atom_find(type, value);
+			destination = atom_find(type, separator);
+		}
+		if( !atom_defined(origin) ) {
+			configparser_errorlast(iter,
+"Unknown %s '%s' in %s.", atomtypes[type], value, header);
+			free(value);
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return RET_ERROR;
+		}
+		if( !atom_defined(destination) ) {
+			configparser_errorlast(iter,
+"Unknown %s '%s' in %s.", atomtypes[type], separator, header);
+			free(value);
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return RET_ERROR;
+		}
+		free(value);
+		r = atomlist_add(&data_from, origin);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return r;
+		}
+		r = atomlist_add(&data_into, destination);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return r;
+		}
+	}
+	atomlist_move(from_p, &data_from);
+	atomlist_move(into_p, &data_into);
+	return RET_OK;
+}
+
+retvalue config_getatomsublist(struct configiterator *iter, const char *header, enum atom_type type, struct atomlist *result_p, const struct atomlist *superset, const char *superset_header) {
+	char *value;
+	retvalue r;
+	struct atomlist data;
+	atom_t atom;
+
+	atomlist_init(&data);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+		atom = atom_find(type, value);
+		if( !atom_defined(atom) || !atomlist_in(superset, atom) ) {
+			configparser_errorlast(iter,
+"'%s' not alloed in %s as it was not in %s.", value, header, superset_header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		r = atomlist_add_uniq(&data, atom);
+		if( r == RET_NOTHING ) {
+			configparser_errorlast(iter,
+"Unexpected duplicate '%s' within %s header.", value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		free(value);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+	}
+	atomlist_move(result_p, &data);
 	return RET_OK;
 }
 

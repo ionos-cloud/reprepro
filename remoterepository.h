@@ -11,6 +11,9 @@
 #ifndef REPREPRO_DONEFILE_H
 #include "donefile.h"
 #endif
+#ifndef REPREPRO_ATOMS_H
+#include "atoms.h"
+#endif
 
 struct remote_repository;
 struct remote_distribution;
@@ -30,8 +33,8 @@ retvalue remote_startup(struct aptmethodrun *);
 retvalue remote_preparemetalists(struct aptmethodrun *, bool nodownload);
 retvalue remote_preparelists(struct aptmethodrun *, bool nodownload);
 
-struct remote_index *remote_index(struct remote_distribution *, const char *architecture, const char *component, const char *packagetype);
-struct remote_index *remote_flat_index(struct remote_distribution *, const char *packagetype);
+struct remote_index *remote_index(struct remote_distribution *, const char *architecture, const char *component, packagetype_t);
+struct remote_index *remote_flat_index(struct remote_distribution *, packagetype_t);
 
 /* returns the name of the prepared uncompressed file */
 /*@observer@*/const char *remote_index_file(const struct remote_index*);

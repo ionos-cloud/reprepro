@@ -63,7 +63,7 @@ checknolog logfile
 if test -n "$TESTNEWFILESDB" ; then
 	dodo test '!' -f db/files.db
 fi
-testrun - -b . export 3<<EOF
+testrun - -b . export test1 test2 3<<EOF
 stdout
 *=testhook got 4: './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'new'
 *=testhook got 4: './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'new'
@@ -2156,6 +2156,13 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0*=There have been errors!
 returns 255
 EOF
+cp conf/distributions conf/distributions.old
+cat >> conf/distributions <<EOF
+
+Codename: getmoreatoms
+Architectures: brain
+Components: test
+EOF
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
@@ -2174,6 +2181,7 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 -v0*=There have been errors!
 returns 249
 EOF
+
 touch filename_version.tar.gz
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
@@ -2202,6 +2210,12 @@ stdout
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from checksums.db(pool).
 -v2*=removed now empty directory ./pool/stupid/n/nowhere
 -v2*=removed now empty directory ./pool/stupid/n
+EOF
+mv conf/distributions.old conf/distributions
+testrun - -b . clearvanished 3<<EOF
+stderr
+stdout
+*=Deleting vanished identifier 'getmoreatoms|test|brain'.
 EOF
 mkdir -p pool/stupid/n/nowhere
 dodo test ! -f pool/stupid/n/nowhere/filename_version.tar.gz
@@ -2694,6 +2708,20 @@ UDebComponents: u1 u2
 EOF
 testrun - -b . --export=changed pull a b 3<<EOF
 stderr
+*=Error parsing ./conf/pulls, line 3, column 16: Unknown architecture 'froma' in Architectures.
+-v0*=There have been errors!
+return 255
+EOF
+cp conf/distributions conf/distributions.old
+cat >> conf/distributions <<EOF
+
+Codename: moreatoms
+Architectures: froma froma2 toa toa2
+Components: c1 c2 u1 u2
+EOF
+
+testrun - -b . --export=changed pull a b 3<<EOF
+stderr
 *=(This will simply be ignored and is not even checked when using --fast).
 *=Warning: pull rule 'froma' wants to get something from architecture 'froma',
 *=Warning: pull rule 'froma' wants to get something from architecture 'froma2',
@@ -2717,6 +2745,27 @@ stdout
 -v0*=Calculating packages to pull...
 -v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
 -v0*=Installing (and possibly deleting) packages...
+EOF
+mv conf/distributions.old conf/distributions
+testrun - -b . clearvanished 3<<EOF
+stderr
+stdout
+*=Deleting vanished identifier 'moreatoms|c1|froma'.
+*=Deleting vanished identifier 'moreatoms|c1|froma2'.
+*=Deleting vanished identifier 'moreatoms|c1|toa'.
+*=Deleting vanished identifier 'moreatoms|c1|toa2'.
+*=Deleting vanished identifier 'moreatoms|c2|froma'.
+*=Deleting vanished identifier 'moreatoms|c2|froma2'.
+*=Deleting vanished identifier 'moreatoms|c2|toa'.
+*=Deleting vanished identifier 'moreatoms|c2|toa2'.
+*=Deleting vanished identifier 'moreatoms|u1|froma'.
+*=Deleting vanished identifier 'moreatoms|u1|froma2'.
+*=Deleting vanished identifier 'moreatoms|u1|toa'.
+*=Deleting vanished identifier 'moreatoms|u1|toa2'.
+*=Deleting vanished identifier 'moreatoms|u2|froma'.
+*=Deleting vanished identifier 'moreatoms|u2|froma2'.
+*=Deleting vanished identifier 'moreatoms|u2|toa'.
+*=Deleting vanished identifier 'moreatoms|u2|toa2'.
 EOF
 cat > conf/pulls <<EOF
 Name: froma

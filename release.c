@@ -1099,10 +1099,12 @@ retvalue release_directorydescription(struct release *release, const struct dist
 
 	release_writeheader("Archive",distribution->suite);
 	release_writeheader("Version",distribution->version);
-	release_writeheader("Component",target->component);
+	release_writeheader("Component",
+			atoms_components[target->component_atom]);
 	release_writeheader("Origin",distribution->origin);
 	release_writeheader("Label",distribution->label);
-	release_writeheader("Architecture",target->architecture);
+	release_writeheader("Architecture",
+			atoms_architectures[target->architecture_atom]);
 	release_writeheader("NotAutomatic",distribution->notautomatic);
 	release_writeheader("Description",distribution->description);
 #undef release_writeheader
@@ -1216,20 +1218,24 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	writestring(buffer);
 	writestring("\nArchitectures:");
 	for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+		architecture_t a = distribution->architectures.atoms[i];
+
 		/* Debian's topmost Release files do not list it, so we won't either */
-		if( strcmp(distribution->architectures.values[i],"source") == 0 )
+		if( a == architecture_source )
 			continue;
 		writechar(' ');
-		writestring(distribution->architectures.values[i]);
+		writestring(atoms_architectures[a]);
 	}
 	writestring("\nComponents:");
 	for( i = 0 ; i < distribution->components.count ; i++ ) {
+		component_t c = distribution->components.atoms[i];
+
 		writechar(' ');
 		if( release->fakecomponentprefix != NULL ) {
 			writestring(release->fakecomponentprefix);
 			writechar('/');
 		}
-		writestring(distribution->components.values[i]);
+		writestring(atoms_components[c]);
 	}
 	if( distribution->description != NULL ) {
 		writestring("\nDescription: ");

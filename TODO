@@ -13,7 +13,8 @@ TODO:
 	 (or alternatively allow ! in inclusion lists).
 
 half far goals:
-	handle components, architectures and types as numeric atoms for filters
+	use numeric atoms for components, architectures and types in more
+	 places (especially in filters)
 	rewrite error handling, caching error messages and handling Ctrl-C better.
 
 far goals:

@@ -7,6 +7,9 @@
 #ifndef REPREPRO_CHECKS_H
 #include "checks.h"
 #endif
+#ifndef REPREPRO_ATOMS_H
+#include "atoms.h"
+#endif
 
 struct configiterator;
 
@@ -47,6 +50,10 @@ retvalue config_getword(struct configiterator *, /*@out@*/char **);
 retvalue config_getwordinline(struct configiterator *, /*@out@*/char **);
 retvalue config_getonlyword(struct configiterator *, const char *, checkfunc, /*@out@*/char **);
 retvalue config_getuniqwords(struct configiterator *, const char *, checkfunc, struct strlist *);
+retvalue config_getinternatomlist(struct configiterator *, const char *, enum atom_type, checkfunc, struct atomlist *);
+retvalue config_getatomlist(struct configiterator *, const char *, enum atom_type, struct atomlist *);
+retvalue config_getatomsublist(struct configiterator *, const char *, enum atom_type, struct atomlist *, const struct atomlist *, const char *);
+retvalue config_getsplitatoms(struct configiterator *, const char *, enum atom_type, struct atomlist *, struct atomlist *);
 retvalue config_getsplitwords(struct configiterator *, const char *, struct strlist *, struct strlist *);
 retvalue config_gettruth(struct configiterator *, const char *, bool *);
 retvalue config_getnumber(struct configiterator *, const char *, long long *, long long minval, long long maxval);
@@ -114,6 +121,65 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 	struct sname *item = data; \
 	retvalue r; \
 	r = config_getuniqwords(iter, name, checker, &item->field); \
+	if( r == RET_NOTHING ) { \
+		fprintf(stderr, \
+"Error parsing %s, line %d, column %d:\n" \
+" An empty %s-field is not allowed.\n", config_filename(iter), \
+					config_line(iter), \
+					config_column(iter), \
+					name); \
+		r = RET_ERROR; \
+	} \
+	return r; \
+}
+#define CFinternatomsSETPROC(sname, field, checker, type) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	retvalue r; \
+	r = config_getinternatomlist(iter, name, type, checker, &item->field); \
+	if( r == RET_NOTHING ) { \
+		fprintf(stderr, \
+"Error parsing %s, line %d, column %d:\n" \
+" An empty %s-field is not allowed.\n", config_filename(iter), \
+					config_line(iter), \
+					config_column(iter), \
+					name); \
+		r = RET_ERROR; \
+	} \
+	return r; \
+}
+#define CFatomlistSETPROC(sname, field, type) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	retvalue r; \
+	item->field ## _set = true; \
+	r = config_getatomlist(iter, name, type, &item->field); \
+	if( r == RET_NOTHING ) { \
+		fprintf(stderr, \
+"Error parsing %s, line %d, column %d:\n" \
+" An empty %s-field is not allowed.\n", config_filename(iter), \
+					config_line(iter), \
+					config_column(iter), \
+					name); \
+		r = RET_ERROR; \
+	} \
+	return r; \
+}
+#define CFatomsublistSETPROC(sname, field, type, superset, superset_header) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	retvalue r; \
+	item->field ## _set = true; \
+	if( item->superset.count == 0 ) { \
+		fprintf(stderr, \
+"Error parsing %s, line %d, column %d:\n" \
+" A '%s'-field is only allowed after a '%s'-field.\n", config_filename(iter), \
+					config_line(iter), \
+					config_column(iter), \
+					name, superset_header); \
+		return RET_ERROR; \
+	} \
+	r = config_getatomsublist(iter, name, type, &item->field, &item->superset, superset_header); \
 	if( r == RET_NOTHING ) { \
 		fprintf(stderr, \
 "Error parsing %s, line %d, column %d:\n" \

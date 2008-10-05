@@ -60,7 +60,7 @@ struct debpackage {
 	/* things to be set by deb_read: */
 	struct deb_headers deb;
 	/* things that will still be NULL then: */
-	char *component; //This might be const, too and save some strdups, but...
+	component_t component_atom;
 	/* with deb_calclocations: */
 	const char *filekey;
 	struct strlist filekeys;
@@ -69,7 +69,6 @@ struct debpackage {
 void deb_free(/*@only@*/struct debpackage *pkg) {
 	if( pkg != NULL ) {
 		binaries_debdone(&pkg->deb);
-		free(pkg->component);
 		if( pkg->filekey != NULL )
 			strlist_done(&pkg->filekeys);
 	}
@@ -92,8 +91,6 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 		r = properversion(deb->deb.sourceversion);
 	if( RET_IS_OK(r) )
 		r = properversion(deb->deb.version);
-	if( !RET_WAS_ERROR(r) )
-		r = properfilenamepart(deb->deb.architecture);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(deb);
 		return r;
@@ -103,13 +100,13 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-static retvalue deb_preparelocation(struct debpackage *pkg, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
-	const struct strlist *components;
+static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
+	const struct atomlist *components;
 	const struct overrideinfo *binoverride;
 	const struct overrideinfo *oinfo;
 	retvalue r;
 
-	if( strcmp(packagetype,"udeb") == 0 ) {
+	if( packagetype == pt_udeb ) {
 		binoverride = distribution->overrides.udeb;
 		components = &distribution->udebcomponents;
 	} else {
@@ -156,38 +153,48 @@ static retvalue deb_preparelocation(struct debpackage *pkg, const char * const f
 
 	r = guess_component(distribution->codename, components,
 			pkg->deb.name, pkg->deb.section,
-			forcecomponent, &pkg->component);
+			forcecomponent, &pkg->component_atom);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( verbose > 0 && forcecomponent == NULL ) {
-		fprintf(stderr,"%s: component guessed as '%s'\n",debfilename,pkg->component);
+	if( verbose > 0 && !atom_defined(forcecomponent) ) {
+		fprintf(stderr, "%s: component guessed as '%s'\n", debfilename,
+				atoms_components[pkg->component_atom]);
 	}
 
 	/* some sanity checks: */
 
-	if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 &&
-			strcmp(pkg->deb.architecture,forcearchitecture) != 0 &&
-			strcmp(pkg->deb.architecture,"all") != 0 ) {
+	if( atom_defined(forcearchitecture) &&
+			forcearchitecture != architecture_all &&
+			pkg->deb.architecture_atom != forcearchitecture &&
+			pkg->deb.architecture_atom != architecture_all ) {
 		fprintf(stderr,"Cannot put '%s' into architecture '%s', as it is '%s'!\n",
-				debfilename,forcearchitecture,pkg->deb.architecture);
+				debfilename,
+				atoms_architectures[forcearchitecture],
+				atoms_architectures[pkg->deb.architecture_atom]);
 		return RET_ERROR;
-	} else if( strcmp(pkg->deb.architecture,"all") != 0 &&
-	    !strlist_in( &distribution->architectures, pkg->deb.architecture )) {
-		(void)fprintf(stderr,"Error looking at '%s': '%s' is not one of the valid architectures: '",
-				debfilename, pkg->deb.architecture);
-		(void)strlist_fprint(stderr, &distribution->architectures);
+	} else if( pkg->deb.architecture_atom != architecture_all &&
+			!atomlist_in(&distribution->architectures,
+				pkg->deb.architecture_atom)) {
+		(void)fprintf(stderr,
+"Error looking at '%s': '%s' is not one of the valid architectures: '",
+				debfilename,
+				atoms_architectures[pkg->deb.architecture_atom]);
+		(void)atomlist_fprint(stderr, at_architecture,
+				&distribution->architectures);
 		(void)fputs("'\n",stderr);
 		return RET_ERROR;
 	}
-	if( !strlist_in(components,pkg->component) ) {
+	if( !atomlist_in(components, pkg->component_atom) ) {
 		fprintf(stderr,
 "Error looking at %s': Would be placed in unavailable component '%s'!\n",
-				debfilename, pkg->component);
+				debfilename,
+				atoms_components[pkg->component_atom]);
 		/* this cannot be ignored as there is not data structure available*/
 		return RET_ERROR;
 	}
 
-	r = binaries_calcfilekeys(pkg->component, &pkg->deb, packagetype, &pkg->filekeys);
+	r = binaries_calcfilekeys(pkg->component_atom, &pkg->deb,
+			packagetype, &pkg->filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	pkg->filekey = pkg->filekeys.values[0];
@@ -195,7 +202,7 @@ static retvalue deb_preparelocation(struct debpackage *pkg, const char * const f
 }
 
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const struct checksums * checksums, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
+retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const struct checksums * checksums, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -264,11 +271,11 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, const char * const forcec
 	return RET_OK;
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, const char *forcearchitecture, const char *packagetype, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, bool *usedmarker) {
+retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, bool *usedmarker) {
 	return binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			trackingdata,
-			pkg->component, &pkg->filekeys, usedmarker,
+			pkg->component_atom, &pkg->filekeys, usedmarker,
 			pkg->deb.control);
 }
 
@@ -276,7 +283,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, struct database *database
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(struct database *database,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
+retvalue deb_add(struct database *database, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, int delete, struct strlist *dereferencedfilekeys, /*@null@*/trackingdb tracks){
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
@@ -332,7 +339,7 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 	r = binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL,
-			pkg->component, &pkg->filekeys, &fileused,
+			pkg->component_atom, &pkg->filekeys, &fileused,
 			pkg->deb.control);
 	assert( !RET_IS_OK(r) || fileused );
 	if( !fileused )

@@ -2091,6 +2091,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename, const struct 
 	struct dscfile *dsc;
 	char *fullfilename, *basefilename;
 	char *origdirectory;
+	const char *v;
 	int i;
 
 	r = findfile(dscfilename, c, searchpath, ".", &fullfilename);
@@ -2154,8 +2155,13 @@ static retvalue adddsc(struct changes *c, const char *dscfilename, const struct 
 	}
 	// TODO: make sure if the .changes name/version are modified they will
 	// also be written...
-	basefilename = calc_source_basename(dsc->name, dsc->version);
-	if( basefilename == NULL ) {
+	v = strchr(dsc->version, ':');
+	if( v != NULL )
+		v++;
+	else
+		v = dsc->version;
+	basefilename = mprintf("%s_%s.dsc", dsc->name, v);
+	if( FAILEDTOALLOC(basefilename) ) {
 		dscfile_free(dsc);
 		free(fullfilename);
 		return RET_ERROR_OOM;
@@ -2327,6 +2333,7 @@ static retvalue adddeb(struct changes *c, const char *debfilename, const struct 
 	const char *packagetype;
 	enum filetype type;
 	char *fullfilename, *basefilename;
+	const char *v;
 
 	r = findfile(debfilename, c, searchpath, ".", &fullfilename);
 	if( RET_WAS_ERROR(r) )
@@ -2417,8 +2424,13 @@ static retvalue adddeb(struct changes *c, const char *debfilename, const struct 
 	}
 	// TODO: make sure if the .changes name/version are modified they will
 	// also be written...
-	basefilename = calc_binary_basename(deb->name, deb->version,
-	                                deb->architecture, packagetype);
+	v = strchr(deb->version, ':');
+	if( v != NULL )
+		v++;
+	else
+		v = deb->version;
+	basefilename = mprintf("%s_%s_%s.%s", deb->name, v, deb->architecture,
+			packagetype);
 	if( basefilename == NULL ) {
 		binaryfile_free(deb);
 		free(fullfilename);

@@ -988,24 +988,24 @@ static struct remote_index *addindex(struct remote_distribution *rd, /*@only@*/c
 	return ri;
 }
 
-struct remote_index *remote_index(struct remote_distribution *rd, const char *architecture, const char *component, const char *packagetype) {
+struct remote_index *remote_index(struct remote_distribution *rd, const char *architecture, const char *component, packagetype_t packagetype) {
 	char *cachefilename, *filename_in_release;
 
 	assert( !rd->flat );
-	if( strcmp(packagetype, "deb") == 0 ) {
+	if( packagetype == pt_deb ) {
 		filename_in_release = mprintf("%s/binary-%s/Packages",
 				component, architecture);
 		cachefilename = genlistsfilename("Packages", 4,
 				rd->repository->name, rd->suite,
 				component, architecture, ENDOFARGUMENTS);
-	} else if( strcmp(packagetype, "udeb") == 0 ) {
+	} else if( packagetype == pt_udeb ) {
 		filename_in_release = mprintf(
 				"%s/debian-installer/binary-%s/Packages",
 				component, architecture);
 		cachefilename = genlistsfilename("uPackages", 4,
 				rd->repository->name, rd->suite,
 				component, architecture, ENDOFARGUMENTS);
-	} else if( strcmp(packagetype, "dsc") == 0 ) {
+	} else if( packagetype == pt_dsc ) {
 		filename_in_release = mprintf("%s/source/Sources",
 				component);
 		cachefilename = genlistsfilename("Sources", 3,
@@ -1017,16 +1017,16 @@ struct remote_index *remote_index(struct remote_distribution *rd, const char *ar
 	return addindex(rd, cachefilename, filename_in_release);
 }
 
-struct remote_index *remote_flat_index(struct remote_distribution *rd, const char *packagetype) {
+struct remote_index *remote_flat_index(struct remote_distribution *rd, packagetype_t packagetype) {
 	char *cachefilename, *filename_in_release;
 
 	assert( rd->flat );
-	if( strcmp(packagetype, "deb") == 0 ) {
+	if( packagetype == pt_deb ) {
 		filename_in_release = strdup("Packages");
 		cachefilename = genlistsfilename("Packages", 2,
 				rd->repository->name, rd->suite,
 				ENDOFARGUMENTS);
-	} else if( strcmp(packagetype, "dsc") == 0 ) {
+	} else if( packagetype == pt_dsc ) {
 		filename_in_release = strdup("Sources");
 		cachefilename = genlistsfilename("Sources", 2,
 				rd->repository->name, rd->suite,

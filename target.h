@@ -7,6 +7,9 @@
 #ifndef REPREPRO_NAMES_H
 #include "names.h"
 #endif
+#ifndef REPREPRO_ATOMS_H
+#include "atoms.h"
+#endif
 #ifndef REPREPRO_DATABASE_H
 #include "database.h"
 #endif
@@ -24,7 +27,8 @@ struct target;
 struct alloverrides;
 
 typedef retvalue get_version(const char *, /*@out@*/char **);
-typedef retvalue get_installdata(const struct target *,const char *,const char *,const char *,/*@out@*/char **,/*@out@*/struct strlist *,/*@out@*/struct checksumsarray *,/*@null@*//*@out@*/enum filetype *);
+typedef retvalue get_architecture(const char *, /*@out@*/architecture_t *);
+typedef retvalue get_installdata(const struct target *, const char *, const char *, architecture_t, const char *, /*@out@*/char **, /*@out@*/struct strlist *, /*@out@*/struct checksumsarray *);
 /* md5sums may be NULL */
 typedef retvalue get_filekeys(const char *, /*@out@*/struct strlist *);
 typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
@@ -34,17 +38,18 @@ typedef retvalue get_sourceandversion(const char *chunk, const char *packagename
 
 struct target {
 	char *codename;
-	char *component;
-	char *architecture;
+	component_t component_atom;
+	architecture_t architecture_atom;
+	packagetype_t packagetype_atom;
 	char *identifier;
-	/* "deb" "udeb" or "dsc" */
-	/*@observer@*/const char *packagetype;
 	/* links into the correct description in distribution */
 	/*@dependent@*/const struct exportmode *exportmode;
 	/* the directory relative to <distdir>/<codename>/ to use */
 	char *relativedirectory;
 	/* functions to use on the packages included */
 	get_version *getversion;
+	/* binary packages might be "all" or the architecture of the target */
+	get_architecture *getarchitecture;
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
 	get_checksums *getchecksums;
@@ -60,9 +65,9 @@ struct target {
 	struct table *packages;
 };
 
-retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
-retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
-retvalue target_initialize_source(const char *codename,const char *component,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
+retvalue target_initialize_ubinary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, /*@out@*/struct target **);
+retvalue target_initialize_binary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, /*@out@*/struct target **);
+retvalue target_initialize_source(const char *codename, component_t, /*@dependent@*/const struct exportmode *, /*@out@*/struct target **);
 retvalue target_free(struct target *target);
 
 retvalue target_export(struct target *target, struct database *, bool onlyneeded, bool snapshot, struct release *release);
@@ -149,12 +154,12 @@ retvalue target_reoverride(struct target *, struct distribution *, struct databa
 
 retvalue package_rerunnotifiers(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 
-static inline bool target_matches(const struct target *t, const char *component, const char *architecture, const char *packagetype) {
-	if( component != NULL && strcmp(component,t->component) != 0 )
+static inline bool target_matches(const struct target *t, component_t component, architecture_t architecture, packagetype_t packagetype) {
+	if( atom_defined(component) && component != t->component_atom )
 		return false;
-	if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
+	if( atom_defined(architecture) && architecture != t->architecture_atom )
 		return false;
-	if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+	if( atom_defined(packagetype) && packagetype != t->packagetype_atom )
 		return false;
 	return true;
 }

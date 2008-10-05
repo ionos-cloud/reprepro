@@ -179,9 +179,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			int argc,const char *argv[])
 
 #define ACTION_C(act,sp,name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
@@ -190,9 +190,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			int argc,const char *argv[])
 
 #define ACTION_B(act,sp,u,name) static retvalue action_b_ ## act ## _ ## sp ## _ ## name ( \
@@ -201,9 +201,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			int argc,const char *argv[])
 
 #define ACTION_R(act,sp,d,a,name) static retvalue action_r_ ## act ## _ ## sp ## _ ## name ( \
@@ -212,9 +212,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			a(int, argc), a(const char *, argv[]))
 
 #define ACTION_T(act,sp,name) static retvalue action_t_ ## act ## _ ## sp ## _ ## name ( \
@@ -223,9 +223,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			UNUSED(int argc), UNUSED(const char *dummy4[]))
 
 #define ACTION_F(act,sp,d,a,name) static retvalue action_f_ ## act ## _ ## sp ## _ ## name ( \
@@ -234,9 +234,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			a(int, argc), a(const char *, argv[]))
 
 #define ACTION_RF(act,sp,u,name) static retvalue action_rf_ ## act ## _ ## sp ## _ ## name ( \
@@ -245,9 +245,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			u(int, argc), u(const char *, argv[]))
 
 #define ACTION_D(act,sp,u,name) static retvalue action_d_ ## act ## _ ## sp ## _ ## name ( \
@@ -256,9 +256,9 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			struct strlist* dereferenced, 	\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(const char *, architecture),	\
-			act(const char *, component),		\
-			act(const char *, packagetype),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
 			u(int,argc), u(const char *,argv[]))
 
 ACTION_N(n, n, printargs) {
@@ -812,7 +812,8 @@ ACTION_D(n, n, y, removesrc) {
 	else
 		data.sourceversion = argv[3];
 	result = distribution_remove_packages(distribution, database,
-			NULL, NULL, NULL,
+			// TODO: why not arch comp pt here?
+			atom_unknown, atom_unknown, atom_unknown,
 			package_source_fits, dereferenced, NULL,
 			&data);
 	r = distribution_export(export, distribution, database);
@@ -1493,15 +1494,16 @@ ACTION_D(y, n, y, addpackage) {
 	struct distribution *destination;
 	retvalue result, r;
 
-	if( packagetype == NULL && architecture != NULL &&
-			strcmp(architecture, "source") == 0 )
-		packagetype = "dsc";
-	if( packagetype != NULL && architecture == NULL &&
-			strcmp(packagetype, "dsc") == 0 )
-		architecture = "source";
+	if( !atom_defined(packagetype) && atom_defined(architecture) &&
+			architecture == architecture_source )
+		packagetype = pt_dsc;
+	if( atom_defined(packagetype) && !atom_defined(architecture) &&
+			packagetype == pt_dsc )
+		architecture = architecture_source;
 	// TODO: some more guesses based on components and udebcomponents
 
-	if( architecture == NULL || component == NULL || packagetype == NULL ) {
+	if( !atom_defined(architecture) || !atom_defined(component) ||
+			!atom_defined(packagetype) ) {
 		fprintf(stderr, "_addpackage needs -C and -A and -T set!\n");
 		return RET_ERROR;
 	}
@@ -1604,7 +1606,7 @@ ACTION_D(n, n, y, retrack) {
 		if( !RET_WAS_ERROR(r) ) {
 			/* add back information about actually used files */
 			r = distribution_foreach_package(d, database,
-					NULL, NULL, NULL,
+					atom_unknown, atom_unknown, atom_unknown,
 					package_retrack, NULL, tracks);
 			RET_UPDATE(result,r);
 		}
@@ -1877,19 +1879,19 @@ ACTION_D(y, y, y, includedeb) {
 	trackingdb tracks;
 	int i = 0;
 
-	if( architecture != NULL && strcmp(architecture,"source") == 0 ) {
+	if( architecture == architecture_source ) {
 		fprintf(stderr,"Error: -A source is not possible with includedeb!\n");
 		return RET_ERROR;
 	}
 	if( strcmp(argv[0],"includeudeb") == 0 ) {
 		isudeb = true;
-		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
+		if( limitation_missed(packagetype, pt_udeb) ) {
 			fprintf(stderr,"Calling includeudeb with a -T different from 'udeb' makes no sense!\n");
 			return RET_ERROR;
 		}
 	} else if( strcmp(argv[0],"includedeb") == 0 ) {
 		isudeb = false;
-		if( packagetype != NULL && strcmp(packagetype,"deb") != 0 ) {
+		if( limitation_missed(packagetype, pt_deb) ) {
 			fprintf(stderr,"Calling includedeb with -T something where something is not 'deb' makes no sense!\n");
 			return RET_ERROR;
 		}
@@ -1930,8 +1932,13 @@ ACTION_D(y, y, y, includedeb) {
 	}
 
 	// TODO: same for component? (depending on type?)
-	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
-		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
+	if( atom_defined(architecture) &&
+			!atomlist_in(&distribution->architectures,
+				architecture) ){
+		fprintf(stderr,
+"Cannot force into the architecture '%s' not available in '%s'!\n",
+			atoms_architectures[architecture],
+			distribution->codename);
 		return RET_ERROR;
 	}
 
@@ -1953,7 +1960,8 @@ ACTION_D(y, y, y, includedeb) {
 		const char *filename = argv[i];
 
 		r = deb_add(database, component, architecture,
-				section,priority,isudeb?"udeb":"deb",distribution,filename,
+				section, priority, isudeb?pt_udeb:pt_deb,
+				distribution, filename,
 				delete, dereferenced,tracks);
 		RET_UPDATE(result, r);
 	}
@@ -1979,11 +1987,11 @@ ACTION_D(y, y, y, includedsc) {
 
 	assert( argc == 3 );
 
-	if( architecture != NULL && strcmp(architecture,"source") != 0 ) {
+	if( limitation_missed(architecture, architecture_source) ) {
 		fprintf(stderr, "Cannot put a source package anywhere else than in architecture 'source'!\n");
 		return RET_ERROR;
 	}
-	if( packagetype != NULL && strcmp(packagetype,"dsc") != 0 ) {
+	if( limitation_missed(packagetype, pt_dsc) ) {
 		fprintf(stderr, "Cannot put a source package anywhere else than in type 'dsc'!\n");
 		return RET_ERROR;
 	}
@@ -2511,9 +2519,9 @@ static const struct action {
 			/*@null@*/struct strlist *dereferencedfilekeys,
 			/*@null@*/const char *priority,
 			/*@null@*/const char *section,
-			/*@null@*/const char *architecture,
-			/*@null@*/const char *component,
-			/*@null@*/const char *packagetype,
+			/*@null@*/architecture_t,
+			/*@null@*/component_t,
+			/*@null@*/packagetype_t,
 			int argc,const char *argv[]);
 	int needs;
 	int minargs, maxargs;
@@ -2651,17 +2659,20 @@ static const struct action {
 #undef A_F
 #undef A__T
 
-static retvalue callaction(const struct action *action, int argc, const char *argv[]) {
+static retvalue callaction(command_t command, const struct action *action, int argc, const char *argv[]) {
 	retvalue result, r;
 	struct database *database;
 	struct strlist dereferencedfilekeys;
 	struct distribution *alldistributions = NULL;
 	bool deletederef;
 	int needs;
+	architecture_t architecture = atom_unknown;
+	component_t component = atom_unknown;
+	packagetype_t packagetype = atom_unknown;
 
 	assert(action != NULL);
 
-	causingcommand = argv[0];
+	causingcommand_atom = command;
 
 	if( action->minargs >= 0 && argc < 1 + action->minargs ) {
 		fprintf(stderr, "Error: Too few arguments for command '%s'!\nSyntax: reprepro %s\n",
@@ -2696,22 +2707,6 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				action->name) )
 			return RET_ERROR;
 	}
-	if( ISSET(needs, NEED_ACT) &&
-	    x_architecture != NULL && x_packagetype != NULL ) {
-		if( strcmp(x_packagetype, "dsc") == 0 ) {
-			if( strcmp(x_architecture,"source") != 0 ) {
-				fprintf(stderr,
-"Error: Only -A source is possible with -T dsc!\n");
-				return RET_ERROR;
-			}
-		} else {
-			if( strcmp(x_architecture, "source") == 0 ) {
-				fprintf(stderr,
-"Error: -A source is not possible with -T deb or -T udeb!\n");
-				return RET_ERROR;
-			}
-		}
-	}
 
 	if( !ISSET(needs, NEED_SP) && ( x_section != NULL ) ) {
 		if( !IGNORING_(unusedoption,
@@ -2737,15 +2732,64 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	}
 
 	if( !ISSET(needs, NEED_DATABASE) ) {
-		assert( (needs & !NEED_CONFIG) == 0);
+		assert( (needs & ~NEED_CONFIG) == 0);
 
 		result = action->start(alldistributions, NULL, NULL,
 				x_section, x_priority,
-				x_architecture, x_component, x_packagetype,
+				atom_unknown, atom_unknown, atom_unknown,
 				argc, argv);
 		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
+	}
+
+	if( ISSET(needs, NEED_ACT) ) {
+		if( x_architecture != NULL ) {
+			architecture = architecture_find(x_architecture);
+			if( !atom_defined(architecture) ) {
+				fprintf(stderr,
+"Error: Architecture '%s' as given to --architecture is not know.\n"
+"(it does not appear as architecture in %s/distributions (did you mistype?).\n",
+					x_architecture, global.confdir);
+				(void)distribution_freelist(alldistributions);
+				return RET_ERROR;
+			}
+		}
+		if( x_component != NULL ) {
+			component = component_find(x_component);
+			if( !atom_defined(component) ) {
+				fprintf(stderr,
+"Error: Component '%s' as given to --component is not know.\n"
+"(it does not appear as component in %s/distributions (did you mistype?).\n",
+					x_component, global.confdir);
+				(void)distribution_freelist(alldistributions);
+				return RET_ERROR;
+			}
+		}
+		if( x_packagetype != NULL ) {
+			packagetype = packagetype_find(x_packagetype);
+			if( !atom_defined(packagetype) ) {
+				fprintf(stderr,
+"Error: Packagetype '%s' as given to --packagetype is not know.\n"
+"(The only valid values currently are 'dsc', 'deb' and 'udeb')\n",
+						x_packagetype);
+				(void)distribution_freelist(alldistributions);
+				return RET_ERROR;
+			}
+		}
+		if( packagetype == pt_dsc &&
+				limitation_missed(architecture,
+					architecture_source) ) {
+			fprintf(stderr,
+"Error: Only -A source is possible with -T dsc!\n");
+			return RET_ERROR;
+		}
+		if( architecture == architecture_source &&
+				limitation_missed(packagetype, pt_dsc) ) {
+			fprintf(stderr,
+"Error: -A source is not possible with -T deb or -T udeb!\n");
+			return RET_ERROR;
+		}
 	}
 
 	deletederef = ISSET(needs,NEED_DEREF) && !keepunreferenced;
@@ -2783,9 +2827,8 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 					database,
 					deletederef?&dereferencedfilekeys:NULL,
 					x_section, x_priority,
-					x_architecture, x_component,
-					x_packagetype,
-					argc,argv);
+					architecture, component, packagetype,
+					argc, argv);
 
 				if( deletederef ) {
 					if( dereferencedfilekeys.count > 0 ) {
@@ -3403,17 +3446,26 @@ int main(int argc,char *argv[]) {
 	free(bunzip2);
 	free(unlzma);
 
-	r = atoms_init();
+	a = all_actions;
+	while( a->name != NULL ) {
+		a++;
+	}
+	r = atoms_init(a - all_actions);
 	if( r == RET_ERROR_OOM )
 		(void)fputs("Out of Memory!\n",stderr);
 	if( RET_WAS_ERROR(r) )
 		exit(EXIT_RET(r));
+	for( a = all_actions; a->name != NULL ; a++ ) {
+		atoms_commands[1 + (a - all_actions)] = a->name;
+	}
+
 
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
 			signature_init(askforpassphrase);
-			r = callaction(a,argc-optind,(const char**)argv+optind);
+			r = callaction(1 + (a - all_actions), a,
+					argc-optind, (const char**)argv+optind);
 			/* yeah, freeing all this stuff before exiting is
 			 * stupid, but it makes valgrind logs easier
 			 * readable */

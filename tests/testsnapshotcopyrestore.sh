@@ -22,6 +22,8 @@ CONFEND
 mkdir logs
 
 testrun - -b . export 3<<EOF
+stderr
+*=Warning: unknown architecture 'nonexistant', ignoring notificator line line 5 in ./conf/distributions
 stdout
 -v2*=Created directory "./db"
 -v1*=Exporting B...
@@ -66,21 +68,43 @@ else
 	dodo test -f db/files.db
 fi
 
+ed -s conf/distributions <<EOF
+g/^ -A=nonexistant/s/nonexistant/calculator/
+w
+q
+EOF
+
 touch importindex
 
 testrun - -b . _addpackage B importindex bar foo 3<<EOF
 returns 255
 stderr
+*=Warning: unknown component 'nocomponent', ignoring notificator line line 5 in ./conf/distributions
 *=_addpackage needs -C and -A and -T set!
 -v0*=There have been errors!
+EOF
+
+ed -s conf/distributions <<EOF
+g/^ -A/s/nocomponent/cat/
+w
+q
 EOF
 
 testrun - -b . -A source -T dsc _addpackage B importindex bar foo 3<<EOF
 returns 255
 stderr
+*=Warning: unknown packagetype 'none', ignoring notificator line line 5 in ./conf/distributions
 *=_addpackage needs -C and -A and -T set!
 -v0*=There have been errors!
 EOF
+
+# -A=calculator -C=cat --type=dsc --withcontrol noscript.sh
+ed -s conf/distributions <<EOF
+g/^ -A=/s/=none/=dsc/
+w
+q
+EOF
+
 
 testrun - -b . -A ${FAKEARCHITECTURE} -C dog _addpackage B importindex bar foo 3<<EOF
 returns 255

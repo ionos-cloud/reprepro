@@ -127,12 +127,12 @@ static retvalue addpackagetocontents(struct database *database, UNUSED(struct di
 	return r;
 }
 
-static retvalue genarchcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
+static retvalue genarchcontents(struct database *database, struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct filelist_list *contents;
-	const struct strlist *components;
+	const struct atomlist *components;
 
 	if( distribution->contents_components_set )
 		components = &distribution->contents_components;
@@ -147,17 +147,18 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
-				&& strcmp(target->architecture,architecture) == 0
-				&& strcmp(target->packagetype,"deb") == 0
-				&& strlist_in(components, target->component) )
-					break;
+				&& target->architecture_atom == architecture
+				&& target->packagetype_atom == pt_deb
+				&& atomlist_in(components,
+					target->component_atom) )
+				break;
 		}
 		if( target != NULL )
 			onlyneeded = false;
 	}
 
-	contentsfilename = mprintf("Contents-%s",architecture);
-	if( contentsfilename == NULL )
+	contentsfilename = mprintf("Contents-%s", atoms_architectures[architecture]);
+	if( FAILEDTOALLOC(contentsfilename) )
 		return RET_ERROR_OOM;
 	r = release_startfile(release, contentsfilename,
 			distribution->contents.compressions,
@@ -177,7 +178,7 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 		return r;
 	}
 	r = distribution_foreach_package_c(distribution, database,
-			components, architecture, "deb",
+			components, architecture, pt_deb,
 			addpackagetocontents, contents);
 	if( !RET_WAS_ERROR(r) )
 		r = filelist_write(contents, file);
@@ -189,12 +190,12 @@ static retvalue genarchcontents(struct database *database, struct distribution *
 	return r;
 }
 
-static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
+static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, architecture_t architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
 	char *contentsfilename;
 	struct filetorelease *file;
 	struct filelist_list *contents;
-	const struct strlist *components;
+	const struct atomlist *components;
 
 	if( distribution->contents_ucomponents_set )
 		components = &distribution->contents_ucomponents;
@@ -209,17 +210,18 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
-				&& strcmp(target->architecture,architecture) == 0
-				&& strcmp(target->packagetype,"udeb") == 0
-				&& strlist_in(components, target->component) )
+				&& target->architecture_atom == architecture
+				&& target->packagetype_atom == pt_udeb
+				&& atomlist_in(components,
+					target->component_atom) )
 				break;
 		}
 		if( target != NULL )
 			onlyneeded = false;
 	}
 
-	contentsfilename = mprintf("uContents-%s",architecture);
-	if( contentsfilename == NULL )
+	contentsfilename = mprintf("uContents-%s", atoms_architectures[architecture]);
+	if( FAILEDTOALLOC(contentsfilename) )
 		return RET_ERROR_OOM;
 	r = release_startfile(release, contentsfilename,
 			distribution->contents.compressions,
@@ -236,7 +238,7 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 	if( RET_WAS_ERROR(r) )
 		return r;
 	r = distribution_foreach_package_c(distribution, database,
-			components, architecture, "udeb",
+			components, architecture, pt_udeb,
 			addpackagetocontents, contents);
 	if( !RET_WAS_ERROR(r) )
 		r = filelist_write(contents, file);
@@ -251,7 +253,7 @@ static retvalue genarchudebcontents(struct database *database, struct distributi
 retvalue contents_generate(struct database *database, struct distribution *distribution, struct release *release, bool onlyneeded) {
 	retvalue result,r;
 	int i;
-	const struct strlist *architectures;
+	const struct atomlist *architectures;
 
 	if( distribution->contents.compressions == 0 )
 		distribution->contents.compressions = IC_FLAG(ic_gzip);
@@ -263,18 +265,19 @@ retvalue contents_generate(struct database *database, struct distribution *distr
 		architectures = &distribution->architectures;
 	}
 	for( i = 0 ; i < architectures->count ; i++ ) {
-		const char *architecture = architectures->values[i];
-		if( strcmp(architecture,"source") == 0 )
+		architecture_t architecture = architectures->atoms[i];
+
+		if( architecture == architecture_source )
 			continue;
 
 		if( !distribution->contents.flags.nodebs ) {
 			r = genarchcontents(database, distribution,
-					architecture,release,onlyneeded);
+					architecture, release, onlyneeded);
 			RET_UPDATE(result,r);
 		}
 		if( distribution->contents.flags.udebs ) {
 			r = genarchudebcontents(database, distribution,
-					architecture,release,onlyneeded);
+					architecture, release, onlyneeded);
 			RET_UPDATE(result,r);
 		}
 	}

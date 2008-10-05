@@ -400,7 +400,7 @@ struct candidate {
 		 * otherwise the data from the .changes for this file: */
 		char *section;
 		char *priority;
-		char *architecture;
+		architecture_t architecture_atom;
 		char *name;
 		/* like above, but updated once files are copied */
 		struct checksums *checksums;
@@ -425,7 +425,8 @@ struct candidate {
 			 * to be included */
 			struct candidate_package *next;
 			const struct candidate_file *master;
-			char *component;
+			component_t component_atom;
+			packagetype_t packagetype;
 			struct strlist filekeys;
 			/* a list of pointers to the files belonging to those
 			 * filekeys, NULL if it does not need linking/copying */
@@ -444,7 +445,6 @@ static void candidate_file_free(/*@only@*/struct candidate_file *f) {
 	checksums_free(f->checksums);
 	free(f->section);
 	free(f->priority);
-	free(f->architecture);
 	free(f->name);
 	if( FE_BINARY(f->type) )
 		binaries_debdone(&f->deb);
@@ -460,7 +460,6 @@ static void candidate_file_free(/*@only@*/struct candidate_file *f) {
 
 static void candidate_package_free(/*@only@*/struct candidate_package *p) {
 	free(p->control);
-	free(p->component);
 	free(p->directory);
 	strlist_done(&p->filekeys);
 	free(p->files);
@@ -521,6 +520,8 @@ static struct candidate_package *candidate_newpackage(struct candidate_perdistri
 		pp = &(*pp)->next;
 	n = calloc(1, sizeof(struct candidate_package));
 	if( n != NULL ) {
+		n->component_atom = atom_unknown;
+		n->packagetype = atom_unknown;
 		n->master = master;
 		*pp = n;
 	}
@@ -573,10 +574,18 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 
 	r = changes_parsefileline(fileline, &n->type, &basefilename,
 			&n->h.hashes[cs_md5sum], &n->h.hashes[cs_length],
-			&n->section, &n->priority, &n->architecture, &n->name);
+			&n->section, &n->priority, &n->architecture_atom, &n->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
 		return r;
+	}
+	if( !atom_defined(n->architecture_atom) ) {
+		fprintf(stderr,
+"'%s' contains '%s' not matching an valid architecture in any distribution known!\n",
+				BASENAME(i,c->ofs), basefilename);
+		free(basefilename);
+		candidate_file_free(n);
+		return RET_ERROR;
 	}
 	n->ofs = strlist_ofs(&i->files, basefilename);
 	if( n->ofs < 0 ) {
@@ -747,11 +756,13 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( !FE_PACKAGE(file->type) )
 			continue;
-		if( strlist_in(&c->architectures, file->architecture) )
+		assert( atom_defined(file->architecture_atom) );
+		if( strlist_in(&c->architectures,
+					atoms_architectures[file->architecture_atom]) )
 			continue;
 		fprintf(stderr, "'%s' is not listed in the Architecture header of '%s' but file '%s' looks like it!\n",
-				file->architecture, BASENAME(i,c->ofs),
-				BASENAME(i,file->ofs));
+				atoms_architectures[file->architecture_atom],
+				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
 	return RET_OK;
@@ -825,7 +836,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 	return RET_OK;
 }
 
-static inline retvalue getsectionprioritycomponent(const struct incoming *i,const struct candidate *c,const struct distribution *into,const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/char **component) {
+static inline retvalue getsectionprioritycomponent(const struct incoming *i, const struct candidate *c, const struct distribution *into, const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/component_t *component) {
 	retvalue r;
 	const char *section, *priority;
 
@@ -852,7 +863,9 @@ static inline retvalue getsectionprioritycomponent(const struct incoming *i,cons
 		return RET_ERROR;
 	}
 
-	r = guess_component(into->codename,&into->components,BASENAME(i,file->ofs),section,NULL,component);
+	r = guess_component(into->codename, &into->components,
+			BASENAME(i,file->ofs), section,
+			atom_unknown, component);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -874,12 +887,14 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 				BASENAME(i,file->ofs), BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
-	if( strcmp(file->architecture, file->deb.architecture) != 0 ) {
+	if( file->architecture_atom != file->deb.architecture_atom ) {
 		// TODO: add permissive thing to ignore this in some cases
 		// but do not forget to look into into->architectures then
 		fprintf(stderr, "Architecture '%s' of '%s' does not match '%s' specified in '%s'!\n",
-				file->deb.architecture, BASENAME(i,file->ofs),
-				file->architecture, BASENAME(i,c->ofs));
+				atoms_architectures[file->deb.architecture_atom],
+				BASENAME(i,file->ofs),
+				atoms_architectures[file->architecture_atom],
+				BASENAME(i,c->ofs));
 		return RET_ERROR;
 	}
 	if( strcmp(c->source, file->deb.source) != 0 ) {
@@ -909,8 +924,6 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 		r = propersourcename(file->deb.source);
 	if( RET_IS_OK(r) )
 		r = properversion(file->deb.version);
-	if( RET_IS_OK(r) )
-		r = properfilenamepart(file->deb.architecture);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return RET_OK;
@@ -974,19 +987,16 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 	char *basefilename, *filekey;
 	struct candidate_package *package;
 	struct candidate_file *file;
-	const char *component = NULL;
+	component_t component = component_strange;
 	assert( c->files != NULL && c->files->ofs == c->ofs );
 
 	/* search for a component to use */
 	for( package = per->packages ; package != NULL ; package = package->next ) {
-		if( package->component != NULL ) {
-			component = package->component;
+		if( atom_defined(package->component_atom) ) {
+			component = package->component_atom;
 			break;
 		}
 	}
-	if( component == NULL )
-		component = "strange";
-
 	file = changesfile(c);
 
 	/* make sure the file is already copied */
@@ -1039,6 +1049,10 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	if( package == NULL )
 		return RET_ERROR_OOM;
 	assert( file == package->master );
+	if( file->type == fe_DEB )
+		package->packagetype = pt_deb;
+	else
+		package->packagetype = pt_udeb;
 
 	oinfo = override_search(file->type==fe_UDEB?into->overrides.udeb:
 			                    into->overrides.deb,
@@ -1046,22 +1060,21 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 
 	r = getsectionprioritycomponent(i,c,into,file,
 			file->name, oinfo,
-			&section, &priority, &package->component);
+			&section, &priority, &package->component_atom);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	if( file->type == fe_UDEB &&
-	    !strlist_in(&into->udebcomponents, package->component)) {
+	    !atomlist_in(&into->udebcomponents, package->component_atom)) {
 		fprintf(stderr,
 "Cannot put file '%s' of '%s' into component '%s',\n"
 "as it is not listed in UDebComponents of '%s'!\n",
 			BASENAME(i,file->ofs), BASENAME(i,c->ofs),
-			package->component, into->codename);
+			atoms_components[package->component_atom], into->codename);
 		return RET_ERROR;
 	}
-	r = binaries_calcfilekeys(package->component, &file->deb,
-			(package->master->type==fe_DEB)?"deb":"udeb",
-			&package->filekeys);
+	r = binaries_calcfilekeys(package->component_atom, &file->deb,
+			package->packagetype, &package->filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	assert( package->filekeys.count == 1 );
@@ -1170,6 +1183,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	if( package == NULL )
 		return RET_ERROR_OOM;
 	assert( file == package->master );
+	package->packagetype = pt_dsc;
 
 	if( c->isbinNMU ) {
 		// TODO: add permissive thing to ignore this
@@ -1213,10 +1227,10 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 
 	r = getsectionprioritycomponent(i, c, into, file,
 			file->dsc.name, oinfo,
-			&section, &priority, &package->component);
+			&section, &priority, &package->component_atom);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	package->directory = calc_sourcedir(package->component, file->dsc.name);
+	package->directory = calc_sourcedir(package->component_atom, file->dsc.name);
 	if( package->directory == NULL )
 		return RET_ERROR_OOM;
 	r = calc_dirconcats(package->directory, &file->dsc.files.names, &package->filekeys);
@@ -1344,7 +1358,8 @@ static retvalue add_dsc(struct database *database,
 		struct distribution *into, struct strlist *dereferenced,
 		struct trackingdata *trackingdata, struct candidate_package *p) {
 	retvalue r;
-	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
+	struct target *t = distribution_getpart(into,
+			p->component_atom, architecture_source, pt_dsc);
 	// TODO: use this information:
 	bool usedmarker = false;
 
@@ -1363,7 +1378,8 @@ static retvalue add_dsc(struct database *database,
 					p->control,
 					&p->filekeys, &usedmarker,
 					false, dereferenced,
-					trackingdata, ft_SOURCE);
+					trackingdata,
+					architecture_source);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}
@@ -1376,7 +1392,8 @@ static retvalue checkadd_dsc(struct database *database,
 		const struct incoming *i,
 		bool tracking, struct candidate_package *p) {
 	retvalue r;
-	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
+	struct target *t = distribution_getpart(into,
+			p->component_atom, architecture_source, pt_dsc);
 
 	/* check for possible errors putting it into the source distribution */
 	r = target_initpackagesdb(t, database, READONLY);
@@ -1454,11 +1471,11 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 			// TODO: use this information?
 			bool usedmarker = false;
 			r = binaries_adddeb(&p->master->deb, database,
-					p->master->architecture,
-					(p->master->type == fe_DEB)?"deb":"udeb",
+					p->master->architecture_atom,
+					p->packagetype,
 					into, dereferenced,
 					(tracks==NULL)?NULL:&trackingdata,
-					p->component, &p->filekeys,
+					p->component_atom, &p->filekeys,
 					&usedmarker, p->control);
 		} else if( p->master->type == fe_UNKNOWN ) {
 			/* finally add the .changes to tracking, if requested */
@@ -1512,11 +1529,12 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
 			r = binaries_checkadddeb(&p->master->deb, database,
-					p->master->architecture,
-					(p->master->type == fe_DEB)?"deb":"udeb",
+					p->master->architecture_atom,
+					p->packagetype,
 					into,
 					into->tracking != dt_NONE,
-					p->component, i->permit[pmf_oldpackagenewer]);
+					p->component_atom,
+					i->permit[pmf_oldpackagenewer]);
 		} else if( p->master->type == fe_UNKNOWN ) {
 			continue;
 		} else
@@ -1524,7 +1542,7 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 
 		if( RET_WAS_ERROR(r) )
 			return r;
-		if( r == RET_NOTHING ) 
+		if( r == RET_NOTHING )
 			p->skip = true;
 		else
 			somethingtodo = true;
@@ -1620,7 +1638,7 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 			continue;
 		}
 		for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-			if( strlist_in(&d->into->architectures, architecture) )
+			if( atomlist_in(&d->into->architectures, architecture_find(architecture)) )
 				continue;
 			fprintf(stderr, "'%s' lists architecture '%s' not found in distribution '%s'!\n",
 					BASENAME(i,c->ofs), architecture, d->into->codename);
@@ -1634,9 +1652,9 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 			if( d->into->architectures.count > 1 )
 				continue;
 			if( d->into->architectures.count > 0 &&
-				strcmp(d->into->architectures.values[0],"source") != 0)
+				d->into->architectures.atoms[0] != architecture_source)
 				continue;
-			fprintf(stderr, "'%s' lists architecture 'all' but not binary architecture found in distribution '%s'!\n",
+			fprintf(stderr, "'%s' lists architecture 'all' but no binary architecture found in distribution '%s'!\n",
 					BASENAME(i,c->ofs), d->into->codename);
 			return RET_ERROR;
 		}

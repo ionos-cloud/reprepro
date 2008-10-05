@@ -62,7 +62,8 @@ struct package_data {
 	 * same validity */
 	struct strlist new_filekeys;
 	struct checksumsarray new_origfiles;
-	enum filetype new_filetype;
+	/* to destinguish arch all from not arch all */
+	architecture_t architecture;
 };
 
 struct upgradelist {
@@ -193,7 +194,7 @@ void upgradelist_free(struct upgradelist *upgrade) {
 	return;
 }
 
-static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/struct aptmethod *aptmethod, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, const char *chunk){
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/struct aptmethod *aptmethod, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, architecture_t architecture, const char *chunk){
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
@@ -297,11 +298,13 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 		packagename = NULL; //to be sure...
 		new->new_version = version;
 		new->version = version;
+		new->architecture = architecture;
 		version = NULL; //to be sure...
 		r = upgrade->target->getinstalldata(upgrade->target,
-				new->name, new->new_version, chunk,
+				new->name, new->new_version,
+				new->architecture, chunk,
 				&new->new_control, &new->new_filekeys,
-				&new->new_origfiles, &new->new_filetype);
+				&new->new_origfiles);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
 			return r;
@@ -319,7 +322,6 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 		char *control;
 		struct strlist files;
 		struct checksumsarray origfiles;
-		enum filetype filetype;
 		int versioncmp;
 
 		upgrade->last = current;
@@ -409,9 +411,11 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 //		if( versioncmp >= 0 && current->version == current->version_in_use
 //				&& current->new_version != NULL ) {
 
+		current->architecture = architecture;
 		r = upgrade->target->getinstalldata(upgrade->target,
-				packagename_const, version, chunk,
-				&control, &files, &origfiles, &filetype);
+				packagename_const, version,
+				architecture, chunk,
+				&control, &files, &origfiles);
 		free(packagename);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
@@ -425,7 +429,6 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 		strlist_move(&current->new_filekeys,&files);
 		checksumsarray_move(&current->new_origfiles, &origfiles);
 		free(current->new_control);
-		current->new_filetype = filetype;
 		current->new_control = control;
 	}
 	return RET_OK;
@@ -436,6 +439,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 	char *packagename, *version;
 	const char *control;
 	retvalue result, r;
+	architecture_t package_architecture;
 
 	r = indexfile_open(&i, filename, c_none);
 	if( !RET_IS_OK(r) )
@@ -444,9 +448,11 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 	result = RET_NOTHING;
 	upgrade->last = NULL;
 	while( indexfile_getnext(i, &packagename, &version, &control,
+				&package_architecture,
 				upgrade->target, ignorewrongarchitecture) ) {
 		r = upgradelist_trypackage(upgrade, method, decide, decide_data,
-				packagename, packagename, version, control);
+				packagename, packagename, version,
+				package_architecture, control);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) ) {
 			if( verbose > 0 )
@@ -476,6 +482,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	result = RET_NOTHING;
 	while( target_nextpackage(&iterator, &package, &control) ) {
 		char *version;
+		architecture_t package_architecture;
 
 		r = upgrade->target->getversion(control, &version);
 		assert( r != RET_NOTHING );
@@ -483,9 +490,15 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 			RET_UPDATE(result, r);
 			break;
 		}
+		r = upgrade->target->getarchitecture(control, &package_architecture);
+		if( !RET_IS_OK(r) ) {
+			RET_UPDATE(result, r);
+			break;
+		}
 		r = upgradelist_trypackage(upgrade, NULL,
 				predecide, decide_data,
-				package, NULL, version, control);
+				package, NULL, version,
+				package_architecture, control);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -607,7 +620,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_control,
 						&pkg->new_filekeys, NULL, true,
 						dereferencedfilekeys, NULL,
-						pkg->new_filetype);
+						pkg->architecture);
 			}
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )

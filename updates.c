@@ -820,6 +820,26 @@ static retvalue getorigins(struct update_distribution *d) {
  * Step 3: calculate which remote indices are to be retrieved and processed *
  ****************************************************************************/
 
+static inline bool addremoteindex(struct update_origin *origin, struct target *target, struct update_target *updatetargets, const char *architecture, const char *component) {
+	struct update_index_connector *uindex;
+
+	uindex = calloc(1, sizeof(struct update_index_connector));
+	if( FAILEDTOALLOC(uindex) )
+		return false;
+
+	uindex->origin = origin;
+	uindex->remote = remote_index(origin->from,
+			architecture, component,
+			target->packagetype_atom);
+	if( FAILEDTOALLOC(uindex->remote) ) {
+		free(uindex);
+		return false;
+	}
+	uindex->next = updatetargets->indices;
+	updatetargets->indices = uindex;
+	return true;
+}
+
 static retvalue addorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
 	const struct update_pattern *p;
 	const struct strlist *c_from, *c_into;
@@ -835,18 +855,18 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 		a_from = &p->architectures_from;
 		a_into = &p->architectures_into;
 	} else {
-		a_from = &distribution->architectures;
-		a_into = &distribution->architectures;
+		a_from = NULL;
+		a_into = NULL;
 	}
-	if( strcmp(target->packagetype,"udeb") == 0 )  {
+	if( target->packagetype_atom == pt_udeb )  {
 		while( p != NULL && !p->udebcomponents_set )
 			p = p->pattern_from;
 		if( p != NULL ) {
 			c_from = &p->udebcomponents_from;
 			c_into = &p->udebcomponents_into;
 		} else {
-			c_from = &distribution->udebcomponents;
-			c_into = &distribution->udebcomponents;
+			c_from = NULL;
+			c_into = NULL;
 		}
 	} else {
 		while( p != NULL && !p->components_set )
@@ -855,72 +875,113 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 			c_from = &p->components_from;
 			c_into = &p->components_into;
 		} else {
-			c_from = &distribution->components;
-			c_into = &distribution->components;
+			c_from = NULL;
+			c_into = NULL;
 		}
 	}
 
-	for( ai = 0 ; ai < a_into->count ; ai++ ) {
-		if( strcmp(a_into->values[ai],target->architecture) != 0 )
-			continue;
+	if( a_into == NULL ) {
+		assert( atomlist_in(&distribution->architectures,
+					target->architecture_atom) );
 
+		if( c_into == NULL ) {
+			if( !addremoteindex(origin, target, updatetargets,
+					atoms_architectures[target->architecture_atom],
+					atoms_components[target->component_atom]) )
+				return RET_ERROR_OOM;
+			return RET_OK;
+		}
 		for( ci = 0 ; ci < c_into->count ; ci++ ) {
-			struct update_index_connector *uindex;
-
-			if( strcmp(c_into->values[ci],target->component) != 0 )
+			if( strcmp(c_into->values[ci],
+					atoms_components[target->component_atom]) != 0 )
 				continue;
 
-			uindex = calloc(1, sizeof(struct update_index_connector));
-			if( uindex == NULL )
+			if( !addremoteindex(origin, target, updatetargets,
+					atoms_architectures[target->architecture_atom],
+					c_from->values[ci]) )
 				return RET_ERROR_OOM;
+		}
+		return RET_OK;
+	}
+	for( ai = 0 ; ai < a_into->count ; ai++ ) {
+		if( strcmp(atoms_architectures[target->architecture_atom],
+					a_into->values[ai]) != 0 )
+			continue;
+		if( c_into == NULL ) {
+			if( !addremoteindex(origin, target, updatetargets,
+					a_from->values[ai],
+					atoms_components[target->component_atom]) )
+				return RET_ERROR_OOM;
+			continue;
+		}
 
-			uindex->origin = origin;
-			uindex->remote = remote_index(origin->from,
-					a_from->values[ai], c_from->values[ci],
-					target->packagetype);
-			if( FAILEDTOALLOC(uindex->remote) ) {
-				free(uindex);
+		for( ci = 0 ; ci < c_into->count ; ci++ ) {
+			if( strcmp(atoms_components[target->component_atom],
+						c_into->values[ci]) != 0 )
+				continue;
+
+			if( !addremoteindex(origin, target, updatetargets,
+					a_from->values[ai], c_from->values[ci]) )
 				return RET_ERROR_OOM;
-			}
-			uindex->next = updatetargets->indices;
-			updatetargets->indices = uindex;
 		}
 	}
 	return RET_OK;
 }
 
 static retvalue addflatorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
-	const struct update_pattern *p = origin->pattern;
+	const struct update_pattern *p;
 	const struct strlist *a_from, *a_into;
 	int ai;
 
-	assert( origin != NULL && p != NULL && p->flat != NULL);
+	assert( origin != NULL );
 
-	if( p->architectures_set ) {
-		a_from = &p->architectures_from;
-		a_into = &p->architectures_into;
-	} else {
-		a_from = &distribution->architectures;
-		a_into = &distribution->architectures;
-	}
-	if( strcmp(target->packagetype, "udeb") == 0 )
+	if( target->packagetype_atom == pt_udeb )
+		return RET_NOTHING;
+	p = origin->pattern;
+	while( p->pattern_from != NULL )
+		p = p->pattern_from;
+	assert( p->flat != NULL );
+	if( strcmp(p->flat, atoms_components[target->component_atom]) != 0 )
 		return RET_NOTHING;
 
-	for( ai = 0 ; ai < a_into->count ; ai++ ) {
+	p = origin->pattern;
+	while( p != NULL && !p->architectures_set )
+		p = p->pattern_from;
+	if( p == NULL ) {
 		struct update_index_connector *uindex;
 
-		if( strcmp(a_into->values[ai], target->architecture) != 0 )
-			continue;
-
-		if( strcmp(p->flat, target->component) != 0 )
-				continue;
 		uindex = calloc(1, sizeof(struct update_index_connector));
 		if( uindex == NULL )
 			return RET_ERROR_OOM;
 
 		uindex->origin = origin;
 		uindex->remote = remote_flat_index(origin->from,
-				target->packagetype);
+				target->packagetype_atom);
+		if( FAILEDTOALLOC(uindex->remote) ) {
+			free(uindex);
+			return RET_ERROR_OOM;
+		}
+		uindex->next = updatetargets->indices;
+		updatetargets->indices = uindex;
+		return RET_OK;
+	}
+
+	a_from = &p->architectures_from;
+	a_into = &p->architectures_into;
+
+	for( ai = 0 ; ai < a_into->count ; ai++ ) {
+		struct update_index_connector *uindex;
+
+		if( strcmp(a_into->values[ai], atoms_architectures[target->architecture_atom]) != 0 )
+			continue;
+
+		uindex = calloc(1, sizeof(struct update_index_connector));
+		if( uindex == NULL )
+			return RET_ERROR_OOM;
+
+		uindex->origin = origin;
+		uindex->remote = remote_flat_index(origin->from,
+				target->packagetype_atom);
 		if( FAILEDTOALLOC(uindex->remote) ) {
 			free(uindex);
 			return RET_ERROR_OOM;
@@ -1138,7 +1199,8 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 	/* distribution, component, architecture and pattern specific... */
 	newfilename = genlistsfilename(oldbasefilename, 5, "",
 			ut->target->codename,
-			ut->target->component, ut->target->architecture,
+			atoms_components[ut->target->component_atom],
+			atoms_architectures[ut->target->architecture_atom],
 			origin->pattern->name, ENDOFARGUMENTS);
 	if( FAILEDTOALLOC(newfilename) )
 		return RET_ERROR_OOM;
@@ -1161,11 +1223,14 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 		setenv("REPREPRO_FILTER_CODENAME",
 				ut->target->codename, true);
 		setenv("REPREPRO_FILTER_PACKAGETYPE",
-				ut->target->packagetype, true);
+				atoms_architectures[ut->target->packagetype_atom],
+				true);
 		setenv("REPREPRO_FILTER_COMPONENT",
-				ut->target->component, true);
+				atoms_components[ut->target->component_atom],
+				true);
 		setenv("REPREPRO_FILTER_ARCHITECTURE",
-				ut->target->architecture, true);
+				atoms_architectures[ut->target->architecture_atom],
+				true);
 		setenv("REPREPRO_FILTER_PATTERN", origin->pattern->name, true);
 		execl(listhook, listhook, oldfilename, newfilename,
 				ENDOFARGUMENTS);

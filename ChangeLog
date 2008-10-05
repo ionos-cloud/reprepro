@@ -1,3 +1,9 @@
+2008-10-05
+	* Internaly atomize components architectures and packagetypes.
+	  Causes multiple checks for unknown identifiers to be earlier or
+	  more strict. (And fields in conf/distributions have more
+	  restrictions w.r.t their order).
+
 2008-10-01
 	* warn if an update rule references local components or architectures
 	  that were not seen in conf/distributions (old behaviour was to check

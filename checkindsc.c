@@ -86,7 +86,7 @@ struct dscpackage {
 	/* things to be set by dsc_read: */
 	struct dsc_headers dsc;
 	/* things that will still be NULL then: */
-	char *component; //This might be const, too and save some strdups, but...
+	component_t component_atom;
 	/* Things that may be calculated by dsc_calclocations: */
 	struct strlist filekeys;
 	/* if set, everything set to true should be deleted when not used */
@@ -108,7 +108,6 @@ static void dsc_free(/*@only@*/struct dscpackage *pkg, struct database *database
 			free(pkg->deleteonfailure);
 		}
 		sources_done(&pkg->dsc);
-		free(pkg->component);
 		strlist_done(&pkg->filekeys);
 		free(pkg);
 	}
@@ -138,14 +137,16 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 		dsc_free(dsc, NULL);
 		return r;
 	}
+	dsc->component_atom = atom_unknown;
 	*pkg = dsc;
 
 	return RET_OK;
 }
 
-retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, const char *component, const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
+retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, component_t component, const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
 	retvalue r;
-	struct target *t = distribution_getpart(distribution,component,"source","dsc");
+	struct target *t = distribution_getpart(distribution,
+			component, architecture_source, pt_dsc);
 
 	assert( logger_isprepared(distribution->logger) );
 
@@ -161,7 +162,8 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 					dsc->control, filekeys,
 					usedmarker,
 					false, dereferencedfilekeys,
-					trackingdata, ft_SOURCE);
+					trackingdata,
+					architecture_source);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}
@@ -174,7 +176,7 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
  * If basename, filekey and directory are != NULL, then they are used instead
  * of being newly calculated.
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
+retvalue dsc_add(struct database *database, component_t forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *dscfilename, int delete, struct strlist *dereferencedfilekeys, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -188,8 +190,10 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
-	if( !strlist_in(&distribution->architectures,"source") ) {
-		fprintf(stderr,"Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",distribution->codename);
+	if( !atomlist_in(&distribution->architectures, architecture_source) ) {
+		fprintf(stderr,
+"Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",
+			distribution->codename);
 		/* nota bene: this cannot be forced or ignored, as no target has
 		   been created for this. */
 		return RET_ERROR;
@@ -299,14 +303,15 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 
 	r = guess_component(distribution->codename, &distribution->components,
 			pkg->dsc.name, pkg->dsc.section, forcecomponent,
-			&pkg->component);
+			&pkg->component_atom);
 	if( RET_WAS_ERROR(r) ) {
 		free(origdirectory);
 		dsc_free(pkg, database);
 		return r;
 	}
-	if( verbose > 0 && forcecomponent == NULL ) {
-		fprintf(stderr,"%s: component guessed as '%s'\n",dscfilename,pkg->component);
+	if( verbose > 0 && !atom_defined(forcecomponent) ) {
+		fprintf(stderr, "%s: component guessed as '%s'\n", dscfilename,
+				atoms_components[pkg->component_atom]);
 	}
 
 	pkg->deleteonfailure = calloc(pkg->dsc.files.names.count+1, sizeof(bool));
@@ -319,7 +324,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		struct checksums *dscchecksums;
 
 		dscbasename = calc_source_basename(pkg->dsc.name, pkg->dsc.version);
-		destdirectory = calc_sourcedir(pkg->component, pkg->dsc.name);
+		destdirectory = calc_sourcedir(pkg->component_atom, pkg->dsc.name);
 		/* Calculate the filekeys: */
 		if( destdirectory != NULL )
 			r = calc_dirconcats(destdirectory,
@@ -399,7 +404,7 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		}
 	}
 
-	r = dsc_addprepared(database, &pkg->dsc, pkg->component,
+	r = dsc_addprepared(database, &pkg->dsc, pkg->component_atom,
 			&pkg->filekeys, &usedmarker,
 			distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL);

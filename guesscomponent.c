@@ -21,7 +21,6 @@
 #include <strings.h>
 #include <stdio.h>
 #include "error.h"
-#include "strlist.h"
 #include "guesscomponent.h"
 
 extern int verbose;
@@ -35,30 +34,23 @@ extern int verbose;
  * - use the first component in the list
  */
 
-retvalue guess_component(const char *codename,const struct strlist *components,
-			const char *package,const char *section,
-			const char *givencomponent,char **guess) {
+retvalue guess_component(const char *codename, const struct atomlist *components, const char *package, const char *section, component_t givencomponent, component_t *guess) {
 	int i;
 	size_t section_len;
 
-#define RETURNTHIS(comp) { \
-		char *c = strdup(comp); \
-		if( c == NULL ) \
-			return RET_ERROR_OOM; \
-		*guess = c; \
-		return RET_OK; \
-	}
-
-	if( givencomponent != NULL ) {
-		if( !strlist_in(components,givencomponent) ) {
-			(void)fprintf(stderr,"Could not find '%s' in components of '%s': ",
-					givencomponent,codename);
-			(void)strlist_fprint(stderr,components);
-			(void)fputs("'\n",stderr);
+	if( atom_defined(givencomponent) ) {
+		if( !atomlist_in(components, givencomponent) ) {
+			(void)fprintf(stderr,
+"Could not find '%s' in components of '%s': ",
+					atoms_components[givencomponent],
+					codename);
+			(void)atomlist_fprint(stderr,
+					at_component, components);
+			(void)fputs("'\n", stderr);
 			return RET_ERROR;
 		}
-
-		RETURNTHIS(givencomponent);
+		*guess = givencomponent;
+		return RET_OK;
 	}
 	if( section == NULL ) {
 		fprintf(stderr,"Found no section for '%s', so I cannot guess the component to put it in!\n",package);
@@ -71,33 +63,44 @@ retvalue guess_component(const char *codename,const struct strlist *components,
 	section_len = strlen(section);
 
 	for( i = 0 ; i < components->count ; i++ ) {
-		const char *component = components->values[i];
+		const char *component = atoms_components[components->atoms[i]];
 
-		if( strcmp(section,component) == 0 )
-			RETURNTHIS(component);
+		if( strcmp(section, component) == 0 ) {
+			*guess = components->atoms[i];
+			return RET_OK;
+		}
 	}
 	for( i = 0 ; i < components->count ; i++ ) {
-		const char *component = components->values[i];
+		const char *component = atoms_components[components->atoms[i]];
 		size_t len = strlen(component);
 
 		if( len<section_len && section[len] == '/' &&
-				strncmp(section,component,len) == 0 )
-			RETURNTHIS(component);
+				strncmp(section, component, len) == 0 ) {
+			*guess = components->atoms[i];
+			return RET_OK;
+		}
 	}
 	for( i = 0 ; i < components->count ; i++ ) {
-		const char *component = components->values[i];
+		const char *component = atoms_components[components->atoms[i]];
 		size_t len = strlen(component);
 
 		if( len<section_len && section[section_len-len-1] == '/' &&
-				strncmp(section+section_len-len,component,len) == 0 )
-			RETURNTHIS(component);
+				strncmp(section+section_len-len, component, len)
+				== 0 ) {
+			*guess = components->atoms[i];
+			return RET_OK;
+		}
 	}
 	for( i = 0 ; i < components->count ; i++ ) {
-		const char *component = components->values[i];
+		const char *component = atoms_components[components->atoms[i]];
 
-		if( strncmp(section,component,section_len) == 0 && component[section_len] == '/' )
-			RETURNTHIS(component);
+		if( strncmp(section, component, section_len) == 0 &&
+				component[section_len] == '/' ) {
+			*guess = components->atoms[i];
+			return RET_OK;
+		}
+
 	}
-	RETURNTHIS(components->values[0]);
-#undef RETURNTHIS
+	*guess = components->atoms[0];
+	return RET_OK;
 }

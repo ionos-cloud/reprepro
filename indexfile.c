@@ -186,11 +186,12 @@ static retvalue indexfile_get(struct indexfile *f) {
 	return RET_OK;
 }
 
-bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, const char **control_p, const struct target *target, bool allowwrongarchitecture) {
+bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, const char **control_p, architecture_t *architecture_p, const struct target *target, bool allowwrongarchitecture) {
 	retvalue r;
 	bool ignorecruft = false; // TODO
 	char *packagename, *version, *architecture;
 	const char *control;
+	architecture_t atom;
 
 	packagename = NULL; version = NULL;
 	do {
@@ -233,8 +234,9 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 			break;
 		if( r == RET_NOTHING )
 			architecture = NULL;
-		if( strcmp(target->packagetype, "dsc") == 0 ) {
+		if( target->packagetype_atom == pt_dsc ) {
 			free(architecture);
+			atom = architecture_source;
 		} else {
 			/* check if architecture fits for target and error
 			    out if not ignorewrongarchitecture */
@@ -248,9 +250,14 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 					break;
 				} else
 					continue;
-			} else if( strcmp(architecture, "all") != 0 &&
-			           strcmp(architecture,
-						target->architecture) != 0) {
+			} else if( strcmp(architecture, "all") == 0 ) {
+				atom = architecture_all;
+			} else if( strcmp(architecture,
+					   atoms_architectures[
+						target->architecture_atom
+						]) == 0) {
+				atom = target->architecture_atom;
+			} else {
 				if( allowwrongarchitecture ) {
 					free(architecture);
 					continue;
@@ -260,7 +267,9 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 						f->filename,
 						f->startlinenumber, f->linenumber,
 						architecture,
-						target->architecture);
+						atoms_architectures[
+						 target->architecture_atom
+						  ]);
 					r = RET_ERROR;
 				}
 			}
@@ -271,6 +280,7 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 		*control_p = control;
 		*name_p = packagename;
 		*version_p = version;
+		*architecture_p = atom;
 		return true;
 	} while( true );
 	free(packagename);
