@@ -5,6 +5,13 @@ reprepro (3.7.0-1) UNRELEASED; urgency=low
 
  -- Bernhard R. Link <brlink@debian.org>  Sat, 16 Aug 2008 16:54:57 +0200
 
+reprepro (3.6.1-2) experimental; urgency=low
+
+  * change to use libdb4.6 by default (Closes: 442668)
+    to enable upgrades from unstable to experimental
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon,  6 Oct 2008 09:38:23 +0200
+
 reprepro (3.6.1-1) experimental; urgency=medium
 
   * new bugfix release

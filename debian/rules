@@ -19,8 +19,8 @@ ifneq (,$(filter noopt,$(BUILDOPTS)))
 else
 	CFLAGS += -O2
 endif
-ifneq (,$(filter reprepro-libdb4.6,$(BUILDOPTS)))
-	DBFLAGS = --with-libdb=4.6
+ifneq (,$(filter reprepro-libdb4.3,$(BUILDOPTS)))
+	DBFLAGS = --with-libdb=4.3
 else
 ifneq (,$(filter reprepro-libdb3,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=3
@@ -28,7 +28,7 @@ else
 ifneq (,$(filter reprepro-libdb4.4,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=4.4
 else
-	DBFLAGS = --with-libdb=4.3
+	DBFLAGS = --with-libdb=4.6
 endif
 endif
 endif
