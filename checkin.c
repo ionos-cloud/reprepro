@@ -823,11 +823,11 @@ static void changes_unincludefiles(struct database *database,struct changes *cha
 		if( e->filekey == NULL || e->wasalreadythere || !e->included )
 			continue;
 
-		(void)files_deleteandremove(database, e->filekey, true, false);
+		(void)files_deleteandremove(database, e->filekey, false);
 	}
 	if( changes->includedchangesfile )
 		(void)files_deleteandremove(database, changes->changesfilekey,
-			true, false);
+			false);
 }
 
 static void check_all_files_included(struct database *database, struct changes *changes, bool unusedpartsexpected) {
@@ -840,7 +840,7 @@ static void check_all_files_included(struct database *database, struct changes *
 			continue;
 
 		if( unusedpartsexpected ) {
-			(void)files_deleteandremove(database, e->filekey, true, false);
+			(void)files_deleteandremove(database, e->filekey, false);
 			continue;
 		}
 
@@ -850,7 +850,7 @@ static void check_all_files_included(struct database *database, struct changes *
 		r = references_isused(database, e->filekey);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr, " indeed unused, deleting it...\n");
-			(void)files_deleteandremove(database, e->filekey, true, false);
+			(void)files_deleteandremove(database, e->filekey, false);
 		} else if( RET_IS_OK(r) ) {
 			fprintf(stderr, " It looks used. Strange. Please report this bug.\n");
 		}

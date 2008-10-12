@@ -103,7 +103,7 @@ static void dsc_free(/*@only@*/struct dscpackage *pkg, struct database *database
 					files_deleteandremove(
 						database,
 						pkg->filekeys.values[i],
-						true, false);
+						false);
 			}
 			free(pkg->deleteonfailure);
 		}

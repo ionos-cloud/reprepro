@@ -104,7 +104,6 @@ static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
 static bool	keepunreferenced = false;
-static bool	keepdirectories = false;
 static bool	askforpassphrase = false;
 static bool	guessgpgtty = true;
 static bool	skipold = true;
@@ -130,6 +129,9 @@ O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_co
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
 					owner_ ## variable = config_state; \
 					variable = value; }
+#define CONFIGGSET(variable,value) if(owner_ ## variable <= config_state) { \
+					owner_ ## variable = config_state; \
+					global.variable = value; }
 #define CONFIGDUP(variable,value) if(owner_ ## variable <= config_state) { \
 					owner_ ## variable = config_state; \
 					free(variable); \
@@ -149,8 +151,7 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 
 		r = references_isused(database,filekey);
 		if( r == RET_NOTHING ) {
-			r = files_deleteandremove(database, filekey,
-					!keepdirectories, true);
+			r = files_deleteandremove(database, filekey, true);
 			if( r == RET_NOTHING ) {
 				/* not found, check if it was us removing it */
 				int j;
@@ -579,8 +580,7 @@ static retvalue deleteifunreferenced(void *data, const char *filekey) {
 
 	r = references_isused(database,filekey);
 	if( r == RET_NOTHING ) {
-		r = files_deleteandremove(database, filekey,
-				!keepdirectories, false);
+		r = files_deleteandremove(database, filekey, false);
 		return r;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
@@ -3040,10 +3040,10 @@ static void handle_option(int c, const char *argument) {
 "Use cleanlists to clean manually.\n");
 					break;
 				case LO_KEEPDIRECTORIES:
-					CONFIGSET(keepdirectories, true);
+					CONFIGGSET(keepdirectories, true);
 					break;
 				case LO_NOKEEPDIRECTORIES:
-					CONFIGSET(keepdirectories, false);
+					CONFIGGSET(keepdirectories, false);
 					break;
 				case LO_NOTHINGISERROR:
 					CONFIGSET(nothingiserror, true);

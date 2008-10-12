@@ -316,7 +316,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 	checksums_free(checksums);
 	if( RET_WAS_ERROR(r) ) {
 		if( !fileused )
-			files_deleteandremove(database, pkg->filekey, true, false);
+			files_deleteandremove(database, pkg->filekey, false);
 		deb_free(pkg);
 		return r;
 	}
@@ -330,7 +330,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 		if( RET_WAS_ERROR(r) ) {
 			if( !fileused )
 				files_deleteandremove(database, pkg->filekey,
-						true, false);
+						false);
 			deb_free(pkg);
 			return r;
 		}
@@ -343,7 +343,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 			pkg->deb.control);
 	assert( !RET_IS_OK(r) || fileused );
 	if( !fileused )
-		files_deleteandremove(database, pkg->filekey, true, false);
+		files_deleteandremove(database, pkg->filekey, false);
 	RET_UPDATE(distribution->status, r);
 	deb_free(pkg);
 

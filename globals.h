@@ -75,6 +75,8 @@ extern struct global_config {
 	const char *listdir;
 	/* deprecated: */
 	const char *overridedir;
+	/* flags: */
+	bool keepdirectories;
 } global;
 
 enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_COUNT };

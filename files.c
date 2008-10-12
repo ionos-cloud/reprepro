@@ -133,7 +133,7 @@ retvalue files_remove(struct database *database, const char *filekey, bool ignor
 }
 
 /* delete the file and remove its md5sum from database */
-retvalue files_deleteandremove(struct database *database, const char *filekey, bool rmdirs, bool ignoreifnot) {
+retvalue files_deleteandremove(struct database *database, const char *filekey, bool ignoreifnot) {
 	int err,en;
 	char *filename;
 	retvalue r;
@@ -158,7 +158,7 @@ retvalue files_deleteandremove(struct database *database, const char *filekey, b
 			free(filename);
 			return r;
 		}
-	} else if(rmdirs) {
+	} else if( !global.keepdirectories ) {
 		/* try to delete parent directories, until one gives
 		 * errors (hopefully because it still contains files) */
 		size_t fixedpartlen = strlen(database->filesdir);

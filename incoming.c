@@ -1311,8 +1311,7 @@ static retvalue candidate_removefiles(struct database *database,struct candidate
 				if(  p->files[j] == NULL )
 					continue;
 				r = files_deleteandremove(database,
-						p->filekeys.values[j],
-						true, true);
+						p->filekeys.values[j], true);
 				if( RET_WAS_ERROR(r) )
 					return r;
 			}

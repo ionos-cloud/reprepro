@@ -20,7 +20,7 @@ retvalue files_remove(struct database *, const char *filekey, bool ignoremissing
 
 /* delete the file and remove its md5sum from database,
  * also try to rmdir empty directories it is in if rmdirs is true */
-retvalue files_deleteandremove(struct database *, const char *filekey, bool rmdirs, bool ignoremissing);
+retvalue files_deleteandremove(struct database *, const char *filekey, bool ignoremissing);
 
 /* check for file in the database and if not found there in the pool */
 retvalue files_expect(struct database *, const char *, const struct checksums *);
