@@ -28,8 +28,6 @@
 #include "strlist.h"
 #include "names.h"
 
-extern int verbose;
-
 char *calc_addsuffix(const char *str1,const char *str2) {
 	return mprintf("%s.%s",str1,str2);
 }

@@ -23,8 +23,6 @@
 #include "error.h"
 #include "guesscomponent.h"
 
-extern int verbose;
-
 /* Guess which component to use:
  * - if the user gave one, use that one.
  * - if the section is a componentname, use this one

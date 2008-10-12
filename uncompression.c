@@ -38,8 +38,6 @@
 #include "filecntl.h"
 #include "uncompression.h"
 
-extern int verbose;
-
 const char * const uncompression_suffix[c_COUNT] = {
 	"", ".gz", ".bz2", ".lzma" };
 

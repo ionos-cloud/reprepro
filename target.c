@@ -43,8 +43,6 @@
 #include "files.h"
 #include "target.h"
 
-extern int verbose;
-
 static char *calc_identifier(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	assert( strchr(codename, '|') == NULL );
 	assert( codename != NULL ); assert( atom_defined(component) );

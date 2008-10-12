@@ -41,8 +41,6 @@
 #include "configparser.h"
 #include "distribution.h"
 
-extern int verbose;
-
 static retvalue distribution_free(struct distribution *distribution) {
 	retvalue result,r;
 

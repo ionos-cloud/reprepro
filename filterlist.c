@@ -30,8 +30,6 @@
 #include "configparser.h"
 #include "filterlist.h"
 
-extern int verbose;
-
 struct filterlistfile {
 	size_t reference_count;
 

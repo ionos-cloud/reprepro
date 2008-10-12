@@ -51,8 +51,6 @@
 #include "configparser.h"
 #include "changes.h"
 
-extern int verbose;
-
 enum permitflags {
 	/* do not error out on unused files */
 	pmf_unused_files = 0,

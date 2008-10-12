@@ -35,8 +35,6 @@
 #include "tracking.h"
 #include "signature.h"
 
-extern int verbose;
-
 /* split a "<md5> <size> <filename>" into md5sum and filename */
 static retvalue calc_parsefileline(const char *fileline, /*@out@*/char **filename) {
 	const char *p, *fn, *fnend;

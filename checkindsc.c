@@ -45,8 +45,6 @@
 #include "log.h"
 #include "sourceextraction.h"
 
-extern int verbose;
-
 /* This file includes the code to include sources, i.e.
  to create the chunk for the Sources.gz-file and
  to put it in the various databases.

@@ -50,8 +50,6 @@
 #include "dpkgversions.h"
 #include "changes.h"
 
-extern int verbose;
-
 /* Things to do when including a .changes-file:
  *  - Read in the chunk of the possible signed file.
  *    (In later versions possibly checking the signature)

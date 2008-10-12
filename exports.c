@@ -38,8 +38,6 @@
 #include "configparser.h"
 #include "filecntl.h"
 
-extern int verbose;
-
 static const char *exportdescription(const struct exportmode *mode,char *buffer,size_t buffersize) {
 	char *result = buffer;
 	enum indexcompression ic;

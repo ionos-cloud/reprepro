@@ -34,8 +34,6 @@
 #include "log.h"
 #include "configparser.h"
 
-extern int verbose;
-
 /***************************************************************************
  * step one:                                                               *
  * parse CONFDIR/pull to get pull information saved in                     *

@@ -35,8 +35,6 @@
 #include "database_p.h"
 #include "tracking.h"
 
-extern int verbose;
-
 #ifndef NOPARANOIA
 #define PARANOIA
 #endif

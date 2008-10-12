@@ -41,8 +41,6 @@
 #include "override.h"
 #include "log.h"
 
-extern int verbose;
-
 /* This file includes the code to include binaries, i.e.
    to create the chunk for the Packages.gz-file and
    to put it in the various databases.

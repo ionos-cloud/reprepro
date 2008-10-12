@@ -38,8 +38,6 @@
 #include "debfile.h"
 #include "database_p.h"
 
-extern int verbose;
-
 static retvalue files_get_checksums(struct database *database, const char *filekey, /*@out@*/struct checksums **checksums_p) {
 	const char *md5sum = NULL;
 	const char *checksums;

@@ -35,8 +35,6 @@
 #include "ignore.h"
 #include "configparser.h"
 
-extern int verbose;
-
 /* options are zerroed when called, when error is returned contentsopions_done
  * is called by the caller */
 retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter) {

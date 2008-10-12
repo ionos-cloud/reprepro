@@ -38,8 +38,6 @@
 #include "uncompression.h"
 #include "remoterepository.h"
 
-extern int verbose;
-
 /* This is code to handle lists from remote repositories.
    Those are stored in the lists/ (or --listdir) directory
    and needs some maintaince:

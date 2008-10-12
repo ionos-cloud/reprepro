@@ -32,8 +32,6 @@
 #include "names.h"
 #include "override.h"
 
-extern int verbose;
-
 struct overrideinfo {
 	struct overrideinfo *next;
 	char *packagename;

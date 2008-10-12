@@ -30,8 +30,6 @@
 #include "names.h"
 #include "uploaderslist.h"
 
-extern int verbose;
-
 struct uploader {
 	struct uploader *next;
 	size_t len;

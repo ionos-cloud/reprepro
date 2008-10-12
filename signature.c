@@ -39,8 +39,6 @@
 #include "readtextfile.h"
 #include "signature.h"
 
-extern int verbose;
-
 #ifdef HAVE_LIBGPGME
 static gpgme_ctx_t context = NULL;
 

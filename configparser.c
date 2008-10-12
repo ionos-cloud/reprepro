@@ -29,8 +29,6 @@
 #include "atoms.h"
 #include "configparser.h"
 
-extern int verbose;
-
 struct configiterator {
 	FILE *f;
 	unsigned int startline, line, column, markerline, markercolumn;

@@ -46,8 +46,6 @@
 #include "distribution.h"
 #include "release.h"
 
-extern int verbose;
-
 #define INPUT_BUFFER_SIZE 1024
 #define GZBUFSIZE 40960
 #define BZBUFSIZE 40960

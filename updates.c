@@ -80,8 +80,6 @@
 #include "filecntl.h"
 #include "remoterepository.h"
 
-extern int verbose;
-
 /* The data structures of this one: ("u_" is short for "update_")
 
 updates_getpatterns read a list of patterns from <confdir>/updates:

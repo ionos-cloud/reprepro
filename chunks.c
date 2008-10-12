@@ -26,8 +26,6 @@
 #include "chunks.h"
 #include "names.h"
 
-extern int verbose;
-
 /* point to a specified field in a chunk */
 static const char *chunk_getfield(const char *name,const char *chunk) {
 	size_t l;

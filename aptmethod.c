@@ -39,9 +39,6 @@
 #include "aptmethod.h"
 #include "filecntl.h"
 
-extern int verbose;
-
-
 struct aptmethod {
 	/*@only@*/ /*@null@*/
 	struct aptmethod *next;

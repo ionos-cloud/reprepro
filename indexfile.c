@@ -41,8 +41,6 @@ struct indexfile {
 	bool failed;
 };
 
-extern int verbose;
-
 retvalue indexfile_open(struct indexfile **file_p, const char *filename, enum compression compression) {
 	struct indexfile *f = calloc(1, sizeof(struct indexfile));
 	retvalue r;

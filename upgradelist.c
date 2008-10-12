@@ -31,8 +31,6 @@
 #include "files.h"
 #include "upgradelist.h"
 
-extern int verbose;
-
 struct package_data {
 	struct package_data *next;
 	/* the name of the package: */

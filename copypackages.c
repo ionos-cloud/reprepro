@@ -37,8 +37,6 @@
 #include "mprintf.h"
 #include "copypackages.h"
 
-extern int verbose;
-
 struct target_package_list {
 	struct target_package_list *next;
 	struct target *target;

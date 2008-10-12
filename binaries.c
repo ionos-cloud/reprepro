@@ -38,8 +38,6 @@
 #include "tracking.h"
 #include "debfile.h"
 
-extern int verbose;
-
 static const char * const deb_checksum_headers[cs_COUNT] = {
 	"MD5sum", "SHA1", "SHA256", "Size"};
 

@@ -41,8 +41,6 @@
 #include "log.h"
 #include "filecntl.h"
 
-extern int verbose;
-
 const char *causingfile = NULL;
 command_t causingcommand_atom = atom_unknown;
 

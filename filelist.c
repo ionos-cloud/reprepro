@@ -27,8 +27,6 @@
 #include "debfile.h"
 #include "filelist.h"
 
-extern int verbose;
-
 struct filelist_package {
 	struct filelist_package *next;
 	char name[];

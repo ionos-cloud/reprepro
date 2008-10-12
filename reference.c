@@ -31,8 +31,6 @@
 #include "database_p.h"
 #include "reference.h"
 
-extern int verbose;
-
 retvalue references_isused(struct database *database,const char *what) {
 	return table_gettemprecord(database->references, what, NULL, NULL);
 }

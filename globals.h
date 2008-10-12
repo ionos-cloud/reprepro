@@ -65,6 +65,7 @@ enum config_option_owner { 	CONFIG_OWNER_DEFAULT=0,
 #define ENDOFARGUMENTS ((char *)0)
 
 /* global information */
+extern int verbose;
 extern struct global_config {
 	const char *basedir;
 	const char *outdir;
