@@ -983,7 +983,7 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 }
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *trackingdata, void *data) {
+retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action decider, struct trackingdata *trackingdata, void *data) {
 	retvalue result,r;
 	struct target *t;
 	struct target_cursor iterator;
@@ -1006,7 +1006,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 			if( RET_IS_OK(r) ) {
 				r = target_removepackage_by_cursor(&iterator,
 					distribution->logger, database,
-					dereferenced, trackingdata);
+					trackingdata);
 				RET_UPDATE(result, r);
 				RET_UPDATE(distribution->status, r);
 			}

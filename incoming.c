@@ -1351,9 +1351,7 @@ static retvalue candidate_addfiles(struct database *database,struct candidate *c
 	return RET_OK;
 }
 
-static retvalue add_dsc(struct database *database,
-		struct distribution *into, struct strlist *dereferenced,
-		struct trackingdata *trackingdata, struct candidate_package *p) {
+static retvalue add_dsc(struct database *database, struct distribution *into, struct trackingdata *trackingdata, struct candidate_package *p) {
 	retvalue r;
 	struct target *t = distribution_getpart(into,
 			p->component_atom, architecture_source, pt_dsc);
@@ -1374,8 +1372,7 @@ static retvalue add_dsc(struct database *database,
 					p->master->dsc.version,
 					p->control,
 					&p->filekeys, &usedmarker,
-					false, dereferenced,
-					trackingdata,
+					false, trackingdata,
 					architecture_source);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
@@ -1409,7 +1406,7 @@ static retvalue checkadd_dsc(struct database *database,
 	return r;
 }
 
-static retvalue candidate_add_into(struct database *database,struct strlist *dereferenced,const struct incoming *i,const struct candidate *c,const struct candidate_perdistribution *d) {
+static retvalue candidate_add_into(struct database *database, const struct incoming *i, const struct candidate *c, const struct candidate_perdistribution *d) {
 	retvalue r;
 	struct candidate_package *p;
 	struct trackingdata trackingdata;
@@ -1461,7 +1458,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 			continue;
 		}
 		if( p->master->type == fe_DSC ) {
-			r = add_dsc(database, into, dereferenced,
+			r = add_dsc(database, into,
 					(tracks==NULL)?NULL:&trackingdata,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
@@ -1469,8 +1466,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 			bool usedmarker = false;
 			r = binaries_adddeb(&p->master->deb, database,
 					p->master->architecture_atom,
-					p->packagetype,
-					into, dereferenced,
+					p->packagetype, into,
 					(tracks==NULL)?NULL:&trackingdata,
 					p->component_atom, &p->filekeys,
 					&usedmarker, p->control);
@@ -1495,8 +1491,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 
 	if( tracks != NULL ) {
 		retvalue r2;
-		r2 = trackingdata_finish(tracks, &trackingdata,
-				database, dereferenced);
+		r2 = trackingdata_finish(tracks, &trackingdata, database);
 		RET_UPDATE(r,r2);
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
@@ -1528,8 +1523,7 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 			r = binaries_checkadddeb(&p->master->deb, database,
 					p->master->architecture_atom,
 					p->packagetype,
-					into,
-					into->tracking != dt_NONE,
+					into, into->tracking != dt_NONE,
 					p->component_atom,
 					i->permit[pmf_oldpackagenewer]);
 		} else if( p->master->type == fe_UNKNOWN ) {
@@ -1659,7 +1653,7 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 	return RET_OK;
 }
 
-static retvalue candidate_add(struct database *database, struct strlist *dereferenced, struct incoming *i, struct candidate *c) {
+static retvalue candidate_add(struct database *database, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
@@ -1751,8 +1745,7 @@ static retvalue candidate_add(struct database *database, struct strlist *derefer
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
 		if( d->skip )
 			continue;
-		r = candidate_add_into(database,
-			dereferenced, i, c, d);
+		r = candidate_add_into(database, i, c, d);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1766,7 +1759,7 @@ static retvalue candidate_add(struct database *database, struct strlist *derefer
 	return RET_OK;
 }
 
-static retvalue process_changes(struct database *database, struct strlist *dereferenced, struct incoming *i, int ofs) {
+static retvalue process_changes(struct database *database, struct incoming *i, int ofs) {
 	struct candidate *c IFSTUPIDCC(=NULL);
 	retvalue r;
 	int j,k;
@@ -1846,9 +1839,7 @@ static retvalue process_changes(struct database *database, struct strlist *deref
 				i->files.values[ofs]);
 			r = RET_ERROR;
 		} else
-			r = candidate_add(database,
-					dereferenced,
-					i, c);
+			r = candidate_add(database, i, c);
 		if( RET_WAS_ERROR(r) && i->cleanup[cuf_on_error] ) {
 			struct candidate_file *file;
 
@@ -1864,7 +1855,7 @@ static retvalue process_changes(struct database *database, struct strlist *deref
 }
 
 /* tempdir should ideally be on the same partition like the pooldir */
-retvalue process_incoming(struct database *database, struct strlist *dereferenced, struct distribution *distributions, const char *name, const char *changesfilename) {
+retvalue process_incoming(struct database *database, struct distribution *distributions, const char *name, const char *changesfilename) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
@@ -1886,7 +1877,7 @@ retvalue process_incoming(struct database *database, struct strlist *dereference
 		if( changesfilename != NULL && strcmp(basefilename, changesfilename) != 0 )
 			continue;
 		/* a .changes file, check it */
-		r = process_changes(database, dereferenced, i, j);
+		r = process_changes(database, i, j);
 		RET_UPDATE(result, r);
 	}
 

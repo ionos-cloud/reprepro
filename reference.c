@@ -29,6 +29,7 @@
 #include "names.h"
 #include "dirs.h"
 #include "database_p.h"
+#include "pool.h"
 #include "reference.h"
 
 retvalue references_isused(struct database *database,const char *what) {
@@ -80,6 +81,11 @@ retvalue references_decrement(struct database *database,const char *needed,const
 	if( verbose > 8 )
 		fprintf(stderr,"Removed reference to '%s' by '%s'\n",
 				needed, neededby);
+	if( RET_IS_OK(r) ) {
+		retvalue r2;
+		r2 = pool_dereferenced(needed);
+		RET_UPDATE(r, r2);
+	}
 	return r;
 }
 
@@ -120,9 +126,7 @@ retvalue references_add(struct database *database,const char *identifier,const s
 
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_delete(struct database *database,const char *identifier,
-		struct strlist *files,const struct strlist *exclude,
-		struct strlist *dereferencedfilekeys) {
+retvalue references_delete(struct database *database, const char *identifier, struct strlist *files, const struct strlist *exclude) {
 	retvalue result,r;
 	int i;
 
@@ -131,28 +135,19 @@ retvalue references_delete(struct database *database,const char *identifier,
 	result = RET_NOTHING;
 
 	for( i = 0 ; i < files->count ; i++ ) {
-		char *filekey = files->values[i];
-		files->values[i] = NULL;
+		const char *filekey = files->values[i];
 
 		if( exclude == NULL || !strlist_in(exclude,filekey) ) {
 			r = references_decrement(database, filekey, identifier);
 			RET_UPDATE(result,r);
-			if( RET_IS_OK(r) && dereferencedfilekeys != NULL ) {
-				r = strlist_adduniq(dereferencedfilekeys, filekey);
-				RET_UPDATE(result,r);
-			} else
-				free(filekey);
-		} else
-			free(filekey);
+		}
 	}
-	strlist_done(files);
 	return result;
 
 }
 
 /* remove all references from a given identifier */
-retvalue references_remove(struct database *database,const char *neededby,
-		struct strlist *dereferenced) {
+retvalue references_remove(struct database *database, const char *neededby) {
 	struct cursor *cursor;
 	retvalue result, r;
 	const char *found_to, *found_by;
@@ -176,8 +171,8 @@ retvalue references_remove(struct database *database,const char *neededby,
 			r = cursor_delete(database->references, cursor,
 					found_to, NULL);
 			RET_UPDATE(result, r);
-			if( RET_IS_OK(r) && dereferenced != NULL ) {
-				r = strlist_add_dup(dereferenced, found_to);
+			if( RET_IS_OK(r) ) {
+				r = pool_dereferenced(found_to);
 				RET_ENDUPDATE(result, r);
 			}
 		}

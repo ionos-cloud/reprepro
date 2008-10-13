@@ -1,3 +1,8 @@
+2008-10-12
+	* some rework on unreferenced files bookkeeping. Should make no
+	  difference yet but only make the "Deleting files not longer
+	  referenced" only show up if something is deleted...
+
 2008-10-05
 	* Internaly atomize components architectures and packagetypes.
 	  Causes multiple checks for unknown identifiers to be earlier or

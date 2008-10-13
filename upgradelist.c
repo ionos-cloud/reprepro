@@ -560,7 +560,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 }
 
 /* delete all packages that will not be kept (i.e. either deleted or upgraded) */
-retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger,struct database *database,struct strlist *dereferencedfilekeys) {
+retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logger, struct database *database) {
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
@@ -577,8 +577,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 			else
 				r = target_removepackage(upgrade->target,
 						logger, database,
-						pkg->name,
-						dereferencedfilekeys, NULL);
+						pkg->name, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r))
 				break;
@@ -589,7 +588,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete, struct strlist *dereferencedfilekeys){
+retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -617,8 +616,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_version,
 						pkg->new_control,
 						&pkg->new_filekeys, NULL, true,
-						dereferencedfilekeys, NULL,
-						pkg->architecture);
+						NULL, pkg->architecture);
 			}
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
@@ -630,8 +628,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 			else
 				r = target_removepackage(upgrade->target,
 						logger, database,
-						pkg->name,
-						dereferencedfilekeys, NULL);
+						pkg->name, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;

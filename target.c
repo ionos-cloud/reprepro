@@ -187,9 +187,8 @@ retvalue target_closepackagesdb(struct target *target) {
 	return r;
 }
 
-/* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
- * filekeys that lost references */
-retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+/* Remove a package from the given target. */
+retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, struct trackingdata *trackingdata) {
 	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result,r;
@@ -235,17 +234,16 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 					NULL, oldcontrol,
 					NULL, &files);
 		r = references_delete(database, target->identifier, &files,
-				NULL, dereferencedfilekeys);
+				NULL);
 		RET_UPDATE(result, r);
-	} else
-		strlist_done(&files);
+	}
+	strlist_done(&files);
 	free(oldpversion);
 	return result;
 }
 
-/* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
- * filekeys that lost references */
-retvalue target_removepackage(struct target *target, struct logger *logger, struct database *database, const char *name, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+/* Remove a package from the given target. */
+retvalue target_removepackage(struct target *target, struct logger *logger, struct database *database, const char *name, struct trackingdata *trackingdata) {
 	char *oldchunk;
 	retvalue r;
 
@@ -262,15 +260,14 @@ retvalue target_removepackage(struct target *target, struct logger *logger, stru
 		return RET_NOTHING;
 	}
 	r = target_removereadpackage(target, logger, database,
-			name, oldchunk, dereferencedfilekeys,
-			trackingdata);
+			name, oldchunk, trackingdata);
 	free(oldchunk);
 	return r;
 }
 
 
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct database *database, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct database *database, struct trackingdata *trackingdata) {
 	struct target * const target = tc->target;
 	const char * const name = tc->lastname;
 	const char * const control = tc->lastcontrol;
@@ -319,10 +316,10 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 					NULL, control,
 					NULL, &files);
 		r = references_delete(database, target->identifier, &files,
-				NULL, dereferencedfilekeys);
+				NULL);
 		RET_UPDATE(result, r);
-	} else
-		strlist_done(&files);
+	}
+	strlist_done(&files);
 	free(oldpversion);
 	return result;
 }
@@ -334,7 +331,6 @@ static retvalue addpackages(struct target *target, struct database *database,
 		const struct strlist *files,
 		/*@only@*//*@null@*/struct strlist *oldfiles,
 		/*@null@*/struct logger *logger,
-		/*@null@*/struct strlist *dereferencedfilekeys,
 		/*@null@*/struct trackingdata *trackingdata,
 		architecture_t architecture,
 		/*@null@*//*@only@*/char *oldsource,/*@null@*//*@only@*/char *oldsversion) {
@@ -392,14 +388,15 @@ static retvalue addpackages(struct target *target, struct database *database,
 
 	if( oldfiles != NULL ) {
 		r = references_delete(database, target->identifier,
-				oldfiles, files, dereferencedfilekeys);
+				oldfiles, files);
 		RET_UPDATE(result,r);
+		strlist_done(oldfiles);
 	}
 
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool *usedmarker, bool downgrade, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, enum filetype filetype) {
+retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool *usedmarker, bool downgrade, struct trackingdata *trackingdata, enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
 	char *oldpversion;
@@ -485,7 +482,6 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 			version, oldpversion,
 			filekeys, ofk,
 			logger,
-			dereferencedfilekeys,
 			trackingdata, filetype, oldsource, oldsversion);
 	if( RET_IS_OK(r) ) {
 		target->wasmodified = true;
@@ -613,7 +609,7 @@ retvalue target_rereference(struct target *target, struct database *database) {
 					target->identifier);
 	}
 
-	result = references_remove(database, target->identifier, NULL);
+	result = references_remove(database, target->identifier);
 	if( verbose > 2 )
 		printf("Referencing %s...\n", target->identifier);
 

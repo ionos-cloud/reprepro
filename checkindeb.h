@@ -17,13 +17,12 @@
  * causing error, if it is not one of them otherwise)
  * if overwrite is not NULL, it will be search for fields to reset for this
  * package. (forcesection and forcepriority have higher priority than the
- * information there),
- * if dereferencedfilekeys is != NULL, add there filekeys that lost a reference */
-retvalue deb_add(struct database *, component_t forcecomponent, architecture_t forcearchitecture, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority, packagetype_t, struct distribution *, const char *debfilename, int delete, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/trackingdb);
+ * information there), */
+retvalue deb_add(struct database *, component_t forcecomponent, architecture_t forcearchitecture, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority, packagetype_t, struct distribution *, const char *debfilename, int delete, /*@null@*/trackingdb);
 
 /* in two steps */
 struct debpackage;
-retvalue deb_addprepared(const struct debpackage *pkg, struct database *, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, bool *usedmarker);
+retvalue deb_addprepared(const struct debpackage *pkg, struct database *, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, bool *usedmarker);
 retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t, struct distribution *distribution, const char *debfilename, const char * const filekey, const struct checksums *checksums, const struct strlist *allowed_binaries, const char *expectedsourcename, const char *expectedsourceversion);
 void deb_free(/*@only@*/struct debpackage *pkg);
 #endif

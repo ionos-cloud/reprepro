@@ -269,10 +269,9 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	return RET_OK;
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, bool *usedmarker) {
+retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, bool *usedmarker) {
 	return binaries_adddeb(&pkg->deb, database, forcearchitecture,
-			packagetype, distribution, dereferencedfilekeys,
-			trackingdata,
+			packagetype, distribution, trackingdata,
 			pkg->component_atom, &pkg->filekeys, usedmarker,
 			pkg->deb.control);
 }
@@ -281,7 +280,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, struct database *database
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(struct database *database, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, int delete, struct strlist *dereferencedfilekeys, /*@null@*/trackingdb tracks){
+retvalue deb_add(struct database *database, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, int delete, /*@null@*/trackingdb tracks) {
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
@@ -335,7 +334,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 	}
 
 	r = binaries_adddeb(&pkg->deb, database, forcearchitecture,
-			packagetype, distribution, dereferencedfilekeys,
+			packagetype, distribution,
 			(tracks!=NULL)?&trackingdata:NULL,
 			pkg->component_atom, &pkg->filekeys, &fileused,
 			pkg->deb.control);
@@ -347,7 +346,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 
 	if( tracks != NULL ) {
 		retvalue r2;
-		r2 = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
+		r2 = trackingdata_finish(tracks, &trackingdata, database);
 		RET_ENDUPDATE(r,r2);
 	}
 

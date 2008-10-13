@@ -31,8 +31,8 @@ void updates_freeupdatedistributions(/*@only@*/struct update_distribution *d);
 
 retvalue updates_calcindices(struct update_pattern *, struct distribution *, bool fast, /*@out@*/struct update_distribution **);
 
-retvalue updates_update(struct database *, struct update_distribution *, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother);
+retvalue updates_update(struct database *, struct update_distribution *, bool nolistsdownload, bool skipold, enum spacecheckmode mode, off_t reserveddb, off_t reservedother);
 retvalue updates_checkupdate(struct database *, struct update_distribution *, bool nolistsdownload, bool skipold);
-retvalue updates_predelete(struct database *, struct update_distribution *, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys);
+retvalue updates_predelete(struct database *, struct update_distribution *, bool nolistsdownload, bool skipold);
 
 #endif

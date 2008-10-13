@@ -141,7 +141,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	return RET_OK;
 }
 
-retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, component_t component, const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
+retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, component_t component, const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, struct trackingdata *trackingdata){
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,
 			component, architecture_source, pt_dsc);
@@ -158,9 +158,7 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 			r = target_addpackage(t, distribution->logger, database,
 					dsc->name, dsc->version,
 					dsc->control, filekeys,
-					usedmarker,
-					false, dereferencedfilekeys,
-					trackingdata,
+					usedmarker, false, trackingdata,
 					architecture_source);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
@@ -174,7 +172,7 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
  * If basename, filekey and directory are != NULL, then they are used instead
  * of being newly calculated.
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(struct database *database, component_t forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *dscfilename, int delete, struct strlist *dereferencedfilekeys, trackingdb tracks){
+retvalue dsc_add(struct database *database, component_t forcecomponent, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *dscfilename, int delete, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -404,7 +402,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 
 	r = dsc_addprepared(database, &pkg->dsc, pkg->component_atom,
 			&pkg->filekeys, &usedmarker,
-			distribution, dereferencedfilekeys,
+			distribution,
 			(tracks!=NULL)?&trackingdata:NULL);
 	if( usedmarker ) {
 		for( i = 0 ; i < pkg->dsc.files.names.count ; i++ )
@@ -433,8 +431,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 
 	if( tracks != NULL ) {
 		retvalue r2;
-		r2 = trackingdata_finish(tracks, &trackingdata, database,
-				dereferencedfilekeys);
+		r2 = trackingdata_finish(tracks, &trackingdata, database);
 		RET_ENDUPDATE(r,r2);
 	}
 	return r;

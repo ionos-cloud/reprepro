@@ -1090,7 +1090,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 	return r;
 }
 
-static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata, bool *missed_p) {
+static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct trackingdata *trackingdata, bool *missed_p) {
 	struct fileentry *e;
 	retvalue result,r;
 	bool markedasused;
@@ -1114,8 +1114,7 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 		if( e->type == fe_DEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
 				e->architecture_into, pt_deb,
-				distribution, dereferencedfilekeys,
-				trackingdata, &markedasused);
+				distribution, trackingdata, &markedasused);
 			if( r == RET_NOTHING )
 				*missed_p = true;
 			if( markedasused )
@@ -1123,8 +1122,7 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 		} else if( e->type == fe_UDEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
 				e->architecture_into, pt_udeb,
-				distribution, dereferencedfilekeys,
-				trackingdata, &markedasused);
+				distribution, trackingdata, &markedasused);
 			if( r == RET_NOTHING )
 				*missed_p = true;
 			if( markedasused )
@@ -1133,8 +1131,7 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 			r = dsc_addprepared(database, &e->pkg.dsc,
 					changes->srccomponent,
 					&e->needed_filekeys, &markedasused,
-					distribution, dereferencedfilekeys,
-					trackingdata);
+					distribution, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
 			if( markedasused ) {
@@ -1171,7 +1168,7 @@ static bool permissionssuffice(UNUSED(struct changes *changes),
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(struct database *database, trackingdb const tracks, packagetype_t packagetypeonly, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *changesfilename, int delete, struct strlist *dereferencedfilekeys) {
+retvalue changes_add(struct database *database, trackingdb const tracks, packagetype_t packagetypeonly, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *changesfilename, int delete) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -1310,8 +1307,7 @@ retvalue changes_add(struct database *database, trackingdb const tracks, package
 	}
 
 	/* add the source and binary packages in the given distribution */
-	result = changes_includepkgs(database,
-		distribution,changes,dereferencedfilekeys,
+	result = changes_includepkgs(database, distribution, changes,
 		(tracks!=NULL)?&trackingdata:NULL, &somethingwasmissed);
 
 	if( RET_WAS_ERROR(result) ) {
@@ -1342,7 +1338,7 @@ retvalue changes_add(struct database *database, trackingdb const tracks, package
 			/* no longer delete when done */
 			changes->includedchangesfile = false;
 		}
-		r = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
+		r = trackingdata_finish(tracks, &trackingdata, database);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) ) {
 			changes_free(changes);

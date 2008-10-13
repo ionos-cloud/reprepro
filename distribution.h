@@ -111,7 +111,7 @@ retvalue distribution_foreach_package(struct distribution *, struct database *, 
 retvalue distribution_foreach_package_c(struct distribution *, struct database *, const struct atomlist *components, architecture_t, packagetype_t, each_package_action, void *);
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *, struct database *, component_t, architecture_t, packagetype_t, each_package_action decider, struct strlist *dereferenced, struct trackingdata *, void *);
+retvalue distribution_remove_packages(struct distribution *, struct database *, component_t, architecture_t, packagetype_t, each_package_action decider, struct trackingdata *, void *);
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 

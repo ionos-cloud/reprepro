@@ -139,13 +139,13 @@ static inline retvalue target_closeiterator(struct target_cursor *tc) {
 
 /* The following calls can only be called if target_initpackagesdb was called before: */
 struct logger;
-retvalue target_addpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *version, const char *control, const struct strlist *filekeys, /*@null@*/ bool *usedmarker, bool downgrade, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *, enum filetype);
+retvalue target_addpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *version, const char *control, const struct strlist *filekeys, /*@null@*/ bool *usedmarker, bool downgrade, /*@null@*/struct trackingdata *, enum filetype);
 retvalue target_checkaddpackage(struct target *target, const char *name, const char *version, bool tracking, bool permitnewerold);
-retvalue target_removepackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, /*@null@*/struct strlist *dereferencedfilekeys, struct trackingdata *);
+retvalue target_removepackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, struct trackingdata *);
 /* like target_removepackage, but do not read control data yourself but use available */
-retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *oldcontrol, struct strlist *, /*@null@*/struct trackingdata *);
+retvalue target_removereadpackage(struct target *, /*@null@*/struct logger *, struct database *, const char *name, const char *oldcontrol, /*@null@*/struct trackingdata *);
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target_cursor *, /*@null@*/struct logger *, struct database *, struct strlist *, /*@null@*/struct trackingdata *);
+retvalue target_removepackage_by_cursor(struct target_cursor *, /*@null@*/struct logger *, struct database *, /*@null@*/struct trackingdata *);
 
 retvalue package_check(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 retvalue target_rereference(struct target *, struct database *);

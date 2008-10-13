@@ -17,7 +17,7 @@ retvalue tracking_parse(struct distribution *, struct configiterator *);
 retvalue tracking_initialize(/*@out@*/trackingdb *, struct database *, const struct distribution *, bool readonly);
 retvalue tracking_done(trackingdb);
 retvalue tracking_listdistributions(struct database *, /*@out@*/struct strlist *);
-retvalue tracking_drop(struct database *, const char *, struct strlist *dereferenced);
+retvalue tracking_drop(struct database *, const char *);
 
 retvalue tracking_reset(trackingdb);
 retvalue tracking_rereference(struct database *, struct distribution *);
@@ -29,7 +29,7 @@ void trackedpackage_free(struct trackedpackage *pkg);
 
 retvalue tracking_getornew(trackingdb,const char *name,const char *version,/*@out@*/struct trackedpackage **);
 retvalue tracking_save(trackingdb,/*@only@*/struct trackedpackage *);
-retvalue tracking_remove(trackingdb,const char *sourcename,const char *version,struct database *,/*@null@*/struct strlist *unreferencedfilekeys);
+retvalue tracking_remove(trackingdb, const char *sourcename, const char *version, struct database *);
 retvalue tracking_printall(trackingdb t);
 
 retvalue trackingdata_summon(trackingdb,const char *,const char *,struct trackingdata *);
@@ -38,10 +38,10 @@ retvalue trackingdata_insert(struct trackingdata *,enum filetype,const struct st
 retvalue trackingdata_remove(struct trackingdata *,/*@only@*/char *oldsource,/*@only@*/char *oldversion,const struct strlist *filekeys);
 void trackingdata_done(struct trackingdata *);
 /* like _done but actually do something */
-retvalue trackingdata_finish(trackingdb tracks,struct trackingdata *d,struct database *,struct strlist *dereferenced);
+retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *, struct database *);
 
 /* look at all listed packages and remove everything not needed */
-retvalue tracking_tidyall(trackingdb, struct database *, struct strlist *dereferenced);
+retvalue tracking_tidyall(trackingdb, struct database *);
 
-retvalue tracking_removepackages(trackingdb, struct database *, struct distribution *, const char *sourcename, /*@null@*/const char *version, struct strlist *dereferenced);
+retvalue tracking_removepackages(trackingdb, struct database *, struct distribution *, const char *sourcename, /*@null@*/const char *version);
 #endif /*REPREPRO_TRACKING_H*/

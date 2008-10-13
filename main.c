@@ -64,6 +64,7 @@
 #include "copypackages.h"
 #include "uncompression.h"
 #include "sourceextraction.h"
+#include "pool.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -141,43 +142,12 @@ O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_co
 						exit(EXIT_FAILURE); \
 					} }
 
-static inline retvalue removeunreferencedfiles(struct database *database,struct strlist *dereferencedfilekeys) {
-	int i;
-	retvalue result,r;
-	result = RET_OK;
-
-	for( i = 0 ; i < dereferencedfilekeys->count ; i++ ) {
-		const char *filekey = dereferencedfilekeys->values[i];
-
-		r = references_isused(database,filekey);
-		if( r == RET_NOTHING ) {
-			r = files_deleteandremove(database, filekey, true);
-			if( r == RET_NOTHING ) {
-				/* not found, check if it was us removing it */
-				int j;
-				for( j = i-1 ; j >= 0 ; j-- ) {
-					if( strcmp(dereferencedfilekeys->values[i],
-					    dereferencedfilekeys->values[j]) == 0 )
-						break;
-				}
-				if( j < 0 ) {
-					fprintf(stderr, "To be forgotten filekey '%s' was not known.\n", dereferencedfilekeys->values[i]);
-					r = RET_ERROR_MISSING;
-				}
-			}
-		}
-		RET_UPDATE(result,r);
-	}
-	return result;
-}
-
 #define y(type,name) type name
 #define n(type,name) UNUSED(type dummy_ ## name)
 
 #define ACTION_N(act,sp,name) static retvalue action_n_ ## act ## _ ## sp ## _ ## name ( \
 			UNUSED(struct distribution *dummy2), \
 			UNUSED(struct database *dummy),	\
-			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -188,7 +158,6 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 #define ACTION_C(act,sp,name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions, \
 			UNUSED(struct database *dummy),	\
-			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -199,7 +168,6 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 #define ACTION_B(act,sp,u,name) static retvalue action_b_ ## act ## _ ## sp ## _ ## name ( \
 			u(struct distribution *,alldistributions), \
 			struct database *database,	\
-			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -210,7 +178,6 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 #define ACTION_R(act,sp,d,a,name) static retvalue action_r_ ## act ## _ ## sp ## _ ## name ( \
 			d(struct distribution *, alldistributions), \
 			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -221,7 +188,6 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 #define ACTION_T(act,sp,name) static retvalue action_t_ ## act ## _ ## sp ## _ ## name ( \
 			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -232,7 +198,6 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 #define ACTION_F(act,sp,d,a,name) static retvalue action_f_ ## act ## _ ## sp ## _ ## name ( \
 			d(struct distribution *,alldistributions), \
 			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -243,7 +208,6 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 #define ACTION_RF(act,sp,u,name) static retvalue action_rf_ ## act ## _ ## sp ## _ ## name ( \
 			u(struct distribution *, alldistributions), \
 			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -254,7 +218,6 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 #define ACTION_D(act,sp,u,name) static retvalue action_d_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions, \
 			struct database *database,		\
-			struct strlist* dereferenced, 	\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
 			act(architecture_t, architecture),	\
@@ -519,7 +482,7 @@ ACTION_F(n, n, n, n, addmd5sums) {
 
 ACTION_R(n, n, n, y, removereferences) {
 	assert( argc == 2 );
-	return references_remove(database, argv[1], NULL);
+	return references_remove(database, argv[1]);
 }
 
 
@@ -604,14 +567,14 @@ ACTION_R(n, n, n, y, addreference) {
 	return references_increment(database, argv[1], argv[2]);
 }
 
-static retvalue remove_from_target(struct database *db, struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved, struct strlist *removedfiles) {
+static retvalue remove_from_target(struct database *db, struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved) {
 	retvalue result,r;
 	int i;
 
 	result = RET_NOTHING;
 	for( i = 0 ; i < count ; i++ ){
 		r = target_removepackage(target, distribution->logger, db,
-				names[i], removedfiles, trackingdata);
+				names[i], trackingdata);
 		RET_UPDATE(distribution->status, r);
 		if( RET_IS_OK(r) ) {
 			if( !gotremoved[i] )
@@ -670,7 +633,7 @@ ACTION_D(y, n, y, remove) {
 				 distribution,
 				 (distribution->tracking != dt_NONE)?&trackingdata:NULL,
 				 t, argc-2, argv+2,
-				 &todo, gotremoved, dereferenced);
+				 &todo, gotremoved);
 		 RET_UPDATE(result, r);
 		 r = target_closepackagesdb(t);
 		 RET_UPDATE(distribution->status, r);
@@ -688,7 +651,7 @@ ACTION_D(y, n, y, remove) {
 		if( RET_WAS_ERROR(result) )
 			trackingdata_done(&trackingdata);
 		else
-			trackingdata_finish(tracks, &trackingdata, database, dereferenced);
+			trackingdata_finish(tracks, &trackingdata, database);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
@@ -774,8 +737,7 @@ ACTION_D(n, n, y, removesrc) {
 	if( tracks != NULL ) {
 		result = tracking_removepackages(tracks, database,
 				distribution,
-				argv[2], (argc <= 3)?NULL:argv[3],
-				dereferenced);
+				argv[2], (argc <= 3)?NULL:argv[3]);
 		if( RET_WAS_ERROR(r) ) {
 			r = tracking_done(tracks);
 			RET_ENDUPDATE(result,r);
@@ -814,7 +776,7 @@ ACTION_D(n, n, y, removesrc) {
 	result = distribution_remove_packages(distribution, database,
 			// TODO: why not arch comp pt here?
 			atom_unknown, atom_unknown, atom_unknown,
-			package_source_fits, dereferenced, NULL,
+			package_source_fits, NULL,
 			&data);
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
@@ -873,14 +835,13 @@ ACTION_D(y, n, y, removefilter) {
 
 	result = distribution_remove_packages(distribution, database,
 			component, architecture, packagetype,
-			package_matches_condition, dereferenced,
+			package_matches_condition,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
 	if( tracks != NULL ) {
-		trackingdata_finish(tracks, &trackingdata,
-					database, dereferenced);
+		trackingdata_finish(tracks, &trackingdata, database);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
@@ -1155,7 +1116,7 @@ ACTION_D(n, n, y, update) {
 
 	if( !RET_WAS_ERROR(result) )
 		result = updates_update(database, u_distributions,
-				nolistsdownload, skipold, dereferenced,
+				nolistsdownload, skipold,
 				spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
@@ -1202,7 +1163,7 @@ ACTION_D(n, n, y, predelete) {
 	assert( RET_IS_OK(result) );
 
 	if( !RET_WAS_ERROR(result) )
-		result = updates_predelete(database, u_distributions, nolistsdownload, skipold, dereferenced);
+		result = updates_predelete(database, u_distributions, nolistsdownload, skipold);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -1285,7 +1246,7 @@ ACTION_D(n, n, y, pull) {
 		pull_freerules(rules);
 		return result;
 	}
-	result = pull_update(database, p, dereferenced);
+	result = pull_update(database, p);
 
 	pull_freerules(rules);
 	pull_freedistributions(p);
@@ -1342,7 +1303,7 @@ ACTION_D(y, n, y, copy) {
 		return result;
 
 	r = copy_by_name(database, destination, source, argc-3, argv+3,
-			component, architecture, packagetype, dereferenced);
+			component, architecture, packagetype);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1371,7 +1332,7 @@ ACTION_D(y, n, y, copysrc) {
 		return result;
 
 	r = copy_by_source(database, destination, source, argc-3, argv+3,
-			component, architecture, packagetype, dereferenced);
+			component, architecture, packagetype);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1401,7 +1362,7 @@ ACTION_D(y, n, y, copyfilter) {
 		return result;
 
 	r = copy_by_formula(database, destination, source, argv[3],
-			component, architecture, packagetype, dereferenced);
+			component, architecture, packagetype);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1426,7 +1387,7 @@ ACTION_D(y, n, y, restore) {
 
 	r = restore_by_name(database, destination,
 			component, architecture, packagetype, argv[2],
-			argc-3, argv+3, dereferenced);
+			argc-3, argv+3);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1452,7 +1413,7 @@ ACTION_D(y, n, y, restoresrc) {
 
 	r = restore_by_source(database, destination,
 			component, architecture, packagetype, argv[2],
-			argc-3, argv+3, dereferenced);
+			argc-3, argv+3);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1479,7 +1440,7 @@ ACTION_D(y, n, y, restorefilter) {
 
 	r = restore_by_formula(database, destination,
 			component, architecture, packagetype, argv[2],
-			argv[3], dereferenced);
+			argv[3]);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1518,7 +1479,7 @@ ACTION_D(y, n, y, addpackage) {
 
 	r = copy_from_file(database, destination,
 			component, architecture, packagetype, argv[2],
-			argc-3, argv+3, dereferenced);
+			argc-3, argv+3);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1612,7 +1573,7 @@ ACTION_D(n, n, y, retrack) {
 		}
 		if( !RET_WAS_ERROR(r) ) {
 			/* now remove everything no longer needed */
-			r = tracking_tidyall(tracks, database, dereferenced);
+			r = tracking_tidyall(tracks, database);
 			RET_UPDATE(result,r);
 		}
 		r = tracking_done(tracks);
@@ -1639,7 +1600,7 @@ ACTION_D(n, n, y, removetrack) {
 		return r;
 	}
 
-	result = tracking_remove(tracks, argv[2], argv[3], database, dereferenced);
+	result = tracking_remove(tracks, argv[2], argv[3], database);
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
@@ -1675,7 +1636,7 @@ ACTION_D(n, n, y, removealltracks) {
 			printf("Deleting all tracks for %s...\n", codename);
 		}
 
-		r = tracking_drop(database, codename, dereferenced);
+		r = tracking_drop(database, codename);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
 			break;
@@ -1711,7 +1672,7 @@ ACTION_D(n, n, y, tidytracks) {
 			continue;
 
 		if( d->tracking == dt_NONE ) {
-			r = tracking_drop(database, d->codename, dereferenced);
+			r = tracking_drop(database, d->codename);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
@@ -1728,7 +1689,7 @@ ACTION_D(n, n, y, tidytracks) {
 				break;
 			continue;
 		}
-		r = tracking_tidyall(tracks, database, dereferenced);
+		r = tracking_tidyall(tracks, database);
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
@@ -1962,7 +1923,7 @@ ACTION_D(y, y, y, includedeb) {
 		r = deb_add(database, component, architecture,
 				section, priority, isudeb?pt_udeb:pt_deb,
 				distribution, filename,
-				delete, dereferenced,tracks);
+				delete, tracks);
 		RET_UPDATE(result, r);
 	}
 
@@ -2023,8 +1984,7 @@ ACTION_D(y, y, y, includedsc) {
 	}
 
 	result = dsc_add(database, component, section, priority,
-			distribution, argv[2], delete,
-			dereferenced, tracks);
+			distribution, argv[2], delete, tracks);
 	logger_wait();
 
 	distribution_unloadoverrides(distribution);
@@ -2075,7 +2035,7 @@ ACTION_D(y, y, y, include) {
 	result = changes_add(database, tracks,
 			packagetype, component, architecture,
 			section, priority, distribution,
-			argv[2], delete, dereferenced);
+			argv[2], delete);
 	if( RET_WAS_ERROR(result) )
 		RET_UPDATE(distribution->status, result);
 
@@ -2345,7 +2305,7 @@ ACTION_D(n, n, n, clearvanished) {
 		printf(
 "Deleting vanished identifier '%s'.\n", identifier);
 		/* derference anything left */
-		references_remove(database, identifier, dereferenced);
+		references_remove(database, identifier);
 		/* remove the database */
 		database_droppackages(database, identifier);
 	}
@@ -2363,8 +2323,7 @@ ACTION_D(n, n, n, clearvanished) {
 		for( i = 0 ; i < codenames.count ; i ++ ) {
 			printf("Deleting tracking data for vanished distribution '%s'.\n",
 					codenames.values[i]);
-			r = tracking_drop(database, codenames.values[i],
-					dereferenced);
+			r = tracking_drop(database, codenames.values[i]);
 			RET_UPDATE(result, r);
 		}
 		strlist_done(&codenames);
@@ -2407,7 +2366,7 @@ ACTION_D(n, n, y, processincoming) {
 	for( d = alldistributions ; d != NULL ; d = d->next )
 		d->selected = true;
 
-	result = process_incoming(database, dereferenced, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
+	result = process_incoming(database, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
 
 	logger_wait();
 
@@ -2516,7 +2475,6 @@ static const struct action {
 	retvalue (*start)(
 			/*@null@*/struct distribution *,
 			/*@null@*/struct database*,
-			/*@null@*/struct strlist *dereferencedfilekeys,
 			/*@null@*/const char *priority,
 			/*@null@*/const char *section,
 			/*@null@*/architecture_t,
@@ -2662,7 +2620,6 @@ static const struct action {
 static retvalue callaction(command_t command, const struct action *action, int argc, const char *argv[]) {
 	retvalue result, r;
 	struct database *database;
-	struct strlist dereferencedfilekeys;
 	struct distribution *alldistributions = NULL;
 	bool deletederef;
 	int needs;
@@ -2734,7 +2691,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	if( !ISSET(needs, NEED_DATABASE) ) {
 		assert( (needs & ~NEED_CONFIG) == 0);
 
-		result = action->start(alldistributions, NULL, NULL,
+		result = action->start(alldistributions, NULL,
 				x_section, x_priority,
 				atom_unknown, atom_unknown, atom_unknown,
 				argc, argv);
@@ -2819,37 +2776,26 @@ static retvalue callaction(command_t command, const struct action *action, int a
 			if( deletederef ) {
 				assert( ISSET(needs,NEED_REFERENCES) );
 				assert( ISSET(needs,NEED_REFERENCES) );
-				strlist_init(&dereferencedfilekeys);
 			}
 
 			if( !interrupted() ) {
 				result = action->start(alldistributions,
 					database,
-					deletederef?&dereferencedfilekeys:NULL,
 					x_section, x_priority,
 					architecture, component, packagetype,
 					argc, argv);
 
 				if( deletederef ) {
-					if( dereferencedfilekeys.count > 0 ) {
-					    if( RET_IS_OK(result) && !interrupted() ) {
-						logger_wait();
-
-						if( verbose >= 0 )
-					  	    printf(
-"Deleting files no longer referenced...\n");
-						r = removeunreferencedfiles(
-							database,
-							&dereferencedfilekeys);
-						RET_UPDATE(result,r);
-					    } else {
-						    fprintf(stderr,
+					logger_wait();
+					if( !RET_WAS_ERROR(result) ) {
+						r = pool_removeunreferenced(database);
+						RET_ENDUPDATE(result, r);
+					} else if( pool_havedereferenced ) {
+						fprintf(stderr,
 "Not deleting possibly left over files due to previous errors.\n"
 "(To keep the files in the still existing index files from vanishing)\n"
 "Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
-					    }
 					}
-					strlist_done(&dereferencedfilekeys);
 				}
 			}
 		}

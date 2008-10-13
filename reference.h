@@ -18,7 +18,7 @@
 struct references;
 
 /* remove all references from a given identifier */
-retvalue references_remove(struct database *,const char *neededby,/*@null@*/struct strlist *);
+retvalue references_remove(struct database *, const char *neededby);
 
 /* Add an reference by <identifer> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */
@@ -30,12 +30,8 @@ retvalue references_insert(struct database *,const char *identifer,
 retvalue references_add(struct database *,const char *identifer,const struct strlist *files);
 
 /* Remove reference by <identifer> for the given <oldfiles>,
- * excluding <exclude>, if it is nonNULL.
- * if dereferencedfilekeys is != NULL, add those losing one reference,
- * files will be freed (or moved to dereferencedfilekeys) */
-retvalue references_delete(struct database *,const char *identifer,
-		struct strlist *files,/*@null@*/const struct strlist *exclude,
-		/*@null@*/struct strlist *dereferencedfilekeys);
+ * excluding <exclude>, if it is nonNULL. */
+retvalue references_delete(struct database *, const char *identifer, struct strlist *files, /*@null@*/const struct strlist *exclude);
 
 /* add an reference to a file for an identifier. */
 retvalue references_increment(struct database *,const char *needed,const char *needey);

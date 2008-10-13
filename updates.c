@@ -1460,7 +1460,7 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
  *          (missing files should have been downloaded first)               *
  ****************************************************************************/
 
-static retvalue updates_install(struct database *database,struct update_distribution *distribution,struct strlist *dereferencedfilekeys) {
+static retvalue updates_install(struct database *database, struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
 
@@ -1473,7 +1473,7 @@ static retvalue updates_install(struct database *database,struct update_distribu
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
 				database,
-				u->ignoredelete, dereferencedfilekeys);
+				u->ignoredelete);
 		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = true;
@@ -1655,7 +1655,7 @@ static retvalue updates_prepare(struct update_distribution *distributions, bool 
 }
 
 
-retvalue updates_update(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
+retvalue updates_update(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, enum spacecheckmode mode, off_t reserveddb, off_t reservedother) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct downloadcache *cache;
@@ -1730,7 +1730,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_install(database, d, dereferencedfilekeys);
+		r = updates_install(database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1799,7 +1799,7 @@ retvalue updates_checkupdate(struct database *database, struct update_distributi
  * delete. (Assuming no unexpected errors occur, like a file missing upstream.*
  *****************************************************************************/
 
-retvalue updates_predelete(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold, struct strlist *dereferencedfilekeys) {
+retvalue updates_predelete(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
 	retvalue result,r;
 	struct update_distribution *d;
 	struct aptmethodrun *run IFSTUPIDCC(= NULL);
@@ -1837,7 +1837,7 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 			}
 			r = upgradelist_predelete(u->upgradelist,
 					d->distribution->logger,
-					database, dereferencedfilekeys);
+					database);
 			RET_UPDATE(d->distribution->status, r);
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = true;

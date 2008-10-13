@@ -16,9 +16,8 @@
 #endif
 
 /* insert the given .dsc into the mirror in <component> in the <distribution>
- * if component is NULL, guess it from the section.
- * if dereferenced_filekeys is != NULL, add there the filekeys that lost a reference*/
-retvalue dsc_add(struct database *, component_t forcecomponent, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority, struct distribution *, const char *dscfilename, int delete, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/trackingdb tracks);
+ * if component is NULL, guess it from the section. */
+retvalue dsc_add(struct database *, component_t, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority, struct distribution *, const char *dscfilename, int delete, /*@null@*/trackingdb tracks);
 
 /* in two steps:
  * If basename, filekey and directory are != NULL, then they are used instead
@@ -27,6 +26,6 @@ retvalue dsc_add(struct database *, component_t forcecomponent, /*@null@*/const 
  * delete should be D_INPLACE then
  */
 
-retvalue dsc_addprepared(struct database *, const struct dsc_headers *, component_t , const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata);
+retvalue dsc_addprepared(struct database *, const struct dsc_headers *, component_t , const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, /*@null@*/struct trackingdata *trackingdata);
 
 #endif

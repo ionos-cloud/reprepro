@@ -527,7 +527,6 @@ stdout
 -v2*=Created directory "./dists/a/all/source"
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
--v0*=Deleting files no longer referenced...
 EOF
 checklog logab <<EOF
 DATESTR replace a deb all ${FAKEARCHITECTURE} ab-addons 3-1 2-1
@@ -901,7 +900,6 @@ if $tracking ; then
 testrun - -b . --delete removealltracks a 3<<EOF
 stdout
 -v0*=Deleting all tracks for a...
--v0=Deleting files no longer referenced...
 EOF
 testout "" -b . dumptracks
 dodiff results.empty results

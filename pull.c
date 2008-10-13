@@ -745,7 +745,7 @@ static retvalue pull_search(FILE *out,struct database *database,struct pull_dist
 	return result;
 }
 
-static retvalue pull_install(struct database *database,struct pull_distribution *distribution,struct strlist *dereferencedfilekeys) {
+static retvalue pull_install(struct database *database, struct pull_distribution *distribution) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -755,8 +755,7 @@ static retvalue pull_install(struct database *database,struct pull_distribution 
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
-				database,
-				u->ignoredelete, dereferencedfilekeys);
+				database, u->ignoredelete);
 		RET_UPDATE(distribution->distribution->status, r);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
@@ -780,7 +779,7 @@ static void pull_dump(struct pull_distribution *distribution) {
 	}
 }
 
-retvalue pull_update(struct database *database,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys) {
+retvalue pull_update(struct database *database, struct pull_distribution *distributions) {
 	retvalue result,r;
 	struct pull_distribution *d;
 
@@ -816,7 +815,7 @@ retvalue pull_update(struct database *database,struct pull_distribution *distrib
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_install(database, d, dereferencedfilekeys);
+		r = pull_install(database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
