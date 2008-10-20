@@ -129,20 +129,30 @@ Look in \fImethoddir\fP instead of
 for methods to call when importing from other repositories.
 .TP
 .B \-C, \-\-component \fIcomponent\fP
-Specify a component to force into, to remove from or to list only.
+Limit the specified command to this component only.
+This will force added packages to this component,
+limit removing packages from this component,
+only list packages in this component,
+and/or otherwise only look at packages in this component,
+depending on the command in question.
 .TP
 .B \-A, \-\-architecture \fIarchitecture\fP
-Specify an architecture to only include into, remove from or
-list.
+Limit the specified command to this architecture only.
+(i.e. only list such packages,
+only remove packages from the specified architecture,
+or otherwise only look at/act on this architecture
+depending on the specific command).
 
-When including this does not lead to packages in the wrong architecture
-but will restrict effect to this architecture. This allows e.g. different
-versions of an
-.B Architecture: all
-\-package in different architectures of the same distribution.
+Note that architecture \fBall\fP packages can be included to each
+architecture but are then handled separately.
+Thus using \fB\-A\fP correctly allows to have different versions of
+an architecture \fBall\fP package in different architectures of the
+same distribution.
 .TP
 .B \-T, \-\-type \fRdsc|deb|udeb
-Specify which type of files to include, remove or list.
+Limit the specified command to this packagetype only.
+(i.e. only list such packages, only remove such packages, only include
+such packages, ...)
 .TP
 .B \-S, \-\-section \fIsection\fP
 Overrides the section of inclusions. (Also override possible override files)
