@@ -31,6 +31,8 @@ architecture_t architecture_find(const char *);
 architecture_t architecture_find_l(const char *, size_t);
 retvalue component_intern(const char *, /*@out@*/component_t *);
 component_t component_find(const char *);
+component_t component_find_l(const char *, size_t);
+component_t components_count(void);
 packagetype_t packagetype_find(const char *);
 
 atom_t atom_find(enum atom_type, const char *);

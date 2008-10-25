@@ -30,10 +30,12 @@
 #include "pool.h"
 #include "reference.h"
 #include "files.h"
+#include "sources.h"
 
 /* for now save them only in memory. In later times some way to store
  * them on disk would be nice */
 
+static component_t reserved_components = 0;
 static void **file_changes_per_component = NULL;
 static void *legacy_file_changes = NULL;
 bool pool_havedereferenced = false;
@@ -45,46 +47,128 @@ static int legacy_compare(const void *a, const void *b) {
 	const char *v1 = a, *v2 = b;
 	v1++;
 	v2++;
-	return strcmp(v1,v2);
+	return strcmp(v1, v2);
 }
 
-static retvalue pool_addfile(const char *filename) {
-	char **p; size_t l;
-
-	p = tsearch(filename - 1, &legacy_file_changes, legacy_compare);
-	if( p == NULL )
-		return RET_ERROR_OOM;
-	if( *p == filename - 1 ) {
-		l = strlen(filename);
-		*p = malloc(l + 2);
-		if (*p == NULL)
-			return RET_ERROR_OOM;
-		**p = pl_ADDED;
-		memcpy((*p) + 1, filename, l + 1);
-	} else {
-		**p |= pl_ADDED;
-	}
-	return RET_OK;
+struct source_node {
+	void *file_changes;
+	char sourcename[];
 };
 
-retvalue pool_dereferenced(const char *filename) {
-	char **p; size_t l;
+static int source_node_compare(const void *a, const void *b) {
+	const struct source_node *v1 = a, *v2 = b;
+	return strcmp(v1->sourcename, v2->sourcename);
+}
 
-	p = tsearch(filename - 1, &legacy_file_changes, legacy_compare);
+static retvalue split_filekey(const char *filekey, /*@out@*/component_t *component_p, /*@out@*/struct source_node **node_p, /*@out@*/const char **basename_p) {
+	const char *p, *source;
+	struct source_node *node;
+	component_t c;
+
+	if( unlikely(memcmp(filekey, "pool/", 5) != 0) )
+		return RET_NOTHING;
+	filekey += 5;
+	p = strchr(filekey, '/');
+	if( unlikely(p == NULL) )
+		return RET_NOTHING;
+	c = component_find_l(filekey, (size_t)(p - filekey));
+	if( unlikely(!atom_defined(c)) )
+		return RET_NOTHING;
+	p++;
+	if( p[0] != '\0' && p[1] == '/' && p[0] != '/' && p[2] == p[0] ) {
+		p += 2;
+		if( unlikely(p[0] == 'l' && p[1] == 'i' && p[2] == 'b') )
+			return RET_NOTHING;
+	} else if( p[0] == 'l' && p[1] == 'i' && p[2] == 'b' && p[3] != '\0' &&
+			p[4] == '/' && p[3] != '/' && p[5] == p[3] ) {
+		p += 5;
+	} else
+		return RET_NOTHING;
+	source = p;
+	p = strchr(source, '/');
+	if( unlikely(p == NULL) )
+		return RET_NOTHING;
+	node = malloc(sizeof(struct source_node) + (p - source) + 1);
+	if( FAILEDTOALLOC(node) )
+		return RET_ERROR_OOM;
+	node->file_changes = NULL;
+	memcpy(node->sourcename, source, p - source);
+	node->sourcename[p - source] = '\0';
+	p++;
+	*basename_p = p;
+	*node_p = node;
+	*component_p = c;
+	return RET_OK;
+}
+
+/* name can be either basename (in a source directory) or a full
+ * filekey (in legacy fallback mode) */
+static retvalue remember_name(void **root_p, const char *name, char mode) {
+	char **p;
+
+	p = tsearch(name - 1, root_p, legacy_compare);
 	if( p == NULL )
 		return RET_ERROR_OOM;
-	if( *p == filename - 1 ) {
-		l = strlen(filename);
+	if( *p == name - 1 ) {
+		size_t l = strlen(name);
 		*p = malloc(l + 2);
 		if (*p == NULL)
 			return RET_ERROR_OOM;
-		**p = pl_UNREFERENCED;
-		memcpy((*p) + 1, filename, l + 1);
-		pool_havedereferenced = true;
+		**p = mode;
+		memcpy((*p) + 1, name, l + 1);
 	} else {
-		**p |= pl_UNREFERENCED;
+		**p |= mode;
 	}
 	return RET_OK;
+}
+
+static retvalue remember_filekey(const char *filekey, char mode) {
+	retvalue r;
+	component_t c IFSTUPIDCC(= atom_unknown);
+	struct source_node *node IFSTUPIDCC(= NULL), **found;
+	const char *basefilename IFSTUPIDCC(= NULL);
+
+	r = split_filekey(filekey, &c, &node, &basefilename);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_OK ) {
+		assert( atom_defined(c) );
+		if( c > reserved_components ) {
+			void ** h;
+
+			assert( c <= components_count() );
+
+			h = realloc(file_changes_per_component,
+					sizeof(struct source_node*) * (c + 1));
+			if( FAILEDTOALLOC(h) )
+				return RET_ERROR_OOM;
+			file_changes_per_component = h;
+			while( reserved_components < c ) {
+				h[++reserved_components] = NULL;
+			}
+		}
+		assert( file_changes_per_component != NULL );
+		found = tsearch(node, &file_changes_per_component[c],
+				source_node_compare);
+		if( FAILEDTOALLOC(found) )
+			return RET_ERROR_OOM;
+		if( *found != node ) {
+			free(node);
+			node = *found;
+		}
+		return remember_name(&node->file_changes, basefilename, mode);
+	}
+	fprintf(stderr, "Warning: strange filekey '%s'!\n", filekey);
+	return remember_name(&legacy_file_changes, filekey, mode);
+}
+
+retvalue pool_dereferenced(const char *filekey) {
+	pool_havedereferenced = true;
+	return remember_filekey(filekey, pl_UNREFERENCED);
+};
+
+retvalue pool_addfile(const char *filekey) {
+	return remember_filekey(filekey, pl_ADDED);
 };
 
 static struct database *d;
@@ -122,10 +206,69 @@ static void removeifunreferenced(const void *nodep, const VISIT which, const int
 	RET_UPDATE(result, r);
 }
 
+static component_t current_component;
+static const char *sourcename = NULL;
+
+static void removeifunreferenced2(const void *nodep, const VISIT which, const int depth) {
+	const char *node;
+	char *filekey;
+	retvalue r;
+
+	if( which != leaf && which != postorder)
+		return;
+
+	if( interrupted() )
+		return;
+
+	node = *(const char **)nodep;
+	if( (*node & pl_UNREFERENCED) == 0 )
+		return;
+	filekey = calc_filekey(current_component, sourcename, node + 1);
+	r = references_isused(d, filekey);
+	if( r != RET_NOTHING ) {
+		free(filekey);
+		return;
+	}
+	if( verbose >= 0 && first ) {
+		printf("Deleting files no longer referenced...\n");
+		first = false;
+	}
+	r = files_deleteandremove(d, filekey, true);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "To be forgotten filekey '%s' was not known.\n",
+				filekey);
+		r = RET_ERROR_MISSING;
+	}
+	RET_UPDATE(result, r);
+	free(filekey);
+}
+
+static void removeunreferenced_from_component(const void *nodep, const VISIT which, const int depth) {
+	struct source_node *node;
+
+	if( which != leaf && which != postorder)
+		return;
+
+	if( interrupted() )
+		return;
+
+	node = *(struct source_node **)nodep;
+	sourcename = node->sourcename;
+	twalk(node->file_changes, removeifunreferenced2);
+}
+
 retvalue pool_removeunreferenced(struct database *database) {
+	component_t c;
+
 	d = database;
 	result = RET_NOTHING;
 	first = true;
+	for( c = 1 ; c <= reserved_components ; c++ ) {
+		assert( file_changes_per_component != NULL );
+		current_component = c;
+		twalk(file_changes_per_component[c],
+				removeunreferenced_from_component);
+	}
 	twalk(legacy_file_changes, removeifunreferenced);
 	d = NULL;
 	if( interrupted() )

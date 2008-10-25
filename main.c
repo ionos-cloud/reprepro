@@ -2280,6 +2280,8 @@ ACTION_D(n, n, n, clearvanished) {
 	}
 	for( i = 0 ; i < identifiers.count ; i ++ ) {
 		const char *identifier = identifiers.values[i];
+		const char *p, *q;
+
 		if( inuse[i] )
 			continue;
 		if( interrupted() )
@@ -2304,6 +2306,39 @@ ACTION_D(n, n, n, clearvanished) {
 		// information can be updated.
 		printf(
 "Deleting vanished identifier '%s'.\n", identifier);
+		/* intern component and architectures, so parsing
+		 * has no problems (actually only need component now) */
+		p = identifier;
+		if( strncmp(p, "u|", 2) == 0 )
+			p += 2;
+		p = strchr(p, '|');
+		if( p != NULL ) {
+			p++;
+			q = strchr(p, '|');
+			if( q != NULL ) {
+				atom_t dummy;
+
+				char *component = strndup(p, q-p);
+				q++;
+				char *architecture = strdup(q);
+				if( FAILEDTOALLOC(component) ||
+						FAILEDTOALLOC(architecture) ) {
+					free(component);
+					free(architecture);
+					return RET_ERROR_OOM;
+				}
+				r = architecture_intern(architecture, &dummy);
+				free(architecture);
+				if( RET_WAS_ERROR(r) ) {
+					free(component);
+					return r;
+				}
+				r = component_intern(component, &dummy);
+				free(component);
+				if( RET_WAS_ERROR(r) )
+					return r;
+			}
+		}
 		/* derference anything left */
 		references_remove(database, identifier);
 		/* remove the database */
@@ -2796,6 +2831,9 @@ static retvalue callaction(command_t command, const struct action *action, int a
 "(To keep the files in the still existing index files from vanishing)\n"
 "Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
 					}
+				} else {
+					// TODO: list number of files
+					// that are to be deleted...
 				}
 			}
 		}

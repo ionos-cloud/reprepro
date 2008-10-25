@@ -128,6 +128,20 @@ architecture_t architecture_find_l(const char *value, size_t l) {
 	return atom_unknown;
 }
 
+// TODO: this might be called a lot, perhaps optimize it...
+component_t component_find_l(const char *value, size_t l) {
+	component_t a;
+
+	for( a = components.count - 1 ; a > 0 ; a-- ) {
+		const char *name = atoms_components[a];
+		size_t len = strlen(name);
+
+		if( len == l && memcmp(name, value, len) == 0 )
+			return a;
+	}
+	return atom_unknown;
+}
+
 component_t component_find(const char *value) {
 	int i = strlist_ofs(&components, value);
 	if( i < 0 )
@@ -317,4 +331,8 @@ retvalue atomlist_fprint(FILE *file, enum atom_type type, const struct atomlist 
 			result = RET_ERROR;
 	}
 	return result;
+}
+
+component_t components_count(void) {
+	return components.count;
 }
