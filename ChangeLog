@@ -1,3 +1,7 @@
+2008-10-30
+	* add support for flat repositories with Sources files without
+	Directory lines (Thanks to Cody A.W. Somerville for noting).
+
 2008-10-12
 	* some rework on unreferenced files bookkeeping. Should make no
 	  difference yet but only make the "Deleting files not longer
