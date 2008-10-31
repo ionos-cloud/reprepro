@@ -577,10 +577,10 @@ stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.dsc' removed from checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/dog/f/foo/foo_1.tar.gz
--v1*=removed now empty directory ./pool/dog/f/foo
--v1*=removed now empty directory ./pool/dog/f
--v1*=removed now empty directory ./pool/dog
--v1*=removed now empty directory ./pool
+-v2*=removed now empty directory ./pool/dog/f/foo
+-v2*=removed now empty directory ./pool/dog/f
+-v2*=removed now empty directory ./pool/dog
+-v2*=removed now empty directory ./pool
 -d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' removed from checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.tar.gz' removed from files.db(md5sums).
 EOF

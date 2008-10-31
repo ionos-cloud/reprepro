@@ -736,7 +736,7 @@ stdout
 -v1*=deleting and forgetting pool/all/a/ac/ac-addons_1-1_all.deb
 -e1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/all/a/ac
+-v2*=removed now empty directory ./pool/all/a/ac
 EOF
 checklog logab <<EOF
 DATESTR remove b deb all ${FAKEARCHITECTURE} ab 2-1
@@ -945,7 +945,7 @@ stdout
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
 -e1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/all/a/aa
+-v2*=removed now empty directory ./pool/all/a/aa
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
 -e1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from checksums.db(pool).
@@ -958,10 +958,10 @@ stdout
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
 -e1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/all/a/ab
--v1*=removed now empty directory ./pool/all/a
--v1*=removed now empty directory ./pool/all
--v1*=removed now empty directory ./pool
+-v2*=removed now empty directory ./pool/all/a/ab
+-v2*=removed now empty directory ./pool/all/a
+-v2*=removed now empty directory ./pool/all
+-v2*=removed now empty directory ./pool
 EOF
 else
 testrun - -b . --delete clearvanished 3<<EOF
@@ -983,7 +983,7 @@ stdout
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
 -e1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/all/a/aa
+-v2*=removed now empty directory ./pool/all/a/aa
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
 -e1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from checksums.db(pool).
@@ -996,10 +996,10 @@ stdout
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
 -e1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/all/a/ab
--v1*=removed now empty directory ./pool/all/a
--v1*=removed now empty directory ./pool/all
--v1*=removed now empty directory ./pool
+-v2*=removed now empty directory ./pool/all/a/ab
+-v2*=removed now empty directory ./pool/all/a
+-v2*=removed now empty directory ./pool/all
+-v2*=removed now empty directory ./pool
 EOF
 fi
 checknolog logab

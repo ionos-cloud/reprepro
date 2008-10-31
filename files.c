@@ -172,7 +172,7 @@ retvalue files_deleteandremove(struct database *database, const char *filekey, b
 			 * in it: */
 			err = rmdir(filename);
 			if( err == 0 ) {
-				if( verbose >= 1 ) {
+				if( verbose > 1 ) {
 					printf("removed now empty directory %s\n",filename);
 				}
 			} else {

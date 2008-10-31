@@ -1103,8 +1103,8 @@ stdout
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes
 -e1*=db: 'pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/stupid/s/simple
--v1*=removed now empty directory ./pool/stupid/s
+-v2*=removed now empty directory ./pool/stupid/s/simple
+-v2*=removed now empty directory ./pool/stupid/s
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 -e1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from checksums.db(pool).
@@ -1120,8 +1120,8 @@ stdout
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes
 -e1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
--v1*=removed now empty directory ./pool/ugly/b
+-v2*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
+-v2*=removed now empty directory ./pool/ugly/b
 EOF
 echo returned: $?
 testrun - -b . include test1 test.changes 3<<EOF
@@ -1310,8 +1310,8 @@ stdout
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.dsc
 -e1*=db: 'pool/stupid/t/test/test_1-2.dsc' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/t/test/test_1-2.dsc' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/stupid/t/test
--v1*=removed now empty directory ./pool/stupid/t
+-v2*=removed now empty directory ./pool/stupid/t/test
+-v2*=removed now empty directory ./pool/stupid/t
 EOF
 checknolog log1
 checknolog log2
@@ -2220,8 +2220,8 @@ stdout
 -v1*=deleting and forgetting pool/stupid/n/nowhere/filename_version.tar.gz
 -e1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/stupid/n/nowhere
--v1*=removed now empty directory ./pool/stupid/n
+-v2*=removed now empty directory ./pool/stupid/n/nowhere
+-v2*=removed now empty directory ./pool/stupid/n
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
@@ -2356,8 +2356,8 @@ stdout
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
 -e1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/stupid/d/differently
--v1*=removed now empty directory ./pool/stupid/d
+-v2*=removed now empty directory ./pool/stupid/d/differently
+-v2*=removed now empty directory ./pool/stupid/d
 returns 255
 EOF
 testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
@@ -2386,8 +2386,8 @@ stdout
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
 -e1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/stupid/d/differently
--v1*=removed now empty directory ./pool/stupid/d
+-v2*=removed now empty directory ./pool/stupid/d/differently
+-v2*=removed now empty directory ./pool/stupid/d
 returns 255
 EOF
 cat > broken.changes <<EOF
@@ -2609,22 +2609,22 @@ stdout
 -v1*=deleting and forgetting pool/ugly/s/simple/simple-addons_1_all.deb
 -e1*=db: 'pool/ugly/s/simple/simple-addons_1_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/ugly/s/simple/simple-addons_1_all.deb' removed from checksums.db(pool).
--v1*=removed now empty directory ./pool/stupid/4/4test
--v1*=removed now empty directory ./pool/stupid/4
--v1*=removed now empty directory ./pool/stupid/b/bloat+-0a9z.app
--v1*=removed now empty directory ./pool/stupid/b
--v1*=removed now empty directory ./pool/stupid/s/simple
--v1*=removed now empty directory ./pool/stupid/s
--v1*=removed now empty directory ./pool/stupid/t/testb
--v1*=removed now empty directory ./pool/stupid/t/test
--v1*=removed now empty directory ./pool/stupid/t
--v1*=removed now empty directory ./pool/stupid
--v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
--v1*=removed now empty directory ./pool/ugly/b
--v1*=removed now empty directory ./pool/ugly/s/simple
--v1*=removed now empty directory ./pool/ugly/s
--v1*=removed now empty directory ./pool/ugly
--v1*=removed now empty directory ./pool
+-v2*=removed now empty directory ./pool/stupid/4/4test
+-v2*=removed now empty directory ./pool/stupid/4
+-v2*=removed now empty directory ./pool/stupid/b/bloat+-0a9z.app
+-v2*=removed now empty directory ./pool/stupid/b
+-v2*=removed now empty directory ./pool/stupid/s/simple
+-v2*=removed now empty directory ./pool/stupid/s
+-v2*=removed now empty directory ./pool/stupid/t/testb
+-v2*=removed now empty directory ./pool/stupid/t/test
+-v2*=removed now empty directory ./pool/stupid/t
+-v2*=removed now empty directory ./pool/stupid
+-v2*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
+-v2*=removed now empty directory ./pool/ugly/b
+-v2*=removed now empty directory ./pool/ugly/s/simple
+-v2*=removed now empty directory ./pool/ugly/s
+-v2*=removed now empty directory ./pool/ugly
+-v2*=removed now empty directory ./pool
 EOF
 
 checknolog logfile
