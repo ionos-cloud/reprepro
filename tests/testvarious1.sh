@@ -25,7 +25,7 @@ touch conf/updates
 dodo test ! -d db
 testrun - -b . checkupdate test 3<<EOF
 stderr
--v0*=Nothing to do, because none of the selected distributions has an Update: field.
+*=Nothing to do, because none of the selected distributions has an Update: field.
 stdout
 -v2*=Created directory "./db"
 -v2=Created directory "./lists"

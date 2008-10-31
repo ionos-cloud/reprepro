@@ -771,23 +771,23 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/source/Sources.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_ugly_Sources.bz2' into './lists/Test2toTest1_test2_ugly_Sources' using '/bin/bunzip2'...
+-v2*=Uncompress './lists/Test2toTest1_test2_ugly_Sources.bz2' into './lists/Test2toTest1_test2_ugly_Sources' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages' using '/bin/bunzip2'...
+-v2*=Uncompress './lists/Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_ugly_coal_Packages.bz2' into './lists/Test2toTest1_test2_ugly_coal_Packages' using '/bin/bunzip2'...
+-v2*=Uncompress './lists/Test2toTest1_test2_ugly_coal_Packages.bz2' into './lists/Test2toTest1_test2_ugly_coal_Packages' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2'
 *=Wrong checksum during receive of 'copy:$WORKDIR/dists/test2/stupid/source/Sources.bz2':
 *=md5 expected: ffffffffffffffffffffffffffffffff, got: $(md5 dists/test2/stupid/source/Sources.bz2)
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_stupid_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_stupid_${FAKEARCHITECTURE}_Packages' using '/bin/bunzip2'...
+-v2*=Uncompress './lists/Test2toTest1_test2_stupid_${FAKEARCHITECTURE}_Packages.bz2' into './lists/Test2toTest1_test2_stupid_${FAKEARCHITECTURE}_Packages' using '/bin/bunzip2'...
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.bz2'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.bz2'
--v1*=Uncompress './lists/Test2toTest1_test2_stupid_coal_Packages.bz2' into './lists/Test2toTest1_test2_stupid_coal_Packages' using '/bin/bunzip2'...
+-v2*=Uncompress './lists/Test2toTest1_test2_stupid_coal_Packages.bz2' into './lists/Test2toTest1_test2_stupid_coal_Packages' using '/bin/bunzip2'...
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./lists"
@@ -883,7 +883,7 @@ stderr
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
--v1*=Uncompress './lists/Test2toTest1_test2_stupid_Sources.bz2' into './lists/Test2toTest1_test2_stupid_Sources'...
+-v2*=Uncompress './lists/Test2toTest1_test2_stupid_Sources.bz2' into './lists/Test2toTest1_test2_stupid_Sources'...
 -v6*=Called /bin/cp './lists/Test2toTest1_test2_ugly_Sources' './lists/_test1_ugly_source_Test2toTest1_Test2toTest1_test2_ugly_Sources'
 -v6*=Listhook successfully returned!
 -v6*=Called /bin/cp './lists/Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages' './lists/_test1_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages'
@@ -943,7 +943,7 @@ testrun - -b . update test1 3<<EOF
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 stdout
-*=Nothing to do found. (Use --noskipold to force processing)
+-v0*=Nothing to do found. (Use --noskipold to force processing)
 EOF
 checklog log1 < /dev/null
 checknolog log2
@@ -2035,7 +2035,7 @@ stderr
 *=experienced a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=Ignoring as --ignore=undefinedtracking given.
--v0*=Nothing to do, because no distribution has an Update: field.
+*=Nothing to do, because no distribution has an Update: field.
 EOF
 testrun - -b . clearvanished 3<<EOF
 stdout
