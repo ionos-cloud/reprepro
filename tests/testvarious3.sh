@@ -619,7 +619,7 @@ stdout
 -d1*=db: 'ab' removed from packages.db(a|all|source).
 -d1*=db: 'ab' added to packages.db(a|all|source).
 -t1*=db: 'ab' '2-1' removed from tracking.db(a).
--v2*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
 -e1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
 -v5*=Deleting 'broken.changes'.
@@ -703,7 +703,7 @@ testrun - -b . predelete b 3<<EOF
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
--v1*=Uncompress './lists/froma_a_all_${FAKEARCHITECTURE}_Packages.gz' into './lists/froma_a_all_${FAKEARCHITECTURE}_Packages' using '/bin/gunzip'...
+-v2*=Uncompress './lists/froma_a_all_${FAKEARCHITECTURE}_Packages.gz' into './lists/froma_a_all_${FAKEARCHITECTURE}_Packages' using '/bin/gunzip'...
 -v6*=Called /bin/cp './lists/froma_a_all_${FAKEARCHITECTURE}_Packages' './lists/_b_all_${FAKEARCHITECTURE}_froma_froma_a_all_${FAKEARCHITECTURE}_Packages'
 -v6*=Listhook successfully returned!
 stdout
