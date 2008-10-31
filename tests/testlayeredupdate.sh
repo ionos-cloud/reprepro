@@ -488,7 +488,7 @@ stderr
 stdout
 -v0*=Nothing to do found. (Use --noskipold to force processing)
 EOF
-rm lists/_codename*
+dodo rm lists/_codename*
 testout - -b . update codename2 codename1 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/Release'
@@ -496,15 +496,15 @@ stderr
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/Release'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/Release' to './lists/base_codename1_Release'...
 EOF
-grep '^C' results.expected > resultsboth.expected
-grep '^  ' results2.expected >> resultsboth.expected
-grep '^  ' results.expected >> resultsboth.expected
-grep '^[^ C]' results.expected >> resultsboth.expected
+grep '^C' results.expected > resultsboth.expected || true
+grep '^  ' results2.expected >> resultsboth.expected || true
+grep '^  ' results.expected >> resultsboth.expected || true
+grep '^[^ C]' results.expected >> resultsboth.expected || true
 dodiff resultsboth.expected results
 
 sed -i -e "s/Method: file:/Method: copy:/" conf/updates
 
-rm lists/_codename*
+dodo rm lists/_codename*
 testout - -b . update codename1 3<<EOF
 stderr
 -v6*=aptmethod start 'copy:$WORKDIR/testsource/dists/codename1/Release'
