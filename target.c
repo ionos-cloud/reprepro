@@ -602,7 +602,7 @@ retvalue target_rereference(struct target *target, struct database *database) {
 
 	if( verbose > 1 ) {
 		if( verbose > 2 )
-			printf("Unlocking depencies of %s...\n",
+			printf("Unlocking dependencies of %s...\n",
 					target->identifier);
 		else
 			printf("Rereferencing %s...\n",
