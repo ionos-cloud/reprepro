@@ -13,5 +13,6 @@ extern bool pool_havedereferenced;
 retvalue pool_addfile(const char *);
 retvalue pool_dereferenced(const char *);
 retvalue pool_removeunreferenced(struct database *);
+void pool_printunreferenced(struct database *);
 
 #endif

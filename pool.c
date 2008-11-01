@@ -173,7 +173,8 @@ retvalue pool_addfile(const char *filekey) {
 
 static struct database *d;
 static retvalue result;
-static bool first;
+static bool first, onlycount;
+static long unreferenced_count;
 
 static void removeifunreferenced(const void *nodep, const VISIT which, const int depth) {
 	const char *node, *filekey;
@@ -192,6 +193,11 @@ static void removeifunreferenced(const void *nodep, const VISIT which, const int
 	r = references_isused(d, filekey);
 	if( r != RET_NOTHING )
 		return;
+
+	if( onlycount ) {
+		unreferenced_count++;
+		return;
+	}
 
 	if( verbose >= 0 && first ) {
 		printf("Deleting files no longer referenced...\n");
@@ -229,6 +235,11 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, const in
 		free(filekey);
 		return;
 	}
+	if( onlycount ) {
+		unreferenced_count++;
+		free(filekey);
+		return;
+	}
 	if( verbose >= 0 && first ) {
 		printf("Deleting files no longer referenced...\n");
 		first = false;
@@ -263,6 +274,7 @@ retvalue pool_removeunreferenced(struct database *database) {
 	d = database;
 	result = RET_NOTHING;
 	first = true;
+	onlycount = false;
 	for( c = 1 ; c <= reserved_components ; c++ ) {
 		assert( file_changes_per_component != NULL );
 		current_component = c;
@@ -274,4 +286,31 @@ retvalue pool_removeunreferenced(struct database *database) {
 	if( interrupted() )
 		result = RET_ERROR_INTERRUPTED;
 	return result;
+}
+
+void pool_printunreferenced(struct database *database) {
+	component_t c;
+
+	if( verbose <= 0 )
+		return;
+
+	d = database;
+	result = RET_NOTHING;
+	onlycount = true;
+	unreferenced_count = 0;
+	for( c = 1 ; c <= reserved_components ; c++ ) {
+		assert( file_changes_per_component != NULL );
+		current_component = c;
+		twalk(file_changes_per_component[c],
+				removeunreferenced_from_component);
+	}
+	twalk(legacy_file_changes, removeifunreferenced);
+	d = NULL;
+	if( unreferenced_count > 0 ) {
+		printf(
+"%lu files lost their last reference.\n"
+"(dumpunreferenced lists such files, use deleteunreferenced to delete them.)\n",
+			unreferenced_count);
+	}
+	return;
 }

@@ -1,3 +1,7 @@
+2008-11-01
+	* print number of newly unreferenced file on --keepunreferenced
+	and commands not deleting their references.
+
 2008-10-30
 	* add support for flat repositories with Sources files without
 	Directory lines (Thanks to Cody A.W. Somerville for noting).

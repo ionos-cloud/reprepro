@@ -841,6 +841,8 @@ stdout
 -v6*=  replacing './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  replacing './dists/a/all/source/Sources' (gzipped)
+-v1*=3 files lost their last reference.
+-v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
 EOF
 if $tracking ; then
 checklog logab <<EOF
@@ -871,6 +873,8 @@ stdout
 -v6*=  replacing './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  replacing './dists/a/all/source/Sources' (gzipped)
+-v1*=3 files lost their last reference.
+-v1*=(dumpunreferenced lists such files, use deleteunreferenced to delete them.)
 EOF
 if $tracking ; then
 checklog logab <<EOF

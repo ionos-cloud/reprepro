@@ -2810,7 +2810,6 @@ static retvalue callaction(command_t command, const struct action *action, int a
 
 			if( deletederef ) {
 				assert( ISSET(needs,NEED_REFERENCES) );
-				assert( ISSET(needs,NEED_REFERENCES) );
 			}
 
 			if( !interrupted() ) {
@@ -2832,8 +2831,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 "Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
 					}
 				} else {
-					// TODO: list number of files
-					// that are to be deleted...
+					pool_printunreferenced(database);
 				}
 			}
 		}
