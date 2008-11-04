@@ -1,6 +1,6 @@
 .TH REPREPRO 1 "2008-08-22" "reprepro" REPREPRO
 .SH NAME
-reprepro \- produce, manage and sync a local repository of Debian packages
+reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
 .B reprepro \-\-help
 
@@ -35,7 +35,7 @@ subset of commands and is ignored by other commands.
 Displays a short list of options and commands with description.
 .TP
 .B \-v, \-V, \-\-verbose
-Be more verbose. Can be applied multiple times. One uppercase
+Be more verbose. Can be applied multiple times. One upcase
 .B \-V
 counts as five lowercase
 .B \-v.
@@ -129,30 +129,20 @@ Look in \fImethoddir\fP instead of
 for methods to call when importing from other repositories.
 .TP
 .B \-C, \-\-component \fIcomponent\fP
-Limit the specified command to this component only.
-This will force added packages to this component,
-limit removing packages from this component,
-only list packages in this component,
-and/or otherwise only look at packages in this component,
-depending on the command in question.
+Specify a component to force into, to remove from or to list only.
 .TP
 .B \-A, \-\-architecture \fIarchitecture\fP
-Limit the specified command to this architecture only.
-(i.e. only list such packages,
-only remove packages from the specified architecture,
-or otherwise only look at/act on this architecture
-depending on the specific command).
+Specify an architecture to only include into, remove from or
+list.
 
-Note that architecture \fBall\fP packages can be included to each
-architecture but are then handled separately.
-Thus using \fB\-A\fP correctly allows to have different versions of
-an architecture \fBall\fP package in different architectures of the
-same distribution.
+When including this does not lead to packages in the wrong architecture
+but will restrict effect to this architecture. This allows e.g. different
+versions of an
+.B Architecture: all
+\-package in different architectures of the same distribution.
 .TP
 .B \-T, \-\-type \fRdsc|deb|udeb
-Limit the specified command to this packagetype only.
-(i.e. only list such packages, only remove such packages, only include
-such packages, ...)
+Specify which type of files to include, remove or list.
 .TP
 .B \-S, \-\-section \fIsection\fP
 Overrides the section of inclusions. (Also override possible override files)
@@ -199,24 +189,23 @@ Ignore errors of type \fIwhat\fP. See the section \fBERROR IGNORING\fP
 for possible values.
 .TP
 .B \-\-nolistsdownload
-When running \fBupdate\fP, \fBcheckupdate\fP or \fBpredelete\fP do not download
-any Release or index files.
-This is hardly useful except when you just run one of those
-command for the same distributions.
-And even then reprepro is usually good in
-not downloading except \fBRelease\fP and \fBRelease.gpg\fP files again.
+When running \fBupdate\fP or \fBcheckupdate\fP do not download any Release
+or index files (and also do not check them). This is hardly useful except
+when you just run one of those command for the same distributions.
 .TP
 .B \-\-keepunreferencedfiles
 Do not delete files that are no longer used because the package they
 are from is deleted/replaced with a newer version from the last distribution
 it was in.
 .TP
-.B \-\-keepunusednewfiles
-The include, includedsc, includedeb and processincoming by default delete
-any file they added to the pool that is not marked used at the end of the
-operation.
-While this keeps the pool clean and allows changing before trying to add again,
-this needs copying and checksum calculation every time one tries to add a file.
+.B \-\-keepunneededlists
+Do not try to delete files from \fBlists/\fP before updating, that seem to
+belong to one of the updated distributions but will not be needed.
+Those file may happen to exist when you removed
+some Update: rule or changed Components/Architectures/... .
+This is mostly only useful if you want to temporarily disable some update
+rule and want to avoid downloading their index files again when you read
+it later.
 .TP
 .B \-\-keepdirectories
 Do not try to rmdir parent directories after files or directories
@@ -254,15 +243,15 @@ it is on and how much space is left.
 To disable this behaviour, use \fBnone\fP.
 .TP
 .BI \-\-dbsafetymargin " bytes-count"
-If checking for free space, reserve \fIbyte-count\fP bytes on the filesystem
+If checking for free space, reserve \fIbyte-count\fP bytes on the fileystem
 containing the \fBdb/\fP directory.
 The default is 104857600 (i.e. 100MB), which is quite large.
 But as there is no way to know in advance how large the databases will
-grow and libdb is extremely touchy in that regard, lower only when you know
+grow and libdb is extremly touchy in that regard, lower only when you know
 what you do.
 .TP
 .BI \-\-safetymargin " bytes-count"
-If checking for free space, reserve \fIbyte-count\fP bytes on filesystems
+If checking for free space, reserve \fIbyte-count\fP bytes on fileystems
 not containing the \fBdb/\fP directory.
 The default is 1048576 (i.e. 1MB).
 .TP
@@ -273,40 +262,13 @@ even when it is not set, stdin is terminal and
 .B /proc/self/fd/0
 is a readable symbolic link.
 .TP
-.B \-\-oldfilesdb
-Do not only create checksums.db but also older files.db file.
-This will make it possible for reprepro versions before 3.3.0 to
+.B \-\-nooldfilesdb
+Do not create a files.db file, but only newer checksums.db file.
+This will make it impossible for reprepro versions before 3.3.0 to
 access this repository.
-Without this versions before 3.0 will not recognize the database and destroy it.
-.TP
-.BI \-\-gunzip " gz-uncompressor"
-While reprepro links against \fBlibz\fP, it will look for the program given
-with this option (or \fBgunzip\fP if not given) and use that when uncompressing
-index files while downloading from remote repositories.
-(So that downloading and uncompression can happen at the same time).
-If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
-will always be done using the built in uncompression method.
-The program has to accept the compressed file as stdin and write
-the uncompressed file into stdout.
-.TP
-.BI \-\-bunzip2 " bz2-uncompressor"
-When uncompressing downloaded index files or when not linked against \fBlibbz2\fP
-reprepro will use this program to uncompress \fB.bz2\fP files.
-The default value is \fBbunzip2\fP.
-If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
-will always be done using the built in uncompression method or not be possible
-when not linked against \fBlibbz2\fP.
-The program has to accept the compressed file as stdin and write
-the uncompressed file into stdout.
-.TP
-.BI \-\-unlzma " lzma-uncompressor"
-When trying to uncompress or read \fPlzma\fP compressed files, this program
-will be used.
-The default value is \fBunlzma\fP.
-If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
-lzma files will not be possible.
-The program has to accept the compressed file as stdin and write
-the uncompressed file into stdout.
+Versions before 3.0 will not recognize that and destroy it.
+Thus it is still switched off by default, even though it gives an space
+and speed improvement.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -349,8 +311,8 @@ That means a formula consists of names of fields with a possible
 condition for its content in parentheses.
 These atoms can be combined with
 an exclamation mark '!' (meaning not),
-a pipe symbol '|' (meaning or) and
-a coma ',' (meaning and).
+an pipe symbol '|' (meaning or) and
+an coma ',' (meaning and).
 Additionally parentheses can be used to change binding
 (otherwise '!' binds more than '|' than ',').
 
@@ -364,13 +326,13 @@ and a value is alphabetically \fIcmp\fP to \fIvalue\fP.
 Examples:
 
 .B reprepro \-b . listfilter test2 'Section (== admin)'
-will list all packages in distribution test2 with a Section field and the value
+will list all packags in distribtuion test2 with an Section field and the value
 of that field being \fBadmin\fP.
 
 .B reprepro \-b . \-T deb listfilter test2 'Source (== \fIblub\fP) | ( !Source , Package (== \fIblub\fP) )'
-will find all .deb Packages with either a Source field blub or
+will find all .deb Packages with either an Source field blub or
 no Source field and a Package field blub.
-(That means all package generated by a source package \fIblub\fP,
+(That means all package generated by an source package \fIblub\fP,
 except those also specifying a version number with its Source).
 .TP
 .B remove \fIcodename\fP \fIpackage-names\fP
@@ -388,7 +350,7 @@ package \fIsource-name\fP.
 (Limited to those with source version \fIversion\fP if specified).
 
 If package tracking is activated, it will use that information to find the
-packages, otherwise it traverses all package indices for the distribution.
+packages, otherwise it traverses all package indicies for the distribution.
 .TP
 .BR update " [ " \fIcodenames\fP " ]"
 Sync the specified distributions (all if none given) as
@@ -411,19 +373,10 @@ lists so clients will mark them as obsolete.
 Plus if you cannot
 download a updated package in the (hopefully) following update
 run, you will end up with no package at all instead of an old one.
-This will also blow up \fB.diff\fP files if you are using the tiffany
+This will also blow up pindex files if you are using the tiffany
 example or something similar.
 So be careful when using this option or better get some more space so
 that update works.
-.TP
-.B cleanlists
-Delete all files in \fIlistdir\fP (default \fIbasedir\fP\fB/lists\fP) that do not
-belong to any update rule for any distribution.
-I.e. all files are deleted in that directory that no \fbupdate\fP
-command in the current configuration can use.
-(The files are usually left there, so if they are needed again they
-do not need to be downloaded again. Though in many easy cases not
-even those files will be needed.)
 .TP
 .BR pull " [ " \fIcodenames\fP " ]"
 pull in newer packages into the specified distributions (all if none given)
@@ -509,7 +462,7 @@ Reapply the override files to the given distributions (Or only parts
 thereof given by \fB\-Af\fP,\fB\-C\fP or \fB\-T\fP).
 
 Note: only the control information is changed. Changing a section
-to a value, that would cause another component to be guessed, will
+to a value, that would cause an other component to be guessed, will
 not cause any warning.
 .TP
 .BR dumptracks " [ " \fIcodenames\fP " ]"
@@ -522,7 +475,7 @@ This contains ouf of three steps.
 First all files marked as part of a source package are set to
 unused.
 Then all files actually used are marked as thus.
-Finally tidytracks is called remove everything no longer needed
+Finaly tidytracks is called remove everything no longer needed
 with the new information about used files.
 
 (This behaviour, though a bit longsome, keeps even files only
@@ -545,28 +498,17 @@ for files no longer to keep.
 .TP
 .B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
 Copy the given packages from one distribution to another.
-The packages are copied verbatim, no override files are consulted.
-Only components and architectures present in the source distribution are
-copied.
+No overrides are read, nothing is changed.
 .TP
-.B copysrc \fIdestination-codename\fP \fIsource-codename\fP \fIsource-package\fP \fR[\fP\fIversions\fP\fR]\fP
-look at each package
-(where package means, as usual, every package be it dsc, deb or udeb)
-in the distribution specified by \fIsource-codename\fP
-and identifies the relevant source package for each.
-All packages matching the specified \fIsource-package\fP name
-(and any \fIversion\fP if specified)
-are copied to the \fIdestination-codename\fP distribution.
-The packages are copied verbatim, no override files are consulted.
-Only components and architectures present in the source distribution are
-copied.
+.B copysrc \fIdestination-codename\fP \fIsource-codename\fP \fIsourc-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
+Copy packages with the given source name and version
+(all versions if no version is specified).
+No overrides are read, nothing is changed.
 .TP
 .B copyfilter \fIdestination-codename\fP \fIsource-codename\fP \fIformula\fP
 Copy packages matching the given formula (see \fBlistfilter\fP).
 (all versions if no version is specified).
-The packages are copied verbatim, no override files are consulted.
-Only components and architectures present in the source distribution are
-copied.
+No overrides are read, nothing is changed.
 .TP
 .B restore \fIcodename\fP \fIsnapshot\fP \fIpackages...\fP
 .TP
@@ -574,7 +516,7 @@ copied.
 .TP
 .B restorefilter \fIdestination-codename\fP \fIsnapshot\fP \fIformula\fP
 Like the copy commands, but do not copy from another distribution,
-but from a snapshot generated with \fBgensnapshot\fP.
+but from an snapshot generated with \fBgensnapshot\fP.
 Note that this blindly trusts the contents of the files in your \fBdists/\fP
 directory and does no checking.
 .TP
@@ -612,7 +554,7 @@ Run all external scripts specified in the \fBLog:\fP options of the
 specified distributions.
 .TP
 .B translatefilelists
-Translate the file list cache within
+Translate the file list chache within
 .IB db /contents.cache.db
 into the new format used since reprepro 3.0.0.
 
@@ -683,13 +625,6 @@ hack around broken .deb files that cannot be read by reprepro.
 Add packages from the specified filename to part specified
 by \fB-C\fP \fB-A\fP and \fB-T\fP of the specified distribution.
 Very strange things can happen if you use it improperly.
-.TP
-.B __dumpuncompressors
-List what compressions format can be uncompressed and how.
-.TP
-.BI __uncompress " format compressed-file uncompressed-file"
-Use builtin or external uncompression to uncompress the specified
-file of the specified format into the specified target.
 .SH "CONFIG FILES"
 .B reprepo
 uses three config files, which are searched in
@@ -699,11 +634,11 @@ or in the
 .B conf/
 subdirectory of the \fIbasedir\fP.
 
-If a file
+If an file
 .B options
 exists, it is parsed line by line.
 Each line can be the long
-name of a command line option (without the \-\-)
+name of an command line option (without the \-\-)
 plus an argument, where possible.
 Those are handled as if they were command line options given before
 (and thus lower priority than) any other command line option.
@@ -727,7 +662,7 @@ is only needed when syncing with repositories in the same reprepro database.
 
 The last three are in the format control files in Debian are in,
 i.e. paragraphs separated by empty lines consisting of
-fields. Each field consists of a fieldname, followed
+fields. Each field consists of an fieldname, followed
 by a colon, possible whitespace and the data. A field
 ends with a newline not followed by a space or tab.
 
@@ -772,7 +707,7 @@ thus work around problems with apt's workarounds for that.
 A list of distribution names.
 When a \fB.changes\fP file is told to be included
 into this distribution with the \fBinclude\fP command
-and the distribution header of that file is neither
+and the distribution header of that file is neigther
 the codename, nor the suite name, nor any name from the
 list, a \fBwrongdistribution\fP error is generated.
 The \fBprocess_incoming\fP command will also use this field,
@@ -898,7 +833,7 @@ The arguments of this field is a space separated list of options.
 If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
 (in a file called \fBuContents\-\fP\fIarchitecture\fP.)
 If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
-(Only useful together with \fBudebs\fP)
+(Only usefull together with \fBudebs\fP)
 If there is at least one of the keywords \fB.\fP, \fB.gz\fP and/or \fB.bz2\fP,
 the Contents files are written uncompressed, gzipped and/or bzip2ed instead
 of only gzipped.
@@ -960,8 +895,8 @@ in any part of the distribution).
 And any number of the following (or none):
 .br
 .B includechanges
-Add the .changes file to the tracked files of a source package.
-Thus it is also put into the pool.
+Add the .changes file to the tracked files of an source
+package. Thus it is also put into the pool.
 .br
 .B includebyhand
 Not yet implemented.
@@ -983,7 +918,7 @@ removed.
 The rest of the \fBLog:\fP line is the filename,
 every following line (as usual, have to begin with a single space)
 the name of a script to call.
-The name of the script may be preceded with options of the
+The name of the script may be preceeded with options of the
 form \fB\-\-type=\fP(\fBdsc\fP|\fBdeb\fP|\fBudeb\fP),
 \fB\-\-architecture=\fP\fIname\fP or
 \fB\-\-component=\fP\fIname\fP to only call the script for some
@@ -991,8 +926,6 @@ parts of the distribution.
 An script with argument \fB\-\-changes\fP is called when a \fB.changes\fP
 file was accepted by \fBinclude\fP or \fBprocessincoming\fP (and with other
 arguments).
-Both type of scripts can have a \fB\-\-via=\fP\fIcommand\fP specified,
-in which case it is only called when caused by reprepro command \fIcommand\fP.
 
 For information how it is called and some examples take a look
 at manual.html in reprepro's source or
@@ -1035,16 +968,6 @@ leading spaces).
 .P
 For example: Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
 .TP
-.B From
-The name of another update rule this rules derives from.
-The rule containing the \fBFrom\fP may not contain
-.BR Method ", " Fallback " or " Config "."
-All other fields are used from the rule referenced in \fBFrom\fP, unless
-found in this containing the \fBFrom\fP.
-The rule referenced in \fBFrom\fP may itself contain a \fBFrom\fP.
-Reprepro will only assume two remove index files are the same,
-if both get their \fBMethod\fP information from the same rule.
-.TP
 .B Suite
 The suite to update from. If this is not present, the codename
 of the distribution using this one is used. Also "*/whatever"
@@ -1058,7 +981,7 @@ component separated with ">". (e.g. "main>all contrib>all non\-free>notall")
 If this field is not there, all components from the distribution
 to update are tried.
 
-An empty field means no source or .deb packages are updated by this rule,
+And emtpy field means no source or .deb packages are updated by this rule,
 but only .udeb packages, if there are any.
 
 A rule might list components not available in all distributions
@@ -1073,7 +996,7 @@ are never warned about, for compatibility with versions prior to
 .B Architectures
 The architectures to update. If omitted all from the distribution
 to update from. (As with components, you can use ">" to download
-from one architecture and add into another one. (This only determine
+from one Architecture and add into an other one. (This only determine
 in which Package list they land, it neither overwrites the Architecture
 line in its description, nor the one in the filename determined from this
 one. In other words, it is no really useful without additional filtering))
@@ -1101,15 +1024,15 @@ file will be downloaded and thus the md5sums of the other
 index files will not be checked.
 .TP
 .B Flat
-If this field is in an update rule, it is supposed to be a
-flat repository, i.e. a repository without a \fBdists\fP
+If this field is in an update rule, is is supposed to be a
+flat repository, i.e. an repository without an \fBdists\fP
 dir and no subdirectories for the index files.
 (If the corresponding \fBsources.list\fP line has the suite
-end with a slash, then you might need this one.)
+end with an slash, then you might need this one.)
 The argument for the \fBFlat:\fP field is the Component to
 put those packages into.
 No \fBComponents\fP or \fBUDebComponents\fP
-fields are allowed in a flat update rule.
+fields are allowed in an flat update rule.
 If the \fBArchitecture\fP field has any \fB>\fP items,
 the part left of the "\fB>\fP" is ignored.
 .br
@@ -1132,7 +1055,7 @@ Note that \fBmd5\fP is not possible as reprepro internally still
 always needs md5 hashes. Note that this does not speed anything
 up in any measurable way. The only reason to specify this if
 the Release file of the distribution you want to mirror from
-uses a faulty algorithm implementation.
+uses an faulty algorithm implementation.
 Otherwise you will gain nothing and only lose security but not
 gain speed.
 .TP
@@ -1168,14 +1091,6 @@ If this is given, it is executed for all downloaded index files
 with the downloaded list as first and a filename that will
 be used instead of this. (e.g. "ListHook: /bin/cp" works
 but does nothing.)
-
-If a file will be read multiple times, it is processed multiple
-times, with the environment variables
-.BR REPREPRO_FILTER_CODENAME ", " REPREPRO_FILTER_PACKAGETYPE ", "
-.BR REPREPRO_FILTER_COMPONENT " and " REPREPRO_FILTER_ARCHITECTURE
-set to the where this file will be added and
-.B REPREPRO_FILTER_PATTERN
-to the name of the update rule causing it.
 .SS conf/pulls
 This file contains the rules for pulling packages from one
 distribution to another.
@@ -1217,8 +1132,8 @@ If omitted all from the distribution to pull from.
 As in
 .BR conf/updates ,
 you can use ">" to download
-from one architecture and add into another one. (And again, only useful
-with filtering to avoid packages not architecture \fBall\fP to migrate).
+from one Architecture and add into an other one. (And again, only useful
+with filtering to avoid packages not architectur \fBall\fP to migrate).
 .TP
 .B UDebComponents
 Like
@@ -1275,21 +1190,20 @@ The Name of the directory to scan for
 files.
 .TP
 .B TempDir
-A directory where the files listed in the processed .changes files
+An directory where the files listed in the processed .changes files
 are copied into before they are read.
-You can avoid some copy operatations by placing this directory
-within the same moint point the pool hierachy
-is (at least partially) in.
+To avoid an additional copy, place on the same partition as the pool
+hirachy (or at least at the largest part of it).
 .TP
 .B Allow \fIarguments
 Each argument is either a pair \fIname1\fB>\fIname2\fR or simply
 \fIname\fP which is short for \fIname\fB>\fIname\fR.
 Each \fIname2\fP must identify a distribution,
-either by being Codename, a unique Suite, or a unique AlsoAcceptFor
+either by being Codename, an unique Suite, or an unique AlsoAcceptFor
 from \fBconf/distributions\fP.
 Each upload has each item in its
 .B Distribution:
-header compared first to last with each \fIname1\fP in the rules
+header compared first to last with earch \fIname1\fP in the rules
 and is put in the first one accepting this package.  e.g.:
 .br
 Allow: local unstable>sid
@@ -1306,7 +1220,7 @@ accepts it.
 .B Multiple
 Allow putting an upload in multiple distributions if it lists more
 than one. (Without this field, procession stops after the first
-success).
+successfull).
 .TP
 .B Permit \fIoptions
 A list of options to allow things otherwise causing errors:
@@ -1318,7 +1232,7 @@ file if it lists files not belonging to any package in it.
 .br
 .B older_version
 .br
-Ignore a package not added because there already is a strictly newer
+Ignore a package not added because there already is a stricly newer
 version available instead of treating this as an error.
 .TP
 .B Cleanup \fIoptions
@@ -1354,13 +1268,13 @@ which allows everything without a valid signature in,
 .br
 which allows everything with any valid signature in or
 .br
-.B allow *  by key \fIkey-id\fP
+.B alllow *  by key \fIkey-id\fP
 .br
 which allows everything signed by this \fIkey-id\fP (to be specified
 without any spaces) in.
 .P
 (Other statements
-will follow once somebody tells me what restrictions are useful).
+will follow once somebody tells me what restrictions are usefull).
 .SH "ERROR IGNORING"
 With \fB\-\-ignore\fP on the command line or an \fIignore\fP
 line in the options file, the following type of errors can be
@@ -1378,7 +1292,7 @@ reprepro assumes the file got corrupted and refuses to use it unless this
 ignore directive is given.
 .TP
 .B brokenversioncmp \fR(hopefully never seen)
-If comparing old and new version fails, assume the new one is newer.
+If comparing an old and a new version fails, assume the new one is newer.
 .TP
 .B dscinbinnmu
 If a .changes file has an explicit Source version that is different the
@@ -1577,7 +1491,7 @@ a \fBdeleteunreferenced\fP or even some \fB__forget\fP might help.)
 .SS The magic delete rule ("\-").
 A minus as a single word in the
 .B Update:
-line of a distribution marks everything to be deleted. The mark causes later rules
+line of an distribution marks everything to be deleted. The mark causes later rules
 to get packages even if they have (strict) lower versions. The mark will
 get removed if a later rule sets the package on hold (hold is not yet implemented,
 in case you might wonder) or would get a package with the same version
@@ -1663,7 +1577,7 @@ the value of
 .B $(tty)
 or
 .B $SSH_TTY
-or anything else denoting a usable terminal. (You might also
+or anything else denoting a useable terminal. (You might also
 want to make sure you actually have a terminal available.
 With ssh you might need the
 .B \-t
@@ -1711,7 +1625,7 @@ if it was an unsigned file.
 If dpkg\-buildpackage is run without the \fB\-sa\fP option to build a version with
 a Debian revision not being \-0 or \-1, it does not list the \fB.orig.tar.gz\fP file
 in the \fB.changes\fP file.
-If you want to \fBinclude\fP such a file with reprepro
+If you want to \fBinclude\fP such a file with repepro
 when the .orig.tar.gz file does not already exist in the pool, reprepro will report
 an error.
 This can be worked around by:
