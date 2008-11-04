@@ -1,4 +1,9 @@
+2008-10-30 backported to 3.6 2008-11-04
+	* add support for flat repositories with Sources files without
+	Directory lines (Thanks to Cody A.W. Somerville for noting).
+
 2008-10-05 backported to 3.6 2008-11-04
+
 	* change bug in (tracking enabled) removesrc to cause malformed
 	  tracking data when a source package's track record contains a
 	  file no longer found in any distribution
