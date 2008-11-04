@@ -212,6 +212,8 @@ stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-v0*=1 files were added but not used.
+-v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . dumpunreferenced 3<<EOF
@@ -265,6 +267,8 @@ stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.dsc' added to checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.dsc' added to files.db(md5sums).
+-v0*=1 files were added but not used.
+-v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . -T dsc -C dog _addpackage B importindex bar foo 3<<EOF
@@ -280,6 +284,8 @@ stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' added to checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.tar.gz' added to files.db(md5sums).
+-v0*=1 files were added but not used.
+-v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . dumpunreferenced 3<<EOF

@@ -105,6 +105,7 @@ static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
 static bool	keepunreferenced = false;
+static bool	keepunusednew = false;
 static bool	askforpassphrase = false;
 static bool	guessgpgtty = true;
 static bool	skipold = true;
@@ -124,7 +125,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -543,7 +544,7 @@ static retvalue deleteifunreferenced(void *data, const char *filekey) {
 
 	r = references_isused(database,filekey);
 	if( r == RET_NOTHING ) {
-		r = files_deleteandremove(database, filekey, false);
+		r = pool_delete(database, filekey);
 		return r;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
@@ -993,7 +994,7 @@ ACTION_F(n, n, n, y, forget) {
 	ret = RET_NOTHING;
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
-			r = files_remove(database, argv[i], false);
+			r = files_remove(database, argv[i]);
 			RET_UPDATE(ret,r);
 		}
 
@@ -1004,7 +1005,7 @@ ACTION_F(n, n, n, y, forget) {
 				return RET_ERROR;
 			}
 			*nl = '\0';
-			r = files_remove(database, buffer, false);
+			r = files_remove(database, buffer);
 			RET_UPDATE(ret,r);
 		}
 	return ret;
@@ -2477,6 +2478,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 
 // TODO: this has become an utter mess and needs some serious cleaning...
 #define NEED_REFERENCES 1
+/* FILESDB now includes REFERENCED... */
 #define NEED_FILESDB 2
 #define NEED_DEREF 4
 #define NEED_DATABASE 8
@@ -2486,6 +2488,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 #define MAY_UNUSED 128
 #define NEED_ACT 256
 #define NEED_SP 512
+#define NEED_DELNEW 1024
 #define A_N(w) action_n_n_n_ ## w, 0
 #define A_C(w) action_c_n_n_ ## w, NEED_CONFIG
 #define A_ROB(w) action_b_n_n_ ## w, NEED_DATABASE|IS_RO
@@ -2618,13 +2621,13 @@ static const struct action {
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorefilter <distribution> <snapshot-name> <formula>"},
 	{"checkpull",		A_B(checkpull),
 		0, -1, "checkpull [<distributions>]"},
-	{"includedeb",		A_Dactsp(includedeb),
+	{"includedeb",		A_Dactsp(includedeb)|NEED_DELNEW,
 		2, -1, "[--delete] includedeb <distribution> <.deb-file>"},
-	{"includeudeb",		A_Dactsp(includedeb),
+	{"includeudeb",		A_Dactsp(includedeb)|NEED_DELNEW,
 		2, -1, "[--delete] includeudeb <distribution> <.udeb-file>"},
-	{"includedsc",		A_Dactsp(includedsc),
+	{"includedsc",		A_Dactsp(includedsc)|NEED_DELNEW,
 		2, 2, "[--delete] includedsc <distribution> <package>"},
-	{"include",		A_Dactsp(include),
+	{"include",		A_Dactsp(include)|NEED_DELNEW,
 		2, 2, "[--delete] include <distribution> <.changes-file>"},
 	{"generatefilelists",	A_F(generatefilelists),
 		0, 1, "generatefilelists [reread]"},
@@ -2632,7 +2635,7 @@ static const struct action {
 		0, 0, "translatefilelists"},
 	{"clearvanished",	A_D(clearvanished)|MAY_UNUSED,
 		0, 0, "[--delete] clearvanished"},
-	{"processincoming",	A_D(processincoming),
+	{"processincoming",	A_D(processincoming)|NEED_DELNEW,
 		1, 2, "processincoming <rule-name> [<.changes file>]"},
 	{"gensnapshot",		A_R(gensnapshot),
 		2, 2, "gensnapshot <distribution> <date or other name>"},
@@ -2656,7 +2659,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	retvalue result, r;
 	struct database *database;
 	struct distribution *alldistributions = NULL;
-	bool deletederef;
+	bool deletederef, deletenew;
 	int needs;
 	architecture_t architecture = atom_unknown;
 	component_t component = atom_unknown;
@@ -2785,6 +2788,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	}
 
 	deletederef = ISSET(needs,NEED_DEREF) && !keepunreferenced;
+	deletenew = ISSET(needs,NEED_DELNEW) && !keepunusednew;
 
 	result = database_create(&database, dbdir, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
@@ -2795,6 +2799,10 @@ static retvalue callaction(command_t command, const struct action *action, int a
 		(void)distribution_freelist(alldistributions);
 		return result;
 	}
+
+	/* adding files may check references to see if they were added */
+	if( ISSET(needs,NEED_FILESDB) )
+		needs |= NEED_REFERENCES;
 
 	if( ISSET(needs,NEED_REFERENCES) )
 		result = database_openreferences(database);
@@ -2818,21 +2826,34 @@ static retvalue callaction(command_t command, const struct action *action, int a
 					x_section, x_priority,
 					architecture, component, packagetype,
 					argc, argv);
+				/* wait for package specific loggers */
+				logger_wait();
+				/* remove files added but not used */
+				pool_tidyadded(database, deletenew);
 
-				if( deletederef ) {
-					logger_wait();
-					if( !RET_WAS_ERROR(result) ) {
-						r = pool_removeunreferenced(database);
-						RET_ENDUPDATE(result, r);
-					} else if( pool_havedereferenced ) {
+				// TODO: tell hook script the added files
+				// TODO: tell hook scripts the modified distributions
+
+				/* delete files losing references, or
+				 * tell how many lost their references */
+
+				// TODO: instead check if any distribution that
+				// was not exported lost files
+				// (and in a far future do not remove references
+				// before the index is written)
+				if( deletederef && RET_WAS_ERROR(result) ) {
+					deletederef = false;
+					if( pool_havedereferenced ) {
 						fprintf(stderr,
 "Not deleting possibly left over files due to previous errors.\n"
 "(To keep the files in the still existing index files from vanishing)\n"
-"Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
+"Use dumpunreferenced/deleteunreferenced to show/delete files without references.\n");
 					}
-				} else {
-					pool_printunreferenced(database);
 				}
+				r = pool_removeunreferenced(database, deletederef);
+				RET_ENDUPDATE(result, r);
+
+				// TODO: tell hook scripts the deleted files
 			}
 		}
 	}
@@ -2850,6 +2871,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 
 enum { LO_DELETE=1,
 LO_KEEPUNREFERENCED,
+LO_KEEPUNUSEDNEW,
 LO_KEEPUNNEEDEDLISTS,
 LO_NOTHINGISERROR,
 LO_NOLISTDOWNLOAD,
@@ -2860,6 +2882,7 @@ LO_SKIPOLD,
 LO_GUESSGPGTTY,
 LO_NODELETE,
 LO_NOKEEPUNREFERENCED,
+LO_NOKEEPUNUSEDNEW,
 LO_NOKEEPUNNEEDEDLISTS,
 LO_NONOTHINGISERROR,
 LO_LISTDOWNLOAD,
@@ -3011,6 +3034,12 @@ static void handle_option(int c, const char *argument) {
 					break;
 				case LO_NOKEEPUNREFERENCED:
 					CONFIGSET(keepunreferenced, false);
+					break;
+				case LO_KEEPUNUSEDNEW:
+					CONFIGSET(keepunusednew, true);
+					break;
+				case LO_NOKEEPUNUSEDNEW:
+					CONFIGSET(keepunusednew, false);
 					break;
 				case LO_KEEPUNNEEDEDLISTS:
 					/* this is the only option now and ignored
@@ -3272,6 +3301,7 @@ int main(int argc,char *argv[]) {
 		{"nothingiserror", no_argument, &longoption, LO_NOTHINGISERROR},
 		{"nolistsdownload", no_argument, &longoption, LO_NOLISTDOWNLOAD},
 		{"keepunreferencedfiles", no_argument, &longoption, LO_KEEPUNREFERENCED},
+		{"keepunusednewfiles", no_argument, &longoption, LO_KEEPUNUSEDNEW},
 		{"keepunneededlists", no_argument, &longoption, LO_KEEPUNNEEDEDLISTS},
 		{"keepdirectories", no_argument, &longoption, LO_KEEPDIRECTORIES},
 		{"ask-passphrase", no_argument, &longoption, LO_ASKPASSPHRASE},
@@ -3279,6 +3309,7 @@ int main(int argc,char *argv[]) {
 		{"nonolistsdownload", no_argument, &longoption, LO_LISTDOWNLOAD},
 		{"listsdownload", no_argument, &longoption, LO_LISTDOWNLOAD},
 		{"nokeepunreferencedfiles", no_argument, &longoption, LO_NOKEEPUNREFERENCED},
+		{"nokeepunusednewfiles", no_argument, &longoption, LO_NOKEEPUNUSEDNEW},
 		{"nokeepunneededlists", no_argument, &longoption, LO_NOKEEPUNNEEDEDLISTS},
 		{"nokeepdirectories", no_argument, &longoption, LO_NOKEEPDIRECTORIES},
 		{"noask-passphrase", no_argument, &longoption, LO_NOASKPASSPHRASE},

@@ -105,7 +105,7 @@ _reprepro()
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\
 		brokensignatures uploaders missingfile'
 	noargoptions='--delete --nodelete --help -h --verbose -v\
-	--nothingiserror --nolistsdownload --keepunreferencedfiles\
+	--nothingiserror --nolistsdownload --keepunreferencedfiles --keepunusednewfiles\
 	--keepdirectories\
 	--ask-passphrase --nonothingiserror --listsdownload\
 	--nokeepunreferencesfiles --nokeepdirectories\

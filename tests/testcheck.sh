@@ -59,6 +59,8 @@ stderr
 stdout
 -e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
+-v0*=1 files were added but not used.
+-v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . -C c -A a -T deb _addpackage n fakeindex fake  3<<EOF
@@ -85,6 +87,8 @@ stderr
 stdout
 -e1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to files.db(md5sums).
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
+-v0*=1 files were added but not used.
+-v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . -C c -A a -T deb _addpackage n fakeindex fake  3<<EOF

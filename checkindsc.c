@@ -87,24 +87,10 @@ struct dscpackage {
 	component_t component_atom;
 	/* Things that may be calculated by dsc_calclocations: */
 	struct strlist filekeys;
-	/* if set, everything set to true should be deleted when not used */
-	/*@null@*/bool *deleteonfailure;
 };
 
 static void dsc_free(/*@only@*/struct dscpackage *pkg, struct database *database) {
 	if( pkg != NULL ) {
-		if( pkg->deleteonfailure != NULL ) {
-			int i;
-
-			for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-				if( pkg->deleteonfailure[i] )
-					files_deleteandremove(
-						database,
-						pkg->filekeys.values[i],
-						false);
-			}
-			free(pkg->deleteonfailure);
-		}
 		sources_done(&pkg->dsc);
 		strlist_done(&pkg->filekeys);
 		free(pkg);
@@ -141,7 +127,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	return RET_OK;
 }
 
-retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, component_t component, const struct strlist *filekeys, bool *usedmarker, struct distribution *distribution, struct trackingdata *trackingdata){
+retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, component_t component, const struct strlist *filekeys, struct distribution *distribution, struct trackingdata *trackingdata){
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,
 			component, architecture_source, pt_dsc);
@@ -158,7 +144,7 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 			r = target_addpackage(t, distribution->logger, database,
 					dsc->name, dsc->version,
 					dsc->control, filekeys,
-					usedmarker, false, trackingdata,
+					false, trackingdata,
 					architecture_source);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
@@ -179,7 +165,6 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 	char *destdirectory, *origdirectory;
 	const struct overrideinfo *oinfo;
 	char *control;
-	bool usedmarker = false;
 	int i;
 
 	causingfile = dscfilename;
@@ -310,12 +295,6 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 				atoms_components[pkg->component_atom]);
 	}
 
-	pkg->deleteonfailure = calloc(pkg->dsc.files.names.count+1, sizeof(bool));
-	if( pkg->deleteonfailure == NULL ) {
-		dsc_free(pkg, database);
-		return RET_ERROR_OOM;
-	}
-
 	{	char *dscbasename, *dscfilekey;
 		struct checksums *dscchecksums;
 
@@ -340,7 +319,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			/* then look if we already have this, or copy it in */
 			r = files_preinclude(database,
 					dscfilename, dscfilekey,
-					&dscchecksums, &pkg->deleteonfailure[0]);
+					&dscchecksums);
 
 		if( !RET_WAS_ERROR(r) ) {
 			/* Add the dsc-file to basenames,filekeys and md5sums,
@@ -365,8 +344,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			r = files_checkincludefile(database, origdirectory,
 					pkg->dsc.files.names.values[i],
 					pkg->filekeys.values[i],
-					&pkg->dsc.files.checksums[i],
-					&pkg->deleteonfailure[i]);
+					&pkg->dsc.files.checksums[i]);
 		}
 	}
 
@@ -401,13 +379,8 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 	}
 
 	r = dsc_addprepared(database, &pkg->dsc, pkg->component_atom,
-			&pkg->filekeys, &usedmarker,
-			distribution,
+			&pkg->filekeys, distribution,
 			(tracks!=NULL)?&trackingdata:NULL);
-	if( usedmarker ) {
-		for( i = 0 ; i < pkg->dsc.files.names.count ; i++ )
-			pkg->deleteonfailure[i] = false;
-	}
 
 	/* delete source files, if they are to be */
 	if( ( RET_IS_OK(r) && delete >= D_MOVE ) ||

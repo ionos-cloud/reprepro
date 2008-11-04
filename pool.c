@@ -39,9 +39,11 @@ static component_t reserved_components = 0;
 static void **file_changes_per_component = NULL;
 static void *legacy_file_changes = NULL;
 bool pool_havedereferenced = false;
+bool pool_havedeleted = false;
 
 #define pl_ADDED 1
 #define pl_UNREFERENCED 2
+#define pl_DELETED 4
 
 static int legacy_compare(const void *a, const void *b) {
 	const char *v1 = a, *v2 = b;
@@ -103,7 +105,7 @@ static retvalue split_filekey(const char *filekey, /*@out@*/component_t *compone
 
 /* name can be either basename (in a source directory) or a full
  * filekey (in legacy fallback mode) */
-static retvalue remember_name(void **root_p, const char *name, char mode) {
+static retvalue remember_name(void **root_p, const char *name, char mode, char mode_and) {
 	char **p;
 
 	p = tsearch(name - 1, root_p, legacy_compare);
@@ -117,12 +119,13 @@ static retvalue remember_name(void **root_p, const char *name, char mode) {
 		**p = mode;
 		memcpy((*p) + 1, name, l + 1);
 	} else {
+		**p &= mode_and;
 		**p |= mode;
 	}
 	return RET_OK;
 }
 
-static retvalue remember_filekey(const char *filekey, char mode) {
+static retvalue remember_filekey(const char *filekey, char mode, char mode_and) {
 	retvalue r;
 	component_t c IFSTUPIDCC(= atom_unknown);
 	struct source_node *node IFSTUPIDCC(= NULL), **found;
@@ -156,28 +159,52 @@ static retvalue remember_filekey(const char *filekey, char mode) {
 			free(node);
 			node = *found;
 		}
-		return remember_name(&node->file_changes, basefilename, mode);
+		return remember_name(&node->file_changes, basefilename,
+				mode, mode_and);
 	}
 	fprintf(stderr, "Warning: strange filekey '%s'!\n", filekey);
-	return remember_name(&legacy_file_changes, filekey, mode);
+	return remember_name(&legacy_file_changes, filekey, mode, mode_and);
 }
 
 retvalue pool_dereferenced(const char *filekey) {
 	pool_havedereferenced = true;
-	return remember_filekey(filekey, pl_UNREFERENCED);
+	return remember_filekey(filekey, pl_UNREFERENCED, 0xFF);
 };
 
-retvalue pool_addfile(const char *filekey) {
-	return remember_filekey(filekey, pl_ADDED);
+retvalue pool_markadded(const char *filekey) {
+	return remember_filekey(filekey, pl_ADDED, ~pl_DELETED);
 };
 
+retvalue pool_delete(struct database *database, const char *filekey) {
+	retvalue r;
+
+	if( verbose >= 1 )
+		printf("deleting and forgetting %s\n",filekey);
+
+	r = files_deletefile(database, filekey);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	return files_remove(database, filekey);
+}
+
+/* called from files_remove: */
+retvalue pool_markdeleted(const char *filekey) {
+	pool_havedeleted = true;
+	return remember_filekey(filekey, pl_DELETED, ~pl_UNREFERENCED);
+};
+
+/* libc's twalk misses a callback_data pointer, so we need some temporary
+ * global variables: */
 static struct database *d;
 static retvalue result;
 static bool first, onlycount;
-static long unreferenced_count;
+static long woulddelete_count;
+static component_t current_component;
+static const char *sourcename = NULL;
 
 static void removeifunreferenced(const void *nodep, const VISIT which, const int depth) {
-	const char *node, *filekey;
+	char *node; const char *filekey;
 	retvalue r;
 
 	if( which != leaf && which != postorder)
@@ -186,7 +213,7 @@ static void removeifunreferenced(const void *nodep, const VISIT which, const int
 	if( interrupted() )
 		return;
 
-	node = *(const char **)nodep;
+	node = *(char **)nodep;
 	filekey = node + 1;
 	if( (*node & pl_UNREFERENCED) == 0 )
 		return;
@@ -195,7 +222,7 @@ static void removeifunreferenced(const void *nodep, const VISIT which, const int
 		return;
 
 	if( onlycount ) {
-		unreferenced_count++;
+		woulddelete_count++;
 		return;
 	}
 
@@ -203,20 +230,23 @@ static void removeifunreferenced(const void *nodep, const VISIT which, const int
 		printf("Deleting files no longer referenced...\n");
 		first = false;
 	}
-	r = files_deleteandremove(d, filekey, true);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "To be forgotten filekey '%s' was not known.\n",
-				filekey);
-		r = RET_ERROR_MISSING;
-	}
+	if( verbose >= 1 )
+		printf("deleting and forgetting %s\n", filekey);
+	r = files_deletefile(d, filekey);
 	RET_UPDATE(result, r);
+	if( !RET_WAS_ERROR(r) ) {
+		r = files_removesilent(d, filekey);
+		RET_UPDATE(result, r);
+		if( !RET_WAS_ERROR(r) )
+			*node &= ~pl_UNREFERENCED;
+		if( RET_IS_OK(r) )
+			*node |= pl_DELETED;
+	}
 }
 
-static component_t current_component;
-static const char *sourcename = NULL;
 
 static void removeifunreferenced2(const void *nodep, const VISIT which, const int depth) {
-	const char *node;
+	char *node;
 	char *filekey;
 	retvalue r;
 
@@ -226,7 +256,7 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, const in
 	if( interrupted() )
 		return;
 
-	node = *(const char **)nodep;
+	node = *(char **)nodep;
 	if( (*node & pl_UNREFERENCED) == 0 )
 		return;
 	filekey = calc_filekey(current_component, sourcename, node + 1);
@@ -236,7 +266,7 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, const in
 		return;
 	}
 	if( onlycount ) {
-		unreferenced_count++;
+		woulddelete_count++;
 		free(filekey);
 		return;
 	}
@@ -244,11 +274,17 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, const in
 		printf("Deleting files no longer referenced...\n");
 		first = false;
 	}
-	r = files_deleteandremove(d, filekey, true);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr, "To be forgotten filekey '%s' was not known.\n",
-				filekey);
-		r = RET_ERROR_MISSING;
+	if( verbose >= 1 )
+		printf("deleting and forgetting %s\n", filekey);
+	r = files_deletefile(d, filekey);
+	RET_UPDATE(result, r);
+	if( !RET_WAS_ERROR(r) ) {
+		r = files_removesilent(d, filekey);
+		RET_UPDATE(result, r);
+		if( !RET_WAS_ERROR(r) )
+			*node &= ~pl_UNREFERENCED;
+		if( RET_IS_OK(r) )
+			*node |= pl_DELETED;
 	}
 	RET_UPDATE(result, r);
 	free(filekey);
@@ -268,13 +304,17 @@ static void removeunreferenced_from_component(const void *nodep, const VISIT whi
 	twalk(node->file_changes, removeifunreferenced2);
 }
 
-retvalue pool_removeunreferenced(struct database *database) {
+retvalue pool_removeunreferenced(struct database *database, bool delete) {
 	component_t c;
+
+	if( !delete && verbose <= 0 )
+		return RET_NOTHING;
 
 	d = database;
 	result = RET_NOTHING;
 	first = true;
-	onlycount = false;
+	onlycount = !delete;
+	woulddelete_count = 0;
 	for( c = 1 ; c <= reserved_components ; c++ ) {
 		assert( file_changes_per_component != NULL );
 		current_component = c;
@@ -285,32 +325,146 @@ retvalue pool_removeunreferenced(struct database *database) {
 	d = NULL;
 	if( interrupted() )
 		result = RET_ERROR_INTERRUPTED;
+	if( !delete && woulddelete_count > 0 ) {
+		printf(
+"%lu files lost their last reference.\n"
+"(dumpunreferenced lists such files, use deleteunreferenced to delete them.)\n",
+			woulddelete_count);
+	}
 	return result;
 }
 
-void pool_printunreferenced(struct database *database) {
+static void removeunusednew(const void *nodep, const VISIT which, const int depth) {
+	char *node; const char *filekey;
+	retvalue r;
+
+	if( which != leaf && which != postorder)
+		return;
+
+	if( interrupted() )
+		return;
+
+	node = *(char **)nodep;
+	filekey = node + 1;
+	if( (*node & (pl_ADDED|pl_DELETED)) != pl_ADDED )
+		return;
+	r = references_isused(d, filekey);
+	if( r != RET_NOTHING )
+		return;
+
+	if( onlycount ) {
+		woulddelete_count++;
+		return;
+	}
+
+	if( verbose >= 0 && first ) {
+		printf("Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)\n");
+		first = false;
+	}
+	if( verbose >= 1 )
+		printf("deleting and forgetting %s\n", filekey);
+	r = files_deletefile(d, filekey);
+	RET_UPDATE(result, r);
+	if( !RET_WAS_ERROR(r) ) {
+		r = files_removesilent(d, filekey);
+		RET_UPDATE(result, r);
+		/* don't remove pl_ADDED here, otherwise the hook
+		 * script will be told to remove something not added */
+		if( !RET_WAS_ERROR(r) )
+			*node &= ~pl_UNREFERENCED;
+		if( RET_IS_OK(r) )
+			*node |= pl_DELETED;
+	}
+}
+
+
+static void removeunusednew2(const void *nodep, const VISIT which, const int depth) {
+	char *node;
+	char *filekey;
+	retvalue r;
+
+	if( which != leaf && which != postorder)
+		return;
+
+	if( interrupted() )
+		return;
+
+	node = *(char **)nodep;
+	if( (*node & (pl_ADDED|pl_DELETED)) != pl_ADDED )
+		return;
+	filekey = calc_filekey(current_component, sourcename, node + 1);
+	r = references_isused(d, filekey);
+	if( r != RET_NOTHING ) {
+		free(filekey);
+		return;
+	}
+	if( onlycount ) {
+		woulddelete_count++;
+		free(filekey);
+		return;
+	}
+	if( verbose >= 0 && first ) {
+		printf("Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)\n");
+		first = false;
+	}
+	if( verbose >= 1 )
+		printf("deleting and forgetting %s\n", filekey);
+	r = files_deletefile(d, filekey);
+	RET_UPDATE(result, r);
+	if( !RET_WAS_ERROR(r) ) {
+		r = files_removesilent(d, filekey);
+		RET_UPDATE(result, r);
+		/* don't remove pl_ADDED here, otherwise the hook
+		 * script will be told to remove something not added */
+		if( !RET_WAS_ERROR(r) )
+			*node &= ~pl_UNREFERENCED;
+		if( RET_IS_OK(r) )
+			*node |= pl_DELETED;
+	}
+	RET_UPDATE(result, r);
+	free(filekey);
+}
+
+static void removeunusednew_from_component(const void *nodep, const VISIT which, const int depth) {
+	struct source_node *node;
+
+	if( which != leaf && which != postorder)
+		return;
+
+	if( interrupted() )
+		return;
+
+	node = *(struct source_node **)nodep;
+	sourcename = node->sourcename;
+	twalk(node->file_changes, removeunusednew2);
+}
+
+void pool_tidyadded(struct database *database, bool delete) {
 	component_t c;
 
-	if( verbose <= 0 )
+	if( !delete && verbose < 0 )
 		return;
 
 	d = database;
 	result = RET_NOTHING;
-	onlycount = true;
-	unreferenced_count = 0;
+	first = true;
+	onlycount = !delete;
+	woulddelete_count = 0;
 	for( c = 1 ; c <= reserved_components ; c++ ) {
 		assert( file_changes_per_component != NULL );
 		current_component = c;
 		twalk(file_changes_per_component[c],
-				removeunreferenced_from_component);
+				removeunusednew_from_component);
 	}
-	twalk(legacy_file_changes, removeifunreferenced);
+	// this should not really happen at all, but better safe then sorry:
+	twalk(legacy_file_changes, removeunusednew);
 	d = NULL;
-	if( unreferenced_count > 0 ) {
+	if( !delete && woulddelete_count > 0 ) {
 		printf(
-"%lu files lost their last reference.\n"
-"(dumpunreferenced lists such files, use deleteunreferenced to delete them.)\n",
-			unreferenced_count);
+"%lu files were added but not used.\n"
+"The next deleteunreferenced call will delete them.\n",
+			woulddelete_count);
 	}
 	return;
+
 }

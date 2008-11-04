@@ -272,7 +272,7 @@ static retvalue package_add(struct database *database, struct distribution *into
 			into->logger, database,
 			package->name, package->version,
 			package->control,
-			&package->filekeys, NULL, true,
+			&package->filekeys, true,
 			(tracks != NULL)?
 			&trackingdata:NULL,
 			package->architecture);

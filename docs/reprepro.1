@@ -211,6 +211,13 @@ Do not delete files that are no longer used because the package they
 are from is deleted/replaced with a newer version from the last distribution
 it was in.
 .TP
+.B \-\-keepunusednewfiles
+The include, includedsc, includedeb and processincoming by default delete
+any file they added to the pool that is not marked used at the end of the
+operation.
+While this keeps the pool clean and allows changing before trying to add again,
+this needs copying and checksum calculation every time one tries to add a file.
+.TP
 .B \-\-keepdirectories
 Do not try to rmdir parent directories after files or directories
 have been removed from them.

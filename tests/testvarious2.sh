@@ -1298,6 +1298,7 @@ stdout
 -d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' added to checksums.db(pool).
 -e1*=db: 'pool/stupid/t/test/test_1-2.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/t/test/test_1-2.dsc' added to checksums.db(pool).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
 -e1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' removed from checksums.db(pool).
@@ -2182,14 +2183,12 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
-*=Warning: File 'pool/stupid/n/nowhere/filename_version.tar.gz' was listed in the .changes
-*= but seems unused. Checking for references...
-= indeed unused, deleting it...
 stdout
 -v2*=Created directory "./pool/stupid/n"
 -v2*=Created directory "./pool/stupid/n/nowhere"
 -e1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to checksums.db(pool).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/n/nowhere/filename_version.tar.gz
 -e1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from checksums.db(pool).
@@ -2209,6 +2208,8 @@ testrun - -b . _detect pool/stupid/n/nowhere/filename_version.tar.gz 3<<EOF
 stdout
 -e1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to checksums.db(pool).
+-v0*=1 files were added but not used.
+-v0*=The next deleteunreferenced call will delete them.
 EOF
 testout "" -b . dumpunreferenced
 cat >results.expected <<EOF
@@ -2261,7 +2262,7 @@ DATESTR remove test1 deb ugly ${FAKEARCHITECTURE} simple 1
 DATESTR remove test1 dsc ugly source simple 1
 EOF
 testrun - -b . remove test2 simple 3<<EOF
-*=To be forgotten filekey 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' was not known.
+*=Unable to forget unknown filekey 'pool/ugly/s/simple/simple_1_abacus.deb'.
 -v0*=There have been errors!
 stdout
 -v1=removing 'simple' from 'test2|ugly|${FAKEARCHITECTURE}'...
@@ -2347,6 +2348,7 @@ stdout
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -e1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to checksums.db(pool).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
 -e1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from checksums.db(pool).
@@ -2377,6 +2379,7 @@ stdout
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -e1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to checksums.db(pool).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
 -e1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from checksums.db(pool).
@@ -2417,6 +2420,7 @@ testrun - -b . include test2 broken.changes 3<<EOF
 stdout
 -e1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to checksums.db(pool).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 -e1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from checksums.db(pool).
@@ -2432,6 +2436,7 @@ testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
 stdout
 -e1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to checksums.db(pool).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
 -e1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 -d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from checksums.db(pool).

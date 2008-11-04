@@ -269,10 +269,10 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	return RET_OK;
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, bool *usedmarker) {
+retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata) {
 	return binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution, trackingdata,
-			pkg->component_atom, &pkg->filekeys, usedmarker,
+			pkg->component_atom, &pkg->filekeys,
 			pkg->deb.control);
 }
 
@@ -287,7 +287,6 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 	const struct overrideinfo *oinfo;
 	char *control;
 	struct checksums *checksums;
-	bool fileused = false;
 
 	causingfile = debfilename;
 
@@ -300,9 +299,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 		deb_free(pkg);
 		return r;
 	}
-	r = files_preinclude(database, debfilename, pkg->filekey, &checksums,
-			&fileused);
-	fileused = !fileused;
+	r = files_preinclude(database, debfilename, pkg->filekey, &checksums);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -312,8 +309,6 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 			pkg->deb.section, pkg->deb.priority, &control);
 	checksums_free(checksums);
 	if( RET_WAS_ERROR(r) ) {
-		if( !fileused )
-			files_deleteandremove(database, pkg->filekey, false);
 		deb_free(pkg);
 		return r;
 	}
@@ -325,9 +320,6 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 				pkg->deb.source, pkg->deb.sourceversion,
 				&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
-			if( !fileused )
-				files_deleteandremove(database, pkg->filekey,
-						false);
 			deb_free(pkg);
 			return r;
 		}
@@ -336,11 +328,8 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 	r = binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution,
 			(tracks!=NULL)?&trackingdata:NULL,
-			pkg->component_atom, &pkg->filekeys, &fileused,
+			pkg->component_atom, &pkg->filekeys,
 			pkg->deb.control);
-	assert( !RET_IS_OK(r) || fileused );
-	if( !fileused )
-		files_deleteandremove(database, pkg->filekey, false);
 	RET_UPDATE(distribution->status, r);
 	deb_free(pkg);
 

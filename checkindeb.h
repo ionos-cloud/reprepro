@@ -22,7 +22,7 @@ retvalue deb_add(struct database *, component_t forcecomponent, architecture_t f
 
 /* in two steps */
 struct debpackage;
-retvalue deb_addprepared(const struct debpackage *pkg, struct database *, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, bool *usedmarker);
+retvalue deb_addprepared(const struct debpackage *, struct database *, architecture_t forcearchitecture, packagetype_t, struct distribution *, struct trackingdata *);
 retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t, struct distribution *distribution, const char *debfilename, const char * const filekey, const struct checksums *checksums, const struct strlist *allowed_binaries, const char *expectedsourcename, const char *expectedsourceversion);
 void deb_free(/*@only@*/struct debpackage *pkg);
 #endif

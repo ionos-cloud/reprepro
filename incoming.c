@@ -1292,32 +1292,6 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 	return RET_OK;
 }
 
-static retvalue candidate_removefiles(struct database *database,struct candidate *c,struct candidate_perdistribution *stopat,struct candidate_package *stopatatstopat,int stopatatstopatatstopat) {
-	int j;
-	struct candidate_perdistribution *d;
-	struct candidate_package *p;
-	retvalue r;
-
-	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		for( p = d->packages ; p != NULL ; p = p->next ) {
-			for( j = 0 ; j < p->filekeys.count ; j++ ) {
-				if( d == stopat &&
-				    p == stopatatstopat &&
-				    j >= stopatatstopatatstopat )
-					return RET_OK;
-
-				if(  p->files[j] == NULL )
-					continue;
-				r = files_deleteandremove(database,
-						p->filekeys.values[j], true);
-				if( RET_WAS_ERROR(r) )
-					return r;
-			}
-		}
-	}
-	return RET_OK;
-}
-
 static retvalue candidate_addfiles(struct database *database,struct candidate *c) {
 	int j;
 	struct candidate_perdistribution *d;
@@ -1337,14 +1311,8 @@ static retvalue candidate_addfiles(struct database *database,struct candidate *c
 						f->tempfilename,
 						p->filekeys.values[j],
 						f->checksums);
-				if( !RET_IS_OK(r) )
-					/* when we did not add it, do not remove it: */
-					p->files[j] = NULL;
-				if( RET_WAS_ERROR(r) ) {
-					(void)candidate_removefiles(database,
-							c, d, p, j);
+				if( RET_WAS_ERROR(r) )
 					return r;
-				}
 			}
 		}
 	}
@@ -1355,8 +1323,6 @@ static retvalue add_dsc(struct database *database, struct distribution *into, st
 	retvalue r;
 	struct target *t = distribution_getpart(into,
 			p->component_atom, architecture_source, pt_dsc);
-	// TODO: use this information:
-	bool usedmarker = false;
 
 	assert( logger_isprepared(into->logger) );
 
@@ -1371,7 +1337,7 @@ static retvalue add_dsc(struct database *database, struct distribution *into, st
 					p->master->dsc.name,
 					p->master->dsc.version,
 					p->control,
-					&p->filekeys, &usedmarker,
+					&p->filekeys,
 					false, trackingdata,
 					architecture_source);
 		r2 = target_closepackagesdb(t);
@@ -1462,14 +1428,12 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					(tracks==NULL)?NULL:&trackingdata,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
-			// TODO: use this information?
-			bool usedmarker = false;
 			r = binaries_adddeb(&p->master->deb, database,
 					p->master->architecture_atom,
 					p->packagetype, into,
 					(tracks==NULL)?NULL:&trackingdata,
 					p->component_atom, &p->filekeys,
-					&usedmarker, p->control);
+					p->control);
 		} else if( p->master->type == fe_UNKNOWN ) {
 			/* finally add the .changes to tracking, if requested */
 			assert( p->master->name == NULL );
@@ -1737,10 +1701,8 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 	r = candidate_addfiles(database, c);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( interrupted() ) {
-		(void)candidate_removefiles(database,c,NULL,NULL,0);
+	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
-	}
 	r = RET_OK;
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
 		if( d->skip )

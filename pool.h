@@ -10,9 +10,19 @@
 
 extern bool pool_havedereferenced;
 
-retvalue pool_addfile(const char *);
+/* called from references.c to note the file lost a reference */
 retvalue pool_dereferenced(const char *);
-retvalue pool_removeunreferenced(struct database *);
-void pool_printunreferenced(struct database *);
+/* called from files.c to note the file was added or forgotten */
+retvalue pool_markadded(const char *);
+retvalue pool_markdeleted(const char *);
+
+/* Remove all files that lost their last reference, or only count them */
+retvalue pool_removeunreferenced(struct database *, bool delete);
+
+/* Delete all added files that are not used, or only count them */
+void pool_tidyadded(struct database*, bool deletenew);
+
+/* delete and forget a single file */
+retvalue pool_delete(struct database *, const char *);
 
 #endif

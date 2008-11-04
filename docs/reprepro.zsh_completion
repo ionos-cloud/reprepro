@@ -303,6 +303,7 @@ _arguments \
 	'(--nonothingiserror)--nothingiserror[Return error code when nothing was done]' \
 	'(--listsdownload --nonolistsdownload)--nolistsdownload[Do not download Release nor index files]' \
 	'(--nokeepunreferencedfiles)--keepunreferencedfiles[Do not delete files that are no longer used]' \
+	'(--nokeepunusednewfiles)--keepunusednewfiles[Do not delete newly added files that later were found to not be used]' \
 	'(--nokeepdirectories)--keepdirectories[Do not remove directories when they get emtpy]' \
 	'(--noask-passphrase)--ask-passphrase[Ask for passphrases (insecure)]' \
   	'(--nonoskipold --skipold)--noskipold[Do not ignore parts where no new index file is available]' \

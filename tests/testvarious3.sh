@@ -583,6 +583,7 @@ stdout
 -d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to checksums.db(pool).
 -e1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to checksums.db(pool).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
 -e1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
@@ -606,9 +607,6 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 *=Unable to find pool/all/a/ab/ab_3-1.tar.gz!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option.
 *=--ignore=missingfile was given, searching for file...
-*=Warning: File 'pool/all/a/ab/ab_3-1.diff.gz' was listed in the .changes
-*= but seems unused. Checking for references...
-*= indeed unused, deleting it...
 stdout
 -e1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to files.db(md5sums).
 -d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to checksums.db(pool).
@@ -619,6 +617,7 @@ stdout
 -d1*=db: 'ab' removed from packages.db(a|all|source).
 -d1*=db: 'ab' added to packages.db(a|all|source).
 -t1*=db: 'ab' '2-1' removed from tracking.db(a).
+-v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
 -d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from checksums.db(pool).
 -e1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
