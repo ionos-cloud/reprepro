@@ -191,7 +191,9 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 
 	/* calculate the length and mark possible fillers being needed */
 
-	ar->currentheader.ah_size[11] = '\0'; // ugly, but it works
+	/* make ah_size null-terminated by overwriting the following field */
+	assert( &ar->currentheader.ah_magictrailer[0] == ar->currentheader.ah_size + 10 );
+	ar->currentheader.ah_magictrailer[0] = '\0';
 
 	ar->member_size = strtoul(ar->currentheader.ah_size,&p,10);
 	if( *p != '\0' && *p != ' ' ) {
