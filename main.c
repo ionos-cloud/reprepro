@@ -33,7 +33,6 @@
 #include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
-#include "atoms.h"
 #include "dirs.h"
 #include "names.h"
 #include "files.h"
@@ -62,9 +61,6 @@
 #include "override.h"
 #include "log.h"
 #include "copypackages.h"
-#include "uncompression.h"
-#include "sourceextraction.h"
-#include "pool.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -97,15 +93,13 @@ static char /*@only@*/ /*@null@*/
 	*x_priority = NULL,
 	*x_component = NULL,
 	*x_architecture = NULL,
-	*x_packagetype = NULL,
-	*gunzip = NULL,
-	*bunzip2 = NULL,
-	*unlzma = NULL;
+	*x_packagetype = NULL;
 static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
 static bool	keepunreferenced = false;
-static bool	keepunusednew = false;
+static bool	keepunneededlists = false;
+static bool	keepdirectories = false;
 static bool	askforpassphrase = false;
 static bool	guessgpgtty = true;
 static bool	skipold = true;
@@ -125,15 +119,12 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
 					owner_ ## variable = config_state; \
 					variable = value; }
-#define CONFIGGSET(variable,value) if(owner_ ## variable <= config_state) { \
-					owner_ ## variable = config_state; \
-					global.variable = value; }
 #define CONFIGDUP(variable,value) if(owner_ ## variable <= config_state) { \
 					owner_ ## variable = config_state; \
 					free(variable); \
@@ -143,87 +134,126 @@ O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_co
 						exit(EXIT_FAILURE); \
 					} }
 
+static inline retvalue removeunreferencedfiles(struct database *database,struct strlist *dereferencedfilekeys) {
+	int i;
+	retvalue result,r;
+	result = RET_OK;
+
+	for( i = 0 ; i < dereferencedfilekeys->count ; i++ ) {
+		const char *filekey = dereferencedfilekeys->values[i];
+
+		r = references_isused(database,filekey);
+		if( r == RET_NOTHING ) {
+			r = files_deleteandremove(database, filekey,
+					!keepdirectories, true);
+			if( r == RET_NOTHING ) {
+				/* not found, check if it was us removing it */
+				int j;
+				for( j = i-1 ; j >= 0 ; j-- ) {
+					if( strcmp(dereferencedfilekeys->values[i],
+					    dereferencedfilekeys->values[j]) == 0 )
+						break;
+				}
+				if( j < 0 ) {
+					fprintf(stderr, "To be forgotten filekey '%s' was not known.\n", dereferencedfilekeys->values[i]);
+					r = RET_ERROR_MISSING;
+				}
+			}
+		}
+		RET_UPDATE(result,r);
+	}
+	return result;
+}
+
 #define y(type,name) type name
 #define n(type,name) UNUSED(type dummy_ ## name)
 
 #define ACTION_N(act,sp,name) static retvalue action_n_ ## act ## _ ## sp ## _ ## name ( \
 			UNUSED(struct distribution *dummy2), \
 			UNUSED(struct database *dummy),	\
+			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			int argc,const char *argv[])
 
 #define ACTION_C(act,sp,name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions, \
 			UNUSED(struct database *dummy),	\
+			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			int argc,const char *argv[])
 
 #define ACTION_B(act,sp,u,name) static retvalue action_b_ ## act ## _ ## sp ## _ ## name ( \
 			u(struct distribution *,alldistributions), \
 			struct database *database,	\
+			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			int argc,const char *argv[])
 
 #define ACTION_R(act,sp,d,a,name) static retvalue action_r_ ## act ## _ ## sp ## _ ## name ( \
 			d(struct distribution *, alldistributions), \
 			struct database *database,		\
+			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			a(int, argc), a(const char *, argv[]))
 
 #define ACTION_T(act,sp,name) static retvalue action_t_ ## act ## _ ## sp ## _ ## name ( \
 			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
+			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			UNUSED(int argc), UNUSED(const char *dummy4[]))
 
 #define ACTION_F(act,sp,d,a,name) static retvalue action_f_ ## act ## _ ## sp ## _ ## name ( \
 			d(struct distribution *,alldistributions), \
 			struct database *database,		\
+			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			a(int, argc), a(const char *, argv[]))
 
 #define ACTION_RF(act,sp,u,name) static retvalue action_rf_ ## act ## _ ## sp ## _ ## name ( \
 			u(struct distribution *, alldistributions), \
 			struct database *database,		\
+			UNUSED(struct strlist* dummy3), \
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			u(int, argc), u(const char *, argv[]))
 
 #define ACTION_D(act,sp,u,name) static retvalue action_d_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions, \
 			struct database *database,		\
+			struct strlist* dereferenced, 	\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			u(int,argc), u(const char *,argv[]))
 
 ACTION_N(n, n, printargs) {
@@ -236,54 +266,6 @@ ACTION_N(n, n, printargs) {
 	return RET_OK;
 }
 
-ACTION_N(n, n, dumpuncompressors) {
-	enum compression c;
-
-	assert( argc == 1 );
-	for( c = 0 ; c < c_COUNT ; c++ ) {
-		if( c == c_none )
-			continue;
-		printf("%s: ", uncompression_suffix[c]);
-		if( uncompression_builtin(c) ) {
-			if( extern_uncompressors[c] != NULL )
-				printf("built-in + '%s'\n",
-						extern_uncompressors[c]);
-			else
-				printf("built-in\n");
-		} else if( extern_uncompressors[c] != NULL )
-			printf("'%s'\n", extern_uncompressors[c]);
-		else switch( c ) {
-			case c_bzip2:
-				printf("not supported (install bzip2 or use --bunzip2 to tell where bunzip2 is).\n");
-
-				break;
-			case c_lzma:
-				printf("not supported (install lzma or use --unlzma to tell where unlzma is).\n");
-				break;
-			default:
-				printf("not supported\n");
-		}
-	}
-	return RET_OK;
-}
-ACTION_N(n, n, uncompress) {
-	enum compression c;
-
-	assert( argc == 4 );
-	c = c_none + 1;
-	while( c < c_COUNT && strcmp(argv[1], uncompression_suffix[c]) != 0 )
-		c++;
-	if( c >= c_COUNT ) {
-		fprintf(stderr, "Unknown compression format '%s'\n", argv[1]);
-		return RET_ERROR;
-	}
-	if( !uncompression_supported(c) ) {
-		fprintf(stderr, "Cannot uncompress format '%s'\nCheck __dumpuncompressors for more details.\n", argv[1]);
-		return RET_ERROR;
-	}
-	return uncompress_file(argv[2], argv[3], c);
-}
-
 ACTION_N(n, n, extractcontrol) {
 	retvalue result;
 	char *control;
@@ -292,10 +274,8 @@ ACTION_N(n, n, extractcontrol) {
 
 	result = extractcontrol(&control,argv[1]);
 
-	if( RET_IS_OK(result) ) {
-		puts(control);
-		free(control);
-	}
+	if( RET_IS_OK(result) )
+		printf("%s\n",control);
 	return result;
 }
 
@@ -351,72 +331,6 @@ ACTION_N(n, n, extractfilelist) {
 		}
 		free(filelist);
 	}
-	return result;
-}
-
-ACTION_N(n, n, extractsourcesection) {
-	struct dsc_headers dsc;
-	struct sourceextraction *extraction;
-	char *section = NULL, *priority = NULL, *directory, *filename;
-	retvalue result, r;
-	bool broken;
-	int i;
-
-	assert( argc == 2 );
-
-	r = sources_readdsc(&dsc, argv[1], argv[1], &broken);
-	if( !RET_IS_OK(r) )
-		return r;
-	if( broken && !IGNORING_(brokensignatures,
-"'%s' contains only broken signatures.\n"
-"This most likely means the file was damaged or edited improperly\n",
-				argv[1]) )
-		return RET_ERROR;
-	r = dirs_getdirectory(argv[1], &directory);
-	if( RET_WAS_ERROR(r) ) {
-		sources_done(&dsc);
-		return r;
-	}
-	assert( RET_IS_OK(r) );
-
-	extraction = sourceextraction_init(&section, &priority);
-	if( FAILEDTOALLOC(extraction) ) {
-		sources_done(&dsc);
-		return RET_ERROR_OOM;
-	}
-	for( i = 0 ; i < dsc.files.names.count ; i ++ )
-		sourceextraction_setpart(extraction, i,
-				dsc.files.names.values[i]);
-	result = RET_OK;
-	while( sourceextraction_needs(extraction, &i) ) {
-		filename = calc_dirconcat(directory, dsc.files.names.values[i]);
-		if( FAILEDTOALLOC(filename) ) {
-			result = RET_ERROR_OOM;
-			break;
-		}
-		r = sourceextraction_analyse(extraction, filename);
-		free(filename);
-		if( RET_WAS_ERROR(r) ) {
-			result = r;
-			break;
-		}
-	}
-	free(directory);
-	if( RET_WAS_ERROR(result) ) {
-		sourceextraction_abort(extraction);
-	} else {
-		r = sourceextraction_finish(extraction);
-		RET_UPDATE(result, r);
-	}
-	if( RET_IS_OK(result) ) {
-		if( section != NULL )
-			printf("Section: %s\n", section);
-		if( priority != NULL )
-			printf("Priority: %s\n", priority);
-	}
-	sources_done(&dsc);
-	free(section);
-	free(priority);
 	return result;
 }
 
@@ -483,7 +397,7 @@ ACTION_F(n, n, n, n, addmd5sums) {
 
 ACTION_R(n, n, n, y, removereferences) {
 	assert( argc == 2 );
-	return references_remove(database, argv[1]);
+	return references_remove(database, argv[1], NULL);
 }
 
 
@@ -544,7 +458,8 @@ static retvalue deleteifunreferenced(void *data, const char *filekey) {
 
 	r = references_isused(database,filekey);
 	if( r == RET_NOTHING ) {
-		r = pool_delete(database, filekey);
+		r = files_deleteandremove(database, filekey,
+				!keepdirectories, false);
 		return r;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
@@ -568,19 +483,24 @@ ACTION_R(n, n, n, y, addreference) {
 	return references_increment(database, argv[1], argv[2]);
 }
 
-static retvalue remove_from_target(struct database *db, struct distribution *distribution, struct trackingdata *trackingdata, struct target *target, int count, const char * const *names, int *todo, bool *gotremoved) {
+
+struct remove_args {/*@temp@*/struct database *db; int count; /*@temp@*/ const char * const *names; bool *gotremoved; int todo;/*@temp@*/struct strlist *removedfiles;/*@temp@*/struct trackingdata *trackingdata;struct logger *logger;};
+
+static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
+		UNUSED(struct distribution *dummy)) {
 	retvalue result,r;
 	int i;
+	struct remove_args *d = data;
 
 	result = RET_NOTHING;
-	for( i = 0 ; i < count ; i++ ){
-		r = target_removepackage(target, distribution->logger, db,
-				names[i], trackingdata);
-		RET_UPDATE(distribution->status, r);
+	for( i = 0 ; i < d->count ; i++ ){
+		r = target_removepackage(target, d->logger, d->db,
+				d->names[i],
+				d->removedfiles, d->trackingdata);
 		if( RET_IS_OK(r) ) {
-			if( !gotremoved[i] )
-				(*todo)--;
-			gotremoved[i] = true;
+			if( ! d->gotremoved[i] )
+				d->todo--;
+			d->gotremoved[i] = true;
 		}
 		RET_UPDATE(result,r);
 	}
@@ -590,10 +510,7 @@ static retvalue remove_from_target(struct database *db, struct distribution *dis
 ACTION_D(y, n, y, remove) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct target *t;
-	bool *gotremoved;
-	int todo;
-
+	struct remove_args d;
 	trackingdb tracks;
 	struct trackingdata trackingdata;
 
@@ -616,63 +533,55 @@ ACTION_D(y, n, y, remove) {
 			(void)tracking_done(tracks);
 			return r;
 		}
+		d.trackingdata = &trackingdata;
+	} else {
+		d.trackingdata = NULL;
 	}
 
-	todo = argc-2;
-	gotremoved = calloc(argc-2, sizeof(*gotremoved));
-	result = RET_NOTHING;
-	if( FAILEDTOALLOC(gotremoved) )
+	d.count = argc-2;
+	d.names = argv+2;
+	d.todo = d.count;
+	d.gotremoved = calloc(d.count,sizeof(*d.gotremoved));
+	d.db = database;
+	d.removedfiles = dereferenced;
+	d.logger = distribution->logger;
+	if( d.gotremoved == NULL )
 		result = RET_ERROR_OOM;
-	else for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		 if( !target_matches(t, component, architecture, packagetype) )
-			 continue;
-		 r = target_initpackagesdb(t, database, READWRITE);
-		 RET_UPDATE(result, r);
-		 if( RET_WAS_ERROR(r) )
-			 break;
-		 r = remove_from_target(database,
-				 distribution,
-				 (distribution->tracking != dt_NONE)?&trackingdata:NULL,
-				 t, argc-2, argv+2,
-				 &todo, gotremoved);
-		 RET_UPDATE(result, r);
-		 r = target_closepackagesdb(t);
-		 RET_UPDATE(distribution->status, r);
-		 RET_UPDATE(result, r);
-		 if( RET_WAS_ERROR(result) )
-			 break;
-	}
+	else
+		result = distribution_foreach_rwopenedpart(distribution, database,
+				component, architecture, packagetype,
+				remove_from_target, &d);
+	d.db = NULL;
+	d.removedfiles = NULL;
 
 	logger_wait();
 
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result,r);
 
-	if( distribution->tracking != dt_NONE ) {
+	if( d.trackingdata != NULL ) {
 		if( RET_WAS_ERROR(result) )
-			trackingdata_done(&trackingdata);
+			trackingdata_done(d.trackingdata);
 		else
-			trackingdata_finish(tracks, &trackingdata, database);
+			trackingdata_finish(tracks, d.trackingdata, database, dereferenced);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
-	if( verbose >= 0 && !RET_WAS_ERROR(result) && todo > 0 ) {
-		int i = argc - 2;
-
-		(void)fputs("Not removed as not found: ", stderr);
-		while( i > 0 ) {
-			i--;
-			assert(gotremoved != NULL);
-			if( !gotremoved[i] ) {
-				(void)fputs(argv[2 + i], stderr);
-				todo--;
-				if( todo > 0 )
-					(void)fputs(", ", stderr);
+	if( verbose >= 0 && !RET_WAS_ERROR(result) && d.todo > 0 ) {
+		(void)fputs("Not removed as not found: ",stderr);
+		while( d.count > 0 ) {
+			d.count--;
+			assert(d.gotremoved != NULL);
+			if( ! d.gotremoved[d.count] ) {
+				(void)fputs(d.names[d.count],stderr);
+				d.todo--;
+				if( d.todo > 0 )
+					(void)fputs(", ",stderr);
 			}
 		}
-		(void)fputc('\n', stderr);
+		(void)fputc('\n',stderr);
 	}
-	free(gotremoved);
+	free(d.gotremoved);
 	return result;
 }
 
@@ -738,7 +647,8 @@ ACTION_D(n, n, y, removesrc) {
 	if( tracks != NULL ) {
 		result = tracking_removepackages(tracks, database,
 				distribution,
-				argv[2], (argc <= 3)?NULL:argv[3]);
+				argv[2], (argc <= 3)?NULL:argv[3],
+				dereferenced);
 		if( RET_WAS_ERROR(r) ) {
 			r = tracking_done(tracks);
 			RET_ENDUPDATE(result,r);
@@ -775,9 +685,8 @@ ACTION_D(n, n, y, removesrc) {
 	else
 		data.sourceversion = argv[3];
 	result = distribution_remove_packages(distribution, database,
-			// TODO: why not arch comp pt here?
-			atom_unknown, atom_unknown, atom_unknown,
-			package_source_fits, NULL,
+			NULL, NULL, NULL,
+			package_source_fits, dereferenced, NULL,
 			&data);
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
@@ -836,13 +745,14 @@ ACTION_D(y, n, y, removefilter) {
 
 	result = distribution_remove_packages(distribution, database,
 			component, architecture, packagetype,
-			package_matches_condition,
+			package_matches_condition, dereferenced,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
 	if( tracks != NULL ) {
-		trackingdata_finish(tracks, &trackingdata, database);
+		trackingdata_finish(tracks, &trackingdata,
+					database, dereferenced);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
 	}
@@ -850,13 +760,11 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
-static retvalue list_in_target(struct database *database, struct target *target, const char *packagename) {
+static retvalue list_in_target(void *data, struct target *target,
+		UNUSED(struct distribution *distribution)) {
 	retvalue r,result;
+	const char *packagename = data;
 	char *control,*version;
-
-	r = target_initpackagesdb(target, database, READONLY);
-	if( !RET_IS_OK(r) )
-		return r;
 
 	result = table_getrecord(target->packages, packagename, &control);
 	if( RET_IS_OK(result) ) {
@@ -869,8 +777,6 @@ static retvalue list_in_target(struct database *database, struct target *target,
 		}
 		free(control);
 	}
-	r = target_closepackagesdb(target);
-	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -892,7 +798,6 @@ static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct dist
 ACTION_B(y, n, y, list) {
 	retvalue r;
 	struct distribution *distribution;
-	struct target *t;
 
 	assert( argc >= 2 );
 
@@ -905,14 +810,10 @@ ACTION_B(y, n, y, list) {
 		return distribution_foreach_package(distribution, database,
 			component, architecture, packagetype,
 			list_package, NULL, NULL);
-	else for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
-			continue;
-		r = list_in_target(database, t, argv[2]);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-	return r;
+	else
+		return distribution_foreach_roopenedpart(distribution, database,
+			component, architecture, packagetype,
+			list_in_target, (void*)argv[2]);
 }
 
 
@@ -994,7 +895,7 @@ ACTION_F(n, n, n, y, forget) {
 	ret = RET_NOTHING;
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
-			r = files_remove(database, argv[i]);
+			r = files_remove(database, argv[i], false);
 			RET_UPDATE(ret,r);
 		}
 
@@ -1005,7 +906,7 @@ ACTION_F(n, n, n, y, forget) {
 				return RET_ERROR;
 			}
 			*nl = '\0';
-			r = files_remove(database, buffer);
+			r = files_remove(database, buffer, false);
 			RET_UPDATE(ret,r);
 		}
 	return ret;
@@ -1103,21 +1004,18 @@ ACTION_D(n, n, y, update) {
 
 	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
-	if( !RET_IS_OK(result) ) {
-		if( result == RET_NOTHING ) {
-			if( argc == 1 )
-				fputs("Nothing to do, because no distribution has an Update: field.\n", stderr);
-			else
-				fputs("Nothing to do, because none of the selected distributions has an Update: field.\n", stderr);
-		}
+	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;
 	}
 	assert( RET_IS_OK(result) );
 
+	if( !keepunneededlists ) {
+		result = updates_clearlists(u_distributions);
+	}
 	if( !RET_WAS_ERROR(result) )
 		result = updates_update(database, u_distributions,
-				nolistsdownload, skipold,
+				nolistsdownload, skipold, dereferenced,
 				spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
@@ -1151,20 +1049,17 @@ ACTION_D(n, n, y, predelete) {
 
 	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
-	if( !RET_IS_OK(result) ) {
-		if( result == RET_NOTHING ) {
-			if( argc == 1 )
-				fputs("Nothing to do, because no distribution has an Update: field.\n", stderr);
-			else
-				fputs("Nothing to do, because none of the selected distributions has an Update: field.\n", stderr);
-		}
+	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;
 	}
 	assert( RET_IS_OK(result) );
 
+	if( !keepunneededlists ) {
+		result = updates_clearlists(u_distributions);
+	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_predelete(database, u_distributions, nolistsdownload, skipold);
+		result = updates_predelete(database, u_distributions, nolistsdownload, skipold, dereferenced);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -1196,13 +1091,7 @@ ACTION_B(n, n, y, checkupdate) {
 
 	result = updates_calcindices(patterns, alldistributions, fast,
 			&u_distributions);
-	if( !RET_IS_OK(result) ) {
-		if( result == RET_NOTHING ) {
-			if( argc == 1 )
-				fputs("Nothing to do, because no distribution has an Updates: field.\n", stderr);
-			else
-				fputs("Nothing to do, because none of the selected distributions has an Update: field.\n", stderr);
-		}
+	if( RET_WAS_ERROR(result) ) {
 		updates_freepatterns(patterns);
 		return result;
 	}
@@ -1215,15 +1104,6 @@ ACTION_B(n, n, y, checkupdate) {
 
 	return result;
 }
-
-ACTION_C(n, n, cleanlists) {
-#warning TODO: do not forget to implement this...
-	// TODO: when this is implemented, also log the database?
-	fprintf(stderr, "Sorry, not yet implemented.\n");
-
-	return RET_ERROR;
-}
-
 /***********************migrate*******************************/
 
 ACTION_D(n, n, y, pull) {
@@ -1247,7 +1127,7 @@ ACTION_D(n, n, y, pull) {
 		pull_freerules(rules);
 		return result;
 	}
-	result = pull_update(database, p);
+	result = pull_update(database, p, dereferenced);
 
 	pull_freerules(rules);
 	pull_freedistributions(p);
@@ -1304,7 +1184,7 @@ ACTION_D(y, n, y, copy) {
 		return result;
 
 	r = copy_by_name(database, destination, source, argc-3, argv+3,
-			component, architecture, packagetype);
+			component, architecture, packagetype, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1333,7 +1213,7 @@ ACTION_D(y, n, y, copysrc) {
 		return result;
 
 	r = copy_by_source(database, destination, source, argc-3, argv+3,
-			component, architecture, packagetype);
+			component, architecture, packagetype, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1363,7 +1243,7 @@ ACTION_D(y, n, y, copyfilter) {
 		return result;
 
 	r = copy_by_formula(database, destination, source, argv[3],
-			component, architecture, packagetype);
+			component, architecture, packagetype, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1388,7 +1268,7 @@ ACTION_D(y, n, y, restore) {
 
 	r = restore_by_name(database, destination,
 			component, architecture, packagetype, argv[2],
-			argc-3, argv+3);
+			argc-3, argv+3, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1414,7 +1294,7 @@ ACTION_D(y, n, y, restoresrc) {
 
 	r = restore_by_source(database, destination,
 			component, architecture, packagetype, argv[2],
-			argc-3, argv+3);
+			argc-3, argv+3, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1441,7 +1321,7 @@ ACTION_D(y, n, y, restorefilter) {
 
 	r = restore_by_formula(database, destination,
 			component, architecture, packagetype, argv[2],
-			argv[3]);
+			argv[3], dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1456,16 +1336,15 @@ ACTION_D(y, n, y, addpackage) {
 	struct distribution *destination;
 	retvalue result, r;
 
-	if( !atom_defined(packagetype) && atom_defined(architecture) &&
-			architecture == architecture_source )
-		packagetype = pt_dsc;
-	if( atom_defined(packagetype) && !atom_defined(architecture) &&
-			packagetype == pt_dsc )
-		architecture = architecture_source;
+	if( packagetype == NULL && architecture != NULL &&
+			strcmp(architecture, "source") == 0 )
+		packagetype = "dsc";
+	if( packagetype != NULL && architecture == NULL &&
+			strcmp(packagetype, "dsc") == 0 )
+		architecture = "source";
 	// TODO: some more guesses based on components and udebcomponents
 
-	if( !atom_defined(architecture) || !atom_defined(component) ||
-			!atom_defined(packagetype) ) {
+	if( architecture == NULL || component == NULL || packagetype == NULL ) {
 		fprintf(stderr, "_addpackage needs -C and -A and -T set!\n");
 		return RET_ERROR;
 	}
@@ -1480,7 +1359,7 @@ ACTION_D(y, n, y, addpackage) {
 
 	r = copy_from_file(database, destination,
 			component, architecture, packagetype, argv[2],
-			argc-3, argv+3);
+			argc-3, argv+3, dereferenced);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1568,13 +1447,13 @@ ACTION_D(n, n, y, retrack) {
 		if( !RET_WAS_ERROR(r) ) {
 			/* add back information about actually used files */
 			r = distribution_foreach_package(d, database,
-					atom_unknown, atom_unknown, atom_unknown,
+					NULL, NULL, NULL,
 					package_retrack, NULL, tracks);
 			RET_UPDATE(result,r);
 		}
 		if( !RET_WAS_ERROR(r) ) {
 			/* now remove everything no longer needed */
-			r = tracking_tidyall(tracks, database);
+			r = tracking_tidyall(tracks, database, dereferenced);
 			RET_UPDATE(result,r);
 		}
 		r = tracking_done(tracks);
@@ -1601,7 +1480,7 @@ ACTION_D(n, n, y, removetrack) {
 		return r;
 	}
 
-	result = tracking_remove(tracks, argv[2], argv[3], database);
+	result = tracking_remove(tracks, argv[2], argv[3], database, dereferenced);
 
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
@@ -1637,7 +1516,7 @@ ACTION_D(n, n, y, removealltracks) {
 			printf("Deleting all tracks for %s...\n", codename);
 		}
 
-		r = tracking_drop(database, codename);
+		r = tracking_drop(database, codename, dereferenced);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
 			break;
@@ -1673,7 +1552,7 @@ ACTION_D(n, n, y, tidytracks) {
 			continue;
 
 		if( d->tracking == dt_NONE ) {
-			r = tracking_drop(database, d->codename);
+			r = tracking_drop(database, d->codename, dereferenced);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
@@ -1690,7 +1569,7 @@ ACTION_D(n, n, y, tidytracks) {
 				break;
 			continue;
 		}
-		r = tracking_tidyall(tracks, database);
+		r = tracking_tidyall(tracks, database, dereferenced);
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
@@ -1841,19 +1720,19 @@ ACTION_D(y, y, y, includedeb) {
 	trackingdb tracks;
 	int i = 0;
 
-	if( architecture == architecture_source ) {
+	if( architecture != NULL && strcmp(architecture,"source") == 0 ) {
 		fprintf(stderr,"Error: -A source is not possible with includedeb!\n");
 		return RET_ERROR;
 	}
 	if( strcmp(argv[0],"includeudeb") == 0 ) {
 		isudeb = true;
-		if( limitation_missed(packagetype, pt_udeb) ) {
+		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
 			fprintf(stderr,"Calling includeudeb with a -T different from 'udeb' makes no sense!\n");
 			return RET_ERROR;
 		}
 	} else if( strcmp(argv[0],"includedeb") == 0 ) {
 		isudeb = false;
-		if( limitation_missed(packagetype, pt_deb) ) {
+		if( packagetype != NULL && strcmp(packagetype,"deb") != 0 ) {
 			fprintf(stderr,"Calling includedeb with -T something where something is not 'deb' makes no sense!\n");
 			return RET_ERROR;
 		}
@@ -1894,13 +1773,8 @@ ACTION_D(y, y, y, includedeb) {
 	}
 
 	// TODO: same for component? (depending on type?)
-	if( atom_defined(architecture) &&
-			!atomlist_in(&distribution->architectures,
-				architecture) ){
-		fprintf(stderr,
-"Cannot force into the architecture '%s' not available in '%s'!\n",
-			atoms_architectures[architecture],
-			distribution->codename);
+	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
+		fprintf(stderr,"Cannot force into the architecture '%s' not available in '%s'!\n",architecture,distribution->codename);
 		return RET_ERROR;
 	}
 
@@ -1922,9 +1796,8 @@ ACTION_D(y, y, y, includedeb) {
 		const char *filename = argv[i];
 
 		r = deb_add(database, component, architecture,
-				section, priority, isudeb?pt_udeb:pt_deb,
-				distribution, filename,
-				delete, tracks);
+				section,priority,isudeb?"udeb":"deb",distribution,filename,
+				delete, dereferenced,tracks);
 		RET_UPDATE(result, r);
 	}
 
@@ -1949,11 +1822,11 @@ ACTION_D(y, y, y, includedsc) {
 
 	assert( argc == 3 );
 
-	if( limitation_missed(architecture, architecture_source) ) {
+	if( architecture != NULL && strcmp(architecture,"source") != 0 ) {
 		fprintf(stderr, "Cannot put a source package anywhere else than in architecture 'source'!\n");
 		return RET_ERROR;
 	}
-	if( limitation_missed(packagetype, pt_dsc) ) {
+	if( packagetype != NULL && strcmp(packagetype,"dsc") != 0 ) {
 		fprintf(stderr, "Cannot put a source package anywhere else than in type 'dsc'!\n");
 		return RET_ERROR;
 	}
@@ -1985,7 +1858,8 @@ ACTION_D(y, y, y, includedsc) {
 	}
 
 	result = dsc_add(database, component, section, priority,
-			distribution, argv[2], delete, tracks);
+			distribution, argv[2], delete,
+			dereferenced, tracks);
 	logger_wait();
 
 	distribution_unloadoverrides(distribution);
@@ -2036,7 +1910,7 @@ ACTION_D(y, y, y, include) {
 	result = changes_add(database, tracks,
 			packagetype, component, architecture,
 			section, priority, distribution,
-			argv[2], delete);
+			argv[2], delete, dereferenced);
 	if( RET_WAS_ERROR(result) )
 		RET_UPDATE(distribution->status, result);
 
@@ -2266,9 +2140,9 @@ ACTION_D(n, n, n, clearvanished) {
 	for( d = alldistributions; d != NULL ; d = d->next ) {
 		struct target *t;
 		for( t = d->targets; t != NULL ; t = t->next ) {
-			int ofs = strlist_ofs(&identifiers, t->identifier);
-			if( ofs >= 0 ) {
-				inuse[ofs] = true;
+			int i = strlist_ofs(&identifiers, t->identifier);
+			if( i >= 0 ) {
+				inuse[i] = true;
 				if( verbose > 6 )
 					printf(
 "Marking '%s' as used.\n", t->identifier);
@@ -2281,8 +2155,6 @@ ACTION_D(n, n, n, clearvanished) {
 	}
 	for( i = 0 ; i < identifiers.count ; i ++ ) {
 		const char *identifier = identifiers.values[i];
-		const char *p, *q;
-
 		if( inuse[i] )
 			continue;
 		if( interrupted() )
@@ -2307,41 +2179,8 @@ ACTION_D(n, n, n, clearvanished) {
 		// information can be updated.
 		printf(
 "Deleting vanished identifier '%s'.\n", identifier);
-		/* intern component and architectures, so parsing
-		 * has no problems (actually only need component now) */
-		p = identifier;
-		if( strncmp(p, "u|", 2) == 0 )
-			p += 2;
-		p = strchr(p, '|');
-		if( p != NULL ) {
-			p++;
-			q = strchr(p, '|');
-			if( q != NULL ) {
-				atom_t dummy;
-
-				char *component = strndup(p, q-p);
-				q++;
-				char *architecture = strdup(q);
-				if( FAILEDTOALLOC(component) ||
-						FAILEDTOALLOC(architecture) ) {
-					free(component);
-					free(architecture);
-					return RET_ERROR_OOM;
-				}
-				r = architecture_intern(architecture, &dummy);
-				free(architecture);
-				if( RET_WAS_ERROR(r) ) {
-					free(component);
-					return r;
-				}
-				r = component_intern(component, &dummy);
-				free(component);
-				if( RET_WAS_ERROR(r) )
-					return r;
-			}
-		}
 		/* derference anything left */
-		references_remove(database, identifier);
+		references_remove(database, identifier, dereferenced);
 		/* remove the database */
 		database_droppackages(database, identifier);
 	}
@@ -2359,7 +2198,8 @@ ACTION_D(n, n, n, clearvanished) {
 		for( i = 0 ; i < codenames.count ; i ++ ) {
 			printf("Deleting tracking data for vanished distribution '%s'.\n",
 					codenames.values[i]);
-			r = tracking_drop(database, codenames.values[i]);
+			r = tracking_drop(database, codenames.values[i],
+					dereferenced);
 			RET_UPDATE(result, r);
 		}
 		strlist_done(&codenames);
@@ -2402,7 +2242,7 @@ ACTION_D(n, n, y, processincoming) {
 	for( d = alldistributions ; d != NULL ; d = d->next )
 		d->selected = true;
 
-	result = process_incoming(database, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
+	result = process_incoming(database, dereferenced, alldistributions, argv[1], (argc==3)?argv[2]:NULL);
 
 	logger_wait();
 
@@ -2478,7 +2318,6 @@ ACTION_B(y, n, y, rerunnotifiers) {
 
 // TODO: this has become an utter mess and needs some serious cleaning...
 #define NEED_REFERENCES 1
-/* FILESDB now includes REFERENCED... */
 #define NEED_FILESDB 2
 #define NEED_DEREF 4
 #define NEED_DATABASE 8
@@ -2488,7 +2327,6 @@ ACTION_B(y, n, y, rerunnotifiers) {
 #define MAY_UNUSED 128
 #define NEED_ACT 256
 #define NEED_SP 512
-#define NEED_DELNEW 1024
 #define A_N(w) action_n_n_n_ ## w, 0
 #define A_C(w) action_c_n_n_ ## w, NEED_CONFIG
 #define A_ROB(w) action_b_n_n_ ## w, NEED_DATABASE|IS_RO
@@ -2513,11 +2351,12 @@ static const struct action {
 	retvalue (*start)(
 			/*@null@*/struct distribution *,
 			/*@null@*/struct database*,
+			/*@null@*/struct strlist *dereferencedfilekeys,
 			/*@null@*/const char *priority,
 			/*@null@*/const char *section,
-			/*@null@*/architecture_t,
-			/*@null@*/component_t,
-			/*@null@*/packagetype_t,
+			/*@null@*/const char *architecture,
+			/*@null@*/const char *component,
+			/*@null@*/const char *packagetype,
 			int argc,const char *argv[]);
 	int needs;
 	int minargs, maxargs;
@@ -2525,12 +2364,6 @@ static const struct action {
 } all_actions[] = {
 	{"__d", 		A_N(printargs),
 		-1, -1, NULL},
-	{"__dumpuncompressors",	A_N(dumpuncompressors),
-		0, 0, "__dumpuncompressors"},
-	{"__uncompress",	A_N(uncompress),
-		3, 3, "__uncompress .gz|.bz2|.lzma <compressed-filename> <into-filename>"},
-	{"__extractsourcesection", A_N(extractsourcesection),
-		1, 1, "__extractsourcesection <.dsc-file>"},
 	{"__extractcontrol",	A_N(extractcontrol),
 		1, 1, "__extractcontrol <.deb-file>"},
 	{"__extractfilelist",	A_N(extractfilelist),
@@ -2621,13 +2454,13 @@ static const struct action {
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorefilter <distribution> <snapshot-name> <formula>"},
 	{"checkpull",		A_B(checkpull),
 		0, -1, "checkpull [<distributions>]"},
-	{"includedeb",		A_Dactsp(includedeb)|NEED_DELNEW,
+	{"includedeb",		A_Dactsp(includedeb),
 		2, -1, "[--delete] includedeb <distribution> <.deb-file>"},
-	{"includeudeb",		A_Dactsp(includedeb)|NEED_DELNEW,
+	{"includeudeb",		A_Dactsp(includedeb),
 		2, -1, "[--delete] includeudeb <distribution> <.udeb-file>"},
-	{"includedsc",		A_Dactsp(includedsc)|NEED_DELNEW,
+	{"includedsc",		A_Dactsp(includedsc),
 		2, 2, "[--delete] includedsc <distribution> <package>"},
-	{"include",		A_Dactsp(include)|NEED_DELNEW,
+	{"include",		A_Dactsp(include),
 		2, 2, "[--delete] include <distribution> <.changes-file>"},
 	{"generatefilelists",	A_F(generatefilelists),
 		0, 1, "generatefilelists [reread]"},
@@ -2635,14 +2468,12 @@ static const struct action {
 		0, 0, "translatefilelists"},
 	{"clearvanished",	A_D(clearvanished)|MAY_UNUSED,
 		0, 0, "[--delete] clearvanished"},
-	{"processincoming",	A_D(processincoming)|NEED_DELNEW,
+	{"processincoming",	A_D(processincoming),
 		1, 2, "processincoming <rule-name> [<.changes file>]"},
 	{"gensnapshot",		A_R(gensnapshot),
 		2, 2, "gensnapshot <distribution> <date or other name>"},
 	{"rerunnotifiers",	A_Bact(rerunnotifiers),
 		0, -1, "rerunnotifiers [<distributions>]"},
-	{"cleanlists",		A_C(cleanlists),
-		0, 0,  "cleanlists"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N
@@ -2655,19 +2486,15 @@ static const struct action {
 #undef A_F
 #undef A__T
 
-static retvalue callaction(command_t command, const struct action *action, int argc, const char *argv[]) {
+static retvalue callaction(const struct action *action, int argc, const char *argv[]) {
 	retvalue result, r;
 	struct database *database;
+	struct strlist dereferencedfilekeys;
 	struct distribution *alldistributions = NULL;
-	bool deletederef, deletenew;
+	bool deletederef;
 	int needs;
-	architecture_t architecture = atom_unknown;
-	component_t component = atom_unknown;
-	packagetype_t packagetype = atom_unknown;
 
 	assert(action != NULL);
-
-	causingcommand_atom = command;
 
 	if( action->minargs >= 0 && argc < 1 + action->minargs ) {
 		fprintf(stderr, "Error: Too few arguments for command '%s'!\nSyntax: reprepro %s\n",
@@ -2684,7 +2511,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	if( !ISSET(needs, NEED_ACT) && ( x_architecture != NULL ) ) {
 		if( !IGNORING_(unusedoption,
 "Action '%s' cannot be restricted to an architecture!\n"
-"neither --archiecture nor -A make sense here.\n",
+"neither --archiecture or -A make sense here.\n",
 				action->name) )
 			return RET_ERROR;
 	}
@@ -2701,6 +2528,22 @@ static retvalue callaction(command_t command, const struct action *action, int a
 "neither --packagetype nor -T make sense here.\n",
 				action->name) )
 			return RET_ERROR;
+	}
+	if( ISSET(needs, NEED_ACT) &&
+	    x_architecture != NULL && x_packagetype != NULL ) {
+		if( strcmp(x_packagetype, "dsc") == 0 ) {
+			if( strcmp(x_architecture,"source") != 0 ) {
+				fprintf(stderr,
+"Error: Only -A source is possible with -T dsc!\n");
+				return RET_ERROR;
+			}
+		} else {
+			if( strcmp(x_architecture, "source") == 0 ) {
+				fprintf(stderr,
+"Error: -A source is not possible with -T deb or -T udeb!\n");
+				return RET_ERROR;
+			}
+		}
 	}
 
 	if( !ISSET(needs, NEED_SP) && ( x_section != NULL ) ) {
@@ -2727,68 +2570,18 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	}
 
 	if( !ISSET(needs, NEED_DATABASE) ) {
-		assert( (needs & ~NEED_CONFIG) == 0);
+		assert( (needs & !NEED_CONFIG) == 0);
 
-		result = action->start(alldistributions, NULL,
+		result = action->start(alldistributions, NULL, NULL,
 				x_section, x_priority,
-				atom_unknown, atom_unknown, atom_unknown,
+				x_architecture, x_component, x_packagetype,
 				argc, argv);
 		r = distribution_freelist(alldistributions);
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
-	if( ISSET(needs, NEED_ACT) ) {
-		if( x_architecture != NULL ) {
-			architecture = architecture_find(x_architecture);
-			if( !atom_defined(architecture) ) {
-				fprintf(stderr,
-"Error: Architecture '%s' as given to --architecture is not know.\n"
-"(it does not appear as architecture in %s/distributions (did you mistype?))\n",
-					x_architecture, global.confdir);
-				(void)distribution_freelist(alldistributions);
-				return RET_ERROR;
-			}
-		}
-		if( x_component != NULL ) {
-			component = component_find(x_component);
-			if( !atom_defined(component) ) {
-				fprintf(stderr,
-"Error: Component '%s' as given to --component is not know.\n"
-"(it does not appear as component in %s/distributions (did you mistype?))\n",
-					x_component, global.confdir);
-				(void)distribution_freelist(alldistributions);
-				return RET_ERROR;
-			}
-		}
-		if( x_packagetype != NULL ) {
-			packagetype = packagetype_find(x_packagetype);
-			if( !atom_defined(packagetype) ) {
-				fprintf(stderr,
-"Error: Packagetype '%s' as given to --packagetype is not know.\n"
-"(The only valid values currently are 'dsc', 'deb' and 'udeb')\n",
-						x_packagetype);
-				(void)distribution_freelist(alldistributions);
-				return RET_ERROR;
-			}
-		}
-		if( packagetype == pt_dsc &&
-				limitation_missed(architecture,
-					architecture_source) ) {
-			fprintf(stderr,
-"Error: Only -A source is possible with -T dsc!\n");
-			return RET_ERROR;
-		}
-		if( architecture == architecture_source &&
-				limitation_missed(packagetype, pt_dsc) ) {
-			fprintf(stderr,
-"Error: -A source is not possible with -T deb or -T udeb!\n");
-			return RET_ERROR;
-		}
-	}
-
 	deletederef = ISSET(needs,NEED_DEREF) && !keepunreferenced;
-	deletenew = ISSET(needs,NEED_DELNEW) && !keepunusednew;
 
 	result = database_create(&database, dbdir, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
@@ -2799,10 +2592,6 @@ static retvalue callaction(command_t command, const struct action *action, int a
 		(void)distribution_freelist(alldistributions);
 		return result;
 	}
-
-	/* adding files may check references to see if they were added */
-	if( ISSET(needs,NEED_FILESDB) )
-		needs |= NEED_REFERENCES;
 
 	if( ISSET(needs,NEED_REFERENCES) )
 		result = database_openreferences(database);
@@ -2818,42 +2607,40 @@ static retvalue callaction(command_t command, const struct action *action, int a
 
 			if( deletederef ) {
 				assert( ISSET(needs,NEED_REFERENCES) );
+				assert( ISSET(needs,NEED_REFERENCES) );
+				strlist_init(&dereferencedfilekeys);
 			}
 
 			if( !interrupted() ) {
 				result = action->start(alldistributions,
 					database,
+					deletederef?&dereferencedfilekeys:NULL,
 					x_section, x_priority,
-					architecture, component, packagetype,
-					argc, argv);
-				/* wait for package specific loggers */
-				logger_wait();
-				/* remove files added but not used */
-				pool_tidyadded(database, deletenew);
+					x_architecture, x_component,
+					x_packagetype,
+					argc,argv);
 
-				// TODO: tell hook script the added files
-				// TODO: tell hook scripts the modified distributions
+				if( deletederef ) {
+					if( dereferencedfilekeys.count > 0 ) {
+					    if( RET_IS_OK(result) && !interrupted() ) {
+						logger_wait();
 
-				/* delete files losing references, or
-				 * tell how many lost their references */
-
-				// TODO: instead check if any distribution that
-				// was not exported lost files
-				// (and in a far future do not remove references
-				// before the index is written)
-				if( deletederef && RET_WAS_ERROR(result) ) {
-					deletederef = false;
-					if( pool_havedereferenced ) {
-						fprintf(stderr,
+						if( verbose >= 0 )
+					  	    printf(
+"Deleting files no longer referenced...\n");
+						r = removeunreferencedfiles(
+							database,
+							&dereferencedfilekeys);
+						RET_UPDATE(result,r);
+					    } else {
+						    fprintf(stderr,
 "Not deleting possibly left over files due to previous errors.\n"
 "(To keep the files in the still existing index files from vanishing)\n"
-"Use dumpunreferenced/deleteunreferenced to show/delete files without references.\n");
+"Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
+					    }
 					}
+					strlist_done(&dereferencedfilekeys);
 				}
-				r = pool_removeunreferenced(database, deletederef);
-				RET_ENDUPDATE(result, r);
-
-				// TODO: tell hook scripts the deleted files
 			}
 		}
 	}
@@ -2871,7 +2658,6 @@ static retvalue callaction(command_t command, const struct action *action, int a
 
 enum { LO_DELETE=1,
 LO_KEEPUNREFERENCED,
-LO_KEEPUNUSEDNEW,
 LO_KEEPUNNEEDEDLISTS,
 LO_NOTHINGISERROR,
 LO_NOLISTDOWNLOAD,
@@ -2882,7 +2668,6 @@ LO_SKIPOLD,
 LO_GUESSGPGTTY,
 LO_NODELETE,
 LO_NOKEEPUNREFERENCED,
-LO_NOKEEPUNUSEDNEW,
 LO_NOKEEPUNNEEDEDLISTS,
 LO_NONOTHINGISERROR,
 LO_LISTDOWNLOAD,
@@ -2909,37 +2694,32 @@ LO_WAITFORLOCK,
 LO_SPACECHECK,
 LO_SAFETYMARGIN,
 LO_DBSAFETYMARGIN,
-LO_GUNZIP,
-LO_BUNZIP2,
-LO_UNLZMA,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
 
-static void setexport(const char *argument) {
-	if( strcasecmp(argument, "never") == 0 ) {
+static void setexport(const char *optarg) {
+	if( strcasecmp(optarg, "never") == 0 ) {
 		CONFIGSET(export, EXPORT_NEVER);
 		return;
 	}
-	if( strcasecmp(argument, "changed") == 0 ) {
+	if( strcasecmp(optarg, "changed") == 0 ) {
 		CONFIGSET(export, EXPORT_CHANGED);
 		return;
 	}
-	if( strcasecmp(argument, "normal") == 0 ) {
+	if( strcasecmp(optarg, "normal") == 0 ) {
 		CONFIGSET(export, EXPORT_NORMAL);
 		return;
 	}
-	if( strcasecmp(argument, "lookedat") == 0 ) {
+	if( strcasecmp(optarg, "lookedat") == 0 ) {
 		CONFIGSET(export, EXPORT_NORMAL);
 		return;
 	}
-	if( strcasecmp(argument, "force") == 0 ) {
+	if( strcasecmp(optarg, "force") == 0 ) {
 		CONFIGSET(export, EXPORT_FORCE);
 		return;
 	}
-	fprintf(stderr,
-"Error: --export needs an argument of 'never', 'normal' or 'force', but got '%s'\n",
-			argument);
+	fprintf(stderr,"Error: --export needs an argument of 'never', 'normal' or 'force', but got '%s'\n", optarg);
 	exit(EXIT_FAILURE);
 }
 
@@ -2959,7 +2739,7 @@ static unsigned long long parse_number(const char *name, const char *argument, l
 	return l;
 }
 
-static void handle_option(int c, const char *argument) {
+static void handle_option(int c,const char *optarg) {
 	retvalue r;
 
 	switch( c ) {
@@ -3018,7 +2798,7 @@ static void handle_option(int c, const char *argument) {
 		case '\0':
 			switch( longoption ) {
 				case LO_UNIGNORE:
-					r = set_ignore(argument, false, config_state);
+					r = set_ignore(optarg, false, config_state);
 					if( RET_WAS_ERROR(r) ) {
 						exit(EXIT_FAILURE);
 					}
@@ -3035,26 +2815,17 @@ static void handle_option(int c, const char *argument) {
 				case LO_NOKEEPUNREFERENCED:
 					CONFIGSET(keepunreferenced, false);
 					break;
-				case LO_KEEPUNUSEDNEW:
-					CONFIGSET(keepunusednew, true);
-					break;
-				case LO_NOKEEPUNUSEDNEW:
-					CONFIGSET(keepunusednew, false);
-					break;
 				case LO_KEEPUNNEEDEDLISTS:
-					/* this is the only option now and ignored
-					 * for compatibility reasond */
+					CONFIGSET(keepunneededlists, true);
 					break;
 				case LO_NOKEEPUNNEEDEDLISTS:
-					fprintf(stderr,
-"Warning: --nokeepuneededlists no longer exists.\n"
-"Use cleanlists to clean manually.\n");
+					CONFIGSET(keepunneededlists, false);
 					break;
 				case LO_KEEPDIRECTORIES:
-					CONFIGGSET(keepdirectories, true);
+					CONFIGSET(keepdirectories, true);
 					break;
 				case LO_NOKEEPDIRECTORIES:
-					CONFIGGSET(keepdirectories, false);
+					CONFIGSET(keepdirectories, false);
 					break;
 				case LO_NOTHINGISERROR:
 					CONFIGSET(nothingiserror, true);
@@ -3105,33 +2876,33 @@ static void handle_option(int c, const char *argument) {
 					CONFIGSET(oldfilesdb, false);
 					break;
 				case LO_EXPORT:
-					setexport(argument);
+					setexport(optarg);
 					break;
 				case LO_OUTDIR:
-					CONFIGDUP(x_outdir, argument);
+					CONFIGDUP(x_outdir, optarg);
 					break;
 				case LO_DISTDIR:
-					CONFIGDUP(x_distdir, argument);
+					CONFIGDUP(x_distdir,optarg);
 					break;
 				case LO_DBDIR:
-					CONFIGDUP(dbdir, argument);
+					CONFIGDUP(dbdir,optarg);
 					break;
 				case LO_LISTDIR:
-					CONFIGDUP(x_listdir, argument);
+					CONFIGDUP(x_listdir,optarg);
 					break;
 				case LO_OVERRIDEDIR:
 					if( verbose >= -1 )
 						fprintf(stderr, "Warning: --overridedir is obsolete. \nPlease put override files in the conf dir for compatibility with future version.\n");
-					CONFIGDUP(x_overridedir, argument);
+					CONFIGDUP(x_overridedir,optarg);
 					break;
 				case LO_CONFDIR:
-					CONFIGDUP(x_confdir, argument);
+					CONFIGDUP(x_confdir,optarg);
 					break;
 				case LO_LOGDIR:
-					CONFIGDUP(x_logdir, argument);
+					CONFIGDUP(x_logdir,optarg);
 					break;
 				case LO_METHODDIR:
-					CONFIGDUP(x_methoddir, argument);
+					CONFIGDUP(x_methoddir,optarg);
 					break;
 				case LO_VERSION:
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
@@ -3139,37 +2910,28 @@ static void handle_option(int c, const char *argument) {
 				case LO_WAITFORLOCK:
 					CONFIGSET(waitforlock, parse_number(
 							"--waitforlock",
-							argument, LONG_MAX));
+							optarg, LONG_MAX));
 					break;
 				case LO_SPACECHECK:
-					if( strcasecmp(argument, "none") == 0 ) {
+					if( strcasecmp(optarg, "none") == 0 ) {
 						CONFIGSET(spacecheckmode, scm_NONE);
-					} else if( strcasecmp(argument, "full") == 0 ) {
+					} else if( strcasecmp(optarg, "full") == 0 ) {
 						CONFIGSET(spacecheckmode, scm_FULL);
 					} else {
 						fprintf(stderr,
-"Unknown --spacecheck argument: '%s'!\n", argument);
+"Unknown --spacecheck argument: '%s'!\n", optarg);
 						exit(EXIT_FAILURE);
 					}
 					break;
 				case LO_SAFETYMARGIN:
 					CONFIGSET(reservedotherspace, parse_number(
 							"--safetymargin",
-							argument, LONG_MAX));
+							optarg, LONG_MAX));
 					break;
 				case LO_DBSAFETYMARGIN:
 					CONFIGSET(reserveddbspace, parse_number(
 							"--dbsafetymargin",
-							argument, LONG_MAX));
-					break;
-				case LO_GUNZIP:
-					CONFIGDUP(gunzip, argument);
-					break;
-				case LO_BUNZIP2:
-					CONFIGDUP(bunzip2, argument);
-					break;
-				case LO_UNLZMA:
-					CONFIGDUP(unlzma, argument);
+							optarg, LONG_MAX));
 					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
@@ -3190,60 +2952,60 @@ static void handle_option(int c, const char *argument) {
 			fprintf(stderr, "Ignoring no longer existing option -f/--force!\n");
 			break;
 		case 'b':
-			CONFIGDUP(x_basedir, argument);
+			CONFIGDUP(x_basedir, optarg);
 			break;
 		case 'i':
-			r = set_ignore(argument, true, config_state);
+			r = set_ignore(optarg, true, config_state);
 			if( RET_WAS_ERROR(r) ) {
 				exit(EXIT_FAILURE);
 			}
 			break;
 		case 'C':
 			if( x_component != NULL &&
-					strcmp(x_component, argument) != 0) {
+					strcmp(x_component, optarg) != 0) {
 				fprintf(stderr,"Multiple '-C' are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_component, argument);
+			CONFIGDUP(x_component, optarg);
 			break;
 		case 'A':
 			if( x_architecture != NULL &&
-					strcmp(x_architecture, argument) != 0) {
+					strcmp(x_architecture, optarg) != 0) {
 				fprintf(stderr,"Multiple '-A's are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_architecture, argument);
+			CONFIGDUP(x_architecture, optarg);
 			break;
 		case 'T':
-			if( strcmp(argument, "dsc") != 0 &&
-			    strcmp(argument, "deb") != 0 &&
-			    strcmp(argument, "udeb") != 0 ) {
+			if( strcmp(optarg, "dsc") != 0 &&
+			    strcmp(optarg, "deb") != 0 &&
+			    strcmp(optarg, "udeb") != 0 ) {
 				fprintf(stderr, "Unknown packagetype '%s' (only dsc deb and udeb are known)!\n",
-						argument);
+						optarg);
 				exit(EXIT_FAILURE);
 			}
 			if( x_packagetype != NULL &&
-					strcmp(x_packagetype, argument) != 0) {
+					strcmp(x_packagetype, optarg) != 0) {
 				fprintf(stderr,"Multiple '-T's are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_packagetype, argument);
+			CONFIGDUP(x_packagetype, optarg);
 			break;
 		case 'S':
 			if( x_section != NULL &&
-					strcmp(x_section, argument) != 0) {
+					strcmp(x_section, optarg) != 0) {
 				fprintf(stderr,"Multiple '-S' are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_section, argument);
+			CONFIGDUP(x_section, optarg);
 			break;
 		case 'P':
 			if( x_priority != NULL &&
-					strcmp(x_priority, argument) != 0) {
+					strcmp(x_priority, optarg) != 0) {
 				fprintf(stderr,"Multiple '-P's are mpt supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(x_priority, argument);
+			CONFIGDUP(x_priority, optarg);
 			break;
 		case '?':
 			/* getopt_long should have already given an error msg */
@@ -3268,8 +3030,8 @@ bool interrupted(void) {
 		return false;
 }
 
-static void interrupt_signaled(int) /*__attribute__((signal))*/;
-static void interrupt_signaled(UNUSED(int s)) {
+static void interrupt_signaled(int signal) /*__attribute__((signal))*/;
+static void interrupt_signaled(UNUSED(int signal)) {
 	was_interrupted = true;
 }
 
@@ -3301,7 +3063,6 @@ int main(int argc,char *argv[]) {
 		{"nothingiserror", no_argument, &longoption, LO_NOTHINGISERROR},
 		{"nolistsdownload", no_argument, &longoption, LO_NOLISTDOWNLOAD},
 		{"keepunreferencedfiles", no_argument, &longoption, LO_KEEPUNREFERENCED},
-		{"keepunusednewfiles", no_argument, &longoption, LO_KEEPUNUSEDNEW},
 		{"keepunneededlists", no_argument, &longoption, LO_KEEPUNNEEDEDLISTS},
 		{"keepdirectories", no_argument, &longoption, LO_KEEPDIRECTORIES},
 		{"ask-passphrase", no_argument, &longoption, LO_ASKPASSPHRASE},
@@ -3309,7 +3070,6 @@ int main(int argc,char *argv[]) {
 		{"nonolistsdownload", no_argument, &longoption, LO_LISTDOWNLOAD},
 		{"listsdownload", no_argument, &longoption, LO_LISTDOWNLOAD},
 		{"nokeepunreferencedfiles", no_argument, &longoption, LO_NOKEEPUNREFERENCED},
-		{"nokeepunusednewfiles", no_argument, &longoption, LO_NOKEEPUNUSEDNEW},
 		{"nokeepunneededlists", no_argument, &longoption, LO_NOKEEPUNNEEDEDLISTS},
 		{"nokeepdirectories", no_argument, &longoption, LO_NOKEEPDIRECTORIES},
 		{"noask-passphrase", no_argument, &longoption, LO_NOASKPASSPHRASE},
@@ -3335,9 +3095,6 @@ int main(int argc,char *argv[]) {
 		{"spacecheck", required_argument, &longoption, LO_SPACECHECK},
 		{"safetymargin", required_argument, &longoption, LO_SAFETYMARGIN},
 		{"dbsafetymargin", required_argument, &longoption, LO_DBSAFETYMARGIN},
-		{"gunzip", required_argument, &longoption, LO_GUNZIP},
-		{"bunzip2", required_argument, &longoption, LO_BUNZIP2},
-		{"unlzma", required_argument, &longoption, LO_UNLZMA},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
@@ -3453,32 +3210,11 @@ int main(int argc,char *argv[]) {
 	global.logdir = x_logdir;
 	global.methoddir = x_methoddir;
 	global.listdir = x_listdir;
-
-	uncompressions_check(gunzip, bunzip2, unlzma);
-	free(gunzip);
-	free(bunzip2);
-	free(unlzma);
-
-	a = all_actions;
-	while( a->name != NULL ) {
-		a++;
-	}
-	r = atoms_init(a - all_actions);
-	if( r == RET_ERROR_OOM )
-		(void)fputs("Out of Memory!\n",stderr);
-	if( RET_WAS_ERROR(r) )
-		exit(EXIT_RET(r));
-	for( a = all_actions; a->name != NULL ; a++ ) {
-		atoms_commands[1 + (a - all_actions)] = a->name;
-	}
-
-
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {
 			signature_init(askforpassphrase);
-			r = callaction(1 + (a - all_actions), a,
-					argc-optind, (const char**)argv+optind);
+			r = callaction(a,argc-optind,(const char**)argv+optind);
 			/* yeah, freeing all this stuff before exiting is
 			 * stupid, but it makes valgrind logs easier
 			 * readable */

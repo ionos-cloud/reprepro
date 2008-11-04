@@ -25,11 +25,13 @@ touch conf/updates
 dodo test ! -d db
 testrun - -b . checkupdate test 3<<EOF
 stderr
-*=Nothing to do, because none of the selected distributions has an Update: field.
+*=Nothing to do found. (Use --noskipold to force processing)
 stdout
 -v2*=Created directory "./db"
 -v2=Created directory "./lists"
+#-v2*=Removed empty directory "./db"
 EOF
+#dodo test ! -d db
 rm -r -f lists
 rm -r -f db conf
 dodo test ! -d d/ab
@@ -89,15 +91,11 @@ return 255
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
-Codename: getmoreatoms
-Architectures: funny coal
-Components: dog
-
 Codename: A
 Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
-# -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
+ -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
 
 Codename: B
 Architectures: ${FAKEARCHITECTURE} source
@@ -105,7 +103,7 @@ Components: dog cat
 Contents:
 Log: logfile
 CONFEND
-testrun - -b . export B A 3<<EOF
+testrun - -b . export 3<<EOF
 stdout
 -v2*=Created directory "./db"
 -v1*=Exporting B...
@@ -346,6 +344,9 @@ stdout
 EOF
 sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
 cp -a i i2
+function checknolog() {
+	dodo test ! -f logs/"$1"
+}
 checknolog logfile
 if test -n "$TESTNEWFILESDB" ; then
 	dodo test ! -f db/files.db
@@ -495,6 +496,15 @@ stdout
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
 -d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
+function checklog() {
+	cat > results.log.expected
+	LOGDATE="$(date +'%Y-%m-%d %H:')"
+	echo normalizing "$1": DATESTR is "$LOGDATE??:??"
+	sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/"$1"
+	dodiff results.log.expected logs/"$1"
+	rm logs/"$1"
+
+}
 checklog logfile <<EOF
 DATESTR add B dsc dog source bird 1
 DATESTR add B deb dog ${FAKEARCHITECTURE} bird 1

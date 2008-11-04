@@ -51,42 +51,34 @@ function setverbosity() {
 		-1)
 			VERBOSITYOPTIONS="-D v=-1"
 			VERBOSITY="-s"
-			verbosity=-1
 			;;
 		0)
 			VERBOSITYOPTIONS="-D v=0"
 			VERBOSITY=""
-			verbosity=0
 			;;
 		1)
 			VERBOSITYOPTIONS="-D v=1"
 			VERBOSITY="-v"
-			verbosity=1
 			;;
 		2)
 			VERBOSITYOPTIONS="-D v=2"
 			VERBOSITY="-vv"
-			verbosity=2
 			;;
 		3)
 			VERBOSITYOPTIONS="-D v=3"
 			VERBOSITY="-vvv"
-			verbosity=3
 			;;
 		4)
 			VERBOSITYOPTIONS="-D v=4"
 			VERBOSITY="-vvvv"
-			verbosity=4
 			;;
 		5)
 			VERBOSITYOPTIONS="-D v=5"
 			VERBOSITY="-vvvvv"
-			verbosity=5
 			;;
 		6)
 			VERBOSITYOPTIONS="-D v=6"
 			VERBOSITY="-vvvvvv"
-			verbosity=6
 			;;
 		unchanged)
 			;;
@@ -98,7 +90,6 @@ function setverbosity() {
 }
 
 FAKEARCHITECTURE=abacus
-SRCDIR="$(realpath -s "$(dirname $0)/..")"
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_SUP=""
@@ -108,11 +99,6 @@ DEFAULTVERBOSITY=6
 
 while [ $# -gt 0 ] ; do
 	case "$1" in
-		--srcdir)
-			shift
-			SRCDIR="$(realpath -s "$1")"
-			shift
-			;;
 		--delete)
 			rm -r "$WORKDIR" || true
 			shift
@@ -159,22 +145,24 @@ export FALEN=${#FAKEARCHITECTURE}
 # new dpkg-dev supports a fake architecture without tricks (and the old tricks no longer work):
 export DEB_HOST_ARCH="$FAKEARCHITECTURE"
 
-if [ "2" -lt "$#" ] ; then
-	echo "Syntax: test.sh [<testtool-binary>] [<reprepro-binary>]" >&2
+if [ "1" -gt "$#" ] || [ "3" -lt "$#" ] ; then
+	echo "Syntax: test.sh <src-dir> [<testtool-binary>] [<reprepro-binary>]" >&2
 	exit 1
 fi
-echo "SRCDIR is '$SRCDIR'"
-if [ ! -d "$SRCDIR" ] || [ ! -d "$SRCDIR/tests" ] ; then
-	echo "Error: Could not find source directory (tried: '$SRCDIR')!" >&2
+SRCDIR="$(realpath -s "$1")"
+if [ ! -d "$SRCDIR" ] ; then
+	echo "Error: could not find source directory!" >&2
+	echo "Syntax: test.sh <src-dir> [<testtool-binary>] [<reprepro-binary>]" >&2
 	exit 1
+
 fi
-if [ "1" -le "$#" ] ; then
-	TESTTOOL="$(realpath -s "$1")"
+if [ "2" -le "$#" ] ; then
+	TESTTOOL="$(realpath -s "$2")"
 else
 	TESTTOOL=testtool
 fi
-if [ "2" -le "$#" ] ; then
-	REPREPRO="$(realpath -s "$2")"
+if [ "3" -le "$#" ] ; then
+	REPREPRO="$(realpath -s "$3")"
 else
 	REPREPRO="$SRCDIR/reprepro"
 fi
@@ -253,17 +241,6 @@ stdout
 stderr
 returns 0
 EOF
-function checknolog() {
-	dodo test ! -f logs/"$1"
-}
-function checklog() {
-	cat > results.log.expected
-	LOGDATE="$(date +'%Y-%m-%d %H:')"
-	echo normalizing "$1": DATESTR is "$LOGDATE??:??"
-	sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/"$1"
-	dodiff results.log.expected logs/"$1"
-	rm logs/"$1"
-}
 function md5() {
 md5sum "$1" | cut -d' ' -f1
 }
@@ -353,7 +330,7 @@ EMPTYBZ2SHA2="d3dda84eb03b9738d118eb2be78e246106900493c0ae07819ad60815134a8058 1
 function runtest() {
 	echo "Running test '$1'.."
 	TESTNAME=" $1"
-	source "$SRCDIR/tests/test$1.sh"
+	source "$(dirname $0)/test$1.sh"
 }
 function testsuccess() {
 	echo "Test$TESTNAME completed successfully"

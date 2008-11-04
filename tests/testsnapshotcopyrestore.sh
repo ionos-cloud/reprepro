@@ -22,8 +22,6 @@ CONFEND
 mkdir logs
 
 testrun - -b . export 3<<EOF
-stderr
-*=Warning: unknown architecture 'nonexistant', ignoring notificator line line 5 in ./conf/distributions
 stdout
 -v2*=Created directory "./db"
 -v1*=Exporting B...
@@ -68,43 +66,21 @@ else
 	dodo test -f db/files.db
 fi
 
-ed -s conf/distributions <<EOF
-g/^ -A=nonexistant/s/nonexistant/calculator/
-w
-q
-EOF
-
 touch importindex
 
 testrun - -b . _addpackage B importindex bar foo 3<<EOF
 returns 255
 stderr
-*=Warning: unknown component 'nocomponent', ignoring notificator line line 5 in ./conf/distributions
 *=_addpackage needs -C and -A and -T set!
 -v0*=There have been errors!
-EOF
-
-ed -s conf/distributions <<EOF
-g/^ -A/s/nocomponent/cat/
-w
-q
 EOF
 
 testrun - -b . -A source -T dsc _addpackage B importindex bar foo 3<<EOF
 returns 255
 stderr
-*=Warning: unknown packagetype 'none', ignoring notificator line line 5 in ./conf/distributions
 *=_addpackage needs -C and -A and -T set!
 -v0*=There have been errors!
 EOF
-
-# -A=calculator -C=cat --type=dsc --withcontrol noscript.sh
-ed -s conf/distributions <<EOF
-g/^ -A=/s/=none/=dsc/
-w
-q
-EOF
-
 
 testrun - -b . -A ${FAKEARCHITECTURE} -C dog _addpackage B importindex bar foo 3<<EOF
 returns 255
@@ -212,8 +188,6 @@ stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_0_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
--v0*=1 files were added but not used.
--v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . dumpunreferenced 3<<EOF
@@ -267,8 +241,6 @@ stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.dsc' added to checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.dsc' added to files.db(md5sums).
--v0*=1 files were added but not used.
--v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . -T dsc -C dog _addpackage B importindex bar foo 3<<EOF
@@ -284,8 +256,6 @@ stderr
 stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' added to checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.tar.gz' added to files.db(md5sums).
--v0*=1 files were added but not used.
--v0*=The next deleteunreferenced call will delete them.
 EOF
 
 testrun - -b . dumpunreferenced 3<<EOF
@@ -525,6 +495,7 @@ stdout
 -v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'B|cat|source'...
 -v1*= generating Contents-${FAKEARCHITECTURE}...
+-v0*=Deleting files no longer referenced...
 EOF
 
 testrun - -b . dumpreferences 3<<EOF
@@ -583,10 +554,10 @@ stdout
 -d1*=db: 'pool/dog/f/foo/foo_1.dsc' removed from checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/dog/f/foo/foo_1.tar.gz
--v2*=removed now empty directory ./pool/dog/f/foo
--v2*=removed now empty directory ./pool/dog/f
--v2*=removed now empty directory ./pool/dog
--v2*=removed now empty directory ./pool
+-v1*=removed now empty directory ./pool/dog/f/foo
+-v1*=removed now empty directory ./pool/dog/f
+-v1*=removed now empty directory ./pool/dog
+-v1*=removed now empty directory ./pool
 -d1*=db: 'pool/dog/f/foo/foo_1.tar.gz' removed from checksums.db(pool).
 -e1*=db: 'pool/dog/f/foo/foo_1.tar.gz' removed from files.db(md5sums).
 EOF

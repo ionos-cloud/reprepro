@@ -272,13 +272,11 @@ even when it is not set, stdin is terminal and
 .B /proc/self/fd/0
 is a readable symbolic link.
 .TP
-.B \-\-nooldfilesdb
-Do not create a files.db file, but only newer checksums.db file.
-This will make it impossible for reprepro versions before 3.3.0 to
+.B \-\-oldfilesdb
+Do not only create checksums.db but also older files.db file.
+This will make it possible for reprepro versions before 3.3.0 to
 access this repository.
-Versions before 3.0 will not recognize that and destroy it.
-Thus it is still switched off by default, even though it gives an space
-and speed improvement.
+Without this versions before 3.0 will not recognize the database and destroy it.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
