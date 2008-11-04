@@ -1,3 +1,13 @@
+reprepro (3.6.2-1) experimental; urgency=low
+
+  * new bugfix release
+  - fix parsing contents of very large .deb files (Closes: 504434)
+  - improve documentation of remove and removefilter (Closes: 500105)
+  - improve documentation of copysrc and -C (Closes: 496347)
+  - fix many spelling and other errors in the manpage (Closes: 502531)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  4 Nov 2008 21:20:21 +0100
+
 reprepro (3.6.1-2) experimental; urgency=low
 
   * change to use libdb4.6 by default (Closes: 442668)
