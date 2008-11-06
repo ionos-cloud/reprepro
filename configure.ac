@@ -26,7 +26,7 @@ DBLIBS=""
 DBCPPFLAGS=""
 AH_TEMPLATE([LIBDB_VERSION],[variant of libdb used])
 AC_ARG_WITH(libdb,
-[  --with-libdb=path|4.4|4.3|3 Give prefix of libdb-4.3 or older version to use],[dnl
+[  --with-libdb=path|4.4|4.3|3 Give prefix of libdb-4.6 or number of older version to use],[dnl
 	case "$withval" in
 	no)
 	AC_MSG_ERROR(["Cannot compile without libdb"]);
