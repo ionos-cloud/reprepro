@@ -27,7 +27,6 @@
 #include "indexfile.h"
 #include "dpkgversions.h"
 #include "target.h"
-#include "downloadcache.h"
 #include "files.h"
 #include "upgradelist.h"
 
@@ -51,7 +50,7 @@ struct package_data {
 	 * NULL means nothing found. */
 	char *new_version;
 	/* where the recent version comes from: */
-	/*@dependent@*/struct aptmethod *aptmethod;
+	/*@dependent@*/void *privdata;
 
 	/* the new control-chunk for the package to go in
 	 * non-NULL if new_version && newversion == version_in_use */
@@ -104,7 +103,7 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 		return RET_ERROR_OOM;
 	}
 
-	package->aptmethod = NULL;
+	package->privdata = NULL;
 	package->name = strdup(packagename);
 	if( package->name == NULL ) {
 		free(package);
@@ -192,7 +191,7 @@ void upgradelist_free(struct upgradelist *upgrade) {
 	return;
 }
 
-static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/struct aptmethod *aptmethod, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, architecture_t architecture, const char *chunk){
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, architecture_t architecture, const char *chunk){
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
@@ -282,7 +281,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 			return RET_ERROR_OOM;
 		}
 		new->deleted = false; //to be sure...
-		new->aptmethod = aptmethod;
+		new->privdata = privdata;
 		if( packagename == NULL ) {
 			new->name = strdup(packagename_const);
 			if( FAILEDTOALLOC(new->name) ) {
@@ -423,7 +422,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
-		current->aptmethod = aptmethod;
+		current->privdata = privdata;
 		strlist_move(&current->new_filekeys,&files);
 		checksumsarray_move(&current->new_origfiles, &origfiles);
 		free(current->new_control);
@@ -432,7 +431,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 	return RET_OK;
 }
 
-retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *method, const char *filename, upgrade_decide_function *decide, void *decide_data, bool ignorewrongarchitecture) {
+retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const char *filename, upgrade_decide_function *decide, void *decide_data, bool ignorewrongarchitecture) {
 	struct indexfile *i;
 	char *packagename, *version;
 	const char *control;
@@ -448,7 +447,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 	while( indexfile_getnext(i, &packagename, &version, &control,
 				&package_architecture,
 				upgrade->target, ignorewrongarchitecture) ) {
-		r = upgradelist_trypackage(upgrade, method, decide, decide_data,
+		r = upgradelist_trypackage(upgrade, privdata, decide, decide_data,
 				packagename, packagename, version,
 				package_architecture, control);
 		RET_UPDATE(result, r);
@@ -539,18 +538,18 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade,struct database *da
 	return RET_OK;
 }
 
+
 /* request all wanted files in the downloadlists given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,struct database *database) {
+retvalue upgradelist_enqueue(struct upgradelist *upgrade, enqueueaction *action, void *calldata, struct database *database) {
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
 	assert(upgrade != NULL);
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted) {
-			assert(pkg->aptmethod != NULL);
-			r = downloadcache_addfiles(cache, database,
-				pkg->aptmethod,
-				&pkg->new_origfiles, &pkg->new_filekeys);
+			r = action(calldata, database,
+					&pkg->new_origfiles,
+					&pkg->new_filekeys, pkg->privdata);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;

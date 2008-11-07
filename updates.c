@@ -67,6 +67,7 @@
 #include "names.h"
 #include "signature.h"
 #include "aptmethod.h"
+#include "downloadcache.h"
 #include "updates.h"
 #include "upgradelist.h"
 #include "distribution.h"
@@ -1399,8 +1400,7 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 
 		if( verbose > 4 )
 			fprintf(out,"  reading '%s'\n", filename);
-		r = upgradelist_update(u->upgradelist,
-				remote_aptmethod(uindex->origin->from),
+		r = upgradelist_update(u->upgradelist, uindex,
 				filename,
 				ud_decide_by_pattern,
 				(void*)uindex->origin->pattern,
@@ -1437,6 +1437,18 @@ static retvalue updates_readindices(FILE *out,struct database *database,struct u
  * Step 10: enqueue downloading of missing packages                         *
  ****************************************************************************/
 
+static retvalue enqueue_upgrade_package(void *calldata, struct database *database, const struct checksumsarray *origfiles, const struct strlist *filekeys, void *privdata) {
+	struct update_index_connector *uindex = privdata;
+	struct aptmethod *aptmethod;
+	struct downloadcache *cache = calldata;
+
+	assert(privdata != NULL);
+	aptmethod = remote_aptmethod(uindex->origin->from);
+	assert(aptmethod != NULL);
+	return downloadcache_addfiles(cache, database, aptmethod,
+			origfiles, filekeys);
+}
+
 static retvalue updates_enqueue(struct downloadcache *cache,struct database *database,struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
@@ -1445,7 +1457,7 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->nothingnew )
 			continue;
-		r = upgradelist_enqueue(u->upgradelist, cache, database);
+		r = upgradelist_enqueue(u->upgradelist, enqueue_upgrade_package, cache, database);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = true;
 		RET_UPDATE(result,r);
