@@ -676,11 +676,11 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 	return UD_UPGRADE;
 }
 
-static inline retvalue pull_searchformissing(FILE *out,struct database *database,struct pull_target *p) {
+static inline retvalue pull_searchformissing(/*@null@*/FILE *out,struct database *database,struct pull_target *p) {
 	struct pull_source *source;
 	retvalue result,r;
 
-	if( verbose > 2 )
+	if( verbose > 2 && out != NULL )
 		fprintf(out,"  pulling into '%s'\n",p->target->identifier);
 	assert(p->upgradelist == NULL);
 	r = upgradelist_initialize(&p->upgradelist, p->target, database);
@@ -692,7 +692,7 @@ static inline retvalue pull_searchformissing(FILE *out,struct database *database
 	for( source=p->sources ; source != NULL ; source=source->next ) {
 
 		if( source->rule == NULL ) {
-			if( verbose > 4 )
+			if( verbose > 4 && out != NULL )
 				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(p->upgradelist);
 			RET_UPDATE(result,r);
@@ -702,13 +702,13 @@ static inline retvalue pull_searchformissing(FILE *out,struct database *database
 			continue;
 		}
 
-		if( verbose > 4 )
+		if( verbose > 4 && out != NULL )
 			fprintf(out,"  looking what to get from '%s'\n",
 					source->source->identifier);
 		r = upgradelist_pull(p->upgradelist,
 				source->source,
 				ud_decide_by_rule, source->rule,
-				database);
+				database, source);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -717,7 +717,7 @@ static inline retvalue pull_searchformissing(FILE *out,struct database *database
 	return result;
 }
 
-static retvalue pull_search(FILE *out,struct database *database,struct pull_distribution *d) {
+static retvalue pull_search(/*@null@*/FILE *out,struct database *database,struct pull_distribution *d) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -766,14 +766,108 @@ static retvalue pull_install(struct database *database, struct pull_distribution
 	return result;
 }
 
+static void pull_dumppackage(const char *packagename, /*@null@*/const char *oldversion, /*@null@*/const char *newversion, /*@null@*/const char *bestcandidate, /*@null@*/const struct strlist *newfilekeys, /*@null@*/const char *newcontrol, void *privdata) {
+	struct pull_source *source = privdata;
+
+	if( newversion == NULL ) {
+		if( oldversion != NULL && bestcandidate != NULL ) {
+			printf("'%s': '%s' will be deleted"
+					" (best new: '%s')\n",
+					packagename, oldversion, bestcandidate);
+		} else if( oldversion != NULL ) {
+			printf("'%s': '%s' will be deleted"
+					" (no longer available)\n",
+					packagename, oldversion);
+		} else {
+			printf("'%s': will NOT be added as '%s'\n",
+					packagename, bestcandidate);
+		}
+	} else if( newversion == oldversion ) {
+		if( bestcandidate != NULL ) {
+			if( verbose > 1 )
+				printf("'%s': '%s' will be kept"
+						" (best new: '%s')\n",
+						packagename, oldversion,
+						bestcandidate);
+		} else {
+			if( verbose > 0 )
+				printf("'%s': '%s' will be kept"
+						" (unavailable for reload)\n",
+						packagename, oldversion);
+		}
+	} else {
+		const char *via = source->rule->name;
+
+		assert( newfilekeys != NULL );
+		assert( newcontrol != NULL );
+		if( oldversion != NULL )
+			(void)printf("'%s': '%s' will be upgraded"
+					" to '%s' (from '%s'):\n files needed: ",
+					packagename, oldversion,
+					newversion, via);
+		else
+			(void)printf("'%s': newly installed"
+					" as '%s' (from '%s'):\n files needed: ",
+					packagename, newversion, via);
+		(void)strlist_fprint(stdout, newfilekeys);
+		if( verbose > 2)
+			(void)printf("\n installing as: '%s'\n",
+					newcontrol);
+		else
+			(void)putchar('\n');
+	}
+}
+
 static void pull_dump(struct pull_distribution *distribution) {
 	struct pull_target *u;
 
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->upgradelist == NULL )
 			continue;
-		printf("Updates needed for '%s':\n",u->target->identifier);
-		upgradelist_dump(u->upgradelist);
+		printf("Updates needed for '%s':\n", u->target->identifier);
+		upgradelist_dump(u->upgradelist, pull_dumppackage);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
+	}
+}
+
+static void pull_dumplistpackage(const char *packagename, /*@null@*/const char *oldversion, /*@null@*/const char *newversion, /*@null@*/const char *bestcandidate, /*@null@*/const struct strlist *newfilekeys, /*@null@*/const char *newcontrol, void *privdata) {
+	struct pull_source *source = privdata;
+
+	if( newversion == NULL ) {
+		if( oldversion == NULL )
+			return;
+		printf("delete '%s' '%s'\n", packagename, oldversion);
+	} else if( newversion == oldversion ) {
+		if( bestcandidate != NULL )
+			printf("keep '%s' '%s' '%s'\n", packagename,
+					oldversion, bestcandidate);
+		else
+			printf("keep '%s' '%s' unavailable\n", packagename,
+					oldversion);
+	} else {
+		const char *via = source->rule->name;
+
+		assert( newfilekeys != NULL );
+		assert( newcontrol != NULL );
+		if( oldversion != NULL )
+			(void)printf("update '%s' '%s' '%s' '%s'\n",
+					packagename, oldversion,
+					newversion, via);
+		else
+			(void)printf("add '%s' - '%s' '%s'\n",
+					packagename, newversion, via);
+	}
+}
+
+static void pull_dumplist(struct pull_distribution *distribution) {
+	struct pull_target *u;
+
+	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->upgradelist == NULL )
+			continue;
+		printf("Updates needed for '%s':\n", u->target->identifier);
+		upgradelist_dump(u->upgradelist, pull_dumplistpackage);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
 	}
@@ -845,3 +939,19 @@ retvalue pull_checkupdate(struct database *database, struct pull_distribution *d
 	return result;
 }
 
+retvalue pull_dumpupdate(struct database *database, struct pull_distribution *distributions) {
+	struct pull_distribution *d;
+	retvalue result,r;
+
+	result = RET_NOTHING;
+
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = pull_search(NULL, database, d);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+		pull_dumplist(d);
+	}
+
+	return result;
+}

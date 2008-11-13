@@ -1346,22 +1346,22 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 }
 
 
-static inline retvalue searchformissing(FILE *out,struct database *database,struct update_target *u) {
+static inline retvalue searchformissing(/*@null@*/FILE *out,struct database *database,struct update_target *u) {
 	struct update_index_connector *uindex;
 	retvalue result,r;
 
 	if( u->nothingnew ) {
-		if( u->indices == NULL && verbose >= 4 )
+		if( u->indices == NULL && verbose >= 4 && out != NULL)
 			fprintf(out,
 "  nothing to do for '%s'\n",
 				u->target->identifier);
-		else if( u->indices != NULL && verbose >= 0 )
+		else if( u->indices != NULL && verbose >= 0 && out != NULL)
 			fprintf(out,
 "  nothing new for '%s' (use --noskipold to process anyway)\n",
 				u->target->identifier);
 		return RET_NOTHING;
 	}
-	if( verbose > 2 )
+	if( verbose > 2 && out != NULL)
 		fprintf(out,"  processing updates for '%s'\n",u->target->identifier);
 	r = upgradelist_initialize(&u->upgradelist, u->target, database);
 	if( RET_WAS_ERROR(r) )
@@ -1373,7 +1373,7 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 		const char *filename;
 
 		if( uindex->origin == NULL ) {
-			if( verbose > 4 )
+			if( verbose > 4 && out != NULL)
 				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
 			if( RET_WAS_ERROR(r) )
@@ -1398,7 +1398,7 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 			continue;
 		}
 
-		if( verbose > 4 )
+		if( verbose > 4 && out != NULL)
 			fprintf(out,"  reading '%s'\n", filename);
 		r = upgradelist_update(u->upgradelist, uindex,
 				filename,
@@ -1417,7 +1417,7 @@ static inline retvalue searchformissing(FILE *out,struct database *database,stru
 	return result;
 }
 
-static retvalue updates_readindices(FILE *out,struct database *database,struct update_distribution *d) {
+static retvalue updates_readindices(/*@null@*/FILE *out,struct database *database,struct update_distribution *d) {
 	retvalue result,r;
 	struct update_target *u;
 
@@ -1761,6 +1761,58 @@ retvalue updates_update(struct database *database, struct update_distribution *d
  * done. (For the checkupdate command)                                      *
  ****************************************************************************/
 
+static void upgrade_dumppackage(const char *packagename, /*@null@*/const char *oldversion, /*@null@*/const char *newversion, /*@null@*/const char *bestcandidate, /*@null@*/const struct strlist *newfilekeys, /*@null@*/const char *newcontrol, void *privdata) {
+	struct update_index_connector *uindex = privdata;
+
+	if( newversion == NULL ) {
+		if( oldversion != NULL && bestcandidate != NULL ) {
+			printf("'%s': '%s' will be deleted"
+					" (best new: '%s')\n",
+					packagename, oldversion, bestcandidate);
+		} else if( oldversion != NULL ) {
+			printf("'%s': '%s' will be deleted"
+					" (no longer available)\n",
+					packagename, oldversion);
+		} else {
+			printf("'%s': will NOT be added as '%s'\n",
+					packagename, bestcandidate);
+		}
+	} else if( newversion == oldversion ) {
+		if( bestcandidate != NULL ) {
+			if( verbose > 1 )
+				printf("'%s': '%s' will be kept"
+						" (best new: '%s')\n",
+						packagename, oldversion,
+						bestcandidate);
+		} else {
+			if( verbose > 0 )
+				printf("'%s': '%s' will be kept"
+						" (unavailable for reload)\n",
+						packagename, oldversion);
+		}
+	} else {
+		const char *via = uindex->origin->pattern->name;
+
+		assert( newfilekeys != NULL );
+		assert( newcontrol != NULL );
+		if( oldversion != NULL )
+			(void)printf("'%s': '%s' will be upgraded"
+					" to '%s' (from '%s'):\n files needed: ",
+					packagename, oldversion,
+					newversion, via);
+		else
+			(void)printf("'%s': newly installed"
+					" as '%s' (from '%s'):\n files needed: ",
+					packagename, newversion, via);
+		(void)strlist_fprint(stdout, newfilekeys);
+		if( verbose > 2)
+			(void)printf("\n installing as: '%s'\n",
+					newcontrol);
+		else
+			(void)putchar('\n');
+	}
+}
+
 static void updates_dump(struct update_distribution *distribution) {
 	struct update_target *u;
 
@@ -1768,7 +1820,49 @@ static void updates_dump(struct update_distribution *distribution) {
 		if( u->nothingnew )
 			continue;
 		printf("Updates needed for '%s':\n",u->target->identifier);
-		upgradelist_dump(u->upgradelist);
+		upgradelist_dump(u->upgradelist, upgrade_dumppackage);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
+	}
+}
+
+static void upgrade_dumplistpackage(const char *packagename, /*@null@*/const char *oldversion, /*@null@*/const char *newversion, /*@null@*/const char *bestcandidate, /*@null@*/const struct strlist *newfilekeys, /*@null@*/const char *newcontrol, void *privdata) {
+	struct update_index_connector *uindex = privdata;
+
+	if( newversion == NULL ) {
+		if( oldversion == NULL )
+			return;
+		printf("delete '%s' '%s'\n", packagename, oldversion);
+	} else if( newversion == oldversion ) {
+		if( bestcandidate != NULL )
+			printf("keep '%s' '%s' '%s'\n", packagename,
+					oldversion, bestcandidate);
+		else
+			printf("keep '%s' '%s' unavailable\n", packagename,
+					oldversion);
+	} else {
+		const char *via = uindex->origin->pattern->name;
+
+		assert( newfilekeys != NULL );
+		assert( newcontrol != NULL );
+		if( oldversion != NULL )
+			(void)printf("update '%s' '%s' '%s' '%s'\n",
+					packagename, oldversion,
+					newversion, via);
+		else
+			(void)printf("add '%s' - '%s' '%s'\n",
+					packagename, newversion, via);
+	}
+}
+
+static void updates_dumplist(struct update_distribution *distribution) {
+	struct update_target *u;
+
+	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->nothingnew )
+			continue;
+		printf("Updates needed for '%s':\n", u->target->identifier);
+		upgradelist_dump(u->upgradelist, upgrade_dumplistpackage);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
 	}
@@ -1801,6 +1895,32 @@ retvalue updates_checkupdate(struct database *database, struct update_distributi
 		if( RET_WAS_ERROR(r) )
 			break;
 		updates_dump(d);
+	}
+
+	return result;
+}
+
+retvalue updates_dumpupdate(struct database *database, struct update_distribution *distributions, bool nolistsdownload, bool skipold) {
+	struct update_distribution *d;
+	retvalue result,r;
+	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+
+	result = updates_prepare(distributions, false, nolistsdownload, skipold, &run);
+	if( !RET_IS_OK(result) )
+		return result;
+
+	r = aptmethod_shutdown(run);
+	RET_UPDATE(result,r);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = updates_readindices(NULL, database, d);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+		updates_dumplist(d);
 	}
 
 	return result;

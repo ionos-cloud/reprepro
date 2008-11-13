@@ -18,14 +18,16 @@ struct upgradelist;
 retvalue upgradelist_initialize(struct upgradelist **ul,/*@dependent@*/struct target *target,struct database *);
 void upgradelist_free(/*@only@*/struct upgradelist *upgrade);
 
-void upgradelist_dump(struct upgradelist *upgrade);
+typedef void dumpaction(const char */*packagename*/, /*@null@*/const char */*oldversion*/, /*@null@*/const char */*newversion*/, /*@null@*/const char */*bestcandidate*/, /*@null@*/const struct strlist */*newfilekeys*/, /*@null@*/const char */*newcontrol*/, void *);
+
+void upgradelist_dump(struct upgradelist *upgrade, dumpaction *action);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,struct database *);
 
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
 retvalue upgradelist_update(struct upgradelist *upgrade, /*@dependent@*/void *, const char *filename, upgrade_decide_function *predecide, void *decide_data, bool ignorewrongarchitecture);
 
 /* Take all items in source into account */
-retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *);
+retvalue upgradelist_pull(struct upgradelist *, struct target *, upgrade_decide_function *, void *, struct database *, void *);
 
 /* mark all packages as deleted, so they will vanis unless readded or reholded */
 retvalue upgradelist_deleteall(struct upgradelist *upgrade);

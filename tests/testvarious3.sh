@@ -239,6 +239,15 @@ EOF
 checknolog logab
 dogrep "Version: 1-1" dists/a/all/binary-${FAKEARCHITECTURE}/Packages
 rm -r dists/a
+testout - -b . dumppull b 3<<EOF
+stderr
+EOF
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+add 'aa' - '1-1' 'froma'
+add 'aa-addons' - '1-1' 'froma'
+EOF
+dodiff results results.expected
 testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
@@ -326,6 +335,15 @@ Files:
 END
 if $tracking; then dodiff results.expected results ; else dodiff results.empty results ; fi
 rm -r dists/a dists/b
+testout - -b . dumppull b 3<<EOF
+stderr
+EOF
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+update 'aa' '1-1' '1-2' 'froma'
+update 'aa-addons' '1-1' '1-2' 'froma'
+EOF
+dodiff results results.expected
 testrun - -b . --export=changed pull a b 3<<EOF
 stderr
 stdout
@@ -444,6 +462,18 @@ DATESTR add a deb all ${FAKEARCHITECTURE} ab-addons 2-1
 DATESTR add a deb all ${FAKEARCHITECTURE} ab 2-1
 DATESTR add a dsc all source ab 2-1
 EOF
+testout - -b . dumppull b 3<<EOF
+stderr
+EOF
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+update 'aa' '1-2' '1-3' 'froma'
+update 'aa-addons' '1-2' '1-3' 'froma'
+add 'ab' - '2-1' 'froma'
+add 'ab-addons' - '2-1' 'froma'
+EOF
+dodiff results results.expected
+
 testrun - -b . --export=changed pull b 3<<EOF
 stderr
 stdout
@@ -474,6 +504,17 @@ DATESTR replace b deb all ${FAKEARCHITECTURE} aa-addons 1-3 1-2
 DATESTR add b deb all ${FAKEARCHITECTURE} ab 2-1
 DATESTR add b deb all ${FAKEARCHITECTURE} ab-addons 2-1
 EOF
+testout - -b . dumppull b 3<<EOF
+stderr
+EOF
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+keep 'aa' '1-3' '1-3'
+keep 'aa-addons' '1-3' '1-3'
+keep 'ab' '2-1' '2-1'
+keep 'ab-addons' '2-1' '2-1'
+EOF
+dodiff results results.expected
 dogrep "Version: 1-3" dists/b/all/binary-${FAKEARCHITECTURE}/Packages
 dogrep "Version: 2-1" dists/b/all/binary-${FAKEARCHITECTURE}/Packages
 test ! -f pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb
@@ -696,13 +737,29 @@ VerifyRelease: blindtrust
 Suite: a
 ListHook: /bin/cp
 END
-testrun - -b . predelete b 3<<EOF
-=WARNING: Single-Instance not yet supported!
+testout - -b . dumpupdate b 3<<EOF
 -v6*=aptmethod start 'copy:$WORKDIR/dists/a/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v2*=Uncompress './lists/froma_a_all_${FAKEARCHITECTURE}_Packages.gz' into './lists/froma_a_all_${FAKEARCHITECTURE}_Packages' using '/bin/gunzip'...
+-v6*=Called /bin/cp './lists/froma_a_all_${FAKEARCHITECTURE}_Packages' './lists/_b_all_${FAKEARCHITECTURE}_froma_froma_a_all_${FAKEARCHITECTURE}_Packages'
+-v6*=Listhook successfully returned!
+EOF
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+keep 'aa' '1-3' '1-3'
+keep 'aa-addons' '1-3' '1-3'
+update 'ab' '2-1' '3-1' 'froma'
+update 'ab-addons' '2-1' '3-1' 'froma'
+delete 'ac' '1-1'
+delete 'ac-addons' '1-1'
+EOF
+dodiff results.expected results
+testrun - -b . predelete b 3<<EOF
+=WARNING: Single-Instance not yet supported!
+-v6*=aptmethod start 'copy:$WORKDIR/dists/a/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
 -v6*=Called /bin/cp './lists/froma_a_all_${FAKEARCHITECTURE}_Packages' './lists/_b_all_${FAKEARCHITECTURE}_froma_froma_a_all_${FAKEARCHITECTURE}_Packages'
 -v6*=Listhook successfully returned!
 stdout
@@ -737,6 +794,20 @@ stdout
 -d1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' removed from checksums.db(pool).
 -v2*=removed now empty directory ./pool/all/a/ac
 EOF
+testout - -b . dumpupdate b 3<<EOF
+-v6*=aptmethod start 'copy:$WORKDIR/dists/a/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
+-v6*=Called /bin/cp './lists/froma_a_all_${FAKEARCHITECTURE}_Packages' './lists/_b_all_${FAKEARCHITECTURE}_froma_froma_a_all_${FAKEARCHITECTURE}_Packages'
+-v6*=Listhook successfully returned!
+EOF
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+keep 'aa' '1-3' '1-3'
+keep 'aa-addons' '1-3' '1-3'
+add 'ab' - '3-1' 'froma'
+add 'ab-addons' - '3-1' 'froma'
+EOF
+dodiff results.expected results
 checklog logab <<EOF
 DATESTR remove b deb all ${FAKEARCHITECTURE} ab 2-1
 DATESTR remove b deb all ${FAKEARCHITECTURE} ab-addons 2-1
@@ -888,6 +959,14 @@ DATESTR remove a deb all ${FAKEARCHITECTURE} ab-addons 3-1
 DATESTR remove a dsc all source ab 3-1
 EOF
 fi
+testout "" --keepunreferenced --dbdir db2 dumppull
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+keep 'aa' '1-3' '1-3'
+keep 'aa-addons' '1-3' '1-3'
+keep 'ab' '3-1' unavailable
+EOF
+dodiff results.expected results
 testrun - --keepunreferenced --dbdir db2 -b . removefilter b "Version (== 1-3), Package (>> aa)" 3<<EOF
 stdout
 -v1*=removing 'aa-addons' from 'b|all|${FAKEARCHITECTURE}'...
@@ -899,6 +978,14 @@ EOF
 checklog logab <<EOF
 DATESTR remove b deb all ${FAKEARCHITECTURE} aa-addons 1-3
 EOF
+testout "" --keepunreferenced --dbdir db2 dumppull
+cat > results.expected <<EOF
+Updates needed for 'b|all|abacus':
+keep 'aa' '1-3' '1-3'
+add 'aa-addons' - '1-3' 'froma'
+keep 'ab' '3-1' unavailable
+EOF
+dodiff results.expected results
 if $tracking ; then
 testrun - -b . --delete removealltracks a 3<<EOF
 stdout

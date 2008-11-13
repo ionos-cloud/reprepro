@@ -467,7 +467,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const c
 	return result;
 }
 
-retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *database) {
+retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, upgrade_decide_function *predecide, void *decide_data, struct database *database, void *privdata) {
 	retvalue result, r;
 	const char *package, *control;
 	struct target_cursor iterator;
@@ -492,7 +492,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = upgradelist_trypackage(upgrade, NULL,
+		r = upgradelist_trypackage(upgrade, privdata,
 				predecide, decide_data,
 				package, NULL, version,
 				package_architecture, control);
@@ -638,7 +638,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 	return result;
 }
 
-void upgradelist_dump(struct upgradelist *upgrade){
+void upgradelist_dump(struct upgradelist *upgrade, dumpaction action){
 	struct package_data *pkg;
 
 	assert(upgrade != NULL);
@@ -646,56 +646,19 @@ void upgradelist_dump(struct upgradelist *upgrade){
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( interrupted() )
 			return;
-		if( pkg->deleted ) {
-			if( pkg->version_in_use != NULL &&
-					pkg->new_version != NULL ) {
-				printf("'%s': '%s' will be deleted"
-				       " (best new: '%s')\n",
-				       pkg->name,pkg->version_in_use,
-				       pkg->new_version);
-			} else if( pkg->version_in_use != NULL ) {
-				printf("'%s': '%s' will be deleted"
-					" (no longer available)\n",
-					pkg->name,pkg->version_in_use);
-			} else {
-				printf("'%s': will NOT be added as '%s'\n",
-						pkg->name,pkg->new_version);
-			}
-		} else {
-			if( pkg->version == pkg->version_in_use ) {
-				if( pkg->new_version != NULL ) {
-					if( verbose > 1 )
-					printf("'%s': '%s' will be kept"
-					       " (best new: '%s')\n",
-					       pkg->name,pkg->version_in_use,
-					       pkg->new_version);
-				} else {
-					if( verbose > 0 )
-					printf("'%s': '%s' will be kept"
-					" (unavailable for reload)\n",
-					pkg->name,pkg->version_in_use);
-				}
-
-			} else {
-				if( pkg->version_in_use != NULL )
-					(void)printf("'%s': '%s' will be upgraded"
-					       " to '%s':\n files needed: ",
-						pkg->name,pkg->version_in_use,
-						pkg->new_version);
-				else
-					(void)printf("'%s': newly installed"
-					       " as '%s':\n files needed: ",
-					       pkg->name, pkg->new_version);
-				(void)strlist_fprint(stdout,&pkg->new_filekeys);
-// TODO: readd
-//				(void)printf("\n with md5sums: ");
-//				(void)strlist_fprint(stdout,&pkg->new_md5sums);
-				if( verbose > 2)
-					(void)printf("\n installing as: '%s'\n",pkg->new_control);
-				else
-					(void)putchar('\n');
-			}
-		}
+		if( pkg->deleted )
+			action(pkg->name, pkg->version_in_use,
+					NULL, pkg->new_version,
+					NULL, NULL, pkg->privdata);
+		else if( pkg->version == pkg->version_in_use )
+			action(pkg->name, pkg->version_in_use,
+					pkg->version_in_use, pkg->new_version,
+					NULL, NULL, pkg->privdata);
+		else
+			action(pkg->name, pkg->version_in_use,
+					pkg->new_version, NULL,
+					&pkg->new_filekeys, pkg->new_control,
+					pkg->privdata);
 	}
 }
 

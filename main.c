@@ -1216,6 +1216,48 @@ ACTION_B(n, n, y, checkupdate) {
 	return result;
 }
 
+ACTION_B(n, n, y, dumpupdate) {
+	retvalue result;
+	struct update_pattern *patterns;
+	struct update_distribution *u_distributions;
+
+	result = dirs_make_recursive(global.listdir);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	assert( result != RET_NOTHING);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = updates_getpatterns(&patterns);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	result = updates_calcindices(patterns, alldistributions, fast,
+			&u_distributions);
+	if( !RET_IS_OK(result) ) {
+		if( result == RET_NOTHING ) {
+			if( argc == 1 )
+				fputs("Nothing to do, because no distribution has an Updates: field.\n", stderr);
+			else
+				fputs("Nothing to do, because none of the selected distributions has an Update: field.\n", stderr);
+		}
+		updates_freepatterns(patterns);
+		return result;
+	}
+
+	result = updates_dumpupdate(database, u_distributions,
+			nolistsdownload, skipold);
+
+	updates_freeupdatedistributions(u_distributions);
+	updates_freepatterns(patterns);
+
+	return result;
+}
+
 ACTION_C(n, n, cleanlists) {
 #warning TODO: do not forget to implement this...
 	// TODO: when this is implemented, also log the database?
@@ -1280,6 +1322,35 @@ ACTION_B(n, n, y, checkpull) {
 		return result;
 	}
 	result = pull_checkupdate(database, p);
+
+	pull_freerules(rules);
+	pull_freedistributions(p);
+
+	return result;
+}
+
+ACTION_B(n, n, y, dumppull) {
+	retvalue result;
+	struct pull_rule *rules;
+	struct pull_distribution *p;
+
+	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = pull_getrules(&rules);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	assert( RET_IS_OK(result) );
+
+	result = pull_prepare(alldistributions, rules, fast, &p);
+	if( RET_WAS_ERROR(result) ) {
+		pull_freerules(rules);
+		return result;
+	}
+	result = pull_dumpupdate(database, p);
 
 	pull_freerules(rules);
 	pull_freedistributions(p);
@@ -2603,6 +2674,8 @@ static const struct action {
 		0, -1, "update [<distributions>]"},
 	{"checkupdate",		A_B(checkupdate),
 		0, -1, "checkupdate [<distributions>]"},
+	{"dumpupdate",		A_B(dumpupdate),
+		0, -1, "dumpupdate [<distributions>]"},
 	{"predelete",		A_D(predelete),
 		0, -1, "predelete [<distributions>]"},
 	{"pull",		A_D(pull),
@@ -2619,6 +2692,8 @@ static const struct action {
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restoresrc <distribution> <snapshot-name> <source-package-name> [<source versions>]"},
 	{"restorefilter",		A_Dact(restorefilter),
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorefilter <distribution> <snapshot-name> <formula>"},
+	{"dumppull",		A_B(dumppull),
+		0, -1, "dumppull [<distributions>]"},
 	{"checkpull",		A_B(checkpull),
 		0, -1, "checkpull [<distributions>]"},
 	{"includedeb",		A_Dactsp(includedeb)|NEED_DELNEW,

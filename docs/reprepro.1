@@ -402,6 +402,11 @@ Same like
 .BR update ,
 but will show what it will change instead of actually changing it.
 .TP
+.BR dumpupdate " [ " \fIcodenames\fP " ]"
+Same like
+.BR checkupdate ,
+but less suiteable for humans and more suitable for computers.
+.TP
 .BR predelete " [ " \fIcodenames\fP " ]"
 This will determine which packages a \fBupdate\fP would delete or
 replace and remove those packages.
@@ -436,6 +441,11 @@ below.
 Same like
 .BR pull ,
 but will show what it will change instead of actually changing it.
+.TP
+.BR dumppull " [ " \fIcodenames\fP " ]"
+Same like
+.BR checkpull ,
+but less suiteable for humans and more suitable for computers.
 .TP
 .B includedeb \fIcodename\fP \fI.deb-filename\fP
 Include the given binary Debian package (.deb) in the specified
