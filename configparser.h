@@ -51,6 +51,7 @@ retvalue config_getwordinline(struct configiterator *, /*@out@*/char **);
 retvalue config_getonlyword(struct configiterator *, const char *, checkfunc, /*@out@*/char **);
 retvalue config_getuniqwords(struct configiterator *, const char *, checkfunc, struct strlist *);
 retvalue config_getinternatomlist(struct configiterator *, const char *, enum atom_type, checkfunc, struct atomlist *);
+retvalue config_getatom(struct configiterator *, const char *, enum atom_type, atom_t *);
 retvalue config_getatomlist(struct configiterator *, const char *, enum atom_type, struct atomlist *);
 retvalue config_getatomsublist(struct configiterator *, const char *, enum atom_type, struct atomlist *, const struct atomlist *, const char *);
 retvalue config_getsplitatoms(struct configiterator *, const char *, enum atom_type, struct atomlist *, struct atomlist *);
@@ -164,6 +165,11 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), co
 		r = RET_ERROR; \
 	} \
 	return r; \
+}
+#define CFatomSETPROC(sname, field, type) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_getatom(iter, name, type, &item->field); \
 }
 #define CFatomsublistSETPROC(sname, field, type, superset, superset_header) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \

@@ -160,7 +160,7 @@ struct update_pattern {
 	/* checksums to not read check in Release file: */
 	bool ignorehashes[cs_hashCOUNT];
 	/* the name of the flat component, causing flat mode if non-NULL*/
-	/*@null@*/char *flat;
+	component_t flat;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
 	bool ignorerelease;
 	/* if the specific field is there (to destinguish from an empty one) */
@@ -239,7 +239,6 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	free(update->fallback);
 	free(update->suite_from);
 	free(update->verifyrelease);
-	free(update->flat);
 	strlist_done(&update->config);
 	strlist_done(&update->architectures_from);
 	strlist_done(&update->architectures_into);
@@ -330,7 +329,7 @@ static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/
 CFlinkedlistinit(update_pattern)
 CFvalueSETPROC(update_pattern, name)
 CFvalueSETPROC(update_pattern, suite_from)
-CFvalueSETPROC(update_pattern, flat)
+CFatomSETPROC(update_pattern, flat, at_component)
 CFvalueSETPROC(update_pattern, from)
 CFurlSETPROC(update_pattern, method)
 CFurlSETPROC(update_pattern, fallback)
@@ -453,14 +452,14 @@ CFfinishparse(update_pattern) {
 	CFUfinishparseVARS(update_pattern, n, last_p, mydata);
 
 	if( complete ) {
-		if( n->components_set && n->flat != NULL ) {
+		if( n->components_set && atom_defined(n->flat) ) {
 			fprintf(stderr,
 "%s:%u to %u: Update pattern may not contain Components and Flat fields ad the same time.\n",
 				config_filename(iter), config_firstline(iter),
 				config_line(iter));
 			return RET_ERROR;
 		}
-		if( n->udebcomponents_set && n->flat != NULL ) {
+		if( n->udebcomponents_set && atom_defined(n->flat) ) {
 			fprintf(stderr,
 "%s:%u to %u: Update pattern may not contain UDebComponents and Flat fields ad the same time.\n",
 				config_filename(iter), config_firstline(iter),
@@ -729,7 +728,7 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 
 	listscomponents = NULL;
 	p = pattern;
-	while( p != NULL && p->flat == NULL ) {
+	while( p != NULL && !atom_defined(p->flat) ) {
 		if( p->components_set || p->udebcomponents_set )
 			listscomponents = p;
 		p = p->pattern_from;
@@ -946,10 +945,10 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 	if( target->packagetype_atom == pt_udeb )
 		return RET_NOTHING;
 	p = origin->pattern;
-	while( p != NULL && p->flat == NULL )
+	while( p != NULL && !atom_defined(p->flat) )
 		p = p->pattern_from;
 	assert( p != NULL );
-	if( strcmp(p->flat, atoms_components[target->component_atom]) != 0 )
+	if( p->flat != target->component_atom )
 		return RET_NOTHING;
 
 	p = origin->pattern;

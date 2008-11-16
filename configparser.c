@@ -556,6 +556,31 @@ retvalue config_getinternatomlist(struct configiterator *iter, const char *heade
 	return RET_OK;
 }
 
+retvalue config_getatom(struct configiterator *iter, const char *header, enum atom_type type, atom_t *result_p) {
+	char *value;
+	retvalue r;
+	atom_t atom;
+
+	r = config_getword(iter, &value);
+	if( r == RET_NOTHING ) {
+		configparser_errorlast(iter,
+"Unexpected empty '%s' field.", header);
+		r = RET_ERROR_MISSING;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	atom = atom_find(type, value);
+	if( !atom_defined(atom) ) {
+		configparser_errorlast(iter,
+"Not previously seen %s '%s' within '%s' field.", atomtypes[type], value, header);
+		free(value);
+		return RET_ERROR;
+	}
+	*result_p = atom;
+	free(value);
+	return RET_OK;
+}
+
 retvalue config_getatomlist(struct configiterator *iter, const char *header, enum atom_type type, struct atomlist *result_p) {
 	char *value;
 	retvalue r;
