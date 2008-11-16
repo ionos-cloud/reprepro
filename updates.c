@@ -841,8 +841,8 @@ static inline bool addremoteindex(struct update_origin *origin, struct target *t
 
 static retvalue addorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
 	const struct update_pattern *p;
-	const struct strlist *c_from, *c_into;
-	const struct strlist *a_from, *a_into;
+	const struct strlist *c_from = NULL, *c_into = NULL;
+	const struct strlist *a_from = NULL, *a_into = NULL;
 	int ai,ci;
 
 	assert( origin != NULL && origin->pattern != NULL);
@@ -853,9 +853,6 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 	if( p != NULL ) {
 		a_from = &p->architectures_from;
 		a_into = &p->architectures_into;
-	} else {
-		a_from = NULL;
-		a_into = NULL;
 	}
 	if( target->packagetype_atom == pt_udeb )  {
 		while( p != NULL && !p->udebcomponents_set )
@@ -863,9 +860,6 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 		if( p != NULL ) {
 			c_from = &p->udebcomponents_from;
 			c_into = &p->udebcomponents_into;
-		} else {
-			c_from = NULL;
-			c_into = NULL;
 		}
 	} else {
 		while( p != NULL && !p->components_set )
@@ -873,9 +867,6 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 		if( p != NULL ) {
 			c_from = &p->components_from;
 			c_into = &p->components_into;
-		} else {
-			c_from = NULL;
-			c_into = NULL;
 		}
 	}
 
