@@ -854,6 +854,7 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 		a_from = &p->architectures_from;
 		a_into = &p->architectures_into;
 	}
+	p = origin->pattern;
 	if( target->packagetype_atom == pt_udeb )  {
 		while( p != NULL && !p->udebcomponents_set )
 			p = p->pattern_from;
