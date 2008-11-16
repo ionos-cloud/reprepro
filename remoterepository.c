@@ -438,6 +438,8 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 
 	if( *last != NULL ) {
 		n = *last;
+		// TODO: make sure this is not reachable or replace with
+		// runtime error...
 		assert( n->flat == flat );
 
 		if( (n->ignorerelease && !ignorerelease) ||

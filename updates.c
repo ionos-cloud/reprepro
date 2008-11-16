@@ -184,6 +184,8 @@ struct update_origin {
 	/*@null@*/char *suite_from;
 	/*@null@*/const struct distribution *distribution;
 	/*@null@*/struct remote_distribution *from;
+	/* cache for flat mode */
+	bool flat;
 	/* set when there was a error and it should no loner be used */
 	bool failed;
 };
@@ -631,7 +633,7 @@ static retvalue new_deleterule(struct update_origin **origins) {
 static retvalue instance_pattern(struct update_pattern *pattern, const struct distribution *distribution, struct update_origin **origins) {
 
 	struct update_origin *update;
-	/*@dependant@*/struct update_pattern *declaration, *p;
+	/*@dependant@*/struct update_pattern *declaration, *p, *listscomponents;
 	bool ignorehashes[cs_hashCOUNT], ignorerelease;
 	const char *verifyrelease;
 
@@ -725,9 +727,24 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 		memcpy(ignorehashes, p->ignorehashes, sizeof(ignorehashes));
 	}
 
+	listscomponents = NULL;
+	p = pattern;
+	while( p != NULL && p->flat == NULL ) {
+		if( p->components_set || p->udebcomponents_set )
+			listscomponents = p;
+		p = p->pattern_from;
+	}
+	update->flat = p != NULL;
+	if( update->flat && listscomponents != NULL ) {
+		fprintf(stderr,
+"WARNING: update pattern '%s' (first encountered via '%s' in '%s')\n"
+"sets components that are always ignored as '%s' sets Flat mode.\n",
+				listscomponents->name, pattern->name,
+				distribution->codename, p->name);
+	}
 	update->from = remote_distribution_prepare(declaration->repository,
 			update->suite_from, ignorerelease,
-			verifyrelease, declaration->flat,
+			verifyrelease, update->flat,
 			ignorehashes);
 	if( FAILEDTOALLOC(update->from) ) {
 		updates_freeorigins(update);
@@ -929,9 +946,9 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 	if( target->packagetype_atom == pt_udeb )
 		return RET_NOTHING;
 	p = origin->pattern;
-	while( p->pattern_from != NULL )
+	while( p != NULL && p->flat == NULL )
 		p = p->pattern_from;
-	assert( p->flat != NULL );
+	assert( p != NULL );
 	if( strcmp(p->flat, atoms_components[target->component_atom]) != 0 )
 		return RET_NOTHING;
 
@@ -1012,7 +1029,7 @@ static retvalue gettargets(struct update_origin *origins, struct distribution *d
 		for( origin = origins ; origin != NULL ; origin=origin->next ) {
 			if( origin->pattern == NULL )
 				r = adddeleteruletotarget(updatetargets);
-			else if( origin->pattern->flat == NULL )
+			else if( !origin->flat )
 				r = addorigintotarget(origin, target,
 						distribution, updatetargets);
 			else
@@ -1396,7 +1413,7 @@ static inline retvalue searchformissing(/*@null@*/FILE *out,struct database *dat
 				filename,
 				ud_decide_by_pattern,
 				(void*)uindex->origin->pattern,
-				uindex->origin->pattern->flat != NULL);
+				uindex->origin->flat);
 		if( RET_WAS_ERROR(r) ) {
 			u->incomplete = true;
 			u->ignoredelete = true;
