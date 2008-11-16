@@ -741,6 +741,15 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 				listscomponents->name, pattern->name,
 				distribution->codename, p->name);
 	}
+	if( p != NULL && !atomlist_in(&distribution->components, p->flat) ) {
+		fprintf(stderr,
+"Error: distribution '%s' uses flat update pattern '%s'\n"
+"with target component '%s' which it does not contain!\n",
+				distribution->codename,
+				pattern->name, atoms_components[p->flat]);
+		updates_freeorigins(update);
+		return RET_ERROR;
+	}
 	update->from = remote_distribution_prepare(declaration->repository,
 			update->suite_from, ignorerelease,
 			verifyrelease, update->flat,
