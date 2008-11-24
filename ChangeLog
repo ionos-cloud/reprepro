@@ -1,3 +1,6 @@
+2008-11-24
+	* fix bug in sha256 calculation over very large files
+
 2008-11-13
 	* add dumpupdate and dumppull actions that are like checkupdate and
 	checkpull but with less information but that more easily parseable.
