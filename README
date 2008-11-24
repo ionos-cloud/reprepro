@@ -7,7 +7,7 @@ See the file TODO for things I plan to do.
 	Emphasis is put on having all packages in the pool/-directory,
 	maximal checking of all sources.
 	generation of signed Release file, Contents, ...
-	Libraries needed are libdb4.3 and libz and libgpgme.
+	Libraries needed are libdb4.6 and libz and libgpgme.
 
 * Current status:
 
