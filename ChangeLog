@@ -1,3 +1,8 @@
+2008-10-21 backported to 3.6 2008-11-24
+	* use gpgerror for error codes directly
+	  (avoids some warnings about linkage and hopefully makes it
+	   more robust)
+
 2008-08-16 backported to 3.6 2008-11-24
 	* allow multiple export hooks
 
