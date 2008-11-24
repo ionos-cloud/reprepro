@@ -1,6 +1,8 @@
 reprepro (3.6.3-1) experimental; urgency=low
 
   * new point release
+  - fix sha256 generation of very large files (Closes: 506674),
+    thanks to Max Bowsher
   - allow multiple export hooks at once (Closes: 495303)
 
  -- Bernhard R. Link <brlink@debian.org>  Mon, 24 Nov 2008 10:36:58 +0100
