@@ -1101,7 +1101,7 @@ ACTION_D(n, n, y, update) {
 		return result;
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions,
 			&u_distributions);
 	if( !RET_IS_OK(result) ) {
 		if( result == RET_NOTHING ) {
@@ -1149,7 +1149,7 @@ ACTION_D(n, n, y, predelete) {
 	}
 	assert( RET_IS_OK(result) );
 
-	result = updates_calcindices(patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions,
 			&u_distributions);
 	if( !RET_IS_OK(result) ) {
 		if( result == RET_NOTHING ) {
@@ -1194,7 +1194,7 @@ ACTION_B(n, n, y, checkupdate) {
 		return result;
 	}
 
-	result = updates_calcindices(patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions,
 			&u_distributions);
 	if( !RET_IS_OK(result) ) {
 		if( result == RET_NOTHING ) {
@@ -1236,7 +1236,7 @@ ACTION_B(n, n, y, dumpupdate) {
 		return result;
 	}
 
-	result = updates_calcindices(patterns, alldistributions, fast,
+	result = updates_calcindices(patterns, alldistributions,
 			&u_distributions);
 	if( !RET_IS_OK(result) ) {
 		if( result == RET_NOTHING ) {

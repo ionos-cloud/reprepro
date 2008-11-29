@@ -1096,7 +1096,7 @@ static inline retvalue findmissingupdate(const struct distribution *distribution
 	return result;
 }
 
-retvalue updates_calcindices(struct update_pattern *patterns, struct distribution *distributions, bool fast, struct update_distribution **update_distributions) {
+retvalue updates_calcindices(struct update_pattern *patterns, struct distribution *distributions, struct update_distribution **update_distributions) {
 	struct distribution *distribution;
 	struct update_distribution *u_ds;
 	retvalue result, r;
