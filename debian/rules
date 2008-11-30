@@ -48,7 +48,8 @@ config.status: configure
 		    --with-libbz2 $(DBFLAGS) $(ARCHIVEFLAGS) \
 		    --disable-dependency-tracking \
 		    CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,syms" \
-	|| ( echo configure failed with $$? ; cat config.log ; exit 1 )
+	|| ( echo configure failed with $$? ; echo BEGIN config.log: ; \
+	     cat config.log ; echo "END config.log" ; exit 1 )
 
 build-indep: build-indep-stamp
 build-arch: build-arch-stamp
