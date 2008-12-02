@@ -46,4 +46,13 @@ void remote_index_needed(struct remote_index *);
 void remote_index_markdone(const struct remote_index *, struct markdonefile *);
 
 char *genlistsfilename(/*@null@*/const char * /*type*/, unsigned int /*count*/, ...) __attribute__((sentinel));
+
+struct cachedlistfile;
+retvalue cachedlists_scandir(/*@out@*/struct cachedlistfile **);
+void cachedlistfile_need_index(struct cachedlistfile *, const char *repository, const char *suite, const char *architecture, const char *component, packagetype_t);
+void cachedlistfile_need_flat_index(struct cachedlistfile *, const char *repository, const char *suite, packagetype_t);
+void cachedlistfile_need(struct cachedlistfile *list, const char *type, unsigned int count, ...) __attribute__((sentinel));
+void cachedlistfile_flat_markneeded(struct cachedlistfile *, packagetype_t);
+void cachedlistfile_freelist(/*@only@*/struct cachedlistfile *);
+void cachedlistfile_deleteunneeded(const struct cachedlistfile *);
 #endif

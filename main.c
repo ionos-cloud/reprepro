@@ -36,6 +36,7 @@
 #include "atoms.h"
 #include "dirs.h"
 #include "names.h"
+#include "filecntl.h"
 #include "files.h"
 #include "filelist.h"
 #include "database_p.h"
@@ -1258,12 +1259,20 @@ ACTION_B(n, n, y, dumpupdate) {
 	return result;
 }
 
-ACTION_C(n, n, cleanlists) {
-#warning TODO: do not forget to implement this...
-	// TODO: when this is implemented, also log the database?
-	fprintf(stderr, "Sorry, not yet implemented.\n");
+ACTION_B(n, n, y, cleanlists) {
+	retvalue result;
+	struct update_pattern *patterns;
 
-	return RET_ERROR;
+	if( !isdirectory(global.listdir) )
+		return RET_NOTHING;
+
+	result = updates_getpatterns(&patterns);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = updates_cleanlists(alldistributions, patterns);
+	updates_freepatterns(patterns);
+	return result;
 }
 
 /***********************migrate*******************************/
@@ -2716,7 +2725,7 @@ static const struct action {
 		2, 2, "gensnapshot <distribution> <date or other name>"},
 	{"rerunnotifiers",	A_Bact(rerunnotifiers),
 		0, -1, "rerunnotifiers [<distributions>]"},
-	{"cleanlists",		A_C(cleanlists),
+	{"cleanlists",		A_B(cleanlists),
 		0, 0,  "cleanlists"},
 	{NULL,NULL,0,0,0,NULL}
 };

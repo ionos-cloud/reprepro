@@ -131,11 +131,12 @@ struct remote_index {
 	bool needed;
 };
 
+#define MAXPARTS 5
 struct cachedlistfile {
 	struct cachedlistfile *next;
 	const char *basefilename;
 	int partcount;
-	const char *parts[5];
+	const char *parts[MAXPARTS];
 	/* might be used by some rule */
 	bool needed, deleted;
 	char fullfilename[];
@@ -183,11 +184,21 @@ void remote_repository_free(struct remote_repository *remote) {
 	return;
 }
 
-static inline void cachedlistfile_freelist(/*|only@*/struct cachedlistfile *c) {
+void cachedlistfile_freelist(struct cachedlistfile *c) {
 	while( c != NULL ) {
 		struct cachedlistfile *n = c->next;
 		free(c);
 		c = n;
+	}
+}
+
+void cachedlistfile_deleteunneeded(const struct cachedlistfile *c) {
+	for( ; c != NULL ; c = c->next ) {
+		if( c->needed )
+			continue;
+		if( verbose >= 0 )
+			printf("deleting %s\n", c->fullfilename);
+		deletefile(c->fullfilename);
 	}
 }
 
@@ -220,7 +231,7 @@ static /*@null@*/ struct cachedlistfile *cachedlistfile_new(const char *basefile
 	while( l-- > 0 && (ch = *(basefilename++)) != '\0' ) {
 		if( ch == '_' ) {
 			*(p++) = '\0';
-			if( c->partcount < 5 )
+			if( c->partcount < MAXPARTS )
 				c->parts[c->partcount] = p;
 			c->partcount++;
 		} else if( ch == '%' ) {
@@ -257,7 +268,7 @@ static /*@null@*/ struct cachedlistfile *cachedlistfile_new(const char *basefile
 	return c;
 }
 
-static retvalue cachedlists_scandir(/*@out@*/struct cachedlistfile **cachedfiles_p) {
+retvalue cachedlists_scandir(/*@out@*/struct cachedlistfile **cachedfiles_p) {
 	struct cachedlistfile *cachedfiles = NULL, **next_p;
 	struct dirent *r;
 	size_t listdirlen = strlen(global.listdir);
@@ -426,6 +437,35 @@ char *genlistsfilename(const char *type, unsigned int count, ...) {
 	else
 		*(--p) = '\0';
 	return result;
+}
+
+void cachedlistfile_need(struct cachedlistfile *list, const char *type, unsigned int count, ...) {
+	struct cachedlistfile *file;
+	const char *fields[count];
+	unsigned int i;
+	va_list ap;
+
+	va_start(ap, count);
+	for( i = 0 ; i < count ; i++ ) {
+		fields[i] = va_arg(ap, const char*);
+		assert( fields[i] != NULL );
+	}
+	/* check sentinel */
+	assert( va_arg(ap, const char*) == NULL );
+	va_end(ap);
+
+	for( file = list ; file != NULL ; file = file->next ) {
+		if( file->partcount != count + 1 )
+			continue;
+		i = 0;
+		while( i < count && strcmp(file->parts[i], fields[i]) == 0 )
+			i++;
+		if( i < count )
+			continue;
+		if( strcmp(type, file->parts[i]) != 0 )
+			continue;
+		file->needed = true;
+	}
 }
 
 struct remote_distribution *remote_distribution_prepare(struct remote_repository *repository, const char *suite, bool ignorerelease, const char *verifyrelease, bool flat, bool *ignorehashes) {
@@ -1017,6 +1057,22 @@ struct remote_index *remote_index(struct remote_distribution *rd, const char *ar
 	return addindex(rd, cachefilename, filename_in_release);
 }
 
+void cachedlistfile_need_index(struct cachedlistfile *list, const char *repository, const char *suite, const char *architecture, const char *component, packagetype_t packagetype) {
+	if( packagetype == pt_deb ) {
+		cachedlistfile_need(list, "Packages", 4,
+				repository, suite,
+				component, architecture, ENDOFARGUMENTS);
+	} else if( packagetype == pt_udeb ) {
+		cachedlistfile_need(list, "uPackages", 4,
+				repository, suite,
+				component, architecture, ENDOFARGUMENTS);
+	} else if( packagetype == pt_dsc ) {
+		cachedlistfile_need(list, "Sources", 3,
+				repository, suite,
+				component, ENDOFARGUMENTS);
+	}
+}
+
 struct remote_index *remote_flat_index(struct remote_distribution *rd, packagetype_t packagetype) {
 	char *cachefilename, *filename_in_release;
 
@@ -1035,6 +1091,16 @@ struct remote_index *remote_flat_index(struct remote_distribution *rd, packagety
 		assert( "Unexpected package type" == NULL );
 	}
 	return addindex(rd, cachefilename, filename_in_release);
+}
+
+void cachedlistfile_need_flat_index(struct cachedlistfile *list, const char *repository, const char *suite, packagetype_t packagetype) {
+	if( packagetype == pt_deb ) {
+		cachedlistfile_need(list, "Packages", 2,
+				repository, suite, ENDOFARGUMENTS);
+	} else if( packagetype == pt_dsc ) {
+		cachedlistfile_need(list, "Sources", 1,
+				repository, suite, ENDOFARGUMENTS);
+	}
 }
 
 const char *remote_index_file(const struct remote_index *ri) {

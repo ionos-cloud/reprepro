@@ -494,6 +494,15 @@ CFfinishparse(update_pattern) {
 				config_line(iter));
 			return RET_ERROR;
 		}
+		if( n->suite_from != NULL && strcmp(n->suite_from, "*") != 0 &&
+				strncmp(n->suite_from, "*/", 2) != 0 &&
+				strchr(n->suite_from, '*') != NULL ) {
+			fprintf(stderr,
+"%s:%u to %u: Unsupported suite pattern '%s'\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter), n->suite_from);
+			return RET_ERROR;
+		}
 	}
 	return linkedlistfinish(privdata_update_pattern, thisdata_update_pattern,
 			lastdata_p_update_pattern, complete, iter);
@@ -629,6 +638,23 @@ static retvalue new_deleterule(struct update_origin **origins) {
 	return RET_OK;
 }
 
+static inline char *translate_suite_pattern(const struct update_pattern *p, const char *codename) {
+	/* look for first specified suite: */
+	while( p != NULL && p->suite_from == NULL )
+		p = p->pattern_from;
+
+	if( p == NULL || strcmp(p->suite_from, "*") == 0)
+		return strdup(codename);
+	if( p->suite_from[0] == '*' && p->suite_from[1] == '/' )
+		return calc_dirconcat(codename, p->suite_from + 2);
+	else if( strchr(p->suite_from, '*') == NULL )
+		return strdup(p->suite_from);
+	//TODO: implement this
+	// but already checked in parsing...
+	assert(0);
+	return NULL;
+}
+
 static retvalue instance_pattern(struct update_pattern *pattern, const struct distribution *distribution, struct update_origin **origins) {
 
 	struct update_origin *update;
@@ -636,34 +662,13 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 	bool ignorehashes[cs_hashCOUNT], ignorerelease;
 	const char *verifyrelease;
 
-
 	update = calloc(1,sizeof(struct update_origin));
 	if( update == NULL )
 		return RET_ERROR_OOM;
 
-	/* look for first specified suite: */
-	p = pattern;
-	while( p != NULL && p->suite_from == NULL )
-		p = p->pattern_from;
-
-	if( p == NULL || strcmp(p->suite_from, "*") == 0)
-		update->suite_from = strdup(distribution->codename);
-	else {
-		if( p->suite_from[0] == '*' && p->suite_from[1] == '/' )
-			update->suite_from = calc_dirconcat(
-					distribution->codename,
-					p->suite_from + 2);
-		else if( strchr(p->suite_from, '*') == NULL )
-			update->suite_from = strdup(p->suite_from);
-		else {
-			//TODO: implement this...
-			fprintf(stderr, "Unsupported pattern '%s'\n",
-					p->suite_from);
-			free(update);
-			return RET_ERROR;
-		}
-	}
-	if( update->suite_from == NULL ) {
+	update->suite_from = translate_suite_pattern(pattern,
+			distribution->codename);
+	if( FAILEDTOALLOC(update->suite_from) ) {
 		free(update);
 		return RET_ERROR_OOM;
 	}
@@ -1999,4 +2004,214 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 	}
 	logger_wait();
 	return result;
+}
+
+/******************************************************************************
+ * The cleanlists command has to mark all files that might be scheduled to be *
+ * downloaded again, so that the rest can be deleted                          *
+ ******************************************************************************/
+
+static void marktargetsneeded(struct cachedlistfile *files, const struct distribution *d, component_t flat, /*@null@*/const struct strlist *a_from, /*@null@*/const struct strlist *a_into, /*@null@*/const struct strlist *c_from, /*@null@*/const struct strlist *c_into, /*@null@*/const struct strlist *uc_from, /*@null@*/const struct strlist *uc_into, const char *repository, const char *suite, const struct update_pattern *p) {
+	struct target *t;
+	int i, ai;
+
+	if( atom_defined(flat) ) {
+		bool deb_needed = false, dsc_needed = false;
+
+		for( t = d->targets ; t != NULL ; t = t->next) {
+			if( t->packagetype_atom == pt_udeb )
+				continue;
+			if( flat != t->architecture_atom )
+				continue;
+			if( a_into != NULL &&
+					!strlist_in(a_into,
+						atoms_architectures[
+						t->architecture_atom]) )
+				continue;
+			if( t->packagetype_atom == pt_deb )
+				deb_needed = true;
+			else if( t->packagetype_atom == pt_dsc )
+				dsc_needed = true;
+		}
+		if( deb_needed )
+			cachedlistfile_need_flat_index(files,
+					repository, suite, pt_deb);
+		if( dsc_needed )
+			cachedlistfile_need_flat_index(files,
+					repository, suite, pt_dsc);
+		return;
+	}
+	/* .dsc */
+	if( (a_into != NULL && strlist_in(a_into, "source")) ||
+			(a_into == NULL && atomlist_in(&d->architectures,
+						       architecture_source)) ) {
+		if( c_from != NULL )
+			for( i = 0 ; i < c_from->count ; i++ )
+				cachedlistfile_need_index(files,
+						repository, suite, "source",
+						c_from->values[i], pt_dsc);
+		else
+			for( i = 0 ; i < d->components.count ; i++ )
+				cachedlistfile_need_index(files,
+						repository, suite, "source",
+						atoms_components[
+						 d->components.atoms[i]],
+						pt_dsc);
+	}
+	/* .deb and .udeb */
+	if( a_into != NULL ) {
+		for( ai = 0 ; ai < a_into->count ; ai++ ) {
+			const char *a = a_from->values[ai];
+
+			if( strcmp(a_into->values[ai], "source") == 0 )
+				continue;
+			if( c_from != NULL )
+				for( i = 0 ; i < c_from->count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							c_from->values[i],
+							pt_deb);
+			else
+				for( i = 0 ; i < d->components.count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							atoms_components[
+							 d->components.atoms[i]],
+							pt_deb);
+			if( uc_from != NULL )
+				for( i = 0 ; i < uc_from->count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							uc_from->values[i],
+							pt_udeb);
+			else
+				for( i = 0 ; i < d->udebcomponents.count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							atoms_components[
+							 d->components.atoms[i]],
+							pt_udeb);
+		}
+	} else {
+		for( ai = 0 ; ai < d->architectures.count ; ai++ ) {
+			const char *a = atoms_architectures[
+				d->architectures.atoms[ai]];
+
+			if( d->architectures.atoms[ai] == architecture_source )
+				continue;
+			if( c_from != NULL )
+				for( i = 0 ; i < c_from->count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							c_from->values[i],
+							pt_deb);
+			else
+				for( i = 0 ; i < d->components.count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							atoms_components[
+							 d->components.atoms[i]],
+							pt_deb);
+			if( uc_from != NULL )
+				for( i = 0 ; i < uc_from->count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							uc_from->values[i],
+							pt_udeb);
+			else
+				for( i = 0 ; i < d->udebcomponents.count ; i++ )
+					cachedlistfile_need_index(files,
+							repository, suite, a,
+							atoms_components[
+							 d->components.atoms[i]],
+							pt_udeb);
+		}
+	}
+}
+
+retvalue updates_cleanlists(const struct distribution *distributions, const struct update_pattern *patterns) {
+	retvalue result;
+	const struct distribution *d;
+	const struct update_pattern *p, *q;
+	struct cachedlistfile *files;
+	int i;
+	bool isflat;
+	const struct strlist *uc_from = NULL, *uc_into = NULL;
+	const struct strlist *c_from = NULL, *c_into = NULL;
+	const struct strlist *a_from = NULL, *a_into = NULL;
+	const char *repository;
+	char *suite;
+
+	result = cachedlists_scandir(&files);
+	if( !RET_IS_OK(result) )
+		return result;
+
+	result = RET_OK;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		if( d->updates.count == 0 )
+			continue;
+		cachedlistfile_need(files, "lastseen", 2, "", d->codename, NULL);
+		for( i = 0; i < d->updates.count ; i++ ) {
+			const char *name = d->updates.values[i];
+
+			if( strcmp(name, "-") == 0 )
+				continue;
+
+			p = patterns;
+			while( p != NULL && strcmp(name, p->name) != 0 )
+				p = p->next;
+			if( p == NULL ) {
+				fprintf(stderr,
+"Cannot find definition of upgrade-rule '%s' for distribution '%s'!\n",
+						name, d->codename);
+				result = RET_ERROR;
+				continue;
+			}
+			q = p;
+			while( q != NULL && q->pattern_from != NULL )
+				q = q->pattern_from;
+			repository = q->name;
+			q = p;
+			while( q != NULL && !atom_defined(q->flat) )
+				q = q->pattern_from;
+			isflat = q != NULL;
+			q = p;
+			while( q != NULL && !q->architectures_set )
+				q = q->pattern_from;
+			if( q != NULL ) {
+				a_from = &q->architectures_from;
+				a_into = &q->architectures_into;
+			}
+			q = p;
+			while( q != NULL && !q->components_set )
+				q = q->pattern_from;
+			if( q != NULL ) {
+				c_from = &q->components_from;
+				c_into = &q->components_into;
+			}
+			q = p;
+			while( q != NULL && !q->udebcomponents_set )
+				q = q->pattern_from;
+			if( q != NULL ) {
+				uc_from = &q->udebcomponents_from;
+				uc_into = &q->udebcomponents_into;
+			}
+			suite = translate_suite_pattern(p, d->codename);
+			if( FAILEDTOALLOC(suite) ) {
+				cachedlistfile_freelist(files);
+				return RET_ERROR_OOM;
+			}
+			/* Only index files are intresting, everything else
+			 * Release, Release.gpg, compressed files, hook processed
+			 * files is deleted */
+			marktargetsneeded(files, d, isflat, a_from, a_into,
+					c_from, c_into, uc_from, uc_into,
+					repository, suite, p);
+			free(suite);
+
+		}
+	}
+	cachedlistfile_deleteunneeded(files);
+	cachedlistfile_freelist(files);
+	return RET_OK;
 }

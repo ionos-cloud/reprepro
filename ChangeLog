@@ -1,3 +1,6 @@
+2008-12-02
+	* implement cleanlists command
+
 2008-11-24
 	* fix bug in sha256 calculation over very large files
 

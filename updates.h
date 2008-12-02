@@ -36,4 +36,5 @@ retvalue updates_checkupdate(struct database *, struct update_distribution *, bo
 retvalue updates_dumpupdate(struct database *, struct update_distribution *, bool nolistsdownload, bool skipold);
 retvalue updates_predelete(struct database *, struct update_distribution *, bool nolistsdownload, bool skipold);
 
+retvalue updates_cleanlists(const struct distribution *, const struct update_pattern *);
 #endif
