@@ -68,3 +68,12 @@ bool isregularfile(const char *fullfilename) {
 	i = stat(fullfilename,&s);
 	return i == 0 && S_ISREG(s.st_mode);
 }
+
+bool isdirectory(const char *fullfilename) {
+	struct stat s;
+	int i;
+
+	assert(fullfilename != NULL);
+	i = stat(fullfilename,&s);
+	return i == 0 && S_ISDIR(s.st_mode);
+}
