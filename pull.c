@@ -645,7 +645,7 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
  * decide what gets pulled                                                 *
  **************************************************************************/
 
-static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UNUSED(const char *old_version),UNUSED(const char *new_version),const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
 	struct pull_rule *rule = privdata;
 	retvalue r;
 
@@ -660,6 +660,10 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 			fprintf(stderr,
 "Package name marked to be unexpected('error'): '%s'!\n", package);
 			return UD_ERROR;
+		case flt_upgradeonly:
+			if( old_version == NULL )
+				return UD_NO;
+			break;
 		case flt_install:
 			break;
 	}

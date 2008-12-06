@@ -1155,21 +1155,24 @@ packages use "priority (==required) | priority (==important)".
 .TP
 .B FilterList
 This takes at least two arguments: The first one is the default action
-when something is not found, the then a list of
+when something is not found in the list, then a list of
 filenames (relative to
 .B \-\-confdir\fR,
 if not starting with a slash),
 in the format of dpkg \-\-get\-selections and only packages listed in
 there as
 .B install
+or that are already there and are listed with
+.B upgradeonly
 will be installed. Things listed as
 .B deinstall
 or
 .B purge
-or nonexistent will be treated like not being known.
+will ignored.
 A package being
 .B hold
-will not be upgraded but also not downgraded or removed.
+will not be upgraded but also not downgraded or removed by previous
+delete rules.
 To abort the whole upgrade/pull if a package is available, use
 .B error\fR.
 .TP

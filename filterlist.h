@@ -7,6 +7,7 @@ enum filterlisttype {
 	flt_purge,
 	flt_deinstall,
 	flt_hold,
+	flt_upgradeonly,
 	flt_error
 };
 

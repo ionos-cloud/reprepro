@@ -1,3 +1,7 @@
+2008-12-06
+	* add 'upgradeonly' value for FilterList, that only takes
+	  an package into account if it already exists.
+
 2008-12-02
 	* implement cleanlists command
 
