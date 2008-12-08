@@ -916,6 +916,109 @@ ACTION_B(y, n, y, list) {
 	return r;
 }
 
+struct lsversion {
+	/*@null@*/struct lsversion *next;
+	char *version;
+	struct atomlist architectures;
+};
+
+static retvalue newlsversion(struct lsversion **versions_p, /*@only@*/char *version, architecture_t architecture) {
+	struct lsversion *v, **v_p;
+
+	for( v_p = versions_p ; (v = *v_p) != NULL ; v_p = &v->next ) {
+		if( strcmp(v->version, version) != 0 )
+			continue;
+		free(version);
+		return atomlist_add_uniq(&v->architectures, architecture);
+	}
+	v = calloc(1, sizeof(struct lsversion));
+	if( FAILEDTOALLOC(v) )
+		return RET_ERROR_OOM;
+	*v_p = v;
+	v->version = version;
+	return atomlist_add(&v->architectures, architecture);
+}
+
+static retvalue ls_in_target(struct database *database, struct target *target, const char *packagename, struct lsversion **versions_p) {
+	retvalue r,result;
+	char *control,*version;
+
+	r = target_initpackagesdb(target, database, READONLY);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	result = table_getrecord(target->packages, packagename, &control);
+	if( RET_IS_OK(result) ) {
+		r = target->getversion(control, &version);
+		if( RET_IS_OK(r) )
+			r = newlsversion(versions_p, version, target->architecture_atom);
+		free(control);
+		RET_UPDATE(result, r);
+	}
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
+ACTION_B(y, n, y, ls) {
+	retvalue r;
+	struct distribution *d;
+	struct target *t;
+	int maxcodenamelen;
+
+	assert( argc == 2 );
+	maxcodenamelen = 1;
+
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		size_t l = strlen(d->codename);
+		if( l > maxcodenamelen )
+			maxcodenamelen = l;
+	}
+
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		struct lsversion *versions = NULL, *v;
+		int maxversionlen, i;
+
+		for( t = d->targets ; t != NULL ; t = t->next ) {
+			if( !target_matches(t, component, architecture, packagetype) )
+				continue;
+			r = ls_in_target(database, t, argv[1], &versions);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+		maxversionlen = 1;
+		for( v = versions ; v != NULL ; v = v->next ) {
+			size_t l = strlen(v->version);
+
+			if( l > maxversionlen )
+				maxversionlen = l;
+		}
+		while( versions != NULL ) {
+			architecture_t a;
+
+			v = versions;
+			versions = v->next;
+
+			printf("%s | %*s | %*s | ",
+					argv[1],
+					maxversionlen,
+					v->version,
+					maxcodenamelen,
+					d->codename);
+			for( i = 0 ; i + 1 < v->architectures.count ; i++ ) {
+				a = v->architectures.atoms[i];
+				printf("%s, ", atoms_architectures[a]);
+			}
+			a = v->architectures.atoms[i];
+			puts(atoms_architectures[a]);
+
+			free(v->version);
+			atomlist_done(&v->architectures);
+			free(v);
+		}
+	}
+	return RET_OK;
+}
 
 
 static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
@@ -2643,6 +2746,8 @@ static const struct action {
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
 	{"removesrc", 		A_D(removesrc),
 		2, 3, "removesrc <codename> <source-package-names> [<source-version>]"},
+	{"ls", 		A_ROBact(ls),
+		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] ls <package-name>"},
 	{"list", 		A_ROBact(list),
 		1, 2, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> [<package-name>]"},
 	{"listfilter", 		A_ROBact(listfilter),

@@ -234,7 +234,7 @@ _reprepro()
 	fi
 
 	if [[ "XYZnoneyetXYZ" = "$cmd" ]] ; then
-		commands='remove list listfilter createsymlinks export\
+		commands='remove list ls listfilter createsymlinks export\
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
 			tidytracks removealltracks removetrack update checkupdate \
