@@ -1,3 +1,40 @@
+Updates between 3.6.2 and 3.8.0~alpha:
++ different small improvements:
+- log notifiers can be limited to a specific command with --via
+- updateonly value for FilterList to only include a package if
+  an older one is already there.
+- new --keepunusednewfiles to keep files just added to the pool
+  but later in the same run decided to no longer be needed
+  (for example because a package was not added because of later
+  detected errors).
+- --keepunreferenced and actions implying this now print
+  the number of files that lost their last reference
+- new dumpupdate and dumppull actions that are like checkupdate and
+  checkpull put with output easier parseable
++ improved decompression support
+- support looking into lzma compressed .deb, .diff and .tar files.
+- support for external helpers for uncompression
+  (to speed up uncompression on multiple processors, also reprepro
+   can now be compiled without libbz2 and zlib if needed)
+- support for downloading and using bz2 and lzma index files in updates
++ major changes to index file retrieval on updates:
+- update-rules can inherit settings from others
+- ListHooks are now called once per usage
+  (mostly only makes a difference for flat upstream repositories)
+- --nolistsdownload no longer includes --noskipold and checks checksums
+  of the lists files.
+- format of lists/ directory contents changed
+  (I doubt anyone cares for the files in there, but if you
+   do, you have been informed hereby that it looks differently)
+- lists/ directory no longer auto-cleaned,
+  thus --(no)keepuneeded longer exists and
+  new action cleanlists to clean files no longer usable...
++ visible effects of internal refactorisations:
+- multiple checks for identifiers more strict now
+- some fields in conf/distributions need a specific order now
+  (Architectures and Components before things using the values
+  defined by those)
+
 Updates between 3.6.2 and 3.6.3:
 - fix sha256 generation of very large files, thanks to Max Bowsher
 - allow multiple export hooks at once
