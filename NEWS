@@ -19,6 +19,7 @@ Updates between 3.6.2 and 3.8.0~alpha:
    can now be compiled without libbz2 and zlib if needed)
 - support for downloading and using bz2 and lzma index files in updates
 + major changes to index file retrieval on updates:
+- iteratedupdate action was removed
 - update-rules can inherit settings from others
 - ListHooks are now called once per usage
   (mostly only makes a difference for flat upstream repositories)
