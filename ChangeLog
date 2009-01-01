@@ -89,7 +89,7 @@
 	- ListHooks are called once per use (should mostly only
 	  make a difference for flat sources or with settings
 	  where this is needed).
-	- --nolistsdownload not only not downloads lists and has
+	- --nolistsdownload now only not downloads lists and has
 	  no other effects (checksums still checked, --noskipold
 	  no longer implied).
 	- deleting of old no longer needed lists (the default
