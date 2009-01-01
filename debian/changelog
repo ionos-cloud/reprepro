@@ -1,9 +1,28 @@
 reprepro (3.7.0-1) UNRELEASED; urgency=low
 
   * allow multiple export hooks at once (Closes: 495303)
-  * improve manpage's description of copysrc (Closes: 496347)
 
  -- Bernhard R. Link <brlink@debian.org>  Sat, 16 Aug 2008 16:54:57 +0200
+
+reprepro (3.6.3-1) experimental; urgency=low
+
+  * new point release with backports from the development branch
+  - fix sha256 generation of very large files (Closes: 506674),
+    thanks to Max Bowsher
+  - allow multiple export hooks at once (Closes: 495303)
+  - use libgpg-error directly (Closes: 502945)
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 24 Nov 2008 10:36:58 +0100
+
+reprepro (3.6.2-1) experimental; urgency=low
+
+  * new bugfix release
+  - fix parsing contents of very large .deb files (Closes: 504434)
+  - improve documentation of remove and removefilter (Closes: 500105)
+  - improve documentation of copysrc and -C (Closes: 496347)
+  - fix many spelling and other errors in the manpage (Closes: 502531)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  4 Nov 2008 21:20:21 +0100
 
 reprepro (3.6.1-2) experimental; urgency=low
 
