@@ -98,9 +98,9 @@ stderr
 -v0*=There have been errors!
 EOF
 
-# -A=calculator -C=cat --type=dsc --withcontrol noscript.sh
+# -A=calculator -C=cat --type=dsc --via=include --withcontrol noscript.sh
 ed -s conf/distributions <<EOF
-g/^ -A=/s/=none/=dsc/
+g/^ -A=/s/=none/=dsc --via=include/
 w
 q
 EOF
