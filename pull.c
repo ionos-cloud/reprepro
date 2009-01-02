@@ -647,6 +647,7 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
 
 static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
 	struct pull_rule *rule = privdata;
+	upgrade_decision decision = UD_UPGRADE;
 	retvalue r;
 
 	switch( filterlist_find(package,&rule->filterlist) ) {
@@ -654,7 +655,8 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /
 		case flt_purge:
 			return UD_NO;
 		case flt_hold:
-			return UD_HOLD;
+			decision = UD_HOLD;
+			break;
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
@@ -677,7 +679,7 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /
 		}
 	}
 
-	return UD_UPGRADE;
+	return decision;
 }
 
 static inline retvalue pull_searchformissing(/*@null@*/FILE *out,struct database *database,struct pull_target *p) {

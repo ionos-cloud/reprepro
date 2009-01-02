@@ -1340,6 +1340,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
 static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
 	const struct update_pattern *pattern = privdata, *p;
 	retvalue r;
+	upgrade_decision decision = UD_UPGRADE;
 	enum filterlisttype listdecision;
 
 	p = pattern;
@@ -1355,8 +1356,8 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 		case flt_purge:
 			return UD_NO;
 		case flt_hold:
-			// TODO: why not limited to only when includedecision is also true?
-			return UD_HOLD;
+			decision = UD_HOLD;
+			break;
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
@@ -1382,7 +1383,7 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 		}
 	}
 
-	return UD_UPGRADE;
+	return decision;
 }
 
 

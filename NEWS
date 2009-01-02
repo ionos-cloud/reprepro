@@ -12,6 +12,9 @@ Updates between 3.6.2 and 3.8.0~alpha:
 - new dumpupdate and dumppull actions that are like checkupdate and
   checkpull put with output easier parseable
 - new ls action to list a package in all distributions
++ bugfixes
+- if FilterFormula excludes a package, FilterList can no longer put
+  a package on hold.
 + improved decompression support
 - support looking into lzma compressed .deb, .diff and .tar files.
 - support for external helpers for uncompression

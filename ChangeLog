@@ -1,5 +1,8 @@
 2008-01-01
 	* FilterList/FilterFormula can be inherited with From: in update rules.
+	* bugfix: if FilterList return hold, FilterFormula was not asked.
+	  Not it is only hold if FilterFormula also includes this package.
+	  (pull/update)
 
 2008-12-06
 	* add 'upgradeonly' value for FilterList, that only takes
