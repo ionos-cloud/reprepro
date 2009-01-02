@@ -1441,6 +1441,11 @@ enough to have checked the code of your libs, kernel and filesystems.
 .B ignore \fR(for forward compatibility)
 Ignore unknown ignore types given to \fI\-\-ignore\fP.
 .TP
+.B flatandnonflat \fR(only supresses a warning)
+Do not warn about a flat and a non-flat distribution from the same
+source with the same name when updating.
+(Hopefully never ever needed.)
+.TP
 .B malformedchunk \fR(I hope you know what you do)
 Do not stop when finding a line not starting with a space but
 no colon(:) in it. These are otherwise rejected as they have no

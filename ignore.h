@@ -29,6 +29,7 @@
 	IGN(undefinedtarget) \
 	IGN(undefinedtracking) \
 	IGN(unusedoption) \
+	IGN(flatandnonflat) \
 	IGN(missingfile)
 
 

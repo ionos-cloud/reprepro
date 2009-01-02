@@ -266,6 +266,7 @@ _arguments \
 	'--export=[]:when:(never changed normal force)' \
 	'*--ignore=[Do ignore errors of some type]:error type:((\
 		ignore\:"ignore unknown ignore tags"\
+		flatandnonflat\:"ignore warnings about flat and non-flat distribution"\
 		forbiddenchar\:"allow more 7bit characters for names and versions"\
 		8bit\:"allow 8 bit characters"\
 		emptyfilenamepart\:"allow strings used to construct filenames to be empty"\
@@ -291,7 +292,7 @@ _arguments \
 		missingfile\:"include commands search harder for missing files like .orig.tar.gz"\
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
-		ignore forbiddenchar 8bit emptyfilenamepart\
+		ignore flatandnonflat forbiddenchar 8bit emptyfilenamepart\
 		spaceonlyline malformedchunk unknownfield unusedoption\
 		wrongdistribution missingfield brokenold brokenversioncmp\
 		extension unusedarch surprisingarch surprisingbinary

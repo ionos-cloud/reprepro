@@ -242,7 +242,66 @@ stderr
 *=Changes will only be visible after the next 'export'!
 EOF
 
-#exit 2
+#Now it gets evil! Name flat and non-flat the same
+dodo sed -i -e 's/suitename/x/'  source1/dists/suitename/Release
+mv source1/dists/suitename source1/dists/x
+mv source1/dists source2/dists
+dodo sed -i -e 's/suitename/x/' -e 's/^From: a$/From: b/' -e 's/Flat: dummycomponent/#&/' conf/updates
 
-rm -r -f db conf dists pool lists source1 source2
+testrun - update boring 3<<EOF
+stderr
+-v0*=Warning: From the same remote repository 'copy:/tmp/brl/testdir/source2', distribution 'x'
+-v0*=is requested both flat and non-flat. While this is possible
+-v0*=(having copy:/tmp/brl/testdir/source2/dists/x and copy:/tmp/brl/testdir/source2/x), it is unlikely.
+-v0*=To no longer see this message, use --ignore=flatandnonflat.
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/source/Sources'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/main/binary-coal/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/firmware/binary-coal/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/source/Sources'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/main/binary-coal/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/firmware/binary-$FAKEARCHITECTURE/Packages'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/firmware/binary-coal/Packages'
+stdout
+-v0*=Calculating packages to get...
+-v0*=  nothing new for 'boring|firmware|source' (use --noskipold to process anyway)
+-v3*=  processing updates for 'boring|firmware|coal'
+# 5 times:
+-v5*=  marking everything to be deleted
+-v5*=  reading './lists/b_x_firmware_coal_Packages'
+-v3*=  processing updates for 'boring|firmware|abacus'
+-v5*=  reading './lists/b_x_firmware_${FAKEARCHITECTURE}_Packages'
+-v3*=  processing updates for 'boring|main|source'
+-v5*=  reading './lists/b_x_Sources'
+-v5*=  reading './lists/b_x_main_Sources'
+-v3*=  processing updates for 'boring|main|coal'
+-v5*=  reading './lists/b_x_Packages'
+-v5*=  reading './lists/b_x_main_coal_Packages'
+-v3*=  processing updates for 'boring|main|abacus'
+#-v5*=  reading './lists/b_x_Packages'
+-v5*=  reading './lists/b_x_main_abacus_Packages'
+-v0*=Getting packages...
+-v1*=Shutting down aptmethods...
+-v0*=Installing (and possibly deleting) packages...
+stderr
+EOF
+
+testrun - --ignore=flatandnonflat update boring 3<<EOF
+stderr
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/dists/x/Release'
+stdout
+-v0*=Nothing to do found. (Use --noskipold to force processing)
+stderr
+EOF
+
+rm -r -f db conf dists pool lists source1 source2 test.changes
 testsuccess

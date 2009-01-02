@@ -27,6 +27,7 @@
 
 #include "globals.h"
 #include "error.h"
+#include "ignore.h"
 #include "filecntl.h"
 #include "checksums.h"
 #include "mprintf.h"
@@ -84,7 +85,7 @@ struct remote_distribution {
 	char *suite;
 
 	/* flat repository */
-	bool flat;
+	bool flat; bool flatnonflatwarned;
 	char *suite_base_dir;
 
 	/* if true, do not download or check Release file */
@@ -472,14 +473,29 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 	struct remote_distribution *n, **last;
 	enum checksumtype cs;
 
-	last = &repository->distributions;
-	while( *last != NULL && strcmp((*last)->suite, suite) != 0 )
-		last = &(*last)->next;
+	for( last = &repository->distributions ; (n = *last) != NULL
+	                                       ; last = &n->next) {
+		if( strcmp(n->suite, suite) != 0 )
+			continue;
+		if( n->flat != flat ) {
+			if( verbose >= 0 && !n->flatnonflatwarned &&
+					!IGNORABLE(flatandnonflat) )
+				fprintf(stderr,
+"Warning: From the same remote repository '%s', distribution '%s'\n"
+"is requested both flat and non-flat. While this is possible\n"
+"(having %s/dists/%s and %s/%s), it is unlikely.\n"
+"To no longer see this message, use --ignore=flatandnonflat.\n",
+					repository->method, suite,
+					repository->method, suite,
+					repository->method, suite);
+			n->flatnonflatwarned = true;
+			continue;
+		}
+		break;
+	}
 
 	if( *last != NULL ) {
 		n = *last;
-		// TODO: make sure this is not reachable or replace with
-		// runtime error...
 		assert( n->flat == flat );
 
 		if( (n->ignorerelease && !ignorerelease) ||
@@ -546,8 +562,13 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 		return NULL;
 	}
 	/* ignorerelease can be unset later, so always calculate the filename */
-	n->releasefile = genlistsfilename("Release", 2,
-			repository->name, suite, ENDOFARGUMENTS);
+	if( flat )
+		n->releasefile = genlistsfilename("Release", 3,
+				repository->name, suite, "flat",
+				ENDOFARGUMENTS);
+	else
+		n->releasefile = genlistsfilename("Release", 2,
+				repository->name, suite, ENDOFARGUMENTS);
 	if( FAILEDTOALLOC(n->releasefile) ) {
 		remote_distribution_free(n);
 		return NULL;

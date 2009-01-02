@@ -3,6 +3,9 @@
 	* bugfix: if FilterList return hold, FilterFormula was not asked.
 	  Not it is only hold if FilterFormula also includes this package.
 	  (pull/update)
+	* if a distribution is both flat and non-flat, do not raise an
+	  assert, but emmit a warning and proceed (new flatandnonflat ignore
+	  class to ignore that warning).
 
 2008-12-06
 	* add 'upgradeonly' value for FilterList, that only takes
