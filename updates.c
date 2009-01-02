@@ -169,6 +169,7 @@ struct update_pattern {
 	bool architectures_set;
 	bool components_set;
 	bool udebcomponents_set;
+	bool includecondition_set;
 	bool config_set;
 	/* to check circular references */
 	bool visited;
@@ -339,7 +340,7 @@ CFlinelistSETPROC(update_pattern, config)
 CFtruthSETPROC(update_pattern, ignorerelease)
 CFscriptSETPROC(update_pattern, listhook)
 CFfilterlistSETPROC(update_pattern, filterlist)
-CFtermSETPROC(update_pattern, includecondition)
+CFtermSSETPROC(update_pattern, includecondition)
 
 CFUSETPROC(update_pattern, components) {
 	CFSETPROCVAR(update_pattern, this);
@@ -1337,14 +1338,24 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
  ****************************************************************************/
 
 static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
-	struct update_pattern *pattern = privdata;
+	const struct update_pattern *pattern = privdata, *p;
 	retvalue r;
+	enum filterlisttype listdecision;
 
-	switch( filterlist_find(package,&pattern->filterlist) ) {
+	p = pattern;
+	while( p != NULL && !p->filterlist.set )
+		p = p->pattern_from;
+	if( p == NULL )
+		listdecision = flt_install;
+	else
+		listdecision = filterlist_find(package, &p->filterlist);
+
+	switch( listdecision ) {
 		case flt_deinstall:
 		case flt_purge:
 			return UD_NO;
 		case flt_hold:
+			// TODO: why not limited to only when includedecision is also true?
 			return UD_HOLD;
 		case flt_error:
 			/* cannot yet be handled! */
@@ -1359,8 +1370,11 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 			break;
 	}
 
-	if( pattern->includecondition != NULL ) {
-		r = term_decidechunk(pattern->includecondition,newcontrolchunk);
+	p = pattern;
+	while( p != NULL && !p->includecondition_set )
+		p = p->pattern_from;
+	if( p != NULL ) {
+		r = term_decidechunk(p->includecondition, newcontrolchunk);
 		if( RET_WAS_ERROR(r) )
 			return UD_ERROR;
 		if( r == RET_NOTHING ) {

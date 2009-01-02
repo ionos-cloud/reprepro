@@ -274,6 +274,19 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	free(formula); \
 	return r; \
 }
+#define CFtermSSETPROC(sname, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UNUSED(const char *name), void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	char *formula; \
+	retvalue r; \
+	r = config_getall(iter, &formula); \
+	if( ! RET_IS_OK(r) ) \
+		return r; \
+	r = term_compile(&item->field, formula, T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL); \
+	free(formula); \
+	item->field ## _set = true; \
+	return r; \
+}
 
 // TODO: decide which should get better checking, which might allow escapes spaces:
 #define CFurlSETPROC CFvalueSETPROC

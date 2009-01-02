@@ -1,3 +1,6 @@
+2008-01-01
+	* FilterList/FilterFormula can be inherited with From: in update rules.
+
 2008-12-06
 	* add 'upgradeonly' value for FilterList, that only takes
 	  an package into account if it already exists.

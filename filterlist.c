@@ -345,6 +345,7 @@ retvalue filterlist_load(struct filterlist *list, struct configiterator *iter) {
 	list->count = count;
 	list->files = files;
 	list->defaulttype = defaulttype;
+	list->set = true;
 	return RET_OK;
 }
 
@@ -392,7 +393,7 @@ static inline bool find(const char *name, /*@null@*/struct filterlistfile *list)
 	return false;
 }
 
-enum filterlisttype filterlist_find(const char *name,struct filterlist *list) {
+enum filterlisttype filterlist_find(const char *name, const struct filterlist *list) {
 	size_t i;
 	for( i = 0 ; i < list->count ; i++ ) {
 		if( list->files[i]->root != NULL && find(name,list->files[i]) )
