@@ -1,4 +1,4 @@
-2009-01-01
+2009-01-02
 	* FilterList/FilterFormula can be inherited with From: in update rules.
 	* bugfix: if FilterList return hold, FilterFormula was not asked.
 	  Not it is only hold if FilterFormula also includes this package.
