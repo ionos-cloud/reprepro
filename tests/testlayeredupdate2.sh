@@ -523,9 +523,9 @@ dodo sed -i -e 's/suitename/x/' -e 's/^From: a$/From: b/' -e 's/Flat: dummycompo
 
 testrun - update boring 3<<EOF
 stderr
--v0*=Warning: From the same remote repository 'copy:/tmp/brl/testdir/source2', distribution 'x'
+-v0*=Warning: From the same remote repository 'copy:${WORKDIR}/source2', distribution 'x'
 -v0*=is requested both flat and non-flat. While this is possible
--v0*=(having copy:/tmp/brl/testdir/source2/dists/x and copy:/tmp/brl/testdir/source2/x), it is unlikely.
+-v0*=(having copy:${WORKDIR}/source2/dists/x and copy:${WORKDIR}/source2/x), it is unlikely.
 -v0*=To no longer see this message, use --ignore=flatandnonflat.
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source2/dists/x/Release'

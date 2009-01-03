@@ -2262,7 +2262,7 @@ DATESTR remove test1 deb ugly ${FAKEARCHITECTURE} simple 1
 DATESTR remove test1 dsc ugly source simple 1
 EOF
 testrun - -b . remove test2 simple 3<<EOF
-*=Unable to forget unknown filekey 'pool/ugly/s/simple/simple_1_abacus.deb'.
+*=Unable to forget unknown filekey 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb'.
 -v0*=There have been errors!
 stdout
 -v1=removing 'simple' from 'test2|ugly|${FAKEARCHITECTURE}'...

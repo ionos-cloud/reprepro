@@ -243,7 +243,7 @@ testout - -b . dumppull b 3<<EOF
 stderr
 EOF
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 add 'aa' - '1-1' 'froma'
 add 'aa-addons' - '1-1' 'froma'
 EOF
@@ -339,7 +339,7 @@ testout - -b . dumppull b 3<<EOF
 stderr
 EOF
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 update 'aa' '1-1' '1-2' 'froma'
 update 'aa-addons' '1-1' '1-2' 'froma'
 EOF
@@ -466,7 +466,7 @@ testout - -b . dumppull b 3<<EOF
 stderr
 EOF
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 update 'aa' '1-2' '1-3' 'froma'
 update 'aa-addons' '1-2' '1-3' 'froma'
 add 'ab' - '2-1' 'froma'
@@ -508,7 +508,7 @@ testout - -b . dumppull b 3<<EOF
 stderr
 EOF
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 keep 'aa' '1-3' '1-3'
 keep 'aa-addons' '1-3' '1-3'
 keep 'ab' '2-1' '2-1'
@@ -747,7 +747,7 @@ testout - -b . dumpupdate b 3<<EOF
 -v6*=Listhook successfully returned!
 EOF
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 keep 'aa' '1-3' '1-3'
 keep 'aa-addons' '1-3' '1-3'
 update 'ab' '2-1' '3-1' 'froma'
@@ -801,7 +801,7 @@ testout - -b . dumpupdate b 3<<EOF
 -v6*=Listhook successfully returned!
 EOF
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 keep 'aa' '1-3' '1-3'
 keep 'aa-addons' '1-3' '1-3'
 add 'ab' - '3-1' 'froma'
@@ -961,7 +961,7 @@ EOF
 fi
 testout "" --keepunreferenced --dbdir db2 dumppull
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 keep 'aa' '1-3' '1-3'
 keep 'aa-addons' '1-3' '1-3'
 keep 'ab' '3-1' unavailable
@@ -980,7 +980,7 @@ DATESTR remove b deb all ${FAKEARCHITECTURE} aa-addons 1-3
 EOF
 testout "" --keepunreferenced --dbdir db2 dumppull
 cat > results.expected <<EOF
-Updates needed for 'b|all|abacus':
+Updates needed for 'b|all|${FAKEARCHITECTURE}':
 keep 'aa' '1-3' '1-3'
 add 'aa-addons' - '1-3' 'froma'
 keep 'ab' '3-1' unavailable
