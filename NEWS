@@ -1,7 +1,7 @@
 Updates between 3.6.2 and 3.8.0~alpha:
 + different small improvements:
 - log notifiers can be limited to a specific command with --via
-- updateonly value for FilterList to only include a package if
+- upgradeonly value for FilterList to only include a package if
   an older one is already there.
 - new --keepunusednewfiles to keep files just added to the pool
   but later in the same run decided to no longer be needed
