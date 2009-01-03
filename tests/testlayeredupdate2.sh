@@ -101,8 +101,9 @@ DISTRI=dummy PACKAGE=bb EPOCH="" VERSION=2 REVISION=-0 SECTION="firmware/base" g
 DISTRI=dummy PACKAGE=cc EPOCH="" VERSION=1 REVISION=-1000 SECTION="base" genpackage.sh -sa
 DISTRI=dummy PACKAGE=dd EPOCH="" VERSION=2 REVISION=-0 SECTION="firmware/base" genpackage.sh -sa
 
-mv aa* source1
-mv bb* source1
+mkdir source1/pool source1/pool/main source1/pool/firmware
+mv aa* source1/pool/main
+mv bb* source1/pool/firmware
 mv cc* source2
 mv dd* source2
 
@@ -133,15 +134,18 @@ EOF
 mkdir -p source1/dists/suitename/main/binary-$FAKEARCHITECTURE
 mkdir source1/dists/suitename/main/binary-coal
 mkdir source1/dists/suitename/main/source
-touch source1/dists/suitename/main/binary-$FAKEARCHITECTURE/Packages
-touch source1/dists/suitename/main/binary-coal/Packages
-touch source1/dists/suitename/main/source/Sources
 mkdir -p source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE
 mkdir source1/dists/suitename/firmware/binary-coal
 mkdir source1/dists/suitename/firmware/source
-touch source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages
-touch source1/dists/suitename/firmware/binary-coal/Packages
-touch source1/dists/suitename/firmware/source/Sources
+
+cd source1
+dpkg-scansources pool/main /dev/null > dists/suitename/main/source/Sources
+dpkg-scanpackages pool/main /dev/null > dists/suitename/main/binary-$FAKEARCHITECTURE/Packages
+dpkg-scanpackages -a coal pool/main /dev/null > dists/suitename/main/binary-coal/Packages
+dpkg-scansources pool/firmware /dev/null > dists/suitename/firmware/source/Sources
+dpkg-scanpackages pool/firmware /dev/null > dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages
+dpkg-scanpackages -a coal pool/firmware /dev/null > dists/suitename/firmware/binary-coal/Packages
+cd ..
 
 cat > source1/dists/suitename/Release <<EOF
 Codename: hohoho
@@ -210,20 +214,42 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/source2/./dd_2-0_$FAKEARCHITECTURE.deb'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/./cc_1-1000.tar.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/./cc_1-1000.dsc'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa-addons_1-1000_all.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb-addons_2-0_all.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_1-1000_$FAKEARCHITECTURE.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/firmware/bb_2-0_$FAKEARCHITECTURE.deb'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_1-1000.tar.gz'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/pool/main/aa_1-1000.dsc'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa-addons_1-1000_all.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb-addons_2-0_all.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_1-1000_$FAKEARCHITECTURE.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/firmware/bb_2-0_$FAKEARCHITECTURE.deb'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_1-1000.tar.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/pool/main/aa_1-1000.dsc'
 stdout
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/firmware"
+-v2*=Created directory "./pool/firmware/b"
+-v2*=Created directory "./pool/firmware/b/bb"
 -v2*=Created directory "./pool/firmware/d"
 -v2*=Created directory "./pool/firmware/d/dd"
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/c"
 -v2*=Created directory "./pool/main/c/cc"
+-v2*=Created directory "./pool/main/a"
+-v2*=Created directory "./pool/main/a/aa"
 -d1*=db: 'pool/firmware/d/dd/dd-addons_2-0_all.deb' added to checksums.db(pool).
 -d1*=db: 'pool/firmware/d/dd/dd_2-0_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/main/c/cc/cc-addons_1-1000_all.deb' added to checksums.db(pool).
 -d1*=db: 'pool/main/c/cc/cc_1-1000_abacus.deb' added to checksums.db(pool).
 -d1*=db: 'pool/main/c/cc/cc_1-1000.dsc' added to checksums.db(pool).
 -d1*=db: 'pool/main/c/cc/cc_1-1000.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/firmware/b/bb/bb-addons_2-0_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/firmware/b/bb/bb_2-0_abacus.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/a/aa/aa-addons_1-1000_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/a/aa/aa_1-1000_abacus.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/a/aa/aa_1-1000.dsc' added to checksums.db(pool).
+-d1*=db: 'pool/main/a/aa/aa_1-1000.tar.gz' added to checksums.db(pool).
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 -d1*=db: 'dd-addons' added to packages.db(boring|firmware|coal).
@@ -233,6 +259,13 @@ stdout
 -d1*=db: 'cc' added to packages.db(boring|main|source).
 -d1*=db: 'cc' added to packages.db(boring|main|$FAKEARCHITECTURE).
 -d1*=db: 'cc-addons' added to packages.db(boring|main|$FAKEARCHITECTURE).
+-d1*=db: 'bb-addons' added to packages.db(boring|firmware|coal).
+-d1*=db: 'bb' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
+-d1*=db: 'bb-addons' added to packages.db(boring|firmware|$FAKEARCHITECTURE).
+-d1*=db: 'aa-addons' added to packages.db(boring|main|coal).
+-d1*=db: 'aa' added to packages.db(boring|main|source).
+-d1*=db: 'aa' added to packages.db(boring|main|$FAKEARCHITECTURE).
+-d1*=db: 'aa-addons' added to packages.db(boring|main|$FAKEARCHITECTURE).
 stderr
 *=Warning: database 'boring|main|abacus' was modified but no index file was exported.
 *=Warning: database 'boring|main|coal' was modified but no index file was exported.

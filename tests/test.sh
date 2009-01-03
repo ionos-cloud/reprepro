@@ -5,6 +5,7 @@ set -e
 source $(dirname $0)/test.inc
 
 runtest layeredupdate
+runtest layeredupdate2
 runtest uncompress
 runtest check
 runtest flat
