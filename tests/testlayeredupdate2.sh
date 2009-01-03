@@ -8,11 +8,25 @@ fi
 dodo test ! -d db
 mkdir -p conf dists
 echo "export never" > conf/options
+cat > conf/updatelog.sh <<EOF
+#!/bin/sh
+echo "\$@" >> '$WORKDIR/updatelog'
+exit 0
+EOF
+cat > conf/shouldnothappen.sh <<EOF
+#!/bin/sh
+echo "\$@" >> '$WORKDIR/shouldnothappen'
+exit 0
+EOF
+chmod a+x conf/updatelog.sh conf/shouldnothappen.sh
 cat > conf/distributions <<EOF
 Codename: boring
 Suite: unstable
 Components: main firmware
 Architectures: $FAKEARCHITECTURE coal source
+Log:
+	--via update updatelog.sh
+	--via include shouldnothappen.sh
 Update: - 1 2 3 4
 
 Codename: interesting
@@ -562,5 +576,35 @@ stdout
 stderr
 EOF
 
+cat > results.expected <<EOF
+add boring deb firmware coal bb-addons 2-0 -- pool/firmware/b/bb/bb-addons_2-0_all.deb
+add boring deb firmware coal dd-addons 2-0 -- pool/firmware/d/dd/dd-addons_2-0_all.deb
+add boring deb firmware ${FAKEARCHITECTURE} bb 2-0 -- pool/firmware/b/bb/bb_2-0_${FAKEARCHITECTURE}.deb
+add boring deb firmware ${FAKEARCHITECTURE} bb-addons 2-0 -- pool/firmware/b/bb/bb-addons_2-0_all.deb
+add boring deb firmware ${FAKEARCHITECTURE} dd 2-0 -- pool/firmware/d/dd/dd_2-0_${FAKEARCHITECTURE}.deb
+add boring deb firmware ${FAKEARCHITECTURE} dd-addons 2-0 -- pool/firmware/d/dd/dd-addons_2-0_all.deb
+add boring dsc main source aa 1-1000 -- pool/main/a/aa/aa_1-1000.dsc pool/main/a/aa/aa_1-1000.tar.gz
+add boring dsc main source cc 1-1000 -- pool/main/c/cc/cc_1-1000.dsc pool/main/c/cc/cc_1-1000.tar.gz
+add boring deb main coal aa-addons 1-1000 -- pool/main/a/aa/aa-addons_1-1000_all.deb
+add boring deb main coal cc-addons 1-1000 -- pool/main/c/cc/cc-addons_1-1000_all.deb
+add boring deb main ${FAKEARCHITECTURE} aa 1-1000 -- pool/main/a/aa/aa_1-1000_${FAKEARCHITECTURE}.deb
+add boring deb main ${FAKEARCHITECTURE} aa-addons 1-1000 -- pool/main/a/aa/aa-addons_1-1000_all.deb
+add boring deb main ${FAKEARCHITECTURE} cc 1-1000 -- pool/main/c/cc/cc_1-1000_${FAKEARCHITECTURE}.deb
+add boring deb main ${FAKEARCHITECTURE} cc-addons 1-1000 -- pool/main/c/cc/cc-addons_1-1000_all.deb
+replace boring dsc main source aa 2-1 1-1000 -- pool/main/a/aa/aa_2-1.dsc pool/main/a/aa/aa_2-1.tar.gz -- pool/main/a/aa/aa_1-1000.dsc pool/main/a/aa/aa_1-1000.tar.gz
+replace boring deb main coal aa-addons 2-1 1-1000 -- pool/main/a/aa/aa-addons_2-1_all.deb -- pool/main/a/aa/aa-addons_1-1000_all.deb
+replace boring deb main ${FAKEARCHITECTURE} aa 2-1 1-1000 -- pool/main/a/aa/aa_2-1_${FAKEARCHITECTURE}.deb -- pool/main/a/aa/aa_1-1000_${FAKEARCHITECTURE}.deb
+replace boring deb main ${FAKEARCHITECTURE} aa-addons 2-1 1-1000 -- pool/main/a/aa/aa-addons_2-1_all.deb -- pool/main/a/aa/aa-addons_1-1000_all.deb
+add boring deb firmware coal ee-addons 2-1 -- pool/firmware/e/ee/ee-addons_2-1_all.deb
+add boring deb firmware ${FAKEARCHITECTURE} ee 2-1 -- pool/firmware/e/ee/ee_2-1_${FAKEARCHITECTURE}.deb
+add boring deb firmware ${FAKEARCHITECTURE} ee-addons 2-1 -- pool/firmware/e/ee/ee-addons_2-1_all.deb
+replace boring deb firmware coal bb-addons 1-1 2-0 -- pool/firmware/b/bb/bb-addons_1-1_all.deb -- pool/firmware/b/bb/bb-addons_2-0_all.deb
+replace boring deb firmware ${FAKEARCHITECTURE} bb 1-1 2-0 -- pool/firmware/b/bb/bb_1-1_${FAKEARCHITECTURE}.deb -- pool/firmware/b/bb/bb_2-0_${FAKEARCHITECTURE}.deb
+replace boring deb firmware ${FAKEARCHITECTURE} bb-addons 1-1 2-0 -- pool/firmware/b/bb/bb-addons_1-1_all.deb -- pool/firmware/b/bb/bb-addons_2-0_all.deb
+EOF
+
+dodo test ! -f shouldnothappen
+dodiff results.expected updatelog
+rm updatelog results.expected
 rm -r -f db conf dists pool lists source1 source2 test.changes
 testsuccess
