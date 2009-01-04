@@ -203,7 +203,7 @@ static long woulddelete_count;
 static component_t current_component;
 static const char *sourcename = NULL;
 
-static void removeifunreferenced(const void *nodep, const VISIT which, const int depth) {
+static void removeifunreferenced(const void *nodep, const VISIT which, UNUSED(const int depth)) {
 	char *node; const char *filekey;
 	retvalue r;
 
@@ -245,7 +245,7 @@ static void removeifunreferenced(const void *nodep, const VISIT which, const int
 }
 
 
-static void removeifunreferenced2(const void *nodep, const VISIT which, const int depth) {
+static void removeifunreferenced2(const void *nodep, const VISIT which, UNUSED(const int depth)) {
 	char *node;
 	char *filekey;
 	retvalue r;
@@ -290,7 +290,7 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, const in
 	free(filekey);
 }
 
-static void removeunreferenced_from_component(const void *nodep, const VISIT which, const int depth) {
+static void removeunreferenced_from_component(const void *nodep, const VISIT which, UNUSED(const int depth)) {
 	struct source_node *node;
 
 	if( which != leaf && which != postorder)
@@ -334,7 +334,7 @@ retvalue pool_removeunreferenced(struct database *database, bool delete) {
 	return result;
 }
 
-static void removeunusednew(const void *nodep, const VISIT which, const int depth) {
+static void removeunusednew(const void *nodep, const VISIT which, UNUSED(const int depth)) {
 	char *node; const char *filekey;
 	retvalue r;
 
@@ -378,7 +378,7 @@ static void removeunusednew(const void *nodep, const VISIT which, const int dept
 }
 
 
-static void removeunusednew2(const void *nodep, const VISIT which, const int depth) {
+static void removeunusednew2(const void *nodep, const VISIT which, UNUSED(const int depth)) {
 	char *node;
 	char *filekey;
 	retvalue r;
@@ -425,7 +425,7 @@ static void removeunusednew2(const void *nodep, const VISIT which, const int dep
 	free(filekey);
 }
 
-static void removeunusednew_from_component(const void *nodep, const VISIT which, const int depth) {
+static void removeunusednew_from_component(const void *nodep, const VISIT which, UNUSED(const int depth)) {
 	struct source_node *node;
 
 	if( which != leaf && which != postorder)
