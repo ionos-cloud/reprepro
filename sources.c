@@ -96,6 +96,11 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 		const char *fileline = filelines->values[i];
 
 		r = calc_parsefileline(fileline, &basefilename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Malformed Files: line '%s'!\n",
+					fileline);
+			r = RET_ERROR;
+		}
 		if( RET_WAS_ERROR(r) )
 			break;
 
