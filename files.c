@@ -600,7 +600,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 		RET_ENDUPDATE(result, r);
 	} else {
 		bool havemd5sums;
-		int c IFSTUPIDCC(=-1);
+		int c;
 
 		r = table_newglobalcursor(database->oldmd5sums, &cursor);
 		if( RET_WAS_ERROR(r) )
@@ -619,6 +619,15 @@ retvalue files_checkpool(struct database *database, bool fast) {
 			filekey2 = NULL;
 		else
 			nextcombined();
+
+		/* wander through both databases
+		 *   cursor (last read filekey) is the oldmd5sums,
+		 *      which determines if a file is there or not
+		 *      (older versions do not know about checksums,
+		 *       so will not delete things there).
+		 *  cursor2 (last read filekeys) is the checksums
+		 */
+
 		while( havemd5sums && cursor_nexttemp(database->oldmd5sums,
 					cursor, &filekey, &md5sum) ) {
 			while( filekey2 != NULL &&
@@ -630,7 +639,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 				}
 				nextcombined();
 			}
-			if( filekey == NULL || c > 0 ) {
+			if( filekey2 == NULL || c > 0 ) {
 				r = checksums_parse(&expected, md5sum);
 				improveable = true;
 			} else {

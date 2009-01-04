@@ -1,6 +1,7 @@
 2009-01-04
 	* add support for libdb4.7 (yet with some warnings to note I have not
 	tested it much yet)
+	* bugfix in checkpool with old files.db
 
 2009-01-02
 	* FilterList/FilterFormula can be inherited with From: in update rules.
