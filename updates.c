@@ -950,7 +950,7 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 	return RET_OK;
 }
 
-static retvalue addflatorigintotarget(struct update_origin *origin, struct target *target, struct distribution *distribution, struct update_target *updatetargets ) {
+static retvalue addflatorigintotarget(struct update_origin *origin, struct target *target, struct update_target *updatetargets ) {
 	const struct update_pattern *p;
 	const struct strlist *a_from, *a_into;
 	int ai;
@@ -1048,7 +1048,7 @@ static retvalue gettargets(struct update_origin *origins, struct distribution *d
 						distribution, updatetargets);
 			else
 				r = addflatorigintotarget(origin, target,
-						distribution, updatetargets);
+						updatetargets);
 			if( RET_WAS_ERROR(r) ) {
 				updates_freetargets(updatetargets);
 				return r;
