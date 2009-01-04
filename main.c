@@ -147,7 +147,7 @@ O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_co
 #define y(type,name) type name
 #define n(type,name) UNUSED(type dummy_ ## name)
 
-#define ACTION_N(act,sp,name) static retvalue action_n_ ## act ## _ ## sp ## _ ## name ( \
+#define ACTION_N(act,sp,args,name) static retvalue action_n_ ## act ## _ ## sp ## _ ## name ( \
 			UNUSED(struct distribution *dummy2), \
 			UNUSED(struct database *dummy),	\
 			sp(const char *, section),		\
@@ -155,7 +155,7 @@ O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_co
 			act(architecture_t, architecture),	\
 			act(component_t, component),		\
 			act(packagetype_t, packagetype),		\
-			int argc,const char *argv[])
+			int argc, args(const char *,argv[]))
 
 #define ACTION_C(act,sp,name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions, \
@@ -175,7 +175,17 @@ O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_co
 			act(architecture_t, architecture),	\
 			act(component_t, component),		\
 			act(packagetype_t, packagetype),		\
-			int argc,const char *argv[])
+			int argc, const char *argv[])
+
+#define ACTION_L(act,sp,u,args,name) static retvalue action_l_ ## act ## _ ## sp ## _ ## name ( \
+			struct distribution *alldistributions, \
+			u(struct database *,database),	\
+			sp(const char *, section),		\
+			sp(const char *, priority),		\
+			act(architecture_t, architecture),	\
+			act(component_t, component),		\
+			act(packagetype_t, packagetype),		\
+			int argc, args(const char *,argv[]))
 
 #define ACTION_R(act,sp,d,a,name) static retvalue action_r_ ## act ## _ ## sp ## _ ## name ( \
 			d(struct distribution *, alldistributions), \
@@ -227,7 +237,7 @@ O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_co
 			act(packagetype_t, packagetype),		\
 			u(int,argc), u(const char *,argv[]))
 
-ACTION_N(n, n, printargs) {
+ACTION_N(n, n, y, printargs) {
 	int i;
 
 	fprintf(stderr,"argc: %d\n",argc);
@@ -237,7 +247,7 @@ ACTION_N(n, n, printargs) {
 	return RET_OK;
 }
 
-ACTION_N(n, n, dumpuncompressors) {
+ACTION_N(n, n, n, dumpuncompressors) {
 	enum compression c;
 
 	assert( argc == 1 );
@@ -267,7 +277,7 @@ ACTION_N(n, n, dumpuncompressors) {
 	}
 	return RET_OK;
 }
-ACTION_N(n, n, uncompress) {
+ACTION_N(n, n, y, uncompress) {
 	enum compression c;
 
 	assert( argc == 4 );
@@ -285,7 +295,7 @@ ACTION_N(n, n, uncompress) {
 	return uncompress_file(argv[2], argv[3], c);
 }
 
-ACTION_N(n, n, extractcontrol) {
+ACTION_N(n, n, y, extractcontrol) {
 	retvalue result;
 	char *control;
 
@@ -300,7 +310,7 @@ ACTION_N(n, n, extractcontrol) {
 	return result;
 }
 
-ACTION_N(n, n, extractfilelist) {
+ACTION_N(n, n, y, extractfilelist) {
 	retvalue result;
 	char *filelist;
 	size_t fls, len;
@@ -355,7 +365,7 @@ ACTION_N(n, n, extractfilelist) {
 	return result;
 }
 
-ACTION_N(n, n, extractsourcesection) {
+ACTION_N(n, n, y, extractsourcesection) {
 	struct dsc_headers dsc;
 	struct sourceextraction *extraction;
 	char *section = NULL, *priority = NULL, *directory, *filename;
@@ -964,7 +974,7 @@ ACTION_B(y, n, y, ls) {
 	retvalue r;
 	struct distribution *d;
 	struct target *t;
-	int maxcodenamelen;
+	size_t maxcodenamelen;
 
 	assert( argc == 2 );
 	maxcodenamelen = 1;
@@ -977,7 +987,8 @@ ACTION_B(y, n, y, ls) {
 
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		struct lsversion *versions = NULL, *v;
-		int maxversionlen, i;
+		size_t maxversionlen;
+		int i;
 
 		for( t = d->targets ; t != NULL ; t = t->next ) {
 			if( !target_matches(t, component, architecture, packagetype) )
@@ -1001,9 +1012,9 @@ ACTION_B(y, n, y, ls) {
 
 			printf("%s | %*s | %*s | ",
 					argv[1],
-					maxversionlen,
+					(int)maxversionlen,
 					v->version,
-					maxcodenamelen,
+					(int)maxcodenamelen,
 					d->codename);
 			for( i = 0 ; i + 1 < v->architectures.count ; i++ ) {
 				a = v->architectures.atoms[i];
@@ -1362,9 +1373,11 @@ ACTION_B(n, n, y, dumpupdate) {
 	return result;
 }
 
-ACTION_B(n, n, y, cleanlists) {
+ACTION_L(n, n, n, n, cleanlists) {
 	retvalue result;
 	struct update_pattern *patterns;
+
+	assert( argc == 1 );
 
 	if( !isdirectory(global.listdir) )
 		return RET_NOTHING;
@@ -2551,7 +2564,7 @@ ACTION_D(n, n, n, clearvanished) {
 	return result;
 }
 
-ACTION_N(n, n, versioncompare) {
+ACTION_N(n, n, y, versioncompare) {
 	retvalue r;
 	int i;
 
@@ -2676,6 +2689,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 #define A_C(w) action_c_n_n_ ## w, NEED_CONFIG
 #define A_ROB(w) action_b_n_n_ ## w, NEED_DATABASE|IS_RO
 #define A_ROBact(w) action_b_y_n_ ## w, NEED_ACT|NEED_DATABASE|IS_RO
+#define A_L(w) action_l_n_n_ ## w, NEED_DATABASE
 #define A_B(w) action_b_n_n_ ## w, NEED_DATABASE
 #define A_Bact(w) action_b_y_n_ ## w, NEED_ACT|NEED_DATABASE
 #define A_F(w) action_f_n_n_ ## w, NEED_DATABASE|NEED_FILESDB
@@ -2830,7 +2844,7 @@ static const struct action {
 		2, 2, "gensnapshot <distribution> <date or other name>"},
 	{"rerunnotifiers",	A_Bact(rerunnotifiers),
 		0, -1, "rerunnotifiers [<distributions>]"},
-	{"cleanlists",		A_B(cleanlists),
+	{"cleanlists",		A_L(cleanlists),
 		0, 0,  "cleanlists"},
 	{NULL,NULL,0,0,0,NULL}
 };
