@@ -178,6 +178,7 @@ static retvalue list_prepareadd(struct database *database, struct package_list *
 	free(source); source = NULL;
 	free(sourceversion); sourceversion = NULL;
 	if( v == NULL ) free(version); version = NULL;
+	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
 
