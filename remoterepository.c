@@ -136,7 +136,7 @@ struct remote_index {
 struct cachedlistfile {
 	struct cachedlistfile *next;
 	const char *basefilename;
-	int partcount;
+	unsigned int partcount;
 	const char *parts[MAXPARTS];
 	/* might be used by some rule */
 	bool needed, deleted;
