@@ -89,7 +89,7 @@ struct dscpackage {
 	struct strlist filekeys;
 };
 
-static void dsc_free(/*@only@*/struct dscpackage *pkg, struct database *database) {
+static void dsc_free(/*@only@*/struct dscpackage *pkg) {
 	if( pkg != NULL ) {
 		sources_done(&pkg->dsc);
 		strlist_done(&pkg->filekeys);
@@ -118,7 +118,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	if( RET_IS_OK(r) )
 		r = properfilenames(&dsc->dsc.files.names);
 	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc, NULL);
+		dsc_free(dsc);
 		return r;
 	}
 	dsc->component_atom = atom_unknown;
@@ -197,7 +197,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		free(pkg->dsc.section);
 		pkg->dsc.section = strdup(forcesection);
 		if( pkg->dsc.section == NULL ) {
-			dsc_free(pkg, database);
+			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
@@ -205,14 +205,14 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		free(pkg->dsc.priority);
 		pkg->dsc.priority = strdup(forcepriority);
 		if( pkg->dsc.priority == NULL ) {
-			dsc_free(pkg, database);
+			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
 
 	r = dirs_getdirectory(dscfilename, &origdirectory);
 	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg, database);
+		dsc_free(pkg);
 		return r;
 	}
 
@@ -224,7 +224,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			(pkg->dsc.priority == NULL)?&pkg->dsc.priority:NULL);
 		if( FAILEDTOALLOC(extraction) ) {
 			free(origdirectory);
-			dsc_free(pkg, database);
+			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
 		for( i = 0 ; i < pkg->dsc.files.names.count ; i ++ )
@@ -235,7 +235,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 					pkg->dsc.files.names.values[i]);
 			if( FAILEDTOALLOC(fullfilename) ) {
 				free(origdirectory);
-				dsc_free(pkg, database);
+				dsc_free(pkg);
 				return RET_ERROR_OOM;
 			}
 			/* while it would nice to try at the pool if we
@@ -247,7 +247,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			free(fullfilename);
 			if( RET_WAS_ERROR(r) ) {
 				free(origdirectory);
-				dsc_free(pkg, database);
+				dsc_free(pkg);
 				sourceextraction_abort(extraction);
 				return r;
 			}
@@ -255,7 +255,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		r = sourceextraction_finish(extraction);
 		if( RET_WAS_ERROR(r) ) {
 			free(origdirectory);
-			dsc_free(pkg, database);
+			dsc_free(pkg);
 			return r;
 		}
 	}
@@ -264,19 +264,19 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		fprintf(stderr, "No section and no priority for '%s', skipping.\n",
 				pkg->dsc.name);
 		free(origdirectory);
-		dsc_free(pkg, database);
+		dsc_free(pkg);
 		return RET_ERROR;
 	}
 	if( pkg->dsc.section == NULL ) {
 		fprintf(stderr, "No section for '%s', skipping.\n", pkg->dsc.name);
 		free(origdirectory);
-		dsc_free(pkg, database);
+		dsc_free(pkg);
 		return RET_ERROR;
 	}
 	if( pkg->dsc.priority == NULL ) {
 		fprintf(stderr, "No priority for '%s', skipping.\n", pkg->dsc.name);
 		free(origdirectory);
-		dsc_free(pkg, database);
+		dsc_free(pkg);
 		return RET_ERROR;
 	}
 
@@ -287,7 +287,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 			&pkg->component_atom);
 	if( RET_WAS_ERROR(r) ) {
 		free(origdirectory);
-		dsc_free(pkg, database);
+		dsc_free(pkg);
 		return r;
 	}
 	if( verbose > 0 && !atom_defined(forcecomponent) ) {
@@ -308,7 +308,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		if( dscbasename == NULL || destdirectory == NULL || RET_WAS_ERROR(r) ) {
 			free(dscbasename);
 			free(destdirectory); free(origdirectory);
-			dsc_free(pkg, database);
+			dsc_free(pkg);
 			return r;
 		}
 		dscfilekey = calc_dirconcat(destdirectory, dscbasename);
@@ -359,12 +359,12 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		pkg->dsc.control = control;
 	} else {
 		free(origdirectory);
-		dsc_free(pkg, database);
+		dsc_free(pkg);
 		return r;
 	}
 
 	if( interrupted() ) {
-		dsc_free(pkg, database);
+		dsc_free(pkg);
 		free(origdirectory);
 		return RET_ERROR_INTERRUPTED;
 	}
@@ -373,7 +373,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		r = trackingdata_summon(tracks,pkg->dsc.name,pkg->dsc.version,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
 			free(origdirectory);
-			dsc_free(pkg, database);
+			dsc_free(pkg);
 			return r;
 		}
 	}
@@ -400,7 +400,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 		}
 	}
 	free(origdirectory);
-	dsc_free(pkg, database);
+	dsc_free(pkg);
 
 	if( tracks != NULL ) {
 		retvalue r2;
