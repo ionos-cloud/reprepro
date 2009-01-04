@@ -104,8 +104,8 @@ testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
-*=Missing 'MD5Sum' field in Release file './lists/flattest_flatsource_Release'!
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+*=Missing 'MD5Sum' field in Release file './lists/flattest_flatsource_flat_Release'!
 -v0*=There have been errors!
 stdout
 EOF
@@ -116,8 +116,8 @@ testrun - -b . update 1234 3<<EOF
 returns 254
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
-*=Could not find 'Packages' within './lists/flattest_flatsource_Release'
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+*=Could not find 'Packages' within './lists/flattest_flatsource_flat_Release'
 -v0*=There have been errors!
 stdout
 EOF
@@ -128,8 +128,8 @@ testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
-*=Error parsing md5 checksum line ' trash' within './lists/flattest_flatsource_Release'
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+*=Error parsing md5 checksum line ' trash' within './lists/flattest_flatsource_flat_Release'
 -v0*=There have been errors!
 stdout
 EOF
@@ -146,7 +146,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
@@ -185,7 +185,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
@@ -224,7 +224,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
@@ -269,7 +269,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
@@ -302,7 +302,7 @@ touch flatsource/test.deb
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
 -v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_0_all.deb'...
 stdout
@@ -362,7 +362,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_Release'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
 -v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
