@@ -113,6 +113,9 @@ struct remote_index {
 
 	struct remote_distribution *from;
 
+	/* what to download? .gz better than .bz2? and so on */
+	struct encoding_preferences downloadas;
+
 	/* remote filename as to be found in Release file*/
 	char *filename_in_release;
 
@@ -802,6 +805,131 @@ static inline void remote_index_oldfiles(struct remote_index *ri, /*@null@*/stru
 	}
 }
 
+static inline enum compression firstsupportedencoding(const struct encoding_preferences *downloadas) {
+	int e;
+
+	if( downloadas->count == 0 )
+		/* if nothing is specified, get .gz */
+		return c_gzip;
+
+	for( e = 0 ; e < downloadas->count ; e++ ) {
+		enum compression c = downloadas->requested[e];
+		if( uncompression_supported(c) )
+			return c;
+	}
+	// TODO: instead give an good warning or error...
+	return c_gzip;
+}
+
+static inline retvalue find_requested_encoding(struct remote_index *ri, const char *releasefile) {
+	int e;
+	enum compression c,
+			 /* the most-preferred requested but unsupported */
+			 unsupported = c_COUNT,
+			 /* the best unrequested but supported */
+			 unrequested = c_COUNT;
+
+	if( ri->downloadas.count > 0 ) {
+		bool found = false;
+		for( e = 0 ; e < ri->downloadas.count ; e++ ) {
+			c = ri->downloadas.requested[e];
+
+			if( ri->ofs[c] < 0 )
+				continue;
+			if( uncompression_supported(c) ) {
+				ri->compression = c;
+				return RET_OK;
+			} else if( unsupported == c_COUNT )
+				unsupported = c;
+		}
+
+		/* nothing that is both requested by the user and supported
+		 * and listed in the Release file found, check what is there
+		 * to get a meaningfull error message */
+
+		for( c = 0 ; c < c_COUNT ; c++ ) {
+			if( ri->ofs[c] < 0 )
+				continue;
+			found = true;
+			if( uncompression_supported(c) )
+				unrequested = c;
+		}
+
+		if( !found ) {
+			// TODO: might be nice to check for not-yet-even
+			// known about compressions and say they are not
+			// yet know yet instead then here...
+			fprintf(stderr,
+					"Could not find '%s' within '%s'\n",
+					ri->filename_in_release, releasefile);
+			return RET_ERROR_WRONG_MD5;
+		}
+
+		if( !found ) {
+			fprintf(stderr,
+"Error: '%s' only lists unusable or unrequested compressions of '%s'.\n"
+"Try e.g the '%s' option (or check what it is set to) to make more useable.\n"
+"Or change your DownloadListsAs to request e.g. '%s'.\n",
+					releasefile, ri->filename_in_release,
+					uncompression_option[unsupported],
+					uncompression_suffix[unrequested]);
+			return RET_ERROR;
+		}
+		if( unsupported != c_COUNT ) {
+			fprintf(stderr,
+"Error: '%s' only lists unusable compressions of '%s'.\n"
+"Try e.g the '%s' option (or check what it is set to) to make more useable.\n",
+					releasefile, ri->filename_in_release,
+					uncompression_option[unsupported]);
+			return RET_ERROR;
+		}
+		if( unrequested != c_COUNT ) {
+			fprintf(stderr,
+"Error: '%s' only lists unrequested compressions of '%s'.\n"
+"Try changing your DownloadListsAs to request e.g. '%s'.\n",
+					releasefile, ri->filename_in_release,
+					uncompression_suffix[unrequested]);
+			return RET_ERROR;
+		}
+		fprintf(stderr,
+"Error: '%s' lists no requested and usable compressions of '%s'.\n",
+					releasefile, ri->filename_in_release);
+		return RET_ERROR;
+	}
+	/* When nothing specified, use the newest compression.
+	 * This might make it slow on older computers (and perhaps
+	 * on relatively new ones, too), but usually bandwidth costs
+	 * and your time not.
+	 * And you can always configure it to prefer a faster one...
+	 */
+	ri->compression = c_COUNT;
+
+	for( c = 0 ; c < c_COUNT ; c++ ) {
+		if( ri->ofs[c] < 0 )
+			continue;
+		if( uncompression_supported(c) )
+			ri->compression = c;
+		else
+			unsupported = c;
+	}
+	if( ri->compression == c_COUNT ) {
+		if( unsupported != c_COUNT ) {
+			fprintf(stderr,
+"Error: '%s' only lists unusable compressions of '%s'.\n"
+"Try e.g the '%s' option (or check what it is set to) to enable more.\n",
+					releasefile, ri->filename_in_release,
+					uncompression_option[unsupported]);
+			return RET_ERROR;
+		}
+		fprintf(stderr,
+				"Could not find '%s' within '%s'\n",
+				ri->filename_in_release, releasefile);
+		return RET_ERROR_WRONG_MD5;
+
+	}
+	return RET_OK;
+}
+
 static inline retvalue queueindex(struct remote_distribution *rd, struct remote_index *ri, bool nodownload, /*@null@*/struct cachedlistfile *oldfiles, bool *tobecontinued) {
 	struct remote_repository *rr = rd->repository;
 	enum compression c;
@@ -816,12 +944,26 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		if( nodownload )
 			return RET_OK;
 
-		/* we do not know what upstream uses, just assume .gz */
-		toget = calc_addsuffix(ri->filename_in_release, "gz");
-		ri->compression = c_gzip;
+		/* Without a Release file there is no knowing what compression
+		 * upstream uses. Situation gets worse as we miss the means yet
+		 * to try something and continue with something else if it
+		 * fails (as aptmethod error reporting would need to be extended
+		 * for it). Thus use the first supported of the requested and
+		 * use .gz as fallback.
+		 *
+		 * Using this preferences means users will have to set it for
+		 * IgnoreRelease-distributions, that default in an parent
+		 * rule to something already, but better than to invent another
+		 * mechanism to specify this... */
 
+		c = firstsupportedencoding(&ri->downloadas);
+		assert( uncompression_supported(c) );
+
+		ri->compression = c;
+		toget = mprintf("%s%s", ri->filename_in_release,
+					uncompression_suffix[c]);
 		r = aptmethod_queueindexfile(rr->download, rd->suite_base_dir,
-				toget, ri->cachefilename, NULL, c_gzip, NULL);
+				toget, ri->cachefilename, NULL, c, NULL);
 		free(toget);
 		return r;
 	}
@@ -921,23 +1063,16 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		return RET_ERROR_MISSING;
 	}
 
-	/* assume the more newer the compression the better
-	 * (though on low end architectures
-	 * the opposite holds, so TODO: make this configurable */
+	r = find_requested_encoding(ri, rd->releasefile);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
 
-	ri->compression = c_COUNT;
-	for( c = 0 ; c < c_COUNT ; c++ ) {
-		if( ri->ofs[c] >= 0 && uncompression_supported(c) )
-			ri->compression = c;
-	}
-	if( ri->compression == c_COUNT ) {
-		fprintf(stderr,
-"Could not find '%s' within '%s'\n",
-				ri->filename_in_release, rd->releasefile);
-		return RET_ERROR_WRONG_MD5;
+	assert( ri->compression < c_COUNT );
+	assert( uncompression_supported(ri->compression) );
 
-	}
 	ofs = ri->ofs[ri->compression];
+	assert( ofs >= 0 );
 
 /* as those checksums might be overwritten with completed data,
  * this assumes that the uncompressed checksums for one index is never
@@ -1015,7 +1150,7 @@ retvalue remote_preparelists(struct aptmethodrun *run, bool nodownload) {
 	return RET_OK;
 }
 
-static struct remote_index *addindex(struct remote_distribution *rd, /*@only@*/char *cachefilename, /*@only@*/char *filename) {
+static struct remote_index *addindex(struct remote_distribution *rd, /*@only@*/char *cachefilename, /*@only@*/char *filename, /*@null@*/const struct encoding_preferences *downloadas) {
 	struct remote_index *ri, **last;
 	enum compression c;
 	const char *cachebasename;
@@ -1043,13 +1178,18 @@ static struct remote_index *addindex(struct remote_distribution *rd, /*@only@*/c
 	ri->cachefilename = cachefilename;
 	ri->cachebasename = cachebasename;
 	ri->filename_in_release = filename;
+	// TODO: perhaps try to calculate some form of intersections
+	// instead of just using the shorter one...
+	if( downloadas != NULL && (ri->downloadas.count == 0
+			|| ri->downloadas.count > downloadas->count) )
+		ri->downloadas = *downloadas;
 	for( c = 0 ; c < c_COUNT ; c++ )
 		ri->ofs[c] = -1;
 	ri->diff_ofs = -1;
 	return ri;
 }
 
-struct remote_index *remote_index(struct remote_distribution *rd, const char *architecture, const char *component, packagetype_t packagetype) {
+struct remote_index *remote_index(struct remote_distribution *rd, const char *architecture, const char *component, packagetype_t packagetype, /*@null@*/const struct encoding_preferences *downloadas) {
 	char *cachefilename, *filename_in_release;
 
 	assert( !rd->flat );
@@ -1075,7 +1215,7 @@ struct remote_index *remote_index(struct remote_distribution *rd, const char *ar
 	} else {
 		assert( "Unexpected package type" == NULL );
 	}
-	return addindex(rd, cachefilename, filename_in_release);
+	return addindex(rd, cachefilename, filename_in_release, downloadas);
 }
 
 void cachedlistfile_need_index(struct cachedlistfile *list, const char *repository, const char *suite, const char *architecture, const char *component, packagetype_t packagetype) {
@@ -1094,7 +1234,7 @@ void cachedlistfile_need_index(struct cachedlistfile *list, const char *reposito
 	}
 }
 
-struct remote_index *remote_flat_index(struct remote_distribution *rd, packagetype_t packagetype) {
+struct remote_index *remote_flat_index(struct remote_distribution *rd, packagetype_t packagetype, /*@null@*/const struct encoding_preferences *downloadas) {
 	char *cachefilename, *filename_in_release;
 
 	assert( rd->flat );
@@ -1111,7 +1251,7 @@ struct remote_index *remote_flat_index(struct remote_distribution *rd, packagety
 	} else {
 		assert( "Unexpected package type" == NULL );
 	}
-	return addindex(rd, cachefilename, filename_in_release);
+	return addindex(rd, cachefilename, filename_in_release, downloadas);
 }
 
 void cachedlistfile_need_flat_index(struct cachedlistfile *list, const char *repository, const char *suite, packagetype_t packagetype) {

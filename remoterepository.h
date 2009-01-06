@@ -33,8 +33,16 @@ retvalue remote_startup(struct aptmethodrun *);
 retvalue remote_preparemetalists(struct aptmethodrun *, bool nodownload);
 retvalue remote_preparelists(struct aptmethodrun *, bool nodownload);
 
-struct remote_index *remote_index(struct remote_distribution *, const char *architecture, const char *component, packagetype_t);
-struct remote_index *remote_flat_index(struct remote_distribution *, packagetype_t);
+struct encoding_preferences {
+	/* number of preferences, 0 means use default */
+	unsigned short count;
+	/* a list of compressions to use,
+	 * a c_COUNT means end of the list... */
+	enum compression requested[c_COUNT];
+};
+
+struct remote_index *remote_index(struct remote_distribution *, const char *architecture, const char *component, packagetype_t, const struct encoding_preferences *);
+struct remote_index *remote_flat_index(struct remote_distribution *, packagetype_t, const struct encoding_preferences *);
 
 /* returns the name of the prepared uncompressed file */
 /*@observer@*/const char *remote_index_file(const struct remote_index*);

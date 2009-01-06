@@ -163,6 +163,8 @@ struct update_pattern {
 	component_t flat;
 	//e.g. "IgnoreRelease: Yes" for 1 (default is 0)
 	bool ignorerelease;
+	/* the form in which index files are preferably downloaded */
+	struct encoding_preferences downloadlistsas;
 	/* if the specific field is there (to destinguish from an empty one) */
 	bool ignorehashes_set;
 	bool ignorerelease_set;
@@ -171,6 +173,7 @@ struct update_pattern {
 	bool udebcomponents_set;
 	bool includecondition_set;
 	bool config_set;
+	bool downloadlistsas_set;
 	/* to check circular references */
 	bool visited;
 
@@ -852,15 +855,21 @@ static retvalue getorigins(struct update_distribution *d) {
 
 static inline bool addremoteindex(struct update_origin *origin, struct target *target, struct update_target *updatetargets, const char *architecture, const char *component) {
 	struct update_index_connector *uindex;
+	const struct update_pattern *p;
 
 	uindex = calloc(1, sizeof(struct update_index_connector));
 	if( FAILEDTOALLOC(uindex) )
 		return false;
 
+	p = origin->pattern;
+	while( p != NULL && !p->downloadlistsas_set )
+		p = p->pattern_from;
+
 	uindex->origin = origin;
 	uindex->remote = remote_index(origin->from,
 			architecture, component,
-			target->packagetype_atom);
+			target->packagetype_atom,
+			(p == NULL)?NULL:&p->downloadlistsas);
 	if( FAILEDTOALLOC(uindex->remote) ) {
 		free(uindex);
 		return false;
@@ -953,12 +962,22 @@ static retvalue addorigintotarget(struct update_origin *origin, struct target *t
 static retvalue addflatorigintotarget(struct update_origin *origin, struct target *target, struct update_target *updatetargets ) {
 	const struct update_pattern *p;
 	const struct strlist *a_from, *a_into;
+	const struct encoding_preferences *downloadlistsas;
 	int ai;
 
 	assert( origin != NULL );
 
 	if( target->packagetype_atom == pt_udeb )
 		return RET_NOTHING;
+
+	p = origin->pattern;
+	while( p != NULL && !p->downloadlistsas_set )
+		p = p->pattern_from;
+	if( p == NULL )
+		downloadlistsas = NULL;
+	else
+		downloadlistsas = &p->downloadlistsas;
+
 	p = origin->pattern;
 	while( p != NULL && !atom_defined(p->flat) )
 		p = p->pattern_from;
@@ -976,9 +995,11 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 		if( uindex == NULL )
 			return RET_ERROR_OOM;
 
+
 		uindex->origin = origin;
 		uindex->remote = remote_flat_index(origin->from,
-				target->packagetype_atom);
+				target->packagetype_atom,
+				downloadlistsas);
 		if( FAILEDTOALLOC(uindex->remote) ) {
 			free(uindex);
 			return RET_ERROR_OOM;
@@ -1003,7 +1024,8 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 
 		uindex->origin = origin;
 		uindex->remote = remote_flat_index(origin->from,
-				target->packagetype_atom);
+				target->packagetype_atom,
+				downloadlistsas);
 		if( FAILEDTOALLOC(uindex->remote) ) {
 			free(uindex);
 			return RET_ERROR_OOM;

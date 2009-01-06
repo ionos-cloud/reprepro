@@ -41,6 +41,10 @@
 const char * const uncompression_suffix[c_COUNT] = {
 	"", ".gz", ".bz2", ".lzma" };
 
+/* So help messages can hint what option to try */
+const char * const uncompression_option[c_COUNT] = {
+	NULL, NULL, "--bunzip2", "--unlzma" };
+
 
 /*@null@*/ char *extern_uncompressors[c_COUNT] = { NULL, NULL, NULL, NULL};
 
