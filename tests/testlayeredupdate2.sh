@@ -45,12 +45,14 @@ Name: a
 VerifyRelease: blindtrust
 Method: copy:$WORKDIR/source1
 Architectures: dummyarchitecture
+DownloadListsAs: .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma
 Components: dummycomponent
 
 Name: b
 VerifyRelease: blindtrust
 Method: copy:$WORKDIR/source2
 Architectures: dummyarchitecture
+DownloadListsAs: .lzma .bz2 .gz .
 Flat: dummycomponent
 
 Name: ca
@@ -166,12 +168,93 @@ Codename: hohoho
 Suite: suitename
 Architectures: coal $FAKEARCHITECTURE
 MD5Sum:
+ 00000000000000000000000000000000 0 main/binary-$FAKEARCHITECTURE/Packages.lzma
+ 00000000000000000000000000000000 0 main/binary-$FAKEARCHITECTURE/Packages.gz
+ 00000000000000000000000000000000 0 main/binary-coal/Packages.lzma
+ 00000000000000000000000000000000 0 main/source/Sources.lzma
+ 00000000000000000000000000000000 0 firmware/binary-$FAKEARCHITECTURE/Packages.lzma
+ 00000000000000000000000000000000 0 firmware/binary-coal/Packages.lzma
+ 00000000000000000000000000000000 0 firmware/source/Sources.lzma
+ 00000000000000000000000000000000 0 main/binary-coal/Packages.gz
+ 00000000000000000000000000000000 0 main/source/Sources.gz
+ 00000000000000000000000000000000 0 firmware/binary-$FAKEARCHITECTURE/Packages.gz
+ 00000000000000000000000000000000 0 firmware/binary-coal/Packages.gz
+ 00000000000000000000000000000000 0 firmware/source/Sources.gz
+EOF
+
+testrun - --unlzma=NONE update boring 3<<EOF
+stdout
+-v2*=Created directory "./db"
+-v2*=Created directory "./lists"
+stderr
+*=./conf/updates:5:90: Ignoring all but first 12 entries...
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
+*=Error: './lists/a_suitename_Release' only lists unusable or unrequested compressions of 'main/binary-${FAKEARCHITECTURE}/Packages'.
+*=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
+*=Or change your DownloadListsAs to request e.g. '.gz'.
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat > source1/dists/suitename/Release <<EOF
+Codename: hohoho
+Suite: suitename
+Architectures: coal $FAKEARCHITECTURE
+MD5Sum:
+ 00000000000000000000000000000000 0 main/binary-$FAKEARCHITECTURE/Packages.lzma
+ 00000000000000000000000000000000 0 main/binary-coal/Packages.lzma
+ 00000000000000000000000000000000 0 main/source/Sources.lzma
+ 00000000000000000000000000000000 0 firmware/binary-$FAKEARCHITECTURE/Packages.lzma
+ 00000000000000000000000000000000 0 firmware/binary-coal/Packages.lzma
+ 00000000000000000000000000000000 0 firmware/source/Sources.lzma
+EOF
+
+testrun - --unlzma=NONE update boring 3<<EOF
+stderr
+*=./conf/updates:5:90: Ignoring all but first 12 entries...
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
+*=Error: './lists/a_suitename_Release' only lists unusable compressions of 'main/binary-${FAKEARCHITECTURE}/Packages'.
+*=Try e.g the '--unlzma' option (or check what it is set to) to make more useable.
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat > source1/dists/suitename/Release <<EOF
+Codename: hohoho
+Suite: suitename
+Architectures: coal $FAKEARCHITECTURE
+MD5Sum:
  $(cd source1 ; md5releaseline suitename main/binary-$FAKEARCHITECTURE/Packages)
  $(cd source1 ; md5releaseline suitename main/binary-coal/Packages)
  $(cd source1 ; md5releaseline suitename main/source/Sources)
  $(cd source1 ; md5releaseline suitename firmware/binary-$FAKEARCHITECTURE/Packages)
  $(cd source1 ; md5releaseline suitename firmware/binary-coal/Packages)
  $(cd source1 ; md5releaseline suitename firmware/source/Sources)
+EOF
+
+testrun - update boring 3<<EOF
+stderr
+*=./conf/updates:5:90: Ignoring all but first 12 entries...
+-v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
+-v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
+-v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/Release'
+*=Error: './lists/a_suitename_Release' only lists unrequested compressions of 'main/binary-${FAKEARCHITECTURE}/Packages'.
+*=Try changing your DownloadListsAs to request e.g. '.'.
+-v0*=There have been errors!
+returns 255
+EOF
+
+ed -s conf/updates <<EOF
+g/.lzma .lzma .lzma .lzma/d
+w
+q
 EOF
 
 testrun - update boring 3<<EOF
@@ -195,8 +278,6 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-$FAKEARCHITECTURE/Packages'
 -v1*=aptmethod got 'copy:$WORKDIR/source1/dists/suitename/firmware/binary-coal/Packages'
 stdout
--v2*=Created directory "./db"
--v2*=Created directory "./lists"
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'boring|firmware|source'
 # 6 times:

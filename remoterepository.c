@@ -865,14 +865,14 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 			return RET_ERROR_WRONG_MD5;
 		}
 
-		if( !found ) {
+		if( unsupported != c_COUNT && unrequested != c_COUNT) {
 			fprintf(stderr,
 "Error: '%s' only lists unusable or unrequested compressions of '%s'.\n"
 "Try e.g the '%s' option (or check what it is set to) to make more useable.\n"
 "Or change your DownloadListsAs to request e.g. '%s'.\n",
 					releasefile, ri->filename_in_release,
 					uncompression_option[unsupported],
-					uncompression_suffix[unrequested]);
+					uncompression_config[unrequested]);
 			return RET_ERROR;
 		}
 		if( unsupported != c_COUNT ) {
@@ -888,7 +888,7 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 "Error: '%s' only lists unrequested compressions of '%s'.\n"
 "Try changing your DownloadListsAs to request e.g. '%s'.\n",
 					releasefile, ri->filename_in_release,
-					uncompression_suffix[unrequested]);
+					uncompression_config[unrequested]);
 			return RET_ERROR;
 		}
 		fprintf(stderr,

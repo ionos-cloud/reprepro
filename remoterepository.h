@@ -36,9 +36,8 @@ retvalue remote_preparelists(struct aptmethodrun *, bool nodownload);
 struct encoding_preferences {
 	/* number of preferences, 0 means use default */
 	unsigned short count;
-	/* a list of compressions to use,
-	 * a c_COUNT means end of the list... */
-	enum compression requested[c_COUNT];
+	/* a list of compressions to use */
+	enum compression requested[3*c_COUNT];
 };
 
 struct remote_index *remote_index(struct remote_distribution *, const char *architecture, const char *component, packagetype_t, const struct encoding_preferences *);

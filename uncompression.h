@@ -6,6 +6,7 @@ extern const char * const uncompression_suffix[c_COUNT];
 extern /*@null@*/ char *extern_uncompressors[c_COUNT];
 /* so help messages know which option to cite: */
 extern const char * const uncompression_option[c_COUNT];
+extern const char * const uncompression_config[c_COUNT];
 
 /* there are two different modes: uncompress a file to memory,
  * or uncompress (possibly multiple files) on the filesystem,

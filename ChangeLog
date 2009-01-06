@@ -1,3 +1,7 @@
+2009-01-06
+	* add DownloadListsAs: option for conf/updates to specify which index
+	  files (.gz, .bz2, .lzma, ...) to download when available.
+
 2009-01-04
 	* add support for libdb4.7 (yet with some warnings to note I have not
 	tested it much yet)

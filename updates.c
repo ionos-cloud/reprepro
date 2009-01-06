@@ -80,6 +80,7 @@
 #include "configparser.h"
 #include "filecntl.h"
 #include "remoterepository.h"
+#include "uncompression.h"
 
 /* The data structures of this one: ("u_" is short for "update_")
 
@@ -345,6 +346,76 @@ CFscriptSETPROC(update_pattern, listhook)
 CFfilterlistSETPROC(update_pattern, filterlist)
 CFtermSSETPROC(update_pattern, includecondition)
 
+CFUSETPROC(update_pattern, downloadlistsas) {
+	CFSETPROCVAR(update_pattern, this);
+	char *word;
+	const char *u;
+	retvalue r;
+	unsigned int e = 0;
+	enum compression c;
+
+	this->downloadlistsas_set = true;
+	r = config_getword(iter, &word);
+	while( RET_IS_OK(r) ) {
+		if( e >= ARRAYCOUNT(this->downloadlistsas.requested) ) {
+			fprintf(stderr,
+"%s:%d:%d: Ignoring all but first %d entries...\n",
+					config_filename(iter),
+					config_markerline(iter),
+					config_markercolumn(iter),
+					(int)(ARRAYCOUNT(
+					  this->downloadlistsas.requested)));
+			free(word);
+			break;
+		}
+		if( strncmp(word, "force.", 6) == 0 ) {
+			u = word + 5;
+			fprintf(stderr,
+"%s:%d:%d: forcing not yet supported in this version, treating as normal '%s'\n",
+					config_filename(iter),
+					config_markerline(iter),
+					config_markercolumn(iter),
+					u);
+		} else
+			u = word;
+		for( c = 0 ; c < c_COUNT ; c++ ) {
+			if( strcmp(uncompression_config[c], u) == 0 ||
+			    strcmp(uncompression_config[c]+1, u) == 0 ) {
+				break;
+			}
+		}
+		if( c < c_COUNT ) {
+			this->downloadlistsas.requested[e++] = c;
+			free(word);
+			r = config_getword(iter, &word);
+			continue;
+		}
+		if( strcmp(u, ".diff") == 0 || strcmp(u, "diff") == 0 ) {
+			fprintf(stderr,
+"%s:%d:%d: ignoring '%s', as not yet supported in this version\n",
+					config_filename(iter),
+					config_markerline(iter),
+					config_markercolumn(iter),
+					word);
+			free(word);
+			r = config_getword(iter, &word);
+			continue;
+		}
+		fprintf(stderr,
+"%s:%d:%d: Error: unknown list download mode '%s'!\n",
+					config_filename(iter),
+					config_markerline(iter),
+					config_markercolumn(iter),
+					u);
+		free(word);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	this->downloadlistsas.count = e;
+	return RET_OK;
+}
+
 CFUSETPROC(update_pattern, components) {
 	CFSETPROCVAR(update_pattern, this);
 	retvalue r;
@@ -449,7 +520,8 @@ static const struct configfield updateconfigfields[] = {
 	CF("VerifyRelease", update_pattern, verifyrelease),
 	CF("ListHook", update_pattern, listhook),
 	CF("FilterFormula", update_pattern, includecondition),
-	CF("FilterList", update_pattern, filterlist)
+	CF("FilterList", update_pattern, filterlist),
+	CF("DownloadListsAs", update_pattern, downloadlistsas)
 };
 
 CFfinishparse(update_pattern) {
