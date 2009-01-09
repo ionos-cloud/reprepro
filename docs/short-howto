@@ -82,13 +82,13 @@ reprepro -b . list pcpool libc6
 
 5) Override-Files:
 
-When including packages via includedeb, includedsc or include
+When including packages via "includedeb", "includedsc" or "include"
 the applicable override file from the distribution it is placed
-into is used. The file given by DebOverride for ".deb"s, the
-file given by UDebOverride for ".udeb"s and the file given by 
-DscOverride for ".dsc"s. If the filename starts with
+into is used. The file given by DebOverride: for ".deb"s, the
+file given by UDebOverride: for ".udeb"s and the file given by
+DscOverride: for ".dsc"s. If the filename starts with
 a slash (/) it is not relative to the override directory given
-with --override (Default is basedir + "override"). 
+with --override, defaulting to basedir + "override".
 
 Note that the Format is those of apt-ftparchive's ExtraOverride, not the old format.
 An (stupid) example line for that file would be:
@@ -116,15 +116,17 @@ Suite: */updates
 UDebComponents: none
 VerifyRelease: F1D53D8C4F368D5D
 
-Which of those are used is determined by the "Update:" line
-in the description in conf/distributions. When "Suite:",
-"Architecture:", "Components" or "UDebComponents" are not given
+Which of those are used is determined by the Update: line
+in the description in conf/distributions. When Suite:,
+Architecture:, Components: or UDebComponents: are not given
 or empty, those of the distribution to be added are used.
 (Place a not existing component like "none" there if you want
- only the other of Components or UDebComponents). The suite of 
-the target can be used as "*" in the Suite here. "VerifyRelease:" 
-tells which gpgkey to use checking the Release.gpg. 
-(Add a "IgnoreRelease: yes" to ignore any Release files)
+ only the other of Components or UDebComponents). The suite of
+the target can be used as "*" in the Suite: here. VerifyRelease:
+tells which GPG key to use checking the Release.gpg.
+
+Add a "IgnoreRelease: yes" to ignore any Release files.
+
 To import components in other components, use the source>target
 syntax.
 
