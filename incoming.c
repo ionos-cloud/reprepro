@@ -954,7 +954,8 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( file->section != NULL &&
-				strcmp(file->section, "byhand") == 0 ) {
+				(strncmp(file->section, "raw-", 4) == 0 ||
+				strcmp(file->section, "byhand") == 0) ) {
 			/* to avoid further tests for this file */
 			file->type = fe_UNKNOWN;
 			continue;

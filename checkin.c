@@ -475,6 +475,10 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 			fprintf(stderr,"Cannot cope with 'byhand' file '%s'!\n",e->basename);
 			return RET_ERROR;
 		}
+		if( strncmp(e->section, "raw-", 4) == 0 ) {
+			fprintf(stderr,"Cannot cope with raw file '%s'!\n",e->basename);
+			return RET_ERROR;
+		}
 		if( strcmp(e->section,"-") == 0 ) {
 			fprintf(stderr,"No section specified for '%s' in '%s'!\n", e->basename, filename);
 			return RET_ERROR;
