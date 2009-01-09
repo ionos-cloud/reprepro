@@ -39,7 +39,9 @@ DscOverride: srcoverride
 
 Multiple entries are separated with an empty line.
 
-Codename: is used to determine the directory to create.
+The codename of the distribution is specified with Codename:.
+It is the primary name of a distribution and e.g. used to determine the
+directory to create and put the index files into.
 
 Update: is described later.
 
