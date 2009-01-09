@@ -89,8 +89,9 @@ the applicable override file from the distribution it is placed
 into is used. The file given by DebOverride: for ".deb"s, the
 file given by UDebOverride: for ".udeb"s and the file given by
 DscOverride: for ".dsc"s. If the filename starts with
-a slash (/) it is not relative to the override directory given
-with --override, defaulting to basedir + "override".
+a slash (/) it is not relative to the conf directory given
+with --conf, defaulting to "conf" in the current directory (or in the
+directory specified with --basedir, if that is given).
 
 Note that the Format is those of apt-ftparchive's ExtraOverride, not the old format.
 An (stupid) example line for that file would be:
