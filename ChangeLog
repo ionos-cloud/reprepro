@@ -69,8 +69,10 @@
 	  restrictions w.r.t their order).
 	* fix bug in (tracking enabled) removesrc that caused malformed
 	  tracking data when a source package's track record contains a
-	  file no longer found in any distribution (which should not
-	  happen without other bugs).
+	  file no longer found in any distribution.
+	  [2009-01-16: I previously believed this nearly impossible to
+	  trigger, but a simply outdated tracking data already suffices
+	  to trigger it]
 
 2008-10-01
 	* warn if an update rule references local components or architectures

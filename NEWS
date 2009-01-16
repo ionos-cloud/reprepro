@@ -54,7 +54,8 @@ Updates between 3.6.1 and 3.6.2:
   running reprepro versions before 3.0.0 on them...
 - fix content reading of overlong .deb files
 - fix parsing of flat repositories without Directory in Sources
-- fix tracking database selfcorruption in hopefully unreachable code
+- fix tracking database corruption in removesrc with outdated tracking data
+  [previously believed hard to trigger, but outdated tracking data suffices]
 - many improvements and less spelling errors in manpage
 
 Updates between 3.6.0 and 3.6.1:
