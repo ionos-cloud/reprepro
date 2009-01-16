@@ -493,7 +493,7 @@ EOF
 checklog log1 <<EOF
 DATESTR remove test1 deb stupid ${FAKEARCHITECTURE} simple-addons 1
 EOF
-CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
+CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S UTC'`"
 printf '%%g/^Date:/s/Date: .*/Date: normalized/\n%%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq\n' | ed -s dists/test1/Release
 
 dodiff dists/test1/Release.expected dists/test1/Release || exit 1

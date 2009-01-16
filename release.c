@@ -1165,7 +1165,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	if( gmt == NULL ) {
 		return RET_ERROR_OOM;
 	}
-	s=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmt);
+	s=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S UTC",gmt);
 	if( s == 0 || s >= 99) {
 		fprintf(stderr,"strftime is doing strange things...\n");
 		return RET_ERROR;
@@ -1176,7 +1176,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		if( gmt == NULL ) {
 			return RET_ERROR_OOM;
 		}
-		s=strftime(untilbuffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmt);
+		s=strftime(untilbuffer,99,"%a, %d %b %Y %H:%M:%S UTC",gmt);
 		if( s == 0 || s >= 99) {
 			fprintf(stderr,"strftime is doing strange things...\n");
 			return RET_ERROR;
