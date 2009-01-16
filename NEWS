@@ -1,7 +1,7 @@
 Updates between 3.8.0~alpha and 3.8.0:
 - add support for generating Valid-Until fields in Release files
 
-Updates between 3.6.2 and 3.8.0~alpha:
+Updates between 3.6.3 and 3.8.0~alpha:
 + different small improvements:
 - log notifiers can be limited to a specific command with --via
 - upgradeonly value for FilterList to only include a package if
