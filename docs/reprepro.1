@@ -1015,6 +1015,22 @@ If the filename for the log files does not start with a slash,
 it is relative to the directory specified with \fB\-\-logdir\fP,
 the scripts are relative to \fB\-\-confdir\fP unless starting with
 a slash.
+.TP
+.B ValidFor
+If this field exists, an Valid-Until field is put into generated
+.B Release
+files for this distribution with an date as much in the future as the
+argument specifies.
+
+The argument has to be an number followed by one of the units
+.BR d ", " m " or " y ,
+where \fBd\fP means days, \fBm\fP means 31 days and \fBy\fP means
+365 days.
+So
+.B ValidFor: 1m 11 d
+causes the generation of a
+.B Valid-Until:
+header in Release files that points 42 days into the future.
 .SS conf/updates
 .TP
 .B Name

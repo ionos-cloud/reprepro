@@ -1146,7 +1146,7 @@ static retvalue storechecksums(struct release *release) {
 retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
 	retvalue r;
-	char buffer[100];
+	char buffer[100], untilbuffer[100];
 	time_t t;
 	struct tm *gmt;
 	struct release_entry *file;
@@ -1169,6 +1169,18 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	if( s == 0 || s >= 99) {
 		fprintf(stderr,"strftime is doing strange things...\n");
 		return RET_ERROR;
+	}
+	if( distribution->validfor > 0 ) {
+		t += distribution->validfor;
+		gmt = gmtime(&t);
+		if( gmt == NULL ) {
+			return RET_ERROR_OOM;
+		}
+		s=strftime(untilbuffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmt);
+		if( s == 0 || s >= 99) {
+			fprintf(stderr,"strftime is doing strange things...\n");
+			return RET_ERROR;
+		}
 	}
 
 	if( distribution->signwith != NULL )
@@ -1214,6 +1226,10 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	}
 	writestring("\nDate: ");
 	writestring(buffer);
+	if( distribution->validfor > 0 ) {
+		writestring("\nValid-Until: ");
+		writestring(untilbuffer);
+	}
 	writestring("\nArchitectures:");
 	for( i = 0 ; i < distribution->architectures.count ; i++ ) {
 		architecture_t a = distribution->architectures.atoms[i];

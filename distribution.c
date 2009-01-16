@@ -343,6 +343,7 @@ CFexportmodeSETPROC(distribution, deb)
 CFexportmodeSETPROC(distribution, dsc)
 CFcheckvalueSETPROC(distribution, codename, checkforcodename)
 CFcheckvalueSETPROC(distribution, fakecomponentprefix, checkfordirectoryandidentifier)
+CFtimespanSETPROC(distribution, validfor)
 
 CFUSETPROC(distribution, Contents) {
 	CFSETPROCVAR(distribution, d);
@@ -385,6 +386,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("UDebOverride",	distribution,	udeb_override),
 	CF("Update",		distribution,	updates),
 	CF("Uploaders",		distribution,	uploaders),
+	CF("ValidFor",		distribution,	validfor),
 	CF("Version",		distribution,	version)
 };
 

@@ -445,6 +445,58 @@ retvalue config_getword(struct configiterator *iter, char **result_p) {
 	return config_completeword(iter, c, result_p);
 }
 
+retvalue config_gettimespan(struct configiterator *iter, const char *header, time_t *time_p) {
+	time_t currentnumber, currentsum = 0;
+	bool empty = true;
+	int c;
+
+	do {
+		c = config_nextnonspace(iter);
+		if( c == EOF ) {
+			if( empty ) {
+				configparser_errorlast(iter,
+"Unexpected end of %s header (value expected).", header);
+				return RET_ERROR;
+			}
+			*time_p = currentsum;
+			return RET_OK;
+		}
+		iter->markerline = iter->line;
+		iter->markercolumn = iter->column;
+		currentnumber = 0;
+		if( c < '0' || c > '9' ) {
+			configparser_errorlast(iter,
+"Unexpected character '%c' where a digit was expected in %s header.",
+					(char)c, header);
+			return RET_ERROR;
+		}
+		empty = false;
+		do {
+			currentnumber *= 10;
+			currentnumber += (c - '0');
+			c = config_nextchar(iter);
+		} while( c >= '0' && c <= '9');
+		if( c == ' ' || c == '\t' || c == '\n' )
+			c = config_nextnonspace(iter);
+		if( c == 'y' ) {
+			currentnumber *= 365*24*60*60;
+		} else if( c == 'm' ) {
+			currentnumber *= 31*24*60*60;
+		} else if( c == 'd' ) {
+			currentnumber *= 24*60*60;
+		} else {
+			currentnumber *= 24*60*60;
+			if( c != EOF ) {
+				configparser_errorlast(iter,
+"Unexpected character '%c' where a 'd','m' or 'y' was expected in %s header.",
+					(char)c, header);
+				return RET_ERROR;
+			}
+		}
+		currentsum += currentnumber;
+	} while( true );
+}
+
 retvalue config_getonlyword(struct configiterator *iter, const char *header, checkfunc check, char **result_p) {
 	char *value;
 	retvalue r;

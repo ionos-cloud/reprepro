@@ -86,6 +86,8 @@ struct distribution {
 	/* a list of names beside Codename and Suite to accept .changes
 	 * files via include */
 	struct strlist alsoaccept;
+	/* if != 0, number of seconds to add for Vaild-Until */
+	time_t validfor;
 	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */

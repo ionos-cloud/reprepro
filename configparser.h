@@ -61,6 +61,7 @@ retvalue config_getnumber(struct configiterator *, const char *, long long *, lo
 retvalue config_getconstant(struct configiterator *, const struct constant *, int *);
 #define config_getenum(iter,type,constants,result) ({int _val;retvalue _r = config_getconstant(iter, type ## _ ## constants, &_val);*(result) = (enum type)_val;_r;})
 retvalue config_completeword(struct configiterator *, char, /*@out@*/char **);
+retvalue config_gettimespan(struct configiterator *, const char *, /*@out@*/time_t *);
 void config_overline(struct configiterator *);
 bool config_nextline(struct configiterator *);
 retvalue configfile_parse(const char *filename, bool ignoreunknown, configinitfunction, configfinishfunction, const struct configfield *, size_t, void *privdata);
@@ -77,6 +78,11 @@ static retvalue configparser_ ## sname ## _init(void *rootptr, void *lastitem, v
 		last->next = n; \
 	*newptr = n; \
 	return RET_OK; \
+}
+#define CFtimespanSETPROC(sname, field) \
+static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \
+	struct sname *item = data; \
+	return config_gettimespan(iter, name, &item->field); \
 }
 #define CFcheckvalueSETPROC(sname, field, checker) \
 static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), const char *name, void *data, struct configiterator *iter) { \

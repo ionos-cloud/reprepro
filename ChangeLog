@@ -1,3 +1,6 @@
+2009-01-15
+	* add support to generate Valid-Until in Release
+
 2009-01-09
 	* handle 'raw-*' sections like 'byhand' sections (i.e. mostly not
 	  handle them, but give better error messages).
