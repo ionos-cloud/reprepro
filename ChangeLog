@@ -1,6 +1,10 @@
+2009-01-17
+	* fix erroneous "strange filekey" warning for lib files in 3.8.0~alpha
+
 2009-01-16
 	* make Date: more like official Release files by replacing
 	the old "+0000" with "UTC".
+
 2009-01-15
 	* add support to generate Valid-Until in Release
 

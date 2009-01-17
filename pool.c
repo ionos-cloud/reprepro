@@ -82,7 +82,8 @@ static retvalue split_filekey(const char *filekey, /*@out@*/component_t *compone
 		if( unlikely(p[0] == 'l' && p[1] == 'i' && p[2] == 'b') )
 			return RET_NOTHING;
 	} else if( p[0] == 'l' && p[1] == 'i' && p[2] == 'b' && p[3] != '\0' &&
-			p[4] == '/' && p[3] != '/' && p[5] == p[3] ) {
+			p[4] == '/' && p[5] == 'l' && p[6] == 'i' && p[7] == 'b' &&
+			p[3] != '/' && p[8] == p[3] ) {
 		p += 5;
 	} else
 		return RET_NOTHING;
