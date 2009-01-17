@@ -1,5 +1,6 @@
 TODO:
         think about a way to make removesrc work on all distributions ('*'?)
+	-> or make things like remove(src)/list/.. work with distribution globs...
 	write something for manual.html how to manually modify snapshots...
 	write more automated test-cases
 	 (not even run in the testcase yet: reoverride, ... (probably many))
