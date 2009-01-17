@@ -4,6 +4,8 @@ set -e
 
 source $(dirname $0)/test.inc
 
+runtest atoms
+runtest trackingcorruption
 runtest layeredupdate
 runtest layeredupdate2
 runtest uncompress

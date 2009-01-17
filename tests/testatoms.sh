@@ -181,4 +181,5 @@ testrun - -b . -A bla remove codename nothing 3<<EOF
 returns 255
 EOF
 
+rm -r conf db
 testsuccess
