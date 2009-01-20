@@ -1,8 +1,13 @@
-reprepro (3.8.0~alpha-1) UNRELEASED; urgency=low
+reprepro (3.8.0-1) experimental; urgency=low
 
-  * new pre-release
+  * new release
+  - support generation of Valid-Until lines
+  - support downloading .bz2 and .lzma index files
+  - run gunzip and bunzip2 as external programs to distribute load
+  - update rules can refer to other ones for default values
+  - new ls/dumpupdates/dumppulls actions
 
- -- Bernhard R. Link <brlink@debian.org>  Thu,  1 Jan 2009 12:40:33 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 17 Jan 2009 22:20:34 +0100
 
 reprepro (3.6.3-1) experimental; urgency=low
 
