@@ -465,7 +465,7 @@ retvalue chunk_getnameandversion(const char *chunk,const char *name,
 /* Add this the <fields to add> to <chunk> before <beforethis> field,
  * replacing older fields of this name, if they are already there. */
 
-char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const char *beforethis) {
+char *chunk_replacefields(const char *chunk, const struct fieldtoadd *toadd, const char *beforethis, bool maybemissing) {
 	const char *c,*ce;
 	char *newchunk,*n;
 	size_t size,len_beforethis;
@@ -481,7 +481,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	c = chunk;
 
 	/* calculate the maximal size we might end up with */
-	size = 1+ strlen(c);
+	size = 2 + strlen(c);
 	f = toadd;
 	while( f != NULL ) {
 		if( f->data != NULL )
@@ -549,6 +549,26 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 
 	} while( *c != '\0' && *c != '\n' );
 
+	if( n > newchunk && *(n-1) != '\n' )
+		*(n++) = '\n';
+	if( maybemissing && !fieldsadded ) {
+		/* add them now, if they are allowed to come later */
+		f = toadd;
+		while( f != NULL ) {
+			if( f->data != NULL ) {
+				memcpy(n,f->field,f->len_field);
+				n += f->len_field;
+				*n = ':'; n++;
+				*n = ' '; n++;
+				memcpy(n,f->data,f->len_data);
+				n += f->len_data;
+				*n = '\n'; n++;
+			}
+			f = f->next;
+		}
+		result = RET_OK;
+		fieldsadded = true;
+	}
 	*n = '\0';
 
 	// If the problem still exists, I want to know it!
@@ -641,7 +661,7 @@ void addfield_free(struct fieldtoadd *f) {
 	}
 }
 
-char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data) {
+char *chunk_replacefield(const char *chunk, const char *fieldname, const char *data, bool maybemissing) {
 	struct fieldtoadd toadd;
 
 	toadd.field = fieldname;
@@ -649,7 +669,7 @@ char *chunk_replacefield(const char *chunk,const char *fieldname,const char *dat
 	toadd.data = data;
 	toadd.len_data = strlen(data);
 	toadd.next = NULL;
-	return chunk_replacefields(chunk,&toadd,fieldname);
+	return chunk_replacefields(chunk, &toadd, fieldname, maybemissing);
 }
 
 /* this is a bit wastefull, as with normaly perfect formated input, it just

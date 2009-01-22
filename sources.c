@@ -212,7 +212,8 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 	r = calc_inplacedirconcats(origdirectory, &files.names);
 	free(origdirectory);
 	if( !RET_WAS_ERROR(r) ) {
-		mychunk = chunk_replacefield(chunk, "Directory", directory);
+		mychunk = chunk_replacefield(chunk,
+				"Directory", directory, true);
 		if( mychunk == NULL )
 			r = RET_ERROR_OOM;
 	}
@@ -337,7 +338,8 @@ retvalue sources_doreoverride(const struct distribution *distribution,const char
 	r = override_allreplacefields(o, &fields);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	newchunk = chunk_replacefields(controlchunk, fields, "Directory");
+	newchunk = chunk_replacefields(controlchunk, fields,
+			"Directory", true);
 	addfield_free(fields);
 	if( newchunk == NULL )
 		return RET_ERROR_OOM;
@@ -559,7 +561,7 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	name = deletefield_new("Source",name);
 	if( name == NULL )
 		return RET_ERROR_OOM;
-	newchunk2  = chunk_replacefields(dsc->control,name,"Format");
+	newchunk2  = chunk_replacefields(dsc->control, name, "Format", true);
 	addfield_free(name);
 	if( newchunk2 == NULL )
 		return RET_ERROR_OOM;
@@ -594,7 +596,7 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 		return RET_ERROR_OOM;
 	}
 
-	newchunk  = chunk_replacefields(newchunk2,replace,"Files");
+	newchunk  = chunk_replacefields(newchunk2, replace, "Files", false);
 	free(newsha256lines);
 	free(newsha1lines);
 	free(newfilelines);

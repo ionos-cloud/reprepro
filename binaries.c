@@ -187,7 +187,8 @@ static inline retvalue calcnewcontrol(const char *chunk, const char *sourcename,
 		return r;
 
 	assert( filekeys->count == 1 );
-	*newchunk = chunk_replacefield(chunk,"Filename",filekeys->values[0]);
+	*newchunk = chunk_replacefield(chunk, "Filename",
+			filekeys->values[0], false);
 	if( *newchunk == NULL ) {
 		strlist_done(filekeys);
 		return RET_ERROR_OOM;
@@ -280,7 +281,7 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 	r = override_allreplacefields(o, &fields);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	newchunk = chunk_replacefields(controlchunk, fields, "Filename");
+	newchunk = chunk_replacefields(controlchunk, fields, "Filename", false);
 	addfield_free(fields);
 	if( newchunk == NULL )
 		return RET_ERROR_OOM;
@@ -303,7 +304,8 @@ retvalue ubinaries_doreoverride(const struct distribution *distribution,const ch
 	fields = override_addreplacefields(o,NULL);
 	if( fields == NULL )
 		return RET_ERROR_OOM;
-	newchunk = chunk_replacefields(controlchunk,fields,"Description");
+	newchunk = chunk_replacefields(controlchunk, fields, "Description",
+			true);
 	addfield_free(fields);
 	if( newchunk == NULL )
 		return RET_ERROR_OOM;
@@ -572,7 +574,8 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	if( replace == NULL )
 		return RET_ERROR_OOM;
 
-	newchunk  = chunk_replacefields(pkg->control,replace,"Description");
+	newchunk  = chunk_replacefields(pkg->control, replace,
+			"Description", true);
 	addfield_free(replace);
 	if( newchunk == NULL ) {
 		return RET_ERROR_OOM;
