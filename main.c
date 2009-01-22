@@ -98,10 +98,12 @@ static char /*@only@*/ /*@null@*/
 	*x_priority = NULL,
 	*x_component = NULL,
 	*x_architecture = NULL,
-	*x_packagetype = NULL,
+	*x_packagetype = NULL;
+static char /*@only@*/
 	*gunzip = NULL,
 	*bunzip2 = NULL,
-	*unlzma = NULL;
+	*unlzma = NULL,
+	*gnupghome = NULL;
 static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
@@ -126,7 +128,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -3115,6 +3117,7 @@ LO_DBSAFETYMARGIN,
 LO_GUNZIP,
 LO_BUNZIP2,
 LO_UNLZMA,
+LO_GNUPGHOME,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -3374,6 +3377,9 @@ static void handle_option(int c, const char *argument) {
 				case LO_UNLZMA:
 					CONFIGDUP(unlzma, argument);
 					break;
+				case LO_GNUPGHOME:
+					CONFIGDUP(gnupghome, argument);
+					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
 					exit(EXIT_FAILURE);
@@ -3476,6 +3482,26 @@ static void interrupt_signaled(UNUSED(int s)) {
 	was_interrupted = true;
 }
 
+static void myexit(int) __attribute__((__noreturn__));
+static void myexit(int status) {
+	free(dbdir);
+	free(x_distdir);
+	free(x_listdir);
+	free(x_logdir);
+	free(x_confdir);
+	free(x_overridedir);
+	free(x_basedir);
+	free(x_outdir);
+	free(x_methoddir);
+	free(x_component);
+	free(x_architecture);
+	free(x_packagetype);
+	free(x_section);
+	free(x_priority);
+	free(gnupghome);
+	exit(status);
+}
+
 int main(int argc,char *argv[]) {
 	static struct option longopts[] = {
 		{"delete", no_argument, &longoption,LO_DELETE},
@@ -3541,6 +3567,7 @@ int main(int argc,char *argv[]) {
 		{"gunzip", required_argument, &longoption, LO_GUNZIP},
 		{"bunzip2", required_argument, &longoption, LO_BUNZIP2},
 		{"unlzma", required_argument, &longoption, LO_UNLZMA},
+		{"gnupghome", required_argument, &longoption, LO_GNUPGHOME},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
@@ -3675,6 +3702,15 @@ int main(int argc,char *argv[]) {
 		atoms_commands[1 + (a - all_actions)] = a->name;
 	}
 
+	if( gnupghome != NULL ) {
+		if( setenv("GNUPGHOME", gnupghome, 1) != 0 ) {
+			int e = errno;
+
+			fprintf(stderr, "Error %d setting GNUPGHOME to '%s': %s\n",
+					e, gnupghome, strerror(e));
+			myexit(EXIT_FAILURE);
+		}
+	}
 
 	a = all_actions;
 	while( a->name != NULL ) {
@@ -3686,47 +3722,19 @@ int main(int argc,char *argv[]) {
 			 * stupid, but it makes valgrind logs easier
 			 * readable */
 			signatures_done();
-			free(dbdir);
-			free(x_distdir);
-			free(x_listdir);
-			free(x_logdir);
-			free(x_confdir);
-			free(x_overridedir);
-			free(x_basedir);
-			free(x_outdir);
-			free(x_methoddir);
-			free(x_component);
-			free(x_architecture);
-			free(x_packagetype);
-			free(x_section);
-			free(x_priority);
 			if( RET_WAS_ERROR(r) ) {
 				if( r == RET_ERROR_OOM )
 					(void)fputs("Out of Memory!\n",stderr);
 				else if( verbose >= 0 )
 					(void)fputs("There have been errors!\n",stderr);
 			}
-			exit(EXIT_RET(r));
+			myexit(EXIT_RET(r));
 		} else
 			a++;
 	}
 
 	fprintf(stderr,"Unknown action '%s'. (see --help for available options and actions)\n",argv[optind]);
 	signatures_done();
-	free(dbdir);
-	free(x_distdir);
-	free(x_listdir);
-	free(x_logdir);
-	free(x_confdir);
-	free(x_overridedir);
-	free(x_basedir);
-	free(x_outdir);
-	free(x_methoddir);
-	free(x_component);
-	free(x_architecture);
-	free(x_packagetype);
-	free(x_section);
-	free(x_priority);
-	exit(EXIT_FAILURE);
+	myexit(EXIT_FAILURE);
 }
 
