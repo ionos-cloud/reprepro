@@ -1,4 +1,4 @@
-reprepro (3.8.1-1) unstable; urgency=low
+reprepro (3.8.1-1) experimental; urgency=low
 
   * fix typo making copyfilter unuseable (Closes: 512586)
   * fix bug preventing importing source packages from a flat
