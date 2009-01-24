@@ -1,8 +1,10 @@
-reprepro (3.8.1-0) UNRELEASED; urgency=low
+reprepro (3.8.1-1) unstable; urgency=low
 
   * fix typo making copyfilter unuseable (Closes: 512586)
+  * fix bug preventing importing source packages from a flat
+    repository without Directory fields in Sources
 
- -- Bernhard R. Link <brlink@debian.org>  Thu, 22 Jan 2009 09:58:45 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 24 Jan 2009 17:12:05 +0100
 
 reprepro (3.8.0-1) experimental; urgency=low
 
