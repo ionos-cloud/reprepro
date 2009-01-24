@@ -1,3 +1,9 @@
+Updates between 3.8.0 and 3.8.1:
+- make filtercopy work again
+- fix bug not allowing source packages from flat
+  repositories without Directory fields to be imported
+- add gnupghome option to make GNUPGHOME setable via conf/options
+
 Updates between 3.8.0~alpha and 3.8.0:
 - add support for generating Valid-Until fields in Release files
 
