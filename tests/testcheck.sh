@@ -215,7 +215,8 @@ Filename: pool/c/p/pseudo/fake_0_all.deb
 Section: base
 Priority: extra
 Size: $fakesize
-MD5Sum: $fakedeb1md'
+MD5Sum: $fakedeb1md
+'
 EOF
 dodiff results.expected results
 cat results
