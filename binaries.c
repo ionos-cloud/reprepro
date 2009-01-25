@@ -131,6 +131,7 @@ static retvalue binaries_parse_chunk(const char *chunk, const char *packagename,
 	if( !RET_WAS_ERROR(r) )
 		r = properversion(version);
 	if( RET_WAS_ERROR(r) ) {
+		free(mysourcename);
 		return r;
 	}
 	mybasename = calc_binary_basename(packagename, version,
