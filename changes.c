@@ -102,6 +102,31 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 				fileline);
 		return RET_ERROR;
 	}
+	if( (sectionend - sectionstart == 6 &&
+				strncmp(sectionstart, "byhand", 6) == 0) ||
+	    (sectionend - sectionstart > 4 &&
+				strncmp(sectionstart, "raw-", 4) == 0)) {
+		section = strndup(sectionstart, sectionend - sectionstart);
+		priority = strndup(priostart, prioend - priostart);
+		basefilename = strndup(filestart, fileend - filestart);
+		if( FAILEDTOALLOC(section) || FAILEDTOALLOC(priority) ||
+		    FAILEDTOALLOC(basefilename) ) {
+			free(section); free(priority);
+			free(basefilename);
+			return RET_ERROR_OOM;
+		}
+		hash_p->start = md5start;
+		hash_p->len = md5end - md5start;
+		size_p->start = sizestart;
+		size_p->len = sizeend - sizestart;
+		*result_section = section;
+		*result_priority = priority;
+		*result_basename = basefilename;
+		*result_architecture = atom_unknown;
+		*result_name = NULL;
+		*result_type = fe_BYHAND;
+		return RET_OK;
+	}
 
 	p = filestart;
 	while( *p != '\0' && *p != '_' && !xisspace(*p) )
@@ -129,7 +154,7 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	}
 	if( *p == '_' ) {
 		/* Things having a underscole will have an architecture
-		 * and be either .deb or .udeb */
+		 * and be either .deb or .udeb or .log (reprepro extension) */
 		p++;
 		archstart = p;
 		while( *p !='\0' && *p != '.' )
@@ -148,11 +173,13 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			type = fe_DEB;
 		else if( p-typestart == 4 && strncmp(typestart,"udeb",4) == 0 )
 			type = fe_UDEB;
+		else if( p-typestart == 3 && strncmp(typestart,"log",3) == 0 )
+			type = fe_LOG;
 		else {
 			fprintf(stderr, "'%s' is not .deb or .udeb!\n", filestart);
 			return RET_ERROR;
 		}
-		if( strncmp(archstart,"source",6) == 0 ) {
+		if( type != fe_LOG && strncmp(archstart,"source",6) == 0 ) {
 			fprintf(stderr,
 "Architecture 'source' not allowed for .[u]debs ('%s')!\n", filestart);
 			return RET_ERROR;
@@ -183,6 +210,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			type = fe_TAR;
 		else if( p-versionstart > 10 && strncmp(p-10,".diff.lzma",10) == 0 )
 			type = fe_DIFF;
+		else if( p-versionstart > 4 && strncmp(p-4, ".log", 4) == 0 )
+			type = fe_LOG;
 		else {
 			type = fe_UNKNOWN;
 			fprintf(stderr,
@@ -194,6 +223,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	section = strndup(sectionstart, sectionend - sectionstart);
 	priority = strndup(priostart, prioend - priostart);
 	basefilename = strndup(filestart, fileend - filestart);
+	// TODO: this does not make much sense for log files, as they might
+	// list multiple..
 	architecture = architecture_find_l(archstart, archend - archstart);
 	name = strndup(filestart, nameend - filestart);
 	if( FAILEDTOALLOC(section) || FAILEDTOALLOC(priority) ||

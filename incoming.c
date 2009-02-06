@@ -577,6 +577,13 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 		free(n);
 		return r;
 	}
+	if( n->type == fe_LOG || n->type == fe_BYHAND) {
+		fprintf(stderr,
+"log and byhand files not yet support by processincoming!\n");
+		free(basefilename);
+		candidate_file_free(n);
+		return RET_ERROR;
+	}
 	if( !atom_defined(n->architecture_atom) ) {
 		fprintf(stderr,
 "'%s' contains '%s' not matching an valid architecture in any distribution known!\n",

@@ -5,7 +5,12 @@
 #include "atoms.h"
 #endif
 
-typedef	enum { fe_UNKNOWN=0,fe_DEB,fe_UDEB,fe_DSC,fe_DIFF,fe_ORIG,fe_TAR} filetype;
+typedef	enum {
+	fe_UNKNOWN=0,
+	fe_DEB, fe_UDEB,
+	fe_DSC, fe_DIFF, fe_ORIG, fe_TAR,
+	fe_BYHAND, fe_LOG
+} filetype;
 
 #define FE_PACKAGE(ft) ( (ft) == fe_DEB || (ft) == fe_UDEB || (ft) == fe_DSC )
 #define FE_BINARY(ft) ( (ft) == fe_DEB || (ft) == fe_UDEB )
