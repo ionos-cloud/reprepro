@@ -1,3 +1,9 @@
+2009-02-08
+	* processincoming support includebyhand and includelogs tracking
+	  options
+	* new LogDir for processincoming, that gets the .changes files,
+	  .log files and unused byhand (or raw-*) files.
+
 2009-02-06
 	* ignore byhand and logfiles in 'include' unless tracking
 	  with includebyhand or includelogs is activated, then store them

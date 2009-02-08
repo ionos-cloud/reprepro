@@ -980,7 +980,7 @@ distribution.
 .br
 .B minimal
 Remove files no longer included in the tracked distribution.
-(Remove changes and includebyhand files once no file is
+(Remove changes, logs and includebyhand files once no file is
 in any part of the distribution).
 .br
 And any number of the following (or none):
@@ -990,7 +990,13 @@ Add the .changes file to the tracked files of a source package.
 Thus it is also put into the pool.
 .br
 .B includebyhand
-Not yet implemented.
+Add \fBbyhand\fP and \fBraw-\fP\fI*\fP files to the tracked
+files and thus in the pool.
+.br
+.B includelogs
+Add log files to the tracked files and thus in the pool.
+(Not that putting log files in changes files is a reprepro
+extension not found in normal changes files)
 .br
 .B embargoalls
 Not yet implemented.
@@ -1344,6 +1350,9 @@ are copied into before they are read.
 You can avoid some copy operatations by placing this directory
 within the same moint point the pool hierachy
 is (at least partially) in.
+.B LogDir
+A directory where .changes files, .log files and otherwise unused .byhand
+files are stored upon procession.
 .TP
 .B Allow \fIarguments
 Each argument is either a pair \fIname1\fB>\fIname2\fR or simply

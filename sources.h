@@ -46,4 +46,5 @@ retvalue sources_complete(const struct dsc_headers *, const char *directory, con
 char *calc_source_basename(const char *name, const char *version);
 char *calc_sourcedir(component_t, const char *sourcename);
 char *calc_filekey(component_t, const char *sourcename, const char *filename);
+char *calc_byhanddir(component_t, const char *sourcename, const char *version);
 #endif

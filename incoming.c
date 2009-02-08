@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -77,8 +77,10 @@ enum cleanupflags {
 
 struct incoming {
 	/* by incoming_parse: */
+	char *name;
 	char *directory;
 	char *tempdir;
+	char *logdir;
 	struct strlist allow;
 	struct distribution **allow_into;
 	struct distribution *default_into;
@@ -89,7 +91,7 @@ struct incoming {
 	bool permit[pmf_COUNT];
 	bool cleanup[cuf_COUNT];
 	/* only to ease parsing: */
-	char *name; size_t lineno;
+	size_t lineno;
 };
 #define BASENAME(i,ofs) (i)->files.values[ofs]
 /* the changes file is always the first one listed */
@@ -100,6 +102,7 @@ static void incoming_free(/*@only@*/ struct incoming *i) {
 		return;
 	free(i->name);
 	free(i->tempdir);
+	free(i->logdir);
 	free(i->directory);
 	strlist_done(&i->allow);
 	free(i->allow_into);
@@ -334,6 +337,7 @@ CFSETPROC(incoming,cleanup) {
 }
 
 CFvalueSETPROC(incoming, name)
+CFvalueSETPROC(incoming, logdir)
 CFdirSETPROC(incoming, tempdir)
 CFdirSETPROC(incoming, directory)
 CFtruthSETPROC2(incoming, multiple, permit[pmf_multiple_distributions])
@@ -346,7 +350,8 @@ static const struct configfield incomingconfigfields[] = {
 	CF("Allow", incoming, allow),
 	CF("Multiple", incoming, multiple),
 	CF("Cleanup", incoming, cleanup),
-	CF("Permit", incoming, permit)
+	CF("Permit", incoming, permit),
+	CF("Logdir", incoming, logdir)
 };
 
 static retvalue incoming_init(struct distribution *distributions, const char *name, /*@out@*/struct incoming **result) {
@@ -437,6 +442,10 @@ struct candidate {
 			bool skip;
 		} *packages;
 	} *perdistribution;
+	/* the logsubdir, and the list of files to put there, otherwise both NULL */
+	char *logsubdir;
+	int logcount;
+	const struct candidate_file **logfiles;
 };
 
 static void candidate_file_free(/*@only@*/struct candidate_file *f) {
@@ -492,6 +501,8 @@ static void candidate_free(/*@only@*/struct candidate *c) {
 		c->files = f->next;
 		candidate_file_free(f);
 	}
+	free(c->logsubdir);
+	free(c->logfiles);
 	free(c);
 }
 
@@ -577,14 +588,8 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 		free(n);
 		return r;
 	}
-	if( n->type == fe_LOG || n->type == fe_BYHAND) {
-		fprintf(stderr,
-"log and byhand files not yet support by processincoming!\n");
-		free(basefilename);
-		candidate_file_free(n);
-		return RET_ERROR;
-	}
-	if( !atom_defined(n->architecture_atom) ) {
+	if( n->type != fe_BYHAND && n->type != fe_LOG &&
+			!atom_defined(n->architecture_atom) ) {
 		fprintf(stderr,
 "'%s' contains '%s' not matching an valid architecture in any distribution known!\n",
 				BASENAME(i,c->ofs), basefilename);
@@ -960,13 +965,7 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 	retvalue r;
 
 	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->section != NULL &&
-				(strncmp(file->section, "raw-", 4) == 0 ||
-				strcmp(file->section, "byhand") == 0) ) {
-			/* to avoid further tests for this file */
-			file->type = fe_UNKNOWN;
-			continue;
-		}
+
 		if( !FE_PACKAGE(file->type) )
 			continue;
 		r = candidate_usefile(i, c, file);
@@ -1266,6 +1265,144 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
+static retvalue candidate_preparebyhands(struct database *database, const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per) {
+	retvalue r;
+	char *byhanddir;
+	struct candidate_package *package;
+	struct candidate_file *firstbyhand = NULL, *file;
+	component_t component = component_strange;
+	int count = 0;
+
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->type == fe_BYHAND ) {
+			count++;
+			if( firstbyhand == NULL )
+				firstbyhand = file;
+		}
+	}
+	if( count == 0 )
+		return RET_NOTHING;
+
+	/* search for a component to use */
+	for( package = per->packages ; package != NULL ; package = package->next ) {
+		if( atom_defined(package->component_atom) ) {
+			component = package->component_atom;
+			break;
+		}
+	}
+
+	/* pseudo package containing byhand files */
+	package = candidate_newpackage(per, firstbyhand);
+	if( FAILEDTOALLOC(package) )
+		return RET_ERROR_OOM;
+	r = strlist_init_n(count, &package->filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	package->files = calloc(count, sizeof(struct candidate_file *));
+	if( FAILEDTOALLOC(package->files) )
+		return RET_ERROR_OOM;
+
+	byhanddir = calc_byhanddir(component, c->source, c->changesversion);
+	if( FAILEDTOALLOC(byhanddir) )
+		return RET_ERROR_OOM;
+
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		char *filekey;
+
+		if( file->type != fe_BYHAND )
+			continue;
+
+		r = candidate_usefile(i, c, file);
+		if( RET_WAS_ERROR(r) ) {
+			free(byhanddir);
+			return r;
+		}
+
+		filekey = calc_dirconcat(byhanddir, BASENAME(i,file->ofs));
+		if( FAILEDTOALLOC(filekey) ) {
+			free(byhanddir);
+			return RET_ERROR_OOM;
+		}
+
+		r = files_canadd(database, filekey, file->checksums);
+		if( RET_WAS_ERROR(r) ) {
+			free(byhanddir);
+			return r;
+		}
+		if( RET_IS_OK(r) )
+			package->files[package->filekeys.count] = file;
+		r = strlist_add(&package->filekeys, filekey);
+		assert( r == RET_OK );
+	}
+	free(byhanddir);
+	assert( package->filekeys.count == count );
+	return RET_OK;
+}
+
+static retvalue candidate_preparelogs(struct database *database, const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per) {
+	retvalue r;
+	struct candidate_package *package;
+	struct candidate_file *firstlog = NULL, *file;
+	component_t component = component_strange;
+	int count = 0;
+
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->type == fe_LOG ) {
+			count++;
+			if( firstlog == NULL )
+				firstlog = file;
+		}
+	}
+	if( count == 0 )
+		return RET_NOTHING;
+
+	/* search for a component to use */
+	for( package = per->packages ; package != NULL ; package = package->next ) {
+		if( atom_defined(package->component_atom) ) {
+			component = package->component_atom;
+			break;
+		}
+	}
+
+	/* pseudo package containing log files */
+	package = candidate_newpackage(per, firstlog);
+	if( FAILEDTOALLOC(package) )
+		return RET_ERROR_OOM;
+	r = strlist_init_n(count, &package->filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	package->files = calloc(count, sizeof(struct candidate_file *));
+	if( FAILEDTOALLOC(package->files) )
+		return RET_ERROR_OOM;
+
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		char *filekey;
+
+		if( file->type != fe_LOG )
+			continue;
+
+		r = candidate_usefile(i, c, file);
+		if( RET_WAS_ERROR(r) )
+			return r;
+
+		// TODO: add same checks on the basename contents?
+
+		filekey = calc_filekey(component, c->source, BASENAME(i,file->ofs));
+		if( FAILEDTOALLOC(filekey) )
+			return RET_ERROR_OOM;
+
+		r = files_canadd(database, filekey, file->checksums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( RET_IS_OK(r) )
+			package->files[package->filekeys.count] = file;
+		r = strlist_add(&package->filekeys, filekey);
+		assert( r == RET_OK );
+	}
+	assert( package->filekeys.count == count );
+	return RET_OK;
+}
+
 static retvalue prepare_for_distribution(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *d) {
 	struct candidate_file *file;
 	retvalue r;
@@ -1290,6 +1427,16 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 		}
 	}
 	if( d->into->tracking != dt_NONE ) {
+		if( d->into->trackingoptions.includebyhand ) {
+			r = candidate_preparebyhands(database, i, c, d);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+		if( d->into->trackingoptions.includelogs ) {
+			r = candidate_preparelogs(database, i, c, d);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
 		if( d->into->trackingoptions.includechanges ) {
 			r = candidate_preparechangesfile(database, c, d);
 			if( RET_WAS_ERROR(r) )
@@ -1452,6 +1599,19 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					ft_CHANGES, &p->filekeys, false, database);
 			if( p->filekeys.count > 0 )
 				changesfilekey = p->filekeys.values[0];
+		} else if( p->master->type == fe_BYHAND ) {
+			assert( tracks != NULL );
+
+			r = trackedpackage_adddupfilekeys(trackingdata.tracks,
+					trackingdata.pkg,
+					ft_XTRA_DATA, &p->filekeys, false,
+					database);
+		} else if( p->master->type == fe_LOG ) {
+			assert( tracks != NULL );
+
+			r = trackedpackage_adddupfilekeys(trackingdata.tracks,
+					trackingdata.pkg,
+					ft_LOG, &p->filekeys, false, database);
 		} else
 			r = RET_ERROR;
 
@@ -1498,7 +1658,9 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 					into, into->tracking != dt_NONE,
 					p->component_atom,
 					i->permit[pmf_oldpackagenewer]);
-		} else if( p->master->type == fe_UNKNOWN ) {
+		} else if( p->master->type == fe_UNKNOWN
+				|| p->master->type == fe_BYHAND
+				|| p->master->type == fe_LOG ) {
 			continue;
 		} else
 			r = RET_ERROR;
@@ -1625,6 +1787,99 @@ static retvalue check_architecture_availability(const struct incoming *i, const 
 	return RET_OK;
 }
 
+static retvalue create_uniq_logsubdir(const char *logdir, const char *name, const char *version, const struct strlist *architectures, /*@out@*/char **subdir_p) {
+	char *dir, *p;
+	size_t l;
+	retvalue r;
+
+	r = dirs_make_recursive(logdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	p = calc_changes_basename(name, version, architectures);
+	if( FAILEDTOALLOC(p) )
+		return RET_ERROR_OOM;
+	dir = calc_dirconcat(logdir, p);
+	free(p);
+	if( FAILEDTOALLOC(dir) )
+		return RET_ERROR_OOM;
+	l = strlen(dir);
+	assert( l > 8 && strcmp(dir + l - 8 , ".changes") == 0 );
+	memset(dir + l - 7, '0', 7);
+	r = dirs_create(dir);
+	while( r == RET_NOTHING ) {
+		p = dir + l - 1;
+		while( *p == '9' ) {
+			*p = '0';
+			p--;
+		}
+		if( *p < '0' || *p > '8' ) {
+			fprintf(stderr,
+"Failed to create a new directory of the form '%s'\n"
+"it looks like all 10000000 such directories are already there...\n",
+				dir);
+			return RET_ERROR;
+		}
+		(*p)++;
+		r = dirs_create(dir);
+	}
+	*subdir_p = dir;
+	return RET_OK;
+
+}
+
+static retvalue candidate_prepare_logdir(struct incoming *i, struct candidate *c) {
+	int count, j;
+	struct candidate_file *file;
+	retvalue r;
+
+	r = create_uniq_logsubdir(i->logdir,
+			c->source, c->changesversion,
+			&c->architectures,
+			&c->logsubdir);
+	assert( RET_IS_OK(r) );
+	if( RET_WAS_ERROR(r) )
+		return RET_ERROR_OOM;
+	count = 0;
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->ofs == c->ofs || file->type == fe_LOG
+				|| (file->type == fe_BYHAND && !file->used) )
+			count++;
+	}
+	c->logcount = count;
+	c->logfiles = calloc(count, sizeof(struct canidate_file*));
+	if( FAILEDTOALLOC(c->logfiles) )
+		return RET_ERROR_OOM;
+	j = 0;
+	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->ofs == c->ofs || file->type == fe_LOG
+				|| (file->type == fe_BYHAND && !file->used) ) {
+			r = candidate_usefile(i, c, file);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			c->logfiles[j++] = file;
+		}
+	}
+	assert( count == j );
+	return RET_OK;
+}
+
+static retvalue candidate_finish_logdir(struct incoming *i, struct candidate *c) {
+	int j;
+
+	for( j = 0 ; j < c->logcount ; j++ ) {
+		retvalue r;
+		const struct candidate_file *f = c->logfiles[j];
+
+		r = checksums_hardlink(c->logsubdir,
+				BASENAME(i, f->ofs), f->tempfilename,
+				f->checksums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
 static retvalue candidate_add(struct database *database, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
@@ -1658,9 +1913,14 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 	/* now the distribution specific part starts: */
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
 		r = prepare_for_distribution(database, i, c, d);
-			if( RET_WAS_ERROR(r) ) {
+			if( RET_WAS_ERROR(r) )
 				return r;
-			}
+	}
+	if( i->logdir != NULL ) {
+		r = candidate_prepare_logdir(i, c);
+		if( RET_WAS_ERROR(r) )
+			return r;
+
 	}
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		if( !file->used && !i->permit[pmf_unused_files] ) {
@@ -1670,6 +1930,11 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 "(Do Permit: unused_files to conf/incoming to ignore and\n"
 " additionaly Cleanup: unused_files to delete them)\n",
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
+			if( file->type == fe_LOG || file->type == fe_BYHAND )
+				fprintf(stderr,
+"Alternatively, you can also add a LogDir: for '%s' into conf/incoming\n"
+"then files like that will be stored there.\n",
+					i->name);
 			return RET_ERROR;
 		}
 	}
@@ -1709,6 +1974,14 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 	r = candidate_addfiles(database, c);
 	if( RET_WAS_ERROR(r) )
 		return r;
+	if( interrupted() )
+		return RET_ERROR_INTERRUPTED;
+
+	if( i->logdir != NULL ) {
+		r = candidate_finish_logdir(i, c);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
 	r = RET_OK;

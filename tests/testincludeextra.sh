@@ -367,5 +367,205 @@ EOF
 dodo test ! -e pool
 rm -r dists db
 
-rm -r documentation_9876AD* conf test.changes results results.expected *.txt
+mkdir i j tmp
+mv *.txt documentation_9876AD* test.changes j/
+cp j/* i/
+cat > conf/incoming <<EOF
+Name: foo
+IncomingDir: i
+TempDir: tmp
+Default: test
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./db"
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+-v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-d1*=db: 'documentation' added to tracking.db(test).
+-v1*=deleting './i/documentation_9876AD_all.deb'...
+-v1*=deleting './i/documentation_9876AD_coal+all.log'...
+-v1*=deleting './i/documentation_9876AD.tar.gz'...
+-v1*=deleting './i/history.txt'...
+-v1*=deleting './i/manifesto.txt'...
+-v1*=deleting './i/documentation_9876AD.dsc'...
+-v1*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+EOF
+cat >results.expected <<EOF
+Distribution: test
+Source: documentation
+Version: 9876AD
+Files:
+ pool/main/d/documentation/documentation_9876AD.dsc s 1
+ pool/main/d/documentation/documentation_9876AD.tar.gz s 1
+ pool/main/d/documentation/documentation_9876AD_all.deb a 1
+ pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt x 0
+ pool/main/d/documentation/documentation_9876AD_byhand/history.txt x 0
+ pool/main/d/documentation/documentation_9876AD_coal+all.log l 0
+ pool/main/d/documentation/documentation_9876AD_source+all.changes c 0
+
+EOF
+
+testout - dumptracks test 3<<EOF
+EOF
+dodiff results.expected results
+
+rm -r db pool dists
+
+cp j/* i/
+ed -s conf/distributions <<EOF
+g/^Tracking: /s/include[^ ]*//g
+w
+q
+EOF
+
+testrun - processincoming foo 3<<EOF
+stdout
+-v2*=Created directory "./db"
+stderr
+=Data seems not to be signed trying to use directly...
+*=Error: 'test.changes' contains unused file 'documentation_9876AD_coal+all.log'!
+*=(Do Permit: unused_files to conf/incoming to ignore and
+*= additionaly Cleanup: unused_files to delete them)
+*=Alternatively, you can also add a LogDir: for 'foo' into conf/incoming
+*=then files like that will be stored there.
+-v0*=There have been errors!
+returns 255
+EOF
+
+cat >> conf/incoming <<EOF
+Logdir: log
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-v2*=Created directory "log"
+-v2*=Created directory "log/documentation_9876AD_source+all.0000000"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-d1*=db: 'documentation' added to tracking.db(test).
+-v1*=deleting './i/documentation_9876AD_all.deb'...
+-v1*=deleting './i/documentation_9876AD_coal+all.log'...
+-v1*=deleting './i/documentation_9876AD.tar.gz'...
+-v1*=deleting './i/history.txt'...
+-v1*=deleting './i/manifesto.txt'...
+-v1*=deleting './i/documentation_9876AD.dsc'...
+-v1*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+EOF
+
+ls log/documentation_9876AD_source+all.0000000 | sort > results
+cat > results.expected <<EOF
+documentation_9876AD_coal+all.log
+history.txt
+manifesto.txt
+test.changes
+EOF
+dodiff results.expected results
+
+rm -r db pool dists
+
+cp j/* i/
+ed -s conf/distributions <<EOF
+g/^Tracking: /d
+a
+Tracking: all includechanges includelogs includebyhand
+.
+w
+q
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./db"
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-v2*=Created directory "log/documentation_9876AD_source+all.0000001"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+-v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-d1*=db: 'documentation' added to tracking.db(test).
+-v1*=deleting './i/documentation_9876AD_all.deb'...
+-v1*=deleting './i/documentation_9876AD_coal+all.log'...
+-v1*=deleting './i/documentation_9876AD.tar.gz'...
+-v1*=deleting './i/history.txt'...
+-v1*=deleting './i/manifesto.txt'...
+-v1*=deleting './i/documentation_9876AD.dsc'...
+-v1*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+EOF
+
+ls log/documentation_9876AD_source+all.0000001 | sort > results
+cat > results.expected <<EOF
+documentation_9876AD_coal+all.log
+test.changes
+EOF
+dodiff results.expected results
+
+# TODO: check for multiple distributions
+# some storing some not, and when the handling script is implemented
+
+rm -r i j tmp conf results results.expected log
 testsuccess
