@@ -567,5 +567,6 @@ dodiff results.expected results
 # TODO: check for multiple distributions
 # some storing some not, and when the handling script is implemented
 
+rm -r db pool dists
 rm -r i j tmp conf results results.expected log
 testsuccess
