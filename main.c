@@ -615,6 +615,12 @@ ACTION_D(y, n, y, remove) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
+	if( distribution->readonly ) {
+		fprintf(stderr, "Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -734,6 +740,12 @@ ACTION_D(n, n, y, removesrc) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -816,6 +828,12 @@ ACTION_D(y, n, y, removefilter) {
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
 
 	result = term_compile(&condition, argv[2],
 			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
@@ -1174,7 +1192,7 @@ ACTION_F(n, n, y, y, export) {
 		return RET_ERROR;
 	}
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1, true, READWRITE);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1208,7 +1226,7 @@ ACTION_D(n, n, y, update) {
 		return result;
 	}
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1, true, READWRITE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1255,7 +1273,7 @@ ACTION_D(n, n, y, predelete) {
 		return result;
 	}
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1, true, READWRITE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1301,7 +1319,7 @@ ACTION_B(n, n, y, checkupdate) {
 		return result;
 	}
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1343,7 +1361,7 @@ ACTION_B(n, n, y, dumpupdate) {
 		return result;
 	}
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1400,7 +1418,8 @@ ACTION_D(n, n, y, pull) {
 	struct pull_rule *rules;
 	struct pull_distribution *p;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			true, READWRITE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1432,7 +1451,8 @@ ACTION_B(n, n, y, checkpull) {
 	struct pull_rule *rules;
 	struct pull_distribution *p;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1461,7 +1481,8 @@ ACTION_B(n, n, y, dumppull) {
 	struct pull_rule *rules;
 	struct pull_distribution *p;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1497,6 +1518,12 @@ ACTION_D(y, n, y, copy) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1526,6 +1553,11 @@ ACTION_D(y, n, y, copysrc) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1556,6 +1588,11 @@ ACTION_D(y, n, y, copyfilter) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1580,6 +1617,11 @@ ACTION_D(y, n, y, restore) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1606,6 +1648,11 @@ ACTION_D(y, n, y, restoresrc) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1633,6 +1680,11 @@ ACTION_D(y, n, y, restorefilter) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1672,6 +1724,11 @@ ACTION_D(y, n, y, addpackage) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot add packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
 	result = distribution_prepareforwriting(destination);
 	if( RET_WAS_ERROR(result) )
 		return result;
@@ -1695,7 +1752,7 @@ ACTION_R(n, n, y, y, rereference) {
 	struct distribution *d;
 	struct target *t;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1, true, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1732,7 +1789,7 @@ ACTION_D(n, n, y, retrack) {
 	retvalue result,r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1, true, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1858,7 +1915,8 @@ ACTION_D(n, n, y, tidytracks) {
 	retvalue result,r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			true, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1902,7 +1960,8 @@ ACTION_B(n, n, y, dumptracks) {
 	retvalue result,r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1938,7 +1997,8 @@ ACTION_RF(y, n, y, check) {
 	retvalue result,r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -1986,7 +2046,8 @@ ACTION_F(y, n, y, y, reoverride) {
 	retvalue result,r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, true);
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			true, READWRITE);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -2080,6 +2141,11 @@ ACTION_D(y, y, y, includedeb) {
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
+	if( distribution->readonly ) {
+		fprintf(stderr, "Cannot add packages to read-only distribution '%s'.\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
 
 	if( isudeb )
 		result = override_read( distribution->udeb_override,
@@ -2163,6 +2229,11 @@ ACTION_D(y, y, y, includedsc) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( distribution->readonly ) {
+		fprintf(stderr, "Cannot add packages to read-only distribution '%s'.\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
 	result = override_read(distribution->dsc_override,
 			&distribution->overrides.dsc);
 	if( RET_WAS_ERROR(result) ) {
@@ -2211,6 +2282,11 @@ ACTION_D(y, y, y, include) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
+	if( distribution->readonly ) {
+		fprintf(stderr, "Cannot add packages to read-only distribution '%s'.\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
 
 	result = distribution_loadalloverrides(distribution);
 	if( RET_WAS_ERROR(result) ) {
@@ -2279,7 +2355,7 @@ ACTION_C(n, n, createsymlinks) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		return result;
@@ -2636,7 +2712,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 	retvalue result,r;
 	struct distribution *d;
 
-	result = distribution_match(alldistributions, argc-1, argv+1, false);
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert( result != RET_NOTHING);
 	if( RET_WAS_ERROR(result) )
 		return result;

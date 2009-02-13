@@ -1,3 +1,6 @@
+2009-02-13
+	* add ReadOnly option for conf/distributions
+
 2009-02-08
 	* processincoming support includebyhand and includelogs tracking
 	  options

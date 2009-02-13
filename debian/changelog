@@ -1,3 +1,9 @@
+reprepro (3.8.2-0) UNRELEASED; urgency=low
+
+  * add conf/distribution ReadOnly: option (Closes: 515030)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 13 Feb 2009 21:37:43 +0100
+
 reprepro (3.8.1-1) experimental; urgency=low
 
   * fix typo making copyfilter unuseable (Closes: 512586)

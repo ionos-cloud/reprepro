@@ -96,6 +96,8 @@ struct distribution {
 	bool lookedat;
 	/* false: not requested, do not handle at all */
 	bool selected;
+	/* forbid all writing operations and exports if true */
+	bool readonly;
 };
 
 retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);
@@ -132,7 +134,7 @@ retvalue distribution_snapshot(struct distribution *distribution, struct databas
 retvalue distribution_readall(/*@out@*/struct distribution **distributions);
 
 /* mark all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat);
+retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat, bool readonly);
 
 /* get a pointer to the apropiate part of the linked list */
 struct distribution *distribution_find(struct distribution *distributions, const char *name);

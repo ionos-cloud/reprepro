@@ -63,11 +63,13 @@ struct target {
 	struct target *next;
 	/* is initialized as soon as needed: */
 	struct table *packages;
+	/* do not allow write operations */
+	bool readonly;
 };
 
-retvalue target_initialize_ubinary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, /*@out@*/struct target **);
-retvalue target_initialize_binary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, /*@out@*/struct target **);
-retvalue target_initialize_source(const char *codename, component_t, /*@dependent@*/const struct exportmode *, /*@out@*/struct target **);
+retvalue target_initialize_ubinary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@out@*/struct target **);
+retvalue target_initialize_binary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@out@*/struct target **);
+retvalue target_initialize_source(const char *codename, component_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@out@*/struct target **);
 retvalue target_free(struct target *target);
 
 retvalue target_export(struct target *target, struct database *, bool onlyneeded, bool snapshot, struct release *release);
