@@ -767,6 +767,11 @@ This required field is the unique identifier of a distribution
 and used as directory name within
 .B dists/
 It is also copied into the Release files.
+
+Note that this name is not supposed to change.
+You most likely \fBnever ever\fP want a name like \fBtesting\fP
+or \fBstable\fP here (those are suite names and supposed to point
+to another distribution later).
 .TP
 .B Suite
 This optional field is simply copied into the
