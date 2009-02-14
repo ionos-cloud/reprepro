@@ -27,11 +27,11 @@
 #include <string.h>
 #include <assert.h>
 #include "error.h"
-// #include "rredpatch.h"
+#include "rredpatch.h"
 
 struct modification {
 	/* next item in the list (sorted by oldlinestart) */
-	struct modification *next;
+	struct modification *next, *previous;
 	/* each modification removes an (possible empty) range from
 	 * the file and replaces it with an (possible empty) range
 	 * of new lines */
@@ -50,14 +50,25 @@ struct rred_patch {
 	char *data;
 	off_t len;
 	struct modification *modifications;
+	bool alreadyinuse;
 };
 
-static void modification_freelist(/*@only@*/struct modification *p) {
+void modification_freelist(struct modification *p) {
 	while( p != NULL ) {
 		struct modification *m = p;
 		p = m->next;
 		free(m);
 	}
+}
+
+struct modification *patch_getmodifications(struct rred_patch *p) {
+	struct modification *m;
+
+	assert( !p->alreadyinuse );
+	m = p->modifications;
+	p->modifications = NULL;
+	p->alreadyinuse = true;
+	return m;
 }
 
 static struct modification *modification_freehead(/*@only@*/struct modification *p) {
@@ -66,7 +77,7 @@ static struct modification *modification_freehead(/*@only@*/struct modification 
 	return m;
 }
 
-static void patch_free(/*@only@*/struct rred_patch *p) {
+void patch_free(/*@only@*/struct rred_patch *p) {
 	if( p->data != NULL )
 		(void)munmap(p->data, p->len);
 	if( p->fd >= 0 )
@@ -75,7 +86,7 @@ static void patch_free(/*@only@*/struct rred_patch *p) {
 	free(p);
 }
 
-static retvalue load_patch(const char *filename, off_t length, struct rred_patch **patch_p) {
+retvalue patch_load(const char *filename, off_t length, struct rred_patch **patch_p) {
 	int i;
 	struct rred_patch *patch;
 	const char *p, *e, *d, *l;
@@ -190,6 +201,8 @@ static retvalue load_patch(const char *filename, off_t length, struct rred_patch
 			return RET_ERROR_OOM;
 		}
 		n->next = patch->modifications;
+		if( n->next != NULL )
+			n->next->previous = n;
 		patch->modifications = n;
 
 		p = d;
@@ -303,38 +316,80 @@ static void modification_stripstartlines(struct modification *m, int r) {
 	m->content = p;
 }
 
+static inline void move_queue(struct modification **last_p, struct modification **result_p, struct modification **from_p) {
+	struct modification *toadd, *last;
+
+	/* remove from queue: */
+	toadd = *from_p;
+	*from_p = toadd->next;
+	if( toadd->next != NULL ) {
+		toadd->next->previous = NULL;
+		toadd->next = NULL;
+	}
+
+	/* if nothing yet, make it the first */
+	if( *last_p == NULL ) {
+		*result_p = toadd;
+		toadd->previous = NULL;
+		*last_p = toadd;
+		return;
+	}
+
+	last = *last_p;
+	if( toadd->oldlinestart == last->oldlinestart + last->oldlinecount ) {
+		/* check if something can be combined: */
+		if( toadd->newlinecount == 0 ) {
+			last->oldlinecount += toadd->oldlinecount;
+			free(toadd);
+			return;
+		}
+		if( last->newlinecount == 0 ) {
+			toadd->oldlinestart = last->oldlinestart;
+			toadd->oldlinecount += last->oldlinecount;
+			toadd->previous = last->previous;
+			if( toadd->previous == NULL )
+				*result_p = toadd;
+			else
+				toadd->previous->next = toadd;
+			*last_p = toadd;
+			free(last);
+			return;
+		}
+		if( last->content + last->len == toadd->content ) {
+			last->oldlinecount += toadd->oldlinecount;
+			last->newlinecount += toadd->newlinecount;
+			last->len += toadd->len;
+			free(toadd);
+			return;
+		}
+	}
+	toadd->previous = last;
+	last->next = toadd;
+	*last_p = toadd;
+	return;
+}
+
 /* this merges a set of modifications into an already existing stack,
  * modifying line numbers or even cutting away deleted/newly overwritten
  * stuff as necessary */
-static retvalue combine_patches(struct modification **into_p, /*@only@*/struct modification *first, /*@only@*/struct modification *second) {
-	struct modification **pp, *p, *a, *result;
+retvalue combine_patches(struct modification **result_p, /*@only@*/struct modification *first, /*@only@*/struct modification *second) {
+	struct modification *p, *a, *result, *last;
 	long lineofs;
 
 	p = first;
 	result = NULL;
-	pp = &result;
+	last = NULL;
 	a = second;
 
 	lineofs = 0;
 
 	while( a != NULL ) {
-		if( p == NULL ) {
-			*pp = a;
-			while( a != NULL ) {
-				a->oldlinestart += lineofs;
-				pp = &a->next;
-				a = a->next;
-			}
-			break;
-		}
 		/* modification totally before current one,
 		 * so just add it before it */
-		if( lineofs + a->oldlinestart + a->oldlinecount
+		if( p == NULL || lineofs + a->oldlinestart + a->oldlinecount
 				<= p->oldlinestart ) {
 			a->oldlinestart += lineofs;
-			*pp = a;
-			a = a->next;
-			*(pp = &(*pp)->next) = NULL;
+			move_queue(&last, &result, &a);
 			continue;
 		}
 		/* modification to add after current head modification,
@@ -342,9 +397,7 @@ static retvalue combine_patches(struct modification **into_p, /*@only@*/struct m
 		if( lineofs + a->oldlinestart
 			  	>= p->oldlinestart + p->newlinecount ) {
 			lineofs += p->oldlinecount - p->newlinecount;
-			*pp = p;
-			p = p->next;
-			*(pp = &(*pp)->next) = NULL;
+			move_queue(&last, &result, &p);
 			continue;
 		}
 		/* new modification removes everything the old one added: */
@@ -377,9 +430,7 @@ static retvalue combine_patches(struct modification **into_p, /*@only@*/struct m
 			a->oldlinecount -= removedlines;
 			/* and p to add less */
 			modification_stripendlines(p, removedlines);
-			*pp = p;
-			p = p->next;
-			*(pp = &(*pp)->next) = NULL;
+			move_queue(&last, &result, &p);
 			continue;
 		}
 		/* end of *a remove start of *p, so finalize *a and reduce *p */
@@ -394,9 +445,7 @@ static retvalue combine_patches(struct modification **into_p, /*@only@*/struct m
 			/* finalize *a with less lines deleted:*/
 			a->oldlinestart += lineofs;
 			a->oldlinecount -= removedlines;
-			*pp = a;
-			a = a->next;
-			*(pp = &(*pp)->next) = NULL;
+			move_queue(&last, &result, &a);
 			/* and reduce the number of lines of *p */
 			modification_stripstartlines(p, removedlines);
 			/* note that a->oldlinestart+a->oldlinecount+1
@@ -422,36 +471,35 @@ static retvalue combine_patches(struct modification **into_p, /*@only@*/struct m
 			*n = *p;
 			/* all removing into the later pater, so
 			 * that later numbers fit */
+			n->next = NULL;
 			n->oldlinecount = 0;
 			modification_stripendlines(n,
 					n->newlinecount - removedlines);
 			assert(n->newlinecount == removedlines);
 			lineofs += n->oldlinecount - n->newlinecount;
 			assert( lineofs+a->oldlinestart <= p->oldlinestart);
-			*pp = n;
-			*(pp = &(*pp)->next) = NULL;
+			move_queue(&last, &result, &n);
+			assert( n == NULL);
 			/* only remove this and let the rest of the
 			 * code handle the other changes */
 			modification_stripstartlines(p, removedlines);
 		}
-		*into_p = NULL;
 		modification_freelist(result);
 		modification_freelist(p);
 		modification_freelist(a);
 		fputs("Internal error in rred merging!\n", stderr);
 		return RET_ERROR;
 	}
-	*pp = p;
-	*into_p = result;
+	while( p != NULL ) {
+		move_queue(&last, &result, &p);
+	}
+	*result_p = result;
 	return RET_OK;
 }
 
 static retvalue patch_file(const char *destination, const char *source, const struct modification *patch) {
 	FILE *i, *o;
 	int currentline, ignore, c;
-	/* run through the file, copying unless there is a a modification,
-	 * things get complex with multiple patch files, as every patch may see
-	 * a different current line number */
 
 	i = fopen(source, "r");
 	if( i == NULL ) {
@@ -463,11 +511,7 @@ static retvalue patch_file(const char *destination, const char *source, const st
 		perror("error creating\n");
 		return RET_ERROR;
 	}
-	while( patch != NULL && patch->oldlinestart == 0 ) {
-		fwrite(patch->content, patch->len, 1, o);
-		assert( patch->oldlinecount == 0);
-		patch = patch->next;
-	}
+	assert( patch == NULL || patch->oldlinestart > 0 );
 	currentline = 1;
 	do {
 		while( patch != NULL && patch->oldlinestart == currentline ) {
@@ -511,46 +555,59 @@ static void modification_print(const struct modification *m) {
 		m = m->next;
 	}
 }
-/*
-int main() {
-	struct rred_patch *p1, *p2, *p3;
-	struct modification *m;
-	retvalue r;
 
-	r = load_patch("patch1", -1, &p1);
-	if( RET_WAS_ERROR(r) )
-		return 1;
-	r = load_patch("patch2", -1, &p2);
-	if( RET_WAS_ERROR(r) )
-		return 2;
-	r = load_patch("patch3", -1, &p3);
-	if( RET_WAS_ERROR(r) )
-		return 3;
-	printf("p1:\n");
-	modification_print(p1->modifications);
-	printf("p2:\n");
-	modification_print(p2->modifications);
-	printf("p3:\n");
-	modification_print(p3->modifications);
-	printf("combine1:\n");
-	r = combine_patches(&m, p1->modifications, p2->modifications);
-	p1->modifications = NULL; p2->modifications = NULL;
-	if( RET_WAS_ERROR(r) )
-		return 4;
-	modification_print(m);
-	printf("combine2:\n");
-	r = combine_patches(&m, m, p3->modifications);
-	p3->modifications = NULL;
-	if( RET_WAS_ERROR(r) )
-		return 5;
-	modification_print(m);
-	r = patch_file("destination", "source", m);
-	if( RET_WAS_ERROR(r) )
-		return 6;
-	patch_free(p1);
-	patch_free(p2);
-	patch_free(p3);
-	modification_freelist(m);
-	return 0;
+void modification_printaspatch(const struct modification *m) {
+	const struct modification *p, *q, *r;
+
+	fprintf(stderr, "%p\n", m);
+	if( m == NULL )
+		return;
+	fprintf(stderr, "%p %p\n", m, m->previous);
+	assert( m->previous == NULL );
+	/* go to the end, as we have to print it backwards */
+	p = m;
+	while( p->next != NULL ) {
+		assert( p->next->previous == p );
+		p = p->next;
+	}
+	/* then print, possibly merging things */
+	while( p != NULL ) {
+		int start, oldcount, newcount;
+		start = p->oldlinestart;
+		oldcount = p->oldlinecount;
+		newcount = p->newlinecount;
+
+		r = p;
+		for( q = p->previous ;
+		     q != NULL && q->oldlinestart + q->oldlinecount == start ;
+		     q = q->previous ) {
+			oldcount += q->oldlinecount;
+			start = q->oldlinestart;
+			newcount += q->newlinecount;
+			r = q;
+		}
+		if( newcount == 0 ) {
+			assert( oldcount > 0 );
+			if( oldcount == 1 )
+				printf("%dd\n", start);
+			else
+				printf("%d,%dd\n", start, start + oldcount - 1);
+		} else {
+			if( oldcount == 0 )
+				printf("%da\n", start-1);
+			else if( oldcount == 1 )
+				printf("%dc\n", start);
+			else
+				printf("%d,%dc\n", start, start + oldcount - 1);
+			while( r != p->next ) {
+				if( r->len > 0 )
+					fwrite(r->content, r->len, 1, stdout);
+				newcount -= r->newlinecount;
+				r = r->next;
+			}
+			assert( newcount == 0 );
+			puts(".");
+		}
+		p = q;
+	}
 }
-*/
