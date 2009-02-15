@@ -1,4 +1,10 @@
 Updates between 3.8.0 and 3.8.1:
+- add ReadOnly option for conf/distributions
+- support byhand and raw-* files in include and processincoming
+- allow uploading log files with .changes files
+- new LogDir in conf/incoming to store changes and log files.
+
+Updates between 3.8.0 and 3.8.1:
 - make filtercopy work again
 - fix bug not allowing source packages from flat
   repositories without Directory fields to be imported

@@ -1,4 +1,4 @@
-reprepro (3.8.2-0) UNRELEASED; urgency=low
+reprepro (3.8.2-1) unstable; urgency=low
 
   * add conf/distribution ReadOnly: option (Closes: 515030)
   * warn in manpage that Codename should be a permanent name (Closes: 515114)
