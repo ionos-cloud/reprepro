@@ -32,7 +32,7 @@ documentation (9876AD) test; urgency=low
 
   * everything fixed
 
- -- Sky.NET <nowhere@example.com>  Sat, 15 Jan 9876 17:12:05 +2700
+ -- Sky.NET <nowhere@example.com>  Sat, 15 Jan 2011 17:12:05 +2700
 EOF
 
 cat > debian/control <<EOF
