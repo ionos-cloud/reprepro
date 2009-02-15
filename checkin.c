@@ -162,7 +162,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 }
 
 
-static retvalue newentry(struct fileentry **entry, const char *fileline, packagetype_t packagetypeonly, architecture_t forcearchitecture, const char *sourcename, bool includebyhand, bool includelogs) {
+static retvalue newentry(struct fileentry **entry, const char *fileline, packagetype_t packagetypeonly, architecture_t forcearchitecture, const char *sourcename, bool includebyhand, bool includelogs, bool *ignoredlines_p) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -185,6 +185,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 			fprintf(stderr, "Ignoring byhand file: '%s'!\n",
 							e->basename);
 			freeentries(e);
+			*ignoredlines_p = true;
 			return RET_NOTHING;
 		}
 		e->next = *entry;
@@ -193,14 +194,17 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 	}
 	if( FE_SOURCE(e->type) && limitation_missed(packagetypeonly, pt_dsc) ) {
 		freeentries(e);
+		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
 	if( e->type == fe_DEB && limitation_missed(packagetypeonly, pt_deb) ) {
 		freeentries(e);
+		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
 	if( e->type == fe_UDEB && limitation_missed(packagetypeonly, pt_udeb) ) {
 		freeentries(e);
+		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
 	if( e->type != fe_LOG &&
@@ -221,6 +225,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 			fprintf(stderr, "Ignoring log file: '%s'!\n",
 							e->basename);
 			freeentries(e);
+			*ignoredlines_p = true;
 			return RET_NOTHING;
 		}
 		if( atom_defined(forcearchitecture) &&
@@ -231,6 +236,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 					e->basename,
 					atoms_architectures[forcearchitecture]);
 			freeentries(e);
+			*ignoredlines_p = true;
 			return RET_NOTHING;
 		}
 	} else if( atom_defined(forcearchitecture) ) {
@@ -249,6 +255,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 					e->basename,
 					atoms_architectures[forcearchitecture]);
 			freeentries(e);
+			*ignoredlines_p = true;
 			return RET_NOTHING;
 		}
 	}
@@ -259,7 +266,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 }
 
 /* Parse the Files-header to see what kind of files we carry around */
-static retvalue changes_parsefilelines(const char *filename, struct changes *changes, const struct strlist *filelines, packagetype_t packagetypeonly, architecture_t forcearchitecture, bool includebyhand, bool includelogs) {
+static retvalue changes_parsefilelines(const char *filename, struct changes *changes, const struct strlist *filelines, packagetype_t packagetypeonly, architecture_t forcearchitecture, bool includebyhand, bool includelogs, bool *ignoredlines_p) {
 	retvalue result,r;
 	int i;
 
@@ -271,7 +278,8 @@ static retvalue changes_parsefilelines(const char *filename, struct changes *cha
 
 		r = newentry(&changes->files, fileline,
 				packagetypeonly, forcearchitecture,
-				changes->source, includebyhand, includelogs);
+				changes->source, includebyhand, includelogs,
+				ignoredlines_p);
 		RET_UPDATE(result,r);
 		if( r == RET_ERROR )
 			return r;
@@ -358,7 +366,7 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 	struct changes *c;
 	struct strlist filelines[cs_hashCOUNT];
 	enum checksumtype cs;
-	bool broken;
+	bool broken, ignoredlines;
 	int versioncmp;
 
 #define E(err) { \
@@ -435,9 +443,10 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 			changes_checksum_names[cs_md5sum],
 			&filelines[cs_md5sum]);
 	E("Missing 'Files' field!");
+	ignoredlines = false;
 	r = changes_parsefilelines(filename, c, &filelines[cs_md5sum],
 			packagetypeonly, forcearchitecture,
-			includebyhand, includelogs);
+			includebyhand, includelogs, &ignoredlines);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&filelines[cs_md5sum]);
 		changes_free(c);
@@ -448,8 +457,7 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 				changes_checksum_names[cs], &filelines[cs]);
 		if( RET_IS_OK(r) )
 			r = changes_addhashes(filename, c, cs, &filelines[cs],
-					atom_defined(packagetypeonly) ||
-					atom_defined(forcearchitecture));
+					ignoredlines);
 		else
 			strlist_init(&filelines[cs]);
 		if( RET_WAS_ERROR(r) ) {
