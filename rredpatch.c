@@ -272,8 +272,8 @@ retvalue patch_load(const char *filename, off_t length, struct rred_patch **patc
 			if( n->oldlinestart + n->oldlinecount
 					> n->next->oldlinestart ) {
 				fprintf(stderr,
-"Error using '%s': wrong order of edit-commands\n",
-						filename);
+"Error using '%s' line %d: wrong order of edit-commands\n",
+						filename, line);
 				patch_free(patch);
 				return RET_ERROR;
 			}
@@ -365,6 +365,7 @@ static inline void move_queue(struct modification **last_p, struct modification 
 	}
 	toadd->previous = last;
 	last->next = toadd;
+	assert( last->oldlinestart + last->oldlinecount <= toadd->oldlinestart );
 	*last_p = toadd;
 	return;
 }
@@ -390,6 +391,8 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 				<= p->oldlinestart ) {
 			a->oldlinestart += lineofs;
 			move_queue(&last, &result, &a);
+			assert( p == NULL || p->oldlinestart >=
+					last->oldlinestart + last->oldlinecount );
 			continue;
 		}
 		/* modification to add after current head modification,
@@ -398,15 +401,17 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			  	>= p->oldlinestart + p->newlinecount ) {
 			lineofs += p->oldlinecount - p->newlinecount;
 			move_queue(&last, &result, &p);
+			assert( lineofs + a->oldlinestart >=
+					last->oldlinestart + last->oldlinecount );
 			continue;
 		}
 		/* new modification removes everything the old one added: */
 		if( lineofs + a->oldlinestart <= p->oldlinestart
 			  && lineofs + a->oldlinestart + a->oldlinecount
 			  	>= p->oldlinestart + p->newlinecount ) {
-			a->oldlinestart += lineofs;
-			lineofs += p->oldlinecount - p->newlinecount;
+			a->oldlinestart -= p->oldlinecount - p->newlinecount;
 			a->oldlinecount += p->oldlinecount - p->newlinecount;
+			lineofs += p->oldlinecount - p->newlinecount;
 			p = modification_freehead(p);
 			/* we cannot finalize a here, as it might still
 			 * eat more p (in full or partial)... */
@@ -431,6 +436,8 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			/* and p to add less */
 			modification_stripendlines(p, removedlines);
 			move_queue(&last, &result, &p);
+			assert( lineofs + a->oldlinestart >=
+					last->oldlinestart + last->oldlinecount );
 			continue;
 		}
 		/* end of *a remove start of *p, so finalize *a and reduce *p */
@@ -448,6 +455,9 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			move_queue(&last, &result, &a);
 			/* and reduce the number of lines of *p */
 			modification_stripstartlines(p, removedlines);
+			assert( p->oldlinestart >= last->oldlinestart + last->oldlinecount);
+			if( a != NULL )
+				assert( lineofs + a->oldlinestart >= last->oldlinestart + last->oldlinecount);
 			/* note that a->oldlinestart+a->oldlinecount+1
 			 *        == p->oldlinestart */
 			continue;
@@ -483,6 +493,8 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			/* only remove this and let the rest of the
 			 * code handle the other changes */
 			modification_stripstartlines(p, removedlines);
+			assert( lineofs + a->oldlinestart >=
+					last->oldlinestart + last->oldlinecount );
 		}
 		modification_freelist(result);
 		modification_freelist(p);
@@ -559,10 +571,8 @@ static void modification_print(const struct modification *m) {
 void modification_printaspatch(const struct modification *m) {
 	const struct modification *p, *q, *r;
 
-	fprintf(stderr, "%p\n", m);
 	if( m == NULL )
 		return;
-	fprintf(stderr, "%p %p\n", m, m->previous);
 	assert( m->previous == NULL );
 	/* go to the end, as we have to print it backwards */
 	p = m;
@@ -576,6 +586,9 @@ void modification_printaspatch(const struct modification *m) {
 		start = p->oldlinestart;
 		oldcount = p->oldlinecount;
 		newcount = p->newlinecount;
+
+		if( p->next != NULL )
+			assert( start + oldcount <= p->next->oldlinestart );
 
 		r = p;
 		for( q = p->previous ;
