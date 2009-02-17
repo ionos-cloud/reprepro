@@ -465,6 +465,8 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			move_queue(&last, &result, &a);
 			/* and reduce the number of lines of *p */
 			modification_stripstartlines(p, removedlines);
+			/* p->newlinecount got smaller, so less will be deleted later */
+			lineofs -= removedlines;
 			assert( p->oldlinestart >= last->oldlinestart + last->oldlinecount);
 			if( a != NULL )
 				assert( lineofs + a->oldlinestart >= last->oldlinestart + last->oldlinecount);
