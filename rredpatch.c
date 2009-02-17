@@ -491,22 +491,22 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 				return RET_ERROR_OOM;
 			}
 			*n = *p;
-			/* all removing into the later pater, so
+			/* all removing into the later p, so
 			 * that later numbers fit */
 			n->next = NULL;
 			n->oldlinecount = 0;
-			modification_stripendlines(n,
-					n->newlinecount - removedlines);
-			assert(n->newlinecount == removedlines);
+			modification_stripendlines(n, removedlines);
 			lineofs += n->oldlinecount - n->newlinecount;
 			assert( lineofs+a->oldlinestart <= p->oldlinestart);
 			move_queue(&last, &result, &n);
 			assert( n == NULL);
 			/* only remove this and let the rest of the
 			 * code handle the other changes */
-			modification_stripstartlines(p, removedlines);
+			modification_stripstartlines(p, p->newlinecount - removedlines);
+			assert(p->newlinecount == removedlines);
 			assert( lineofs + a->oldlinestart >=
 					last->oldlinestart + last->oldlinecount );
+			continue;
 		}
 		modification_freelist(result);
 		modification_freelist(p);
