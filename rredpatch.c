@@ -265,17 +265,27 @@ retvalue patch_load(const char *filename, off_t length, struct rred_patch **patc
 		/* make sure things are in the order diff usually
 		 * generates them, which makes line-calculation much easier: */
 		if( n->next != NULL ) {
-			// TODO: theoretically, that could be healed by
-			// changing the numbers when this item is moving to
-			// the later code. But how test this as diff uses
-			// the sane order?
 			if( n->oldlinestart + n->oldlinecount
 					> n->next->oldlinestart ) {
-				fprintf(stderr,
-"Error using '%s' line %d: wrong order of edit-commands\n",
-						filename, line);
-				patch_free(patch);
-				return RET_ERROR;
+				struct modification *first, *second;
+				retvalue r;
+
+				// TODO: it might be more efficient to
+				// first store the different parts as different
+				// patchsets and then combine...
+
+				/* unlink and feed into patch merger */
+				first = n->next;
+				first->previous = NULL;
+				second = n;
+				n->next = NULL;
+				n = NULL;
+				r = combine_patches(&n, first, second);
+				patch->modifications = n;
+				if( RET_WAS_ERROR(r) ) {
+					patch_free(patch);
+					return r;
+				}
 			}
 		}
 	}
