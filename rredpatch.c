@@ -423,8 +423,11 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			a->oldlinecount += p->oldlinecount - p->newlinecount;
 			lineofs += p->oldlinecount - p->newlinecount;
 			p = modification_freehead(p);
-			/* we cannot finalize a here, as it might still
-			 * eat more p (in full or partial)... */
+			if( a->oldlinecount == 0 && a->newlinecount == 0 ) {
+				/* a exactly cancels p */
+				a = modification_freehead(a);
+			}
+			/* otherwise a is not yet finished, it might modify more */
 			continue;
 		}
 		/* otherwise something overlaps, things get complicated here: */
@@ -462,14 +465,22 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			/* finalize *a with less lines deleted:*/
 			a->oldlinestart += lineofs;
 			a->oldlinecount -= removedlines;
-			move_queue(&last, &result, &a);
+			if( a->oldlinecount == 0 && a->newlinecount == 0 ) {
+				/* a only removed something and this was hereby
+				 * removed from p */
+				a = modification_freehead(a);
+			} else
+				move_queue(&last, &result, &a);
 			/* and reduce the number of lines of *p */
+			assert( removedlines < p->newlinecount );
 			modification_stripstartlines(p, removedlines);
 			/* p->newlinecount got smaller, so less will be deleted later */
 			lineofs -= removedlines;
+			if( last != NULL ) {
 			assert( p->oldlinestart >= last->oldlinestart + last->oldlinecount);
 			if( a != NULL )
 				assert( lineofs + a->oldlinestart >= last->oldlinestart + last->oldlinecount);
+			}
 			/* note that a->oldlinestart+a->oldlinecount+1
 			 *        == p->oldlinestart */
 			continue;
@@ -495,6 +506,7 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 			 * that later numbers fit */
 			n->next = NULL;
 			n->oldlinecount = 0;
+			assert( removedlines < n->newlinecount );
 			modification_stripendlines(n, removedlines);
 			lineofs += n->oldlinecount - n->newlinecount;
 			assert( lineofs+a->oldlinestart <= p->oldlinestart);
