@@ -509,19 +509,16 @@ retvalue combine_patches(struct modification **result_p, /*@only@*/struct modifi
 	return RET_OK;
 }
 
-static retvalue patch_file(const char *destination, const char *source, const struct modification *patch) {
-	FILE *i, *o;
+retvalue patch_file(FILE *o, const char *source, const struct modification *patch) {
+	FILE *i;
 	int currentline, ignore, c;
 
 	i = fopen(source, "r");
 	if( i == NULL ) {
-		perror("error opening\n");
-		return RET_ERROR;
-	}
-	o = fopen(destination, "w");
-	if( o == NULL ) {
-		perror("error creating\n");
-		return RET_ERROR;
+		int e = errno;
+		fprintf(stderr, "Error %d opening %s: %s\n",
+				e, source, strerror(e));
+		return RET_ERRNO(e);
 	}
 	assert( patch == NULL || patch->oldlinestart > 0 );
 	currentline = 1;
@@ -545,30 +542,33 @@ static retvalue patch_file(const char *destination, const char *source, const st
 					fprintf(stderr,
 "Error patching '%s', file shorter than expected by patches!\n",
 						source);
+					(void)fclose(i);
 					return RET_ERROR;
 				}
-				return RET_OK;
+				break;
 			}
 			putc(c, o);
 		}
 		putc(c, o);
 		currentline++;
 	} while (1);
-	// TODO: check errors
-	fclose(i);
-	fclose(o);
+	if( ferror(i) != 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error %d reading %s: %s\n",
+				e, source, strerror(e));
+		(void)fclose(i);
+		return RET_ERRNO(e);
+	}
+	if( fclose(i) != 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error %d reading %s: %s\n",
+				e, source, strerror(e));
+		return RET_ERRNO(e);
+	}
 	return RET_OK;
 }
 
-static void modification_print(const struct modification *m) {
-	while( m != NULL ) {
-		printf("mod %d+%d to %d:\n", m->oldlinestart, m->oldlinecount, m->newlinecount);
-		fwrite(m->content, m->len, 1, stdout);
-		m = m->next;
-	}
-}
-
-void modification_printaspatch(const struct modification *m) {
+void modification_printaspatch(FILE *f, const struct modification *m) {
 	const struct modification *p, *q, *r;
 
 	if( m == NULL )
@@ -602,24 +602,24 @@ void modification_printaspatch(const struct modification *m) {
 		if( newcount == 0 ) {
 			assert( oldcount > 0 );
 			if( oldcount == 1 )
-				printf("%dd\n", start);
+				fprintf(f, "%dd\n", start);
 			else
-				printf("%d,%dd\n", start, start + oldcount - 1);
+				fprintf(f, "%d,%dd\n", start, start + oldcount - 1);
 		} else {
 			if( oldcount == 0 )
-				printf("%da\n", start-1);
+				fprintf(f, "%da\n", start-1);
 			else if( oldcount == 1 )
-				printf("%dc\n", start);
+				fprintf(f, "%dc\n", start);
 			else
-				printf("%d,%dc\n", start, start + oldcount - 1);
+				fprintf(f, "%d,%dc\n", start, start + oldcount - 1);
 			while( r != p->next ) {
 				if( r->len > 0 )
-					fwrite(r->content, r->len, 1, stdout);
+					fwrite(r->content, r->len, 1, f);
 				newcount -= r->newlinecount;
 				r = r->next;
 			}
 			assert( newcount == 0 );
-			puts(".");
+			fputs(".\n", f);
 		}
 		p = q;
 	}

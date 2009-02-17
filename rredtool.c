@@ -22,7 +22,7 @@ int main(int argc, const char *argv[]) {
 	retvalue r;
 	bool mergemode = false;
 	int i, count;
-	const char *sourcename;
+	const char *sourcename IFSTUPIDCC(=NULL);
 	int debug = 0;
 
 	while( (i = getopt_long(argc, (char**)argv, "+hVDm", options, NULL)) != -1 ) {
@@ -64,8 +64,11 @@ int main(int argc, const char *argv[]) {
 		if( RET_IS_OK(r) )
 			count++;
 		if( RET_WAS_ERROR(r) ) {
-			fprintf(stderr, "Aborting...\n");
-			return RET_ERRNO(r);
+			if( r == RET_ERROR_OOM )
+				fputs("Out of memory!\n", stderr);
+			else
+				fputs("Aborting...\n", stderr);
+			return EXIT_FAILURE;
 		}
 		i++;
 	}
@@ -77,26 +80,41 @@ int main(int argc, const char *argv[]) {
 	for( i = 1; i < count ; i++ ) {
 		struct modification *a = patch_getmodifications(patches[i]);
 		if( debug ) {
-			puts("--------RESULT SO FAR----------------");
-			modification_printaspatch(m);
-			puts("--------TO BE MERGED WITH------------");
-			modification_printaspatch(a);
-			puts("-------------END---------------------");
+			fputs("--------RESULT SO FAR--------\n", stderr);
+			modification_printaspatch(stderr, m);
+			fputs("--------TO BE MERGED WITH-----\n", stderr);
+			modification_printaspatch(stderr, a);
+			fputs("-------------END--------------\n", stderr);
 		}
 		r = combine_patches(&m, m, a);
 		if( RET_WAS_ERROR(r) ) {
 			for( i = 0 ; i < count ; i++ ) {
 				patch_free(patches[i]);
 			}
-			fprintf(stderr, "Aborting...\n");
-			return RET_ERRNO(r);
+			if( r == RET_ERROR_OOM )
+				fputs("Out of memory!\n", stderr);
+			else
+				fputs("Aborting...\n", stderr);
+			return EXIT_FAILURE;
 		}
 	}
-	if( mergemode )
-		modification_printaspatch(m);
+	r = RET_OK;
+	if( mergemode ) {
+		modification_printaspatch(stdout, m);
+	} else {
+		r = patch_file(stdout, sourcename, m);
+	}
+	if( ferror(stdout) ) {
+		fputs("Error writing to stdout!\n", stderr);
+		r = RET_ERROR;
+	}
 	modification_freelist(m);
 	for( i = 0 ; i < count ; i++ )
 		patch_free(patches[i]);
+	if( r == RET_ERROR_OOM )
+		fputs("Out of memory!\n", stderr);
+	if( RET_WAS_ERROR(r) )
+		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }
 
