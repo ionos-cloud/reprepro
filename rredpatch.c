@@ -124,6 +124,16 @@ retvalue patch_load(const char *filename, off_t length, struct rred_patch **patc
 		patch_free(patch);
 		return RET_ERRNO(err);
 	}
+	if( length == 0 ) {
+		/* handle empty patches gracefully */
+		close(patch->fd);
+		patch->fd = -1;
+		patch->data = NULL;
+		patch->len = 0;
+		patch->modifications = NULL;
+		*patch_p = patch;
+		return RET_OK;
+	}
 	patch->len = length;
 	patch->data = mmap(NULL, patch->len, PROT_READ, MAP_PRIVATE,
 			patch->fd, 0);
