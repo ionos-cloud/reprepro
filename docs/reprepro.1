@@ -1379,6 +1379,10 @@ Allow: local unstable>sid
 or
 .br
 Allow: stable>security-updates stable>proposed-updates
+.br
+(Note that this makes only sense if Multiple is set to true or if
+there are people only allowed to upload to proposed-updates but
+not to security-updates).
 .TP
 .B Default \fIdistribution
 Every upload not put into any other distribution because
