@@ -1,4 +1,4 @@
-Updates between 3.8.0 and 3.8.1:
+Updates between 3.8.1 and 3.8.2:
 - add ReadOnly option for conf/distributions
 - support byhand and raw-* files in include and processincoming
 - allow uploading log files with .changes files
