@@ -329,7 +329,7 @@ retvalue signature_check(const struct strlist *requirements, const char *release
 #endif /* HAVE_LIBGPGME */
 }
 
-static retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
+static retvalue signature_sign(const char *options, const char *filename, const char *signaturename, bool willcleanup) {
 	retvalue r;
 	int ret, e;
 #ifdef HAVE_LIBGPGME
@@ -425,27 +425,45 @@ static retvalue signature_sign(const char *options, const char *filename, const 
 
 		signresult = gpgme_op_sign_result(context);
 		if( signresult == NULL ) {
-			fprintf(stderr,
+			if( willcleanup)
+				fprintf(stderr,
+"Error: gpgme returned NULL unexpectedly for gpgme_op_sign_result\n"
+"This most likely means gpg is confused or produces some error libgpgme is\n"
+"not able to understand. Try running gpg %s%s --output 'some-other-file' --detach-sign 'some-file'\n"
+"for hints what this error might have been.\n",
+					(options==NULL)?"":"-u ",
+					(options==NULL)?"":options);
+			else
+				fprintf(stderr,
 "Error: gpgme returned NULL unexpectedly for gpgme_op_sign_result\n"
 "This most likely means gpg is confused or produces some error libgpgme is\n"
 "not able to understand. Try running gpg %s%s --output '%s' --detach-sign '%s'\n"
 "for hints what this error might have been.\n",
-				(options==NULL)?"":"-u ",
-				(options==NULL)?"":options,
-				signaturename, filename);
+					(options==NULL)?"":"-u ",
+					(options==NULL)?"":options,
+					signaturename, filename);
 			gpgme_data_release(dh_gpg);
 			return RET_ERROR_GPGME;
 		}
 		if( signresult->signatures == NULL ) {
-			fprintf(stderr,
+			if( willcleanup)
+				fprintf(stderr,
+"Error: gpgme created no signature!\n"
+"This most likely means gpg is confused or produces some error libgpgme is\n"
+"not able to understand. Try running gpg %s%s --output 'some-other-file' --detach-sign 'some-file'\n"
+"for hints what this error might have been.\n",
+					(options==NULL)?"":"-u ",
+					(options==NULL)?"":options);
+			else
+				fprintf(stderr,
 "Error: gpgme created no signature for '%s'!\n"
 "This most likely means gpg is confused or produces some error libgpgme is\n"
 "not able to understand. Try running gpg %s%s --output '%s' --detach-sign '%s'\n"
 "for hints what this error might have been.\n",
-				filename,
-				(options==NULL)?"":"-u ",
-				(options==NULL)?"":options,
-				signaturename, filename);
+					filename,
+					(options==NULL)?"":"-u ",
+					(options==NULL)?"":options,
+					signaturename, filename);
 			gpgme_data_release(dh_gpg);
 			return RET_ERROR_GPGME;
 		}
@@ -948,17 +966,19 @@ static retvalue newpossiblysignedfile(const char *directory, const char *basefil
 	return RET_OK;
 }
 
-void signedfile_free(struct signedfile *f) {
+void signedfile_free(struct signedfile *f, bool cleanup) {
 	if( f == NULL )
 		return;
 	assert( f->fd < 0 );
 	if( f->newplainfilename != NULL ) {
-		(void)unlink(f->newplainfilename);
+		if( cleanup )
+			(void)unlink(f->newplainfilename);
 		free(f->newplainfilename);
 	}
 	free(f->plainfilename);
 	if( f->newsignfilename != NULL ) {
-		(void)unlink(f->newsignfilename);
+		if( cleanup )
+			(void)unlink(f->newsignfilename);
 		free(f->newsignfilename);
 	}
 	free(f->signfilename);
@@ -1013,7 +1033,8 @@ void signedfile_write(struct signedfile *f, const void *data, size_t len) {
 	}
 	// push into signing object...
 }
-retvalue signedfile_prepare(struct signedfile *f, const char *options) {
+
+retvalue signedfile_prepare(struct signedfile *f, const char *options, bool willcleanup) {
 	if( f->fd >= 0 ) {
 		int ret;
 
@@ -1048,7 +1069,7 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options) {
 
 		r = signature_sign(options,
 				f->newplainfilename,
-				f->newsignfilename);
+				f->newsignfilename, willcleanup);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}

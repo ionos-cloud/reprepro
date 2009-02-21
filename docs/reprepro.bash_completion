@@ -106,9 +106,9 @@ _reprepro()
 		brokensignatures uploaders missingfile'
 	noargoptions='--delete --nodelete --help -h --verbose -v\
 	--nothingiserror --nolistsdownload --keepunreferencedfiles --keepunusednewfiles\
-	--keepdirectories\
+	--keepdirectories --keeptemporaries\
 	--ask-passphrase --nonothingiserror --listsdownload\
-	--nokeepunreferencesfiles --nokeepdirectories\
+	--nokeepunreferencesfiles --nokeepdirectories --nokeeptemporaries\
 	--noask-passphrase --skipold --noskipold --nooldfilesdb --oldfilesdb'
 	options='-b -i --basedir --outdir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\

@@ -78,6 +78,7 @@ extern struct global_config {
 	const char *overridedir;
 	/* flags: */
 	bool keepdirectories;
+	bool keeptemporaries;
 } global;
 
 enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_COUNT };

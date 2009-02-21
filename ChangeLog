@@ -1,3 +1,9 @@
+2009-02-21
+	* add --keeptemporaries and without it delete all .new files when
+	exporting fails (and not only Release) and with it keep all
+	(including Release). Also fix gpg error message to not suggest trying
+	it with a file that later will be deleted.
+
 2009-02-20
 	* add 'warning' flag for FilterList files
 
