@@ -11,7 +11,6 @@
 retvalue signature_init(bool allowpassphrase);
 
 retvalue signature_check(const struct strlist *options, const char *releasegpg, const char *release);
-retvalue signature_sign(const char *options, const char *filename, const char *signeturename);
 
 /* Read a single chunk from a file, that may be signed. */
 retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature);

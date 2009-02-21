@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -329,7 +329,7 @@ retvalue signature_check(const struct strlist *requirements, const char *release
 #endif /* HAVE_LIBGPGME */
 }
 
-retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
+static retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
 	retvalue r;
 	int ret, e;
 #ifdef HAVE_LIBGPGME
