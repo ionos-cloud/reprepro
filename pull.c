@@ -654,6 +654,8 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /
 		case flt_deinstall:
 		case flt_purge:
 			return UD_NO;
+		case flt_warning:
+			return UD_LOUDNO;
 		case flt_hold:
 			decision = UD_HOLD;
 			break;

@@ -3,7 +3,7 @@
 
 /* Things for making decisions what to upgrade and what not */
 
-typedef enum { UD_ERROR, UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
+typedef enum { UD_ERROR, UD_LOUDNO, UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
 
 typedef upgrade_decision upgrade_decide_function(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk);
 

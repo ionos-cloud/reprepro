@@ -1,3 +1,6 @@
+2009-02-20
+	* add 'warning' flag for FilterList files
+
 2009-02-13
 	* add ReadOnly option for conf/distributions
 

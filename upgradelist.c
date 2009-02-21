@@ -269,6 +269,8 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		decision = predecide(predecide_data, packagename_const, NULL, version, chunk);
 		if( decision != UD_UPGRADE ) {
 			upgrade->last = insertafter;
+			if( decision == UD_LOUDNO )
+				fprintf(stderr, "Loudly rejecting '%s' '%s' to enter '%s'!\n", packagename, version, upgrade->target->identifier);
 			free(packagename);
 			free(version);
 			return (decision==UD_ERROR)?RET_ERROR:RET_NOTHING;
@@ -358,6 +360,8 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		decision = predecide(predecide_data,current->name,
 				current->version,version,chunk);
 		if( decision != UD_UPGRADE ) {
+			if( decision == UD_LOUDNO )
+				fprintf(stderr, "Loudly rejecting '%s' '%s' to enter '%s'!\n", packagename, version, upgrade->target->identifier);
 			/* Even if we do not install it, setting it on hold
 			 * will keep it or even install from a mirror before
 			 * the delete was applied */
