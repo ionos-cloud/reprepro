@@ -3,8 +3,10 @@ reprepro (3.8.3-0) UNRELEASED; urgency=low
   * fix hint to get gpg error message in case libgpgme returns generic error
     to not list files deleted later, delete all .new files on error unless
     new --keeptemporaries is specified (Closes: 516395)
+  * delete unexpected files in the pool which are in the way of new files
+    (Closes: 516578)
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 21 Feb 2009 16:31:59 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 23 Feb 2009 21:31:18 +0100
 
 reprepro (3.8.2-1) unstable; urgency=low
 

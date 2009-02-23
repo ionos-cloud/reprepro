@@ -1230,7 +1230,7 @@ retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **ch
 	return checksums_from_context(checksums_p, &context);
 }
 
-retvalue checksums_copyfile(const char *destination, const char *source, struct checksums **checksums_p) {
+retvalue checksums_copyfile(const char *destination, const char *source, bool deletetarget, struct checksums **checksums_p) {
 	struct checksumscontext context;
 	static const size_t bufsize = 16384;
 	unsigned char *buffer = malloc(bufsize);
@@ -1239,7 +1239,7 @@ retvalue checksums_copyfile(const char *destination, const char *source, struct 
 	int e, i;
 	int infd, outfd;
 
-	if( buffer == NULL ) {
+	if( FAILEDTOALLOC(buffer) ) {
 		return RET_ERROR_OOM;
 	}
 
@@ -1254,11 +1254,36 @@ retvalue checksums_copyfile(const char *destination, const char *source, struct 
 	outfd = open(destination, O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL, 0666);
 	if( outfd < 0 ) {
 		e = errno;
-		fprintf(stderr, "Error %d creating '%s': %s\n",
-				e, destination, strerror(e));
-		(void)close(infd);
-		free(buffer);
-		return RET_ERRNO(e);
+		if( e == EEXIST ) {
+			if( deletetarget ) {
+				i = unlink(destination);
+				if( i != 0 ) {
+					e = errno;
+					fprintf(stderr,
+"Error %d deleting '%s': %s\n",
+						e, destination, strerror(e));
+					(void)close(infd);
+					free(buffer);
+					return RET_ERRNO(e);
+				}
+				outfd = open(destination,
+					O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL,
+					0666);
+				e = errno;
+			} else {
+				(void)close(infd);
+				free(buffer);
+				return RET_ERROR_EXIST;
+			}
+		}
+		if( outfd < 0 ) {
+			fprintf(stderr,
+"Error %d creating '%s': %s\n",
+					e, destination, strerror(e));
+			(void)close(infd);
+			free(buffer);
+			return RET_ERRNO(e);
+		}
 	}
 	checksumscontext_init(&context);
 	do {
@@ -1320,11 +1345,10 @@ retvalue checksums_linkorcopyfile(const char *destination, const char *source, s
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	(void)unlink(destination);
 	errno = 0;
 	i = link(source, destination);
 	if( i != 0 )
-		return checksums_copyfile(destination, source, checksums_p);
+		return checksums_copyfile(destination, source, true, checksums_p);
 	*checksums_p = NULL;
 	return RET_OK;
 }

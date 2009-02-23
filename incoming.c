@@ -807,8 +807,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		free(tempfilename);
 		return RET_ERROR_OOM;
 	}
-	(void)unlink(tempfilename);
-	r = checksums_copyfile(tempfilename, origfile, &readchecksums);
+	r = checksums_copyfile(tempfilename, origfile, true, &readchecksums);
 	free(origfile);
 	if( RET_WAS_ERROR(r) ) {
 		free(tempfilename);

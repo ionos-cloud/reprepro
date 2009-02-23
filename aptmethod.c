@@ -662,7 +662,11 @@ static inline retvalue indexfile_got(struct tobedone *todo, const char *method, 
 		if( verbose > 1 )
 			fprintf(stderr,
 "Copy file '%s' to '%s'...\n", filename, todo->filename);
-		r = checksums_copyfile(todo->filename, filename, &checksums);
+		r = checksums_copyfile(todo->filename, filename, false, &checksums);
+		if( r == RET_ERROR_EXIST ) {
+			fprintf(stderr, "Unexpected error: '%s' exists while it should not!\n",
+					todo->filename);
+		}
 		if( r == RET_NOTHING ) {
 			fprintf(stderr,
 "Cannot open '%s', obtained from '%s' method.\n",

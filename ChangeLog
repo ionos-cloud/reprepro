@@ -2,6 +2,8 @@
 	* log notifiers get variables REPREPRO_CAUSING_RULE and
 	REPREPRO_FROM set when adding packages via update/pull.
 	The later also in copy* and restore* commands.
+	* delete unexpected (i.e. not registered in the database)
+	files in pool when trying to replace with new ones.
 
 2009-02-21
 	* add --keeptemporaries and without it delete all .new files when
