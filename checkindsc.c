@@ -145,7 +145,8 @@ retvalue dsc_addprepared(struct database *database, const struct dsc_headers *ds
 					dsc->name, dsc->version,
 					dsc->control, filekeys,
 					false, trackingdata,
-					architecture_source);
+					architecture_source,
+					NULL, NULL);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}

@@ -614,7 +614,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						filekeys,
 						false,
 						trackingdata,
-						deb->architecture_atom);
+						deb->architecture_atom,
+						NULL, NULL);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -636,7 +637,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						filekeys,
 						false,
 						trackingdata,
-						deb->architecture_atom);
+						deb->architecture_atom,
+						NULL, NULL);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -662,7 +664,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						filekeys,
 						false,
 						trackingdata,
-						deb->architecture_atom);
+						deb->architecture_atom,
+						NULL, NULL);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}

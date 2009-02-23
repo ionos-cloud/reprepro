@@ -1,3 +1,8 @@
+2009-02-23
+	* log notifiers get variables REPREPRO_CAUSING_RULE and
+	REPREPRO_FROM set when adding packages via update/pull.
+	The later also in copy* and restore* commands.
+
 2009-02-21
 	* add --keeptemporaries and without it delete all .new files when
 	exporting fails (and not only Release) and with it keep all

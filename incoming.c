@@ -1494,7 +1494,8 @@ static retvalue add_dsc(struct database *database, struct distribution *into, st
 					p->control,
 					&p->filekeys,
 					false, trackingdata,
-					architecture_source);
+					architecture_source,
+					NULL, NULL);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}

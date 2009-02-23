@@ -753,6 +753,13 @@ static retvalue pull_search(/*@null@*/FILE *out,struct database *database,struct
 	return result;
 }
 
+static void pull_from_callback(void *privdata, const char **rule_p, const char **from_p) {
+	struct pull_source *source = privdata;
+
+	*rule_p = source->rule->name;
+	*from_p = source->rule->from;
+}
+
 static retvalue pull_install(struct database *database, struct pull_distribution *distribution) {
 	retvalue result,r;
 	struct pull_target *u;
@@ -763,7 +770,8 @@ static retvalue pull_install(struct database *database, struct pull_distribution
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
-				database, u->ignoredelete);
+				database, u->ignoredelete,
+				pull_from_callback);
 		RET_UPDATE(distribution->distribution->status, r);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);

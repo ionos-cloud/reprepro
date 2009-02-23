@@ -435,6 +435,8 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 	/*@null@*/struct notification_process *next;
 	char **arguments;
 	/*@null@*/char *causingfile;
+	/*@null@*/char *causingrule;
+	/*@null@*/char *suitefrom;
 	command_t causingcommand_atom;
 	/* data to send to the process */
 	size_t datalen, datasent;
@@ -452,6 +454,8 @@ static void notification_process_free(/*@only@*/struct notification_process *p) 
 	for( a = p->arguments ; *a != NULL ; a++ )
 		free(*a);
 	free(p->causingfile);
+	free(p->causingrule);
+	free(p->suitefrom);
 	free(p->arguments);
 	free(p->data);
 	free(p);
@@ -605,6 +609,14 @@ static retvalue startchild(void) {
 			setenv("REPREPRO_CAUSING_FILE", p->causingfile, true);
 		else
 			unsetenv("REPREPRO_CAUSING_FILE");
+		if( p->causingrule != NULL )
+			setenv("REPREPRO_CAUSING_RULE", p->causingrule, true);
+		else
+			unsetenv("REPREPRO_CAUSING_RULE");
+		if( p->suitefrom != NULL )
+			setenv("REPREPRO_FROM", p->suitefrom, true);
+		else
+			unsetenv("REPREPRO_FROM");
 		if( atom_defined(p->causingcommand_atom) )
 			setenv("REPREPRO_CAUSING_COMMAND",
 					atoms_commands[p->causingcommand_atom],
@@ -752,6 +764,8 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 		}
 	} else
 		p->causingfile = NULL;
+	p->causingrule = NULL;
+	p->suitefrom = NULL;
 	p->arguments = arguments;
 	p->next = NULL;
 	p->child = 0;
@@ -768,7 +782,7 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 	return RET_OK;
 }
 
-static retvalue notificator_enqueue(struct notificator *n, struct target *target, const char *name, /*@null@*/const char *version, /*@null@*/const char *oldversion, /*@null@*/const char *control, /*@null@*/const char *oldcontrol, /*@null@*/const struct strlist *filekeys, /*@null@*/const struct strlist *oldfilekeys, bool renotification) {
+static retvalue notificator_enqueue(struct notificator *n, struct target *target, const char *name, /*@null@*/const char *version, /*@null@*/const char *oldversion, /*@null@*/const char *control, /*@null@*/const char *oldcontrol, /*@null@*/const struct strlist *filekeys, /*@null@*/const struct strlist *oldfilekeys, bool renotification, /*@null@*/const char *causingrule, /*@null@*/ const char *suitefrom) {
 	size_t count, i;
 	char **arguments;
 	const char *action = NULL;
@@ -891,6 +905,33 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 		}
 	} else
 		p->causingfile = NULL;
+	if( causingrule != NULL ) {
+		size_t j;
+		p->causingrule = strdup(causingrule);
+		if( FAILEDTOALLOC(p->causingrule) ) {
+			for( j = 0 ; j < count ; j++ )
+				free(arguments[j]);
+			free(arguments);
+			free(p->causingfile);
+			free(p);
+			return RET_ERROR_OOM;
+		}
+	} else
+		p->causingrule = NULL;
+	if( suitefrom != NULL ) {
+		size_t j;
+		p->suitefrom = strdup(suitefrom);
+		if( FAILEDTOALLOC(p->suitefrom) ) {
+			for( j = 0 ; j < count ; j++ )
+				free(arguments[j]);
+			free(arguments);
+			free(p->causingfile);
+			free(p->causingrule);
+			free(p);
+			return RET_ERROR_OOM;
+		}
+	} else
+		p->suitefrom = NULL;
 	p->arguments = arguments;
 	p->next = NULL;
 	p->child = 0;
@@ -1061,7 +1102,7 @@ bool logger_isprepared(/*@null@*/const struct logger *logger) {
 	return true;
 }
 
-void logger_log(struct logger *log,struct target *target,const char *name,const char *version,const char *oldversion,const char *control,const char *oldcontrol,const struct strlist *filekeys, const struct strlist *oldfilekeys) {
+void logger_log(struct logger *log,struct target *target,const char *name,const char *version,const char *oldversion,const char *control,const char *oldcontrol,const struct strlist *filekeys, const struct strlist *oldfilekeys, const char *causingrule, const char *suitefrom) {
 	size_t i;
 
 	assert( name != NULL );
@@ -1080,7 +1121,8 @@ void logger_log(struct logger *log,struct target *target,const char *name,const 
 		notificator_enqueue(&log->notificators[i], target,
 				name, version, oldversion,
 				control, oldcontrol,
-				filekeys, oldfilekeys, false);
+				filekeys, oldfilekeys, false,
+				causingrule, suitefrom);
 	}
 }
 
@@ -1131,7 +1173,8 @@ retvalue logger_reruninfo(struct logger *logger,struct target *target,const char
 		r = notificator_enqueue(&logger->notificators[i], target,
 				name, version, NULL,
 				control, NULL,
-				filekeys, NULL, true);
+				filekeys, NULL, true,
+				NULL, NULL);
 		RET_UPDATE(result,r);
 	}
 	return result;

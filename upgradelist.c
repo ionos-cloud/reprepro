@@ -591,7 +591,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logge
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete){
+retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete, void (*callback)(void *, const char **, const char **)){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -609,6 +609,10 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 					pkg->new_origfiles.checksums);
 			if( ! RET_WAS_ERROR(r) ) {
 				/* upgrade (or possibly downgrade) */
+				const char *causingrule = NULL,
+				      *suitefrom = NULL;
+
+				callback(pkg->privdata, &causingrule, &suitefrom);
 // TODO: trackingdata?
 				if( interrupted() )
 					r = RET_ERROR_INTERRUPTED;
@@ -619,7 +623,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_version,
 						pkg->new_control,
 						&pkg->new_filekeys, true,
-						NULL, pkg->architecture);
+						NULL, pkg->architecture,
+						causingrule, suitefrom);
 			}
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )

@@ -1609,6 +1609,13 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
  *          (missing files should have been downloaded first)               *
  ****************************************************************************/
 
+static void updates_from_callback(void *privdata, const char **rule_p, const char **from_p) {
+	struct update_index_connector *uindex = privdata;
+
+	*from_p = uindex->origin->suite_from;
+	*rule_p = uindex->origin->pattern->name;
+}
+
 static retvalue updates_install(struct database *database, struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
@@ -1622,7 +1629,7 @@ static retvalue updates_install(struct database *database, struct update_distrib
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
 				database,
-				u->ignoredelete);
+				u->ignoredelete, updates_from_callback);
 		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = true;
