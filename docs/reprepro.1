@@ -206,6 +206,26 @@ command for the same distributions.
 And even then reprepro is usually good in
 not downloading except \fBRelease\fP and \fBRelease.gpg\fP files again.
 .TP
+.B \-\-nothingiserror
+If nothing was done, return with exitcode 1 instead of the usual 0.
+
+Note that "nothing was done" means the primary purpose of the action
+in question.
+Auxillary actions (opening and closeing the database, exporting missing
+files with --export=lookedat, ...) usually do not count.
+Also note that this is not very well tested.
+If you find an action that claims to have done something in some cases
+where you think it should not, please let me know.
+.TP
+.B \-\-keeptemporaries
+Do not delete temporary \fB.new\fP files when exporting a distribution
+fails.
+(reprepro first create \fB.new\fP files in the \fBdists\fP directory and
+only if everything is generated, all files are put into their final place
+at once.
+If this option is not specified and something fails, all are deleted
+to keep \fBdists\fP clean).
+.TP
 .B \-\-keepunreferencedfiles
 Do not delete files that are no longer used because the package they
 are from is deleted/replaced with a newer version from the last distribution
