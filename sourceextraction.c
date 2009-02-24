@@ -342,9 +342,9 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 		/* if it does not always have the same directory, then
 		 * we cannot be sure it has no debian/control, so we
 		 * have to fail... */
+		s++;
 		if( s != p + destlength )
 			return RET_NOTHING;
-		s++;
 	}
 	/* found debian/control */
 	if( !u_getline() )

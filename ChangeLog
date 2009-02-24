@@ -5,6 +5,8 @@
 	* changestool now supports looking into lzma files
 	(and bz2 files even when not compiled against libbz2), if
 	external uncompressors are available.
+	* fix bug extracting the Section and Priority from .diff
+	files if control was not the first file in it.
 
 2009-02-23
 	* log notifiers get variables REPREPRO_CAUSING_RULE and
