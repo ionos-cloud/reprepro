@@ -1,3 +1,8 @@
+2009-02-24
+	* fix race condition causing external uncompressors sometimes
+	to catch a sigpipe if their output is closed before they receive
+	the signal to kill them.
+
 2009-02-23
 	* log notifiers get variables REPREPRO_CAUSING_RULE and
 	REPREPRO_FROM set when adding packages via update/pull.

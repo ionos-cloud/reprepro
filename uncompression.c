@@ -1060,8 +1060,6 @@ void uncompress_abort(struct compressedfile *file) {
 				kill(file->pid, SIGTERM);
 			if( file->infd >= 0 )
 				(void)close(file->infd);
-			if( file->fd >= 0 )
-				(void)close(file->fd);
 			if( file->pipeinfd != -1 )
 				(void)close(file->pipeinfd);
 			do {
@@ -1073,6 +1071,8 @@ void uncompress_abort(struct compressedfile *file) {
 			} while( pid == -1 && (e == EINTR || e == EAGAIN) );
 			if( pid == -1 )
 				break;
+			if( file->fd >= 0 )
+				(void)close(file->fd);
 			if( WIFEXITED(status) ) {
 				break;
 			} else if( WIFSIGNALED(status)
