@@ -1078,7 +1078,7 @@ void uncompress_abort(struct compressedfile *file) {
 			} else if( WIFSIGNALED(status)
 					&& WTERMSIG(status) != SIGTERM
 					&& WTERMSIG(status) != SIGUSR2 ) {
-				fprintf(stderr, "%s killed by signal %d",
+				fprintf(stderr, "%s killed by signal %d\n",
 						extern_uncompressors[file->compression],
 						(int)(WTERMSIG(status)));
 			}
