@@ -39,6 +39,7 @@
 #include "signature.h"
 #include "debfile.h"
 #include "sourceextraction.h"
+#include "uncompression.h"
 
 /* for compatibility with used code */
 int verbose=0;
@@ -2771,10 +2772,14 @@ static retvalue splitpath(struct strlist *list, const char *path) {
 }
 
 int main(int argc,char *argv[]) {
+	static int longoption = 0;
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"create", no_argument, NULL, 'C'},
 		{"searchpath", required_argument, NULL, 's'},
+		{"gunzip", required_argument, &longoption, 1},
+		{"bunzip2", required_argument, &longoption, 2},
+		{"unlzma", required_argument, &longoption, 3},
 		{NULL, 0, NULL, 0},
 	};
 	int c;
@@ -2784,12 +2789,26 @@ int main(int argc,char *argv[]) {
 	struct strlist validkeys,keys;
 	struct strlist searchpath;
 	struct changes *changesdata IFSTUPIDCC(=NULL);
+	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL;
 	retvalue r;
 
 	strlist_init(&searchpath);
 
 	while( (c = getopt_long(argc,argv,"+hi:s:",longopts,NULL)) != -1 ) {
 		switch( c ) {
+			case '\0':
+				switch( longoption ) {
+					case 1:
+						gunzip = strdup(optarg);
+						break;
+					case 2:
+						bunzip2 = strdup(optarg);
+						break;
+					case 3:
+						unlzma = strdup(optarg);
+						break;
+				}
+				break;
 			case 'h':
 				about(true);
 			case 'C':
@@ -2809,6 +2828,7 @@ int main(int argc,char *argv[]) {
 		about(false);
 	}
 	signature_init(false);
+	uncompressions_check(gunzip, bunzip2, unlzma);
 
 	changesfilename = argv[optind];
 	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes") ) {
