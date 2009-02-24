@@ -7,6 +7,8 @@
 	external uncompressors are available.
 	* fix bug extracting the Section and Priority from .diff
 	files if control was not the first file in it.
+	* fix bug .diff parsing's exception to also allow diff
+	generated files.
 
 2009-02-23
 	* log notifiers get variables REPREPRO_CAUSING_RULE and
