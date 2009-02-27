@@ -28,9 +28,9 @@ retvalue uncompress_checkpid(pid_t, int);
 /* still waiting for a client to exit */
 bool uncompress_running(void);
 
-typedef retvalue finishaction(void *, const char *, bool /*failed*/, bool /*early*/);
+typedef retvalue finishaction(void *, const char *, bool /*failed*/);
 /* uncompress and call action when finished */
-retvalue uncompress_queue_file(const char *, const char *, enum compression, finishaction *, void *, bool *);
+retvalue uncompress_queue_file(const char *, const char *, enum compression, finishaction *, void *);
 
 /**** functions for update.c (uncompressing an earlier downloaded file) ****/
 

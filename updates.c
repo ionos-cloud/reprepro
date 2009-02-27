@@ -1863,10 +1863,10 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	}
 	if( verbose >= 0 )
 		printf("Getting packages...\n");
-	r = downloadcache_free(cache);
-	RET_ENDUPDATE(result,r);
 	r = aptmethod_download(run, database);
 	RET_UPDATE(result,r);
+	r = downloadcache_free(cache);
+	RET_ENDUPDATE(result,r);
 	if( verbose > 0 )
 		printf("Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);

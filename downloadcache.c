@@ -19,6 +19,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <stdio.h>
 #include "error.h"
 #include "strlist.h"
@@ -32,7 +33,9 @@
 struct downloaditem {
 	/*@dependent@*//*@null@*/struct downloaditem *parent;
 	/*@null@*/struct downloaditem *left,*right;
-	struct tobedone *todo;
+	char *filekey;
+	struct checksums *checksums;
+	bool done;
 };
 
 /* Initialize a new download session */
@@ -59,10 +62,12 @@ static void freeitem(/*@null@*//*@only@*/struct downloaditem *item) {
 		return;
 	freeitem(item->left);
 	freeitem(item->right);
+	free(item->filekey);
+	checksums_free(item->checksums);
 	free(item);
 }
-retvalue downloadcache_free(struct downloadcache *download) {
 
+retvalue downloadcache_free(struct downloadcache *download) {
 	if( download == NULL )
 		return RET_NOTHING;
 
@@ -72,7 +77,79 @@ retvalue downloadcache_free(struct downloadcache *download) {
 	return RET_OK;
 }
 
-/*@null@*//*@dependent@*/ static const struct downloaditem *searchforitem(struct downloadcache *list,
+static retvalue downloaditem_callback(enum queue_action action, void *privdata, void *privdata2, const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *checksums, const char *method) {
+	struct downloaditem *d = privdata;
+	struct database *database = privdata2;
+	struct checksums *read_checksums = NULL;
+	retvalue r;
+	bool improves;
+
+	if( action != qa_got )
+		// TODO: instead store in downloaditem?
+		return RET_ERROR;
+
+	/* if the file is somewhere else, copy it: */
+	if( strcmp(gotfilename, wantedfilename) != 0 ) {
+		if( verbose > 1 )
+			fprintf(stderr,
+"Linking file '%s' to '%s'...\n", gotfilename, wantedfilename);
+		r = checksums_linkorcopyfile(wantedfilename, gotfilename,
+				&read_checksums);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Cannot open '%s', obtained from '%s' method.\n",
+					gotfilename, method);
+			r = RET_ERROR_MISSING;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			// TODO: instead store in downloaditem?
+			return r;
+		}
+		if( read_checksums != NULL )
+			checksums = read_checksums;
+	}
+
+	if( checksums == NULL || !checksums_iscomplete(checksums) ) {
+		assert(read_checksums == NULL);
+		r = checksums_read(wantedfilename, &read_checksums);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,
+"Cannot open '%s', though '%s' method claims to have put it there!\n",
+					wantedfilename, method);
+			r = RET_ERROR_MISSING;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			// TODO: instead store in downloaditem?
+			return r;
+		}
+		checksums = read_checksums;
+	}
+	assert( checksums != NULL );
+
+	if( !checksums_check(d->checksums, checksums, &improves) ) {
+		fprintf(stderr, "Wrong checksum during receive of '%s':\n",
+				uri);
+		checksums_printdifferences(stderr, d->checksums, checksums);
+		checksums_free(read_checksums);
+		(void)unlink(wantedfilename);
+		// TODO: instead store in downloaditem?
+		return RET_ERROR_WRONG_MD5;
+	}
+	if( improves ) {
+		r = checksums_combine(&d->checksums, checksums, NULL);
+		checksums_free(read_checksums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	} else
+		checksums_free(read_checksums);
+
+	r = files_add_checksums(database, d->filekey, d->checksums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	d->done = true;
+	return RET_OK;
+}
+
+/*@null@*//*@dependent@*/ static struct downloaditem *searchforitem(struct downloadcache *list,
 					const char *filekey,
 					/*@out@*/struct downloaditem **p,
 					/*@out@*/struct downloaditem ***h) {
@@ -84,7 +161,7 @@ retvalue downloadcache_free(struct downloadcache *download) {
 	item = list->items;
 	while( item != NULL ) {
 		*p = item;
-		c = strcmp(filekey,item->todo->filekey);
+		c = strcmp(filekey, item->filekey);
 		if( c == 0 )
 			return item;
 		else if( c < 0 ) {
@@ -103,7 +180,7 @@ retvalue downloadcache_free(struct downloadcache *download) {
  * for the same destination with other md5sum created. */
 retvalue downloadcache_add(struct downloadcache *cache, struct database *database, struct aptmethod *method, const char *orig, const char *filekey, const struct checksums *checksums) {
 
-	const struct downloaditem *i;
+	struct downloaditem *i;
 	struct downloaditem *item,**h,*parent;
 	char *fullfilename;
 	retvalue r;
@@ -117,44 +194,50 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 	if( i != NULL ) {
 		bool improves;
 
-		assert( i->todo->filekey != NULL );
-		if( !checksums_check(i->todo->checksums, checksums, &improves) ) {
+		assert( i->filekey != NULL );
+		if( !checksums_check(i->checksums, checksums, &improves) ) {
 			fprintf(stderr,
-"ERROR: Same file is requested with conflicting checksums:\n"
-"'%s':\n",			i->todo->uri);
+"ERROR: Same file is requested with conflicting checksums:\n");
 			checksums_printdifferences(stderr,
-					i->todo->checksums, checksums);
+					i->checksums, checksums);
 			return RET_ERROR_WRONG_MD5;
 		}
 		if( improves ) {
-			r = checksums_combine(&i->todo->checksums,
+			r = checksums_combine(&i->checksums,
 					checksums, NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
 		return RET_NOTHING;
 	}
-	item = malloc(sizeof(struct downloaditem));
-	if( item == NULL )
+	item = calloc(1, sizeof(struct downloaditem));
+	if( FAILEDTOALLOC(item) )
 		return RET_ERROR_OOM;
 
+	item->done = false;
+	item->filekey = strdup(filekey);
+	item->checksums = checksums_dup(checksums);
+	if( FAILEDTOALLOC(item->filekey) || FAILEDTOALLOC(item->checksums) ) {
+		freeitem(item);
+		return RET_ERROR_OOM;
+	}
+
 	fullfilename = files_calcfullfilename(database, filekey);
-	if( fullfilename == NULL ) {
-		free(item);
+	if( FAILEDTOALLOC(fullfilename) ) {
+		freeitem(item);
 		return RET_ERROR_OOM;
 	}
 	(void)dirs_make_parent(fullfilename);
 	r = space_needed(cache->devices, fullfilename, checksums);
 	if( RET_WAS_ERROR(r) ) {
 		free(fullfilename);
-		free(item);
+		freeitem(item);
 		return r;
 	}
-	r = aptmethod_queuefile(method, orig,
-			fullfilename, checksums, filekey, &item->todo);
-	free(fullfilename);
+	r = aptmethod_enqueue(method, orig, fullfilename,
+			downloaditem_callback, item, database);
 	if( RET_WAS_ERROR(r) ) {
-		free(item);
+		freeitem(item);
 		return r;
 	}
 	item->left = item->right = NULL;

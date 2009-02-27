@@ -1,3 +1,8 @@
+2009-02-27
+	* move handling of downloaded files from aptmethod.c to
+	the code queuing the files. (refactorisation in preparation of later
+	changes)
+
 2009-02-24
 	* fix race condition causing external uncompressors sometimes
 	to catch a sigpipe if their output is closed before they receive

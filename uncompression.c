@@ -260,7 +260,7 @@ retvalue uncompress_checkpid(pid_t pid, int status) {
 	}
 	/* call the notification, if asked for */
 	if( t->callback != NULL ) {
-		r = t->callback(t->privdata, t->compressedfilename, error, false);
+		r = t->callback(t->privdata, t->compressedfilename, error);
 		if( r == RET_NOTHING )
 			r = RET_OK;
 	} else if( error )
@@ -424,14 +424,13 @@ static retvalue uncompress_queue_external(enum compression compression, const ch
 	return RET_OK;
 }
 
-retvalue uncompress_queue_file(const char *compressed, const char *destination, enum compression compression, finishaction *action, void *privdata, bool *done_p) {
+retvalue uncompress_queue_file(const char *compressed, const char *destination, enum compression compression, finishaction *action, void *privdata) {
 	retvalue r;
 
 	(void)unlink(destination);
 	if( extern_uncompressors[compression] != NULL ) {
 		r = uncompress_queue_external(compression, compressed, destination, action, privdata);
 		if( r != RET_NOTHING ) {
-			*done_p = false;
 			return r;
 		}
 		if( !uncompression_builtin(compression) )
@@ -445,10 +444,9 @@ retvalue uncompress_queue_file(const char *compressed, const char *destination, 
 	r = builtin_uncompress(compressed, destination, compression);
 	if( RET_WAS_ERROR(r) ) {
 		(void)unlink(destination);
-		return action(privdata, compressed, true, true);
+		return r;
 	}
-	*done_p = true;
-	return action(privdata, compressed, false, true);
+	return action(privdata, compressed, false);
 }
 
 retvalue uncompress_file(const char *compressed, const char *destination, enum compression compression) {

@@ -49,7 +49,6 @@
    - in the future: implement ed to use remote .diffs
 */
 
-
 struct remote_repository {
 	struct remote_repository *next, *prev;
 
@@ -133,6 +132,7 @@ struct remote_index {
 
 	bool queued;
 	bool needed;
+	bool got;
 };
 
 #define MAXPARTS 5
@@ -585,6 +585,53 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 	return n;
 }
 
+static retvalue copytoplace(const char *gotfilename, const char *wantedfilename, const char *method, struct checksums **checksums_p) {
+	retvalue r;
+	struct checksums *checksums = NULL;
+
+	/* if the file is somewhere else, copy it: */
+	if( strcmp(gotfilename, wantedfilename) != 0 ) {
+		/* never link index files, but copy them */
+		if( verbose > 1 )
+			fprintf(stderr,
+"Copy file '%s' to '%s'...\n", gotfilename, wantedfilename);
+		r = checksums_copyfile(wantedfilename, gotfilename, false, &checksums);
+		if( r == RET_ERROR_EXIST ) {
+			fprintf(stderr, "Unexpected error: '%s' exists while it should not!\n",
+					wantedfilename);
+		}
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,
+"Cannot open '%s', obtained from '%s' method.\n",
+					gotfilename, method);
+			r = RET_ERROR_MISSING;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			return r;
+		}
+	}
+	if( checksums_p == NULL )
+		checksums_free(checksums);
+	else
+		*checksums_p = checksums;
+	return RET_OK;
+}
+
+/* handle a downloaded Release or Release.gpg file:
+ * no checksums to test, nothing to trigger, as they have to be all
+ * read at once to decide what is new and what actually needs downloading */
+static retvalue release_callback(enum queue_action action, UNUSED(void *privdata), UNUSED(void *privdata2), const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *checksums, const char *methodname) {
+	retvalue r;
+
+	if( action != qa_got )
+		return RET_ERROR;
+
+	r = copytoplace(gotfilename, wantedfilename, methodname, NULL);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return r;
+}
+
 static retvalue remote_distribution_metalistqueue(struct remote_distribution *d) {
 	struct remote_repository *repository = d->repository;
 	retvalue r;
@@ -595,16 +642,19 @@ static retvalue remote_distribution_metalistqueue(struct remote_distribution *d)
 		return RET_NOTHING;
 
 	(void)unlink(d->releasefile);
-	r = aptmethod_queueindexfile(repository->download, d->suite_base_dir,
-			"Release", d->releasefile, NULL, c_none, NULL);
+
+	r = aptmethod_enqueueindex(repository->download,
+			d->suite_base_dir, "Release", "", d->releasefile, "",
+			release_callback, NULL, NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	if( d->verify.count != 0 ) {
 		(void)unlink(d->releasegpgfile);
-		r = aptmethod_queueindexfile(repository->download,
-				d->suite_base_dir, "Release.gpg",
-				d->releasegpgfile, NULL, c_none, NULL);
+		r = aptmethod_enqueueindex(repository->download,
+				d->suite_base_dir, "Release", ".gpg",
+				d->releasegpgfile, "",
+				release_callback, NULL, NULL);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -701,7 +751,6 @@ retvalue remote_preparemetalists(struct aptmethodrun *run, bool nodownload) {
 	struct remote_repository *rr;
 	struct remote_distribution *rd;
 	retvalue r;
-	bool tobecontinued;
 
 	if( !nodownload ) {
 		for( rr = repositories ; rr != NULL ; rr = rr->next ) {
@@ -716,8 +765,6 @@ retvalue remote_preparemetalists(struct aptmethodrun *run, bool nodownload) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
-
-	tobecontinued = false;
 	for( rr = repositories ; rr != NULL ; rr = rr->next ) {
 		for( rd = rr->distributions ; rd != NULL ; rd = rd->next ) {
 			if( !rd->ignorerelease ) {
@@ -930,7 +977,9 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 	return RET_OK;
 }
 
-static inline retvalue queueindex(struct remote_distribution *rd, struct remote_index *ri, bool nodownload, /*@null@*/struct cachedlistfile *oldfiles, bool *tobecontinued) {
+static queue_callback index_callback;
+
+static inline retvalue queueindex(struct remote_distribution *rd, struct remote_index *ri, bool nodownload, /*@null@*/struct cachedlistfile *oldfiles) {
 	struct remote_repository *rr = rd->repository;
 	enum compression c;
 	retvalue r;
@@ -938,8 +987,6 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 	struct cachedlistfile *old[c_COUNT];
 
 	if( rd->ignorerelease ) {
-		char *toget;
-
 		ri->queued = true;
 		if( nodownload )
 			return RET_OK;
@@ -960,11 +1007,11 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		assert( uncompression_supported(c) );
 
 		ri->compression = c;
-		toget = mprintf("%s%s", ri->filename_in_release,
-					uncompression_suffix[c]);
-		r = aptmethod_queueindexfile(rr->download, rd->suite_base_dir,
-				toget, ri->cachefilename, NULL, c, NULL);
-		free(toget);
+		r = aptmethod_enqueueindex(rr->download,
+				rd->suite_base_dir, ri->filename_in_release,
+				uncompression_suffix[c],
+				ri->cachefilename, uncompression_suffix[c],
+				index_callback, ri, NULL);
 		return r;
 	}
 
@@ -990,8 +1037,6 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		}
 		if( r == RET_ERROR_WRONG_MD5 ) {
 			// TODO: implement diff
-			if( 0 )
-				*tobecontinued = true;
 			r = cachedlistfile_delete(old[c_none]);
 			/* we'll need to download this there,
 			 * so errors to remove are fatal */
@@ -1079,22 +1124,18 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
  * the compressed checksum for another... */
 
 	ri->queued = true;
-	return aptmethod_queueindexfile(rr->download, rd->suite_base_dir,
-			rd->remotefiles.names.values[ofs],
+	return aptmethod_enqueueindex(rr->download, rd->suite_base_dir,
+			rd->remotefiles.names.values[ofs], "",
 			ri->cachefilename,
-/* not having this defeats the point, but it only hurts when it is missing
- * now but next update it will be there... */
-			(ri->ofs[c_none] < 0)?NULL:
-			 &rd->remotefiles.checksums[ri->ofs[c_none]],
-			ri->compression,
-			(ri->compression == c_none)?NULL:
-			rd->remotefiles.checksums[ofs]);
+			uncompression_suffix[ri->compression],
+			index_callback, ri, NULL);
 }
 
 
-static retvalue remote_distribution_listqueue(struct remote_distribution *rd, bool nodownload, struct cachedlistfile *oldfiles, bool *tobecontinued) {
+static retvalue remote_distribution_listqueue(struct remote_distribution *rd, bool nodownload, struct cachedlistfile *oldfiles) {
 	struct remote_index *ri;
 	retvalue r;
+
 	/* check what to get for the requested indicies */
 	for( ri = rd->indices ; ri != NULL ; ri = ri->next ) {
 		if( ri->queued )
@@ -1105,7 +1146,7 @@ static retvalue remote_distribution_listqueue(struct remote_distribution *rd, bo
 			assert( !rd->ignorerelease );
 			continue;
 		}
-		r = queueindex(rd, ri, nodownload, oldfiles, tobecontinued);
+		r = queueindex(rd, ri, nodownload, oldfiles);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1116,7 +1157,6 @@ retvalue remote_preparelists(struct aptmethodrun *run, bool nodownload) {
 	struct remote_repository *rr;
 	struct remote_distribution *rd;
 	retvalue r;
-	bool tobecontinued;
 	struct cachedlistfile *oldfiles IFSTUPIDCC(=NULL);
 
 	r = cachedlists_scandir(&oldfiles);
@@ -1125,26 +1165,23 @@ retvalue remote_preparelists(struct aptmethodrun *run, bool nodownload) {
 	if( r == RET_NOTHING )
 		oldfiles = NULL;
 
-	do {
-		tobecontinued = false;
-		for( rr = repositories ; rr != NULL ; rr = rr->next ) {
-			for( rd = rr->distributions ; rd != NULL
-			                            ; rd = rd->next ) {
-				r = remote_distribution_listqueue(rd,
-						nodownload,
-						oldfiles, &tobecontinued);
-				if( RET_WAS_ERROR(r) ) {
-					cachedlistfile_freelist(oldfiles);
-					return r;
-				}
+	for( rr = repositories ; rr != NULL ; rr = rr->next ) {
+		for( rd = rr->distributions ; rd != NULL
+				; rd = rd->next ) {
+			r = remote_distribution_listqueue(rd,
+					nodownload,
+					oldfiles);
+			if( RET_WAS_ERROR(r) ) {
+				cachedlistfile_freelist(oldfiles);
+				return r;
 			}
 		}
-		r = aptmethod_download(run, NULL);
-		if( RET_WAS_ERROR(r) ) {
-			cachedlistfile_freelist(oldfiles);
-			return r;
-		}
-	} while( tobecontinued );
+	}
+	r = aptmethod_download(run, NULL);
+	if( RET_WAS_ERROR(r) ) {
+		cachedlistfile_freelist(oldfiles);
+		return r;
+	}
 
 	cachedlistfile_freelist(oldfiles);
 	return RET_OK;
@@ -1285,4 +1322,182 @@ void remote_index_markdone(const struct remote_index *ri, struct markdonefile *d
 }
 void remote_index_needed(struct remote_index *ri) {
 	ri->needed = true;
+}
+
+static retvalue indexfile_mark_got(struct remote_distribution *rd, struct remote_index *ri, /*@null@*/const struct checksums *gotchecksums) {
+	struct checksums **checksums_p;
+
+	if( !rd->ignorerelease && ri->ofs[c_none] >= 0) {
+		checksums_p = &rd->remotefiles.checksums[ri->ofs[c_none]];
+		bool matches, improves;
+
+		// TODO: this no longer calculates all the checksums if
+		// the Release does not contain more and the apt method
+		// returned not all (but all that are in Release).
+		// This will then cause the done file not containing all
+		// checksums. (but if the Release not contain them, this
+		// does not harm, does it?)
+
+		if( gotchecksums != NULL ) {
+			matches = checksums_check(*checksums_p, gotchecksums,
+					&improves);
+			/* that should have been tested earlier */
+			assert( matches );
+			if( ! matches )
+				return RET_ERROR_WRONG_MD5;
+			if( improves ) {
+				retvalue r;
+
+				r = checksums_combine(checksums_p,
+						gotchecksums, NULL);
+				if( RET_WAS_ERROR(r) )
+					return r;
+			}
+		}
+	}
+	ri->got = true;
+	return RET_OK;
+}
+
+static retvalue indexfile_unpacked(void *privdata, const char *compressed, bool failed) {
+	struct remote_index *ri = privdata;
+	struct remote_distribution *rd = ri->from;
+	retvalue r;
+	struct checksums *readchecksums = NULL;
+
+	if( failed ) {
+		// TODO: check if alternative can be used...
+		return RET_ERROR;
+	}
+
+	/* file got uncompressed, check if it has the correct checksum */
+
+	/* even with a Release file, an old-style one might
+	 * not list the checksums for the uncompressed indices */
+	if( !rd->ignorerelease && ri->ofs[c_none] >= 0 ) {
+		int ofs = ri->ofs[c_none];
+		const struct checksums *wantedchecksums =
+			rd->remotefiles.checksums[ofs];
+		bool matches, missing = false;
+
+		r = checksums_read(ri->cachefilename, &readchecksums);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,
+"Cannot open '%s', though it should just have been unpacked from '%s'!\n",
+					ri->cachefilename,
+					compressed);
+			r = RET_ERROR_MISSING;
+		}
+		if( RET_WAS_ERROR(r) )
+			return r;
+		missing = false;
+		matches = checksums_check(readchecksums,
+				wantedchecksums, &missing);
+		assert( !missing );
+		if( !matches ) {
+			fprintf(stderr,
+"Wrong checksum of uncompressed content of '%s':\n", compressed);
+			checksums_printdifferences(stderr,
+					wantedchecksums,
+					readchecksums);
+			checksums_free(readchecksums);
+			return RET_ERROR_WRONG_MD5;
+		}
+		/* if the compressed file was downloaded or copied, delete it.
+		 * This is only done if we know the uncompressed checksum, so
+		 * that less downloading is needed (though as apt no longer
+		 * supports such archieves, they are unlikely anyway). */
+
+		if( strncmp(ri->cachefilename, compressed,
+					strlen(ri->cachefilename)) == 0 ) {
+			(void)unlink(compressed);
+		}
+	}
+	r = indexfile_mark_got(rd, ri, readchecksums);
+	checksums_free(readchecksums);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return RET_OK;
+}
+
+static retvalue index_callback(enum queue_action action, void *privdata, UNUSED(void *privdata2), const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *gotchecksums, const char *methodname) {
+	struct remote_index *ri = privdata;
+	struct remote_distribution *rd = ri->from;
+	struct checksums *readchecksums = NULL;
+	retvalue r;
+
+	if( ri->compression == c_none ) {
+		assert( strcmp(wantedfilename, ri->cachefilename) == 0 );
+		r = copytoplace(gotfilename, wantedfilename, methodname,
+				&readchecksums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		gotfilename = wantedfilename;
+		if( readchecksums != NULL )
+			gotchecksums = readchecksums;
+	}
+
+	if( !rd->ignorerelease ) {
+		/* downloaded file always has checksums to test,
+		 * (only the uncompressed file maybe not) */
+		int ofs = ri->ofs[ri->compression];
+		const struct checksums *wantedchecksums =
+			rd->remotefiles.checksums[ofs];
+		bool matches, missing = false;
+
+		if( gotchecksums == NULL ) {
+			matches = true;
+			missing = true;
+		} else
+			matches = checksums_check(gotchecksums,
+					wantedchecksums, &missing);
+		/* if the apt method did not generate all checksums
+		 * we want to check, we'll have to do so: */
+		if( matches && missing ) {
+			/* we assume that everything we know how to
+			 * extract from a Release file is something
+			 * we know how to calculate out of a file */
+			assert( readchecksums == NULL );
+			r = checksums_read(gotfilename, &readchecksums);
+			if( r == RET_NOTHING ) {
+				fprintf(stderr,
+"Cannot open '%s', though apt-method '%s' claims it is there!\n",
+					gotfilename, methodname);
+				r = RET_ERROR_MISSING;
+			}
+			if( RET_WAS_ERROR(r) )
+				return r;
+			gotchecksums = readchecksums;
+			missing = false;
+			matches = checksums_check(gotchecksums,
+					wantedchecksums, &missing);
+			assert( !missing );
+		}
+		if( !matches ) {
+			fprintf(stderr,
+"Wrong checksum during receive of '%s':\n", uri);
+			checksums_printdifferences(stderr,
+					wantedchecksums,
+					gotchecksums);
+			checksums_free(readchecksums);
+			return RET_ERROR_WRONG_MD5;
+		}
+	}
+
+	if( ri->compression == c_none ) {
+		assert( strcmp(gotfilename, wantedfilename) == 0 );
+		r = indexfile_mark_got(rd, ri, gotchecksums);
+		checksums_free(readchecksums);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		return RET_OK;
+	} else {
+		checksums_free(readchecksums);
+		r = uncompress_queue_file(gotfilename, ri->cachefilename,
+				ri->compression,
+				indexfile_unpacked, privdata);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		return RET_OK;
+	}
 }
