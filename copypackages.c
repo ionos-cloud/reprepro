@@ -697,14 +697,15 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	result = RET_NOTHING;
 	while( indexfile_getnext(i, &packagename, &version, &control,
 				&package_architecture, target, false) ) {
-		result = choose_by_name(target,
+		r = choose_by_name(target,
 				packagename, version, control, &d);
-		if( RET_IS_OK(result) )
-			result = list_prepareadd(database, &list, target,
+		if( RET_IS_OK(r) )
+			r = list_prepareadd(database, &list, target,
 					packagename, version,
 					package_architecture, control);
 		free(packagename);
 		free(version);
+		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(result) )
 			break;
 	}

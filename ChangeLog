@@ -1,3 +1,6 @@
+2009-02-28
+	* fix some bugs in --nothingiserror handling
+
 2009-02-27
 	* move handling of downloaded files from aptmethod.c to
 	the code queuing the files. (refactorisation in preparation of later

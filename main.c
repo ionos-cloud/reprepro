@@ -1733,11 +1733,9 @@ ACTION_D(y, n, y, addpackage) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	r = copy_from_file(database, destination,
+	result = copy_from_file(database, destination,
 			component, architecture, packagetype, argv[2],
 			argc-3, argv+3);
-	RET_ENDUPDATE(result,r);
-
 	logger_wait();
 
 	r = distribution_export(export, destination, database);
@@ -3143,7 +3141,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	}
 	logger_warn_waiting();
 	r = database_close(database);
-	RET_UPDATE(result, r);
+	RET_ENDUPDATE(result, r);
 	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 	database = NULL;
