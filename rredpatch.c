@@ -583,6 +583,8 @@ retvalue patch_file(FILE *o, const char *source, const struct modification *patc
 			}
 			putc(c, o);
 		}
+		if( c == EOF )
+			break;
 		putc(c, o);
 		currentline++;
 	} while (1);
