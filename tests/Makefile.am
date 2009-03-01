@@ -12,6 +12,7 @@ testlayeredupdate.sh \
 test.inc \
 test.sh \
 testincludeextra.sh \
+testpackagediff.sh \
 testsignatures.sh \
 testsnapshotcopyrestore.sh \
 testsubcomponents.sh \

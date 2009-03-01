@@ -1,3 +1,8 @@
+2009-03-01
+	* support using Packages.diff when updating.
+	(Fallback to other methods not yet supported, so not yet enabled
+	 in the default DownloadlistsAs)
+
 2009-02-28
 	* fix some bugs in --nothingiserror handling
 

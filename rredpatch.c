@@ -71,6 +71,11 @@ struct modification *patch_getmodifications(struct rred_patch *p) {
 	return m;
 }
 
+const struct modification *patch_getconstmodifications(struct rred_patch *p) {
+	assert( !p->alreadyinuse );
+	return p->modifications;
+}
+
 static struct modification *modification_freehead(/*@only@*/struct modification *p) {
 	struct modification *m = p->next;
 	free(p);

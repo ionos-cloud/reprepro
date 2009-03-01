@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -357,6 +357,7 @@ CFUSETPROC(update_pattern, downloadlistsas) {
 	this->downloadlistsas_set = true;
 	r = config_getword(iter, &word);
 	while( RET_IS_OK(r) ) {
+		bool force;
 		if( e >= ARRAYCOUNT(this->downloadlistsas.requested) ) {
 			fprintf(stderr,
 "%s:%d:%d: Ignoring all but first %d entries...\n",
@@ -368,8 +369,10 @@ CFUSETPROC(update_pattern, downloadlistsas) {
 			free(word);
 			break;
 		}
+		force = false;
 		if( strncmp(word, "force.", 6) == 0 ) {
 			u = word + 5;
+			// TODO: set force to true once supported
 			fprintf(stderr,
 "%s:%d:%d: forcing not yet supported in this version, treating as normal '%s'\n",
 					config_filename(iter),
@@ -385,18 +388,19 @@ CFUSETPROC(update_pattern, downloadlistsas) {
 			}
 		}
 		if( c < c_COUNT ) {
-			this->downloadlistsas.requested[e++] = c;
+			this->downloadlistsas.requested[e].compression = c;
+			this->downloadlistsas.requested[e].diff = false;
+			this->downloadlistsas.requested[e].force = force;
+			e++;
 			free(word);
 			r = config_getword(iter, &word);
 			continue;
 		}
 		if( strcmp(u, ".diff") == 0 || strcmp(u, "diff") == 0 ) {
-			fprintf(stderr,
-"%s:%d:%d: ignoring '%s', as not yet supported in this version\n",
-					config_filename(iter),
-					config_markerline(iter),
-					config_markercolumn(iter),
-					word);
+			this->downloadlistsas.requested[e].compression = c_gzip;
+			this->downloadlistsas.requested[e].diff = true;
+			this->downloadlistsas.requested[e].force = force;
+			e++;
 			free(word);
 			r = config_getword(iter, &word);
 			continue;

@@ -5,6 +5,7 @@ reprepro (3.8.3-0) UNRELEASED; urgency=low
     new --keeptemporaries is specified (Closes: 516395)
   * delete unexpected files in the pool which are in the way of new files
     (Closes: 516578)
+  * support using Packages.diff (Closes: 405634)
 
  -- Bernhard R. Link <brlink@debian.org>  Mon, 23 Feb 2009 21:31:18 +0100
 

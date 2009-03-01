@@ -161,6 +161,7 @@ retvalue files_deletefile(struct database *database, const char *filekey) {
 		r = RET_ERRNO(en);
 		if( errno == ENOENT ) {
 			fprintf(stderr,"%s not found, forgetting anyway\n",filename);
+			free(filename);
 			return RET_NOTHING;
 		} else {
 			fprintf(stderr, "error %d while unlinking %s: %s\n",
