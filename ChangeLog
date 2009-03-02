@@ -1,6 +1,11 @@
 2009-03-02
 	* fix bug not taking all DownloadListAs into account when multiple
 	update rules requests the same index file to be downloaded.
+	* if a .diff/Index file does not list the available Packages file
+	or if not for targeted file, proceed with other ways to retrieve
+	it.
+	* add .diff processing as first default when there is no
+	DownloadListsAs.
 
 2009-03-01
 	* support using Packages.diff when updating.

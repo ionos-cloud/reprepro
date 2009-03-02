@@ -128,8 +128,9 @@ struct remote_index {
 	/* index in checksums for the different types, -1 = not avail */
 	int ofs[c_COUNT], diff_ofs;
 
-	/* the choosen file */
-	/* - the compression used */
+	/* index in requested download methods so we can continue later */
+	int lasttriedencoding;
+	/* the compression to be tried currently */
 	enum compression compression;
 
 	/* the old uncompressed file, so that it is only deleted
@@ -873,28 +874,31 @@ static inline void remote_index_oldfiles(struct remote_index *ri, /*@null@*/stru
 	}
 }
 
-static inline enum compression firstsupportedencoding(const struct encoding_preferences *downloadas) {
+static inline enum compression firstsupportedencoding(int *lasttried, const struct encoding_preferences *downloadas) {
 	int e;
 
 	if( downloadas->count == 0 )
 		/* if nothing is specified, get .gz */
 		return c_gzip;
 
-	for( e = 0 ; e < downloadas->count ; e++ ) {
+	for( e = (*lasttried) + 1 ; e < downloadas->count ; e++ ) {
 		enum compression c = downloadas->requested[e].compression;
 
 		if( downloadas->requested[e].diff )
 			continue;
-		if( uncompression_supported(c) )
+		if( uncompression_supported(c) ) {
+			*lasttried = e;
 			return c;
+		}
 	}
+	*lasttried = e;
 	// TODO: instead give an good warning or error...
 	return c_gzip;
 }
 
 static inline retvalue find_requested_encoding(struct remote_index *ri, const char *releasefile) {
 	int e;
-	enum compression c,
+	enum compression c, stopat,
 			 /* the most-preferred requested but unsupported */
 			 unsupported = c_COUNT,
 			 /* the best unrequested but supported */
@@ -902,7 +906,9 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 
 	if( ri->downloadas.count > 0 ) {
 		bool found = false;
-		for( e = 0 ; e < ri->downloadas.count ; e++ ) {
+		for( e = ri->lasttriedencoding + 1 ;
+		     e < ri->downloadas.count ;
+		     e++ ) {
 			struct compression_preference req;
 
 			req = ri->downloadas.requested[e];
@@ -913,15 +919,23 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 				if( !req.force && ri->ofs < 0 )
 					continue;
 				ri->compression = c_COUNT;
+				ri->lasttriedencoding = e;
 				return RET_OK;
 			}
 			if( ri->ofs[req.compression] < 0 && !req.force )
 				continue;
 			if( uncompression_supported(req.compression) ) {
 				ri->compression = req.compression;
+				ri->lasttriedencoding = e;
 				return RET_OK;
 			} else if( unsupported == c_COUNT )
 				unsupported = req.compression;
+		}
+		if( ri->lasttriedencoding > -1 ) {
+			/* we already tried something, and nothing else
+			 * is available, so give up */
+			ri->lasttriedencoding = e;
+			return RET_ERROR;
 		}
 
 		/* nothing that is both requested by the user and supported
@@ -983,9 +997,26 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 	 * and your time not.
 	 * And you can always configure it to prefer a faster one...
 	 */
-	ri->compression = c_COUNT;
 
-	for( c = 0 ; c < c_COUNT ; c++ ) {
+	/* ri->lasttriedencoding -1 means nothing tried,
+	 * 0 means Package.diff was tried,
+	 * 1 means nothing c_COUNT - 1 was already tried,
+	 * 2 means nothing c_COUNT - 2 was already tried,
+	 * and so on...*/
+
+	if( ri->lasttriedencoding < 0 ) {
+		if( ri->olduncompressed == NULL
+				&& ri->diff_ofs >= 0 ) {
+			ri->compression = c_COUNT;
+			ri->lasttriedencoding = 0;
+			return RET_OK;
+		}
+		stopat = c_COUNT;
+	} else
+		stopat = c_COUNT - ri->lasttriedencoding;
+
+	ri->compression = c_COUNT;
+	for( c = 0 ; c < stopat ; c++ ) {
 		if( ri->ofs[c] < 0 )
 			continue;
 		if( uncompression_supported(c) )
@@ -994,6 +1025,11 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 			unsupported = c;
 	}
 	if( ri->compression == c_COUNT ) {
+		if( ri->lasttriedencoding > -1 ) {
+			/* not the first try, no error message needed */
+			ri->lasttriedencoding = c_COUNT;
+			return RET_ERROR;
+		}
 		if( unsupported != c_COUNT ) {
 			fprintf(stderr,
 "Error: '%s' only lists unusable compressions of '%s'.\n"
@@ -1008,6 +1044,7 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 		return RET_ERROR_WRONG_MD5;
 
 	}
+	ri->lasttriedencoding = c_COUNT - ri->compression;
 	return RET_OK;
 }
 
@@ -1025,6 +1062,8 @@ static inline retvalue remove_old_uncompressed(struct remote_index *ri) {
 		return RET_NOTHING;
 }
 
+static retvalue queue_next_encoding(struct remote_distribution *rd, struct remote_index *ri);
+
 static inline retvalue queueindex(struct remote_distribution *rd, struct remote_index *ri, bool nodownload, /*@null@*/struct cachedlistfile *oldfiles) {
 	struct remote_repository *rr = rd->repository;
 	enum compression c;
@@ -1033,8 +1072,10 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 
 	if( rd->ignorerelease ) {
 		ri->queued = true;
-		if( nodownload )
+		if( nodownload ) {
+			ri->got = true;
 			return RET_OK;
+		}
 
 		/* Without a Release file there is no knowing what compression
 		 * upstream uses. Situation gets worse as we miss the means yet
@@ -1048,7 +1089,8 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		 * rule to something already, but better than to invent another
 		 * mechanism to specify this... */
 
-		c = firstsupportedencoding(&ri->downloadas);
+		c = firstsupportedencoding(&ri->lasttriedencoding,
+				&ri->downloadas);
 		assert( uncompression_supported(c) );
 
 		ri->compression = c;
@@ -1175,6 +1217,13 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 				ri->cachefilename);
 		return RET_ERROR_MISSING;
 	}
+
+	return queue_next_encoding(rd, ri);
+}
+
+static retvalue queue_next_encoding(struct remote_distribution *rd, struct remote_index *ri) {
+	struct remote_repository *rr = rd->repository;
+	retvalue r;
 
 	r = find_requested_encoding(ri, rd->releasefile);
 	assert( r != RET_NOTHING );
@@ -1312,6 +1361,7 @@ static struct remote_index *addindex(struct remote_distribution *rd, /*@only@*/c
 	for( c = 0 ; c < c_COUNT ; c++ )
 		ri->ofs[c] = -1;
 	ri->diff_ofs = -1;
+	ri->lasttriedencoding = -1;
 	return ri;
 }
 
@@ -1565,6 +1615,11 @@ static retvalue index_callback(enum queue_action action, void *privdata, UNUSED(
 	struct checksums *readchecksums = NULL;
 	retvalue r;
 
+	if( action == qa_error )
+		return queue_next_encoding(rd, ri);
+	if( action != qa_got )
+		return RET_ERROR;
+
 	if( ri->compression == c_none ) {
 		assert( strcmp(wantedfilename, ri->cachefilename) == 0 );
 		r = copytoplace(gotfilename, wantedfilename, methodname,
@@ -1667,10 +1722,10 @@ static retvalue queue_next_diff(struct remote_index *ri) {
 		free(patchsuffix);
 		return r;
 	}
-	/* no patch matches, download it as a whole... */
-#warning complete...
-	fprintf(stderr, "Error: continuing when unable to use a Packages.diff file not yet implemented!\n");
-	return RET_ERROR_INTERNAL;
+	/* no patch matches, try next possibility... */
+	fprintf(stderr, "Error: available '%s' not listed in '%s.diffindex'.\n",
+			ri->cachefilename, ri->cachefilename);
+	return queue_next_encoding(rd, ri);
 }
 
 static retvalue diff_uncompressed(void *privdata, const char *compressed, bool failed) {
@@ -1791,6 +1846,8 @@ static retvalue diff_got_callback(enum queue_action action, void *privdata, void
 	struct remote_index *ri = privdata;
 	retvalue r;
 
+	if( action == qa_error )
+		return queue_next_encoding(ri->from, ri);
 	if( action != qa_got )
 		return RET_ERROR;
 
@@ -1809,6 +1866,8 @@ static retvalue diff_callback(enum queue_action action, void *privdata, UNUSED(v
 	int ofs;
 	retvalue r;
 
+	if( action == qa_error )
+		return queue_next_encoding(rd, ri);
 	if( action != qa_got )
 		return RET_ERROR;
 
@@ -1874,15 +1933,13 @@ static retvalue diff_callback(enum queue_action action, void *privdata, UNUSED(v
 				ri->ofs[c_none]],
 				ri->diffindex->destination, &dummy) ) {
 			fprintf(stderr,
-"'%s' does not file requested in '%s'. Aborting diff processing...\n",
+"'%s' does not match file requested in '%s'. Aborting diff processing...\n",
 					gotfilename, rd->releasefile);
-			// TODO: as this is claimed to common, resorting to
-			// the normal files should be done here...
-			return RET_ERROR;
+			/* as this is claimed to be a common error
+			 * (outdated .diff/Index file), proceed with
+			 * other requested way to retrieve index file */
+			return queue_next_encoding(rd, ri);
 		}
-		/* note that dummy could be true, which means the Release
-		 * only had md5sums, because of this we will have to compare
-		 * with both later... */
 	}
 	return queue_next_diff(ri);
 }
