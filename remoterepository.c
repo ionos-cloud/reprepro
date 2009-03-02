@@ -1089,6 +1089,7 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		if( checksums_check(*wanted_p, ri->oldchecksums, &improves) ) {
 			/* already there, nothing to do to get it... */
 			ri->queued = true;
+			ri->got = true;
 			if( improves )
 				r = checksums_combine(wanted_p,
 						ri->oldchecksums, NULL);
@@ -1151,6 +1152,7 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 				}
 				/* already there, nothing to do to get it... */
 				ri->queued = true;
+				ri->got = true;
 				return RET_OK;
 			}
 		}
