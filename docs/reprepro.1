@@ -899,12 +899,21 @@ See the description for \fBconf/pulls\fP.
 .TP
 .B SignWith
 When this field is present, a Release.gpg file will be generated.
-If the value is "yes" or "default", the default key is used.
+If the value is "yes" or "default", the default key of gpg is used.
 Otherwise the value will be given to libgpgme to determine to key to
 use.
-(That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
-This key should either have no passphrase, you need to specify
-\fB\-\-ask\-passphrase\fP or use gpg\-agent.
+
+If there are problems with signing, you can try
+.br
+.B gpg \-\-list\-secret\-keys \fIvalue\fP
+.br
+to see how gpg could interprete the value.
+If that command does not list any keys or multiple ones,
+try to find some other value (like the keyid),
+that gpg can more easily associate with a unique key.
+
+If this key has a passphrase, you need to use gpg-agent
+or the insecure option \fB\-\-ask\-passphrase\fP.
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
