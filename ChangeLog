@@ -1,3 +1,7 @@
+2009-03-02
+	* fix bug not taking all DownloadListAs into account when multiple
+	update rules requests the same index file to be downloaded.
+
 2009-03-01
 	* support using Packages.diff when updating.
 	(Fallback to other methods not yet supported, so not yet enabled

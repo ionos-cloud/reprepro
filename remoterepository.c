@@ -1285,8 +1285,15 @@ static struct remote_index *addindex(struct remote_distribution *rd, /*@only@*/c
 	while( *last != NULL && strcmp((*last)->cachebasename, cachebasename) != 0 )
 		last = &(*last)->next;
 	if( *last != NULL ) {
+		ri = *last;
+		// TODO: perhaps try to calculate some form of intersections
+		// instead of just using the shorter one...
+		if( downloadas != NULL &&
+				(ri->downloadas.count == 0
+				 || ri->downloadas.count > downloadas->count) )
+			ri->downloadas = *downloadas;
 		free(cachefilename); free(filename);
-		return *last;
+		return ri;
 	}
 
 	ri = calloc(1, sizeof(struct remote_index));
@@ -1300,10 +1307,7 @@ static struct remote_index *addindex(struct remote_distribution *rd, /*@only@*/c
 	ri->cachefilename = cachefilename;
 	ri->cachebasename = cachebasename;
 	ri->filename_in_release = filename;
-	// TODO: perhaps try to calculate some form of intersections
-	// instead of just using the shorter one...
-	if( downloadas != NULL && (ri->downloadas.count == 0
-			|| ri->downloadas.count > downloadas->count) )
+	if( downloadas != NULL )
 		ri->downloadas = *downloadas;
 	for( c = 0 ; c < c_COUNT ; c++ )
 		ri->ofs[c] = -1;
