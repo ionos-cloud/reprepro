@@ -874,6 +874,20 @@ static inline void remote_index_oldfiles(struct remote_index *ri, /*@null@*/stru
 	}
 }
 
+static inline void remote_index_delete_oldfiles(struct remote_index *ri, /*@null@*/struct cachedlistfile *oldfiles) {
+	struct cachedlistfile *o;
+	size_t l;
+
+	l = strlen(ri->cachebasename);
+	for( o = oldfiles ; o != NULL ; o = o->next ) {
+		if( o->deleted )
+			continue;
+		if( strncmp(o->basefilename, ri->cachebasename, l) != 0 )
+			continue;
+		(void)cachedlistfile_delete(o);
+	}
+}
+
 static inline enum compression firstsupportedencoding(int *lasttried, const struct encoding_preferences *downloadas) {
 	int e;
 
@@ -1077,6 +1091,10 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 			return RET_OK;
 		}
 
+		/* as there is no way to know which are current,
+		 * just delete everything */
+		remote_index_delete_oldfiles(ri, oldfiles);
+
 		/* Without a Release file there is no knowing what compression
 		 * upstream uses. Situation gets worse as we miss the means yet
 		 * to try something and continue with something else if it
@@ -1094,7 +1112,6 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		assert( uncompression_supported(c) );
 
 		ri->compression = c;
-		// TODO: shouldn't some file be deleted here first?
 		r = aptmethod_enqueueindex(rr->download,
 				rd->suite_base_dir, ri->filename_in_release,
 				uncompression_suffix[c],

@@ -1,3 +1,8 @@
+2009-03-03
+	* regression fix: when updating with IgnoreRelease, old index
+	files were no longer deleted in 3.8 before telling the apt-methods to
+	download new ones, which can trigger buggy behaviour in those.
+
 2009-03-02
 	* fix bug not taking all DownloadListAs into account when multiple
 	update rules requests the same index file to be downloaded.
