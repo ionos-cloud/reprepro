@@ -50,6 +50,8 @@ struct tobedone {
 	/* callback and its data: */
 	queue_callback *callback;
 	/*@null@*/void *privdata1, *privdata2;
+	/* there is no fallback or that was already used */
+	bool lasttry;
 };
 
 struct aptmethod {
@@ -67,15 +69,12 @@ struct aptmethod {
 	/*@null@*/struct tobedone *tobedone;
 	/*@null@*//*@dependent@*/struct tobedone *lasttobedone;
 	/*@null@*//*@dependent@*/const struct tobedone *nexttosend;
-	struct tobedone *failed;
 	/* what is currently read: */
 	/*@null@*/char *inputbuffer;
 	size_t input_size,alreadyread;
 	/* What is currently written: */
 	/*@null@*/char *command;
 	size_t alreadywritten,output_length;
-	/* true when we are already trying the fallbacks */
-	bool fallenback;
 };
 
 struct aptmethodrun {
@@ -109,7 +108,6 @@ static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 	free(method->command);
 
 	free_todolist(method->tobedone);
-	free_todolist(method->failed);
 
 	free(method);
 }
@@ -281,9 +279,6 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 	int mstdout[2];
 	int r;
 
-	/* new try, new luck */
-	method->fallenback = false;
-
 	/* When there is nothing to get, there is no reason to startup
 	 * the method. */
 	if( method->tobedone == NULL ) {
@@ -386,7 +381,19 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 
 /**************************how to add files*****************************/
 
-static retvalue enqueue(struct aptmethod *method, /*@only@*/char *uri, /*@only@*/char *destfile, queue_callback *callback, void *privdata1, void *privdata2) {
+static inline void enqueue(struct aptmethod *method, /*@only@*/struct tobedone *todo) {
+	todo->next = NULL;
+	if( method->lasttobedone == NULL )
+		method->nexttosend = method->lasttobedone = method->tobedone = todo;
+	else {
+		method->lasttobedone->next = todo;
+		method->lasttobedone = todo;
+		if( method->nexttosend == NULL )
+			method->nexttosend = todo;
+	}
+}
+
+static retvalue enqueuenew(struct aptmethod *method, /*@only@*/char *uri, /*@only@*/char *destfile, queue_callback *callback, void *privdata1, void *privdata2) {
 	struct tobedone *todo;
 
 	if( FAILEDTOALLOC(destfile) ) {
@@ -410,25 +417,19 @@ static retvalue enqueue(struct aptmethod *method, /*@only@*/char *uri, /*@only@*
 	todo->callback = callback;
 	todo->privdata1 = privdata1;
 	todo->privdata2 = privdata2;
-	if( method->lasttobedone == NULL )
-		method->nexttosend = method->lasttobedone = method->tobedone = todo;
-	else {
-		method->lasttobedone->next = todo;
-		method->lasttobedone = todo;
-		if( method->nexttosend == NULL )
-			method->nexttosend = todo;
-	}
+	todo->lasttry = method->fallbackbaseuri == NULL;
+	enqueue(method, todo);
 	return RET_OK;
 }
 
 retvalue aptmethod_enqueue(struct aptmethod *method, const char *origfile, /*@only@*/char *destfile, queue_callback *callback, void *privdata1, void *privdata2) {
-	return enqueue(method,
+	return enqueuenew(method,
 			calc_dirconcat(method->baseuri, origfile),
 			destfile, callback, privdata1, privdata2);
 }
 
 retvalue aptmethod_enqueueindex(struct aptmethod *method, const char *suite, const char *origfile, const char *suffix, const char *destfile, const char *downloadsuffix, queue_callback *callback, void *privdata1, void *privdata2) {
-	return enqueue(method,
+	return enqueuenew(method,
 			mprintf("%s/%s/%s%s",
 				method->baseuri, suite, origfile, suffix),
 			mprintf("%s%s", destfile, downloadsuffix),
@@ -437,42 +438,41 @@ retvalue aptmethod_enqueueindex(struct aptmethod *method, const char *suite, con
 
 /*****************what to do with received files************************/
 
+static retvalue requeue_or_fail(struct aptmethod *method, /*@only@*/struct tobedone *todo) {
+	retvalue r;
 
-/* shuffle files from failed to tobedone and nexttosend, if an
- * alternate baseuri to try too is given. */
-static retvalue requeue_failed(struct aptmethod *method){
-	struct tobedone *todo;
-	size_t old_len,new_len;
-
-	if( method->failed == NULL )
-		return RET_OK;
-	if( method->fallbackbaseuri == NULL || method->fallenback )
-		return RET_ERROR;
-	method->tobedone = method->failed;
-	method->nexttosend = method->failed;
-	method->failed = NULL;
-
-	old_len = strlen(method->baseuri);
-	new_len = strlen(method->fallbackbaseuri);
-
-	/* try at most once */
-	method->fallenback = true;
-
-	for( todo = method->tobedone; todo != NULL ; todo = todo->next ) {
-		size_t l;
+	if( todo->lasttry ) {
+		if( todo->callback == NULL )
+			r = RET_ERROR;
+		else
+			r = todo->callback(qa_error,
+				todo->privdata1, todo->privdata2,
+				todo->uri, NULL, todo->filename,
+				NULL, method->name);
+		todo_free(todo);
+		return r;
+	} else {
+		size_t l, old_len, new_len;
 		char *s;
 
+		assert( method->fallbackbaseuri != NULL );
+
+		old_len = strlen(method->baseuri);
+		new_len = strlen(method->fallbackbaseuri);
 		l = strlen(todo->uri);
 		s = malloc(l+new_len+1-old_len);
-		if( s != NULL ) {
-			memcpy(s,method->fallbackbaseuri,new_len);
-			strcpy(s+new_len,todo->uri + old_len);
-			free(todo->uri);
-			todo->uri = s;
+		if( FAILEDTOALLOC(s) ) {
+			todo_free(todo);
+			return RET_ERROR_OOM;
 		}
+		memcpy(s, method->fallbackbaseuri, new_len);
+		strcpy(s+new_len, todo->uri + old_len);
+		free(todo->uri);
+		todo->uri = s;
+		todo->lasttry = true;
+		enqueue(method, todo);
+		return RET_OK;
 	}
-
-	return RET_OK;
 }
 
 /* look which file could not be received and remove it: */
@@ -496,17 +496,11 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 			if( method->lasttobedone == todo ) {
 				method->lasttobedone = todo->next;
 			}
-			fprintf(stderr,"aptmethod error receiving '%s':\n'%s'\n",uri,message);
+			fprintf(stderr,"aptmethod error receiving '%s':\n'%s'\n",
+					uri, (message != NULL)?message:"");
 			/* put message in failed items to show it later? */
 			free(message);
-			/* put it in failed list to cope with it later */
-			todo->next = method->failed;
-			method->failed = todo;
-			/* if everything has answered, redo failed */
-			if( method->tobedone == NULL ) {
-				return requeue_failed(method);
-			}
-			return RET_OK;
+			return requeue_or_fail(method, todo);
 		}
 		lasttodo = todo;
 		todo = todo->next;
@@ -551,12 +545,6 @@ static retvalue uridone(struct aptmethod *method, const char *uri, const char *f
 			method->lasttobedone = todo->next;
 		}
 		todo_free(todo);
-		/* if everything is done, redo the failed ones */
-		if( method->tobedone == NULL ) {
-			retvalue rr;
-			rr = requeue_failed(method);
-			RET_UPDATE(r,rr);
-		}
 		return r;
 	}
 	/* huh? */
@@ -638,16 +626,20 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 "Missing URI header in uridone received from '%s' method!\n",
 				method->name);
 		r = RET_ERROR;
+		method->status = ams_failed;
 	}
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	r = chunk_getvalue(chunk,"Filename",&filename);
 	if( r == RET_NOTHING ) {
+	// TODO: implement Alt-Filename handling the file method returns...
 		fprintf(stderr,
 "Missing Filename header in uridone received from '%s' method!\n",
 				method->name);
-		r = RET_ERROR;
+ 		r = urierror(method, uri, strdup("<no error but missing Filename from apt-method>"));
+		free(uri);
+		return r;
 	}
 	if( RET_WAS_ERROR(r) ) {
 		free(uri);

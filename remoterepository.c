@@ -1242,6 +1242,9 @@ static retvalue queue_next_encoding(struct remote_distribution *rd, struct remot
 	struct remote_repository *rr = rd->repository;
 	retvalue r;
 
+	if( rd->ignorerelease )
+		return RET_ERROR;
+
 	r = find_requested_encoding(ri, rd->releasefile);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )

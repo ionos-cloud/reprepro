@@ -171,6 +171,7 @@ From: base
 
 Name: b
 Suite: codename2
+DownloadListsAs: .gz .lzma
 From: base
 
 Name: c
@@ -250,6 +251,7 @@ Codename: codename1
 Architectures: x yyyyyyyyyy
 Components: a bb
 MD5Sum:
+ 11111111111111111111111111111111 17 bb/source/Sources.lzma
  $(cd testsource ; md5releaseline codename1 a/debian-installer/binary-x/Packages)
  $(cd testsource ; md5releaseline codename1 a/debian-installer/binary-yyyyyyyyyy/Packages)
  $(cd testsource ; md5releaseline codename1 a/binary-x/Packages)
@@ -336,6 +338,7 @@ stderr
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/bb/binary-yyyyyyyyyy/Packages.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/bb/binary-yyyyyyyyyy/Packages.lzma' into './lists/base_codename2_bb_yyyyyyyyyy_Packages' using '/usr/bin/unlzma'...
 EOF
+
 true > results.expected
 if [ $verbosity -ge 0 ] ; then
 echo "Calculating packages to get..." > results.expected ; fi
@@ -388,12 +391,20 @@ stderr
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/a/debian-installer/binary-yyyyyyyyyy/Packages.lzma' into './lists/base_codename2_a_yyyyyyyyyy_uPackages' using '/usr/bin/unlzma'...
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/a/source/Sources'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/a/source/Sources' to './lists/base_codename1_a_Sources'...
+-v1*=aptmethod error receiving 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources.lzma':
+-v1*='File not found'
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename1/bb/source/Sources'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/bb/source/Sources' to './lists/base_codename1_bb_Sources'...
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/a/source/Sources.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/a/source/Sources.lzma' into './lists/base_codename2_a_Sources' using '/usr/bin/unlzma'...
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/bb/source/Sources.lzma'
 -v2*=Uncompress '$WORKDIR/testsource/dists/codename2/bb/source/Sources.lzma' into './lists/base_codename2_bb_Sources' using '/usr/bin/unlzma'...
+EOF
+
+ed -s testsource/dists/codename1/Release <<EOF
+g/^ 11111111111111111/d
+w
+q
 EOF
 
 true > results.expected
