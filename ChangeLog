@@ -1,3 +1,7 @@
+2009-03-04
+	* also continue downloading index files after failure to get the
+	prefered one in the IgnoreRelease case.
+
 2009-03-03
 	* regression fix: when updating with IgnoreRelease, old index
 	files were no longer deleted in 3.8 before telling the apt-methods to

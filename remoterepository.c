@@ -888,26 +888,48 @@ static inline void remote_index_delete_oldfiles(struct remote_index *ri, /*@null
 	}
 }
 
-static inline enum compression firstsupportedencoding(int *lasttried, const struct encoding_preferences *downloadas) {
+static queue_callback index_callback;
+static queue_callback diff_callback;
+
+static retvalue queue_next_without_release(struct remote_distribution *rd, struct remote_index *ri) {
+	const struct encoding_preferences *downloadas;
+	static const struct encoding_preferences defaultdownloadas = {
+		.count = 4,
+		.requested = {
+			{ .diff = false, .force = false, .compression = c_gzip },
+			{ .diff = false, .force = false, .compression = c_bzip2 },
+			{ .diff = false, .force = false, .compression = c_none },
+			{ .diff = false, .force = false, .compression = c_lzma }
+		}
+	};
 	int e;
 
-	if( downloadas->count == 0 )
-		/* if nothing is specified, get .gz */
-		return c_gzip;
+	if( ri->downloadas.count == 0 )
+		downloadas = &defaultdownloadas;
+	else
+		downloadas = &ri->downloadas;
 
-	for( e = (*lasttried) + 1 ; e < downloadas->count ; e++ ) {
+	for( e = ri->lasttriedencoding + 1 ; e < downloadas->count ; e++ ) {
 		enum compression c = downloadas->requested[e].compression;
 
 		if( downloadas->requested[e].diff )
 			continue;
 		if( uncompression_supported(c) ) {
-			*lasttried = e;
-			return c;
+			ri->lasttriedencoding = e;
+			ri->compression = c;
+			return aptmethod_enqueueindex(rd->repository->download,
+					rd->suite_base_dir, ri->filename_in_release,
+					uncompression_suffix[c],
+					ri->cachefilename, uncompression_suffix[c],
+					index_callback, ri, NULL);
 		}
 	}
-	*lasttried = e;
-	// TODO: instead give an good warning or error...
-	return c_gzip;
+	if( ri->lasttriedencoding < 0 )
+		fprintf(stderr,
+"ERROR: no supported compressions in DownloadListsAs for '%s' by '%s'!\n",
+				rd->suite, rd->repository->method);
+	ri->lasttriedencoding = e;
+	return RET_ERROR;
 }
 
 static inline retvalue find_requested_encoding(struct remote_index *ri, const char *releasefile) {
@@ -1062,9 +1084,6 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 	return RET_OK;
 }
 
-static queue_callback index_callback;
-static queue_callback diff_callback;
-
 static inline retvalue remove_old_uncompressed(struct remote_index *ri) {
 	retvalue r;
 
@@ -1079,7 +1098,6 @@ static inline retvalue remove_old_uncompressed(struct remote_index *ri) {
 static retvalue queue_next_encoding(struct remote_distribution *rd, struct remote_index *ri);
 
 static inline retvalue queueindex(struct remote_distribution *rd, struct remote_index *ri, bool nodownload, /*@null@*/struct cachedlistfile *oldfiles) {
-	struct remote_repository *rr = rd->repository;
 	enum compression c;
 	retvalue r;
 	struct cachedlistfile *old[c_COUNT];
@@ -1095,29 +1113,7 @@ static inline retvalue queueindex(struct remote_distribution *rd, struct remote_
 		 * just delete everything */
 		remote_index_delete_oldfiles(ri, oldfiles);
 
-		/* Without a Release file there is no knowing what compression
-		 * upstream uses. Situation gets worse as we miss the means yet
-		 * to try something and continue with something else if it
-		 * fails (as aptmethod error reporting would need to be extended
-		 * for it). Thus use the first supported of the requested and
-		 * use .gz as fallback.
-		 *
-		 * Using this preferences means users will have to set it for
-		 * IgnoreRelease-distributions, that default in an parent
-		 * rule to something already, but better than to invent another
-		 * mechanism to specify this... */
-
-		c = firstsupportedencoding(&ri->lasttriedencoding,
-				&ri->downloadas);
-		assert( uncompression_supported(c) );
-
-		ri->compression = c;
-		r = aptmethod_enqueueindex(rr->download,
-				rd->suite_base_dir, ri->filename_in_release,
-				uncompression_suffix[c],
-				ri->cachefilename, uncompression_suffix[c],
-				index_callback, ri, NULL);
-		return r;
+		return queue_next_without_release(rd, ri);
 	}
 
 	/* check if this file is still available from an earlier download */
@@ -1243,7 +1239,7 @@ static retvalue queue_next_encoding(struct remote_distribution *rd, struct remot
 	retvalue r;
 
 	if( rd->ignorerelease )
-		return RET_ERROR;
+		return queue_next_without_release(rd, ri);
 
 	r = find_requested_encoding(ri, rd->releasefile);
 	assert( r != RET_NOTHING );
