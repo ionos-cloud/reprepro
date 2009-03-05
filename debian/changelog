@@ -1,11 +1,13 @@
 reprepro (3.9.0-0) UNRELEASED; urgency=low
 
-  * fix hint to get gpg error message in case libgpgme returns generic error
+  * new release
+  - support using Packages.diff (Closes: 405634)
+  - fix hint to get gpg error message in case libgpgme returns generic error
     to not list files deleted later, delete all .new files on error unless
     new --keeptemporaries is specified (Closes: 516395)
-  * delete unexpected files in the pool which are in the way of new files
+  - delete unexpected files in the pool which are in the way of new files
     (Closes: 516578)
-  * support using Packages.diff (Closes: 405634)
+  - describe conf/options in manual.html
 
  -- Bernhard R. Link <brlink@debian.org>  Thu,  5 Mar 2009 17:21:53 +0100
 
