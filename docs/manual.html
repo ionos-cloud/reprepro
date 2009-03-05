@@ -34,6 +34,7 @@ Sections of this document:
 <li><a href="#introduction">Introduction</a></li>
 <li><a href="#firststeps">First steps</a></li>
 <li><a href="#dirbasics">Repository basics</a></li>
+<li><a href="#config">Config files</a></li>
 <li><a href="#export">Generation of index files</a>
  <ul>
  <li><a href="#compression">Compression and file names</a></li>
@@ -117,7 +118,7 @@ are just copied to the generated Release files, more things controlling reprepro
 appear which are described later).
 </li>
 <li>If your <tt>conf/distributions</tt> file contained a <tt>Suite:</tt> and you
-are to lazy to generate the symlinks yourself, call:
+are to lazy to generate the symbolic links yourself, call:
 <pre class="shell">
 reprepro -b $YOURBASEDIR createsymlinks
 </pre>
@@ -328,7 +329,7 @@ There is one dir for every component. All look just the same.
 	</dd>
 	<dt class="symlink">SUITE -> CODENAME</dt><dd>
 To allow accessing distribution by function instead of by name, there are often
-symlinks from suite to codenames. That way users can write
+symbolic links from suite to codenames. That way users can write
 <pre class="config">
 deb http://some.domain.tld/debian SUITE COMPONENT1 COMPONENT2
 </pre>
@@ -435,7 +436,45 @@ reprepro will put everything to where it belong, keep account what is there
 and needed by what distribution or snapshot, and delete files no longer needed.
 (Unless told otherwise or when you are using the low-level commands).
 <h2><a name="config">Config files</a></h2>
-TO BE DOCUMENTED
+Configuring a reprepro repository is done by writing some config files
+into a directory.
+This directory is currently the <tt class="dir">conf</tt> subdirectory of the
+base directory of the repository,
+unless you specify <tt class="option">--confdir</tt> or set the
+environment variable <tt class="env">REPREPRO_CONFIG_DIR</tt>.
+
+<dl class="dir">
+<dt class="dir">options</dt><dd>
+If this file exists, reprepro will consider each line an additional
+command line option.
+Arguments must be in the same line after an equal sign.
+
+Options specified on the command line take precedence.
+</dd>
+<dt class="dir">distributions</dt><dd>
+This is the main configuration file and the only that is needed in all
+cases.
+It lists the distributions this repository contains and their properties.
+<br>
+See <a href="#firststeps">First steps</a> for a short example or the manpage
+for a list of all possible fields.
+</dd>
+<dt class="dir">updates</dt><dd>
+Rules about where to download packages from other repositories.
+See the section <a href="#mirroring">Mirroring / Updating</a>
+for more examples or the man page for a full reference.
+</dd>
+<dt class="dir">pulls</dt><dd>
+Rules about how to move packages in bulk between distributions
+where to download packages from other repositories.
+See the section <a href="#propagation">Propagation of packages</a>
+for an example or the man page for full reference.
+</dd>
+<dt class="dir">incoming</dt><dd>
+Rules for incoming queues as processed by <tt class="command">processincoming</tt>.
+See <a href="#processincoming-incoming-config">Processing and incoming queue</a> for more information.
+</dd>
+</dl>
 <h2><a name="export">Generation of index files</a></h2>
 <h3>Deciding when to generate</h3>
 As reprepro stores all state in its database,
