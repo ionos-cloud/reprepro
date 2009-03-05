@@ -1,6 +1,21 @@
 Updates between 3.8.2 and 3.9.0:
-- deprecate old (pre 3.3) file database format. Warn loudly
++ deprecate old (pre 3.3) file database format. Warn loudly
   when the database is still using that format.
++ new features
+- support Sources/Package.diff downloading
+  (Use DownloadListsAs if you want to force .gz downloading instead)
+- support falling back to other compressions of index files when
+  not downloadable at first.
+- changestool can now also look in .lzma files for .dsc section/priority
+- delete .new files in dists/ on error unless --keeptemporaries
+- new 'warning' state for FilterList
+- set REPREPRO_FROM and REPREPRO_CAUSING_RULE in some log notifiers
++ bug fixes:
+- reenable workaround for apt-methods having problem with existing
+  files which got lost in 3.8
+- fix bug not looking at DownloadListsAs in all cases
+- bugfix in misparsing some .diff files for section/priority retrieval
+- do not stop when incomplete downloads or other stray files are in the pool
 
 Updates between 3.8.1 and 3.8.2:
 - add ReadOnly option for conf/distributions

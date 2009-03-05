@@ -1,4 +1,4 @@
-reprepro (3.8.3-0) UNRELEASED; urgency=low
+reprepro (3.9.0-0) UNRELEASED; urgency=low
 
   * fix hint to get gpg error message in case libgpgme returns generic error
     to not list files deleted later, delete all .new files on error unless
@@ -7,7 +7,7 @@ reprepro (3.8.3-0) UNRELEASED; urgency=low
     (Closes: 516578)
   * support using Packages.diff (Closes: 405634)
 
- -- Bernhard R. Link <brlink@debian.org>  Mon, 23 Feb 2009 21:31:18 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  5 Mar 2009 17:21:53 +0100
 
 reprepro (3.8.2-1) unstable; urgency=low
 
