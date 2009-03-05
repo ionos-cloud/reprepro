@@ -1,6 +1,7 @@
 2009-03-05
 	* Implement force.<compression> as DownLoadListAs item to download an
 	index not found in the Release file.
+	* warn if database is in old format
 
 2009-03-04
 	* also continue downloading index files after failure to get the

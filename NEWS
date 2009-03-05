@@ -1,3 +1,7 @@
+Updates between 3.8.2 and 3.9.0:
+- deprecate old (pre 3.3) file database format. Warn loudly
+  when the database is still using that format.
+
 Updates between 3.8.1 and 3.8.2:
 - add ReadOnly option for conf/distributions
 - support byhand and raw-* files in include and processincoming

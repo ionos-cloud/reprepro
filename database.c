@@ -1806,6 +1806,10 @@ retvalue database_openfiles(struct database *db, const char *filesdir) {
 		db->oldmd5sums = NULL;
 		return r;
 	}
+	if( !db->capabilities.nomd5legacy )
+		fprintf(stderr,
+"Warning: database uses deprecated format.\n"
+"Please consider running translatefilelists to update to the new format.\n");
 	// TODO: only create this file once it is actually needed...
 	r = database_table(db, "contents.cache.db", "compressedfilelists",
 			dbt_BTREE, DB_CREATE, &db->contents);
