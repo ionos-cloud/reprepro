@@ -952,13 +952,15 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 			if( req.diff ) {
 				if( ri->olduncompressed == NULL )
 					continue;
-				if( !req.force && ri->ofs < 0 )
+				assert( ri->ofs[c_none] >= 0 );
+				if( !req.force && ri->diff_ofs < 0 )
 					continue;
 				ri->compression = c_COUNT;
 				ri->lasttriedencoding = e;
 				return RET_OK;
 			}
-			if( ri->ofs[req.compression] < 0 && !req.force )
+			if( ri->ofs[req.compression] < 0 &&
+					( !req.force || ri->ofs[c_none] < 0) )
 				continue;
 			if( uncompression_supported(req.compression) ) {
 				ri->compression = req.compression;
@@ -1648,8 +1650,6 @@ static retvalue index_callback(enum queue_action action, void *privdata, UNUSED(
 	}
 
 	if( !rd->ignorerelease && ri->ofs[ri->compression] >= 0 ) {
-		/* downloaded file always has checksums to test,
-		 * (only the uncompressed file maybe not) */
 		int ofs = ri->ofs[ri->compression];
 		const struct checksums *wantedchecksums =
 			rd->remotefiles.checksums[ofs];
