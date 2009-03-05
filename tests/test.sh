@@ -4,6 +4,7 @@ set -e
 
 source $(dirname $0)/test.inc
 
+runtest updatecorners
 runtest packagediff
 runtest includeextra
 runtest atoms

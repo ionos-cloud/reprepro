@@ -369,18 +369,13 @@ CFUSETPROC(update_pattern, downloadlistsas) {
 			free(word);
 			break;
 		}
-		force = false;
 		if( strncmp(word, "force.", 6) == 0 ) {
 			u = word + 5;
-			// TODO: set force to true once supported
-			fprintf(stderr,
-"%s:%d:%d: forcing not yet supported in this version, treating as normal '%s'\n",
-					config_filename(iter),
-					config_markerline(iter),
-					config_markercolumn(iter),
-					u);
-		} else
+			force = true;
+		} else {
 			u = word;
+			force = false;
+		}
 		for( c = 0 ; c < c_COUNT ; c++ ) {
 			if( strcmp(uncompression_config[c], u) == 0 ||
 			    strcmp(uncompression_config[c]+1, u) == 0 ) {

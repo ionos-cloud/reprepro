@@ -18,6 +18,7 @@ testsnapshotcopyrestore.sh \
 testsubcomponents.sh \
 testtemplate.sh \
 testtrackingcorruption.sh \
+testupdatecorners.sh \
 testuncompress.sh \
 testvarious1.sh \
 testvarious2.sh \
