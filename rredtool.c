@@ -13,6 +13,7 @@ static const struct option options[] = {
 	{"help", no_argument, NULL, 'h'},
 	{"debug", no_argument, NULL, 'D'},
 	{"merge", no_argument, NULL, 'm'},
+	{"patch", no_argument, NULL, 'p'},
 	{NULL, 0, NULL, 0}
 };
 
@@ -21,17 +22,18 @@ int main(int argc, const char *argv[]) {
 	struct modification *m;
 	retvalue r;
 	bool mergemode = false;
+	bool patchmode = false;
 	int i, count;
 	const char *sourcename IFSTUPIDCC(=NULL);
 	int debug = 0;
 
-	while( (i = getopt_long(argc, (char**)argv, "+hVDm", options, NULL)) != -1 ) {
+	while( (i = getopt_long(argc, (char**)argv, "+hVDmp", options, NULL)) != -1 ) {
 		switch (i) {
 			case 'h':
 				puts(
 "rred-tool: handle some subset of ed-patches\n"
 "Syntax: rred-tool --merge patches...\n"
-"or: rred-tool file-to-patch patches...");
+"or: rred-tool --patch file-to-patch patches...");
 				return EXIT_SUCCESS;
 			case 'V':
 				printf("rred-tool from " PACKAGE_NAME " version " PACKAGE_VERSION);
@@ -41,6 +43,9 @@ int main(int argc, const char *argv[]) {
 				break;
 			case 'm':
 				mergemode = 1;
+				break;
+			case 'p':
+				patchmode = 1;
 				break;
 			case '?':
 			default:
@@ -56,6 +61,14 @@ int main(int argc, const char *argv[]) {
 			return EXIT_FAILURE;
 		}
 		sourcename = argv[i++];
+	}
+	if( mergemode && patchmode ) {
+		fprintf(stderr, "Cannot do --merge and --patch at the same time!\n");
+		return EXIT_FAILURE;
+	}
+	if( !mergemode && !patchmode ) {
+		fprintf(stderr, "Need either --merge or --patch!\n");
+		return EXIT_FAILURE;
 	}
 
 	count = 0;
