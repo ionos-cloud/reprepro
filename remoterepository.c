@@ -638,7 +638,7 @@ static retvalue copytoplace(const char *gotfilename, const char *wantedfilename,
 /* handle a downloaded Release or Release.gpg file:
  * no checksums to test, nothing to trigger, as they have to be all
  * read at once to decide what is new and what actually needs downloading */
-static retvalue release_callback(enum queue_action action, UNUSED(void *privdata), UNUSED(void *privdata2), const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *checksums, const char *methodname) {
+static retvalue release_callback(enum queue_action action, UNUSED(void *privdata), UNUSED(void *privdata2), UNUSED(const char *uri), const char *gotfilename, const char *wantedfilename, UNUSED(/*@null@*/const struct checksums *checksums), const char *methodname) {
 	retvalue r;
 
 	if( action != qa_got )
@@ -1858,7 +1858,7 @@ static retvalue diff_uncompressed(void *privdata, const char *compressed, bool f
 	return queue_next_diff(ri);
 }
 
-static retvalue diff_got_callback(enum queue_action action, void *privdata, void *privdata2, const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *gotchecksums, const char *methodname) {
+static retvalue diff_got_callback(enum queue_action action, void *privdata, UNUSED(void *privdata2), UNUSED(const char *uri), const char *gotfilename, const char *wantedfilename, UNUSED(/*@null@*/const struct checksums *gotchecksums), UNUSED(const char *methodname)) {
 	struct remote_index *ri = privdata;
 	retvalue r;
 

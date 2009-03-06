@@ -321,7 +321,7 @@ static void modification_stripendlines(struct modification *m, int r) {
 		p++;
 		lines--;
 	}
-	assert( p - m->content <= m->len );
+	assert( (size_t)(p - m->content) <= m->len );
 	m->len = p - m->content;
 }
 
@@ -336,7 +336,7 @@ static void modification_stripstartlines(struct modification *m, int r) {
 		p++;
 		r--;
 	}
-	assert( p - m->content <= m->len );
+	assert( (size_t)(p - m->content) <= m->len );
 	m->len -= p - m->content;
 	m->content = p;
 }
