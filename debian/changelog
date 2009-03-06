@@ -1,4 +1,4 @@
-reprepro (3.9.0-0) UNRELEASED; urgency=low
+reprepro (3.9.0-1) unstable; urgency=low
 
   * new release
   - support using Packages.diff (Closes: 405634)
@@ -7,9 +7,9 @@ reprepro (3.9.0-0) UNRELEASED; urgency=low
     new --keeptemporaries is specified (Closes: 516395)
   - delete unexpected files in the pool which are in the way of new files
     (Closes: 516578)
-  - describe conf/options in manual.html
+  - describe conf/options in manual.html (Closes: 514801)
 
- -- Bernhard R. Link <brlink@debian.org>  Thu,  5 Mar 2009 17:21:53 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Mar 2009 13:28:28 +0100
 
 reprepro (3.8.2-1) unstable; urgency=low
 
