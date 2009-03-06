@@ -86,8 +86,8 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
 *='Failed to stat - stat (2 No such file or directory)'
--v6*=aptmethod start 'copy:/tmp/brl/testdir/test/dists/a/c/source/Sources.lzma'
--v1*=aptmethod got 'copy:/tmp/brl/testdir/test/dists/a/c/source/Sources.lzma'
+-v6*=aptmethod start 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
+-v1*=aptmethod got 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v2*=Uncompress './lists/u_a_c_Sources.lzma' into './lists/u_a_c_Sources' using '/usr/bin/unlzma'...
 stdout
 -v0*=Calculating packages to get...
@@ -98,10 +98,10 @@ stdout
 -v2*=Created directory "./pool/c/t"
 -v2*=Created directory "./pool/c/t/test"
 stderr
--v6*=aptmethod start 'copy:/tmp/brl/testdir/test/test/test.dsc'
--v1*=aptmethod got 'copy:/tmp/brl/testdir/test/test/test.dsc'
--v6*=aptmethod start 'copy:/tmp/brl/testdir/test/test/test.tar.gz'
--v1*=aptmethod got 'copy:/tmp/brl/testdir/test/test/test.tar.gz'
+-v6*=aptmethod start 'copy:${WORKDIR}/test/test/test.dsc'
+-v1*=aptmethod got 'copy:${WORKDIR}/test/test/test.dsc'
+-v6*=aptmethod start 'copy:${WORKDIR}/test/test/test.tar.gz'
+-v1*=aptmethod got 'copy:${WORKDIR}/test/test/test.tar.gz'
 stdout
 -v0*=Getting packages...
 -d1*=db: 'pool/c/t/test/test.dsc' added to checksums.db(pool).
@@ -133,8 +133,8 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
 *='Failed to stat - stat (2 No such file or directory)'
--v6*=aptmethod start 'copy:/tmp/brl/testdir/test/dists/a/c/source/Sources.lzma'
--v1*=aptmethod got 'copy:/tmp/brl/testdir/test/dists/a/c/source/Sources.lzma'
+-v6*=aptmethod start 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
+-v1*=aptmethod got 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v2*=Uncompress './lists/u_a_c_Sources.lzma' into './lists/u_a_c_Sources' using '/usr/bin/unlzma'...
 *=Wrong checksum of uncompressed content of './lists/u_a_c_Sources.lzma':
 *=md5 expected: 00000000000000000000000000000000, got: $sourcesmd
@@ -158,8 +158,8 @@ testrun - -b . update 3<<EOF
 stderr
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
 *='Failed to stat - stat (2 No such file or directory)'
--v6*=aptmethod start 'copy:/tmp/brl/testdir/test/dists/a/c/source/Sources.lzma'
--v1*=aptmethod got 'copy:/tmp/brl/testdir/test/dists/a/c/source/Sources.lzma'
+-v6*=aptmethod start 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
+-v1*=aptmethod got 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v2*=Uncompress './lists/u_a_c_Sources.lzma' into './lists/u_a_c_Sources' using '/usr/bin/unlzma'...
 stdout
 -v0*=Calculating packages to get...
