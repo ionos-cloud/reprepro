@@ -1,3 +1,9 @@
+2009-03-14
+	* fix mishandling of libz return code
+	causing "Zlib error 1"..."stream end" error messages.
+	This defect seems to be only triggered with at least lenny's libz.
+	(And only when extracting Section and Priority from a dsc).
+
 2009-03-05
 	* Implement force.<compression> as DownLoadListAs item to download an
 	index not found in the Release file.

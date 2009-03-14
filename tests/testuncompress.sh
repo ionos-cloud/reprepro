@@ -339,5 +339,41 @@ returns 255
 stdout
 EOF
 
+cat > fake_1-2.diff <<EOF
+--- bla/Makefile
++++ bla/Makefile
+@@ -1000,1 +1000,1 @@
+ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+--- bla/debian/control
++++ bla/debian/control
+@@ -0,0 +1,10 @@
++Source: fake
++Section: sssss
++# new-fangled comment
++Priority: ppp
++Homepage: gopher://never-never-land/
++
+EOF
+dodo gzip fake_1-2.diff
+
+cat > fake_1-2.dsc << EOF
+Format: 3.0
+Source: fake
+Binary: abinary
+Architecture: all
+Version: 17
+Maintainer: Me
+Files:
+ $(mdandsize fake_1-2.diff.gz) fake_1-2.diff.gz
+ 00000000000000000000000000000000 0 fake_1.orig.tar.gz
+EOF
+
+testrun - __extractsourcesection fake_1-2.dsc 3<<EOF
+=Data seems not to be signed trying to use directly...
+stdout
+*=Section: sssss
+*=Priority: ppp
+EOF
+
 rm fake*
 testsuccess

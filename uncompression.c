@@ -955,7 +955,7 @@ retvalue uncompress_error(struct compressedfile *file) {
 			break;
 		case c_gzip:
 			msg = gzerror(file->gz, &zerror);
-			if( zerror == 0 )
+			if( zerror >= 0 )
 				return RET_OK;
 			if( zerror != Z_ERRNO ) {
 				fprintf(stderr, "Zlib error %d uncompressing file '%s': %s\n",

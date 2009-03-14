@@ -1,3 +1,7 @@
+Updates between 3.9.0 and 3.9.1:
++ fix error of misinterpreting newer libz return value
+  when extracting section from a .dsc.
+
 Updates between 3.8.2 and 3.9.0:
 + deprecate old (pre 3.3) file database format. Warn loudly
   when the database is still using that format.
