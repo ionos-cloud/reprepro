@@ -154,6 +154,16 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 		return RET_ERROR_MISSING;
 	}
 	assert( word[0] != '\0' );
+
+	if( word[0] == '.' ) {
+		free(word);
+		fprintf(stderr,
+"Error parsing %s, line %u, column %u: filename for index files expected!\n",
+			config_filename(iter),
+			config_markerline(iter), config_markercolumn(iter));
+		return RET_ERROR;
+	}
+
 	free(mode->filename);
 	mode->filename = word;
 

@@ -4,6 +4,9 @@
 	but unlike ".new" does not mention the file in Release)
 	* new suffix ".keep" for export hooks tha just ignores that line,
 	for compatibility with future changes.
+	* warn if an (Deb|UDeb|Dsc)Indices line contains no filename.
+	(warn against everything starting with a dot to avoid a user putting
+	forgetting it and putting a compression identifier there).
 
 2009-03-14
 	* fix mishandling of libz return code

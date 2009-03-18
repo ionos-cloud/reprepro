@@ -12,7 +12,12 @@ Architectures: a b
 Components: e
 DebIndices: .
 EOF
-# TODO: warn against the missing Packages name
+
+testrun - -b . export o 3<<EOF
+*=Error parsing ./conf/distributions, line 4, column 13: filename for index files expected!
+-v0*=There have been errors!
+returns 255
+EOF
 
 cat > conf/distributions <<EOF
 Codename: o
@@ -75,6 +80,6 @@ cat > results.expected <<EOF
 EOF
 dodiff results.expected results
 
-rm -r conf db
+rm -r conf db dists
 rm results results.expected
 testsuccess
