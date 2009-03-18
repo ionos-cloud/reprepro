@@ -269,7 +269,7 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 			return RET_ERROR_OOM;
 		}
 		return release_addnew(release,tmpfilename,filename);
-	} else if( l > 5 && memcmp(relname + (l-5), ".new.", 4) == 0 ) {
+	} else if( l > 5 && memcmp(relname + (l-5), ".new.", 5) == 0 ) {
 		char *filename, *tmpfilename;
 
 		filename = strndup(relname, l-5);
@@ -281,6 +281,8 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 			return RET_ERROR_OOM;
 		}
 		return release_addsilentnew(release, tmpfilename, filename);
+	} else if( l > 5 && memcmp(relname + (l-5), ".keep", 5) == 0 ) {
+		return RET_OK;
 	} else {
 		char *filename;
 
