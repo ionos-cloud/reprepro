@@ -1,3 +1,12 @@
+reprepro (3.9.1-1) unstable; urgency=low
+
+  * new bugfix release
+  - fix misparsing some libz return code as error
+    (should hopefully only be visible when trying to extract
+     Section and Priority from a .dsc).
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 18 Mar 2009 18:39:51 +0100
+
 reprepro (3.9.0-1) unstable; urgency=low
 
   * new release
