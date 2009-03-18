@@ -6,6 +6,7 @@ genpackage.sh \
 testatoms.sh \
 testcheck.sh \
 testchecksums.sh \
+testexporthooks.sh \
 testflat.sh \
 testlayeredupdate2.sh \
 testlayeredupdate.sh \

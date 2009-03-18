@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -248,6 +248,28 @@ retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@on
 	release->new = true;
 	return newreleaseentry(release, relfilename,
 			checksums, finalfilename, filename);
+}
+
+retvalue release_addsilentnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename) {
+	char *filename, *finalfilename;
+
+	filename = calc_dirconcat(release->dirofdist,reltmpfile);
+	if( filename == NULL ) {
+		free(reltmpfile);
+		free(relfilename);
+		return RET_ERROR_OOM;
+	}
+	free(reltmpfile);
+	finalfilename = calc_dirconcat(release->dirofdist,relfilename);
+	if( finalfilename == NULL ) {
+		free(relfilename);
+		free(filename);
+		return RET_ERROR_OOM;
+	}
+	free(relfilename);
+	release->new = true;
+	return newreleaseentry(release, NULL,
+			NULL, finalfilename, filename);
 }
 
 retvalue release_addold(struct release *release,/*@only@*/char *relfilename) {
@@ -1304,7 +1326,8 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 	result = RET_OK;
 
 	for( file = release->files ; file != NULL ; file = file->next ) {
-		if( file->relativefilename == NULL ) {
+		if( file->relativefilename == NULL
+				&& file->fullfinalfilename == NULL ) {
 			assert(file->fulltemporaryfilename != NULL );
 			e = unlink(file->fulltemporaryfilename);
 			if( e < 0 ) {
