@@ -1,3 +1,11 @@
+reprepro (3.9.2-1) unstable; urgency=low
+
+  * new bugfix release
+  - fix logic inversion whether to download (Packages|Sources).diff without
+    a DownloadListsAs line. (Closes: 522329)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  3 Apr 2009 10:07:13 +0200
+
 reprepro (3.9.1-1) unstable; urgency=low
 
   * new bugfix release

@@ -1043,7 +1043,7 @@ static inline retvalue find_requested_encoding(struct remote_index *ri, const ch
 	 * and so on...*/
 
 	if( ri->lasttriedencoding < 0 ) {
-		if( ri->olduncompressed == NULL
+		if( ri->olduncompressed != NULL
 				&& ri->diff_ofs >= 0 ) {
 			ri->compression = c_COUNT;
 			ri->lasttriedencoding = 0;
