@@ -34,7 +34,7 @@ sed -e 's/-1-/-2-/' "$DIR/list" > "$DIR/$FILE.debs"
 rm -f "$DIR/list"
 
 # filter only needed packages
-zcat "$IN" | grep-dctrl `cat "$DIR/$FILE.debs" | while read P; do echo -n " -o -X -P $P"; done | cut -b 5-` >"$OUT"
+grep-dctrl `cat "$DIR/$FILE.debs" | while read P; do echo -n " -o -X -P $P"; done | cut -b 5-` "$IN" >"$OUT"
 
 # cleanup
 rm -f "$DIR/$FILE.debs"
