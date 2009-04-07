@@ -1,3 +1,9 @@
+2009-04-07
+	* bugfix: ListHook was not used in rules including the rule with it
+	in "From:"
+	* add "ListShellHook", that is like ListHook but with arguments and
+	the files in stdin and stdout.
+
 2009-04-03
 	* fix bug (catched by assertion) that inverts the logic of downloading
 	.diff files when there is no DownLoadListsAs line.

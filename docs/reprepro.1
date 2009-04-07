@@ -1276,6 +1276,21 @@ times, with the environment variables
 set to the where this file will be added and
 .B REPREPRO_FILTER_PATTERN
 to the name of the update rule causing it.
+
+.TP
+.B ListShellHook
+This is like ListHook, but the whole argument is given to the shell
+as argument, and the input and output file are stdin and stdout.
+
+i.e.:
+.br
+ListShellHook: cat
+.br
+works but does nothing but useless use of a shell and cat, while
+.br
+ListShellHook: grep-dctrl -X -S apt -o -X -S dpkg || [ $? -eq 1 ]
+.br
+will limit the update rule to packages from the specified source packages.
 .TP
 .B DownloadListsAs
 The arguments of this field, which much be elements of the

@@ -50,6 +50,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,6 +59,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <ctype.h>
+#include <fcntl.h>
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"
@@ -158,6 +160,7 @@ struct update_pattern {
 	struct filterlist filterlist;
 	// NULL means nothing to execute after lists are downloaded...
 	/*@null@*/char *listhook;
+	/*@null@*/char *shellhook;
 	/* checksums to not read check in Release file: */
 	bool ignorehashes[cs_hashCOUNT];
 	/* the name of the flat component, causing flat mode if non-NULL*/
@@ -254,6 +257,7 @@ static void update_pattern_free(/*@only@*/struct update_pattern *update) {
 	term_free(update->includecondition);
 	filterlist_release(&update->filterlist);
 	free(update->listhook);
+	free(update->shellhook);
 	remote_repository_free(update->repository);
 	free(update);
 }
@@ -343,6 +347,7 @@ CFvalueSETPROC(update_pattern, verifyrelease)
 CFlinelistSETPROC(update_pattern, config)
 CFtruthSETPROC(update_pattern, ignorerelease)
 CFscriptSETPROC(update_pattern, listhook)
+CFallSETPROC(update_pattern, shellhook)
 CFfilterlistSETPROC(update_pattern, filterlist)
 CFtermSSETPROC(update_pattern, includecondition)
 
@@ -518,6 +523,7 @@ static const struct configfield updateconfigfields[] = {
 	CF("IgnoreHashes", update_pattern, ignorehashes),
 	CF("VerifyRelease", update_pattern, verifyrelease),
 	CF("ListHook", update_pattern, listhook),
+	CF("ListShellHook", update_pattern, shellhook),
 	CF("FilterFormula", update_pattern, includecondition),
 	CF("FilterList", update_pattern, filterlist),
 	CF("DownloadListsAs", update_pattern, downloadlistsas)
@@ -576,6 +582,13 @@ CFfinishparse(update_pattern) {
 "%s:%u to %u: Unsupported suite pattern '%s'\n",
 				config_filename(iter), config_firstline(iter),
 				config_line(iter), n->suite_from);
+			return RET_ERROR;
+		}
+		if( n->listhook != NULL && n->shellhook != NULL ) {
+			fprintf(stderr,
+"%s:%u to %u: Only one of ListHook and ListShellHook allowed per update rule\n",
+				config_filename(iter), config_firstline(iter),
+				config_line(iter));
 			return RET_ERROR;
 		}
 	}
@@ -1302,11 +1315,10 @@ static retvalue updates_startup(struct aptmethodrun *run, struct update_distribu
  * Step 8: call possible list hooks allowing them to modify the lists       *
  ****************************************************************************/
 
-static retvalue calllisthook(struct update_target *ut, struct update_index_connector *f) {
+static retvalue calllisthook(struct update_target *ut, struct update_index_connector *f, const char *listhook) {
 	struct update_origin *origin = f->origin;
 	const char *oldfilename = remote_index_file(f->remote);
 	const char *oldbasefilename = remote_index_basefile(f->remote);
-	const char *listhook = origin->pattern->listhook;
 	char *newfilename;
 	pid_t child, c;
 	int status;
@@ -1383,6 +1395,121 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 	return RET_OK;
 }
 
+static retvalue callshellhook(struct update_target *ut, struct update_index_connector *f, const char *shellhook) {
+	struct update_origin *origin = f->origin;
+	const char *oldfilename = remote_index_file(f->remote);
+	const char *oldbasefilename = remote_index_basefile(f->remote);
+	char *newfilename;
+	pid_t child, c;
+	int status;
+	int infd, outfd;
+
+	/* distribution, component, architecture and pattern specific... */
+	newfilename = genlistsfilename(oldbasefilename, 5, "",
+			ut->target->codename,
+			atoms_components[ut->target->component_atom],
+			atoms_architectures[ut->target->architecture_atom],
+			origin->pattern->name, ENDOFARGUMENTS);
+	if( FAILEDTOALLOC(newfilename) )
+		return RET_ERROR_OOM;
+	infd = open(oldfilename, O_RDONLY|O_NOCTTY|O_NOFOLLOW);
+	if( infd < 0 ) {
+		int e = errno;
+
+		fprintf(stderr,
+"Error %d opening expected file '%s': %s!\n"
+"Something strange must go on!\n", e, oldfilename, strerror(e));
+		return RET_ERRNO(e);
+	}
+	(void)unlink(newfilename);
+	outfd = open(newfilename,
+			O_WRONLY|O_NOCTTY|O_NOFOLLOW|O_CREAT|O_EXCL, 0666);
+	if( outfd < 0 ) {
+		int e = errno;
+
+		fprintf(stderr, "Error %d creating '%s': %s!\n", e,
+				newfilename, strerror(e));
+		close(infd);
+		return RET_ERRNO(e);
+	}
+	child = fork();
+	if( child < 0 ) {
+		int e = errno;
+		free(newfilename);
+		fprintf(stderr, "Error %d while forking for shell hook: %s\n",
+				e, strerror(e));
+		(void)close(infd);
+		(void)close(outfd);
+		(void)unlink(newfilename);
+		return RET_ERRNO(e);
+	}
+	if( child == 0 ) {
+		int e;
+
+		assert( dup2(infd, 0) == 0 );
+		assert( dup2(outfd, 1) == 1 );
+		close(infd);
+		close(outfd);
+		(void)closefrom(3);
+		setenv("REPREPRO_BASE_DIR", global.basedir, true);
+		setenv("REPREPRO_OUT_DIR", global.outdir, true);
+		setenv("REPREPRO_CONF_DIR", global.confdir, true);
+		setenv("REPREPRO_DIST_DIR", global.distdir, true);
+		setenv("REPREPRO_LOG_DIR", global.logdir, true);
+		setenv("REPREPRO_FILTER_CODENAME",
+				ut->target->codename, true);
+		setenv("REPREPRO_FILTER_PACKAGETYPE",
+				atoms_architectures[ut->target->packagetype_atom],
+				true);
+		setenv("REPREPRO_FILTER_COMPONENT",
+				atoms_components[ut->target->component_atom],
+				true);
+		setenv("REPREPRO_FILTER_ARCHITECTURE",
+				atoms_architectures[ut->target->architecture_atom],
+				true);
+		setenv("REPREPRO_FILTER_PATTERN", origin->pattern->name, true);
+		execlp("sh", "sh", "-c", shellhook, ENDOFARGUMENTS);
+		e = errno;
+		fprintf(stderr, "Error %d while executing sh -c '%s': %s\n",
+				e, shellhook, strerror(e));
+		exit(255);
+	}
+	(void)close(infd);
+	(void)close(outfd);
+	if( verbose > 5 )
+		fprintf(stderr, "Called sh -c '%s' <'%s' >'%s'\n", shellhook,
+				oldfilename, newfilename);
+	f->afterhookfilename = newfilename;
+	do {
+		c = waitpid(child, &status, WUNTRACED);
+		if( c < 0 ) {
+			int e = errno;
+			fprintf(stderr,
+"Error %d while waiting for shell hook '%s' to finish: %s\n",
+					e, shellhook, strerror(e));
+			return RET_ERRNO(e);
+		}
+	} while( c != child );
+	if( WIFEXITED(status) ) {
+		if( WEXITSTATUS(status) == 0 ) {
+			if( verbose > 5 )
+				fprintf(stderr, "shell hook successfully returned!\n");
+			return RET_OK;
+		} else {
+			fprintf(stderr,
+"shell hook '%s' failed with exitcode %d!\n",
+					shellhook, (int)WEXITSTATUS(status));
+			return RET_ERROR;
+		}
+	} else {
+		fprintf(stderr,
+"shell hook '%s' terminated abnormally. (status is %x)!\n",
+				shellhook, status);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
 static retvalue calllisthooks(struct update_distribution *d) {
 	retvalue result,r;
 	struct update_target *target;
@@ -1396,13 +1523,24 @@ static retvalue calllisthooks(struct update_distribution *d) {
 		 * all (in case there are delete rules) */
 		for( uindex = target->indices ; uindex != NULL ;
 				uindex = uindex->next ) {
+			const struct update_pattern *p;
+
 			if( uindex->remote == NULL )
-				continue;
-			if( uindex->origin->pattern->listhook == NULL )
 				continue;
 			if( uindex->failed )
 				continue;
-			r = calllisthook(target, uindex);
+			p = uindex->origin->pattern;
+			while( p != NULL && p->listhook == NULL
+			                 && p->shellhook == NULL )
+				p = p->pattern_from;
+			if( p == NULL )
+				continue;
+			if( p->listhook != NULL )
+				r = calllisthook(target, uindex, p->listhook);
+			else {
+				assert( p->shellhook != NULL );
+				r = callshellhook(target, uindex, p->shellhook);
+			}
 			if( RET_WAS_ERROR(r) ) {
 				uindex->failed = true;
 				return r;
