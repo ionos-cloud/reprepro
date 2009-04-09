@@ -435,8 +435,6 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 	}
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field");
-	r = check(filename,c,"Urgency");
-	R;
 	r = check(filename,c,"Maintainer");
 	R;
 	r = chunk_getextralinelist(c->control,
