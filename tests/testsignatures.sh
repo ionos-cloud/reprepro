@@ -309,6 +309,9 @@ stdout
 -v3*=deleting './i/testbadsigned.changes'...
 EOF
 
+rm -rf db conf dists pool gpgtestdir i tmp
+rm package-addons* package_* *.changes
+
 if test x$STANDALONE = xtrue ; then
 	set +v +x
 	echo
