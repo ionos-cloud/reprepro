@@ -1245,8 +1245,10 @@ retvalue updates_calcindices(struct update_pattern *patterns, struct distributio
 		u_ds = u_d;
 
 		r = getorigins(u_d);
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
 			break;
+		}
 		if( RET_IS_OK(r) ) {
 			/* Check if we got all: */
 			r = findmissingupdate(distribution, u_d->origins);
