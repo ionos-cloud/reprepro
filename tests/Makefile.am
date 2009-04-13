@@ -24,5 +24,14 @@ testupdatecorners.sh \
 testvarious1.sh \
 testvarious2.sh \
 testvarious3.sh \
-tooltest.sh
+testverify.sh \
+tooltest.sh \
+evil.key \
+expired.key \
+expiredwithsubkey.key \
+expiredwithsubkey-working.key \
+good.key \
+revoked.key \
+withsubkeys.key \
+withsubkeys-works.key
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in

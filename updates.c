@@ -343,7 +343,7 @@ CFvalueSETPROC(update_pattern, from)
 CFurlSETPROC(update_pattern, method)
 CFurlSETPROC(update_pattern, fallback)
 /* what here? */
-CFvalueSETPROC(update_pattern, verifyrelease)
+CFallSETPROC(update_pattern, verifyrelease)
 CFlinelistSETPROC(update_pattern, config)
 CFtruthSETPROC(update_pattern, ignorerelease)
 CFscriptSETPROC(update_pattern, listhook)
@@ -749,6 +749,7 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 	/*@dependant@*/struct update_pattern *declaration, *p, *listscomponents;
 	bool ignorehashes[cs_hashCOUNT], ignorerelease;
 	const char *verifyrelease;
+	retvalue r;
 
 	update = calloc(1,sizeof(struct update_origin));
 	if( update == NULL )
@@ -843,13 +844,13 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 		updates_freeorigins(update);
 		return RET_ERROR;
 	}
-	update->from = remote_distribution_prepare(declaration->repository,
+	r = remote_distribution_prepare(declaration->repository,
 			update->suite_from, ignorerelease,
 			verifyrelease, update->flat,
-			ignorehashes);
-	if( FAILEDTOALLOC(update->from) ) {
+			ignorehashes, &update->from);
+	if( RET_WAS_ERROR(r) ) {
 		updates_freeorigins(update);
-		return RET_ERROR_OOM;
+		return r;
 	}
 
 	*origins = update;

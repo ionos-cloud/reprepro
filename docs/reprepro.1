@@ -1184,8 +1184,12 @@ file and check if it is a signature of the
 with the key given here. (In the Format as
 "gpg \-\-with\-colons \-\-list\-key" prints it, i.e. the last
 16 hex digits of the fingerprint) Multiple keys can be specified
-by separating them with a "|" sign. Then finding a signature
+by separating them with a "\fB|\fP" sign. Then finding a signature
 from one of the will suffice.
+To allow revoked or expired keys, add a "\fB!\fP" behind a key.
+(but to accept such signatures, the appropiate \fB\-\-ignore\fP
+is also needed).
+To also allow subkeys of a specified key, add a "\fB+\fP" behind a key.
 .TP
 .B IgnoreRelease
 If this is present, no
@@ -1657,6 +1661,18 @@ Do not reject a .changes file containing .dsc files with
 a different version.
 .br
 (Note: reprepro only compares literally here, not by meaning.)
+.TP
+.B expiredkey \fR(I hope you know what you do)
+Accept signatures with expired keys.
+(Only if the expired key is explicitly requested).
+.TP
+.B expiredsignature \fR(I hope you know what you do)
+Accept expired signatures with expired keys.
+(Only if the key is explicitly requested).
+.TP
+.B revokedkey \fR(I hope you know what you do)
+Accept signatures with revoked keys.
+(Only if the revoked key is explicitly requested).
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with

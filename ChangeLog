@@ -1,3 +1,13 @@
+2009-04-13
+	* rewrite Release.gpg verification code:
+	- to allow usage of expired or revoced keys, the key-id
+	  in VerifyRelease has to be appended with '!' and the corresponding
+	  new ignore option given.
+	- subkeys are accepted if the key-id is appended with '+'.
+	- keys are requested from libgpgme before anything is downloaded
+	  (helps catching c&p errors and makes subkey checks possible).
+	- if verification fails, the status of all found signatures is printed.
+
 2009-04-07
 	* bugfix: ListHook was not used in rules including the rule with it
 	in "From:"

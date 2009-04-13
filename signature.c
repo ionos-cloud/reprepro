@@ -25,12 +25,8 @@
 #include <string.h>
 #include <malloc.h>
 #include <fcntl.h>
-#ifdef HAVE_LIBGPGME
-#include <gpg-error.h>
-#include <gpgme.h>
-#endif
-#include "globals.h"
-#include "error.h"
+
+#include "signature_p.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "dirs.h"
@@ -38,15 +34,15 @@
 #include "chunks.h"
 #include "release.h"
 #include "readtextfile.h"
-#include "signature.h"
 
 #ifdef HAVE_LIBGPGME
-static gpgme_ctx_t context = NULL;
+gpgme_ctx_t context = NULL;
 
-static retvalue gpgerror(gpg_error_t err) {
+retvalue gpgerror(gpg_error_t err) {
 	if( err != 0 ) {
-		fprintf(stderr,"gpgme gave %s error: %s\n",
-				gpg_strsource(err), gpg_strerror(err));
+		fprintf(stderr, "gpgme gave error %s:%d:  %s\n",
+				gpg_strsource(err), gpg_err_code(err),
+				gpg_strerror(err));
 		if( gpg_err_code(err) == GPG_ERR_ENOMEM )
 			return RET_ERROR_OOM;
 		else
@@ -101,231 +97,6 @@ void signatures_done(void) {
 		gpgme_release(context);
 		context = NULL;
 	}
-#endif /* HAVE_LIBGPGME */
-}
-
-#ifdef HAVE_LIBGPGME
-static inline retvalue containskey(const char *key, const char *fingerprint) {
-	size_t fl,kl;
-	const char *keypart,*p;
-
-	fl = strlen(fingerprint);
-
-	keypart = key;
-	while( true ) {
-		while( *keypart != '\0' && xisspace(*keypart) )
-			keypart++;
-		if( *keypart == '\0' )
-			/* nothing more to check, so nothing fulfilled */
-			return RET_NOTHING;
-		p = keypart;
-		while( *p != '\0' && !xisspace(*p) && *p != '|' )
-			p++;
-		kl = p-keypart;
-		if( kl < 8 ) {
-			fprintf(stderr, "Key id too short (less than 8 characters) in '%s'!\n",key);
-			return RET_ERROR;
-		}
-		if( kl < fl && strncasecmp(fingerprint+fl-kl,keypart,kl) == 0 )
-			return RET_OK;
-		keypart = p;
-		while( *keypart != '\0' && xisspace(*keypart) )
-			keypart++;
-		if( *keypart == '\0' )
-			return RET_NOTHING;
-		if( *keypart == '|' )
-			keypart++;
-		else {
-			fprintf(stderr,"Space separated values in keyid '%s'!\n(Use | symbols to separate multiple possible keys!)\n",key);
-			return RET_ERROR;
-		}
-	}
-}
-#endif /* HAVE_LIBGPGME */
-
-retvalue signature_check(const struct strlist *requirements, const char *releasegpg, const char *release) {
-	retvalue r;
-#ifdef HAVE_LIBGPGME
-	gpg_error_t err;
-	int fd,gpgfd;
-	gpgme_data_t dh,dh_gpg;
-	gpgme_verify_result_t result;
-	gpgme_signature_t s;
-	bool totalfulfilled[requirements->count], keyfulfills[requirements->count];
-	int i,j;
-#endif /* HAVE_LIBGPGME */
-
-	assert( requirements->count > 0 );
-
-	if( release == NULL || releasegpg == NULL )
-		return RET_ERROR_OOM;
-
-	r = signature_init(false);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-#ifdef HAVE_LIBGPGME
-	for( i = 0 ; i < requirements->count ; i++ )
-		totalfulfilled[i] = false;
-	/* Read the file and its signature into memory: */
-	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
-	if( gpgfd < 0 ) {
-		int e = errno;
-		fprintf(stderr, "Error opening '%s': %s\n", releasegpg, strerror(e));
-		return RET_ERRNO(e);
-	}
-	fd = open(release, O_RDONLY|O_NOCTTY);
-	if( fd < 0 ) {
-		int e = errno;
-		(void)close(gpgfd);
-		fprintf(stderr, "Error opening '%s': %s\n", release, strerror(e));
-		return RET_ERRNO(e);
-	}
-	err = gpgme_data_new_from_fd(&dh_gpg, gpgfd);
-	if( err != 0 ) {
-		(void)close(gpgfd); (void)close(fd);
-		return gpgerror(err);
-	}
-	err = gpgme_data_new_from_fd(&dh, fd);
-	if( err != 0 ) {
-		gpgme_data_release(dh_gpg);
-		(void)close(gpgfd); (void)close(fd);
-		return gpgerror(err);
-	}
-
-	/* Verify the signature */
-
-	err = gpgme_op_verify(context,dh_gpg,dh,NULL);
-	gpgme_data_release(dh_gpg);
-	gpgme_data_release(dh);
-	close(gpgfd);close(fd);
-	if( err != 0 )
-		return gpgerror(err);
-
-	result = gpgme_op_verify_result(context);
-	if( result == NULL ) {
-		fprintf(stderr,"Internal error communicating with libgpgme: no result record!\n\n");
-		return RET_ERROR_GPGME;
-	}
-	for( s = result->signatures ; s != NULL ; s = s->next ) {
-		bool keyused = false;
-
-		for( i = 0 ; i < requirements->count ; i++ ) {
-			r = containskey(requirements->values[i], s->fpr);
-			if( RET_WAS_ERROR(r) )
-				return r;
-			if( RET_IS_OK(r) ) {
-				keyused = true;
-				keyfulfills[i] = true;
-			} else
-				keyfulfills[i] = false;
-		}
-		if( !keyused ) {
-			if( gpg_err_code(s->status) == GPG_ERR_NO_ERROR &&
-					verbose > 10 ) {
-				printf("Valid signature with key '%s', but that key is not looked at.\n", s->fpr);
-			}
-			/* there's no use in checking signatures not sufficient */
-			continue;
-		}
-		assert( RET_IS_OK(r) );
-		switch( gpg_err_code(s->status) ) {
-			case GPG_ERR_NO_ERROR:
-				return RET_OK;
-			case GPG_ERR_KEY_EXPIRED:
-				fprintf(stderr,
-"WARNING: valid signature in '%s' with '%s', which has been expired.\n"
-"         as the key was manually specified it is still accepted!\n",
-						releasegpg, s->fpr);
-				for( i = 0 ; i < requirements->count ; i++ ) {
-					if( keyfulfills[i] )
-						totalfulfilled[i] = true;
-				}
-				continue;
-			case GPG_ERR_CERT_REVOKED:
-				fprintf(stderr,
-"WARNING\n"
-"WARNING: valid signature in '%s' with '%s', which has been revoked.\n"
-"WARNING: as the key was manually specified it is still accepted!\n"
-"WARNING\n", releasegpg, s->fpr);
-				for( i = 0 ; i < requirements->count ; i++ ) {
-					if( keyfulfills[i] )
-						totalfulfilled[i] = true;
-				}
-				continue;
-			case GPG_ERR_SIG_EXPIRED:
-				if( verbose > 0 ) {
-					time_t timestamp = s->timestamp,
-					       exp_timestamp = s->exp_timestamp;
-					fprintf(stderr,
-"'%s' has a valid but expired signature with '%s'\n"
-" signature created %s, expired %s\n",
-						releasegpg, s->fpr,
-						ctime(&timestamp),
-						ctime(&exp_timestamp));
-				}
-				// not accepted:
-				continue;
-			case GPG_ERR_BAD_SIGNATURE:
-				if( verbose > 0 ) {
-					fprintf(stderr,
-"WARNING: '%s' has a invalid signature with '%s'\n", releasegpg, s->fpr);
-				}
-				// not accepted:
-				continue;
-			case GPG_ERR_NO_PUBKEY:
-				if( verbose > 0 ) {
-					fprintf(stderr,
-"Could not check validity of signature with '%s' in '%s' as public key missing!\n",
-						s->fpr, releasegpg);
-				}
-				// not accepted:
-				continue;
-			case GPG_ERR_GENERAL:
-				fprintf(stderr,
-"gpgme returned an general error verifing signature with '%s' in '%s'!\n"
-"Try running gpg --verify '%s' '%s' manually for hints what is happening.\n"
-"If this does not print any errors, retry the command causing this message.\n",
-						s->fpr, releasegpg,
-						releasegpg, release);
-				continue;
-			/* there sadly no more is a way to make sure we have
-			 * all possible ones handled */
-			default:
-				break;
-		}
-		fprintf(stderr,
-"Error checking signature (gpgme returned unexpected value %d)!\n"
-"Please file a bug report, so reprepro can handle this in the future.\n",
-			gpg_err_code(s->status));
-		return RET_ERROR_GPGME;
-	}
-	for( i = 0 ; i < requirements->count ; i++ ) {
-		if( totalfulfilled[i] )
-			continue;
-		j = 0;
-		while( j < requirements->count && !totalfulfilled[j] )
-			j++;
-		if( j >= requirements->count ) {
-			/* none of the requirements matches */
-			fprintf(stderr,
-"Error: No accepted signature for '%s' found in '%s'!\n",
-					release, releasegpg);
-		} else {
-			fprintf(stderr,
-"Error: '%s' misses requirement '%s'.\n"
-"At least one other requirement on that file was not missed,\n"
-"but all requirements have to be fulfilled to accept it.\n",
-					releasegpg, requirements->values[i]);
-		}
-		return RET_ERROR_BADSIG;
-	}
-	return RET_OK;
-#else /* HAVE_LIBGPGME */
-	fprintf(stderr,
-"ERROR: Cannot check signature as this reprepro binary is compiled with support\n"
-"for libgpgme.\n"); // TODO: "Only running external programs is supported.\n"
-	return RET_ERROR_GPGME;
 #endif /* HAVE_LIBGPGME */
 }
 

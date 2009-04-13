@@ -3806,6 +3806,7 @@ int main(int argc,char *argv[]) {
 			 * stupid, but it makes valgrind logs easier
 			 * readable */
 			signatures_done();
+			free_known_keys();
 			if( RET_WAS_ERROR(r) ) {
 				if( r == RET_ERROR_OOM )
 					(void)fputs("Out of Memory!\n",stderr);

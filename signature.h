@@ -10,9 +10,16 @@
  * argument will only take effect if called the first time */
 retvalue signature_init(bool allowpassphrase);
 
-retvalue signature_check(const struct strlist *options, const char *releasegpg, const char *release);
+struct signature_requirement;
+void signature_requirements_free(/*@only@*/struct signature_requirement *);
+retvalue signature_requirement_add(struct signature_requirement **, const char *);
+void free_known_keys(void);
+
+retvalue signature_check(const struct signature_requirement *, const char *releasegpg, const char *release);
+
 
 /* Read a single chunk from a file, that may be signed. */
+struct strlist;
 retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature);
 
 struct signedfile;
@@ -28,5 +35,4 @@ retvalue signedfile_finalize(struct signedfile *, bool *toolate);
 void signedfile_free(/*@only@*/struct signedfile *, bool cleanup);
 
 void signatures_done(void);
-
 #endif
