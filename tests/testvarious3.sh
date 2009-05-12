@@ -824,6 +824,8 @@ test ! -f pool/all/a/ac/ac-addons_1-1_all.deb
 test ! -f pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb
 test -f pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
 testrun - -b . copy b a ab ac 3<<EOF
+stderr
+-v0*=Will not copy as not found: ac.
 stdout
 -v9*=Adding reference to 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' by 'b|all|${FAKEARCHITECTURE}'
 -v1*=Adding 'ab' '3-1' to 'b|all|${FAKEARCHITECTURE}'.

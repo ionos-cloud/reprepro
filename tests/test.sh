@@ -20,6 +20,7 @@ runtest snapshotcopyrestore
 runtest various1
 runtest various2
 runtest various3
+runtest copy
 
 set +v +x
 echo

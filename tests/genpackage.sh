@@ -51,8 +51,12 @@ mkdir "$DIR"/debian/tmp/dir/subdir
 touch "$DIR"/debian/tmp/dir/subdir/file
 cd "$DIR"
 for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
-	dpkg-gencontrol -p$pkg
-	dpkg --build debian/tmp .. 
+	if [ "x$pkg" != "x${pkg%-addons}" -a -n "$FAKEVER" ] ; then
+		dpkg-gencontrol -p$pkg -v"$FAKEVER"
+	else
+		dpkg-gencontrol -p$pkg
+	fi
+	dpkg --build debian/tmp ..
 done
 #dpkg-genchanges > ../"${PACKAGE}_$VERSION$REVISION"_abbacus.changes
 dpkg-genchanges "$@" > ../"$OUTPUT"

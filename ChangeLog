@@ -1,3 +1,7 @@
+2009-05-12
+	* copy and copysrc give warnings about not found packages unless
+	  verbosity is reduced by --silent. (To help people catch their typos).
+
 2009-04-13
 	* rewrite Release.gpg verification code:
 	- to allow usage of expired or revoced keys, the key-id
