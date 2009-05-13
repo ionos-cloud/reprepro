@@ -190,7 +190,7 @@ error possibly bringing it into a inconsistent state.
 .BR \-\-export=never
 No index files are exported. You will have to call \fBexport\fP later.
 .br
-\fINote\fP that you most likely additionally need the \fB\-\-keepunreferenced\fP
+\fINote\fP that you most likely additionally need the \fB\-\-keepunreferencedfiles\fP
 option, if you do want some of the files pointed to by the untouched index
 files to vanish.
 .TP
@@ -421,6 +421,11 @@ Delete all packages in the specified distribution,
 that have package name listed as argument.
 (i.e. remove all packages \fBlist\fP with the same arguments and options
 would list, except that an empty package list is not allowed.)
+
+Note that like any other operation removing or replacing a package,
+the old package's files are unreferenced and thus may be automatically
+deleted if this was their last reference and no \fB\-\-keepunreferencedfiles\fP
+specified.
 .TP
 .B removefilter \fIcodename\fP \fIcondition\fP
 Delete all packages \fBlistfilter\fP with the same arguments would list.
