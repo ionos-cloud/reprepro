@@ -1,3 +1,9 @@
+reprepro (3.10.0-0) UNRELEASED; urgency=low
+
+  * update Vcs-Browser field (Closes: 528291)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 13 May 2009 13:10:09 +0200
+
 reprepro (3.9.2-1) unstable; urgency=low
 
   * new bugfix release
