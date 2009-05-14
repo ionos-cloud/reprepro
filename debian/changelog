@@ -1,5 +1,8 @@
 reprepro (3.10.0-0) UNRELEASED; urgency=low
 
+  * new release
+  - hint at what remove does with packages' files in manpage
+    (Closes: 528498)
   * update Vcs-Browser field (Closes: 528291)
 
  -- Bernhard R. Link <brlink@debian.org>  Wed, 13 May 2009 13:10:09 +0200
