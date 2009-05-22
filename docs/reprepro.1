@@ -1498,20 +1498,27 @@ as to be signed with to be included in that distribution.
 Empty lines and lines starting with a hash are ignored, every other line
 has to be of one of this three forms:
 .br
-.B allow * by unsigned
+.B allow \fIcondition\fP by anybody
+which allows everyone to do everything,
 .br
-which allows everything without a valid signature in,
+.B allow \fIcondition\fP by unsigned
 .br
-.B allow * by any key
+which allows everything that has no pgp/gpg header,
+.br
+.B allow \fIcondition\fP by any key
 .br
 which allows everything with any valid signature in or
 .br
-.B allow *  by key \fIkey-id\fP
+.B allow \fIcondition\fP by key \fIkey-id\fP
 .br
 which allows everything signed by this \fIkey-id\fP (to be specified
 without any spaces) in.
+If the \fIkey-id\fP ends with a \fB+\fP (plus), a signature with a subkey of
+this primary key also suffices.
+
+The only condition currently supported is \fB*\fP which means any package.
 .P
-(Other statements
+(Other conditions
 will follow once somebody tells me what restrictions are useful).
 .SH "ERROR IGNORING"
 With \fB\-\-ignore\fP on the command line or an \fIignore\fP

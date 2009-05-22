@@ -596,7 +596,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	r = signature_readsignedchunk(fullfilename, fullfilename,
-			&n->controlchunk, NULL, NULL, NULL);
+			&n->controlchunk, NULL, NULL);
 	assert( r != RET_NOTHING );
 	// TODO: can this be ignored sometimes?
 	if( RET_WAS_ERROR(r) ) {
@@ -2836,7 +2836,7 @@ int main(int argc,char *argv[]) {
 		char *changes;
 
 		r = signature_readsignedchunk(changesfilename, changesfilename,
-				&changes, NULL, NULL, NULL);
+				&changes, NULL, NULL);
 		if( !RET_IS_OK(r) ) {
 			signatures_done();
 			if( r == RET_ERROR_OOM )

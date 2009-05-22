@@ -294,46 +294,72 @@ static retvalue signature_sign(const char *options, const char *filename, const 
  * which are mentioned in the signature (all). set broken if all signatures
  * was broken (hints to a broken file, as opposed to expired or whatever
  * else may make a signature invalid)). */
-static retvalue checksigs(const char *filename, struct strlist *valid, struct strlist *all, bool *broken) {
+static retvalue checksigs(const char *filename, struct signatures **signatures_p, bool *broken) {
 	gpgme_verify_result_t result;
 	gpgme_signature_t s;
 	bool had_valid = false, had_broken = false;
+	size_t count;
+	struct signatures *signatures;
+	struct signature *sig;
 
 	result = gpgme_op_verify_result(context);
 	if( result == NULL ) {
 		fprintf(stderr,"Internal error communicating with libgpgme: no result record!\n\n");
 		return RET_ERROR_GPGME;
 	}
+	if( signatures_p != NULL ) {
+		count = 0;
+		for( s = result->signatures ; s != NULL ; s = s->next ) {
+			count++;
+		}
+		signatures = calloc(1, sizeof(struct signatures) +
+				count * sizeof(struct signature));
+		if( FAILEDTOALLOC(signatures) )
+			return RET_ERROR_OOM;
+		signatures->count = count;
+		signatures->validcount = 0;
+		sig = signatures->signatures;
+	} else {
+		signatures = NULL;
+		sig = NULL;
+	}
 	for( s = result->signatures ; s != NULL ; s = s->next ) {
-		if( all != NULL ) {
-			retvalue r = strlist_add_dup(all, s->fpr);
-			if( RET_WAS_ERROR(r) )
-				return r;
+		enum signature_state state = sist_error;
+
+		if( signatures_p != NULL ) {
+			sig->keyid = strdup(s->fpr);
+			if( FAILEDTOALLOC(sig->keyid) ) {
+				signatures_free(signatures);
+				return RET_ERROR_OOM;
+			}
 		}
 		switch( gpg_err_code(s->status) ) {
 			case GPG_ERR_NO_ERROR:
 				had_valid = true;
-				if( valid != NULL ) {
-					retvalue r = strlist_add_dup(valid,
-								s->fpr);
-					if( RET_WAS_ERROR(r) )
-						return r;
-				}
-				continue;
+				state = sist_valid;
+				if( signatures )
+					signatures->validcount++;
+				break;
 			case GPG_ERR_KEY_EXPIRED:
 				had_valid = true;
 				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key has expired.\n",
 						s->fpr, filename);
-				continue;
+				state = sist_mostly;
+				if( sig != NULL )
+					sig->expired_key = true;
+				break;
 			case GPG_ERR_CERT_REVOKED:
 				had_valid = true;
 				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key is revoked.\n",
 						s->fpr, filename);
-				continue;
+				state = sist_mostly;
+				if( sig != NULL )
+					sig->revoced_key = true;
+				break;
 			case GPG_ERR_SIG_EXPIRED:
 				had_valid = true;
 				if( verbose > 0 ) {
@@ -346,21 +372,26 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 						ctime(&timestamp),
 						ctime(&exp_timestamp));
 				}
-				continue;
+				state = sist_mostly;
+				if( sig != NULL )
+					sig->expired_signature = true;
+				break;
 			case GPG_ERR_BAD_SIGNATURE:
 				had_broken = true;
 				if( verbose > 0 ) {
 					fprintf(stderr,
 "WARNING: '%s' has a invalid signature with '%s'\n", filename, s->fpr);
 				}
-				continue;
+				state = sist_bad;
+				break;
 			case GPG_ERR_NO_PUBKEY:
 				if( verbose > 0 ) {
 					fprintf(stderr,
 "Could not check validity of signature with '%s' in '%s' as public key missing!\n",
 						s->fpr, filename);
 				}
-				continue;
+				state = sist_missing;
+				break;
 			case GPG_ERR_GENERAL:
 				fprintf(stderr,
 "gpgme returned an general error verifing signature with '%s' in '%s'!\n"
@@ -368,20 +399,84 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 "If this does not print any errors, retry the command causing this message.\n",
 						s->fpr, filename,
 						filename);
-				continue;
+				signatures_free(signatures);
+				return RET_ERROR_GPGME;
 			/* there sadly no more is a way to make sure we have
 			 * all possible ones handled */
 			default:
 				break;
 		}
-		fprintf(stderr,
+		if( state == sist_error ) {
+			fprintf(stderr,
 "Error checking signature (gpgme returned unexpected value %d)!\n"
 "Please file a bug report, so reprepro can handle this in the future.\n",
-			gpg_err_code(s->status));
-		return RET_ERROR_GPGME;
+				gpg_err_code(s->status));
+			signatures_free(signatures);
+			return RET_ERROR_GPGME;
+		}
+		if( sig != NULL ) {
+			sig->state = state;
+			sig++;
+		}
 	}
 	if( broken != NULL && had_broken && ! had_valid )
 		*broken = true;
+	if( signatures_p != NULL )
+		*signatures_p = signatures;
+	return RET_OK;
+}
+
+static retvalue check_primary_keys(struct signatures *signatures) {
+	/* Get the primary keys belonging to each signing key.
+	   This might also invalidate a signature previously believed
+	   valid if the primary key is expired */
+	int i;
+
+	for( i = 0 ; i < signatures->count ; i++ ) {
+		gpg_error_t err;
+		gpgme_key_t gpgme_key = NULL;
+		gpgme_subkey_t subkey;
+		struct signature *sig = &signatures->signatures[i];
+
+		if( sig->state == sist_error || sig->state == sist_missing ) {
+			sig->primary_keyid = strdup(sig->keyid);
+			if( FAILEDTOALLOC(sig->primary_keyid) )
+				return RET_ERROR_OOM;
+			continue;
+		}
+
+		err = gpgme_get_key(context, sig->keyid, &gpgme_key, 0);
+		if( err != 0 ) {
+			fprintf(stderr, "gpgme error %s:%d retrieving key '%s': %s\n",
+					gpg_strsource(err), (int)gpg_err_code(err),
+					sig->keyid, gpg_strerror(err));
+			if( gpg_err_code(err) == GPG_ERR_ENOMEM )
+				return RET_ERROR_OOM;
+			else
+				return RET_ERROR_GPGME;
+		}
+		assert( gpgme_key != NULL );
+		/* the first "sub"key is the primary key */
+		subkey = gpgme_key->subkeys;
+		if( subkey->revoked ) {
+			sig->revoced_key = true;
+			if( sig->state == sist_valid ) {
+				sig->state = sist_mostly;
+				signatures->validcount--;
+			}
+		}
+		if( subkey->expired ) {
+			sig->expired_key = true;
+			if( sig->state == sist_valid ) {
+				sig->state = sist_mostly;
+				signatures->validcount--;
+			}
+		}
+		sig->primary_keyid = strdup(subkey->keyid);
+		gpgme_key_unref(gpgme_key);
+		if( FAILEDTOALLOC(sig->primary_keyid) )
+			return RET_ERROR_OOM;
+	}
 	return RET_OK;
 }
 #endif /* HAVE_LIBGPGME */
@@ -420,8 +515,21 @@ static inline void extractchunk(const char *buffer, const char **begin, const ch
 	*next = afterchanges;
 }
 
+void signatures_free(struct signatures *signatures) {
+	int i;
+
+	if( signatures == NULL )
+		return;
+
+	for( i = 0 ; i < signatures->count ; i++ ) {
+		free(signatures->signatures[i].keyid);
+		free(signatures->signatures[i].primary_keyid);
+	}
+	free(signatures);
+}
+
 #ifdef HAVE_LIBGPGME
-static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature, bool *failed) {
+static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct signatures **signatures_p, bool *brokensignature, bool *failed) {
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	gpg_error_t err;
@@ -429,11 +537,8 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 	size_t plain_len;
 	char *plain_data;
 	retvalue r;
-	struct strlist validfingerprints, allfingerprints;
+	struct signatures *signatures = NULL;
 	bool foundbroken = false;
-
-	strlist_init(&validfingerprints);
-	strlist_init(&allfingerprints);
 
 	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
@@ -461,10 +566,9 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 			gpgme_data_release(dh);
 			return gpgerror(err);
 		}
-		if( validkeys != NULL || allkeys != NULL || brokensignature != NULL ) {
+		if( signatures_p != NULL || brokensignature != NULL ) {
 			r = checksigs(filenametoshow,
-				(validkeys!=NULL)?&validfingerprints:NULL,
-				(allkeys!=NULL)?&allfingerprints:NULL,
+				(signatures_p!=NULL)?&signatures:NULL,
 				(brokensignature!=NULL)?&foundbroken:NULL);
 			if( RET_WAS_ERROR(r) ) {
 				gpgme_data_release(dh_gpg);
@@ -484,7 +588,15 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 "Continuing extracting it ignoring all signatures...",
 					filenametoshow, filenametoshow);
 			*failed = true;
+			signatures_free(signatures);
 			return RET_NOTHING;
+		}
+		if( signatures != NULL ) {
+			r = check_primary_keys(signatures);
+			if( RET_WAS_ERROR(r) ) {
+				signatures_free(signatures);
+				return r;
+			}
 		}
 	}
 
@@ -543,24 +655,19 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 	free(plain_data);
 #endif
 	if( RET_IS_OK(r) ) {
-		if( validkeys != NULL )
-			strlist_move(validkeys, &validfingerprints);
-		if( allkeys != NULL )
-			strlist_move(allkeys, &allfingerprints);
+		if( signatures_p != NULL )
+			*signatures_p = signatures;
 		if( brokensignature != NULL )
 			*brokensignature = foundbroken;
 	} else {
-		if( validkeys != NULL )
-			strlist_done(&validfingerprints);
-		if( allkeys != NULL )
-			strlist_done(&allfingerprints);
+		signatures_free(signatures);
 	}
 	return r;
 }
 #endif /* HAVE_LIBGPGME */
 
 /* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature) {
+retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct signatures **signatures_p, bool *brokensignature) {
 	char *chunk, *h, *afterchunk;
 	const char *startofchanges,*endofchanges,*afterchanges;
 	size_t chunklen, len;
@@ -597,10 +704,8 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 		if( h != NULL )
 			chunk = h;
 		*chunkread = chunk;
-		if( validkeys != NULL )
-			strlist_init(validkeys);
-		if( allkeys != NULL )
-			strlist_init(allkeys);
+		if( signatures_p != NULL )
+			*signatures_p = NULL;
 		if( brokensignature != NULL )
 			*brokensignature = false;
 		return RET_OK;
@@ -614,7 +719,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 
 #ifdef HAVE_LIBGPGME
 	r = extract_signed_data(chunk, chunklen, filenametoshow, chunkread,
-			validkeys, allkeys, brokensignature, &failed);
+			signatures_p, brokensignature, &failed);
 	if( r != RET_NOTHING ) {
 		free(chunk);
 		return r;
@@ -683,11 +788,16 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	h = realloc(chunk, len + 1);
 	if( h != NULL )
 		chunk = h;
+	if( signatures_p != NULL ) {
+		/* pointer to structure with count 0 to make clear
+		 * it is not unsigned */
+		*signatures_p = calloc(1, sizeof(struct signatures));
+		if( FAILEDTOALLOC(*signatures_p) ) {
+			free(chunk);
+			return RET_ERROR_OOM;
+		}
+	}
 	*chunkread = chunk;
-	if( validkeys != NULL )
-		strlist_init(validkeys);
-	if( allkeys != NULL )
-		strlist_init(allkeys);
 	if( brokensignature != NULL )
 		*brokensignature = false;
 	return RET_OK;
