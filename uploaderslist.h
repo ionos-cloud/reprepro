@@ -6,7 +6,7 @@ struct upload_condition;
 struct upload_conditions;
 struct uploaders;
 
-enum upload_condition_type { uc_REJECTED, uc_ALWAYS,
+enum upload_condition_type { uc_REJECTED = 0, uc_ALWAYS,
 /*	uc_COMPONENT, uc_ARCHITECTURE, */
 	uc_SOURCENAME, /* uc_SECTION */ };
 #define uc_ACCEPTED uc_ALWAYS

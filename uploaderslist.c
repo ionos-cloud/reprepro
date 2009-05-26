@@ -33,8 +33,11 @@
 #include "uploaderslist.h"
 
 struct upload_condition {
+	/* linked list of all sub-nodes */
+	/*@null@*/struct upload_condition *next;
+
 	enum upload_condition_type type;
-	struct upload_condition *next_if_true, *next_if_false;
+	const struct upload_condition *next_if_true, *next_if_false;
 	bool accept_if_true, accept_if_false;
 	union {
 		/* uc_SECTION, uc_NAME, uc_SOURCE */
@@ -83,8 +86,6 @@ struct uploader {
 	size_t len;
 	char *reversed_fingerprint;
 	struct upload_condition permissions;
-	/* pointer to the tail */
-	struct upload_condition *tail_permissions;
 	bool allow_subkeys;
 };
 
@@ -101,7 +102,31 @@ struct uploaders {
 } *uploaderslists = NULL;
 
 static void uploadpermission_release(struct upload_condition *p) {
+	struct upload_condition *h, *f = NULL;
+
 	assert( p != NULL );
+
+	do {
+		h = p->next;
+		switch( p->type ) {
+			case uc_SOURCENAME:
+				free(p->string.beginswith);
+				free(p->string.includes);
+				free(p->string.endswith);
+				free(p->string.exactly);
+				break;
+
+			case uc_ALWAYS:
+			case uc_REJECTED:
+				assert( p->type != uc_REJECTED );
+				break;
+		}
+		free(f);
+		/* next one must be freed: */
+		f = h;
+		/* and processed: */
+		p = h;
+	} while( p != NULL );
 }
 
 static void uploader_free(struct uploader *u) {
@@ -230,6 +255,8 @@ static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions *
 		r = upload_conditions_add(c_p, &uploader->permissions);
 		if( RET_WAS_ERROR(r) )
 			return r;
+		/* no break here, as a key might match
+		 * multiple specifications of different length */
 	}
 	return RET_OK;
 }
@@ -366,30 +393,13 @@ static struct upload_condition *addfingerprint(struct uploaders *u, const char *
 	reversed[len] = '\0';
 	last = &u->by_fingerprint;
 	for( uploader = u->by_fingerprint ; uploader != NULL ; uploader = *(last = &uploader->next) ) {
-		if( uploader->len < len ) {
-			if( memcmp(uploader->reversed_fingerprint,
-			            reversed, uploader->len) == 0 ) {
-				fprintf(stderr,
-"%s:%lu: Warning: key '%.*s' shadowed by earlier, shorter definition for '%.*s'!\n",
-						filename, lineno, (int)len,
-						fingerprint, (int)uploader->len,
-						fingerprint);
-			}
+		if( uploader->len != len )
 			continue;
-		} else if( uploader->len > len ) {
-			if( memcmp(uploader->reversed_fingerprint, reversed, len) == 0 ) {
-				fprintf(stderr,
-"%s:%lu: Warning: key '%.*s' might shadow earlier, longer definition in future versions of reprepro!\n",
-					filename, lineno, (int)len, fingerprint);
-			}
-			continue;
-		}
 		if( memcmp(uploader->reversed_fingerprint, reversed, len) != 0 )
 			continue;
-		fprintf(stderr, "%s:%lu: Warning: key '%*s' defined multiple times!\n",
-				filename, lineno, (int)len, fingerprint);
+		if( uploader->allow_subkeys != allow_subkeys )
+			continue;
 		free(reversed);
-		uploader->allow_subkeys |= allow_subkeys;
 		return &uploader->permissions;
 	}
 	assert( *last == NULL );
@@ -411,10 +421,59 @@ static inline const char *overkey(const char *p) {
 	return p;
 }
 
+static retvalue parse_condition(const char *filename, long lineno, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
+	const char *p = *pp;
+
+	memset( condition, 0, sizeof(struct upload_condition));
+
+	if( *p == '\0' || p[0] != '*' || !xisspace(p[1]) ) {
+		fprintf(stderr, "%s:%lu:%u: permission class expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, lineno, column + (int)(p-*pp));
+		return RET_ERROR;
+	}
+	p++;
+	*pp = p;
+
+	condition->type = uc_ALWAYS;
+	condition->accept_if_true = true;
+	/* allocate a new fallback-node: */
+	condition->next = calloc(1, sizeof(struct upload_condition));
+	if( FAILEDTOALLOC(condition->next) )
+		return RET_ERROR_OOM;
+	condition->next_if_false = condition->next;
+	condition->next->type = uc_ALWAYS;
+	assert(!condition->next->accept_if_true);
+	return RET_OK;
+}
+
+static void condition_add(struct upload_condition *permissions, struct upload_condition *c) {
+	if( permissions->next == NULL ) {
+		/* first condition, as no fallback yet allocated */
+		*permissions = *c;
+		memset(c, 0, sizeof(struct upload_condition));
+	} else {
+		struct upload_condition *last;
+
+		last = permissions->next;
+		assert( last != NULL );
+		while( last->next != NULL )
+			last = last->next;
+
+		/* the very last is always the fallback-node to which all
+		 * other conditions fall back if they have no decision */
+		assert(last->type = uc_ALWAYS);
+		assert(!last->accept_if_true);
+
+		*last = *c;
+		memset(c, 0, sizeof(struct upload_condition));
+	}
+}
+
 static inline retvalue parseuploaderline(char *buffer, const char *filename, size_t lineno, struct uploaders *u) {
+	retvalue r;
 	const char *p, *q, *qq;
 	size_t l;
 	struct upload_condition *permissions;
+	struct upload_condition condition;
 
 	l = strlen(buffer);
 	if( l == 0 )
@@ -443,11 +502,9 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 	p+=5;
 	while( *p != '\0' && xisspace(*p) )
 		p++;
-	if( *p == '\0' || p[0] != '*' || !xisspace(p[1]) ) {
-		fprintf(stderr, "%s:%lu:%u: permission class expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, (long)lineno, (int)(1+p-buffer));
-		return RET_ERROR;
-	}
-	p++;
+	r = parse_condition(filename, lineno, (1+p-buffer), &p, &condition);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	while( *p != '\0' && xisspace(*p) )
 		p++;
 	if( strncmp(p,"by",2) != 0 || !xisspace(p[2]) ) {
@@ -489,16 +546,14 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 				filename, lineno);
 		if( permissions == NULL )
 			return RET_ERROR_OOM;
-		permissions->type = uc_ALWAYS;
-		permissions->accept_if_true = true;
+		condition_add(permissions, &condition);
 	} else if( strncmp(p, "unsigned",8) == 0 && (p[8]=='\0' || xisspace(p[8])) ) {
 		p+=8;
 		if( *p != '\0' ) {
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'unsigned' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
 			return RET_ERROR;
 		}
-		u->unsignedpermissions.type = uc_ALWAYS;
-		u->unsignedpermissions.accept_if_true = true;
+		condition_add(&u->unsignedpermissions, &condition);
 	} else if( strncmp(p, "any",3) == 0 && xisspace(p[3]) ) {
 		p+=3;
 		while( *p != '\0' && xisspace(*p) )
@@ -512,8 +567,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'any key' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
 			return RET_ERROR;
 		}
-		u->anyvalidkeypermissions.type = uc_ALWAYS;
-		u->anyvalidkeypermissions.accept_if_true = true;
+		condition_add(&u->anyvalidkeypermissions, &condition);
 	} else if( strncmp(p, "anybody", 7) == 0 && (p[7] == '\0' || xisspace(p[7])) ) {
 		p+=7;
 		while( *p != '\0' && xisspace(*p) )
@@ -522,8 +576,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'anybody' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
 			return RET_ERROR;
 		}
-		u->anybodypermissions.type = uc_ALWAYS;
-		u->anybodypermissions.accept_if_true = true;
+		condition_add(&u->anybodypermissions, &condition);
 	} else {
 		fprintf(stderr, "%s:%lu:%u: 'key', 'unsigned', 'anybody' or 'any key' expected!\n", filename, (long)lineno, (int)(1+p-buffer));
 		return RET_ERROR;
