@@ -423,25 +423,113 @@ static inline const char *overkey(const char *p) {
 
 static retvalue parse_condition(const char *filename, long lineno, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
 	const char *p = *pp;
+	struct upload_condition *fallback, *last, *or_scope;
 
 	memset( condition, 0, sizeof(struct upload_condition));
 
-	if( *p == '\0' || p[0] != '*' || !xisspace(p[1]) ) {
-		fprintf(stderr, "%s:%lu:%u: permission class expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, lineno, column + (int)(p-*pp));
-		return RET_ERROR;
-	}
-	p++;
-	*pp = p;
-
-	condition->type = uc_ALWAYS;
-	condition->accept_if_true = true;
-	/* allocate a new fallback-node: */
-	condition->next = calloc(1, sizeof(struct upload_condition));
-	if( FAILEDTOALLOC(condition->next) )
+	/* allocate a new fallback-node:
+	 * (this one is used to make it easier to concatenate those decision
+	 * trees, especially it keeps open the possibility to have deny
+	 * decisions) */
+	fallback = calloc(1, sizeof(struct upload_condition));
+	if( FAILEDTOALLOC(fallback) )
 		return RET_ERROR_OOM;
-	condition->next_if_false = condition->next;
-	condition->next->type = uc_ALWAYS;
-	assert(!condition->next->accept_if_true);
+	fallback->type = uc_ALWAYS;
+	assert(!fallback->accept_if_true);
+
+	/* the queue with next has all nodes, so they can be freed
+	 * (or otherwise modified) */
+	condition->next = fallback;
+
+
+	last = condition;
+	or_scope = condition;
+
+	while( true ) {
+		if( p[0] == '*' && xisspace(p[1]) ) {
+			last->type = uc_ALWAYS;
+			last->accept_if_true = true;
+			/* it will never be called wth uc_ALWAYS,
+			 * but other checks will need it, so add it here
+			 * for uniformity: */
+			last->next_if_false = fallback;
+			p++;
+
+		} else {
+			fprintf(stderr, "%s:%lu:%u: permission class expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, lineno, column + (int)(p-*pp));
+			uploadpermission_release(condition);
+			return RET_ERROR;
+		}
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( strncmp(p, "and", 3) == 0 && xisspace(p[3]) ) {
+			struct upload_condition *n, *c;
+
+			p += 3;
+
+			n = calloc(1, sizeof(struct upload_condition));
+			if( FAILEDTOALLOC(n) ) {
+				uploadpermission_release(condition);
+				return RET_ERROR_OOM;
+			}
+			/* everything that yet made it succeed makes it need
+			 * to check this condition: */
+			for( c = condition ; c != NULL ; c = c->next ) {
+				if( c->accept_if_true ) {
+					c->next_if_true = n;
+					c->accept_if_true = false;
+				}
+				if( c->accept_if_false ) {
+					c->next_if_false = n;
+					c->accept_if_false = false;
+				}
+			}
+			/* or will only bind to this one */
+			or_scope = n;
+
+			/* add it to queue: */
+			assert( last->next == fallback );
+			n->next = fallback;
+			last->next = n;
+			last = n;
+		} else if( strncmp(p, "or", 2) == 0 && xisspace(p[2]) ) {
+			struct upload_condition *n, *c;
+
+			p += 2;
+
+			n = calloc(1, sizeof(struct upload_condition));
+			if( FAILEDTOALLOC(n) ) {
+				uploadpermission_release(condition);
+				return RET_ERROR_OOM;
+			}
+			/* everything in current scope that made it fail
+			 * now makes it check this: (currently that will
+			 * only be true at most for c == last, but with
+			 * parantheses this all will be needed) */
+			for( c = or_scope ; c != NULL ; c = c->next ) {
+				if( c->next_if_true == fallback )
+					c->next_if_true = n;
+				if( c->next_if_false == fallback )
+					c->next_if_false = n;
+			}
+			/* add it to queue: */
+			assert( last->next == fallback );
+			n->next = fallback;
+			last->next = n;
+			last = n;
+		} else if( strncmp(p, "by", 2) == 0 && xisspace(p[2]) ) {
+			p += 2;
+			break;
+		} else {
+			fprintf(stderr, "%s:%lu:%u: 'by','and' or 'or' keyword expected!\n", filename, (long)lineno, column + (int)(p-*pp));
+			uploadpermission_release(condition);
+			memset( condition, 0, sizeof(struct upload_condition));
+			return RET_ERROR;
+		}
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+	}
+	*pp = p;
 	return RET_OK;
 }
 
@@ -505,13 +593,6 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 	r = parse_condition(filename, lineno, (1+p-buffer), &p, &condition);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	while( *p != '\0' && xisspace(*p) )
-		p++;
-	if( strncmp(p,"by",2) != 0 || !xisspace(p[2]) ) {
-		fprintf(stderr, "%s:%lu:%u: 'by' keyword expected!\n", filename, (long)lineno, (int)(1+p-buffer));
-		return RET_ERROR;
-	}
-	p += 2;
 	while( *p != '\0' && xisspace(*p) )
 		p++;
 	if( strncmp(p,"key",3) == 0 && (p[3] == '\0' || xisspace(p[3])) ) {
