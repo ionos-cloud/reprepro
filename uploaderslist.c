@@ -476,13 +476,25 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 	or_scope = condition;
 
 	while( true ) {
+		if( strncmp(p, "not", 3) == 0 &&
+				xisspace(p[3]) ) {
+			p += 3;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			/* negate means false is good and true
+			 * is bad: */
+			last->accept_if_false = true;
+			last->accept_if_true = false;
+			last->next_if_false = NULL;
+			last->next_if_true = fallback;
+		} else {
+			last->accept_if_false = false;
+			last->accept_if_true = true;
+			last->next_if_false = fallback;
+			last->next_if_true = NULL;
+		}
 		if( p[0] == '*' && xisspace(p[1]) ) {
 			last->type = uc_ALWAYS;
-			last->accept_if_true = true;
-			/* it will never be called wth uc_ALWAYS,
-			 * but other checks will need it, so add it here
-			 * for uniformity: */
-			last->next_if_false = fallback;
 			p++;
 		} else if( strncmp(p, "source", 6) == 0 &&
 			   strchr(" \t'", p[6]) != NULL ) {
@@ -491,8 +503,6 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			retvalue r;
 
 			last->type = uc_SOURCENAME;
-			last->accept_if_true = true;
-			last->next_if_false = fallback;
 			last->string.beginswith = NULL;
 			last->string.includes = NULL;
 			last->string.endswith = NULL;

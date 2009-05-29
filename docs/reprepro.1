@@ -1537,8 +1537,16 @@ which means any package,
 which mean any package with source \fIname\fP.
 (up to two asterisks are allowed in \fIname\fP).
 .PP
+Putting \fBnot\fP in front of a condition, inverses it's meaning.
+For example
+.br
+\fBallow not source 'r*' by anybody\fP
+.br
+means anybody may upload packages which source name does not start
+with an 'r'.
+.PP
 Multiple conditions can be connected with \fBand\fP and \fBor\fP,
-with \fBor\fP binding stronger.
+with \fBor\fP binding stronger (but both weaker than \fBnor\fP).
 That means
 .br
 \fBallow source 'r*' and source '*xxx' or source '*o' by anybody\fP
