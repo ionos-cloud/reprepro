@@ -1,6 +1,7 @@
 Updates between 3.9.2 and 3.10.0:
 - fix bug of ListHook not used if in the From: rule of a rule.
 - add ListShelllHook
+- add _listdbidentifers and _listconfidentifiers
 + rewrite Release.gpg verification code:
 - more hops needed to use expired or revoked keys
 - earlier check of keys. now all keys in VerifyRelease must be known to gpg

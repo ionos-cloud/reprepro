@@ -238,6 +238,8 @@ hiddencommands=(
 	_addmd5sums:"add checksums to database"
 	_addchecksums:"add checksums to database"
 	_dumpcontents:"output contents of a part of the repository"
+	_listdbidentifiers:"list parts of the repository in the database"
+	_listconfidentifiers:"list parts of the repository in the configuration"
 	_addreference:"mark a filekey needed by an identifier"
 	_removereferences:"remove all references by an identifer"
 	__extractcontrol:"extract the control file from a .deb file"

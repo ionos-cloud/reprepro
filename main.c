@@ -2640,6 +2640,73 @@ ACTION_D(n, n, n, clearvanished) {
 	return result;
 }
 
+ACTION_B(n, n, y, listdbidentifiers) {
+	retvalue result;
+	struct strlist identifiers;
+	const struct distribution *d;
+	int i;
+
+	result = database_listpackages(database, &identifiers);
+	if( !RET_IS_OK(result) ) {
+		return result;
+	}
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = RET_NOTHING;
+	for( i = 0 ; i < identifiers.count ; i++ ) {
+		const char *p, *q, *identifier = identifiers.values[i];
+
+		if( argc <= 1 ) {
+			puts(identifier);
+			result = RET_OK;
+			continue;
+		}
+		p = identifier;
+		if( strncmp(p, "u|", 2) == 0 )
+			p += 2;
+		q = strchr(p, '|');
+		if( q == NULL )
+			q = strchr(p, '\0');
+		for( d = alldistributions ; d != NULL ; d = d->next ) {
+			if( !d->selected )
+				continue;
+			if( strncmp(p, d->codename, q-p) == 0
+			    && d->codename[q-p] == '\0' ) {
+				puts(identifier);
+				result = RET_OK;
+				break;
+			}
+		}
+	}
+	strlist_done(&identifiers);
+	return result;
+}
+
+ACTION_C(n, n, listconfidentifiers) {
+	struct target *t;
+	const struct distribution *d;
+	retvalue result;
+
+	result = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = RET_NOTHING;
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
+
+		for( t = d->targets; t != NULL ; t = t->next ) {
+			puts(t->identifier);
+			result = RET_OK;
+		}
+	}
+	return result;
+}
+
 ACTION_N(n, n, y, versioncompare) {
 	retvalue r;
 	int i;
@@ -2912,6 +2979,10 @@ static const struct action {
 		0, 1, "generatefilelists [reread]"},
 	{"translatefilelists",	A__T(translatefilelists),
 		0, 0, "translatefilelists"},
+	{"_listconfidentifiers",	A_C(listconfidentifiers),
+		0, -1, "_listconfidentifiers"},
+	{"_listdbidentifiers",	A_ROB(listdbidentifiers)|MAY_UNUSED,
+		0, -1, "_listdbidentifiers"},
 	{"clearvanished",	A_D(clearvanished)|MAY_UNUSED,
 		0, 0, "[--delete] clearvanished"},
 	{"processincoming",	A_D(processincoming)|NEED_DELNEW,

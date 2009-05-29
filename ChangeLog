@@ -1,3 +1,6 @@
+2009-05-29
+	* add _listdbidentifiers and _listconfidentifiers
+
 2009-05-22
 	* allow subkey matching in uploader lists, 'unsigned' now only
 	means unsigned while the new 'anybody' means everybody.
