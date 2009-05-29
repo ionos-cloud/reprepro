@@ -1,5 +1,7 @@
 2009-05-29
 	* add _listdbidentifiers and _listconfidentifiers
+	* add condition "source 'something'" for uploader lists,
+	to limit a uploader to packages with the specified source.
 
 2009-05-22
 	* allow subkey matching in uploader lists, 'unsigned' now only

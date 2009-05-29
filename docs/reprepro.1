@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-03-02" "reprepro" REPREPRO
+.TH REPREPRO 1 "2009-05-29" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -1512,27 +1512,43 @@ as to be signed with to be included in that distribution.
 .P
 Empty lines and lines starting with a hash are ignored, every other line
 has to be of one of this three forms:
-.br
+.TP
 .B allow \fIcondition\fP by anybody
-which allows everyone to do everything,
-.br
+which allows everyone to upload packages matching \fIcondition\fP,
+.TP
 .B allow \fIcondition\fP by unsigned
-.br
-which allows everything that has no pgp/gpg header,
-.br
+which allows everything matching that has no pgp/gpg header,
+.TP
 .B allow \fIcondition\fP by any key
-.br
-which allows everything with any valid signature in or
-.br
+which allows everything matching with any valid signature in or
+.TP
 .B allow \fIcondition\fP by key \fIkey-id\fP
-.br
-which allows everything signed by this \fIkey-id\fP (to be specified
-without any spaces) in.
+which allows everything matching signed by this \fIkey-id\fP
+(to be specified without any spaces).
 If the \fIkey-id\fP ends with a \fB+\fP (plus), a signature with a subkey of
 this primary key also suffices.
+.PP
+The only conditions currently supported are:
+.TP
+.B *
+which means any package,
+.TP
+.BI "source '" name '
+which mean any package with source \fIname\fP.
+(up to two asterisks are allowed in \fIname\fP).
+.PP
+Multiple conditions can be connected with \fBand\fP and \fBor\fP,
+with \fBor\fP binding stronger.
+That means
+.br
+\fBallow source 'r*' and source '*xxx' or source '*o' by anybody\fP
+.br
+is equivalent to
+.br
+\fBallow source 'r*xxx' by anybody\fP
+.br
+\fBallow source 'r*o' by anybody\fP
 
-The only condition currently supported is \fB*\fP which means any package.
-.P
 (Other conditions
 will follow once somebody tells me what restrictions are useful).
 .SH "ERROR IGNORING"

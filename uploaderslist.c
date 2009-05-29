@@ -118,7 +118,6 @@ static void uploadpermission_release(struct upload_condition *p) {
 
 			case uc_ALWAYS:
 			case uc_REJECTED:
-				assert( p->type != uc_REJECTED );
 				break;
 		}
 		free(f);
@@ -421,6 +420,37 @@ static inline const char *overkey(const char *p) {
 	return p;
 }
 
+static inline retvalue init_stringpart(struct uploadnamecheck *c, const char *startp, /*@null@*/const char *firstasterisk, /*@null@*/const char *secondasterisk, const char *endp) {
+	if( firstasterisk == NULL ) {
+		/* no '*' wildcard */
+		c->exactly = strndup(startp, endp-startp);
+		if( FAILEDTOALLOC(c->exactly) )
+			return RET_ERROR_OOM;
+		return RET_OK;
+	}
+
+	if( firstasterisk != startp ) {
+		c->beginswith = strndup(startp, firstasterisk-startp);
+		if( FAILEDTOALLOC(c->beginswith) )
+			return RET_ERROR_OOM;
+	}
+	if( secondasterisk == NULL )
+		secondasterisk = firstasterisk;
+	if( secondasterisk > firstasterisk + 1 ) {
+		c->includes = strndup(firstasterisk + 1,
+				secondasterisk - (firstasterisk + 1));
+		if( FAILEDTOALLOC(c->includes) )
+			return RET_ERROR_OOM;
+	}
+	if( secondasterisk + 1 < endp ) {
+		c->endswith = strndup(secondasterisk + 1,
+				endp - (secondasterisk + 1));
+		if( FAILEDTOALLOC(c->endswith) )
+			return RET_ERROR_OOM;
+	}
+	return RET_OK;
+}
+
 static retvalue parse_condition(const char *filename, long lineno, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
 	const char *p = *pp;
 	struct upload_condition *fallback, *last, *or_scope;
@@ -454,9 +484,71 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			 * for uniformity: */
 			last->next_if_false = fallback;
 			p++;
+		} else if( strncmp(p, "source", 6) == 0 &&
+			   strchr(" \t'", p[6]) != NULL ) {
+			const char *startp, *firstasterisk = NULL,
+			     *secondasterisk = NULL, *endp;
+			retvalue r;
+
+			last->type = uc_SOURCENAME;
+			last->accept_if_true = true;
+			last->next_if_false = fallback;
+			last->string.beginswith = NULL;
+			last->string.includes = NULL;
+			last->string.endswith = NULL;
+			last->string.exactly = NULL;
+			p += 6;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( *p != '\'' ) {
+				fprintf(stderr,
+"%s:%lu:%u: \"'\" expected after source keyword\n",
+					filename, lineno, column + (int)(p-*pp));
+				uploadpermission_release(condition);
+				return RET_ERROR;
+			}
+			p++;
+			startp = p;
+			while( *p != '\0' && *p != '\'' && *p != '*' )
+				p++;
+			if( *p == '*' ) {
+				firstasterisk = p;
+				p++;
+				while( *p != '\0' && *p != '\'' && *p != '*' )
+					p++;
+			}
+			if( *p == '*' ) {
+				secondasterisk = p;
+				p++;
+				while( *p != '\0' && *p != '\'' && *p != '*' )
+					p++;
+			}
+			if( *p == '*' ) {
+				fprintf(stderr,
+"%s:%lu:%u: Too many wildcards in string constant!\n",
+					filename, lineno, column + (int)(p-*pp));
+				uploadpermission_release(condition);
+				return RET_ERROR;
+			}
+			if( *p == '\0' ) {
+				fprintf(stderr,
+"%s:%lu:%u: closing \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+				uploadpermission_release(condition);
+				return RET_ERROR;
+			}
+			assert( *p == '\'' );
+			endp = p;
+			p++;
+			r = init_stringpart(&last->string, startp,
+					firstasterisk, secondasterisk, endp);
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
 
 		} else {
-			fprintf(stderr, "%s:%lu:%u: permission class expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, lineno, column + (int)(p-*pp));
+			fprintf(stderr, "%s:%lu:%u: condition expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, lineno, column + (int)(p-*pp));
 			uploadpermission_release(condition);
 			return RET_ERROR;
 		}
