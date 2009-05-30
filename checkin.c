@@ -1158,6 +1158,30 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 	return result;
 }
 
+static void verifysection(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( FE_SOURCE(e->type) ) {
+			if( !uploaders_verifystring(conditions, e->section) )
+				break;
+		} else if( FE_BINARY(e->type) ) {
+			if( !uploaders_verifystring(conditions, e->section) )
+				break;
+		}
+	}
+}
+static void verifybinary(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( FE_BINARY(e->type) ) {
+			if( !uploaders_verifystring(conditions, e->name) )
+				break;
+		}
+	}
+}
+
 static bool permissionssuffice(struct changes *changes, struct upload_conditions *conditions) {
 	do switch( uploaders_nextcondition(conditions) ) {
 		case uc_ACCEPTED:
@@ -1166,9 +1190,14 @@ static bool permissionssuffice(struct changes *changes, struct upload_conditions
 			return false;
 		case uc_SOURCENAME:
 			assert( changes->source != NULL);
-			if( uploaders_verifystring(conditions,
-						changes->source) )
-				return true;
+			(void)uploaders_verifystring(conditions,
+						changes->source);
+			break;
+		case uc_SECTIONS:
+			verifysection(changes, conditions);
+			break;
+		case uc_BINARIES:
+			verifybinary(changes, conditions);
 			break;
 	} while( true );
 }

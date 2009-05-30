@@ -1678,15 +1678,37 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 }
 
 static inline bool isallowed(UNUSED(struct incoming *i), struct candidate *c, struct distribution *into, struct upload_conditions *conditions) {
+	const struct candidate_file *file;
+
 	do switch( uploaders_nextcondition(conditions) ) {
 		case uc_ACCEPTED:
 			return true;
 		case uc_REJECTED:
 			return false;
 		case uc_SOURCENAME:
-			assert( c->source != NULL);
-			if( uploaders_verifystring(conditions, c->source) )
-				return true;
+			assert( c->source != NULL );
+			(void)uploaders_verifystring(conditions, c->source);
+			break;
+		case uc_SECTIONS:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( !FE_PACKAGE(file->type) )
+					continue;
+				if( !uploaders_verifystring(conditions,
+							(file->section == NULL)
+							?"-":file->section) )
+					break;
+			}
+			break;
+		case uc_BINARIES:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( !FE_BINARY(file->type) )
+					continue;
+				if( !uploaders_verifystring(conditions,
+							file->name) )
+					break;
+			}
 			break;
 	} while( true );
 }

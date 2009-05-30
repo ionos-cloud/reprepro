@@ -45,6 +45,7 @@ struct upload_condition {
 			/* if one is NULL, do not care, allows
 			   begin*middle*end or exact match */
 			/*@null@*/ char *beginswith, *includes, *endswith, *exactly;
+			/*@null@*/struct uploadnamecheck *or;
 		} string;
 		/* uc_COMPONENT, uc_ARCHITECTURE */
 		struct uploadatomlistcheck {
@@ -57,6 +58,8 @@ struct upload_condition {
 struct upload_conditions {
 	/* condition currently tested */
 	const struct upload_condition *current;
+	/* current state of top most condition */
+	bool matching;
 	/* always use last next, then decrement */
 	int count;
 	const struct upload_condition *conditions[];
@@ -109,11 +112,24 @@ static void uploadpermission_release(struct upload_condition *p) {
 	do {
 		h = p->next;
 		switch( p->type ) {
+			case uc_BINARIES:
+			case uc_SECTIONS:
 			case uc_SOURCENAME:
 				free(p->string.beginswith);
 				free(p->string.includes);
 				free(p->string.endswith);
 				free(p->string.exactly);
+				while( p->string.or != NULL ) {
+					struct uploadnamecheck *n;
+
+					n = p->string.or;
+					p->string.or = n->or;
+					free(n->beginswith);
+					free(n->includes);
+					free(n->endswith);
+					free(n->exactly);
+					free(n);
+				}
 				break;
 
 			case uc_ALWAYS:
@@ -305,8 +321,20 @@ retvalue uploaders_permissions(struct uploaders *u, const struct signatures *sig
 
 /* uc_FAILED means rejected, uc_ACCEPTED means can go in */
 enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) {
-	/* return the next non-trivial condition: */
 
+	if( c->current != NULL ) {
+		if( c->matching ) {
+			if( c->current->accept_if_true )
+				return uc_ACCEPTED;
+			c->current = c->current->next_if_true;
+		} else {
+			if( c->current->accept_if_false )
+				return uc_ACCEPTED;
+			c->current = c->current->next_if_false;
+		}
+	}
+
+	/* return the first non-trivial one left: */
 	while( true ) {
 		while( c->current != NULL ) {
 			assert( c->current->type > uc_REJECTED );
@@ -314,8 +342,11 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 				if( c->current->accept_if_true )
 					return uc_ACCEPTED;
 				c->current = c->current->next_if_true;
-			} else
+			} else {
+				/* empty set fullfills all conditions */
+				c->matching = true;
 				return c->current->type;
+			}
 		}
 		if( c->count == 0 )
 			return uc_REJECTED;
@@ -325,54 +356,62 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 	/* not reached */
 }
 
-bool uploaders_verifystring(struct upload_conditions *conditions, const char *name) {
-	bool matches = false;
-	const struct upload_condition *c = conditions->current;
+static bool match_namecheck(const struct uploadnamecheck *n, const char *name) {
+	size_t l = strlen(name);
 
-	assert( c != NULL );
-	assert( /* c->type == uc_SECTION || */  c->type == uc_SOURCENAME );
+	for( ; n != NULL ; n = n->or ) {
+		size_t lb, lm, le;
+		bool matches;
 
-	if( c->string.exactly != NULL ) {
-		matches = strcmp(c->string.exactly, name) == 0;
-	} else {
-		size_t lb, lm, le, l = strlen(name);
-
-		if( c->string.beginswith != NULL )
-			lb = strlen(c->string.beginswith);
+		if( n->exactly != NULL ) {
+			if( strcmp(n->exactly, name) == 0 )
+				return true;
+			continue;
+		}
+		if( n->beginswith != NULL )
+			lb = strlen(n->beginswith);
 		else
 			lb = 0;
-		if( c->string.includes != NULL )
-			lm = strlen(c->string.includes);
+		if( n->includes != NULL )
+			lm = strlen(n->includes);
 		else
 			lm = 0;
-		if( c->string.endswith != NULL )
-			le = strlen(c->string.endswith);
+		if( n->endswith != NULL )
+			le = strlen(n->endswith);
 		else
 			le = 0;
 
 		matches = lb + lm + le <= l;
 		if( matches && lb > 0 ) {
-			if( memcmp(c->string.beginswith, name, lb) != 0 )
+			if( memcmp(n->beginswith, name, lb) != 0 )
 				matches = false;
 		}
 		if( matches && le > 0 ) {
 			if( memcmp(name + (l - le),
-						c->string.endswith, le) != 0 )
+						n->endswith, le) != 0 )
 				matches = false;
 		}
 		if( matches && lm > 0 ) {
-			const char *p = strstr(name + lb, c->string.includes);
+			const char *p = strstr(name + lb, n->includes);
 			if( p == NULL || (size_t)(p - name) > (l - le - lm) )
 				matches = false;
 		}
+		if( matches )
+			return true;
 	}
-	if( matches?c->accept_if_true:c->accept_if_false )
-		return true;
-	if( matches )
-		conditions->current = c->next_if_true;
-	else
-		conditions->current = c->next_if_false;
 	return false;
+}
+
+bool uploaders_verifystring(struct upload_conditions *conditions, const char *name) {
+	const struct upload_condition *c = conditions->current;
+
+	assert( c != NULL );
+	assert( c->type == uc_BINARIES || c->type == uc_SECTIONS ||
+		c->type == uc_SOURCENAME );
+
+	if( conditions->matching && !match_namecheck(&c->string, name) )
+		conditions->matching = false;
+	return conditions->matching;
 }
 
 static struct upload_condition *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys, const char *filename, long lineno) {
@@ -451,6 +490,72 @@ static inline retvalue init_stringpart(struct uploadnamecheck *c, const char *st
 	return RET_OK;
 }
 
+static retvalue parse_stringpart(struct uploadnamecheck *string, const char **pp, const char *filename, long lineno, int column) {
+	const char *p = *pp;
+	retvalue r;
+	do {
+		const char *startp, *firstasterisk = NULL,
+		      *secondasterisk = NULL, *endp;
+
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( *p != '\'' ) {
+			fprintf(stderr,
+"%s:%lu:%u: starting \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		p++;
+		startp = p;
+		while( *p != '\0' && *p != '\'' && *p != '*' )
+			p++;
+		if( *p == '*' ) {
+			firstasterisk = p;
+			p++;
+			while( *p != '\0' && *p != '\'' && *p != '*' )
+				p++;
+		}
+		if( *p == '*' ) {
+			secondasterisk = p;
+			p++;
+			while( *p != '\0' && *p != '\'' && *p != '*' )
+				p++;
+		}
+		if( *p == '*' ) {
+			fprintf(stderr,
+"%s:%lu:%u: Too many wildcards in string constant!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		if( *p == '\0' ) {
+			fprintf(stderr,
+"%s:%lu:%u: closing \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		assert( *p == '\'' );
+		endp = p;
+		p++;
+		r = init_stringpart(string, startp,
+				firstasterisk, secondasterisk, endp);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		column += (p - *pp);
+		*pp = p;
+		if( **pp == '|' ) {
+			string->or = calloc(1, sizeof(struct uploadnamecheck));
+			if( FAILEDTOALLOC(string->or) )
+				return RET_ERROR_OOM;
+			string = string->or;
+			p++;
+		}
+	} while ( **pp == '|' );
+	*pp = p;
+	return RET_OK;
+}
+
 static retvalue parse_condition(const char *filename, long lineno, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
 	const char *p = *pp;
 	struct upload_condition *fallback, *last, *or_scope;
@@ -496,62 +601,44 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 		if( p[0] == '*' && xisspace(p[1]) ) {
 			last->type = uc_ALWAYS;
 			p++;
+		} else if( strncmp(p, "binaries", 8) == 0 &&
+			   strchr(" \t'", p[8]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_BINARIES;
+			p += 8;
+
+			r = parse_stringpart(&last->string, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
+		} else if( strncmp(p, "sections", 8) == 0 &&
+			   strchr(" \t'", p[8]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_SECTIONS;
+			p += 8;
+
+			r = parse_stringpart(&last->string, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
 		} else if( strncmp(p, "source", 6) == 0 &&
 			   strchr(" \t'", p[6]) != NULL ) {
-			const char *startp, *firstasterisk = NULL,
-			     *secondasterisk = NULL, *endp;
 			retvalue r;
 
 			last->type = uc_SOURCENAME;
-			last->string.beginswith = NULL;
-			last->string.includes = NULL;
-			last->string.endswith = NULL;
-			last->string.exactly = NULL;
 			p += 6;
-			while( *p != '\0' && xisspace(*p) )
-				p++;
-			if( *p != '\'' ) {
-				fprintf(stderr,
-"%s:%lu:%u: \"'\" expected after source keyword\n",
-					filename, lineno, column + (int)(p-*pp));
-				uploadpermission_release(condition);
-				return RET_ERROR;
-			}
-			p++;
-			startp = p;
-			while( *p != '\0' && *p != '\'' && *p != '*' )
-				p++;
-			if( *p == '*' ) {
-				firstasterisk = p;
-				p++;
-				while( *p != '\0' && *p != '\'' && *p != '*' )
-					p++;
-			}
-			if( *p == '*' ) {
-				secondasterisk = p;
-				p++;
-				while( *p != '\0' && *p != '\'' && *p != '*' )
-					p++;
-			}
-			if( *p == '*' ) {
-				fprintf(stderr,
-"%s:%lu:%u: Too many wildcards in string constant!\n",
-					filename, lineno, column + (int)(p-*pp));
-				uploadpermission_release(condition);
-				return RET_ERROR;
-			}
-			if( *p == '\0' ) {
-				fprintf(stderr,
-"%s:%lu:%u: closing \"'\" expected!\n",
-					filename, lineno, column + (int)(p-*pp));
-				uploadpermission_release(condition);
-				return RET_ERROR;
-			}
-			assert( *p == '\'' );
-			endp = p;
-			p++;
-			r = init_stringpart(&last->string, startp,
-					firstasterisk, secondasterisk, endp);
+
+			r = parse_stringpart(&last->string, &p,
+					filename, lineno,
+					column + (p-*pp));
 			if( RET_WAS_ERROR(r) ) {
 				uploadpermission_release(condition);
 				return r;

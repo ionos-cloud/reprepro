@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-05-29" "reprepro" REPREPRO
+.TH REPREPRO 1 "2009-05-30" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -1536,6 +1536,19 @@ which means any package,
 .BI "source '" name '
 which mean any package with source \fIname\fP.
 (up to two asterisks are allowed in \fIname\fP).
+.TP
+.B sections '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+matches an upload in which each section matches one of the names
+given.
+As upload conditions are checked very early,
+this is the section listed in the .changes file,
+not the one from the override file.
+(But this might change in the future,
+if you have the need for the one or the other behavior, let me know).
+.TP
+.B binaries '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+matches an upload in which each binary (type deb or udeb)
+matches one of the names given.
 .PP
 Putting \fBnot\fP in front of a condition, inverses it's meaning.
 For example
@@ -1546,7 +1559,7 @@ means anybody may upload packages which source name does not start
 with an 'r'.
 .PP
 Multiple conditions can be connected with \fBand\fP and \fBor\fP,
-with \fBor\fP binding stronger (but both weaker than \fBnor\fP).
+with \fBor\fP binding stronger (but both weaker than \fBnot\fP).
 That means
 .br
 \fBallow source 'r*' and source '*xxx' or source '*o' by anybody\fP
@@ -1558,7 +1571,8 @@ is equivalent to
 \fBallow source 'r*o' by anybody\fP
 
 (Other conditions
-will follow once somebody tells me what restrictions are useful).
+will follow once somebody tells me what restrictions are useful.
+Currently planned is only something for architectures).
 .SH "ERROR IGNORING"
 With \fB\-\-ignore\fP on the command line or an \fIignore\fP
 line in the options file, the following type of errors can be
