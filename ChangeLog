@@ -1,3 +1,6 @@
+2009-05-31
+	* add --list-format
+
 2009-05-29
 	* add _listdbidentifiers and _listconfidentifiers
 	* add condition "source 'something'" for uploader lists,

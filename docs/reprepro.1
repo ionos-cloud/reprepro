@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-05-30" "reprepro" REPREPRO
+.TH REPREPRO 1 "2009-05-31" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -347,6 +347,35 @@ If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
 lzma files will not be possible.
 The program has to accept the compressed file as stdin and write
 the uncompressed file into stdout.
+.TP
+.BI \-\-list\-format " format"
+Set the output format of \fBlist\fP and \fBlistfilter\fP commands.
+The format is similar to dpkg-query's \fB\-\-showformat\fP:
+fields are specified as
+.BI ${ fieldname }
+or
+.BI ${ fieldname ; length }\fR.\fP
+Zero length or no length means unlimited.
+Positive numbers mean fill with spaces right, negative fill with spaces left.
+
+.BR \[rs]n ", " \[rs]r ", " \[rs]t ", " \[rs]0
+are new-line, carriage-return, tabulator and zero-byte.
+Backslash (\fB\[rs]\fP) can be used to escape every non-letter-or-digit.
+
+The special field names
+.BR $identifier ", " $architecture ", " $component ", " $type ", " $codename
+denote where the package was found.
+
+When \fB\-\-list\-format\fP is not given or \fBNONE\fP, then the default
+is equivalent to
+.br
+.BR "${$identifier} ${package} ${version}\[rs]n" .
+
+Escaping digits or letters not in above list,
+using dollars not escaped outside specified constructs,
+or any field names not listed as special and not consisting entirely out of
+letters, digits and minus signs have undefined behaviour
+and might change meaning without any further notice.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -378,6 +407,7 @@ is given) and architectures (except when
 .B \-A
 is given) of the specified distribution.
 If no package name is given, list everything.
+The format of the output can be changed with \fB\-\-list\-format\fP.
 .TP
 .B listfilter \fIcodename\fP \fIcondition\fP
 as list, but does not list a single package, but all packages

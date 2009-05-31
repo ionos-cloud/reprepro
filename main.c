@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -66,6 +66,7 @@
 #include "uncompression.h"
 #include "sourceextraction.h"
 #include "pool.h"
+#include "printlistformat.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -99,6 +100,7 @@ static char /*@only@*/ /*@null@*/
 	*x_component = NULL,
 	*x_architecture = NULL,
 	*x_packagetype = NULL;
+static char /*@only@*/ /*@null@*/ *listformat = NULL;
 static char /*@only@*/
 	*gunzip = NULL,
 	*bunzip2 = NULL,
@@ -128,7 +130,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -883,7 +885,7 @@ ACTION_D(y, n, y, removefilter) {
 
 static retvalue list_in_target(struct database *database, struct target *target, const char *packagename) {
 	retvalue r,result;
-	char *control,*version;
+	char *control;
 
 	r = target_initpackagesdb(target, database, READONLY);
 	if( !RET_IS_OK(r) )
@@ -891,13 +893,8 @@ static retvalue list_in_target(struct database *database, struct target *target,
 
 	result = table_getrecord(target->packages, packagename, &control);
 	if( RET_IS_OK(result) ) {
-		r = target->getversion(control, &version);
-		if( RET_IS_OK(r) ) {
-			printf("%s: %s %s\n",target->identifier,packagename,version);
-			free(version);
-		} else {
-			printf("Could not retrieve version from %s in %s\n",packagename,target->identifier);
-		}
+		r = listformat_print(listformat, target, packagename, control);
+		RET_UPDATE(result, r);
 		free(control);
 	}
 	r = target_closepackagesdb(target);
@@ -906,18 +903,8 @@ static retvalue list_in_target(struct database *database, struct target *target,
 }
 
 static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct distribution *dummy2), struct target *target, const char *package, const char *control, UNUSED(void *dummy3)) {
-	retvalue r;
-	char *version;
 
-	r = target->getversion(control, &version);
-	if( RET_IS_OK(r) ) {
-		printf("%s: %s %s\n", target->identifier, package, version);
-		free(version);
-	} else {
-		printf("Could not retrieve version from %s in %s\n",
-				package, target->identifier);
-	}
-	return r;
+	return listformat_print(listformat, target, package, control);
 }
 
 ACTION_B(y, n, y, list) {
@@ -1054,21 +1041,11 @@ ACTION_B(y, n, y, ls) {
 
 static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
 	term *condition = data;
-	char *version;
 	retvalue r;
 
 	r = term_decidechunk(condition, control);
-	if( RET_IS_OK(r) ) {
-		r = target->getversion(control, &version);
-		if( RET_IS_OK(r) ) {
-			printf("%s: %s %s\n", target->identifier,
-			                      packagename, version);
-			free(version);
-		} else {
-			printf("Could not retrieve version from %s in %s\n",
-					packagename, target->identifier);
-		}
-	}
+	if( RET_IS_OK(r) )
+		r = listformat_print(listformat, target, packagename, control);
 	return r;
 }
 
@@ -3265,6 +3242,7 @@ LO_GUNZIP,
 LO_BUNZIP2,
 LO_UNLZMA,
 LO_GNUPGHOME,
+LO_LISTFORMAT,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -3533,6 +3511,12 @@ static void handle_option(int c, const char *argument) {
 				case LO_GNUPGHOME:
 					CONFIGDUP(gnupghome, argument);
 					break;
+				case LO_LISTFORMAT:
+					if( strcmp(argument, "NONE") == 0 ) {
+						CONFIGSET(listformat, NULL);
+					} else
+						CONFIGDUP(listformat, argument);
+					break;
 				default:
 					fprintf (stderr,"Error parsing arguments!\n");
 					exit(EXIT_FAILURE);
@@ -3723,6 +3707,7 @@ int main(int argc,char *argv[]) {
 		{"bunzip2", required_argument, &longoption, LO_BUNZIP2},
 		{"unlzma", required_argument, &longoption, LO_UNLZMA},
 		{"gnupghome", required_argument, &longoption, LO_GNUPGHOME},
+		{"list-format", required_argument, &longoption, LO_LISTFORMAT},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;

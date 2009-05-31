@@ -2,6 +2,7 @@ Updates between 3.9.2 and 3.10.0:
 - fix bug of ListHook not used if in the From: rule of a rule.
 - add ListShelllHook
 - add _listdbidentifers and _listconfidentifiers
+- add --list-format to change format of list and listfilter
 + rewrite Release.gpg verification code:
 - more hops needed to use expired or revoked keys
 - earlier check of keys. now all keys in VerifyRelease must be known to gpg
@@ -9,6 +10,7 @@ Updates between 3.9.2 and 3.10.0:
 * improve uploader lists:
 - subkeys are accepted if key-if is appended with '+'
 - new 'anybody' while 'unsigned' now means really unsigned
+- new conditions to look as sourcename, binary names and sections
 
 Updates between 3.9.1 and 3.9.2:
 + fix bug (catched by assertion if there is no old index file)
