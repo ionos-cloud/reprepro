@@ -379,13 +379,14 @@ and might change meaning without any further notice.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
-Generate all index files for the specified distributions. (For all if none
-is specified). This will normally be done automatically and more
-fine\-tuned when including or removing packages, so seldom needed; but is nevertheless
-a good way to see if
-a new
-.B distributions
-config\-file does the expected things.
+Generate all index files for the specified distributions.
+
+This regenerates all files unconditionally.
+It is only usefull if you want to be sure \fBdists\fP is up to date,
+you called some other actions with \fB\-\-export=never\fP before or
+you want to create an initial empty but fully equipped
+.BI dists/ codename
+directory.
 .TP
 .RB " [ " \-\-delete " ] " createsymlinks " [ " \fIcodenames\fP " ]"
 Creates \fIsuite\fP symbolic links in the \fBdists/\fP-directory pointing
