@@ -450,7 +450,7 @@ bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
 		return !conditions->matching;
 	}
 }
-static struct upload_condition *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys, const char *filename, long lineno) {
+static struct upload_condition *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys) {
 	size_t i;
 	char *reversed = malloc(len+1);
 	struct uploader *uploader, **last;
@@ -946,8 +946,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 				fprintf(stderr, " Hint: no spaces allowed in fingerprint specification.\n");
 			return RET_ERROR;
 		}
-		permissions = addfingerprint(u, p, q-p, allow_subkeys,
-				filename, lineno);
+		permissions = addfingerprint(u, p, q-p, allow_subkeys);
 		if( permissions == NULL )
 			return RET_ERROR_OOM;
 		condition_add(permissions, &condition);

@@ -1677,7 +1677,7 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 		return RET_NOTHING;
 }
 
-static inline bool isallowed(UNUSED(struct incoming *i), struct candidate *c, struct distribution *into, struct upload_conditions *conditions) {
+static inline bool isallowed(UNUSED(struct incoming *i), struct candidate *c, UNUSED(struct distribution *into), struct upload_conditions *conditions) {
 	const struct candidate_file *file;
 
 	do switch( uploaders_nextcondition(conditions) ) {

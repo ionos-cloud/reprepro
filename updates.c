@@ -2003,7 +2003,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	}
 	if( verbose >= 0 )
 		printf("Getting packages...\n");
-	r = aptmethod_download(run, database);
+	r = aptmethod_download(run);
 	RET_UPDATE(result,r);
 	r = downloadcache_free(cache);
 	RET_ENDUPDATE(result,r);

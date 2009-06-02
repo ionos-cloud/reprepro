@@ -113,7 +113,7 @@ static retvalue parse_condition_part(bool *allow_subkeys_p, bool *allow_bad_p, c
 static struct known_key {
 	struct known_key *next;
 	/* subkeys, first is primary key */
-	unsigned int count;
+	int count;
 	struct known_subkey {
 		/* full fingerprint or keyid */
 		char *name;
@@ -177,9 +177,9 @@ static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, c
 	gpg_error_t err;
 	gpgme_key_t gpgme_key = NULL;
 	gpgme_subkey_t subkey;
-	unsigned int found = -1;
+	int found = -1;
 	struct known_key *k;
-	unsigned int i;
+	int i;
 	size_t l = strlen(name);
 
 	/* first look if this key was already retrieved: */
@@ -260,7 +260,7 @@ static retvalue load_key(const char *name, bool allow_subkeys, bool allow_bad, c
 }
 
 static void free_known_key(/*@only@*/struct known_key *k) {
-	unsigned int i;
+	int i;
 
 	for( i = 0 ; i < k->count ; i++ ) {
 		free(k->subkeys[i].name);
@@ -664,14 +664,14 @@ retvalue signature_check(const struct signature_requirement *requirements, const
 		   signatures, to not pester the user with warnings of one
 		   of the alternate keys, if the last one is good enough */
 
-		for( i = 0 ; i < req->num_keys ; i++ ) {
+		for( i = 0 ; (size_t)i < req->num_keys ; i++ ) {
 
 			if( key_good(&req->keys[i], result->signatures) ) {
 				fullfilled = true;
 				break;
 			}
 		}
-		for( i = 0 ; !fullfilled && i < req->num_keys ; i++ ) {
+		for( i = 0 ; !fullfilled && (size_t)i < req->num_keys ; i++ ) {
 
 			if( key_good_enough(&req->keys[i], result->signatures,
 						releasegpg, release) ) {

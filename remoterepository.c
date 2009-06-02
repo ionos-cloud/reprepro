@@ -779,7 +779,7 @@ retvalue remote_preparemetalists(struct aptmethodrun *run, bool nodownload) {
 					return r;
 			}
 		}
-		r = aptmethod_download(run, NULL);
+		r = aptmethod_download(run);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1329,7 +1329,7 @@ retvalue remote_preparelists(struct aptmethodrun *run, bool nodownload) {
 			}
 		}
 	}
-	r = aptmethod_download(run, NULL);
+	r = aptmethod_download(run);
 	if( RET_WAS_ERROR(r) ) {
 		cachedlistfile_freelist(oldfiles);
 		return r;
