@@ -1,3 +1,7 @@
+2009-06-02
+	* new 'architectures' condition for uploader lists and other
+	conditions support 'contains' now.
+
 2009-05-31
 	* add --list-format
 

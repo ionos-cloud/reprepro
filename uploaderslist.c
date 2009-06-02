@@ -39,20 +39,19 @@ struct upload_condition {
 	enum upload_condition_type type;
 	const struct upload_condition *next_if_true, *next_if_false;
 	bool accept_if_true, accept_if_false;
+	/* all binary packages must match something instead of only
+	   one of them */
+	bool needsall;
 	union {
-		/* uc_SECTION, uc_NAME, uc_SOURCE */
+		/* uc_SECTIONS, uc_BINARIES, uc_SOURCENAME */
 		struct uploadnamecheck {
 			/* if one is NULL, do not care, allows
 			   begin*middle*end or exact match */
 			/*@null@*/ char *beginswith, *includes, *endswith, *exactly;
 			/*@null@*/struct uploadnamecheck *or;
 		} string;
-		/* uc_COMPONENT, uc_ARCHITECTURE */
-		struct uploadatomlistcheck {
-			struct atomlist atomlist;
-			/* if false, must be subset of list, if true must be superset */
-			bool superset;
-		} atoms;
+		/* uc_COMPONENTS, uc_ARCHITECTURES */
+		struct atomlist atoms;
 	};
 };
 struct upload_conditions {
@@ -130,6 +129,10 @@ static void uploadpermission_release(struct upload_condition *p) {
 					free(n->exactly);
 					free(n);
 				}
+				break;
+
+			case uc_ARCHITECTURES:
+				atomlist_done(&p->atoms);
 				break;
 
 			case uc_ALWAYS:
@@ -343,8 +346,9 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 					return uc_ACCEPTED;
 				c->current = c->current->next_if_true;
 			} else {
-				/* empty set fullfills all conditions */
-				c->matching = true;
+				/* empty set fullfills all conditions,
+				   but not an exists condition */
+				c->matching = c->current->needsall;
 				return c->current->type;
 			}
 		}
@@ -409,11 +413,43 @@ bool uploaders_verifystring(struct upload_conditions *conditions, const char *na
 	assert( c->type == uc_BINARIES || c->type == uc_SECTIONS ||
 		c->type == uc_SOURCENAME );
 
-	if( conditions->matching && !match_namecheck(&c->string, name) )
-		conditions->matching = false;
-	return conditions->matching;
+	if( conditions->current->needsall ) {
+		/* once one condition is false, the case is settled */
+
+		if( conditions->matching && !match_namecheck(&c->string, name) )
+			conditions->matching = false;
+		/* but while it is true, more info is needed */
+		return conditions->matching;
+	} else {
+		/* once one condition is true, the case is settled */
+		if( !conditions->matching && match_namecheck(&c->string, name) )
+			conditions->matching = true;
+		/* but while it is false, more info is needed */
+		return !conditions->matching;
+	}
 }
 
+bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
+	const struct upload_condition *c = conditions->current;
+
+	assert( c != NULL );
+	assert( c->type == uc_ARCHITECTURES );
+
+	if( conditions->current->needsall ) {
+		/* once one condition is false, the case is settled */
+
+		if( conditions->matching && !atomlist_in(&c->atoms, atom) )
+			conditions->matching = false;
+		/* but while it is true, more info is needed */
+		return conditions->matching;
+	} else {
+		/* once one condition is true, the case is settled */
+		if( !conditions->matching && atomlist_in(&c->atoms, atom) )
+			conditions->matching = true;
+		/* but while it is false, more info is needed */
+		return !conditions->matching;
+	}
+}
 static struct upload_condition *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys, const char *filename, long lineno) {
 	size_t i;
 	char *reversed = malloc(len+1);
@@ -556,6 +592,66 @@ static retvalue parse_stringpart(struct uploadnamecheck *string, const char **pp
 	return RET_OK;
 }
 
+static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char **pp, const char *filename, long lineno, int column) {
+	const char *p = *pp;
+	retvalue r;
+
+	atomlist_init(atoms);
+	do {
+		const char *startp, *endp;
+		atom_t atom;
+
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( *p != '\'' ) {
+			fprintf(stderr,
+"%s:%lu:%u: starting \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		p++;
+		startp = p;
+		while( *p != '\0' && *p != '\'' && *p != '*' )
+			p++;
+		if( *p == '*' ) {
+			fprintf(stderr,
+"%s:%lu:%u: Wildcards are not allowed in architectures!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		if( *p == '\0' ) {
+			fprintf(stderr,
+"%s:%lu:%u: closing \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		assert( *p == '\'' );
+		endp = p;
+		p++;
+		atom = architecture_find_l(startp, endp - startp);
+		if( !atom_defined(atom) ) {
+			fprintf(stderr,
+"%s:%lu:%u: Unknown architecture '%.*s'! (Did you mistype?)\n",
+					filename, lineno,
+					column + (int)(startp-*pp),
+					(int)(endp-startp), startp);
+			return RET_ERROR;
+		}
+		r = atomlist_add_uniq(atoms, atom);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		column += (p - *pp);
+		*pp = p;
+		if( **pp == '|' ) {
+			p++;
+		}
+	} while ( **pp == '|' );
+	*pp = p;
+	return RET_OK;
+}
+
 static retvalue parse_condition(const char *filename, long lineno, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
 	const char *p = *pp;
 	struct upload_condition *fallback, *last, *or_scope;
@@ -601,12 +697,42 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 		if( p[0] == '*' && xisspace(p[1]) ) {
 			last->type = uc_ALWAYS;
 			p++;
+		} else if( strncmp(p, "architectures", 13) == 0 &&
+			   strchr(" \t'", p[13]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_ARCHITECTURES;
+			last->needsall = true;
+			p += 13;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL ) {
+				last->needsall = false;
+				p += 7;
+			}
+
+			r = parse_architectures(&last->atoms, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
 		} else if( strncmp(p, "binaries", 8) == 0 &&
 			   strchr(" \t'", p[8]) != NULL ) {
 			retvalue r;
 
 			last->type = uc_BINARIES;
+			last->needsall = true;
 			p += 8;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL ) {
+				last->needsall = false;
+				p += 7;
+			}
 
 			r = parse_stringpart(&last->string, &p,
 					filename, lineno,
@@ -620,7 +746,15 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			retvalue r;
 
 			last->type = uc_SECTIONS;
+			last->needsall = true;
 			p += 8;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL ) {
+				last->needsall = false;
+				p += 7;
+			}
 
 			r = parse_stringpart(&last->string, &p,
 					filename, lineno,

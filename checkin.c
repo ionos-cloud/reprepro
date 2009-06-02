@@ -1158,6 +1158,21 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 	return result;
 }
 
+static void verifyarchitectures(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( FE_SOURCE(e->type) ) {
+			if( !uploaders_verifyatom(conditions,
+						architecture_source) )
+				break;
+		} else if( FE_BINARY(e->type) ) {
+			if( !uploaders_verifyatom(conditions,
+						e->architecture_into) )
+				break;
+		}
+	}
+}
 static void verifysection(const struct changes *changes, struct upload_conditions *conditions) {
 	const struct fileentry *e;
 
@@ -1198,6 +1213,9 @@ static bool permissionssuffice(struct changes *changes, struct upload_conditions
 			break;
 		case uc_BINARIES:
 			verifybinary(changes, conditions);
+			break;
+		case uc_ARCHITECTURES:
+			verifyarchitectures(changes, conditions);
 			break;
 	} while( true );
 }

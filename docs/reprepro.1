@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-05-31" "reprepro" REPREPRO
+.TH REPREPRO 1 "2009-05-02" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -1577,9 +1577,25 @@ not the one from the override file.
 (But this might change in the future,
 if you have the need for the one or the other behavior, let me know).
 .TP
+.B sections contain '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+The same, but not all sections must be from the given set,
+but at least one source or binary package needs to have one of those given.
+.TP
 .B binaries '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
 matches an upload in which each binary (type deb or udeb)
 matches one of the names given.
+.TP
+.B binaries contain '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+again only at least one instead of all is required.
+.TP
+.B architectures '\fIarchitecture\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+matches an upload in which each package has only architectures
+from the given set.
+\fBsource\fP and \fBall\fP are treated as unique architectures.
+Wildcards are not allowed.
+.TP
+.B architectures contain '\fIarchitecture\fP'\fR(\fP|'\fIarchitecture\fP'\fR)*\fP
+again only at least one instead of all is required.
 .PP
 Putting \fBnot\fP in front of a condition, inverses it's meaning.
 For example

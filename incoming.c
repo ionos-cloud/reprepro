@@ -1710,6 +1710,16 @@ static inline bool isallowed(UNUSED(struct incoming *i), struct candidate *c, st
 					break;
 			}
 			break;
+		case uc_ARCHITECTURES:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( !FE_PACKAGE(file->type) )
+					continue;
+				if( !uploaders_verifyatom(conditions,
+						file->architecture_atom) )
+					break;
+			}
+			break;
 	} while( true );
 }
 

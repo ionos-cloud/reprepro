@@ -7,7 +7,7 @@ struct upload_conditions;
 struct uploaders;
 
 enum upload_condition_type { uc_REJECTED = 0, uc_ALWAYS,
-/*	uc_COMPONENT, uc_ARCHITECTURE, */
+/*	uc_COMPONENT, */ uc_ARCHITECTURES,
 	uc_SOURCENAME, uc_SECTIONS, uc_BINARIES };
 #define uc_ACCEPTED uc_ALWAYS
 
@@ -21,7 +21,7 @@ retvalue uploaders_permissions(struct uploaders *, const struct signatures *, /*
 enum upload_condition_type uploaders_nextcondition(struct upload_conditions *);
 /* true means, give more if more to check, false means enough */
 bool uploaders_verifystring(struct upload_conditions *, const char *);
-bool uploaders_verifyatomlist(struct upload_conditions *, const struct atomlist *);
+bool uploaders_verifyatom(struct upload_conditions *, atom_t);
 
 void upload_conditions_free(/*@only@*/struct upload_conditions *);
 
