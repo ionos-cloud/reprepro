@@ -13,6 +13,7 @@ DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 export DEB_BUILD_OPTIONS
 BUILDOPTS:=$(shell echo "$$DEB_BUILD_OPTIONS" | sed 's/,/ /g')
 
+CPPFLAGS =
 CFLAGS = -Wall -g -Wextra -Wmissing-prototypes -Wstrict-prototypes
 ifneq (,$(filter noopt,$(BUILDOPTS)))
 	CFLAGS += -O0
@@ -21,16 +22,14 @@ else
 endif
 ifneq (,$(filter reprepro-libdb4.3,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=4.3
-else
-ifneq (,$(filter reprepro-libdb3,$(BUILDOPTS)))
+else ifneq (,$(filter reprepro-libdb3,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=3
-else
-ifneq (,$(filter reprepro-libdb4.4,$(BUILDOPTS)))
+else ifneq (,$(filter reprepro-libdb4.4,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=4.4
+else ifneq (,$(filter reprepro-libdb4.7,$(BUILDOPTS)))
+	DBFLAGS = --with-libdb=4.7
 else
 	DBFLAGS = --with-libdb=4.6
-endif
-endif
 endif
 ifneq (,$(filter reprepro-nolibarchive,$(BUILDOPTS)))
 	ARCHIVEFLAGS= --without-libarchive
@@ -38,7 +37,7 @@ else
 	ARCHIVEFLAGS= --with-libarchive
 endif
 ifneq (,$(filter parallel=%,$(BUILDOPTS)))
-	PARFLAGS = -j$(patsubst parallel=%,%,$(filter parallel=%,$(BUILDOPTS)))
+	MAKEFLAGS += -j$(patsubst parallel=%,%,$(filter parallel=%,$(BUILDOPTS)))
 endif
 
 config.status: configure
@@ -47,7 +46,7 @@ config.status: configure
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
 		    --with-libbz2 $(DBFLAGS) $(ARCHIVEFLAGS) \
 		    --disable-dependency-tracking \
-		    CFLAGS="$(CFLAGS)" LDFLAGS="-Wl,-z,syms" \
+		    CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="-Wl,-z,syms" \
 	|| ( echo configure failed with $$? ; echo BEGIN config.log: ; \
 	     cat config.log ; echo "END config.log" ; exit 1 )
 
@@ -59,7 +58,7 @@ build-indep-stamp:
 	touch build-indep-stamp
 build-arch-stamp:  config.status
 	dh_testdir
-	$(MAKE) $(PARFLAGS)
+	$(MAKE)
 	touch build-arch-stamp
 
 clean:
@@ -69,7 +68,7 @@ clean:
 
 	# clean up after the build process.
 	if [ -e config.status ] ; then $(MAKE) distclean ; fi
-
+	! test -f config.log
 	dh_clean
 
 # Build architecture-independent files here.
@@ -82,7 +81,7 @@ binary-arch: build-arch
 	dh_testroot
 	dh_clean -k
 	dh_installdirs
-	$(MAKE) $(PARFLAGS) install DESTDIR=$(CURDIR)/debian/reprepro
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/reprepro
 	install -D -m 644 docs/reprepro.bash_completion debian/reprepro/etc/bash_completion.d/reprepro
 	dh_installchangelogs ChangeLog
 	dh_installdocs
