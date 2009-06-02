@@ -748,7 +748,7 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	retvalue result, r;
 	struct target *target;
 	struct package_list list;
-	struct namelist d = {argc, argv, NULL};
+	struct namelist d = {argc, argv, NULL, NULL};
 	char *packagename, *version;
 	architecture_t package_architecture;
 	const char *control;
@@ -911,14 +911,14 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 }
 
 retvalue restore_by_name(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
-	struct namelist d = {argc, argv, NULL};
+	struct namelist d = {argc, argv, NULL, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_name, &d);
 }
 
 retvalue restore_by_source(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
-	struct namelist d = {argc, argv, NULL};
+	struct namelist d = {argc, argv, NULL, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_source, &d);
