@@ -1,4 +1,4 @@
-reprepro (3.10.0-0) UNRELEASED; urgency=low
+reprepro (3.10.0-1) unstable; urgency=low
 
   * new release
   - hint at what remove does with packages' files in manpage
@@ -9,7 +9,7 @@ reprepro (3.10.0-0) UNRELEASED; urgency=low
   - more conditions in uploaders files (Closes: 497398)
   * update Vcs-Browser field (Closes: 528291)
 
- -- Bernhard R. Link <brlink@debian.org>  Wed, 13 May 2009 13:10:09 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 03 Jun 2009 11:28:08 +0200
 
 reprepro (3.9.2-1) unstable; urgency=low
 
