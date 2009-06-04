@@ -1,3 +1,6 @@
+Updates since 3.10.0:
+- new --list-max and --list-skip options
+
 Updates between 3.9.2 and 3.10.0:
 - fix bug of ListHook not used if in the From: rule of a rule.
 - add ListShelllHook

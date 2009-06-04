@@ -1,3 +1,6 @@
+2009-06-03
+	* new --list-max and --list-skip
+
 2009-06-02
 	* new 'architectures' condition for uploader lists and other
 	conditions support 'contains' now.

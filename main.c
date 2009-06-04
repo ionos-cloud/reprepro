@@ -106,6 +106,8 @@ static char /*@only@*/
 	*bunzip2 = NULL,
 	*unlzma = NULL,
 	*gnupghome = NULL;
+static int 	listmax = -1;
+static int 	listskip = 0;
 static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
@@ -130,7 +132,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -887,14 +889,23 @@ static retvalue list_in_target(struct database *database, struct target *target,
 	retvalue r,result;
 	char *control;
 
+	if( listmax == 0 )
+		return RET_NOTHING;
+
 	r = target_initpackagesdb(target, database, READONLY);
 	if( !RET_IS_OK(r) )
 		return r;
 
 	result = table_getrecord(target->packages, packagename, &control);
 	if( RET_IS_OK(result) ) {
-		r = listformat_print(listformat, target, packagename, control);
-		RET_UPDATE(result, r);
+		if( listskip <= 0 ) {
+			r = listformat_print(listformat, target,
+					packagename, control);
+			RET_UPDATE(result, r);
+			if( listmax > 0 )
+				listmax--;
+		} else
+			listskip--;
 		free(control);
 	}
 	r = target_closepackagesdb(target);
@@ -903,8 +914,17 @@ static retvalue list_in_target(struct database *database, struct target *target,
 }
 
 static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct distribution *dummy2), struct target *target, const char *package, const char *control, UNUSED(void *dummy3)) {
+	if( listmax == 0 )
+		return RET_NOTHING;
 
-	return listformat_print(listformat, target, package, control);
+	if( listskip <= 0 ) {
+		if( listmax > 0 )
+			listmax--;
+		return listformat_print(listformat, target, package, control);
+	} else {
+		listskip--;
+		return RET_NOTHING;
+	}
 }
 
 ACTION_B(y, n, y, list) {
@@ -1043,9 +1063,21 @@ static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distr
 	term *condition = data;
 	retvalue r;
 
+	if( listmax == 0 )
+		return RET_NOTHING;
+
 	r = term_decidechunk(condition, control);
-	if( RET_IS_OK(r) )
-		r = listformat_print(listformat, target, packagename, control);
+	if( RET_IS_OK(r) ) {
+		if( listskip <= 0 ) {
+			if( listmax > 0 )
+				listmax--;
+			r = listformat_print(listformat, target,
+					packagename, control);
+		} else {
+			listskip--;
+			r = RET_NOTHING;
+		}
+	}
 	return r;
 }
 
@@ -3243,6 +3275,8 @@ LO_BUNZIP2,
 LO_UNLZMA,
 LO_GNUPGHOME,
 LO_LISTFORMAT,
+LO_LISTSKIP,
+LO_LISTMAX,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -3292,6 +3326,7 @@ static unsigned long long parse_number(const char *name, const char *argument, l
 
 static void handle_option(int c, const char *argument) {
 	retvalue r;
+	int i;
 
 	switch( c ) {
 		case 'h':
@@ -3511,6 +3546,18 @@ static void handle_option(int c, const char *argument) {
 				case LO_GNUPGHOME:
 					CONFIGDUP(gnupghome, argument);
 					break;
+				case LO_LISTMAX:
+					i = parse_number("--list-max",
+							argument, INT_MAX);
+					if( i == 0 )
+						i = -1;
+					CONFIGSET(listmax, i);
+					break;
+				case LO_LISTSKIP:
+					i = parse_number("--list-skip",
+							argument, INT_MAX);
+					CONFIGSET(listskip, i);
+					break;
 				case LO_LISTFORMAT:
 					if( strcmp(argument, "NONE") == 0 ) {
 						CONFIGSET(listformat, NULL);
@@ -3708,6 +3755,8 @@ int main(int argc,char *argv[]) {
 		{"unlzma", required_argument, &longoption, LO_UNLZMA},
 		{"gnupghome", required_argument, &longoption, LO_GNUPGHOME},
 		{"list-format", required_argument, &longoption, LO_LISTFORMAT},
+		{"list-skip", required_argument, &longoption, LO_LISTSKIP},
+		{"list-max", required_argument, &longoption, LO_LISTMAX},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
