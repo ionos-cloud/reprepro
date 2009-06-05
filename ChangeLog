@@ -1,5 +1,7 @@
 2009-06-05
 	* add glob-matching in formulas via '(% pattern)'
+	* uploaders list conditions that supported stars
+	  now use the generic globmatch (thus more stars and ? and []).
 
 2009-06-03
 	* new --list-max and --list-skip

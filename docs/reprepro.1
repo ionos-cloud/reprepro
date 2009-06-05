@@ -443,8 +443,10 @@ of the formula will be true for exactly those package that have
 in the \fBPackage\fP or \fBSources\fP file a line starting with \fIfieldname\fP
 and a value is alphabetically \fIcmp\fP to \fIvalue\fP.
 
-Additionally since reprepro 3.11.0, '\fB%\fP' can be used as comparison
-operator, denoting a shell like glob-match.
+Additionally since reprepro 3.11.0,
+'\fB%\fP' can be used as comparison operator,
+denoting matching a name with shell like wildcard
+(with '\fB*\fP', '\fB?\fP' and '\fB[\fP..\fB]\fP').
 
 Examples:
 
@@ -1583,8 +1585,8 @@ The only conditions currently supported are:
 which means any package,
 .TP
 .BI "source '" name '
-which mean any package with source \fIname\fP.
-(up to two asterisks are allowed in \fIname\fP).
+which means any package with source \fIname\fP.
+('\fB*\fP', '\fB?\fP' and '\fB[\fP..\fB]\fP' are treated as in shell wildcards).
 .TP
 .B sections '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
 matches an upload in which each section matches one of the names

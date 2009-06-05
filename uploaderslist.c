@@ -30,6 +30,7 @@
 #include "names.h"
 #include "atoms.h"
 #include "signature.h"
+#include "globmatch.h"
 #include "uploaderslist.h"
 
 struct upload_condition {
@@ -44,12 +45,7 @@ struct upload_condition {
 	bool needsall;
 	union {
 		/* uc_SECTIONS, uc_BINARIES, uc_SOURCENAME */
-		struct uploadnamecheck {
-			/* if one is NULL, do not care, allows
-			   begin*middle*end or exact match */
-			/*@null@*/ char *beginswith, *includes, *endswith, *exactly;
-			/*@null@*/struct uploadnamecheck *or;
-		} string;
+		struct strlist strings;
 		/* uc_COMPONENTS, uc_ARCHITECTURES */
 		struct atomlist atoms;
 	};
@@ -114,21 +110,7 @@ static void uploadpermission_release(struct upload_condition *p) {
 			case uc_BINARIES:
 			case uc_SECTIONS:
 			case uc_SOURCENAME:
-				free(p->string.beginswith);
-				free(p->string.includes);
-				free(p->string.endswith);
-				free(p->string.exactly);
-				while( p->string.or != NULL ) {
-					struct uploadnamecheck *n;
-
-					n = p->string.or;
-					p->string.or = n->or;
-					free(n->beginswith);
-					free(n->includes);
-					free(n->endswith);
-					free(n->exactly);
-					free(n);
-				}
+				strlist_done(&p->strings);
 				break;
 
 			case uc_ARCHITECTURES:
@@ -360,47 +342,11 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 	/* not reached */
 }
 
-static bool match_namecheck(const struct uploadnamecheck *n, const char *name) {
-	size_t l = strlen(name);
+static bool match_namecheck(const struct strlist *strings, const char *name) {
+	int i;
 
-	for( ; n != NULL ; n = n->or ) {
-		size_t lb, lm, le;
-		bool matches;
-
-		if( n->exactly != NULL ) {
-			if( strcmp(n->exactly, name) == 0 )
-				return true;
-			continue;
-		}
-		if( n->beginswith != NULL )
-			lb = strlen(n->beginswith);
-		else
-			lb = 0;
-		if( n->includes != NULL )
-			lm = strlen(n->includes);
-		else
-			lm = 0;
-		if( n->endswith != NULL )
-			le = strlen(n->endswith);
-		else
-			le = 0;
-
-		matches = lb + lm + le <= l;
-		if( matches && lb > 0 ) {
-			if( memcmp(n->beginswith, name, lb) != 0 )
-				matches = false;
-		}
-		if( matches && le > 0 ) {
-			if( memcmp(name + (l - le),
-						n->endswith, le) != 0 )
-				matches = false;
-		}
-		if( matches && lm > 0 ) {
-			const char *p = strstr(name + lb, n->includes);
-			if( p == NULL || (size_t)(p - name) > (l - le - lm) )
-				matches = false;
-		}
-		if( matches )
+	for( i = 0 ; i < strings->count ; i++ ) {
+		if( globmatch(name, strings->values[i]) )
 			return true;
 	}
 	return false;
@@ -416,13 +362,13 @@ bool uploaders_verifystring(struct upload_conditions *conditions, const char *na
 	if( conditions->current->needsall ) {
 		/* once one condition is false, the case is settled */
 
-		if( conditions->matching && !match_namecheck(&c->string, name) )
+		if( conditions->matching && !match_namecheck(&c->strings, name) )
 			conditions->matching = false;
 		/* but while it is true, more info is needed */
 		return conditions->matching;
 	} else {
 		/* once one condition is true, the case is settled */
-		if( !conditions->matching && match_namecheck(&c->string, name) )
+		if( !conditions->matching && match_namecheck(&c->strings, name) )
 			conditions->matching = true;
 		/* but while it is false, more info is needed */
 		return !conditions->matching;
@@ -495,43 +441,14 @@ static inline const char *overkey(const char *p) {
 	return p;
 }
 
-static inline retvalue init_stringpart(struct uploadnamecheck *c, const char *startp, /*@null@*/const char *firstasterisk, /*@null@*/const char *secondasterisk, const char *endp) {
-	if( firstasterisk == NULL ) {
-		/* no '*' wildcard */
-		c->exactly = strndup(startp, endp-startp);
-		if( FAILEDTOALLOC(c->exactly) )
-			return RET_ERROR_OOM;
-		return RET_OK;
-	}
-
-	if( firstasterisk != startp ) {
-		c->beginswith = strndup(startp, firstasterisk-startp);
-		if( FAILEDTOALLOC(c->beginswith) )
-			return RET_ERROR_OOM;
-	}
-	if( secondasterisk == NULL )
-		secondasterisk = firstasterisk;
-	if( secondasterisk > firstasterisk + 1 ) {
-		c->includes = strndup(firstasterisk + 1,
-				secondasterisk - (firstasterisk + 1));
-		if( FAILEDTOALLOC(c->includes) )
-			return RET_ERROR_OOM;
-	}
-	if( secondasterisk + 1 < endp ) {
-		c->endswith = strndup(secondasterisk + 1,
-				endp - (secondasterisk + 1));
-		if( FAILEDTOALLOC(c->endswith) )
-			return RET_ERROR_OOM;
-	}
-	return RET_OK;
-}
-
-static retvalue parse_stringpart(struct uploadnamecheck *string, const char **pp, const char *filename, long lineno, int column) {
+static retvalue parse_stringpart(/*@out@*/struct strlist *strings, const char **pp, const char *filename, long lineno, int column) {
 	const char *p = *pp;
 	retvalue r;
+
+	strlist_init(strings);
 	do {
-		const char *startp, *firstasterisk = NULL,
-		      *secondasterisk = NULL, *endp;
+		const char *startp, *endp;
+		char *n;
 
 		while( *p != '\0' && xisspace(*p) )
 			p++;
@@ -543,26 +460,8 @@ static retvalue parse_stringpart(struct uploadnamecheck *string, const char **pp
 		}
 		p++;
 		startp = p;
-		while( *p != '\0' && *p != '\'' && *p != '*' )
+		while( *p != '\0' && *p != '\'' )
 			p++;
-		if( *p == '*' ) {
-			firstasterisk = p;
-			p++;
-			while( *p != '\0' && *p != '\'' && *p != '*' )
-				p++;
-		}
-		if( *p == '*' ) {
-			secondasterisk = p;
-			p++;
-			while( *p != '\0' && *p != '\'' && *p != '*' )
-				p++;
-		}
-		if( *p == '*' ) {
-			fprintf(stderr,
-"%s:%lu:%u: Too many wildcards in string constant!\n",
-					filename, lineno, column + (int)(p-*pp));
-			return RET_ERROR;
-		}
 		if( *p == '\0' ) {
 			fprintf(stderr,
 "%s:%lu:%u: closing \"'\" expected!\n",
@@ -572,8 +471,10 @@ static retvalue parse_stringpart(struct uploadnamecheck *string, const char **pp
 		assert( *p == '\'' );
 		endp = p;
 		p++;
-		r = init_stringpart(string, startp,
-				firstasterisk, secondasterisk, endp);
+		n = strndup(startp, endp - startp);
+		if( FAILEDTOALLOC(n) )
+			return RET_ERROR_OOM;
+		r = strlist_adduniq(strings, n);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		while( *p != '\0' && xisspace(*p) )
@@ -581,10 +482,6 @@ static retvalue parse_stringpart(struct uploadnamecheck *string, const char **pp
 		column += (p - *pp);
 		*pp = p;
 		if( **pp == '|' ) {
-			string->or = calloc(1, sizeof(struct uploadnamecheck));
-			if( FAILEDTOALLOC(string->or) )
-				return RET_ERROR_OOM;
-			string = string->or;
 			p++;
 		}
 	} while ( **pp == '|' );
@@ -611,9 +508,9 @@ static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char 
 		}
 		p++;
 		startp = p;
-		while( *p != '\0' && *p != '\'' && *p != '*' )
+		while( *p != '\0' && *p != '\'' && *p != '*' && *p != '?' )
 			p++;
-		if( *p == '*' ) {
+		if( *p == '*' || *p == '?' ) {
 			fprintf(stderr,
 "%s:%lu:%u: Wildcards are not allowed in architectures!\n",
 					filename, lineno, column + (int)(p-*pp));
@@ -734,7 +631,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 				p += 7;
 			}
 
-			r = parse_stringpart(&last->string, &p,
+			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
 					column + (p-*pp));
 			if( RET_WAS_ERROR(r) ) {
@@ -756,7 +653,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 				p += 7;
 			}
 
-			r = parse_stringpart(&last->string, &p,
+			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
 					column + (p-*pp));
 			if( RET_WAS_ERROR(r) ) {
@@ -770,7 +667,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			last->type = uc_SOURCENAME;
 			p += 6;
 
-			r = parse_stringpart(&last->string, &p,
+			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
 					column + (p-*pp));
 			if( RET_WAS_ERROR(r) ) {
@@ -779,7 +676,7 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			}
 
 		} else {
-			fprintf(stderr, "%s:%lu:%u: condition expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, lineno, column + (int)(p-*pp));
+			fprintf(stderr, "%s:%lu:%u: condition expected after 'allow' keyword!\n", filename, lineno, column + (int)(p-*pp));
 			uploadpermission_release(condition);
 			return RET_ERROR;
 		}
