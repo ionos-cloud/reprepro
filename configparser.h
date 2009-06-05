@@ -276,7 +276,8 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	r = config_getall(iter, &formula); \
 	if( ! RET_IS_OK(r) ) \
 		return r; \
-	r = term_compile(&item->field, formula, T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL); \
+	r = term_compile(&item->field, formula, \
+			T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL); \
 	free(formula); \
 	return r; \
 }
@@ -288,7 +289,8 @@ static retvalue configparser_ ## sname ## _set_ ## field(UNUSED(void *dummy), UN
 	r = config_getall(iter, &formula); \
 	if( ! RET_IS_OK(r) ) \
 		return r; \
-	r = term_compile(&item->field, formula, T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL); \
+	r = term_compile(&item->field, formula, \
+			T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL); \
 	free(formula); \
 	item->field ## _set = true; \
 	return r; \

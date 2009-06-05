@@ -1,3 +1,6 @@
+2009-06-05
+	* add glob-matching in formulas via '(% pattern)'
+
 2009-06-03
 	* new --list-max and --list-skip
 

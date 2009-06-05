@@ -28,6 +28,7 @@
 #include "strlist.h"
 #include "names.h"
 #include "chunks.h"
+#include "globmatch.h"
 #include "terms.h"
 
 void term_free(term *t) {
@@ -106,7 +107,21 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 				}
 				comparison = tc_equal;
 				break;
+			case '%':
+				if( ISSET(options, T_GLOBMATCH) ) {
+					f++;
+					comparison = tc_globmatch;
+					break;
+				}
+				*formula = f;
+				return RET_NOTHING;
 			case '!':
+				if( f[1] == '%' &&
+						ISSET(options, T_GLOBMATCH) ) {
+					f += 2;
+					comparison = tc_notglobmatch;
+					break;
+				}
 				if( ISSET(options,T_NOTEQUAL) ) {
 					f++;
 					if( *f != '=' ) {
@@ -157,6 +172,14 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 	}
 	a->comparison = comparison;
 	if( comparison != tc_none ) {
+		if( valueend - valuestart > 2048 &&
+				(comparison == tc_globmatch ||
+				 comparison == tc_notglobmatch) ) {
+			fprintf(stderr, "Ridicilous long globmatch '%.10s...'!\n",
+					valuestart);
+			term_free(a);
+			return RET_ERROR;
+		}
 		a->comparewith =  strndup(valuestart,valueend-valuestart);
 		if( a->comparewith == NULL ) {
 			term_free(a);
@@ -322,9 +345,15 @@ retvalue term_decidechunk(term *condition,const char *controlchunk) {
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( r == RET_NOTHING ) {
-			correct = ( c == tc_notequal );
+			correct = ( c == tc_notequal || c == tc_notglobmatch);
 		} else if( c == tc_none) {
 			correct = true;
+			free(value);
+		} else if( c == tc_globmatch ) {
+			correct = globmatch(value, atom->comparewith);
+			free(value);
+		} else if(c == tc_notglobmatch ) {
+			correct = !globmatch(value, atom->comparewith);
 			free(value);
 		} else {
 			int i;

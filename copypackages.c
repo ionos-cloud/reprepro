@@ -668,7 +668,7 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 	memset(&list, 0, sizeof(list));
 
 	r = term_compile(&condition, filter,
-			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+		T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}
@@ -929,7 +929,7 @@ retvalue restore_by_formula(struct database *database, struct distribution *into
 	retvalue r;
 
 	r = term_compile(&condition, filter,
-			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+		T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}

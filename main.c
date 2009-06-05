@@ -840,7 +840,7 @@ ACTION_D(y, n, y, removefilter) {
 	}
 
 	result = term_compile(&condition, argv[2],
-			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+		T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
@@ -1093,7 +1093,8 @@ ACTION_B(y, n, y, listfilter) {
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	result = term_compile(&condition,argv[2],T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	result = term_compile(&condition, argv[2],
+			T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
