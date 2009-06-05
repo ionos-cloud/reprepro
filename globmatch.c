@@ -88,7 +88,50 @@ bool globmatch(const char *string, const char *pattern) {
 				/* or more than one */
 				continue;
 			}
-		       	if( pattern[i] == '?' || pattern[i] == *p ) {
+		       	if( pattern[i] == '[' ) {
+				int j = i+1;
+				bool matches = false, negate = false;
+
+				if( pattern[j] == '!' || pattern[j] == '^' ) {
+					j++;
+					negate = true;
+				}
+				if( pattern[j] == '\0' )
+					return false;
+				do {
+					if( pattern[j+1] == '-' &&
+						       pattern[j+2] != ']' &&
+						       pattern[j+2] != '\0' ) {
+						if( *p >= pattern[j] &&
+						    *p <= pattern[j+2] )
+							matches = true;
+						j += 3;
+					} else {
+						if( *p == pattern[j] )
+							matches = true;
+						j++;
+					}
+					if( pattern[j] == '\0' ) {
+						/* stray [ matches nothing */
+						return false;
+					}
+				} while( pattern[j] != ']' );
+				j++;
+				Assert( j <= l );
+				if( negate )
+					matches = !matches;
+				if( matches ) {
+					possible[j] = true;
+					/* if the next character is a star,
+					   that might also match 0 characters */
+					while( pattern[j] == '*' )
+						j++;
+					Assert( j <= l );
+					possible[j] = true;
+					if( j > largest_possible )
+						largest_possible = j;
+				}
+			} else if( pattern[i] == '?' || pattern[i] == *p ) {
 				int j = i + 1;
 				possible[j] = true;
 				/* if the next character is a star,
