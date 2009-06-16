@@ -2,6 +2,7 @@
 	* add listmatched, removematched, copymatched and restorematched.
 	(For those who think listfilter 'Package (% glob)' is too hard
 	 to write, to remember or too slow).
+	* add build-needing command
 
 2009-06-05
 	* add glob-matching in formulas via '(% pattern)'

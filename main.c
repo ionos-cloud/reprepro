@@ -68,6 +68,7 @@
 #include "pool.h"
 #include "printlistformat.h"
 #include "globmatch.h"
+#include "needbuild.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -945,6 +946,54 @@ ACTION_D(y, n, y, removematched) {
 		RET_ENDUPDATE(result,r);
 	}
 	return result;
+}
+
+ACTION_B(y, n, y, buildneeded) {
+	retvalue r;
+	struct distribution *distribution;
+	const char *glob;
+	architecture_t arch;
+
+	if( atom_defined(architecture) ) {
+		fprintf(stderr, "Error: build-needing cannot be used with --architecture!\n");
+		return RET_ERROR;
+	}
+	if( atom_defined(packagetype) ) {
+		fprintf(stderr, "Error: build-needing cannot be used with --architecture!\n");
+		return RET_ERROR;
+	}
+
+	if( argc == 4 )
+		glob = argv[3];
+	else
+		glob = NULL;
+
+	arch = architecture_find(argv[2]);
+	if( !atom_defined(arch) ) {
+		fprintf(stderr,
+"Error: Architecture '%s' is not known!\n", argv[2]);
+		return RET_ERROR;
+	}
+	if( arch == architecture_source || arch == architecture_all ) {
+		fprintf(stderr,
+"Error: Architecture '%s' makes no sense for build-needing!\n", argv[2]);
+		return RET_ERROR;
+	}
+	r = distribution_get(alldistributions, argv[1], false, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( !atomlist_in(&distribution->architectures, arch) ) {
+		fprintf(stderr,
+"Error: Architecture '%s' not found in distribution '%s'!\n", argv[2],
+				distribution->codename);
+		return RET_ERROR;
+	}
+
+
+	return find_needs_build(database, distribution, arch, component,
+			glob);
 }
 
 static retvalue list_in_target(struct database *database, struct target *target, const char *packagename) {
@@ -3177,6 +3226,8 @@ static const struct action {
 		0, -1, "rerunnotifiers [<distributions>]"},
 	{"cleanlists",		A_L(cleanlists),
 		0, 0,  "cleanlists"},
+	{"build-needing", 	A_ROBact(buildneeded),
+		2, 3, "[-C <component>] build-needing <codename> <architecture> [<glob>]"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N

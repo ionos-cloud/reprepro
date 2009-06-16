@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -332,7 +332,7 @@ static inline retvalue parse_data(const char *name, const char *version, const c
 	return RET_OK;
 }
 
-static retvalue tracking_get(trackingdb t,const char *sourcename,const char *version,/*@out@*/struct trackedpackage **pkg) {
+retvalue tracking_get(trackingdb t, const char *sourcename, const char *version, /*@out@*/struct trackedpackage **pkg) {
 	size_t versionlen;
 	const char *data;
 	size_t datalen;
