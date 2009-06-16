@@ -349,16 +349,16 @@ The program has to accept the compressed file as stdin and write
 the uncompressed file into stdout.
 .TP
 .BI \-\-list\-max " count"
-Limits the output of \fBlist\fP and \fBlistfilter\fP to the first \fIcount\fP
+Limits the output of \fBlist\fP, \fBlistmatched\fP and \fBlistfilter\fP to the first \fIcount\fP
 results.
 The default is 0, which means unlimited.
 .TP
 .BI \-\-list\-skip " count"
 Omitts the first \fIcount\fP results from the output of
-\fBlist\fP and \fBlistfilter\fP.
+\fBlist\fP, \fBlistmatched\fP and \fBlistfilter\fP.
 .TP
 .BI \-\-list\-format " format"
-Set the output format of \fBlist\fP and \fBlistfilter\fP commands.
+Set the output format of \fBlist\fP, \fBlistmatched\fP and \fBlistfilter\fP commands.
 The format is similar to dpkg-query's \fB\-\-showformat\fP:
 fields are specified as
 .BI ${ fieldname }
@@ -421,6 +421,17 @@ The format of the output can be changed with \fB\-\-list\-format\fP.
 To only get parts of the result, use \fB\-\-list\-max\fP and
 \fB\-\-list\-skip\fP.
 .TP
+.B listmatched \fIcodename\fP \fIglob\fP
+as list, but does not list a single package, but all packages
+matching the given shell-like \fIglob\fP.
+(i.e. \fB*\fP, \fB?\fP and \fB[\fP\fIchars\fP\fB]\fP are allowed).
+
+Examples:
+
+.B reprepro \-b . listmatched test2 'linux-*'
+lists all packages starting with \fBlinux-\fP.
+
+.TP
 .B listfilter \fIcodename\fP \fIcondition\fP
 as list, but does not list a single package, but all packages
 matching the given condition.
@@ -477,6 +488,9 @@ Note that like any other operation removing or replacing a package,
 the old package's files are unreferenced and thus may be automatically
 deleted if this was their last reference and no \fB\-\-keepunreferencedfiles\fP
 specified.
+.TP
+.B removematched \fIcodename\fP \fIglob\fP
+Delete all packages \fBlistmatched\fP with the same arguments would list.
 .TP
 .B removefilter \fIcodename\fP \fIcondition\fP
 Delete all packages \fBlistfilter\fP with the same arguments would list.
@@ -666,6 +680,13 @@ and identifies the relevant source package for each.
 All packages matching the specified \fIsource-package\fP name
 (and any \fIversion\fP if specified)
 are copied to the \fIdestination-codename\fP distribution.
+The packages are copied verbatim, no override files are consulted.
+Only components and architectures present in the source distribution are
+copied.
+.TP
+.B copymatched \fIdestination-codename\fP \fIsource-codename\fP \fIglob\fP
+Copy packages matching the given glob (see \fBlistmatched\fP).
+
 The packages are copied verbatim, no override files are consulted.
 Only components and architectures present in the source distribution are
 copied.

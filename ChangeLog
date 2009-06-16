@@ -1,3 +1,8 @@
+2009-06-16
+	* add listmatched, removematched, copymatched and restorematched.
+	(For those who think listfilter 'Package (% glob)' is too hard
+	 to write, to remember or too slow).
+
 2009-06-05
 	* add glob-matching in formulas via '(% pattern)'
 	* uploaders list conditions that supported stars

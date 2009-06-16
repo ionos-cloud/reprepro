@@ -67,6 +67,7 @@
 #include "sourceextraction.h"
 #include "pool.h"
 #include "printlistformat.h"
+#include "globmatch.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -885,6 +886,67 @@ ACTION_D(y, n, y, removefilter) {
 	return result;
 }
 
+static retvalue package_matches_glob(UNUSED(struct database *da), UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, UNUSED(const char *control), void *data) {
+	if( globmatch(packagename, data) )
+		return RET_OK;
+	else
+		return RET_NOTHING;
+}
+
+ACTION_D(y, n, y, removematched) {
+	retvalue result, r;
+	struct distribution *distribution;
+	trackingdb tracks;
+	struct trackingdata trackingdata;
+
+	assert( argc == 3 );
+
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
+	r = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( distribution->tracking != dt_NONE ) {
+		r = tracking_initialize(&tracks, database, distribution, false);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING )
+			tracks = NULL;
+		else {
+			r = trackingdata_new(tracks, &trackingdata);
+			if( RET_WAS_ERROR(r) ) {
+				(void)tracking_done(tracks);
+				return r;
+			}
+		}
+	} else
+		tracks = NULL;
+
+	result = distribution_remove_packages(distribution, database,
+			component, architecture, packagetype,
+			package_matches_glob,
+			(tracks != NULL)?&trackingdata:NULL,
+			(void*)argv[2]);
+	r = distribution_export(export, distribution, database);
+	RET_ENDUPDATE(result, r);
+	if( tracks != NULL ) {
+		trackingdata_finish(tracks, &trackingdata, database);
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result,r);
+	}
+	return result;
+}
+
 static retvalue list_in_target(struct database *database, struct target *target, const char *packagename) {
 	retvalue r,result;
 	char *control;
@@ -1103,6 +1165,43 @@ ACTION_B(y, n, y, listfilter) {
 			component, architecture, packagetype,
 			listfilterprint, NULL, condition);
 	term_free(condition);
+	return result;
+}
+
+static retvalue listmatchprint(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
+	const char *glob = data;
+
+	if( listmax == 0 )
+		return RET_NOTHING;
+
+	if( globmatch(packagename, glob) ) {
+		if( listskip <= 0 ) {
+			if( listmax > 0 )
+				listmax--;
+			return listformat_print(listformat, target,
+					packagename, control);
+		} else {
+			listskip--;
+			return RET_NOTHING;
+		}
+	} else
+		return RET_NOTHING;
+}
+
+ACTION_B(y, n, y, listmatched) {
+	retvalue r,result;
+	struct distribution *distribution;
+
+	assert( argc == 3 );
+
+	r = distribution_get(alldistributions, argv[1], false, &distribution);
+	assert( r != RET_NOTHING);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	result = distribution_foreach_package(distribution, database,
+			component, architecture, packagetype,
+			listmatchprint, NULL, (void*)argv[2]);
 	return result;
 }
 
@@ -1619,6 +1718,41 @@ ACTION_D(y, n, y, copyfilter) {
 	return result;
 }
 
+ACTION_D(y, n, y, copymatched) {
+	struct distribution *destination, *source;
+	retvalue result, r;
+
+	assert( argc == 4 );
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_get(alldistributions, argv[2], false, &source);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = copy_by_glob(database, destination, source, argv[3],
+			component, architecture, packagetype);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
 ACTION_D(y, n, y, restore) {
 	struct distribution *destination;
 	retvalue result, r;
@@ -1670,6 +1804,38 @@ ACTION_D(y, n, y, restoresrc) {
 	r = restore_by_source(database, destination,
 			component, architecture, packagetype, argv[2],
 			argc-3, argv+3);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(y, n, y, restorematched) {
+	struct distribution *destination;
+	retvalue result, r;
+
+	assert( argc == 4 );
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	if( destination->readonly ) {
+		fprintf(stderr, "Cannot copy packages to read-only distribution '%s'.\n",
+				destination->codename);
+		return RET_ERROR;
+	}
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = restore_by_glob(database, destination,
+			component, architecture, packagetype, argv[2],
+			argv[3]);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -2921,6 +3087,10 @@ static const struct action {
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>"},
 	{"removefilter", 	A_Dact(removefilter),
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] removefilter <codename> <term to describe which packages to remove>"},
+	{"listmatched", 	A_ROBact(listmatched),
+		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] listmatched <codename> <glob to describe packages>"},
+	{"removematched", 	A_Dact(removematched),
+		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] removematched <codename> <glob to describe packages>"},
 	{"createsymlinks", 	A_C(createsymlinks),
 		0, -1, "createsymlinks [<distributions>]"},
 	{"export", 		A_F(export),
@@ -2965,12 +3135,16 @@ static const struct action {
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>"},
 	{"copysrc",		A_Dact(copysrc),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copysrc <destination-distribution> <source-distribution> <source-package-name> [<source versions>]"},
+	{"copymatched",		A_Dact(copymatched),
+		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copymatched <destination-distribution> <source-distribution> <glob>"},
 	{"copyfilter",		A_Dact(copyfilter),
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copyfilter <destination-distribution> <source-distribution> <formula>"},
 	{"restore",		A_Dact(restore),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restore <distribution> <snapshot-name> <package-names to restore>"},
 	{"restoresrc",		A_Dact(restoresrc),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restoresrc <distribution> <snapshot-name> <source-package-name> [<source versions>]"},
+	{"restorematched",		A_Dact(restorematched),
+		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorematched <distribution> <snapshot-name> <glob>"},
 	{"restorefilter",		A_Dact(restorefilter),
 		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorefilter <distribution> <snapshot-name> <formula>"},
 	{"dumppull",		A_B(dumppull),

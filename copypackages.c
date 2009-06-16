@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2008 Bernhard R. Link
+ *  Copyright (C) 2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -35,6 +35,7 @@
 #include "tracking.h"
 #include "filecntl.h"
 #include "mprintf.h"
+#include "globmatch.h"
 #include "copypackages.h"
 
 struct target_package_list {
@@ -660,6 +661,51 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 	return result;
 }
 
+static retvalue by_glob(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
+	const char *glob = data;
+	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
+	const char *packagename, *chunk;
+	architecture_t package_architecture;
+	retvalue result, r;
+
+	r = target_openiterator(fromtarget, database, READONLY, &iterator);
+	assert( r != RET_NOTHING );
+	if( !RET_IS_OK(r) )
+		return r;
+	result = RET_NOTHING;
+	while( target_nextpackage(&iterator, &packagename, &chunk) ) {
+		if( !globmatch(packagename, glob) )
+			continue;
+		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+		r = list_prepareadd(database, list, desttarget,
+				packagename, NULL, package_architecture, chunk);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	r = target_closeiterator(&iterator);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
+retvalue copy_by_glob(struct database *database, struct distribution *into, struct distribution *from, const char *glob, component_t component, architecture_t architecture, packagetype_t packagetype) {
+	struct package_list list;
+	retvalue r;
+
+	memset(&list, 0, sizeof(list));
+
+	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_glob, (void*)glob);
+	if( !RET_IS_OK(r) )
+		return r;
+	r = packagelist_add(database, into, &list, from->codename);
+	packagelist_done(&list);
+	return r;
+}
+
 retvalue copy_by_formula(struct database *database, struct distribution *into, struct distribution *from, const char *filter, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct package_list list;
 	term *condition;
@@ -741,6 +787,15 @@ static retvalue choose_by_condition(UNUSED(struct target *target), UNUSED(const 
 	term *condition = privdata;
 
 	return term_decidechunk(condition, chunk);
+}
+
+static retvalue choose_by_glob(UNUSED(struct target *target), const char *packagename, UNUSED(const char *version), UNUSED(const char *chunk), void *privdata) {
+	const char *glob = privdata;
+
+	if( globmatch(packagename, glob) )
+		return RET_OK;
+	else
+		return RET_NOTHING;
 }
 
 retvalue copy_from_file(struct database *database, struct distribution *into, component_t component_atom, architecture_t architecture_atom, packagetype_t packagetype_atom, const char *filename, int argc, const char **argv) {
@@ -938,4 +993,10 @@ retvalue restore_by_formula(struct database *database, struct distribution *into
 			snapshotname, choose_by_condition, condition);
 	term_free(condition);
 	return r;
+}
+
+retvalue restore_by_glob(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, const char *glob) {
+	return restore_from_snapshot(database, into,
+			component, architecture, packagetype,
+			snapshotname, choose_by_glob, (void*)glob);
 }
