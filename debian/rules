@@ -46,7 +46,7 @@ config.status: configure
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
 		    --with-libbz2 $(DBFLAGS) $(ARCHIVEFLAGS) \
 		    --disable-dependency-tracking \
-		    CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="-Wl,-z,syms" \
+		    CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="-Wl,-z,defs" \
 	|| ( echo configure failed with $$? ; echo BEGIN config.log: ; \
 	     cat config.log ; echo "END config.log" ; exit 1 )
 
