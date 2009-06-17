@@ -194,7 +194,10 @@ retvalue find_needs_build(struct database *database, struct distribution *distri
 		fprintf(stderr,
 "ERROR: '%s' has no source package Tracking enabled and\n"
 "build-needing is currently only implemented for distributions where\n"
-"this is enabled.\n", distribution->codename);
+"this is enabled.\n"
+"(i.e. you need to add e.g. Tracking: minimal in conf/distribution\n"
+"and run retrack (and repeat running it after every update and pull.)\n",
+			distribution->codename);
 		return RET_ERROR;
 	}
 
