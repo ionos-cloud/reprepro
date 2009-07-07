@@ -923,6 +923,7 @@ struct distribution *distribution_find(struct distribution *distributions, const
 		d = d->next;
 	r = d;
 	if( r != NULL ) {
+		d = d->next;
 		while( d != NULL && ! strlist_in(&d->alsoaccept, name) )
 			d = d->next;
 		if( d == NULL )
@@ -938,6 +939,7 @@ struct distribution *distribution_find(struct distribution *distributions, const
 		fprintf(stderr, "No distribution named '%s' found!\n", name);
 		return NULL;
 	}
+	d = d->next;
 	while( d != NULL && ( d->suite == NULL || strcmp(d->suite, name) != 0 ))
 		d = d->next;
 	if( d == NULL )
