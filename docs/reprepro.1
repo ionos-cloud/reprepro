@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-06-02" "reprepro" REPREPRO
+.TH REPREPRO 1 "2009-07-09" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -740,6 +740,16 @@ your sources.list file:
 .BR rerunnotifiers " [ " \fIcodenames\fP " ]"
 Run all external scripts specified in the \fBLog:\fP options of the
 specified distributions.
+.TP
+.B build\-needing \fIcodename\fP \fIarchitecture\fP \fR[\fP \fIglob\fP \fR]\fP
+List source packages (matching \fIglob\fP) that likely need a build on the
+given architecture.
+
+List all source package in the given distribution without a binary package
+of the given architecture built from that version of the source,
+without a \fB.changes\fP or \fB.log\fP file for the given architecture,
+with an Architecture field including \fBany\fP or the architecture and
+at least one package in the Binary field not yet available.
 .TP
 .B translatefilelists
 Translate the file list cache within
