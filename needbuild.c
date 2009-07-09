@@ -36,8 +36,8 @@
 /* list all source packages in a distribution that needs buildd action
 
    For each source package check:
-	- if tracking is enabled and there is a log file for the given arch
-	  -> SKIP
+	- if tracking is enabled and there is a .log or .changes file
+	  for the given arch -> SKIP
    	- if there is a binary package for the given architecture -> SKIP
 	- if the package's Architecture field excludes this arch -> SKIP
 	- if the package's Binary field only lists existing ones
@@ -150,6 +150,27 @@ static retvalue check_source_needs_build(struct database *database, struct distr
 	r = target->getversion(control, &sourceversion);
 	if( !RET_IS_OK(r) )
 		return r;
+	r = chunk_getwordlist(control, "Architectures", &architectures);
+	if( RET_IS_OK(r) ) {
+		bool skip = true;
+
+		for( i = 0 ; i < architectures->count ; i++ ) {
+			const char *a = architectures->values[i];
+			if( strcmp(a, "any") == 0 ) {
+				skip = false;
+				break;
+			}
+			if( strcmp(a, atoms_architectures[architecture]) == 0 ) {
+				skip = false;
+				break;
+			}
+		}
+		strlist_done(&architectures);
+		if( skip ) {
+			free(sourceversion);
+			return RET_NOTHING;
+		}
+	}
 	r = chunk_getwordlist(control, "Binary", &binary);
 	if( !RET_IS_OK(r) ) {
 		free(sourceversion);
