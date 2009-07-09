@@ -986,7 +986,7 @@ ACTION_B(y, n, y, buildneeded) {
 
 	if( !atomlist_in(&distribution->architectures, architecture_source) ) {
 		fprintf(stderr,
-"Error: Architecture '%s' does not contain sources. buildneeded cannot be used!\n",
+"Error: Architecture '%s' does not contain sources. build-needing cannot be used!\n",
 				distribution->codename);
 		return RET_ERROR;
 	}

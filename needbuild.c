@@ -44,7 +44,7 @@
           (i.e. architecture all) -> SKIP
 */
 
-static retvalue tracked_source_needs_build(struct distribution *distribution, architecture_t architecture, const char *sourcename, const char *sourceversion, const struct strlist *binary, const struct trackedpackage *tp) {
+static retvalue tracked_source_needs_build(struct distribution *distribution, architecture_t architecture, const char *sourcename, const char *sourceversion, const char *dscfilename, const struct strlist *binary, const struct trackedpackage *tp) {
 	bool found_binary[binary->count];
 	const char *archstring = atoms_architectures[architecture];
 	size_t archstringlen= strlen(archstring);
@@ -123,9 +123,9 @@ static retvalue tracked_source_needs_build(struct distribution *distribution, ar
 	   packages that are lacking: */
 	for( i = 0 ; i < binary->count ; i++ ) {
 		if( !found_binary[i] ) {
-			/* todo: also print dsc filename */
-			printf("%s %s\n",
-					sourcename, sourceversion);
+			printf("%s %s %s\n",
+					sourcename, sourceversion,
+					dscfilename);
 			return RET_OK;
 		}
 	}
@@ -141,7 +141,9 @@ struct needbuild_data { architecture_t architecture;
 static retvalue check_source_needs_build(struct database *database, struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
 	struct needbuild_data *d = data;
 	char *sourceversion;
-	struct strlist binary;
+	struct strlist binary, architectures, filekeys;
+	const char *dscfilename = NULL;
+	int i;
 	retvalue r;
 
 	if( d->glob != NULL && !globmatch(sourcename, d->glob) )
@@ -154,13 +156,14 @@ static retvalue check_source_needs_build(struct database *database, struct distr
 	if( RET_IS_OK(r) ) {
 		bool skip = true;
 
-		for( i = 0 ; i < architectures->count ; i++ ) {
-			const char *a = architectures->values[i];
+		for( i = 0 ; i < architectures.count ; i++ ) {
+			const char *a = architectures.values[i];
 			if( strcmp(a, "any") == 0 ) {
 				skip = false;
 				break;
 			}
-			if( strcmp(a, atoms_architectures[architecture]) == 0 ) {
+			if( strcmp(a, atoms_architectures[
+						d->architecture]) == 0 ) {
 				skip = false;
 				break;
 			}
@@ -176,6 +179,27 @@ static retvalue check_source_needs_build(struct database *database, struct distr
 		free(sourceversion);
 		return r;
 	}
+	r = target->getfilekeys(control, &filekeys);
+	if( !RET_IS_OK(r) ) {
+		strlist_done(&binary);
+		free(sourceversion);
+		return r;
+	}
+	for( i = 0 ; i < filekeys.count ; i++ ) {
+		if( endswith(filekeys.values[i], ".dsc") ) {
+			dscfilename = filekeys.values[i];
+			break;
+		}
+	}
+	if( dscfilename == NULL ) {
+		fprintf(stderr,
+"Warning: source package '%s' in '%s' without dsc file!\n",
+				sourcename, target->identifier);
+		free(sourceversion);
+		strlist_done(&binary);
+		strlist_done(&filekeys);
+		return RET_NOTHING;
+	}
 
 	if( d->tracks != NULL ) {
 		struct trackedpackage *tp;
@@ -184,15 +208,18 @@ static retvalue check_source_needs_build(struct database *database, struct distr
 		if( RET_WAS_ERROR(r) ) {
 			free(sourceversion);
 			strlist_done(&binary);
+			strlist_done(&filekeys);
 			return r;
 		}
 		if( RET_IS_OK(r) ) {
 			r = tracked_source_needs_build(distribution,
 					d->architecture, sourcename,
-					sourceversion, &binary, tp);
+					sourceversion, dscfilename,
+					&binary, tp);
 			trackedpackage_free(tp);
 			free(sourceversion);
 			strlist_done(&binary);
+			strlist_done(&filekeys);
 			return r;
 		}
 		fprintf(stderr, "Warning: %s's tracking data of %s (%s) is out of date. Run retrack to repair!\n", distribution->codename, sourcename, sourceversion);
@@ -200,6 +227,7 @@ static retvalue check_source_needs_build(struct database *database, struct distr
 	// TODO: implement without tracking
 	free(sourceversion);
 	strlist_done(&binary);
+	strlist_done(&filekeys);
 	return RET_NOTHING;
 }
 
