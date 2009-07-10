@@ -1289,3 +1289,53 @@ retvalue tracking_removepackages(trackingdb t, struct database *database, struct
 	}
 	return result;
 }
+
+static retvalue package_retrack(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
+	trackingdb tracks = data;
+
+	return target->doretrack(packagename, controlchunk,
+			tracks, database);
+}
+
+retvalue tracking_retrack(struct database *database, struct distribution *d, bool needsretrack) {
+	struct target *t;
+	trackingdb tracks;
+	retvalue r, rr;
+
+	if( d->tracking == dt_NONE )
+		return RET_NOTHING;
+
+	for( t = d->targets ; !needsretrack && t != NULL ; t = t->next ) {
+		if( t->staletracking )
+			needsretrack = true;
+	}
+	if( !needsretrack )
+		return RET_NOTHING;
+
+	if( verbose > 0 )
+		printf("Retracking %s...\n", d->codename);
+
+	r = tracking_initialize(&tracks, database, d, false);
+	if( !RET_IS_OK(r) )
+		return r;
+	/* first forget that any package is there*/
+	r = tracking_reset(tracks);
+	if( !RET_WAS_ERROR(r) ) {
+		/* add back information about actually used files */
+		r = distribution_foreach_package(d, database,
+				atom_unknown, atom_unknown, atom_unknown,
+				package_retrack, NULL, tracks);
+	}
+	if( RET_IS_OK(r) ) {
+		for( t = d->targets ; t != NULL ; t = t->next ) {
+			t->staletracking = false;
+		}
+	}
+	if( !RET_WAS_ERROR(r) ) {
+		/* now remove everything no longer needed */
+		r = tracking_tidyall(tracks, database);
+	}
+	rr = tracking_done(tracks);
+	RET_ENDUPDATE(r, rr);
+	return r;
+}

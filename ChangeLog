@@ -1,3 +1,8 @@
+2009-07-10
+	* warn if a distribution with tracking is modified in a form tracking
+	data might get out of data. update and pull automatically cause a
+	retrack on distributions with tracking enabled.
+
 2009-07-09
 	* some more improvements to the build-needing command
 

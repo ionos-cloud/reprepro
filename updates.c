@@ -73,6 +73,7 @@
 #include "updates.h"
 #include "upgradelist.h"
 #include "distribution.h"
+#include "tracking.h"
 #include "terms.h"
 #include "filterlist.h"
 #include "readrelease.h"
@@ -1296,9 +1297,6 @@ static retvalue updates_startup(struct aptmethodrun *run, struct update_distribu
 			if( verbose >= 0 )
 				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
 		}
-		if( d->distribution->tracking != dt_NONE ) {
-			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
-		}
 	}
 	return remote_startup(run);
 }
@@ -1759,18 +1757,17 @@ static void updates_from_callback(void *privdata, const char **rule_p, const cha
 static retvalue updates_install(struct database *database, struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
+	struct distribution *d = distribution->distribution;
 
-	assert( logger_isprepared(distribution->distribution->logger) );
+	assert( logger_isprepared(d->logger) );
 
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->nothingnew )
 			continue;
-		r = upgradelist_install(u->upgradelist,
-				distribution->distribution->logger,
-				database,
+		r = upgradelist_install(u->upgradelist, d->logger, database,
 				u->ignoredelete, updates_from_callback);
-		RET_UPDATE(distribution->distribution->status, r);
+		RET_UPDATE(d->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = true;
 		RET_UPDATE(result,r);
@@ -1778,6 +1775,10 @@ static retvalue updates_install(struct database *database, struct update_distrib
 		u->upgradelist = NULL;
 		if( RET_WAS_ERROR(r) )
 			break;
+	}
+	if( RET_IS_OK(result) && d->tracking != dt_NONE ) {
+		r = tracking_retrack(database, d, false);
+		RET_ENDUPDATE(result, r);
 	}
 	return result;
 }

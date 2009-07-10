@@ -765,7 +765,6 @@ EOF
 testrun - -b . update test1 3<<EOF
 returns 254
 stderr
-*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
@@ -803,7 +802,6 @@ EOF
 testrun - -b . update test1 3<<EOF
 returns 254
 stderr
-*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
@@ -825,7 +823,6 @@ EOF
 testrun - -b . update test1 3<<EOF
 returns 254
 stderr
-*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
@@ -860,7 +857,6 @@ EOF
 testrun - -b . update test1 3<<EOF
 returns 254
 stderr
-*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
@@ -879,7 +875,6 @@ EOF
 
 testrun - -b . update test1 3<<EOF
 stderr
-*=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
@@ -913,6 +908,7 @@ stdout
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|source).
 -d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-v1*=Retracking test1...
 -v0*=Exporting indices...
 -v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
@@ -938,7 +934,6 @@ EOF
 checknolog log1
 checknolog log2
 testrun - -b . update test1 3<<EOF
-=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
@@ -949,7 +944,6 @@ checklog log1 < /dev/null
 checknolog log2
 testrun - --nolistsdownload --noskipold -b . update test1 3<<EOF
 =WARNING: Single-Instance not yet supported!
-=WARNING: Updating does not update trackingdata. Trackingdata of test1 will be outdated!
 -v6*=Called /bin/cp './lists/Test2toTest1_test2_ugly_Sources' './lists/_test1_ugly_source_Test2toTest1_Test2toTest1_test2_ugly_Sources'
 -v6*=Listhook successfully returned!
 -v6*=Called /bin/cp './lists/Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages' './lists/_test1_ugly_${FAKEARCHITECTURE}_Test2toTest1_Test2toTest1_test2_ugly_${FAKEARCHITECTURE}_Packages'
@@ -1059,6 +1053,10 @@ Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 1
 
 Distribution: test1
 Source: simple
@@ -1069,6 +1067,10 @@ Files:
  pool/stupid/s/simple/simple_1.dsc s 0
  pool/stupid/s/simple/simple_1.tar.gz s 0
  pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes c 0
+ pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 1
+ pool/ugly/s/simple/simple-addons_1_all.deb a 1
+ pool/ugly/s/simple/simple_1.dsc s 1
+ pool/ugly/s/simple/simple_1.tar.gz s 1
 
 END
 dodiff results.expected results
@@ -1762,7 +1764,7 @@ mv db/saved2references.db db/references.db
 sed -i -e 's/^Tracking: minimal/Tracking: minimal includechanges/' conf/distributions
 testrun -  -b . retrack 3<<EOF
 stdout
--v1*=Chasing test1...
+-v1*=Retracking test1...
 -d1*=db: 'bloat+-0a9z.app' added to tracking.db(test1).
 -x1*=  Tracking test1|stupid|${FAKEARCHITECTURE}...
 -x1*=  Tracking test1|stupid|source...

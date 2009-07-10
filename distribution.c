@@ -43,9 +43,9 @@
 
 static retvalue distribution_free(struct distribution *distribution) {
 	retvalue result,r;
+	bool needsretrack = false;
 
 	if( distribution != NULL ) {
-		free(distribution->codename);
 		free(distribution->suite);
 		free(distribution->fakecomponentprefix);
 		free(distribution->version);
@@ -82,10 +82,20 @@ static retvalue distribution_free(struct distribution *distribution) {
 		while( distribution->targets != NULL ) {
 			struct target *next = distribution->targets->next;
 
+			if( distribution->targets->staletracking )
+				needsretrack = true;
+
 			r = target_free(distribution->targets);
 			RET_UPDATE(result,r);
 			distribution->targets = next;
 		}
+		if( distribution->tracking != dt_NONE && needsretrack ) {
+			fprintf(stderr,
+"WARNING: Tracking data of '%s' might have become out of date.\n"
+"Consider running retrack to avoid getting funny effects.\n",
+					distribution->codename);
+		}
+		free(distribution->codename);
 		free(distribution);
 		return result;
 	} else

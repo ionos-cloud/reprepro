@@ -65,6 +65,9 @@ struct target {
 	struct table *packages;
 	/* do not allow write operations */
 	bool readonly;
+	/* was updated without tracking data (no problem when distribution
+	 * has no tracking, otherwise cause warning later) */
+	bool staletracking;
 };
 
 retvalue target_initialize_ubinary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@out@*/struct target **);

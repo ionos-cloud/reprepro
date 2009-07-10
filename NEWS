@@ -5,6 +5,7 @@ Updates since 3.10.0:
 - new listmatched, removematched, copymatched and restorematched
 - new build-needing command to list source packages likely to need
   a build for a given architecture.
+- pull and update call retrack on distributions with tracking enabled.
 
 Updates between 3.9.2 and 3.10.0:
 - fix bug of ListHook not used if in the From: rule of a rule.

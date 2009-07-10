@@ -2007,13 +2007,6 @@ ACTION_R(n, n, y, y, rereference) {
 	return result;
 }
 /***************************retrack****************************/
-static retvalue package_retrack(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
-	trackingdb tracks = data;
-
-	return target->doretrack(packagename, controlchunk,
-			tracks, database);
-}
-
 ACTION_D(n, n, y, retrack) {
 	retvalue result,r;
 	struct distribution *d;
@@ -2025,8 +2018,6 @@ ACTION_D(n, n, y, retrack) {
 	}
 	result = RET_NOTHING;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
-		trackingdb tracks;
-
 		if( !d->selected )
 			continue;
 		if( d->tracking == dt_NONE ) {
@@ -2036,32 +2027,7 @@ ACTION_D(n, n, y, retrack) {
 			}
 			continue;
 		}
-		if( verbose > 0 ) {
-			printf("Chasing %s...\n", d->codename);
-		}
-		r = tracking_initialize(&tracks, database, d, false);
-		if( RET_WAS_ERROR(r) ) {
-			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) )
-				break;
-			continue;
-		}
-		/* first forget than any package is there*/
-		r = tracking_reset(tracks);
-		RET_UPDATE(result,r);
-		if( !RET_WAS_ERROR(r) ) {
-			/* add back information about actually used files */
-			r = distribution_foreach_package(d, database,
-					atom_unknown, atom_unknown, atom_unknown,
-					package_retrack, NULL, tracks);
-			RET_UPDATE(result,r);
-		}
-		if( !RET_WAS_ERROR(r) ) {
-			/* now remove everything no longer needed */
-			r = tracking_tidyall(tracks, database);
-			RET_UPDATE(result,r);
-		}
-		r = tracking_done(tracks);
+		r = tracking_retrack(database, d, true);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) )
 			break;
