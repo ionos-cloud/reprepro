@@ -90,7 +90,7 @@ EOF
 testrun - retrack breakme 3<<EOF
 stderr
 stdout
--v1*=Chasing breakme...
+-v1*=Retracking breakme...
 EOF
 
 rm -r db conf pool
