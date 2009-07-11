@@ -158,7 +158,7 @@ EOF
 dodiff results.expected results
 testrun - retrack 3<<EOF
 stdout
--v1*=Chasing test...
+-v1*=Retracking test...
 EOF
 testout - dumptracks test 3<<EOF
 EOF
