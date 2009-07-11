@@ -2238,6 +2238,7 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 	if( verbose >= 0 )
 		printf("Removing obsolete or to be replaced packages...\n");
 	for( d=distributions ; d != NULL ; d=d->next) {
+		struct distribution *dd = d->distribution;
 		struct update_target *u;
 
 		for( u=d->targets ; u != NULL ; u=u->next ) {
@@ -2253,9 +2254,8 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 				continue;
 			}
 			r = upgradelist_predelete(u->upgradelist,
-					d->distribution->logger,
-					database);
-			RET_UPDATE(d->distribution->status, r);
+					dd->logger, database);
+			RET_UPDATE(dd->status, r);
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = true;
 			RET_UPDATE(result,r);
@@ -2263,6 +2263,10 @@ retvalue updates_predelete(struct database *database, struct update_distribution
 			u->upgradelist = NULL;
 			if( RET_WAS_ERROR(r) )
 				return r;
+			if( RET_IS_OK(result) && dd->tracking != dt_NONE ) {
+				r = tracking_retrack(database, dd, false);
+				RET_ENDUPDATE(result, r);
+			}
 		}
 	}
 	logger_wait();

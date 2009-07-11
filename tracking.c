@@ -1093,6 +1093,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 		const char *s, *basefilename, *filekey = pkg->filekeys.values[i];
 		char *package, *control, *source, *version;
 		struct strlist filekeys;
+		bool savedstaletracking;
 
 		if( pkg->refcounts[i] <= 0 )
 			continue;
@@ -1210,10 +1211,16 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			return r;
 		}
 
+		/* we remove the tracking data outself, so this is not
+		 * told to remove the tracking data, so it might mark things
+		 * as stale, which we do not want.. */
+		savedstaletracking = target->staletracking;
+
 		/* that is a bit wasteful, as it parses some stuff again, but
 		 * but that is better than reimplementing logger here */
 		r = target_removereadpackage(target, distribution->logger,
 				database, package, control, NULL);
+		target->staletracking = savedstaletracking;
 		free(control);
 		free(package);
 		assert( r != RET_NOTHING );
