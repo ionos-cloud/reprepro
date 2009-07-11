@@ -44,7 +44,7 @@
           (i.e. architecture all) -> SKIP
 */
 
-static retvalue tracked_source_needs_build(struct distribution *distribution, architecture_t architecture, const char *sourcename, const char *sourceversion, const char *dscfilename, const struct strlist *binary, const struct trackedpackage *tp) {
+static retvalue tracked_source_needs_build(architecture_t architecture, const char *sourcename, const char *sourceversion, const char *dscfilename, const struct strlist *binary, const struct trackedpackage *tp) {
 	bool found_binary[binary->count];
 	const char *archstring = atoms_architectures[architecture];
 	size_t archstringlen= strlen(archstring);
@@ -138,7 +138,7 @@ struct needbuild_data { architecture_t architecture;
 	/*@null@*/ const char *glob;
 };
 
-static retvalue check_source_needs_build(struct database *database, struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
+static retvalue check_source_needs_build(UNUSED(struct database *database), struct distribution *distribution, struct target *target, const char *sourcename, const char *control, void *data) {
 	struct needbuild_data *d = data;
 	char *sourceversion;
 	struct strlist binary, architectures, filekeys;
@@ -212,7 +212,7 @@ static retvalue check_source_needs_build(struct database *database, struct distr
 			return r;
 		}
 		if( RET_IS_OK(r) ) {
-			r = tracked_source_needs_build(distribution,
+			r = tracked_source_needs_build(
 					d->architecture, sourcename,
 					sourceversion, dscfilename,
 					&binary, tp);
