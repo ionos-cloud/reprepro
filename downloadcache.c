@@ -39,14 +39,14 @@ struct downloaditem {
 };
 
 /* Initialize a new download session */
-retvalue downloadcache_initialize(struct database *database,enum spacecheckmode mode,off_t reserveddb,off_t reservedother,struct downloadcache **download) {
+retvalue downloadcache_initialize(enum spacecheckmode mode, off_t reserveddb, off_t reservedother, struct downloadcache **download) {
 	struct downloadcache *cache;
 	retvalue r;
 
 	cache = malloc(sizeof(struct downloadcache));
 	if( cache == NULL )
 		return RET_ERROR_OOM;
-	r = space_prepare(database, &cache->devices, mode, reserveddb, reservedother);
+	r = space_prepare(&cache->devices, mode, reserveddb, reservedother);
 	if( RET_WAS_ERROR(r) ) {
 		free(cache);
 		return r;
@@ -222,7 +222,7 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 		return RET_ERROR_OOM;
 	}
 
-	fullfilename = files_calcfullfilename(database, filekey);
+	fullfilename = files_calcfullfilename(filekey);
 	if( FAILEDTOALLOC(fullfilename) ) {
 		freeitem(item);
 		return RET_ERROR_OOM;

@@ -8,6 +8,9 @@
 #ifndef REPREPRO_DATABASE_H
 #include "database.h"
 #endif
+#ifndef REPREPRO_NAMES_H
+#include "names.h"
+#endif
 
 struct checksums;
 struct checksumsarray;
@@ -21,7 +24,7 @@ retvalue files_remove(struct database *, const char *filekey);
 retvalue files_removesilent(struct database *, const char *filekey);
 
 /* delete the filekey (not doing anything else, not even forgetting it) */
-retvalue files_deletefile(struct database *, const char *);
+retvalue files_deletefile(const char *);
 
 /* check for file in the database and if not found there in the pool */
 retvalue files_expect(struct database *, const char *, const struct checksums *);
@@ -77,4 +80,8 @@ retvalue files_hardlinkandadd(struct database *, const char *tempfile, const cha
  * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
 retvalue files_canadd(struct database *, const char *filekey, const struct checksums *);
 
+/* make a filekey to a fullfilename. return NULL if OutOfMemory */
+static inline char *files_calcfullfilename(const char *filekey) {
+	return calc_dirconcat(global.outdir, filekey);
+}
 #endif

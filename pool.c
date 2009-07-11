@@ -182,7 +182,7 @@ retvalue pool_delete(struct database *database, const char *filekey) {
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n",filekey);
 
-	r = files_deletefile(database, filekey);
+	r = files_deletefile(filekey);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -233,7 +233,7 @@ static void removeifunreferenced(const void *nodep, const VISIT which, UNUSED(co
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(d, filekey);
+	r = files_deletefile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);
@@ -277,7 +277,7 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, UNUSED(c
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(d, filekey);
+	r = files_deletefile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);
@@ -364,7 +364,7 @@ static void removeunusednew(const void *nodep, const VISIT which, UNUSED(const i
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(d, filekey);
+	r = files_deletefile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);
@@ -410,7 +410,7 @@ static void removeunusednew2(const void *nodep, const VISIT which, UNUSED(const 
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(d, filekey);
+	r = files_deletefile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);

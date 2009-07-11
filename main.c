@@ -89,7 +89,7 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*x_basedir = NULL,
 	*x_outdir = NULL,
 	*x_distdir = NULL,
-	*dbdir = NULL,
+	*x_dbdir = NULL,
 	*x_listdir = NULL,
 	*x_confdir = NULL,
 	*x_logdir = NULL,
@@ -134,7 +134,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -3347,7 +3347,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	deletederef = ISSET(needs,NEED_DEREF) && !keepunreferenced;
 	deletenew = ISSET(needs,NEED_DELNEW) && !keepunusednew;
 
-	result = database_create(&database, dbdir, alldistributions,
+	result = database_create(&database, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
 			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
 			waitforlock, verbosedatabase || (verbose >= 30),
@@ -3368,7 +3368,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	if( RET_IS_OK(result) ) {
 
 		if( ISSET(needs,NEED_FILESDB) )
-			result = database_openfiles(database, global.outdir);
+			result = database_openfiles(database);
 
 		assert( result != RET_NOTHING );
 		if( RET_IS_OK(result) ) {
@@ -3684,7 +3684,7 @@ static void handle_option(int c, const char *argument) {
 					CONFIGDUP(x_distdir, argument);
 					break;
 				case LO_DBDIR:
-					CONFIGDUP(dbdir, argument);
+					CONFIGDUP(x_dbdir, argument);
 					break;
 				case LO_LISTDIR:
 					CONFIGDUP(x_listdir, argument);
@@ -3866,7 +3866,7 @@ static void interrupt_signaled(UNUSED(int s)) {
 
 static void myexit(int) __attribute__((__noreturn__));
 static void myexit(int status) {
-	free(dbdir);
+	free(x_dbdir);
 	free(x_distdir);
 	free(x_listdir);
 	free(x_logdir);
@@ -4046,8 +4046,8 @@ int main(int argc,char *argv[]) {
 		x_outdir = strdup(x_basedir);
 	if( x_distdir == NULL && x_outdir != NULL )
 		x_distdir = calc_dirconcat(x_outdir, "dists");
-	if( dbdir == NULL )
-		dbdir = calc_dirconcat(x_basedir, "db");
+	if( x_dbdir == NULL )
+		x_dbdir = calc_dirconcat(x_basedir, "db");
 	if( x_logdir == NULL )
 		x_logdir = calc_dirconcat(x_basedir, "logs");
 	if( x_listdir == NULL )
@@ -4055,7 +4055,7 @@ int main(int argc,char *argv[]) {
 	if( x_overridedir == NULL )
 		x_overridedir = calc_dirconcat(x_basedir, "override");
 	if( FAILEDTOALLOC(x_outdir) || FAILEDTOALLOC(x_distdir) ||
-	    FAILEDTOALLOC(dbdir) || FAILEDTOALLOC(x_listdir) ||
+	    FAILEDTOALLOC(x_dbdir) || FAILEDTOALLOC(x_listdir) ||
 	    FAILEDTOALLOC(x_logdir) || FAILEDTOALLOC(x_confdir) ||
 	    FAILEDTOALLOC(x_overridedir) || FAILEDTOALLOC(x_methoddir) ) {
 		(void)fputs("Out of Memory!\n",stderr);
@@ -4064,6 +4064,7 @@ int main(int argc,char *argv[]) {
 	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 	global.basedir = x_basedir;
+	global.dbdir = x_dbdir;
 	global.outdir = x_outdir;
 	global.confdir = x_confdir;
 	global.distdir = x_distdir;

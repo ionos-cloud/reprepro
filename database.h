@@ -16,12 +16,10 @@ struct distribution;
 struct table;
 struct cursor;
 
-retvalue database_create(/*@out@*/struct database **, const char *dbdir, struct distribution *, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb, bool legacymd5format);
+retvalue database_create(/*@out@*/struct database **, struct distribution *, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb, bool legacymd5format);
 retvalue database_close(/*@only@*/struct database *);
 
-/*@observer@*/ const char *database_directory(struct database *);
-
-retvalue database_openfiles(struct database *, const char *mirrordir);
+retvalue database_openfiles(struct database *);
 retvalue database_openreferences(struct database *);
 retvalue database_listpackages(struct database *, /*@out@*/struct strlist *);
 retvalue database_droppackages(struct database *, const char *);
@@ -57,8 +55,5 @@ bool cursor_nextpair(struct table *, struct cursor *, /*@null@*//*@out@*/const c
 retvalue cursor_replace(struct table *, struct cursor *, const char *, size_t);
 retvalue cursor_delete(struct table *, struct cursor *, const char *, /*@null@*/const char *);
 retvalue cursor_close(struct table *, /*@only@*/struct cursor *);
-
-/* concat mirrordir. return NULL if OutOfMemory */
-char *files_calcfullfilename(const struct database *,const char *filekey);
 
 #endif

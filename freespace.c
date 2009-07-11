@@ -112,13 +112,12 @@ static retvalue device_find_or_create(struct devices *devices, dev_t id, const c
 	return RET_OK;
 }
 
-retvalue space_prepare(struct database *database,struct devices **devices,enum spacecheckmode mode,off_t reservedfordb,off_t reservedforothers) {
+retvalue space_prepare(struct devices **devices, enum spacecheckmode mode, off_t reservedfordb, off_t reservedforothers) {
 	struct devices *n;
 	struct device *d;
 	struct stat s;
 	int ret;
 	retvalue r;
-	const char *dbdir;
 
 	if( mode == scm_NONE ) {
 		*devices = NULL;
@@ -131,17 +130,15 @@ retvalue space_prepare(struct database *database,struct devices **devices,enum s
 	n->root = NULL;
 	n->reserved = reservedforothers;
 
-	dbdir = database_directory(database);
-
-	ret = stat(dbdir, &s);
+	ret = stat(global.dbdir, &s);
 	if( ret != 0 ) {
 		int e = errno;
 		fprintf(stderr, "Error stat'ing %s: %d=%s\n",
-				dbdir, e, strerror(e));
+				global.dbdir, e, strerror(e));
 		free(n);
 		return RET_ERRNO(e);
 	}
-	r = device_find_or_create(n, s.st_dev, dbdir, &d);
+	r = device_find_or_create(n, s.st_dev, global.dbdir, &d);
 	if( RET_WAS_ERROR(r) ) {
 		space_free(n);
 		return r;

@@ -442,7 +442,7 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 	if( r == RET_NOTHING ) {
 		if( verbose > 3 )
 			printf("Reading filelist for %s\n", filekey);
-		debfilename = files_calcfullfilename(database, filekey);
+		debfilename = files_calcfullfilename(filekey);
 		if( debfilename == NULL ) {
 			return RET_ERROR_OOM;
 		}

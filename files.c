@@ -145,14 +145,14 @@ retvalue files_remove(struct database *database, const char *filekey) {
 }
 
 /* delete the file and possible parent directories */
-retvalue files_deletefile(struct database *database, const char *filekey) {
+retvalue files_deletefile(const char *filekey) {
 	int err,en;
 	char *filename;
 	retvalue r;
 
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
-	filename = files_calcfullfilename(database, filekey);
+	filename = files_calcfullfilename(filekey);
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 	err = unlink(filename);
@@ -172,7 +172,7 @@ retvalue files_deletefile(struct database *database, const char *filekey) {
 	} else if( !global.keepdirectories ) {
 		/* try to delete parent directories, until one gives
 		 * errors (hopefully because it still contains files) */
-		size_t fixedpartlen = strlen(database->filesdir);
+		size_t fixedpartlen = strlen(global.outdir);
 		char *p;
 
 		while( (p = strrchr(filename,'/')) != NULL ) {
@@ -219,7 +219,7 @@ retvalue files_hardlinkandadd(struct database *database, const char *tempfile, c
 	r = files_canadd(database, filekey, checksums);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = checksums_hardlink(database->filesdir, filekey, tempfile, checksums);
+	r = checksums_hardlink(global.outdir, filekey, tempfile, checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -268,7 +268,7 @@ retvalue files_expect(struct database *database, const char *filekey, const stru
 		return r;
 
 	/* ready to add means missing, so have to look for the file itself: */
-	filename = files_calcfullfilename(database, filekey);
+	filename = files_calcfullfilename(filekey);
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 
@@ -347,7 +347,7 @@ retvalue files_printmissing(struct database *database, const struct strlist *fil
 			/* File missing */
 			(void)fputs(origfile, stdout);
 			(void)putchar(' ');
-			(void)fputs(database->filesdir, stdout);
+			(void)fputs(global.outdir, stdout);
 			(void)putchar('/');
 			(void)fputs(filekey, stdout);
 			(void)putchar('\n');
@@ -525,7 +525,7 @@ static retvalue checkpoolfile(const char *fullfilename, const struct checksums *
 static retvalue leftoverchecksum(struct database *database, struct cursor *cursor2, const char *filekey2) {
 	char *fullfilename;
 
-	fullfilename = files_calcfullfilename(database, filekey2);
+	fullfilename = files_calcfullfilename(filekey2);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 	if( isregularfile(fullfilename) ) {
@@ -579,7 +579,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 				RET_UPDATE(result, r);
 				continue;
 			}
-			fullfilename = files_calcfullfilename(database, filekey);
+			fullfilename = files_calcfullfilename(filekey);
 			if( fullfilename == NULL ) {
 				result = RET_ERROR_OOM;
 				checksums_free(expected);
@@ -670,7 +670,7 @@ retvalue files_checkpool(struct database *database, bool fast) {
 				RET_UPDATE(result, r);
 				continue;
 			}
-			fullfilename = files_calcfullfilename(database, filekey);
+			fullfilename = files_calcfullfilename(filekey);
 			if( fullfilename == NULL ) {
 				result = RET_ERROR_OOM;
 				checksums_free(expected);
@@ -741,7 +741,7 @@ static retvalue collectnewchecksums(struct database *database, const char *filek
 	/* if we get here, there are either hashes missing,
 	 * or already out of sync. So best we look at the
 	 * actual file to decide: */
-	fullfilename = files_calcfullfilename(database, filekey);
+	fullfilename = files_calcfullfilename(filekey);
 	if( fullfilename == NULL ) {
 		checksums_free(expected);
 		return RET_ERROR_OOM;
@@ -848,7 +848,7 @@ retvalue files_collectnewchecksums(struct database *database) {
 				continue;
 			}
 
-			fullfilename = files_calcfullfilename(database, filekey);
+			fullfilename = files_calcfullfilename(filekey);
 			if( fullfilename == NULL ) {
 				result = RET_ERROR_OOM;
 				checksums_free(expected);
@@ -895,7 +895,7 @@ retvalue files_detect(struct database *database, const char *filekey) {
 	char *fullfilename;
 	retvalue r;
 
-	fullfilename = files_calcfullfilename(database, filekey);
+	fullfilename = files_calcfullfilename(filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 	r = checksums_read(fullfilename, &checksums);
@@ -936,7 +936,7 @@ static retvalue regenerate_filelist(void *data, const char *filekey) {
 	if( !reread && !table_recordexists(database->contents, filekey) )
 		return RET_NOTHING;
 
-	debfilename = files_calcfullfilename(database, filekey);
+	debfilename = files_calcfullfilename(filekey);
 	if( debfilename == NULL )
 		return RET_ERROR_OOM;
 
@@ -1022,7 +1022,7 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 		return RET_NOTHING;
 	}
 	assert( sourcefilename != NULL );
-	fullfilename = files_calcfullfilename(database, filekey);
+	fullfilename = files_calcfullfilename(filekey);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 	(void)dirs_make_parent(fullfilename);
@@ -1053,11 +1053,11 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 	return RET_OK;
 }
 
-static retvalue checkimproveorinclude(struct database *database, const char *sourcedir, const char *basefilename, const char *filekey, struct checksums **checksums_p, bool *improving) {
+static retvalue checkimproveorinclude(const char *sourcedir, const char *basefilename, const char *filekey, struct checksums **checksums_p, bool *improving) {
 	retvalue r;
 	struct checksums *checksums = NULL;
 	bool improves, copied = false;
-	char *fullfilename = files_calcfullfilename(database, filekey);
+	char *fullfilename = files_calcfullfilename(filekey);
 
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
@@ -1178,7 +1178,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 		if( improves )
 			r = checksums_combine(&checksums, *checksums_p, NULL);
 		if( !RET_WAS_ERROR(r) )
-			r = checkimproveorinclude(database, sourcedir,
+			r = checkimproveorinclude(sourcedir,
 				basefilename, filekey, &checksums, &improves);
 		if( !RET_WAS_ERROR(r) && improves )
 			r = files_replace_checksums(database, filekey,
@@ -1196,7 +1196,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 	if( sourcefilename == NULL )
 		return RET_ERROR_OOM;
 
-	fullfilename = files_calcfullfilename(database, filekey);
+	fullfilename = files_calcfullfilename(filekey);
 	if( fullfilename == NULL ) {
 		free(sourcefilename);
 		return RET_ERROR_OOM;

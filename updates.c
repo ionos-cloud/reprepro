@@ -1967,7 +1967,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	/* Then get all packages */
 	if( verbose >= 0 )
 		printf("Calculating packages to get...\n");
-	r = downloadcache_initialize(database, mode, reserveddb, reservedother, &cache);
+	r = downloadcache_initialize(mode, reserveddb, reservedother, &cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
 		RET_UPDATE(result,r);

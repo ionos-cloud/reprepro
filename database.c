@@ -54,13 +54,15 @@
 static void database_free(/*@only@*/ struct database *db) {
 	if( db == NULL )
 		return;
-	free(db->directory);
-	free(db->filesdir);
 	free(db->version);
 	free(db->lastsupportedversion);
 	free(db->dbversion);
 	free(db->lastsupporteddbversion);
 	free(db);
+}
+
+static inline char *dbfilename(const char *filename) {
+	return calc_dirconcat(global.dbdir, filename);
 }
 
 /**********************/
@@ -75,11 +77,11 @@ static retvalue database_lock(struct database *db, size_t waitforlock) {
 
 	assert( !db->locked );
 	db->dircreationdepth = 0;
-	r = dir_create_needed(db->directory, &db->dircreationdepth);
+	r = dir_create_needed(global.dbdir, &db->dircreationdepth);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	lockfile = calc_dirconcat(db->directory, "lockfile");
+	lockfile = dbfilename("lockfile");
 	if( lockfile == NULL )
 		return RET_ERROR_OOM;
 	fd = open(lockfile,O_WRONLY|O_CREAT|O_EXCL|O_NOFOLLOW|O_NOCTTY,S_IRUSR|S_IWUSR);
@@ -129,7 +131,7 @@ static void releaselock(struct database *db) {
 
 	assert( db->locked );
 
-	lockfile = calc_dirconcat(db->directory, "lockfile");
+	lockfile = dbfilename("lockfile");
 	if( lockfile == NULL )
 		return;
 	if( unlink(lockfile) != 0 ) {
@@ -139,7 +141,7 @@ static void releaselock(struct database *db) {
 		(void)unlink(lockfile);
 	}
 	free(lockfile);
-	dir_remove_new(db->directory, db->dircreationdepth);
+	dir_remove_new(global.dbdir, db->dircreationdepth);
 	db->locked = false;
 }
 
@@ -176,21 +178,15 @@ retvalue database_close(struct database *db) {
 	return result;
 }
 
-static retvalue database_hasdatabasefile(const struct database *database, const char *filename, /*@out@*/bool *exists_p) {
+static retvalue database_hasdatabasefile(UNUSED(const struct database *database), const char *filename, /*@out@*/bool *exists_p) {
 	char *fullfilename;
 
-	fullfilename = calc_dirconcat(database->directory, filename);
+	fullfilename = dbfilename(filename);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 	*exists_p = isregularfile(fullfilename);
 	free(fullfilename);
 	return RET_OK;
-}
-
-const char *database_directory(struct database *database) {
-	/* this has to make sure the database directory actually
-	 * exists. Though locking before already does so */
-	return database->directory;
 }
 
 enum database_type {
@@ -207,12 +203,12 @@ static const uint32_t types[dbt_COUNT] = {
 
 static int paireddatacompare(UNUSED(DB *db), const DBT *a, const DBT *b);
 
-static retvalue database_opentable(struct database *database, const char *filename, /*@null@*/const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
+static retvalue database_opentable(UNUSED(struct database *database), const char *filename, /*@null@*/const char *subtable, enum database_type type, uint32_t flags, /*@out@*/DB **result) {
 	char *fullfilename;
 	DB *table;
 	int dbret;
 
-	fullfilename = calc_dirconcat(database_directory(database), filename);
+	fullfilename = dbfilename(filename);
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 
@@ -345,12 +341,12 @@ retvalue database_listsubtables(struct database *database,const char *filename,s
 	}
 }
 
-retvalue database_dropsubtable(struct database *database, const char *table, const char *subtable) {
+retvalue database_dropsubtable(UNUSED(struct database *database), const char *table, const char *subtable) {
 	char *filename;
 	DB *db;
 	int dbret;
 
-	filename = calc_dirconcat(database->directory, table);
+	filename = dbfilename(table);
 	if( filename == NULL )
 		return RET_ERROR_OOM;
 
@@ -523,7 +519,7 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 	retvalue r;
 	int c;
 
-	versionfilename = calc_dirconcat(db->directory, "version");
+	versionfilename = dbfilename("version");
 	if( versionfilename == NULL )
 		return RET_ERROR_OOM;
 	f = fopen(versionfilename, "r");
@@ -604,7 +600,7 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 		fprintf(stderr,
 "According to %s/version this database was created with a future version\n"
 "and uses features this version cannot understand. Aborting...\n",
-				db->directory);
+				global.dbdir);
 		return RET_ERROR;
 	}
 
@@ -614,14 +610,14 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 		fprintf(stderr,
 "According to %s/version this database was created with a yet unsupported\n"
 "database library. Aborting...\n",
-				db->directory);
+				global.dbdir);
 		return RET_ERROR;
 	}
 	if( strncmp(db->lastsupporteddbversion, "bdb", 3) != 0 ) {
 		fprintf(stderr,
 "According to %s/version this database was created with a yet unsupported\n"
 "database library. Aborting...\n",
-				db->directory);
+				global.dbdir);
 		return RET_ERROR;
 	}
 	r = dpkgversions_cmp(LIBDB_VERSION_STRING, db->lastsupporteddbversion, &c);
@@ -632,7 +628,7 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 "According to %s/version this database was created with a future version\n"
 "%s of libdb. The libdb version this binary is linked against cannot yet\n"
 "handle this format. Aborting...\n",
-				db->directory, db->dbversion+3);
+				global.dbdir, db->dbversion+3);
 		return RET_ERROR;
 	}
 	return RET_OK;
@@ -643,7 +639,7 @@ static retvalue writeversionfile(struct database *db) {
 	FILE *f;
 	int i, e;
 
-	versionfilename = calc_dirconcat(db->directory, "version.new");
+	versionfilename = dbfilename("version.new");
 	if( versionfilename == NULL )
 		return RET_ERROR_OOM;
 	f = fopen(versionfilename, "w");
@@ -711,7 +707,7 @@ static retvalue writeversionfile(struct database *db) {
 		free(versionfilename);
 		return RET_ERRNO(e);
 	}
-	finalversionfilename = calc_dirconcat(db->directory, "version");
+	finalversionfilename = dbfilename("version");
 	if( finalversionfilename == NULL ) {
 		unlink(versionfilename);
 		free(versionfilename);
@@ -759,12 +755,12 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
  * - if readonly, do not create but return with RET_NOTHING
  * - lock database, waiting a given amount of time if already locked
  */
-retvalue database_create(struct database **result, const char *dbdir, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb, bool legacymd5format) {
+retvalue database_create(struct database **result, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb, bool legacymd5format) {
 	struct database *n;
 	retvalue r;
 	bool packagesfileexists, trackingfileexists, nopackagesyet;
 
-	if( readonly && !isdir(dbdir) ) {
+	if( readonly && !isdir(global.dbdir) ) {
 		if( verbose >= 0 )
 			fprintf(stderr, "Exiting without doing anything, as there is no database yet that could result in other actions.\n");
 		return RET_NOTHING;
@@ -773,11 +769,6 @@ retvalue database_create(struct database **result, const char *dbdir, struct dis
 	n = calloc(1, sizeof(struct database));
 	if( n == NULL )
 		return RET_ERROR_OOM;
-	n->directory = strdup(dbdir);
-	if( n->directory == NULL ) {
-		free(n);
-		return RET_ERROR_OOM;
-	}
 
 	r = database_lock(n, waitforlock);
 	assert( r != RET_NOTHING );
@@ -1752,14 +1743,13 @@ retvalue database_droppackages(struct database *database, const char *identifier
 	return database_dropsubtable(database, "packages.db", identifier);
 }
 
-retvalue database_openfiles(struct database *db, const char *filesdir) {
+retvalue database_openfiles(struct database *db) {
 	retvalue r;
 	struct strlist identifiers;
 	bool checksumsexisted;
 
 	assert( db->checksums == NULL && db->oldmd5sums == NULL );
 	assert( db->contents == NULL );
-	assert( db->filesdir == NULL );
 
 	r = database_listsubtables(db, "contents.cache.db", &identifiers);
 	if( RET_IS_OK(r) ) {
@@ -1768,16 +1758,12 @@ retvalue database_openfiles(struct database *db, const char *filesdir) {
 "Your %s/contents.cache.db file still contains a table of cached file lists\n"
 "in the old (pre 3.0.0) format. You have to either delete that file (and lose\n"
 "all caches of file lists) or run reprepro with argument translatefilelists\n"
-"to translate the old caches into the new format.\n",	db->directory);
+"to translate the old caches into the new format.\n",	global.dbdir);
 			strlist_done(&identifiers);
 			return RET_ERROR;
 		}
 		strlist_done(&identifiers);
 	}
-
-	db->filesdir = strdup(filesdir);
-	if( db->filesdir == NULL )
-		return RET_ERROR_OOM;
 
 	r = database_hasdatabasefile(db, "checksums.db", &checksumsexisted);
 	r = database_table(db, "checksums.db", "pool",
@@ -1785,8 +1771,6 @@ retvalue database_openfiles(struct database *db, const char *filesdir) {
 			&db->checksums);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
-		free(db->filesdir);
-		db->filesdir = NULL;
 		db->checksums = NULL;
 		db->oldmd5sums = NULL;
 		return r;
@@ -1800,8 +1784,6 @@ retvalue database_openfiles(struct database *db, const char *filesdir) {
 		db->capabilities.nomd5legacy = true;
 	else if( RET_WAS_ERROR(r) ) {
 		(void)table_close(db->checksums);
-		free(db->filesdir);
-		db->filesdir = NULL;
 		db->checksums = NULL;
 		db->oldmd5sums = NULL;
 		return r;
@@ -1817,7 +1799,6 @@ retvalue database_openfiles(struct database *db, const char *filesdir) {
 	if( RET_WAS_ERROR(r) ) {
 		(void)table_close(db->checksums);
 		(void)table_close(db->oldmd5sums);
-		db->filesdir = NULL;
 		db->checksums = NULL;
 		db->oldmd5sums = NULL;
 		db->contents = NULL;
@@ -1838,15 +1819,13 @@ retvalue database_openreleasecache(struct database *database, const char *codena
 	 * be very current then.
 	 * */
 
-	oldcachefilename = calc_dirconcat(database_directory(database),
-			"release.cache.db");
+	oldcachefilename = dbfilename("release.cache.db");
 	if( oldcachefilename == NULL )
 		return RET_ERROR_OOM;
 	if( isregularfile(oldcachefilename) ) {
 		char *newcachefilename;
 
-		newcachefilename = calc_dirconcat(database_directory(database),
-				"release.caches.db");
+		newcachefilename = dbfilename("release.caches.db");
 		if( newcachefilename == NULL ) {
 			free(oldcachefilename);
 			return RET_ERROR_OOM;
@@ -1882,11 +1861,6 @@ retvalue database_openreleasecache(struct database *database, const char *codena
 	return r;
 }
 
-/* concat filesdir. return NULL if OutOfMemory */
-char *files_calcfullfilename(const struct database *database,const char *filekey) {
-	return calc_dirconcat(database->filesdir, filekey);
-}
-
 static retvalue table_copy(struct table *oldtable, struct table *newtable) {
 	retvalue r;
 	struct cursor *cursor;
@@ -1919,17 +1893,17 @@ retvalue database_translate_filelists(struct database *database) {
 		if( !strlist_in(&identifiers, "filelists") ) {
 			fprintf(stderr,
 "Your %s/contents.cache.db file does not contain an old style database!\n",
-					database->directory);
+					global.dbdir);
 			strlist_done(&identifiers);
 			return RET_NOTHING;
 		}
 		strlist_done(&identifiers);
 	}
 
-	dbname = calc_dirconcat(database->directory, "contents.cache.db");
+	dbname = dbfilename("contents.cache.db");
 	if( dbname == NULL )
 		return RET_ERROR_OOM;
-	tmpdbname = calc_dirconcat(database->directory, "old.contents.cache.db");
+	tmpdbname = dbfilename("old.contents.cache.db");
 	if( tmpdbname == NULL ) {
 		free(dbname);
 		return RET_ERROR_OOM;
