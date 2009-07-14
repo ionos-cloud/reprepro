@@ -3,7 +3,7 @@ Section: utils
 Priority: extra
 Maintainer: Bernhard R. Link <brlink@debian.org>
 Build-Depends: debhelper (>= 5), libgpgme11-dev, libdb4.6-dev, libz-dev, libbz2-dev, libarchive-dev
-Standards-Version: 3.8.1
+Standards-Version: 3.8.2
 Vcs-Browser: http://alioth.debian.org/scm/viewvc.php/mirrorer/?root=mirrorer
 Vcs-Cvs: :pserver:anonymous@cvs.alioth.debian.org:/cvsroot/mirrorer reprepro
 Homepage: http://mirrorer.alioth.debian.org/
