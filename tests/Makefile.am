@@ -6,6 +6,7 @@ genpackage.sh \
 test.inc \
 test.sh \
 testatoms.sh \
+testbuildneeding.sh \
 testcheck.sh \
 testchecksums.sh \
 testcopy.sh \
