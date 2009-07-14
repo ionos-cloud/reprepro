@@ -1,4 +1,28 @@
 {
+   stupid-db4.6
+   Memcheck:Param
+   pwrite64(buf)
+   obj:/lib/ld-2.7.so
+   fun:__os_io
+   obj:/usr/lib/libdb-4.6.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+   fun:__memp_fsync
+   fun:__db_sync
+}
+{
+   stupid-db4.6-withlibc-dbg
+   Memcheck:Param
+   pwrite64(buf)
+   fun:pwrite64
+   fun:__os_io
+   obj:/usr/lib/libdb-4.6.so
+   fun:__memp_bhwrite
+   fun:__memp_sync_int
+   fun:__memp_fsync
+   fun:__db_sync
+}
+{
    stupid-db3
    Memcheck:Param
    pwrite64(buf)
@@ -30,6 +54,12 @@
 }
 {
    gpgme11-gpgme_data_release_and_get_mem_leak
+   Memcheck:Leak
+   fun:calloc
+   obj:*/libgpgme.so.*
+}
+{
+   gpgme11-gpgme_data_release_and_get_mem_leak2
    Memcheck:Leak
    fun:calloc
    obj:*/libgpgme.so.*
