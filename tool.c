@@ -48,8 +48,8 @@ bool interrupted(void) {return false;}
 static void about(bool help) NORETURN;
 static void about(bool help) {
 	fprintf(help?stdout:stderr,
-"modifychanges: Modify a Debian style .changes file\n"
-"Syntax: modifychanges [--create] <changesfile> <commands>\n"
+"changestool: Modify a Debian style .changes file\n"
+"Syntax: changestool [--create] <changesfile> <commands>\n"
 "Possible commands include:\n"
 " verify\n"
 " updatechecksums [<files to update>]\n"
