@@ -1,4 +1,4 @@
-.TH CHANGESTOOL 1 "06 May, 2007" "reprepro" REPREPRO
+.TH CHANGESTOOL 1 "2009-07-15" "reprepro" REPREPRO
 .SH NAME
 changestool \- verify, dump, modify, create or fix Debian .changes files
 .SH SYNOPSIS
@@ -64,6 +64,13 @@ are not found in the directory of the .changes file.
 .B \-\-create
 Flag for the commands starting with \fBadd\fP to create the \fB.changes\fP
 file if it does not yet exists.
+.TP
+.B \-\-create\-with\-all\-fields
+Flag for the commands starting with \fBadd\fP to create the \fB.changes\fP
+file if it does not yet exists.
+Unlike \fB\-\-create\fP, this creates more fields to make things like dupload
+happier.
+Currently that creates fake \fBUrgency\fP and \fBChanges\fP fields.
 .TP
 .B \-\-unlzma \fIcommand\fP
 External uncompressor used to uncompress lzma files to look

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -59,7 +59,6 @@ static void about(bool help) {
 " addrawfile <filenames>\n"
 " add <filenames processed by filename suffix>\n"
 " setdistribution <distributions to list>\n"
-//" create <.dsc and .deb files to include>\n"
 );
 	if( help )
 		exit(EXIT_SUCCESS);
@@ -1023,7 +1022,7 @@ static retvalue parse_changes(const char *changesfile, const char *chunk, struct
 #define CHANGES_WRITE_DISTRIBUTIONS 	0x40
 #define CHANGES_WRITE_ALL 	      0xFFFF
 
-static retvalue write_changes_file(const char *changesfilename,struct changes *c, unsigned int flags) {
+static retvalue write_changes_file(const char *changesfilename,struct changes *c, unsigned int flags, bool fakefields) {
 	struct chunkeditfield *cef;
 	char datebuffer[100];
 	retvalue r;
@@ -1086,9 +1085,17 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 		if( cef == NULL )
 			return RET_ERROR_OOM;
 	}
-	cef = cef_newfield("Changes", CEF_KEEP, CEF_LATE, 0, cef);
-	if( cef == NULL )
+	if( fakefields ) {
+		cef = cef_newfield("Changes", CEF_ADDMISSED, CEF_LATE, 0, cef);
+		if( cef == NULL ) {
 			return RET_ERROR_OOM;
+		}
+		cef_setdata(cef, "\n Changes information missing, as not an original .changes file");
+	} else {
+		cef = cef_newfield("Changes", CEF_KEEP, CEF_LATE, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
 	cef = cef_newfield("Closes", CEF_KEEP, CEF_LATE, 0, cef);
 	if( cef == NULL )
 			return RET_ERROR_OOM;
@@ -1127,9 +1134,17 @@ static retvalue write_changes_file(const char *changesfilename,struct changes *c
 		if( cef == NULL )
 			return RET_ERROR_OOM;
 	}
-	cef = cef_newfield("Urgency", CEF_KEEP, CEF_EARLY, 0, cef);
-	if( cef == NULL )
+	if( fakefields ) {
+		cef = cef_newfield("Urgency", CEF_ADDMISSED, CEF_EARLY, 0, cef);
+		if( cef == NULL ) {
 			return RET_ERROR_OOM;
+		}
+		cef_setdata(cef, "low");
+	} else {
+		cef = cef_newfield("Urgency", CEF_KEEP, CEF_EARLY, 0, cef);
+		if( cef == NULL )
+			return RET_ERROR_OOM;
+	}
 	cef = cef_newfield("Distribution", CEF_KEEP, CEF_EARLY, 0, cef);
 	if( cef == NULL )
 			return RET_ERROR_OOM;
@@ -2019,9 +2034,11 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 		c->modified = true;
 	}
 	if( c->modified ) {
-		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_FILES, false);
 	} else if( improvedchecksum_supported(c, improvedfilehashes) ) {
-		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_FILES, false);
 	} else
 		return RET_NOTHING;
 }
@@ -2079,7 +2096,8 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 		}
 	}
 	if( c->modified ) {
-		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_FILES, false);
 	} else
 		return RET_NOTHING;
 }
@@ -2307,7 +2325,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename, const struct 
 	return RET_OK;
 }
 
-static retvalue adddscs(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
+static retvalue adddscs(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath, bool fakefields) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of .dsc files to include expected!\n");
 		return RET_ERROR;
@@ -2320,7 +2338,7 @@ static retvalue adddscs(const char *changesfilename, struct changes *c, int argc
 	}
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c,
-				CHANGES_WRITE_ALL);
+				CHANGES_WRITE_ALL, fakefields);
 	} else
 		return RET_NOTHING;
 }
@@ -2501,7 +2519,7 @@ static retvalue adddeb(struct changes *c, const char *debfilename, const struct 
 	return RET_OK;
 }
 
-static retvalue adddebs(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
+static retvalue adddebs(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath, bool fakefields) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of .deb files to include expected!\n");
 		return RET_ERROR;
@@ -2514,7 +2532,7 @@ static retvalue adddebs(const char *changesfilename, struct changes *c, int argc
 	}
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c,
-				CHANGES_WRITE_ALL);
+				CHANGES_WRITE_ALL, fakefields);
 	} else
 		return RET_NOTHING;
 }
@@ -2593,7 +2611,7 @@ static retvalue addrawfile(struct changes *c, const char *filename, const struct
 	return RET_OK;
 }
 
-static retvalue addrawfiles(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
+static retvalue addrawfiles(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath, bool fakefields) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of files to add (without further parsing) expected!\n");
 		return RET_ERROR;
@@ -2606,12 +2624,12 @@ static retvalue addrawfiles(const char *changesfilename, struct changes *c, int 
 	}
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c,
-				CHANGES_WRITE_FILES);
+				CHANGES_WRITE_FILES, fakefields);
 	} else
 		return RET_NOTHING;
 }
 
-static retvalue addfiles(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath) {
+static retvalue addfiles(const char *changesfilename, struct changes *c, int argc, char **argv, const struct strlist *searchpath, bool fakefields) {
 	if( argc <= 0 ) {
 		fprintf(stderr, "Filenames of files to add expected!\n");
 		return RET_ERROR;
@@ -2634,7 +2652,7 @@ static retvalue addfiles(const char *changesfilename, struct changes *c, int arg
 	}
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c,
-				CHANGES_WRITE_ALL);
+				CHANGES_WRITE_ALL, fakefields);
 	} else
 		return RET_NOTHING;
 }
@@ -2661,10 +2679,10 @@ static retvalue setdistribution(const char *changesfilename, struct changes *c, 
 	strlist_done(&c->distributions);
 	strlist_move(&c->distributions, &distributions);
 	return write_changes_file(changesfilename, c,
-			CHANGES_WRITE_DISTRIBUTIONS);
+			CHANGES_WRITE_DISTRIBUTIONS, false);
 }
 
-static int execute_command(int argc, char **argv, const char *changesfilename, const struct strlist *searchpath, bool file_exists, bool create_file, struct changes *changesdata) {
+static int execute_command(int argc, char **argv, const char *changesfilename, const struct strlist *searchpath, bool file_exists, bool create_file, bool fakefields, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
 
@@ -2700,7 +2718,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, c
 	} else if( strcasecmp(command, "addrawfile") == 0 ) {
 		if( file_exists || create_file )
 			r = addrawfiles(changesfilename, changesdata,
-					argc-1, argv+1, searchpath);
+					argc-1, argv+1, searchpath, fakefields);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2709,7 +2727,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, c
 	} else if( strcasecmp(command, "adddsc") == 0 ) {
 		if( file_exists || create_file )
 			r = adddscs(changesfilename, changesdata,
-					argc-1, argv+1, searchpath);
+					argc-1, argv+1, searchpath, fakefields);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2718,7 +2736,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, c
 	} else if( strcasecmp(command, "adddeb") == 0 ) {
 		if( file_exists || create_file )
 			r = adddebs(changesfilename, changesdata,
-					argc-1, argv+1, searchpath);
+					argc-1, argv+1, searchpath, fakefields);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2727,7 +2745,7 @@ static int execute_command(int argc, char **argv, const char *changesfilename, c
 	} else if( strcasecmp(command, "add") == 0 ) {
 		if( file_exists || create_file )
 			r = addfiles(changesfilename, changesdata,
-					argc-1, argv+1, searchpath);
+					argc-1, argv+1, searchpath, fakefields);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",
 					changesfilename);
@@ -2773,6 +2791,7 @@ int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"create", no_argument, NULL, 'C'},
+		{"create-with-all-fields", no_argument, &longoption, 4},
 		{"searchpath", required_argument, NULL, 's'},
 		{"gunzip", required_argument, &longoption, 1},
 		{"bunzip2", required_argument, &longoption, 2},
@@ -2783,6 +2802,7 @@ int main(int argc,char *argv[]) {
 	const char *changesfilename;
 	bool file_exists;
 	bool create_file = false;
+	bool all_fields = false;
 	struct strlist searchpath;
 	struct changes *changesdata IFSTUPIDCC(=NULL);
 	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL;
@@ -2802,6 +2822,10 @@ int main(int argc,char *argv[]) {
 						break;
 					case 3:
 						unlzma = strdup(optarg);
+						break;
+					case 4:
+						create_file = true;
+						all_fields = true;
 						break;
 				}
 				break;
@@ -2866,7 +2890,8 @@ int main(int argc,char *argv[]) {
 		argc -= (optind+1);
 		argv += (optind+1);
 		r = execute_command(argc, argv, changesfilename, &searchpath,
-		                    file_exists, create_file, changesdata);
+		                    file_exists, create_file, all_fields,
+				    changesdata);
 	}
 	changes_free(changesdata);
 

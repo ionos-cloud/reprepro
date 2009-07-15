@@ -1,3 +1,10 @@
+reprepro (3.11.1-0) UNRELEASED; urgency=low
+
+  - add --create-with-all-fields option to changestool to create
+    .changes files dupload does not choke on. (Closes: 536788)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 15 Jul 2009 11:46:49 +0200
+
 reprepro (3.11.0-1) unstable; urgency=low
 
   * new release
