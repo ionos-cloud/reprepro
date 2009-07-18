@@ -23,6 +23,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <search.h>
+#include <unistd.h>
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"
@@ -176,13 +177,80 @@ retvalue pool_markadded(const char *filekey) {
 	return remember_filekey(filekey, pl_ADDED, ~pl_DELETED);
 };
 
+/* delete the file and possible parent directories */
+static retvalue deletepoolfile(const char *filekey) {
+	int err,en;
+	char *filename;
+	retvalue r;
+
+	if( interrupted() )
+		return RET_ERROR_INTERRUPTED;
+	filename = files_calcfullfilename(filekey);
+	if( filename == NULL )
+		return RET_ERROR_OOM;
+	err = unlink(filename);
+	if( err != 0 ) {
+		en = errno;
+		r = RET_ERRNO(en);
+		if( errno == ENOENT ) {
+			fprintf(stderr,"%s not found, forgetting anyway\n",filename);
+			free(filename);
+			return RET_NOTHING;
+		} else {
+			fprintf(stderr, "error %d while unlinking %s: %s\n",
+					en, filename, strerror(en));
+			free(filename);
+			return r;
+		}
+	} else if( !global.keepdirectories ) {
+		/* try to delete parent directories, until one gives
+		 * errors (hopefully because it still contains files) */
+		size_t fixedpartlen = strlen(global.outdir);
+		char *p;
+
+		while( (p = strrchr(filename,'/')) != NULL ) {
+			/* do not try to remove parts of the mirrordir */
+			if( (size_t)(p-filename) <= fixedpartlen+1 )
+				break;
+			*p ='\0';
+			/* try to rmdir the directory, this will
+			 * fail if there are still other files or directories
+			 * in it: */
+			err = rmdir(filename);
+			if( err == 0 ) {
+				if( verbose > 1 ) {
+					printf("removed now empty directory %s\n",filename);
+				}
+			} else {
+				en = errno;
+				if( en != ENOTEMPTY ) {
+					//TODO: check here if only some
+					//other error was first and it
+					//is not empty so we do not have
+					//to remove it anyway...
+					fprintf(stderr,
+"ignoring error %d trying to rmdir %s: %s\n", en, filename, strerror(en));
+				}
+				/* parent directories will contain this one
+				 * thus not be empty, in other words:
+				 * everything's done */
+				break;
+			}
+		}
+
+	}
+	free(filename);
+	return RET_OK;
+}
+
+
 retvalue pool_delete(struct database *database, const char *filekey) {
 	retvalue r;
 
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n",filekey);
 
-	r = files_deletefile(filekey);
+	r = deletepoolfile(filekey);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -233,7 +301,7 @@ static void removeifunreferenced(const void *nodep, const VISIT which, UNUSED(co
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(filekey);
+	r = deletepoolfile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);
@@ -277,7 +345,7 @@ static void removeifunreferenced2(const void *nodep, const VISIT which, UNUSED(c
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(filekey);
+	r = deletepoolfile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);
@@ -364,7 +432,7 @@ static void removeunusednew(const void *nodep, const VISIT which, UNUSED(const i
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(filekey);
+	r = deletepoolfile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);
@@ -410,7 +478,7 @@ static void removeunusednew2(const void *nodep, const VISIT which, UNUSED(const 
 	}
 	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n", filekey);
-	r = files_deletefile(filekey);
+	r = deletepoolfile(filekey);
 	RET_UPDATE(result, r);
 	if( !RET_WAS_ERROR(r) ) {
 		r = files_removesilent(d, filekey);
