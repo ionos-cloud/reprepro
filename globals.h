@@ -75,6 +75,7 @@ extern struct global_config {
 	const char *methoddir;
 	const char *logdir;
 	const char *listdir;
+	const char *morguedir;
 	/* deprecated: */
 	const char *overridedir;
 	/* flags: */

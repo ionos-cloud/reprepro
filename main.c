@@ -93,6 +93,7 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*x_listdir = NULL,
 	*x_confdir = NULL,
 	*x_logdir = NULL,
+	*x_morguedir = NULL,
 	/* This should have never been a seperate directory, well to late... */
 	*x_overridedir = NULL,
 	*x_methoddir = NULL;
@@ -134,7 +135,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -3475,6 +3476,7 @@ LO_GNUPGHOME,
 LO_LISTFORMAT,
 LO_LISTSKIP,
 LO_LISTMAX,
+LO_MORGUEDIR,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -3703,6 +3705,9 @@ static void handle_option(int c, const char *argument) {
 				case LO_METHODDIR:
 					CONFIGDUP(x_methoddir, argument);
 					break;
+				case LO_MORGUEDIR:
+					CONFIGDUP(x_morguedir, argument);
+					break;
 				case LO_VERSION:
 					fprintf(stderr,"%s: This is " PACKAGE " version " VERSION "\n",programname);
 					exit(EXIT_SUCCESS);
@@ -3880,6 +3885,7 @@ static void myexit(int status) {
 	free(x_packagetype);
 	free(x_section);
 	free(x_priority);
+	free(x_morguedir);
 	free(gnupghome);
 	exit(status);
 }
@@ -3955,6 +3961,7 @@ int main(int argc,char *argv[]) {
 		{"list-format", required_argument, &longoption, LO_LISTFORMAT},
 		{"list-skip", required_argument, &longoption, LO_LISTSKIP},
 		{"list-max", required_argument, &longoption, LO_LISTMAX},
+		{"morguedir", required_argument, &longoption, LO_MORGUEDIR},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
@@ -4071,6 +4078,7 @@ int main(int argc,char *argv[]) {
 	global.logdir = x_logdir;
 	global.methoddir = x_methoddir;
 	global.listdir = x_listdir;
+	global.morguedir = x_morguedir;
 
 	uncompressions_check(gunzip, bunzip2, unlzma);
 	free(gunzip);

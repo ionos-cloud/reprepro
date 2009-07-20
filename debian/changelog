@@ -2,6 +2,8 @@ reprepro (3.11.1-0) UNRELEASED; urgency=low
 
   - add --create-with-all-fields option to changestool to create
     .changes files dupload does not choke on. (Closes: 536788)
+  - add --morguedir option to specify a place where files removed
+    from the pool are stored. (Closes: 461314)
 
  -- Bernhard R. Link <brlink@debian.org>  Wed, 15 Jul 2009 11:46:49 +0200
 

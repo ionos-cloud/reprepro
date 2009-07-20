@@ -15,6 +15,7 @@ testflat.sh \
 testincludeextra.sh \
 testlayeredupdate.sh \
 testlayeredupdate2.sh \
+testmorgue.sh \
 testpackagediff.sh \
 testsignatures.sh \
 testsnapshotcopyrestore.sh \

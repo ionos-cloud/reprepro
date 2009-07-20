@@ -1,4 +1,8 @@
-Updates since 3.10.0:
+Updates since 3.11.0:
+- new changestool option --create-with-all-fields
+- new --morguedir option (or morguedir in conf/options, of course)
+
+Updates between 3.10.0 and 3.11.0:
 - new --list-max and --list-skip options
 - new glob-matching in formulas
   (e.g. "reprepro listfilter codename 'Package (% linux-image-*)'")
