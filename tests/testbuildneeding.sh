@@ -188,6 +188,135 @@ testrun empty build-needing test another
 testrun empty build-needing test $FAKEARCHITECTURE
 
 # TODO: add a new version of that package...
+rm -r package-1.0
 
-rm -r pool conf db package-1.0 *.deb *.log *.changes
+mkdir onlyonearch-1.0
+mkdir onlyonearch-1.0/debian
+cat >onlyonearch-1.0/debian/control <<END
+Source: onlyonearch
+Section: something
+Priority: extra
+Maintainer: me <me@example.org>
+Standards-Version: 0.0
+
+Package: onearch
+Architecture: $FAKEARCHITECTURE
+Description: some test-onlyonearch
+ .
+END
+cat >onlyonearch-1.0/debian/changelog <<END
+onlyonearch (1.0-1) test; urgency=critical
+
+  * first version
+
+ -- me <me@example.orgguess@who>  Mon, 01 Jan 1980 01:02:02 +0000
+END
+dpkg-source -b onlyonearch-1.0
+mkdir onlyonearch-1.0/debian/tmp
+mkdir onlyonearch-1.0/debian/tmp/DEBIAN
+mkdir -p onlyonearch-1.0/debian/tmp/usr/bin
+touch onlyonearch-1.0/debian/tmp/usr/bin/program
+cd onlyonearch-1.0
+dpkg-gencontrol -ponearch
+dpkg --build debian/tmp ..
+cd ..
+rm -r onlyonearch-1.0
+
+testrun - --delete includedsc test onlyonearch_1.0-1.dsc 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+-v1*=onlyonearch_1.0-1.dsc: component guessed as 'main'
+*=Warning: database 'bla|main|source' was modified but no index file was exported.
+*=Changes will only be visible after the next 'export'!
+stdout
+-v2*=Created directory "./pool/main/o"
+-v2*=Created directory "./pool/main/o/onlyonearch"
+-d1*=db: 'pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc' added to checksums.db(pool).
+-d1*=db: 'pool/main/o/onlyonearch/onlyonearch_1.0-1.tar.gz' added to checksums.db(pool).
+-d1*=db: 'onlyonearch' added to packages.db(bla|main|source).
+-d1*=db: 'onlyonearch' added to tracking.db(bla).
+EOF
+
+testrun empty build-needing test another
+testrun - build-needing test $FAKEARCHITECTURE 3<<EOF
+stdout
+*=onlyonearch 1.0-1 pool/main/o/onlyonearch/onlyonearch_1.0-1.dsc
+EOF
+
+testrun - --delete -C main includedeb test onearch_1.0-1_${FAKEARCHITECTURE}.deb 3<<EOF
+stderr
+*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
+*=Changes will only be visible after the next 'export'!
+stdout
+-d1*=db: 'pool/main/o/onlyonearch/onearch_1.0-1_${FAKEARCHITECTURE}.deb' added to checksums.db(pool).
+-d1*=db: 'onearch' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+EOF
+
+testrun empty build-needing test another
+testrun empty build-needing test $FAKEARCHITECTURE
+
+mkdir onlyarchall-1.0
+mkdir onlyarchall-1.0/debian
+cat >onlyarchall-1.0/debian/control <<END
+Source: onlyarchall
+Section: something
+Priority: extra
+Maintainer: me <me@example.org>
+Standards-Version: 0.0
+
+Package: archall
+Architecture: all
+Description: some test-arch all package
+ .
+END
+cat >onlyarchall-1.0/debian/changelog <<END
+onlyarchall (1.0-1) test; urgency=critical
+
+  * first version
+
+ -- me <me@example.orgguess@who>  Mon, 01 Jan 1980 01:02:02 +0000
+END
+dpkg-source -b onlyarchall-1.0
+mkdir onlyarchall-1.0/debian/tmp
+mkdir onlyarchall-1.0/debian/tmp/DEBIAN
+mkdir -p onlyarchall-1.0/debian/tmp/usr/bin
+touch onlyarchall-1.0/debian/tmp/usr/bin/program
+cd onlyarchall-1.0
+dpkg-gencontrol -parchall
+dpkg --build debian/tmp ..
+cd ..
+rm -r onlyarchall-1.0
+
+testrun - --delete includedsc test onlyarchall_1.0-1.dsc 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+-v1*=onlyarchall_1.0-1.dsc: component guessed as 'main'
+*=Warning: database 'bla|main|source' was modified but no index file was exported.
+*=Changes will only be visible after the next 'export'!
+stdout
+-v2*=Created directory "./pool/main/o/onlyarchall"
+-d1*=db: 'pool/main/o/onlyarchall/onlyarchall_1.0-1.dsc' added to checksums.db(pool).
+-d1*=db: 'pool/main/o/onlyarchall/onlyarchall_1.0-1.tar.gz' added to checksums.db(pool).
+-d1*=db: 'onlyarchall' added to packages.db(bla|main|source).
+-d1*=db: 'onlyarchall' added to tracking.db(bla).
+EOF
+
+testrun empty build-needing test another
+testrun empty build-needing test $FAKEARCHITECTURE
+
+testrun - --delete -C main includedeb test archall_1.0-1_all.deb 3<<EOF
+stderr
+*=Warning: database 'bla|main|${FAKEARCHITECTURE}' was modified but no index file was exported.
+*=Warning: database 'bla|main|another' was modified but no index file was exported.
+*=Changes will only be visible after the next 'export'!
+stdout
+-d1*=db: 'pool/main/o/onlyarchall/archall_1.0-1_all.deb' added to checksums.db(pool).
+-d1*=db: 'archall' added to packages.db(bla|main|${FAKEARCHITECTURE}).
+-d1*=db: 'archall' added to packages.db(bla|main|another).
+EOF
+
+testrun empty build-needing test another
+testrun empty build-needing test $FAKEARCHITECTURE
+
+rm -r pool conf db *.deb *.log *.changes
 testsuccess

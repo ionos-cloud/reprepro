@@ -4,6 +4,8 @@ reprepro (3.11.1-0) UNRELEASED; urgency=low
     .changes files dupload does not choke on. (Closes: 536788)
   - add --morguedir option to specify a place where files removed
     from the pool are stored. (Closes: 461314)
+  - fix build-needing not looking at dsc's Architecture field
+    (Closes: #537770)
 
  -- Bernhard R. Link <brlink@debian.org>  Wed, 15 Jul 2009 11:46:49 +0200
 
