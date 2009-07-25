@@ -1,13 +1,15 @@
 reprepro (3.11.1-0) UNRELEASED; urgency=low
 
+  * new bugfix/minor-extensions release:
   - add --create-with-all-fields option to changestool to create
     .changes files dupload does not choke on. (Closes: 536788)
   - add --morguedir option to specify a place where files removed
     from the pool are stored. (Closes: 461314)
   - fix build-needing not looking at dsc's Architecture field
     (Closes: #537770)
+  - allow specifying source or version easier in formulas (Closes: 468485)
 
- -- Bernhard R. Link <brlink@debian.org>  Wed, 15 Jul 2009 11:46:49 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 25 Jul 2009 16:07:17 +0200
 
 reprepro (3.11.0-1) unstable; urgency=low
 

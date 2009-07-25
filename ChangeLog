@@ -1,3 +1,7 @@
+2009-07-25
+	* add $Version, $Source, $SourceVersion, $Architecture, $Component,
+	$PackageType as special fields in formulas.
+
 2009-07-21
 	* fix build-needing to look at the correct Architecture field in
 	.dsc files.

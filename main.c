@@ -55,7 +55,7 @@
 #include "checkindsc.h"
 #include "checkin.h"
 #include "downloadcache.h"
-#include "terms.h"
+#include "termdecide.h"
 #include "tracking.h"
 #include "optionsfile.h"
 #include "dpkgversions.h"
@@ -816,10 +816,10 @@ ACTION_D(n, n, y, removesrc) {
 	return result;
 }
 
-static retvalue package_matches_condition(UNUSED(struct database *da), UNUSED(struct distribution *di), UNUSED(struct target *ta), UNUSED(const char *pa), const char *control, void *data) {
+static retvalue package_matches_condition(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const char *control, void *data) {
 	term *condition = data;
 
-	return term_decidechunk(condition, control);
+	return term_decidechunktarget(condition, control, target);
 }
 
 ACTION_D(y, n, y, removefilter) {
@@ -842,8 +842,7 @@ ACTION_D(y, n, y, removefilter) {
 		return RET_ERROR;
 	}
 
-	result = term_compile(&condition, argv[2],
-		T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	result = term_compilefortargetdecision(&condition, argv[2]);
 	if( RET_WAS_ERROR(result) )
 		return result;
 
@@ -1184,7 +1183,7 @@ static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distr
 	if( listmax == 0 )
 		return RET_NOTHING;
 
-	r = term_decidechunk(condition, control);
+	r = term_decidechunktarget(condition, control, target);
 	if( RET_IS_OK(r) ) {
 		if( listskip <= 0 ) {
 			if( listmax > 0 )
@@ -1211,8 +1210,7 @@ ACTION_B(y, n, y, listfilter) {
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	result = term_compile(&condition, argv[2],
-			T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	result = term_compilefortargetdecision(&condition, argv[2]);
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}

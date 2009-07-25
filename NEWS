@@ -1,6 +1,8 @@
 Updates since 3.11.0:
 - new changestool option --create-with-all-fields
 - new --morguedir option (or morguedir in conf/options, of course)
+- new $Version, $Source, $SourceVersion et al on formulas
+- bugfixes
 
 Updates between 3.10.0 and 3.11.0:
 - new --list-max and --list-skip options

@@ -31,6 +31,7 @@
 #include "files.h"
 #include "target.h"
 #include "terms.h"
+#include "termdecide.h"
 #include "dpkgversions.h"
 #include "tracking.h"
 #include "filecntl.h"
@@ -638,7 +639,7 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 		return r;
 	result = RET_NOTHING;
 	while( target_nextpackage(&iterator, &packagename, &chunk) ) {
-		r = term_decidechunk(condition, chunk);
+		r = term_decidechunktarget(condition, chunk, desttarget );
 		if( r == RET_NOTHING )
 			continue;
 		if( RET_WAS_ERROR(r) ) {
@@ -713,8 +714,7 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 
 	memset(&list, 0, sizeof(list));
 
-	r = term_compile(&condition, filter,
-		T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	r = term_compilefortargetdecision(&condition, filter);
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}
@@ -783,10 +783,10 @@ static retvalue choose_by_source(struct target *target, const char *packagename,
 	return RET_OK;
 }
 
-static retvalue choose_by_condition(UNUSED(struct target *target), UNUSED(const char *packagename), UNUSED(const char *version), const char *chunk, void *privdata) {
+static retvalue choose_by_condition(struct target *target, UNUSED(const char *packagename), UNUSED(const char *version), const char *chunk, void *privdata) {
 	term *condition = privdata;
 
-	return term_decidechunk(condition, chunk);
+	return term_decidechunktarget(condition, chunk, target);
 }
 
 static retvalue choose_by_glob(UNUSED(struct target *target), const char *packagename, UNUSED(const char *version), UNUSED(const char *chunk), void *privdata) {
@@ -983,8 +983,7 @@ retvalue restore_by_formula(struct database *database, struct distribution *into
 	term *condition;
 	retvalue r;
 
-	r = term_compile(&condition, filter,
-		T_GLOBMATCH|T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
+	r = term_compilefortargetdecision(&condition, filter);
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}

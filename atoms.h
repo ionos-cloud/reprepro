@@ -34,6 +34,7 @@ component_t component_find(const char *);
 component_t component_find_l(const char *, size_t);
 component_t components_count(void);
 packagetype_t packagetype_find(const char *);
+packagetype_t packagetype_find_l(const char *, size_t);
 
 atom_t atom_find(enum atom_type, const char *);
 retvalue atom_intern(enum atom_type, const char *, /*@out@*/atom_t *);
