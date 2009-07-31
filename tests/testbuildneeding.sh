@@ -21,7 +21,7 @@ Description: a package
  .
 
 Package: dumdidum
-Architecture: coal
+Architecture: another
 Description: a package not build
  .
 
