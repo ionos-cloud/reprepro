@@ -1,3 +1,10 @@
+reprepro (3.11.2-0) UNRELEASED; urgency=low
+
+  * improve error message when deleteunreferenced
+    is alled with keepunreferencedfiles in conf/options (Closes: 539509)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 01 Aug 2009 18:02:14 +0200
+
 reprepro (3.11.1-1) unstable; urgency=low
 
   * new bugfix/minor-extensions release:

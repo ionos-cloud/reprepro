@@ -576,7 +576,14 @@ ACTION_RF(n, n, n, deleteunreferenced) {
 	retvalue result;
 
 	if( keepunreferenced ) {
-		fprintf(stderr,"Calling deleteunreferenced with --keepunreferencedfiles does not really make sense, does it?\n");
+		if( owner_keepunreferenced == CONFIG_OWNER_CMDLINE )
+			fprintf(stderr,"Calling deleteunreferenced with --keepunreferencedfiles does not really make sense, does it?\n");
+		else
+			fprintf(stderr,
+"Error: deleteunreferenced called with option\n"
+"'keepunreferencedfiles' activated. Please run\n"
+"'reprepro --nokeepunreferencedfiles deleteunreferenced',\n"
+"if you are sure you want to delete those files.\n");
 		return RET_ERROR;
 	}
 	result = files_foreach(database, deleteifunreferenced, database);
