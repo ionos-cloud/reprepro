@@ -611,15 +611,6 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 		free(n);
 		return r;
 	}
-	if( n->type != fe_BYHAND && n->type != fe_LOG &&
-			!atom_defined(n->architecture_atom) ) {
-		fprintf(stderr,
-"'%s' contains '%s' not matching an valid architecture in any distribution known!\n",
-				BASENAME(i,c->ofs), basefilename);
-		free(basefilename);
-		candidate_file_free(n);
-		return RET_ERROR;
-	}
 	n->ofs = strlist_ofs(&i->files, basefilename);
 	if( n->ofs < 0 ) {
 		fprintf(stderr,
@@ -787,6 +778,14 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->type != fe_BYHAND && file->type != fe_LOG &&
+				!atom_defined(file->architecture_atom) ) {
+			fprintf(stderr,
+"'%s' contains '%s' not matching an valid architecture in any distribution known!\n",
+					BASENAME(i, c->ofs),
+					BASENAME(i, file->ofs));
+			return RET_ERROR;
+		}
 		if( !FE_PACKAGE(file->type) )
 			continue;
 		assert( atom_defined(file->architecture_atom) );
@@ -2050,7 +2049,7 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 	}
 	r = candidate_earlychecks(i, c);
 	if( RET_WAS_ERROR(r) ) {
-		if( RET_WAS_ERROR(r) && i->cleanup[cuf_on_error] ) {
+		if( i->cleanup[cuf_on_error] ) {
 			struct candidate_file *file;
 
 			i->delete[c->ofs] = true;
