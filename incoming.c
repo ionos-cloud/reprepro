@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <dirent.h>
+#include <time.h>
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"
@@ -79,6 +80,7 @@ struct incoming {
 	/* by incoming_parse: */
 	char *name;
 	char *directory;
+	char *morguedir;
 	char *tempdir;
 	char *logdir;
 	struct strlist allow;
@@ -101,6 +103,7 @@ static void incoming_free(/*@only@*/ struct incoming *i) {
 	if( i == NULL )
 		return;
 	free(i->name);
+	free(i->morguedir);
 	free(i->tempdir);
 	free(i->logdir);
 	free(i->directory);
@@ -210,6 +213,15 @@ CFfinishparse(incoming) {
 		d->i = NULL;
 		return RET_ERROR;
 	}
+	if( i->morguedir != NULL && i->morguedir[0] != '/' ) {
+		char *n = calc_dirconcat(global.basedir, i->morguedir);
+		if( n == NULL ) {
+			incoming_free(i);
+			return RET_ERROR_OOM;
+		}
+		free(i->morguedir);
+		i->morguedir = n;
+	}
 	if( i->tempdir[0] != '/' ) {
 		char *n = calc_dirconcat(global.basedir, i->tempdir);
 		if( n == NULL ) {
@@ -238,6 +250,16 @@ CFfinishparse(incoming) {
 				config_filename(iter));
 			incoming_free(i);
 			return RET_ERROR;
+	}
+	if( i->morguedir != NULL && !i->cleanup[cuf_on_deny]
+			&& !i->cleanup[cuf_on_error]
+			&& !i->cleanup[cuf_unused_files] ) {
+		fprintf(stderr,
+"Warning: There is a 'MorgueDir' but no 'Cleanup' to act on in rule '%s'\n"
+"(starting at line %u, ending at line %u of %s)!\n",
+				d->name,
+				config_firstline(iter), config_line(iter),
+				config_filename(iter));
 	}
 
 	d->i = i;
@@ -339,6 +361,7 @@ CFSETPROC(incoming,cleanup) {
 CFvalueSETPROC(incoming, name)
 CFvalueSETPROC(incoming, logdir)
 CFdirSETPROC(incoming, tempdir)
+CFdirSETPROC(incoming, morguedir)
 CFdirSETPROC(incoming, directory)
 CFtruthSETPROC2(incoming, multiple, permit[pmf_multiple_distributions])
 
@@ -346,6 +369,7 @@ static const struct configfield incomingconfigfields[] = {
 	CFr("Name", incoming, name),
 	CFr("TempDir", incoming, tempdir),
 	CFr("IncomingDir", incoming, directory),
+	CF("MorgueDir", incoming, morguedir),
 	CF("Default", incoming, default),
 	CF("Allow", incoming, allow),
 	CF("Multiple", incoming, multiple),
@@ -2000,6 +2024,8 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 
 	/* mark files as done */
 	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->used )
+			i->processed[file->ofs] = true;
 		if( file->used || i->cleanup[cuf_unused_files] ) {
 			i->delete[file->ofs] = true;
 		}
@@ -2024,6 +2050,14 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 	}
 	r = candidate_earlychecks(i, c);
 	if( RET_WAS_ERROR(r) ) {
+		if( RET_WAS_ERROR(r) && i->cleanup[cuf_on_error] ) {
+			struct candidate_file *file;
+
+			i->delete[c->ofs] = true;
+			for( file = c->files ; file != NULL ; file = file->next ) {
+				i->delete[file->ofs] = true;
+			}
+		}
 		candidate_free(c);
 		return r;
 	}
@@ -2102,11 +2136,50 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 	return r;
 }
 
+static inline /*@null@*/char *create_uniq_subdir(const char *basedir) {
+	char date[16], *dir;
+	unsigned long number = 0;
+	retvalue r;
+	time_t curtime;
+	struct tm *tm;
+	int e;
+
+	r = dirs_make_recursive(basedir);
+	if( RET_WAS_ERROR(r) )
+		return NULL;
+
+	if( time(&curtime) == (time_t)-1 )
+		tm = NULL;
+	else
+		tm = gmtime(&curtime);
+	if( tm == NULL || strftime(date, 16, "%Y-%m-%d", tm) != 10 )
+		strcpy(date, "timeerror");
+
+	for( number = 0 ; number < 10000 ; number ++ ) {
+		dir = mprintf("%s/%s-%lu", basedir, date, number);
+		if( FAILEDTOALLOC(dir) )
+			return NULL;
+		if( mkdir(dir, 0777) == 0 )
+			return dir;
+		e = errno;
+		if( e != EEXIST ) {
+			fprintf(stderr, "Error %d creating directory '%s': %s\n",
+					e, dir, strerror(e));
+			free(dir);
+			return NULL;
+		}
+		free(dir);
+	}
+	fprintf(stderr, "Could not create unique subdir in '%s'!\n", basedir);
+	return NULL;
+}
+
 /* tempdir should ideally be on the same partition like the pooldir */
 retvalue process_incoming(struct database *database, struct distribution *distributions, const char *name, const char *changesfilename) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
+	char *morguedir;
 
 	result = RET_NOTHING;
 
@@ -2130,6 +2203,11 @@ retvalue process_incoming(struct database *database, struct distribution *distri
 	}
 
 	logger_wait();
+	if( i->morguedir == NULL )
+		morguedir = NULL;
+	else {
+		morguedir = create_uniq_subdir(i->morguedir);
+	}
 	for( j = 0 ; j < i->files.count ; j ++ ) {
 		char *fullfilename;
 
@@ -2141,10 +2219,37 @@ retvalue process_incoming(struct database *database, struct distribution *distri
 			result = RET_ERROR_OOM;
 			continue;
 		}
+		if( morguedir != NULL && !i->processed[j] ) {
+			char *newname = calc_dirconcat(morguedir,
+					i->files.values[j]);
+			if( newname != NULL &&
+					rename(fullfilename, newname) == 0 ) {
+				free(newname);
+				free(fullfilename);
+				continue;
+			} else if( newname == NULL ) {
+				result = RET_ERROR_OOM;
+			} else {
+				int e = errno;
+
+				fprintf(stderr,
+"Error %d moving '%s' to '%s': %s\n",		e,
+						i->files.values[j],
+						morguedir, strerror(e));
+				RET_UPDATE(result, RET_ERRNO(e));
+				/* no continue, instead
+				 * delete the file as normal: */
+			}
+		}
 		if( verbose >= 3 )
 			printf("deleting '%s'...\n", fullfilename);
 		deletefile(fullfilename);
 		free(fullfilename);
+	}
+	if( morguedir != NULL ) {
+		/* in the case it is empty, remove again */
+		(void)rmdir(morguedir);
+		free(morguedir);
 	}
 	incoming_free(i);
 	return result;

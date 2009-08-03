@@ -1,3 +1,7 @@
+2009-08-03
+	* add a MorgueDir option to conf/incoming where cleaned up files
+	are moved to.
+
 2009-08-01
 	* improve deleteunreferenced's error message with keepunreferencedfiles
 

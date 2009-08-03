@@ -1563,7 +1563,7 @@ is (at least partially) in.
 A directory where .changes files, .log files and otherwise unused .byhand
 files are stored upon procession.
 .TP
-.B Allow \fIarguments
+.B Allow
 Each argument is either a pair \fIname1\fB>\fIname2\fR or simply
 \fIname\fP which is short for \fIname\fB>\fIname\fR.
 Each \fIname2\fP must identify a distribution,
@@ -1594,7 +1594,7 @@ Allow putting an upload in multiple distributions if it lists more
 than one. (Without this field, procession stops after the first
 success).
 .TP
-.B Permit \fIoptions
+.B Permit
 A list of options to allow things otherwise causing errors:
 .br
 .B unused_files
@@ -1623,7 +1623,21 @@ or allowed distributions to be put in, delete it and all the files it references
 .br
 .B on_error
 .br
-If a \fB.changes\fP file causes errors while processing, delete it.
+If a \fB.changes\fP file causes errors while processing, delete it and the files
+it references.
+
+Note that allowing cleanup in publically accessible incoming queues allows a denial
+of service by sending in .changes files deleting other peoples files before they
+are completed.
+Especially when .changes files are handled directly (e.g. by inoticoming).
+
+.TP
+.B MorgueDir
+If files are to be deleted by Cleanup, they are instead moved to a subdirectory
+of the directory given as value to this field.
+This directory has to be on the same partition as the incoming directory and
+files are moved (i.e. owner and permission stay the same) and never copied.
+
 .SH "UPLOADERS FILES"
 These files specified by the \fBUploaders\fP header in the distribution
 definition as explained above describe what key a \fB.changes\fP file
