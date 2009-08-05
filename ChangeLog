@@ -1,3 +1,8 @@
+2009-08-05
+	* if a package is not accepted by processincoming because no
+	distribution is found for it or no distribution allows it, the
+	existcode is now 243
+
 2009-08-03
 	* add a MorgueDir option to conf/incoming where cleaned up files
 	are moved to.

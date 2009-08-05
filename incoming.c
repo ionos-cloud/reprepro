@@ -2111,7 +2111,7 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 					i->delete[file->ofs] = true;
 			}
 		}
-		r = RET_ERROR;
+		r = RET_ERROR_INCOMING_DENY;
 	} else {
 		if( broken ) {
 			fprintf(stderr,
