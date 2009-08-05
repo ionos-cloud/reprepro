@@ -577,7 +577,7 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 		return RET_ERROR_OOM;
 	}
 	n->files->ofs = n->ofs;
-	n->files->type = fe_UNKNOWN;
+	n->files->type = fe_CHANGES;
 	r = candidate_usefile(i, n, n->files);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
@@ -778,7 +778,8 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( file = c->files ; file != NULL ; file = file->next ) {
-		if( file->type != fe_BYHAND && file->type != fe_LOG &&
+		if( file->type != fe_CHANGES && file->type != fe_BYHAND &&
+				file->type != fe_LOG &&
 				!atom_defined(file->architecture_atom) ) {
 			fprintf(stderr,
 "'%s' contains '%s' not matching an valid architecture in any distribution known!\n",
@@ -1611,7 +1612,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					(tracks==NULL)?NULL:&trackingdata,
 					p->component_atom, &p->filekeys,
 					p->control);
-		} else if( p->master->type == fe_UNKNOWN ) {
+		} else if( p->master->type == fe_CHANGES ) {
 			/* finally add the .changes to tracking, if requested */
 			assert( p->master->name == NULL );
 			assert( tracks != NULL );
@@ -1635,7 +1636,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					trackingdata.pkg,
 					ft_LOG, &p->filekeys, false, database);
 		} else
-			r = RET_ERROR;
+			r = RET_ERROR_INTERNAL;
 
 		if( RET_WAS_ERROR(r) ) {
 			// TODO: remove files not yet referenced
@@ -1680,12 +1681,12 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 					into, into->tracking != dt_NONE,
 					p->component_atom,
 					i->permit[pmf_oldpackagenewer]);
-		} else if( p->master->type == fe_UNKNOWN
+		} else if( p->master->type == fe_CHANGES
 				|| p->master->type == fe_BYHAND
 				|| p->master->type == fe_LOG ) {
 			continue;
 		} else
-			r = RET_ERROR;
+			r = RET_ERROR_INTERNAL;
 
 		if( RET_WAS_ERROR(r) )
 			return r;
