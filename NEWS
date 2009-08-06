@@ -1,3 +1,9 @@
+Updates since 3.11.1:
+- warn if directories are relative to the currect directory but do not start
+  with './'
+- directories starting '+b/' '+o/' and '+c/' are relative to basedir, outdir
+  or confdir.
+
 Updates since 3.11.0:
 - new changestool option --create-with-all-fields
 - new --morguedir option (or morguedir in conf/options, of course)

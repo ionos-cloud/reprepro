@@ -3895,6 +3895,61 @@ static void myexit(int status) {
 	exit(status);
 }
 
+static void disallow_plus_prefix(const char *dir, const char *name, const char *allowed) {
+	if( dir[0] != '+'  )
+		return;
+	if( dir[1] == '\0' || dir[2] != '/' ) {
+		fprintf(stderr, "Error: %s starts with +, but does not continue with '+b/'.\n",
+				name);
+		myexit(EXIT_FAILURE);
+	}
+	if( strchr(allowed, dir[1]) != NULL )
+		return;
+	fprintf(stderr, "Error: %s is not allowed to start with '+%c/'.\n"
+"(if your directory is named like that, set it to './+%c/')\n",
+			name, dir[1], dir[1]);
+	myexit(EXIT_FAILURE);
+}
+
+static char *expand_plus_prefix(/*@only@*/char *dir, const char *name, const char *allowed, bool freedir) {
+	const char *fromdir;
+	char *newdir;
+
+	disallow_plus_prefix(dir, name, allowed);
+
+	if( dir[0] == '/' || (dir[0] == '.' && dir[1] == '/') )
+		return dir;
+	if( dir[0] != '+' ) {
+		fprintf(stderr,
+"Warning: %s '%s'  does not start with '/', './', or '+'.\n"
+"This currently means it is relative to the current working directory,\n"
+"but that might change in the future or cause an error instead!\n",
+				name, dir);
+		return dir;
+	}
+	if( dir[1] == 'b' ) {
+		fromdir = x_basedir;
+	} else if( dir[1] == 'o' ) {
+		fromdir = x_outdir;
+	} else if( dir[1] == 'c' ) {
+		fromdir = x_confdir;
+	} else {
+		abort();
+		return dir;
+	}
+	if( dir[3] == '\0' )
+		newdir = strdup(fromdir);
+	else
+		newdir = calc_dirconcat(fromdir, dir + 3);
+	if( FAILEDTOALLOC(newdir) ) {
+		(void)fputs("Out of Memory!\n",stderr);
+		exit(EXIT_FAILURE);
+	}
+	if( freedir )
+		free(dir);
+	return newdir;
+}
+
 int main(int argc,char *argv[]) {
 	static struct option longopts[] = {
 		{"delete", no_argument, &longoption,LO_DELETE},
@@ -3973,6 +4028,7 @@ int main(int argc,char *argv[]) {
 	retvalue r;
 	int c;
 	struct sigaction sa;
+	char *tempconfdir;
 
 	sigemptyset(&sa.sa_mask);
 #if defined(SA_ONESHOT)
@@ -3994,8 +4050,18 @@ int main(int argc,char *argv[]) {
 
 	init_ignores();
 
-	config_state = CONFIG_OWNER_CMDLINE;
+	config_state = CONFIG_OWNER_DEFAULT;
+	CONFIGDUP(x_basedir, STD_BASE_DIR);
+	CONFIGDUP(x_confdir, "+b/conf");
+	CONFIGDUP(x_methoddir, STD_METHOD_DIR);
+	CONFIGDUP(x_outdir, "+b/");
+	CONFIGDUP(x_distdir, "+o/dists");
+	CONFIGDUP(x_dbdir, "+b/db");
+	CONFIGDUP(x_logdir, "+b/logs");
+	CONFIGDUP(x_listdir, "+b/lists");
+	CONFIGDUP(x_overridedir, "+b/override");
 
+	config_state = CONFIG_OWNER_CMDLINE;
 	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 
@@ -4012,25 +4078,32 @@ int main(int argc,char *argv[]) {
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
 	config_state = CONFIG_OWNER_ENVIRONMENT;
-	if( x_basedir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
+	if( getenv("REPREPRO_BASE_DIR") != NULL ) {
 		CONFIGDUP(x_basedir, getenv("REPREPRO_BASE_DIR"));
 	}
-	if( x_confdir == NULL && getenv("REPREPRO_CONFIG_DIR") != NULL ) {
+	if( getenv("REPREPRO_CONFIG_DIR") != NULL ) {
 		CONFIGDUP(x_confdir,getenv("REPREPRO_CONFIG_DIR"));
 	}
 
-	if( x_basedir == NULL )
-		x_basedir = strdup(STD_BASE_DIR);
-	if( x_confdir == NULL && x_basedir != NULL )
-		x_confdir = calc_dirconcat(x_basedir, "conf");
-	if( FAILEDTOALLOC(x_basedir) || FAILEDTOALLOC(x_confdir) ) {
-		(void)fputs("Out of Memory!\n",stderr);
-		exit(EXIT_FAILURE);
-	}
+	disallow_plus_prefix(x_basedir, "basedir", "");
+	tempconfdir = expand_plus_prefix(x_confdir, "confdir", "b", false);
 
 	config_state = CONFIG_OWNER_FILE;
-	global.confdir = x_confdir;
-	optionsfile_parse(longopts, handle_option);
+	optionsfile_parse(tempconfdir, longopts, handle_option);
+	if( tempconfdir != x_confdir )
+		free(tempconfdir);
+
+	disallow_plus_prefix(x_basedir, "basedir", "");
+	disallow_plus_prefix(x_methoddir, "methoddir", "");
+	x_confdir = expand_plus_prefix(x_confdir, "confdir", "b", true);
+	x_outdir = expand_plus_prefix(x_outdir, "outdir", "bc", true);
+	x_logdir = expand_plus_prefix(x_logdir, "logdir", "boc", true);
+	x_dbdir = expand_plus_prefix(x_dbdir, "dbdir", "boc", true);
+	x_distdir = expand_plus_prefix(x_distdir, "distdir", "boc", true);
+	x_listdir = expand_plus_prefix(x_listdir, "listdir", "boc", true);
+	if( x_morguedir != NULL )
+		x_morguedir = expand_plus_prefix(x_morguedir, "morguedir",
+				"boc", true);
 
 	if( guessgpgtty && (getenv("GPG_TTY")==NULL) && isatty(0) ) {
 		static char terminalname[1024];
@@ -4045,34 +4118,8 @@ int main(int argc,char *argv[]) {
 		}
 	}
 
-	/* basedir might have changed, so recalculate */
-	if( owner_x_confdir == CONFIG_OWNER_DEFAULT ) {
-		free(x_confdir);
-		x_confdir = calc_dirconcat(x_basedir, "conf");
-	}
 	if( delete < D_COPY )
 		delete = D_COPY;
-	if( x_methoddir == NULL )
-		x_methoddir = strdup(STD_METHOD_DIR);
-	if( x_outdir == NULL )
-		x_outdir = strdup(x_basedir);
-	if( x_distdir == NULL && x_outdir != NULL )
-		x_distdir = calc_dirconcat(x_outdir, "dists");
-	if( x_dbdir == NULL )
-		x_dbdir = calc_dirconcat(x_basedir, "db");
-	if( x_logdir == NULL )
-		x_logdir = calc_dirconcat(x_basedir, "logs");
-	if( x_listdir == NULL )
-		x_listdir = calc_dirconcat(x_basedir, "lists");
-	if( x_overridedir == NULL )
-		x_overridedir = calc_dirconcat(x_basedir, "override");
-	if( FAILEDTOALLOC(x_outdir) || FAILEDTOALLOC(x_distdir) ||
-	    FAILEDTOALLOC(x_dbdir) || FAILEDTOALLOC(x_listdir) ||
-	    FAILEDTOALLOC(x_logdir) || FAILEDTOALLOC(x_confdir) ||
-	    FAILEDTOALLOC(x_overridedir) || FAILEDTOALLOC(x_methoddir) ) {
-		(void)fputs("Out of Memory!\n",stderr);
-		exit(EXIT_FAILURE);
-	}
 	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 	global.basedir = x_basedir;
@@ -4085,6 +4132,12 @@ int main(int argc,char *argv[]) {
 	global.listdir = x_listdir;
 	global.morguedir = x_morguedir;
 
+	if( gunzip != NULL && gunzip[0] == '+' )
+		gunzip = expand_plus_prefix(gunzip, "gunzip", "boc", true);
+	if( bunzip2 != NULL && bunzip2[0] == '+' )
+		bunzip2 = expand_plus_prefix(bunzip2, "bunzip2", "boc", true);
+	if( unlzma != NULL && unlzma[0] == '+' )
+		unlzma = expand_plus_prefix(unlzma, "unlzma", "boc", true);
 	uncompressions_check(gunzip, bunzip2, unlzma);
 	free(gunzip);
 	free(bunzip2);
@@ -4104,6 +4157,8 @@ int main(int argc,char *argv[]) {
 	}
 
 	if( gnupghome != NULL ) {
+		gnupghome = expand_plus_prefix(gnupghome,
+				"gnupghome", "boc", true);
 		if( setenv("GNUPGHOME", gnupghome, 1) != 0 ) {
 			int e = errno;
 

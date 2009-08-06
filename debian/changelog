@@ -2,6 +2,8 @@ reprepro (3.11.2-0) UNRELEASED; urgency=low
 
   * improve error message when deleteunreferenced
     is alled with keepunreferencedfiles in conf/options (Closes: 539509)
+  * add possibility to specify a directory relative to basedir by
+    prepending '+b/' (Closes: 540115)
 
  -- Bernhard R. Link <brlink@debian.org>  Sat, 01 Aug 2009 18:02:14 +0200
 

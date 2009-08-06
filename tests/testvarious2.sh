@@ -1926,38 +1926,38 @@ mv db/savedtracking.db db/tracking.db
 mv db/savedreferences.db db/references.db
 
 mkdir conf2
-testrun - -b . --confdir conf2 update 3<<EOF
+testrun - -b . --confdir ./conf2 update 3<<EOF
 returns 254
 stderr
-*=Error opening config file 'conf2/distributions': No such file or directory(2)
+*=Error opening config file './conf2/distributions': No such file or directory(2)
 =(Have you forgotten to specify a basedir by -b?
 =To only set the conf/ dir use --confdir)
 -v0*=There have been errors!
 EOF
 touch conf2/distributions
-testrun - -b . --confdir conf2 update 3<<EOF
+testrun - -b . --confdir ./conf2 update 3<<EOF
 returns 249
 stderr
-*=No distribution definitions found in conf2/distributions!
+*=No distribution definitions found in ./conf2/distributions!
 -v0*=There have been errors!
 EOF
 echo 'Codename: foo' > conf2/distributions
-testrun - -b . --confdir conf2 update 3<<EOF
+testrun - -b . --confdir ./conf2 update 3<<EOF
 stderr
-*=Error parsing config file conf2/distributions, line 2:
+*=Error parsing config file ./conf2/distributions, line 2:
 *=Required field 'Architectures' expected (since line 1).
 -v0*=There have been errors!
 returns 249
 EOF
 echo "Architectures: ${FAKEARCHITECTURE} fingers" >> conf2/distributions
-testrun - -b . --confdir conf2 update 3<<EOF
-*=Error parsing config file conf2/distributions, line 3:
+testrun - -b . --confdir ./conf2 update 3<<EOF
+*=Error parsing config file ./conf2/distributions, line 3:
 *=Required field 'Components' expected (since line 1).
 -v0*=There have been errors!
 returns 249
 EOF
 echo 'Components: unneeded bloated i386' >> conf2/distributions
-testrun - -b . --confdir conf2 update 3<<EOF
+testrun - -b . --confdir ./conf2 update 3<<EOF
 *=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
 *=This either means you removed a distribution, component or architecture from
 *=the distributions config file without calling clearvanished, or your config
@@ -1966,7 +1966,7 @@ testrun - -b . --confdir conf2 update 3<<EOF
 -v0*=There have been errors!
 returns 255
 EOF
-testrun - -b . --confdir conf2 --ignore=undefinedtarget update 3<<EOF
+testrun - -b . --confdir ./conf2 --ignore=undefinedtarget update 3<<EOF
 *=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
 *=This either means you removed a distribution, component or architecture from
 *=the distributions config file without calling clearvanished, or your config
@@ -1990,7 +1990,7 @@ testrun - -b . --confdir conf2 --ignore=undefinedtarget update 3<<EOF
 -v0*=There have been errors!
 returns 255
 EOF
-testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracking update 3<<EOF
+testrun - -b . --confdir ./conf2 --ignore=undefinedtarget --ignore=undefinedtracking update 3<<EOF
 *=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
 *=This either means you removed a distribution, component or architecture from
 *=the distributions config file without calling clearvanished, or your config
@@ -2011,12 +2011,12 @@ testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracki
 *=Error: packages database contains unused 'test2|ugly|${FAKEARCHITECTURE}' database.
 *=Error: packages database contains unused 'test2|ugly|coal' database.
 *=Error: packages database contains unused 'test2|ugly|source' database.
-*=Error opening config file 'conf2/updates': No such file or directory(2)
+*=Error opening config file './conf2/updates': No such file or directory(2)
 -v0*=There have been errors!
 returns 254
 EOF
 touch conf2/updates
-testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracking --noskipold update 3<<EOF
+testrun - -b . --confdir ./conf2 --ignore=undefinedtarget --ignore=undefinedtracking --noskipold update 3<<EOF
 stderr
 *=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
 *=This either means you removed a distribution, component or architecture from
