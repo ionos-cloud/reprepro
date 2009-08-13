@@ -60,6 +60,7 @@ struct release {
 	/*@null@*/char *fakesuite;
 	/*@null@*/char *fakecodename;
 	/*@null@*/const char *fakecomponentprefix;
+	size_t fakecomponentprefixlen;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -143,6 +144,7 @@ retvalue release_init(struct release **release, struct database *database, const
 		codenamelen = strlen(codename);
 
 		n->fakecomponentprefix = fakecomponentprefix;
+		n->fakecomponentprefixlen = len;
 		if( codenamelen > len &&
 		    codename[codenamelen - len - 1] == '/' &&
 		    memcmp(codename + (codenamelen - len),
@@ -202,6 +204,7 @@ retvalue release_initsnapshot(const char *codename, const char *name, struct rel
 	}
 	n->fakecodename = NULL;
 	n->fakecomponentprefix = NULL;
+	n->fakecomponentprefixlen = 0;
 	n->cachedb = NULL;
 	n->snapshot = true;
 	*release = n;
@@ -1166,6 +1169,15 @@ static retvalue storechecksums(struct release *release) {
 	return result;
 }
 
+static inline bool componentneedsfake(const char *cn, const struct release *release) {
+	if( release->fakecomponentprefix == NULL )
+		return false;
+	if( strncmp(cn, release->fakecomponentprefix,
+			       release->fakecomponentprefixlen) != 0 )
+		return true;
+	return cn[release->fakecomponentprefixlen] != '/';
+}
+
 /* Generate a main "Release" file for a distribution */
 retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
@@ -1267,13 +1279,14 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	writestring("\nComponents:");
 	for( i = 0 ; i < distribution->components.count ; i++ ) {
 		component_t c = distribution->components.atoms[i];
+		const char *cn = atoms_components[c];
 
 		writechar(' ');
-		if( release->fakecomponentprefix != NULL ) {
+		if( componentneedsfake(cn, release) ) {
 			writestring(release->fakecomponentprefix);
 			writechar('/');
 		}
-		writestring(atoms_components[c]);
+		writestring(cn);
 	}
 	if( distribution->description != NULL ) {
 		writestring("\nDescription: ");

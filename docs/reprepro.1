@@ -966,9 +966,12 @@ from the Suite to the Codename, use the
 .TP
 .B FakeComponentPrefix
 If this field is present,
-its argument is added before every Component written to the main
-Release file,
+its argument is added - seperated by a slash -  before every
+Component written to the main Release file
+(unless the component already starts with it),
 and removed from the end of the Codename and Suite fields in that file.
+Also if a component starts with it, its directory in the dists dir
+is shortened by this.
 .br
 So \fB
  Codename: bla/updates
@@ -979,7 +982,19 @@ So \fB
  Codename: bla
  Suite: foo
  Components: updates/main updates/bad
-\fP in it, but otherwise nothing is changed.
+\fP in it, but otherwise nothing is changed, while\fB
+ Codename: bla/updates
+ Suite: foo/updates
+ FakeComponentPrefix: updates
+ Components: updates/main updates/bad
+\fP will also create a Release file with \fB
+ Codename: bla
+ Suite: foo
+ Components: updates/main updates/bad
+\fP but the packages will actually be in the components
+\fBupdates/main\fP and \fBupdates/bad\fP,
+most likely causing the same file using duplicate storage space.
+
 This makes the distribution look more like Debian's security archive,
 thus work around problems with apt's workarounds for that.
 .TP

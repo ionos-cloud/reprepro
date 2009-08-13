@@ -70,9 +70,9 @@ struct target {
 	bool staletracking;
 };
 
-retvalue target_initialize_ubinary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@out@*/struct target **);
-retvalue target_initialize_binary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@out@*/struct target **);
-retvalue target_initialize_source(const char *codename, component_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@out@*/struct target **);
+retvalue target_initialize_ubinary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_binary(const char *codename, component_t, architecture_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
+retvalue target_initialize_source(const char *codename, component_t, /*@dependent@*/const struct exportmode *, bool readonly, /*@NULL@*/const char *fakecomponentprefix, /*@out@*/struct target **);
 retvalue target_free(struct target *target);
 
 retvalue target_export(struct target *target, struct database *, bool onlyneeded, bool snapshot, struct release *release);

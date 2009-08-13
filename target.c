@@ -98,7 +98,21 @@ static retvalue target_initialize(const char *codename, component_t component, a
 	return RET_OK;
 }
 
-retvalue target_initialize_ubinary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, struct target **target) {
+static const char *dist_component_name(component_t component, /*@null@*/const char *fakecomponentprefix) {
+	const char *c = atoms_components[component];
+	size_t len;
+
+	if( fakecomponentprefix == NULL )
+		return c;
+	len = strlen(fakecomponentprefix);
+	if( strncmp(c, fakecomponentprefix, len) != 0 )
+		return c;
+	if( c[len] != '/' )
+		return c;
+	return c + len + 1;
+}
+
+retvalue target_initialize_ubinary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
 	return target_initialize(codename, component, architecture, pt_udeb,
 			binaries_getversion,
 			binaries_getinstalldata,
@@ -107,11 +121,12 @@ retvalue target_initialize_ubinary(const char *codename, component_t component, 
 			binaries_getsourceandversion,
 			ubinaries_doreoverride, binaries_retrack,
 			mprintf("%s/debian-installer/binary-%s",
-				atoms_components[component],
+				dist_component_name(component,
+					fakecomponentprefix),
 				atoms_architectures[architecture]),
 			exportmode, readonly, target);
 }
-retvalue target_initialize_binary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, struct target **target) {
+retvalue target_initialize_binary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
 	return target_initialize(codename, component, architecture, pt_deb,
 			binaries_getversion,
 			binaries_getinstalldata,
@@ -120,12 +135,13 @@ retvalue target_initialize_binary(const char *codename, component_t component, a
 			binaries_getsourceandversion,
 			binaries_doreoverride, binaries_retrack,
 			mprintf("%s/binary-%s",
-				atoms_components[component],
+				dist_component_name(component,
+					fakecomponentprefix),
 				atoms_architectures[architecture]),
 			exportmode, readonly, target);
 }
 
-retvalue target_initialize_source(const char *codename, component_t component, const struct exportmode *exportmode, bool readonly, struct target **target) {
+retvalue target_initialize_source(const char *codename, component_t component, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
 	return target_initialize(codename, component, architecture_source, pt_dsc,
 			sources_getversion,
 			sources_getinstalldata,
@@ -133,7 +149,8 @@ retvalue target_initialize_source(const char *codename, component_t component, c
 			sources_getfilekeys, sources_getchecksums,
 			sources_getsourceandversion,
 			sources_doreoverride, sources_retrack,
-			mprintf("%s/source", atoms_components[component]),
+			mprintf("%s/source", dist_component_name(component,
+					fakecomponentprefix)),
 			exportmode, readonly, target);
 }
 

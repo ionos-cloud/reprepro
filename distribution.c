@@ -140,7 +140,9 @@ static retvalue createtargets(struct distribution *distribution) {
 					distribution->codename,
 					c, a,
 					&distribution->deb,
-					distribution->readonly, &t);
+					distribution->readonly,
+					distribution->fakecomponentprefix,
+					&t);
 			if( RET_IS_OK(r) ) {
 				if( last != NULL ) {
 					last->next = t;
@@ -156,7 +158,9 @@ static retvalue createtargets(struct distribution *distribution) {
 						distribution->codename,
 						c, a,
 						&distribution->udeb,
-						distribution->readonly, &t);
+						distribution->readonly,
+						distribution->fakecomponentprefix,
+						&t);
 				if( RET_IS_OK(r) ) {
 					if( last != NULL ) {
 						last->next = t;
@@ -176,7 +180,8 @@ static retvalue createtargets(struct distribution *distribution) {
 		if( has_source ) {
 			r = target_initialize_source(distribution->codename,
 					c, &distribution->dsc,
-					distribution->readonly, &t);
+					distribution->readonly,
+					distribution->fakecomponentprefix, &t);
 			if( last != NULL ) {
 				last->next = t;
 			} else {
@@ -239,6 +244,44 @@ static bool notpropersuperset(const struct atomlist *allowed, const char *allowe
 		return true;
 	}
 	return false;
+}
+
+static inline retvalue checkcomponentsequalduetofake(const struct distribution *d) {
+	size_t l;
+	int i, j;
+
+	if( d->fakecomponentprefix == NULL )
+		return RET_OK;
+
+	l = strlen(d->fakecomponentprefix);
+
+	for( i = 0 ; i < d->components.count ; i++ ) {
+		const char *c1 = atoms_components[d->components.atoms[i]];
+
+		if( strncmp(c1, d->fakecomponentprefix, l) != 0 )
+			continue;
+		if( d->fakecomponentprefix[l] != '/' )
+			continue;
+
+		for( j = 0 ; i < d->components.count ; j++ ) {
+			const char *c2;
+
+			if( j == i )
+				continue;
+
+			c2 = atoms_components[d->components.atoms[j]];
+
+			if( strcmp(c1 + l + 1, c2) == 0) {
+				fprintf(stderr,
+"ERROR: distribution '%s' has components '%s' and '%s',\n"
+"which would be output to the same place due to FakeComponentPrefix '%s'.\n",
+					d->codename, c1, c2,
+					d->fakecomponentprefix);
+				return RET_ERROR;
+			}
+		}
+	}
+	return RET_OK;
 }
 
 CFfinishparse(distribution) {
@@ -311,6 +354,13 @@ CFfinishparse(distribution) {
 		else
 			n->contents.flags.enabled = false;
 	}
+
+	r = checkcomponentsequalduetofake(n);
+	if( RET_WAS_ERROR(r) ) {
+		(void)distribution_free(n);
+		return r;
+	}
+
 	/* prepare substructures */
 
 	r = createtargets(n);

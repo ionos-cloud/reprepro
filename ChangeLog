@@ -1,3 +1,8 @@
+2009-08-13
+	* FakeComponentPrefix now does not add the prefix to components
+	already having it and removes it from the relative directory where
+	it is put into (so no duplication on the whole path, either).
+
 2009-08-06
 	* command line (and conf/options) options to specify a directory
 	now treat arguments starting with '+b/', '+c/' or '+o/' as relative
