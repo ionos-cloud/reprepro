@@ -1606,9 +1606,11 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					(tracks==NULL)?NULL:&trackingdata,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
+			architecture_t a = p->master->architecture_atom;
+			const struct atomlist architecture = {&a, 1, 1};
+
 			r = binaries_adddeb(&p->master->deb, database,
-					p->master->architecture_atom,
-					p->packagetype, into,
+					&architecture, p->packagetype, into,
 					(tracks==NULL)?NULL:&trackingdata,
 					p->component_atom, &p->filekeys,
 					p->control);

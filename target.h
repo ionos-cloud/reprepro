@@ -159,12 +159,12 @@ retvalue target_reoverride(struct target *, struct distribution *, struct databa
 
 retvalue package_rerunnotifiers(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 
-static inline bool target_matches(const struct target *t, component_t component, architecture_t architecture, packagetype_t packagetype) {
-	if( atom_defined(component) && component != t->component_atom )
+static inline bool target_matches(const struct target *t, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
+	if( limitations_missed(components, t->component_atom) )
 		return false;
-	if( atom_defined(architecture) && architecture != t->architecture_atom )
+	if( limitations_missed(architectures, t->architecture_atom) )
 		return false;
-	if( atom_defined(packagetype) && packagetype != t->packagetype_atom )
+	if( limitations_missed(packagetypes, t->packagetype_atom) )
 		return false;
 	return true;
 }

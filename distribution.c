@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -498,7 +498,7 @@ retvalue distribution_readall(struct distribution **distributions) {
 }
 
 /* call <action> for each package */
-retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action action, each_target_action target_action, void *data) {
+retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result,r;
 	struct target *t;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
@@ -506,7 +506,7 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
+		if( !target_matches(t, components, architectures, packagetypes) )
 			continue;
 		if( target_action != NULL ) {
 			r = target_action(database, distribution, t, data);
@@ -540,13 +540,14 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 	const char *package, *control;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 
-	assert( components != NULL );
-
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !atomlist_in(components, t->component_atom) )
+		if( components != NULL &&
+				!atomlist_in(components, t->component_atom) )
 			continue;
-		if( !target_matches(t, atom_unknown, architecture, packagetype) )
+		if( limitation_missed(architecture, t->architecture_atom) )
+			continue;
+		if( limitation_missed(packagetype, t->packagetype_atom) )
 			continue;
 		r = target_openiterator(t, database, READONLY, &iterator);
 		RET_UPDATE(result, r);
@@ -1078,7 +1079,7 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 }
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action decider, struct trackingdata *trackingdata, void *data) {
+retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action decider, struct trackingdata *trackingdata, void *data) {
 	retvalue result,r;
 	struct target *t;
 	struct target_cursor iterator;
@@ -1092,7 +1093,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
+		if( !target_matches(t, components, architectures, packagetypes) )
 			continue;
 		r = target_openiterator(t, database, READWRITE, &iterator);
 		RET_UPDATE(result, r);

@@ -113,11 +113,11 @@ typedef retvalue each_target_action(struct database *, struct distribution *, st
 typedef retvalue each_package_action(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 
 /* call <action> for each package of <distribution> */
-retvalue distribution_foreach_package(struct distribution *, struct database *, component_t, architecture_t, packagetype_t, each_package_action, each_target_action, void *);
-retvalue distribution_foreach_package_c(struct distribution *, struct database *, const struct atomlist *components, architecture_t, packagetype_t, each_package_action, void *);
+retvalue distribution_foreach_package(struct distribution *, struct database *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, /*@null@*/const struct atomlist *, each_package_action, /*@null@*/each_target_action, void *);
+retvalue distribution_foreach_package_c(struct distribution *, struct database *, /*@null@*/const struct atomlist *, architecture_t, packagetype_t, each_package_action, void *);
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *, struct database *, component_t, architecture_t, packagetype_t, each_package_action decider, struct trackingdata *, void *);
+retvalue distribution_remove_packages(struct distribution *, struct database *, const struct atomlist *, const struct atomlist *, const struct atomlist *, each_package_action decider, struct trackingdata *, void *);
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 

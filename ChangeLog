@@ -1,3 +1,6 @@
+2009-08-15
+	* -A, -T and -C can now have multiple arguments separated by '|'.
+
 2009-08-13
 	* FakeComponentPrefix now does not add the prefix to components
 	already having it and removes it from the relative directory where

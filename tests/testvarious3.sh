@@ -703,9 +703,9 @@ DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpa
 testrun - -b . -A ${FAKEARCHITECTURE} --delete --delete --ignore=missingfile include b test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v2*=Skipping 'ac_1-1.dsc' as not for architecture '${FAKEARCHITECTURE}'.
--v2*=Skipping 'ac_1-1.tar.gz' as not for architecture '${FAKEARCHITECTURE}'.
--v3*=Placing 'ac-addons_1-1_all.deb' only in architecture '${FAKEARCHITECTURE}' as requested.
+-v2*=Skipping 'ac_1-1.dsc' as architecture 'source' is not in the requested set.
+-v2*=Skipping 'ac_1-1.tar.gz' as architecture 'source' is not in the requested set.
+-v3*=Limiting 'ac-addons_1-1_all.deb' to architectures ${FAKEARCHITECTURE} as requested.
 stdout
 -v2*=Created directory "./pool/all/a/ac"
 -e1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' added to files.db(md5sums).

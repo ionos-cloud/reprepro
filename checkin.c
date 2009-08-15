@@ -162,7 +162,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 }
 
 
-static retvalue newentry(struct fileentry **entry, const char *fileline, packagetype_t packagetypeonly, architecture_t forcearchitecture, const char *sourcename, bool includebyhand, bool includelogs, bool *ignoredlines_p) {
+static retvalue newentry(struct fileentry **entry, const char *fileline, const struct atomlist *packagetypes, const struct atomlist *forcearchitectures, const char *sourcename, bool includebyhand, bool includelogs, bool *ignoredlines_p, bool skip_binaries) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -192,17 +192,17 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 		*entry = e;
 		return RET_OK;
 	}
-	if( FE_SOURCE(e->type) && limitation_missed(packagetypeonly, pt_dsc) ) {
+	if( FE_SOURCE(e->type) && limitations_missed(packagetypes, pt_dsc) ) {
 		freeentries(e);
 		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
-	if( e->type == fe_DEB && limitation_missed(packagetypeonly, pt_deb) ) {
+	if( e->type == fe_DEB && limitations_missed(packagetypes, pt_deb) ) {
 		freeentries(e);
 		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
-	if( e->type == fe_UDEB && limitation_missed(packagetypeonly, pt_udeb) ) {
+	if( e->type == fe_UDEB && limitations_missed(packagetypes, pt_udeb) ) {
 		freeentries(e);
 		*ignoredlines_p = true;
 		return RET_NOTHING;
@@ -228,32 +228,40 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 			*ignoredlines_p = true;
 			return RET_NOTHING;
 		}
-		if( atom_defined(forcearchitecture) &&
-				e->architecture_into != forcearchitecture ) {
+		if( atom_defined(e->architecture_into) &&
+				limitations_missed(forcearchitectures,
+					e->architecture_into ) ) {
 			if( verbose > 1 )
 				fprintf(stderr,
-"Skipping '%s' as not for architecture '%s'.\n",
-					e->basename,
-					atoms_architectures[forcearchitecture]);
+"Skipping '%s' as not for architecture ",
+					e->basename);
+			atomlist_fprint(stderr, at_architecture,
+					forcearchitectures);
+			fputs(".\n", stderr);
 			freeentries(e);
 			*ignoredlines_p = true;
 			return RET_NOTHING;
 		}
-	} else if( atom_defined(forcearchitecture) ) {
-		if( forcearchitecture != architecture_source &&
-				e->architecture_into == architecture_all ) {
-			if( verbose > 2 )
+	} else if( forcearchitectures != NULL ) {
+		if( e->architecture_into == architecture_all &&
+				!skip_binaries) {
+			if( verbose > 2 ) {
 				fprintf(stderr,
-"Placing '%s' only in architecture '%s' as requested.\n",
-					e->basename,
-					atoms_architectures[forcearchitecture]);
-			e->architecture_into = forcearchitecture;
-		} else if( e->architecture_into != forcearchitecture ) {
+"Limiting '%s' to architectures ",
+					e->basename);
+				atomlist_fprint(stderr, at_architecture,
+						forcearchitectures);
+				fputs(" as requested.\n", stderr);
+			}
+			/* keep e->architecture_into to all, this wil
+			 * be restricted to forcearchitectures when added */
+		} else if( !atomlist_in(forcearchitectures,
+					e->architecture_into) ) {
 			if( verbose > 1 )
 				fprintf(stderr,
-"Skipping '%s' as not for architecture '%s'.\n",
+"Skipping '%s' as architecture '%s' is not in the requested set.\n",
 					e->basename,
-					atoms_architectures[forcearchitecture]);
+					atoms_architectures[e->architecture_into]);
 			freeentries(e);
 			*ignoredlines_p = true;
 			return RET_NOTHING;
@@ -266,7 +274,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 }
 
 /* Parse the Files-header to see what kind of files we carry around */
-static retvalue changes_parsefilelines(const char *filename, struct changes *changes, const struct strlist *filelines, packagetype_t packagetypeonly, architecture_t forcearchitecture, bool includebyhand, bool includelogs, bool *ignoredlines_p) {
+static retvalue changes_parsefilelines(const char *filename, struct changes *changes, const struct strlist *filelines, const struct atomlist *packagetypes, const struct atomlist *forcearchitectures, bool includebyhand, bool includelogs, bool *ignoredlines_p, bool skip_binaries) {
 	retvalue result,r;
 	int i;
 
@@ -277,9 +285,9 @@ static retvalue changes_parsefilelines(const char *filename, struct changes *cha
 		const char *fileline = filelines->values[i];
 
 		r = newentry(&changes->files, fileline,
-				packagetypeonly, forcearchitecture,
+				packagetypes, forcearchitectures,
 				changes->source, includebyhand, includelogs,
-				ignoredlines_p);
+				ignoredlines_p, skip_binaries);
 		RET_UPDATE(result,r);
 		if( r == RET_ERROR )
 			return r;
@@ -361,13 +369,14 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename, /*@out@*/struct changes **changes, packagetype_t packagetypeonly, architecture_t forcearchitecture, bool includebyhand, bool includelogs) {
+static retvalue changes_read(const char *filename, /*@out@*/struct changes **changes, const struct atomlist *packagetypes, const struct atomlist *forcearchitectures, bool includebyhand, bool includelogs) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines[cs_hashCOUNT];
 	enum checksumtype cs;
 	bool broken, ignoredlines;
 	int versioncmp;
+	bool skip_binaries;
 
 #define E(err) { \
 		if( r == RET_NOTHING ) { \
@@ -442,9 +451,18 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 			&filelines[cs_md5sum]);
 	E("Missing 'Files' field!");
 	ignoredlines = false;
+	/* check if forcearchitectures allows non-source binaries,
+	 * (used to check if Architecture all are skipped) */
+	if( forcearchitectures == NULL ) {
+		skip_binaries = false;
+	} else {
+		skip_binaries = !atomlist_hasexcept(forcearchitectures,
+				architecture_source);
+	}
 	r = changes_parsefilelines(filename, c, &filelines[cs_md5sum],
-			packagetypeonly, forcearchitecture,
-			includebyhand, includelogs, &ignoredlines);
+			packagetypes, forcearchitectures,
+			includebyhand, includelogs, &ignoredlines,
+			skip_binaries);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&filelines[cs_md5sum]);
 		changes_free(c);
@@ -641,49 +659,78 @@ static inline retvalue checkforarchitecture(const struct fileentry *e, architect
 	return RET_OK;
 }
 
-static retvalue changes_check(const struct distribution *distribution, const char *filename, struct changes *changes, architecture_t forcearchitecture, packagetype_t packagetypeonly) {
+static bool can_add_all(const struct atomlist *forcearchitectures, const struct distribution *d) {
+	const struct atomlist *da = &d->architectures;
+	int i;
+
+	if( forcearchitectures == NULL ) {
+		return atomlist_hasexcept(da, architecture_source);
+	}
+	for( i = 0 ; i < forcearchitectures->count ; i++ ) {
+		architecture_t a = forcearchitectures->atoms[i];
+
+		if( a == architecture_source )
+			continue;
+		if( a == architecture_all )
+			return atomlist_hasexcept(da, architecture_source);
+		if( atomlist_in(da, a) )
+			return true;
+	}
+	return false;
+}
+
+static retvalue changes_check(const struct distribution *distribution, const char *filename, struct changes *changes, const struct atomlist *forcearchitectures, const struct atomlist *packagetypes) {
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
 	bool havedsc = false, haveorig = false, havetar = false, havediff = false;
 
 	/* First check for each given architecture, if it has files: */
-	if( atom_defined(forcearchitecture) ) {
-		if( !strlist_in(&changes->architectures,
-					atoms_architectures[forcearchitecture]) ){
-			// TODO: check if this is sensible
-			if( !IGNORING_(surprisingarch,
-				     "Architecture header does not list the"
-				     " architecture '%s' to be forced in!\n",
-					atoms_architectures[forcearchitecture]))
-				return RET_ERROR_MISSING;
-		}
-		r = checkforarchitecture(changes->files,forcearchitecture);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	} else if( !atom_defined(packagetypeonly) ) {
-		for( i = 0 ; i < changes->architectures.count ; i++ ) {
-			const char *architecture = changes->architectures.values[i];
-			r = checkforarchitecture(changes->files,
-					architecture_find(architecture));
-			if( RET_WAS_ERROR(r) )
-				return r;
-		}
-	} else if( packagetypeonly == pt_dsc ) {
-		if( strlist_in(&changes->architectures, "source") ) {
-			r = checkforarchitecture(changes->files, architecture_source);
+	if( forcearchitectures != NULL ) {
+		for( i = 0 ; i < forcearchitectures->count ; i++ ) {
+			architecture_t a = forcearchitectures->atoms[i];
+
+			if( !strlist_in(&changes->architectures,
+						atoms_architectures[a]) ){
+				// TODO: check if this is sensible
+				if( !IGNORING_(surprisingarch,
+"Architecture header does not list the"
+" architecture '%s' to be forced in!\n",
+						atoms_architectures[a]))
+					return RET_ERROR_MISSING;
+			}
+			r = checkforarchitecture(changes->files, a);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
 	} else {
+		bool limitedtosource = false;
+		bool limitedtononsource = false;
+
+		if( packagetypes != NULL ) {
+			limitedtosource = true;
+			limitedtononsource = true;
+			for( i = 0 ; i < packagetypes->count ; i++ ) {
+				if( packagetypes->atoms[i] == pt_dsc )
+					limitedtononsource = false;
+				else
+					limitedtosource = false;
+			}
+		}
+
 		for( i = 0 ; i < changes->architectures.count ; i++ ) {
 			const char *architecture = changes->architectures.values[i];
-			if( strcmp(architecture,"source") != 0 ) {
-				r = checkforarchitecture(changes->files,
-						architecture_find(architecture));
-				if( RET_WAS_ERROR(r) )
-					return r;
+			if( strcmp(architecture, "source") == 0 ) {
+				if( limitedtononsource )
+					continue;
+			} else {
+				if( limitedtosource )
+					continue;
 			}
+			r = checkforarchitecture(changes->files,
+					architecture_find(architecture));
+			if( RET_WAS_ERROR(r) )
+				return r;
 		}
 	}
 	/* Then check for each file, if its architecture is sensible
@@ -695,11 +742,9 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 			if( e->architecture_into == architecture_all ) {
 				/* "all" can be added if at least one binary
 				 *  architecture */
-				if( distribution->architectures.count == 1 &&
-						distribution->architectures.atoms[0]
-						== architecture_source ) {
+				if( !can_add_all(forcearchitectures,
+							distribution) )
 					e->architecture_into = atom_unknown;
-				}
 			} else if( !atomlist_in(&distribution->architectures,
 						e->architecture_into) )
 				e->architecture_into = atom_unknown;
@@ -763,8 +808,8 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 		return RET_ERROR;
 	}
 	if( strlist_in(&changes->architectures,"source") && !havedsc &&
-			!limitation_missed(forcearchitecture, architecture_source) &&
-			!limitation_missed(packagetypeonly, pt_dsc)) {
+			!limitations_missed(forcearchitectures, architecture_source) &&
+			!limitations_missed(packagetypes, pt_dsc)) {
 		fprintf(stderr,"I don't know what to do with a source-upload not containing a .dsc in '%s'!\n",filename);
 		return RET_ERROR;
 	}
@@ -1094,7 +1139,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 	return r;
 }
 
-static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct trackingdata *trackingdata, bool *missed_p) {
+static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct trackingdata *trackingdata, const struct atomlist *forcearchitectures, bool *missed_p) {
 	struct fileentry *e;
 	retvalue result,r;
 
@@ -1116,14 +1161,20 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 			return RET_ERROR_INTERRUPTED;
 		if( e->type == fe_DEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
-				e->architecture_into, pt_deb,
-				distribution, trackingdata);
+				/* architecture all needs this, the rest is
+				 * already filtered out */
+				(e->architecture_into == architecture_all)?
+					forcearchitectures:NULL,
+				pt_deb, distribution, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
-				e->architecture_into, pt_udeb,
-				distribution, trackingdata);
+				/* architecture all needs this, the rest is
+				 * already filtered out */
+				(e->architecture_into == architecture_all)?
+					forcearchitectures:NULL,
+				pt_udeb, distribution, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
 		} else if( e->type == fe_DSC ) {
@@ -1223,7 +1274,7 @@ static bool permissionssuffice(struct changes *changes, struct upload_conditions
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(struct database *database, trackingdb const tracks, packagetype_t packagetypeonly, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *changesfilename, int delete) {
+retvalue changes_add(struct database *database, trackingdb const tracks, const struct atomlist *packagetypes, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *changesfilename, int delete) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -1232,7 +1283,7 @@ retvalue changes_add(struct database *database, trackingdb const tracks, package
 	causingfile = changesfilename;
 
 	r = changes_read(changesfilename, &changes,
-			packagetypeonly, forcearchitecture,
+			packagetypes, forcearchitectures,
 			distribution->trackingoptions.includebyhand,
 			distribution->trackingoptions.includelogs);
 	if( RET_WAS_ERROR(r) )
@@ -1277,7 +1328,7 @@ retvalue changes_add(struct database *database, trackingdb const tracks, package
 	/* do some tests if values are sensible */
 	if( !RET_WAS_ERROR(r) )
 		r = changes_check(distribution, changesfilename, changes,
-				forcearchitecture, packagetypeonly);
+				forcearchitectures, packagetypes);
 
 	if( interrupted() )
 		RET_UPDATE(r, RET_ERROR_INTERRUPTED);
@@ -1345,7 +1396,8 @@ retvalue changes_add(struct database *database, trackingdb const tracks, package
 
 	/* add the source and binary packages in the given distribution */
 	result = changes_includepkgs(database, distribution, changes,
-		(tracks!=NULL)?&trackingdata:NULL, &somethingwasmissed);
+		(tracks!=NULL)?&trackingdata:NULL, forcearchitectures,
+		&somethingwasmissed);
 
 	if( RET_WAS_ERROR(result) ) {
 		if( tracks != NULL ) {

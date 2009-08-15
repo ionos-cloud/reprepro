@@ -150,20 +150,26 @@ Look in \fImethoddir\fP instead of
 .B /usr/lib/apt/methods
 for methods to call when importing from other repositories.
 .TP
-.B \-C, \-\-component \fIcomponent\fP
-Limit the specified command to this component only.
-This will force added packages to this component,
-limit removing packages from this component,
-only list packages in this component,
-and/or otherwise only look at packages in this component,
+.B \-C, \-\-component \fIcomponents\fP
+Limit the specified command to this components only.
+This will force added packages to this components,
+limit removing packages from this components,
+only list packages in this components,
+and/or otherwise only look at packages in this components,
 depending on the command in question.
+
+Multiple components are specified by separating them with \fB|\fP,
+as in \fB\-C 'main|contrib'\fP.
 .TP
-.B \-A, \-\-architecture \fIarchitecture\fP
-Limit the specified command to this architecture only.
+.B \-A, \-\-architecture \fIarchitectures\fP
+Limit the specified command to this architectures only.
 (i.e. only list such packages,
-only remove packages from the specified architecture,
-or otherwise only look at/act on this architecture
+only remove packages from the specified architectures,
+or otherwise only look at/act on this architectures
 depending on the specific command).
+
+Multiple architectures are specified by separating them with \fB|\fP,
+as in \fB\-A 'sparc|i386'\fP.
 
 Note that architecture \fBall\fP packages can be included to each
 architecture but are then handled separately.
@@ -172,7 +178,7 @@ an architecture \fBall\fP package in different architectures of the
 same distribution.
 .TP
 .B \-T, \-\-type \fRdsc|deb|udeb
-Limit the specified command to this packagetype only.
+Limit the specified command to this packagetypes only.
 (i.e. only list such packages, only remove such packages, only include
 such packages, ...)
 .TP

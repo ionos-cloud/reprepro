@@ -3,6 +3,9 @@ Updates since 3.11.1:
   with './'
 - directories starting '+b/' '+o/' and '+c/' are relative to basedir, outdir
   or confdir.
+- FakeComponentPrefix now no longer adds its arguments to components already
+  having it and shortens their dist directories to not duplicate that either.
+- -A, -C and -T can have multiple arguments now, separated with '|'.
 
 Updates since 3.11.0:
 - new changestool option --create-with-all-fields

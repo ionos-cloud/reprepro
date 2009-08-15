@@ -330,7 +330,7 @@ static retvalue packagelist_add(struct database *database, struct distribution *
 	return result;
 }
 
-static retvalue copy_by_func(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, component_t component_atom, architecture_t architecture_atom, packagetype_t packagetype_atom, retvalue action(struct package_list*, struct database *, struct distribution *, struct distribution *, struct target *, struct target *, void *), void *data) {
+static retvalue copy_by_func(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, retvalue action(struct package_list*, struct database *, struct distribution *, struct distribution *, struct target *, struct target *, void *), void *data) {
 	retvalue result, r;
 	struct target *origtarget, *desttarget;
 
@@ -338,7 +338,7 @@ static retvalue copy_by_func(struct package_list *list, struct database *databas
 	for( origtarget = from->targets ; origtarget != NULL ;
 			origtarget = origtarget->next ) {
 		if( !target_matches(origtarget,
-				component_atom, architecture_atom, packagetype_atom) )
+				components, architectures, packagetypes) )
 			continue;
 		desttarget = distribution_gettarget(into,
 				origtarget->component_atom,
@@ -432,7 +432,7 @@ static void packagelist_done(struct package_list *list) {
 	}
 }
 
-retvalue copy_by_name(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, component_t component, architecture_t architecture, packagetype_t packagetype) {
+retvalue copy_by_name(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	struct namelist names = { argc, argv, calloc(argc, sizeof(bool)),
        			 calloc(argc, sizeof(bool))};
@@ -445,7 +445,7 @@ retvalue copy_by_name(struct database *database, struct distribution *into, stru
 	}
 
 	memset(&list, 0, sizeof(list));
-	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_name, &names);
+	r = copy_by_func(&list, database, into, from, components, architectures, packagetypes, by_name, &names);
 	free(names.warnedabout);
 	if( verbose >= 0 && !RET_WAS_ERROR(r) ) {
 		int i;
@@ -549,7 +549,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 	return result;
 }
 
-retvalue copy_by_source(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, component_t component, architecture_t architecture, packagetype_t packagetype) {
+retvalue copy_by_source(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	struct namelist names = { argc, argv, NULL, calloc(argc, sizeof(bool)) };
 	retvalue r;
@@ -561,7 +561,7 @@ retvalue copy_by_source(struct database *database, struct distribution *into, st
 	memset(&list, 0, sizeof(list));
 	// TODO: implement fast way by looking at source tracking
 	// (also allow copying .changes and .logs)
-	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_source, &names);
+	r = copy_by_func(&list, database, into, from, components, architectures, packagetypes, by_source, &names);
 	if( argc == 1 && !RET_WAS_ERROR(r) && verbose >= 0 ) {
 		assert(names.found != NULL);
 
@@ -693,13 +693,13 @@ static retvalue by_glob(struct package_list *list, struct database *database, UN
 	return result;
 }
 
-retvalue copy_by_glob(struct database *database, struct distribution *into, struct distribution *from, const char *glob, component_t component, architecture_t architecture, packagetype_t packagetype) {
+retvalue copy_by_glob(struct database *database, struct distribution *into, struct distribution *from, const char *glob, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	retvalue r;
 
 	memset(&list, 0, sizeof(list));
 
-	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_glob, (void*)glob);
+	r = copy_by_func(&list, database, into, from, components, architectures, packagetypes, by_glob, (void*)glob);
 	if( !RET_IS_OK(r) )
 		return r;
 	r = packagelist_add(database, into, &list, from->codename);
@@ -707,7 +707,7 @@ retvalue copy_by_glob(struct database *database, struct distribution *into, stru
 	return r;
 }
 
-retvalue copy_by_formula(struct database *database, struct distribution *into, struct distribution *from, const char *filter, component_t component, architecture_t architecture, packagetype_t packagetype) {
+retvalue copy_by_formula(struct database *database, struct distribution *into, struct distribution *from, const char *filter, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes) {
 	struct package_list list;
 	term *condition;
 	retvalue r;
@@ -718,7 +718,7 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 	if( !RET_IS_OK(r) ) {
 		return r;
 	}
-	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_formula, condition);
+	r = copy_by_func(&list, database, into, from, components, architectures, packagetypes, by_formula, condition);
 	term_free(condition);
 	if( !RET_IS_OK(r) )
 		return r;
@@ -868,7 +868,7 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 
 typedef retvalue chooseaction(struct target *, const char *, const char *, const char *, void *);
 
-static retvalue restore_from_snapshot(struct database *database, struct distribution *into, component_t component_atom, architecture_t architecture_atom, packagetype_t packagetype_atom, const char *snapshotname, chooseaction action, void *d) {
+static retvalue restore_from_snapshot(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, chooseaction action, void *d) {
 	retvalue result, r;
 	struct package_list list;
 	struct target *target;
@@ -889,7 +889,7 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 		struct indexfile *i;
 
 		if( !target_matches(target,
-				component_atom, architecture_atom, packagetype_atom) )
+				components, architectures, packagetypes) )
 			continue;
 
 		/* we do not know what compressions where used back then
@@ -965,21 +965,21 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 	return r;
 }
 
-retvalue restore_by_name(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
+retvalue restore_by_name(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, int argc, const char **argv) {
 	struct namelist d = {argc, argv, NULL, NULL};
 	return restore_from_snapshot(database, into,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			snapshotname, choose_by_name, &d);
 }
 
-retvalue restore_by_source(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
+retvalue restore_by_source(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, int argc, const char **argv) {
 	struct namelist d = {argc, argv, NULL, NULL};
 	return restore_from_snapshot(database, into,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			snapshotname, choose_by_source, &d);
 }
 
-retvalue restore_by_formula(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, const char *filter) {
+retvalue restore_by_formula(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, const char *filter) {
 	term *condition;
 	retvalue r;
 
@@ -988,14 +988,14 @@ retvalue restore_by_formula(struct database *database, struct distribution *into
 		return r;
 	}
 	r = restore_from_snapshot(database, into,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			snapshotname, choose_by_condition, condition);
 	term_free(condition);
 	return r;
 }
 
-retvalue restore_by_glob(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, const char *glob) {
+retvalue restore_by_glob(struct database *database, struct distribution *into, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, const char *snapshotname, const char *glob) {
 	return restore_from_snapshot(database, into,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			snapshotname, choose_by_glob, (void*)glob);
 }
