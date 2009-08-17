@@ -1,4 +1,4 @@
-reprepro (3.11.2-0) UNRELEASED; urgency=low
+reprepro (3.12.0-0) UNRELEASED; urgency=low
 
   * improve error message when deleteunreferenced
     is alled with keepunreferencedfiles in conf/options (Closes: 539509)
@@ -6,8 +6,10 @@ reprepro (3.11.2-0) UNRELEASED; urgency=low
     prepending '+b/' (Closes: 540115)
   * extend FakeComponentPrefix to also hide that prefix from components
     that already have it. (Closes: 541261)
+  * add new 'flood' command to align architecture 'all' packages between
+    the different architectures of an distribution. (Closes: 440872)
 
- -- Bernhard R. Link <brlink@debian.org>  Thu, 13 Aug 2009 17:15:06 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 17 Aug 2009 22:01:03 +0200
 
 reprepro (3.11.1-1) unstable; urgency=low
 

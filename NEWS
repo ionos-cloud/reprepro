@@ -6,6 +6,7 @@ Updates since 3.11.1:
 - FakeComponentPrefix now no longer adds its arguments to components already
   having it and shortens their dist directories to not duplicate that either.
 - -A, -C and -T can have multiple arguments now, separated with '|'.
+- new 'flood' action to align architecture all packages
 
 Updates since 3.11.0:
 - new changestool option --create-with-all-fields
