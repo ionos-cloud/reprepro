@@ -12,6 +12,7 @@ testchecksums.sh \
 testcopy.sh \
 testexporthooks.sh \
 testflat.sh \
+testflood.sh \
 testincludeextra.sh \
 testlayeredupdate.sh \
 testlayeredupdate2.sh \

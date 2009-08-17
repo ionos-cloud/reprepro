@@ -4,6 +4,7 @@ set -e
 
 source $(dirname $0)/test.inc
 
+runtest flood
 runtest exporthooks
 runtest updatecorners
 runtest packagediff

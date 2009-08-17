@@ -418,10 +418,43 @@ static retvalue warnidentifers(struct database *db, const struct strlist *identi
 		(void)fputs("To ignore use --ignore=undefinedtarget.\n", stderr);
 		return RET_ERROR;
 	}
+	if( readonly )
+		return RET_OK;
 	for( d = distributions ; d != NULL ; d = d->next ) {
-		// TODO: check for new architectures here and warn then...
-		if( readonly )
-			continue;
+		bool architecture_existed[d->architectures.count];
+
+		/* check for new architectures */
+		memset(architecture_existed, 0, sizeof(architecture_existed));
+
+		for( t = d->targets; t != NULL ; t = t->next ) {
+			int i;
+
+			if( !t->existed )
+				continue;
+
+			i = atomlist_ofs(&d->architectures,
+					t->architecture_atom);
+			assert( i >= 0 );
+			if( i >= 0 )
+				architecture_existed[i] = true;
+		}
+		for( i = 0 ; i < d->architectures.count ; i++ ) {
+			architecture_t a;
+
+			if( architecture_existed[i] )
+				continue;
+
+			a = d->architectures.atoms[i];
+
+			fprintf(stderr,
+"New architecture '%s' in '%s'. Perhaps you want to call\n"
+"reprepro flood '%s' '%s'\n"
+"to populate it with architecture 'all' packages from other architectures.\n",
+				atoms_architectures[a], d->codename,
+				d->codename, atoms_architectures[a]);
+		}
+
+		/* create databases, so we know next time what is new */
 		for( t = d->targets; t != NULL ; t = t->next ) {
 			if( t->existed )
 				continue;

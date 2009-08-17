@@ -69,6 +69,7 @@
 #include "printlistformat.h"
 #include "globmatch.h"
 #include "needbuild.h"
+#include "archallflood.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -3076,6 +3077,74 @@ ACTION_B(y, n, y, rerunnotifiers) {
 	return result;
 }
 
+/*********************** flood ****************************/
+
+ACTION_D(y, n, y, flood) {
+	retvalue result,r;
+	struct distribution *distribution;
+	trackingdb tracks;
+	component_t architecture = atom_unknown;
+
+	result = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	if( distribution->readonly ) {
+		fprintf(stderr, "Cannot add packages to read-only distribution '%s'.\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
+	if( argc == 3 ) {
+		architecture = architecture_find(argv[2]);
+		if( !atom_defined(architecture) ) {
+			fprintf(stderr, "Error: Unknown architecture '%s'!\n",
+					argv[2]);
+			return RET_ERROR;
+		}
+		if( architecture == architecture_source ) {
+			fprintf(stderr,
+"Error: Architecture 'source' does not make sense with 'flood'!\n");
+			return RET_ERROR;
+		}
+		if( !atomlist_in(&distribution->architectures, architecture) ) {
+			fprintf(stderr,
+"Error: Architecture '%s' not part of '%s'!\n",
+					argv[2], distribution->codename);
+			return RET_ERROR;
+		}
+	}
+
+	result = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	if( distribution->tracking != dt_NONE ) {
+		result = tracking_initialize(&tracks, database, distribution, false);
+		if( RET_WAS_ERROR(result) ) {
+			return result;
+		}
+	} else
+		tracks = NULL;
+	result = flood(distribution, components, architectures, packagetypes,
+			architecture, database, tracks);
+
+	logger_wait();
+
+	if( RET_WAS_ERROR(result) )
+		RET_UPDATE(distribution->status, result);
+
+	if( tracks != NULL ) {
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result, r);
+	}
+	r = distribution_export(export, distribution, database);
+	RET_ENDUPDATE(result, r);
+
+	return result;
+}
+
 /*********************/
 /* argument handling */
 /*********************/
@@ -3268,6 +3337,8 @@ static const struct action {
 		0, 0,  "cleanlists"},
 	{"build-needing", 	A_ROBact(buildneeded),
 		2, 3, "[-C <component>] build-needing <codename> <architecture> [<glob>]"},
+	{"flood", 		A_Dact(flood)|MAY_UNUSED,
+		1, 2, "[-C <component> ] [-A <architecture>] [-T <packagetype>] flood <codename> [<architecture>]"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N
