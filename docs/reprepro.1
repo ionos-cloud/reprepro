@@ -821,7 +821,7 @@ Make sure you have at least half of the space of the current
 .IB db /contents.cache.db
 file size available in that partition.
 .TP
-.B flood \fIdistribution\fP \fR[\fParchitecture\fR]\fP
+.B flood \fIdistribution\fP \fR[\fP\fIarchitecture\fP\fR]\fP
 For each architecture of \fIdistribution\fP or for the one specified
 add architecture \fBall\fP packages from another architectures
 (but the same component or packagetype) under the following conditions:
@@ -835,6 +835,14 @@ source version are prefered over those that have no such binary sibling.
 You can restrict with architectures are looked for architecture \fPall\fP
 packages using \fB\-A\fP and which components/packagetypes are flooded by
 \fB\-C\fP/\fB\-T\fP as usual.
+
+There are mostly two use cases for this command:
+If you added an new distribution and want to copy all
+architecture all packages to it.
+Or if you included some architecture all packages only to some architectures
+using \fB\-A\fP to avoid breaking the other architectures for which the binary
+packages were still missing and now want to copy it to those architectures were
+they are unlikely to break something (because a newbinary is already available).
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
