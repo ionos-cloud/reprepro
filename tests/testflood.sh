@@ -101,6 +101,10 @@ FAKEARCHITECTUE="anotherarch" DEB_HOST_ARCH="another" dpkg --build debian/tmp ..
 cd ..
 rm -r test-2
 
+for tracking in false true ; do
+
+echo "with tracking is $tracking"
+
 mkdir conf
 cat > conf/distributions <<EOF
 Codename: test
@@ -177,6 +181,16 @@ stdout
 -v6*= looking for changes in 'test|bad|somemore'...
 -v6*= looking for changes in 'test|bad|source'...
 EOF
+
+if $tracking ; then
+echo "Tracking: minimal" >> conf/distributions
+testrun - -b . retrack test 3<<EOF
+stdout
+*=Retracking test...
+#2 times:
+-d1*=db: 'test' added to tracking.db(test).
+EOF
+fi
 
 testrun - -b . list test 3<<EOF
 stdout
@@ -306,6 +320,30 @@ stdout
 -d1*=db: 'pool/main/t/test/sibling_2_another.deb' removed from checksums.db(pool).
 EOF
 
+if $tracking ; then
+testout - -b . dumptracks test 3<<EOF
+EOF
+cat > results.expected <<EOF
+Distribution: test
+Source: test
+Version: 1-1
+Files:
+ pool/main/t/test/mytest_2_all.deb a 2
+ pool/main/t/test/siblingtoo_3_another.deb b 1
+ pool/main/t/test/siblingtoo_3_somemore.deb b 1
+
+Distribution: test
+Source: test
+Version: 2-1
+Files:
+ pool/main/t/test/mytest_2.4_all.deb a 1
+ pool/main/t/test/sibling_2.2_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/siblingalso_3.1_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/sibling_2.2_another.deb b 1
+
+EOF
+dodiff results.expected results
+fi
 
 testrun - -b . flood test 3<<EOF
 stdout
@@ -335,5 +373,33 @@ stdout
 *=test|main|somemore: mytest 2
 EOF
 
-rm *.deb *.changes
+if $tracking ; then
+testout - -b . dumptracks test 3<<EOF
+EOF
+cat > results.expected <<EOF
+Distribution: test
+Source: test
+Version: 1-1
+Files:
+ pool/main/t/test/mytest_2_all.deb a 1
+ pool/main/t/test/siblingtoo_3_another.deb b 1
+ pool/main/t/test/siblingtoo_3_somemore.deb b 1
+
+Distribution: test
+Source: test
+Version: 2-1
+Files:
+ pool/main/t/test/mytest_2.4_all.deb a 2
+ pool/main/t/test/sibling_2.2_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/siblingalso_3.1_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/sibling_2.2_another.deb b 1
+
+EOF
+dodiff results.expected results
+fi
+
+rm -r conf dists pool db
+done
+
+rm *.deb *.changes results results.expected
 testsuccess

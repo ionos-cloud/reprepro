@@ -28,6 +28,7 @@
 #include "dpkgversions.h"
 #include "target.h"
 #include "distribution.h"
+#include "tracking.h"
 #include "files.h"
 #include "archallflood.h"
 
@@ -577,7 +578,7 @@ static retvalue floodlist_pull(struct floodlist *list, struct target *source, st
 	return result;
 }
 
-static retvalue floodlist_install(struct floodlist *list, struct logger *logger, struct database *database) {
+static retvalue floodlist_install(struct floodlist *list, struct logger *logger, struct database *database, /*@NULL@*/struct trackingdata *td) {
 	struct aa_package_data *pkg;
 	retvalue result,r;
 
@@ -600,12 +601,39 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 				r = RET_ERROR_INTERRUPTED;
 				break;
 			}
+			if( td != NULL ) {
+				if( pkg->new_source != NULL ) {
+					r = trackingdata_switch(td,
+						pkg->new_source->name,
+						pkg->new_source->version);
+				} else {
+					char *source, *sourceversion;
+
+					r = list->target->getsourceandversion(
+							pkg->new_control,
+							pkg->name,
+							&source,
+							&sourceversion);
+					assert( r != RET_NOTHING );
+					if( RET_WAS_ERROR(r) ) {
+						RET_UPDATE(result, r);
+						break;
+					}
+					r = trackingdata_switch(td,
+							source, sourceversion);
+					free(source);
+					free(sourceversion);
+				}
+				if( RET_WAS_ERROR(r) ) {
+					RET_UPDATE(result, r);
+					break;
+				}
+			}
 			r = target_addpackage(list->target,
 					logger, database,
 					pkg->name, pkg->new_version,
 					pkg->new_control, &pkg->new_filekeys,
-#warning add tracking
-				       	false, NULL, architecture_all,
+				       	false, td, architecture_all,
 					NULL, NULL);
 			RET_UPDATE(result, r);
 			if( RET_WAS_ERROR(r) )
@@ -620,6 +648,13 @@ static retvalue floodlist_install(struct floodlist *list, struct logger *logger,
 retvalue flood(struct distribution *d, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, architecture_t architecture, struct database *database, trackingdb tracks) {
 	struct target *t, *s;
 	retvalue result = RET_NOTHING, r;
+	struct trackingdata trackingdata;
+
+	if( tracks != NULL ) {
+		r = trackingdata_new(tracks, &trackingdata);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	for( t = d->targets ; t != NULL ; t = t->next ) {
 		struct floodlist *fl = NULL;
@@ -639,8 +674,11 @@ retvalue flood(struct distribution *d, const struct atomlist *components, const 
 			continue;
 
 		r = floodlist_initialize(&fl, t, database);
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			if( tracks != NULL )
+				trackingdata_done(&trackingdata);
 			return r;
+		}
 
 		for( s = d->targets ; s != NULL ; s = s->next ) {
 			if( s->component_atom != t->component_atom )
@@ -656,15 +694,25 @@ retvalue flood(struct distribution *d, const struct atomlist *components, const 
 			r = floodlist_pull(fl, s, database);
 			RET_UPDATE(d->status, r);
 			if( RET_WAS_ERROR(r) ) {
+				if( tracks != NULL )
+					trackingdata_done(&trackingdata);
 				floodlist_free(fl);
 				return r;
 			}
 		}
-		r = floodlist_install(fl, d->logger, database);
+		r = floodlist_install(fl, d->logger, database,
+				(tracks != NULL)?&trackingdata:NULL);
 		RET_UPDATE(result, r);
 		floodlist_free(fl);
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			if( tracks != NULL )
+				trackingdata_done(&trackingdata);
 			return r;
+		}
+	}
+	if( tracks != NULL ) {
+		r = trackingdata_finish(tracks, &trackingdata, database);
+		RET_ENDUPDATE(result, r);
 	}
 	return result;
 }

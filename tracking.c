@@ -746,6 +746,33 @@ retvalue trackingdata_new(trackingdb tracks,struct trackingdata *data) {
 	return RET_OK;
 }
 
+retvalue trackingdata_switch(struct trackingdata *data, const char *source, const char *version) {
+	retvalue r;
+
+	if( data->pkg != NULL ) {
+		if( strcmp(data->pkg->sourcename, source) == 0 &&
+				strcmp(data->pkg->sourceversion, version) == 0 )
+			return RET_OK;
+		r = tracking_saveonly(data->tracks, data->pkg);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = trackingdata_remember(data, data->pkg->sourcename,
+				data->pkg->sourceversion);
+		strlist_done(&data->pkg->filekeys);
+		free(data->pkg->refcounts);
+		free(data->pkg->filetypes);
+		free(data->pkg);
+		data->pkg = NULL;
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	r = tracking_getornew(data->tracks, source, version, &data->pkg);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return RET_OK;
+}
+
 retvalue trackingdata_insert(struct trackingdata *data,enum filetype filetype,const struct strlist *filekeys,/*@null@*//*@only@*/char*oldsource,/*@null@*//*@only@*/char*oldversion,/*@null@*/const struct strlist *oldfilekeys,struct database *database) {
 	retvalue result,r;
 	struct trackedpackage *pkg;

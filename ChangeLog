@@ -1,6 +1,6 @@
 2009-08-17
 	* add new 'flood' command to distribute architecture all packages
-	within one architecture (still missing tracking support).
+	within one architecture.
 
 2009-08-15
 	* -A, -T and -C can now have multiple arguments separated by '|'.
