@@ -9,7 +9,7 @@
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
-# dpkg-buildpackage generates , policy suggests spaces, oh well...
+# dpkg-buildpackage generated ',' policy suggests spaces, oh well...
 export DEB_BUILD_OPTIONS
 BUILDOPTS:=$(shell echo "$$DEB_BUILD_OPTIONS" | sed 's/,/ /g')
 
@@ -20,15 +20,18 @@ ifneq (,$(filter noopt,$(BUILDOPTS)))
 else
 	CFLAGS += -O2
 endif
-ifneq (,$(filter reprepro-libdb4.3,$(BUILDOPTS)))
-	DBFLAGS = --with-libdb=4.3
-else ifneq (,$(filter reprepro-libdb3,$(BUILDOPTS)))
+ifneq (,$(filter reprepro-libdb3,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=3
+else ifneq (,$(filter reprepro-libdb4.3,$(BUILDOPTS)))
+	DBFLAGS = --with-libdb=4.3
 else ifneq (,$(filter reprepro-libdb4.4,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=4.4
+else ifneq (,$(filter reprepro-libdb4.6,$(BUILDOPTS)))
+	DBFLAGS = --with-libdb=4.6
 else ifneq (,$(filter reprepro-libdb4.7,$(BUILDOPTS)))
 	DBFLAGS = --with-libdb=4.7
 else
+# default: when changing this, change Build-Depends in debian/control
 	DBFLAGS = --with-libdb=4.6
 endif
 ifneq (,$(filter reprepro-nolibarchive,$(BUILDOPTS)))
