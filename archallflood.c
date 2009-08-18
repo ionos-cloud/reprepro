@@ -33,7 +33,9 @@
 #include "archallflood.h"
 
 struct aa_source_package {
-	/*@null@*/struct aa_source_package *next;
+	/*@null@*/struct aa_source_package *parent;
+	/*@null@*/struct aa_source_package *left_child;
+	/*@null@*/struct aa_source_package *right_child;
 	/*@null@*/struct aa_source_package *nextversion;
 
 	char *name;
@@ -106,6 +108,18 @@ static void floodlist_free(struct floodlist *list) {
 	while( s != NULL ) {
 		struct aa_source_package *n;
 
+		while( s->left_child != NULL || s->right_child != NULL ) {
+			if( s->left_child != NULL ) {
+				n = s->left_child;
+				s->left_child = NULL;
+				s = n;
+			} else {
+				n = s->right_child;
+				s->right_child = NULL;
+				s = n;
+			}
+		}
+
 		while( s->nextversion != NULL ) {
 			n = s->nextversion->nextversion;
 			/* do not free name, it is not malloced */
@@ -113,7 +127,7 @@ static void floodlist_free(struct floodlist *list) {
 			free(s->nextversion);
 			s->nextversion = n;
 		}
-	        n = s->next;
+	        n = s->parent;
 		free(s->name);
 		free(s->version);
 		free(s);
@@ -123,18 +137,27 @@ static void floodlist_free(struct floodlist *list) {
 	return;
 }
 
-// TODO: decide if source packages are better a tree than a list,
-// as there can be many of those...
-
 static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *source, /*@only@*/char *sourceversion, /*@out@*/struct aa_source_package **src_p) {
-	struct aa_source_package **p, *n;
+	struct aa_source_package *parent, **p, *n;
 	int c;
 
+	parent = NULL;
 	p = &list->sources;
 
-	while( *p != NULL && (c = strcmp(source, (*p)->name)) > 0 )
-		p = &(*p)->next;
-	if( *p == NULL || c < 0 ) {
+	/* if this gets too slow, make it a balanced tree,
+	 * but it seems fast enough even as simple tree */
+
+	while( *p != NULL ) {
+		c = strcmp(source, (*p)->name);
+		if( c == 0 )
+			break;
+		parent = *p;
+		if( c > 0 )
+			p = &parent->right_child;
+		else
+			p = &parent->left_child;
+	}
+	if( *p == NULL ) {
 		/* there is not even something with this name */
 		n = calloc(1, sizeof(struct aa_source_package));
 		if( FAILEDTOALLOC(n) ) {
@@ -143,7 +166,7 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 		}
 		n->name = source;
 		n->version = sourceversion;
-		n->next = *p;
+		n->parent = parent;
 		*p = n;
 		*src_p = n;
 		return RET_OK;
@@ -169,8 +192,12 @@ static retvalue find_or_add_source(struct floodlist *list, /*@only@*/char *sourc
 		memset(*p, 0, sizeof(struct aa_source_package));
 		(*p)->name = source;
 		(*p)->version = sourceversion;
-		(*p)->next = n->next;
-		n->next = NULL;
+		(*p)->left_child = n->left_child;
+		(*p)->right_child = n->right_child;
+		(*p)->parent = n->parent;
+		n->left_child = NULL;
+		n->right_child = NULL;
+		n->parent = NULL;
 		(*p)->nextversion = n;
 		*src_p = *p;
 		return RET_OK;
@@ -207,9 +234,16 @@ static struct aa_source_package *find_source(struct floodlist *list, const char 
 
 	p = list->sources;
 
-	while( p != NULL && (c = strcmp(source, p->name)) > 0 )
-		p = p->next;
-	if( p == NULL || c < 0 )
+	while( p != NULL ) {
+		c = strcmp(source, p->name);
+		if( c == 0 )
+			break;
+		if( c > 0 )
+			p = p->right_child;
+		else
+			p = p->left_child;
+	}
+	if( p == NULL )
 		return NULL;
 	while( p != NULL && (c = strcmp(sourceversion, p->version)) > 0 )
 		p = p->nextversion;
