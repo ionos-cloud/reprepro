@@ -94,12 +94,9 @@ elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x6" ; then
 	fi
 elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x7" ; then
 	if test "$DB_WANT_VERSION" = "any" ; then
-		AC_MSG_ERROR([reprepro not yet tested with libdb4.7, use --with-libdb=4.7 to use it])
 		DB_WANT_VERSION=4.7
 	elif test "$DB_WANT_VERSION" != "4.7" ; then
 		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
-	else
-		AC_MSG_WARN([reprepro not yet tested with libdb4.7, use on your own risk])
 	fi
 else
 	AC_MSG_ERROR([Unsupported libdb major $DB_VERSION_MAJOR minor $DB_VERSION_MINOR
