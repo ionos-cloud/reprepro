@@ -1,3 +1,9 @@
+2009-08-20
+	* new 'Options: limit_arch_all' in conf/incoming causes
+	processincoming to only put architecture all packages into
+	the architectures uploaded with them to allow usage together
+	with 'flood'.
+
 2009-08-18
 	* speed up 'flood' by using an tree instead of a list for source
 	package lookups.

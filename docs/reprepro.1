@@ -1657,6 +1657,23 @@ Allow putting an upload in multiple distributions if it lists more
 than one. (Without this field, procession stops after the first
 success).
 .TP
+.B Options
+A list of options
+.br
+.B multiple_distributions
+.br
+Allow putting an upload in multiple distributions if it lists more
+than one. (Without this field, procession stops after the first
+success).
+.br
+.B limit_arch_all
+.br
+If an upload contains binaries from some architecture and architecture
+all packages,
+the architecture all packages are only put into the architectures within
+this upload.
+Usefull to combine with the \fBflood\fP command.
+.TP
 .B Permit
 A list of options to allow things otherwise causing errors:
 .br

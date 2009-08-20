@@ -96,8 +96,10 @@ dpkg --build debian/tmp ..
 dpkg-gencontrol -psibling -v2.2
 dpkg --build debian/tmp ..
 dpkg-genchanges -b > ../test-2.changes
-FAKEARCHITECTUE="anotherarch" DEB_HOST_ARCH="another" dpkg-gencontrol -psibling -v2.2
-FAKEARCHITECTUE="anotherarch" DEB_HOST_ARCH="another" dpkg --build debian/tmp ..
+rm debian/files
+FAKEARCHITECTUE="another" DEB_HOST_ARCH="another" dpkg-gencontrol -psibling -v2.2
+FAKEARCHITECTUE="another" DEB_HOST_ARCH="another" dpkg --build debian/tmp ..
+dpkg-genchanges -b > ../test-2a.changes
 cd ..
 rm -r test-2
 
@@ -107,6 +109,10 @@ echo "with tracking is $tracking"
 
 mkdir conf
 cat > conf/distributions <<EOF
+Codename: two
+Components: main bad
+Architectures: source $FAKEARCHITECTURE another somemore
+
 Codename: test
 Components: main bad
 Architectures: source $FAKEARCHITECTURE another somemore
@@ -398,7 +404,212 @@ EOF
 dodiff results.expected results
 fi
 
+cat > conf/incoming << EOF
+Name: myrule
+Allow: test>two
+Options: limit_arch_all
+IncomingDir: i
+TempDir: tmp
+EOF
+
+ls *.changes
+mkdir i tmp
+cp test-1.changes sibling_2_another.deb siblingtoo_3_another.deb mytest_2_all.deb i/
+
+testrun - -b . processincoming myrule 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-d1*=db: 'pool/main/t/test/sibling_2_another.deb' added to checksums.db(pool).
+-d1*=db: 'mytest' added to packages.db(two|main|another).
+-d1*=db: 'siblingtoo' added to packages.db(two|main|another).
+-d1*=db: 'sibling' added to packages.db(two|main|another).
+-v1*=deleting './i/mytest_2_all.deb'...
+-v1*=deleting './i/siblingtoo_3_another.deb'...
+-v1*=deleting './i/test-1.changes'...
+-v1*=deleting './i/sibling_2_another.deb'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists/two"
+-v2*=Created directory "./dists/two/main"
+-v2*=Created directory "./dists/two/main/binary-$FAKEARCHITECTURE"
+-v2*=Created directory "./dists/two/main/binary-another"
+-v2*=Created directory "./dists/two/main/binary-somemore"
+-v2*=Created directory "./dists/two/main/source"
+-v2*=Created directory "./dists/two/bad"
+-v2*=Created directory "./dists/two/bad/binary-$FAKEARCHITECTURE"
+-v2*=Created directory "./dists/two/bad/binary-another"
+-v2*=Created directory "./dists/two/bad/binary-somemore"
+-v2*=Created directory "./dists/two/bad/source"
+-v6*= looking for changes in 'two|main|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/two/main/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|another'...
+-v6*=  creating './dists/two/main/binary-another/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|somemore'...
+-v6*=  creating './dists/two/main/binary-somemore/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|source'...
+-v6*=  creating './dists/two/main/source/Sources' (gzipped)
+-v6*= looking for changes in 'two|bad|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/two/bad/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|bad|another'...
+-v6*=  creating './dists/two/bad/binary-another/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|bad|somemore'...
+-v6*=  creating './dists/two/bad/binary-somemore/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|bad|source'...
+-v6*=  creating './dists/two/bad/source/Sources' (gzipped)
+EOF
+
+testrun - -b . list two 3<<EOF
+stdout
+*=two|main|another: mytest 2
+*=two|main|another: sibling 2
+*=two|main|another: siblingtoo 3
+EOF
+
+testrun - -b . flood two 3<<EOF
+stdout
+-d1*=db: 'mytest' added to packages.db(two|main|somemore).
+-d1*=db: 'mytest' added to packages.db(two|main|${FAKEARCHITECTURE}).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'two|main|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/two/main/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|another'...
+-v6*= looking for changes in 'two|main|somemore'...
+-v6*=  replacing './dists/two/main/binary-somemore/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|source'...
+-v6*= looking for changes in 'two|bad|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|bad|another'...
+-v6*= looking for changes in 'two|bad|somemore'...
+-v6*= looking for changes in 'two|bad|source'...
+EOF
+
+testrun - -b . list two 3<<EOF
+stdout
+*=two|main|${FAKEARCHITECTURE}: mytest 2
+*=two|main|another: mytest 2
+*=two|main|another: sibling 2
+*=two|main|another: siblingtoo 3
+*=two|main|somemore: mytest 2
+EOF
+
+dodo rmdir i
+mkdir i
+
+cp test-2.changes siblingalso_3.1_abacus.deb mytest_2.4_all.deb sibling_2.2_abacus.deb  i/
+
+testrun - -b . processincoming myrule 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-d1*=db: 'mytest' removed from packages.db(two|main|${FAKEARCHITECTURE}).
+-d1*=db: 'mytest' added to packages.db(two|main|${FAKEARCHITECTURE}).
+-d1*=db: 'siblingalso' added to packages.db(two|main|${FAKEARCHITECTURE}).
+-d1*=db: 'sibling' added to packages.db(two|main|${FAKEARCHITECTURE}).
+-v1*=deleting './i/mytest_2.4_all.deb'...
+-v1*=deleting './i/siblingalso_3.1_${FAKEARCHITECTURE}.deb'...
+-v1*=deleting './i/sibling_2.2_${FAKEARCHITECTURE}.deb'...
+-v1*=deleting './i/test-2.changes'...
+-v0*=Exporting indices...
+-v6*= looking for changes in 'two|main|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/two/main/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|another'...
+-v6*= looking for changes in 'two|main|somemore'...
+-v6*= looking for changes in 'two|main|source'...
+-v6*= looking for changes in 'two|bad|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|bad|another'...
+-v6*= looking for changes in 'two|bad|somemore'...
+-v6*= looking for changes in 'two|bad|source'...
+EOF
+
+testrun - -b . list two 3<<EOF
+stdout
+*=two|main|${FAKEARCHITECTURE}: mytest 2.4
+*=two|main|${FAKEARCHITECTURE}: sibling 2.2
+*=two|main|${FAKEARCHITECTURE}: siblingalso 3.1
+*=two|main|another: mytest 2
+*=two|main|another: sibling 2
+*=two|main|another: siblingtoo 3
+*=two|main|somemore: mytest 2
+EOF
+
+testrun empty -b . flood test
+
+testrun - -b . list two 3<<EOF
+stdout
+*=two|main|${FAKEARCHITECTURE}: mytest 2.4
+*=two|main|${FAKEARCHITECTURE}: sibling 2.2
+*=two|main|${FAKEARCHITECTURE}: siblingalso 3.1
+*=two|main|another: mytest 2
+*=two|main|another: sibling 2
+*=two|main|another: siblingtoo 3
+*=two|main|somemore: mytest 2
+EOF
+
+dodo rmdir i
+mkdir i
+cp test-2a.changes sibling_2.2_another.deb i/
+
+testrun - -b . processincoming myrule 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-d1*=db: 'sibling' removed from packages.db(two|main|another).
+-d1*=db: 'sibling' added to packages.db(two|main|another).
+-v1*=deleting './i/sibling_2.2_another.deb'...
+-v1*=deleting './i/test-2a.changes'...
+-v0*=Exporting indices...
+-v6*= looking for changes in 'two|main|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|main|another'...
+-v6*=  replacing './dists/two/main/binary-another/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|somemore'...
+-v6*= looking for changes in 'two|main|source'...
+-v6*= looking for changes in 'two|bad|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|bad|another'...
+-v6*= looking for changes in 'two|bad|somemore'...
+-v6*= looking for changes in 'two|bad|source'...
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/main/t/test/sibling_2_another.deb
+-d1*=db: 'pool/main/t/test/sibling_2_another.deb' removed from checksums.db(pool).
+EOF
+
+testrun - -b . list two 3<<EOF
+stdout
+*=two|main|${FAKEARCHITECTURE}: mytest 2.4
+*=two|main|${FAKEARCHITECTURE}: sibling 2.2
+*=two|main|${FAKEARCHITECTURE}: siblingalso 3.1
+*=two|main|another: mytest 2
+*=two|main|another: sibling 2.2
+*=two|main|another: siblingtoo 3
+*=two|main|somemore: mytest 2
+EOF
+
+testrun - -b . flood test 3<<EOF
+-d1*=db: 'mytest' removed from packages.db(two|main|another).
+-d1*=db: 'mytest' added to packages.db(two|main|another).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'two|main|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|main|another'...
+-v6*=  replacing './dists/two/main/binary-another/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|somemore'...
+-v6*= looking for changes in 'two|main|source'...
+-v6*= looking for changes in 'two|bad|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|bad|another'...
+-v6*= looking for changes in 'two|bad|somemore'...
+-v6*= looking for changes in 'two|bad|source'...
+EOF
+
+testrun - -b . list two 3<<EOF
+stdout
+*=two|main|${FAKEARCHITECTURE}: mytest 2.4
+*=two|main|${FAKEARCHITECTURE}: sibling 2.2
+*=two|main|${FAKEARCHITECTURE}: siblingalso 3.1
+*=two|main|another: mytest 2.4
+*=two|main|another: sibling 2.2
+*=two|main|another: siblingtoo 3
+*=two|main|somemore: mytest 2
+EOF
+
 rm -r conf dists pool db
+dodo rmdir i tmp
 done
 
 rm *.deb *.changes results results.expected

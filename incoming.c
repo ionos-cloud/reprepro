@@ -55,8 +55,6 @@
 enum permitflags {
 	/* do not error out on unused files */
 	pmf_unused_files = 0,
-	/* allow .changes file to specify multipe distributions */
-	pmf_multiple_distributions,
 	/* do not error out if there already is a newer package */
 	pmf_oldpackagenewer,
 	pmf_COUNT /* must be last */
@@ -75,6 +73,14 @@ enum cleanupflags {
 	cuf_unused_files,
 	cuf_COUNT /* must be last */
 };
+enum optionsflags {
+	/* only put _all.deb comes with those of some architecture,
+	 * only put in those architectures */
+	iof_limit_arch_all = 0,
+	/* allow .changes file to specify multipe distributions */
+	iof_multiple_distributions,
+	iof_COUNT /* must be last */
+};
 
 struct incoming {
 	/* by incoming_parse: */
@@ -92,6 +98,7 @@ struct incoming {
 	bool *delete;
 	bool permit[pmf_COUNT];
 	bool cleanup[cuf_COUNT];
+	bool options[iof_COUNT];
 	/* only to ease parsing: */
 	size_t lineno;
 };
@@ -358,12 +365,37 @@ CFSETPROC(incoming,cleanup) {
 " (use --ignore=unknownfield to ignore this)\n");
 }
 
+CFSETPROC(incoming,options) {
+	CFSETPROCVARS(incoming,i,d);
+	static const struct constant const optionsconstants[] = {
+		{ "limit_arch_all", iof_limit_arch_all},
+		{ "multiple_distributions", iof_multiple_distributions},
+		{ NULL, -1}
+	};
+
+	if( IGNORABLE(unknownfield) )
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, true, "");
+	else if( i->name == NULL )
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, false,
+"\n(try put Name: before Options: to ignore if it is from the wrong rule");
+	else if( strcmp(i->name, d->name) != 0 )
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, true,
+" (but not within the rule we are intrested in.)");
+	else
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, false,
+" (use --ignore=unknownfield to ignore this)\n");
+}
+
 CFvalueSETPROC(incoming, name)
 CFvalueSETPROC(incoming, logdir)
 CFdirSETPROC(incoming, tempdir)
 CFdirSETPROC(incoming, morguedir)
 CFdirSETPROC(incoming, directory)
-CFtruthSETPROC2(incoming, multiple, permit[pmf_multiple_distributions])
+CFtruthSETPROC2(incoming, multiple, options[iof_multiple_distributions])
 
 static const struct configfield incomingconfigfields[] = {
 	CFr("Name", incoming, name),
@@ -373,6 +405,7 @@ static const struct configfield incomingconfigfields[] = {
 	CF("Default", incoming, default),
 	CF("Allow", incoming, allow),
 	CF("Multiple", incoming, multiple),
+	CF("Options", incoming, options),
 	CF("Cleanup", incoming, cleanup),
 	CF("Permit", incoming, permit),
 	CF("Logdir", incoming, logdir)
@@ -1558,6 +1591,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 	trackingdb tracks;
 	const char *changesfilekey = NULL;
 	char *origfilename;
+	struct atomlist binary_architectures;
 
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
@@ -1591,6 +1625,16 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 			BASENAME(i, changesfile(c)->ofs));
 	causingfile = origfilename;
 
+	atomlist_init(&binary_architectures);
+	for( p = d->packages ; p != NULL ; p = p->next ) {
+		if( FE_BINARY(p->master->type) ) {
+			architecture_t a = p->master->architecture_atom;
+
+			if( a != architecture_all )
+				atomlist_add_uniq(&binary_architectures, a);
+		}
+	}
+
 	r = RET_OK;
 	for( p = d->packages ; p != NULL ; p = p->next ) {
 		if( p->skip ) {
@@ -1607,10 +1651,16 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
 			architecture_t a = p->master->architecture_atom;
-			const struct atomlist architecture = {&a, 1, 1};
+			const struct atomlist *as, architectures = {&a, 1, 1};
 
+			if( i->options[iof_limit_arch_all] &&
+					a == architecture_all &&
+					binary_architectures.count > 0 )
+				as = &binary_architectures;
+			else
+				as = &architectures;
 			r = binaries_adddeb(&p->master->deb, database,
-					&architecture, p->packagetype, into,
+					as, p->packagetype, into,
 					(tracks==NULL)?NULL:&trackingdata,
 					p->component_atom, &p->filekeys,
 					p->control);
@@ -1645,6 +1695,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 			break;
 		}
 	}
+	atomlist_done(&binary_architectures);
 
 	if( tracks != NULL ) {
 		retvalue r2;
@@ -2085,7 +2136,7 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 			}
 		}
 		if( c->perdistribution != NULL &&
-				!i->permit[pmf_multiple_distributions] )
+				!i->options[iof_multiple_distributions] )
 			break;
 	}
 	if( c->perdistribution == NULL && i->default_into != NULL ) {
