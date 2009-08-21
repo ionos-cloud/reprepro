@@ -531,7 +531,21 @@ stdout
 *=two|main|somemore: mytest 2
 EOF
 
-testrun empty -b . flood test
+testrun - -b . flood two 3<<EOF
+stdout
+-d1*=db: 'mytest' removed from packages.db(two|main|somemore).
+-d1*=db: 'mytest' added to packages.db(two|main|somemore).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'two|main|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|main|another'...
+-v6*= looking for changes in 'two|main|somemore'...
+-v6*=  replacing './dists/two/main/binary-somemore/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'two|main|source'...
+-v6*= looking for changes in 'two|bad|${FAKEARCHITECTURE}'...
+-v6*= looking for changes in 'two|bad|another'...
+-v6*= looking for changes in 'two|bad|somemore'...
+-v6*= looking for changes in 'two|bad|source'...
+EOF
 
 testrun - -b . list two 3<<EOF
 stdout
@@ -541,7 +555,7 @@ stdout
 *=two|main|another: mytest 2
 *=two|main|another: sibling 2
 *=two|main|another: siblingtoo 3
-*=two|main|somemore: mytest 2
+*=two|main|somemore: mytest 2.4
 EOF
 
 dodo rmdir i
@@ -579,10 +593,11 @@ stdout
 *=two|main|another: mytest 2
 *=two|main|another: sibling 2.2
 *=two|main|another: siblingtoo 3
-*=two|main|somemore: mytest 2
+*=two|main|somemore: mytest 2.4
 EOF
 
-testrun - -b . flood test 3<<EOF
+testrun - -b . flood two 3<<EOF
+stdout
 -d1*=db: 'mytest' removed from packages.db(two|main|another).
 -d1*=db: 'mytest' added to packages.db(two|main|another).
 -v0*=Exporting indices...
@@ -605,7 +620,7 @@ stdout
 *=two|main|another: mytest 2.4
 *=two|main|another: sibling 2.2
 *=two|main|another: siblingtoo 3
-*=two|main|somemore: mytest 2
+*=two|main|somemore: mytest 2.4
 EOF
 
 rm -r conf dists pool db
