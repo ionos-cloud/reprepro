@@ -422,6 +422,7 @@ static retvalue warnidentifers(struct database *db, const struct strlist *identi
 		return RET_OK;
 	for( d = distributions ; d != NULL ; d = d->next ) {
 		bool architecture_existed[d->architectures.count];
+		bool have_old = false;
 
 		/* check for new architectures */
 		memset(architecture_existed, 0, sizeof(architecture_existed));
@@ -435,10 +436,15 @@ static retvalue warnidentifers(struct database *db, const struct strlist *identi
 			i = atomlist_ofs(&d->architectures,
 					t->architecture_atom);
 			assert( i >= 0 );
-			if( i >= 0 )
+			if( i >= 0 ) {
 				architecture_existed[i] = true;
+				/* only warn about new ones if there
+				 * is at least one old one, otherwise
+				 * it's just a new distribution */
+				have_old = true;
+			}
 		}
-		for( i = 0 ; i < d->architectures.count ; i++ ) {
+		for( i = 0 ; have_old && i < d->architectures.count ; i++ ) {
 			architecture_t a;
 
 			if( architecture_existed[i] )

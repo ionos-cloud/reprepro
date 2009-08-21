@@ -1,6 +1,8 @@
 2009-08-21
 	* new --showpercent option to show percent and total
 	download size when downloading packages.
+	* do not output the new warning about a new architecture
+	when all architectures are new (i.e. new distribution)
 
 2009-08-20
 	* new 'Options: limit_arch_all' in conf/incoming causes
