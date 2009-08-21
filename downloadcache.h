@@ -27,6 +27,12 @@ struct downloaditem;
 struct downloadcache {
 	/*@null@*/struct downloaditem *items;
 	/*@null@*/struct devices *devices;
+
+	struct database *database;
+
+	/* for showing what percentage was downloaded */
+	long long size_todo, size_done;
+	unsigned int last_percent;
 };
 
 /* Initialize a new download session */

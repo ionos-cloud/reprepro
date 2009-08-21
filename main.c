@@ -3645,6 +3645,7 @@ LO_LISTFORMAT,
 LO_LISTSKIP,
 LO_LISTMAX,
 LO_MORGUEDIR,
+LO_SHOWPERCENT,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -3756,6 +3757,9 @@ static void handle_option(int c, const char *argument) {
 					if( RET_WAS_ERROR(r) ) {
 						exit(EXIT_FAILURE);
 					}
+					break;
+				case LO_SHOWPERCENT:
+					global.showdownloadpercent++;
 					break;
 				case LO_DELETE:
 					delete++;
@@ -4178,6 +4182,7 @@ int main(int argc,char *argv[]) {
 		{"list-skip", required_argument, &longoption, LO_LISTSKIP},
 		{"list-max", required_argument, &longoption, LO_LISTMAX},
 		{"morguedir", required_argument, &longoption, LO_MORGUEDIR},
+		{"show-percent", no_argument, &longoption, LO_SHOWPERCENT},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;

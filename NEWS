@@ -7,6 +7,7 @@ Updates since 3.11.1:
   having it and shortens their dist directories to not duplicate that either.
 - -A, -C and -T can have multiple arguments now, separated with '|'.
 - new 'flood' action to align architecture all packages
+- new '--show-percent' option
 
 Updates since 3.11.0:
 - new changestool option --create-with-all-fields

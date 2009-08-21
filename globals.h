@@ -81,6 +81,8 @@ extern struct global_config {
 	/* flags: */
 	bool keepdirectories;
 	bool keeptemporaries;
+	/* verbosity of downloading statistics */
+	int showdownloadpercent;
 } global;
 
 enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_COUNT };

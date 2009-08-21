@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-08-17" "reprepro" REPREPRO
+.TH REPREPRO 1 "2009-08-21" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -413,6 +413,11 @@ using dollars not escaped outside specified constructs,
 or any field names not listed as special and not consisting entirely out of
 letters, digits and minus signs have undefined behaviour
 and might change meaning without any further notice.
+.TP
+.B \-\-show\-percent
+When downloading packages, show each completed percent of completed package
+downloads together with the size of completely downloaded packages.
+(Repeating this option increases the frequency of this output).
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
