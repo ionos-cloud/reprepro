@@ -105,13 +105,22 @@ rm -r test-2
 
 for tracking in false true ; do
 
-echo "with tracking is $tracking"
-
 mkdir conf
 cat > conf/distributions <<EOF
 Codename: two
 Components: main bad
 Architectures: source $FAKEARCHITECTURE another somemore
+EOF
+
+echo "with tracking is $tracking"
+if $tracking ; then
+	echo "Tracking: minimal" >> conf/distributions
+	setoptions unchanged "" "" tracking
+else
+	setoptions unchanged "" ""
+fi
+
+cat >> conf/distributions <<EOF
 
 Codename: test
 Components: main bad
@@ -424,6 +433,7 @@ stdout
 -d1*=db: 'mytest' added to packages.db(two|main|another).
 -d1*=db: 'siblingtoo' added to packages.db(two|main|another).
 -d1*=db: 'sibling' added to packages.db(two|main|another).
+-t1*=db: 'test' added to tracking.db(two).
 -v1*=deleting './i/mytest_2_all.deb'...
 -v1*=deleting './i/siblingtoo_3_another.deb'...
 -v1*=deleting './i/test-1.changes'...
@@ -465,6 +475,20 @@ stdout
 *=two|main|another: siblingtoo 3
 EOF
 
+if $tracking ; then
+testrun - -b . dumptracks two 3<<EOF
+stdout
+*=Distribution: two
+*=Source: test
+*=Version: 1-1
+*=Files:
+*= pool/main/t/test/sibling_2_another.deb b 1
+*= pool/main/t/test/siblingtoo_3_another.deb b 1
+*= pool/main/t/test/mytest_2_all.deb a 1
+*=
+EOF
+fi
+
 testrun - -b . flood two 3<<EOF
 stdout
 -d1*=db: 'mytest' added to packages.db(two|main|somemore).
@@ -491,6 +515,20 @@ stdout
 *=two|main|somemore: mytest 2
 EOF
 
+if $tracking ; then
+testrun - -b . dumptracks two 3<<EOF
+stdout
+*=Distribution: two
+*=Source: test
+*=Version: 1-1
+*=Files:
+*= pool/main/t/test/sibling_2_another.deb b 1
+*= pool/main/t/test/siblingtoo_3_another.deb b 1
+*= pool/main/t/test/mytest_2_all.deb a 3
+*=
+EOF
+fi
+
 dodo rmdir i
 mkdir i
 
@@ -504,6 +542,7 @@ stdout
 -d1*=db: 'mytest' added to packages.db(two|main|${FAKEARCHITECTURE}).
 -d1*=db: 'siblingalso' added to packages.db(two|main|${FAKEARCHITECTURE}).
 -d1*=db: 'sibling' added to packages.db(two|main|${FAKEARCHITECTURE}).
+-t1*=db: 'test' added to tracking.db(two).
 -v1*=deleting './i/mytest_2.4_all.deb'...
 -v1*=deleting './i/siblingalso_3.1_${FAKEARCHITECTURE}.deb'...
 -v1*=deleting './i/sibling_2.2_${FAKEARCHITECTURE}.deb'...
@@ -531,6 +570,29 @@ stdout
 *=two|main|somemore: mytest 2
 EOF
 
+if $tracking ; then
+testout "" -b . dumptracks two
+cat > results.expected <<EOF
+Distribution: two
+Source: test
+Version: 1-1
+Files:
+ pool/main/t/test/sibling_2_another.deb b 1
+ pool/main/t/test/siblingtoo_3_another.deb b 1
+ pool/main/t/test/mytest_2_all.deb a 2
+
+Distribution: two
+Source: test
+Version: 2-1
+Files:
+ pool/main/t/test/siblingalso_3.1_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/mytest_2.4_all.deb a 1
+ pool/main/t/test/sibling_2.2_${FAKEARCHITECTURE}.deb b 1
+
+EOF
+dodiff results.expected results
+fi
+
 testrun - -b . flood two 3<<EOF
 stdout
 -d1*=db: 'mytest' removed from packages.db(two|main|somemore).
@@ -557,6 +619,29 @@ stdout
 *=two|main|another: siblingtoo 3
 *=two|main|somemore: mytest 2.4
 EOF
+
+if $tracking ; then
+testout "" -b . dumptracks two
+cat > results.expected <<EOF
+Distribution: two
+Source: test
+Version: 1-1
+Files:
+ pool/main/t/test/sibling_2_another.deb b 1
+ pool/main/t/test/siblingtoo_3_another.deb b 1
+ pool/main/t/test/mytest_2_all.deb a 1
+
+Distribution: two
+Source: test
+Version: 2-1
+Files:
+ pool/main/t/test/siblingalso_3.1_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/mytest_2.4_all.deb a 2
+ pool/main/t/test/sibling_2.2_${FAKEARCHITECTURE}.deb b 1
+
+EOF
+dodiff results.expected results
+fi
 
 dodo rmdir i
 mkdir i
@@ -596,6 +681,29 @@ stdout
 *=two|main|somemore: mytest 2.4
 EOF
 
+if $tracking ; then
+testout "" -b . dumptracks two
+cat > results.expected <<EOF
+Distribution: two
+Source: test
+Version: 1-1
+Files:
+ pool/main/t/test/siblingtoo_3_another.deb b 1
+ pool/main/t/test/mytest_2_all.deb a 1
+
+Distribution: two
+Source: test
+Version: 2-1
+Files:
+ pool/main/t/test/siblingalso_3.1_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/mytest_2.4_all.deb a 2
+ pool/main/t/test/sibling_2.2_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/sibling_2.2_another.deb b 1
+
+EOF
+dodiff results.expected results
+fi
+
 testrun - -b . flood two 3<<EOF
 stdout
 -d1*=db: 'mytest' removed from packages.db(two|main|another).
@@ -622,6 +730,28 @@ stdout
 *=two|main|another: siblingtoo 3
 *=two|main|somemore: mytest 2.4
 EOF
+
+if $tracking ; then
+testout "" -b . dumptracks two
+cat > results.expected <<EOF
+Distribution: two
+Source: test
+Version: 1-1
+Files:
+ pool/main/t/test/siblingtoo_3_another.deb b 1
+
+Distribution: two
+Source: test
+Version: 2-1
+Files:
+ pool/main/t/test/siblingalso_3.1_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/mytest_2.4_all.deb a 3
+ pool/main/t/test/sibling_2.2_${FAKEARCHITECTURE}.deb b 1
+ pool/main/t/test/sibling_2.2_another.deb b 1
+
+EOF
+dodiff results.expected results
+fi
 
 rm -r conf dists pool db
 dodo rmdir i tmp
