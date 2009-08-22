@@ -13,8 +13,9 @@ reprepro (3.12.0-0) UNRELEASED; urgency=low
   - multiple improvements to make it easier to match architecture 'all'
     packages to binary versions of different versions in the different
     architectures (Closes: 539836)
+  * Bump Standards-Version
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 22 Aug 2009 12:59:48 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 22 Aug 2009 13:01:46 +0200
 
 reprepro (3.11.1-1) unstable; urgency=low
 
