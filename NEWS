@@ -8,6 +8,9 @@ Updates since 3.11.1:
 - -A, -C and -T can have multiple arguments now, separated with '|'.
 - new 'flood' action to align architecture all packages
 - new '--show-percent' option
+- warn if old legacy files.db is still used
+- add new translatelegacyfilelists command for easier migration.
+  (just a collectnewchecksums and deleting that file was enough, though)
 
 Updates since 3.11.0:
 - new changestool option --create-with-all-fields

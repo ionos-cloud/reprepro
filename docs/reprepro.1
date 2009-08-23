@@ -679,6 +679,12 @@ is specified md5sum is not checked.
 Calculate all supported checksums for all files in the pool.
 (Versions prior to 3.3 did only store md5sums, 3.3 added sha1).
 .TP
+.BR translatelegacychecksums
+Remove the legacy \fBfiles.db\fP file after making sure all information
+is also found in the new \fBchecksums.db\fP file.
+(Alternatively you can call \fBcollecnewchecksums\fP and remove the file
+on your own.)
+.TP
 .B rereference
 Forget which files are needed and recollect this information.
 .TP

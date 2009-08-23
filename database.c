@@ -1826,11 +1826,14 @@ retvalue database_openfiles(struct database *db) {
 		db->checksums = NULL;
 		db->oldmd5sums = NULL;
 		return r;
-	}
+	} else
+		db->capabilities.nomd5legacy = false;
+
 	if( !db->capabilities.nomd5legacy )
 		fprintf(stderr,
 "Warning: database uses deprecated format.\n"
-"Please consider running translatefilelists to update to the new format.\n");
+"Please consider running translatelegacychecksums to update to the new format.\n");
+
 	// TODO: only create this file once it is actually needed...
 	r = database_table(db, "contents.cache.db", "compressedfilelists",
 			dbt_BTREE, DB_CREATE, &db->contents);
@@ -2014,4 +2017,249 @@ retvalue database_translate_filelists(struct database *database) {
 	free(tmpdbname);
 	free(dbname);
 	return RET_OK;
+}
+
+/* This is already implemented as standalone functions duplicating a bit
+ * of database_create and from files.c,
+ * because database_create is planed to error out if * there is still an old
+ * files.db and files.c is supposed to lose all support for it in the next
+ * major version */
+
+static inline retvalue translate(struct table *oldmd5sums, struct table *newchecksums) {
+	long numold = 0, numnew = 0, numreplace = 0, numretro = 0;
+	struct cursor *cursor, *newcursor;
+	const char *filekey, *md5sum, *all;
+	size_t alllen;
+	retvalue r;
+
+	/* first add all md5sums to checksums if not there yet */
+
+	r = table_newglobalcursor(oldmd5sums, &cursor);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	while( cursor_nexttemp(oldmd5sums, cursor,
+				&filekey, &md5sum) ) {
+		struct checksums *n = NULL;
+		const char *combined;
+		size_t combinedlen;
+
+		r = table_gettemprecord(newchecksums, filekey,
+				&all, &alllen);
+		if( RET_IS_OK(r) )
+			r = checksums_setall(&n, all, alllen, NULL);
+		if( RET_IS_OK(r) ) {
+			if( checksums_matches(n, cs_md5sum, md5sum) ) {
+				/* already there, nothing to do */
+				checksums_free(n);
+				numnew++;
+				continue;
+			}
+			/* new item does not match */
+			if( verbose > 0 )
+				printf(
+"Overwriting stale new-checksums entry '%s'!\n",
+						filekey);
+			numreplace++;
+			checksums_free(n);
+			n = NULL;
+		}
+		if( RET_WAS_ERROR(r) ) {
+			(void)cursor_close(oldmd5sums, cursor);
+			return r;
+		}
+		/* parse and recreate, to only have sanitized strings
+		 * in the database */
+		r = checksums_parse(&n, md5sum);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			(void)cursor_close(oldmd5sums, cursor);
+			return r;
+		}
+
+		r = checksums_getcombined(n, &combined, &combinedlen);
+		assert( r != RET_NOTHING );
+		if( !RET_IS_OK(r) ) {
+			(void)cursor_close(oldmd5sums, cursor);
+			return r;
+		}
+		numold++;
+		r = table_adduniqsizedrecord(newchecksums, filekey,
+				combined, combinedlen + 1, true, false);
+		assert( r != RET_NOTHING);
+		if( !RET_IS_OK(r) ) {
+			(void)cursor_close(oldmd5sums, cursor);
+			return r;
+		}
+	}
+	r = cursor_close(oldmd5sums, cursor);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* then delete everything from checksums that is not in md5sums */
+
+	r = table_newglobalcursor(oldmd5sums, &cursor);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = table_newglobalcursor(newchecksums, &newcursor);
+	if( RET_WAS_ERROR(r) ) {
+		cursor_close(oldmd5sums, cursor);
+		return r;
+	}
+	while( cursor_nexttemp(oldmd5sums, cursor,
+				&filekey, &md5sum) ) {
+		bool more;
+		int cmp;
+		const char *newfilekey, *dummy;
+
+		do {
+			more = cursor_nexttemp(newchecksums, newcursor,
+				&newfilekey, &dummy);
+			/* should have been added in the last step */
+			assert( more );
+			cmp = strcmp(filekey, newfilekey);
+			/* should have been added in the last step */
+			assert( cmp >= 0 );
+			more = cmp > 0;
+			if( more ) {
+				numretro++;
+				if( verbose > 0 )
+					printf(
+"Deleting stale new-checksums entry '%s'!\n",
+						newfilekey);
+				r = cursor_delete(newchecksums, newcursor,
+						newfilekey, dummy);
+				if( RET_WAS_ERROR(r) ) {
+					cursor_close(oldmd5sums, cursor);
+					cursor_close(newchecksums, newcursor);
+					return r;
+				}
+			}
+		} while( more );
+	}
+	r = cursor_close(oldmd5sums, cursor);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = cursor_close(newchecksums, newcursor);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( verbose >= 0 ) {
+		printf("%ld packages were already in the new checksums.db\n",
+				numnew);
+		printf("%ld packages were added to the new checksums.db\n",
+				numold - numreplace);
+		if( numretro != 0 )
+			printf(
+"%ld were only in checksums.db and not in files.db\n"
+"This should only have happened if you added them with a newer version\n"
+"and then deleted them with an older version of reprepro.\n",
+				numretro);
+		if( numreplace != 0 )
+			printf(
+"%ld were different checksums.db and not in files.db\n"
+"This should only have happened if you added them with a newer version\n"
+"and then deleted them with an older version of reprepro and\n"
+"then readded them with a old version.\n",
+				numreplace);
+		if( numretro != 0 || numreplace != 0 )
+			printf(
+"If you never run a old version after a new version,\n"
+"you might want to check with check and checkpool if something went wrong.\n");
+	}
+	return RET_OK;
+}
+
+retvalue database_translate_legacy_checksums(bool verbosedb) {
+	struct database *n;
+	struct table *newchecksums, *oldmd5sums;
+	char *fullfilename;
+	retvalue r;
+	int e;
+
+	if( !isdir(global.dbdir) ) {
+		fprintf(stderr, "Cannot find directory '%s'!\n",
+				global.dbdir);
+		return RET_ERROR;
+	}
+
+	n = calloc(1, sizeof(struct database));
+	if( n == NULL )
+		return RET_ERROR_OOM;
+
+	r = database_lock(n, 0);
+	assert( r != RET_NOTHING );
+	if( !RET_IS_OK(r) ) {
+		database_free(n);
+		return r;
+	}
+	n->readonly = READWRITE;
+	n->verbose = verbosedb;
+
+	r = readversionfile(n, false);
+	if( RET_WAS_ERROR(r) ) {
+		releaselock(n);
+		database_free(n);
+		return r;
+	}
+
+	r = database_table(n, "files.db", "md5sums",
+			dbt_BTREE, 0, &oldmd5sums);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+"There is no old files.db in %s. Nothing to translate!\n",
+				global.dbdir);
+		releaselock(n);
+		database_free(n);
+		return RET_NOTHING;
+	} else if( RET_WAS_ERROR(r) ) {
+		releaselock(n);
+		database_free(n);
+		return r;
+	}
+
+	r = database_table(n, "checksums.db", "pool",
+			dbt_BTREE, DB_CREATE,
+			&newchecksums);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		(void)table_close(oldmd5sums);
+		releaselock(n);
+		database_free(n);
+		return r;
+	}
+
+	r = translate(oldmd5sums, newchecksums);
+	if( RET_WAS_ERROR(r) ) {
+		(void)table_close(oldmd5sums);
+		(void)table_close(newchecksums);
+		releaselock(n);
+		database_free(n);
+		return r;
+	}
+
+	(void)table_close(oldmd5sums);
+	r = table_close(newchecksums);
+	if( RET_WAS_ERROR(r) ) {
+		releaselock(n);
+		database_free(n);
+		return r;
+	}
+	fullfilename = dbfilename("files.db");
+	if( fullfilename == NULL ) {
+		releaselock(n);
+		database_free(n);
+		return RET_ERROR_OOM;
+	}
+	e = deletefile(fullfilename);
+	if( e != 0 ) {
+		fprintf(stderr, "Could not delete '%s'!\n"
+"It can now savely be deleted and it all that is left to be done!\n",
+				fullfilename);
+		database_free(n);
+		return RET_ERRNO(e);
+	}
+	n->capabilities.nomd5legacy = true;
+	r = writeversionfile(n);
+	releaselock(n);
+	database_free(n);
+	return r;
 }
