@@ -45,10 +45,10 @@ static retvalue files_get_checksums(struct database *database, const char *filek
 	size_t checksumslen;
 	retvalue r;
 
-		r = table_gettemprecord(database->checksums, filekey,
-			&checksums, &checksumslen);
-		if( !RET_IS_OK(r) )
-			return r;
+	r = table_gettemprecord(database->checksums, filekey,
+		&checksums, &checksumslen);
+	if( !RET_IS_OK(r) )
+		return r;
 	return checksums_setall(checksums_p, checksums, checksumslen, md5sum);
 }
 
@@ -85,15 +85,14 @@ static retvalue files_replace_checksums(struct database *database, const char *f
 retvalue files_removesilent(struct database *database, const char *filekey) {
 	retvalue r;
 
-	if( database->contents != NULL ) {
+	if( database->contents != NULL )
 		(void)table_deleterecord(database->contents, filekey, true);
+	r = table_deleterecord(database->checksums, filekey, true);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Unable to forget unknown filekey '%s'.\n",
+				filekey);
+		return RET_ERROR_MISSING;
 	}
-		r = table_deleterecord(database->checksums, filekey, true);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr, "Unable to forget unknown filekey '%s'.\n",
-					filekey);
-			return RET_ERROR_MISSING;
-		}
 	return r;
 }
 
@@ -101,9 +100,8 @@ retvalue files_remove(struct database *database, const char *filekey) {
 	retvalue r;
 
 	r = files_removesilent(database, filekey);
-	if( RET_IS_OK(r) ) {
+	if( RET_IS_OK(r) )
 		return pool_markdeleted(filekey);
-	}
 	return r;
 }
 
@@ -212,12 +210,11 @@ retvalue files_expectfiles(struct database *database, const struct strlist *file
 		const struct checksums *checksums = checksumsarray[i];
 
 		r = files_expect(database, filekey, checksums);
-		if( RET_WAS_ERROR(r) ) {
+		if( RET_WAS_ERROR(r) )
 			return r;
-		}
 		if( r == RET_NOTHING ) {
 			/* File missing */
-			fprintf(stderr,"Missing file %s\n",filekey);
+			fprintf(stderr, "Missing file %s\n", filekey);
 			return RET_ERROR_MISSING;
 		}
 	}
@@ -261,28 +258,27 @@ retvalue files_printmd5sums(struct database *database) {
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-		r = table_newglobalcursor(database->checksums, &cursor);
-		if( !RET_IS_OK(r) )
-			return r;
-		result = RET_NOTHING;
-		while( cursor_nexttemp(database->checksums, cursor,
-					&filekey, &checksum) ) {
-			result = RET_OK;
-			(void)fputs(filekey, stdout);
-			(void)putchar(' ');
-			while( *checksum == ':' ) {
-				while( *checksum != ' ' &&
-				       *checksum != '\0' )
-					checksum++;
-				if( *checksum == ' ' )
-					checksum++;
-			}
-			(void)fputs(checksum, stdout);
-			(void)putchar('\n');
+	r = table_newglobalcursor(database->checksums, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+	result = RET_NOTHING;
+	while( cursor_nexttemp(database->checksums, cursor,
+				&filekey, &checksum) ) {
+		result = RET_OK;
+		(void)fputs(filekey, stdout);
+		(void)putchar(' ');
+		while( *checksum == ':' ) {
+			while( *checksum != ' ' && *checksum != '\0' )
+				checksum++;
+			if( *checksum == ' ' )
+				checksum++;
 		}
-		r = cursor_close(database->checksums, cursor);
-		RET_ENDUPDATE(result, r);
-		return result;
+		(void)fputs(checksum, stdout);
+		(void)putchar('\n');
+	}
+	r = cursor_close(database->checksums, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
 }
 
 retvalue files_printchecksums(struct database *database) {
@@ -290,25 +286,25 @@ retvalue files_printchecksums(struct database *database) {
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-		r = table_newglobalcursor(database->checksums, &cursor);
-		if( !RET_IS_OK(r) )
-			return r;
-		result = RET_NOTHING;
-		while( cursor_nexttemp(database->checksums, cursor,
-					&filekey, &checksum) ) {
-			result = RET_OK;
-			(void)fputs(filekey, stdout);
-			(void)putchar(' ');
-			(void)fputs(checksum, stdout);
-			(void)putchar('\n');
-			if( interrupted() ) {
-				result = RET_ERROR_INTERRUPTED;
-				break;
-			}
+	r = table_newglobalcursor(database->checksums, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+	result = RET_NOTHING;
+	while( cursor_nexttemp(database->checksums, cursor,
+				&filekey, &checksum) ) {
+		result = RET_OK;
+		(void)fputs(filekey, stdout);
+		(void)putchar(' ');
+		(void)fputs(checksum, stdout);
+		(void)putchar('\n');
+		if( interrupted() ) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
 		}
-		r = cursor_close(database->checksums, cursor);
-		RET_ENDUPDATE(result, r);
-		return result;
+	}
+	r = cursor_close(database->checksums, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
 }
 
 /* callback for each registered file */
@@ -317,22 +313,22 @@ retvalue files_foreach(struct database *database,per_file_action action,void *pr
 	struct cursor *cursor;
 	const char *filekey, *checksum;
 
-		r = table_newglobalcursor(database->checksums, &cursor);
-		if( !RET_IS_OK(r) )
-			return r;
-		result = RET_NOTHING;
-		while( cursor_nexttemp(database->checksums, cursor,
-					&filekey, &checksum) ) {
-			if( interrupted() ) {
-				RET_UPDATE(result, RET_ERROR_INTERRUPTED);
-				break;
-			}
-			r = action(privdata, filekey);
-			RET_UPDATE(result, r);
+	r = table_newglobalcursor(database->checksums, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+	result = RET_NOTHING;
+	while( cursor_nexttemp(database->checksums, cursor,
+				&filekey, &checksum) ) {
+		if( interrupted() ) {
+			RET_UPDATE(result, RET_ERROR_INTERRUPTED);
+			break;
 		}
-		r = cursor_close(database->checksums, cursor);
-		RET_ENDUPDATE(result, r);
-		return result;
+		r = action(privdata, filekey);
+		RET_UPDATE(result, r);
+	}
+	r = cursor_close(database->checksums, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
 }
 
 static retvalue checkpoolfile(const char *fullfilename, const struct checksums *expected, bool *improveable) {
@@ -364,37 +360,37 @@ retvalue files_checkpool(struct database *database, bool fast) {
 	bool improveable = false;
 
 	result = RET_NOTHING;
-		r = table_newglobalcursor(database->checksums, &cursor);
-		if( !RET_IS_OK(r) )
-			return r;
-		while( cursor_nexttempdata(database->checksums, cursor,
-					&filekey, &combined, &combinedlen) ) {
-			r = checksums_setall(&expected,
-					combined, combinedlen, NULL);
-			if( RET_WAS_ERROR(r) ) {
-				RET_UPDATE(result, r);
-				continue;
-			}
-			fullfilename = files_calcfullfilename(filekey);
-			if( fullfilename == NULL ) {
-				result = RET_ERROR_OOM;
-				checksums_free(expected);
-				break;
-			}
-			if( fast )
-				r = checksums_cheaptest(fullfilename, expected, true);
-			else
-				r = checkpoolfile(fullfilename, expected, &improveable);
-			if( r == RET_NOTHING ) {
-				fprintf(stderr,"Missing file '%s'!\n", fullfilename);
-				r = RET_ERROR_MISSING;
-			}
-			free(fullfilename);
-			checksums_free(expected);
-			RET_UPDATE(result,r);
+	r = table_newglobalcursor(database->checksums, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+	while( cursor_nexttempdata(database->checksums, cursor,
+				&filekey, &combined, &combinedlen) ) {
+		r = checksums_setall(&expected,
+				combined, combinedlen, NULL);
+		if( RET_WAS_ERROR(r) ) {
+			RET_UPDATE(result, r);
+			continue;
 		}
-		r = cursor_close(database->checksums, cursor);
-		RET_ENDUPDATE(result, r);
+		fullfilename = files_calcfullfilename(filekey);
+		if( fullfilename == NULL ) {
+			result = RET_ERROR_OOM;
+			checksums_free(expected);
+			break;
+		}
+		if( fast )
+			r = checksums_cheaptest(fullfilename, expected, true);
+		else
+			r = checkpoolfile(fullfilename, expected, &improveable);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Missing file '%s'!\n", fullfilename);
+			r = RET_ERROR_MISSING;
+		}
+		free(fullfilename);
+		checksums_free(expected);
+		RET_UPDATE(result, r);
+	}
+	r = cursor_close(database->checksums, cursor);
+	RET_ENDUPDATE(result, r);
 	if( improveable && verbose >= 0 )
 		printf(
 "There were files with only some of the checksums this version of reprepro\n"
@@ -411,48 +407,47 @@ retvalue files_collectnewchecksums(struct database *database) {
 	char *fullfilename;
 
 	result = RET_NOTHING;
-		r = table_newglobalcursor(database->checksums, &cursor);
-		if( !RET_IS_OK(r) )
-			return r;
-		while( cursor_nexttempdata(database->checksums, cursor,
-					&filekey, &all, &alllen) ) {
-			r = checksums_setall(&expected,
-					all, alllen, NULL);
-			if( !RET_IS_OK(r) ) {
-				RET_UPDATE(result, r);
-				continue;
-			}
-			if( checksums_iscomplete(expected) ) {
-				checksums_free(expected);
-				continue;
-			}
+	r = table_newglobalcursor(database->checksums, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+	while( cursor_nexttempdata(database->checksums, cursor,
+				&filekey, &all, &alllen) ) {
+		r = checksums_setall(&expected, all, alllen, NULL);
+		if( !RET_IS_OK(r) ) {
+			RET_UPDATE(result, r);
+			continue;
+		}
+		if( checksums_iscomplete(expected) ) {
+			checksums_free(expected);
+			continue;
+		}
 
-			fullfilename = files_calcfullfilename(filekey);
-			if( fullfilename == NULL ) {
-				result = RET_ERROR_OOM;
-				checksums_free(expected);
-				break;
-			}
-			r = checksums_complete(&expected, fullfilename);
-			if( r == RET_NOTHING ) {
-				fprintf(stderr,"Missing file '%s'!\n", fullfilename);
-				r = RET_ERROR_MISSING;
-			}
-			if( r == RET_ERROR_WRONG_MD5 ) {
-				fprintf(stderr,
+		fullfilename = files_calcfullfilename(filekey);
+		if( fullfilename == NULL ) {
+			result = RET_ERROR_OOM;
+			checksums_free(expected);
+			break;
+		}
+		r = checksums_complete(&expected, fullfilename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Missing file '%s'!\n", fullfilename);
+			r = RET_ERROR_MISSING;
+		}
+		if( r == RET_ERROR_WRONG_MD5 ) {
+			fprintf(stderr,
 "ERROR: Cannot collect missing checksums for '%s'\n"
 "as the file in the pool does not match the already recorded checksums\n",
-						filekey);
-			}
-			free(fullfilename);
-			if( RET_IS_OK(r) )
-				r = files_replace_checksums(database,
-						filekey, expected);
-			checksums_free(expected);
-			RET_UPDATE(result,r);
+					filekey);
 		}
-		r = cursor_close(database->checksums, cursor);
-		RET_ENDUPDATE(result, r);
+		free(fullfilename);
+		if( RET_IS_OK(r) )
+			r = files_replace_checksums(database,
+					filekey, expected);
+		checksums_free(expected);
+		RET_UPDATE(result, r);
+	}
+	r = cursor_close(database->checksums, cursor);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -466,16 +461,12 @@ retvalue files_detect(struct database *database, const char *filekey) {
 		return RET_ERROR_OOM;
 	r = checksums_read(fullfilename, &checksums);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Error opening '%s'!\n", fullfilename);
+		fprintf(stderr, "Error opening '%s'!\n", fullfilename);
 		r = RET_ERROR_MISSING;
 	}
 	if( RET_WAS_ERROR(r) ) {
 		free(fullfilename);
 		return r;
-	}
-	if( verbose > 20 ) {
-// TODO: readd?
-//		fprintf(stderr,"Md5sum of '%s' is '%s'.\n",fullfilename,md5sum);
 	}
 	free(fullfilename);
 	r = files_add_checksums(database, filekey, checksums);
