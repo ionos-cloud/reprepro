@@ -76,8 +76,6 @@ extern struct global_config {
 	const char *logdir;
 	const char *listdir;
 	const char *morguedir;
-	/* deprecated: */
-	const char *overridedir;
 	/* flags: */
 	bool keepdirectories;
 	bool keeptemporaries;

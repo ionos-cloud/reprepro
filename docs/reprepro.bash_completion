@@ -112,7 +112,7 @@ _reprepro()
 	--nokeepunreferencesfiles --nokeepdirectories --nokeeptemporaries\
 	--noask-passphrase --skipold --noskipold '
 	options='-b -i --basedir --outdir --ignore --unignore --methoddir --distdir --dbdir\
-	--listdir --overridedir --confdir --section -S --priority -P --component -C\
+	--listdir --confdir --section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \
 	--spacecheck --safetymargin --dbsafetymargin'
 
@@ -162,7 +162,7 @@ _reprepro()
 				confdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
 				;;
-			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export|--waitforlock|--spacecheck|--checkspace|--safetymargin|--dbsafetymargin)
+			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export|--waitforlock|--spacecheck|--checkspace|--safetymargin|--dbsafetymargin)
 
 				prev="$cur"
 				i=$((i+2))
@@ -180,7 +180,7 @@ _reprepro()
 	cur=${COMP_WORDS[COMP_CWORD]}
 	if [[ $i -gt $COMP_CWORD && -n "$prev" ]]; then
 		case "$prev" in
-			-b|--basedir|--outdir|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--confdir)
+			-b|--basedir|--outdir|--methoddir|--distdir|--dbdir|--listdir|--confdir)
         			COMPREPLY=( $( compgen -d  -- $cur ) )
 
 				return 0

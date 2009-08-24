@@ -256,7 +256,6 @@ _arguments \
 	'--confdir[Directory where config files are]:config dir:_files -/' \
 	'--distdir[Directory where index files will be exported to]:dist dir:_files -/' \
 	'--logdir[Directory where log files will be generated]:log dir:_files -/' \
-	'--overridedir[Directory where override files are searched]:override dir:_files -/' \
 	'--dbdir[Directory where the database is stored]:database dir:_files -/' \
 	'--listdir[Directory where downloaded index files will be stored]:list dir:_files -/' \
 	'--methoddir[Directory to search apt methods in]:method dir:_files -/' \

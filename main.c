@@ -95,8 +95,6 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*x_confdir = NULL,
 	*x_logdir = NULL,
 	*x_morguedir = NULL,
-	/* This should have never been a seperate directory, well to late... */
-	*x_overridedir = NULL,
 	*x_methoddir = NULL;
 static char /*@only@*/ /*@null@*/
 	*x_section = NULL,
@@ -135,7 +133,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -3719,7 +3717,6 @@ static void handle_option(int c, const char *argument) {
 "     --listdir <dir>:               Directory to place downloaded lists in.\n"
 "     --confdir <dir>:               Directory to search configuration in.\n"
 "     --logdir <dir>:                Directory to put requeted log files in.\n"
-"     --overridedir <dir>:           Directory to search override files in.\n"
 "     --methodir <dir>:              Use instead of /usr/lib/apt/methods/\n"
 " -S, --section <section>:           Force include* to set section.\n"
 " -P, --priority <priority>:         Force include* to set priority.\n"
@@ -3862,11 +3859,6 @@ static void handle_option(int c, const char *argument) {
 					break;
 				case LO_LISTDIR:
 					CONFIGDUP(x_listdir, argument);
-					break;
-				case LO_OVERRIDEDIR:
-					if( verbose >= -1 )
-						fprintf(stderr, "Warning: --overridedir is obsolete. \nPlease put override files in the conf dir for compatibility with future version.\n");
-					CONFIGDUP(x_overridedir, argument);
 					break;
 				case LO_CONFDIR:
 					CONFIGDUP(x_confdir, argument);
@@ -4041,7 +4033,6 @@ static void myexit(int status) {
 	free(x_listdir);
 	free(x_logdir);
 	free(x_confdir);
-	free(x_overridedir);
 	free(x_basedir);
 	free(x_outdir);
 	free(x_methoddir);
@@ -4123,7 +4114,6 @@ int main(int argc,char *argv[]) {
 		{"distdir", required_argument, &longoption, LO_DISTDIR},
 		{"dbdir", required_argument, &longoption, LO_DBDIR},
 		{"listdir", required_argument, &longoption, LO_LISTDIR},
-		{"overridedir", required_argument, &longoption, LO_OVERRIDEDIR},
 		{"confdir", required_argument, &longoption, LO_CONFDIR},
 		{"logdir", required_argument, &longoption, LO_LOGDIR},
 		{"section", required_argument, NULL, 'S'},
@@ -4217,7 +4207,6 @@ int main(int argc,char *argv[]) {
 	CONFIGDUP(x_dbdir, "+b/db");
 	CONFIGDUP(x_logdir, "+b/logs");
 	CONFIGDUP(x_listdir, "+b/lists");
-	CONFIGDUP(x_overridedir, "+b/override");
 
 	config_state = CONFIG_OWNER_CMDLINE;
 	if( interrupted() )

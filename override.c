@@ -96,23 +96,11 @@ retvalue override_read(const char *filename, struct overrideinfo **info) {
 		return RET_OK;
 	}
 	if( filename[0] != '/' ) {
-		char *fn = calc_dirconcat(global.overridedir, filename);
+		char *fn = calc_conffile(filename);
 		if( fn == NULL )
 			return RET_ERROR_OOM;
 		file = fopen(fn, "r");
 		free(fn);
-		if( file != NULL ) {
-			if( verbose >= -1 )
-				fprintf(stderr,
-"Warning: usage of a seperate directory for override files is obsolete.\n"
-"For compatility with future versions, override files should be in conf dir.\n");
-		} else {
-			fn = calc_conffile(filename);
-			if( fn == NULL )
-				return RET_ERROR_OOM;
-			file = fopen(fn, "r");
-			free(fn);
-		}
 	} else
 		file = fopen(filename,"r");
 
