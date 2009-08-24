@@ -125,7 +125,6 @@ static enum exportwhen export = EXPORT_CHANGED;
 int		verbose = 0;
 static bool	fast = false;
 static bool	verbosedatabase = false;
-static bool	oldfilesdb = false;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
@@ -136,7 +135,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -3524,8 +3523,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	result = database_create(&database, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
 			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
-			waitforlock, verbosedatabase || (verbose >= 30),
-			oldfilesdb);
+			waitforlock, verbosedatabase || (verbose >= 30));
 	if( !RET_IS_OK(result) ) {
 		(void)distribution_freelist(alldistributions);
 		return result;
@@ -3631,8 +3629,6 @@ LO_NOSKIPOLD,
 LO_NOGUESSGPGTTY,
 LO_VERBOSEDB,
 LO_NOVERBOSEDB,
-LO_OLDFILESDB,
-LO_NOOLDFILESDB,
 LO_EXPORT,
 LO_OUTDIR,
 LO_DISTDIR,
@@ -3851,12 +3847,6 @@ static void handle_option(int c, const char *argument) {
 					break;
 				case LO_NOVERBOSEDB:
 					CONFIGSET(verbosedatabase, false);
-					break;
-				case LO_OLDFILESDB:
-					CONFIGSET(oldfilesdb, true);
-					break;
-				case LO_NOOLDFILESDB:
-					CONFIGSET(oldfilesdb, false);
 					break;
 				case LO_EXPORT:
 					setexport(argument);
@@ -4171,9 +4161,6 @@ int main(int argc,char *argv[]) {
 		{"noverbosedb", no_argument, &longoption, LO_NOVERBOSEDB},
 		{"verbosedatabase", no_argument, &longoption, LO_VERBOSEDB},
 		{"noverbosedatabase", no_argument, &longoption, LO_NOVERBOSEDB},
-		{"oldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
-		{"nooldfilesdb", no_argument, &longoption, LO_NOOLDFILESDB},
-		{"nonooldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},

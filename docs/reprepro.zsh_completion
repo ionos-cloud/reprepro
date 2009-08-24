@@ -317,7 +317,6 @@ _arguments \
 	'(--noask-passphrase)--ask-passphrase[Ask for passphrases (insecure)]' \
   	'(--nonoskipold --skipold)--noskipold[Do not ignore parts where no new index file is available]' \
 	'(--guessgpgtty --nonoguessgpgtty)--noguessgpgtty[Do not set GPG_TTY variable even when unset and stdin is a tty]' \
-	'(--oldfilesdb --nonooldfilesdb)--nooldfilesdb[Make speeder repository, which versions before 3.3 cannot access]' \
 	':reprepro command:->commands' \
 	'2::arguments:->first' \
 	'3::arguments:->second' \

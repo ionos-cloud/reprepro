@@ -9,7 +9,7 @@ struct references;
 struct filesdb;
 
 struct database {
-	/*@null@*/ struct table *checksums, *oldmd5sums, *contents;
+	/*@null@*/ struct table *checksums, *contents;
 	/* for the references database: */
 	/*@null@*/ struct table *references;
 	/* internal stuff: */
@@ -21,8 +21,6 @@ struct database {
 	     *dbversion, *lastsupporteddbversion;
 	struct {
 		bool createnewtables;
-		/* if set, only a checksums.db file, no files.db: */
-		bool nomd5legacy;
 	} capabilities ;
 };
 

@@ -110,7 +110,7 @@ _reprepro()
 	--keepdirectories --keeptemporaries\
 	--ask-passphrase --nonothingiserror --listsdownload\
 	--nokeepunreferencesfiles --nokeepdirectories --nokeeptemporaries\
-	--noask-passphrase --skipold --noskipold --nooldfilesdb --oldfilesdb'
+	--noask-passphrase --skipold --noskipold '
 	options='-b -i --basedir --outdir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \
