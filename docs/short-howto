@@ -110,23 +110,21 @@ Method: http://ftp.debian.de/debian-non-US
 Suite: */non-US
 Architectures: i386 sparc mips source
 Components: main>main non-free>non-free contrib>contrib
-UDebComponents: none
+UDebComponents:
 VerifyRelease: B629A24C38C6029A
 
 Name: security
 Method: http://security.debian.org/debian-security
 Suite: */updates
-UDebComponents: none
+UDebComponents:
 VerifyRelease: F1D53D8C4F368D5D
 
 Which of those are used is determined by the Update: line
 in the description in conf/distributions. When Suite:,
-Architecture:, Components: or UDebComponents: are not given
-or empty, those of the distribution to be added are used.
-(Place a not existing component like "none" there if you want
- only the other of Components or UDebComponents). The suite of
-the target can be used as "*" in the Suite: here. VerifyRelease:
-tells which GPG key to use checking the Release.gpg.
+Architecture:, Components: or UDebComponents: are not given,
+those of the distribution to be added are used.
+The suite of the target can be used as "*" in the Suite: here.
+VerifyRelease: tells which GPG key to use checking the Release.gpg.
 
 Add a "IgnoreRelease: yes" to ignore any Release files.
 
