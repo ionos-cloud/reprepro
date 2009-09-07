@@ -223,7 +223,7 @@ commands=( export:"export index files"
 	copyfilter:"copy packages from one distribution to another"
 	restore:"restore a package from a distribution's snapshot"
 	restoresrc:"restore packages belonging to a specific source from a snapshot"
-	restorefilter:"restore packages belonging to a specific source from a snapshot"
+	restorefilter:"restore packages matching a filter from a snapshot"
 	clearvanished:"remove empty databases"
 	gensnapshot:"generate a snapshot"
 	rerunnotifiers:"call notificators as if all packages were just included"
@@ -256,6 +256,7 @@ _arguments \
 	'--confdir[Directory where config files are]:config dir:_files -/' \
 	'--distdir[Directory where index files will be exported to]:dist dir:_files -/' \
 	'--logdir[Directory where log files will be generated]:log dir:_files -/' \
+	'--morguedir[Directory where files removed from the pool are stored]:morgue dir:_files -/' \
 	'--dbdir[Directory where the database is stored]:database dir:_files -/' \
 	'--listdir[Directory where downloaded index files will be stored]:list dir:_files -/' \
 	'--methoddir[Directory to search apt methods in]:method dir:_files -/' \
@@ -307,8 +308,15 @@ _arguments \
 	'--spacecheck[Mode for calculating free space before downloading packages]:behavior:(full none)' \
 	'--dbsafetymargin[Safety margin for the partition with the database]:bytes count:' \
 	'--safetymargin[Safety margin per partition]:bytes count:' \
+	'--gunzip[external Program to extract .gz files]:gunzip binary:_files' \
+	'--bunzip2[external Program to extract .bz2 files]:bunzip binary:_files' \
+	'--unlzma[external Program to extract .lzma files]:unlzma binary:_files' \
+	'--list-format[Format for list output]:listfilter format:' \
+	'--list-skip[Number of packages to skip in list output]:list skip:' \
+	'--list-max[Maximum number of packages in list output]:list max:' \
 	'(--nonothingiserror)--nothingiserror[Return error code when nothing was done]' \
 	'(--listsdownload --nonolistsdownload)--nolistsdownload[Do not download Release nor index files]' \
+	'(--nokeepunneededlists)--keepunneededlists[Do not delete list/ files that are no longer needed]' \
 	'(--nokeepunreferencedfiles)--keepunreferencedfiles[Do not delete files that are no longer used]' \
 	'(--nokeepunusednewfiles)--keepunusednewfiles[Do not delete newly added files that later were found to not be used]' \
 	'(--nokeepdirectories)--keepdirectories[Do not remove directories when they get emtpy]' \

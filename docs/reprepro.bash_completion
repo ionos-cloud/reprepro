@@ -107,14 +107,18 @@ _reprepro()
 	       	expiredkey expiredsignature revokedkey'
 	noargoptions='--delete --nodelete --help -h --verbose -v\
 	--nothingiserror --nolistsdownload --keepunreferencedfiles --keepunusednewfiles\
-	--keepdirectories --keeptemporaries\
+	--keepdirectories --keeptemporaries --keepuneededlists\
 	--ask-passphrase --nonothingiserror --listsdownload\
-	--nokeepunreferencesfiles --nokeepdirectories --nokeeptemporaries\
-	--noask-passphrase --skipold --noskipold '
+	--nokeepunreferencedfiles --nokeepdirectories --nokeeptemporaries\
+	--nokeepuneededlists --nokeepunusednewfiles\
+	--noask-passphrase --skipold --noskipold --show-percent \
+	--version --guessgpgtty --noguessgpgtty --verbosedb --silent -s --fast'
 	options='-b -i --basedir --outdir --ignore --unignore --methoddir --distdir --dbdir\
-	--listdir --confdir --section -S --priority -P --component -C\
+	--listdir --confdir --logdir --morguedir \
+	--section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \
-	--spacecheck --safetymargin --dbsafetymargin'
+	--spacecheck --safetymargin --dbsafetymargin\
+	--gunzip --bunzip2 --unlzma --gnupghome --list-format --list-skip --list-max'
 
 	i=1
 	prev=""
@@ -152,7 +156,7 @@ _reprepro()
 				outdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
 				;;
-			--distdir=*)
+			--distdir)
 				prev="$cur"
 				distdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
@@ -162,7 +166,7 @@ _reprepro()
 				confdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
 				;;
-			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export|--waitforlock|--spacecheck|--checkspace|--safetymargin|--dbsafetymargin)
+			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export|--waitforlock|--spacecheck|--checkspace|--safetymargin|--dbsafetymargin|--logdir|--gunzip|--bunzip2|--unlzma|--gnupghome|--morguedir)
 
 				prev="$cur"
 				i=$((i+2))
