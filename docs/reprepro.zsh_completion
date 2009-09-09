@@ -188,63 +188,78 @@ function _reprepro_source_package_names () {
       	_wanted -V 'source package names' expl 'source package name' compadd name
 }
 
-commands=( export:"export index files"
-	createsymlinks:"create suite symlinks"
-	list:"list packages"
-	listfilter:"list packages matching filter"
-	ls:"list versions of package"
-	remove:"remove packages"
-	update:"update from external source"
-	checkupdate:"check what would be updated"
-	predelete:"delete what would be removed or superseeded by an update"
-	cleanlists:"clean unneeded downloaded list files"
-	pull:"update from another local distribtuion"
-	checkpull:"check what would be pulled"
-	includedeb:"include a .deb file"
-	includeudeb:"include a .udeb file"
-	includedsc:"include a .dsc file"
-	include:"include a .changes file"
-	processincoming:"process files from an incoming directory"
+commands=(
+	build-needing:"list packages likely needing a build"
 	check:"check if all references are correct"
 	checkpool:"check if all files are still there and correct"
-	collectnewchecksums:"calculate missing file hashes"
-	rereference:"recreate references"
-	dumpreferences:"dump reference information"
-	dumpunreferenced:"dump files without reference (i.e. unneded)"
-	deleteunreferenced:"delete files without reference"
-	reoverride:"apply override information to already existing packages"
-	dumptracks:"dump tracking information"
-	retrack:"refresh tracking information"
-	removealltracks:"remove tracking information"
-	removetrack:"remove a single tracking data"
-	tidytracks:"look for files referened by tracks but no longer needed"
-	copy:"copy a package from one distribution to another"
-	copysrc:"copy packages belonging to a specific source from one distribution to another"
-	copyfilter:"copy packages from one distribution to another"
-	restore:"restore a package from a distribution's snapshot"
-	restoresrc:"restore packages belonging to a specific source from a snapshot"
-	restorefilter:"restore packages matching a filter from a snapshot"
+	checkpull:"check what would be pulled"
+	checkupdate:"check what would be updated"
+	cleanlists:"clean unneeded downloaded list files"
 	clearvanished:"remove empty databases"
-	gensnapshot:"generate a snapshot"
-	rerunnotifiers:"call notificators as if all packages were just included"
+	collectnewchecksums:"calculate missing file hashes"
+	copy:"copy a package from one distribution to another"
+	copyfilter:"copy packages from one distribution to another"
+	copymatched:"copy packages from one distribution to another"
+	copysrc:"copy packages belonging to a specific source from one distribution to another"
+	createsymlinks:"create suite symlinks"
+	deleteunreferenced:"delete files without reference"
+	dumpreferences:"dump reference information"
+	dumppull:"dump what would be pulled"
+	dumptracks:"dump tracking information"
+	dumpupdate:"dump what would be updated"
+	dumpunreferenced:"dump files without reference (i.e. unneded)"
+	export:"export index files"
+	flood:"copy architecture all packages within a distribution"
 	generatefilelists:"pre-prepare filelist caches for all binary packages"
+	gensnapshot:"generate a snapshot"
+	includedeb:"include a .deb file"
+	includedsc:"include a .dsc file"
+	include:"include a .changes file"
+	includeudeb:"include a .udeb file"
+	listfilter:"list packages matching filter"
+	listmatched:"list packages matching filter"
+	list:"list packages"
+	ls:"list versions of package"
+	predelete:"delete what would be removed or superseeded by an update"
+	processincoming:"process files from an incoming directory"
+	pull:"update from another local distribtuion"
+	removealltracks:"remove tracking information"
+	remove:"remove packages"
+	removefilter:"remove packages matching a formula"
+	removematched:"remove packages matching a glob"
+	removesrc:"remove packages belonging to a source package"
+	removetrack:"remove a single tracking data"
+	reoverride:"apply override information to already existing packages"
+	rereference:"recreate references"
+	rerunnotifiers:"call notificators as if all packages were just included"
+	restore:"restore a package from a distribution's snapshot"
+	restorefilter:"restore packages matching a filter from a snapshot"
+	restorematched:"restore packages matching a glob from a snapshot"
+	restoresrc:"restore packages belonging to a specific source from a snapshot"
+	retrack:"refresh tracking information"
+	tidytracks:"look for files referened by tracks but no longer needed"
 	translatefilelists:"translate pre-3.0.0 contents.cache.db into new format"
+	translatelegacychecksums:"get rid of obsolete files.db"
+	update:"update from external source"
    	)
 hiddencommands=(
-	_detect:"look if the file belonging to a filekey exists and add to the database."
-	_forget:"forget a file specified by filekey."
-	_listmd5sums:"print a list of filekeys and their md5 hashes"
-	_listchecksums:"print a list of filekeys and their checksums"
-	_addmd5sums:"add checksums to database"
-	_addchecksums:"add checksums to database"
-	_dumpcontents:"output contents of a part of the repository"
-	_listdbidentifiers:"list parts of the repository in the database"
-	_listconfidentifiers:"list parts of the repository in the configuration"
-	_addreference:"mark a filekey needed by an identifier"
-	_removereferences:"remove all references by an identifer"
+	__dumpuncompressors:"list what external uncompressors are available"
 	__extractcontrol:"extract the control file from a .deb file"
 	__extractfilelist:"extract the filelist from a .deb file"
+	__extractsourcesection:"extract source and priority from a .dsc"
+	__uncompress:"uncompress a file"
+	_addchecksums:"add checksums to database"
+	_addmd5sums:"add checksums to database"
+	_addreference:"mark a filekey needed by an identifier"
+	_detect:"look if the file belonging to a filekey exists and add to the database."
+	_dumpcontents:"output contents of a part of the repository"
 	_fakeemptyfilelist:"create an empty fake filelist cache item for a filekey"
+	_forget:"forget a file specified by filekey."
+	_listchecksums:"print a list of filekeys and their checksums"
+	_listconfidentifiers:"list parts of the repository in the configuration"
+	_listdbidentifiers:"list parts of the repository in the database"
+	_listmd5sums:"print a list of filekeys and their md5 hashes"
+	_removereferences:"remove all references by an identifer"
     	)
 
 _arguments \
@@ -341,7 +356,7 @@ case "$state" in
 
  (first argument|second argument|third argument|argument)
 	case "$words[1]" in
-	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks)
+	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers)
 		_reprepro_codenames
 		;;
 	 (checkpool)
@@ -350,14 +365,14 @@ case "$state" in
 		fi
 		;;
 
-	 (cleanlists|clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums)
+	 (cleanlists|clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums|__dumpuncompressors|transatelegacychecksums)
 		;;
 	 (_dumpcontents|_removereferences)
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_identifiers
 		fi
 		;;
-	 (list|listfilter)
+	 (list|listfilter|listmatched)
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_codenames
 		fi
@@ -367,6 +382,18 @@ case "$state" in
 			_reprepro_codenames
 		else
 			_reprepro_package_names "$words[2]"
+		fi
+		;;
+	 (removesrc)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		else
+			_reprepro_source_package_names "$words[2]"
+		fi
+		;;
+	 (removefilter|removematched)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
 		fi
 		;;
 	 (gensnapshot)
@@ -399,14 +426,19 @@ case "$state" in
 			_files -g "*.dsc"
 		fi
 		;;
-	 (copy|copysrc|copyfilter)
+	 (__extractsourcesection)
+		if [[ "$state" = "first argument" ]] ; then
+			_files -g "*.dsc"
+		fi
+		;;
+	 (copy|copysrc|copyfilter|copymatched)
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_codenames
 		elif [[ "$state" = "second argument" ]] ; then
 			_reprepro_codenames
 		fi
 		;;
-	 (restore|restoresrc|restorefilter)
+	 (restore|restoresrc|restorefilter|restorematched)
 		if [[ "$state" = "first argument" ]] ; then
 			_reprepro_codenames
 # TODO:
@@ -448,6 +480,32 @@ case "$state" in
 			_reprepro_identifiers
 		fi
 		;;
+	  (__uncompress)
+		if [[ "$state" = "first argument" ]] ; then
+			uncompressions=(.gz .bz2 .lzma)
+		      	_wanted -V 'uncompressions' expl 'uncompression' compadd -a uncompressions
+		elif [[ "$state" = "second argument" ]] ; then
+			_files
+		elif [[ "$state" = "third argument" ]] ; then
+			_files
+		fi
+	  	;;
+	  (build-needing)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+			_reprepro_architectures
+##TODO		elif [[ "$state" = "third argument" ]] ; then
+##TODO			_reprepro_glob
+		fi
+	  	;;
+	  (flood)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+			_reprepro_architectures
+		fi
+	  	;;
 	 (*)
     		_files
 	   	;;
