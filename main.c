@@ -3215,7 +3215,7 @@ static const struct action {
 	{"__extractfilelist",	A_N(extractfilelist),
 		1, 1, "__extractfilelist <.deb-file>"},
 	{"_versioncompare",	A_N(versioncompare),
-		2, 2, "versioncompare <version> <version>"},
+		2, 2, "_versioncompare <version> <version>"},
 	{"_detect", 		A__F(detect),
 		-1, -1, NULL},
 	{"_forget", 		A__F(forget),
