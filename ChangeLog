@@ -1,7 +1,6 @@
-2009-08-24
-	* remove all files.db code (except translatelegacyfilelists).
-	* remove --oldfilesdb option.
-	* remove --overridedir
+2009-01-10
+	* call gpgme_check_version so that libgpgme 1.2.0 does not fail
+	to initialize.
 
 2009-08-23
 	* warn if old legacy files.db is still used and add new
