@@ -2,6 +2,7 @@ reprepro (4.0.0-0) UNRELEASED; urgency=low
 
   * update bash and zsh completions (Closes: 545069)
   * remove mentioning obsolete 'none' keyword in short-howto (Closes: 545421)
+  * fix problems with libgpgme 1.2.0 (Closes: 545937)
 
  -- Bernhard R. Link <brlink@debian.org>  Wed, 09 Sep 2009 11:31:16 +0200
 

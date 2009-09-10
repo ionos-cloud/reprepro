@@ -75,6 +75,7 @@ retvalue signature_init(bool allowpassphrase){
 
 	if( context != NULL )
 		return RET_NOTHING;
+	gpgme_check_version(NULL);
 	err = gpgme_engine_check_version(GPGME_PROTOCOL_OpenPGP);
 	if( err != 0 )
 		return gpgerror(err);
