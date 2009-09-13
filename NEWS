@@ -1,7 +1,10 @@
-Updates between 3.12.0 and 4.0.0:
+Updates between 3.12.1 and 4.0.0:
 - disable old files.db handling (remove all support but
   translatelegacyfilelists), remove --oldfilesdb options
 - remove --overridedir
+
+Updates between 3.12.0 and 3.12.1:
+- fix problems with libgpgme 1.2.0
 
 Updates between 3.11.1 and 3.12.0:
 - warn if directories are relative to the currect directory but do not start
