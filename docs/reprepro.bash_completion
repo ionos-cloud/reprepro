@@ -674,7 +674,7 @@ _changestool()
 	COMPREPLY=( $( compgen -f -- $cur ) )
 	return 0
 }
-# some problem as above with -o filenames,
+# same problem as above with -o filenames,
 # but I guess still better than without...
 complete -o filenames -F _changestool changestool
 
