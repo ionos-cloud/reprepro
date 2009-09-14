@@ -1,9 +1,11 @@
 reprepro (4.0.0-0) UNRELEASED; urgency=low
 
-  * update bash and zsh completions (Closes: 545069)
-  * remove mentioning obsolete 'none' keyword in short-howto (Closes: 545421)
+  * new release
+  - remove obsolete --overridedir and old-style files.db support
+  - update bash and zsh completions (Closes: 545069)
+  - remove mentioning obsolete 'none' keyword in short-howto (Closes: 545421)
 
- -- Bernhard R. Link <brlink@debian.org>  Wed, 09 Sep 2009 11:31:16 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 14 Sep 2009 15:11:35 +0200
 
 reprepro (3.12.1-1) unstable; urgency=medium
 

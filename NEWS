@@ -2,6 +2,7 @@ Updates between 3.12.1 and 4.0.0:
 - disable old files.db handling (remove all support but
   translatelegacyfilelists), remove --oldfilesdb options
 - remove --overridedir
+- bugfixes in documentation and bash/zsh completion
 
 Updates between 3.12.0 and 3.12.1:
 - fix problems with libgpgme 1.2.0
