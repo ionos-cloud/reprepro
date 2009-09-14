@@ -1,4 +1,4 @@
-2009-01-10
+2009-09-10
 	* call gpgme_check_version so that libgpgme 1.2.0 does not fail
 	to initialize.
 
