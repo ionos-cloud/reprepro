@@ -1058,7 +1058,7 @@ static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct dist
 }
 
 ACTION_B(y, n, y, list) {
-	retvalue r;
+	retvalue result = RET_NOTHING, r;
 	struct distribution *distribution;
 	struct target *t;
 
@@ -1079,8 +1079,9 @@ ACTION_B(y, n, y, list) {
 		r = list_in_target(database, t, argv[2]);
 		if( RET_WAS_ERROR(r) )
 			return r;
+		RET_UPDATE(result, r);
 	}
-	return r;
+	return result;
 }
 
 struct lsversion {

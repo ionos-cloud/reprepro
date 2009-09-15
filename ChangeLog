@@ -1,3 +1,6 @@
+2009-09-15
+	* fix exit-code if list with --nothingiserror
+
 2009-09-10
 	* call gpgme_check_version so that libgpgme 1.2.0 does not fail
 	to initialize.
