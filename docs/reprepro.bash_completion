@@ -275,6 +275,9 @@ _reprepro()
 			pull\
 			remove\
 			removealltracks\
+			removefilter\
+			removematched\
+			removesrc\
 			removetrack\
 			reoverride\
 			rereference\
@@ -338,7 +341,7 @@ _reprepro()
 	fi
 
 	case "$cmd" in
-		remove|list|listfilter|removetrack|listmatched|removematched)
+		remove|list|listfilter|removefilter|removetrack|listmatched|removematched|removesrc)
 			# first argument is the codename
 			if [[ $i -eq $COMP_CWORD ]] ; then
 				parse_config
