@@ -14,7 +14,7 @@ ARCHIVE_CONTENTS =
 ARCHIVE_UNUSED = ar.c debfile.c debfilecontents.c
 endif
 
-AM_CPPFLAGS = -std=gnu99 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
+AM_CPPFLAGS = -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
 
