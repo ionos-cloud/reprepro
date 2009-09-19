@@ -249,6 +249,5 @@ dnl
 dnl Create makefiles
 dnl
 
-AC_OUTPUT([Makefile docs/Makefile tests/Makefile])
-
-
+AC_CONFIG_FILES([Makefile docs/Makefile tests/Makefile])
+AC_OUTPUT
