@@ -1,4 +1,4 @@
-reprepro (4.0.0-0) UNRELEASED; urgency=low
+reprepro (4.0.0-1) unstable; urgency=low
 
   * new release
   - remove obsolete --overridedir and old-style files.db support
