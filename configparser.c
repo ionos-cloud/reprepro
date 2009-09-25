@@ -529,6 +529,55 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 	return RET_OK;
 }
 
+retvalue config_geturl(struct configiterator *iter, const char *header, char **result_p) {
+	char *value, *p;
+	retvalue r;
+	size_t l;
+
+
+	r = config_getword(iter, &value);
+	if( r == RET_NOTHING ) {
+		configparser_errorlast(iter,
+"Unexpected end of %s header (value expected).", header);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	// TODO: think about allowing (escaped) spaces...
+	if( config_nextnonspace(iter) != EOF ) {
+		configparser_error(iter,
+"End of %s header expected (but trailing garbage).", header);
+		free(value);
+		return RET_ERROR;
+	}
+	p = value;
+	while( *p != '\0' && ( *p == '_' || *p == '-' ||
+				(*p>='a' && *p<='z') || (*p>='A' && *p<='Z') ||
+				(*p>='0' && *p<='9') ) ) {
+		p++;
+	}
+	if( *p != ':' ) {
+		configparser_errorlast(iter,
+"Malformed %s field: no colon (must be method:path).", header);
+		free(value);
+		return RET_ERROR;
+	}
+	if( p == value ) {
+		configparser_errorlast(iter,
+"Malformed %s field: transport method name expected (colon is not allowed to be the first character)!", header);
+		free(value);
+		return RET_ERROR;
+	}
+	p++;
+	l = strlen(p);
+	/* remove one leading slash, as we always add one and some apt-methods
+	 * are confused with //. (end with // if you really want it) */
+	if( l > 0 && p[l - 1] == '/' )
+		p[l - 1] = '\0';
+	*result_p = value;
+	return RET_OK;
+}
+
 retvalue config_getuniqwords(struct configiterator *iter, const char *header, checkfunc check, struct strlist *result_p) {
 	char *value;
 	retvalue r;

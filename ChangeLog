@@ -1,3 +1,7 @@
+2009-09-23
+	* Method: and Fallback: in conf/updates now strip the last '/' from
+	the URI given. (Some apt methods get confused if they get "//").
+
 2009-09-15
 	* fix exit-code of 'list' with --nothingiserror
 
