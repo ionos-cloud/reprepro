@@ -8,7 +8,6 @@ test.sh \
 testatoms.sh \
 testbuildneeding.sh \
 testcheck.sh \
-testchecksums.sh \
 testcopy.sh \
 testexporthooks.sh \
 testflat.sh \

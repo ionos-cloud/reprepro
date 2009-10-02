@@ -103,7 +103,6 @@ WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_SUP=""
 VERBOSEDB="1"
-TESTNEWFILESDB="1"
 DEFAULTVERBOSITY=6
 
 while [ $# -gt 0 ] ; do
@@ -130,10 +129,6 @@ while [ $# -gt 0 ] ; do
 		--fake-architecture)
 			shift
 			FAKEARCHITECTURE="$1"
-			shift
-			;;
-		--testoldfilesdb)
-			TESTNEWFILESDB=""
 			shift
 			;;
 		--verbosity)
@@ -203,14 +198,10 @@ function setoptions() {
 	REPREPROOPTIONS="$1 $VERBOSITY"
 	shift
 	if test -n "$VERBOSEDB" ; then
-		if test -n "$TESTNEWFILESDB" ; then
-			TESTOPTIONS="-D x=0 -D e=0 -D d=1 $TESTOPTIONS"
-		else
-			TESTOPTIONS="-D x=0 -D e=1 -D d=1 $TESTOPTIONS"
-		fi
+		TESTOPTIONS="-D x=0 -D d=1 $TESTOPTIONS"
 		REPREPROOPTIONS="--verbosedb $REPREPROOPTIONS"
 	else
-		TESTOPTIONS="-D x=0 -D e=0 -D d=0 $TESTOPTIONS"
+		TESTOPTIONS="-D x=0 -D d=0 $TESTOPTIONS"
 	fi
 	TRACKINGTESTOPTIONS="-D t=0"
 	while test $# -gt 0 ; do
