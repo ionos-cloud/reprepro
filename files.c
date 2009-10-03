@@ -151,7 +151,7 @@ retvalue files_canadd(struct database *database, const char *filekey, const stru
 
 
 /* check for file in the database and if not found there, if it can be detected */
-retvalue files_expect(struct database *database, const char *filekey, const struct checksums *checksums) {
+retvalue files_expect(struct database *database, const char *filekey, const struct checksums *checksums, bool warnifadded) {
 	retvalue r;
 	char *filename;
 	struct checksums *improvedchecksums = NULL;
@@ -187,6 +187,9 @@ retvalue files_expect(struct database *database, const char *filekey, const stru
 	if( !RET_IS_OK(r) )
 		return r;
 
+	if( warnifadded )
+		fprintf(stderr, "Warning: readded existing file '%s' mysteriously missing from the checksum database.\n", filekey);
+
 	// TODO: some callers might want the updated checksum when
 	// improves is true, how to get them there?
 
@@ -209,7 +212,7 @@ retvalue files_expectfiles(struct database *database, const struct strlist *file
 		const char *filekey = filekeys->values[i];
 		const struct checksums *checksums = checksumsarray[i];
 
-		r = files_expect(database, filekey, checksums);
+		r = files_expect(database, filekey, checksums, verbose >= 0);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		if( r == RET_NOTHING ) {
@@ -233,7 +236,7 @@ retvalue files_printmissing(struct database *database, const struct strlist *fil
 		const char *origfile = origfiles->names.values[i];
 		const struct checksums *checksums = origfiles->checksums[i];
 
-		r = files_expect(database, filekey, checksums);
+		r = files_expect(database, filekey, checksums, false);
 		if( RET_WAS_ERROR(r) ) {
 			return r;
 		}

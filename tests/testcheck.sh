@@ -190,6 +190,8 @@ EOF
 cp fake1.deb pool/c/p/pseudo/fake_0_all.deb
 
 testrun - -b . check 3<<EOF
+stderr
+-v0*=Warning: readded existing file 'pool/c/p/pseudo/fake_0_all.deb' mysteriously missing from the checksum database.
 stdout
 -v1*=Checking n...
 -d1*=db: 'pool/c/p/pseudo/fake_0_all.deb' added to checksums.db(pool).
