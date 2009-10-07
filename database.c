@@ -232,20 +232,13 @@ static retvalue database_opentable(UNUSED(struct database *database), const char
 		}
 	}
 
-#if LIBDB_VERSION == 46
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
-#elif LIBDB_VERSION == 47
-#warning libdb4.7 not yet tested. Use on your own risk
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
-#elif LIBDB_VERSION == 44
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
-#elif LIBDB_VERSION == 43
+#if DB_VERSION_MAJOR == 4
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
 #else
-#if LIBDB_VERSION == 3
+#if DB_VERSION_MAJOR == 3
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,filename,name,type,flags,0664)
 #else
-#error Unexpected LIBDB_VERSION!
+#error Unexpected DB_VERSION_MAJOR!
 #endif
 #endif
 	dbret = DB_OPEN(table, fullfilename, subtable, types[type], flags);

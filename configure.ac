@@ -23,123 +23,13 @@ AC_CHECK_FUNCS([dprintf])
 AC_CHECK_FUNC([vasprintf],,[AC_MSG_ERROR([Could not find vasprintf implementation!])])
 
 DBLIBS=""
-DBCPPFLAGS=""
-AH_TEMPLATE([LIBDB_VERSION],[variant of libdb used])
-AC_ARG_WITH(libdb,
-[  --with-libdb=path|4.7|4.6|4.4|4.3|3 Give prefix of libdb or specify version to use],[dnl
-	case "$withval" in
-	no)
-	AC_MSG_ERROR(["Cannot compile without libdb"]);
-	;;
-	3)
-	DB_WANT_VERSION=3
-	;;
-	yes|4.3)
-	DB_WANT_VERSION=4.3
-	;;
-	4.4)
-	DB_WANT_VERSION=4.4
-	;;
-	4.6)
-	DB_WANT_VERSION=4.6
-	;;
-	4.7)
-	DB_WANT_VERSION=4.7
-	;;
-	/*)
-	DB_WANT_VERSION=any
-	DBLIBS="-L$withval/lib"
-	DBCPPFLAGS="-I$withval/include"
-	;;
-	*)
-	AC_MSG_ERROR([Unparseable --with-libdb argument $withval])
-	;;
-	esac
-],[DB_WANT_VERSION=any])
-
 # the only way to find out which is compileable is to look into db.h:
 
-mysave_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $DBCPPFLAGS"
 AC_CHECK_HEADER(db.h,,[AC_MSG_ERROR(["no db.h found"])])
-GET_DEFINE(DB_VERSION_MAJOR,db.h,[AC_MSG_ERROR("Unable to retrieve DB_VERSION_MAJOR from db.h")])
-GET_DEFINE(DB_VERSION_MINOR,db.h,[AC_MSG_ERROR("Unable to retrieve DB_VERSION_MINOR from db.h")])
-CPPFLAGS="$mysave_CPPFLAGS"
 
-# now make sure what we found is what we want
-
-if test "x$DB_VERSION_MAJOR" = "x3" ; then
-	if test "$DB_WANT_VERSION" = "any" ; then
-		DB_WANT_VERSION=3
-	elif test "$DB_WANT_VERSION" != "3" ; then
-		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
-	fi
-elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x3" ; then
-	if test "$DB_WANT_VERSION" = "any" ; then
-		DB_WANT_VERSION=4.3
-	elif test "$DB_WANT_VERSION" != "4.3" ; then
-		AC_MSG_ERROR([Found libdb version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
-	fi
-elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x4" ; then
-	if test "$DB_WANT_VERSION" = "any" ; then
-		DB_WANT_VERSION=4.4
-	elif test "$DB_WANT_VERSION" != "4.4" ; then
-		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
-	fi
-elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x6" ; then
-	if test "$DB_WANT_VERSION" = "any" ; then
-		DB_WANT_VERSION=4.6
-	elif test "$DB_WANT_VERSION" != "4.6" ; then
-		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
-	fi
-elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x7" ; then
-	if test "$DB_WANT_VERSION" = "any" ; then
-		DB_WANT_VERSION=4.7
-	elif test "$DB_WANT_VERSION" != "4.7" ; then
-		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
-	fi
-else
-	AC_MSG_ERROR([Unsupported libdb major $DB_VERSION_MAJOR minor $DB_VERSION_MINOR
-Only 4.6 (recommended) or 3.2 or 4.4 or 4.3 or 4.7 are supported])
-fi
-
-# now we have a header with the expected version, check for the library:
-case "$DB_WANT_VERSION" in
-4.7)
-	AC_CHECK_LIB(db-4.7,db_create,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),47)
-			DBLIBS="-ldb-4.7 $DBLIBS"
-	],[AC_MSG_ERROR(["no libdb-4.7 found"])],[$DBLIBS])
-;;
-4.6)
-	AC_CHECK_LIB(db-4.6,db_create,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),46)
-			DBLIBS="-ldb-4.6 $DBLIBS"
-	],[AC_MSG_ERROR(["no libdb-4.6 found"])],[$DBLIBS])
-;;
-4.4)
-	AC_CHECK_LIB(db-4.4,db_create,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),44)
-			DBLIBS="-ldb-4.4 $DBLIBS"
-	],[AC_MSG_ERROR(["no libdb-4.4 found"])],[$DBLIBS])
-;;
-4.3)
-	AC_CHECK_LIB(db-4.3,db_create,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),43)
-			DBLIBS="-ldb-4.3 $DBLIBS"
-	],[AC_MSG_ERROR(["no libdb-4.3 found"])],[$DBLIBS])
-;;
-3)
-	AC_CHECK_LIB(db3,db_create,[dnl
-			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),3)
-			DBLIBS="-ldb3 $DBLIBS"
-	],[AC_MSG_ERROR(["no libdb3 found"])],[$DBLIBS])
-;;
-*)
-	AC_MSG_ERROR([Internal error: DB_WANT_VERSION=$DB_WANT_VERSION])
-esac
+AC_CHECK_LIB(db, db_create, [DBLIBS="-ldb $DBLIBS"
+	],[AC_MSG_ERROR(["no libdb found"])],[$DBLIBS])
 AC_SUBST([DBLIBS])
-AC_SUBST([DBCPPFLAGS])
 
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
 

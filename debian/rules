@@ -20,20 +20,6 @@ ifneq (,$(filter noopt,$(BUILDOPTS)))
 else
 	CFLAGS += -O2
 endif
-ifneq (,$(filter reprepro-libdb3,$(BUILDOPTS)))
-	DBFLAGS = --with-libdb=3
-else ifneq (,$(filter reprepro-libdb4.3,$(BUILDOPTS)))
-	DBFLAGS = --with-libdb=4.3
-else ifneq (,$(filter reprepro-libdb4.4,$(BUILDOPTS)))
-	DBFLAGS = --with-libdb=4.4
-else ifneq (,$(filter reprepro-libdb4.6,$(BUILDOPTS)))
-	DBFLAGS = --with-libdb=4.6
-else ifneq (,$(filter reprepro-libdb4.7,$(BUILDOPTS)))
-	DBFLAGS = --with-libdb=4.7
-else
-# default: when changing this, change Build-Depends in debian/control
-	DBFLAGS = --with-libdb=4.6
-endif
 ifneq (,$(filter reprepro-nolibarchive,$(BUILDOPTS)))
 	ARCHIVEFLAGS= --without-libarchive
 else
@@ -47,7 +33,7 @@ config.status: configure
 	dh_testdir
 	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) \
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
-		    --with-libbz2 $(DBFLAGS) $(ARCHIVEFLAGS) \
+		    --with-libbz2 $(ARCHIVEFLAGS) \
 		    --disable-dependency-tracking \
 		    CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="-Wl,-z,defs" \
 	|| ( echo configure failed with $$? ; echo BEGIN config.log: ; \
