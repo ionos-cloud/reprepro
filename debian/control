@@ -12,7 +12,7 @@ Package: reprepro
 Architecture: any
 Depends: ${shlibs:Depends}, ${reprepro:Depends}, ${misc:Depends}
 Recommends: apt
-Suggests: gnupg-agent, inoticoming, lzma
+Suggests: gnupg-agent, inoticoming, lzma, xz-utils
 Description: Debian package repository producer
  reprepro is a tool to manage a repository of Debian packages
  (.deb, .udeb, .dsc, ...). It stores files either being

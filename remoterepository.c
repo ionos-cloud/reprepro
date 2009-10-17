@@ -894,12 +894,13 @@ static queue_callback diff_callback;
 static retvalue queue_next_without_release(struct remote_distribution *rd, struct remote_index *ri) {
 	const struct encoding_preferences *downloadas;
 	static const struct encoding_preferences defaultdownloadas = {
-		.count = 4,
+		.count = 5,
 		.requested = {
 			{ .diff = false, .force = false, .compression = c_gzip },
 			{ .diff = false, .force = false, .compression = c_bzip2 },
 			{ .diff = false, .force = false, .compression = c_none },
-			{ .diff = false, .force = false, .compression = c_lzma }
+			{ .diff = false, .force = false, .compression = c_lzma },
+			{ .diff = false, .force = false, .compression = c_xz }
 		}
 	};
 	int e;

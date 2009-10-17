@@ -100,6 +100,7 @@ enum filetype { ft_UNKNOWN,
 			ft_TAR_GZ, ft_ORIG_TAR_GZ, ft_DIFF_GZ,
 	                ft_TAR_BZ2, ft_ORIG_TAR_BZ2, ft_DIFF_BZ2,
 	                ft_TAR_LZMA, ft_ORIG_TAR_LZMA, ft_DIFF_LZMA,
+	                ft_TAR_XZ, ft_ORIG_TAR_XZ, ft_DIFF_XZ,
 #define ft_MaxInSource ft_DSC-1
 			ft_DSC, ft_DEB, ft_UDEB , ft_Count};
 #define ft_Max ft_Count-1
@@ -107,6 +108,7 @@ static const char * const typesuffix[ft_Count] = { "?",
 	".tar.gz", ".orig.tar.gz", ".diff.gz",
 	".tar.bz2", ".orig.tar.bz2", ".diff.bz2",
 	".tar.lzma", ".orig.tar.lzma", ".diff.lzma",
+	".tar.xz", ".orig.tar.xz", ".diff.xz",
 	".dsc", ".deb", ".udeb"};
 
 struct dscfile {
@@ -1555,12 +1557,14 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 				case ft_TAR_GZ:
 				case ft_TAR_BZ2:
 				case ft_TAR_LZMA:
+				case ft_TAR_XZ:
 					istar = true;
 					has_tar = true;
 					break;
 				case ft_ORIG_TAR_GZ:
 				case ft_ORIG_TAR_BZ2:
 				case ft_ORIG_TAR_LZMA:
+				case ft_ORIG_TAR_XZ:
 					if( has_orig )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .tar files!\n",
@@ -1570,6 +1574,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 				case ft_DIFF_GZ:
 				case ft_DIFF_BZ2:
 				case ft_DIFF_LZMA:
+				case ft_DIFF_XZ:
 					if( has_diff )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .diff files!\n",
@@ -1597,7 +1602,8 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 
 			if( sfile->type == ft_ORIG_TAR_GZ
 					|| sfile->type == ft_ORIG_TAR_BZ2
-					|| sfile->type == ft_ORIG_TAR_LZMA ) {
+					|| sfile->type == ft_ORIG_TAR_LZMA
+					|| sfile->type == ft_ORIG_TAR_XZ ) {
 				const char *q, *revision;
 				revision = NULL;
 				for( q = version; *q != '\0'; q++ ) {
@@ -2791,11 +2797,12 @@ int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"create", no_argument, NULL, 'C'},
-		{"create-with-all-fields", no_argument, &longoption, 4},
+		{"create-with-all-fields", no_argument, &longoption, 5},
 		{"searchpath", required_argument, NULL, 's'},
 		{"gunzip", required_argument, &longoption, 1},
 		{"bunzip2", required_argument, &longoption, 2},
 		{"unlzma", required_argument, &longoption, 3},
+		{"unxz", required_argument, &longoption, 4},
 		{NULL, 0, NULL, 0},
 	};
 	int c;
@@ -2805,7 +2812,7 @@ int main(int argc,char *argv[]) {
 	bool all_fields = false;
 	struct strlist searchpath;
 	struct changes *changesdata IFSTUPIDCC(=NULL);
-	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL;
+	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL, *unxz = NULL;
 	retvalue r;
 
 	strlist_init(&searchpath);
@@ -2824,6 +2831,9 @@ int main(int argc,char *argv[]) {
 						unlzma = strdup(optarg);
 						break;
 					case 4:
+						unxz = strdup(optarg);
+						break;
+					case 5:
 						create_file = true;
 						all_fields = true;
 						break;
@@ -2848,7 +2858,7 @@ int main(int argc,char *argv[]) {
 		about(false);
 	}
 	signature_init(false);
-	uncompressions_check(gunzip, bunzip2, unlzma);
+	uncompressions_check(gunzip, bunzip2, unlzma, unxz);
 
 	changesfilename = argv[optind];
 	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes") ) {

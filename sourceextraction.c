@@ -78,6 +78,9 @@ void sourceextraction_setpart(struct sourceextraction *e, int i, const char *bas
 	} else if( endswith(basefilename, bl, ".lzma" ) ) {
 		c = c_lzma;
 		bl -= 5;
+	} else if( endswith(basefilename, bl, ".xz" ) ) {
+		c = c_xz;
+		bl -= 3;
 	} else {
 		c = c_none;
 	}

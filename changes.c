@@ -210,6 +210,12 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			type = fe_TAR;
 		else if( p-versionstart > 10 && strncmp(p-10,".diff.lzma",10) == 0 )
 			type = fe_DIFF;
+		else if( p-versionstart > 12 && strncmp(p-14,".orig.tar.xz",14) == 0 )
+			type = fe_ORIG;
+		else if( p-versionstart > 7 && strncmp(p-9,".tar.xz",9) == 0 )
+			type = fe_TAR;
+		else if( p-versionstart > 8 && strncmp(p-10,".diff.xz",10) == 0 )
+			type = fe_DIFF;
 		else if( p-versionstart > 4 && strncmp(p-4, ".log", 4) == 0 )
 			type = fe_LOG;
 		else {
