@@ -1,3 +1,6 @@
+2009-10-20
+	* reduce number of places where new compressions must be added
+
 2009-10-17
 	* support xz compressed files if unxz is installed.
 	  (TODO: actually test it)

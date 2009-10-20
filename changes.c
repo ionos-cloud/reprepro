@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include "error.h"
 #include "names.h"
+#include "uncompression.h"
 #include "checksums.h"
 #include "changes.h"
 
@@ -185,38 +186,37 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			return RET_ERROR;
 		}
 	} else {
+		bool uncompressed = false;
+		enum compression c;
+
 		/* this looks like some source-package, we will have
 		 * to look for the packagetype ourself... */
 		while( *p !='\0' && !xisspace(*p) ) {
 			p++;
 		}
-		if( p-versionstart > 12 && strncmp(p-12,".orig.tar.gz",12) == 0 )
+		/* ignore compression suffix */
+		for( c = c_COUNT - 1 ; c > c_none ; c-- ) {
+			size_t l = strlen(uncompression_suffix[c]);
+
+			if( p - versionstart > l &&
+			    strncmp(p - l, uncompression_suffix[c], l) == 0 ) {
+				p -= l;
+				break;
+			}
+		}
+		uncompressed = c == c_none;
+
+		if( p-versionstart > 9 && strncmp(p-9, ".orig.tar", 9) == 0 )
 			type = fe_ORIG;
-		else if( p-versionstart > 7 && strncmp(p-7,".tar.gz",7) == 0 )
+		else if( p-versionstart > 4 && strncmp(p-4, ".tar", 4) == 0 )
 			type = fe_TAR;
-		else if( p-versionstart > 8 && strncmp(p-8,".diff.gz",8) == 0 )
+		else if( p-versionstart > 5 && strncmp(p-5,".diff", 5) == 0 )
 			type = fe_DIFF;
-		else if( p-versionstart > 4 && strncmp(p-4,".dsc",4) == 0 )
+		else if( p-versionstart > 4 && strncmp(p-4,".dsc",4) == 0 &&
+				uncompressed )
 			type = fe_DSC;
-		else if( p-versionstart > 13 && strncmp(p-13,".orig.tar.bz2",13) == 0 )
-			type = fe_ORIG;
-		else if( p-versionstart > 8 && strncmp(p-8,".tar.bz2",8) == 0 )
-			type = fe_TAR;
-		else if( p-versionstart > 9 && strncmp(p-9,".diff.bz2",9) == 0 )
-			type = fe_DIFF;
-		else if( p-versionstart > 14 && strncmp(p-14,".orig.tar.lzma",14) == 0 )
-			type = fe_ORIG;
-		else if( p-versionstart > 9 && strncmp(p-9,".tar.lzma",9) == 0 )
-			type = fe_TAR;
-		else if( p-versionstart > 10 && strncmp(p-10,".diff.lzma",10) == 0 )
-			type = fe_DIFF;
-		else if( p-versionstart > 12 && strncmp(p-14,".orig.tar.xz",14) == 0 )
-			type = fe_ORIG;
-		else if( p-versionstart > 7 && strncmp(p-9,".tar.xz",9) == 0 )
-			type = fe_TAR;
-		else if( p-versionstart > 8 && strncmp(p-10,".diff.xz",10) == 0 )
-			type = fe_DIFF;
-		else if( p-versionstart > 4 && strncmp(p-4, ".log", 4) == 0 )
+		else if( p-versionstart > 4 && strncmp(p-4, ".log", 4) == 0 &&
+				uncompressed )
 			type = fe_LOG;
 		else {
 			type = fe_UNKNOWN;
