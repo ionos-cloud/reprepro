@@ -3,7 +3,6 @@
 
 2009-10-17
 	* support xz compressed files if unxz is installed.
-	  (TODO: actually test it)
 
 2009-10-02
 	* make 'check' (and some other commands) warn if a file expected
