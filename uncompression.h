@@ -21,6 +21,8 @@ extern const char * const uncompression_config[c_COUNT];
 		uncompression_builtin(c) || \
 		extern_uncompressors[c] != NULL)
 
+enum compression compression_by_suffix(const char *, size_t *);
+
 /**** functions for aptmethod.c ****/
 
 /* we got an pid, check if it is a uncompressor we care for */

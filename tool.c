@@ -232,23 +232,6 @@ static void changes_free(struct changes *c) {
 	free(c);
 }
 
-static enum compression compression_by_suffix(const char *name, size_t *len_p) {
-	enum compression c;
-	size_t len = *len_p;
-
-	for( c = c_COUNT - 1 ; c > c_none ; c-- ) {
-		size_t l = strlen(uncompression_suffix[c]);
-
-		if( len <= l )
-			continue;
-		if( strncmp(name + len - l, uncompression_suffix[c], l) == 0 ) {
-			*len_p -= l;
-			return c;
-		}
-	}
-	return c_none;
-}
-
 static struct fileentry *add_fileentry(struct changes *c, const char *basefilename, size_t len, bool source, size_t *ofs_p) {
 	struct fileentry **fp = &c->files;
 	struct fileentry *f;

@@ -1135,3 +1135,21 @@ retvalue uncompress_close(struct compressedfile *file) {
 	free(file);
 	return r;
 }
+
+enum compression compression_by_suffix(const char *name, size_t *len_p) {
+	enum compression c;
+	size_t len = *len_p;
+
+	for( c = c_COUNT - 1 ; c > c_none ; c-- ) {
+		size_t l = strlen(uncompression_suffix[c]);
+
+		if( len <= l )
+			continue;
+		if( strncmp(name + len - l, uncompression_suffix[c], l) == 0 ) {
+			*len_p -= l;
+			return c;
+		}
+	}
+	return c_none;
+}
+

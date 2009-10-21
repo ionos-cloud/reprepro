@@ -186,8 +186,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			return RET_ERROR;
 		}
 	} else {
-		bool uncompressed = false;
 		enum compression c;
+		size_t l;
 
 		/* this looks like some source-package, we will have
 		 * to look for the packagetype ourself... */
@@ -195,28 +195,19 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			p++;
 		}
 		/* ignore compression suffix */
-		for( c = c_COUNT - 1 ; c > c_none ; c-- ) {
-			size_t l = strlen(uncompression_suffix[c]);
+		l = p - versionstart;
+		c = compression_by_suffix(versionstart, &l);
+		p = versionstart + l;
 
-			if( p - versionstart > l &&
-			    strncmp(p - l, uncompression_suffix[c], l) == 0 ) {
-				p -= l;
-				break;
-			}
-		}
-		uncompressed = c == c_none;
-
-		if( p-versionstart > 9 && strncmp(p-9, ".orig.tar", 9) == 0 )
+		if( l > 9 && strncmp(p-9, ".orig.tar", 9) == 0 )
 			type = fe_ORIG;
-		else if( p-versionstart > 4 && strncmp(p-4, ".tar", 4) == 0 )
+		else if( l > 4 && strncmp(p-4, ".tar", 4) == 0 )
 			type = fe_TAR;
-		else if( p-versionstart > 5 && strncmp(p-5,".diff", 5) == 0 )
+		else if( l > 5 && strncmp(p-5,".diff", 5) == 0 )
 			type = fe_DIFF;
-		else if( p-versionstart > 4 && strncmp(p-4,".dsc",4) == 0 &&
-				uncompressed )
+		else if( l > 4 && strncmp(p-4,".dsc",4) == 0 && c == c_none )
 			type = fe_DSC;
-		else if( p-versionstart > 4 && strncmp(p-4, ".log", 4) == 0 &&
-				uncompressed )
+		else if( l > 4 && strncmp(p-4, ".log", 4) == 0 )
 			type = fe_LOG;
 		else {
 			type = fe_UNKNOWN;
