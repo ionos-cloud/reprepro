@@ -176,6 +176,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			type = fe_UDEB;
 		else if( p-typestart == 3 && strncmp(typestart,"log",3) == 0 )
 			type = fe_LOG;
+		else if( p-typestart == 5 && strncmp(typestart,"build",5) == 0 )
+			type = fe_LOG;
 		else {
 			fprintf(stderr, "'%s' is not .deb or .udeb!\n", filestart);
 			return RET_ERROR;
@@ -208,6 +210,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		else if( l > 4 && strncmp(p-4,".dsc",4) == 0 && c == c_none )
 			type = fe_DSC;
 		else if( l > 4 && strncmp(p-4, ".log", 4) == 0 )
+			type = fe_LOG;
+		else if( l > 6 && strncmp(p-6, ".build", 6) == 0 )
 			type = fe_LOG;
 		else {
 			type = fe_UNKNOWN;

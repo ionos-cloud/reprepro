@@ -1,6 +1,7 @@
 2009-10-21
 	* reduce number of places where new compressions must be added
 	* improve checking for proper filenames in changestool's verify
+	* allow .build as synonym for .log as suffix in changes files
 
 2009-10-20
 	* reduce number of places where new compressions must be added
