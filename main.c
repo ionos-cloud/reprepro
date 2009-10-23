@@ -544,7 +544,6 @@ ACTION_R(n, n, n, n, dumpreferences) {
 	r = cursor_close(database->references, cursor);
 	RET_ENDUPDATE(result, r);
 	return result;
-	return result;
 }
 
 static retvalue checkifreferenced(void *data, const char *filekey) {
