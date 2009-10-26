@@ -208,6 +208,8 @@ struct update_index_connector {
 
 	/*@null@*/char *afterhookfilename;
 
+	/* ignore wrong architecture packages (arch1>arch2 or flat) */
+	bool ignorewrongarchitecture;
 	/* if newly downloaded or not in done file */
 	bool new;
 	/* content needed (i.e. listhooks have to be run) */
@@ -961,6 +963,10 @@ static inline bool addremoteindex(struct update_origin *origin, struct target *t
 		return false;
 	}
 	uindex->next = updatetargets->indices;
+	uindex->ignorewrongarchitecture = origin->flat ||
+		strcmp(architecture,
+				atoms_architectures[
+				target->architecture_atom]) != 0;
 	updatetargets->indices = uindex;
 	return true;
 }
@@ -1680,7 +1686,7 @@ static inline retvalue searchformissing(/*@null@*/FILE *out,struct database *dat
 				filename,
 				ud_decide_by_pattern,
 				(void*)uindex->origin->pattern,
-				uindex->origin->flat);
+				uindex->ignorewrongarchitecture);
 		if( RET_WAS_ERROR(r) ) {
 			u->incomplete = true;
 			u->ignoredelete = true;
