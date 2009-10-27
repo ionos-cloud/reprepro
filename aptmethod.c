@@ -653,6 +653,8 @@ static inline retvalue goturidone(struct aptmethod *method, const char *chunk) {
 		free(uri);
 		return r;
 	}
+	if( verbose >= 1 )
+		fprintf(stderr, "aptmethod got '%s'\n", uri);
 
 	result = RET_NOTHING;
 	for( type = cs_md5sum ; type < cs_COUNT ; type++ ) {
@@ -764,8 +766,6 @@ static inline retvalue parsereceivedblock(struct aptmethod *method, const char *
 				/* 201 URI Done */
 				case '1':
 					OVERLINE;
-					if( verbose >= 1 )
-						logmessage(method,p,"got");
 					return goturidone(method, p);
 				default:
 					fprintf(stderr,
