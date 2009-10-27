@@ -1,3 +1,6 @@
+2009-10-27
+	* Do not warn about a missing VerifyRelease if there is a
+	IgnoreRelease.
 2009-10-21
 	* reduce number of places where new compressions must be added
 	* improve checking for proper filenames in changestool's verify

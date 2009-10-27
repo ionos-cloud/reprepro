@@ -790,6 +790,13 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 	update->pattern = pattern;
 	update->failed = false;
 
+	p = pattern;
+	while( p != NULL && !p->ignorerelease_set )
+		p = p->pattern_from;
+	if( p == NULL )
+		ignorerelease = false;
+	else
+		ignorerelease = p->ignorerelease;
 	/* find the first set values: */
 	p = pattern;
 	while( p != NULL && p->verifyrelease == NULL )
@@ -798,7 +805,7 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 		verifyrelease = NULL;
 	else
 		verifyrelease = p->verifyrelease;
-	if( verifyrelease == NULL && verbose >= 0 ) {
+	if( !ignorerelease && verifyrelease == NULL && verbose >= 0 ) {
 		fprintf(stderr,
 "Warning: No VerifyRelease line in '%s' or any rule it includes via 'From:'.\n"
 "Release.gpg cannot be checked unless you tell which key to check with.\n"
@@ -806,13 +813,6 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 				pattern->name);
 
 	}
-	p = pattern;
-	while( p != NULL && !p->ignorerelease_set )
-		p = p->pattern_from;
-	if( p == NULL )
-		ignorerelease = false;
-	else
-		ignorerelease = p->ignorerelease;
 	p = pattern;
 	while( p != NULL && !p->ignorehashes_set )
 		p = p->pattern_from;
