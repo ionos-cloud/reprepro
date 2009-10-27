@@ -633,11 +633,19 @@ static inline retvalue goturidone(struct aptmethod *method, const char *chunk) {
 
 	r = chunk_getvalue(chunk,"Filename",&filename);
 	if( r == RET_NOTHING ) {
-	// TODO: implement Alt-Filename handling the file method returns...
-		fprintf(stderr,
+		char *altfilename;
+
+		r = chunk_getvalue(chunk, "Alt-Filename", &altfilename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,
 "Missing Filename header in uridone received from '%s' method!\n",
-				method->name);
- 		r = urierror(method, uri, strdup("<no error but missing Filename from apt-method>"));
+					method->name);
+			r = urierror(method, uri, strdup("<no error but missing Filename from apt-method>"));
+		} else {
+			r = urierror(method, uri, mprintf(
+"<File not there, apt-method suggests '%s' instead>", altfilename));
+			free(altfilename);
+		}
 		free(uri);
 		return r;
 	}
