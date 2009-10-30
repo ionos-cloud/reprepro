@@ -962,9 +962,9 @@ static inline bool addremoteindex(struct update_origin *origin, struct target *t
 		free(uindex);
 		return false;
 	}
+	assert( !origin->flat );
 	uindex->next = updatetargets->indices;
-	uindex->ignorewrongarchitecture = origin->flat ||
-		strcmp(architecture,
+	uindex->ignorewrongarchitecture = strcmp(architecture,
 				atoms_architectures[
 				target->architecture_atom]) != 0;
 	updatetargets->indices = uindex;
@@ -1097,6 +1097,8 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 			return RET_ERROR_OOM;
 		}
 		uindex->next = updatetargets->indices;
+		assert( origin->flat );
+		uindex->ignorewrongarchitecture = true;
 		updatetargets->indices = uindex;
 		return RET_OK;
 	}
@@ -1123,6 +1125,8 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 			return RET_ERROR_OOM;
 		}
 		uindex->next = updatetargets->indices;
+		assert( origin->flat );
+		uindex->ignorewrongarchitecture = true;
 		updatetargets->indices = uindex;
 	}
 	return RET_OK;
