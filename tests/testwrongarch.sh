@@ -76,5 +76,5 @@ stdout
 *=add 'fake2' - '2all' 'update'
 EOF
 
-rm -r conf lists test
+rm -r conf lists test db
 testsuccess
