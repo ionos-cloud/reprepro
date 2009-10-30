@@ -1,3 +1,12 @@
+reprepro (4.0.2-1) unstable; urgency=low
+
+  * new bugfix and futureproof release
+  - fix regression (since 3.8.0) breaking updating architecture all
+    packages from another architecture.
+  - add support for xz compression
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 30 Oct 2009 14:33:27 +0100
+
 reprepro (4.0.1-1) unstable; urgency=low
 
   * new bugfix release
