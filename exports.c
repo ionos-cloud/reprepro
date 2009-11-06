@@ -440,6 +440,10 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 			fprintf(stderr,"Exporthook failed with exitcode %d!\n",(int)WEXITSTATUS(status));
 			return RET_ERROR;
 		}
+	} else if( WIFSIGNALED(status) ) {
+		fprintf(stderr,"Exporthook killed by signal %d!\n",
+				(int)(WTERMSIG(status)));
+		return RET_ERROR;
 	} else {
 		fprintf(stderr,"Exporthook terminated abnormally. (status is %x)!\n",status);
 		return RET_ERROR;
