@@ -1,3 +1,7 @@
+2009-11-06
+	* when 'include'ing a .changes file, do not insist on section
+	information of non-.dsc source files.
+
 2009-10-27
 	* Do not warn about a missing VerifyRelease if there is a
 	IgnoreRelease.

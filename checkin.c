@@ -520,6 +520,9 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 			continue;
 		}
 
+		if( !FE_PACKAGE(e->type) )
+			continue;
+
 		if( forcesection == NULL || forcepriority == NULL ) {
 			oinfo = override_search(
 			FE_BINARY(e->type)?(e->type==fe_UDEB?distribution->overrides.udeb:distribution->overrides.deb):distribution->overrides.dsc,
