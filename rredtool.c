@@ -1,12 +1,41 @@
+/*  This file is part of "reprepro"
+ *  Copyright (C) 2009 Bernhard R. Link
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with this program; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1301  USA
+ */
 #include <config.h>
 
+#include <stdint.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <getopt.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <dirent.h>
+#include <assert.h>
 #include "globals.h"
 #include "error.h"
+#include "mprintf.h"
+#include "sha1.h"
+#include "filecntl.h"
 #include "rredpatch.h"
+#include "time.h"
 
 static const struct option options[] = {
 	{"version", no_argument, NULL, 'V'},
@@ -16,6 +45,732 @@ static const struct option options[] = {
 	{"patch", no_argument, NULL, 'p'},
 	{NULL, 0, NULL, 0}
 };
+
+static void usage(FILE *f) {
+	fputs(
+"rredtool: handle the restricted subset of ed patches\n"
+"          as used by Debian {Packages,Sources}.diff files.\n"
+"Syntax:\n"
+"	rredtool <directory> <newfile> <oldfile> <mode>\n"
+"	 update .diff directory (to be called from reprepro)\n"
+"	rredtool --merge <patches..>\n"
+"	 merge patches into one patch\n"
+"	rredtool --patch <file> <patches..>\n"
+"	 apply patches to file\n", f);
+}
+
+static const char tab[16] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+
+struct hash {
+	char sha1[2*SHA1_DIGEST_SIZE+1];
+	off_t len;
+};
+/* we only need sha1 sum and we need it a lot, so implement a "only sha1" */
+static retvalue gen_sha1sum(const char *fullfilename, /*@out@*/struct hash *hash) {
+	char *sha1;
+	struct SHA1_Context context;
+	unsigned char sha1buffer[SHA1_DIGEST_SIZE];
+	static const size_t bufsize = 16384;
+	unsigned char *buffer = malloc(bufsize);
+	ssize_t sizeread;
+	int e, i;
+	int infd;
+	struct stat s;
+
+	if( buffer == NULL )
+		return RET_ERROR_OOM;
+
+	SHA1Init(&context);
+
+	infd = open(fullfilename, O_RDONLY);
+	if( infd < 0 ) {
+		e = errno;
+		if( (e == EACCES || e == ENOENT) &&
+				!isregularfile(fullfilename) ) {
+			free(buffer);
+			return RET_NOTHING;
+		}
+		fprintf(stderr,"Error %d opening '%s': %s\n",
+				e, fullfilename, strerror(e));
+		free(buffer);
+		return RET_ERRNO(e);
+	}
+	i = fstat(infd, &s);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d getting information about '%s': %s\n",
+				e, fullfilename, strerror(e));
+		return RET_ERRNO(e);
+	}
+	do {
+		sizeread = read(infd, buffer, bufsize);
+		if( sizeread < 0 ) {
+			e = errno;
+			fprintf(stderr,"Error %d while reading %s: %s\n",
+					e, fullfilename, strerror(e));
+			free(buffer);
+			(void)close(infd);
+			return RET_ERRNO(e);;
+		}
+		SHA1Update(&context, buffer, (size_t)sizeread);
+	} while( sizeread > 0 );
+	free(buffer);
+	i = close(infd);
+	if( i != 0 ) {
+		e = errno;
+		fprintf(stderr,"Error %d reading %s: %s\n",
+				e, fullfilename, strerror(e));
+		return RET_ERRNO(e);;
+	}
+	SHA1Final(&context, sha1buffer);
+	sha1 = hash->sha1;
+	for( i = 0 ; i < SHA1_DIGEST_SIZE ; i++ ) {
+		*(sha1++) = tab[sha1buffer[i] >> 4];
+		*(sha1++) = tab[sha1buffer[i] & 0xF];
+	}
+	*sha1 = '\0';
+	hash->len = s.st_size;
+	return RET_OK;
+}
+
+#define DATEFMT "%Y-%m-%d-%H%M.%S"
+#define DATELEN (4 + 1 + 2 + 1 + 2 + 1 + 2 + 2 + 1 + 2)
+
+static retvalue get_date_string(char *date, size_t max) {
+	struct tm *tm;
+	time_t current_time;
+	size_t len;
+
+	assert( max == DATELEN + 1 );
+
+	current_time = time(NULL);
+	if( current_time == ((time_t) -1) ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d from time: %s\n",
+				e, strerror(e));
+		return RET_ERROR;
+	}
+	tm = gmtime(&current_time);
+	if( tm == NULL ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d from gmtime: %s\n",
+				e, strerror(e));
+		return RET_ERROR;
+	}
+	errno = 0;
+	len = strftime(date, max, DATEFMT, tm);
+	if( len == 0 || len != DATELEN ) {
+		fprintf(stderr, "rredtool: iternal problem calling strftime!\n");
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static int create_temporary_file(void) {
+	const char *tempdir;
+	char *filename;
+	int fd;
+
+	tempdir = getenv("TMPDIR");
+	if( tempdir == NULL )
+		tempdir = getenv("TEMPDIR");
+	if( tempdir == NULL )
+		tempdir = "/tmp";
+	filename = mprintf("%s/XXXXXX", tempdir);
+	if( FAILEDTOALLOC(filename) ) {
+		errno = ENOMEM;
+		return -1;
+	}
+#ifdef HAVE_MKOSTEMP
+	fd = mkostemp(filename, 0600);
+#else
+#ifdef HAVE_MKSTEMP
+	fd = mkstemp(filename);
+#else
+#error Need mkostemp or mkstemp
+#endif
+#endif
+	if( fd >= 0 )
+		unlink(filename);
+	free(filename);
+	return fd;
+}
+
+static retvalue execute_into_file(char * const argv[], /*@out@*/int *fd_p, int expected_exit_code) {
+	pid_t child, pid;
+	int fd, status;
+
+	fd = create_temporary_file();
+	if( fd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error %d creating temporary file: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
+	}
+
+	child = fork();
+	if( child == (pid_t)-1 ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d forking: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
+	}
+	if( child == 0 ) {
+		int e, i;
+
+		do {
+			i = dup2(fd, 1);
+			e = errno;
+		} while( i < 0 && (e == EINTR || e == EBUSY) );
+		if( i < 0 ) {
+			fprintf(stderr, "rredtool: Error %d in dup2(%d, 0): %s\n",
+					e, fd, strerror(e));
+			raise(SIGUSR1);
+			exit(EXIT_FAILURE);
+		}
+		close(fd);
+		closefrom(3);
+		execvp(argv[0], argv);
+		fprintf(stderr, "rredtool: Error %d executing %s: %s\n",
+				e, argv[0], strerror(e));
+		raise(SIGUSR1);
+		exit(EXIT_FAILURE);
+	}
+	do {
+		pid = waitpid(child, &status, 0);
+	} while( pid == (pid_t)-1 && errno == EINTR );
+	if( pid == (pid_t)-1 ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d waiting for %s child %lu: %s!\n",
+				e, argv[0], (unsigned long)child, strerror(e));
+		(void)close(fd);
+		return RET_ERROR;
+	}
+	if( WIFEXITED(status) && WEXITSTATUS(status) == expected_exit_code ) {
+		if( lseek(fd, 0, SEEK_SET) == (off_t)-1 ) {
+			int e = errno;
+			fprintf(stderr, "rredtool: Error %d rewinding temporary file to start: %s!\n",
+					e, strerror(e));
+			(void)close(fd);
+			return RET_ERROR;
+		}
+		*fd_p = fd;
+		return RET_OK;
+	}
+	close(fd);
+	if( WIFEXITED(status)) {
+		fprintf(stderr, "rredtool: %s returned with unexpected exit code %d\n",
+				argv[0], (int)(WEXITSTATUS(status)));
+		return RET_ERROR;
+	}
+	if( WIFSIGNALED(status)) {
+		if( WTERMSIG(status) != SIGUSR1 )
+			fprintf(stderr, "rredtool: %s killed by signal %d\n",
+					argv[0], (int)(WTERMSIG(status)));
+		return RET_ERROR;
+	}
+	fprintf(stderr, "rredtool: %s child dies mysteriously (status=%d)\n",
+			argv[0], status);
+	return RET_ERROR;
+}
+
+struct patch {
+	struct patch *next;
+	char *basefilename;
+	size_t basefilename_len;
+	char *relfilename;
+	char *fullfilename;
+	struct hash hash, from;
+};
+
+static void patches_free(struct patch *r) {
+	while( r != NULL ) {
+		struct patch *n = r->next;
+
+		free(r->basefilename);
+		free(r->relfilename);
+		free(r->fullfilename);
+		free(r);
+		r = n;
+	}
+}
+
+static retvalue new_diff_file(struct patch **root_p, const char *directory, const char *relfilename, const char *since, const char date[DATELEN+1], struct modification *r) {
+	struct patch *p;
+	int i, status, fd, pipefds[2], tries = 3;
+	pid_t child, pid;
+	retvalue result;
+	FILE *f;
+
+	p = calloc(1, sizeof(struct patch));
+	if( FAILEDTOALLOC(p) )
+		return RET_ERROR_OOM;
+
+	if( since == NULL )
+		since = "";
+	p->basefilename = mprintf("%s%s", since, date);
+	if( FAILEDTOALLOC(p->basefilename) ) {
+		patches_free(p);
+		return RET_ERROR_OOM;
+	}
+	p->basefilename_len = strlen(p->basefilename);
+	p->relfilename = mprintf("%s.diff/%s.gz.new", relfilename, p->basefilename);
+	if( FAILEDTOALLOC(p->relfilename) ) {
+		patches_free(p);
+		return RET_ERROR_OOM;
+	}
+	p->fullfilename = mprintf("%s/%s", directory, p->relfilename);
+	if( FAILEDTOALLOC(p->fullfilename) ) {
+		patches_free(p);
+		return RET_ERROR_OOM;
+	}
+	/* create the file */
+	while( tries-- > 0 ) {
+		int e;
+
+		fd = open(p->fullfilename, O_CREAT|O_EXCL|O_NOCTTY|O_WRONLY, 0666);
+		if( fd >= 0 )
+			break;
+		e = errno;
+		if( e == EEXIST && tries > 0 )
+			unlink(p->fullfilename);
+		else {
+			fprintf(stderr, "rredtool: Error %d creating '%s': %s\n",
+					e, p->fullfilename, strerror(e));
+			return RET_ERROR;
+		}
+	}
+	assert( fd > 0 );
+	/* start an child to compress connected via a pipe */
+	i = pipe(pipefds);
+	assert( pipefds[0] > 0 );
+	if( i != 0 ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d creating pipe: %s\n",
+				e, strerror(e));
+		unlink(p->fullfilename);
+		return RET_ERROR;
+	}
+	child = fork();
+	if( child == (pid_t)-1 ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d forking: %s\n",
+				e, strerror(e));
+		unlink(p->fullfilename);
+		return RET_ERROR;
+	}
+	if( child == 0 ) {
+		int e;
+
+		close(pipefds[1]);
+		do {
+			i = dup2(pipefds[0], 0);
+			e = errno;
+		} while( i < 0 && (e == EINTR || e == EBUSY) );
+		if( i < 0 ) {
+			fprintf(stderr, "rredtool: Error %d in dup2(%d, 0): %s\n",
+					e, pipefds[0], strerror(e));
+			raise(SIGUSR1);
+			exit(EXIT_FAILURE);
+		}
+		do {
+			i = dup2(fd, 1);
+			e = errno;
+		} while( i < 0 && (e == EINTR || e == EBUSY) );
+		if( i < 0 ) {
+			fprintf(stderr, "rredtool: Error %d in dup2(%d, 0): %s\n",
+					e, fd, strerror(e));
+			raise(SIGUSR1);
+			exit(EXIT_FAILURE);
+		}
+		close(pipefds[0]);
+		close(fd);
+		closefrom(3);
+		execlp("gzip", "gzip", "-9", (char*)NULL);
+		fprintf(stderr, "rredtool: Error %d executing gzip: %s\n",
+				e, strerror(e));
+		raise(SIGUSR1);
+		exit(EXIT_FAILURE);
+	}
+	close(pipefds[0]);
+	close(fd);
+	/* send the data to the child */
+	f = fdopen(pipefds[1], "w");
+	if( f == NULL ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d fdopen'ing write end of pipe to compressor: %s\n",
+				e, strerror(e));
+		close(pipefds[1]);
+		unlink(p->fullfilename);
+		patches_free(p);
+		kill(child, SIGTERM);
+		waitpid(child, NULL, 0);
+		return RET_ERROR;
+	}
+	modification_printaspatch(f, r);
+	result = RET_OK;
+	i = ferror(f);
+	if( i != 0 ) {
+		fprintf(stderr, "rredtool: Error sending data to gzip!\n");
+		(void)fclose(f);
+		result = RET_ERROR;
+	} else {
+		i = fclose(f);
+		if( i != 0 ) {
+			int e = errno;
+			fprintf(stderr, "rredtool: Error %d sending data to gzip: %s!\n",
+					e, strerror(e));
+			result = RET_ERROR;
+		}
+	}
+	do {
+		pid = waitpid(child, &status, 0);
+	} while( pid == (pid_t)-1 && errno == EINTR );
+	if( pid == (pid_t)-1 ) {
+		int e = errno;
+		fprintf(stderr, "rredtool: Error %d waiting for gzip child %lu: %s!\n",
+				e, (unsigned long)child, strerror(e));
+		return RET_ERROR;
+	}
+	if( WIFEXITED(status) && WEXITSTATUS(status) == 0 ) {
+		if( RET_IS_OK(result) ) {
+			// TODO: instead open the file read/write,
+			// keep the old fd open and seek to the start here?
+			result = gen_sha1sum(p->fullfilename, &p->hash);
+			if( result == RET_NOTHING ) {
+				fprintf(stderr, "rredtool: %s mysteriously vanished!\n",
+						p->fullfilename);
+				result = RET_ERROR;
+			}
+		}
+		if( RET_IS_OK(result) ) {
+			p->next = *root_p;
+			*root_p = p;
+		}
+		return result;
+	}
+	unlink(p->fullfilename);
+	patches_free(p);
+	if( WIFEXITED(status)) {
+		fprintf(stderr, "rredtool: gzip returned with non-zero exit code %d\n",
+				(int)(WEXITSTATUS(status)));
+		return RET_ERROR;
+	}
+	if( WIFSIGNALED(status)) {
+		fprintf(stderr, "rredtool: gzip killed by signal %d\n",
+				(int)(WTERMSIG(status)));
+		return RET_ERROR;
+	}
+	fprintf(stderr, "rredtool: gzip child dies mysteriously (status=%d)\n",
+			status);
+	return RET_ERROR;
+}
+
+static retvalue write_new_index(const char *newindexfilename, const struct hash *newhash, const struct patch *root) {
+	int tries, fd, i;
+	const struct patch *p;
+
+	tries = 2;
+	while( tries > 0 ) {
+		errno = 0;
+		fd = open(newindexfilename,
+				O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY, 0666);
+		if( fd >= 0 )
+			break;
+		if( errno == EINTR )
+			continue;
+		tries--;
+		if( errno != EEXIST)
+			break;
+		unlink(newindexfilename);
+	}
+	if( fd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error %d creating '%s': %s\n",
+				e, newindexfilename, strerror(e));
+		return RET_ERROR;
+	}
+	i = dprintf(fd, "SHA1-Current: %s\n" "SHA1-History:\n",
+			newhash->sha1);
+	for( p = root ; i >= 0 && p != NULL ; p = p->next ) {
+		i = dprintf(fd, " %s %7ld %s\n",
+				p->from.sha1, (long int)p->from.len,
+				p->basefilename);
+	}
+	if( i >= 0 )
+		i = dprintf(fd, "SHA1-Patches:\n");
+	for( p = root ; i >= 0 && p != NULL ; p = p->next ) {
+		i = dprintf(fd, " %s %7ld %s\n",
+				p->hash.sha1, (long int)p->hash.len,
+				p->basefilename);
+	}
+	if( i >= 0 )
+		i = dprintf(fd, "X-Patch-Precedence: merged\n");
+	if( i >= 0 ) {
+		i = close(fd);
+		fd = -1;
+	}
+	if( i < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error %d writing to '%s': %s\n",
+				e, newindexfilename, strerror(e));
+		if( fd >= 0 )
+			(void)close(fd);
+		unlink(newindexfilename);
+		return RET_ERRNO(e);
+	}
+	return RET_OK;
+}
+
+static void remove_old_diffs(const char *relfilename, const char *diffdirectory, const char *indexfilename, const struct patch *keep) {
+	struct dirent *de;
+	DIR *dir;
+	const struct patch *p;
+
+	if( !isdirectory(diffdirectory) )
+		return;
+
+	dir = opendir(diffdirectory);
+	if( dir == NULL )
+		return;
+
+	while( (de = readdir(dir)) != NULL ) {
+		size_t len = strlen(de->d_name);
+
+		/* special rule for that */
+		if( len == 5 && strcmp(de->d_name, "Index") == 0 )
+			continue;
+
+		/* if it does not end with .gz or .gz.new, ignore */
+		if( len >= 4 && memcmp(de->d_name + len - 4, ".new", 4) == 0 )
+			len -= 4;
+		if( len < 3 )
+			continue;
+		if( memcmp(de->d_name + len - 3, ".gz", 3) != 0 )
+			continue;
+		len -= 3;
+
+		/* do not mark files to be deleted we still need: */
+		for( p = keep ; p != NULL ; p = p->next ) {
+			if( p->basefilename_len != len )
+				continue;
+			if( memcmp(p->basefilename, de->d_name, len) == 0 )
+				break;
+		}
+		if( p != NULL )
+			continue;
+		/* otherwise, tell reprepro this file is no longer needed: */
+		dprintf(3, "%s.diff/%s.tobedeleted\n",
+				relfilename,
+				de->d_name);
+	}
+	closedir(dir);
+	if( isregularfile(indexfilename) && keep == NULL )
+		dprintf(3, "%s.diff/Index.tobedeleted\n",
+				relfilename);
+}
+
+static retvalue ed_diff(const char *oldfullfilename, const char *newfullfilename, /*@out@*/struct rred_patch **rred_p) {
+	const char *argv[6];
+	int fd;
+	retvalue r;
+
+	argv[0] = "diff";
+	argv[1] = "--ed";
+	argv[2] = "--minimal";
+	argv[3] = oldfullfilename;
+	argv[4] = newfullfilename;
+	argv[5] = NULL;
+
+	r = execute_into_file((char * const *)argv, &fd, 1);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	return patch_loadfd("<temporary file>", fd, -1, rred_p);
+}
+
+static retvalue handle_diff(const char *directory, const char *mode, const char *relfilename, const char *relnewfilename, const char *fullfilename, const char *fullnewfilename, const char *diffdirectory, const char *indexfilename, const char *newindexfilename) {
+	retvalue r;
+	struct hash oldhash, newhash;
+	char date[DATELEN + 1];
+	struct patch *p, *root = NULL;
+	enum {mode_OLD, mode_NEW, mode_CHANGE} m;
+	struct rred_patch *new_rred_patch;
+	struct modification *new_modifications;
+
+	if( strcmp(mode, "new") == 0 )
+		m = mode_NEW;
+	else if( strcmp(mode, "old") == 0 )
+		m = mode_OLD;
+	else if( strcmp(mode, "change") == 0 )
+		m = mode_CHANGE;
+	else {
+		usage(stderr);
+		fprintf(stderr, "Error: 4th argument to rredtool in .diff maintainance mode must be 'new', 'old' or 'change'!\n");
+		return RET_ERROR;
+	}
+
+	if( m == mode_NEW ) {
+		/* There is no old file, nothing to do.
+		 * except checking for old diff files
+		 * and marking them to be deleted */
+		remove_old_diffs(relfilename, diffdirectory,
+				indexfilename, NULL);
+		return RET_OK;
+	}
+
+	r = get_date_string(date, sizeof(date));
+	if (RET_WAS_ERROR(r) )
+		return r;
+
+	assert( m == mode_OLD || m == mode_CHANGE );
+
+	/* calculate sha1 checksum of old file */
+	r = gen_sha1sum(fullfilename, &oldhash);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+				"rredtool: expected file '%s' is missing!\n",
+				fullfilename);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( m == mode_CHANGE ) {
+		/* calculate sha1 checksum of the new file */
+		r = gen_sha1sum(fullnewfilename, &newhash);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "rredtool: expected file '%s' is missing!\n",
+					fullnewfilename);
+			r = RET_ERROR;
+		}
+		if( RET_WAS_ERROR(r) )
+			return r;
+
+		/* if new == old, nothing to do */
+		if( newhash.len == oldhash.len &&
+				strcmp(newhash.sha1, oldhash.sha1) == 0 ) {
+			m = mode_OLD;
+		}
+	}
+
+	if( m == mode_OLD ) {
+		/* this index file did not change.
+		 * if it has a diffindex,
+		 *  tell reprepro to add that to the Release file */
+		if( isregularfile(indexfilename) ) {
+			// TODO: check if that still matches
+			// the file's contents...
+
+			// TODO: make future proof by ".keep"ing patches?
+			dprintf(3, "%s.diff/Index\n", relfilename);
+		}
+		return RET_OK;
+	}
+	assert( m == mode_CHANGE );
+/*
+ 	// TODO: read old index file to update it
+	if( isregularfile(indexfilename) ) {
+		r = RET_ERROR;
+		//r = diffindex_read(indexfilename, &diffindex);
+		if( RET_WAS_ERROR(r) ) {
+			remove_old_diffs(relfilename, diffdirectory, indexfilename);
+			return r;
+		}
+	} else
+		diffindex = NULL;
+	//TODO: if it does not match the one from the index, remove all.
+*/
+
+	mkdir(diffdirectory, 0777);
+
+	//TODO: create a fake diff to work around http://bugs.debian.org/545699
+	// root = ...;
+
+	/* create new diff calling diff --ed */
+	r = ed_diff(fullfilename, fullnewfilename, &new_rred_patch);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	new_modifications = patch_getmodifications(new_rred_patch);
+
+	/* save this compressed and store it's sha1sum */
+	r = new_diff_file(&root, directory, relfilename, NULL, date,
+			new_modifications);
+	if( RET_WAS_ERROR(r) ) {
+		modification_freelist(new_modifications);
+		patch_free(new_rred_patch);
+		return r;
+	}
+	root->from = oldhash;
+
+	// TODO: merge old diffs, safe them...
+
+	modification_freelist(new_modifications);
+	patch_free(new_rred_patch);
+
+	/* write new Index file */
+	r = write_new_index(newindexfilename, &newhash, root);
+	if( RET_WAS_ERROR(r) ) {
+		for( p = root ; p != NULL ; p = p->next )
+			unlink(p->fullfilename);
+		patches_free(root);
+		return r;
+	}
+
+	assert( root != NULL);
+
+	/* tell reprepro to remove all no longer needed files */
+	remove_old_diffs(relfilename, diffdirectory, indexfilename, root);
+
+	/* tell reprepro to create move those files to their final place
+	 * and include the Index in the Release file */
+
+	for( p = root ; p != NULL ; p = p->next )
+		dprintf(3, "%s.\n", p->relfilename);
+	dprintf(3, "%s.diff/Index.new\n", relfilename);
+	patches_free(root);
+	return RET_OK;
+}
+
+static retvalue handle_diff_dir(const char *args[4]) {
+	const char *directory = args[0];
+	const char *mode = args[3];
+	const char *relfilename = args[2];
+	const char *relnewfilename = args[1];
+	char *fullfilename, *fullnewfilename;
+	char *diffdirectory;
+	char *indexfilename;
+	char *newindexfilename;
+	retvalue r;
+
+	fullfilename = mprintf("%s/%s", directory, relfilename);
+	fullnewfilename = mprintf("%s/%s", directory, relnewfilename);
+	if( FAILEDTOALLOC(fullfilename) || FAILEDTOALLOC(fullnewfilename) ) {
+		free(fullfilename);
+		free(fullnewfilename);
+		return RET_ERROR_OOM;
+	}
+	diffdirectory = mprintf("%s.diff", fullfilename);
+	indexfilename = mprintf("%s.diff/Index", fullfilename);
+	newindexfilename = mprintf("%s.diff/Index.new", fullfilename);
+	if( FAILEDTOALLOC(diffdirectory) || FAILEDTOALLOC(indexfilename)
+			|| FAILEDTOALLOC(newindexfilename) ) {
+		free(diffdirectory);
+		free(indexfilename);
+		free(newindexfilename);
+		free(fullfilename);
+		free(fullnewfilename);
+		return RET_ERROR_OOM;
+	}
+	r = handle_diff(directory, mode, relfilename, relnewfilename, fullfilename, fullnewfilename, diffdirectory, indexfilename, newindexfilename);
+	free(diffdirectory);
+	free(indexfilename);
+	free(newindexfilename);
+	free(fullfilename);
+	free(fullnewfilename);
+	return r;
+}
 
 int main(int argc, const char *argv[]) {
 	struct rred_patch *patches[argc];
@@ -30,10 +785,7 @@ int main(int argc, const char *argv[]) {
 	while( (i = getopt_long(argc, (char**)argv, "+hVDmp", options, NULL)) != -1 ) {
 		switch (i) {
 			case 'h':
-				puts(
-"rred-tool: handle some subset of ed-patches\n"
-"Syntax: rred-tool --merge patches...\n"
-"or: rred-tool --patch file-to-patch patches...");
+				usage(stdout);
 				return EXIT_SUCCESS;
 			case 'V':
 				printf("rred-tool from " PACKAGE_NAME " version " PACKAGE_VERSION);
@@ -54,6 +806,20 @@ int main(int argc, const char *argv[]) {
 		}
 	}
 
+	if( !mergemode && !patchmode ) {
+		if( optind + 4 != argc ) {
+			usage(stderr);
+			return EXIT_FAILURE;
+		}
+		r = handle_diff_dir(argv + optind);
+		if( r == RET_ERROR_OOM ) {
+			fputs("Out of memory!\n", stderr);
+		}
+		if( RET_WAS_ERROR(r) )
+			return EXIT_FAILURE;
+		return EXIT_SUCCESS;
+	}
+
 	i = optind;
 	if( !mergemode ) {
 		if( i >= argc ) {
@@ -64,10 +830,6 @@ int main(int argc, const char *argv[]) {
 	}
 	if( mergemode && patchmode ) {
 		fprintf(stderr, "Cannot do --merge and --patch at the same time!\n");
-		return EXIT_FAILURE;
-	}
-	if( !mergemode && !patchmode ) {
-		fprintf(stderr, "Need either --merge or --patch!\n");
 		return EXIT_FAILURE;
 	}
 
@@ -130,4 +892,3 @@ int main(int argc, const char *argv[]) {
 		return EXIT_FAILURE;
 	return EXIT_SUCCESS;
 }
-
