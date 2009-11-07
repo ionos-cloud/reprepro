@@ -5,6 +5,7 @@ struct rred_patch;
 struct modification;
 
 retvalue patch_load(const char *, off_t, /*@out@*/struct rred_patch **);
+retvalue patch_loadfd(const char *, int, off_t, /*@out@*/struct rred_patch **);
 void patch_free(/*@only@*/struct rred_patch *);
 /*@only@*//*@null@*/struct modification *patch_getmodifications(struct rred_patch *);
 /*@null@*/const struct modification *patch_getconstmodifications(struct rred_patch *);

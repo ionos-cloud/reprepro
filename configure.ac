@@ -17,9 +17,12 @@ AC_SYS_LARGEFILE
 
 AC_C_BIGENDIAN()
 AC_HEADER_STDBOOL
-AC_CHECK_FUNCS([closefrom])
-AC_CHECK_FUNCS([strndup])
-AC_CHECK_FUNCS([dprintf])
+AC_CHECK_FUNCS([closefrom strndup dprintf])
+found_mktemp=no
+AC_CHECK_FUNCS([mkostemp mkstemp],[found_mktemp=yes ; break],)
+if test "$found_mktemp" = "no" ; then
+	AC_MSG_ERROR([Missing mkstemp or mkostemp])
+fi
 AC_CHECK_FUNC([vasprintf],,[AC_MSG_ERROR([Could not find vasprintf implementation!])])
 
 DBLIBS=""

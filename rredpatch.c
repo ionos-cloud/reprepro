@@ -92,6 +92,20 @@ void patch_free(/*@only@*/struct rred_patch *p) {
 }
 
 retvalue patch_load(const char *filename, off_t length, struct rred_patch **patch_p) {
+	int fd;
+
+	fd = open(filename, O_NOCTTY|O_RDONLY);
+	if( fd < 0 ) {
+		int err = errno;
+		fprintf(stderr,
+"Error %d opening '%s' for reading: %s\n", err, filename, strerror(err));
+		return RET_ERRNO(err);
+	}
+	return patch_loadfd(filename, fd, length, patch_p);
+
+}
+
+retvalue patch_loadfd(const char *filename, int fd, off_t length, struct rred_patch **patch_p) {
 	int i;
 	struct rred_patch *patch;
 	const char *p, *e, *d, *l;
@@ -101,16 +115,11 @@ retvalue patch_load(const char *filename, off_t length, struct rred_patch **patc
 	struct stat statbuf;
 
 	patch = calloc(1, sizeof(struct rred_patch));
-	if( FAILEDTOALLOC(patch) )
+	if( FAILEDTOALLOC(patch) ) {
+		(void)close(fd);
 		return RET_ERROR_OOM;
-	patch->fd = open(filename, O_NOCTTY|O_RDONLY);
-	if( patch->fd < 0 ) {
-		int err = errno;
-		fprintf(stderr,
-"Error %d opening '%s' for reading: %s\n", err, filename, strerror(err));
-		patch_free(patch);
-		return RET_ERRNO(err);
 	}
+	patch->fd = fd;
 	i = fstat(patch->fd, &statbuf);
 	if( i != 0 ) {
 		int err = errno;
