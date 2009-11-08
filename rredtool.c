@@ -196,7 +196,7 @@ static int create_temporary_file(void) {
 	return fd;
 }
 
-static retvalue execute_into_file(char * const argv[], /*@out@*/int *fd_p, int expected_exit_code) {
+static retvalue execute_into_file(const char * const argv[], /*@out@*/int *fd_p, int expected_exit_code) {
 	pid_t child, pid;
 	int fd, status;
 
@@ -230,7 +230,7 @@ static retvalue execute_into_file(char * const argv[], /*@out@*/int *fd_p, int e
 		}
 		close(fd);
 		closefrom(3);
-		execvp(argv[0], argv);
+		execvp(argv[0], (char * const *)argv);
 		fprintf(stderr, "rredtool: Error %d executing %s: %s\n",
 				e, argv[0], strerror(e));
 		raise(SIGUSR1);
@@ -274,11 +274,230 @@ static retvalue execute_into_file(char * const argv[], /*@out@*/int *fd_p, int e
 	return RET_ERROR;
 }
 
+struct old_index_file {
+	struct old_patch {
+		struct old_patch *next, *prev;
+		char *basefilename;
+		/* part until the + in the name */
+		char *nameprefix;
+		struct hash hash;
+	} *first, *last;
+	char sha1[2*SHA1_DIGEST_SIZE+1];
+};
+
+static void old_index_done(/*@only@*/struct old_index_file *o) {
+	while( o->first != NULL ) {
+		struct old_patch *p = o->first;
+
+		o->first = p->next;
+		free(p->basefilename);
+		free(p->nameprefix);
+		free(p);
+	}
+	o->last = NULL;
+}
+
+static inline retvalue parse_old_index(char *p, size_t len, struct old_index_file *oldindex) {
+	char *q, *e = p + len;
+	off_t filesize;
+	struct old_patch *o;
+
+	/* This is only supposed to parse files it wrote itself
+	 * (otherwise not having merged patches would most likely break
+	 * things in ugly ways), so parsing it can be very strict and easy: */
+
+#define checkorfail(val) if( e - p < strlen(val) || memcmp(p, val, strlen(val)) != 0) return RET_NOTHING; else { p += strlen(val); }
+
+	checkorfail("SHA1-Current: ");
+	q = strchr(p, '\n');
+	if( q == NULL || q - p != 2 * SHA1_DIGEST_SIZE)
+		return RET_NOTHING;
+	memcpy(oldindex->sha1, p, 2 * SHA1_DIGEST_SIZE);
+	oldindex->sha1[2 * SHA1_DIGEST_SIZE] = '\0';
+	p = q;
+	checkorfail("\nSHA1-History:\n");
+	while( *p == ' ' ) {
+		p++;
+
+		q = p;
+		while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') ) {
+			p++;
+		}
+		if( p - q != 2 * SHA1_DIGEST_SIZE)
+			return RET_NOTHING;
+
+		o = calloc(1, sizeof(struct old_patch));
+		if( FAILEDTOALLOC(o) )
+			return RET_ERROR_OOM;
+		o->prev = oldindex->last;
+		oldindex->last = o;
+		if( o->prev == NULL )
+			oldindex->first = o;
+		else
+			o->prev->next = o;
+
+		memcpy(o->hash.sha1, q, 2 * SHA1_DIGEST_SIZE);
+
+		while( *p == ' ' )
+			p++;
+		if( *p < '0' || *p > '9' )
+			return RET_NOTHING;
+		filesize = 0;
+		while( *p >= '0' && *p <= '9' ) {
+			filesize = 10 * filesize + (*p - '0');
+			p++;
+		}
+		o->hash.len = filesize;
+		if( *p != ' ' )
+			return RET_NOTHING;
+		p++;
+		q = strchr(p, '\n');
+		if( q == NULL )
+			return RET_NOTHING;
+		o->basefilename = strndup(p, (size_t)(q-p));
+		if( FAILEDTOALLOC(o->basefilename) )
+			return RET_ERROR_OOM;
+		p = q + 1;
+		q = strchr(o->basefilename, '+');
+		if( q == NULL )
+			o->nameprefix = mprintf("%s+", o->basefilename);
+		else
+			o->nameprefix = strndup(o->basefilename,
+					1 + (size_t)(q - o->basefilename));
+		if( FAILEDTOALLOC(o->nameprefix) )
+			return RET_ERROR_OOM;
+
+		/* allow pseudo-empty fake patches */
+		if( memcmp(o->hash.sha1, oldindex->sha1,
+					2 * SHA1_DIGEST_SIZE) == 0 )
+			continue;
+		// TODO: verify filename and create prefix...
+	}
+	checkorfail("SHA1-Patches:\n");
+	o = oldindex->first;
+	while( *p == ' ' ) {
+		p++;
+
+		if( o == NULL )
+			return RET_NOTHING;
+
+		q = p;
+		while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') ) {
+			p++;
+		}
+		if( p - q != 2 * SHA1_DIGEST_SIZE)
+			return RET_NOTHING;
+
+		while( *p == ' ' )
+			p++;
+		if( *p < '0' || *p > '9' )
+			return RET_NOTHING;
+		while( *p >= '0' && *p <= '9' ) {
+			p++;
+		}
+		if( *p != ' ' )
+			return RET_NOTHING;
+		p++;
+		q = strchr(p, '\n');
+		if( q == NULL )
+			return RET_NOTHING;
+		if( strncmp(o->basefilename, p, (size_t)(q-p)) != 0
+				|| o->basefilename[q-p] != '\0' )
+			return RET_NOTHING;
+		p = q + 1;
+		o = o->next;
+	}
+	checkorfail("X-Patch-Precedence: merged\n");
+	if( *p != '\0' || p != e )
+		return RET_NOTHING;
+	// TODO: check for dangerous stuff (like ../ in basename)
+	// TODO: ignore patches where the filename is missing?
+	return RET_OK;
+#undef checkorfail
+}
+
+static retvalue read_old_index(const char *fullfilename, /*@out@*/struct old_index_file *oldindex) {
+	int fd, i;
+	char *buffer;
+	size_t buffersize = 102400, available = 0;
+	ssize_t bytes_read;
+	retvalue r;
+
+	memset(oldindex, 0, sizeof(struct old_index_file));
+
+	if( !isregularfile(fullfilename) )
+		return RET_NOTHING;
+
+	fd = open(fullfilename, O_RDONLY);
+	if( fd < 0 ) {
+		int e = errno;
+
+		fprintf(stderr, "rredtool: Error %d opening '%s': %s\n",
+				e, fullfilename, strerror(e));
+		return RET_ERRNO(e);
+	}
+
+	/* index file should not be that big, so read into memory as a whole */
+	buffer = malloc(buffersize);
+	if( FAILEDTOALLOC(buffer) ) {
+		close(fd);
+		return RET_ERROR_OOM;
+	}
+	do {
+		bytes_read = read(fd, buffer + available,
+				buffersize - available - 1);
+		if( bytes_read < 0 ) {
+			int e = errno;
+
+			fprintf(stderr, "rredtool: Error %d reading '%s': %s\n",
+					e, fullfilename, strerror(e));
+			(void)close(fd);
+			free(buffer);
+			return RET_ERRNO(e);
+		}
+		assert( (size_t)bytes_read < buffersize - available );
+		available += bytes_read;
+		if( available + 1 >= buffersize ) {
+			fprintf(stderr, "rredtool: Ridicilous long '%s' file!\n",
+					fullfilename);
+			(void)close(fd);
+			free(buffer);
+			return RET_ERROR;
+		}
+	} while( bytes_read > 0 );
+	i = close(fd);
+	if( i != 0 ) {
+		int e = errno;
+
+		fprintf(stderr, "rredtool: Error %d reading '%s': %s\n",
+				e, fullfilename, strerror(e));
+		free(buffer);
+		return RET_ERRNO(e);
+	}
+	buffer[available] = '\0';
+
+	r = parse_old_index(buffer, available, oldindex);
+	free(buffer);
+	if( r == RET_NOTHING ) {
+		/* wrong format, most likely a left over file */
+		fprintf(stderr, "rredtool: File '%s' does not look like created by rredtool, ignoring!\n",
+				fullfilename);
+		old_index_done(oldindex);
+		memset(oldindex, 0, sizeof(struct old_index_file));
+		return RET_NOTHING;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		old_index_done(oldindex);
+		memset(oldindex, 0, sizeof(struct old_index_file));
+		return r;
+	}
+	return RET_OK;
+}
+
 struct patch {
 	struct patch *next;
 	char *basefilename;
 	size_t basefilename_len;
-	char *relfilename;
 	char *fullfilename;
 	struct hash hash, from;
 };
@@ -288,7 +507,6 @@ static void patches_free(struct patch *r) {
 		struct patch *n = r->next;
 
 		free(r->basefilename);
-		free(r->relfilename);
 		free(r->fullfilename);
 		free(r);
 		r = n;
@@ -314,12 +532,8 @@ static retvalue new_diff_file(struct patch **root_p, const char *directory, cons
 		return RET_ERROR_OOM;
 	}
 	p->basefilename_len = strlen(p->basefilename);
-	p->relfilename = mprintf("%s.diff/%s.gz.new", relfilename, p->basefilename);
-	if( FAILEDTOALLOC(p->relfilename) ) {
-		patches_free(p);
-		return RET_ERROR_OOM;
-	}
-	p->fullfilename = mprintf("%s/%s", directory, p->relfilename);
+	p->fullfilename = mprintf("%s/%s.diff/%s.gz.new",
+			directory, relfilename, p->basefilename);
 	if( FAILEDTOALLOC(p->fullfilename) ) {
 		patches_free(p);
 		return RET_ERROR_OOM;
@@ -582,7 +796,28 @@ static retvalue ed_diff(const char *oldfullfilename, const char *newfullfilename
 	argv[4] = newfullfilename;
 	argv[5] = NULL;
 
-	r = execute_into_file((char * const *)argv, &fd, 1);
+	r = execute_into_file(argv, &fd, 1);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	return patch_loadfd("<temporary file>", fd, -1, rred_p);
+}
+
+static retvalue read_old_patch(const char *directory, const char *relfilename, const struct old_patch *o, /*@out@*/struct rred_patch **rred_p) {
+	retvalue r;
+	const char *args[4];
+	char *filename;
+	int fd;
+
+	filename = mprintf("%s/%s.diff/%s",
+			directory, relfilename, o->basefilename);
+	args[0] = "gunzip";
+	args[1] = "-c";
+	args[2] = filename;
+	args[3] = NULL;
+
+	r = execute_into_file(args, &fd, 0);
+	free(filename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -597,6 +832,8 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	enum {mode_OLD, mode_NEW, mode_CHANGE} m;
 	struct rred_patch *new_rred_patch;
 	struct modification *new_modifications;
+	struct old_index_file old_index;
+	struct old_patch *o;
 
 	if( strcmp(mode, "new") == 0 )
 		m = mode_NEW;
@@ -628,8 +865,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	/* calculate sha1 checksum of old file */
 	r = gen_sha1sum(fullfilename, &oldhash);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,
-				"rredtool: expected file '%s' is missing!\n",
+		fprintf(stderr, "rredtool: expected file '%s' is missing!\n",
 				fullfilename);
 		r = RET_ERROR;
 	}
@@ -654,33 +890,32 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		}
 	}
 
+	r = read_old_index(indexfilename, &old_index);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	/* ignore old Index file if it does not match the old file */
+	if( memcmp(old_index.sha1, oldhash.sha1, 2*SHA1_DIGEST_SIZE) != 0 ) {
+		old_index_done(&old_index);
+		memset(&old_index, 0, sizeof(old_index));
+	}
+
 	if( m == mode_OLD ) {
 		/* this index file did not change.
-		 * if it has a diffindex,
-		 *  tell reprepro to add that to the Release file */
-		if( isregularfile(indexfilename) ) {
-			// TODO: check if that still matches
-			// the file's contents...
-
-			// TODO: make future proof by ".keep"ing patches?
+		 * keep old or delete if not current */
+		if( old_index.sha1[0] != '\0' ) {
+			for( o = old_index.first ; o != NULL ; o = o->next )
+				dprintf(3, "%s.diff/%s.gz.keep\n",
+						relfilename, o->basefilename);
 			dprintf(3, "%s.diff/Index\n", relfilename);
+		} else {
+			remove_old_diffs(relfilename, diffdirectory,
+					indexfilename, NULL);
 		}
+		old_index_done(&old_index);
 		return RET_OK;
 	}
 	assert( m == mode_CHANGE );
-/*
- 	// TODO: read old index file to update it
-	if( isregularfile(indexfilename) ) {
-		r = RET_ERROR;
-		//r = diffindex_read(indexfilename, &diffindex);
-		if( RET_WAS_ERROR(r) ) {
-			remove_old_diffs(relfilename, diffdirectory, indexfilename);
-			return r;
-		}
-	} else
-		diffindex = NULL;
-	//TODO: if it does not match the one from the index, remove all.
-*/
 
 	mkdir(diffdirectory, 0777);
 
@@ -689,25 +924,80 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 
 	/* create new diff calling diff --ed */
 	r = ed_diff(fullfilename, fullnewfilename, &new_rred_patch);
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		old_index_done(&old_index);
 		return r;
+	}
 
 	new_modifications = patch_getmodifications(new_rred_patch);
+	assert( new_modifications != NULL );
 
 	/* save this compressed and store it's sha1sum */
 	r = new_diff_file(&root, directory, relfilename, NULL, date,
 			new_modifications);
+	// TODO: special handling of misparsing to cope with that better?
 	if( RET_WAS_ERROR(r) ) {
 		modification_freelist(new_modifications);
 		patch_free(new_rred_patch);
+		old_index_done(&old_index);
 		return r;
 	}
 	root->from = oldhash;
 
-	// TODO: merge old diffs, safe them...
+	/* merge this into the old patches */
+
+	o = old_index.last;
+	/* ignore pseudo-empty workaround patches */
+	if( o != NULL && memcmp(o->hash.sha1, old_index.sha1,
+				sizeof(old_index.sha1)) == 0 )
+		o = o->prev;
+	for( ; o != NULL ; o = o->prev ) {
+		struct rred_patch *old_rred_patch;
+		struct modification *d, *merged;
+
+		d = modification_dup(new_modifications);
+		if( RET_WAS_ERROR(r) ) {
+			modification_freelist(new_modifications);
+			patch_free(new_rred_patch);
+			old_index_done(&old_index);
+			return r;
+		}
+
+		r = read_old_patch(directory, relfilename, o, &old_rred_patch);
+		// TODO: special handling of misparsing to cope with that better?
+		if( RET_WAS_ERROR(r) ) {
+			modification_freelist(new_modifications);
+			patch_free(new_rred_patch);
+			old_index_done(&old_index);
+			return r;
+		}
+		r = combine_patches(&merged,
+				patch_getmodifications(old_rred_patch), d);
+		patch_free(old_rred_patch);
+		if( RET_WAS_ERROR(r) ) {
+			modification_freelist(new_modifications);
+			patch_free(new_rred_patch);
+			old_index_done(&old_index);
+			return r;
+		}
+		r = new_diff_file(&root, directory, relfilename,
+				o->nameprefix, date, merged);
+		if( RET_WAS_ERROR(r) ) {
+			modification_freelist(new_modifications);
+			patch_free(new_rred_patch);
+			old_index_done(&old_index);
+			return r;
+		}
+		root->from = o->hash;
+	}
 
 	modification_freelist(new_modifications);
 	patch_free(new_rred_patch);
+	old_index_done(&old_index);
+
+	/* remove all patches where downloading the whole file is cheaper */
+	// TODO...
+	// if none left, remove Index file instead...
 
 	/* write new Index file */
 	r = write_new_index(newindexfilename, &newhash, root);
@@ -723,11 +1013,13 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	/* tell reprepro to remove all no longer needed files */
 	remove_old_diffs(relfilename, diffdirectory, indexfilename, root);
 
-	/* tell reprepro to create move those files to their final place
+	/* tell reprepro to move those files to their final place
 	 * and include the Index in the Release file */
 
 	for( p = root ; p != NULL ; p = p->next )
-		dprintf(3, "%s.\n", p->relfilename);
+		/* the trailing . means add but do not put in Release */
+		dprintf(3, "%s.diff/%s.gz.new.\n",
+				relfilename, p->basefilename);
 	dprintf(3, "%s.diff/Index.new\n", relfilename);
 	patches_free(root);
 	return RET_OK;

@@ -9,6 +9,7 @@ retvalue patch_loadfd(const char *, int, off_t, /*@out@*/struct rred_patch **);
 void patch_free(/*@only@*/struct rred_patch *);
 /*@only@*//*@null@*/struct modification *patch_getmodifications(struct rred_patch *);
 /*@null@*/const struct modification *patch_getconstmodifications(struct rred_patch *);
+struct modification *modification_dup(const struct modification *);
 void modification_freelist(/*@only@*/struct modification *);
 retvalue combine_patches(/*@out@*/struct modification **, /*@only@*/struct modification *, /*@only@*/struct modification *);
 void modification_printaspatch(FILE *, const struct modification *);

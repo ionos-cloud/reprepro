@@ -61,6 +61,28 @@ void modification_freelist(struct modification *p) {
 	}
 }
 
+struct modification *modification_dup(const struct modification *p) {
+	struct modification *first = NULL, *last = NULL;
+
+	for( ; p != NULL ; p = p->next ) {
+		struct modification *m = malloc(sizeof(struct modification));
+
+		if( FAILEDTOALLOC(m) ) {
+			modification_freelist(first);
+			return NULL;
+		}
+		*m = *p;
+		m->next = NULL;
+		m->previous = last;
+		if( last == NULL )
+			first = m;
+		else
+			m->previous->next = m;
+		last = m;
+	}
+	return first;
+}
+
 struct modification *patch_getmodifications(struct rred_patch *p) {
 	struct modification *m;
 
