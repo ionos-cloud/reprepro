@@ -945,15 +945,20 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	root->from = oldhash;
 
 	/* merge this into the old patches */
-
-	o = old_index.last;
-	/* ignore pseudo-empty workaround patches */
-	if( o != NULL && memcmp(o->hash.sha1, old_index.sha1,
-				sizeof(old_index.sha1)) == 0 )
-		o = o->prev;
-	for( ; o != NULL ; o = o->prev ) {
+	for( o = old_index.last ; o != NULL ; o = o->prev ) {
 		struct rred_patch *old_rred_patch;
 		struct modification *d, *merged;
+
+		/* ignore old and new hash, to filter out old
+		 * pseudo-empty patches and to reduce the number
+		 * of patches in case the file is reverted to an
+		 * earlier state */
+		if( memcmp(o->hash.sha1, old_index.sha1,
+				sizeof(old_index.sha1)) == 0 )
+			continue;
+		if( memcmp(o->hash.sha1, newhash.sha1,
+				sizeof(newhash.sha1)) == 0 )
+			continue;
 
 		d = modification_dup(new_modifications);
 		if( RET_WAS_ERROR(r) ) {
@@ -966,6 +971,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		r = read_old_patch(directory, relfilename, o, &old_rred_patch);
 		// TODO: special handling of misparsing to cope with that better?
 		if( RET_WAS_ERROR(r) ) {
+			modification_freelist(d);
 			modification_freelist(new_modifications);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
