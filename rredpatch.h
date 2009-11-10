@@ -12,7 +12,7 @@ void patch_free(/*@only@*/struct rred_patch *);
 struct modification *modification_dup(const struct modification *);
 void modification_freelist(/*@only@*/struct modification *);
 retvalue combine_patches(/*@out@*/struct modification **, /*@only@*/struct modification *, /*@only@*/struct modification *);
-void modification_printaspatch(FILE *, const struct modification *);
+void modification_printaspatch(void *, const struct modification *, void write_func(const void *, size_t, void *));
 retvalue patch_file(FILE *, const char *, const struct modification *);
 
 #endif

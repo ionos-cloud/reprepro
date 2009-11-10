@@ -640,8 +640,10 @@ retvalue patch_file(FILE *o, const char *source, const struct modification *patc
 	return RET_OK;
 }
 
-void modification_printaspatch(FILE *f, const struct modification *m) {
+void modification_printaspatch(void *f, const struct modification *m, void write_func(const void *, size_t, void *)) {
 	const struct modification *p, *q, *r;
+	char line[30];
+	int len;
 
 	if( m == NULL )
 		return;
@@ -674,24 +676,33 @@ void modification_printaspatch(FILE *f, const struct modification *m) {
 		if( newcount == 0 ) {
 			assert( oldcount > 0 );
 			if( oldcount == 1 )
-				fprintf(f, "%dd\n", start);
+				len = snprintf(line, sizeof(line), "%dd\n",
+						start);
 			else
-				fprintf(f, "%d,%dd\n", start, start + oldcount - 1);
+				len = snprintf(line, sizeof(line), "%d,%dd\n",
+						start, start + oldcount - 1);
 		} else {
 			if( oldcount == 0 )
-				fprintf(f, "%da\n", start-1);
+				len = snprintf(line, sizeof(line), "%da\n",
+						start - 1);
 			else if( oldcount == 1 )
-				fprintf(f, "%dc\n", start);
+				len = snprintf(line, sizeof(line), "%dc\n",
+						start);
 			else
-				fprintf(f, "%d,%dc\n", start, start + oldcount - 1);
+				len = snprintf(line, sizeof(line), "%d,%dc\n",
+						start, start + oldcount - 1);
+		}
+		assert( len < sizeof(line) );
+		write_func(line, len, f);
+		if( newcount != 0 ) {
 			while( r != p->next ) {
 				if( r->len > 0 )
-					fwrite(r->content, r->len, 1, f);
+					write_func(r->content, r->len, f);
 				newcount -= r->newlinecount;
 				r = r->next;
 			}
 			assert( newcount == 0 );
-			fputs(".\n", f);
+			write_func(".\n", 2, f);
 		}
 		p = q;
 	}
