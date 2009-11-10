@@ -66,10 +66,23 @@ struct hash {
 	off_t len;
 };
 /* we only need sha1 sum and we need it a lot, so implement a "only sha1" */
-static retvalue gen_sha1sum(const char *fullfilename, /*@out@*/struct hash *hash) {
+static void finalize_sha1(struct SHA1_Context *context, off_t len, /*@out@*/struct hash *hash){
 	char *sha1;
-	struct SHA1_Context context;
 	unsigned char sha1buffer[SHA1_DIGEST_SIZE];
+	int i;
+
+	SHA1Final(context, sha1buffer);
+	sha1 = hash->sha1;
+	for( i = 0 ; i < SHA1_DIGEST_SIZE ; i++ ) {
+		*(sha1++) = tab[sha1buffer[i] >> 4];
+		*(sha1++) = tab[sha1buffer[i] & 0xF];
+	}
+	*sha1 = '\0';
+	hash->len = len;
+}
+
+static retvalue gen_sha1sum(const char *fullfilename, /*@out@*/struct hash *hash) {
+	struct SHA1_Context context;
 	static const size_t bufsize = 16384;
 	unsigned char *buffer = malloc(bufsize);
 	ssize_t sizeread;
@@ -122,15 +135,22 @@ static retvalue gen_sha1sum(const char *fullfilename, /*@out@*/struct hash *hash
 				e, fullfilename, strerror(e));
 		return RET_ERRNO(e);;
 	}
-	SHA1Final(&context, sha1buffer);
-	sha1 = hash->sha1;
-	for( i = 0 ; i < SHA1_DIGEST_SIZE ; i++ ) {
-		*(sha1++) = tab[sha1buffer[i] >> 4];
-		*(sha1++) = tab[sha1buffer[i] & 0xF];
-	}
-	*sha1 = '\0';
-	hash->len = s.st_size;
+	finalize_sha1(&context, s.st_size, hash);
 	return RET_OK;
+}
+
+struct fileandhash {
+	FILE *f;
+	off_t len;
+	struct SHA1_Context context;
+};
+
+static void hash_and_write(const void *data, size_t len, void *p) {
+	struct fileandhash *fh = p;
+
+	fwrite(data, len, 1, fh->f);
+	SHA1Update(&fh->context, data, len);
+	fh->len += len;
 }
 
 #define DATEFMT "%Y-%m-%d-%H%M.%S"
@@ -518,7 +538,7 @@ static retvalue new_diff_file(struct patch **root_p, const char *directory, cons
 	int i, status, fd, pipefds[2], tries = 3;
 	pid_t child, pid;
 	retvalue result;
-	FILE *f;
+	struct fileandhash fh;
 
 	p = calloc(1, sizeof(struct patch));
 	if( FAILEDTOALLOC(p) )
@@ -609,8 +629,8 @@ static retvalue new_diff_file(struct patch **root_p, const char *directory, cons
 	close(pipefds[0]);
 	close(fd);
 	/* send the data to the child */
-	f = fdopen(pipefds[1], "w");
-	if( f == NULL ) {
+	fh.f = fdopen(pipefds[1], "w");
+	if( fh.f == NULL ) {
 		int e = errno;
 		fprintf(stderr, "rredtool: Error %d fdopen'ing write end of pipe to compressor: %s\n",
 				e, strerror(e));
@@ -621,15 +641,17 @@ static retvalue new_diff_file(struct patch **root_p, const char *directory, cons
 		waitpid(child, NULL, 0);
 		return RET_ERROR;
 	}
-	modification_printaspatch(f, r);
+	SHA1Init(&fh.context);
+	fh.len = 0;
+	modification_printaspatch(&fh, r, hash_and_write);
 	result = RET_OK;
-	i = ferror(f);
+	i = ferror(fh.f);
 	if( i != 0 ) {
 		fprintf(stderr, "rredtool: Error sending data to gzip!\n");
-		(void)fclose(f);
+		(void)fclose(fh.f);
 		result = RET_ERROR;
 	} else {
-		i = fclose(f);
+		i = fclose(fh.f);
 		if( i != 0 ) {
 			int e = errno;
 			fprintf(stderr, "rredtool: Error %d sending data to gzip: %s!\n",
@@ -648,16 +670,7 @@ static retvalue new_diff_file(struct patch **root_p, const char *directory, cons
 	}
 	if( WIFEXITED(status) && WEXITSTATUS(status) == 0 ) {
 		if( RET_IS_OK(result) ) {
-			// TODO: instead open the file read/write,
-			// keep the old fd open and seek to the start here?
-			result = gen_sha1sum(p->fullfilename, &p->hash);
-			if( result == RET_NOTHING ) {
-				fprintf(stderr, "rredtool: %s mysteriously vanished!\n",
-						p->fullfilename);
-				result = RET_ERROR;
-			}
-		}
-		if( RET_IS_OK(result) ) {
+			finalize_sha1(&fh.context, fh.len, &p->hash);
 			p->next = *root_p;
 			*root_p = p;
 		}
@@ -1080,6 +1093,11 @@ static retvalue handle_diff_dir(const char *args[4]) {
 	return r;
 }
 
+static void write_to_file(const void *data, size_t len, void *to) {
+	FILE *f = to;
+	fwrite(data, len, 1, f);
+}
+
 int main(int argc, const char *argv[]) {
 	struct rred_patch *patches[argc];
 	struct modification *m;
@@ -1164,9 +1182,9 @@ int main(int argc, const char *argv[]) {
 		struct modification *a = patch_getmodifications(patches[i]);
 		if( debug ) {
 			fputs("--------RESULT SO FAR--------\n", stderr);
-			modification_printaspatch(stderr, m);
+			modification_printaspatch(stderr, m, write_to_file);
 			fputs("--------TO BE MERGED WITH-----\n", stderr);
-			modification_printaspatch(stderr, a);
+			modification_printaspatch(stderr, a, write_to_file);
 			fputs("-------------END--------------\n", stderr);
 		}
 		r = combine_patches(&m, m, a);
@@ -1183,7 +1201,7 @@ int main(int argc, const char *argv[]) {
 	}
 	r = RET_OK;
 	if( mergemode ) {
-		modification_printaspatch(stdout, m);
+		modification_printaspatch(stdout, m, write_to_file);
 	} else {
 		r = patch_file(stdout, sourcename, m);
 	}
