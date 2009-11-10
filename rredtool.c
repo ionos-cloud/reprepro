@@ -981,7 +981,6 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			continue;
 		// TODO: special handling of misparsing to cope with that better?
 		if( RET_WAS_ERROR(r) ) {
-			modification_freelist(d);
 			modification_freelist(new_modifications);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
@@ -997,9 +996,9 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		}
 		r = combine_patches(&merged,
 				patch_getmodifications(old_rred_patch), d);
-		patch_free(old_rred_patch);
 		if( RET_WAS_ERROR(r) ) {
 			modification_freelist(new_modifications);
+			patch_free(old_rred_patch);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
 			return r;
@@ -1007,10 +1006,13 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		if( merged == NULL ) {
 			/* this should never happen as the sha1sum should
 			 * already be the same, but better safe than sorry */
+			patch_free(old_rred_patch);
 			continue;
 		}
 		r = new_diff_file(&root, directory, relfilename,
 				o->nameprefix, date, merged);
+		modification_freelist(merged);
+		patch_free(old_rred_patch);
 		if( RET_WAS_ERROR(r) ) {
 			modification_freelist(new_modifications);
 			patch_free(new_rred_patch);
