@@ -822,7 +822,7 @@ static retvalue read_old_patch(const char *directory, const char *relfilename, c
 	char *filename;
 	int fd;
 
-	filename = mprintf("%s/%s.diff/%s",
+	filename = mprintf("%s/%s.diff/%s.gz",
 			directory, relfilename, o->basefilename);
 
 	if( !isregularfile(filename) )
