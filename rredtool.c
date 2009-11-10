@@ -991,6 +991,11 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			old_index_done(&old_index);
 			return r;
 		}
+		if( merged == NULL ) {
+			/* this should never happen as the sha1sum should
+			 * already be the same, but better safe than sorry */
+			continue;
+		}
 		r = new_diff_file(&root, directory, relfilename,
 				o->nameprefix, date, merged);
 		if( RET_WAS_ERROR(r) ) {
