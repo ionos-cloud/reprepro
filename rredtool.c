@@ -811,6 +811,9 @@ static retvalue read_old_patch(const char *directory, const char *relfilename, c
 
 	filename = mprintf("%s/%s.diff/%s",
 			directory, relfilename, o->basefilename);
+
+	if( !isregularfile(filename) )
+		return RET_NOTHING;
 	args[0] = "gunzip";
 	args[1] = "-c";
 	args[2] = filename;
@@ -960,19 +963,21 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 				sizeof(newhash.sha1)) == 0 )
 			continue;
 
-		d = modification_dup(new_modifications);
+		r = read_old_patch(directory, relfilename, o, &old_rred_patch);
+		if( r == RET_NOTHING )
+			continue;
+		// TODO: special handling of misparsing to cope with that better?
 		if( RET_WAS_ERROR(r) ) {
+			modification_freelist(d);
 			modification_freelist(new_modifications);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
 			return r;
 		}
 
-		r = read_old_patch(directory, relfilename, o, &old_rred_patch);
-		// TODO: special handling of misparsing to cope with that better?
+		d = modification_dup(new_modifications);
 		if( RET_WAS_ERROR(r) ) {
-			modification_freelist(d);
-			modification_freelist(new_modifications);
+			patch_free(old_rred_patch);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
 			return r;
