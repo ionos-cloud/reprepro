@@ -906,6 +906,19 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		}
 	}
 
+	if( oldhash.len == 0 || (m == mode_CHANGE && newhash.len == 0) ) {
+		/* Old or new file empty. treat as mode_NEW.
+		 * (checked here instead of letting later
+		 * more general optimisations catch this as
+		 * this garantees there are enough lines to
+		 * make patches longer to work around apt bugs,
+		 * and because no need to parse Index if we want to delete
+		 * it anyway) */
+		remove_old_diffs(relfilename, diffdirectory,
+				indexfilename, NULL);
+		return RET_OK;
+	}
+
 	r = read_old_index(indexfilename, &old_index);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -974,6 +987,12 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			continue;
 		if( memcmp(o->hash.sha1, newhash.sha1,
 				sizeof(newhash.sha1)) == 0 )
+			continue;
+		/* empty files only make problems.
+		 * If you have a non-empty file with the sha1sum of an empty
+		 * one: Congratulations */
+		if( strcmp(o->hash.sha1,
+		           "da39a3ee5e6b4b0d3255bfef95601890afd80709") == 0 )
 			continue;
 
 		r = read_old_patch(directory, relfilename, o, &old_rred_patch);
