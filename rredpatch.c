@@ -707,3 +707,62 @@ void modification_printaspatch(void *f, const struct modification *m, void write
 		p = q;
 	}
 }
+
+/* make sure a patch is not empty and does not only add lines at the start,
+ * to work around some problems in apt */
+
+retvalue modification_addstuff(const char *source, struct modification **patch_p, char **line_p) {
+	struct modification **pp, *n, *m = NULL;
+	char *line = NULL; size_t bufsize = 0;
+	ssize_t got;
+	FILE *i;
+	long lineno = 0;
+
+	pp = patch_p;
+	/* check if this only adds things at the start and count how many */
+	while( *pp != NULL ) {
+		m = *pp;
+		if( m->oldlinecount > 0 || m->oldlinestart > 1 ) {
+			*line_p = NULL;
+			return RET_OK;
+		}
+		lineno += m->newlinecount;
+		pp = &(*pp)->next;
+	}
+	/* not get the next line and claim it was changed */
+	i = fopen(source, "r");
+	if( i == NULL ) {
+		int e = errno;
+		fprintf(stderr, "Error %d opening '%s': %s\n",
+				e, source, strerror(e));
+		return RET_ERRNO(e);
+	}
+	do {
+		got = getline(&line, &bufsize, i);
+	} while( got >= 0 && lineno-- > 0 );
+	if( got < 0 ) {
+		int e = errno;
+
+		/* You should have made sure the old file is not empty */
+		fprintf(stderr, "Error %d reading '%s': %s\n",
+				e, source, strerror(e));
+		(void)fclose(i);
+		return RET_ERRNO(e);
+	}
+	(void)fclose(i);
+
+	n = malloc(sizeof(struct modification));
+	if( FAILEDTOALLOC(n) )
+		return RET_ERROR_OOM;
+	*pp = n;
+	n->next = NULL;
+	n->previous = m;
+	n->oldlinestart = 1;
+	n->oldlinecount = 1;
+	n->newlinecount = 1;
+	n->len = got;
+	n->content = line;
+	*line_p = line;
+	return RET_OK;
+}
+

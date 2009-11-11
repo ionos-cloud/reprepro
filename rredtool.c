@@ -37,6 +37,18 @@
 #include "rredpatch.h"
 #include "time.h"
 
+/* apt had a bug, http://bugs.debian.org/545694
+ * to fail if a patch file only prepends text.
+ * This if fixed in apt version 0.7.24,
+ * so this workaround can be disabled when older apt
+ * versions are no longer expected (i.e. sqeeze is oldstable) */
+#define APT_545694_WORKAROUND
+
+/* apt always wants to apply the last patch
+ * (see http://bugs.debian.org/545699), so
+ * always create an fake-empty patch last */
+#define APT_545699_WORKAROUND
+
 static const struct option options[] = {
 	{"version", no_argument, NULL, 'V'},
 	{"help", no_argument, NULL, 'h'},
@@ -850,6 +862,10 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	struct modification *new_modifications;
 	struct old_index_file old_index;
 	struct old_patch *o;
+#if defined(APT_545694_WORKAROUND) || defined(APT_545699_WORKAROUND)
+	char *line;
+	struct modification *newdup;
+#endif
 
 	if( strcmp(mode, "new") == 0 )
 		m = mode_NEW;
@@ -948,8 +964,26 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 
 	mkdir(diffdirectory, 0777);
 
-	//TODO: create a fake diff to work around http://bugs.debian.org/545699
-	// root = ...;
+#ifdef APT_545699_WORKAROUND
+	/* create a fake diff to work around http://bugs.debian.org/545699 */
+	newdup = NULL;
+	r = modification_addstuff(fullnewfilename, &newdup, &line);
+	if( RET_WAS_ERROR(r) ) {
+		modification_freelist(newdup);
+		old_index_done(&old_index);
+		return r;
+	}
+	/* save this compressed and store it's sha1sum */
+	r = new_diff_file(&root, directory, relfilename, "aptbug545699+", date,
+			newdup);
+	modification_freelist(newdup);
+	free(line);
+	if( RET_WAS_ERROR(r) ) {
+		old_index_done(&old_index);
+		return r;
+	}
+	root->from = newhash;
+#endif
 
 	/* create new diff calling diff --ed */
 	r = ed_diff(fullfilename, fullnewfilename, &new_rred_patch);
@@ -961,9 +995,33 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	new_modifications = patch_getmodifications(new_rred_patch);
 	assert( new_modifications != NULL );
 
+#ifdef APT_545694_WORKAROUND
+	newdup = modification_dup(new_modifications);
+	if( RET_WAS_ERROR(r) ) {
+		modification_freelist(new_modifications);
+		patch_free(new_rred_patch);
+		old_index_done(&old_index);
+		return r;
+	}
+	r = modification_addstuff(fullnewfilename, &newdup, &line);
+	if( RET_WAS_ERROR(r) ) {
+		modification_freelist(newdup);
+		modification_freelist(new_modifications);
+		patch_free(new_rred_patch);
+		old_index_done(&old_index);
+		return r;
+	}
+#endif
+
 	/* save this compressed and store it's sha1sum */
 	r = new_diff_file(&root, directory, relfilename, NULL, date,
+#ifdef APT_545694_WORKAROUND
+			newdup);
+	modification_freelist(newdup);
+	free(line);
+#else
 			new_modifications);
+#endif
 	// TODO: special handling of misparsing to cope with that better?
 	if( RET_WAS_ERROR(r) ) {
 		modification_freelist(new_modifications);
@@ -1028,9 +1086,23 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			patch_free(old_rred_patch);
 			continue;
 		}
+#ifdef APT_545694_WORKAROUND
+		r = modification_addstuff(fullnewfilename, &merged, &line);
+		if( RET_WAS_ERROR(r) ) {
+			modification_freelist(merged);
+			patch_free(old_rred_patch);
+			modification_freelist(new_modifications);
+			patch_free(new_rred_patch);
+			old_index_done(&old_index);
+			return r;
+		}
+#endif
 		r = new_diff_file(&root, directory, relfilename,
 				o->nameprefix, date, merged);
 		modification_freelist(merged);
+#ifdef APT_545694_WORKAROUND
+		free(line);
+#endif
 		patch_free(old_rred_patch);
 		if( RET_WAS_ERROR(r) ) {
 			modification_freelist(new_modifications);
