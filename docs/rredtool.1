@@ -1,4 +1,4 @@
-.TH RREDTOOL 1 "06 Mar, 2009" "reprepro" REPREPRO
+.TH RREDTOOL 1 "2009-11-12" "reprepro" REPREPRO
 .SH NAME
 rredtool \- merge or apply a very restricted subset of ed patches
 .SH SYNOPSIS
@@ -17,10 +17,15 @@ rredtool \- merge or apply a very restricted subset of ed patches
 ]
 .B \-\-patch
 .IR file-to-patch " " patches...
+
+.B rredtool
+.IR directory " " newfile " " oldfile " " mode
 .SH DESCRIPTION
 rredtool is a tool to handle a subset of ed patches in a safe way.
 It is especially targeted at ed patches as used in Packages.diff
 and Sources.diff.
+Is also has a mode supposed to be called from reprepro as Index Hook
+to generate and update a \fBPackages.diff/Index\fP file.
 .SH "MODI"
 One of the following has to be given, so that rredtool know that to
 do.
@@ -39,14 +44,35 @@ the other arguments are ed patches to apply on this one.
 .B \-\-merge
 The arguments are treated as ed patches, which are merged into
 a single one.
+.TP
+.BR \-\-reprepro-hook " (or no other mode flag)
+Act as reprepro index hook to manage a \fBPackages.diff/index\fP file.
+That means it expects to get exactly 4 arguments
+and writes the names of files to place into filedescriptor 3.
+
+If neither --patch nor --merge is given,
+this mode is used, so you can just put
+
+ \fBDebIndices: Packages Release . .gz /usr/bin/rredtool\fP
+
+into reprepro's \fBconf/distributions\fP file to have a Packages.diff
+directory generated.
+(Note that you have to generate an uncompressed file (the single dot).
+You will need to have patch, gzip and gunzip available in your path.)
+
 .SH "OPTIONS"
 .TP
 .B \-\-debug
-Print intermediate results or other details that might be intresting
+Print intermediate results or other details that might be interesting
 when trying to track down bugs in rredtool but not intresting otherwise.
 .TP
 .BR \-o | \-\-output
 Not yet implemented.
+.SH "ENVIRONMENT"
+.TP
+.BR TMPDIR ", " TEMPDIR
+temporary files are created in $\fITEMPDIR\fP if set,
+otherwise in $\fITMPDIR\fP if set, otherwise in \fB/tmp/\fP.
 .SH "REPORTING BUGS"
 Report bugs or wishlist requests the Debian BTS
 (e.g. by using \fBreportbug reperepro\fP)

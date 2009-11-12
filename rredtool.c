@@ -54,6 +54,7 @@ static const struct option options[] = {
 	{"help", no_argument, NULL, 'h'},
 	{"debug", no_argument, NULL, 'D'},
 	{"merge", no_argument, NULL, 'm'},
+	{"reprepro-hook", no_argument, NULL, 'R'},
 	{"patch", no_argument, NULL, 'p'},
 	{NULL, 0, NULL, 0}
 };
@@ -1197,11 +1198,12 @@ int main(int argc, const char *argv[]) {
 	retvalue r;
 	bool mergemode = false;
 	bool patchmode = false;
+	bool repreprohook = false;
 	int i, count;
 	const char *sourcename IFSTUPIDCC(=NULL);
 	int debug = 0;
 
-	while( (i = getopt_long(argc, (char**)argv, "+hVDmp", options, NULL)) != -1 ) {
+	while( (i = getopt_long(argc, (char**)argv, "+hVDmpR", options, NULL)) != -1 ) {
 		switch (i) {
 			case 'h':
 				usage(stdout);
@@ -1218,6 +1220,9 @@ int main(int argc, const char *argv[]) {
 			case 'p':
 				patchmode = 1;
 				break;
+			case 'R':
+				repreprohook = 1;
+				break;
 			case '?':
 			default:
 				return EXIT_FAILURE;
@@ -1225,7 +1230,16 @@ int main(int argc, const char *argv[]) {
 		}
 	}
 
-	if( !mergemode && !patchmode ) {
+	if( repreprohook && mergemode ) {
+		fprintf(stderr, "Cannot do --reprepro-hook and --merge at the same time!\n");
+		return EXIT_FAILURE;
+	}
+	if( repreprohook && patchmode ) {
+		fprintf(stderr, "Cannot do --reprepro-hook and --patch at the same time!\n");
+		return EXIT_FAILURE;
+	}
+
+	if( repreprohook || (!mergemode && !patchmode) ) {
 		if( optind + 4 != argc ) {
 			usage(stderr);
 			return EXIT_FAILURE;

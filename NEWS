@@ -1,3 +1,6 @@
+Updates between 4.0.2 and 4.1.0:
+- rredtool can be used as index hook to maintain a .diff/Index file.
+
 Updates between 4.0.1 and 4.0.2:
 - add support for xz de-compression
 - fix regression (since 3.8.0) breaking arch1>arch2 update rules.

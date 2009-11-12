@@ -1,3 +1,7 @@
+2009-11-12
+	* add mode to rredtool to act as reprepro index hook and generate
+	and update a *.diff/Index file.
+
 2009-11-06
 	* when 'include'ing a .changes file, do not insist on section
 	information of non-.dsc source files.
