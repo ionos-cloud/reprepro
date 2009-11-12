@@ -9,6 +9,7 @@ testatoms.sh \
 testbuildneeding.sh \
 testcheck.sh \
 testcopy.sh \
+testdiffgeneration.sh \
 testexporthooks.sh \
 testflat.sh \
 testflood.sh \

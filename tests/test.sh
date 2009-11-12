@@ -25,6 +25,7 @@ runtest various3
 runtest copy
 runtest buildneeding
 runtest morgue
+runtest diffgeneration
 
 set +v +x
 echo

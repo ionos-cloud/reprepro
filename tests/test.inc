@@ -173,6 +173,7 @@ if [ "2" -le "$#" ] ; then
 else
 	REPREPRO="$SRCDIR/reprepro"
 fi
+RREDTOOL="$(dirname "$REPREPRO")/rredtool"
 
 if [ -z "$TESTOPTIONS" ] ; then
 	if [ -z "$USE_VALGRIND" ] ; then
@@ -303,6 +304,11 @@ sha1sum "$1" | cut -d' ' -f1
 function sha1andsize() {
 cat <<EOF
 $(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
+EOF
+}
+function sha1and7size() {
+cat <<EOF
+$(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%7s" "$1")
 EOF
 }
 function sha2() {
