@@ -330,10 +330,43 @@ static void old_index_done(/*@only@*/struct old_index_file *o) {
 	o->last = NULL;
 }
 
+static retvalue make_prefix_uniq(struct old_patch *o) {
+	struct old_patch *p, *last = NULL;
+	const char *lookfor = o->nameprefix;
+
+	/* make the prefix uniq by extending all previous occurences
+	 * of this prefix with an additional +. As this might already
+	 * have happened, this has to be possibly repeated */
+
+	while( true ) {
+		for( p = o->prev ; p != NULL ; p = p->prev ) {
+			if( p == last )
+				continue;
+			if( strcmp(p->nameprefix, lookfor) == 0 ) {
+				char *h;
+				size_t l = strlen(p->nameprefix);
+
+				h = realloc(p->nameprefix, l+2);
+				if( FAILEDTOALLOC(h) )
+					return RET_ERROR_OOM;
+				h[l] = '+' ;
+				h[l+1] = '\0';
+				p->nameprefix = h;
+				lookfor = h;
+				last = p;
+				break;
+			}
+		}
+		if( p == NULL )
+			return RET_OK;
+	}
+}
+
 static inline retvalue parse_old_index(char *p, size_t len, struct old_index_file *oldindex) {
 	char *q, *e = p + len;
 	off_t filesize;
 	struct old_patch *o;
+	retvalue r;
 
 	/* This is only supposed to parse files it wrote itself
 	 * (otherwise not having merged patches would most likely break
@@ -399,6 +432,9 @@ static inline retvalue parse_old_index(char *p, size_t len, struct old_index_fil
 					1 + (size_t)(q - o->basefilename));
 		if( FAILEDTOALLOC(o->nameprefix) )
 			return RET_ERROR_OOM;
+		r = make_prefix_uniq(o);
+		if( RET_WAS_ERROR(r) )
+			return r;
 
 		/* allow pseudo-empty fake patches */
 		if( memcmp(o->hash.sha1, oldindex->sha1,

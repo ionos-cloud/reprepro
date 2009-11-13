@@ -150,8 +150,6 @@ stdout
 EOF
 dodo cp dists/test/main/source/Sources old/1
 dodo test -f dists/test/main/source/Sources.diff/Index
-# TODO: check without those sleeps...
-sleep 2
 testrun - includedsc test pre_2.dsc 3<<EOF
 -v1*=pre_2.dsc: component guessed as 'main'
 -v6=Data seems not to be signed trying to use directly...
@@ -171,7 +169,6 @@ stdout
 EOF
 dodo cp dists/test/main/source/Sources old/2
 dodo test -f dists/test/main/source/Sources.diff/Index
-sleep 2
 testrun - includedsc test pre_3.dsc 3<<EOF
 -v1*=pre_3.dsc: component guessed as 'main'
 -v6=Data seems not to be signed trying to use directly...
