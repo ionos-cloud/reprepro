@@ -1,3 +1,7 @@
+2009-11-13
+	* 'include' now errors out early if the .changes includes source files but
+	no .dsc file.
+
 2009-11-12
 	* add mode to rredtool to act as reprepro index hook and generate
 	and update a *.diff/Index file.

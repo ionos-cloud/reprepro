@@ -2061,9 +2061,27 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =I hope you know what you do.
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
+*='filename_version.tar.gz' looks like part of an source package, but no dsc file listed in the .changes file!
+-v0*=There have been errors!
+returns 255
+EOF
+
+echo " $EMPTYMD5 section priority nowhere_old.dsc" >> broken.changes
+touch nowhere_old.dsc
+
+testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
+-v0=Data seems not to be signed trying to use directly...
+=Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Ignoring as --ignore=missingfield given.
+=In 'broken.changes': Missing 'Maintainer' field!
+=Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
+=I hope you know what you do.
+*=.changes put in a distribution not listed within it!
+*=Ignoring as --ignore=wrongdistribution given.
 *=Architecture header lists architecture 'brain', but no files for it!
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
+*='nowhere_old.dsc' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
 *=Cannot find file './filename_version.tar.gz' needed by 'broken.changes'!
 -v0*=There have been errors!
@@ -2077,23 +2095,35 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
 =Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
+=Warning: File 'nowhere_old.dsc' looks like source but does not start with 'nowhere_'!
+=Warning: File 'nowhere_old.dsc' looks like source but does not start with 'nowhere_'!
 =I hope you know what you do.
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
 *=Architecture header lists architecture 'brain', but no files for it!
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
+*='nowhere_old.dsc' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
 stdout
 -v2*=Created directory "./pool/stupid/n"
 -v2*=Created directory "./pool/stupid/n/nowhere"
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/stupid/n/nowhere/nowhere_old.dsc' added to checksums.db(pool).
+stderr
+*=Unexpected empty file './pool/stupid/n/nowhere/nowhere_old.dsc'!
+-v0*=There have been errors!
+returns 255
+stdout
 -v0*=Deleting files just added to the pool but not used (to avoid use --keepunusednewfiles next time)
 -v1*=deleting and forgetting pool/stupid/n/nowhere/filename_version.tar.gz
 -d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from checksums.db(pool).
+-v1*=deleting and forgetting pool/stupid/n/nowhere/nowhere_old.dsc
+-d1*=db: 'pool/stupid/n/nowhere/nowhere_old.dsc' removed from checksums.db(pool).
 -v2*=removed now empty directory ./pool/stupid/n/nowhere
 -v2*=removed now empty directory ./pool/stupid/n
 EOF
+rm nowhere_old.dsc
 mv conf/distributions.old conf/distributions
 testrun - -b . clearvanished 3<<EOF
 stderr
