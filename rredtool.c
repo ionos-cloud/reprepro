@@ -49,11 +49,14 @@
  * always create an fake-empty patch last */
 #define APT_545699_WORKAROUND
 
+static int max_patch_count = 20;
+
 static const struct option options[] = {
 	{"version", no_argument, NULL, 'V'},
 	{"help", no_argument, NULL, 'h'},
 	{"debug", no_argument, NULL, 'D'},
 	{"merge", no_argument, NULL, 'm'},
+	{"max-patch-count", required_argument, NULL, 'N'},
 	{"reprepro-hook", no_argument, NULL, 'R'},
 	{"patch", no_argument, NULL, 'p'},
 	{NULL, 0, NULL, 0}
@@ -894,6 +897,7 @@ static retvalue read_old_patch(const char *directory, const char *relfilename, c
 
 static retvalue handle_diff(const char *directory, const char *mode, const char *relfilename, const char *relnewfilename, const char *fullfilename, const char *fullnewfilename, const char *diffdirectory, const char *indexfilename, const char *newindexfilename) {
 	retvalue r;
+	int patch_count;
 	struct hash oldhash, newhash;
 	char date[DATELEN + 1];
 	struct patch *p, *root = NULL;
@@ -1090,6 +1094,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		return RET_OK;
 	}
 
+	patch_count = 1;
 	/* merge this into the old patches */
 	for( o = old_index.last ; o != NULL ; o = o->prev ) {
 		struct rred_patch *old_rred_patch;
@@ -1105,6 +1110,12 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		if( memcmp(o->hash.sha1, newhash.sha1,
 				sizeof(newhash.sha1)) == 0 )
 			continue;
+		/* limit number of patches
+		 * (Index needs to be downloaded, too) */
+
+		if( patch_count >= max_patch_count )
+			continue;
+
 		/* empty files only make problems.
 		 * If you have a non-empty file with the sha1sum of an empty
 		 * one: Congratulations */
@@ -1185,6 +1196,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			n->next = NULL;
 			patches_free(n);
 		}
+		patch_count++;
 	}
 
 	modification_freelist(new_modifications);
@@ -1293,6 +1305,9 @@ int main(int argc, const char *argv[]) {
 				break;
 			case 'p':
 				patchmode = 1;
+				break;
+			case 'N':
+				max_patch_count = atoi(optarg);
 				break;
 			case 'R':
 				repreprohook = 1;

@@ -66,6 +66,11 @@ You will need to have patch, gzip and gunzip available in your path.)
 Print intermediate results or other details that might be interesting
 when trying to track down bugs in rredtool but not intresting otherwise.
 .TP
+.B \-\-max\-patch\-count=\fIcount\fP
+When generating a \fIPackages\fP\fB.diff/Index\fP file,
+put at most \fIcount\fP patches in it
+(not counting possible apt workaround patches).
+.TP
 .BR \-o | \-\-output
 Not yet implemented.
 .SH "ENVIRONMENT"
