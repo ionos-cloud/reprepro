@@ -576,7 +576,10 @@ static void patches_free(struct patch *r) {
 		struct patch *n = r->next;
 
 		free(r->basefilename);
-		free(r->fullfilename);
+		if( r->fullfilename != NULL ) {
+			(void)unlink(r->fullfilename);
+			free(r->fullfilename);
+		}
 		free(r);
 		r = n;
 	}
@@ -1026,6 +1029,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	r = ed_diff(fullfilename, fullnewfilename, &new_rred_patch);
 	if( RET_WAS_ERROR(r) ) {
 		old_index_done(&old_index);
+		patches_free(root);
 		return r;
 	}
 
@@ -1038,6 +1042,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		modification_freelist(new_modifications);
 		patch_free(new_rred_patch);
 		old_index_done(&old_index);
+		patches_free(root);
 		return r;
 	}
 	r = modification_addstuff(fullnewfilename, &newdup, &line);
@@ -1046,6 +1051,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		modification_freelist(new_modifications);
 		patch_free(new_rred_patch);
 		old_index_done(&old_index);
+		patches_free(root);
 		return r;
 	}
 #endif
@@ -1064,9 +1070,25 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		modification_freelist(new_modifications);
 		patch_free(new_rred_patch);
 		old_index_done(&old_index);
+		patches_free(root);
 		return r;
 	}
 	root->from = oldhash;
+
+	/* if the diff is bigger than the new file,
+	 * there is no point in not getting the full file.
+	 * And as in all but extremly strange situations this
+	 * also means all older patches will get bigger when merged,
+	 * do not even bother to calculate them but remove all. */
+	if( root->hash.len > newhash.len ) {
+		modification_freelist(new_modifications);
+		patch_free(new_rred_patch);
+		old_index_done(&old_index);
+		patches_free(root);
+		remove_old_diffs(relfilename, diffdirectory,
+				indexfilename, NULL);
+		return RET_OK;
+	}
 
 	/* merge this into the old patches */
 	for( o = old_index.last ; o != NULL ; o = o->prev ) {
@@ -1098,6 +1120,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			modification_freelist(new_modifications);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
+			patches_free(root);
 			return r;
 		}
 
@@ -1106,6 +1129,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			patch_free(old_rred_patch);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
+			patches_free(root);
 			return r;
 		}
 		r = combine_patches(&merged,
@@ -1115,6 +1139,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			patch_free(old_rred_patch);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
+			patches_free(root);
 			return r;
 		}
 		if( merged == NULL ) {
@@ -1131,6 +1156,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			modification_freelist(new_modifications);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
+			patches_free(root);
 			return r;
 		}
 #endif
@@ -1145,29 +1171,37 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 			modification_freelist(new_modifications);
 			patch_free(new_rred_patch);
 			old_index_done(&old_index);
+			patches_free(root);
 			return r;
 		}
 		root->from = o->hash;
+
+		/* remove patches that are bigger than the new file */
+		if( root->hash.len >= newhash.len ) {
+			struct patch *n;
+
+			n = root;
+			root = n->next;
+			n->next = NULL;
+			patches_free(n);
+		}
 	}
 
 	modification_freelist(new_modifications);
 	patch_free(new_rred_patch);
 	old_index_done(&old_index);
 
-	/* remove all patches where downloading the whole file is cheaper */
-	// TODO...
-	// if none left, remove Index file instead...
+	assert( root != NULL);
+#ifdef APT_545699_WORKAROUND
+	assert( root->next != NULL);
+#endif
 
 	/* write new Index file */
 	r = write_new_index(newindexfilename, &newhash, root);
 	if( RET_WAS_ERROR(r) ) {
-		for( p = root ; p != NULL ; p = p->next )
-			unlink(p->fullfilename);
 		patches_free(root);
 		return r;
 	}
-
-	assert( root != NULL);
 
 	/* tell reprepro to remove all no longer needed files */
 	remove_old_diffs(relfilename, diffdirectory, indexfilename, root);
@@ -1175,10 +1209,14 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 	/* tell reprepro to move those files to their final place
 	 * and include the Index in the Release file */
 
-	for( p = root ; p != NULL ; p = p->next )
+	for( p = root ; p != NULL ; p = p->next ) {
 		/* the trailing . means add but do not put in Release */
 		dprintf(3, "%s.diff/%s.gz.new.\n",
 				relfilename, p->basefilename);
+		/* no longer delete: */
+		free(p->fullfilename);
+		p->fullfilename = NULL;
+	}
 	dprintf(3, "%s.diff/Index.new\n", relfilename);
 	patches_free(root);
 	return RET_OK;
