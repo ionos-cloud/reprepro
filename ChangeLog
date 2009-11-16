@@ -1,3 +1,6 @@
+2009-11-16
+	* include <stdint.h> where *int*_t is used
+
 2009-11-13
 	* 'include' now errors out early if the .changes includes source files but
 	no .dsc file.
