@@ -37,7 +37,7 @@ AC_SUBST([DBLIBS])
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
 
 AC_ARG_WITH(libgpgme,
-[  --with-libpgpme=path|yes|no	Give path to prefix libgpgme was installed with],[dnl
+[  --with-libgpgme=path|yes|no	Give path to prefix libgpgme was installed with],[dnl
 	case "$withval" in
 	no)
 	;;
