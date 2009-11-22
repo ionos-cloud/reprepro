@@ -1,3 +1,7 @@
+2009-11-22
+	* fix build with --without-libgpgme
+	(thanks to Reto Gantenbein for reporting)
+
 2009-11-16
 	* include <stdint.h> where *int*_t is used
 
