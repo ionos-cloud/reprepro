@@ -11,8 +11,6 @@
 struct target;
 struct logger;
 
-enum log_action { LOG_PACKAGE_ADD, LOG_PACKAGE_REPLACE, LOG_PACKAGE_REMOVE};
-
 /* file causing the current logger_log* run */
 extern /*@null@*/ const char *causingfile;
 /* command causing the current logger_log* run */
