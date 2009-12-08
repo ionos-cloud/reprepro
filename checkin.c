@@ -1264,6 +1264,16 @@ static void verifybinary(const struct changes *changes, struct upload_conditions
 		}
 	}
 }
+static void verifybyhands(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( e->type == fe_BYHAND ) {
+			if( !uploaders_verifystring(conditions, e->name) )
+				break;
+		}
+	}
+}
 
 static bool permissionssuffice(struct changes *changes, struct upload_conditions *conditions) {
 	do switch( uploaders_nextcondition(conditions) ) {
@@ -1281,6 +1291,9 @@ static bool permissionssuffice(struct changes *changes, struct upload_conditions
 			break;
 		case uc_BINARIES:
 			verifybinary(changes, conditions);
+			break;
+		case uc_BYHAND:
+			verifybyhands(changes, conditions);
 			break;
 		case uc_ARCHITECTURES:
 			verifyarchitectures(changes, conditions);

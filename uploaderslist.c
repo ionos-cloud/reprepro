@@ -40,11 +40,20 @@ struct upload_condition {
 	enum upload_condition_type type;
 	const struct upload_condition *next_if_true, *next_if_false;
 	bool accept_if_true, accept_if_false;
-	/* all binary packages must match something instead of only
-	   one of them */
-	bool needsall;
+	enum {
+		/* none matching means false, at least one being from
+		 * the set means true */
+		needs_any = 0,
+		/* one not matching means false, otherwise true */
+		needs_all,
+		/* one not matching means false,
+		 * otherwise true iff there is at least one */
+		needs_existsall,
+		/* having a candidate means true, otherwise false */
+		needs_anycandidate
+	} needs;
 	union {
-		/* uc_SECTIONS, uc_BINARIES, uc_SOURCENAME */
+		/* uc_SECTIONS, uc_BINARIES, uc_SOURCENAME, uc_BYHAND */
 		struct strlist strings;
 		/* uc_COMPONENTS, uc_ARCHITECTURES */
 		struct atomlist atoms;
@@ -55,6 +64,8 @@ struct upload_conditions {
 	const struct upload_condition *current;
 	/* current state of top most condition */
 	bool matching;
+	/* top most condition will not be true unless cleared*/
+	bool needscandidate;
 	/* always use last next, then decrement */
 	int count;
 	const struct upload_condition *conditions[];
@@ -110,6 +121,7 @@ static void uploadpermission_release(struct upload_condition *p) {
 			case uc_BINARIES:
 			case uc_SECTIONS:
 			case uc_SOURCENAME:
+			case uc_BYHAND:
 				strlist_done(&p->strings);
 				break;
 
@@ -308,7 +320,7 @@ retvalue uploaders_permissions(struct uploaders *u, const struct signatures *sig
 enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) {
 
 	if( c->current != NULL ) {
-		if( c->matching ) {
+		if( c->matching && !c->needscandidate ) {
 			if( c->current->accept_if_true )
 				return uc_ACCEPTED;
 			c->current = c->current->next_if_true;
@@ -330,7 +342,21 @@ enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) 
 			} else {
 				/* empty set fullfills all conditions,
 				   but not an exists condition */
-				c->matching = c->current->needsall;
+				switch( c->current->needs ) {
+					case needs_any:
+						c->matching = false;
+						c->needscandidate = false;
+						break;
+					case needs_all:
+						c->matching = true;
+						c->needscandidate = false;
+						break;
+					case needs_existsall:
+					case needs_anycandidate:
+						c->matching = true;
+						c->needscandidate = true;
+						break;
+				}
 				return c->current->type;
 			}
 		}
@@ -357,22 +383,33 @@ bool uploaders_verifystring(struct upload_conditions *conditions, const char *na
 
 	assert( c != NULL );
 	assert( c->type == uc_BINARIES || c->type == uc_SECTIONS ||
-		c->type == uc_SOURCENAME );
+		c->type == uc_SOURCENAME || c->type == uc_BYHAND );
 
-	if( conditions->current->needsall ) {
-		/* once one condition is false, the case is settled */
+	conditions->needscandidate = false;
+	switch( conditions->current->needs ) {
+		case needs_all:
+		case needs_existsall:
+			/* once one condition is false, the case is settled */
 
-		if( conditions->matching && !match_namecheck(&c->strings, name) )
-			conditions->matching = false;
-		/* but while it is true, more info is needed */
-		return conditions->matching;
-	} else {
-		/* once one condition is true, the case is settled */
-		if( !conditions->matching && match_namecheck(&c->strings, name) )
-			conditions->matching = true;
-		/* but while it is false, more info is needed */
-		return !conditions->matching;
+			if( conditions->matching &&
+					!match_namecheck(&c->strings, name) )
+				conditions->matching = false;
+			/* but while it is true, more info is needed */
+			return conditions->matching;
+		case needs_any:
+			/* once one condition is true, the case is settled */
+			if( !conditions->matching &&
+					match_namecheck(&c->strings, name) )
+				conditions->matching = true;
+			conditions->needscandidate = false;
+			/* but while it is false, more info is needed */
+			return !conditions->matching;
+		case needs_anycandidate:
+			/* we are settled, no more information needed */
+			return false;
 	}
+	/* NOT REACHED */
+	assert( conditions->current->needs != conditions->current->needs );
 }
 
 bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
@@ -381,21 +418,32 @@ bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
 	assert( c != NULL );
 	assert( c->type == uc_ARCHITECTURES );
 
-	if( conditions->current->needsall ) {
-		/* once one condition is false, the case is settled */
+	conditions->needscandidate = false;
+	switch( conditions->current->needs ) {
+		case needs_all:
+		case needs_existsall:
+			/* once one condition is false, the case is settled */
 
-		if( conditions->matching && !atomlist_in(&c->atoms, atom) )
-			conditions->matching = false;
-		/* but while it is true, more info is needed */
-		return conditions->matching;
-	} else {
-		/* once one condition is true, the case is settled */
-		if( !conditions->matching && atomlist_in(&c->atoms, atom) )
-			conditions->matching = true;
-		/* but while it is false, more info is needed */
-		return !conditions->matching;
+			if( conditions->matching &&
+					!atomlist_in(&c->atoms, atom) )
+				conditions->matching = false;
+			/* but while it is true, more info is needed */
+			return conditions->matching;
+		case needs_any:
+			/* once one condition is true, the case is settled */
+			if( !conditions->matching &&
+					atomlist_in(&c->atoms, atom) )
+				conditions->matching = true;
+			/* but while it is false, more info is needed */
+			return !conditions->matching;
+		case needs_anycandidate:
+			/* we are settled, no more information needed */
+			return false;
 	}
+	/* NOT REACHED */
+	assert( conditions->current->needs != conditions->current->needs );
 }
+
 static struct upload_condition *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys) {
 	size_t i;
 	char *reversed = malloc(len+1);
@@ -599,13 +647,13 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			retvalue r;
 
 			last->type = uc_ARCHITECTURES;
-			last->needsall = true;
+			last->needs = needs_all;
 			p += 13;
 			while( *p != '\0' && xisspace(*p) )
 				p++;
 			if( strncmp(p, "contain", 7) == 0 &&
 					strchr(" \t'", p[7]) != NULL ) {
-				last->needsall = false;
+				last->needs = needs_any;
 				p += 7;
 			}
 
@@ -621,13 +669,13 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 			retvalue r;
 
 			last->type = uc_BINARIES;
-			last->needsall = true;
+			last->needs = needs_all;
 			p += 8;
 			while( *p != '\0' && xisspace(*p) )
 				p++;
 			if( strncmp(p, "contain", 7) == 0 &&
 					strchr(" \t'", p[7]) != NULL ) {
-				last->needsall = false;
+				last->needs = needs_any;
 				p += 7;
 			}
 
@@ -638,18 +686,38 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 				uploadpermission_release(condition);
 				return r;
 			}
+		} else if( strncmp(p, "byhand", 6) == 0 &&
+			   strchr(" \t'", p[6]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_BYHAND;
+			last->needs = needs_existsall;
+			p += 8;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( *p != '\'' ) {
+				strlist_init(&last->strings);
+				r = RET_OK;
+			} else
+				r = parse_stringpart(&last->strings, &p,
+						filename, lineno,
+						column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
 		} else if( strncmp(p, "sections", 8) == 0 &&
 			   strchr(" \t'", p[8]) != NULL ) {
 			retvalue r;
 
 			last->type = uc_SECTIONS;
-			last->needsall = true;
+			last->needs = needs_all;
 			p += 8;
 			while( *p != '\0' && xisspace(*p) )
 				p++;
 			if( strncmp(p, "contain", 7) == 0 &&
 					strchr(" \t'", p[7]) != NULL ) {
-				last->needsall = false;
+				last->needs = needs_any;
 				p += 7;
 			}
 

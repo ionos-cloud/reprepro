@@ -1789,6 +1789,15 @@ Wildcards are not allowed.
 .TP
 .B architectures contain '\fIarchitecture\fP'\fR(\fP|'\fIarchitecture\fP'\fR)*\fP
 again only at least one instead of all is required.
+.TP
+.B byhand
+matches an upload with at least one byhand file
+(i.e. a file with section \fBbyhand\fP or \fBraw\-\fP\fIsomething\fP).
+.TP
+.B byhand '\fIsection\fP'\fR(\fP|'\fIsection\fP'\fR)*\fP
+matches an upload with at least one byhand file and
+all byhand files having a section listed in the list of given section.
+(i.e. \fBbyhand 'byhand'|'raw-*'\fP is currently is the same as \fBbyhand\fP).
 .PP
 Putting \fBnot\fP in front of a condition, inverses it's meaning.
 For example

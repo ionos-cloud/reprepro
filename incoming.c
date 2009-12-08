@@ -1797,6 +1797,16 @@ static inline bool isallowed(UNUSED(struct incoming *i), struct candidate *c, UN
 					break;
 			}
 			break;
+		case uc_BYHAND:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( file->type != fe_BYHAND )
+					continue;
+				if( !uploaders_verifystring(conditions,
+						file->section) )
+					break;
+			}
+			break;
 	} while( true );
 }
 
