@@ -230,7 +230,7 @@ EOF
 cp package* i/
 cp test.changes i/
 testrun - -b . processincoming ab 3<<EOF
-return 255
+return 243
 stderr
 =Data seems not to be signed trying to use directly...
 *=No distribution accepting 'test.changes'!
@@ -255,7 +255,7 @@ EOF
 cp -i package* i/
 cp testrevsigned.changes i/
 testrun - -b . processincoming ab 3<<EOF
-return 255
+return 243
 stderr
 =Data seems not to be signed trying to use directly...
 *=No distribution accepting 'testrevsigned.changes'!
@@ -284,7 +284,7 @@ EOF
 cp -i package* i/
 cp testbadsigned.changes i/
 testrun - -b . processincoming ab 3<<EOF
-return 255
+return 243
 stderr
 =Data seems not to be signed trying to use directly...
 *=No distribution accepting 'testbadsigned.changes'!
