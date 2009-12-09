@@ -478,7 +478,7 @@ struct candidate {
 	struct candidate_perdistribution {
 		struct candidate_perdistribution *next;
 		struct distribution *into;
-		bool skip;
+		bool skip, byhandhook;
 		struct candidate_package {
 			/* a package is something installing files, including
 			 * the pseudo-package for the .changes file, if that is
@@ -1320,7 +1320,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
-static retvalue candidate_preparebyhands(struct database *database, const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per) {
+static retvalue candidate_preparetrackbyhands(struct database *database, const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per) {
 	retvalue r;
 	char *byhanddir;
 	struct candidate_package *package;
@@ -1473,6 +1473,10 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 			case fe_DSC:
 				r = prepare_dsc(database, i, c, d, file);
 				break;
+			case fe_BYHAND:
+				// if (...)  d->byhandhook = true;
+				r = RET_NOTHING;
+				break;
 			default:
 				r = RET_NOTHING;
 				break;
@@ -1483,7 +1487,7 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 	}
 	if( d->into->tracking != dt_NONE ) {
 		if( d->into->trackingoptions.includebyhand ) {
-			r = candidate_preparebyhands(database, i, c, d);
+			r = candidate_preparetrackbyhands(database, i, c, d);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -1583,14 +1587,12 @@ static retvalue checkadd_dsc(struct database *database,
 	return r;
 }
 
-static retvalue candidate_add_into(struct database *database, const struct incoming *i, const struct candidate *c, const struct candidate_perdistribution *d) {
+static retvalue candidate_add_into(struct database *database, const struct incoming *i, const struct candidate *c, const struct candidate_perdistribution *d, const char **changesfilekey_p) {
 	retvalue r;
 	struct candidate_package *p;
 	struct trackingdata trackingdata;
 	struct distribution *into = d->into;
 	trackingdb tracks;
-	const char *changesfilekey = NULL;
-	char *origfilename;
 	struct atomlist binary_architectures;
 
 	if( interrupted() )
@@ -1620,10 +1622,6 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 			// TODO, but better before we start adding...
 		}
 	}
-
-	origfilename = calc_dirconcat(i->directory,
-			BASENAME(i, changesfile(c)->ofs));
-	causingfile = origfilename;
 
 	atomlist_init(&binary_architectures);
 	for( p = d->packages ; p != NULL ; p = p->next ) {
@@ -1673,7 +1671,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					trackingdata.pkg,
 					ft_CHANGES, &p->filekeys, false, database);
 			if( p->filekeys.count > 0 )
-				changesfilekey = p->filekeys.values[0];
+				*changesfilekey_p = p->filekeys.values[0];
 		} else if( p->master->type == fe_BYHAND ) {
 			assert( tracks != NULL );
 
@@ -1690,10 +1688,8 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 		} else
 			r = RET_ERROR_INTERNAL;
 
-		if( RET_WAS_ERROR(r) ) {
-			// TODO: remove files not yet referenced
+		if( RET_WAS_ERROR(r) )
 			break;
-		}
 	}
 	atomlist_done(&binary_architectures);
 
@@ -1704,16 +1700,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		free(origfilename);
-		return r;
-	}
-	logger_logchanges(into->logger, into->codename,
-			c->source, c->changesversion, c->control,
-			changesfile(c)->tempfilename, changesfilekey);
-	free(origfilename);
-	causingfile = NULL;
-	return RET_OK;
+	return r;
 }
 
 static inline retvalue candidate_checkadd_into(struct database *database,const struct incoming *i,const struct candidate_perdistribution *d) {
@@ -1972,11 +1959,68 @@ static retvalue candidate_finish_logdir(struct incoming *i, struct candidate *c)
 	return RET_OK;
 }
 
+static retvalue candidate_add_byhands(struct incoming *i, struct candidate *c, struct candidate_perdistribution *d) {
+	// TODO: call hook to actually include selected files.
+	return RET_OK;
+}
+
+/* the actual adding of packages,
+ * everything that can be tested earlier should be already tested now */
+static retvalue candidate_really_add(struct database *database, struct incoming *i, struct candidate *c) {
+	struct candidate_perdistribution *d;
+	retvalue r;
+
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		if( !d->byhandhook)
+			continue;
+		r = candidate_add_byhands(i, c, d);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
+	/* make hardlinks/copies of the files */
+	r = candidate_addfiles(database, c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( interrupted() )
+		return RET_ERROR_INTERRUPTED;
+
+	if( i->logdir != NULL ) {
+		r = candidate_finish_logdir(i, c);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( interrupted() )
+		return RET_ERROR_INTERRUPTED;
+	r = RET_OK;
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		struct distribution *into = d->into;
+		const char *changesfilekey = NULL;
+
+		/* if there are regular packages to add,
+		 * add them and call the log.
+		 * If all packages were skipped but a byhandhook run,
+		 * still advertise the .changes file to loggers */
+		if( !d->skip ) {
+			r = candidate_add_into(database, i, c, d,
+					&changesfilekey);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		} if( !d->byhandhook )
+			continue;
+		logger_logchanges(into->logger, into->codename,
+				c->source, c->changesversion, c->control,
+				changesfile(c)->tempfilename, changesfilekey);
+	}
+	return RET_OK;
+}
+
 static retvalue candidate_add(struct database *database, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
 	bool somethingtodo;
+	char *origfilename;
 	assert( c->perdistribution != NULL );
 
 	/* check if every distribution this is to be added to supports
@@ -2039,9 +2083,11 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 			i, d);
 		if( RET_WAS_ERROR(r) )
 			return r;
-		if( r == RET_NOTHING )
+		if( r == RET_NOTHING ) {
 			d->skip = true;
-		else
+			if( d->byhandhook )
+				somethingtodo = true;
+		} else
 			somethingtodo = true;
 	}
 	if( ! somethingtodo ) {
@@ -2062,28 +2108,17 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 	/* the actual adding of packages, make sure what can be checked was
 	 * checked by now */
 
-	/* make hardlinks/copies of the files */
-	r = candidate_addfiles(database, c);
+	origfilename = calc_dirconcat(i->directory,
+			BASENAME(i, changesfile(c)->ofs));
+	causingfile = origfilename;
+
+	r = candidate_really_add(database, i, c);
+
+	causingfile = NULL;
+	free(origfilename);
+
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( interrupted() )
-		return RET_ERROR_INTERRUPTED;
-
-	if( i->logdir != NULL ) {
-		r = candidate_finish_logdir(i, c);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-	if( interrupted() )
-		return RET_ERROR_INTERRUPTED;
-	r = RET_OK;
-	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		if( d->skip )
-			continue;
-		r = candidate_add_into(database, i, c, d);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
 
 	/* mark files as done */
 	for( file = c->files ; file != NULL ; file = file->next ) {
@@ -2093,7 +2128,7 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 			i->delete[file->ofs] = true;
 		}
 	}
-	return RET_OK;
+	return r;
 }
 
 static retvalue process_changes(struct database *database, struct incoming *i, int ofs) {
