@@ -422,7 +422,7 @@ downloads together with the size of completely downloaded packages.
 Generate all index files for the specified distributions.
 
 This regenerates all files unconditionally.
-It is only usefull if you want to be sure \fBdists\fP is up to date,
+It is only useful if you want to be sure \fBdists\fP is up to date,
 you called some other actions with \fB\-\-export=never\fP before or
 you want to create an initial empty but fully equipped
 .BI dists/ codename
@@ -838,7 +838,7 @@ add architecture \fBall\fP packages from another architectures
  Packages are only upgraded, never downgraded.
  If there is a package not being architecture \fPall\fP,
 then architecture \fBall\fP packages of the same source from the same
-source version are prefered over those that have no such binary sibling.
+source version are preferred over those that have no such binary sibling.
  Otherwise the package with the highest version wins.
 
 You can restrict with architectures are looked for architecture \fPall\fP
@@ -1004,7 +1004,7 @@ from the Suite to the Codename, use the
 .TP
 .B FakeComponentPrefix
 If this field is present,
-its argument is added - seperated by a slash -  before every
+its argument is added - separated by a slash -  before every
 Component written to the main Release file
 (unless the component already starts with it),
 and removed from the end of the Codename and Suite fields in that file.
@@ -1397,7 +1397,7 @@ with the key given here. (In the Format as
 by separating them with a "\fB|\fP" sign. Then finding a signature
 from one of the will suffice.
 To allow revoked or expired keys, add a "\fB!\fP" behind a key.
-(but to accept such signatures, the appropiate \fB\-\-ignore\fP
+(but to accept such signatures, the appropriate \fB\-\-ignore\fP
 is also needed).
 To also allow subkeys of a specified key, add a "\fB+\fP" behind a key.
 .TP
@@ -1510,14 +1510,14 @@ will limit the update rule to packages from the specified source packages.
 The arguments of this field, which much be elements of the
 form \fB.\fP, \fB.gz\fP, \fB.bz2\fP, \fB.lzma\fP, \fB.xz\fP and \fB.diff\fP
 specify in which order reprepro
-will look for a useable variant of needed index files
+will look for a usable variant of needed index files
 in the downloaded Release file.
 (The default is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
 download Packages.diff if listed in the Release file,
-otherwise or if not useable download .xz if
+otherwise or if not usable download .xz if
 listed in the Release file and there is a way to uncompress it,
-then .lzma if useable,
-then .bz2 if useable,
+then .lzma if usable,
+then .bz2 if usable,
 then .gz and then uncompressed).
 
 Together with \fBIgnoreRelease\fP reprepro will download the first
@@ -1630,7 +1630,7 @@ files.
 A directory where the files listed in the processed .changes files
 are copied into before they are read.
 You can avoid some copy operatations by placing this directory
-within the same moint point the pool hierachy
+within the same moint point the pool hierarchy
 is (at least partially) in.
 .TP
 .B LogDir
@@ -1683,7 +1683,7 @@ If an upload contains binaries from some architecture and architecture
 all packages,
 the architecture all packages are only put into the architectures within
 this upload.
-Usefull to combine with the \fBflood\fP command.
+Useful to combine with the \fBflood\fP command.
 .TP
 .B Permit
 A list of options to allow things otherwise causing errors:
