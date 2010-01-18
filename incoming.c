@@ -220,6 +220,15 @@ CFfinishparse(incoming) {
 		d->i = NULL;
 		return RET_ERROR;
 	}
+	if( i->logdir != NULL && i->logdir[0] != '/' ) {
+		char *n = calc_dirconcat(global.basedir, i->logdir);
+		if( n == NULL ) {
+			incoming_free(i);
+			return RET_ERROR_OOM;
+		}
+		free(i->logdir);
+		i->logdir = n;
+	}
 	if( i->morguedir != NULL && i->morguedir[0] != '/' ) {
 		char *n = calc_dirconcat(global.basedir, i->morguedir);
 		if( n == NULL ) {
@@ -391,7 +400,7 @@ CFSETPROC(incoming,options) {
 }
 
 CFvalueSETPROC(incoming, name)
-CFvalueSETPROC(incoming, logdir)
+CFdirSETPROC(incoming, logdir)
 CFdirSETPROC(incoming, tempdir)
 CFdirSETPROC(incoming, morguedir)
 CFdirSETPROC(incoming, directory)

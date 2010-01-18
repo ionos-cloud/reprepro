@@ -4,6 +4,7 @@ reprepro (4.1.0-0) UNRELEASED; urgency=low
   - rredtool can now create .diff/Index files,
     so one no longer needs python-apt and the included tiffany.py example
   - include stdint.h where uint32_t is used (Closes: 556422)
+  - properly handle relative LogDir in conf/incoming (Closes: 565658)
 
  -- Bernhard R. Link <brlink@debian.org>  Mon, 16 Nov 2009 15:31:07 +0100
 

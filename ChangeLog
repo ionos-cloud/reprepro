@@ -1,3 +1,6 @@
+2010-01-18
+	* properly handle relative LogDir in conf/incoming
+
 2009-12-08
 	* add byhand statement to uploaders files
 
