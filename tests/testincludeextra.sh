@@ -469,8 +469,8 @@ stdout
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--v2*=Created directory "log"
--v2*=Created directory "log/documentation_9876AD_source+all.0000000"
+-v2*=Created directory "./log"
+-v2*=Created directory "./log/documentation_9876AD_source+all.0000000"
 -d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
 -d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
 -d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
@@ -526,7 +526,7 @@ stdout
 -v2*=Created directory "./pool/main"
 -v2*=Created directory "./pool/main/d"
 -v2*=Created directory "./pool/main/d/documentation"
--v2*=Created directory "log/documentation_9876AD_source+all.0000001"
+-v2*=Created directory "./log/documentation_9876AD_source+all.0000001"
 -d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
 -d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
 -v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
