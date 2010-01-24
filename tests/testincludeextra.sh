@@ -397,13 +397,13 @@ stdout
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
--v1*=deleting './i/documentation_9876AD_all.deb'...
--v1*=deleting './i/documentation_9876AD_coal+all.log'...
--v1*=deleting './i/documentation_9876AD.tar.gz'...
--v1*=deleting './i/history.txt'...
--v1*=deleting './i/manifesto.txt'...
--v1*=deleting './i/documentation_9876AD.dsc'...
--v1*=deleting './i/test.changes'...
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD_coal+all.log'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -477,13 +477,13 @@ stdout
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
--v1*=deleting './i/documentation_9876AD_all.deb'...
--v1*=deleting './i/documentation_9876AD_coal+all.log'...
--v1*=deleting './i/documentation_9876AD.tar.gz'...
--v1*=deleting './i/history.txt'...
--v1*=deleting './i/manifesto.txt'...
--v1*=deleting './i/documentation_9876AD.dsc'...
--v1*=deleting './i/test.changes'...
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD_coal+all.log'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -538,13 +538,13 @@ stdout
 -d1*=db: 'documentation' added to packages.db(test|main|coal).
 -d1*=db: 'documentation' added to packages.db(test|main|source).
 -d1*=db: 'documentation' added to tracking.db(test).
--v1*=deleting './i/documentation_9876AD_all.deb'...
--v1*=deleting './i/documentation_9876AD_coal+all.log'...
--v1*=deleting './i/documentation_9876AD.tar.gz'...
--v1*=deleting './i/history.txt'...
--v1*=deleting './i/manifesto.txt'...
--v1*=deleting './i/documentation_9876AD.dsc'...
--v1*=deleting './i/test.changes'...
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD_coal+all.log'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test"
@@ -561,6 +561,332 @@ ls log/documentation_9876AD_source+all.0000001 | sort > results
 cat > results.expected <<EOF
 documentation_9876AD_coal+all.log
 test.changes
+EOF
+dodiff results.expected results
+
+# Now add a script to manually handle byhand files:
+
+rm -r db pool dists
+
+cp j/* i/
+
+cat >> conf/distributions <<EOF
+ByhandHooks:
+ byhand * manifesto.txt handle-byhand.sh
+EOF
+
+# first without the script, to check the error:
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./db"
+-v2*=Created directory "./log/documentation_9876AD_source+all.0000002"
+stderr
+*=Error 2 executing './conf/handle-byhand.sh': No such file or directory
+*=Byhandhook './conf/handle-byhand.sh' 'test' 'byhand' '-' 'manifesto.txt' './tmp/manifesto.txt' failed with exit code 255!
+-v0*=There have been errors!
+return 255
+EOF
+
+# then with the script
+
+cat > conf/handle-byhand.sh <<'EOF'
+#!/bin/sh
+echo "byhand-script called with: " "'$*'" >&2
+EOF
+cat > conf/handle-alternate.sh <<'EOF'
+#!/bin/sh
+echo "alternate-script called with: " "'$*'" >&2
+EOF
+chmod u+x conf/handle-alternate.sh
+chmod u+x conf/handle-byhand.sh
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-v2*=Created directory "./log/documentation_9876AD_source+all.0000003"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_source+all.changes' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_coal+all.log' added to checksums.db(pool).
+-v2*=Created directory "./pool/main/d/documentation/documentation_9876AD_byhand"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/history.txt' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_byhand/manifesto.txt' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-d1*=db: 'documentation' added to tracking.db(test).
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD_coal+all.log'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+stderr
+*=byhand-script called with:  'test byhand - manifesto.txt ./tmp/manifesto.txt'
+EOF
+
+ls log/documentation_9876AD_source+all.0000003 | sort > results
+cat > results.expected <<EOF
+documentation_9876AD_coal+all.log
+test.changes
+EOF
+dodiff results.expected results
+
+# then don't install byhand, now the unprocessed ones should end up in the log
+
+rm -r db dists pool
+cp j/* i/
+ed -s conf/distributions <<EOF
+g/^Tracking: /d
+i
+Tracking: all
+.
+w
+q
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./db"
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-v2*=Created directory "./log/documentation_9876AD_source+all.0000004"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-d1*=db: 'documentation' added to tracking.db(test).
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD_coal+all.log'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+stderr
+*=byhand-script called with:  'test byhand - manifesto.txt ./tmp/manifesto.txt'
+EOF
+
+ls log/documentation_9876AD_source+all.0000004 | sort > results
+cat > results.expected <<EOF
+documentation_9876AD_coal+all.log
+history.txt
+test.changes
+EOF
+dodiff results.expected results
+
+# then do without tracking at all
+
+rm -r db dists pool
+cp j/* i/
+ed -s conf/distributions <<EOF
+g/^Tracking: /d
+w
+q
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./db"
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-v2*=Created directory "./log/documentation_9876AD_source+all.0000005"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD_coal+all.log'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+stderr
+*=byhand-script called with:  'test byhand - manifesto.txt ./tmp/manifesto.txt'
+EOF
+
+ls log/documentation_9876AD_source+all.0000005 | sort > results
+cat > results.expected <<EOF
+documentation_9876AD_coal+all.log
+history.txt
+test.changes
+EOF
+dodiff results.expected results
+
+# then do without tracking and without log dir
+
+rm -r db dists pool
+cp j/* i/
+ed -s conf/incoming <<EOF
+g/^Logdir: /d
+w
+q
+EOF
+ed -s i/test.changes <<'EOF'
+g/^ .*\.log$/d
+w
+q
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./db"
+stderr
+*=Error: 'test.changes' contains unused file 'history.txt'!
+*=(Do Permit: unused_files to conf/incoming to ignore and
+*= additionaly Cleanup: unused_files to delete them)
+*=Alternatively, you can also add a LogDir: for 'foo' into conf/incoming
+*=then files like that will be stored there.
+-v0*=There have been errors!
+returns 255
+EOF
+
+# add more hooks:
+
+cat >> conf/distributions <<EOF
+ * * * handle-alternate.sh
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+stderr
+*=byhand-script called with:  'test byhand - manifesto.txt ./tmp/manifesto.txt'
+*=alternate-script called with:  'test byhand - history.txt ./tmp/history.txt'
+EOF
+
+# try a more real-worl example.
+
+rm -r db dists pool
+cp j/* i/
+ed -s i/test.changes <<'EOF'
+g/^ .*\.log$/d
+w
+q
+EOF
+ed -s conf/distributions <<EOF
+g/handle-/d
+a
+ byhand - * $SRCDIR/docs/copybyhand.example
+.
+w
+q
+EOF
+
+testrun - processincoming foo 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+stdout
+-v2*=Created directory "./pool"
+-v2*=Created directory "./pool/main"
+-v2*=Created directory "./pool/main/d"
+-v2*=Created directory "./pool/main/d/documentation"
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD_all.deb' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.tar.gz' added to checksums.db(pool).
+-d1*=db: 'pool/main/d/documentation/documentation_9876AD.dsc' added to checksums.db(pool).
+-d1*=db: 'documentation' added to packages.db(test|main|coal).
+-d1*=db: 'documentation' added to packages.db(test|main|source).
+-v3*=deleting './i/documentation_9876AD_all.deb'...
+-v3*=deleting './i/documentation_9876AD.tar.gz'...
+-v3*=deleting './i/history.txt'...
+-v3*=deleting './i/manifesto.txt'...
+-v3*=deleting './i/documentation_9876AD.dsc'...
+-v3*=deleting './i/test.changes'...
+-v0*=Exporting indices...
+-v2*=Created directory "./dists"
+-v2*=Created directory "./dists/test"
+-v2*=Created directory "./dists/test/main"
+-v2*=Created directory "./dists/test/main/binary-coal"
+-v6*= looking for changes in 'test|main|coal'...
+-v6*=  creating './dists/test/main/binary-coal/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/test/main/source"
+-v6*= looking for changes in 'test|main|source'...
+-v6*=  creating './dists/test/main/source/Sources' (gzipped)
+stderr
+EOF
+
+ls dists/test/extra/ | sort > results
+cat > results.expected <<EOF
+history.txt
+manifesto.txt
 EOF
 dodiff results.expected results
 

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008,2009,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -50,6 +50,7 @@
 #include "incoming.h"
 #include "files.h"
 #include "configparser.h"
+#include "byhandhook.h"
 #include "changes.h"
 
 enum permitflags {
@@ -487,7 +488,7 @@ struct candidate {
 	struct candidate_perdistribution {
 		struct candidate_perdistribution *next;
 		struct distribution *into;
-		bool skip, byhandhook;
+		bool skip;
 		struct candidate_package {
 			/* a package is something installing files, including
 			 * the pseudo-package for the .changes file, if that is
@@ -507,6 +508,11 @@ struct candidate {
 			/* true if skipped because already there or newer */
 			bool skip;
 		} *packages;
+		struct byhandfile {
+			struct byhandfile *next;
+			const struct candidate_file *file;
+			const struct byhandhook *hook;
+		} *byhandhookstocall;
 	} *perdistribution;
 	/* the logsubdir, and the list of files to put there, otherwise both NULL */
 	char *logsubdir;
@@ -558,6 +564,11 @@ static void candidate_free(/*@only@*/struct candidate *c) {
 			struct candidate_package *p = d->packages;
 			d->packages = p->next;
 			candidate_package_free(p);
+		}
+		while( d->byhandhookstocall != NULL ) {
+			struct byhandfile *h = d->byhandhookstocall;
+			d->byhandhookstocall = h->next;
+			free(h);
 		}
 		free(d);
 	}
@@ -1467,6 +1478,35 @@ static retvalue candidate_preparelogs(struct database *database, const struct in
 	return RET_OK;
 }
 
+static retvalue prepare_hookedbyhand(const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per, struct candidate_file *file) {
+	const struct distribution *d = per->into;
+	const struct byhandhook *h = NULL;
+	struct byhandfile **b_p, *b;
+	retvalue result = RET_NOTHING;
+	retvalue r;
+
+	b_p = &per->byhandhookstocall;
+	while( *b_p != NULL )
+		b_p = &(*b_p)->next;
+
+	while( byhandhooks_matched(d->byhandhooks, &h,
+				file->section, file->priority,
+				BASENAME(i, file->ofs)) ) {
+		r = candidate_usefile(i, c, file);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		b = calloc(1, sizeof(struct byhandfile));
+		if( FAILEDTOALLOC(b) )
+			return RET_ERROR_OOM;
+		b->file = file;
+		b->hook = h;
+		*b_p = b;
+		b_p = &b->next;
+		result = RET_OK;
+	}
+	return result;
+}
+
 static retvalue prepare_for_distribution(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *d) {
 	struct candidate_file *file;
 	retvalue r;
@@ -1483,8 +1523,7 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 				r = prepare_dsc(database, i, c, d, file);
 				break;
 			case fe_BYHAND:
-				// if (...)  d->byhandhook = true;
-				r = RET_NOTHING;
+				r = prepare_hookedbyhand(i, c, d, file);
 				break;
 			default:
 				r = RET_NOTHING;
@@ -1969,7 +2008,18 @@ static retvalue candidate_finish_logdir(struct incoming *i, struct candidate *c)
 }
 
 static retvalue candidate_add_byhands(struct incoming *i, struct candidate *c, struct candidate_perdistribution *d) {
-	// TODO: call hook to actually include selected files.
+	struct byhandfile *b;
+	retvalue r;
+
+	for( b = d->byhandhookstocall ; b != NULL ; b = b->next ){
+		const struct candidate_file *f = b->file;
+
+		r = byhandhook_call(b->hook, d->into->codename,
+				f->section, f->priority, BASENAME(i, f->ofs),
+				f->tempfilename);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 	return RET_OK;
 }
 
@@ -1980,7 +2030,7 @@ static retvalue candidate_really_add(struct database *database, struct incoming 
 	retvalue r;
 
 	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		if( !d->byhandhook)
+		if( d->byhandhookstocall == NULL )
 			continue;
 		r = candidate_add_byhands(i, c, d);
 		if( RET_WAS_ERROR(r) )
@@ -2015,7 +2065,7 @@ static retvalue candidate_really_add(struct database *database, struct incoming 
 					&changesfilekey);
 			if( RET_WAS_ERROR(r) )
 				return r;
-		} if( !d->byhandhook )
+		} if( d->byhandhookstocall == NULL )
 			continue;
 		logger_logchanges(into->logger, into->codename,
 				c->source, c->changesversion, c->control,
@@ -2094,7 +2144,7 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 			return r;
 		if( r == RET_NOTHING ) {
 			d->skip = true;
-			if( d->byhandhook )
+			if( d->byhandhookstocall != NULL )
 				somethingtodo = true;
 		} else
 			somethingtodo = true;

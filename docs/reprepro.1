@@ -1305,6 +1305,23 @@ header in Release files that points 42 days into the future.
 .B ReadOnly
 Disallow all modifications of this distribution or its directory
 in \fBdists/\fP\fIcodename\fP (with the exception of snapshot subdirectories).
+.TP
+.B ByHandHooks
+This species hooks to call for handling byhand/raw files by processincoming
+(and in future versions perhaps by include).
+
+Each line consists out of 4 arguments:
+A glob pattern for the section
+(clasically \fBbyhand\fP, though Ubuntu uses \fBraw-\fP*),
+a glob pattern for the priority (not usually used),
+and a glob pattern for the filename.
+
+The 4th argument is the script to be called when all of the above match.
+It gets 5 arguments: the codename of the distribution,
+the section (usually \fBbyhand\fP),
+the priority (usually only \fB\-\fP),
+the filename in the changes file and
+the full filename (with processincoming in the secure TmpDir).
 .SS conf/updates
 .TP
 .B Name

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -39,6 +39,7 @@
 #include "ignore.h"
 #include "uploaderslist.h"
 #include "configparser.h"
+#include "byhandhook.h"
 #include "distribution.h"
 
 static retvalue distribution_free(struct distribution *distribution) {
@@ -77,6 +78,7 @@ static retvalue distribution_free(struct distribution *distribution) {
 		if( distribution->uploaderslist != NULL ) {
 			uploaders_unlock(distribution->uploaderslist);
 		}
+		byhandhooks_free(distribution->byhandhooks);
 		result = RET_OK;
 
 		while( distribution->targets != NULL ) {
@@ -422,9 +424,17 @@ CFUSETPROC(distribution, Tracking) {
 	return tracking_parse(d, iter);
 }
 
+CFUSETPROC(distribution, byhandhooks) {
+	CFSETPROCVAR(distribution, d);
+
+	return byhandhooks_parse(iter, &d->byhandhooks);
+}
+
+
 static const struct configfield distributionconfigfields[] = {
 	CF("AlsoAcceptFor",	distribution,	alsoaccept),
 	CFr("Architectures",	distribution,	architectures),
+	CF("ByHandHooks",	distribution,	byhandhooks),
 	CFr("Codename",		distribution,	codename),
 	CFr("Components",	distribution,	components),
 	CF("ContentsArchitectures", distribution, contents_architectures),
