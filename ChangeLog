@@ -1,3 +1,7 @@
+2010-20-10
+	* fix failure if trying to extract exactly one of
+	section or priority from a tar file.
+
 2010-01-24
 	* add ByHandHooks to conf/distributions for hooks
 	called by processincoming (and in the future perhaps by include)

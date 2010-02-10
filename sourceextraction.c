@@ -486,8 +486,10 @@ static retvalue read_source_control_file(struct sourceextraction *e, struct arch
 
 	controllen = chunk_extract(buffer, buffer, &aftercontrol);
 
-	(void)chunk_getvalue(buffer, "Section", e->section_p);
-	(void)chunk_getvalue(buffer, "Priority", e->priority_p);
+	if( e->section_p != NULL )
+		(void)chunk_getvalue(buffer, "Section", e->section_p);
+	if( e->priority_p != NULL )
+		(void)chunk_getvalue(buffer, "Priority", e->priority_p);
 	free(buffer);
 	return RET_OK;
 }
