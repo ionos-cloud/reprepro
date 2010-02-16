@@ -11,6 +11,10 @@ AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 AC_GNU_SOURCE
 
+if test "${CFLAGS:+set}" != set ; then
+	CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -Wshadow"
+fi
+
 AC_PROG_CC_C99
 AC_PROG_INSTALL
 AC_SYS_LARGEFILE
