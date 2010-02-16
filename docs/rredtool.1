@@ -45,12 +45,12 @@ the other arguments are ed patches to apply on this one.
 The arguments are treated as ed patches, which are merged into
 a single one.
 .TP
-.BR \-\-reprepro-hook " (or no other mode flag)
+.BR \-\-reprepro\-hook " (or no other mode flag)
 Act as reprepro index hook to manage a \fBPackages.diff/index\fP file.
 That means it expects to get exactly 4 arguments
 and writes the names of files to place into filedescriptor 3.
 
-If neither --patch nor --merge is given,
+If neither \-\-patch nor \-\-merge is given,
 this mode is used, so you can just put
 
  \fBDebIndices: Packages Release . .gz /usr/bin/rredtool\fP
