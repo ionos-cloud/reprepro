@@ -2123,7 +2123,7 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 			fprintf(stderr,
 "Error: '%s' contains unused file '%s'!\n"
 "(Do Permit: unused_files to conf/incoming to ignore and\n"
-" additionaly Cleanup: unused_files to delete them)\n",
+" additionally Cleanup: unused_files to delete them)\n",
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 			if( file->type == fe_LOG || file->type == fe_BYHAND )
 				fprintf(stderr,

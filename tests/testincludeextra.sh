@@ -450,7 +450,7 @@ stderr
 =Data seems not to be signed trying to use directly...
 *=Error: 'test.changes' contains unused file 'documentation_9876AD_coal+all.log'!
 *=(Do Permit: unused_files to conf/incoming to ignore and
-*= additionaly Cleanup: unused_files to delete them)
+*= additionally Cleanup: unused_files to delete them)
 *=Alternatively, you can also add a LogDir: for 'foo' into conf/incoming
 *=then files like that will be stored there.
 -v0*=There have been errors!
@@ -786,7 +786,7 @@ stdout
 stderr
 *=Error: 'test.changes' contains unused file 'history.txt'!
 *=(Do Permit: unused_files to conf/incoming to ignore and
-*= additionaly Cleanup: unused_files to delete them)
+*= additionally Cleanup: unused_files to delete them)
 *=Alternatively, you can also add a LogDir: for 'foo' into conf/incoming
 *=then files like that will be stored there.
 -v0*=There have been errors!

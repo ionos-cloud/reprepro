@@ -919,7 +919,7 @@ static retvalue handle_diff(const char *directory, const char *mode, const char 
 		m = mode_CHANGE;
 	else {
 		usage(stderr);
-		fprintf(stderr, "Error: 4th argument to rredtool in .diff maintainance mode must be 'new', 'old' or 'change'!\n");
+		fprintf(stderr, "Error: 4th argument to rredtool in .diff maintenance mode must be 'new', 'old' or 'change'!\n");
 		return RET_ERROR;
 	}
 
