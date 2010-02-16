@@ -8,8 +8,10 @@ reprepro (4.1.0-1) unstable; urgency=low
   - fix some spelling mistakes in docs/recovery (Closes: 568712)
   - fix failure when trying to get only one of section or priority from
     a tar file. (Closes: 569115)
+  * Bump standards version
+  * use 3.0 source format
 
- -- Bernhard R. Link <brlink@debian.org>  Sun, 07 Feb 2010 18:42:56 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 16 Feb 2010 17:21:54 +0100
 
 reprepro (4.0.2-1) unstable; urgency=low
 
