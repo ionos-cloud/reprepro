@@ -233,18 +233,29 @@ static void changes_free(struct changes *c) {
 	free(c);
 }
 
-static struct fileentry *add_fileentry(struct changes *c, const char *basefilename, size_t len, bool source, size_t *ofs_p) {
+static struct fileentry **find_fileentry(struct changes *c, const char *basefilename, size_t basenamelen, size_t *ofs_p) {
 	struct fileentry **fp = &c->files;
 	struct fileentry *f;
 	size_t ofs = 0;
 
 	while( (f=*fp) != NULL ) {
-		if( f->namelen == len &&
-		    strncmp(basefilename, f->basename, len) == 0 )
+		if( f->namelen == basenamelen &&
+		    strncmp(basefilename, f->basename, basenamelen) == 0 ) {
 			break;
+		}
 		fp = &f->next;
 		ofs++;
 	}
+	if( ofs_p != NULL )
+		*ofs_p = ofs;
+	return fp;
+}
+
+static struct fileentry *add_fileentry(struct changes *c, const char *basefilename, size_t len, bool source, size_t *ofs_p) {
+	size_t ofs = 0;
+	struct fileentry **fp = find_fileentry(c, basefilename, len, &ofs);
+	struct fileentry *f = *fp;
+
 	if( f == NULL ) {
 		enum compression;
 
@@ -343,25 +354,13 @@ static retvalue findfile(const char *filename, const struct changes *c, /*@null@
 	return RET_OK;
 }
 
-static struct fileentry **find_file(struct changes *c, const char *basefilename, size_t basenamelen) {
-	struct fileentry **fp = &c->files;
-	struct fileentry *f;
-
-	while( (f=*fp) != NULL ) {
-		if( f->namelen == basenamelen &&
-		    strncmp(basefilename, f->basename, basenamelen) == 0 ) {
-			return fp;
-		}
-		fp = &f->next;
-	}
-	assert( f == NULL );
-	return fp;
-}
-
 static retvalue add_file(struct changes *c, /*@only@*/char *basefilename, /*@only@*/char *fullfilename, enum filetype type, struct fileentry **file) {
 	size_t basenamelen = strlen(basefilename);
-	struct fileentry **fp = find_file(c, basefilename, basenamelen);
-	struct fileentry *f = *fp;
+	struct fileentry **fp;
+	struct fileentry *f;
+
+	fp = find_fileentry(c, basefilename, basenamelen, NULL);
+	f = *fp;
 
 	if( f != NULL ) {
 		*file = f;
@@ -2697,9 +2696,11 @@ static retvalue dumbremovefiles(const char *changesfilename, struct changes *c, 
 		return RET_ERROR;
 	}
 	while( argc > 0 ) {
-		struct fileentry **fp = find_file(c, argv[0], strlen(argv[0]));
-		/*@null@*/ struct fileentry *f = *fp;
+		struct fileentry **fp;
+		/*@null@*/ struct fileentry *f;
 
+		fp = find_fileentry(c, argv[0], strlen(argv[0]), NULL);
+	       	f = *fp;
 		if( f == NULL ) {
 			fprintf(stderr, "Not removing '%s' as not listed in '%s'!\n",
 					argv[0], c->filename);
