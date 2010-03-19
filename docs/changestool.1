@@ -1,4 +1,4 @@
-.TH CHANGESTOOL 1 "2009-07-15" "reprepro" REPREPRO
+.TH CHANGESTOOL 1 "2010-03-19" "reprepro" REPREPRO
 .SH NAME
 changestool \- verify, dump, modify, create or fix Debian .changes files
 .SH SYNOPSIS
@@ -142,6 +142,15 @@ and in the directories specified by the \fB\-\-searchpath\fP.
 Behave like \fBadddsc\fP for filenames ending in \fB.dsc\fP,
 like \fBadddeb\fP for filenames ending in \fB.deb\fP or \fB.udeb\fP,
 and like \fBaddrawfile\fP for all other filenames
+.TP
+.B dumbremove \fIfilenames\fP
+Remove the specified files from the .changes file.
+No other fields (Architectures, Binaries, ...) are updated and
+no related files is removed.
+Just the given files (which must be specified without any \fB/\fP)
+are no longer listen in the .changes file (and only no longer in the
+changes file).
+
 .SH "SEE ALSO"
 .BR reprepro (1),
 .BR dpkg\-genchanges (1),
