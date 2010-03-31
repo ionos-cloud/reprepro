@@ -2034,6 +2034,15 @@ things like \fBsarge\fP, \fBetch\fP or \fBsid\fP.
 .B basename
 the name of a file without any directory information.
 .TP
+.B byhand
+Changes files can have files with section 'byhand' (Debian) or 'raw-' (Ubuntu).
+Those files are not packages but other data generated (usually together with
+packages) and then uploaded together with this changes files.
+
+With reprepro those can be stored in the pool next to their packages whith
+tracking, put in some log directory when using processincoming, or given to
+an hook script (currently only possible with processincoming).
+.TP
 .B filekey
 the position relative to the mirrordir.  (as found as "Filename:" in Packages.gz)
 .TP
