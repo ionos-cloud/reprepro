@@ -1,3 +1,6 @@
+2010-04-07
+	* add '${$source}' and '${$sourceversion}' to --list-format
+
 2010-03-31
 	* describe byhand file in the manpage's "nomenclature".
 
