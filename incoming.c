@@ -2065,7 +2065,7 @@ static retvalue candidate_really_add(struct database *database, struct incoming 
 					&changesfilekey);
 			if( RET_WAS_ERROR(r) )
 				return r;
-		} if( d->byhandhookstocall == NULL )
+		} else if( d->byhandhookstocall == NULL )
 			continue;
 		logger_logchanges(into->logger, into->codename,
 				c->source, c->changesversion, c->control,

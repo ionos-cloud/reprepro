@@ -1,4 +1,5 @@
 Updates between 4.1.0 and 4.1.1:
+- fix calling --changes Log:-notifiers from processincoming
 - add '${$source}' and '${$sourceversion}' to --list-format
 
 Updates between 4.0.2 and 4.1.0:

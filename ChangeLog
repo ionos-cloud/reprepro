@@ -1,3 +1,7 @@
+2010-04-23
+	* Fix typo causing --changes Log-notifiers not being called
+	with processincoming in many cases.
+
 2010-04-07
 	* add '${$source}' and '${$sourceversion}' to --list-format
 
