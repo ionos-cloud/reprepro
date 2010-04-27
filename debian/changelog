@@ -1,3 +1,11 @@
+reprepro (4.1.1-1) unstable; urgency=low
+
+  * new upstream release
+  - fix bug causing --changes Log:-notifiers not called by processincoming
+  - add '${$source}' and '${$sourceversion}' to --list-format
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 27 Apr 2010 14:16:29 +0200
+
 reprepro (4.1.0-1) unstable; urgency=low
 
   * new upstream release
