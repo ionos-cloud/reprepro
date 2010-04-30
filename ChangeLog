@@ -1,3 +1,8 @@
+2010-04-30
+	* change parsing of .changes lines to cope with
+	N_V.orig-X.tar.C files where V.orig-X does not survive
+	a proper version check (underscores most prominently).
+
 2010-04-23
 	* Fix typo causing --changes Log-notifiers not being called
 	with processincoming in many cases.
