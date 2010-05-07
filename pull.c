@@ -281,8 +281,6 @@ struct pull_target {
 	/*@null@*/struct pull_source *sources;
 	/*@dependent@*/struct target *target;
 	/*@null@*/struct upgradelist *upgradelist;
-	/* Ignore delete marks (as some lists were missing) */
-	bool ignoredelete;
 };
 
 static void pull_freetargets(struct pull_target *targets) {
@@ -380,7 +378,6 @@ static retvalue generatepulltarget(struct pull_distribution *pd, struct target *
 	pt->target = target;
 	pt->next = pd->targets;
 	pt->upgradelist = NULL;
-	pt->ignoredelete = false;
 	pt->sources = NULL;
 	s = &pt->sources;
 	pd->targets = pt;
@@ -708,7 +705,6 @@ static inline retvalue pull_searchformissing(/*@null@*/FILE *out,struct database
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				return result;
-			p->ignoredelete = false;
 			continue;
 		}
 
@@ -754,8 +750,6 @@ static bool pull_isbigdelete(struct pull_distribution *d) {
 	struct pull_target *u, *v;
 
 	for( u = d->targets ; u != NULL ; u=u->next ) {
-		if( u->ignoredelete )
-			continue;
 		if( upgradelist_isbigdelete(u->upgradelist) ) {
 			d->distribution->omitted = true;
 			for( v = d->targets ; v != NULL ; v = v->next ) {
@@ -786,7 +780,7 @@ static retvalue pull_install(struct database *database, struct pull_distribution
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_install(u->upgradelist, d->logger,
-				database, u->ignoredelete,
+				database, false,
 				pull_from_callback);
 		RET_UPDATE(d->status, r);
 		RET_UPDATE(result,r);
