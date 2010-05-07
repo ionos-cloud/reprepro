@@ -1453,5 +1453,6 @@ dodiff results.expected results
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 
-rm -r conf db pool dists i pkg
+rm -r conf db pool dists i pkg logs temp
+rm results.expected results.log.expected results bird.preprocessed
 testsuccess
