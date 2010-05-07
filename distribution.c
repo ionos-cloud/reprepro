@@ -875,7 +875,7 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 	}
 
 	for( d=distributions; d != NULL; d = d->next ) {
-		if( !d->selected )
+		if( d->omitted || !d->selected )
 			continue;
 		if( d->lookedat && (RET_IS_OK(d->status) ||
 			( d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
@@ -889,7 +889,7 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 
 	result = RET_NOTHING;
 	for( d=distributions; d != NULL; d = d->next ) {
-		if( !d->selected )
+		if( d->omitted || !d->selected )
 			continue;
 		if( !d->lookedat ) {
 			if( verbose >= 30 )

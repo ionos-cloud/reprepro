@@ -1757,6 +1757,23 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
  * Step 11: install the missing packages                                    *
  *          (missing files should have been downloaded first)               *
  ****************************************************************************/
+static bool isbigdelete(struct update_distribution *d) {
+	struct update_target *u, *v;
+
+	for( u = d->targets ; u != NULL ; u=u->next ) {
+		if( u->nothingnew || u->ignoredelete )
+			continue;
+		if( upgradelist_isbigdelete(u->upgradelist) ) {
+			d->distribution->omitted = true;
+			for( v = d->targets ; v != NULL ; v = v->next ) {
+				upgradelist_free(v->upgradelist);
+				v->upgradelist = NULL;
+			}
+			return true;
+		}
+	}
+	return false;
+}
 
 static void updates_from_callback(void *privdata, const char **rule_p, const char **from_p) {
 	struct update_index_connector *uindex = privdata;
@@ -1968,6 +1985,7 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	struct update_distribution *d;
 	struct downloadcache *cache;
 	struct aptmethodrun *run IFSTUPIDCC(=NULL);
+	bool todo;
 
 	causingfile = NULL;
 
@@ -1985,12 +2003,19 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 		return result;
 	}
 
+	todo = false;
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_readindices(stdout, database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
+		if( global.onlysmalldeletes ) {
+			if( isbigdelete(d) )
+				continue;
+		}
 		r = updates_enqueue(cache, database, d);
+		if( RET_IS_OK(r) )
+			todo = true;
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -2000,9 +2025,15 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 		RET_ENDUPDATE(result,r);
 	}
 
-	if( RET_WAS_ERROR(result) ) {
+	if( RET_WAS_ERROR(result) || !todo ) {
 		for( d=distributions ; d != NULL ; d=d->next) {
 			struct update_target *u;
+			if( d->distribution->omitted ) {
+				fprintf(stderr,
+"Not processing updates for '%s' because of --onlysmalldeletes!\n",
+					d->distribution->codename);
+			} else if( RET_IS_OK(result) )
+				markdone(d);
 			for( u=d->targets ; u != NULL ; u=u->next ) {
 				upgradelist_free(u->upgradelist);
 				u->upgradelist = NULL;
@@ -2038,6 +2069,8 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
+		if( d->distribution->omitted )
+			continue;
 		r = updates_install(database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -2045,6 +2078,10 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	}
 
 	for( d=distributions ; d != NULL ; d=d->next) {
+		if( d->distribution->omitted ) {
+			fprintf(stderr, "Not processing updates for '%s' because of --onlysmalldeletes!\n",
+					d->distribution->codename);
+		} else
 			markdone(d);
 	}
 	logger_wait();

@@ -1,3 +1,10 @@
+2010-05-07
+	* add --onlysmalldeletes option that cancels pulls
+	and updates that delete more than 20% of some target
+	(but at least 10 packages). The change also causes
+	update no longer claiming to get packages if there are
+	not any packages to get...
+
 2010-04-30
 	* change parsing of .changes lines to cope with
 	N_V.orig-X.tar.C files where V.orig-X does not survive

@@ -593,6 +593,22 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logge
 	return result;
 }
 
+bool upgradelist_isbigdelete(const struct upgradelist *upgrade) {
+	struct package_data *pkg;
+	long long deleted = 0, all = 0;
+
+	if( upgrade->list == NULL )
+		return false;
+	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
+		if( pkg->version_in_use == NULL )
+		       continue;
+		all++;
+		if( pkg->deleted )
+			deleted++;
+	}
+	return deleted >= 10 && all/deleted < 5;
+}
+
 retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete, void (*callback)(void *, const char **, const char **)){
 	struct package_data *pkg;
 	retvalue result,r;

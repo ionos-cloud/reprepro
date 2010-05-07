@@ -750,6 +750,25 @@ static retvalue pull_search(/*@null@*/FILE *out,struct database *database,struct
 	return result;
 }
 
+static bool pull_isbigdelete(struct pull_distribution *d) {
+	struct pull_target *u, *v;
+
+	for( u = d->targets ; u != NULL ; u=u->next ) {
+		if( u->ignoredelete )
+			continue;
+		if( upgradelist_isbigdelete(u->upgradelist) ) {
+			d->distribution->omitted = true;
+			for( v = d->targets ; v != NULL ; v = v->next ) {
+				upgradelist_free(v->upgradelist);
+				v->upgradelist = NULL;
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+
 static void pull_from_callback(void *privdata, const char **rule_p, const char **from_p) {
 	struct pull_source *source = privdata;
 
@@ -926,6 +945,14 @@ retvalue pull_update(struct database *database, struct pull_distribution *distri
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
+		if( global.onlysmalldeletes ) {
+			if( pull_isbigdelete(d) ) {
+				fprintf(stderr,
+"Not processing '%s' because of --onlysmalldeletes\n",
+						d->distribution->codename);
+				continue;
+			}
+		}
 		r = pull_install(database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
