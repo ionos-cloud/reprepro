@@ -17,6 +17,7 @@ testincludeextra.sh \
 testlayeredupdate.sh \
 testlayeredupdate2.sh \
 testmorgue.sh \
+testonlysmalldeletes.sh \
 testpackagediff.sh \
 testsignatures.sh \
 testsnapshotcopyrestore.sh \

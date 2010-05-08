@@ -1,3 +1,11 @@
+reprepro (4.1.2-1) unstable; urgency=low
+
+  * new bugfix release
+  - fix parsing of .orig-*.tar.* lines in .changes files (Closes: 579754)
+  - add option to limit update and pull effect (Closes: 580040)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 08 May 2010 14:10:02 +0200
+
 reprepro (4.1.1-1) unstable; urgency=low
 
   * new upstream release
