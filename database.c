@@ -889,19 +889,19 @@ static const char databaseerror[] = "Internal error of the underlying BerkeleyDB
 
 struct table {
 	char *name, *subname;
-	DB *berkleydb;
+	DB *berkeleydb;
 	bool *flagreset;
 	bool readonly, verbose;
 };
 
 static void table_printerror(struct table *table, int dbret, const char *action) {
 	if( table->subname != NULL )
-		table->berkleydb->err(table->berkleydb, dbret,
+		table->berkeleydb->err(table->berkeleydb, dbret,
 				"%sWithin %s subtable %s at %s",
 				databaseerror, table->name, table->subname,
 				action);
 	else
-		table->berkleydb->err(table->berkleydb, dbret,
+		table->berkeleydb->err(table->berkeleydb, dbret,
 				"%sWithin %s at %s",
 				databaseerror, table->name, action);
 }
@@ -914,11 +914,11 @@ retvalue table_close(struct table *table) {
 		return RET_NOTHING;
 	if( table->flagreset != NULL )
 		*table->flagreset = false;
-	if( table->berkleydb == NULL ) {
+	if( table->berkeleydb == NULL ) {
 		assert( table->readonly );
 		dbret = 0;
 	} else
-		dbret = table->berkleydb->close(table->berkleydb, 0);
+		dbret = table->berkeleydb->close(table->berkeleydb, 0);
 	if( dbret != 0 ) {
 		fprintf(stderr, "db_close(%s, %s): %s\n",
 				table->name, table->subname,
@@ -937,7 +937,7 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 	DBT Key, Data;
 
 	assert( table != NULL );
-	if( table->berkleydb == NULL ) {
+	if( table->berkeleydb == NULL ) {
 		assert( table->readonly );
 		return RET_NOTHING;
 	}
@@ -946,7 +946,7 @@ retvalue table_getrecord(struct table *table, const char *key, char **data_p) {
 	CLEARDBT(Data);
 	Data.flags = DB_DBT_MALLOC;
 
-	dbret = table->berkleydb->get(table->berkleydb, NULL,
+	dbret = table->berkeleydb->get(table->berkeleydb, NULL,
 			&Key, &Data, 0);
 	// TODO: find out what error code means out of memory...
 	if( dbret == DB_NOTFOUND )
@@ -980,7 +980,7 @@ retvalue table_getpair(struct table *table, const char *key, const char *value, 
 	size_t valuelen = strlen(value);
 
 	assert( table != NULL );
-	if( table->berkleydb == NULL ) {
+	if( table->berkeleydb == NULL ) {
 		assert( table->readonly );
 		return RET_NOTHING;
 	}
@@ -988,7 +988,7 @@ retvalue table_getpair(struct table *table, const char *key, const char *value, 
 	SETDBT(Key, key);
 	SETDBTl(Data, value, valuelen + 1);
 
-	dbret = table->berkleydb->get(table->berkleydb, NULL,
+	dbret = table->berkeleydb->get(table->berkeleydb, NULL,
 			&Key, &Data, DB_GET_BOTH);
 	if( dbret == DB_NOTFOUND || dbret == DB_KEYEMPTY )
 		return RET_NOTHING;
@@ -1020,7 +1020,7 @@ retvalue table_gettemprecord(struct table *table, const char *key, const char **
 	DBT Key, Data;
 
 	assert( table != NULL );
-	if( table->berkleydb == NULL ) {
+	if( table->berkeleydb == NULL ) {
 		assert( table->readonly );
 		return RET_NOTHING;
 	}
@@ -1028,7 +1028,7 @@ retvalue table_gettemprecord(struct table *table, const char *key, const char **
 	SETDBT(Key, key);
 	CLEARDBT(Data);
 
-	dbret = table->berkleydb->get(table->berkleydb, NULL,
+	dbret = table->berkeleydb->get(table->berkeleydb, NULL,
 			&Key, &Data, 0);
 	// TODO: find out what error code means out of memory...
 	if( dbret == DB_NOTFOUND )
@@ -1069,7 +1069,7 @@ retvalue table_checkrecord(struct table *table, const char *key, const char *dat
 
 	SETDBT(Key, key);
 	SETDBT(Data, data);
-	dbret = table->berkleydb->cursor(table->berkleydb, NULL, &cursor, 0);
+	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL, &cursor, 0);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "cursor");
 		return RET_DBERR(dbret);
@@ -1100,7 +1100,7 @@ retvalue table_removerecord(struct table *table, const char *key, const char *da
 
 	SETDBT(Key, key);
 	SETDBT(Data, data);
-	dbret = table->berkleydb->cursor(table->berkleydb, NULL, &cursor, 0);
+	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL, &cursor, 0);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "cursor");
 		return RET_DBERR(dbret);
@@ -1139,11 +1139,11 @@ retvalue table_addrecord(struct table *table, const char *key, const char *data,
 	DBT Key, Data;
 
 	assert( table != NULL );
-	assert( !table->readonly && table->berkleydb != NULL );
+	assert( !table->readonly && table->berkeleydb != NULL );
 
 	SETDBT(Key, key);
 	SETDBTl(Data, data, datalen + 1);
-	dbret = table->berkleydb->put(table->berkleydb, NULL,
+	dbret = table->berkeleydb->put(table->berkeleydb, NULL,
 			&Key, &Data, DB_NODUPDATA);
 	if( dbret != 0 && !(ignoredups && dbret == DB_KEYEXIST) ) {
 		table_printerror(table, dbret, "put");
@@ -1165,12 +1165,12 @@ retvalue table_adduniqsizedrecord(struct table *table, const char *key, const ch
 	DBT Key, Data;
 
 	assert( table != NULL );
-	assert( !table->readonly && table->berkleydb != NULL );
+	assert( !table->readonly && table->berkeleydb != NULL );
 	assert( data_size > 0 && data[data_size-1] == '\0' );
 
 	SETDBT(Key, key);
 	SETDBTl(Data, data, data_size);
-	dbret = table->berkleydb->put(table->berkleydb, NULL,
+	dbret = table->berkeleydb->put(table->berkeleydb, NULL,
 			&Key, &Data, allowoverwrite?0:DB_NOOVERWRITE);
 	if( nooverwrite && dbret == DB_KEYEXIST ) {
 		/* if nooverwrite is set, do nothing and ignore: */
@@ -1200,10 +1200,10 @@ retvalue table_deleterecord(struct table *table, const char *key, bool ignoremis
 	DBT Key;
 
 	assert( table != NULL );
-	assert( !table->readonly && table->berkleydb != NULL );
+	assert( !table->readonly && table->berkeleydb != NULL );
 
 	SETDBT(Key, key);
-	dbret = table->berkleydb->del(table->berkleydb, NULL, &Key, 0);
+	dbret = table->berkeleydb->del(table->berkeleydb, NULL, &Key, 0);
 	if( dbret != 0 ) {
 		if( dbret == DB_NOTFOUND && ignoremissing )
 			return RET_NOTHING;
@@ -1243,7 +1243,7 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 	struct cursor *cursor;
 	int dbret;
 
-	if( table->berkleydb == NULL ) {
+	if( table->berkeleydb == NULL ) {
 		assert( table->readonly );
 		*cursor_p = NULL;
 		return RET_OK;
@@ -1256,7 +1256,7 @@ retvalue table_newglobalcursor(struct table *table, struct cursor **cursor_p) {
 	cursor->cursor = NULL;
 	cursor->flags = DB_NEXT;
 	cursor->r = RET_OK;
-	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
 			&cursor->cursor, 0);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "cursor");
@@ -1309,7 +1309,7 @@ retvalue table_newduplicatecursor(struct table *table, const char *key, struct c
 	DBT Key, Data;
 	retvalue r;
 
-	if( table->berkleydb == NULL ) {
+	if( table->berkeleydb == NULL ) {
 		assert( table->readonly );
 		*cursor_p = NULL;
 		return RET_NOTHING;
@@ -1322,7 +1322,7 @@ retvalue table_newduplicatecursor(struct table *table, const char *key, struct c
 	cursor->cursor = NULL;
 	cursor->flags = DB_NEXT_DUP;
 	cursor->r = RET_OK;
-	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
 			&cursor->cursor, 0);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "cursor");
@@ -1362,7 +1362,7 @@ retvalue table_newpairedcursor(struct table *table, const char *key, const char 
 	retvalue r;
 	size_t valuelen = strlen(value);
 
-	if( table->berkleydb == NULL ) {
+	if( table->berkeleydb == NULL ) {
 		assert( table->readonly );
 		*cursor_p = NULL;
 		return RET_NOTHING;
@@ -1376,7 +1376,7 @@ retvalue table_newpairedcursor(struct table *table, const char *key, const char 
 	/* cursor_next is not allowed with this type: */
 	cursor->flags = DB_GET_BOTH;
 	cursor->r = RET_OK;
-	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
 			&cursor->cursor, 0);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "cursor");
@@ -1602,7 +1602,7 @@ bool table_isempty(struct table *table) {
 	DBT Key, Data;
 	int dbret;
 
-	dbret = table->berkleydb->cursor(table->berkleydb, NULL,
+	dbret = table->berkeleydb->cursor(table->berkeleydb, NULL,
 			&cursor, 0);
 	if( dbret != 0 ) {
 		table_printerror(table, dbret, "cursor");
@@ -1654,7 +1654,7 @@ static retvalue database_table(struct database *database, const char *filename, 
 		table->subname = NULL;
 	table->readonly = ISSET(flags, DB_RDONLY);
 	table->verbose = database->verbose;
-	r = database_opentable(database, filename, subtable, type, flags, &table->berkleydb);
+	r = database_opentable(database, filename, subtable, type, flags, &table->berkeleydb);
 	if( RET_WAS_ERROR(r) ) {
 		free(table->subname);
 		free(table->name);
@@ -1664,7 +1664,7 @@ static retvalue database_table(struct database *database, const char *filename, 
 	if( r == RET_NOTHING ) {
 		if( ISSET(flags, DB_RDONLY) ) {
 			/* sometimes we don't want a return here, when? */
-			table->berkleydb = NULL;
+			table->berkeleydb = NULL;
 			r = RET_OK;
 		} else {
 			free(table->subname);
