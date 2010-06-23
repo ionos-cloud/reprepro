@@ -879,7 +879,7 @@ retvalue database_create(struct database **result, struct distribution *alldistr
  * Stuff string parts                                                           *
  ********************************************************************************/
 
-static const char databaseerror[] = "Internal error of the underlying BerkleyDB database:\n";
+static const char databaseerror[] = "Internal error of the underlying BerkeleyDB database:\n";
 
 /********************************************************************************
  * Stuff to handle data in tables                                               *
@@ -1710,7 +1710,7 @@ retvalue database_opentracking(struct database *database, const char *codename, 
 		return RET_ERROR;
 	}
 	if( database->trackingdatabaseopen ) {
-		(void)fputs("Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
+		(void)fputs("Internal Error: Trying to open multiple tracking databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n", stderr);
 		return RET_ERROR;
 	}
 
@@ -1734,7 +1734,7 @@ retvalue database_openpackages(struct database *database, const char *identifier
 		return RET_ERROR;
 	}
 	if( database->packagesdatabaseopen ) {
-		(void)fputs("Internal Error: Trying to open multiple packages databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkleyDB)\n", stderr);
+		(void)fputs("Internal Error: Trying to open multiple packages databases at the same time.\nThis should normaly not happen (to avoid triggering bugs in the underlying BerkeleyDB)\n", stderr);
 		return RET_ERROR;
 	}
 

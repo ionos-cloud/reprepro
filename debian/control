@@ -18,7 +18,7 @@ Description: Debian package repository producer
  (.deb, .udeb, .dsc, ...). It stores files either being
  injected manually or downloaded from some other repository
  (partially) mirrored into one pool/ hierarchy.
- Managed packages and files are stored in a Berkley DB,
+ Managed packages and files are stored in a Berkeley DB,
  so no database server is needed.
  Checking signatures of mirrored repositories and creating
  signatures of the generated Package indices is supported.
