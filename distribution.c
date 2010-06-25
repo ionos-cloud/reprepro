@@ -1023,21 +1023,24 @@ retvalue distribution_loadalloverrides(struct distribution *distribution) {
 	retvalue r;
 
 	if( distribution->overrides.deb == NULL ) {
-		r = override_read(distribution->deb_override, &distribution->overrides.deb);
+		r = override_read(distribution->deb_override,
+				&distribution->overrides.deb, false);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.deb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.udeb == NULL ) {
-		r = override_read(distribution->udeb_override, &distribution->overrides.udeb);
+		r = override_read(distribution->udeb_override,
+				&distribution->overrides.udeb, false);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.udeb = NULL;
 			return r;
 		}
 	}
 	if( distribution->overrides.dsc == NULL ) {
-		r = override_read(distribution->dsc_override, &distribution->overrides.dsc);
+		r = override_read(distribution->dsc_override,
+				&distribution->overrides.dsc, true);
 		if( RET_WAS_ERROR(r) ) {
 			distribution->overrides.dsc = NULL;
 			return r;

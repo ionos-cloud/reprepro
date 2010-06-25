@@ -19,7 +19,7 @@ struct overrideinfo;
 #define SECTION_FIELDNAME "Section"
 
 void override_free(/*@only@*//*@null@*/struct overrideinfo *info);
-retvalue override_read(const char *filename, /*@out@*/struct overrideinfo **info);
+retvalue override_read(const char *filename, /*@out@*/struct overrideinfo **info, bool source);
 
 /*@null@*//*@dependent@*/const struct overrideinfo *override_search(/*@null@*/const struct overrideinfo *overrides,const char *package);
 /*@null@*//*@dependent@*/const char *override_get(/*@null@*/const struct overrideinfo *override,const char *field);

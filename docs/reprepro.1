@@ -1645,10 +1645,9 @@ exactly the form in the override file there.
 index files in case some other tool confuses them.)
 More than copied is the Section header (unless \fB\-S\fP is supplied),
 which is also used to guess the component (unless \fB\-C\fP is there).
-There is no protection against changing headers like \fBPackage\fP,
-\fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
-fields may give the most curious results.
-(Most likely reprepro may error out in future invocations).
+
+Some values like \fBPackage\fP, \fBFilename\fP, \fBSize\fP or \fBMD5sum\fP
+are forbidden, as their usage would severly confuse reprepro.
 
 Fieldnames starting with a dollar ($) are reserved for future use and are
 ignored with a warning displayed.

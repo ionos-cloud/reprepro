@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2007 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -51,10 +51,67 @@ void override_free(struct overrideinfo *info) {
 	}
 }
 
-static inline retvalue newoverrideinfo(const char *firstpart,const char *secondpart,const char *thirdpart,struct overrideinfo **info) {
-	struct overrideinfo *last;
+static bool forbidden_field_name(bool source, const char *field) {
+	if( strcasecmp(field, "Package") == 0 )
+		return true;
+	if( strcasecmp(field, "Version") == 0 )
+		return true;
+	if( source ) {
+		if( strcasecmp(field, "Files") == 0 )
+			return true;
+		if( strcasecmp(field, "Directory") == 0 )
+				return true;
+		if( strcasecmp(field, "Checksums-Sha256") == 0 )
+				return true;
+		if( strcasecmp(field, "Checksums-Sha1") == 0 )
+				return true;
+		return false;
+	} else {
+		if( strcasecmp(field, "Filename") == 0 )
+			return true;
+		if( strcasecmp(field, "MD5sum") == 0 )
+				return true;
+		if( strcasecmp(field, "SHA1") == 0 )
+				return true;
+		if( strcasecmp(field, "SHA256") == 0 )
+				return true;
+		if( strcasecmp(field, "Size") == 0 )
+				return true;
+		return false;
+	}
+}
+
+static retvalue add_override_field(struct overrideinfo *last, const char *secondpart, const char *thirdpart, bool source) {
 	retvalue r;
 	char *p;
+
+	if( forbidden_field_name(source, secondpart) ) {
+		fprintf(stderr,
+"Error: field '%s' not allowed in override files.\n",
+				secondpart);
+		return RET_ERROR;
+	}
+	if( secondpart[0] == '$' ) {
+		fprintf(stderr,
+"Warning: special override field '%s' unknown and will be ignored\n",
+				secondpart);
+	}
+	p = strdup(secondpart);
+	if( FAILEDTOALLOC(p) )
+		return RET_ERROR_OOM;
+	r = strlist_add(&last->fields,p);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	p = strdup(thirdpart);
+	if( FAILEDTOALLOC(p) )
+		return RET_ERROR_OOM;
+	r = strlist_add(&last->fields,p);
+	return r;
+}
+
+static inline retvalue newoverrideinfo(const char *firstpart, const char *secondpart, const char *thirdpart, bool source, struct overrideinfo **info) {
+	struct overrideinfo *last;
+	retvalue r;
 
 	last = calloc(1,sizeof(struct overrideinfo));
 	if( last == NULL )
@@ -65,18 +122,7 @@ static inline retvalue newoverrideinfo(const char *firstpart,const char *secondp
 		override_free(last);
 		return r;
 	}
-	p = strdup(secondpart);
-	if( p == NULL )
-		r = RET_ERROR_OOM;
-	else
-		r = strlist_add(&last->fields,p);
-	if( !RET_WAS_ERROR(r) ) {
-		p = strdup(thirdpart);
-		if( p == NULL )
-			r = RET_ERROR_OOM;
-		else
-			r = strlist_add(&last->fields,p);
-	}
+	r = add_override_field(last, secondpart, thirdpart, source);
 	if( RET_WAS_ERROR(r) ) {
 		override_free(last);
 		return r;
@@ -86,7 +132,7 @@ static inline retvalue newoverrideinfo(const char *firstpart,const char *secondp
 	return RET_OK;
 }
 
-retvalue override_read(const char *filename, struct overrideinfo **info) {
+retvalue override_read(const char *filename, struct overrideinfo **info, bool source) {
 	struct overrideinfo *root = NULL ,*last = NULL;
 	FILE *file;
 	char buffer[1001];
@@ -148,10 +194,12 @@ retvalue override_read(const char *filename, struct overrideinfo **info) {
 		while( *p !='\0' && xisspace(*p) )
 			*(p++)='\0';
 		thirdpart = p;
-		if( last == NULL || ( strcmp(last->packagename,firstpart) > 0 &&
-			       strcmp(root->packagename,firstpart) > 0 )) {
+		if( last == NULL ||
+				( strcmp(last->packagename, firstpart) > 0 &&
+				  strcmp(root->packagename, firstpart) > 0 )) {
 			/* adding in front of it */
-			r = newoverrideinfo(firstpart,secondpart,thirdpart,&root);
+			r = newoverrideinfo(firstpart, secondpart, thirdpart,
+					source, &root);
 			if( RET_WAS_ERROR(r) ) {
 				(void)fclose(file);
 				return r;
@@ -169,7 +217,11 @@ retvalue override_read(const char *filename, struct overrideinfo **info) {
 				if( last->next == NULL ||
 				    strcmp(last->next->packagename,firstpart) != 0 ) {
 					/* add it after last and before last->next */
-					r = newoverrideinfo(firstpart,secondpart,thirdpart,&last->next);
+					r = newoverrideinfo(firstpart,
+							secondpart,
+							thirdpart,
+							source,
+							&last->next);
 					last = last->next;
 					if( RET_WAS_ERROR(r) ) {
 						(void)fclose(file);
@@ -183,23 +235,7 @@ retvalue override_read(const char *filename, struct overrideinfo **info) {
 				assert( strcmp(last->packagename,firstpart)  == 0 );
 			}
 		}
-		if( secondpart[0] == '$' ) {
-			fprintf(stderr,
-"Warning: special override field '%s' unknown and will be ignored\n",
-					secondpart);
-		}
-		p = strdup(secondpart);
-		if( p == NULL )
-			r = RET_ERROR_OOM;
-		else
-			r = strlist_add(&last->fields,p);
-		if( !RET_WAS_ERROR(r) ) {
-			p = strdup(thirdpart);
-			if( p == NULL )
-				r = RET_ERROR_OOM;
-			else
-				r = strlist_add(&last->fields,p);
-		}
+		r = add_override_field(last, secondpart, thirdpart, source);
 		if( RET_WAS_ERROR(r) ) {
 			override_free(root);
 			(void)fclose(file);
