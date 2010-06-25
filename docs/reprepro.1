@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2010-04-07" "reprepro" REPREPRO
+.TH REPREPRO 1 "2010-06-25" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -1649,6 +1649,9 @@ There is no protection against changing headers like \fBPackage\fP,
 \fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
 fields may give the most curious results.
 (Most likely reprepro may error out in future invocations).
+
+Fieldnames starting with a dollar ($) are reserved for future use and are
+ignored with a warning displayed.
 .SS conf/incoming
 Every chunk is a rule set for the
 .B process_incoming
