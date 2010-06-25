@@ -1,3 +1,8 @@
+2010-06-25
+	* Ignore overrides for fields starting with '$' and
+	warn about unknown fields to allow later introduction
+	of special values.
+
 2010-05-07
 	* add --onlysmalldeletes option that cancels pulls
 	and updates that delete more than 20% of some target

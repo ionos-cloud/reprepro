@@ -183,6 +183,11 @@ retvalue override_read(const char *filename, struct overrideinfo **info) {
 				assert( strcmp(last->packagename,firstpart)  == 0 );
 			}
 		}
+		if( secondpart[0] == '$' ) {
+			fprintf(stderr,
+"Warning: special override field '%s' unknown and will be ignored\n",
+					secondpart);
+		}
 		p = strdup(secondpart);
 		if( p == NULL )
 			r = RET_ERROR_OOM;
@@ -250,7 +255,8 @@ struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override
 
 	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
 		if( strcmp(override->fields.values[i],SECTION_FIELDNAME) != 0 &&
-		    strcmp(override->fields.values[i],PRIORITY_FIELDNAME) != 0 ) {
+		    strcmp(override->fields.values[i],PRIORITY_FIELDNAME) != 0 &&
+		    override->fields.values[i][0] != '$' ) {
 			otherreplaces = addfield_new(
 				override->fields.values[i],override->fields.values[i+1],
 				otherreplaces);
@@ -270,12 +276,13 @@ retvalue override_allreplacefields(const struct overrideinfo *override, struct f
 	assert( override != NULL );
 
 	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
+		if( override->fields.values[i][0] != '$' ) {
 			fields = addfield_new(
 				override->fields.values[i],override->fields.values[i+1],
 				fields);
 			if( fields == NULL )
 				return RET_ERROR_OOM;
-
+		}
 	}
 	*fields_p = fields;
 	return RET_OK;
