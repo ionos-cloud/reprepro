@@ -514,7 +514,7 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 	}
 
 	for( ; e != NULL ; e = e->next ) {
-		const struct overrideinfo *oinfo = NULL;
+		const struct overridedata *oinfo = NULL;
 		const char *force = NULL;
 
 		if( e->type == fe_BYHAND || e->type == fe_LOG ) {
@@ -987,7 +987,7 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 
 static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
 	retvalue r;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	char *dscbasename;
 	char *control;
 	int i;

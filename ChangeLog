@@ -1,3 +1,7 @@
+2010-06-26
+	* store override data in a tree instead of an list and
+	some preparations for patterns in override files.
+
 2010-06-25
 	* Ignore overrides for fields starting with '$' and
 	warn about unknown fields to allow later introduction

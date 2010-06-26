@@ -164,7 +164,7 @@ retvalue dsc_add(struct database *database, component_t forcecomponent, const ch
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
 	char *destdirectory, *origdirectory;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	char *control;
 	int i;
 

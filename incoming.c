@@ -921,7 +921,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 	return RET_OK;
 }
 
-static inline retvalue getsectionprioritycomponent(const struct incoming *i, const struct candidate *c, const struct distribution *into, const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/component_t *component) {
+static inline retvalue getsectionprioritycomponent(const struct incoming *i, const struct candidate *c, const struct distribution *into, const struct candidate_file *file, const char *name, const struct overridedata *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/component_t *component) {
 	retvalue r;
 	const char *section, *priority;
 
@@ -1116,7 +1116,7 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 
 static retvalue prepare_deb(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL), *filekey;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	struct candidate_package *package;
 	const struct distribution *into = per->into;
 	retvalue r;
@@ -1249,7 +1249,7 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 
 static retvalue prepare_dsc(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
 	const char *section IFSTUPIDCC(=NULL), *priority IFSTUPIDCC(=NULL);
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	struct candidate_package *package;
 	const struct distribution *into = per->into;
 	retvalue r;

@@ -48,8 +48,8 @@ void binaries_debdone(struct deb_headers *);
 
 retvalue binaries_calcfilekeys(component_t, const struct deb_headers *, packagetype_t, /*@out@*/struct strlist *);
 
-struct overrideinfo;
-retvalue binaries_complete(const struct deb_headers *, const char *filekey, const struct checksums *, const struct overrideinfo *, const char *section, const char *priority, char **newcontrol);
+struct overridedata;
+retvalue binaries_complete(const struct deb_headers *, const char *filekey, const struct checksums *, const struct overridedata *, const char *section, const char *priority, char **newcontrol);
 
 retvalue binaries_adddeb(const struct deb_headers *, struct database *, const struct atomlist *forcedarchitectures, packagetype_t, struct distribution *, /*@null@*/struct trackingdata *, component_t, const struct strlist *filekeys, const char *control);
 retvalue binaries_checkadddeb(const struct deb_headers *, struct database *, architecture_t forcearchitecture, packagetype_t, struct distribution *, bool tracking, component_t, bool permitnewerold);

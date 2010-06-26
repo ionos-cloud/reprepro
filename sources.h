@@ -40,8 +40,8 @@ retvalue sources_readdsc(struct dsc_headers *, const char *filename, const char 
 
 void sources_done(struct dsc_headers *);
 
-struct overrideinfo;
-retvalue sources_complete(const struct dsc_headers *, const char *directory, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol);
+struct overridedata;
+retvalue sources_complete(const struct dsc_headers *, const char *directory, const struct overridedata *override, const char *section, const char *priority, char **newcontrol);
 
 char *calc_source_basename(const char *name, const char *version);
 char *calc_sourcedir(component_t, const char *sourcename);

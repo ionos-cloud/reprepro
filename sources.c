@@ -323,7 +323,7 @@ retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 }
 
 retvalue sources_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
-	const struct overrideinfo *o;
+	const struct overridedata *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
 	retvalue r;
@@ -545,7 +545,7 @@ void sources_done(struct dsc_headers *dsc) {
 	free(dsc->priority);
 }
 
-retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
+retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, const struct overridedata *override, const char *section, const char *priority, char **newcontrol) {
 	retvalue r;
 	struct fieldtoadd *name;
 	struct fieldtoadd *replace;

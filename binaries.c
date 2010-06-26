@@ -267,7 +267,7 @@ retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekey
 }
 
 retvalue binaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
-	const struct overrideinfo *o;
+	const struct overridedata *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
 	retvalue r;
@@ -291,7 +291,7 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 }
 
 retvalue ubinaries_doreoverride(const struct distribution *distribution,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
-	const struct overrideinfo *o;
+	const struct overridedata *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
 
@@ -542,7 +542,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 }
 
 /* do overwrites, add Filename and Checksums to the control-item */
-retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
+retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overridedata *override, const char *section, const char *priority, char **newcontrol) {
 	struct fieldtoadd *replace;
 	char *newchunk;
 	enum checksumtype type;

@@ -12,24 +12,24 @@
 #include "chunks.h"
 #endif
 
-struct overrideinfo;
+struct overridefile;
+struct overridedata;
 
 /* to avoid typos */
 #define PRIORITY_FIELDNAME "Priority"
 #define SECTION_FIELDNAME "Section"
 
-void override_free(/*@only@*//*@null@*/struct overrideinfo *info);
-retvalue override_read(const char *filename, /*@out@*/struct overrideinfo **info, bool source);
+void override_free(/*@only@*//*@null@*/struct overridefile *);
+retvalue override_read(const char *filename, /*@out@*/struct overridefile **, bool /*source*/);
 
-/*@null@*//*@dependent@*/const struct overrideinfo *override_search(/*@null@*/const struct overrideinfo *overrides,const char *package);
-/*@null@*//*@dependent@*/const char *override_get(/*@null@*/const struct overrideinfo *override,const char *field);
-
+/*@null@*//*@dependent@*/const struct overridedata *override_search(/*@null@*/const struct overridefile *, const char * /*package*/);
+/*@null@*//*@dependent@*/const char *override_get(/*@null@*/const struct overridedata *, const char * /*field*/);
 
 /* add new fields to otherreplaces, but not "Section", or "Priority".
  * incorporates otherreplaces, or frees them on error */
-/*@null@*/struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override, /*@only@*/struct fieldtoadd *otherreplaces);
+/*@null@*/struct fieldtoadd *override_addreplacefields(const struct overridedata *, /*@only@*/struct fieldtoadd *);
 
 /* as above, but all fields. and may return NULL if there are no overrides */
-retvalue override_allreplacefields(const struct overrideinfo *, /*@out@*/struct fieldtoadd **);
+retvalue override_allreplacefields(const struct overridedata *, /*@out@*/struct fieldtoadd **);
 
 #endif

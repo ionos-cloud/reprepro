@@ -98,10 +98,10 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
+static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const struct overridedata **oinfo_ptr, const char *debfilename){
 	const struct atomlist *components;
-	const struct overrideinfo *binoverride;
-	const struct overrideinfo *oinfo;
+	const struct overridefile *binoverride;
+	const struct overridedata *oinfo;
 	retvalue r;
 
 	if( packagetype == pt_udeb ) {
@@ -204,7 +204,7 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const struct checksums * checksums, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	char *control;
 	struct atomlist forcearchitectures;
 
@@ -290,7 +290,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, const st
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
-	const struct overrideinfo *oinfo;
+	const struct overridedata *oinfo;
 	char *control;
 	struct checksums *checksums;
 

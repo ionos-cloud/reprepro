@@ -26,29 +26,59 @@
 #include <strings.h>
 #include <ctype.h>
 #include <time.h>
+#include <search.h>
 #include "error.h"
 #include "chunks.h"
 #include "sources.h"
 #include "names.h"
+#include "globmatch.h"
 #include "override.h"
 
-struct overrideinfo {
-	struct overrideinfo *next;
-	char *packagename;
+struct overridedata {
 	struct strlist fields;
 };
 
-void override_free(struct overrideinfo *info) {
-	struct overrideinfo *i;
+struct overridepackage {
+	char *packagename;
+	struct overridedata data;
+};
 
-	while( (i = info) != NULL ) {
+struct overridepattern {
+	struct overridepattern *next;
+	char *pattern;
+	struct overridedata data;
+};
+
+struct overridefile {
+	/* a <search.h> tree root of struct overridepackage */
+	void *packages;
+	struct overridepattern *patterns;
+};
+
+static void freeoverridepackage(void *n) {
+	struct overridepackage *p = n;
+
+	free(p->packagename);
+	strlist_done(&p->data.fields);
+	free(p);
+}
+
+void override_free(struct overridefile *info) {
+	struct overridepattern *i;
+
+	if( info == NULL )
+		return;
+
+	tdestroy(info->packages, freeoverridepackage);
+	while( (i = info->patterns) != NULL ) {
 		if( i == NULL )
 			return;
-		strlist_done(&i->fields);
-		free(i->packagename);
-		info = i->next;
+		strlist_done(&i->data.fields);
+		free(i->pattern);
+		info->patterns = i->next;
 		free(i);
 	}
+	free(info);
 }
 
 static bool forbidden_field_name(bool source, const char *field) {
@@ -81,7 +111,7 @@ static bool forbidden_field_name(bool source, const char *field) {
 	}
 }
 
-static retvalue add_override_field(struct overrideinfo *last, const char *secondpart, const char *thirdpart, bool source) {
+static retvalue add_override_field(struct overridepackage *pkg, const char *secondpart, const char *thirdpart, bool source) {
 	retvalue r;
 	char *p;
 
@@ -99,41 +129,63 @@ static retvalue add_override_field(struct overrideinfo *last, const char *second
 	p = strdup(secondpart);
 	if( FAILEDTOALLOC(p) )
 		return RET_ERROR_OOM;
-	r = strlist_add(&last->fields,p);
+	r = strlist_add(&pkg->data.fields, p);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	p = strdup(thirdpart);
 	if( FAILEDTOALLOC(p) )
 		return RET_ERROR_OOM;
-	r = strlist_add(&last->fields,p);
+	r = strlist_add(&pkg->data.fields, p);
 	return r;
 }
 
-static inline retvalue newoverrideinfo(const char *firstpart, const char *secondpart, const char *thirdpart, bool source, struct overrideinfo **info) {
-	struct overrideinfo *last;
-	retvalue r;
+static struct overridepackage *new_package(const char *name) {
+	struct overridepackage *p;
 
-	last = calloc(1,sizeof(struct overrideinfo));
-	if( last == NULL )
-		return RET_ERROR_OOM;
-	last->packagename=strdup(firstpart);
-	r = strlist_init_n(6,&last->fields);
-	if( RET_WAS_ERROR(r) ) {
-		override_free(last);
-		return r;
+	p = calloc(1, sizeof(struct overridepackage));
+	if( FAILEDTOALLOC(p) )
+		return NULL;
+	p->packagename = strdup(name);
+	if( FAILEDTOALLOC(p->packagename) ) {
+		free(p);
+		return NULL;
 	}
-	r = add_override_field(last, secondpart, thirdpart, source);
-	if( RET_WAS_ERROR(r) ) {
-		override_free(last);
-		return r;
-	}
-	last->next = *info;
-	*info = last;
-	return RET_OK;
+	return p;
 }
 
-retvalue override_read(const char *filename, struct overrideinfo **info, bool source) {
-	struct overrideinfo *root = NULL ,*last = NULL;
+static int opackage_compare(const void *a, const void *b) {
+	const struct overridepackage *p1 = a, *p2 = b;
+
+	return strcmp(p1->packagename, p2->packagename);
+}
+
+static retvalue add_override(struct overridefile *i, struct overridepattern ***next_p, const char *firstpart, const char *secondpart, const char *thirdpart, bool source) {
+	struct overridepackage *pkg, **node;
+	retvalue r;
+
+	// TODO: look for patterns first...
+
+	pkg = new_package(firstpart);
+	if( FAILEDTOALLOC(pkg) )
+		return RET_ERROR_OOM;
+	node = tsearch(pkg, &i->packages, opackage_compare);
+	if( FAILEDTOALLOC(node) )
+		return RET_ERROR_OOM;
+	if( *node == pkg ) {
+		r = strlist_init_n(6, &pkg->data.fields);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	} else {
+		free(pkg->packagename);
+		free(pkg);
+		pkg = *node;
+	}
+	return add_override_field(*node, secondpart, thirdpart, source);
+}
+
+retvalue override_read(const char *filename, struct overridefile **info, bool source) {
+	struct overridefile *i;
+	struct overridepattern **next_pattern;
 	FILE *file;
 	char buffer[1001];
 
@@ -156,15 +208,23 @@ retvalue override_read(const char *filename, struct overrideinfo **info, bool so
 				e, filename, strerror(e));
 		return RET_ERRNO(e);
 	}
+	i = calloc(1, sizeof(struct overridefile));
+	if( FAILEDTOALLOC(i) ) {
+		(void)fclose(file);
+		return RET_ERROR_OOM;
+	}
+	next_pattern = &i->patterns;
+
 	while( fgets(buffer,1000,file) != NULL ){
 		retvalue r;
-		const char *firstpart,*secondpart,*thirdpart;
+		const char *firstpart, *secondpart, *thirdpart;
 		char *p;
 		size_t l = strlen(buffer);
 
 		if( buffer[l-1] != '\n' ) {
 			if( l >= 999 ) {
 				fprintf(stderr,"Too long line in '%s'!\n",filename);
+				override_free(i);
 				(void)fclose(file);
 				return RET_ERROR;
 			}
@@ -194,78 +254,43 @@ retvalue override_read(const char *filename, struct overrideinfo **info, bool so
 		while( *p !='\0' && xisspace(*p) )
 			*(p++)='\0';
 		thirdpart = p;
-		if( last == NULL ||
-				( strcmp(last->packagename, firstpart) > 0 &&
-				  strcmp(root->packagename, firstpart) > 0 )) {
-			/* adding in front of it */
-			r = newoverrideinfo(firstpart, secondpart, thirdpart,
-					source, &root);
-			if( RET_WAS_ERROR(r) ) {
-				(void)fclose(file);
-				return r;
-			}
-			last = root;
-			continue;
-		} else {
-			if( strcmp(last->packagename,firstpart) > 0 )
-				last = root;
-			if( strcmp(last->packagename,firstpart) < 0 ) {
-				while( last->next != NULL &&
-					strcmp(last->next->packagename,firstpart) < 0) {
-					last = last->next;
-				}
-				if( last->next == NULL ||
-				    strcmp(last->next->packagename,firstpart) != 0 ) {
-					/* add it after last and before last->next */
-					r = newoverrideinfo(firstpart,
-							secondpart,
-							thirdpart,
-							source,
-							&last->next);
-					last = last->next;
-					if( RET_WAS_ERROR(r) ) {
-						(void)fclose(file);
-						return r;
-					}
-					continue;
-				} else
-					last = last->next;
-
-			} else {
-				assert( strcmp(last->packagename,firstpart)  == 0 );
-			}
-		}
-		r = add_override_field(last, secondpart, thirdpart, source);
+		r = add_override(i, &next_pattern,
+				firstpart, secondpart, thirdpart, source);
 		if( RET_WAS_ERROR(r) ) {
-			override_free(root);
+			override_free(i);
 			(void)fclose(file);
 			return r;
 		}
 	}
 	(void)fclose(file);
-	*info = root;
-	if( root == NULL )
-		return RET_NOTHING;
-	else
+	if( i->packages != NULL || i->patterns != NULL ) {
+		*info = i;
 		return RET_OK;
+	} else {
+		*info = NULL;
+		return RET_NOTHING;
+	}
 }
 
-const struct overrideinfo *override_search(const struct overrideinfo *overrides,const char *package) {
-	int c;
+const struct overridedata *override_search(const struct overridefile *overrides, const char *package) {
+	struct overridepackage pkg, **node;
+	struct overridepattern *p;
 
-	while( overrides != NULL ) {
-		c = strcmp(overrides->packagename,package);
-		if( c < 0 )
-			overrides = overrides->next;
-		else if( c == 0 )
-			return overrides;
-		else
-			return NULL;
+	if( overrides == NULL )
+		return NULL;
+
+	pkg.packagename = (char*)package;
+	node = tfind(&pkg, &overrides->packages, opackage_compare);
+	if( node != NULL && *node != NULL )
+		return &(*node)->data;
+	for( p = overrides->patterns ; p != NULL ; p = p->next ) {
+		if( globmatch(package, p->pattern) )
+			return &p->data;
 	}
 	return NULL;
 }
 
-const char *override_get(const struct overrideinfo *override,const char *field) {
+const char *override_get(const struct overridedata *override, const char *field) {
 	int i;
 
 	if( override == NULL )
@@ -273,7 +298,7 @@ const char *override_get(const struct overrideinfo *override,const char *field) 
 
 	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
 		// TODO curently case-sensitiv. warn if otherwise?
-		if( strcmp(override->fields.values[i],field) == 0 )
+		if( strcmp(override->fields.values[i], field) == 0 )
 			return override->fields.values[i+1];
 	}
 	return NULL;
@@ -282,30 +307,31 @@ const char *override_get(const struct overrideinfo *override,const char *field) 
 /* add new fields to otherreplaces, but not "Section", or "Priority".
  * incorporates otherreplaces, or frees them on error,
  * returns otherreplaces when nothing was to do, NULL on RET_ERROR_OOM*/
-struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override,
-		struct fieldtoadd *otherreplaces) {
+struct fieldtoadd *override_addreplacefields(const struct overridedata *override, struct fieldtoadd *otherreplaces) {
 	int i;
 
 	if( override == NULL )
 		return otherreplaces;
 
 	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
-		if( strcmp(override->fields.values[i],SECTION_FIELDNAME) != 0 &&
-		    strcmp(override->fields.values[i],PRIORITY_FIELDNAME) != 0 &&
-		    override->fields.values[i][0] != '$' ) {
+		if( strcmp(override->fields.values[i],
+					SECTION_FIELDNAME) != 0 &&
+				strcmp(override->fields.values[i],
+					PRIORITY_FIELDNAME) != 0 &&
+				override->fields.values[i][0] != '$' ) {
 			otherreplaces = addfield_new(
-				override->fields.values[i],override->fields.values[i+1],
+				override->fields.values[i],
+				override->fields.values[i+1],
 				otherreplaces);
 			if( otherreplaces == NULL )
 				return NULL;
 		}
-
 	}
 	return otherreplaces;
 
 }
 
-retvalue override_allreplacefields(const struct overrideinfo *override, struct fieldtoadd **fields_p) {
+retvalue override_allreplacefields(const struct overridedata *override, struct fieldtoadd **fields_p) {
 	int i;
 	struct fieldtoadd *fields = NULL;
 
@@ -314,7 +340,8 @@ retvalue override_allreplacefields(const struct overrideinfo *override, struct f
 	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
 		if( override->fields.values[i][0] != '$' ) {
 			fields = addfield_new(
-				override->fields.values[i],override->fields.values[i+1],
+				override->fields.values[i],
+				override->fields.values[i+1],
 				fields);
 			if( fields == NULL )
 				return RET_ERROR_OOM;
