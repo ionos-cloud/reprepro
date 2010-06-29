@@ -1,3 +1,9 @@
+2010-06-29
+	* do not stop with error if a downloaded Packages
+	file contains unexpected wrong Architecture lines
+	but only print a warning. Add --ignore=wrongarchitecture
+	to not print that warning.
+
 2010-06-26
 	* store override data in a tree instead of an list and
 	some preparations for patterns in override files.

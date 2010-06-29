@@ -33,6 +33,7 @@
 	IGN(expiredkey) \
 	IGN(revokedkey) \
 	IGN(expiredsignature) \
+	IGN(wrongarchitecture) \
 	IGN(missingfile)
 
 

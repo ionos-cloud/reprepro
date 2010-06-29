@@ -2000,6 +2000,13 @@ specified action (like \fB\-\-architecture\fP).
 The include command will accept packages that would otherwise been
 rejected by the uploaders file.
 .TP
+.B wrongarchitecture \fR(safe to ignore)
+Do not warn about wrong "Architecture:" lines in downloaded
+Packages files.
+(Note that wrong Architectures are always ignored when getting
+stuff from flat repostories or importing stuff from one architecture
+to another).
+.TP
 .B wrongdistribution \fR(safe to ignore)
 Do not error out if a .changes file is to be placed in a
 distribution not listed in that files' Distributions: header.

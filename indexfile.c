@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007,2008,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -23,6 +23,7 @@
 #include <ctype.h>
 #include <assert.h>
 #include "error.h"
+#include "ignore.h"
 #include "chunks.h"
 #include "names.h"
 #include "uncompression.h"
@@ -255,21 +256,31 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 						target->architecture_atom
 						]) == 0) {
 				atom = target->architecture_atom;
-			} else {
-				if( allowwrongarchitecture ) {
-					free(architecture);
-					continue;
-				} else {
-					fprintf(stderr,
-"Error parsing %s line %d to %d: Wrong 'Architecture:' field '%s' (need 'all' or '%s')!\n",
-						f->filename,
-						f->startlinenumber, f->linenumber,
+			} else if( !allowwrongarchitecture
+					&& !ignore[IGN_wrongarchitecture] ) {
+				fprintf(stderr,
+"Warning: ignoring package because of wrong 'Architecture:' field '%s'"
+" (expected 'all' or '%s') in %s lines %d to %d!\n",
 						architecture,
 						atoms_architectures[
-						 target->architecture_atom
-						  ]);
-					r = RET_ERROR;
+						target->architecture_atom],
+						f->filename,
+						f->startlinenumber,
+						f->linenumber);
+				if( ignored[IGN_wrongarchitecture] == 0 ) {
+					fprintf(stderr,
+"This either mean the repository you get packages from is of an extremly\n"
+"low quality, or something went wrong. Trying to ignore it now, though.\n"
+"To no longer get this message use '--ignore=wrongarchitecture'.\n");
 				}
+				ignored[IGN_wrongarchitecture]++;
+				free(architecture);
+				continue;
+			} else {
+				/* just ignore this because of wrong
+				 * architecture */
+				free(architecture);
+				continue;
 			}
 			free(architecture);
 		}
