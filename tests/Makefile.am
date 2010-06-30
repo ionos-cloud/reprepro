@@ -18,6 +18,7 @@ testlayeredupdate.sh \
 testlayeredupdate2.sh \
 testmorgue.sh \
 testonlysmalldeletes.sh \
+testoverride.sh \
 testpackagediff.sh \
 testsignatures.sh \
 testsnapshotcopyrestore.sh \

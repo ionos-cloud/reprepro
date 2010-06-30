@@ -1,3 +1,6 @@
+2010-06-30
+	* allow patterns in override files
+
 2010-06-29
 	* do not stop with error if a downloaded Packages
 	file contains unexpected wrong Architecture lines

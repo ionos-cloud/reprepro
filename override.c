@@ -111,7 +111,7 @@ static bool forbidden_field_name(bool source, const char *field) {
 	}
 }
 
-static retvalue add_override_field(struct overridepackage *pkg, const char *secondpart, const char *thirdpart, bool source) {
+static retvalue add_override_field(struct overridedata *data, const char *secondpart, const char *thirdpart, bool source) {
 	retvalue r;
 	char *p;
 
@@ -129,13 +129,13 @@ static retvalue add_override_field(struct overridepackage *pkg, const char *seco
 	p = strdup(secondpart);
 	if( FAILEDTOALLOC(p) )
 		return RET_ERROR_OOM;
-	r = strlist_add(&pkg->data.fields, p);
+	r = strlist_add(&data->fields, p);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	p = strdup(thirdpart);
 	if( FAILEDTOALLOC(p) )
 		return RET_ERROR_OOM;
-	r = strlist_add(&pkg->data.fields, p);
+	r = strlist_add(&data->fields, p);
 	return r;
 }
 
@@ -159,11 +159,44 @@ static int opackage_compare(const void *a, const void *b) {
 	return strcmp(p1->packagename, p2->packagename);
 }
 
-static retvalue add_override(struct overridefile *i, struct overridepattern ***next_p, const char *firstpart, const char *secondpart, const char *thirdpart, bool source) {
+static retvalue add_override(struct overridefile *i, const char *firstpart, const char *secondpart, const char *thirdpart, bool source) {
 	struct overridepackage *pkg, **node;
 	retvalue r;
+	const char *c;
+	struct overridepattern *p, **l;
 
-	// TODO: look for patterns first...
+	c = firstpart;
+	while (*c != '\0' && *c != '*' && *c != '[' && *c != '?' )
+		c++;
+	if( *c != '\0' ) {
+		/* This is a pattern, put into the pattern list */
+		l = &i->patterns;
+		while( (p = *l) != NULL
+				&& strcmp(p->pattern, firstpart) != 0 ) {
+			l = &p->next;
+		}
+		if( p == NULL ) {
+			p = calloc(1, sizeof(struct overridepattern));
+			if( FAILEDTOALLOC(p) )
+				return RET_ERROR_OOM;
+			p->pattern = strdup(firstpart);
+			if( FAILEDTOALLOC(p->pattern) ) {
+				free(p);
+				return RET_ERROR_OOM;
+			}
+		}
+		r = add_override_field(&p->data,
+				secondpart, thirdpart, source);
+		if( RET_WAS_ERROR(r) ) {
+			if( *l != p ) {
+				free(p->pattern);
+				free(p);
+			}
+			return r;
+		}
+		*l = p;
+		return RET_OK;
+	}
 
 	pkg = new_package(firstpart);
 	if( FAILEDTOALLOC(pkg) )
@@ -180,7 +213,8 @@ static retvalue add_override(struct overridefile *i, struct overridepattern ***n
 		free(pkg);
 		pkg = *node;
 	}
-	return add_override_field(*node, secondpart, thirdpart, source);
+	return add_override_field(&(*node)->data,
+			secondpart, thirdpart, source);
 }
 
 retvalue override_read(const char *filename, struct overridefile **info, bool source) {
@@ -254,8 +288,7 @@ retvalue override_read(const char *filename, struct overridefile **info, bool so
 		while( *p !='\0' && xisspace(*p) )
 			*(p++)='\0';
 		thirdpart = p;
-		r = add_override(i, &next_pattern,
-				firstpart, secondpart, thirdpart, source);
+		r = add_override(i, firstpart, secondpart, thirdpart, source);
 		if( RET_WAS_ERROR(r) ) {
 			override_free(i);
 			(void)fclose(file);
@@ -267,6 +300,7 @@ retvalue override_read(const char *filename, struct overridefile **info, bool so
 		*info = i;
 		return RET_OK;
 	} else {
+		override_free(i);
 		*info = NULL;
 		return RET_NOTHING;
 	}

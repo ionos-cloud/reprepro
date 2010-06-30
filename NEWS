@@ -1,3 +1,6 @@
+Updates between 4.1.1 and 4.1.3:
+- allow patterns in override files
+
 Updates between 4.1.1 and 4.1.2:
 - fix parsing of .orig-*.tar.* lines in .changes files,
   especially do not choke on _ characters.

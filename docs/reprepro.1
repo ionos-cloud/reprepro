@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2010-06-25" "reprepro" REPREPRO
+.TH REPREPRO 1 "2010-06-30" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -1651,6 +1651,12 @@ are forbidden, as their usage would severly confuse reprepro.
 
 Fieldnames starting with a dollar ($) are reserved for future use and are
 ignored with a warning displayed.
+
+As an extension reprepro also supports patterns instead of packagenames.
+If the package name contains '*', '[' or '?',
+it is considered a pattern
+and applied to eatch package
+that is not matched by any non-pattern override nor by any previous pattern.
 .SS conf/incoming
 Every chunk is a rule set for the
 .B process_incoming
