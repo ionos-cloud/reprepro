@@ -1,3 +1,7 @@
+2010-07-01
+	* fix inconsistency in changelog.example.
+	Thanks to Christoph Mathys.
+
 2010-06-30
 	* allow patterns in override files
 
