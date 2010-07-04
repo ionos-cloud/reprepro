@@ -1301,12 +1301,6 @@ static retvalue updates_startup(struct aptmethodrun *run, struct update_distribu
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
-		if( d->distribution->deb_override != NULL ||
-		    d->distribution->dsc_override != NULL ||
-		    d->distribution->udeb_override != NULL ) {
-			if( verbose >= 0 )
-				fprintf(stderr,"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",d->distribution->codename);
-		}
 	}
 	return remote_startup(run);
 }

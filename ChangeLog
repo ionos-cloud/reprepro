@@ -1,3 +1,7 @@
+2010-07-04
+	* consult override files when importing packages
+	with 'update' or 'pull'.
+
 2010-07-01
 	* fix inconsistency in changelog.example.
 	Thanks to Christoph Mathys.

@@ -727,15 +727,6 @@ static retvalue pull_search(/*@null@*/FILE *out,struct database *database,struct
 	retvalue result,r;
 	struct pull_target *u;
 
-	if( d->distribution->deb_override != NULL ||
-			d->distribution->dsc_override != NULL ||
-			d->distribution->udeb_override != NULL ) {
-		if( verbose >= 0 )
-			fprintf(stderr,
-"Warning: Override files of '%s' ignored as not yet supported while updating!\n",
-					d->distribution->codename);
-	}
-
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
 		r = pull_searchformissing(out, database, u);
