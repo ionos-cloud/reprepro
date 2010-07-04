@@ -902,6 +902,9 @@ retvalue pull_update(struct database *database, struct pull_distribution *distri
 		r = distribution_prepareforwriting(d->distribution);
 		if( RET_WAS_ERROR(r) )
 			return r;
+		r = distribution_loadalloverrides(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 
 	if( verbose >= 0 )
@@ -952,6 +955,12 @@ retvalue pull_checkupdate(struct database *database, struct pull_distribution *d
 	struct pull_distribution *d;
 	retvalue result,r;
 
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_loadalloverrides(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
 	if( verbose >= 0 )
 		fprintf(stderr,"Calculating packages to get...\n");
 
@@ -971,6 +980,12 @@ retvalue pull_checkupdate(struct database *database, struct pull_distribution *d
 retvalue pull_dumpupdate(struct database *database, struct pull_distribution *distributions) {
 	struct pull_distribution *d;
 	retvalue result,r;
+
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_loadalloverrides(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	result = RET_NOTHING;
 

@@ -1301,6 +1301,9 @@ static retvalue updates_startup(struct aptmethodrun *run, struct update_distribu
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
+		r = distribution_loadalloverrides(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	return remote_startup(run);
 }
