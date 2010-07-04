@@ -8,7 +8,6 @@ TODO:
 	extend FilterList et al to specify type/architecture/component
 	switch to only include if source is present
 	action to redownload missing pool/ files from some update-rules (looking for md5sum)
-	check for harmful override entries (Package, Source, ....)
 	Fields to exclude architectures and components in update rules,
 	 (or alternatively allow ! in inclusion lists).
 
