@@ -753,7 +753,7 @@
 2007-11-19  Bernhard R. Link <brlink@debian.org>
 	* mark more filedescriptors closeonexec,
 	  support closefrom and F_CLOSEM when available.
- 
+
 2007-11-18  Bernhard R. Link <brlink@debian.org>
 	* add sha1 hash calculation code
 	* add sha1 hashes of index files into Release files.
@@ -1133,7 +1133,7 @@
 	  to change a .changes as if it was created with -sa
 
 2006-09-30  Bernhard R. Link <brlink@debian.org>
-	* new updatechecksums command for changestool 
+	* new updatechecksums command for changestool
 
 2006-09-24  Bernhard R. Link <brlink@debian.org>
 	* ported to libgpgme11
@@ -1250,7 +1250,7 @@
 	 properly advertised so that apt-get can use them)
 
 2006-05-15  Bernhard R. Link <brlink@debian.org>
-	* warn against dobuled fields in 
+	* warn against dobuled fields in
 	config files. (ignorable with --ignore=doublefield)
 	* better error message when trying to forget
 	filekey not existing
@@ -1347,7 +1347,7 @@
 	of released files in there.
 
 2005-12-23  Bernhard R. Link <brlink@debian.org>
-	* Implement native .bz2 compression 
+	* Implement native .bz2 compression
 	(only when libbz2.so was available at build time)
 
 2005-12-22  Bernhard R. Link <brlink@debian.org>
@@ -1382,7 +1382,7 @@
 	* Generate uncompressed source/Sources by default.
 
 2005-12-11  Bernhard R. Link <brlink@debian.org>
-	* Unless the new --noskipold is used, 
+	* Unless the new --noskipold is used,
 	only targets with newly downloaded index
 	files are updated.
 
@@ -1467,7 +1467,7 @@
 	  so that .changes includsion can check those
 	  better before doing anything.
 	* some little tidy ups (freeing more memory,
-	  fixing bad english 
+	  fixing bad english
 
 2005-06-02  Bernhard R. Link <brlink@debian.org>
 	* Change default basedir to "."
@@ -1507,8 +1507,8 @@
 	of all at the end...
 
 2005-03-28  Bernhard R. Link <brlink@debian.org>
-	* Implement "interatedupdate" command, which iterates the 
-	distributions and targets within them, instead of first 
+	* Implement "interatedupdate" command, which iterates the
+	distributions and targets within them, instead of first
 	downloading all lists, then processing all lists, then
 	downloading all packages and then installing them all.
 	(This can be a bit slower, but needs less memory)
@@ -1543,7 +1543,7 @@
 	segfaults if running out of memory)
 
 2005-02-19  Bernhard R. Link <brlink@debian.org>
-	* Refactor Index Exporting and Release generation 
+	* Refactor Index Exporting and Release generation
 	to reduce the time Release files and Package indices
 	are out of sync (Everything is written to files
 	ending in .new now, only when everything is ready
@@ -1627,7 +1627,7 @@
 	* write recovery HOWTO how to deal with database corruptions
 
 2005-01-27(at least GMT)  Bernhard R. Link <brlink@debian.org>
-	* add a lockfile 
+	* add a lockfile
 
 2005-01-26  Bernhard R. Link <brlink@debian.org>
 	* change FilterList to need a defaultaction given
@@ -1687,7 +1687,7 @@
 	for important and likely often called functions).
 
 	* add --keepunreferencedfile option (if you think
-	this is long, remember GNU getopt_long will accept 
+	this is long, remember GNU getopt_long will accept
 	--keep, too)
 
 2005-01-15  Bernhard R. Link <brlink@debian.org>
