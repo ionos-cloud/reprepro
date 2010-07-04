@@ -1336,7 +1336,7 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 
 	/* distribution, component, architecture and pattern specific... */
 	newfilename = genlistsfilename(oldbasefilename, 5, "",
-			ut->target->codename,
+			ut->target->distribution->codename,
 			atoms_components[ut->target->component_atom],
 			atoms_architectures[ut->target->architecture_atom],
 			origin->pattern->name, ENDOFARGUMENTS);
@@ -1359,7 +1359,7 @@ static retvalue calllisthook(struct update_target *ut, struct update_index_conne
 		setenv("REPREPRO_DIST_DIR", global.distdir, true);
 		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		setenv("REPREPRO_FILTER_CODENAME",
-				ut->target->codename, true);
+				ut->target->distribution->codename, true);
 		setenv("REPREPRO_FILTER_PACKAGETYPE",
 				atoms_architectures[ut->target->packagetype_atom],
 				true);
@@ -1417,7 +1417,7 @@ static retvalue callshellhook(struct update_target *ut, struct update_index_conn
 
 	/* distribution, component, architecture and pattern specific... */
 	newfilename = genlistsfilename(oldbasefilename, 5, "",
-			ut->target->codename,
+			ut->target->distribution->codename,
 			atoms_components[ut->target->component_atom],
 			atoms_architectures[ut->target->architecture_atom],
 			origin->pattern->name, ENDOFARGUMENTS);
@@ -1468,7 +1468,7 @@ static retvalue callshellhook(struct update_target *ut, struct update_index_conn
 		setenv("REPREPRO_DIST_DIR", global.distdir, true);
 		setenv("REPREPRO_LOG_DIR", global.logdir, true);
 		setenv("REPREPRO_FILTER_CODENAME",
-				ut->target->codename, true);
+				ut->target->distribution->codename, true);
 		setenv("REPREPRO_FILTER_PACKAGETYPE",
 				atoms_architectures[ut->target->packagetype_atom],
 				true);

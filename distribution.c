@@ -139,7 +139,7 @@ static retvalue createtargets(struct distribution *distribution) {
 			}
 
 			r = target_initialize_binary(
-					distribution->codename,
+					distribution,
 					c, a,
 					&distribution->deb,
 					distribution->readonly,
@@ -157,7 +157,7 @@ static retvalue createtargets(struct distribution *distribution) {
 				return r;
 			if( atomlist_in(&distribution->udebcomponents, c) ) {
 				r = target_initialize_ubinary(
-						distribution->codename,
+						distribution,
 						c, a,
 						&distribution->udeb,
 						distribution->readonly,
@@ -180,7 +180,7 @@ static retvalue createtargets(struct distribution *distribution) {
 		 * (yes, yes, source is not really an architecture, but
 		 *  the .changes files started with this...) */
 		if( has_source ) {
-			r = target_initialize_source(distribution->codename,
+			r = target_initialize_source(distribution,
 					c, &distribution->dsc,
 					distribution->readonly,
 					distribution->fakecomponentprefix, &t);

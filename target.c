@@ -59,7 +59,7 @@ static char *calc_identifier(const char *codename, component_t component, archit
 }
 
 
-static retvalue target_initialize(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, bool readonly, /*@out@*/struct target **d) {
+static retvalue target_initialize(/*@dependant@*/struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, bool readonly, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -73,15 +73,16 @@ static retvalue target_initialize(const char *codename, component_t component, a
 	}
 	t->relativedirectory = directory;
 	t->exportmode = exportmode;
-	t->codename = strdup(codename);
+	t->distribution = distribution;
 	assert( atom_defined(component) );
 	t->component_atom = component;
 	assert( atom_defined(architecture) );
 	t->architecture_atom = architecture;
 	assert( atom_defined(packagetype) );
 	t->packagetype_atom = packagetype;
-	t->identifier = calc_identifier(codename,component,architecture,packagetype);
-	if( t->codename == NULL || t->identifier == NULL ) {
+	t->identifier = calc_identifier(distribution->codename,
+			component, architecture, packagetype);
+	if( t->identifier == NULL ) {
 		(void)target_free(t);
 		return RET_ERROR_OOM;
 	}
@@ -112,8 +113,8 @@ static const char *dist_component_name(component_t component, /*@null@*/const ch
 	return c + len + 1;
 }
 
-retvalue target_initialize_ubinary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
-	return target_initialize(codename, component, architecture, pt_udeb,
+retvalue target_initialize_ubinary(struct distribution *d, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
+	return target_initialize(d, component, architecture, pt_udeb,
 			binaries_getversion,
 			binaries_getinstalldata,
 			binaries_getarchitecture,
@@ -126,8 +127,8 @@ retvalue target_initialize_ubinary(const char *codename, component_t component, 
 				atoms_architectures[architecture]),
 			exportmode, readonly, target);
 }
-retvalue target_initialize_binary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
-	return target_initialize(codename, component, architecture, pt_deb,
+retvalue target_initialize_binary(struct distribution *d, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
+	return target_initialize(d, component, architecture, pt_deb,
 			binaries_getversion,
 			binaries_getinstalldata,
 			binaries_getarchitecture,
@@ -141,8 +142,8 @@ retvalue target_initialize_binary(const char *codename, component_t component, a
 			exportmode, readonly, target);
 }
 
-retvalue target_initialize_source(const char *codename, component_t component, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
-	return target_initialize(codename, component, architecture_source, pt_dsc,
+retvalue target_initialize_source(struct distribution *d, component_t component, const struct exportmode *exportmode, bool readonly, const char *fakecomponentprefix, struct target **target) {
+	return target_initialize(d, component, architecture_source, pt_dsc,
 			sources_getversion,
 			sources_getinstalldata,
 			sources_getarchitecture,
@@ -167,7 +168,7 @@ retvalue target_free(struct target *target) {
 		fprintf(stderr,"Warning: database '%s' was modified but no index file was exported.\nChanges will only be visible after the next 'export'!\n",target->identifier);
 	}
 
-	free(target->codename);
+	target->distribution = NULL;
 	free(target->identifier);
 	free(target->relativedirectory);
 	free(target);
@@ -179,8 +180,10 @@ retvalue target_initpackagesdb(struct target *target, struct database *database,
 	retvalue r;
 
 	if( !readonly && target->readonly ) {
-		fprintf(stderr, "Error trying to open '%s' read-write in read-only distribution '%s'\n",
-				target->identifier, target->codename);
+		fprintf(stderr,
+"Error trying to open '%s' read-write in read-only distribution '%s'\n",
+				target->identifier,
+				target->distribution->codename);
 		return RET_ERROR;
 	}
 
