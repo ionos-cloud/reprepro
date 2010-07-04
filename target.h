@@ -32,7 +32,7 @@ typedef retvalue get_installdata(const struct target *, const char *, const char
 /* md5sums may be NULL */
 typedef retvalue get_filekeys(const char *, /*@out@*/struct strlist *);
 typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
-typedef retvalue do_reoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+typedef retvalue do_reoverride(const struct target *, const char *packagename, const char *controlchunk, /*@out@*/char **newcontrolchunk);
 typedef retvalue do_retrack(const char *packagename, const char *controlchunk, trackingdb, struct database *);
 typedef retvalue get_sourceandversion(const char *chunk, const char *packagename, /*@out@*/char **source, /*@out@*/char **version);
 

@@ -13,14 +13,14 @@
 retvalue sources_calcfilelines(const struct checksumsarray *, /*@out@*/char **item);
 
 /* Functions for the target.h-stuff: */
-retvalue sources_getversion(const char *chunk, /*@out@*/char **version);
-retvalue sources_getinstalldata(const struct target *t, const char *packagename, const char *version, architecture_t, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
-retvalue sources_getarchitecture(const char *chunk, /*@out@*/architecture_t *);
-retvalue sources_getfilekeys(const char *, /*@out@*/struct strlist *);
-retvalue sources_getchecksums(const char *, /*@out@*/struct checksumsarray *);
-retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-retvalue sources_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *);
-retvalue sources_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version);
+get_version sources_getversion;
+get_installdata sources_getinstalldata;
+get_architecture sources_getarchitecture;
+get_filekeys sources_getfilekeys;
+get_checksums sources_getchecksums;
+do_reoverride sources_doreoverride;
+do_retrack sources_retrack;
+get_sourceandversion sources_getsourceandversion;
 
 /* Functions for checkindsc.c and incoming.c: */
 struct dsc_headers {

@@ -787,7 +787,7 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 	while( target_nextpackage(&iterator, &package, &controlchunk) ) {
 		char *newcontrolchunk = NULL;
 
-		r = target->doreoverride(distribution, package, controlchunk,
+		r = target->doreoverride(target, package, controlchunk,
 				&newcontrolchunk);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) ) {
