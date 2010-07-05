@@ -1,3 +1,8 @@
+2010-07-05
+	* special $Component in override files will force
+	placing packages in the specified component
+	upon inclusion (unless -C is given).
+
 2010-07-04
 	* consult override files when importing packages
 	with 'update' or 'pull'.

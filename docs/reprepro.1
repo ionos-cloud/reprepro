@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2010-07-04" "reprepro" REPREPRO
+.TH REPREPRO 1 "2010-07-05" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -1637,7 +1637,8 @@ For example:
 .B reprepro Priority required
 
 All fields of a given package will be replaced by the new value specified
-in the override file.
+in the override file
+with the exception of special fields starting with a dollar sign ($).
 While the field name is compared case-insensitive, it is copied in
 exactly the form in the override file there.
 (Thus I suggest to keep to the exact case it is normally found in
@@ -1648,14 +1649,23 @@ which is also used to guess the component (unless \fB\-C\fP is there).
 Some values like \fBPackage\fP, \fBFilename\fP, \fBSize\fP or \fBMD5sum\fP
 are forbidden, as their usage would severly confuse reprepro.
 
-Fieldnames starting with a dollar ($) are reserved for future use and are
-ignored with a warning displayed.
-
 As an extension reprepro also supports patterns instead of packagenames.
 If the package name contains '*', '[' or '?',
 it is considered a pattern
 and applied to each package
 that is not matched by any non-pattern override nor by any previous pattern.
+
+Fieldnames starting with a dollar ($) are not be placed in the
+exported control data but have special meaning.
+Unknown ones are loudly ignored.
+Special fields are:
+
+ \fB$Component\fP: includedeb, includedsc, include and processincoming
+will put the package in the component given as value
+(unless itself overriden with \fB-C\fP).
+Note that the proper way to specify the component is by setting the
+section field and using this extension will most likely confuse people.
+
 .SS conf/incoming
 Every chunk is a rule set for the
 .B process_incoming

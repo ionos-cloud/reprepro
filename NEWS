@@ -1,6 +1,7 @@
 Updates between 4.1.1 and 4.2.0:
 - allow patterns in override files
 - apply override files when doing 'pull' and 'update'
+- add special '$Component' override field
 
 Updates between 4.1.1 and 4.1.2:
 - fix parsing of .orig-*.tar.* lines in .changes files,

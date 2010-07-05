@@ -121,7 +121,8 @@ static retvalue add_override_field(struct overridedata *data, const char *second
 				secondpart);
 		return RET_ERROR;
 	}
-	if( secondpart[0] == '$' ) {
+	if( secondpart[0] == '$'
+			&& strcasecmp(secondpart, "$Component") != 0 ) {
 		fprintf(stderr,
 "Warning: special override field '%s' unknown and will be ignored\n",
 				secondpart);

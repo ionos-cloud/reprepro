@@ -120,6 +120,20 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 	if( forcepriority == NULL ) {
 		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
 	}
+	if( !atom_defined(forcecomponent) ) {
+		const char *fc;
+
+		fc = override_get(oinfo, "$Component");
+		if( fc != NULL ) {
+			forcecomponent = component_find(fc);
+			if( !atom_defined(forcecomponent) ) {
+				fprintf(stderr,
+"Unparseable component '%s' in $Component override of '%s'\n",
+					fc, pkg->deb.name);
+				return RET_ERROR;
+			}
+		}
+	}
 
 	if( forcesection != NULL ) {
 		free(pkg->deb.section);

@@ -568,6 +568,20 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 			fprintf(stderr,"No priority specified for '%s'!\n",filename);
 			return RET_ERROR;
 		}
+		if( !atom_defined(forcecomponent) ) {
+			const char *fc;
+
+			fc = override_get(oinfo, "$Component");
+			if( fc != NULL ) {
+				forcecomponent = component_find(fc);
+				if( !atom_defined(forcecomponent) ) {
+					fprintf(stderr,
+"Unparseable component '%s' in $Component override of '%s'\n",
+						fc, e->name);
+					return RET_ERROR;
+				}
+			}
+		}
 
 		// I'm undecided here. If this is a udeb, one could also use
 		// distribution->udebcomponents. Though this might result

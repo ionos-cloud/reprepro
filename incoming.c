@@ -923,7 +923,8 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 
 static inline retvalue getsectionprioritycomponent(const struct incoming *i, const struct candidate *c, const struct distribution *into, const struct candidate_file *file, const char *name, const struct overridedata *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/component_t *component) {
 	retvalue r;
-	const char *section, *priority;
+	const char *section, *priority, *forcecomponent;
+	component_t fc;
 
 	section = override_get(oinfo, SECTION_FIELDNAME);
 	if( section == NULL ) {
@@ -948,9 +949,22 @@ static inline retvalue getsectionprioritycomponent(const struct incoming *i, con
 		return RET_ERROR;
 	}
 
+	forcecomponent = override_get(oinfo, "$Component");
+	if( forcecomponent != NULL ) {
+		fc = component_find(forcecomponent);
+		if( !atom_defined(fc)) {
+			fprintf(stderr,
+"Unknown component '%s' (in $Component in override file for '%s'\n",
+					forcecomponent, name);
+			return RET_ERROR;
+		}
+		/* guess_component will check if that is valid for this
+		 * distribution */
+	} else
+		fc = atom_unknown;
 	r = guess_component(into->codename, &into->components,
 			BASENAME(i,file->ofs), section,
-			atom_unknown, component);
+			fc, component);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
