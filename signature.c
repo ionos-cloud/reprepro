@@ -807,7 +807,13 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 struct signedfile {
 	char *plainfilename, *newplainfilename;
 	char *signfilename, *newsignfilename;
-	int fd; retvalue result;
+	retvalue result;
+	struct databuffer {
+		struct databuffer *next;
+#define DATABUFFERLEN (128ul * 1024ul)
+		char data[DATABUFFERLEN];
+	} *buffer;
+	size_t bufferlen;
 };
 
 
@@ -817,33 +823,21 @@ static retvalue newpossiblysignedfile(const char *directory, const char *basefil
 	n = calloc(1, sizeof(struct signedfile));
 	if( n == NULL )
 		return RET_ERROR_OOM;
-	n->fd = -1;
 	n->plainfilename = calc_dirconcat(directory, basefilename);
 	if( n->plainfilename == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;
 	}
-	n->newplainfilename = calc_addsuffix(n->plainfilename, "new");
-	if( n->newplainfilename == NULL ) {
+	n->newplainfilename = NULL;
+	n->bufferlen = 0;
+	n->buffer = malloc(sizeof(struct databuffer));
+	if( FAILEDTOALLOC(n->buffer) ) {
+		free(n->newplainfilename);
 		free(n->plainfilename);
 		free(n);
 		return RET_ERROR_OOM;
 	}
-
-	(void)dirs_make_parent(n->newplainfilename);
-	(void)unlink(n->newplainfilename);
-
-	n->fd = open(n->newplainfilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY, 0666);
-	if( n->fd < 0 ) {
-		int e = errno;
-		fprintf(stderr, "Error creating file '%s': %s\n",
-				n->newplainfilename,
-				strerror(e));
-		free(n->newplainfilename);
-		free(n->plainfilename);
-		free(n);
-		return RET_ERRNO(e);
-	}
+	n->buffer->next = NULL;
 	*out = n;
 	return RET_OK;
 }
@@ -851,7 +845,12 @@ static retvalue newpossiblysignedfile(const char *directory, const char *basefil
 void signedfile_free(struct signedfile *f, bool cleanup) {
 	if( f == NULL )
 		return;
-	assert( f->fd < 0 );
+	while( f->buffer != NULL ) {
+		struct databuffer *b = f->buffer;
+
+		f->buffer = b->next;
+		free(b);
+	}
 	if( f->newplainfilename != NULL ) {
 		if( cleanup )
 			(void)unlink(f->newplainfilename);
@@ -875,7 +874,6 @@ retvalue signature_startsignedfile(const char *directory, const char *basefilena
 	r = newpossiblysignedfile(directory, basefilename, &n);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	// create object to place data into...
 	*out = n;
 	return RET_OK;
 }
@@ -891,50 +889,127 @@ retvalue signature_startunsignedfile(const char *directory, const char *basefile
 	return RET_OK;
 }
 
+/* store data into buffer */
 void signedfile_write(struct signedfile *f, const void *data, size_t len) {
-	if( f->fd >= 0  ) {
-		ssize_t written;
+	struct databuffer *b;
+	/* offset in the last block */
+	size_t ofs = f->bufferlen % DATABUFFERLEN;
+	size_t check;
 
-		while( len > 0 ) {
-			written = write(f->fd, data, len);
-			if( written < 0 ) {
-				int e = errno;
-				fprintf(stderr, "Error %d writing to file '%s': %s\n",
-						e, f->newplainfilename,
-						strerror(e));
-				(void)close(f->fd);
-				(void)unlink(f->newplainfilename);
-				f->fd = -1;
-				RET_UPDATE(f->result, RET_ERRNO(e));
-				return;
-			}
-			assert( (size_t)written <= len );
-			data += written;
-			len -= written;
-		}
+	/* no need to try anything if there already was an error */
+	if( RET_WAS_ERROR(f->result) )
+		return;
+
+	check = 0;
+	b = f->buffer;
+	while( b->next != NULL ) {
+		b = b->next;
+		check += DATABUFFERLEN;
 	}
-	// push into signing object...
+
+	assert( f->bufferlen == check + ofs );
+
+	while( ofs + len >= DATABUFFERLEN ) {
+		size_t rest = DATABUFFERLEN - ofs;
+
+		memcpy(&b->data[ofs], data, rest);
+		data = ((const char*)data) + rest;
+		len -= rest;
+		f->bufferlen += rest;
+		assert( (f->bufferlen % DATABUFFERLEN) == 0 );
+		ofs = 0;
+		b->next = malloc(sizeof(struct databuffer));
+		if( FAILEDTOALLOC(b->next) ) {
+			f->result = RET_ERROR_OOM;
+			return;
+		}
+		b->next->next = NULL;
+		b = b->next;
+	}
+	if( len > 0 ) {
+		memcpy(&b->data[ofs], data, len);
+		f->bufferlen += len;
+	}
 }
 
 retvalue signedfile_prepare(struct signedfile *f, const char *options, bool willcleanup) {
-	if( f->fd >= 0 ) {
-		int ret;
+	struct databuffer *b;
+	size_t len, ofs;
+	int fd, ret;
 
-		ret = close(f->fd);
-		f->fd = -1;
-		if( ret < 0 ) {
+	if( RET_WAS_ERROR(f->result) )
+		return f->result;
+
+	/* write content to file */
+
+	f->newplainfilename = calc_addsuffix(f->plainfilename, "new");
+	if( FAILEDTOALLOC(f->newplainfilename) )
+		return RET_ERROR_OOM;
+
+	(void)dirs_make_parent(f->newplainfilename);
+	(void)unlink(f->newplainfilename);
+
+	fd = open(f->newplainfilename, O_WRONLY|O_CREAT|O_TRUNC|O_NOCTTY, 0666);
+	if( fd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error creating file '%s': %s\n",
+				f->newplainfilename,
+				strerror(e));
+		free(f->newplainfilename);
+		f->newplainfilename = NULL;
+		return RET_ERRNO(e);
+	}
+	b = f->buffer;
+	ofs = 0;
+	len = f->bufferlen;
+	while( b != NULL && len > 0 ) {
+		ssize_t written;
+		size_t l;
+
+		if( len > DATABUFFERLEN - ofs )
+			l = DATABUFFERLEN - ofs;
+		else
+			l = len;
+
+		written = write(fd, b->data + ofs, l);
+		if( written < 0 ) {
 			int e = errno;
 			fprintf(stderr, "Error %d writing to file '%s': %s\n",
 					e, f->newplainfilename,
 					strerror(e));
+			(void)close(fd);
 			(void)unlink(f->newplainfilename);
 			free(f->newplainfilename);
 			f->newplainfilename = NULL;
-			RET_UPDATE(f->result, RET_ERRNO(e));
+			return RET_ERRNO(e);
+		}
+		assert( (size_t)written <= len );
+		ofs += written;
+		assert( ofs <= DATABUFFERLEN );
+		len -= written;
+		if( ofs == DATABUFFERLEN ) {
+			ofs = 0;
+			b = b->next;
 		}
 	}
-	if( RET_WAS_ERROR(f->result) )
-		return f->result;
+	assert( len == 0 );
+	if( len > 0 ) {
+		(void)close(fd);
+		return RET_ERROR;
+	}
+
+	ret = close(fd);
+	if( ret < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error %d writing to file '%s': %s\n",
+				e, f->newplainfilename,
+				strerror(e));
+		(void)unlink(f->newplainfilename);
+		free(f->newplainfilename);
+		f->newplainfilename = NULL;
+		return RET_ERRNO(e);
+	}
+	/* now do the actual signing */
 	if( options != NULL ) {
 		retvalue r;
 
