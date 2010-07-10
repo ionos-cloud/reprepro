@@ -1218,14 +1218,9 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 			return RET_ERROR;
 		}
 	}
-
-	if( distribution->signwith != NULL )
-		r = signature_startsignedfile(release->dirofdist, "Release",
-				distribution->signwith,
-				&release->signedfile);
-	else
-		r = signature_startunsignedfile(release->dirofdist, "Release",
-				&release->signedfile);
+	r = signature_startsignedfile(release->dirofdist,
+			"Release", "InRelease",
+			&release->signedfile);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}

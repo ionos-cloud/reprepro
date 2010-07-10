@@ -48,8 +48,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 
 struct signedfile;
 
-retvalue signature_startsignedfile(const char *directory, const char *basename, /*@out@*/const char *options, struct signedfile **);
-retvalue signature_startunsignedfile(const char *directory, const char *basename, /*@out@*/struct signedfile **);
+retvalue signature_startsignedfile(const char */*directory*/, const char */*basename*/, const char */*inlinebasename*/, /*@out@*/struct signedfile **);
 void signedfile_write(struct signedfile *, const void *, size_t);
 /* generate signature in temporary file */
 retvalue signedfile_prepare(struct signedfile *, const char *options, bool willcleanup);

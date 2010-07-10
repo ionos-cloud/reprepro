@@ -21,6 +21,7 @@ testonlysmalldeletes.sh \
 testoverride.sh \
 testpackagediff.sh \
 testsignatures.sh \
+testsigned.sh \
 testsnapshotcopyrestore.sh \
 testsubcomponents.sh \
 testtemplate.sh \
