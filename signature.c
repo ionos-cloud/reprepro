@@ -808,12 +808,9 @@ struct signedfile {
 	char *plainfilename, *newplainfilename;
 	char *signfilename, *newsignfilename;
 	retvalue result;
-	struct databuffer {
-		struct databuffer *next;
-#define DATABUFFERLEN (128ul * 1024ul)
-		char data[DATABUFFERLEN];
-	} *buffer;
-	size_t bufferlen;
+#define DATABUFFERUNITS (128ul * 1024ul)
+	size_t bufferlen, buffersize;
+	char *buffer;
 };
 
 
@@ -830,14 +827,14 @@ static retvalue newpossiblysignedfile(const char *directory, const char *basefil
 	}
 	n->newplainfilename = NULL;
 	n->bufferlen = 0;
-	n->buffer = malloc(sizeof(struct databuffer));
+	n->buffersize = DATABUFFERUNITS;
+	n->buffer = malloc(n->buffersize);
 	if( FAILEDTOALLOC(n->buffer) ) {
 		free(n->newplainfilename);
 		free(n->plainfilename);
 		free(n);
 		return RET_ERROR_OOM;
 	}
-	n->buffer->next = NULL;
 	*out = n;
 	return RET_OK;
 }
@@ -845,12 +842,6 @@ static retvalue newpossiblysignedfile(const char *directory, const char *basefil
 void signedfile_free(struct signedfile *f, bool cleanup) {
 	if( f == NULL )
 		return;
-	while( f->buffer != NULL ) {
-		struct databuffer *b = f->buffer;
-
-		f->buffer = b->next;
-		free(b);
-	}
 	if( f->newplainfilename != NULL ) {
 		if( cleanup )
 			(void)unlink(f->newplainfilename);
@@ -863,6 +854,7 @@ void signedfile_free(struct signedfile *f, bool cleanup) {
 		free(f->newsignfilename);
 	}
 	free(f->signfilename);
+	free(f->buffer);
 	free(f);
 	return;
 }
@@ -891,49 +883,35 @@ retvalue signature_startunsignedfile(const char *directory, const char *basefile
 
 /* store data into buffer */
 void signedfile_write(struct signedfile *f, const void *data, size_t len) {
-	struct databuffer *b;
-	/* offset in the last block */
-	size_t ofs = f->bufferlen % DATABUFFERLEN;
-	size_t check;
 
 	/* no need to try anything if there already was an error */
 	if( RET_WAS_ERROR(f->result) )
 		return;
 
-	check = 0;
-	b = f->buffer;
-	while( b->next != NULL ) {
-		b = b->next;
-		check += DATABUFFERLEN;
-	}
+	if( len > f->buffersize - f->bufferlen ) {
+		size_t blocks = (len + f->bufferlen)/DATABUFFERUNITS;
+		size_t newsize = (blocks + 1) * DATABUFFERUNITS;
+		char *newbuffer;
 
-	assert( f->bufferlen == check + ofs );
-
-	while( ofs + len >= DATABUFFERLEN ) {
-		size_t rest = DATABUFFERLEN - ofs;
-
-		memcpy(&b->data[ofs], data, rest);
-		data = ((const char*)data) + rest;
-		len -= rest;
-		f->bufferlen += rest;
-		assert( (f->bufferlen % DATABUFFERLEN) == 0 );
-		ofs = 0;
-		b->next = malloc(sizeof(struct databuffer));
-		if( FAILEDTOALLOC(b->next) ) {
+		/* realloc is wasteful, but should not happen too often */
+		newbuffer = realloc(f->buffer, newsize);
+		if( newbuffer == NULL ) {
+			free(f->buffer);
+			f->buffer = NULL;
 			f->result = RET_ERROR_OOM;
 			return;
 		}
-		b->next->next = NULL;
-		b = b->next;
+		f->buffer = newbuffer;
+		f->buffersize = newsize;
+		assert( f->bufferlen < f->buffersize );
 	}
-	if( len > 0 ) {
-		memcpy(&b->data[ofs], data, len);
-		f->bufferlen += len;
-	}
+	assert( len <= f->buffersize - f->bufferlen );
+	memcpy(f->buffer + f->bufferlen, data, len);
+	f->bufferlen += len;
+	assert( f->bufferlen <= f->buffersize );
 }
 
 retvalue signedfile_prepare(struct signedfile *f, const char *options, bool willcleanup) {
-	struct databuffer *b;
 	size_t len, ofs;
 	int fd, ret;
 
@@ -959,19 +937,12 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options, bool will
 		f->newplainfilename = NULL;
 		return RET_ERRNO(e);
 	}
-	b = f->buffer;
 	ofs = 0;
 	len = f->bufferlen;
-	while( b != NULL && len > 0 ) {
+	while( len > 0 ) {
 		ssize_t written;
-		size_t l;
 
-		if( len > DATABUFFERLEN - ofs )
-			l = DATABUFFERLEN - ofs;
-		else
-			l = len;
-
-		written = write(fd, b->data + ofs, l);
+		written = write(fd, f->buffer + ofs, len);
 		if( written < 0 ) {
 			int e = errno;
 			fprintf(stderr, "Error %d writing to file '%s': %s\n",
@@ -985,19 +956,8 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options, bool will
 		}
 		assert( (size_t)written <= len );
 		ofs += written;
-		assert( ofs <= DATABUFFERLEN );
 		len -= written;
-		if( ofs == DATABUFFERLEN ) {
-			ofs = 0;
-			b = b->next;
-		}
 	}
-	assert( len == 0 );
-	if( len > 0 ) {
-		(void)close(fd);
-		return RET_ERROR;
-	}
-
 	ret = close(fd);
 	if( ret < 0 ) {
 		int e = errno;
