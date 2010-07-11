@@ -1,8 +1,13 @@
-reprepro (4.1.2-2) UNRELEASED; urgency=low
+reprepro (4.2.0-1) unstable; urgency=low
 
   * Fix Berkley -> Berkeley (Closes: 586899)
+  * new upstream release
+  - allow patterns in override files
+  - apply override files when doing 'pull' and 'update'
+  - add special '$Component' override field
+  - create InRelease file additionally to Release.gpg
 
- -- Bernhard R. Link <brlink@debian.org>  Wed, 23 Jun 2010 18:19:59 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 11 Jul 2010 12:21:14 +0200
 
 reprepro (4.1.2-1) unstable; urgency=low
 
