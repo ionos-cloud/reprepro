@@ -6,6 +6,7 @@ TODO:
 	 (not even run in the testcase yet: reoverride, ... (probably many))
 	finish import from incoming dir, implement sending mails to uploader
 	extend FilterList et al to specify type/architecture/component
+	command to check for binary packages without source and one for source without binaries.
 	switch to only include if source is present
 	action to redownload missing pool/ files from some update-rules (looking for md5sum)
 	Fields to exclude architectures and components in update rules,
