@@ -692,7 +692,7 @@ void modification_printaspatch(void *f, const struct modification *m, void write
 				len = snprintf(line, sizeof(line), "%d,%dc\n",
 						start, start + oldcount - 1);
 		}
-		assert( len < sizeof(line) );
+		assert( len < (int)sizeof(line) );
 		write_func(line, len, f);
 		if( newcount != 0 ) {
 			while( r != p->next ) {
