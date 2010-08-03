@@ -2021,7 +2021,7 @@ static retvalue candidate_finish_logdir(struct incoming *i, struct candidate *c)
 	return RET_OK;
 }
 
-static retvalue candidate_add_byhands(struct incoming *i, struct candidate *c, struct candidate_perdistribution *d) {
+static retvalue candidate_add_byhands(struct incoming *i, UNUSED(struct candidate *c), struct candidate_perdistribution *d) {
 	struct byhandfile *b;
 	retvalue r;
 
