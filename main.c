@@ -70,6 +70,7 @@
 #include "globmatch.h"
 #include "needbuild.h"
 #include "archallflood.h"
+#include "sourcecheck.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -3154,6 +3155,30 @@ ACTION_D(y, n, y, flood) {
 	return result;
 }
 
+/*********************** unusedsources ****************************/
+ACTION_B(n, n, y, unusedsources) {
+	retvalue r;
+
+	r = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return unusedsources(database, alldistributions);
+}
+
+/*********************** missingsource ****************************/
+ACTION_B(n, n, y, sourcemissing) {
+	retvalue r;
+
+	r = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return sourcemissing(database, alldistributions);
+}
+
 /*********************/
 /* argument handling */
 /*********************/
@@ -3350,6 +3375,10 @@ static const struct action {
 		2, 3, "[-C <component>] build-needing <codename> <architecture> [<glob>]"},
 	{"flood", 		A_Dact(flood)|MAY_UNUSED,
 		1, 2, "[-C <component> ] [-A <architecture>] [-T <packagetype>] flood <codename> [<architecture>]"},
+	{"unusedsources",	A_B(unusedsources),
+		0, -1, "unusedsources [<codenames>]"},
+	{"sourcemissing",	A_B(sourcemissing),
+		0, -1, "sourcemissing [<codenames>]"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N

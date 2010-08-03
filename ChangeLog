@@ -1,3 +1,6 @@
+2010-08-04
+	* add unusedsources and sourcemissing commands.
+
 2010-07-10
 	* create InRelease files when signing...
 

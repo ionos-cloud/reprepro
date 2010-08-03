@@ -237,9 +237,11 @@ commands=(
 	restorematched:"restore packages matching a glob from a snapshot"
 	restoresrc:"restore packages belonging to a specific source from a snapshot"
 	retrack:"refresh tracking information"
+	sourcemissing:"list binary packages with no source package"
 	tidytracks:"look for files referened by tracks but no longer needed"
 	translatefilelists:"translate pre-3.0.0 contents.cache.db into new format"
 	translatelegacychecksums:"get rid of obsolete files.db"
+	unusedsources:"list source packages with no binary packages"
 	update:"update from external source"
    	)
 hiddencommands=(
@@ -358,7 +360,7 @@ case "$state" in
 
  (first argument|second argument|third argument|argument)
 	case "$words[1]" in
-	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers)
+	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers|unusedsources|sourcemissing)
 		_reprepro_codenames
 		;;
 	 (checkpool)

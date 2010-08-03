@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2010-07-05" "reprepro" REPREPRO
+.TH REPREPRO 1 "2010-08-03" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -873,6 +873,18 @@ Or if you included some architecture all packages only to some architectures
 using \fB\-A\fP to avoid breaking the other architectures for which the binary
 packages were still missing and now want to copy it to those architectures were
 they are unlikely to break something (because a newbinary is already available).
+.TP
+.B unusedsource \fR[\fP\fIdistributions\fP\fR]\fP
+List all source packages for which no binary package build from them is found.
+
+Currently only works with distributions having tracking enabled.
+.TP
+.B sourcemissing \fR[\fP\fIdistributions\fP\fR]\fP
+List all binary packages for which no source package is found
+(the source package must be in the same distribution,
+but source packages only kept by package tracking is enough).
+
+Currently only works with distributions having tracking enabled.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
