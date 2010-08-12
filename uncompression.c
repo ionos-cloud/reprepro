@@ -522,7 +522,9 @@ struct compressedfile {
 	} intermediate;
 	union {
 		gzFile gz;
+#ifdef HAVE_LIBBZ2
 		BZFILE *bz;
+#endif
 	};
 };
 

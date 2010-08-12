@@ -1,3 +1,6 @@
+2010-08-12
+	* fix missing #ifdef breaking --without-libbz2 compiles
+
 2010-08-04
 	* add unusedsources and sourcemissing commands.
 
