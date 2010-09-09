@@ -382,6 +382,8 @@ retvalue override_allreplacefields(const struct overridedata *override, struct f
 				return RET_ERROR_OOM;
 		}
 	}
+	if( fields == NULL )
+		return RET_NOTHING;
 	*fields_p = fields;
 	return RET_OK;
 }
