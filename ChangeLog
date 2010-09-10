@@ -1,3 +1,10 @@
+2010-09-10
+	* add special '$Delete' override field to delete fields
+
+2010-09-09
+	* fix reoverride problem with packages only having a $Component
+	  special-override-field.
+
 2010-08-12
 	* fix missing #ifdef breaking --without-libbz2 compiles
 	* include sys/stat.h in filecntl.c, thanks to Jeroen van Meeuwen
