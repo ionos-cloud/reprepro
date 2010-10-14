@@ -51,7 +51,7 @@ addsource() {
 		echo "extract $CANONDSCFILE information to $TARGETDIR"
 		mkdir -p -- "$TARGETDIR"
 		EXTRACTDIR="$(mktemp -d)"
-		(cd -- "$EXTRACTDIR" && dpkg-source -sn -x "$CANONDSCFILE" > /dev/null)
+		(cd -- "$EXTRACTDIR" && dpkg-source --no-copy -x "$CANONDSCFILE" > /dev/null)
 		install -D -- "$EXTRACTDIR"/*/debian/copyright "$TARGETDIR/copyright"
 		install -D -- "$EXTRACTDIR"/*/debian/changelog "$TARGETDIR/changelog"
 		chmod -R u+rwX -- "$EXTRACTDIR"
@@ -67,7 +67,7 @@ addsource() {
 }
 delsource() {
 	DSCFILE="$1"
-	TARGETDIR=$CHANGELOGDIR/"$(echo $DSCFILE | sed -e 's/\.dsc$//')"
+	TARGETDIR="$CHANGELOGDIR"/"$(echo $DSCFILE | sed -e 's/\.dsc$//')"
 	SUBDIR="$(basename $TARGETDIR)"
 	BASEDIR="$(dirname $TARGETDIR)"
 	if [ "x$JUSTADDED" = "x$TARGETDIR" ] ; then
