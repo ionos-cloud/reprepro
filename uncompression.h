@@ -55,7 +55,7 @@ retvalue uncompress_fdopen(/*@out@*/struct compressedfile **, int, off_t, enum c
 /**** general initialisation ****/
 
 /* check for existance of external programs */
-void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const  char *unxz);
+void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const  char *unxz, const char *lunzip);
 
 #endif
 

@@ -374,6 +374,15 @@ xz files will not be possible.
 The program has to accept the compressed file as stdin and write
 the uncompressed file into stdout.
 .TP
+.BI \-\-lunzip " lzip-uncompressor"
+When trying to uncompress or read \fPlzip\fP compressed files, this program
+will be used.
+The default value is \fBlunzip\fP.
+If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
+lz files will not be possible.
+The program has to accept the compressed file as stdin and write
+the uncompressed file into stdout.
+.TP
 .BI \-\-list\-max " count"
 Limits the output of \fBlist\fP, \fBlistmatched\fP and \fBlistfilter\fP to the first \fIcount\fP
 results.

@@ -84,6 +84,6 @@ extern struct global_config {
 	int showdownloadpercent;
 } global;
 
-enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_COUNT };
+enum compression { c_none, c_gzip, c_bzip2, c_lzma, c_xz, c_lunzip, c_COUNT };
 
 #endif

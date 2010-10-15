@@ -1,3 +1,7 @@
+2010-10-15
+	* add support for lzip compressed files
+	(Thanks to Daniel Baumann for the patch).
+
 2010-09-10
 	* add special '$Delete' override field to delete fields
 

@@ -45,7 +45,7 @@ Name: a
 VerifyRelease: blindtrust
 Method: copy:$WORKDIR/source1
 Architectures: dummyarchitecture
-DownloadListsAs: .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma
+DownloadListsAs: .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma .lzma
 Components: dummycomponent
 
 Name: b
@@ -187,7 +187,7 @@ stdout
 -v2*=Created directory "./db"
 -v2*=Created directory "./lists"
 stderr
-*=./conf/updates:5:108: Ignoring all but first 15 entries...
+*=./conf/updates:5:126: Ignoring all but first 18 entries...
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
@@ -214,7 +214,7 @@ EOF
 
 testrun - --unlzma=NONE update boring 3<<EOF
 stderr
-*=./conf/updates:5:108: Ignoring all but first 15 entries...
+*=./conf/updates:5:126: Ignoring all but first 18 entries...
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'
@@ -240,7 +240,7 @@ EOF
 
 testrun - update boring 3<<EOF
 stderr
-*=./conf/updates:5:108: Ignoring all but first 15 entries...
+*=./conf/updates:5:126: Ignoring all but first 18 entries...
 -v6*=aptmethod start 'copy:$WORKDIR/source2/x/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/source1/dists/suitename/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/source2/x/Release'

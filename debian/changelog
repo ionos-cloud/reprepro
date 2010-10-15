@@ -1,3 +1,9 @@
+reprepro (4.2.1-0) UNRELEASED; urgency=low
+
+  * add support for lzip compressed files (Closes: 600230)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 15 Oct 2010 12:11:23 +0200
+
 reprepro (4.2.0-1) unstable; urgency=low
 
   * Fix Berkley -> Berkeley (Closes: 586899)

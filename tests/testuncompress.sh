@@ -11,51 +11,56 @@ dodo test ! -d pool
 
 # First test if finding the binaries works properly...
 
-testrun - --unxz=NONE __dumpuncompressors 3<<EOF
+testrun - --lunzip=NONE --unxz=NONE __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in + '/bin/gunzip'
 *=.bz2: built-in + '/bin/bunzip2'
 *=.lzma: '/usr/bin/unlzma'
 *=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
-testrun - --gunzip=NONE --bunzip2=NONE --unlzma=NONE --unxz=NONE __dumpuncompressors 3<<EOF
+testrun - --lunzip=NONE --gunzip=NONE --bunzip2=NONE --unlzma=NONE --unxz=NONE __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in
 *=.bz2: built-in
 *=.lzma: not supported (install lzma or use --unlzma to tell where unlzma is).
 *=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
-testrun - --gunzip=false --bunzip2=false --unlzma=false --unxz=NONE __dumpuncompressors 3<<EOF
+testrun - --lunzip=NONE --gunzip=false --bunzip2=false --unlzma=false --unxz=NONE __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in + '/bin/false'
 *=.bz2: built-in + '/bin/false'
 *=.lzma: '/bin/false'
 *=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
-touch fakeg fakeb fakel fakexz
+touch fakeg fakeb fakel fakexz fakelz
 
-testrun - --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel --unxz=./fakexz __dumpuncompressors 3<<EOF
+testrun - --lunzip=./fakelz --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel --unxz=./fakexz __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in
 *=.bz2: built-in
 *=.lzma: not supported (install lzma or use --unlzma to tell where unlzma is).
 *=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
+*=.lz: not supported (install lzip or use --lunzip to tell where lunzip is).
 EOF
 
-chmod u+x fakeg fakeb fakel fakexz
+chmod u+x fakeg fakeb fakel fakexz fakelz
 
-testrun - --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel --unxz=./fakexz __dumpuncompressors 3<<EOF
+testrun - --lunzip=./fakelz --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel --unxz=./fakexz __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in + './fakeg'
 *=.bz2: built-in + './fakeb'
 *=.lzma: './fakel'
 *=.xz: './fakexz'
+*=.lz: './fakelz'
 EOF
 
-rm fakeg fakeb fakel fakexz
+rm fakeg fakeb fakel fakexz fakelz
 
 # Then test the builtin formats and the external one...
 

@@ -330,6 +330,7 @@ _arguments \
 	'--bunzip2[external Program to extract .bz2 files]:bunzip binary:_files' \
 	'--unlzma[external Program to extract .lzma files]:unlzma binary:_files' \
 	'--unxz[external Program to extract .xz files]:unxz binary:_files' \
+	'--lunzip[external Program to extract .lz files]:lunzip binary:_files' \
 	'--list-format[Format for list output]:listfilter format:' \
 	'--list-skip[Number of packages to skip in list output]:list skip:' \
 	'--list-max[Maximum number of packages in list output]:list max:' \
@@ -486,7 +487,7 @@ case "$state" in
 		;;
 	  (__uncompress)
 		if [[ "$state" = "first argument" ]] ; then
-			uncompressions=(.gz .bz2 .lzma .xz)
+			uncompressions=(.gz .bz2 .lzma .xz .lz)
 		      	_wanted -V 'uncompressions' expl 'uncompression' compadd -a uncompressions
 		elif [[ "$state" = "second argument" ]] ; then
 			_files

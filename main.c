@@ -109,6 +109,7 @@ static char /*@only@*/
 	*bunzip2 = NULL,
 	*unlzma = NULL,
 	*unxz = NULL,
+	*lunzip = NULL,
 	*gnupghome = NULL;
 static int 	listmax = -1;
 static int 	listskip = 0;
@@ -135,7 +136,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(unxz), O(lunzip), O(gnupghome), O(listformat), O(listmax), O(listskip), O(onlysmalldeletes);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -282,6 +283,9 @@ ACTION_N(n, n, n, dumpuncompressors) {
 				break;
 			case c_xz:
 				printf("not supported (install xz-utils or use --unxz to tell where unxz is).\n");
+				break;
+			case c_lunzip:
+				printf("not supported (install lzip or use --lunzip to tell where lunzip is).\n");
 				break;
 			default:
 				printf("not supported\n");
@@ -3236,7 +3240,7 @@ static const struct action {
 	{"__dumpuncompressors",	A_N(dumpuncompressors),
 		0, 0, "__dumpuncompressors"},
 	{"__uncompress",	A_N(uncompress),
-		3, 3, "__uncompress .gz|.bz2|.lzma|.xz <compressed-filename> <into-filename>"},
+		3, 3, "__uncompress .gz|.bz2|.lzma|.xz|.lz <compressed-filename> <into-filename>"},
 	{"__extractsourcesection", A_N(extractsourcesection),
 		1, 1, "__extractsourcesection <.dsc-file>"},
 	{"__extractcontrol",	A_N(extractcontrol),
@@ -3680,6 +3684,7 @@ LO_GUNZIP,
 LO_BUNZIP2,
 LO_UNLZMA,
 LO_UNXZ,
+LO_LZIP,
 LO_GNUPGHOME,
 LO_LISTFORMAT,
 LO_LISTSKIP,
@@ -3955,6 +3960,9 @@ static void handle_option(int c, const char *argument) {
 				case LO_UNXZ:
 					CONFIGDUP(unxz, argument);
 					break;
+				case LO_LZIP:
+					CONFIGDUP(lunzip, argument);
+					break;
 				case LO_GNUPGHOME:
 					CONFIGDUP(gnupghome, argument);
 					break;
@@ -4212,6 +4220,7 @@ int main(int argc,char *argv[]) {
 		{"bunzip2", required_argument, &longoption, LO_BUNZIP2},
 		{"unlzma", required_argument, &longoption, LO_UNLZMA},
 		{"unxz", required_argument, &longoption, LO_UNXZ},
+		{"lunzip", required_argument, &longoption, LO_LZIP},
 		{"gnupghome", required_argument, &longoption, LO_GNUPGHOME},
 		{"list-format", required_argument, &longoption, LO_LISTFORMAT},
 		{"list-skip", required_argument, &longoption, LO_LISTSKIP},
@@ -4335,11 +4344,14 @@ int main(int argc,char *argv[]) {
 		unlzma = expand_plus_prefix(unlzma, "unlzma", "boc", true);
 	if( unxz != NULL && unxz[0] == '+' )
 		unxz = expand_plus_prefix(unxz, "unxz", "boc", true);
-	uncompressions_check(gunzip, bunzip2, unlzma, unxz);
+	if( lunzip != NULL && lunzip[0] == '+' )
+		lunzip = expand_plus_prefix(lunzip, "lunzip", "boc", true);
+	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip);
 	free(gunzip);
 	free(bunzip2);
 	free(unlzma);
 	free(unxz);
+	free(lunzip);
 
 	a = all_actions;
 	while( a->name != NULL ) {

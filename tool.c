@@ -2864,12 +2864,13 @@ int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"create", no_argument, NULL, 'C'},
-		{"create-with-all-fields", no_argument, &longoption, 5},
+		{"create-with-all-fields", no_argument, &longoption, 6},
 		{"searchpath", required_argument, NULL, 's'},
 		{"gunzip", required_argument, &longoption, 1},
 		{"bunzip2", required_argument, &longoption, 2},
 		{"unlzma", required_argument, &longoption, 3},
 		{"unxz", required_argument, &longoption, 4},
+		{"lunzip", required_argument, &longoption, 5},
 		{NULL, 0, NULL, 0},
 	};
 	int c;
@@ -2879,7 +2880,7 @@ int main(int argc,char *argv[]) {
 	bool all_fields = false;
 	struct strlist searchpath;
 	struct changes *changesdata IFSTUPIDCC(=NULL);
-	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL, *unxz = NULL;
+	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL, *unxz = NULL, *lunzip = NULL;
 	retvalue r;
 
 	strlist_init(&searchpath);
@@ -2901,6 +2902,9 @@ int main(int argc,char *argv[]) {
 						unxz = strdup(optarg);
 						break;
 					case 5:
+						lunzip = strdup(optarg);
+						break;
+					case 6:
 						create_file = true;
 						all_fields = true;
 						break;
@@ -2925,7 +2929,7 @@ int main(int argc,char *argv[]) {
 		about(false);
 	}
 	signature_init(false);
-	uncompressions_check(gunzip, bunzip2, unlzma, unxz);
+	uncompressions_check(gunzip, bunzip2, unlzma, unxz, lunzip);
 
 	changesfilename = argv[optind];
 	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes") ) {
