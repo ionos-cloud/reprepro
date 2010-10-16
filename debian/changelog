@@ -1,8 +1,9 @@
 reprepro (4.2.1-0) UNRELEASED; urgency=low
 
   * add support for lzip compressed files (Closes: 600230)
+  * add support for ButAutomaticUpgrades field (Closes: 600358)
 
- -- Bernhard R. Link <brlink@debian.org>  Fri, 15 Oct 2010 12:11:23 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 16 Oct 2010 14:50:55 +0200
 
 reprepro (4.2.0-1) unstable; urgency=low
 
