@@ -52,6 +52,7 @@ static retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->version);
 		free(distribution->origin);
 		free(distribution->notautomatic);
+		free(distribution->butautomaticupgrades);
 		free(distribution->label);
 		free(distribution->description);
 		free(distribution->signwith);
@@ -387,6 +388,7 @@ CFallSETPROC(distribution, suite)
 CFallSETPROC(distribution, version)
 CFallSETPROC(distribution, origin)
 CFallSETPROC(distribution, notautomatic)
+CFallSETPROC(distribution, butautomaticupgrades)
 CFtruthSETPROC2(distribution, readonly, readonly)
 CFallSETPROC(distribution, label)
 CFallSETPROC(distribution, description)
@@ -450,6 +452,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("Label",		distribution,	label),
 	CF("Log",		distribution,	logger),
 	CF("NotAutomatic",	distribution,	notautomatic),
+	CF("ButAutomaticUpgrades", distribution, butautomaticupgrades),
 	CF("Origin",		distribution,	origin),
 	CF("Pull",		distribution,	pulls),
 	CF("ReadOnly",		distribution,	readonly),

@@ -35,7 +35,8 @@ struct distribution {
 	 * generated, may be NULL. only suite is sometimes used
 	 * (and only for sanity checks) */
 	/*@null@*/char *suite,*version;
-	/*@null@*/char *origin,*label,*description,*notautomatic;
+	/*@null@*/char *origin, *label, *description,
+		*notautomatic, *butautomaticupgrades;
 	/* What architectures and components are there */
 	struct atomlist architectures, components;
 	/* which update rules to use */

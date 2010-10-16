@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2010-08-03" "reprepro" REPREPRO
+.TH REPREPRO 1 "2010-10-16" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -1102,6 +1102,13 @@ This optional field is simply copied into the
 Release files.
 .TP
 .B NotAutomatic
+This optional field is simply copied into the
+Release files.
+(The value is handled as arbitrary string,
+though anything but \fByes\fP does make much
+sense right now.)
+.TP
+.B ButAutomaticUpgrades
 This optional field is simply copied into the
 Release files.
 (The value is handled as arbitrary string,
