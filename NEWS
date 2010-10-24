@@ -1,3 +1,10 @@
+Updates between 4.2.0 and 4.3.0:
+- add special "$Delete" override field to get rid of fields
+- add support for ButAtuomaticUpgrades
+- add 'unusedsources' and 'sourcemissing' commands
+- add support for lzip compressed files
+- bugfixes ($component overrides, compiling without libbz2, with gcc4.5)
+
 Updates between 4.1.1 and 4.2.0:
 - allow patterns in override files
 - apply override files when doing 'pull' and 'update'
