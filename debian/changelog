@@ -1,9 +1,13 @@
-reprepro (4.2.1-0) UNRELEASED; urgency=low
+reprepro (4.3.0-1) experimental; urgency=low
 
-  * add support for lzip compressed files (Closes: 600230)
-  * add support for ButAutomaticUpgrades field (Closes: 600358)
+  * new upstream release
+  - add support for lzip compressed files (Closes: 600230)
+  - add support for ButAutomaticUpgrades field (Closes: 600358)
+  - fix compiling with gcc4.5 (Closes: 600982)
+  - add 'unusedsources' and 'sourcemissing' commands (Closes: 590477)
+  - fix handling of packages with a $Component override but no real ones
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 16 Oct 2010 14:50:55 +0200
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 24 Oct 2010 11:06:48 +0200
 
 reprepro (4.2.0-1) unstable; urgency=low
 
