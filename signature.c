@@ -260,6 +260,7 @@ static retvalue signature_sign(const char *options, const char *filename, void *
 						e, signaturename,
 						strerror(e));
 				free(signature_data);
+				(void)close(fd);
 				return RET_ERRNO(e);
 			}
 			signature_len -= written;

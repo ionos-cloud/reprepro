@@ -76,12 +76,14 @@ retvalue byhandhooks_parse(struct configiterator *iter, struct byhandhook **hook
 		if( r == RET_NOTHING )
 			continue;
 		if( RET_WAS_ERROR(r) )
-			return r;
+			break;
 		h = calloc(1, sizeof(struct byhandhook));
 		if( FAILEDTOALLOC(h) ) {
-			byhandhooks_free(hooks);
-			return RET_ERROR_OOM;
+			r = RET_ERROR_OOM;
+			break;
 		}
+		*nexthook_p = h;
+		nexthook_p = &h->next;
 		h->sectionglob = v;
 		r = config_getwordinline(iter, &v);
 		if( r == RET_NOTHING ) {
@@ -91,10 +93,8 @@ retvalue byhandhooks_parse(struct configiterator *iter, struct byhandhook **hook
 					config_markercolumn(iter));
 			r = RET_ERROR;
 		}
-		if( RET_WAS_ERROR(r) ) {
-			byhandhooks_free(hooks);
-			return r;
-		}
+		if( RET_WAS_ERROR(r) )
+			break;
 		h->priorityglob = v;
 		r = config_getwordinline(iter, &v);
 		if( r == RET_NOTHING ) {
@@ -104,10 +104,8 @@ retvalue byhandhooks_parse(struct configiterator *iter, struct byhandhook **hook
 					config_markercolumn(iter));
 			r = RET_ERROR;
 		}
-		if( RET_WAS_ERROR(r) ) {
-			byhandhooks_free(hooks);
-			return r;
-		}
+		if( RET_WAS_ERROR(r) )
+			break;
 		h->filenameglob = v;
 		r = config_getwordinline(iter, &v);
 		if( r == RET_NOTHING ) {
@@ -117,17 +115,15 @@ retvalue byhandhooks_parse(struct configiterator *iter, struct byhandhook **hook
 					config_markercolumn(iter));
 			r = RET_ERROR;
 		}
-		if( RET_WAS_ERROR(r) ) {
-			byhandhooks_free(hooks);
-			return r;
-		}
+		if( RET_WAS_ERROR(r) )
+			break;
 		assert( v != NULL && v[0] != '\0' ); \
 		if( v[0] != '/' ) {
 			h->script = calc_dirconcat(global.confdir, v);
 			free(v);
 			if( h->script == NULL ) {
-				byhandhooks_free(hooks);
-				return RET_ERROR_OOM;
+				r = RET_ERROR_OOM;
+				break;
 			}
 		} else
 			h->script = v;
@@ -140,12 +136,12 @@ retvalue byhandhooks_parse(struct configiterator *iter, struct byhandhook **hook
 			free(v);
 			r = RET_ERROR;
 		}
-		if( RET_WAS_ERROR(r) ) {
-			byhandhooks_free(hooks);
-			return r;
-		}
-		*nexthook_p = h;
-		nexthook_p = &h->next;
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		byhandhooks_free(hooks);
+		return r;
 	}
 	*hooks_p = hooks;
 	return RET_OK;

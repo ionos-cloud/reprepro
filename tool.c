@@ -512,6 +512,7 @@ static retvalue parse_changes_files(struct changes *c, struct strlist filelines[
 			p++;
 		if( *p != '\0' ) {
 			fprintf(stderr,"Unexpected sixth argument in '%s'!\n", tmp->values[i]);
+			free(hashes);
 			return RET_ERROR;
 		}
 		if( fileend - filestart == 0 )

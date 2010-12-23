@@ -204,6 +204,7 @@ static retvalue pull_initdistribution(struct pull_distribution **pp,
 				fprintf(stderr,
 "Error: Unknown pull rule '%s' in distribution '%s'!\n",
 						name, distribution->codename);
+				free(p);
 				return RET_ERROR_MISSING;
 			}
 			p->rules[i] = rule;

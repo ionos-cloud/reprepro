@@ -129,6 +129,8 @@ static retvalue gen_sha1sum(const char *fullfilename, /*@out@*/struct hash *hash
 		e = errno;
 		fprintf(stderr,"Error %d getting information about '%s': %s\n",
 				e, fullfilename, strerror(e));
+		(void)close(infd);
+		free(buffer);
 		return RET_ERRNO(e);
 	}
 	do {
