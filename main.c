@@ -71,6 +71,7 @@
 #include "needbuild.h"
 #include "archallflood.h"
 #include "sourcecheck.h"
+#include "uploaderslist.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -2796,6 +2797,259 @@ ACTION_C(n, n, createsymlinks) {
 	return result;
 }
 
+/***********************checkuploaders***********************************/
+
+/* Read a fake package description from stdin */
+static inline retvalue read_package_description(char **sourcename, struct strlist *sections, struct strlist *binaries, struct strlist *byhands, struct atomlist *architectures, struct signatures **signatures, char **buffer_p, size_t *bufferlen_p) {
+	retvalue r;
+	ssize_t got;
+	char *buffer, *v, *p;
+	struct strlist *l;
+	struct signatures *s;
+	struct signature *sig;
+	architecture_t architecture;
+
+	if( isatty(0) ) {
+		puts("Please input the simulated package data to test.\n"
+		     "Format: (source|section|binary|byhand|architecture|signature) <value>\n"
+		     "some keys may be given multiple times");
+	}
+	while( (got = getline(buffer_p, bufferlen_p, stdin)) >= 0 ) {
+		buffer = *buffer_p;
+		if( got == 0 || buffer[got - 1] != '\n' ) {
+			fputs("stdin is not text\n", stderr);
+			return RET_ERROR;
+		}
+		buffer[--got] = '\0';
+		if( strncmp(buffer, "source ", 7) == 0 ) {
+			if( *sourcename != NULL ) {
+				fprintf(stderr, "Source name only allowed once!\n");
+				return RET_ERROR;
+			}
+			*sourcename = strdup(buffer + 7);
+			if( FAILEDTOALLOC(*sourcename) )
+				return RET_ERROR_OOM;
+			continue;
+		} else if( strncmp(buffer, "signature ", 10) == 0 ) {
+			v = buffer + 10;
+			if( *signatures == NULL ) {
+				s = calloc(1, sizeof(struct signatures)
+						+sizeof(struct signature));
+				if( FAILEDTOALLOC(s) )
+					return RET_ERROR_OOM;
+			} else {
+				s = realloc(*signatures, sizeof(struct signatures)
+						+(s->count+1)*
+						sizeof(struct signature));
+				if( FAILEDTOALLOC(s) )
+					return RET_ERROR_OOM;
+			}
+			*signatures = s;
+			sig = s->signatures + s->count;
+			s->count++;
+			s->validcount++;
+			sig->expired_key = false;
+			sig->expired_signature = false;
+			sig->revoced_key = false;
+			sig->state = sist_valid;
+			switch( *v ) {
+				case 'b':
+					sig->state = sist_bad;
+					s->validcount--;
+					v++;
+					break;
+				case 'e':
+					sig->state = sist_mostly;
+					sig->expired_signature = true;
+					s->validcount--;
+					v++;
+					break;
+				case 'i':
+					sig->state = sist_invalid;
+					s->validcount--;
+					v++;
+					break;
+			}
+			p = v;
+			while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+				p++;
+			sig->keyid = strndup(v, p-v);
+			sig->primary_keyid = NULL;
+			if( FAILEDTOALLOC(sig->keyid) )
+				return RET_ERROR_OOM;
+			if( *p == ':' ) {
+				p++;
+				v = p;
+				while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f'))
+					p++;
+				if( *p != '\0' ) {
+					fprintf(stderr, "Invalid character in key id: '%c'!\n", *p);
+					return RET_ERROR;
+				}
+				sig->primary_keyid = strdup(v);
+			} else if( *p != '\0' ) {
+				fprintf(stderr, "Invalid character in key id: '%c'!\n", *p);
+				return RET_ERROR;
+			} else
+				sig->primary_keyid = strdup(sig->keyid);
+			if( FAILEDTOALLOC(sig->primary_keyid) )
+				return RET_ERROR_OOM;
+			continue;
+		} else if( strncmp(buffer, "section ", 8) == 0 ) {
+			v = buffer + 8;
+			l = sections;
+		} else if( strncmp(buffer, "binary ", 7) == 0 ) {
+			v = buffer + 7;
+			l = binaries;
+		} else if( strncmp(buffer, "byhand ", 7) == 0 ) {
+			v = buffer + 7;
+			l = byhands;
+		} else if( strncmp(buffer, "architecture ", 13) == 0 ) {
+			v = buffer + 13;
+			r = architecture_intern(v, &architecture);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			r = atomlist_add(architectures, architecture);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			continue;
+		} else if( strcmp(buffer, "finished") == 0 ) {
+			break;
+		} else {
+			fprintf(stderr, "Unparseable line '%s'\n", buffer);
+			return RET_ERROR;
+		}
+		r = strlist_add_dup(l, v);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( ferror(stdin) ) {
+		int e = errno;
+		fprintf(stderr, "Error %d reading data from stdin: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
+	}
+	if( *sourcename == NULL ) {
+		fprintf(stderr, "No source name specified!\n");
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static inline void verifystrlist(struct upload_conditions *conditions, const struct strlist *list) {
+	int i;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( !uploaders_verifystring(conditions, list->values[i]) )
+			break;
+	}
+}
+static inline void verifyatomlist(struct upload_conditions *conditions, const struct atomlist *list) {
+	int i;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( !uploaders_verifyatom(conditions, list->atoms[i]) )
+			break;
+	}
+}
+
+
+ACTION_C(n, n, checkuploaders) {
+	retvalue result, r;
+	struct distribution *d;
+	char *sourcename = NULL;
+	struct strlist sections, binaries, byhands;
+	struct atomlist architectures;
+	struct signatures *signatures = NULL;
+	struct upload_conditions *conditions;
+	bool accepted, rejected;
+	char *buffer = NULL;
+	size_t bufferlen = 0;
+
+	r = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		r = distribution_loaduploaders(d);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
+	strlist_init(&sections);
+	strlist_init(&binaries);
+	strlist_init(&byhands);
+	atomlist_init(&architectures);
+
+	r = read_package_description(&sourcename, &sections, &binaries, &byhands, &architectures, &signatures, &buffer, &bufferlen);
+	free(buffer);
+	if( RET_WAS_ERROR(r) ) {
+		free(sourcename);
+		strlist_done(&sections);
+		strlist_done(&byhands);
+		atomlist_done(&architectures);
+		signatures_free(signatures);
+		return r;
+	}
+
+	result = RET_NOTHING;
+	accepted = false;
+	for( d = alldistributions ; !accepted && d != NULL ; d = d->next ) {
+		if( d->uploaderslist == NULL ) {
+			printf("'%s' would have been accepted by '%s' (as it has no uploader restrictions)\n", sourcename, d->codename);
+			accepted = true;
+			break;
+		}
+		r = uploaders_permissions(d->uploaderslist, signatures, &conditions);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+		rejected = false;
+		do switch( uploaders_nextcondition(conditions) ) {
+			case uc_ACCEPTED:
+				accepted = true;
+				break;
+			case uc_REJECTED:
+				rejected = true;
+				break;
+			case uc_SOURCENAME:
+				uploaders_verifystring(conditions, sourcename);
+				break;
+			case uc_SECTIONS:
+				verifystrlist(conditions, &sections);
+				break;
+			case uc_ARCHITECTURES:
+				verifyatomlist(conditions, &architectures);
+				break;
+			case uc_BYHAND:
+				verifystrlist(conditions, &byhands);
+				break;
+			case uc_BINARIES:
+				verifystrlist(conditions, &byhands);
+				break;
+		} while( !accepted && !rejected );
+		free(conditions);
+
+		if( accepted ) {
+			printf("'%s' would have been accepted by '%s'\n", sourcename, d->codename);
+			break;
+		}
+	}
+	if( !accepted )
+		printf("'%s' would NOT have been accepted by any of the distributions selected.\n", sourcename);
+	free(sourcename);
+	strlist_done(&sections);
+	strlist_done(&byhands);
+	atomlist_done(&architectures);
+	signatures_free(signatures);
+	if( RET_WAS_ERROR(result) )
+		return result;
+	else if( accepted )
+		return RET_OK;
+	else
+		return RET_NOTHING;
+}
+
 /***********************clearvanished***********************************/
 
 ACTION_D(n, n, n, clearvanished) {
@@ -3247,6 +3501,8 @@ static const struct action {
 		1, 1, "__extractcontrol <.deb-file>"},
 	{"__extractfilelist",	A_N(extractfilelist),
 		1, 1, "__extractfilelist <.deb-file>"},
+	{"__checkuploaders",	A_C(checkuploaders),
+		1, -1,	"__checkuploaders <codename> <predicates>"},
 	{"_versioncompare",	A_N(versioncompare),
 		2, 2, "_versioncompare <version> <version>"},
 	{"_detect", 		A__F(detect),

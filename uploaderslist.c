@@ -75,6 +75,12 @@ static retvalue upload_conditions_add(struct upload_conditions **c_p, const stru
 	int newcount;
 	struct upload_conditions *n;
 
+	if( a->type == uc_REJECTED ) {
+		/* due to groups, there can be empty conditions.
+		 * Don't include those in this list... */
+		return RET_OK;
+	}
+
 	if( *c_p == NULL )
 		newcount = 1;
 	else
@@ -90,20 +96,34 @@ static retvalue upload_conditions_add(struct upload_conditions **c_p, const stru
 	return RET_OK;
 }
 
+struct uploadergroup {
+	struct uploadergroup *next;
+	size_t len;
+	char *name;
+	/* NULL terminated list of pointers, or NULL for none */
+	const struct uploadergroup **memberof;
+	struct upload_condition permissions;
+	/* line numbers (if != 0) to allow some diagnostics */
+	unsigned long firstmemberat, emptyat, firstusedat, unusedat;
+};
+
 struct uploader {
 	struct uploader *next;
+	/* NULL terminated list of pointers, or NULL for none */
+	const struct uploadergroup **memberof;
 	size_t len;
 	char *reversed_fingerprint;
 	struct upload_condition permissions;
 	bool allow_subkeys;
 };
 
-struct uploaders {
+static struct uploaders {
 	struct uploaders *next;
 	size_t reference_count;
 	char *filename;
 	size_t filename_len;
 
+	struct uploadergroup *groups;
 	struct uploader *by_fingerprint;
 	struct upload_condition anyvalidkeypermissions;
 	struct upload_condition unsignedpermissions;
@@ -141,10 +161,20 @@ static void uploadpermission_release(struct upload_condition *p) {
 	} while( p != NULL );
 }
 
+static void uploadergroup_free(struct uploadergroup *u) {
+	if( u == NULL )
+		return;
+	free(u->name);
+	free(u->memberof);
+	uploadpermission_release(&u->permissions);
+	free(u);
+}
+
 static void uploader_free(struct uploader *u) {
 	if( u == NULL )
 		return;
 	free(u->reversed_fingerprint);
+	free(u->memberof);
 	uploadpermission_release(&u->permissions);
 	free(u);
 }
@@ -157,6 +187,12 @@ static void uploaders_free(struct uploaders *u) {
 
 		uploader_free(u->by_fingerprint);
 		u->by_fingerprint = next;
+	}
+	while( u->groups != NULL ) {
+		struct uploadergroup *next = u->groups->next;
+
+		uploadergroup_free(u->groups);
+		u->groups = next;
 	}
 	uploadpermission_release(&u->anyvalidkeypermissions);
 	uploadpermission_release(&u->anybodypermissions);
@@ -184,6 +220,20 @@ void uploaders_unlock(struct uploaders *u) {
 			uploaders_free(u);
 		}
 	}
+}
+
+static retvalue upload_conditions_add_group(struct upload_conditions **c_p, const struct uploadergroup **groups) {
+	const struct uploadergroup *group;
+	retvalue r;
+
+	while( (group = *(groups++)) != NULL ) {
+		r = upload_conditions_add(c_p, &group->permissions);
+		if( !RET_WAS_ERROR(r) && group->memberof != NULL )
+			r = upload_conditions_add_group(c_p, group->memberof);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
 }
 
 static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions **c_p, const struct signature *s) {
@@ -265,6 +315,8 @@ static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions *
 				continue;
 		}
 		r = upload_conditions_add(c_p, &uploader->permissions);
+		if( !RET_WAS_ERROR(r) && uploader->memberof != NULL )
+			r = upload_conditions_add_group(c_p, uploader->memberof);
 		if( RET_WAS_ERROR(r) )
 			return r;
 		/* no break here, as a key might match
@@ -444,7 +496,7 @@ bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
 	assert( conditions->current->needs != conditions->current->needs );
 }
 
-static struct upload_condition *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys) {
+static struct uploader *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys) {
 	size_t i;
 	char *reversed = malloc(len+1);
 	struct uploader *uploader, **last;
@@ -468,7 +520,7 @@ static struct upload_condition *addfingerprint(struct uploaders *u, const char *
 		if( uploader->allow_subkeys != allow_subkeys )
 			continue;
 		free(reversed);
-		return &uploader->permissions;
+		return uploader;
 	}
 	assert( *last == NULL );
 	uploader = calloc(1,sizeof(struct uploader));
@@ -478,7 +530,32 @@ static struct upload_condition *addfingerprint(struct uploaders *u, const char *
 	uploader->reversed_fingerprint = reversed;
 	uploader->len = len;
 	uploader->allow_subkeys = allow_subkeys;
-	return &uploader->permissions;
+	return uploader;
+}
+
+static struct uploadergroup *addgroup(struct uploaders *u, const char *name, size_t len) {
+	struct uploadergroup *group, **last;
+
+	last = &u->groups;
+	for( group = u->groups ; group != NULL ; group = *(last = &group->next) ) {
+		if( group->len != len )
+			continue;
+		if( memcmp(group->name, name, len) != 0 )
+			continue;
+		return group;
+	}
+	assert( *last == NULL );
+	group = calloc(1, sizeof(struct uploadergroup));
+	if( FAILEDTOALLOC(group) )
+		return NULL;
+	group->name = strndup(name, len);
+	group->len = len;
+	if( FAILEDTOALLOC(group->name) ) {
+		free(group);
+		return NULL;
+	}
+	*last = group;
+	return group;
 }
 
 static inline const char *overkey(const char *p) {
@@ -844,11 +921,119 @@ static void condition_add(struct upload_condition *permissions, struct upload_co
 	}
 }
 
+static retvalue find_group(struct uploadergroup **g, struct uploaders *u, const char **pp, const char *filename, long lineno, const char *buffer) {
+	const char *p, *q;
+	struct uploadergroup *group;
+
+	p = *pp;
+	q = p;
+	while( (*q >= 'a' && *q <= 'z') || (*q >= 'A' && *q <= 'Z') ||
+			(*q >= '0' && *q <= '9') || *q == '-'
+			|| *q == '_' || *q == '.' )
+		q++;
+	if( *p == '\0' || ( q-p == 3 && memcmp(p, "add", 3) == 0 )
+			|| ( q-p == 5 && memcmp(p, "empty", 5) == 0 )
+			|| ( q-p == 6 && memcmp(p, "unused", 6) == 0 )
+			|| ( q-p == 8 && memcmp(p, "contains", 8) == 0 ) ) {
+		fprintf(stderr, "%s:%lu:%u: group name expected!\n", filename, (long)lineno, (int)(1+p-buffer));
+		return RET_ERROR;
+	}
+	if( *q != '\0' && *q != ' ' && *q != '\t' ) {
+		fprintf(stderr, "%s:%lu:%u: invalid group name!\n", filename, (long)lineno, (int)(1+p-buffer));
+		return RET_ERROR;
+	}
+	*pp = q;
+	group = addgroup(u, p, q-p);
+	if( FAILEDTOALLOC(group) )
+		return RET_ERROR_OOM;
+	*g = group;
+	return RET_OK;
+}
+
+static retvalue find_uploader(struct uploader **u_p, struct uploaders *u, const char *p, const char *filename, long lineno, const char *buffer) {
+	struct uploader *uploader;
+	bool allow_subkeys = false;
+	const char *q, *qq;
+
+	if( p[0] == '0' && p[1] == 'x' )
+		p += 2;
+	q = overkey(p);
+	if( *p == '\0' || (*q !='\0' && !xisspace(*q) && *q != '+') || q==p ) {
+		fprintf(stderr, "%s:%lu:%u: key id or fingerprint expected!\n", filename, (long)lineno, (int)(1+q-buffer));
+		return RET_ERROR;
+	}
+	qq = q;
+	while( xisspace(*qq) )
+		qq++;
+	if( *qq == '+' ) {
+		qq++;
+		allow_subkeys = true;
+	}
+	while( xisspace(*qq) )
+		qq++;
+	if( *qq != '\0' ) {
+		fprintf(stderr, "%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n", filename, (long)lineno, (int)(1+qq-buffer));
+		if( *q == ' ' )
+			fprintf(stderr, " Hint: no spaces allowed in fingerprint specification.\n");
+		return RET_ERROR;
+	}
+	uploader = addfingerprint(u, p, q-p, allow_subkeys);
+	if( FAILEDTOALLOC(uploader) )
+		return RET_ERROR_OOM;
+	*u_p = uploader;
+	return RET_OK;
+}
+
+static retvalue include_group(struct uploadergroup *group, const struct uploadergroup ***memberof_p, const char *filename, long lineno) {
+	size_t n;
+	const struct uploadergroup **memberof = *memberof_p;
+
+	n = 0;
+	if( memberof != NULL ) {
+		while( memberof[n] != NULL ) {
+			if( memberof[n] == group ) {
+				fprintf(stderr, "%s:%lu: member added to group %s a second time!\n", filename, lineno, group->name);
+				return RET_ERROR;
+			}
+			n++;
+		}
+	}
+	if( n == 0 || (n & 15) == 15 ) {
+		/* let's hope no static checker is confused here ;-> */
+		memberof = realloc(memberof, ((n+16)&~15) * sizeof(struct uploadergroup*));
+		if( memberof == NULL )
+			return RET_ERROR_OOM;
+		*memberof_p = memberof;
+	}
+	memberof[n] = group;
+	memberof[n+1] = NULL;
+	if( group->firstmemberat == 0 )
+		group->firstmemberat = lineno;
+	if( group->emptyat != 0 ) {
+		fprintf(stderr, "%s:%lu: cannot add members to group '%s' marked empty in line %lu\n", filename, lineno, group->name, group->emptyat);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+static bool is_included_in(const struct uploadergroup *needle, const struct uploadergroup *chair) {
+	const struct uploadergroup **g;
+
+	if( needle->memberof == NULL )
+		return false;
+	for( g = needle->memberof ; *g != NULL ; g++ ) {
+		if( *g == chair )
+			return true;
+		if( is_included_in(*g, chair) )
+			return true;
+	}
+	return false;
+}
+
 static inline retvalue parseuploaderline(char *buffer, const char *filename, size_t lineno, struct uploaders *u) {
 	retvalue r;
-	const char *p, *q, *qq;
+	const char *p, *q;
 	size_t l;
-	struct upload_condition *permissions;
 	struct upload_condition condition;
 
 	l = strlen(buffer);
@@ -871,8 +1056,92 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 	if( *p == '\0' || *p == '#' )
 		return RET_NOTHING;
 
+	if( strncmp(p, "group", 5) == 0 && (*p == '\0' || xisspace(p[5])) ) {
+		struct uploadergroup *group;
+
+		p += 5;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		r = find_group(&group, u, &p, filename, lineno, buffer);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( strncmp(p, "add", 3) == 0) {
+			struct uploader *uploader;
+
+			p += 3;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			r = find_uploader(&uploader, u, p, filename, lineno, buffer);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			r = include_group(group, &uploader->memberof, filename, lineno);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			return RET_OK;
+		} else if( strncmp(p, "contains", 8) == 0 ) {
+			struct uploadergroup *member;
+
+			p += 8;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			q = p;
+			r = find_group(&member, u, &q, filename, lineno, buffer);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( group == member ) {
+				fprintf(stderr, "%s:%lu: cannot add group '%s' to itself!\n", filename, (unsigned long)lineno, member->name);
+				return RET_ERROR;
+			}
+			if( is_included_in(group, member) ) {
+				/* perhaps offer a winning coupon for the first one triggering this? */
+				fprintf(stderr, "%s:%lu: cannot add group '%s' to group '%s' as the later is already member of the former!\n", filename, (unsigned long)lineno, member->name, group->name);
+				return RET_ERROR;
+			}
+			r = include_group(group, &member->memberof, filename, lineno);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( member->firstusedat == 0 )
+				member->firstusedat = lineno;
+			if( member->unusedat != 0 ) {
+				fprintf(stderr, "%s:%lu: cannot use group '%s' marked as unused in line %lu.\n", filename, (unsigned long)lineno, member->name, member->unusedat);
+				return RET_ERROR;
+			}
+		} else if( strncmp(p, "empty", 5) == 0 ) {
+			q = p + 5;
+			if( group->emptyat != 0 ) {
+				fprintf(stderr, "%s:%lu: group '%s' marked as empty again (already happened in line %lu).\n", filename, (unsigned long)lineno, group->name, group->emptyat);
+			}
+			if( group->firstmemberat != 0 ) {
+				fprintf(stderr, "%s:%lu: group '%s' cannot be marked empty as it already has members (first in line %lu).\n", filename, (unsigned long)lineno, group->name, group->firstmemberat);
+				return RET_ERROR;
+			}
+			group->emptyat = lineno;
+		} else if( strncmp(p, "unused", 6) == 0 ) {
+			q = p + 6;
+			if( group->unusedat != 0 ) {
+				fprintf(stderr, "%s:%lu: group '%s' marked as unused again (already happened in line %lu).\n", filename, (unsigned long)lineno, group->name, group->unusedat);
+			}
+			if( group->firstusedat != 0 ) {
+				fprintf(stderr, "%s:%lu: group '%s' cannot be marked unused as it was already used (first in line %lu).\n", filename, (unsigned long)lineno, group->name, group->firstusedat);
+				return RET_ERROR;
+			}
+			group->unusedat = lineno;
+		} else {
+			fprintf(stderr, "%s:%lu:%u: missing 'add', 'contains', 'unused' or 'empty' keyword.\n", filename, (long)lineno, (int)(1+p-buffer));
+			return RET_ERROR;
+		}
+		while( *q != '\0' && xisspace(*q) )
+			q++;
+		if( *q != '\0' ) {
+			fprintf(stderr, "%s:%lu:%u: unexpected data at end of group statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+			return RET_ERROR;
+		}
+		return RET_OK;
+	}
 	if( strncmp(p,"allow",5) != 0 || !xisspace(p[5]) ) {
-		fprintf(stderr, "%s:%lu:%u: 'allow' keyword expected! (no other statement has yet been implemented)\n", filename, (long)lineno, (int)(1+p-buffer));
+		fprintf(stderr, "%s:%lu:%u: 'allow' or 'group' keyword expected! (no other statement has yet been implemented)\n", filename, (long)lineno, (int)(1+p-buffer));
 		return RET_ERROR;
 	}
 	p+=5;
@@ -884,41 +1153,51 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 	while( *p != '\0' && xisspace(*p) )
 		p++;
 	if( strncmp(p,"key",3) == 0 && (p[3] == '\0' || xisspace(p[3])) ) {
-		bool allow_subkeys = false;
+		struct uploader *uploader;
 
 		p += 3;
 		while( *p != '\0' && xisspace(*p) )
 			p++;
-		if( p[0] == '0' && p[1] == 'x' )
-			p += 2;
-		q = overkey(p);
-		if( *p == '\0' || (*q !='\0' && !xisspace(*q) && *q != '+') || q==p ) {
-			fprintf(stderr, "%s:%lu:%u: key id or fingerprint expected!\n", filename, (long)lineno, (int)(1+q-buffer));
+		r = find_uploader(&uploader, u, p, filename, lineno, buffer);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			uploadpermission_release(&condition);
+			return r;
+		}
+		condition_add(&uploader->permissions, &condition);
+	} else if( strncmp(p, "group", 5) == 0 && (p[5] == '\0' || xisspace(p[5])) ) {
+		struct uploadergroup *group;
+
+		p += 5;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		r = find_group(&group, u, &p, filename, lineno, buffer);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			uploadpermission_release(&condition);
+			return r;
+		}
+		assert( group != NULL );
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( *p != '\0' ) {
+			fprintf(stderr, "%s:%lu:%u: unexpected data at end of group statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
-		qq = q;
-		while( xisspace(*qq) )
-			qq++;
-		if( *qq == '+' ) {
-			qq++;
-			allow_subkeys = true;
-		}
-		while( xisspace(*qq) )
-			qq++;
-		if( *qq != '\0' ) {
-			fprintf(stderr, "%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n", filename, (long)lineno, (int)(1+qq-buffer));
-			if( *q == ' ' )
-				fprintf(stderr, " Hint: no spaces allowed in fingerprint specification.\n");
+		if( group->firstusedat == 0 )
+			group->firstusedat = lineno;
+		if( group->unusedat != 0 ) {
+			fprintf(stderr, "%s:%lu: cannot use group '%s' marked as unused in line %lu.\n", filename, (unsigned long)lineno, group->name, group->unusedat);
+			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
-		permissions = addfingerprint(u, p, q-p, allow_subkeys);
-		if( permissions == NULL )
-			return RET_ERROR_OOM;
-		condition_add(permissions, &condition);
+		condition_add(&group->permissions, &condition);
 	} else if( strncmp(p, "unsigned",8) == 0 && (p[8]=='\0' || xisspace(p[8])) ) {
 		p+=8;
 		if( *p != '\0' ) {
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'unsigned' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&u->unsignedpermissions, &condition);
@@ -928,11 +1207,13 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			p++;
 		if( strncmp(p, "key", 3) != 0 || (p[3]!='\0' && !xisspace(p[3])) ) {
 			fprintf(stderr, "%s:%lu:%u: 'key' keyword expected after 'any' keyword!\n", filename, (long)lineno, (int)(1+p-buffer));
+			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		p += 3;
 		if( *p != '\0' ) {
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'any key' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&u->anyvalidkeypermissions, &condition);
@@ -942,11 +1223,13 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			p++;
 		if( *p != '\0' ) {
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'anybody' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+			uploadpermission_release(&condition);
 			return RET_ERROR;
 		}
 		condition_add(&u->anybodypermissions, &condition);
 	} else {
 		fprintf(stderr, "%s:%lu:%u: 'key', 'unsigned', 'anybody' or 'any key' expected!\n", filename, (long)lineno, (int)(1+p-buffer));
+		uploadpermission_release(&condition);
 		return RET_ERROR;
 	}
 	return RET_OK;
@@ -958,6 +1241,7 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *fil
 	size_t lineno=0;
 	char buffer[1025];
 	struct uploaders *u;
+	struct uploadergroup *g;
 	retvalue r;
 
 	if( filename[0] != '/' ) {
@@ -1000,6 +1284,14 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *fil
 		free(fullfilename);
 		uploaders_free(u);
 		return RET_ERRNO(e);
+	}
+	for( g = u->groups ; g != NULL ; g = g->next ) {
+		if( (g->firstmemberat == 0 && g->emptyat == 0) &&
+				g->firstusedat != 0 )
+			fprintf(stderr, "%s:%lu: Warning: group '%s' gets used but never gets any members\n", filename, g->firstusedat, g->name);
+		if( (g->firstusedat == 0 && g->unusedat == 0) &&
+				g->firstmemberat != 0 )
+			fprintf(stderr, "%s:%lu: Warning: group '%s' gets members but is not used in any rule\n", filename, g->firstmemberat, g->name);
 	}
 	free(fullfilename);
 	*list = u;

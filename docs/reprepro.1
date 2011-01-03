@@ -1824,7 +1824,7 @@ definition as explained above describe what key a \fB.changes\fP file
 as to be signed with to be included in that distribution.
 .P
 Empty lines and lines starting with a hash are ignored, every other line
-has to be of one of this three forms:
+must be of one of the following nine forms:
 .TP
 .B allow \fIcondition\fP by anybody
 which allows everyone to upload packages matching \fIcondition\fP,
@@ -1840,6 +1840,25 @@ which allows everything matching signed by this \fIkey-id\fP
 (to be specified without any spaces).
 If the \fIkey-id\fP ends with a \fB+\fP (plus), a signature with a subkey of
 this primary key also suffices.
+.TP
+.B allow \fIcondition\fP by group \fIgroupname\fP
+which allows every member of group \fIgroupname\fP.
+Groups can be manipulated by
+.TP
+.B group \fIgroupname\fP add \fIkey-id\fP
+to add a \fIkey-id\fP (see above for details) to this group, or
+.TP
+.B group \fIgroupname\fP contains \fIgroupname\fP
+to add a whole group to a group.
+
+To avoid warnings in incomplete config files there is also
+.TP
+.B group \fIgroupname\fP empty
+to declare a group has no members (avoids warnings that it is used without those)
+and
+.TP
+.B group \fIgroupname\fP unused
+to declare that a group is not yet used (avoid warnings that it is not used).
 .PP
 The only conditions currently supported are:
 .TP
