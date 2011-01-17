@@ -132,7 +132,7 @@ or:
 reprepro -b $YOURBASEDIR includedeb mystuff mypackage.deb
 </pre>
 </li>
-<li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
+<li>Take a look at the generated <tt>pool</tt> and <tt>dists</tt>
 directories. They contain everything needed to apt-get from.
 Tell apt to include it by adding the following to your <tt>sources.list</tt>:
 <pre class="file">
@@ -204,7 +204,7 @@ or make it available via http or ftp.</li>
 An <tt>apt-get</tt>able repository of Debian packages consists of two parts:
 the index files describing what is available and where it is and the actual
 Debian binary (<tt class="suffix">.deb</tt>),
-installer binary (<tt class="suffix">.deb</tt>),
+installer binary (<tt class="suffix">.udeb</tt>),
 and source (<tt class="suffix">.dsc</tt> together with
 <tt class="suffix">.tar.gz</tt> or
 <tt class="suffix">.orig.tar.gz</tt> and
@@ -472,7 +472,7 @@ for an example or the man page for full reference.
 </dd>
 <dt class="dir">incoming</dt><dd>
 Rules for incoming queues as processed by <tt class="command">processincoming</tt>.
-See <a href="#processincoming-incoming-config">Processing and incoming queue</a> for more information.
+See <a href="#processincoming-incoming-config">Processing an incoming queue</a> for more information.
 </dd>
 </dl>
 <h2><a name="export">Generation of index files</a></h2>
@@ -805,8 +805,8 @@ field is optional.</dd>
 This field only makes a difference if a <tt class="suffix">.changes</tt> file
 has multiple distributions listed in its <tt class="field">Distribution:</tt>
 field.
-Without this field every of this distributions is tried according to the
-above rules until the package is added somewhere.
+Without this field each of those distributions is tried according to the
+above rules until the package is added to one (or none accepts it).
 With this field it is tried for each distribution, so a package can be upload
 to multiple distributions at the same time.
 </dd>
@@ -859,13 +859,13 @@ The annoying part is having to wait almost 5 minutes for the processing.
 <li>Use something like <a href="http://packages.debian.org/inoticoming"><tt class="external">inoticoming</tt></a>.
 Linux has a syscall called inotify, allowing a program to be run whenever
 something happens to a file.
-One program making use of this is inoticoming. I watches a directory using
+One program making use of this is inoticoming. It watches a directory using
 this facility and whenever a <tt class="suffix">.changes</tt> file is completed
 it can call reprepro for you.
 (As this happens directly, make sure you always upload the <tt class="suffix">.changes</tt>
 file last, dupload and dput always ensure this).
 This can be combined with Debian's cron-extension to have a program started at
-boot time with the <tt>@boot</tt> directive.
+boot time with the <tt>@reboot</tt> directive.
 For example with a crontab like:
 <pre class="file">
 MAILTO=myaddress@somewhere.tld

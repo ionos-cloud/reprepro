@@ -1,3 +1,10 @@
+reprepro (4.3.0-2) UNRELEASED; urgency=low
+
+  * UNRELEASED
+  - Fix multiple typos in docs/manual.html (Closes: 610304)
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 17 Jan 2011 20:02:23 +0100
+
 reprepro (4.3.0-1) experimental; urgency=low
 
   * new upstream release
