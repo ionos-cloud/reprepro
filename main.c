@@ -738,42 +738,25 @@ static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct d
 			&sourcename, &sourceversion);
 	if( !RET_IS_OK(r) )
 		return r;
-	if( strcmp(sourcename, d->sourcename) != 0 ) {
-		free(sourcename);
-		free(sourceversion);
-		return RET_NOTHING;
-	}
-	if( d->sourceversion == NULL ) {
-		free(sourcename);
-		free(sourceversion);
-		return RET_OK;
-	}
-	if( strcmp(sourceversion, d->sourceversion) != 0 ) {
-		free(sourcename);
-		free(sourceversion);
-		return RET_NOTHING;
+	for( ; d->sourcename != NULL ; d++ ) {
+		if( strcmp(sourcename, d->sourcename) != 0 )
+			continue;
+		if( d->sourceversion == NULL )
+			break;
+		if( strcmp(sourceversion, d->sourceversion) == 0 )
+			break;
 	}
 	free(sourcename);
 	free(sourceversion);
-	return RET_OK;
+	if( d->sourcename == NULL )
+		return RET_NOTHING;
+	else
+		return RET_OK;
 }
 
-ACTION_D(n, n, y, removesrc) {
-	retvalue result, r;
-	struct distribution *distribution;
+static retvalue remove_packages(struct database *database, struct distribution *distribution, struct removesrcdata *toremove) {
 	trackingdb tracks;
-	struct removesrcdata data;
-
-	r = distribution_get(alldistributions, argv[1], true, &distribution);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	if( distribution->readonly ) {
-		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
-				distribution->codename);
-		return RET_ERROR;
-	}
+	retvalue result, r;
 
 	r = distribution_prepareforwriting(distribution);
 	if( RET_WAS_ERROR(r) )
@@ -792,27 +775,28 @@ ACTION_D(n, n, y, removesrc) {
 	if( tracks != NULL ) {
 		result = tracking_removepackages(tracks, database,
 				distribution,
-				argv[2], (argc <= 3)?NULL:argv[3]);
-		if( RET_WAS_ERROR(r) ) {
+				toremove->sourcename, toremove->sourceversion);
+		if( RET_WAS_ERROR(result) ) {
 			r = tracking_done(tracks);
 			RET_ENDUPDATE(result,r);
 			return result;
 		}
 		if( result == RET_NOTHING ) {
 			if( verbose >= -2 ) {
-				if( argc == 3 )
+				if( toremove->sourceversion == NULL )
 					fprintf(stderr,
 "Nothing about source package '%s' found in the tracking data of '%s'!\n"
 "This either means nothing from this source in this version is there,\n"
 "or the tracking information might be out of date.\n",
-						argv[2],
+						toremove->sourcename,
 						distribution->codename);
 				else
 					fprintf(stderr,
 "Nothing about '%s' version '%s' found in the tracking data of '%s'!\n"
 "This either means nothing from this source in this version is there,\n"
 "or the tracking information might be out of date.\n",
-						argv[2], argv[3],
+						toremove->sourcename,
+						toremove->sourceversion,
 						distribution->codename);
 			}
 		} else {
@@ -823,19 +807,40 @@ ACTION_D(n, n, y, removesrc) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
-	data.sourcename = argv[2];
-	if( argc <= 3 )
-		data.sourceversion = NULL;
-	else
-		data.sourceversion = argv[3];
 	result = distribution_remove_packages(distribution, database,
 			// TODO: why not arch comp pt here?
 			atom_unknown, atom_unknown, atom_unknown,
 			package_source_fits, NULL,
-			&data);
+			toremove);
 	r = distribution_export(export, distribution, database);
 	RET_ENDUPDATE(result, r);
 	return result;
+}
+
+ACTION_D(n, n, y, removesrc) {
+	retvalue r;
+	struct distribution *distribution;
+	struct removesrcdata data[2];
+
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
+	data[0].sourcename = argv[2];
+	if( argc <= 3 )
+		data[0].sourceversion = NULL;
+	else
+		data[0].sourceversion = argv[3];
+	data[1].sourcename = NULL;
+	data[1].sourceversion = NULL;
+	return remove_packages(database, distribution, data);
 }
 
 static retvalue package_matches_condition(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const char *control, void *data) {
