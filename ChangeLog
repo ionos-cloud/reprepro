@@ -1,3 +1,7 @@
+2010-01-22
+	* add removesrcs command (like removesrc but can get multiple
+	  source package names)
+
 2010-01-03
 	* add groups to Uploaders:-lists.
 	* add __checkuploaders command so uploaders lists can be tested

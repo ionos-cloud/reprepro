@@ -597,6 +597,11 @@ package \fIsource-name\fP.
 If package tracking is activated, it will use that information to find the
 packages, otherwise it traverses all package indices for the distribution.
 .TP
+.B removesrcs \fIcodename\fP \fIsource-name\fP\fR[\fP=\fIversion\fP\fR]\fP \fI...\fP
+Like \fBremovesrc\fP, but can be given multiple source names
+and source versions must be specified by appending '\fB=\fP' and the version
+to the name (without spaces).
+.TP
 .BR update " [ " \fIcodenames\fP " ]"
 Sync the specified distributions (all if none given) as
 specified in the config with their upstreams. See the

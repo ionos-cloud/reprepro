@@ -726,7 +726,8 @@ ACTION_D(y, n, y, remove) {
 
 struct removesrcdata {
 	const char *sourcename;
-	const char /*@null@*/*sourceversion;
+	const char /*@null@*/ *sourceversion;
+	bool found;
 };
 
 static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *control, void *data) {
@@ -750,8 +751,10 @@ static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct d
 	free(sourceversion);
 	if( d->sourcename == NULL )
 		return RET_NOTHING;
-	else
+	else {
+		d->found = true;
 		return RET_OK;
+	}
 }
 
 static retvalue remove_packages(struct database *database, struct distribution *distribution, struct removesrcdata *toremove) {
@@ -773,38 +776,39 @@ static retvalue remove_packages(struct database *database, struct distribution *
 		tracks = NULL;
 	result = RET_NOTHING;
 	if( tracks != NULL ) {
-		result = tracking_removepackages(tracks, database,
-				distribution,
-				toremove->sourcename, toremove->sourceversion);
-		if( RET_WAS_ERROR(result) ) {
-			r = tracking_done(tracks);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
-		if( result == RET_NOTHING ) {
-			if( verbose >= -2 ) {
-				if( toremove->sourceversion == NULL )
-					fprintf(stderr,
+		result = RET_NOTHING;
+		for( ; toremove->sourcename != NULL ; toremove++ ) {
+			r = tracking_removepackages(tracks, database,
+					distribution,
+					toremove->sourcename,
+					toremove->sourceversion);
+			RET_UPDATE(result, r);
+			if( r == RET_NOTHING ) {
+				if( verbose >= -2 ) {
+					if( toremove->sourceversion == NULL )
+						fprintf(stderr,
 "Nothing about source package '%s' found in the tracking data of '%s'!\n"
 "This either means nothing from this source in this version is there,\n"
 "or the tracking information might be out of date.\n",
-						toremove->sourcename,
-						distribution->codename);
-				else
-					fprintf(stderr,
+							toremove->sourcename,
+							distribution->codename);
+					else
+						fprintf(stderr,
 "Nothing about '%s' version '%s' found in the tracking data of '%s'!\n"
 "This either means nothing from this source in this version is there,\n"
 "or the tracking information might be out of date.\n",
-						toremove->sourcename,
-						toremove->sourceversion,
-						distribution->codename);
+							toremove->sourcename,
+							toremove->sourceversion,
+							distribution->codename);
+				}
 			}
-		} else {
+		}
+		if( RET_IS_OK(result) ) {
 			r = distribution_export(export, distribution, database);
-			RET_ENDUPDATE(result,r);
+			RET_ENDUPDATE(result, r);
 		}
 		r = tracking_done(tracks);
-		RET_ENDUPDATE(result,r);
+		RET_ENDUPDATE(result, r);
 		return result;
 	}
 	result = distribution_remove_packages(distribution, database,
@@ -833,14 +837,92 @@ ACTION_D(n, n, y, removesrc) {
 		return RET_ERROR;
 	}
 
+	data[0].found = false;
 	data[0].sourcename = argv[2];
 	if( argc <= 3 )
 		data[0].sourceversion = NULL;
 	else
 		data[0].sourceversion = argv[3];
+	if( index(data[0].sourcename, '=') != NULL && verbose >= 0 ) {
+		fputs("Warning: removesrc treats '=' as normal character. Did you want to use removesrcs?\n", stderr);
+	}
 	data[1].sourcename = NULL;
 	data[1].sourceversion = NULL;
 	return remove_packages(database, distribution, data);
+}
+
+ACTION_D(n, n, y, removesrcs) {
+	retvalue r;
+	struct distribution *distribution;
+	struct removesrcdata data[argc-1];
+	int i;
+
+	r = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: Cannot remove packages from read-only distribution '%s'\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+	for( i = 0 ; i < argc-2 ; i++ ) {
+		data[i].found = false;
+		data[i].sourcename = argv[2 + i];
+		data[i].sourceversion = index(data[i].sourcename, '=');
+		if( data[i].sourceversion != NULL ) {
+			if( index(data[i].sourceversion+1, '=') != NULL ) {
+				fprintf(stderr, "Cannot parse '%s': more than one '='\n",
+						data[i].sourcename);
+				data[i].sourcename = NULL;
+				r = RET_ERROR;
+			} else if( data[i].sourceversion[1] == '\0' ) {
+				fprintf(stderr, "Cannot parse '%s': no version after '='\n",
+						data[i].sourcename);
+				data[i].sourcename = NULL;
+				r = RET_ERROR;
+			} else if( data[i].sourceversion == data[i].sourcename ) {
+				fprintf(stderr, "Cannot parse '%s': no source name found before the '='\n",
+						data[i].sourcename);
+				data[i].sourcename = NULL;
+				r = RET_ERROR;
+			} else {
+				data[i].sourcename = strndup(data[i].sourcename,
+						data[i].sourceversion
+						- data[i].sourcename);
+				if( data[i].sourcename == NULL )
+					r = RET_ERROR_OOM;
+				else
+					r = RET_OK;
+			}
+			if( RET_WAS_ERROR(r) ) {
+				for( i-- ; i >= 0 ; i-- ) {
+					if( data[i].sourceversion != NULL )
+						free((char*)data[i].sourcename);
+				}
+				return r;
+			}
+			data[i].sourceversion++;
+		}
+	}
+	data[i].sourcename = NULL;
+	data[i].sourceversion= NULL;
+	r = remove_packages(database, distribution, data);
+	for( i = 0 ; i < argc-2 ; i++ ) {
+		if( verbose >= 0 && !data[i].found ) {
+			if( data[i].sourceversion != NULL )
+				fprintf(stderr, "No package from source '%s', version '%s' found.\n",
+						data[i].sourcename,
+						data[i].sourceversion);
+			else
+				fprintf(stderr, "No package from source '%s' (any version) found.\n",
+						data[i].sourcename);
+		}
+		if( data[i].sourceversion != NULL )
+			free((char*)data[i].sourcename);
+	}
+	return r;
 }
 
 static retvalue package_matches_condition(UNUSED(struct database *da), UNUSED(struct distribution *di), struct target *target, UNUSED(const char *pa), const char *control, void *data) {
@@ -3536,6 +3618,8 @@ static const struct action {
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
 	{"removesrc", 		A_D(removesrc),
 		2, 3, "removesrc <codename> <source-package-names> [<source-version>]"},
+	{"removesrcs", 		A_D(removesrcs),
+		2, -1, "removesrcs <codename> (<source-package-name>[=<source-version>])+"},
 	{"ls", 		A_ROBact(ls),
 		1, 1, "[-C <component>] [-A <architecture>] [-T <type>] ls <package-name>"},
 	{"list", 		A_ROBact(list),
