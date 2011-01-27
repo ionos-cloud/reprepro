@@ -101,15 +101,142 @@ void signatures_done(void) {
 #endif /* HAVE_LIBGPGME */
 }
 
-// TODO: move the two signing steps (Release.gpg and InRelease)
-// in here so that key retrieval needs only be done once...
-static retvalue signature_sign(const char *options, const char *filename, void *data, size_t datalen, const char *signaturename, bool willcleanup, bool signinline) {
+#ifdef HAVE_LIBGPGME
+static retvalue check_signature_created(bool clearsign, bool willcleanup, /*@null@*/const struct strlist *options, const char *filename, const char *signaturename) {
+	gpgme_sign_result_t signresult;
+	char *uidoptions;
+	int i;
+
+	signresult = gpgme_op_sign_result(context);
+	if( signresult != NULL && signresult->signatures != NULL )
+		return RET_OK;
+	/* in an ideal world, this point is never reached.
+	 * Sadly it is and people are obviously confused by it,
+	 * so do some work to give helpful messages. */
+	if( options != NULL ) {
+		assert (options->count > 0);
+		uidoptions = mprintf(" -u '%s'", options->values[0]);
+		for( i = 1 ;
+		     uidoptions != NULL && i < options->count ;
+		     i++ ) {
+			char *u = mprintf("%s -u '%s'", uidoptions,
+					options->values[0]);
+			free(uidoptions);
+			uidoptions = u;
+		}
+		if( FAILEDTOALLOC(uidoptions) )
+			return RET_ERROR_OOM;
+	} else
+		uidoptions = NULL;
+
+	if( signresult == NULL )
+		fputs(
+"Error: gpgme returned NULL unexpectedly for gpgme_op_sign_result\n", stderr);
+	else
+		fputs( "Error: gpgme created no signature!\n", stderr);
+	fputs(
+"This most likely means gpg is confused or produces some error libgpgme is\n"
+"not able to understand. Try running\n", stderr);
+	if( willcleanup )
+		fprintf(stderr,
+"gpg %s --output 'some-other-file' %s 'some-file'\n",
+			(uidoptions==NULL)?"":uidoptions,
+			clearsign?"--clearsign":"--detach-sign");
+	else
+		fprintf(stderr,
+"gpg %s --output '%s' %s '%s'\n",
+			(uidoptions==NULL)?"":uidoptions,
+			signaturename,
+			clearsign?"--clearsign":"--detach-sign",
+			filename);
+	fputs(
+"for hints what this error might have been. (Sometimes just running\n"
+"it once manually seems also to help...)\n", stderr);
+	return RET_ERROR_GPGME;
+}
+
+static retvalue signature_to_file(gpgme_data_t dh_gpg, const char *signaturename) {
+	char *signature_data;
+	const char *p;
+	size_t signature_len;
+	ssize_t written;
+	int fd, e, ret;
+
+	signature_data = gpgme_data_release_and_get_mem(dh_gpg, &signature_len);
+	if( signature_data == NULL )
+		return RET_ERROR_OOM;
+	fd = open(signaturename, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY|O_NOFOLLOW, 0666);
+	if( fd < 0 ) {
+		free(signature_data);
+		return RET_ERRNO(errno);
+	}
+	p = signature_data;
+	while( signature_len > 0 ) {
+		written = write(fd, p, signature_len);
+		if( written < 0 ) {
+			e = errno;
+			fprintf(stderr, "Error %d writing to %s: %s\n",
+					e, signaturename,
+					strerror(e));
+			free(signature_data);
+			(void)close(fd);
+			return RET_ERRNO(e);
+		}
+		signature_len -= written;
+		p += written;
+	}
+#ifdef HAVE_GPGPME_FREE
+	gpgme_free(signature_data);
+#else
+	free(signature_data);
+#endif
+	ret = close(fd);
+	if( ret < 0 ) {
+		e = errno;
+		fprintf(stderr, "Error %d writing to %s: %s\n",
+				e, signaturename,
+				strerror(e));
+		return RET_ERRNO(e);
+	}
+	if( verbose > 1 ) {
+		printf("Successfully created '%s'\n", signaturename);
+	}
+	return RET_OK;
+}
+
+static retvalue create_signature(bool clearsign, gpgme_data_t dh, /*@null@*/const struct strlist *options, const char *filename, const char *signaturename, bool willcleanup) {
+	gpg_error_t err;
+	gpgme_data_t dh_gpg;
+	retvalue r;
+
+	err = gpgme_data_new(&dh_gpg);
+	if( err != 0 )
+		return gpgerror(err);
+	err = gpgme_op_sign(context, dh, dh_gpg,
+			clearsign?GPGME_SIG_MODE_CLEAR:GPGME_SIG_MODE_DETACH);
+	if( err != 0 )
+		return gpgerror(err);
+	r = check_signature_created(clearsign, willcleanup,
+			options, filename, signaturename);
+	if( RET_WAS_ERROR(r) ) {
+		gpgme_data_release(dh_gpg);
+		return r;
+	}
+	/* releases dh_gpg: */
+	return signature_to_file(dh_gpg, signaturename);
+}
+#endif /* HAVE_LIBGPGME */
+
+static retvalue signature_sign(const struct strlist *options, const char *filename, void *data, size_t datalen, const char *signaturename, const char *clearsignfilename, bool willcleanup) {
 	retvalue r;
 	int ret, e;
 #ifdef HAVE_LIBGPGME
+	int i;
 	gpg_error_t err;
-	gpgme_data_t dh,dh_gpg;
+	gpgme_data_t dh;
 #endif /* HAVE_LIBGPGME */
+
+	assert( options != NULL && options->count > 0 );
 
 	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
@@ -123,48 +250,38 @@ static retvalue signature_sign(const char *options, const char *filename, void *
 				signaturename, strerror(e));
 		return RET_ERROR;
 	}
+	ret = unlink(clearsignfilename);
+	if( ret != 0 && (e = errno) != ENOENT ) {
+		fprintf(stderr, "Could not remove '%s' to prepare replacement: %s\n",
+				clearsignfilename, strerror(e));
+		return RET_ERROR;
+	}
 
-	assert(options != NULL);
-	while( *options != '\0' && xisspace(*options) )
-		options++;
-	if( *options == '!' ) {
+	if( options->values[0][0] == '!' ) {
 		// TODO: allow external programs, too
-		fprintf(stderr,"'!' not allowed at start of signing options yet.\n");
+		fprintf(stderr, "sign-scripts (starting with '!') not allowed yet.\n");
 		return RET_ERROR;
 	}
 #ifdef HAVE_LIBGPGME
-	if( strcasecmp(options,"yes") == 0 || strcasecmp(options,"default") == 0 ) {
-		gpgme_signers_clear(context);
+	gpgme_signers_clear(context);
+	if( options->count == 1 &&
+			(strcasecmp(options->values[0], "yes") == 0 ||
+			  strcasecmp(options->values[0], "default") == 0) ) {
+		/* use default options */
 		options = NULL;
-	} else {
+	} else for( i = 0 ; i < options->count ; i++ ) {
+		const char *option = options->values[i];
 		gpgme_key_t key;
 
-		gpgme_signers_clear(context);
-/*		does not work:
- 		err = gpgme_get_key(context, options, &key, 1);
-		if( gpg_err_code(err) == GPG_ERR_AMBIGUOUS_NAME ) {
-			fprintf(stderr, "'%s' is too ambiguous for gpgme!\n", options);
-			return RET_ERROR;
-		} else if( gpg_err_code(err) == GPG_ERR_INV_VALUE ) {
-			fprintf(stderr, "gpgme says '%s' is \"not a fingerprint or key ID\"!\n\n", options);
-			return RET_ERROR;
-		}
-		if( err != 0 )
-			return gpgerror(err);
-		if( key == NULL ) {
-			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
-			return RET_ERROR;
-		}
-*/
-		err = gpgme_op_keylist_start(context, options, 1);
+		err = gpgme_op_keylist_start(context, option, 1);
 		if( err != 0 )
 			return gpgerror(err);
 		err = gpgme_op_keylist_next(context, &key);
 		if( gpg_err_code(err) == GPG_ERR_EOF ) {
-			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
+			fprintf(stderr, "Could not find any key matching '%s'!\n", option);
 			return RET_ERROR;
 		}
-		err = gpgme_signers_add(context,key);
+		err = gpgme_signers_add(context, key);
 		gpgme_key_unref(key);
 		if( err != 0 ) {
 			gpgme_op_keylist_end(context);
@@ -173,118 +290,32 @@ static retvalue signature_sign(const char *options, const char *filename, void *
 		gpgme_op_keylist_end(context);
 	}
 
-	err = gpgme_data_new(&dh_gpg);
-	if( err != 0 ) {
-		return gpgerror(err);
-	}
 	err = gpgme_data_new_from_mem(&dh, data, datalen, 0);
 	if( err != 0 ) {
-		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
 
-	err = gpgme_op_sign(context, dh, dh_gpg,
-			signinline?GPGME_SIG_MODE_CLEAR:GPGME_SIG_MODE_DETACH);
+	r = create_signature(false, dh, options,
+			filename, signaturename, willcleanup);
+	if( RET_WAS_ERROR(r) ) {
+		gpgme_data_release(dh);
+		return r;
+	}
+	i = gpgme_data_seek(dh, 0, SEEK_SET);
+	if( i < 0 ) {
+		e = errno;
+		fprintf(stderr,
+"Error %d rewinding gpgme's data buffer to start: %s\n",
+				e, strerror(e));
+		gpgme_data_release(dh);
+		return RET_ERRNO(e);
+	}
+	r = create_signature(true, dh, options,
+			filename, clearsignfilename, willcleanup);
 	gpgme_data_release(dh);
-	if( err != 0 ) {
-		gpgme_data_release(dh_gpg);
-		return gpgerror(err);
-	} else {
-		char *signature_data;
-		const char *p;
-		size_t signature_len;
-		ssize_t written;
-		int fd;
-		gpgme_sign_result_t signresult;
-
-		signresult = gpgme_op_sign_result(context);
-		if( signresult == NULL ) {
-			if( willcleanup)
-				fprintf(stderr,
-"Error: gpgme returned NULL unexpectedly for gpgme_op_sign_result\n"
-"This most likely means gpg is confused or produces some error libgpgme is\n"
-"not able to understand. Try running gpg %s%s --output 'some-other-file' --detach-sign 'some-file'\n"
-"for hints what this error might have been.\n",
-					(options==NULL)?"":"-u ",
-					(options==NULL)?"":options);
-			else
-				fprintf(stderr,
-"Error: gpgme returned NULL unexpectedly for gpgme_op_sign_result\n"
-"This most likely means gpg is confused or produces some error libgpgme is\n"
-"not able to understand. Try running gpg %s%s --output '%s' --detach-sign '%s'\n"
-"for hints what this error might have been.\n",
-					(options==NULL)?"":"-u ",
-					(options==NULL)?"":options,
-					signaturename, filename);
-			gpgme_data_release(dh_gpg);
-			return RET_ERROR_GPGME;
-		}
-		if( signresult->signatures == NULL ) {
-			if( willcleanup)
-				fprintf(stderr,
-"Error: gpgme created no signature!\n"
-"This most likely means gpg is confused or produces some error libgpgme is\n"
-"not able to understand. Try running gpg %s%s --output 'some-other-file' --detach-sign 'some-file'\n"
-"for hints what this error might have been.\n",
-					(options==NULL)?"":"-u ",
-					(options==NULL)?"":options);
-			else
-				fprintf(stderr,
-"Error: gpgme created no signature for '%s'!\n"
-"This most likely means gpg is confused or produces some error libgpgme is\n"
-"not able to understand. Try running gpg %s%s --output '%s' --detach-sign '%s'\n"
-"for hints what this error might have been.\n",
-					filename,
-					(options==NULL)?"":"-u ",
-					(options==NULL)?"":options,
-					signaturename, filename);
-			gpgme_data_release(dh_gpg);
-			return RET_ERROR_GPGME;
-		}
-
-		signature_data = gpgme_data_release_and_get_mem(dh_gpg,&signature_len);
-		if( signature_data == NULL ) {
-			return RET_ERROR_OOM;
-		}
-		fd = open(signaturename, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY|O_NOFOLLOW, 0666);
-		if( fd < 0 ) {
-			free(signature_data);
-			return RET_ERRNO(errno);
-		}
-		p = signature_data;
-		while( signature_len > 0 ) {
-			written = write(fd,p,signature_len);
-			if( written < 0 ) {
-				e = errno;
-				fprintf(stderr, "Error %d writing to %s: %s\n",
-						e, signaturename,
-						strerror(e));
-				free(signature_data);
-				(void)close(fd);
-				return RET_ERRNO(e);
-			}
-			signature_len -= written;
-			p += written;
-		}
-#ifdef HAVE_GPGPME_FREE
-		gpgme_free(signature_data);
-#else
-		free(signature_data);
-#endif
-		ret = close(fd);
-		if( ret < 0 ) {
-			e = errno;
-			fprintf(stderr, "Error %d writing to %s: %s\n",
-					e, signaturename,
-					strerror(e));
-			return RET_ERRNO(e);
-		}
-	}
-	if( verbose > 1 ) {
-		printf("Successfully created '%s'\n",signaturename);
-	}
-
-	return r;
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return RET_OK;
 #else /* HAVE_LIBGPGME */
 	fprintf(stderr,
 "ERROR: Cannot creature signatures as this reprepro binary is not compiled with support\n"
@@ -906,7 +937,7 @@ void signedfile_write(struct signedfile *f, const void *data, size_t len) {
 	assert( f->bufferlen <= f->buffersize );
 }
 
-retvalue signedfile_prepare(struct signedfile *f, const char *options, bool willcleanup) {
+retvalue signedfile_prepare(struct signedfile *f, const struct strlist *options, bool willcleanup) {
 	size_t len, ofs;
 	int fd, ret;
 
@@ -965,7 +996,7 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options, bool will
 		return RET_ERRNO(e);
 	}
 	/* now do the actual signing */
-	if( options != NULL ) {
+	if( options != NULL && options->count > 0 ) {
 		retvalue r;
 
 		assert( f->newplainfilename != NULL );
@@ -982,13 +1013,9 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options, bool will
 		r = signature_sign(options,
 				f->newplainfilename,
 				f->buffer, f->bufferlen,
-				f->newsignfilename, willcleanup, false);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		r = signature_sign(options,
-				f->newplainfilename,
-				f->buffer, f->bufferlen,
-				f->newinlinefilename, willcleanup, true);
+				f->newsignfilename,
+				f->newinlinefilename,
+				willcleanup);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}

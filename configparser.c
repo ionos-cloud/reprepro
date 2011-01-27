@@ -529,6 +529,23 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 	return RET_OK;
 }
 
+retvalue config_getscript(struct configiterator *iter, const char *name, char **value_p) {
+	char *value, *fullvalue; retvalue r;
+	r = config_getonlyword(iter, name, NULL, &value);
+	if( RET_IS_OK(r) ) {
+		assert( value != NULL && value[0] != '\0' );
+		if( value[0] != '/' ) {
+			fullvalue = calc_dirconcat(global.confdir, value);
+			free(value);
+		} else
+			fullvalue = value;
+		if( fullvalue == NULL )
+			return RET_ERROR_OOM;
+		*value_p = fullvalue;
+	}
+	return r;
+}
+
 retvalue config_geturl(struct configiterator *iter, const char *header, char **result_p) {
 	char *value, *p;
 	retvalue r;
@@ -832,6 +849,62 @@ retvalue config_getwords(struct configiterator *iter, struct strlist *result_p) 
 	struct strlist data;
 
 	strlist_init(&data);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&data);
+			return r;
+		}
+		r = strlist_add(&data, value);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&data);
+			return r;
+		}
+	}
+	strlist_move(result_p, &data);
+	return RET_OK;
+}
+
+retvalue config_getsignwith(struct configiterator *iter, const char *name, struct strlist *result_p) {
+	char *value;
+	retvalue r;
+	struct strlist data;
+	int c;
+
+	strlist_init(&data);
+
+	c = config_nextnonspace(iter);
+	if( c == EOF ) {
+		configparser_errorlast(iter,
+"Missing value for %s field.", name);
+		return RET_ERROR;
+	}
+	/* if the first character is a '!', a script to start follows */
+	if( c == '!' ) {
+		r = strlist_add_dup(&data, "!");
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = config_getscript(iter, name, &value);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&data);
+			return r;
+		}
+		r = strlist_add(&data, value);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&data);
+			return r;
+		}
+		strlist_move(result_p, &data);
+		return RET_OK;
+	}
+	/* otherwise each word is stored in the strlist */
+	r = config_completeword(iter, c, &value);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = strlist_add(&data, value);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
 		if( RET_WAS_ERROR(r) ) {
 			strlist_done(&data);

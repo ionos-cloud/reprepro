@@ -1319,7 +1319,7 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 			writechar('\n');
 		}
 	}
-	r = signedfile_prepare(release->signedfile, distribution->signwith,
+	r = signedfile_prepare(release->signedfile, &distribution->signwith,
 			!global.keeptemporaries);
 	if( RET_WAS_ERROR(r) ) {
 		signedfile_free(release->signedfile, !global.keeptemporaries);

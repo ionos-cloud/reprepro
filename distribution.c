@@ -55,7 +55,6 @@ static retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->butautomaticupgrades);
 		free(distribution->label);
 		free(distribution->description);
-		free(distribution->signwith);
 		free(distribution->deb_override);
 		free(distribution->udeb_override);
 		free(distribution->dsc_override);
@@ -63,6 +62,7 @@ static retvalue distribution_free(struct distribution *distribution) {
 		atomlist_done(&distribution->udebcomponents);
 		atomlist_done(&distribution->architectures);
 		atomlist_done(&distribution->components);
+		strlist_done(&distribution->signwith);
 		strlist_done(&distribution->updates);
 		strlist_done(&distribution->pulls);
 		strlist_done(&distribution->alsoaccept);
@@ -392,7 +392,7 @@ CFallSETPROC(distribution, butautomaticupgrades)
 CFtruthSETPROC2(distribution, readonly, readonly)
 CFallSETPROC(distribution, label)
 CFallSETPROC(distribution, description)
-CFkeySETPROC(distribution, signwith)
+CFsignwithSETPROC(distribution, signwith)
 CFfileSETPROC(distribution, deb_override)
 CFfileSETPROC(distribution, udeb_override)
 CFfileSETPROC(distribution, dsc_override)
