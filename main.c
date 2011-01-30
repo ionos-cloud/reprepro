@@ -3066,6 +3066,7 @@ ACTION_C(n, n, checkuploaders) {
 	bool accepted, rejected;
 	char *buffer = NULL;
 	size_t bufferlen = 0;
+	int i;
 
 	r = distribution_match(alldistributions, argc-1, argv+1, false, READONLY);
 	assert( r != RET_NOTHING );
@@ -3073,6 +3074,8 @@ ACTION_C(n, n, checkuploaders) {
 		return r;
 	}
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
 		r = distribution_loaduploaders(d);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -3096,7 +3099,17 @@ ACTION_C(n, n, checkuploaders) {
 
 	result = RET_NOTHING;
 	accepted = false;
-	for( d = alldistributions ; !accepted && d != NULL ; d = d->next ) {
+	for( i = 1 ; !accepted && i < argc ; i++ ) {
+		r = distribution_get(alldistributions, argv[i], false, &d);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
+		r = distribution_loaduploaders(d);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
 		if( d->uploaderslist == NULL ) {
 			printf("'%s' would have been accepted by '%s' (as it has no uploader restrictions)\n", sourcename, d->codename);
 			accepted = true;
@@ -3608,7 +3621,7 @@ static const struct action {
 	{"__extractfilelist",	A_N(extractfilelist),
 		1, 1, "__extractfilelist <.deb-file>"},
 	{"__checkuploaders",	A_C(checkuploaders),
-		1, -1,	"__checkuploaders <codename> <predicates>"},
+		1, -1,	"__checkuploaders <codenames>"},
 	{"_versioncompare",	A_N(versioncompare),
 		2, 2, "_versioncompare <version> <version>"},
 	{"_detect", 		A__F(detect),

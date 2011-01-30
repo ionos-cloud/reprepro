@@ -1,6 +1,7 @@
 2010-01-30
 	* add 'sizes' command.
 	* add "distribution 'codename'" support to uploaders files.
+	* some fixes for __checkuploaders
 
 2010-01-27
 	* SignWith can take multiple arguments to denote multiple keys to
