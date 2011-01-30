@@ -792,3 +792,16 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 
 	return files_add_checksums(database, filekey, *checksums_p);
 }
+
+off_t files_getsize(struct database *database, const char *filekey) {
+	retvalue r;
+	off_t s;
+	struct checksums *checksums;
+
+	r = files_get_checksums(database, filekey, &checksums);
+	if (!RET_IS_OK(r))
+		return -1;
+	s = checksums_getfilesize(checksums);
+	checksums_free(checksums);
+	return s;
+}

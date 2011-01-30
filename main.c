@@ -72,6 +72,7 @@
 #include "archallflood.h"
 #include "sourcecheck.h"
 #include "uploaderslist.h"
+#include "sizes.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -2320,6 +2321,7 @@ ACTION_B(n, n, y, dumptracks) {
 	}
 	return result;
 }
+
 /***********************checking*************************/
 
 ACTION_RF(y, n, y, check) {
@@ -2418,6 +2420,20 @@ ACTION_F(y, n, y, y, reoverride) {
 	RET_ENDUPDATE(result,r);
 
 	return result;
+}
+
+/*******************sizes of distributions***************/
+
+ACTION_RF(n, n, y, sizes) {
+	retvalue result;
+
+	result = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	return sizes_distributions(database, alldistributions, argc > 1);
 }
 
 /***********************include******************************************/
@@ -3637,6 +3653,8 @@ static const struct action {
 	{"export", 		A_F(export),
 		0, -1, "export [<distributions>]"},
 	{"check", 		A_RFact(check),
+		0, -1, "check [<distributions>]"},
+	{"sizes", 		A_RF(sizes),
 		0, -1, "check [<distributions>]"},
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},

@@ -899,6 +899,25 @@ List all binary packages for which no source package is found
 but source packages only kept by package tracking is enough).
 
 Currently only works with distributions having tracking enabled.
+.TP
+.BR sizes " [ " \fIcodenames\fP " ]"
+List the size of all packages in the distributions specified or
+in all distributions.
+
+Each row contains 4 numbers, each being a number of bytes in a set
+of packages, which are:
+The packages in this distribution
+(including anything only kept because of tracking),
+the packages only in this distribution
+(anything in this distribution and a snapshot of this distribution
+counts as only in this distribution),
+the packages in this distribution and its snapshots,
+the packages only in this distribution or its snapshots.
+
+If more than one distribution is selected, also list a sum of those
+(in which 'Only' means only in selected ones, and not only only in
+one of the selected ones).
+
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:

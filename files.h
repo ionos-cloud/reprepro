@@ -81,4 +81,5 @@ retvalue files_canadd(struct database *, const char *filekey, const struct check
 static inline char *files_calcfullfilename(const char *filekey) {
 	return calc_dirconcat(global.outdir, filekey);
 }
+off_t files_getsize(struct database *, const char*);
 #endif
