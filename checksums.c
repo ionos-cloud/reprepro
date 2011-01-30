@@ -259,24 +259,11 @@ retvalue checksums_initialize(struct checksums **checksums_p, const struct hash_
 	return RET_OK;
 }
 
-retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum) {
-	size_t md5len;
-	retvalue r;
-
-	if( md5sum != NULL ) {
-		md5len = strlen(md5sum);
-		if( len < md5len ||
-		    strcmp(combinedchecksum + len - md5len, md5sum) != 0 ) {
-			fprintf(stderr, "WARNING: repairing inconsistent checksum data from database!\n");
-			len = md5len;
-			combinedchecksum = md5sum;
-		}
-	}
+retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len) {
 	// This comes from our database, so it surely well formed
 	// (as alreadyassumed above), so this should be possible to
 	// do faster than that...
-	r = checksums_parse(checksums_p, combinedchecksum);
-	return r;
+	return checksums_parse(checksums_p, combinedchecksum);
 }
 
 retvalue checksums_parse(struct checksums **checksums_p, const char *combinedchecksum) {

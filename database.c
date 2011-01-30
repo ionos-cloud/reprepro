@@ -2013,7 +2013,7 @@ static inline retvalue translate(struct table *oldmd5sums, struct table *newchec
 		r = table_gettemprecord(newchecksums, filekey,
 				&all, &alllen);
 		if( RET_IS_OK(r) )
-			r = checksums_setall(&n, all, alllen, NULL);
+			r = checksums_setall(&n, all, alllen);
 		if( RET_IS_OK(r) ) {
 			if( checksums_matches(n, cs_md5sum, md5sum) ) {
 				/* already there, nothing to do */

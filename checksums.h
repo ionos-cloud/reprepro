@@ -41,7 +41,7 @@ void checksums_free(/*@only@*//*@null@*/struct checksums *);
 /* duplicate a checksum record, NULL means OOM */
 /*@null@*/struct checksums *checksums_dup(const struct checksums *);
 
-retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum);
+retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len);
 
 retvalue checksums_initialize(/*@out@*/struct checksums **checksums_p, const struct hash_data *);
 /* hashes[*] is free'd: */

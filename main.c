@@ -505,7 +505,7 @@ ACTION_F(n, n, n, n, addmd5sums) {
 			fprintf(stderr,"Malformed line\n");
 			return RET_ERROR;
 		}
-		r = checksums_setall(&checksums, m, strlen(m), NULL);
+		r = checksums_setall(&checksums, m, strlen(m));
 		if( RET_WAS_ERROR(r) )
 			return r;
 		r = files_add_checksums(database, buffer, checksums);
