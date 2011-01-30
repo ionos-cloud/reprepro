@@ -8,6 +8,7 @@ struct uploaders;
 
 enum upload_condition_type { uc_REJECTED = 0, uc_ALWAYS,
 /*	uc_COMPONENT, */ uc_ARCHITECTURES,
+	uc_CODENAME,
 	uc_SOURCENAME, uc_SECTIONS, uc_BINARIES, uc_BYHAND };
 #define uc_ACCEPTED uc_ALWAYS
 

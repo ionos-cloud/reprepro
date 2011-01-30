@@ -1930,6 +1930,11 @@ matches an upload with at least one byhand file
 matches an upload with at least one byhand file and
 all byhand files having a section listed in the list of given section.
 (i.e. \fBbyhand 'byhand'|'raw-*'\fP is currently is the same as \fBbyhand\fP).
+.TP
+.BI "distribution '" codename '
+which means any package when it is to be included in \fIcodename\fP.
+As the uploaders file is given by distribution, this is only useful
+to reuse a complex uploaders file for multiple distributions.
 .PP
 Putting \fBnot\fP in front of a condition, inverses it's meaning.
 For example

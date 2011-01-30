@@ -3115,6 +3115,9 @@ ACTION_C(n, n, checkuploaders) {
 			case uc_REJECTED:
 				rejected = true;
 				break;
+			case uc_CODENAME:
+				uploaders_verifystring(conditions, d->codename);
+				break;
 			case uc_SOURCENAME:
 				uploaders_verifystring(conditions, sourcename);
 				break;

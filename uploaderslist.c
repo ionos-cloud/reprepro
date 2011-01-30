@@ -53,7 +53,8 @@ struct upload_condition {
 		needs_anycandidate
 	} needs;
 	union {
-		/* uc_SECTIONS, uc_BINARIES, uc_SOURCENAME, uc_BYHAND */
+		/* uc_SECTIONS, uc_BINARIES, uc_SOURCENAME, uc_BYHAND,
+		 * uc_CODENAME,  */
 		struct strlist strings;
 		/* uc_COMPONENTS, uc_ARCHITECTURES */
 		struct atomlist atoms;
@@ -142,6 +143,7 @@ static void uploadpermission_release(struct upload_condition *p) {
 			case uc_SECTIONS:
 			case uc_SOURCENAME:
 			case uc_BYHAND:
+			case uc_CODENAME:
 				strlist_done(&p->strings);
 				break;
 
@@ -435,6 +437,7 @@ bool uploaders_verifystring(struct upload_conditions *conditions, const char *na
 
 	assert( c != NULL );
 	assert( c->type == uc_BINARIES || c->type == uc_SECTIONS ||
+		c->type == uc_CODENAME ||
 		c->type == uc_SOURCENAME || c->type == uc_BYHAND );
 
 	conditions->needscandidate = false;
@@ -811,6 +814,21 @@ static retvalue parse_condition(const char *filename, long lineno, int column, c
 
 			last->type = uc_SOURCENAME;
 			p += 6;
+
+			r = parse_stringpart(&last->strings, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
+
+		} else if( strncmp(p, "distribution", 12) == 0 &&
+			   strchr(" \t'", p[12]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_CODENAME;
+			p += 12;
 
 			r = parse_stringpart(&last->strings, &p,
 					filename, lineno,
