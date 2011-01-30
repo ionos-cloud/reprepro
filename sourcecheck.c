@@ -15,11 +15,12 @@
  */
 #include <config.h>
 
+#include <sys/types.h>
 #include <assert.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "error.h"
-#include "db.h"
 #include "distribution.h"
 #include "trackingt.h"
 #include "sourcecheck.h"
