@@ -1,7 +1,7 @@
-reprepro (4.3.0-2) UNRELEASED; urgency=low
+reprepro (4.4.0-1) unstable; urgency=low
 
-  * UNRELEASED
-  - Fix multiple typos in docs/manual.html (Closes: 610304)
+  * new upstream release
+  - fix multiple typos in docs/manual.html (Closes: 610304)
   - add removesrcs command (Closes: 606457)
 
  -- Bernhard R. Link <brlink@debian.org>  Mon, 17 Jan 2011 20:02:23 +0100
@@ -16,6 +16,16 @@ reprepro (4.3.0-1) experimental; urgency=low
   - fix handling of packages with a $Component override but no real ones
 
  -- Bernhard R. Link <brlink@debian.org>  Sun, 24 Oct 2010 11:06:48 +0200
+
+reprepro (4.2.0-2) unstable; urgency=low
+
+  * include sys/stat.h in filecntl.h (Closes: 600982)
+  * Don't get confused with packages only having special override
+    entries
+  * adopt changelogs.example to new dpkg-source
+  * add support for ButAutomaticUpgrades (Closes: 600358)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 22 Oct 2010 16:54:03 +0200
 
 reprepro (4.2.0-1) unstable; urgency=low
 

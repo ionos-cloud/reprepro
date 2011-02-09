@@ -1,3 +1,12 @@
+Updates between 4.3.0 and 4.4.0:
+- add 'sizes' command.
+- SignWith allows multiple arguments to denote multiple keys to sign wtih
+- add removesrcs command (like removesrc can you can remove more at once)
+- uploaders files can have groups of uploaders and depend on the
+  distribution to upload to (to share uploaders file between distributions)
+- support putting ButAutomaticUpgrades fields in Release files
+- add support for lzip compressed files
+
 Updates between 4.2.0 and 4.3.0:
 - add special "$Delete" override field to get rid of fields
 - add support for ButAtuomaticUpgrades
