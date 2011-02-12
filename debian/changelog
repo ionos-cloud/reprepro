@@ -1,3 +1,9 @@
+reprepro (4.4.0-2) UNRELEASED; urgency=low
+
+  * fix missing "not" in manpage (Closes: 612943)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 12 Feb 2011 17:05:47 +0100
+
 reprepro (4.4.0-1) unstable; urgency=low
 
   * new upstream release
