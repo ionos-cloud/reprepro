@@ -1,5 +1,6 @@
 2010-02-14
 	* add 'reportcruft' command
+	* ignore source checking in distributions without 'source' architecture
 
 2010-01-30
 	* add 'sizes' command.

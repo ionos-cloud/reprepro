@@ -63,6 +63,8 @@ retvalue unusedsources(struct database *database, struct distribution *alldistri
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		if( !d->selected )
 			continue;
+		if( !atomlist_in(&d->architectures, architecture_source) )
+			continue;
 		if( d->tracking == dt_NONE ) {
 			fprintf(stderr, "Warning: Tracking not enabled for '%s' and unusedsources yet only possible with tracking information.\n",
 					d->codename);
@@ -111,6 +113,13 @@ retvalue sourcemissing(struct database *database, struct distribution *alldistri
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		if( !d->selected )
 			continue;
+		if( !atomlist_in(&d->architectures, architecture_source) ) {
+			if( verbose >= 0 )
+				fprintf(stderr,
+"Not processing distribution '%s', as it has no source packages.\n",
+						d->codename);
+			continue;
+		}
 		if( d->tracking == dt_NONE ) {
 			fprintf(stderr, "Warning: Tracking not enabled for '%s' and unusedsources yet only possible with tracking information.\n",
 					d->codename);
@@ -156,6 +165,13 @@ retvalue reportcruft(struct database *database, struct distribution *alldistribu
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
 		if( !d->selected )
 			continue;
+		if( !atomlist_in(&d->architectures, architecture_source) ) {
+			if( verbose >= 0 )
+				fprintf(stderr,
+"Not processing distribution '%s', as it has no source packages.\n",
+						d->codename);
+			continue;
+		}
 		if( d->tracking == dt_NONE ) {
 			fprintf(stderr, "Warning: Tracking not enabled for '%s' and unusedsources yet only possible with tracking information.\n",
 					d->codename);
