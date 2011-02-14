@@ -82,11 +82,10 @@ static retvalue listsourcemissing(struct distribution *d, const struct trackedpa
 	int i;
 
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
-		/* source in tracking is good enough */
-		if( pkg->filetypes[i] == 's' )
-			hassource = true;
 		if( pkg->refcounts[i] == 0 )
 			continue;
+		if( pkg->filetypes[i] == 's' )
+			hassource = true;
 		if( pkg->filetypes[i] == 'b' )
 			hasbinary = true;
 		if( pkg->filetypes[i] == 'a' )
@@ -119,6 +118,51 @@ retvalue sourcemissing(struct database *database, struct distribution *alldistri
 		}
 
 		r = tracking_foreach_ro(database, d, listsourcemissing);
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return result;
+}
+
+static retvalue listcruft(struct distribution *d, const struct trackedpackage *pkg) {
+	bool hasbinary = false, hassource = false;
+	int i;
+
+	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
+		if( pkg->refcounts[i] == 0 )
+			continue;
+		if( pkg->filetypes[i] == 's' )
+			hassource = true;
+		if( pkg->filetypes[i] == 'b' )
+			hasbinary = true;
+		if( pkg->filetypes[i] == 'a' )
+			hasbinary = true;
+	}
+	if( hasbinary && ! hassource ) {
+		printf("binaries-without-source %s %s %s\n", d->codename, pkg->sourcename, pkg->sourceversion);
+		return RET_OK;
+	} else if( hassource && ! hasbinary ) {
+		printf("source-without-binaries %s %s %s\n", d->codename, pkg->sourcename, pkg->sourceversion);
+		return RET_OK;
+	}
+	return RET_NOTHING;
+}
+
+retvalue reportcruft(struct database *database, struct distribution *alldistributions) {
+	struct distribution *d;
+	retvalue result = RET_NOTHING, r;
+
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
+		if( d->tracking == dt_NONE ) {
+			fprintf(stderr, "Warning: Tracking not enabled for '%s' and unusedsources yet only possible with tracking information.\n",
+					d->codename);
+			continue;
+		}
+
+		r = tracking_foreach_ro(database, d, listcruft);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return r;

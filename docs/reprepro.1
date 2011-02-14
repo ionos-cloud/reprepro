@@ -900,6 +900,15 @@ but source packages only kept by package tracking is enough).
 
 Currently only works with distributions having tracking enabled.
 .TP
+.B reportcruft \fR[\fP\fIdistributions\fP\fR]\fP
+List all source package versions that either have a source package
+and no longer a binary package or binary packages left without
+source package in the index. (Unless sourcemissing also list packages
+where the source package in only in the pool due to enabled tracking
+but no longer in the index).
+
+Currently only works with distributions having tracking enabled.
+.TP
 .BR sizes " [ " \fIcodenames\fP " ]"
 List the size of all packages in the distributions specified or
 in all distributions.

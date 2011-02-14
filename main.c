@@ -3555,6 +3555,17 @@ ACTION_B(n, n, y, sourcemissing) {
 		return r;
 	return sourcemissing(database, alldistributions);
 }
+/*********************** reportcruft ****************************/
+ACTION_B(n, n, y, reportcruft) {
+	retvalue r;
+
+	r = distribution_match(alldistributions, argc-1, argv+1,
+			false, READONLY);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	return reportcruft(database, alldistributions);
+}
 
 /*********************/
 /* argument handling */
@@ -3762,6 +3773,8 @@ static const struct action {
 		0, -1, "unusedsources [<codenames>]"},
 	{"sourcemissing",	A_B(sourcemissing),
 		0, -1, "sourcemissing [<codenames>]"},
+	{"reportcruft",		A_B(reportcruft),
+		0, -1, "reportcruft [<codenames>]"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N

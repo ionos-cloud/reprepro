@@ -1,3 +1,6 @@
+2010-02-14
+	* add 'reportcruft' command
+
 2010-01-30
 	* add 'sizes' command.
 	* add "distribution 'codename'" support to uploaders files.
