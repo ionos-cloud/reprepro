@@ -1,3 +1,7 @@
+2010-02-16
+	* make 'sourcemissing', 'unusedsources' and 'reportcruft' work on
+	  distributions without tracking.
+
 2010-02-14
 	* add 'reportcruft' command
 	* ignore source checking in distributions without 'source' architecture
