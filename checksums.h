@@ -56,8 +56,6 @@ retvalue checksums_getcombined(const struct checksums *, /*@out@*/const char **,
 
 /* get a static pointer to a specific part of a checksum (wihtout size) */
 bool checksums_getpart(const struct checksums *, enum checksumtype, /*@out@*/const char **, /*@out@*/size_t *);
-/* get the md5sum (including size) in old style format */
-const char *checksums_getmd5sum(const struct checksums *);
 /* extract a single checksum from the combined data: */
 bool checksums_gethashpart(const struct checksums *, enum checksumtype, /*@out@*/const char **hash_p, /*@out@*/size_t *hashlen_p, /*@out@*/const char **size_p, /*@out@*/size_t *sizelen_p);
 

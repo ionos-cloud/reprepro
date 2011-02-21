@@ -32,6 +32,7 @@ retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hash
 	char *chunk;
 	struct strlist files[cs_hashCOUNT];
 	enum checksumtype cs;
+	bool foundanything = false;
 
 	r = readtextfile(releasefile, releasefile, &chunk, NULL);
 	assert( r != RET_NOTHING );
@@ -45,23 +46,24 @@ retvalue release_getchecksums(const char *releasefile, const bool ignore[cs_hash
 		assert( release_checksum_names[cs] != NULL );
 		r = chunk_getextralinelist(chunk, release_checksum_names[cs],
 				&files[cs]);
-		if( r == RET_NOTHING ) {
-			if( cs == cs_md5sum ) {
-				fprintf(stderr,
-"Missing 'MD5Sum' field in Release file '%s'!\n",	releasefile);
-				r = RET_ERROR;
-			} else
-				strlist_init(&files[cs]);
-		}
 		if( RET_WAS_ERROR(r) ) {
 			while( cs-- > cs_md5sum ) {
 				strlist_done(&files[cs]);
 			}
 			free(chunk);
 			return r;
-		}
+		} else if( r == RET_NOTHING )
+			strlist_init(&files[cs]);
+		else
+			foundanything = true;
 	}
 	free(chunk);
+
+	if( !foundanything ) {
+		fprintf(stderr, "Missing checksums in Release file '%s'!\n",
+				releasefile);
+		return RET_ERROR;
+	}
 
 	r = checksumsarray_parse(out, files, releasefile);
 	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {

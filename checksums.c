@@ -409,16 +409,6 @@ bool checksums_gethashpart(const struct checksums *checksums, enum checksumtype 
 	return true;
 }
 
-const char *checksums_getmd5sum(const struct checksums *checksums) {
-	assert( checksums->parts[cs_md5sum].len != 0 &&
-		checksums->parts[cs_length].len != 0 &&
-		checksums->parts[cs_md5sum].ofs +
-		checksums->parts[cs_md5sum].len + 1 ==
-		checksums->parts[cs_length].ofs);
-	/* using the knowledge about the format, this is just what is wanted: */
-	return checksums_hashpart(checksums, cs_md5sum);
-}
-
 retvalue checksums_getcombined(const struct checksums *checksums, /*@out@*/const char **data_p, /*@out@*/size_t *datalen_p) {
 	size_t len;
 
@@ -666,9 +656,19 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 	int i;
 	struct checksumsarray a;
 	struct strlist filenames;
-	size_t count = l[cs_md5sum].count;
+	size_t count;
+	bool foundhashtype[cs_hashCOUNT];
 	struct hashes *parsed;
 	enum checksumtype cs;
+
+	memset(foundhashtype, 0, sizeof(foundhashtype));
+
+	/* avoid realloc by allocing the absolute maximum only
+	 * if every checksum field contains different files */
+	count = 0;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		count += l[cs].count;
+	}
 
 	parsed = calloc(count, sizeof(struct hashes));
 	if( FAILEDTOALLOC(parsed) ) {
@@ -725,38 +725,41 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 				parsed[fileofs].hashes[cs_md5sum].len = hash_len;
 				parsed[fileofs].hashes[cs_length].start = size_start;
 				parsed[fileofs].hashes[cs_length].len = size_len;
+				foundhashtype[cs_md5sum] = true;
 			} else {
 				struct hash_data *hashes;
 
-				// TODO: suboptimal, as we know where
-				// it likely is...
 				fileofs = strlist_ofs(&filenames, filename);
 				if( fileofs == -1 ) {
-				// TODO: future versions might add files
-				// her to the previous know ones instead,
-				// once md5sum hash may be empty...
-					fprintf(stderr,
-"WARNING: %s checksum line ' %s' in '%s' has no corresponding Files line!\n",
-						hash_name[cs], line,
-						filenametoshow);
-				}
-				hashes = parsed[fileofs].hashes;
+					fileofs = filenames.count;
+					r = strlist_add_dup(&filenames, filename);
+					if( RET_WAS_ERROR(r) ) {
+						strlist_done(&filenames);
+						free(parsed);
+						return r;
+					}
+					hashes = parsed[fileofs].hashes;
+					hashes[cs_length].start = size_start;
+					hashes[cs_length].len = size_len;
+				} else
+					hashes = parsed[fileofs].hashes;
 				if( unlikely( hashes[cs_length].len
 				              != size_len
 				          || memcmp(hashes[cs_length].start,
 				               size_start, size_len) != 0) ) {
 					fprintf(stderr,
-"WARNING: %s checksum line ' %s' in '%s' contradicts 'Files' filesize!\n",
+"WARNING: %s checksum line ' %s' in '%s' contradicts previous filesize!\n",
 						hash_name[cs], line,
 						filenametoshow);
 					continue;
 				}
 				hashes[cs].start = hash_start;
 				hashes[cs].len = hash_len;
+				foundhashtype[cs] = true;
 			}
 		}
 	}
-	assert( count == (size_t)filenames.count );
+	assert( count >= (size_t)filenames.count );
 
 	if( filenames.count == 0 ) {
 		strlist_done(&filenames);
@@ -765,6 +768,24 @@ retvalue checksumsarray_parse(struct checksumsarray *out, const struct strlist l
 		free(parsed);
 		return RET_OK;
 	}
+#if 0
+// TODO: reenable this once apt-utils is fixed for a long enough time...
+	for( i = 0 ; i < filenames.count ; i++ ) {
+		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+			if( !foundhashtype[cs] )
+				continue;
+			if( parsed[i].hashes[cs].start == NULL ) {
+				fprintf(stderr, "WARNING: Inconsistent hashes in %s: '%s' missing %s!\n",
+						filenametoshow,
+						filenames.values[i],
+						hash_name[cs]);
+				r = RET_ERROR;
+				/* show one per file, but list all problematic files */
+				break;
+			}
+		}
+	}
+#endif
 	a.checksums = calloc(filenames.count+1, sizeof(struct checksums *));
 	if( FAILEDTOALLOC(a.checksums) ) {
 		strlist_done(&filenames);

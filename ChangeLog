@@ -1,4 +1,7 @@
 2010-02-16
+	* support reading of Release files without MD5Sum
+
+2010-02-16
 	* make 'sourcemissing', 'unusedsources' and 'reportcruft' work on
 	  distributions without tracking.
 
