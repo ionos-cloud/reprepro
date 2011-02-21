@@ -1526,15 +1526,13 @@ would translate to
 .B IgnoreHashes
 This directive tells reprepro to not check the listed
 hashes in the downloaded Release file (and only in the Release file).
-Possible values are currently \fBsha1\fP and \fBsha256\fP.
+Possible values are currently \fBmd5\fP, \fBsha1\fP and \fBsha256\fP.
 
-Note that \fBmd5\fP is not possible as reprepro internally still
-always needs md5 hashes. Note that this does not speed anything
+Note that this does not speed anything
 up in any measurable way. The only reason to specify this if
 the Release file of the distribution you want to mirror from
 uses a faulty algorithm implementation.
-Otherwise you will gain nothing and only lose security but not
-gain speed.
+Otherwise you will gain nothing and only lose security.
 .TP
 .B FilterFormula
 This can be a formula to specify which packages to accept from

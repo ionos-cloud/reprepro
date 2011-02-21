@@ -2,6 +2,7 @@
 	* support reading of Release files without MD5Sum
 	* add all missing Checksums-* when importing from
 	  remote repositories
+	* allow md5 in IgnoreHashes
 
 2010-02-16
 	* make 'sourcemissing', 'unusedsources' and 'reportcruft' work on
