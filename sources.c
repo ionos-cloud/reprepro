@@ -634,8 +634,10 @@ retvalue sources_complete_checksums(const char *chunk, const struct strlist *fil
 
 	r = checksumsarray_genfilelist(&checksums,
 			&newfilelines, &newsha1lines, &newsha256lines);
-	if( RET_WAS_ERROR(r) )
+	free(checksums.names.values);
+	if( RET_WAS_ERROR(r) ) {
 		return RET_ERROR_OOM;
+	}
 	assert( newfilelines != NULL );
 	replace = aodfield_new("Checksums-Sha256", newsha256lines, NULL);
 	if( replace != NULL )
