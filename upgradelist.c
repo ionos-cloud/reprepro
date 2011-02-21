@@ -648,14 +648,26 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 	result = RET_NOTHING;
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted ) {
-			r = files_expectfiles(database,
+			char *newcontrol;
+
+			r = files_checkorimprove(database,
 					&pkg->new_filekeys,
 					pkg->new_origfiles.checksums);
+			if( ! RET_WAS_ERROR(r) ) {
+
+				r = upgrade->target->completechecksums(
+						pkg->new_control,
+						&pkg->new_filekeys,
+						pkg->new_origfiles.checksums,
+						&newcontrol);
+			}
 			if( ! RET_WAS_ERROR(r) ) {
 				/* upgrade (or possibly downgrade) */
 				const char *causingrule = NULL,
 				      *suitefrom = NULL;
 
+				free(pkg->new_control);
+				pkg->new_control = newcontrol;
 				callback(pkg->privdata, &causingrule, &suitefrom);
 // TODO: trackingdata?
 				if( interrupted() )

@@ -28,6 +28,9 @@ retvalue files_expect(struct database *, const char *, const struct checksums *,
 /* same for multiple files */
 retvalue files_expectfiles(struct database *, const struct strlist *, struct checksums **);
 
+/* check for several files in the database and update information */
+retvalue files_checkorimprove(struct database *, const struct strlist *, struct checksums **);
+
 /* print missing files */
 retvalue files_printmissing(struct database *, const struct strlist *filekeys, const struct checksumsarray *);
 

@@ -59,7 +59,7 @@ static char *calc_identifier(const char *codename, component_t component, archit
 }
 
 
-static retvalue target_initialize(/*@dependant@*/struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, bool readonly, /*@out@*/struct target **d) {
+static retvalue target_initialize(/*@dependant@*/struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, complete_checksums docomplete, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, bool readonly, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -94,6 +94,7 @@ static retvalue target_initialize(/*@dependant@*/struct distribution *distributi
 	t->getsourceandversion = getsourceandversion;
 	t->doreoverride = doreoverride;
 	t->doretrack = doretrack;
+	t->completechecksums = docomplete;
 	t->readonly = readonly;
 	*d = t;
 	return RET_OK;
@@ -121,6 +122,7 @@ retvalue target_initialize_ubinary(struct distribution *d, component_t component
 			binaries_getfilekeys, binaries_getchecksums,
 			binaries_getsourceandversion,
 			ubinaries_doreoverride, binaries_retrack,
+			binaries_complete_checksums,
 			mprintf("%s/debian-installer/binary-%s",
 				dist_component_name(component,
 					fakecomponentprefix),
@@ -135,6 +137,7 @@ retvalue target_initialize_binary(struct distribution *d, component_t component,
 			binaries_getfilekeys, binaries_getchecksums,
 			binaries_getsourceandversion,
 			binaries_doreoverride, binaries_retrack,
+			binaries_complete_checksums,
 			mprintf("%s/binary-%s",
 				dist_component_name(component,
 					fakecomponentprefix),
@@ -150,6 +153,7 @@ retvalue target_initialize_source(struct distribution *d, component_t component,
 			sources_getfilekeys, sources_getchecksums,
 			sources_getsourceandversion,
 			sources_doreoverride, sources_retrack,
+			sources_complete_checksums,
 			mprintf("%s/source", dist_component_name(component,
 					fakecomponentprefix)),
 			exportmode, readonly, target);
