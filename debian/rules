@@ -9,23 +9,31 @@ DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
 DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
 
 # dpkg-buildpackage generated ',' policy suggests spaces, oh well...
-export DEB_BUILD_OPTIONS
-BUILDOPTS:=$(shell echo "$$DEB_BUILD_OPTIONS" | sed 's/,/ /g')
+$(warning DEB_BUILD_OPTIONS IS ${DEB_BUILD_OPTIONS})
 
-CPPFLAGS =
-CFLAGS = -Wall -g -Wextra -Wmissing-prototypes -Wstrict-prototypes
-ifneq (,$(filter noopt,$(BUILDOPTS)))
-	CFLAGS += -O0
+ifneq (,$(shell which dpkg-buildflags))
+CFLAGS := $(shell dpkg-buildflags --get CFLAGS)
+CPPFLAGS := $(shell dpkg-buildflags --get CPPFLAGS)
+LDFLAGS := $(shell dpkg-buildflags --get LDFLAGS)
 else
-	CFLAGS += -O2
+ifneq (,$(filter noopt,$(DEB_BUILD_OPTIONS)))
+        CFLAGS = -O0 -g
+else
+        CFLAGS = -O2 -g
 endif
-ifneq (,$(filter reprepro-nolibarchive,$(BUILDOPTS)))
+CPPFLAGS =
+LDFLAGS =
+endif
+
+CFLAGS += -Wall -g -Wextra -Wmissing-prototypes -Wstrict-prototypes
+LDFLAGS += -Wl,-z,defs
+ifneq (,$(filter reprepro-nolibarchive,$(DEB_BUILD_OPTIONS)))
 	ARCHIVEFLAGS= --without-libarchive
 else
 	ARCHIVEFLAGS= --with-libarchive
 endif
-ifneq (,$(filter parallel=%,$(BUILDOPTS)))
-	MAKEFLAGS += -j$(patsubst parallel=%,%,$(filter parallel=%,$(BUILDOPTS)))
+ifneq (,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
+	MAKEFLAGS += -j$(patsubst parallel=%,%,$(filter parallel=%,$(DEB_BUILD_OPTIONS)))
 endif
 
 config.status: configure
@@ -34,7 +42,7 @@ config.status: configure
 		    --prefix=/usr --mandir=\$${prefix}/share/man \
 		    --with-libbz2 $(ARCHIVEFLAGS) \
 		    --disable-dependency-tracking \
-		    CFLAGS="$(CFLAGS)" CPPFLAGS="$(CPPFLAGS)" LDFLAGS="-Wl,-z,defs" \
+		    CFLAGS='$(CFLAGS)' CPPFLAGS='$(CPPFLAGS)' LDFLAGS='$(LDFLAGS)' \
 	|| ( echo configure failed with $$? ; echo BEGIN config.log: ; \
 	     cat config.log ; echo "END config.log" ; exit 1 )
 

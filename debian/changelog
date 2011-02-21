@@ -1,8 +1,13 @@
-reprepro (4.4.0-2) UNRELEASED; urgency=low
+reprepro (4.5.0-1) unstable; urgency=low
 
-  * fix missing "not" in manpage (Closes: 612943)
+  * new release
+  - fix missing "not" in manpage (Closes: 612943)
+  - work with repositories missing MD5Sum in Release (Closes: 614361)
+  * support dpkg-buildflags
+  * drop support for pre-lenny DEB_BUILD_OPTIONS with ','
+  * change debhelper compatibility to 7
 
- -- Bernhard R. Link <brlink@debian.org>  Sat, 12 Feb 2011 17:05:47 +0100
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 21 Feb 2011 16:32:55 +0100
 
 reprepro (4.4.0-1) unstable; urgency=low
 
