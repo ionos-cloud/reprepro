@@ -814,7 +814,7 @@ testrun - -b . update test1 3<<EOF
 returns 248
 stderr
 *=Error parsing config file ./conf/updates, line 9, column 15:
-*=Unknown flag in IgnoreHashes header.(allowed values: sha1 and sha256)
+*=Unknown flag in IgnoreHashes header.(allowed values: md5, sha1 and sha256)
 *=To ignore unknown fields use --ignore=unknownfield
 -v0*=There have been errors!
 stdout
