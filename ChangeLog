@@ -1,5 +1,7 @@
 2010-02-28
 	* 'check' also checks if architectures match
+	* fix 'sourcemissing', 'unusedsources' and 'reportcruft'
+	  on distributions without tracking.
 
 2010-02-21
 	* support reading of Release files without MD5Sum
