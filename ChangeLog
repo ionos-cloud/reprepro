@@ -1,3 +1,6 @@
+2010-02-28
+	* 'check' also checks if architectures match
+
 2010-02-21
 	* support reading of Release files without MD5Sum
 	* add all missing Checksums-* when importing from
