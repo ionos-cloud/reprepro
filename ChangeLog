@@ -1,3 +1,6 @@
+2010-02-29
+	* compile with libdb5
+
 2010-02-28
 	* 'check' also checks if architectures match
 	* fix 'sourcemissing', 'unusedsources' and 'reportcruft'
