@@ -28,6 +28,7 @@ testtemplate.sh \
 testtrackingcorruption.sh \
 testuncompress.sh \
 testupdatecorners.sh \
+testuploaders.sh \
 testvarious1.sh \
 testvarious2.sh \
 testvarious3.sh \
