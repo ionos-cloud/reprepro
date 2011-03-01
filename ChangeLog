@@ -1,5 +1,8 @@
 2010-02-29
-	* compile with libdb5
+	* support compiling with libdb5
+	* fix memory bug in filelist generation
+	  (as realloc usually not moves stuff when reducing the size that
+	   is no real issue, but newer valgrind detects it and warns).
 
 2010-02-28
 	* 'check' also checks if architectures match
