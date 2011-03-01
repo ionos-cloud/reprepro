@@ -98,7 +98,7 @@ function setverbosity() {
 }
 
 FAKEARCHITECTURE=abacus
-SRCDIR="$(realpath -s "$(dirname $0)/..")"
+SRCDIR="$(readlink -e "$(dirname $0)/..")"
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_SUP=""
@@ -110,7 +110,7 @@ while [ $# -gt 0 ] ; do
 	case "$1" in
 		--srcdir)
 			shift
-			SRCDIR="$(realpath -s "$1")"
+			SRCDIR="$(readlink -e "$1")"
 			shift
 			;;
 		--neverdelete)
@@ -171,12 +171,12 @@ if [ ! -d "$SRCDIR" ] || [ ! -d "$SRCDIR/tests" ] ; then
 	exit 1
 fi
 if [ "1" -le "$#" ] ; then
-	TESTTOOL="$(realpath -s "$1")"
+	TESTTOOL="$(readlink -e "$1")"
 else
 	TESTTOOL=testtool
 fi
 if [ "2" -le "$#" ] ; then
-	REPREPRO="$(realpath -s "$2")"
+	REPREPRO="$(readlink -e "$2")"
 else
 	REPREPRO="$SRCDIR/reprepro"
 fi
