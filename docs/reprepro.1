@@ -216,7 +216,7 @@ error possibly bringing it into a inconsistent state.
 No index files are exported. You will have to call \fBexport\fP later.
 .br
 \fINote\fP that you most likely additionally need the \fB\-\-keepunreferencedfiles\fP
-option, if you do want some of the files pointed to by the untouched index
+option, if you do not want some of the files pointed to by the untouched index
 files to vanish.
 .TP
 .B \-\-ignore=\fIwhat\fP
@@ -890,15 +890,18 @@ they are unlikely to break something (because a newbinary is already available).
 .TP
 .B unusedsource \fR[\fP\fIdistributions\fP\fR]\fP
 List all source packages for which no binary package build from them is found.
-
-Currently only works with distributions having tracking enabled.
 .TP
 .B sourcemissing \fR[\fP\fIdistributions\fP\fR]\fP
 List all binary packages for which no source package is found
 (the source package must be in the same distribution,
 but source packages only kept by package tracking is enough).
-
-Currently only works with distributions having tracking enabled.
+.TP
+.B reportcruft \fR[\fP\fIdistributions\fP\fR]\fP
+List all source package versions that either have a source package
+and no longer a binary package or binary packages left without
+source package in the index. (Unless sourcemissing also list packages
+where the source package in only in the pool due to enabled tracking
+but no longer in the index).
 .TP
 .BR sizes " [ " \fIcodenames\fP " ]"
 List the size of all packages in the distributions specified or
@@ -1523,15 +1526,13 @@ would translate to
 .B IgnoreHashes
 This directive tells reprepro to not check the listed
 hashes in the downloaded Release file (and only in the Release file).
-Possible values are currently \fBsha1\fP and \fBsha256\fP.
+Possible values are currently \fBmd5\fP, \fBsha1\fP and \fBsha256\fP.
 
-Note that \fBmd5\fP is not possible as reprepro internally still
-always needs md5 hashes. Note that this does not speed anything
+Note that this does not speed anything
 up in any measurable way. The only reason to specify this if
 the Release file of the distribution you want to mirror from
 uses a faulty algorithm implementation.
-Otherwise you will gain nothing and only lose security but not
-gain speed.
+Otherwise you will gain nothing and only lose security.
 .TP
 .B FilterFormula
 This can be a formula to specify which packages to accept from

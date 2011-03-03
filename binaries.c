@@ -587,6 +587,36 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	return RET_OK;
 }
 
+/* update Checksums */
+retvalue binaries_complete_checksums(const char *chunk, const struct strlist *filekeys, struct checksums **c, char **out) {
+	struct fieldtoadd *replace;
+	char *newchunk;
+	enum checksumtype type;
+	const struct checksums *checksums;
+
+	assert (filekeys->count == 1);
+	checksums = c[0];
+
+	replace = NULL;
+	for( type = 0 ; type < cs_COUNT ; type++ ) {
+		const char *start;
+		size_t len;
+		if( checksums_getpart(checksums, type, &start, &len) ) {
+			replace = addfield_newn(deb_checksum_headers[type],
+					start, len, replace);
+			if( replace == NULL )
+				return RET_ERROR_OOM;
+		}
+	}
+	newchunk = chunk_replacefields(chunk, replace,
+			"Description", true);
+	addfield_free(replace);
+	if( newchunk == NULL )
+		return RET_ERROR_OOM;
+	*out = newchunk;
+	return RET_OK;
+}
+
 retvalue binaries_adddeb(const struct deb_headers *deb, struct database *database, const struct atomlist *forcearchitectures, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, component_t component, const struct strlist *filekeys, const char *control) {
 	retvalue r,result;
 	int i;

@@ -30,6 +30,7 @@
 #include "chunks.h"
 #include "sources.h"
 #include "names.h"
+#include "dirs.h"
 #include "dpkgversions.h"
 #include "override.h"
 #include "tracking.h"
@@ -608,6 +609,56 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 
 	*newcontrol = newchunk;
 
+	return RET_OK;
+}
+
+/* update Checksums */
+retvalue sources_complete_checksums(const char *chunk, const struct strlist *filekeys, struct checksums **c, char **out) {
+	struct fieldtoadd *replace;
+	char *newchunk;
+	char *newfilelines, *newsha1lines, *newsha256lines;
+	struct checksumsarray checksums;
+	retvalue r;
+	int i;
+
+	/* fake a checksumarray... */
+	checksums.checksums = c;
+	checksums.names.count = filekeys->count;
+	checksums.names.values = calloc(filekeys->count, sizeof(char*));
+	if (checksums.names.values == NULL)
+		return RET_ERROR_OOM;
+	for( i = 0 ; i < filekeys->count ; i++ ) {
+		checksums.names.values[i] = (char*)
+			dirs_basename(filekeys->values[i]);
+	}
+
+	r = checksumsarray_genfilelist(&checksums,
+			&newfilelines, &newsha1lines, &newsha256lines);
+	free(checksums.names.values);
+	if( RET_WAS_ERROR(r) ) {
+		return RET_ERROR_OOM;
+	}
+	assert( newfilelines != NULL );
+	replace = aodfield_new("Checksums-Sha256", newsha256lines, NULL);
+	if( replace != NULL )
+		replace = aodfield_new("Checksums-Sha1", newsha1lines, replace);
+	if( replace != NULL )
+		replace = addfield_new("Files", newfilelines, replace);
+	if( replace == NULL ) {
+		free(newsha256lines);
+		free(newsha1lines);
+		free(newfilelines);
+		return RET_ERROR_OOM;
+	}
+	newchunk = chunk_replacefields(chunk, replace, "Files", false);
+	free(newsha256lines);
+	free(newsha1lines);
+	free(newfilelines);
+	addfield_free(replace);
+	if( newchunk == NULL )
+		return RET_ERROR_OOM;
+
+	*out = newchunk;
 	return RET_OK;
 }
 

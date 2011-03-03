@@ -1,3 +1,17 @@
+2010-02-21
+	* support reading of Release files without MD5Sum
+	* add all missing Checksums-* when importing from
+	  remote repositories
+	* allow md5 in IgnoreHashes
+
+2010-02-16
+	* make 'sourcemissing', 'unusedsources' and 'reportcruft' work on
+	  distributions without tracking.
+
+2010-02-14
+	* add 'reportcruft' command
+	* ignore source checking in distributions without 'source' architecture
+
 2010-01-30
 	* add 'sizes' command.
 	* add "distribution 'codename'" support to uploaders files.

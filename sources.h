@@ -21,6 +21,7 @@ get_checksums sources_getchecksums;
 do_reoverride sources_doreoverride;
 do_retrack sources_retrack;
 get_sourceandversion sources_getsourceandversion;
+complete_checksums sources_complete_checksums;
 
 /* Functions for checkindsc.c and incoming.c: */
 struct dsc_headers {

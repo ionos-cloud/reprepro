@@ -231,6 +231,7 @@ commands=(
 	removesrcs:"remove packages belonging to names source packages"
 	removetrack:"remove a single tracking data"
 	reoverride:"apply override information to already existing packages"
+	reportcruft:"report source packages without binaries and vice versa"
 	rereference:"recreate references"
 	rerunnotifiers:"call notificators as if all packages were just included"
 	restore:"restore a package from a distribution's snapshot"
@@ -362,7 +363,7 @@ case "$state" in
 
  (first argument|second argument|third argument|argument)
 	case "$words[1]" in
-	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers|unusedsources|sourcemissing)
+	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers|unusedsources|sourcemissing|reportcruft)
 		_reprepro_codenames
 		;;
 	 (checkpool)

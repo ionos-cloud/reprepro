@@ -23,6 +23,7 @@ do_reoverride binaries_doreoverride;
 do_reoverride ubinaries_doreoverride;
 do_retrack binaries_retrack;
 get_sourceandversion binaries_getsourceandversion;
+complete_checksums binaries_complete_checksums;
 
 /* Functions for checkindeb.c and incoming.c: */
 

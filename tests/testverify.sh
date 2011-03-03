@@ -173,7 +173,7 @@ stderr
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
 *=WARNING: valid signature in './lists/commonbase_test_Release.gpg' with revoked '12D6C95C8C737389EAAF535972F1D61F685AF714' is accepted as requested!
-*=Missing 'MD5Sum' field in Release file './lists/commonbase_test_Release'!
+*=Missing checksums in Release file './lists/commonbase_test_Release'!
 -v0*=There have been errors!
 stdout
 EOF
@@ -273,7 +273,7 @@ stderr
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release' to './lists/commonbase_test_Release'...
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
-*=Missing 'MD5Sum' field in Release file './lists/commonbase_test_Release'!
+*=Missing checksums in Release file './lists/commonbase_test_Release'!
 -v0*=There have been errors!
 stdout
 EOF
@@ -437,7 +437,7 @@ stderr
 -v1*=aptmethod got 'file:${WORKDIR}/test/dists/test/Release.gpg'
 -v2*=Copy file '${WORKDIR}/test/dists/test/Release.gpg' to './lists/commonbase_test_Release.gpg'...
 *=WARNING: valid but expired signature in './lists/commonbase_test_Release.gpg' with '2938A0D8CD4E20437CAE9CE4154F637BF62C6D3B' is accepted as requested!
-*=Missing 'MD5Sum' field in Release file './lists/commonbase_test_Release'!
+*=Missing checksums in Release file './lists/commonbase_test_Release'!
 -v0*=There have been errors!
 stdout
 EOF

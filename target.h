@@ -35,6 +35,7 @@ typedef retvalue get_checksums(const char *, /*@out@*/struct checksumsarray *);
 typedef retvalue do_reoverride(const struct target *, const char *packagename, const char *controlchunk, /*@out@*/char **newcontrolchunk);
 typedef retvalue do_retrack(const char *packagename, const char *controlchunk, trackingdb, struct database *);
 typedef retvalue get_sourceandversion(const char *chunk, const char *packagename, /*@out@*/char **source, /*@out@*/char **version);
+typedef retvalue complete_checksums(const char *chunk, const struct strlist *, struct checksums **, /*@out@*/char **);
 
 struct distribution;
 struct target {
@@ -57,6 +58,7 @@ struct target {
 	get_sourceandversion *getsourceandversion;
 	do_reoverride *doreoverride;
 	do_retrack *doretrack;
+	complete_checksums *completechecksums;
 	bool wasmodified, saved_wasmodified;
 	/* set when existed at startup time, only valid in --nofast mode */
 	bool existed;

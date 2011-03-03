@@ -105,7 +105,7 @@ returns 255
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
 -v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
-*=Missing 'MD5Sum' field in Release file './lists/flattest_flatsource_flat_Release'!
+*=Missing checksums in Release file './lists/flattest_flatsource_flat_Release'!
 -v0*=There have been errors!
 stdout
 EOF

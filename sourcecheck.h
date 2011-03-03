@@ -3,5 +3,6 @@
 
 retvalue unusedsources(struct database *, struct distribution *);
 retvalue sourcemissing(struct database *, struct distribution *);
+retvalue reportcruft(struct database *, struct distribution *);
 
 #endif

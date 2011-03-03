@@ -199,7 +199,7 @@ stderr
 -v2*=Copy file '$WORKDIR/testsource/dists/codename2/Release' to './lists/base_codename2_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/testsource/dists/codename2/Release'
 -v2*=Copy file '$WORKDIR/testsource/dists/codename1/Release' to './lists/base_codename1_Release'...
-*=Missing 'MD5Sum' field in Release file './lists/base_codename2_Release'!
+*=Missing checksums in Release file './lists/base_codename2_Release'!
 -v0*=There have been errors!
 stdout
 EOF

@@ -223,6 +223,40 @@ retvalue files_expectfiles(struct database *database, const struct strlist *file
 	return RET_OK;
 }
 
+/* check for several files in the database and update information */
+retvalue files_checkorimprove(struct database *database, const struct strlist *filekeys, struct checksums *checksumsarray[]) {
+	int i;
+	retvalue r;
+
+	for( i = 0 ; i < filekeys->count ; i++ ) {
+		const char *filekey = filekeys->values[i];
+		const struct checksums *checksums = checksumsarray[i];
+		struct checksums *indatabase;
+		bool improves;
+
+		r = files_get_checksums(database, filekey, &indatabase);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Missing file %s\n", filekey);
+			return RET_ERROR_MISSING;
+		}
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( !checksums_check(checksums, indatabase, &improves) ) {
+			fprintf(stderr,
+"File \"%s\" is already registered with different checksums!\n",
+				filekey);
+			checksums_printdifferences(stderr, indatabase, checksums);
+			r = RET_ERROR_WRONG_MD5;
+		} else if( improves ) {
+			r = checksums_combine(&checksumsarray[i], indatabase, NULL);
+		}
+		checksums_free(indatabase);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
 /* print missing files */
 retvalue files_printmissing(struct database *database, const struct strlist *filekeys, const struct checksumsarray *origfiles) {
 	int i;

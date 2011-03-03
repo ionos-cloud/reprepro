@@ -1991,6 +1991,8 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 			const struct fileentry *sfile = file->dsc->uplink[i];
 			struct checksums **expected_p = &file->dsc->expected.checksums[i];
 			const struct checksums * const expected = *expected_p;
+			const char *hashes1, *hashes2;
+			size_t dummy;
 			bool doit;
 			bool improves;
 
@@ -2033,11 +2035,17 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 					return r;
 				continue;
 			}
+			r = checksums_getcombined(expected, &hashes1, &dummy);
+			if (!RET_IS_OK(r))
+				hashes1 = "<unknown>";
+			r = checksums_getcombined(sfile->realchecksums,
+					&hashes2, &dummy);
+			if (!RET_IS_OK(r))
+				hashes2 = "<unknown>";
 			fprintf(stderr,
 "Going to update '%s' in '%s'\nfrom '%s'\nto   '%s'.\n",
 					basefilename, file->fullfilename,
-					checksums_getmd5sum(expected),
-					checksums_getmd5sum(sfile->realchecksums));
+					hashes1, hashes2);
 			checksums_free(*expected_p);
 			*expected_p = checksums_dup(sfile->realchecksums);
 			if( *expected_p == NULL )
@@ -2055,6 +2063,8 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 	memset(improvedfilehashes, 0, sizeof(improvedfilehashes));
 	for( file = c->files; file != NULL ; file = file->next ) {
 		bool improves;
+		const char *hashes1, *hashes2;
+		size_t dummy;
 
 		if( file->checksumsfromchanges == NULL )
 			/* nothing to check here */
@@ -2073,11 +2083,18 @@ static retvalue updatechecksums(const char *changesfilename, struct changes *c, 
 				return r;
 			continue;
 		}
+		r = checksums_getcombined(file->checksumsfromchanges,
+				&hashes1, &dummy);
+		if (!RET_IS_OK(r))
+			hashes1 = "<unknown>";
+		r = checksums_getcombined(file->realchecksums,
+				&hashes2, &dummy);
+		if (!RET_IS_OK(r))
+			hashes2 = "<unknown>";
 		fprintf(stderr,
 "Going to update '%s' in '%s'\nfrom '%s'\nto   '%s'.\n",
 				file->basename, changesfilename,
-				checksums_getmd5sum(file->checksumsfromchanges),
-				checksums_getmd5sum(file->realchecksums));
+				hashes1, hashes2);
 		checksums_free(file->checksumsfromchanges);
 		file->checksumsfromchanges = checksums_dup(file->realchecksums);
 		if( file->checksumsfromchanges == NULL )

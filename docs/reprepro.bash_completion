@@ -281,6 +281,7 @@ _reprepro()
 			removesrcs\
 			removetrack\
 			reoverride\
+			reportcruft\
 			rereference\
 			rerunnotifiers\
 			restore\
@@ -354,7 +355,7 @@ _reprepro()
 			# these later could also look for stuff, but
 			# that might become a bit slow
 			;;
-		export|update|checkupdate|pull|checkpull|rereference|retrack|removealltracks|tidytracks|dumptracks|check|reoverride|rerunnotifiers|dumppull|dumpupdate|unusedsources|sourcemissing)
+		export|update|checkupdate|pull|checkpull|rereference|retrack|removealltracks|tidytracks|dumptracks|check|reoverride|rerunnotifiers|dumppull|dumpupdate|unusedsources|sourcemissing|reportcruft)
 			# all arguments are codenames
 			parse_config
 			COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
