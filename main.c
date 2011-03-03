@@ -108,7 +108,7 @@ static enum exportwhen export = EXPORT_CHANGED;
 int		verbose = 0;
 static bool	fast = false;
 static bool	verbosedatabase = false;
-static bool	oldfilesdb = true;
+static bool	oldfilesdb = false;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100

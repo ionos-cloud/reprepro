@@ -35,8 +35,9 @@ CONFEND
 
 DISTRI=ATest PACKAGE=package EPOCH="" VERSION=999.999.999 REVISION="-999.999" SECTION="otherofs" genpackage.sh
 if test -n "$TESTNEWFILESDB" ; then
-	echo nooldfilesdb >> conf/options
 	dodo test ! -f db/files.db
+else
+	echo oldfilesdb >> conf/options
 fi
 testrun - -b . include ATest test.changes 3<<EOF
 stderr

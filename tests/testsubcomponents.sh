@@ -464,7 +464,7 @@ stdout
 -v2*=Created directory "./pool/a"
 -v2*=Created directory "./pool/a/t"
 -v2*=Created directory "./pool/a/t/test"
--d1*=db: 'pool/a/t/test/test_0.dsc' added to files.db(md5sums).
+-e1*=db: 'pool/a/t/test/test_0.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/a/t/test/test_0.dsc' added to checksums.db(pool).
 -d1*=db: 'test' added to packages.db(foo|a|source).
 -v0*=Exporting indices...

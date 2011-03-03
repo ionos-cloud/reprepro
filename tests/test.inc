@@ -94,7 +94,7 @@ WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_SUP=""
 VERBOSEDB="1"
-TESTNEWFILESDB=""
+TESTNEWFILESDB="1"
 DEFAULTVERBOSITY=6
 
 while [ $# -gt 0 ] ; do
@@ -118,8 +118,8 @@ while [ $# -gt 0 ] ; do
 			FAKEARCHITECTURE="$1"
 			shift
 			;;
-		--testnewfilesdb)
-			TESTNEWFILESDB="1"
+		--testoldfilesdb)
+			TESTNEWFILESDB=""
 			shift
 			;;
 		--verbosity)

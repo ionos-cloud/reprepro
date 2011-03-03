@@ -141,10 +141,11 @@ stdout
 -v6*= exporting 'A|cat|calculator'...
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
-dodo test -f db/files.db
 dodo test -f db/checksums.db
 if test -n "$TESTNEWFILESDB" ; then
-	dodo rm db/files.db
+	dodo test ! -f db/files.db
+else
+	dodo test -f db/files.db
 fi
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<END

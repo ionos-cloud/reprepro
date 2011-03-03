@@ -1,3 +1,12 @@
+Updates between 3.6.1 and 3.6.2:
+- --nooldfilesdb is the default now, create new repositories
+  with --oldfilesdb if you do not want to destroy them by accidentially
+  running reprepro versions before 3.0.0 on them...
+- fix content reading of overlong .deb files
+- fix parsing of flat repositories without Directory in Sources
+- fix tracking database selfcorruption in hopefully unreachable code
+- many improvements and less spelling errors in manpage
+
 Updates between 3.6.0 and 3.6.1:
 - fix reoverride
 - fix bz2 compression (newer libbz2 sometimes uses more return codes

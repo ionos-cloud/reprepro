@@ -164,8 +164,13 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 
 	r = chunk_getvalue(chunk, "Directory", &origdirectory);
 	if( r == RET_NOTHING ) {
+/* Flat repositories can come without this, TODO: add warnings in other cases
 		fprintf(stderr,"Missing 'Directory' entry in '%s'!\n",chunk);
 		r = RET_ERROR;
+*/
+		origdirectory = strdup(".");
+		if( FAILEDTOALLOC(origdirectory) )
+			r = RET_ERROR_OOM;
 	}
 	if( RET_WAS_ERROR(r) ) {
 		checksumsarray_done(&files);

@@ -2,7 +2,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 
-AC_INIT(reprepro, 3.6.1, brlink@debian.org)
+AC_INIT(reprepro, 3.6.2, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])
@@ -26,7 +26,7 @@ DBLIBS=""
 DBCPPFLAGS=""
 AH_TEMPLATE([LIBDB_VERSION],[variant of libdb used])
 AC_ARG_WITH(libdb,
-[  --with-libdb=path|4.4|4.3|3 Give prefix of libdb-4.3 or older version to use],[dnl
+[  --with-libdb=path|4.4|4.3|3 Give prefix of libdb-4.6 or number of older version to use],[dnl
 	case "$withval" in
 	no)
 	AC_MSG_ERROR(["Cannot compile without libdb"]);

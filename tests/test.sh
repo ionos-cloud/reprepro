@@ -44,7 +44,7 @@ CONFEND
 set -v
 checknolog logfile
 if test -n "$TESTNEWFILESDB" ; then
-	dodo test ! -f db/files.db
+	dodo test '!' -f db/files.db
 fi
 testrun - -b . export 3<<EOF
 stdout
@@ -97,7 +97,9 @@ stdout
 -v6*=  creating './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 if test -n "$TESTNEWFILESDB" ; then
-	dodo rm db/files.db
+	dodo test '!' -f db/files.db
+else
+	dodo test -f db/files.db
 fi
 test -f dists/test1/Release
 test -f dists/test2/Release

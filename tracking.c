@@ -112,11 +112,20 @@ retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg
 
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 		if( strcmp(pkg->filekeys.values[i],filekey) == 0 ) {
-			free(filekey);
 			if( pkg->filetypes[i] != ft ) {
+				/* if old file has refcount 0, just repair: */
+				if( pkg->refcounts[i] <= 0 ) {
+					free(filekey);
+					pkg->filetypes[i] = ft;
+					if( used )
+						pkg->refcounts[i] = 1;
+					return RET_OK;
+				}
 				fprintf(stderr,"Filekey '%s' already registered for '%s_%s' as type '%c' is tried to be reregistered as type '%c'!\n",filekey,pkg->sourcename,pkg->sourceversion,pkg->filetypes[i],ft);
+				free(filekey);
 				return RET_ERROR;
 			}
+			free(filekey);
 			if( used )
 				pkg->refcounts[i]++;
 			return RET_OK;
@@ -1275,7 +1284,7 @@ static retvalue removesourcepackage(trackingdb t, struct trackedpackage *pkg, st
 "'%s' has refcount > 0, but was nowhere found.\n",
 				distribution->codename,
 				filekey);
-		pkg->filetypes[i] = 0;
+		pkg->refcounts[i] = 0;
 	}
 	return result;
 }
