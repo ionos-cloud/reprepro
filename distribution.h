@@ -68,9 +68,12 @@ typedef retvalue distribution_each_action(void *data, struct target *t, struct d
 
 /* call <action> for each part of <distribution>, if component or architecture is 
  * not NULL or "all", only do those parts */
-retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data,int force);
+retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data);
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
+
+/* like distribtion_getpart, but returns NULL if there is no such target */
+/*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
 

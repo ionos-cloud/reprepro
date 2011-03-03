@@ -347,7 +347,7 @@ NULL};
 }
 	
 /* call <action> for each part of <distribution>. */
-retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data,int force) {
+retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
 	retvalue result,r;
 	struct target *t;
 
@@ -361,10 +361,19 @@ retvalue distribution_foreach_part(struct distribution *distribution,const char 
 			continue;
 		r = action(data,t,distribution);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			return result;
 	}
 	return result;
+}
+
+struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
+	struct target *t = distribution->targets;
+
+	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
+		t = t->next;
+	}
+	return t;
 }
 
 struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
@@ -428,7 +437,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 		return RET_ERROR_MISSING;
 	}
 	
-	result = chunk_foreach(fn,adddistribution,&mydata,0,FALSE);
+	result = chunk_foreach(fn,adddistribution,&mydata,FALSE);
 
 	if( !RET_WAS_ERROR(result) ) {
 		int i;
@@ -576,7 +585,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		d = distributions;
 		distributions = d->next;
 
-		if( RET_WAS_ERROR(d->status) && when != EXPORT_FORCE ) {
+		if( (RET_WAS_ERROR(d->status)||interupted()) && when != EXPORT_FORCE ) {
 			if( verbose >= 10 )
 				fprintf(stderr, 
 " Not exporting %s because there have been errors and no --export=force.\n",
@@ -627,7 +636,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
 	}
-	if( when != EXPORT_FORCE && RET_WAS_ERROR(distribution->status) ) {
+	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interupted()) ) {
 		if( verbose >= 10 )
 			fprintf(stderr, 
 "Not exporting %s because there have been errors and no --export=force.\n"

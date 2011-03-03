@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "12 May, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "16 June, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -10,7 +10,7 @@ reprepro \- produce, manage and sync a local repository of debian packages
 ]
 \fIcommand\fP
 [ 
-\fIper\-command\-options\fP 
+\fIper\-command\-arguments\fP 
 ]
 .SH DESCRIPTION
 reprepro is a tool to manage a repository of Debian packages
@@ -27,8 +27,8 @@ signatures of the generated Package indices is supported.
 
 Former working title of this program was mirrorer.
 .SH "GLOBAL OPTIONS"
-Global options can be specified before the command. They effect
-some subset of commands and are ignored otherwise.
+Options can be specified before the command. Each affects a different
+subset of commands and is ignored by other commands.
 .TP
 .B \-h \-\-help
 Displays a short list of options and commands with description.
@@ -40,7 +40,7 @@ counts as five lowercase
 .B \-v.
 .TP
 .B \-f, \-\-force
-Do things nevertheless. Might be dangerous and destructive.
+This option is ignored, as it no longer exists.
 .TP
 .B \-b, \-\-basedir \fIbasedir\fP
 Sets the base\-dir of the repository to manage, i.e. where the
@@ -257,6 +257,20 @@ Same like
 .BR update ,
 but will show what it will change instead of actually changing it.
 .TP
+.BR predelete " [ " \fIcodenames\fP " ]"
+This will determine which packages a \fBupdate\fP would delete or
+replace and remove those packages.
+This can be useful for reducing space needed while upgrading, but
+there will be some time where packages are vanished from the
+lists so clients will mark them as obsolete.
+Plus if you cannot
+download a updated package in the (hopefully) following update
+run, you will end up with no package at all instead of an old one.
+This will also blow up pindex files if you are using the tiffany
+example or somethine similar.
+So be careful when using this option or better get some more space so
+that update works.
+.TP
 .BR pull " [ " \fIcodenames\fP " ]"
 pull in newer packages into the specified distributions (all if none given)
 from other distributions in the same repository.
@@ -273,6 +287,9 @@ but will show what it will change instead of actually changing it.
 Include the given binary Debian package (.deb) in the specified
 distribution, applying override information and guessing all 
 values not given and guessable.
+.TP
+.B includeudeb \fIcodename\fP \fI.deb-filename\fP
+Same like \fBincludedeb\fP, but for .udeb files.
 .TP
 .B includedsc \fIcodename\fP \fI.dsc-filename\fP
 Include the given Debian source package (.dsc, including other files
@@ -350,6 +367,10 @@ given distributions.
 Remove the trackingdata of the given version of a given sourcepackage
 from a given distribution. This also removes the references for all
 used files.
+.TP
+.B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
+Copy the given packages from one distribution to another. No overrides
+are read, nothing is changed.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -1008,11 +1029,6 @@ if no \fB\-b\fP or \fB\-\-basedir\fP options are supplied.
 The directory in this variable is used when no \fB\-\-confdir\fP is
 supplied.
 .SH BUGS
-The
-.B \-\-force
-option needs to be replaced by something superior so that one can allow
-stupid things but not destructive things.
-
 Increased verbosity always shows those things one does not want to know.
 (Though this might be inevitable and a corollary to Murphy)
 
@@ -1064,6 +1080,27 @@ does not know anything needing them right know, you can use
 To delete them:
 .br
 \fBreprepro deleteunreferenced\fP
+.SH INTERUPTING
+Interupting reprepro has its problems.
+Some things (like speaking with apt methods, database stuff) can cause
+problems when interupted at the wrong time.
+Then there are design problems of the code making it hard to destinguish
+if the current state is dangerous or non-dangerous to interupt.
+Thus if reprepro receives a signal normaly sent to tell a process to
+terminate itself softly,
+it continues its operation, but does not start any new operations.
+(I.e. it will not tell the apt-methods any new file to download, it will
+not replace a package in a target, unless it already had started with it,
+it will not delete any files gotten dereferenced, and so on).
+
+\fBIt only catches the first signal of each type. The second signal of a
+given type will terminate reprepro. You will risk database corruption
+and have to remove the lockfile manually.\fP
+
+Also note that even normal interuption leads to code-paths mostly untested
+and thus expose a multitude of bugs including those leading to data corruption.
+Better think a second more before issuing a command than risking the need
+for interuption.
 .SH "REPORTING BUGS"
 Report bugs or wishlist requests to <brlink@debian.org>
 .br

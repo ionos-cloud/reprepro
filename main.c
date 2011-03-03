@@ -25,6 +25,7 @@
 #include <strings.h>
 #include <malloc.h>
 #include <fcntl.h>
+#include <signal.h>
 #include "error.h"
 #define DEFINE_IGNORE_VARIABLES
 #include "ignore.h"
@@ -79,7 +80,6 @@ static char /*@only@*/ /*@null@*/
 	*architecture = NULL,
 	*packagetype = NULL;
 static int	delete = D_COPY;
-static int	force = 0;
 static bool_t	nothingiserror = FALSE;
 static bool_t	nolistsdownload = FALSE;
 static bool_t	keepunreferenced = FALSE;
@@ -439,7 +439,7 @@ ACTION_D(remove) {
 	if( d.gotremoved == NULL )
 		result = RET_ERROR_OOM;
 	else
-		result = distribution_foreach_part(distribution,component,architecture,packagetype,remove_from_target,&d,force);
+		result = distribution_foreach_part(distribution,component,architecture,packagetype,remove_from_target,&d);
 	d.refs = NULL;
 	d.removedfiles = NULL;
 
@@ -511,7 +511,7 @@ ACTION_N(list) {
 		return r;
 	}
 
-	result = distribution_foreach_part(distribution,component,architecture,packagetype,list_in_target,(void*)argv[2],force);
+	result = distribution_foreach_part(distribution,component,architecture,packagetype,list_in_target,(void*)argv[2]);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
 	return result;
@@ -549,7 +549,7 @@ static retvalue listfilter_in_target(/*@temp@*/void *data, /*@temp@*/struct targ
 	}
 	d.target = target;
 	d.condition = data;
-	result = packages_foreach(target->packages,listfilterprint,&d,force);
+	result = packages_foreach(target->packages,listfilterprint,&d);
 	d.target = NULL;
 	d.condition = NULL;
 
@@ -579,7 +579,7 @@ ACTION_N(listfilter) {
 		return result;
 	}
 
-	result = distribution_foreach_part(distribution,component,architecture,packagetype,listfilter_in_target,condition,force);
+	result = distribution_foreach_part(distribution,component,architecture,packagetype,listfilter_in_target,condition);
 	term_free(condition);
 	r = distribution_free(distribution);
 	RET_ENDUPDATE(result,r);
@@ -662,7 +662,7 @@ ACTION_N(dumpcontents) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = packages_foreach(packages,printout,NULL,force);
+	result = packages_foreach(packages,printout,NULL);
 
 	r = packages_done(packages);
 	RET_ENDUPDATE(result,r);
@@ -696,7 +696,7 @@ ACTION_F(export) {
 
 		r = distribution_fullexport(d,confdir,dbdir,distdir,filesdb);
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force<= 0 && export != EXPORT_FORCE)
+		if( RET_WAS_ERROR(r) && export != EXPORT_FORCE)
 			return r;
 	}
 	r = distribution_freelist(distributions);
@@ -748,12 +748,65 @@ ACTION_D(update) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,skipold,dereferenced);
+		result = updates_update(dbdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
 	r = distribution_exportandfreelist(export,distributions,
 			confdir,dbdir,distdir, filesdb);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(predelete) {
+	retvalue result,r;
+	struct update_pattern *patterns;
+	struct distribution *distributions;
+	struct update_distribution *u_distributions;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro predelete [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = dirs_make_recursive(listdir);	
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = updates_getpatterns(confdir,&patterns);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	assert( RET_IS_OK(result) );
+
+	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	if( RET_WAS_ERROR(result) ) {
+		updates_freepatterns(patterns);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+	assert( RET_IS_OK(result) );
+
+	if( !keepunneededlists ) {
+		result = updates_clearlists(listdir,u_distributions);
+	}
+	if( !RET_WAS_ERROR(result) )
+		result = updates_predelete(dbdir,methoddir,references,u_distributions,nolistsdownload,skipold,dereferenced);
+	updates_freeupdatedistributions(u_distributions);
+	updates_freepatterns(patterns);
+
+	r = distribution_exportandfreelist(export,distributions,
+			confdir,dbdir,distdir,filesdb);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -799,7 +852,7 @@ ACTION_D(iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,skipold,dereferenced,export);
+		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,nolistsdownload,skipold,dereferenced,export);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -845,7 +898,7 @@ ACTION_N(checkupdate) {
 		return result;
 	}
 
-	result = updates_checkupdate(dbdir,methoddir,u_distributions,force,nolistsdownload,skipold);
+	result = updates_checkupdate(dbdir,methoddir,u_distributions,nolistsdownload,skipold);
 
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
@@ -889,7 +942,7 @@ ACTION_D(pull) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
-	result = pull_update(dbdir,filesdb,references,p,force,dereferenced);
+	result = pull_update(dbdir,filesdb,references,p,dereferenced);
 	
 	pull_freerules(rules);
 	pull_freedistributions(p);
@@ -936,7 +989,7 @@ ACTION_N(checkpull) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
-	result = pull_checkupdate(dbdir,p,force);
+	result = pull_checkupdate(dbdir,p);
 	
 	pull_freerules(rules);
 	pull_freedistributions(p);
@@ -949,6 +1002,139 @@ ACTION_N(checkpull) {
 	return result;
 }
 
+struct copy_data {
+	struct distribution *destination;
+	/*@temp@*/references refs; 
+	/*@temp@*/const char *name; 
+	/*@temp@*/struct strlist *removedfiles;
+};
+
+static retvalue copy(/*@temp@*/void *data, struct target *origtarget, 
+		struct distribution *distribution) {
+	retvalue result,r;
+	struct copy_data *d = data;
+	char *chunk,*version;
+	struct strlist filekeys;
+	struct target *dsttarget;
+
+	result = target_initpackagesdb(origtarget,dbdir);
+	if( RET_WAS_ERROR(result) ) {
+		RET_UPDATE(distribution->status,result);
+		return result;
+	}
+
+	dsttarget = distribution_gettarget(d->destination, origtarget->component,
+					origtarget->architecture,
+					origtarget->packagetype);
+	if( dsttarget == NULL ) {
+		if( verbose > 2 )
+			fprintf(stderr, "Not looking into '%s' as no matching target in '%s'!\n",
+					origtarget->identifier,
+					d->destination->codename);
+		result = RET_NOTHING;
+	} else
+		result = packages_get(origtarget->packages, d->name, &chunk);
+	if( result == RET_NOTHING && verbose > 2 )
+		fprintf(stderr, "No instance of '%s' found in '%s'!\n",
+				d->name, origtarget->identifier);
+	r = target_closepackagesdb(origtarget);
+	RET_ENDUPDATE(result,r);
+	if( !RET_IS_OK(result) ) {
+		return result;
+	}
+
+	result = origtarget->getversion(origtarget, chunk, &version);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		free(chunk);
+		return result;
+	}
+
+	result = origtarget->getfilekeys(origtarget, chunk, &filekeys, NULL);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		free(chunk);
+		free(version);
+		return result;
+	}
+	if( verbose >= 1 ) {
+		fprintf(stderr, "Moving '%s' from '%s' to '%s'.\n",
+					d->name,
+					origtarget->identifier,
+					dsttarget->identifier);
+	}
+
+	result = target_initpackagesdb(dsttarget,dbdir);
+	if( RET_WAS_ERROR(result) ) {
+		RET_UPDATE(d->destination->status,result);
+		free(chunk);
+		free(version);
+		strlist_done(&filekeys);
+		return result;
+	}
+
+	result = target_addpackage(dsttarget, d->refs, d->name, version, chunk,
+			&filekeys, TRUE, d->removedfiles,
+			NULL, '?');
+	free(version);
+	free(chunk);
+	strlist_done(&filekeys);
+
+	r = target_closepackagesdb(dsttarget);
+	RET_ENDUPDATE(result,r);
+	RET_UPDATE(d->destination->status,result);
+	return result;
+}
+
+ACTION_D(copy) {
+	struct distribution *destination,*source;
+	retvalue result, r;
+	struct copy_data d;
+	int i;
+
+	if( argc < 3 ) {
+		fprintf(stderr,"reprepro [-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>\n");
+		return RET_ERROR;
+	}
+	result = distribution_get(&destination,confdir,argv[1]);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_get(&source,confdir,argv[2]);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		distribution_free(destination);
+		return result;
+	}
+
+	if( destination->tracking != dt_NONE ) {
+		fprintf(stderr, "WARNING: copy does not yet support trackingdata and will ignore trackingdata in '%s'!\n", destination->codename);
+	}
+	
+	d.destination = destination;
+	d.refs = references;
+	d.removedfiles = dereferenced;
+	for( i = 3; i < argc ; i++ ) {
+		d.name = argv[i];
+		if( verbose > 0 )
+			printf("Looking for '%s' in '%s' to be copied to '%s'...\n",
+					d.name, source->codename,
+					destination->codename);
+		result = distribution_foreach_part(source,component,architecture,packagetype,copy,&d);
+	}
+	d.refs = NULL;
+	d.removedfiles = NULL;
+	d.destination = NULL;
+
+	r = distribution_export(export,destination,confdir,dbdir,distdir,filesdb);
+	RET_ENDUPDATE(result,r);
+
+	distribution_free(source);
+	distribution_free(destination);
+	return result;
+	
+}
+
 /***********************rereferencing*************************/
 struct data_binsrcreref { /*@temp@*/const struct distribution *distribution; /*@temp@*/references refs;};
 
@@ -958,7 +1144,7 @@ static retvalue reref(void *data,struct target *target,UNUSED(struct distributio
 
 	result = target_initpackagesdb(target,dbdir);
 	if( !RET_WAS_ERROR(result) ) {
-		result = target_rereference(target,d->refs,force);
+		result = target_rereference(target,d->refs);
 		r = target_closepackagesdb(target);
 		RET_ENDUPDATE(result,r);
 	}
@@ -991,11 +1177,11 @@ ACTION_R(rereference) {
 		dat.refs = references;
 
 		r = distribution_foreach_part(d,component,architecture,packagetype,
-				reref,&dat,force);
+				reref,&dat);
 		dat.refs = NULL;
 		dat.distribution = NULL;
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
 	r = distribution_freelist(distributions);
@@ -1012,7 +1198,7 @@ static retvalue retrack(void *data,struct target *target,UNUSED(struct distribut
 
 	result = target_initpackagesdb(target,dbdir);
 	if( !RET_WAS_ERROR(result) ) {
-		result = target_retrack(target,d->tracks,d->refs,force);
+		result = target_retrack(target,d->tracks,d->refs);
 		r = target_closepackagesdb(target);
 		RET_ENDUPDATE(result,r);
 	}
@@ -1045,7 +1231,7 @@ ACTION_R(retrack) {
 		r = tracking_initialize(&dat.tracks,dbdir,d);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				break;
 			continue;
 		}
@@ -1055,13 +1241,13 @@ ACTION_R(retrack) {
 		RET_UPDATE(result,r);
 
 		r = distribution_foreach_part(d,component,architecture,packagetype,
-				retrack,&dat,force);
+				retrack,&dat);
 		RET_UPDATE(result,r);
 		dat.refs = NULL;
 		dat.distribution = NULL;
 		r = tracking_done(dat.tracks);
 		RET_ENDUPDATE(result,r);
-		if( RET_WAS_ERROR(result) && force <= 0 )
+		if( RET_WAS_ERROR(result) )
 			break;
 	}
 	r = distribution_freelist(distributions);
@@ -1122,7 +1308,7 @@ ACTION_R(cleartracks) {
 		r = tracking_initialize(&tracks,dbdir,d);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				break;
 			continue;
 		}
@@ -1132,7 +1318,7 @@ ACTION_R(cleartracks) {
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
-		if( RET_WAS_ERROR(result) && force <= 0 )
+		if( RET_WAS_ERROR(result) )
 			break;
 	}
 	r = distribution_freelist(distributions);
@@ -1161,7 +1347,7 @@ ACTION_N(dumptracks) {
 		r = tracking_initialize(&tracks,dbdir,d);
 		if( RET_WAS_ERROR(r) ) {
 			RET_UPDATE(result,r);
-			if( RET_WAS_ERROR(r) && force <= 0 )
+			if( RET_WAS_ERROR(r) )
 				break;
 			continue;
 		}
@@ -1169,7 +1355,7 @@ ACTION_N(dumptracks) {
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
-		if( RET_WAS_ERROR(result) && force <= 0 )
+		if( RET_WAS_ERROR(result) )
 			break;
 	}
 	r = distribution_freelist(distributions);
@@ -1187,7 +1373,7 @@ static retvalue check_target(void *data,struct target *target,UNUSED(struct dist
 	r = target_initpackagesdb(target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	result = target_check(target,d->filesdb,d->references,force);
+	result = target_check(target,d->filesdb,d->references);
 	r = target_closepackagesdb(target);
 	RET_ENDUPDATE(result,r);
 	return result;
@@ -1218,11 +1404,11 @@ ACTION_RF(check) {
 		dat.references = references;
 		dat.filesdb = filesdb;
 
-		r = distribution_foreach_part(d,component,architecture,packagetype,check_target,&dat,force);
+		r = distribution_foreach_part(d,component,architecture,packagetype,check_target,&dat);
 		dat.references = NULL;
 		dat.filesdb = NULL;
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
 	r = distribution_freelist(distributions);
@@ -1280,7 +1466,7 @@ ACTION_F(reoverride) {
 
 		r = override_readall(overridedir,&ao,d->deb_override,d->udeb_override,d->dsc_override);
 		if( RET_IS_OK(r) ) {
-			r = distribution_foreach_part(d,component,architecture,packagetype,reoverride_target,&ao,FALSE);
+			r = distribution_foreach_part(d,component,architecture,packagetype,reoverride_target,&ao);
 			override_free(ao.deb);
 			override_free(ao.udeb);
 			override_free(ao.dsc);
@@ -1288,7 +1474,7 @@ ACTION_F(reoverride) {
 			fprintf(stderr,"No override files, thus nothing to do for %s.\n",d->codename);
 		}
 		RET_UPDATE(result,r);
-		if( RET_WAS_ERROR(r) && force <= 0 )
+		if( RET_WAS_ERROR(r) )
 			break;
 	}
 	r = distribution_exportandfreelist(export,distributions,confdir,dbdir,distdir,filesdb);
@@ -1764,7 +1950,9 @@ static const struct action {
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},
 	{"checkupdate",		A_N(checkupdate)},
+	{"predelete",		A_D(predelete)},
 	{"pull",		A_D(pull)},
+	{"copy",		A_D(copy)},
 	{"checkpull",		A_N(checkpull)},
 	{"includedeb",		A_D(includedeb)},
 	{"includeudeb",		A_D(includedeb)},
@@ -1817,14 +2005,14 @@ static retvalue callaction(const struct action *action,int argc,const char *argv
 			}
 
 			assert( result != RET_NOTHING );
-			if( RET_IS_OK(result) ) {
+			if( RET_IS_OK(result) && !interupted() ) {
 				result = action->start(references,filesdb,
 					deletederef?&dereferencedfilekeys:NULL,
 					argc,argv);
 
 				if( deletederef ) {
 					if( dereferencedfilekeys.count > 0 ) {
-					    if( RET_IS_OK(result) ) {
+					    if( RET_IS_OK(result) && !interupted() ) {
 						retvalue r;
 
 						assert(filesdb!=NULL);
@@ -1919,7 +2107,7 @@ static void handle_option(int c,const char *optarg) {
 	switch( c ) {
 		case 'h':
 			printf(
-"reprepro - Produce and Manage and Debian package repository\n\n"
+"reprepro - Produce and Manage a Debian package repository\n\n"
 "options:\n"
 " -h, --help:                        Show this help\n"
 " -i  --ignore <flag>:               Ignore errors of type <flag>.\n"
@@ -1941,7 +2129,7 @@ static void handle_option(int c,const char *optarg) {
 "\n"
 "actions (selection, for more see manpage):\n"
 " dumpreferences:    Print all saved references\n"
-" dumpunreferenced:   Print registered files withour reference\n"
+" dumpunreferenced:   Print registered files without reference\n"
 " deleteunreferenced: Delete and forget all unreferenced files\n"
 " checkpool:          Check if all files in the pool are still in proper shape.\n"
 " check [<distributions>]\n"
@@ -1953,15 +2141,15 @@ static void handle_option(int c,const char *optarg) {
 " remove <distribution> <packagename>\n"
 "       Remove the given package from the specified distribution.\n"
 " include <distribution> <.changes-file>\n"
-"       Inlcude the given upload.\n"
+"       Include the given upload.\n"
 " includedeb <distribution> <.deb-file>\n"
-"       Inlcude the given binary package.\n"
+"       Include the given binary package.\n"
 " includeudeb <distribution> <.udeb-file>\n"
-"       Inlcude the given installer binary package.\n"
+"       Include the given installer binary package.\n"
 " includedsc <distribution> <.dsc-file>\n"
-"       Inlcude the given source package.\n"
+"       Include the given source package.\n"
 " list <distribution> <package-name>\n"
-"       List all packages by the given name occuring in the given distribution.\n"
+"       List all packages by the given name occurring in the given distribution.\n"
 " listfilter <distribution> <condition>\n"
 "       List all packages in the given distribution matching the condition.\n"
 "\n");
@@ -2065,7 +2253,7 @@ static void handle_option(int c,const char *optarg) {
 			verbose+=5;
 			break;
 		case 'f':
-			force++;
+			fprintf(stderr, "Ignoring no longer existing option -f/--force!\n");
 			break;
 		case 'b':
 			CONFIGDUP(mirrordir,optarg);
@@ -2125,6 +2313,24 @@ static void handle_option(int c,const char *optarg) {
 	}
 }
 
+static volatile bool_t was_interupted = FALSE;
+static bool_t interuption_printed = FALSE;
+
+bool_t interupted(void) {
+	if( was_interupted ) {
+		if( !interuption_printed ) {
+			interuption_printed = TRUE;
+			fprintf(stderr, "\n\nInteruption in progress, interupt again to force-stop it (and risking database corruption!)\n\n");
+		}
+		return TRUE;
+	} else
+		return FALSE;
+}
+
+static void interupt_signaled(int signal) /*__attribute__((signal))*/;
+static void interupt_signaled(UNUSED(int signal)) {
+	was_interupted = TRUE;
+}
 
 int main(int argc,char *argv[]) {
 	static struct option longopts[] = {
@@ -2173,12 +2379,24 @@ int main(int argc,char *argv[]) {
 	const struct action *a;
 	retvalue r;
 	int c;
+	struct sigaction sa;
+
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = SA_ONESHOT;
+	sa.sa_handler = interupt_signaled;
+	(void)sigaction(SIGTERM, &sa, NULL);
+	(void)sigaction(SIGABRT, &sa, NULL);
+	(void)sigaction(SIGINT, &sa, NULL);
+	(void)sigaction(SIGQUIT, &sa, NULL);
 
 	programname = argv[0];
 
 	init_ignores();
 
 	config_state = CONFIG_OWNER_CMDLINE;
+
+	if( interupted() ) 
+		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 
 	while( (c = getopt_long(argc,argv,"+fVvhb:P:i:A:C:S:T:",longopts,NULL)) != -1 ) {
 		handle_option(c,optarg);
@@ -2187,6 +2405,8 @@ int main(int argc,char *argv[]) {
 		fprintf(stderr,"No action given. (see --help for available options and actions)\n");
 		exit(EXIT_FAILURE);
 	}
+	if( interupted() ) 
+		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
@@ -2233,6 +2453,8 @@ int main(int argc,char *argv[]) {
 		(void)fputs("Out of Memory!\n",stderr);
 		exit(EXIT_FAILURE);
 	}
+	if( interupted() ) 
+		exit(EXIT_RET(RET_ERROR_INTERUPTED));
 	a = all_actions;
 	while( a->name != NULL ) {
 		if( strcasecmp(a->name,argv[optind]) == 0 ) {

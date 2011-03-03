@@ -294,7 +294,7 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 		r = target_initpackagesdb(target, dbdir);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = packages_foreach(target->packages,addpackagetocontents,&data,FALSE);
+		r = packages_foreach(target->packages,addpackagetocontents,&data);
 		(void)target_closepackagesdb(target);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -367,7 +367,7 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 		r = target_initpackagesdb(target, dbdir);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = packages_foreach(target->packages,addpackagetocontents,&data,FALSE);
+		r = packages_foreach(target->packages,addpackagetocontents,&data);
 		(void)target_closepackagesdb(target);
 		if( RET_WAS_ERROR(r) )
 			break;

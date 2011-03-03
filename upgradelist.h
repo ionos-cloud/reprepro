@@ -31,10 +31,10 @@ void upgradelist_dump(struct upgradelist *upgrade);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files);
 
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
-retvalue upgradelist_update(struct upgradelist *upgrade,/*@dependent@*/struct aptmethod *method,const char *filename,upgrade_decide_function *predecide,void *decide_data,int force);
+retvalue upgradelist_update(struct upgradelist *upgrade,/*@dependent@*/struct aptmethod *method,const char *filename,upgrade_decide_function *predecide,void *decide_data);
 
 /* Take all items in source into account */
-retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,int force, const char *dbdir);
+retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,const char *dbdir);
 
 /* mark all packages as deleted, so they will vanis unless readded or reholded */
 retvalue upgradelist_deleteall(struct upgradelist *upgrade);
@@ -44,8 +44,11 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade);
 //longer available upstream)
 
 /* request all wanted files refering the methods given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb,int force);
+retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb);
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs,int force, bool_t ignoredelete, struct strlist *dereferencedfilekeys);
+retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs, bool_t ignoredelete, struct strlist *dereferencedfilekeys);
+
+/* remove all packages that would either be removed or upgraded by an upgrade */
+retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,references refs,struct strlist *dereferencedfilekeys);
 
 #endif

@@ -215,6 +215,8 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 	char *filename;
 	retvalue r;
 
+	if( interupted() )
+		return RET_ERROR_INTERUPTED;
 	if( verbose >= 0 )
 		printf("deleting and forgetting %s\n",filekey);
 	filename = calc_fullfilename(filesdb->mirrordir,filekey);
@@ -351,7 +353,7 @@ retvalue files_expectfiles(filesdb filesdb,const struct strlist *filekeys,const 
 		if( r == RET_NOTHING ) {
 			/* File missing */
 			fprintf(stderr,"Missing file %s\n",filekey);
-			return RET_ERROR;
+			return RET_ERROR_MISSING;
 		}
 	}
 	return RET_OK;

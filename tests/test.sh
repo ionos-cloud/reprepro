@@ -432,8 +432,9 @@ echo $ERRORMSG | grep -q "error:255"
 echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
 echo $ERRORMSG | grep -q ".changes put in a distribution not listed within"
 ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG
 echo $ERRORMSG | grep -q "error:249"
-echo $ERRORMSG | grep -q "Could not open './filename_version.tar.gz"
+echo $ERRORMSG | grep -q "Cannot find file './filename_version.tar.gz' needed by 'broken.changes'"
 touch filename_version.tar.gz
 ERRORMSG="`$HELPER "$REPREPRO" -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 2>&1 || echo "error:$?"`"
 echo $ERRORMSG | grep -q -v "error:"
@@ -475,9 +476,14 @@ test -d dists/a
 test -d dists/b
 rm -r dists/a dists/b
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
-$HELPER "$REPREPRO" -b . --export=never include a test.changes
+$HELPER "$REPREPRO" -b . --export=never --delete --delete include a test.changes
 test ! -d dists/a
 test ! -d dists/b
+test ! -f test.changes
+test ! -f aa_1-1_abacus.deb
+test ! -f aa_1-1.dsc 
+test ! -f aa_1-1.tar.gz
+test ! -f aa-addons_1-1_all.deb
 $HELPER "$REPREPRO" -b . export a
 grep -q "Version: 1-1" dists/a/all/binary-abacus/Packages
 rm -r dists/a
@@ -486,7 +492,12 @@ test ! -d dists/a
 test -d dists/b
 grep -q "Version: 1-1" dists/b/all/binary-abacus/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh
-$HELPER "$REPREPRO" -b . --export=changed include a test.changes
+$HELPER "$REPREPRO" -b . --export=changed --delete include a test.changes
+test -f test.changes
+test ! -f aa_1-2_abacus.deb
+test ! -f aa_1-2.dsc 
+test ! -f aa_1-2.tar.gz
+test ! -f aa-addons_1-2_all.deb
 test -d dists/a
 grep -q "Version: 1-2" dists/a/all/binary-abacus/Packages
 grep -q "Version: 1-1" dists/b/all/binary-abacus/Packages
@@ -497,8 +508,13 @@ test -d dists/b
 grep -q "Version: 1-2" dists/b/all/binary-abacus/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-3" SECTION="stupid/base" genpackage.sh
 $HELPER "$REPREPRO" -b . --export=never include a test.changes
+test -f test.changes
+test -f aa_1-3_abacus.deb
+test -f aa_1-3.dsc 
+test -f aa_1-3.tar.gz
+test -f aa-addons_1-3_all.deb
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpackage.sh
-$HELPER "$REPREPRO" -b . --export=never include a test.changes
+$HELPER "$REPREPRO" -b . --delete --delete --export=never include a test.changes
 test ! -f pool/all/a/aa/aa_1-2.dsc
 test -f pool/all/a/aa/aa_1-2_abacus.deb
 $HELPER "$REPREPRO" -b . --export=changed pull b
@@ -506,7 +522,83 @@ grep -q "Version: 1-3" dists/b/all/binary-abacus/Packages
 grep -q "Version: 2-1" dists/b/all/binary-abacus/Packages
 test ! -f pool/all/a/aa/aa_1-2_abacus.deb
 test -f pool/all/a/aa/aa_1-3_abacus.deb
-
+DISTRI=a PACKAGE=ab EPOCH="" VERSION=3 REVISION="-1" SECTION="stupid/base" genpackage.sh
+grep -v '\.tar\.gz' test.changes > broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . --delete --delete include a broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:255"
+echo $ERRORMSG | grep -q "I don't know what to do having a .dsc without a .diff.gz or .tar.gz in 'broken.changes'!"
+echo ' d41d8cd98f00b204e9800998ecf8427e 0 stupid/base superfluous ab_3-1.diff.gz' >> broken.changes
+ERRORMSG="`$HELPER "$REPREPRO" -b . --delete --delete include a broken.changes 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:249"
+echo $ERRORMSG | grep -q "Cannot find file './ab_3-1.diff.gz' needed by 'broken.changes'!"
+test -f broken.changes
+test ! -f ab_3-1.diff.gz
+test -f ab-addons_3-1_all.deb
+test -f ab_3-1_abacus.deb
+test -f ab_3-1.dsc
+test ! -f pool/all/a/ab/ab_3-1.diff.gz
+test ! -f pool/all/a/ab/ab-addons_3-1_all.deb
+test ! -f pool/all/a/ab/ab_3-1_abacus.deb
+test ! -f pool/all/a/ab/ab_3-1.dsc
+touch ab_3-1.diff.gz
+$HELPER "$REPREPRO" -b . --delete -T deb include a broken.changes
+test -f broken.changes
+test -f ab_3-1.diff.gz
+test ! -f ab-addons_3-1_all.deb
+test ! -f ab_3-1_abacus.deb
+test -f ab_3-1.dsc
+test ! -f pool/all/a/ab/ab_3-1.diff.gz
+test -f pool/all/a/ab/ab-addons_3-1_all.deb
+test -f pool/all/a/ab/ab_3-1_abacus.deb
+test ! -f pool/all/a/ab/ab_3-1.dsc
+ERRORMSG="`$HELPER "$REPREPRO" -b . --delete --delete include a broken.changes 2>&1 || echo "error:$?"`"
+test -f broken.changes
+test -f ab_3-1.diff.gz
+test ! -f ab-addons_3-1_all.deb
+test ! -f ab_3-1_abacus.deb
+test -f ab_3-1.dsc
+test ! -f pool/all/a/ab/ab_3-1.diff.gz
+test -f pool/all/a/ab/ab-addons_3-1_all.deb
+test -f pool/all/a/ab/ab_3-1_abacus.deb
+test ! -f pool/all/a/ab/ab_3-1.dsc
+echo $ERRORMSG | grep -q "error:249"
+echo $ERRORMSG | grep -q "Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!"
+$HELPER "$REPREPRO" -b . -T dsc --delete --delete --ignore=missingfile include a broken.changes
+test ! -f broken.changes
+test ! -f ab_3-1.diff.gz
+test ! -f ab-addons_3-1_all.deb
+test ! -f ab_3-1_abacus.deb
+test ! -f ab_3-1.dsc
+# test ! -f pool/all/a/ab/ab_3-1.diff.gz # decide later
+test -f pool/all/a/ab/ab-addons_3-1_all.deb
+test -f pool/all/a/ab/ab_3-1_abacus.deb
+test -f pool/all/a/ab/ab_3-1.dsc
+DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
+$HELPER "$REPREPRO" -b . -A abacus --delete --delete --ignore=missingfile include b test.changes
+grep -q '^Package: aa$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ab$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ac$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+echo "Update: - froma" >> conf/distributions
+cat >conf/updates <<END
+Name: froma
+Method: copy:$WORKDIR
+Suite: a
+ListHook: /bin/cp
+END
+$HELPER "$REPREPRO" -VVVb . predelete b
+grep -q '^Package: aa$' dists/b/all/binary-abacus/Packages
+grep -q '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ab$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ac$' dists/b/all/binary-abacus/Packages
+! grep -q '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+test ! -f pool/all/a/ac/ac-addons_1-1_all.deb
+test ! -f pool/all/a/ab/ab_2-1_abacus.deb
+test -f pool/all/a/aa/aa_1-3_abacus.deb
+$HELPER "$REPREPRO" -VVVb . copy b a ab ac
 set +v 
 echo
 echo "If the script is still running to show this,"

@@ -348,6 +348,9 @@ retvalue sources_doreoverride(const struct alloverrides *ao,const char *packagen
 	struct fieldtoadd *fields;
 	char *newchunk;
 
+	if( interupted() )
+		return RET_ERROR_INTERUPTED;
+
 	o = override_search(ao->dsc, packagename);
 	if( o == NULL )
 		return RET_NOTHING;
@@ -371,6 +374,9 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 
 	//TODO: elliminate duplicate code!
 	assert(sourcename!=NULL);
+
+	if( interupted() )
+		return RET_ERROR_INTERUPTED;
 
 	r = chunk_getvalue(chunk,"Version",&sourceversion);
 	if( r == RET_NOTHING ) {

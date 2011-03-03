@@ -34,8 +34,8 @@ retvalue chunk_checkfield(const char *chunk,const char *name);
 typedef retvalue chunkaction(/*@temp@*/void *data,/*@temp@*/const char *chunk);
 
 /* Call action for each chunk in <filename>, 
- * until error when not <force> or until ok when <stopwhenok> */
-retvalue chunk_foreach(const char *filename,chunkaction action,/*@null@*/ /*@temp@*/void *data,int force,bool_t stopwhenok);
+ * until error or until ok when <stopwhenok> */
+retvalue chunk_foreach(const char *filename,chunkaction action,/*@null@*/ /*@temp@*/void *data,bool_t stopwhenok);
 
 /* modifications of a chunk: */
 struct fieldtoadd {

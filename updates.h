@@ -33,8 +33,9 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 /* remove all files ${listdir}/${distribution}_* that will not be needed. */
 retvalue updates_clearlists(const char *listdir,struct update_distribution *distributions);
 
-retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys);
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export);
-retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold);
+retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys);
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export);
+retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold);
+retvalue updates_predelete(const char *dbdir,const char *methoddir,references refs,struct update_distribution *distributions,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys);
 
 #endif

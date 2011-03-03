@@ -236,7 +236,7 @@ static retvalue package_check(packagesdb db,const char *package) {
 //typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
 
 /* call action once for each saved chunk: */
-retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata, int force) {
+retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -254,9 +254,9 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
 		r = action(privdata,(const char*)key.data,(const char*)data.data);
 		RET_UPDATE(ret,r);
-		if( RET_WAS_ERROR(r) && force <= 0 ) {
+		if( RET_WAS_ERROR(r) ) {
 			if( verbose > 0 )
-				fprintf(stderr,"packages_foreach: Stopping procession of further packages due to privious errors\n");
+				fprintf(stderr,"packages_foreach: Stopping procession of further packages due to previous errors\n");
 			break;
 		}
 		CLEARDBT(key);	
