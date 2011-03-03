@@ -38,7 +38,7 @@ static void
 MD5Transform(UWORD32 buf[4], UWORD32 const in[16]);
 
 #if __BYTE_ORDER == __BIG_ENDIAN
-void
+static void
 byteSwap(UWORD32 *buf, unsigned words)
 {
 	md5byte *p = (md5byte *)buf;

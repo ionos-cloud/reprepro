@@ -43,6 +43,7 @@ echo "$@"
 
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
+VALGRIND_SUP=""
 
 if [ "x$1" == "x--delete" ] ; then
 	rm -r "$WORKDIR" || true
@@ -50,6 +51,12 @@ if [ "x$1" == "x--delete" ] ; then
 fi
 if [ "x$1" == "x--valgrind" ] ; then
 	USE_VALGRIND=1
+	shift
+fi
+if [ "x$1" == "x--valgrind-supp" ] ; then
+	USE_VALGRIND=1
+	shift
+	VALGRIND_SUP="$1"
 	shift
 fi
 
@@ -64,8 +71,10 @@ SRCDIR="$1"
 if [ -z "$TESTOPTIONS" ] ; then
 	if [ -z "$USE_VALGRIND" ] ; then
 		TESTOPTIONS="-e -a"
-	else
+	elif [ -z "$VALGRIND_SUP" ] ; then
 		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$SRCDIR/valgrind.supp"
+	else
+		TESTOPTIONS="-e -a --debug --leak-check=full --suppressions=$VALGRIND_SUP"
 	fi
 fi
 #TESTOPTIONS="-D v=-1 $TESTOPTIONS"
@@ -814,7 +823,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Version-header '999:versioninchanges-0~' of 'test.changes' and source version 'sourceversionindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
+*=Source version '999:versioninchanges-0~' of 'test.changes' and source version 'sourceversionindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
 -v0*=There have been errors!
 EOF
 sed -i -e 's/999:versioninchanges-0~/sourceversionindeb/' i/test.changes
@@ -1039,7 +1048,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Version-header '1:versioninchanges' of 'test.changes' and version 'versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=Source version '1:versioninchanges' of 'test.changes' and version 'versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
 -v0*=There have been errors!
 EOF
 sed -i 's/^Version: 1:versioninchanges$/Version: versionindsc/' i/test.changes

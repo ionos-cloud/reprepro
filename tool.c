@@ -1130,7 +1130,8 @@ static void verify_sourcefile_md5sums(struct sourcefile *f, const char *dscfile)
 		return;
 	}
 	if( strcmp(f->expectedmd5sum, f->file->realmd5sum) != 0 ) {
-		if( strcmp(f->expectedmd5sum, f->file->changesmd5sum) == 0 )
+		if( f->file->changesmd5sum != NULL &&
+		    strcmp(f->expectedmd5sum, f->file->changesmd5sum) == 0 )
 			fprintf(stderr,
 "ERROR: '%s' lists the same wrong md5sum for '%s' like the .changes file!\n",
 				dscfile, f->basename);
@@ -1144,6 +1145,8 @@ static void verify_sourcefile_md5sums(struct sourcefile *f, const char *dscfile)
 
 static void verify_binary_name(const char *basename, const char *name, const char *version, const char *architecture, enum filetype type) {
 	size_t nlen, vlen, alen;
+	const char *versionwithoutepoch;
+
 	if( name == NULL )
 		return;
 	nlen = strlen(name);
@@ -1155,8 +1158,13 @@ static void verify_binary_name(const char *basename, const char *name, const cha
 	}
 	if( version == NULL )
 		return;
-	vlen = strlen(version);
-	if( strncmp(basename+nlen+1, version, vlen) != 0
+	versionwithoutepoch = strchr(version, ':');
+	if( versionwithoutepoch == NULL )
+		versionwithoutepoch = version;
+	else
+		versionwithoutepoch++;
+	vlen = strlen(versionwithoutepoch);
+	if( strncmp(basename+nlen+1, versionwithoutepoch, vlen) != 0
 	|| basename[nlen+1+vlen] != '_' ) {
 		fprintf(stderr,
 "ERROR: '%s' does not start with '%s_%s_' as expected!\n",
@@ -1170,7 +1178,8 @@ static void verify_binary_name(const char *basename, const char *name, const cha
 	|| strcmp(basename+nlen+1+vlen+1+alen, typesuffix[type]) != 0 )
 		fprintf(stderr,
 "ERROR: '%s' is not called '%s_%s_%s%s' as expected!\n",
-			basename, name, version, architecture, typesuffix[type]);
+			basename, name, versionwithoutepoch,
+			architecture, typesuffix[type]);
 }
 
 static retvalue verify(const char *changesfilename, struct changes *changes) {
@@ -1296,6 +1305,14 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					version = p+1;
 					versionlen = l-4;
 				}
+			}
+		}
+		if( version != NULL ) {
+			const char *colon = strchr(version, ':');
+			if( colon != NULL ) {
+				colon++;
+				versionlen -= (colon-version);
+				version = colon;
 			}
 		}
 		if( name != NULL && version != NULL ) {

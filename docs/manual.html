@@ -42,7 +42,7 @@ Sections of this document:
  </ul></li>
 <li><a href="#localpackages">Local packages</a>
  <ul>
- <li><a href="#include">Including via command line</a> (TODO)</li>
+ <li><a href="#include">Including via command line</a></li>
  <li><a href="#incoming">Processing an incoming queue</a> (TODO) </li>
  </ul></li>
 <li><a href="#incoming">Incoming directories</a> (TODO)</li>
@@ -53,6 +53,7 @@ Sections of this document:
 <li><a href="#maintainance">Maintenance</a></li>
 <li><a href="#internals">Internals</a></li>
 <li><a href="#recovery">Disaster recovery</a></li>
+<li><a href="#paranoia">Paranoia</a></li>
 <li><a href="#counterindications">What reprepro cannot do</a></li>
 </ul>
 <h2><a name="introduction">Introduction</a></h2>
@@ -621,7 +622,49 @@ This method is also relatively new (only available since 2.0.0), thus
 optimisation for automatic procession will happen even more.
 </dd></dl>
 <h3><a name="include">Including via command line</a></h3>
-TO BE DOCUMENTED
+There are three commands to directly include packages into your repository:
+<tt class="command">includedeb</tt>, <tt class="command">includedsc</tt>
+and <tt class="command">includechanges</tt>.
+Each needs to codename of the distribution you want to put your package into
+as first argument and a file of the appropiate type
+(<tt class="suffix">.deb</tt>, <tt class="suffix">.dsc</tt> or
+ <tt class="suffix">.changes</tt>, respectively) as second argument.
+<br>
+If no component is specified via <tt class="option">--component</tt>
+(or short <tt class="option">-C</tt>), it will be guessed looking at its
+section and the components of that distribution.
+<br>
+If there are no <tt class="option">--section</tt>
+(or short <tt class="option">-S</tt>) option, and it is not specified
+by the (binary or source, depending on the type) override file of the
+distribution, the value from the <tt class="suffix">.changes</tt>-file
+is used (if the command is <tt class="command">includechanges</tt>)
+or it is extracted out of the file (if it is a
+<tt class="suffix">.deb</tt>-file, future versions might also try to
+extract it from a <tt class="suffix">.dsc</tt>'s diff or tarball).
+<br>
+Same with the priority and the <tt class="option">--priority</tt>
+(or short <tt class="option">-P</tt>) option.
+<br>
+With the <tt class="option">--architecture</tt> (or short <tt class="option">-A</tt>)
+option, the scope of the command is limited to that architecture.
+<tt class="command">includdeb</tt> will add a Architecture <tt>all</tt>
+packages only to that architecture (and complain about Debian packages for
+other architectures).
+<tt class="command">include</tt> will do the same and ignore packages for
+other architectures (source packages will only be included if the value
+for <tt class="option">--architecture</tt> is <tt>source</tt>).
+<br>
+To limit the scope to a specify type of package, use the
+<tt class="option">--packagetype</tt> or short <tt class="option">-T</tt>
+option. Possible values are <tt>deb</tt>, <tt>udeb</tt> and <tt>dsc</tt>.
+<br>
+When using the <tt class="option">--delete</tt> option, files will
+be moved or deleted after copying them.
+Repeating the <tt class="option">--delete</tt> option will also delete
+unused files.
+<br>
+TO BE CONTINUED.
 <h3><a name="incoming">Processing and incoming queue</a></h3>
 TO BE DOCUMENTED
 <h2><a name="incoming">Incoming directories</a></h2>
@@ -737,6 +780,78 @@ This file contains the information of the <a href="#tracking">source package tra
 TO BE DOCUMENTED (see the
 <a href="http://alioth.debian.org/plugins/scmcvs/cvsweb.php/~checkout~/mirrorer/docs/recovery?rev=HEAD;content-type=text%2Fplain;cvsroot=mirrorer">recovery</a>
 file until then)
+<h2><a name="paranoia">Paranoia</a></h2>
+As all software, reprepro might have bugs.
+And it uses libraries not written by myself,
+which I'm thus even more sure that they will have bugs.
+Some of those bugs might be security relevant.
+This section contains some tips, to reduce the impact of those.
+<ul>
+<li>Never run reprepro as root.<br>
+All reprepro needs to work are permissions to files,
+there is no excuse for running it as root.
+</li>
+<li>Don't publish your db/ directory.<br>
+The contents of the db directory are not needed by everyone else.
+Having them available to everyone may make it easier for them to
+exploit some hypothetical problem in libdb and makes it easier to
+know in advance how exactly reprepro will act in a given circumstances,
+thus easier to exploit some hypothetical problem.
+</li>
+<li>Don't accept untrusted data without need.<br>
+If an attacker cannot do anything, they cannot do anything harmful, either.
+So if there is no need, don't offer an anonymous incoming queue.
+<tt class="program">dput</tt> supports uploading via scp, so just having
+an only group-writable incoming directory, or even better multiple incoming
+directories can be a better alternative.
+</li>
+</ul>
+External stuff being used and attack vectors opened by it:
+<dl>
+<dt>libgpgme/gpg</dt><dd>
+Almost anything is run through <tt>libgpgme</tt> and thus <tt>gpg</tt>.
+It will be used to check the <tt class="filename">Release.gpg</tt> file,
+or to read <tt class="suffix">.dsc</tt> and <tt class="suffix">.changes</tt>
+files (even when there is no key to look for specified,
+as that is the best way to get the data from the signed block).
+Avoiding this by just accepting stuff without looking for signatures on
+untrusted data is not really an option, so I know nothing to prefent this
+type of problems.
+</dd>
+<dt>libarchive</dt><dd>
+The <tt class="suffix">.tar</tt> files within <tt class="suffix">.deb</tt>
+files are normaly (unless that library was
+not available while compiling) read using libarchive.
+This happens when a <tt class="suffix">.deb</tt> file is to be added
+(though only after deciding if it should be added, so if it does not have
+the correct checksum or the .changes did not have the signatures you specified,
+it is not) or when the file list is to be extracted
+(when creating <tt class="filename">Contents</tt> files).
+Note that they are not processed when only mirroring them (of course unless
+<tt class="filename">Contents</tt> files are generated), as then only the
+information from the Packages file is copied.
+</dd>
+<dt>dpkg-deb/tar</dt><dd>
+If reprepro was compiled without libarchive,
+<tt class="program">dpkg-deb</tt> is used instead, which most likely will
+call <tt class="program">tar</tt>. Otherwise just the same like the last
+item.
+</dd>
+<dt>zlib</dt><dd>
+When mirroring packages, the downloaded
+<tt class="filename">Packages.gz</tt> and <tt class="filename">Sources.gz</tt> files
+are read using zlib. Also the generated <tt class="suffix">.gz</tt> files
+are generated using it. There is no option but hoping there is no security
+relevant problem in that library.
+</dd>
+<dt>libbz2</dt><dd>
+Only used to generate <tt class="suffix">.bz2</tt> files.
+If you fear simple blockwise writing using that library has a security problem
+that can be exploited by data enough harmless looking to be written to the
+generated index files, you can always decide to no tell reprepro to generate
+<tt class="suffix">.bz2</tt> files.
+</dd>
+</dl>
 <h2><a name="counterindications">What reprepro cannot do</a></h2>
 There are some things reprepro does not do:
 <dl><dt>Verbatim mirroring</dt><dd>

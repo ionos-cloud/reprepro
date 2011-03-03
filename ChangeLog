@@ -1,3 +1,22 @@
+2007-07-28  Bernhard R. Link <brlink@debian.org>
+	* fix segfault in changestool's verify if
+	md5sum of .orig.tar.gz is wrong and not listed
+	in the .changes file.
+	* changestool's verify knows about epochs not showing
+	up in filenames now.
+
+2007-07-26  Bernhard R. Link <brlink@debian.org>
+	* add support for .changes file having the source
+	version in the Sources: header (like binNMUs) to the
+	include and processincoming commands.
+
+2007-07-22  Bernhard R. Link <brlink@debian.org>
+	* include[u]deb allows multiple files to include now
+
+2007-06-25  Bernhard R. Link <brlink@debian.org>
+	* don't complain if suite name and component name are
+	the same in createsymlinks
+
 2007-06-24  Bernhard R. Link <brlink@debian.org>
 	* processincoming allows an optional second argument
 	to limit processing to a specific file for better

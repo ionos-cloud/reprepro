@@ -393,10 +393,11 @@ struct candidate {
 	char *control;
 	struct strlist keys;
 	/* from candidate_parse */
-	char *source, *version;
+	char *source, *sourceversion, *changesversion;
 	struct strlist distributions,
 		       architectures,
 		       binaries;
+	bool_t isbinNMU;
 	struct candidate_file {
 		/* set by _addfileline */
 		struct candidate_file *next;
@@ -476,7 +477,8 @@ static void candidate_free(/*@only@*/struct candidate *c) {
 	free(c->control);
 	strlist_done(&c->keys);
 	free(c->source);
-	free(c->version);
+	free(c->sourceversion);
+	free(c->changesversion);
 	strlist_done(&c->distributions);
 	strlist_done(&c->architectures);
 	strlist_done(&c->binaries);
@@ -606,18 +608,35 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 	  	} \
 		if( RET_WAS_ERROR(r) ) return r; \
 	}
-	r = chunk_getname(c->control, "Source", &c->source, FALSE);
+	r = chunk_getnameandversion(c->control, "Source", &c->source, &c->sourceversion);
 	E("Missing 'Source' field!");
 	r = propersourcename(c->source);
 	E("Malforce Source name!");
+	if( c->sourceversion != NULL ) {
+		r = properversion(c->sourceversion);
+		E("Malforce Source Version number!");
+	}
 	r = chunk_getwordlist(c->control,"Binary",&c->binaries);
 	E("Missing 'Binary' field!");
 	r = chunk_getwordlist(c->control,"Architecture",&c->architectures);
 	E("Missing 'Architecture' field!");
-	r = chunk_getvalue(c->control,"Version",&c->version);
+	r = chunk_getvalue(c->control,"Version",&c->changesversion);
 	E("Missing 'Version' field!");
-	r = properversion(c->version);
+	r = properversion(c->changesversion);
 	E("Malforce Version number!");
+	// TODO: logic to detect binNMUs to warn against sources?
+	if( c->sourceversion == NULL ) {
+		c->sourceversion = strdup(c->changesversion);
+		if( c->sourceversion == NULL )
+			return RET_ERROR_OOM;
+		c->isbinNMU = FALSE;
+	} else {
+		int cmp;
+
+		r = dpkgversions_cmp(c->sourceversion, c->changesversion, &cmp);
+		R;
+		c->isbinNMU = cmp != 0;
+	}
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field!");
 	r = chunk_getextralinelist(c->control,"Files",&filelines);
@@ -647,7 +666,7 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 	r = propersourcename(c->source);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = properversion(c->version);
+	r = properversion(c->sourceversion);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( file = c->files ; file != NULL ; file = file->next ) {
@@ -767,11 +786,11 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 				file->deb.source, BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
-	if( strcmp(c->version, file->deb.sourceversion) != 0 ) {
+	if( strcmp(c->sourceversion, file->deb.sourceversion) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		// (beware if tracking is active)
-		fprintf(stderr, "Version-header '%s' of '%s' and source version '%s' within the file '%s' do not match!\n",
-				c->version, BASENAME(i,c->ofs),
+		fprintf(stderr, "Source version '%s' of '%s' and source version '%s' within the file '%s' do not match!\n",
+				c->sourceversion, BASENAME(i,c->ofs),
 				file->deb.sourceversion, BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
@@ -879,7 +898,7 @@ static retvalue candidate_preparechangesfile(filesdb filesdb,const struct incomi
 	if( package == NULL )
 		return RET_ERROR_OOM;
 
-	basename = calc_changes_basename(c->source, c->version, &c->architectures);
+	basename = calc_changes_basename(c->source, c->changesversion, &c->architectures);
 	if( basename == NULL )
 		return RET_ERROR_OOM;
 
@@ -978,6 +997,14 @@ static retvalue prepare_dsc(filesdb filesdb,const struct incoming *i,const struc
 		return RET_ERROR_OOM;
 	assert( file == package->master );
 
+	if( c->isbinNMU ) {
+		// TODO: add permissive thing to ignore this
+		fprintf(stderr, "Source package ('%s') in '%s', which look like a binNMU (as '%s' and '%s' differ)!\n",
+				BASENAME(i,file->ofs), BASENAME(i,c->ofs),
+				c->sourceversion, c->changesversion);
+		return RET_ERROR;
+	}
+
 	if( strcmp(file->name, file->dsc.name) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		fprintf(stderr, "Name part of filename ('%s') and name within the file ('%s') do not match for '%s' in '%s'!\n",
@@ -993,11 +1020,11 @@ static retvalue prepare_dsc(filesdb filesdb,const struct incoming *i,const struc
 				file->dsc.name, BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
-	if( strcmp(c->version, file->dsc.version) != 0 ) {
+	if( strcmp(c->sourceversion, file->dsc.version) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		// (beware if tracking is active)
-		fprintf(stderr, "Version-header '%s' of '%s' and version '%s' within the file '%s' do not match!\n",
-				c->version, BASENAME(i,c->ofs),
+		fprintf(stderr, "Source version '%s' of '%s' and version '%s' within the file '%s' do not match!\n",
+				c->sourceversion, BASENAME(i,c->ofs),
 				file->dsc.version, BASENAME(i,file->ofs));
 		return RET_ERROR;
 	}
@@ -1259,7 +1286,8 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 			return r;
 	}
 	if( tracks != NULL ) {
-		r = trackingdata_summon(tracks, c->source, c->version, &trackingdata);
+		r = trackingdata_summon(tracks, c->source, c->sourceversion,
+				&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
 			tracking_done(tracks);
 			return r;
@@ -1320,7 +1348,7 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 	if( RET_WAS_ERROR(r) )
 		return r;
 	logger_logchanges(into->logger, into->codename,
-			c->source, c->version, c->control,
+			c->source, c->changesversion, c->control,
 			changesfile(c)->tempfilename, changesfilekey);
 	return RET_OK;
 }

@@ -1597,8 +1597,9 @@ ACTION_D(includedeb) {
 	struct distribution *distribution;
 	bool_t isudeb;
 	trackingdb tracks;
+	int i = 0;
 
-	if( argc != 3 ) {
+	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] include[u]deb <distribution> <package>\n");
 		return RET_ERROR;
 	}
@@ -1620,17 +1621,22 @@ ACTION_D(includedeb) {
 		}
 
 	} else {
-		fprintf(stderr,"Internal error with command parsing!\n");
+		fprintf(stderr,"Internal error while parding command!\n");
 		return RET_ERROR;
 	}
-	if( isudeb ) {
-		if( !endswith(argv[2],".udeb") && !IGNORING_(extension,
-			"includeudeb called with a file not ending with '.udeb'\n") )
-			return RET_ERROR;
-	} else {
-		if( !endswith(argv[2],".deb") && !IGNORING_(extension,
-			"includedeb called with a file not ending with '.deb'\n") )
-			return RET_ERROR;
+
+	for( i = 2 ; i < argc ; i++ ) {
+		const char *filename = argv[i];
+
+		if( isudeb ) {
+			if( !endswith(filename,".udeb") && !IGNORING_(extension,
+"includeudeb called with file '%s' not ending with '.udeb'\n", filename) )
+				return RET_ERROR;
+		} else {
+			if( !endswith(filename,".deb") && !IGNORING_(extension,
+"includedeb called with file '%s' not ending with '.deb'\n", filename) )
+				return RET_ERROR;
+		}
 	}
 
 	result = distribution_get(confdir, logdir, argv[1], TRUE, &distribution);
@@ -1672,12 +1678,16 @@ ACTION_D(includedeb) {
 	} else {
 		tracks = NULL;
 	}
+	result = RET_NOTHING;
+	for( i = 2 ; i < argc ; i++ ) {
+		const char *filename = argv[i];
 
-	result = deb_add(dbdir,references,filesdb,component,architecture,
-			section,priority,isudeb?"udeb":"deb",distribution,argv[2],
-			NULL,NULL,delete,
-			dereferenced,tracks);
-	RET_UPDATE(distribution->status, result);
+		r = deb_add(dbdir,references,filesdb,component,architecture,
+				section,priority,isudeb?"udeb":"deb",distribution,filename,
+				NULL,NULL,delete,
+				dereferenced,tracks);
+		RET_UPDATE(result, r);
+	}
 
 	distribution_unloadoverrides(distribution);
 
@@ -1853,7 +1863,7 @@ ACTION_N(createsymlinks) {
 		size_t bufsize;
 		int ret;
 
-		if( d->suite == NULL )
+		if( d->suite == NULL || strcmp(d->suite, d->codename) == 0 )
 			continue;
 		r = RET_NOTHING;
 		for( d2 = distributions ; d2 != NULL ; d2 = d2->next ) {
