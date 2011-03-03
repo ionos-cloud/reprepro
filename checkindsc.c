@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -36,17 +36,17 @@
 #include "chunks.h"
 #include "checkindsc.h"
 #include "reference.h"
-#include "signature.h"
 #include "sources.h"
 #include "files.h"
 #include "guesscomponent.h"
 #include "tracking.h"
 #include "ignore.h"
+#include "override.h"
 
 extern int verbose;
 
 /* This file includes the code to include sources, i.e.
- to create the chunk for the Sources.gz-file and 
+ to create the chunk for the Sources.gz-file and
  to put it in the various databases.
 
 things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
@@ -62,7 +62,7 @@ things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
 
 * Get overwrite information, ecspecially
   the priority(if there is a binaries field,
-  check the one with the highest) and the section 
+  check the one with the highest) and the section
   (...what else...?)
 
 * Rename Source-Field to Package-Field
@@ -80,46 +80,9 @@ things to do with .dsc's checkin by hand: (by comparison with apt-ftparchive)
 
 */
 
-static inline retvalue getvalue(const char *filename,const char *chunk,const char *field,char **value) {
-	retvalue r;
-
-	r = chunk_getvalue(chunk,field,value);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing '%s'-header in %s!\n",field,filename);
-		r = RET_ERROR;
-	}
-	return r;
-}
-
-static inline retvalue checkvalue(const char *filename,const char *chunk,const char *field) {
-	retvalue r;
-
-	r = chunk_checkfield(chunk,field);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find '%s'-header in %s!\n",field,filename);
-		r = RET_ERROR;
-	}
-	return r;
-}
-
-static inline retvalue getvalue_n(const char *chunk,const char *field,char **value) {
-	retvalue r;
-
-	r = chunk_getvalue(chunk,field,value);
-	if( r == RET_NOTHING ) {
-		*value = NULL;
-	}
-	return r;
-}
-
 struct dscpackage {
 	/* things to be set by dsc_read: */
-	char *package,*version;
-	char *control;
-	struct strlist basenames,md5sums;
-	/* things that might still be NULL then: */
-	char *section;
-	char *priority;
+	struct dsc_headers dsc;
 	/* things that will still be NULL then: */
 	char *component; //This might be const, too and save some strdups, but...
 	/* calculated or set by files_include of the dsc */
@@ -131,11 +94,7 @@ struct dscpackage {
 
 void dsc_free(/*@only@*/struct dscpackage *pkg) {
 	if( pkg != NULL ) {
-		free(pkg->package);free(pkg->version);
-		free(pkg->control);
-		strlist_done(&pkg->basenames);strlist_done(&pkg->md5sums);
-		free(pkg->section);
-		free(pkg->priority);
+		sources_done(&pkg->dsc);
 		free(pkg->component);
 		free(pkg->dscmd5sum);
 		free(pkg->directory);free(pkg->dscbasename);free(pkg->dscfilekey);
@@ -152,65 +111,18 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 
 	dsc = calloc(1,sizeof(struct dscpackage));
 
-	r = signature_readsignedchunk(filename,&dsc->control,NULL,NULL, &broken);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc);
-		return r;
-	}
-	if( broken && !IGNORING_(brokensignatures, 
+	r = sources_readdsc(&dsc->dsc, filename, &broken);
+	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
 "This most likely means the file was damaged (or edited improperly)\n",
-				filename) ) {
-		dsc_free(dsc);
-		return r;
-	}
-	if( verbose > 100 ) {
-		fprintf(stderr,"Extracted control chunk from '%s': '%s'\n",filename,dsc->control);
-	}
-
-	/* first look for fields that should be there */
-
-	r = chunk_getname(dsc->control,"Source",&dsc->package,FALSE);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
+				filename) )
 		r = RET_ERROR;
-	}
 	if( RET_IS_OK(r) )
-		r = propersourcename(dsc->package);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc);
-		return r;
-	}
-	r = checkvalue(filename,dsc->control,"Maintainer");
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc);
-		return r;
-	}
-	/* only recommended, so ignore errors with this: */
-	(void) checkvalue(filename,dsc->control,"Standards-Version");
-
-	r = getvalue(filename,dsc->control,"Version",&dsc->version);
-	if( RET_IS_OK(r) ) {
-		r = properversion(dsc->version);
-	}
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc);
-		return r;
-	}
-
-	r = getvalue_n(dsc->control,SECTION_FIELDNAME,&dsc->section);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc);
-		return r;
-	}
-	r = getvalue_n(dsc->control,PRIORITY_FIELDNAME,&dsc->priority);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(dsc);
-		return r;
-	}
-	r = sources_parse_getmd5sums(dsc->control,&dsc->basenames,&dsc->md5sums);
+		r = propersourcename(dsc->dsc.name);
 	if( RET_IS_OK(r) )
-		r = properfilenames(&dsc->basenames);
+		r = properversion(dsc->dsc.version);
+	if( RET_IS_OK(r) )
+		r = properfilenames(&dsc->dsc.basenames);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
@@ -223,13 +135,13 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 static retvalue dsc_calclocations(struct dscpackage *pkg,/*@null@*/const char *filekey,/*@null@*/const char *basename,/*@null@*/const char *directory) {
 	retvalue r;
 
-	assert( pkg != NULL && pkg->package != NULL && pkg->version != NULL );
+	assert( pkg != NULL && pkg->dsc.name != NULL && pkg->dsc.version != NULL );
 	assert( pkg->component != NULL );
 
 	if( basename != NULL )
 		pkg->dscbasename = strdup(basename);
 	else
-		pkg->dscbasename = calc_source_basename(pkg->package,pkg->version);
+		pkg->dscbasename = calc_source_basename(pkg->dsc.name,pkg->dsc.version);
 	if( pkg->dscbasename == NULL ) {
 		return RET_ERROR_OOM;
 	}
@@ -237,13 +149,13 @@ static retvalue dsc_calclocations(struct dscpackage *pkg,/*@null@*/const char *f
 	if( directory != NULL )
 		pkg->directory = strdup(directory);
 	else
-		pkg->directory = calc_sourcedir(pkg->component,pkg->package);
+		pkg->directory = calc_sourcedir(pkg->component,pkg->dsc.name);
 	if( pkg->directory == NULL ) {
 		return RET_ERROR_OOM;
 	}
-	
+
 	/* Calculate the filekeys: */
-	r = calc_dirconcats(pkg->directory,&pkg->basenames,&pkg->filekeys);
+	r = calc_dirconcats(pkg->directory,&pkg->dsc.basenames,&pkg->filekeys);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
@@ -262,12 +174,12 @@ static retvalue dsc_calclocations(struct dscpackage *pkg,/*@null@*/const char *f
 static retvalue dsc_adddsc(struct dscpackage *pkg) {
 	retvalue r;
 
-	r = strlist_include(&pkg->basenames,pkg->dscbasename);
+	r = strlist_include(&pkg->dsc.basenames,pkg->dscbasename);
 	pkg->dscbasename = NULL;
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = strlist_include(&pkg->md5sums,pkg->dscmd5sum);
+	r = strlist_include(&pkg->dsc.md5sums,pkg->dscmd5sum);
 	pkg->dscmd5sum = NULL;
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -281,68 +193,11 @@ static retvalue dsc_adddsc(struct dscpackage *pkg) {
 }
 
 
-static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *override) {
-	retvalue r;
-	struct fieldtoadd *name;
-	struct fieldtoadd *replace;
-	char *newchunk,*newchunk2;
-	char *newfilelines;
-
-	assert(pkg->section != NULL && pkg->priority != NULL);
-
-	/* first replace the "Source" with a "Package": */
-	name = addfield_new("Package",pkg->package,NULL);
-	if( name == NULL )
-		return RET_ERROR_OOM;
-	name = deletefield_new("Source",name);
-	if( name == NULL )
-		return RET_ERROR_OOM;
-	newchunk2  = chunk_replacefields(pkg->control,name,"Format");
-	addfield_free(name);
-	if( newchunk2 == NULL ) {
-		return RET_ERROR_OOM;
-	}
-
-	r = sources_calcfilelines(&pkg->basenames,&pkg->md5sums,&newfilelines);
-	if( RET_WAS_ERROR(r) ) {
-		free(newchunk2);
-		return RET_ERROR_OOM;
-	}
-	replace = addfield_new("Files",newfilelines,NULL);
-	if( replace != NULL )
-		replace = addfield_new("Directory",pkg->directory,replace);
-	if( replace != NULL )
-		replace = deletefield_new("Status",replace);
-	if( replace != NULL )
-		replace = addfield_new(SECTION_FIELDNAME,pkg->section,replace);
-	if( replace != NULL )
-		replace = addfield_new(PRIORITY_FIELDNAME,pkg->priority,replace);
-	if( replace != NULL )
-		replace = override_addreplacefields(override,replace);
-	if( replace == NULL ) {
-		free(newfilelines);
-		free(newchunk2);
-		return RET_ERROR_OOM;
-	}
-	
-	newchunk  = chunk_replacefields(newchunk2,replace,"Files");
-	free(newfilelines);
-	free(newchunk2);
-	addfield_free(replace);
-	if( newchunk == NULL ) {
-		return RET_ERROR_OOM;
-	}
-
-	free(pkg->control);
-	pkg->control = newchunk;
-
-	return RET_OK;
-}
-
-retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, const char *expectedname, const char *expectedversion){
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int delete, const char *expectedname, const char *expectedversion){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
+	char *control;
 
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
@@ -360,24 +215,24 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 		return r;
 	}
 	if( expectedname != NULL &&
-	    strcmp(expectedname, pkg->package) != 0 ) {
+	    strcmp(expectedname, pkg->dsc.name) != 0 ) {
 		/* This cannot be ignored, as too much depends on it yet */
 		fprintf(stderr,
-"'%s' says it is '%s', while .changes file said it is '%s'\n", 
-				basename, pkg->package, expectedname);
+"'%s' says it is '%s', while .changes file said it is '%s'\n",
+				basename, pkg->dsc.name, expectedname);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
 	if( expectedversion != NULL &&
-	    strcmp(expectedversion, pkg->version) != 0 &&
-	    !IGNORING_(wrongversion, 
-"'%s' says it is version '%s', while .changes file said it is '%s'\n", 
-				basename, pkg->version, expectedversion)) {
+	    strcmp(expectedversion, pkg->dsc.version) != 0 &&
+	    !IGNORING_(wrongversion,
+"'%s' says it is version '%s', while .changes file said it is '%s'\n",
+				basename, pkg->dsc.version, expectedversion)) {
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
 
-	oinfo = override_search(srcoverride,pkg->package);
+	oinfo = override_search(distribution->overrides.dsc,pkg->dsc.name);
 	if( forcesection == NULL ) {
 		forcesection = override_get(oinfo,SECTION_FIELDNAME);
 	}
@@ -386,37 +241,37 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	}
 
 	if( forcesection != NULL ) {
-		free(pkg->section);
-		pkg->section = strdup(forcesection);
-		if( pkg->section == NULL ) {
+		free(pkg->dsc.section);
+		pkg->dsc.section = strdup(forcesection);
+		if( pkg->dsc.section == NULL ) {
 			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
 	if( forcepriority != NULL ) {
-		free(pkg->priority);
-		pkg->priority = strdup(forcepriority);
-		if( pkg->priority == NULL ) {
+		free(pkg->dsc.priority);
+		pkg->dsc.priority = strdup(forcepriority);
+		if( pkg->dsc.priority == NULL ) {
 			dsc_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
 
-	if( pkg->section == NULL ) {
-		fprintf(stderr,"No section was given for '%s', skipping.\n",pkg->package);
+	if( pkg->dsc.section == NULL ) {
+		fprintf(stderr,"No section was given for '%s', skipping.\n",pkg->dsc.name);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
-	if( pkg->priority == NULL ) {
-		fprintf(stderr,"No priority was given for '%s', skipping.\n",pkg->package);
+	if( pkg->dsc.priority == NULL ) {
+		fprintf(stderr,"No priority was given for '%s', skipping.\n",pkg->dsc.name);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
-	
+
 	/* decide where it has to go */
 
 	r = guess_component(distribution->codename,&distribution->components,
-			pkg->package,pkg->section,forcecomponent,
+			pkg->dsc.name,pkg->dsc.section,forcecomponent,
 			&pkg->component);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(pkg);
@@ -437,20 +292,22 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	}
 
 	if( !RET_WAS_ERROR(r) ) {
-		r = files_includefiles(filesdb,sourcedir,&pkg->basenames,&pkg->filekeys,&pkg->md5sums,delete);
+		r = files_includefiles(filesdb,sourcedir,&pkg->dsc.basenames,&pkg->filekeys,&pkg->dsc.md5sums,delete);
 	}
 
 	/* Calculate the chunk to include: */
-	
+
 	if( !RET_WAS_ERROR(r) )
 		r = dsc_adddsc(pkg);
 
 	if( !RET_WAS_ERROR(r) )
-		r = dsc_complete(pkg,oinfo);
-
-	if( RET_IS_OK(r) )
+		r = sources_complete(&pkg->dsc,pkg->directory,oinfo,
+				pkg->dsc.section, pkg->dsc.priority, &control);
+	if( RET_IS_OK(r) ) {
+		free(pkg->dsc.control);
+		pkg->dsc.control = control;
 		*dsc = pkg;
-	else
+	} else
 		dsc_free(pkg);
 
 	return r;
@@ -464,10 +321,10 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
-		if( interrupted() ) 
+		if( interrupted() )
 			r = RET_ERROR_INTERUPTED;
 		else
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
+			r = target_addpackage(t,refs,pkg->dsc.name,pkg->dsc.version,pkg->dsc.control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}
@@ -477,10 +334,10 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 
 /* insert the given .dsc into the mirror in <component> in the <distribution>
  * if component is NULL, guessing it from the section.
- * If basename, filekey and directory are != NULL, then they are used instead 
- * of being newly calculated. 
+ * If basename, filekey and directory are != NULL, then they are used instead
+ * of being newly calculated.
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -490,7 +347,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,srcoverride,delete,NULL,NULL);
+	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,delete,NULL,NULL);
 	free(dscdirectory);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -501,7 +358,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	}
 
 	if( tracks != NULL ) {
-		r = trackingdata_summon(tracks,pkg->package,pkg->version,&trackingdata);
+		r = trackingdata_summon(tracks,pkg->dsc.name,pkg->dsc.version,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
 			dsc_free(pkg);
 			return r;

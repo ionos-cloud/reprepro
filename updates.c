@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -70,7 +70,7 @@ updates_getupstreams instances them for a given distribution:
       |  \ /             |        |
       | u_target -> u_index -> u_index -> NULL
       |   |
-      |  \ /                     
+      |  \ /
       |  NULL              .           .
      \ /                   |           |
    distribution ---> u_origin -> u_origin -> NULL
@@ -269,8 +269,8 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 	struct strlist componentslist,architectureslist;
 	char *formula,*filename;
 	retvalue r;
-	static const char * const allowedfields[] = {"Name", "Method", 
-"Config", "Suite", "Architectures", "Components", "UDebComponents", 
+	static const char * const allowedfields[] = {"Name", "Method",
+"Config", "Suite", "Architectures", "Components", "UDebComponents",
 "IgnoreRelease", "VerifyRelease", "FilterFormula", "FilterList",
 "ListHook", "Fallback", NULL};
 
@@ -338,7 +338,7 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 		update->suite_from = NULL;
 
 	/* * Check which architectures to update from * */
-	r = chunk_getwordlist(chunk,"Architectures",&architectureslist);
+	r = chunk_getuniqwordlist(chunk,"Architectures",&architectureslist);
 	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;
@@ -357,7 +357,7 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 	}
 
 	/* * Check which components to update from * */
-	r = chunk_getwordlist(chunk,"Components",&componentslist);
+	r = chunk_getuniqwordlist(chunk,"Components",&componentslist);
 	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;
@@ -376,7 +376,7 @@ inline static retvalue parse_pattern(const char *confdir,const char *chunk, stru
 	}
 
 	/* * Check which components to update udebs from * */
-	r = chunk_getwordlist(chunk,"UDebComponents",&componentslist);
+	r = chunk_getuniqwordlist(chunk,"UDebComponents",&componentslist);
 	if( RET_WAS_ERROR(r) ) {
 		update_pattern_free(update);
 		return r;
@@ -521,7 +521,7 @@ static retvalue instance_pattern(const char *listdir,
 			}
 		}
 	}
-	
+
 	*origins = update;
 	return RET_OK;
 }
@@ -551,7 +551,7 @@ retvalue updates_getpatterns(const char *confdir,struct update_pattern **pattern
 	retvalue r;
 
 	updatesfile = calc_dirconcat(confdir,"updates");
-	if( updatesfile == NULL ) 
+	if( updatesfile == NULL )
 		return RET_ERROR_OOM;
 	data.patterns = &update;
 	data.confdir = confdir;
@@ -767,7 +767,7 @@ static inline retvalue findmissingupdate(int count,const struct distribution *di
 			struct update_origin *u;
 
 			u = updates;
-			while( u != NULL && strcmp(u->pattern->name,update) != 0 ) 
+			while( u != NULL && strcmp(u->pattern->name,update) != 0 )
 				u = u->next;
 			if( u == NULL ) {
 				fprintf(stderr,"Update '%s' is listed in distribution '%s', but was not found!\n",update,distribution->codename);
@@ -792,7 +792,7 @@ retvalue updates_calcindices(const char *listdir,const struct update_pattern *pa
 	u_ds = NULL;
 	r = RET_OK;
 
-	for( distribution = distributions ; distribution != NULL ; 
+	for( distribution = distributions ; distribution != NULL ;
 			       distribution = distribution->next ) {
 		struct update_distribution *u_d;
 
@@ -943,7 +943,7 @@ retvalue updates_clearlists(const char *listdir,struct update_distribution *dist
 		dir = opendir(listdir);
 		if( dir == NULL ) {
 			int e = errno;
-			fprintf(stderr,"Error opening directory '%s' (error %d=%m)!",listdir,e);
+			fprintf(stderr,"Error opening directory '%s' (error %d=%m)!\n",listdir,e);
 			free(pattern);
 			return RET_ERRNO(e);
 		}
@@ -984,7 +984,7 @@ static retvalue updates_startup(struct aptmethodrun *run,struct update_distribut
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
-		if( d->distribution->deb_override != NULL || 
+		if( d->distribution->deb_override != NULL ||
 		    d->distribution->dsc_override != NULL ||
 		    d->distribution->udeb_override != NULL ) {
 			if( verbose >= 0 )
@@ -1110,7 +1110,7 @@ static inline retvalue queueindex(struct update_index *index) {
 			}
 			return r;
 		}
-		
+
 	}
 	fprintf(stderr,"Could not find '%s' within the Releasefile of '%s':\n'%s'\n",index->upstream,origin->pattern->name,origin->releasefile);
 	return RET_ERROR_WRONG_MD5;
@@ -1185,7 +1185,7 @@ static retvalue updates_queuelists(struct update_distribution *distributions,boo
 static retvalue calllisthook(const char *listhook,struct update_index *index) {
 	char *newfilename;
 	pid_t f,c;
-	int status; 
+	int status;
 
 	newfilename = mprintf("%s_changed",index->filename);
 	if( newfilename == NULL )
@@ -1250,7 +1250,7 @@ static retvalue updates_calllisthooks(struct update_distribution *distributions)
 		for( target=d->targets; target!=NULL ; target=target->next ) {
 			if( target->nothingnew )
 				continue;
-			for( index=target->indices ; index != NULL ; 
+			for( index=target->indices ; index != NULL ;
 						     index=index->next ) {
 				if( index->origin == NULL )
 					continue;
@@ -1357,7 +1357,7 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 		if( RET_WAS_ERROR(r) )
 			return result;
 	}
-	
+
 	return result;
 }
 
@@ -1524,7 +1524,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 			aptmethod_shutdown(run);
 			return result;
 		}
-		/* TODO: 
+		/* TODO:
 		 * add a check if some of the upstreams without Release files
 		 * are unchanged and if this changes anything? */
 		if( !anythingtodo ) {
@@ -1555,7 +1555,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		RET_UPDATE(result,r);
 		return result;
 	}
-	
+
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_readindices(dbdir,d);
 		RET_UPDATE(result,r);
@@ -1679,7 +1679,7 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 	/* Then look what packages to get */
 	if( verbose >= 0 )
 		fprintf(stderr,"Calculating packages to get...\n");
-	
+
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_readindices(dbdir,d);
 		RET_UPDATE(result,r);
@@ -1725,7 +1725,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 			aptmethod_shutdown(run);
 			return result;
 		}
-		/* TODO: 
+		/* TODO:
 		 * add a check if some of the upstreams without Release files
 		 * are unchanged and if this changes anything? */
 		if( !anythingtodo ) {
@@ -1755,7 +1755,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	if( RET_WAS_ERROR(result) ) {
 		return result;
 	}
-	
+
 	if( verbose >= 0 )
 		fprintf(stderr,"Removing obsolete or to be replaced packages...\n");
 	for( d=distributions ; d != NULL ; d=d->next) {
@@ -1893,7 +1893,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		if( verbose >= 0 )
 			fprintf(stderr,"Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
 		r = downloadcache_initialize(&cache);
-		RET_UPDATE(result,r);	
+		RET_UPDATE(result,r);
 		if( !RET_IS_OK(r) ) {
 			(void)downloadcache_free(cache);
 			if( RET_WAS_ERROR(r) ) {
@@ -1973,7 +1973,7 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 
 	result = RET_NOTHING;
 	for( d=distributions ; d != NULL ; d=d->next) {
-		if( d->distribution->deb_override != NULL || 
+		if( d->distribution->deb_override != NULL ||
 		    d->distribution->dsc_override != NULL ||
 		    d->distribution->udeb_override!= NULL ) {
 			if( verbose >= 0 )

@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -35,10 +35,10 @@ struct package_data {
 	struct package_data *next;
 	/* the name of the package: */
 	char *name;
-	/* the version in our repository: 
+	/* the version in our repository:
 	 * NULL means not yet in the archive */
 	char *version_in_use;
-	/* the most recent version we found 
+	/* the most recent version we found
 	 * (either is version_in_use or version_new)*/
 	/*@dependent@*/const char *version;
 
@@ -53,10 +53,10 @@ struct package_data {
 	/* where the recent version comes from: */
 	/*@dependent@*/struct aptmethod *aptmethod;
 
-	/* the new control-chunk for the package to go in 
+	/* the new control-chunk for the package to go in
 	 * non-NULL if new_version && newversion == version_in_use */
 	char *new_control;
-	/* the list of files that will belong to this: 
+	/* the list of files that will belong to this:
 	 * same validity */
 	struct strlist new_filekeys;
 	struct strlist new_md5sums;
@@ -66,7 +66,7 @@ struct package_data {
 struct upgradelist {
 	/*@dependent@*/struct target *target;
 	struct package_data *list;
-	/* package the next package will most probably be after. 
+	/* package the next package will most probably be after.
 	 * (NULL=before start of list) */
 	/*@null@*//*@dependent@*/struct package_data *last;
 	/* internal...*/
@@ -118,7 +118,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 	package->version_in_use = version;
 	version = NULL; // just to be sure...
 	package->version = package->version_in_use;
-	
+
 	if( upgrade->list == NULL ) {
 		/* first chunk to add: */
 		upgrade->list = package;
@@ -131,7 +131,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 			/* this should only happen if the underlying
 			 * database-method get changed, so just throwing
 			 * out here */
-			fprintf(stderr,"Package-database is not sorted!!!");
+			fprintf(stderr,"Package-database is not sorted!!!\n");
 			assert(FALSE);
 			exit(EXIT_FAILURE);
 		}
@@ -139,7 +139,7 @@ static retvalue save_package_version(void *d,const char *packagename,const char 
 
 	return RET_OK;
 }
-	
+
 retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const char *dbdir) {
 	struct upgradelist *upgrade;
 	retvalue r,r2;
@@ -174,7 +174,7 @@ retvalue upgradelist_initialize(struct upgradelist **ul,struct target *t,const c
 
 retvalue upgradelist_free(struct upgradelist *upgrade) {
 	struct package_data *l;
-	
+
 	if( upgrade == NULL )
 		return RET_NOTHING;
 
@@ -184,7 +184,7 @@ retvalue upgradelist_free(struct upgradelist *upgrade) {
 		package_data_free(l);
 		l = n;
 	}
-	
+
 	free(upgrade);
 	return RET_OK;
 }
@@ -208,7 +208,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	/* insertafter = NULL will mean insert before list */
 	insertafter = upgrade->last;
 	/* the next one to test, current = NULL will mean not found */
-	if( insertafter != NULL ) 
+	if( insertafter != NULL )
 		current = insertafter->next;
 	else
 		current = upgrade->list;
@@ -254,7 +254,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 					fprintf(stderr,"restarting search...");
 				}
 				continue;
-			} else { // precmp > 0 
+			} else { // precmp > 0
 				/* insert after insertafter: */
 				current = NULL;
 				break;
@@ -365,7 +365,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		if( versioncmp == 0 ) {
 		/* we are replacing a package with the same version,
 		 * so we keep the old one for sake of speed. */
-			if( current->deleted && 
+			if( current->deleted &&
 				current->version != current->new_version) {
 				/* remember the version for checkupdate/pull */
 				free(current->new_version);
@@ -376,11 +376,11 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			free(packagename);
 			return RET_NOTHING;
 		}
-		if( versioncmp != 0 && current->version == current->new_version 
+		if( versioncmp != 0 && current->version == current->new_version
 				&& current->version_in_use != NULL ) {
 			/* The version to include is not the newest after the
 			 * last deletion round), but maybe older, maybe newer.
-			 * So we get to the question: it is also not the same 
+			 * So we get to the question: it is also not the same
 			 * like the version we already have? */
 			int vcmp = 1;
 			(void)dpkgversions_cmp(version,current->version_in_use,&vcmp);
@@ -399,7 +399,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 
 // TODO: the following case might be worth considering, but sadly new_version
 // might have changed without the proper data set.
-//		if( versioncmp >= 0 && current->version == current->version_in_use 
+//		if( versioncmp >= 0 && current->version == current->version_in_use
 //				&& current->new_version != NULL ) {
 
 		r = upgrade->target->getinstalldata(upgrade->target,packagename,version,chunk,&control,&files,&md5sums,&origfiles);
@@ -581,14 +581,14 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 
 void upgradelist_dump(struct upgradelist *upgrade){
 	struct package_data *pkg;
-	
+
 	assert(upgrade != NULL);
 
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( interrupted() )
 			return;
 		if( pkg->deleted ) {
-			if( pkg->version_in_use != NULL && 
+			if( pkg->version_in_use != NULL &&
 					pkg->new_version != NULL ) {
 				printf("'%s': '%s' will be deleted"
 				       " (best new: '%s')\n",
@@ -618,7 +618,7 @@ void upgradelist_dump(struct upgradelist *upgrade){
 				}
 
 			} else {
-				if( pkg->version_in_use != NULL ) 
+				if( pkg->version_in_use != NULL )
 					(void)printf("'%s': '%s' will be upgraded"
 					       " to '%s':\n files needed: ",
 						pkg->name,pkg->version_in_use,
@@ -630,7 +630,7 @@ void upgradelist_dump(struct upgradelist *upgrade){
 				(void)strlist_fprint(stdout,&pkg->new_filekeys);
 				(void)printf("\n with md5sums: ");
 				(void)strlist_fprint(stdout,&pkg->new_md5sums);
-				if( verbose > 2) 
+				if( verbose > 2)
 					(void)printf("\n installing as: '%s'\n",pkg->new_control);
 				else
 					(void)putchar('\n');

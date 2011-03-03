@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -49,7 +49,7 @@ retvalue guess_component(const char *codename,const struct strlist *components,
 		*guess = c; \
 		return RET_OK; \
 	}
-	
+
 	if( givencomponent != NULL ) {
 		if( !strlist_in(components,givencomponent) ) {
 			(void)fprintf(stderr,"Could not find '%s' in components of '%s': ",
@@ -81,7 +81,7 @@ retvalue guess_component(const char *codename,const struct strlist *components,
 		const char *component = components->values[i];
 		size_t len = strlen(component);
 
-		if( len<section_len && section[len] == '/' && 
+		if( len<section_len && section[len] == '/' &&
 				strncmp(section,component,len) == 0 )
 			RETURNTHIS(component);
 	}
@@ -89,7 +89,7 @@ retvalue guess_component(const char *codename,const struct strlist *components,
 		const char *component = components->values[i];
 		size_t len = strlen(component);
 
-		if( len<section_len && section[section_len-len-1] == '/' && 
+		if( len<section_len && section[section_len-len-1] == '/' &&
 				strncmp(section+section_len-len,component,len) == 0 )
 			RETURNTHIS(component);
 	}

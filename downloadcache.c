@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -91,7 +91,7 @@ retvalue downloadcache_free(struct downloadcache *download) {
 	return NULL;
 }
 
-/* queue a new file to be downloaded: 
+/* queue a new file to be downloaded:
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
 retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct aptmethod *method,const char *orig,const char *filekey,const char *md5sum) {
@@ -156,7 +156,7 @@ retvalue downloadcache_addfiles(struct downloadcache *cache,filesdb filesdb,
 		&& md5sums->count == filekeys->count);
 
 	result = RET_NOTHING;
-	
+
 	for( i = 0 ; i < filekeys->count ; i++ ) {
 		r = downloadcache_add(cache,filesdb,method,
 			origfiles->values[i],

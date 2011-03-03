@@ -164,6 +164,7 @@ retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,
 
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 		if( strcmp(pkg->filekeys.values[i],filekey) == 0 ) {
+			free(filekey);
 			if( pkg->filetypes[i] != ft ) {
 				fprintf(stderr,"Filekey '%s' already registered for '%s_%s' as type '%c' is tried to be reregistered as type '%c'!\n",filekey,pkg->sourcename,pkg->sourceversion,pkg->filetypes[i],ft);
 				return RET_ERROR;
@@ -237,7 +238,7 @@ static inline retvalue trackedpackage_removefilekey(trackingdb tracks,struct tra
 				pkg->refcounts[i]--;
 			} else
 				fprintf(stderr,"Warning: tracking database of %s has inconsistent refcounts of %s_%s.\n",tracks->codename,pkg->sourcename,pkg->sourceversion);
-				
+
 			return RET_OK;
 		}
 	}
@@ -273,7 +274,7 @@ void trackedpackage_free(struct trackedpackage *pkg) {
 
 static inline int parsenumber(const char **d,size_t *s) {
 	int count;
-	
+
 	count = 0;
 	do {
 		if( **d < '0' || **d > '7' )
@@ -357,7 +358,7 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 		retvalue r;
 
 		if( ((p->filekeys.count)&31) == 0 ) {
-			enum filetype *n = realloc(p->filetypes, 
+			enum filetype *n = realloc(p->filetypes,
 				(p->filekeys.count+32)*sizeof(enum filetype));
 			if( n == NULL ) {
 				trackedpackage_free(p);
@@ -404,7 +405,7 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 	return RET_OK;
 }
 
-	
+
 static retvalue tracking_get(trackingdb t,const char *sourcename,const char *version,/*@out@*/struct trackedpackage **pkg) {
 	int dbret;
 	DBT key,data;
@@ -709,7 +710,7 @@ static void print(const char *codename,const struct trackedpackage *pkg){
 	}
 	fputs("\n",stdout);
 }
-	
+
 retvalue tracking_printall(trackingdb t) {
 	DBC *cursor;
 	DBT key,data;
@@ -744,7 +745,7 @@ retvalue tracking_printall(trackingdb t) {
 	}
 	return r;
 }
-	
+
 retvalue tracking_parse(/*@null@*//*@only@*/char *option,struct distribution *d) {
 	/*@temp@*/char *p,*q;
 
@@ -1042,7 +1043,6 @@ static inline retvalue trackedpackage_tidy(trackingdb tracks, struct trackedpack
 }
 
 retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, references refs, struct strlist *dereferenced) {
-	
 	retvalue r;
 	assert( d->tracks == tracks );
 	r = trackedpackage_tidy(tracks, d->pkg, refs, dereferenced);

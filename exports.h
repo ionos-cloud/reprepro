@@ -6,7 +6,7 @@
 #endif
 
 struct exportmode {
-	/* "Packages", "Sources" or something like that */ 
+	/* "Packages", "Sources" or something like that */
 	char *filename;
 	/* create uncompressed, create .gz, <future things...> */
 	compressionset compressions;
@@ -20,6 +20,6 @@ struct exportmode {
 retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*@null@*/const char *release,const char *indexfile,/*@null@*//*@only@*/char *options);
 void exportmode_done(struct exportmode *mode);
 
-retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlymissing);
+retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlymissing, bool_t snapshot);
 
 #endif

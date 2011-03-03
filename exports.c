@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -188,7 +188,7 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 
 static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, const char *relfilename, const char *mode, struct release *release) {
 	pid_t f,c;
-	int status; 
+	int status;
 	int io[2];
 	char buffer[1000];
 	int already = 0;
@@ -252,7 +252,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		exit(255);
 	}
 	close(io[1]);
-	
+
 	if( verbose > 5 )
 		fprintf(stderr,"Called %s '%s' '%s.new' '%s' '%s'\n",
 			hook,release_dirofdist(release),relfilename,relfilename,mode);
@@ -331,7 +331,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlyifmissing) {
+retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlyifmissing, bool_t snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
@@ -365,8 +365,9 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 	} else {
 		status = "old";
 	}
-	r = callexporthook(confdir,
-			exportmode->hook,
+	if( !snapshot )
+		r = callexporthook(confdir,
+					exportmode->hook,
 					relfilename,
 					status,
 					release);

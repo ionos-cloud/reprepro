@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -84,7 +84,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 				(e[6] == '\0' || isspace(e[6])) ) {
 			distribution->contents.flags.nodebs = TRUE;
 			e += 6;
-		} else if( strncmp(e, ".bz2", 4) == 0 && 
+		} else if( strncmp(e, ".bz2", 4) == 0 &&
 				(e[4] == '\0' || isspace(e[4])) ) {
 #ifdef HAVE_LIBBZ2
 			if( defaultcompressions ) {
@@ -97,7 +97,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 			fprintf(stderr, "Warning: Ignoring request to generate .bz2'ed Contents files as compiled without libbz2.\n");
 #endif
 			e += 4;
-		} else if( strncmp(e, ".gz", 3) == 0 && 
+		} else if( strncmp(e, ".gz", 3) == 0 &&
 				(e[3] == '\0' || isspace(e[3])) ) {
 			if( defaultcompressions ) {
 				defaultcompressions = FALSE;
@@ -126,7 +126,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 	free(option);
 	if( distribution->contents.rate == 0 )
 		return RET_NOTHING;
-	r = chunk_getwordlist(chunk, "ContentsArchitectures",
+	r = chunk_getuniqwordlist(chunk, "ContentsArchitectures",
 			&distribution->contents.architectures);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -145,7 +145,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 			return RET_ERROR;
 		}
 	}
-	r = chunk_getwordlist(chunk, "ContentsComponents",
+	r = chunk_getuniqwordlist(chunk, "ContentsComponents",
 			&distribution->contents.components);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -164,7 +164,7 @@ retvalue contentsoptions_parse(struct distribution *distribution, const char *ch
 			return RET_ERROR;
 		}
 	}
-	r = chunk_getwordlist(chunk, "ContentsUComponents",
+	r = chunk_getuniqwordlist(chunk, "ContentsUComponents",
 			&distribution->contents.ucomponents);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -230,7 +230,7 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 		d->leisure++;
 
 	free(filekey);
-	free(section);		
+	free(section);
 	return r;
 }
 
@@ -252,7 +252,7 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 		components = &distribution->components;
 
 	if( onlyneeded ) {
-		for( target=distribution->targets; target!=NULL; 
+		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
 				&& strcmp(target->architecture,architecture) == 0
@@ -285,9 +285,9 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 		return r;
 	}
 	for( target=distribution->targets;target!=NULL;target=target->next ) {
-		if( strcmp(target->packagetype,"deb") != 0 ) 
+		if( strcmp(target->packagetype,"deb") != 0 )
 			continue;
-		if( strcmp(target->architecture,architecture) != 0 ) 
+		if( strcmp(target->architecture,architecture) != 0 )
 			continue;
 		if( !strlist_in(components, target->component) )
 			continue;
@@ -328,7 +328,7 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 
 
 	if( onlyneeded ) {
-		for( target=distribution->targets; target!=NULL; 
+		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
 				&& strcmp(target->architecture,architecture) == 0
@@ -358,9 +358,9 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( target=distribution->targets;target!=NULL;target=target->next ) {
-		if( strcmp(target->packagetype,"udeb") != 0 ) 
+		if( strcmp(target->packagetype,"udeb") != 0 )
 			continue;
-		if( strcmp(target->architecture,architecture) != 0 ) 
+		if( strcmp(target->architecture,architecture) != 0 )
 			continue;
 		if( !strlist_in(components, target->component) )
 			continue;
@@ -411,5 +411,5 @@ retvalue contents_generate(filesdb files, struct distribution *distribution, con
 	}
 	return result;
 }
-		
+
 

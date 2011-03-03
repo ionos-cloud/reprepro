@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -104,7 +104,7 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 		free(pkgs);
 		return RET_ERROR_OOM;
 	}
-	
+
 	if ((dbret = db_create(&pkgs->database, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s:%s %s\n", filename,identifier,db_strerror(dbret));
 		free(filename);
@@ -123,7 +123,7 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 		free(pkgs->identifier);
 		free(pkgs);
 		return RET_DBERR(dbret);
-	}                     
+	}
 	free(filename);
 	*db = pkgs;
 	return RET_OK;
@@ -183,7 +183,7 @@ retvalue packages_get(packagesdb db,const char *package,char **chunk) {
 	if( (dbret = db->database->get(db->database, NULL, &key, &data, 0)) == 0){
 		char *c;
 		c = strdup(data.data);
-		if( c == NULL ) 
+		if( c == NULL )
 			return RET_ERROR_OOM;
 		else {
 			*chunk = c;
@@ -213,7 +213,7 @@ retvalue packages_remove(packagesdb db,const char *package) {
 	}
 }
 
-/* check for existance of the given version of a package in the arch, 
+/* check for existance of the given version of a package in the arch,
 static retvalue package_check(packagesdb db,const char *package) {
 	int dbret;
 	DBT key,data;
@@ -247,8 +247,8 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 		db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
 		return RET_ERROR;
 	}
-	CLEARDBT(key);	
-	CLEARDBT(data);	
+	CLEARDBT(key);
+	CLEARDBT(data);
 
 	ret = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
@@ -259,8 +259,8 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 				fprintf(stderr,"packages_foreach: Stopping procession of further packages due to previous errors\n");
 			break;
 		}
-		CLEARDBT(key);	
-		CLEARDBT(data);	
+		CLEARDBT(key);
+		CLEARDBT(data);
 	}
 
 	if( dbret != 0 && dbret != DB_NOTFOUND ) {
@@ -279,7 +279,7 @@ retvalue packages_foreach(packagesdb db,per_package_action action,void *privdata
 //typedef retvalue per_package_modifier(void *data,const char *package,const char *chunk, char **newchunk);
 
 /* call action once for each saved chunk and replace with a new one, if it returns RET_OK: */
-retvalue packages_modifyall(packagesdb db,per_package_modifier *action,void *privdata,bool_t *setifmodified) {
+retvalue packages_modifyall(packagesdb db,per_package_modifier *action,const struct distribution *privdata,bool_t *setifmodified) {
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -290,8 +290,8 @@ retvalue packages_modifyall(packagesdb db,per_package_modifier *action,void *pri
 		db->database->err(db->database, dbret, "packages.db(%s):",db->identifier);
 		return RET_ERROR;
 	}
-	CLEARDBT(key);	
-	CLEARDBT(data);	
+	CLEARDBT(key);
+	CLEARDBT(data);
 
 	result = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
@@ -314,8 +314,8 @@ retvalue packages_modifyall(packagesdb db,per_package_modifier *action,void *pri
 			if( setifmodified != NULL )
 				*setifmodified = TRUE;
 		}
-		CLEARDBT(key);	
-		CLEARDBT(data);	
+		CLEARDBT(key);
+		CLEARDBT(data);
 	}
 
 	if( dbret != 0 && dbret != DB_NOTFOUND ) {
@@ -338,7 +338,7 @@ retvalue packages_insert(references refs, packagesdb packagesdb,
 		struct trackingdata *trackingdata,
 		enum filetype filetype,
 		/*@only@*/char *oldsource,/*@only@*/char *oldsversion) {
-		
+
 
 	retvalue result,r;
 
@@ -394,7 +394,7 @@ retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers) 
 	filename = calc_dirconcat(dbpath, "packages.db");
 	if( filename == NULL )
 		return RET_ERROR_OOM;
-	
+
 	if ((dbret = db_create(&database, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s %s\n", filename,db_strerror(dbret));
 		free(filename);
@@ -406,7 +406,7 @@ retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers) 
 		(void)database->close(database,0);
 		free(filename);
 		return RET_DBERR(dbret);
-	}                     
+	}
 	free(filename);
 
 	cursor = NULL;
@@ -434,7 +434,7 @@ retvalue packages_getdatabases(const char *dbpath, struct strlist *identifiers) 
 			strlist_done(&ids);
 			return r;
 		}
-		CLEARDBT(key);	
+		CLEARDBT(key);
 		CLEARDBT(data);
 	}
 
@@ -470,7 +470,7 @@ retvalue packages_drop(const char *dbpath, const char *identifier) {
 	filename = calc_dirconcat(dbpath, "packages.db");
 	if( filename == NULL )
 		return RET_ERROR_OOM;
-	
+
 	if ((dbret = db_create(&database, NULL, 0)) != 0) {
 		fprintf(stderr, "db_create: %s %s\n", filename, db_strerror(dbret));
 		free(filename);
@@ -482,7 +482,7 @@ retvalue packages_drop(const char *dbpath, const char *identifier) {
 				identifier, filename);
 		free(filename);
 		return RET_DBERR(dbret);
-	}                     
+	}
 
 	free(filename);
 	return RET_OK;

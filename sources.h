@@ -9,8 +9,6 @@
 #include "target.h"
 #endif
 
-retvalue sources_parse_getmd5sums(const char *chunk,/*@out@*/struct strlist *basenames, /*@out@*/struct strlist *md5sums);
-
 /* Calculate the filelines in a form suitable for chunk_replacefields: */
 retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,/*@out@*/char **item);
 
@@ -21,7 +19,29 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,const c
 retvalue sources_getfilekeys(struct target *t,const char *chunk,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums);
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
-retvalue sources_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue sources_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,references refs);
 retvalue sources_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
+
+/* Functions for checkindsc.c and incoming.c: */
+struct dsc_headers {
+	char *name, *version;
+	char *control;
+	struct strlist basenames, md5sums;
+	/* normaly not in a .dsc file: */
+	/*@null@*/ char *section, *priority;
+};
+
+/* read contents of filename into sources_readdsc.
+ * - broken is like signature_readsignedchunk
+ * - does not follow retvalue conventions, some fields may be set even when
+ *   error returned
+ * - no checks for sanity of values, left to the caller */
+retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool_t *broken);
+
+void sources_done(struct dsc_headers *);
+
+struct overrideinfo;
+retvalue sources_complete(const struct dsc_headers *, const char *directory, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol);
+
 #endif

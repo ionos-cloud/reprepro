@@ -19,6 +19,8 @@ struct distribution;
 #ifndef REPREPRO_CONTENTS_H
 #include "contents.h"
 #endif
+struct overrideinfo;
+struct uploaders;
 
 struct distribution {
 	struct distribution *next;
@@ -39,13 +41,17 @@ struct distribution {
 	/*@null@*/char *signwith;
 	/* the override file to use by default */
 	/*@null@*/char *deb_override,*udeb_override,*dsc_override;
+	/* only loaded when you've done it yourself: */
+	struct {
+		/*@null@*/struct overrideinfo *dsc,*deb,*udeb;
+	} overrides;
 	/* the list of components containing a debian-installer dir, normally only "main" */
 	struct strlist udebcomponents;
 	/* what kind of index files to generate */
 	struct exportmode dsc,deb,udeb;
 	/* is tracking enabled for this distribution? */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
-	struct trackingoptions { bool_t includechanges:1; 
+	struct trackingoptions { bool_t includechanges:1;
 		bool_t includebyhand:1;
 		bool_t needsources:1;
 		bool_t keepsources:1;
@@ -56,7 +62,12 @@ struct distribution {
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* a filename to look for who is allowed to upload packages */
-	char *uploaders;
+	/*@null@*/char *uploaders;
+	/* only loaded after _loaduploaders */
+	/*@null@*/struct uploaders *uploaderslist;
+	/* a list of names beside Codename and Suite to accept .changes
+	 * files via include */
+	struct strlist alsoaccept;
 	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */
@@ -69,7 +80,7 @@ retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 typedef retvalue distribution_each_action(void *data, struct target *t, struct distribution *d);
 
-/* call <action> for each part of <distribution>, if component or architecture is 
+/* call <action> for each part of <distribution>, if component or architecture is
  * not NULL or "all", only do those parts */
 retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data);
 
@@ -83,9 +94,20 @@ retvalue distribution_fullexport(struct distribution *distribution,const char *c
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
 retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
 
+retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,references refs,const char *name);
+
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
 
+/* get a pointer to the apropiate part of the linked list */
+struct distribution *distribution_find(struct distribution *distributions, const char *name);
+
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
 retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, filesdb);
+
+retvalue distribution_loadalloverrides(struct distribution *, const char *overridedir);
+void distribution_unloadoverrides(struct distribution *distribution);
+
+retvalue distribution_loaduploaders(struct distribution *, const char *confdir);
+void distribution_unloaduploaders(struct distribution *distribution);
 #endif

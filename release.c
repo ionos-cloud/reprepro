@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -54,6 +54,8 @@ struct release {
 	char *dirofdist;
 	/* anything new yet added */
 	bool_t new;
+	/* snapshot */
+	bool_t snapshot;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -97,7 +99,7 @@ const char *release_dirofdist(struct release *release) {
 	return release->dirofdist;
 }
 
-static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relativefilename, 
+static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relativefilename,
 		/*@only@*/ char *md5sum,
 		/*@only@*/ /*@null@*/ char *fullfinalfilename,
 		/*@only@*/ /*@null@*/ char *fulltemporaryfilename ) {
@@ -156,6 +158,21 @@ retvalue release_init(const char *dbdir, const char *distdir, const char *codena
 		return RET_DBERR(dbret);
 	}
 	free(filename);
+	*release = n;
+	return RET_OK;
+}
+
+retvalue release_initsnapshot(const char *distdir, const char *codename, const char *name, struct release **release) {
+	struct release *n;
+
+	n = calloc(1,sizeof(struct release));
+	n->dirofdist = mprintf("%s/%s/snapshots/%s",distdir,codename,name);
+	if( n->dirofdist == NULL ) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
+	n->cachedb = NULL;
+	n->snapshot = TRUE;
 	*release = n;
 	return RET_OK;
 }
@@ -458,13 +475,13 @@ static retvalue	initgzcompression(struct filetorelease *f) {
 	}
 #else
 	unsigned char header[10] = {
-		31,139, Z_DEFLATED, 
+		31,139, Z_DEFLATED,
 		/* flags */
-		0, 
+		0,
 		/* time */
 		0, 0, 0, 0,
 		/* xtra-flags */
-		0, 	
+		0,
 		/* os (3 = unix, 255 = unknown)
 		 * using unknown to generate the same file
 		 * with or without OLDZLIB */
@@ -487,7 +504,7 @@ static retvalue	initgzcompression(struct filetorelease *f) {
 	f->gzstream.opaque = NULL;
 #ifndef OLDZLIB
 	zret = deflateInit2(&f->gzstream,
-			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */ 
+			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */
 			Z_DEFAULT_COMPRESSION,
 			/* only possibility yet: */
 			Z_DEFLATED,
@@ -500,7 +517,7 @@ static retvalue	initgzcompression(struct filetorelease *f) {
 			);
 #else
 	zret = deflateInit2(&f->gzstream,
-			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */ 
+			/* Level: 0-9 or Z_DEFAULT_COMPRESSION: */
 			Z_DEFAULT_COMPRESSION,
 			/* only possibility yet: */
 			Z_DEFLATED,
@@ -563,8 +580,8 @@ static retvalue	initbzcompression(struct filetorelease *f) {
 }
 #endif
 
-static retvalue startfile(struct release *release, 
-		char *filename, compressionset compressions, 
+static retvalue startfile(struct release *release,
+		char *filename, compressionset compressions,
 		bool_t usecache,
 		struct filetorelease **file) {
 	struct filetorelease *n;
@@ -646,8 +663,8 @@ static retvalue startfile(struct release *release,
 	return RET_OK;
 }
 
-retvalue release_startfile2(struct release *release, 
-		const char *relative_dir, const char *filename, compressionset compressions, 
+retvalue release_startfile2(struct release *release,
+		const char *relative_dir, const char *filename, compressionset compressions,
 		bool_t usecache,
 		struct filetorelease **file) {
 	char *relfilename;
@@ -657,8 +674,8 @@ retvalue release_startfile2(struct release *release,
 		return RET_ERROR_OOM;
 	return startfile(release,relfilename,compressions,usecache,file);
 }
-retvalue release_startfile(struct release *release, 
-		const char *filename, compressionset compressions, 
+retvalue release_startfile(struct release *release,
+		const char *filename, compressionset compressions,
 		bool_t usecache,
 		struct filetorelease **file) {
 	char *relfilename;
@@ -678,9 +695,9 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 		assert( f->fulltemporaryfilename == NULL);
 		return RET_NOTHING;
 	}
-	assert((f->fullfinalfilename == NULL 
+	assert((f->fullfinalfilename == NULL
 		  && f->fulltemporaryfilename == NULL)
-	  	|| (f->fullfinalfilename != NULL 
+	  	|| (f->fullfinalfilename != NULL
 		  && f->fulltemporaryfilename != NULL));
 
 	r = md5sum_genstring(&md5sum,&f->context,f->filesize);
@@ -688,7 +705,7 @@ static retvalue releasefile(struct release *release, struct openfile *f) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 	r = newreleaseentry(release,f->relativefilename,md5sum,
-			f->fullfinalfilename, 
+			f->fullfinalfilename,
 			f->fulltemporaryfilename);
 	f->relativefilename = NULL;
 	f->fullfinalfilename = NULL;
@@ -707,7 +724,7 @@ static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
 #ifdef OLDZLIB
 	f->crc = crc32(f->crc,data,len);
 #endif
-	
+
 	f->gzstream.next_in = (char*)data;
 	f->gzstream.avail_in = len;
 
@@ -736,7 +753,7 @@ static retvalue writegz(struct filetorelease *f, const char *data, size_t len) {
 		 * should only happend when no output is possible, as that
 		 * gets possible again it should finally produce more output
 		 * and return Z_OK and always terminate. Hopefully... */
-	} while( zret == Z_BUF_ERROR 
+	} while( zret == Z_BUF_ERROR
 			|| ( zret == Z_OK && f->gzstream.avail_in != 0));
 
 	f->gzstream.next_in = NULL;
@@ -861,7 +878,7 @@ static retvalue writebz(struct filetorelease *f, const char *data, size_t len) {
 		bzret = BZ2_bzCompress(&f->bzstream,BZ_RUN);
 		f->bz_waiting_bytes = BZBUFSIZE - f->bzstream.avail_out;
 
-		if( bzret == BZ_RUN_OK && 
+		if( bzret == BZ_RUN_OK &&
 				f->bz_waiting_bytes >= BZBUFSIZE / 2 ) {
 			retvalue r;
 			assert( f->bz_waiting_bytes > 0 );
@@ -1003,7 +1020,7 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 
 retvalue release_writedata(struct filetorelease *file, const char *data, size_t len) {
 	retvalue result,r;
- 
+
 	result = RET_OK;
 	/* always call this so that md5sum is calculated */
 	r = writetofile(&file->f[ic_uncompressed],data,len);
@@ -1060,6 +1077,9 @@ retvalue release_directorydescription(struct release *release, const struct dist
 static retvalue getcachevalue(struct release *r,const char *relfilename, char **md5sum) {
 	int dbret;
 	DBT key,data;
+
+	if( r->cachedb == NULL )
+		return RET_NOTHING;
 
 	SETDBT(key,relfilename);
 	CLEARDBT(data);
@@ -1262,8 +1282,8 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	}
 
 #undef checkwritten
-	if( ferror(f) != 0 ) { 
-		e = errno; 
+	if( ferror(f) != 0 ) {
+		e = errno;
 		fprintf(stderr,"Error writing to %s: %d=$m!\n",
 				release->newreleasefilename,e);
 		release_free(release);
@@ -1278,7 +1298,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		return RET_ERRNO(e);
 	}
 
-	if( distribution->signwith != NULL ) { 
+	if( distribution->signwith != NULL ) {
 
 		release->signfilename = calc_dirconcat(release->dirofdist,"Release.gpg");
 		if( release->signfilename == NULL ) {
@@ -1316,7 +1336,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 					file->fullfinalfilename);
 			if( e < 0 ) {
 				e = errno;
-				fprintf(stderr,"Error moving %s to %s: %d=%m!",file->fulltemporaryfilename,file->fullfinalfilename,e);
+				fprintf(stderr,"Error moving %s to %s: %d=%m!\n",file->fulltemporaryfilename,file->fullfinalfilename,e);
 				r = RET_ERRNO(e);
 				/* after something was done, do not stop
 				 * but try to do as much as possible */
@@ -1333,7 +1353,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		e = rename(release->newsignfilename,release->signfilename);
 		if( e < 0 ) {
 			e = errno;
-			fprintf(stderr,"Error moving %s to %s: %d=%m!",
+			fprintf(stderr,"Error moving %s to %s: %d=%m!\n",
 					release->newsignfilename,
 					release->signfilename,e);
 			r = RET_ERRNO(e);
@@ -1349,20 +1369,20 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	e = rename(release->newreleasefilename,release->releasefilename);
 	if( e < 0 ) {
 		e = errno;
-		fprintf(stderr,"Error moving %s to %s: %d=%m!",
+		fprintf(stderr,"Error moving %s to %s: %d=%m!\n",
 				release->newreleasefilename,
 				release->releasefilename,e);
 		r = RET_ERRNO(e);
 		RET_UPDATE(result,r);
 	}
 
-	/* now update the cache database, so we find those the next time */
-
-	r = storechecksums(release);
-	RET_UPDATE(result,r);
-
 	if( release->cachedb != NULL ) {
 	 	int dbret;
+
+		/* now update the cache database, so we find those the next time */
+		r = storechecksums(release);
+		RET_UPDATE(result,r);
+
 		/* check for an possible error in the cachedb,
 		 * release_free return no error */
 		dbret = release->cachedb->close(release->cachedb,0);
@@ -1377,3 +1397,15 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	return result;
 }
 
+retvalue release_mkdir(struct release *release, const char *relativedirectory) {
+	char *dirname;
+	retvalue r;
+
+	dirname = calc_dirconcat(release->dirofdist,relativedirectory);
+	if( dirname == NULL )
+		return RET_ERROR_OOM;
+	// TODO: in some far future, remember which dirs were created so that
+	r = dirs_make_recursive(dirname);
+	free(dirname);
+	return r;
+}

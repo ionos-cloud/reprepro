@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -29,7 +29,7 @@ bool_t strlist_in(const struct strlist *strlist,const char *element) {
 
 	assert(strlist != NULL);
 
-	c = strlist->count; 
+	c = strlist->count;
 	t = strlist->values;
 	while( c-- != 0 ) {
 		if( strcmp(*(t++),element) == 0 )
@@ -43,7 +43,7 @@ int strlist_ofs(const struct strlist *strlist,const char *element) {
 
 	assert(strlist != NULL);
 
-	c = strlist->count; 
+	c = strlist->count;
 	t = strlist->values;
 	while( c-- != 0 ) {
 		if( strcmp(*(t++),element) == 0 )
@@ -58,7 +58,7 @@ bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset
 
 	assert(subset != NULL);
 
-	c = subset->count; 
+	c = subset->count;
 	t = subset->values;
 	while( c-- != 0 ) {
 		if( !strlist_in(strlist,*(t++)) ) {
@@ -86,7 +86,7 @@ retvalue strlist_init_n(int startsize,struct strlist *strlist) {
 
 retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
 	assert(strlist != NULL);
-	
+
 	strlist->count = 1;
 	strlist->size = 1;
 	strlist->values = malloc(sizeof(char *));
@@ -101,7 +101,7 @@ retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
 
 void strlist_init(struct strlist *strlist) {
 	assert(strlist != NULL);
-	
+
 	strlist->count = 0;
 	strlist->size = 0;
 	strlist->values = NULL;
@@ -113,7 +113,7 @@ void strlist_done(struct strlist *strlist) {
 
 	assert(strlist != NULL);
 
-	c = strlist->count; 
+	c = strlist->count;
 	t = strlist->values;
 	while( c-- != 0 ) {
 		free(*t);
@@ -195,7 +195,7 @@ retvalue strlist_dup(struct strlist *dest,const struct strlist *orig) {
 	int i;
 
 	assert(dest != NULL && orig != NULL);
-	
+
 	dest->size = dest->count = orig->count;
 	dest->values = calloc(dest->count,sizeof(char*));;
 	if( dest->values == NULL )
@@ -257,5 +257,14 @@ retvalue strlist_adduniq(struct strlist *strlist,char *element) {
 		return RET_OK;
 	} else
 		return strlist_add(strlist,element);
-		
+
+}
+
+bool_t strlist_intersects(const struct strlist *a,const struct strlist *b) {
+	size_t i;
+
+	for( i = 0 ; i < a->count ; i++ )
+		if( strlist_in(b, a->values[i]) )
+			return TRUE;
+	return FALSE;
 }

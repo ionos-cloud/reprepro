@@ -219,7 +219,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 					q++;
 				if( *q == '\n' )
 					q++;
-				
+
 			}
 			if( p == chunk )
 				chunk = q;
@@ -239,7 +239,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 			while( *e != '\0' && *e != '\n' )
 				e++;
 		}
-		if( i < 0 ) { 
+		if( i < 0 ) {
 			/* not known, we'll have to copy it */
 			maxlen += 1+e-p;
 			if( *e == '\0' )
@@ -251,7 +251,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 			fields[i].startofs = p-chunk;
 			fields[i].endofs = e-chunk;
 			if( fields[i].cef->action == CEF_KEEP ||
-			    fields[i].cef->action == CEF_ADDMISSED ) 
+			    fields[i].cef->action == CEF_ADDMISSED )
 				maxlen += 1+e-q;
 		}
 		if( *e == '\0' )
@@ -311,7 +311,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 			n[len++] = '\n';
 			for( j = 0 ; j < ef->lines[i].wordcount ; j++ ) {
 				n[len++] = ' ';
-				memcpy( n+len, ef->lines[i].words[j], 
+				memcpy( n+len, ef->lines[i].words[j],
 				               ef->lines[i].wordlen[j]);
 				len += ef->lines[i].wordlen[j];
 			}
@@ -335,7 +335,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 					q++;
 				if( *q == '\n' )
 					q++;
-				
+
 			}
 			p = q;
 			continue;
@@ -353,7 +353,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 			while( *e != '\0' && *e != '\n' )
 				e++;
 		}
-		if( i < 0 ) { 
+		if( i < 0 ) {
 			/* not known, copy it */
 			size_t l = e - p;
 			assert( maxlen >= len + l );
@@ -414,7 +414,7 @@ retvalue chunk_edit(const char *chunk, char **result, size_t *rlen, const struct
 			n[len++] = '\n';
 			for( j = 0 ; j < ef->lines[i].wordcount ; j++ ) {
 				n[len++] = ' ';
-				memcpy( n+len, ef->lines[i].words[j], 
+				memcpy( n+len, ef->lines[i].words[j],
 				               ef->lines[i].wordlen[j]);
 				len += ef->lines[i].wordlen[j];
 			}

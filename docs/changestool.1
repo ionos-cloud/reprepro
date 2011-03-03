@@ -1,4 +1,4 @@
-.TH CHANGESTOOL 1 "08 October, 2006" "reprepro" REPREPRO
+.TH CHANGESTOOL 1 "03 December, 2006" "reprepro" REPREPRO
 .SH NAME
 changestool \- verify, dump, modify or fix Debian .changes files
 .SH SYNOPSIS
@@ -48,7 +48,8 @@ Displays a short list of options and commands with description.
 Not yet implemented.
 .TP
 .B \-s \-\-searchpath
-Not yet implemented.
+A colon-seperated list of directories to search for files if they
+are not found in the directory of the .changes file.
 .SH COMMANDS
 .TP
 .BR verify
@@ -64,7 +65,7 @@ arguments.
 .TP
 .BR includeallsources " [ " \fIfilename\fP " ]"
 List all files referenced by \fB.dsc\fP files mentioned in the \fB.changes\fP
-file in said file. 
+file in said file.
 Without arguments, all missing files will be included.
 To only include specific files, give their filename (without path) as
 arguments.
@@ -76,7 +77,12 @@ to have to do this at all.
 Note that while \fBreprepro\fP will just ignore files listed in a \fB.changes\fP
 file when it already has the file with the same size and md5sum, \fBdak\fP
 might choke in that case.
-
+.TP
+.B adddeb \fIfilenames\fP
+Add the \fB.deb\fP and \fB.udeb\fP files specified by their filenames to
+the \fB.changes\fP file.
+Filenames without a slash will be searched in the directory the changes
+file resides in and in the directories specified by the \fB\-\-searchpath\fP.
 .SH "SEE ALSO"
 .BR reprepro (1),
 .BR dpkg\-genchanges (1),

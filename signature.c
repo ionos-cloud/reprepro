@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -177,7 +177,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	}
 
 	/* Verify the signature */
-	
+
 	err = gpgme_op_verify(context,dh_gpg,dh,NULL);
 	gpgme_data_release(dh_gpg);
 	gpgme_data_release(dh);
@@ -220,8 +220,8 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 				if( verbose > 0 ) {
 					fprintf(stderr,
 "'%s' has a valid but expired signature with '%s'\n"
-" signature created %s, expired %s\n", 
-						releasegpg, s->fpr, 
+" signature created %s, expired %s\n",
+						releasegpg, s->fpr,
 						ctime(&s->timestamp),
 						ctime(&s->exp_timestamp));
 				}
@@ -278,7 +278,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	//TODO: specify which key to use...
 
 	/* make sure it does not already exists */
-	
+
 	ret = unlink(signaturename);
 	if( ret != 0 && errno != ENOENT ) {
 		fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",signaturename);
@@ -459,14 +459,14 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 				continue;
 			case GPG_ERR_KEY_EXPIRED:
 				had_valid = TRUE;
-				if( verbose > 0 ) 
+				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key has expired.\n",
 						s->fpr, filename);
 				continue;
 			case GPG_ERR_CERT_REVOKED:
 				had_valid = TRUE;
-				if( verbose > 0 ) 
+				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key is revoked.\n",
 						s->fpr, filename);
@@ -476,7 +476,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 				if( verbose > 0 ) {
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the signature has expired.\n"
-" signature created %s, expired %s\n", 
+" signature created %s, expired %s\n",
 						s->fpr, filename,
 						ctime(&s->timestamp),
 						ctime(&s->exp_timestamp));
@@ -515,7 +515,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 			gpgme_err_code(s->status));
 		return RET_ERROR_GPGME;
 	}
-	if( had_broken && ! had_valid ) 
+	if( broken != NULL && had_broken && ! had_valid )
 		*broken = TRUE;
 	return RET_OK;
 }
@@ -534,7 +534,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 
 	strlist_init(&validfingerprints);
 	strlist_init(&allfingerprints);
-	
+
 	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -549,9 +549,9 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
-	err = gpgme_op_verify(context,dh_gpg,NULL,dh); 
+	err = gpgme_op_verify(context,dh_gpg,NULL,dh);
 	if( gpgme_err_code(err) == GPG_ERR_NO_DATA ) {
-		if( verbose > -1 ) 
+		if( verbose > -1 )
 			fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
 		gpgme_data_release(dh);
 		plain_data = gpgme_data_release_and_get_mem(dh_gpg,&plain_len);
@@ -589,7 +589,7 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 		r = RET_ERROR_OOM;
 	else {
 		startofchanges = plain_data;
-		while( (size_t)(startofchanges - plain_data) < plain_len && 
+		while( (size_t)(startofchanges - plain_data) < plain_len &&
 				*startofchanges != '\0' && xisspace(*startofchanges)) {
 			startofchanges++;
 		}
@@ -603,13 +603,13 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, /*@nu
 	}
 	if( RET_IS_OK(r) ) {
 		endofchanges = startofchanges;
-		while( (size_t)(endofchanges - plain_data) < plain_len && 
-				*endofchanges != '\0' && 
+		while( (size_t)(endofchanges - plain_data) < plain_len &&
+				*endofchanges != '\0' &&
 				( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
 			endofchanges++;
 		}
 		afterchanges = endofchanges;
-		while( (size_t)(afterchanges - plain_data) < plain_len && 
+		while( (size_t)(afterchanges - plain_data) < plain_len &&
 				*afterchanges != '\0' && xisspace(*afterchanges)) {
 			afterchanges++;
 		}

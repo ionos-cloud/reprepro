@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -50,7 +50,7 @@ struct aptmethod {
 	pid_t child;
 
 	enum { ams_notstarted=0, ams_waitforcapabilities, ams_ok, ams_failed } status;
-	
+
 	struct tobedone *tobedone,*lasttobedone;
 	/*@dependent@*/const struct tobedone *nexttosend;
 	struct tobedone *failed;
@@ -136,7 +136,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 	}
 	while( run->methods != NULL ) {
 		pid_t pid;int status;
-		
+
 		pid = wait(&status);
 		lastmethod = NULL; method = run->methods;
 		while( method != NULL ) {
@@ -257,7 +257,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 
 	/* new try, new luck */
 	method->fallenback = FALSE;
-	
+
 	/* When there is nothing to get, there is no reason to startup
 	 * the method. */
 	if( method->tobedone == NULL ) {
@@ -271,13 +271,13 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 
 	method->status = ams_waitforcapabilities;
 
-	r = pipe(stdin);	
+	r = pipe(stdin);
 	if( r < 0 ) {
 		int err = errno;
 		fprintf(stderr,"Error while creating pipe: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
-	r = pipe(stdout);	
+	r = pipe(stdout);
 	if( r < 0 ) {
 		int err = errno;
 		(void)close(stdin[0]);(void)close(stdin[1]);
@@ -328,14 +328,14 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 				}
 			}
 		}
-	
+
 		methodname = calc_dirconcat(methoddir,method->name);
 
 		if( methodname == NULL )
 			exit(255);
 
 		execl(methodname,methodname,NULL);
-		
+
 		fprintf(stderr,"Error while executing '%s': %d=%m\n",methodname,errno);
 		exit(255);
 	}
@@ -383,7 +383,7 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	for( p = method->config; *p != '\0' ; p++ ) {
 		if( *p == '\n' )
 			l += sizeof(CONFITEM)-1;
-		else 
+		else
 			l++;
 	}
 	c = method->command = malloc(l);
@@ -466,7 +466,7 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 	if( t != NULL )
 		*t = todo;
 	return RET_OK;
-	
+
 }
 
 retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,const char *destfile) {
@@ -512,7 +512,7 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 		} else
 			calculatedmd5 = NULL;
 	}
-	
+
 	/* if we know what it should be, check it: */
 	if( todo->md5sum != NULL ) {
 		if( md5sum == NULL || strcmp(md5sum,todo->md5sum) != 0) {
@@ -528,13 +528,13 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 
 		assert(filesdb != NULL);
 		assert(todo->md5sum != NULL);
-		
+
 		r = files_add(filesdb,todo->filekey,todo->md5sum);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
 
-	  
+
 	return RET_OK;
 }
 
@@ -612,7 +612,7 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 		todo = todo->next;
 	}
 	/* huh? If if have not asked for it, how can there be errors? */
-	fprintf(stderr,"Error with unexpected file '%s':\n'%s'!",uri,message);
+	fprintf(stderr,"Error with unexpected file '%s':\n'%s'!\n",uri,message);
 	free(message);
 	return RET_ERROR;
 }
@@ -657,7 +657,7 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 		todo = todo->next;
 	}
 	/* huh? */
-	fprintf(stderr,"Received unexpected file '%s' at '%s'!",uri,filename);
+	fprintf(stderr,"Received unexpected file '%s' at '%s'!\n",uri,filename);
 	return RET_ERROR;
 }
 
@@ -711,7 +711,7 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,fil
 	char *uri,*filename,*md5,*size,*md5sum;
 
 	//TODO: is it worth the mess to make this in-situ?
-	
+
 	r = chunk_getvalue(chunk,"URI",&uri);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing URI-header in uridone got from method!\n");
@@ -729,7 +729,7 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,fil
 		free(uri);
 		return r;
 	}
-	
+
 	md5sum = NULL;
 	r = chunk_getvalue(chunk,"MD5-Hash",&md5);
 	if( RET_IS_OK(r) ) {
@@ -780,7 +780,7 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 	free(uri);
 	return r;
 }
-	
+
 static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
 	const char *p;
 	retvalue r;
@@ -879,13 +879,13 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	/* First look if we have enough room to read.. */
 	if( method->alreadyread + 1024 >= method->input_size ) {
 		char *newptr;
-		
+
 		if( method->input_size >= 128000 ) {
 			fprintf(stderr,"Ridiculous long answer from method!\n");
 			method->status = ams_failed;
 			return RET_ERROR;
 		}
-		
+
 		newptr = realloc(method->inputbuffer,method->alreadyread+1024);
 		if( newptr == NULL ) {
 			return RET_ERROR_OOM;
@@ -910,7 +910,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	while(TRUE) {
 		retvalue res;
 
-		r = method->alreadyread; 
+		r = method->alreadyread;
 		p = method->inputbuffer;
 		consecutivenewlines = 0;
 
@@ -959,7 +959,7 @@ static retvalue senddata(struct aptmethod *method) {
 		method->alreadywritten = 0;
 		// TODO: make sure this is already checked for earlier...
 		assert(strchr(method->nexttosend->uri,'\n')==NULL || strchr(method->nexttosend->filename,'\n') == 0);
-		/* http-aptmethod seems to loose the last byte if the file is already 
+		/* http-aptmethod seems to loose the last byte if the file is already
 		 * in place, so we better unlink the target first... */
 		unlink(method->nexttosend->filename);
 		method->command = mprintf(
@@ -995,7 +995,7 @@ static retvalue senddata(struct aptmethod *method) {
 }
 
 static retvalue checkchilds(struct aptmethodrun *run) {
-	pid_t child;int status; 
+	pid_t child;int status;
 	retvalue result = RET_OK;
 
 	while( (child = waitpid(-1,&status,WNOHANG)) > 0 ) {
@@ -1054,7 +1054,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 	maxfd = 0;
 	*workleft = 0;
 	for( method = run->methods ; method != NULL ; method = method->next ) {
-		if( method->status == ams_ok && 
+		if( method->status == ams_ok &&
 		    ( method->command != NULL || method->nexttosend != NULL )) {
 			FD_SET(method->stdin,&writefds);
 			if( method->stdin > maxfd )

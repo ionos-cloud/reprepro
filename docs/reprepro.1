@@ -307,8 +307,17 @@ and
 .TP
 .B include  \fIcodename\fP \fI.changes-filename\fP
 Include in the specified distribution all packages found and suitable
-in the \fI.changes\fP file, applying override information guessing all 
+in the \fI.changes\fP file, applying override information guessing all
 values not given and guessable.
+.TP
+.B processincoming \fIrulesetname\fP
+Scan an incomming directory and process the .changes files found there.
+.I rulesetname
+identifies which rule-set in
+.B conf/incoming
+determines which incoming directory to use
+and in what distributions to allow packages into.
+See the section about this file for more information.
 .TP
 .BR check " [ " \fIcodenames\fP " ]"
 Check if all packages in the specified distributions have all files
@@ -375,6 +384,24 @@ files still marked as needed by this target.
 reference.)
 
 Do not forget to remove all exported package indices manually.
+.TP
+.B gensnapshot " " \fIcodename\fP " " \fIdirectoryname\fP
+Generate a snapshot of the distribution specified by \fIcodename\fP
+in the directory \fIconf\fB/\fIcodename\fB/snapshots/\fIdirectoryname\fB/\fR
+and reference all needed files in the pool as needed by that.
+No Content files are generated and no export hooks are run.
+
+Note that there is currently no automated way to remove that snapshot
+again (not even clearvanished will unlock the referenced files after the
+distribution itself vanished).
+You will have to remove the directory yourself and tell reprepro
+to \fB_removereferences s=\fP\fIcodename\fP\fB=\fP\fIdirectoryname\fP before
+\fBdeleteunreferenced\fP will delete the files from the pool locked by this.
+
+To access such a snapshot with apt, add something like the following to
+your sources.list file:
+.br
+\fBdeb method://as/without/snapshot \fIcodename\fB/snapshots/\fIname\fB main\fR
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -416,8 +443,18 @@ Manually mark \fIfilekey\fP to be needed by \fIidentifier\fP
 Remove all references what is needed by
 .I identifier.
 .TP
-.BI __extractcontrol .deb-filename
+.BI __extractcontrol " .deb-filename"
 Look what reprepro believes to be the content of the
+.B control
+file of the specified .deb-file.
+.TP
+.BI __extractfilelist " .deb-filename"
+Look what reprepro believes to be the list of files
+of the specified .deb-file.
+.TP
+.BI _fakeemptyfilelist filekey
+Insert an empty filelist for \fIfilekey\fP. This is a evil
+hack around broken .deb files that cannot be read by reprepro.
 .B control
 file of the specified .deb-file.
 .SH "CONFIG FILES"
@@ -472,6 +509,17 @@ Release files. In Debian it contains names like
 stable, testing or unstable. To create symlinks
 from the Suite to the Codename, use the
 \fBcreatesymlinks\fP command of reprepro.
+.TP
+.B AlsoAcceptFor
+A list of distribution names.
+When a \fB.changes\fP file is told to be included
+into this distribution with the \fBinclude\fP command
+and the distribution header of that file is neigther
+the codename, nor the suite name, nor any name from the
+list, a \fBwrongdistribution\fP error is generated.
+The \fBprocess_incoming\fP command will also use this field,
+see the description of \fBAllow\fP and \fBDefault\fP
+from the \fBconf/incoming\fP file for more information.
 .TP
 .B Version
 This optional field is simply copied into the
@@ -838,6 +886,53 @@ There is no protection against changing headers like \fBPackage\fP,
 \fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
 fields may give the most curious results.
 (Most likely reprepro may error out in future invocations).
+.SS conf/incoming
+Every chunk is a rule set for the
+.B process_incoming
+command.
+Possible fields are:
+.TP
+.B Name
+The name of the rule-set, used as argument to the scan command to specify
+to use this rule.
+.TP
+.B IncomingDir
+The Name of the directory to scan for
+.B .changes
+files.
+.TP
+.B TempDir
+An directory where the files listed in the processed .changes files
+are copied into before they are read.
+To avoid an additional copy, place on the same partition as the pool
+hirachy (or at least at the largest part of it).
+.TP
+.B Allow \fIarguments
+Each argument is either a pair \fIname1\fB>\fIname2\fR or simply
+\fIname\fP which is short for \fIname\fB>\fIname\fR.
+Each \fIname2\fP must identify a distribution,
+either by being Codename, an unique Suite, or an unique AlsoAcceptFor
+from \fBconf/distributions\fP.
+Each upload has each item in its
+.B Distribution:
+header compared first to last with earch \fIname1\fP in the rules
+and is put in the first one accepting this package.  e.g.:
+.br
+Allow: local unstable>sid
+.br
+or
+.br
+Allow: stable>security-updates stable>proposed-updates
+.TP
+.B Default \fIdistribution
+Every upload not put into any other distribution because
+of an Allow argument is put into \fIdistribution\fP if that
+accepts it.
+.TP
+.B Multiple
+Allow putting an upload in multiple distributions if it lists more
+than one. (Without this field, procession stops after the first
+successfull).
 .SH "UPLOADERS FILES"
 These files specified by the \fBUploaders\fP header in the distribution
 definition as explained above describe what key a \fB.changes\fP file
@@ -846,15 +941,15 @@ as to be signed with to be included in that distribution.
 Empty lines and lines starting with a hash are ignored, every other line
 has to be of one of this three forms:
 .br
-.B accept * by unsigned
+.B allow * by unsigned
 .br
 which allows everything without a valid signature in,
 .br
-.B accept * by any key
+.B allow * by any key
 .br
 which allows everything with any valid signature in or
 .br
-.B accept * by key \fIkey-id\fP
+.B alllow *  by key \fIkey-id\fP
 .br
 which allows everything signed by this \fIkey-id\fP (to be specified
 without any spaces) in.
@@ -1097,6 +1192,16 @@ if no \fB\-b\fP or \fB\-\-basedir\fP options are supplied.
 .B REPREPRO_CONFIG_DIR
 The directory in this variable is used when no \fB\-\-confdir\fP is
 supplied.
+.TP
+.B GNUPGHOME
+Not used by reprepro directly.
+But reprepro uses libgpgme, which calls gpg for signing and verification
+of signatures.
+And your gpg will most likely use the content of this variable
+instead of "~/.gnupg".
+Take a look at
+.BR gpg (1)
+to be sure.
 .SH BUGS
 Increased verbosity always shows those things one does not want to know.
 (Though this might be inevitable and a corollary to Murphy)

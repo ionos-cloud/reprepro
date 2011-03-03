@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -180,7 +180,7 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 		fprintf(stderr,"Corrupt ar-file %s\n",ar->filename);
 		return RET_ERROR;
 	}
-	
+
 	/* calculate the length and mark possible fillers being needed */
 
 	ar->currentheader.ah_size[11] = '\0'; // ugly, but it works
@@ -190,7 +190,7 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 		fprintf(stderr,"Error calculating length field in ar-file %s\n",ar->filename);
 		return RET_ERROR;
 	}
-	if( (ar->bytes_left & 1) != 0 ) 
+	if( (ar->bytes_left & 1) != 0 )
 		ar->wasodd = TRUE;
 
 	/* get the name of the file */

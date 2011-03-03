@@ -9,11 +9,11 @@ typedef struct term_atom {
 	/* global list to allow freeing them all */
 	struct term_atom *next;
 	/* the next atom to look at if this is true, resp. false,
-	 * nextiftrue  == NULL means total result is true, 
+	 * nextiftrue  == NULL means total result is true,
 	 * nextiffalse == NULL means total result is false. */
 	/*@dependent@*/struct term_atom *nextiftrue,*nextiffalse;
-	bool_t negated; 
-	
+	bool_t negated;
+
 	/* package-name or key */
 	char *key;
 	/* version/value requirement */

@@ -27,7 +27,7 @@ typedef retvalue get_installdata(struct target *,const char *,const char *,const
 typedef retvalue get_filekeys(struct target *,const char *,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sum);
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
-typedef retvalue do_reoverride(const struct alloverrides *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+typedef retvalue do_reoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 typedef retvalue do_retrack(struct target *,const char *packagename,const char *controlchunk,trackingdb,references);
 typedef retvalue get_sourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
@@ -63,8 +63,7 @@ retvalue target_initialize_binary(const char *codename,const char *component,con
 retvalue target_initialize_source(const char *codename,const char *component,/*@dependent@*/const struct exportmode *exportmode,/*@out@*/struct target **target);
 retvalue target_free(struct target *target);
 
-retvalue target_mkdistdir(struct target *target,const char *distdir);
-retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, struct release *release);
+retvalue target_export(struct target *target,const char *confdir,const char *dbdir,bool_t onlyneeded, bool_t snapshot, struct release *release);
 
 retvalue target_printmd5sums(const char *dirofdist,const struct target *target,FILE *out,int force);
 
@@ -79,7 +78,8 @@ retvalue target_addpackage(struct target *target,references refs,const char *nam
 retvalue target_removepackage(struct target *target,references refs,const char *name, /*@null@*/struct strlist *dereferencedfilekeys,struct trackingdata *);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb);
 retvalue target_rereference(struct target *target,references refs);
+retvalue target_addsnapshotreference(struct target *target,const char *dbdir,references refs,const char *name);
 retvalue target_retrack(struct target *target,trackingdb tracks,references refs);
-retvalue target_reoverride(struct target *target,const struct alloverrides *ao);
+retvalue target_reoverride(struct target *target,const struct distribution *);
 
 #endif

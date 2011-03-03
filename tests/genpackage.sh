@@ -41,6 +41,14 @@ END
 
 dpkg-source -b "$DIR"
 mkdir -p "$DIR"/debian/tmp/DEBIAN
+touch "$DIR"/debian/tmp/x
+mkdir "$DIR"/debian/tmp/a
+touch "$DIR"/debian/tmp/a/1
+mkdir "$DIR"/debian/tmp/dir
+touch "$DIR"/debian/tmp/dir/file
+touch "$DIR"/debian/tmp/dir/another
+mkdir "$DIR"/debian/tmp/dir/subdir
+touch "$DIR"/debian/tmp/dir/subdir/file
 cd "$DIR"
 for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
 	dpkg-gencontrol -p$pkg

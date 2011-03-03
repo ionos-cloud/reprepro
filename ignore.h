@@ -31,7 +31,7 @@
 	IGN(missingfile)
 
 
-enum ignore { 
+enum ignore {
 #define IGN(what) IGN_ ## what,
 	VALID_IGNORES
 #undef IGN

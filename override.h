@@ -12,15 +12,7 @@
 #include "chunks.h"
 #endif
 
-struct overrideinfo {
-	struct overrideinfo *next;
-	char *packagename;
-	struct strlist fields;
-};
-
-struct alloverrides {
-	struct overrideinfo *dsc,*deb,*udeb;
-};
+struct overrideinfo;
 
 /* to avoid typos */
 #define PRIORITY_FIELDNAME "Priority"
@@ -39,7 +31,5 @@ retvalue override_read(const char *overridedir,const char *filename,/*@out@*/str
  * incorporates otherreplaces, or frees them on error */
 /*@null@*/struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override,
 		/*@only@*/struct fieldtoadd *otherreplaces);
-
-retvalue override_readall(const char *overridedir,/*@out@*/struct alloverrides *ao,/*@null@*/const char *debfile,/*@null@*/const char *udebfile,/*@null@*/const char *dscfile);
 
 #endif

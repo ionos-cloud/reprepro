@@ -93,6 +93,1098 @@ case $TESTTOOLVERSION in
 	   ;;
 esac
 touch results.empty
+
+mkdir -p conf
+cat > conf/options <<CONFEND
+export changed
+CONFEND
+cat > conf/distributions <<CONFEND
+Codename: A
+Architectures: abacus calculator
+Components: dog cat
+
+Codename: B
+Architectures: abacus source
+Components: dog cat
+Contents: 1
+CONFEND
+testrun "" -b . export
+find dists -type f |sort > results
+cat > results.expected <<END
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-calculator/Packages
+dists/A/cat/binary-calculator/Packages.gz
+dists/A/cat/binary-calculator/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-calculator/Packages
+dists/A/dog/binary-calculator/Packages.gz
+dists/A/dog/binary-calculator/Release
+dists/A/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
+dists/B/cat/source/Release
+dists/B/cat/source/Sources.gz
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
+dists/B/dog/source/Release
+dists/B/dog/source/Sources.gz
+dists/B/Release
+END
+dodiff results.expected results
+testrun - -b . -V processincoming default 3<<EOF
+returns 254
+stderr
+*=Unable to open file ./conf/incoming: No such file or directory
+*=There have been errors!
+EOF
+touch conf/incoming
+testrun - -b . -V processincoming default 3<<EOF
+returns 249
+stderr
+*=No definition for 'default' found in './conf/incoming'!
+*=There have been errors!
+EOF
+cat > conf/incoming <<EOF
+Name: bla
+EOF
+testrun - -b . -V processincoming default 3<<EOF
+returns 249
+stderr
+*=No definition for 'default' found in './conf/incoming'!
+*=There have been errors!
+EOF
+cat > conf/incoming <<EOF
+Name: bla
+
+Name: default
+
+Name: blub
+EOF
+testrun - -b . -V processincoming default 3<<EOF
+returns 249
+stderr
+*=Expected 'TempDir' header not found in definition for 'default' in './conf/incoming'!
+=Stop reading further chunks from './conf/incoming' due to previous errors.
+*=There have been errors!
+EOF
+cat > conf/incoming <<EOF
+Name: bla
+
+Name: default
+TempDir: temp
+
+Name: blub
+EOF
+testrun - -b . -V processincoming default 3<<EOF
+returns 249
+stderr
+*=Expected 'IncomingDir' header not found in definition for 'default' in './conf/incoming'!
+=Stop reading further chunks from './conf/incoming' due to previous errors.
+*=There have been errors!
+EOF
+cat > conf/incoming <<EOF
+Name: bla
+
+Name: default
+TempDir: temp
+IncomingDir: i
+
+Name: blub
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+*='default' in './conf/incoming' has neither a 'Allow' nor a 'Default' definition!
+*=Aborting as nothing would be left in.
+=Stop reading further chunks from './conf/incoming' due to previous errors.
+*=There have been errors!
+EOF
+cat > conf/incoming <<EOF
+Name: bla
+
+Name: default
+TempDir: temp
+IncomingDir: i
+Allow: A B
+
+Name: blub
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 254
+stderr
+*=Cannot scan './i': No such file or directory
+*=There have been errors!
+EOF
+mkdir i
+testrun "" -b . processincoming default
+(cd i ; PACKAGE=bird EPOCH="" VERSION=1 REVISION="" SECTION="tasty" genpackage.sh)
+echo returned: $?
+DSCMD5S="$(md5sum i/bird_1.dsc | cut -d' ' -f1) $(stat -c '%s' i/bird_1.dsc)"
+TARMD5S="$(md5sum i/bird_1.tar.gz | cut -d' ' -f1) $(stat -c '%s' i/bird_1.tar.gz)"
+DEBMD5="$(md5sum i/bird_1_abacus.deb | cut -d' ' -f1)"
+DEBSIZE="$(stat -c '%s' i/bird_1_abacus.deb)"
+DEBAMD5="$(md5sum i/bird-addons_1_all.deb | cut -d' ' -f1)"
+DEBASIZE="$(stat -c '%s' i/bird-addons_1_all.deb)"
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=No distribution found for 'test.changes'!
+*=There have been errors!
+EOF
+sed -i -e 's/test1/A/' i/test.changes
+testrun - -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='test.changes' lists architecture 'source' not found in distribution 'A'!
+*=There have been errors!
+EOF
+sed -i -e 's/Distribution: A/Distribution: B/' i/test.changes
+cp -a i i2
+testrun - -V -b . processincoming default 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+*=Created directory "./pool"
+*=Created directory "./pool/dog"
+*=Created directory "./pool/dog/b"
+*=Created directory "./pool/dog/b/bird"
+*=Exporting indices...
+*= generating Contents-abacus...
+*=Reading filelist for pool/dog/b/bird/bird_1_abacus.deb
+*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
+stdout
+*=db: 'bird' added to 'B|dog|source'.
+*=db: 'bird' added to 'B|dog|abacus'.
+*=db: 'bird-addons' added to 'B|dog|abacus'.
+*=deleting './i/bird_1.dsc'...
+*=deleting './i/bird_1.tar.gz'...
+*=deleting './i/bird_1_abacus.deb'...
+*=deleting './i/bird-addons_1_all.deb'...
+*=deleting './i/test.changes'...
+EOF
+find temp -type f > results
+dodiff results.empty results
+find i -type f > results
+dodiff results.empty results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+x	    tasty/bird,tasty/bird-addons
+a/1	    tasty/bird,tasty/bird-addons
+dir/another	    tasty/bird,tasty/bird-addons
+dir/file	    tasty/bird,tasty/bird-addons
+dir/subdir/file	    tasty/bird,tasty/bird-addons
+EOF
+gunzip -c dists/B/Contents-abacus.gz > results
+dodiff results.expected results
+cat > results.expected <<EOF
+Package: bird
+Version: 1
+Architecture: abacus
+Installed-Size: 20
+Maintainer: me <guess@who>
+Priority: superfluous
+Section: tasty
+Filename: pool/dog/b/bird/bird_1_abacus.deb
+Size: $DEBSIZE
+MD5sum: $DEBMD5
+Description: bla
+ blub
+
+Package: bird-addons
+Version: 1
+Architecture: all
+Installed-Size: 24
+Maintainer: me <guess@who>
+Source: bird
+Priority: superfluous
+Section: tasty
+Filename: pool/dog/b/bird/bird-addons_1_all.deb
+Size: $DEBASIZE
+MD5sum: $DEBAMD5
+Description: bla
+ blub
+
+EOF
+dodiff results.expected dists/B/dog/binary-abacus/Packages
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Priority: superfluous
+Section: tasty
+Directory: pool/dog/b/bird
+Files: 
+ $DSCMD5S bird_1.dsc
+ $TARMD5S bird_1.tar.gz
+
+EOF
+gunzip -c dists/B/dog/source/Sources.gz > results
+dodiff results.expected results
+
+echo "DebOverride: debo" >> conf/distributions
+echo "DscOverride: dsco" >> conf/distributions
+mkdir override
+echo "bird Section cat/tasty" > override/debo
+echo "bird Priority hungry" >> override/debo
+echo "bird Task lunch" >> override/debo
+echo "bird-addons Section cat/ugly" >> override/debo
+echo "bird Section cat/nest" > override/dsco
+echo "bird Priority hurry" >> override/dsco
+echo "bird Homepage gopher://tree" >> override/dsco
+
+mv i2/* i/
+rmdir i2
+testrun - -V -b . processincoming default 3<<EOF
+stderr
+=Data seems not to be signed trying to use directly...
+*=Created directory "./pool/cat"
+*=Created directory "./pool/cat/b"
+*=Created directory "./pool/cat/b/bird"
+*=Exporting indices...
+*= generating Contents-abacus...
+*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
+*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
+stdout
+*=db: 'bird' added to 'B|cat|source'.
+*=db: 'bird' added to 'B|cat|abacus'.
+*=db: 'bird-addons' added to 'B|cat|abacus'.
+*=deleting './i/bird_1.dsc'...
+*=deleting './i/bird_1.tar.gz'...
+*=deleting './i/bird_1_abacus.deb'...
+*=deleting './i/bird-addons_1_all.deb'...
+*=deleting './i/test.changes'...
+EOF
+find temp -type f > results
+dodiff results.empty results
+find i -type f > results
+dodiff results.empty results
+cat > results.expected <<EOF
+FILE                                                    LOCATION
+x	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+a/1	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+dir/another	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+dir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+dir/subdir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
+EOF
+gunzip -c dists/B/Contents-abacus.gz > results
+dodiff results.expected results
+cat > results.expected <<EOF
+Package: bird
+Version: 1
+Architecture: abacus
+Installed-Size: 20
+Maintainer: me <guess@who>
+Task: lunch
+Priority: hungry
+Section: cat/tasty
+Filename: pool/cat/b/bird/bird_1_abacus.deb
+Size: $DEBSIZE
+MD5sum: $DEBMD5
+Description: bla
+ blub
+
+Package: bird-addons
+Version: 1
+Architecture: all
+Installed-Size: 24
+Maintainer: me <guess@who>
+Source: bird
+Priority: superfluous
+Section: cat/ugly
+Filename: pool/cat/b/bird/bird-addons_1_all.deb
+Size: $DEBASIZE
+MD5sum: $DEBAMD5
+Description: bla
+ blub
+
+EOF
+dodiff results.expected dists/B/cat/binary-abacus/Packages
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Homepage: gopher://tree
+Priority: hurry
+Section: cat/nest
+Directory: pool/cat/b/bird
+Files: 
+ $DSCMD5S bird_1.dsc
+ $TARMD5S bird_1.tar.gz
+
+EOF
+BIRDDSCMD5S="$DSCMD5S"
+BIRDTARMD5S="$TARMD5S"
+gunzip -c dists/B/cat/source/Sources.gz > results
+dodiff results.expected results
+
+# now missing: checking what all can go wrong in a .changes or .dsc file...
+mkdir pkg
+mkdir pkg/a
+touch pkg/a/b
+mkdir pkg/DEBIAN
+cat > pkg/DEBIAN/control <<EOF
+Package: indebname
+Version: 1:versionindeb~1
+Source: sourceindeb (sourceversionindeb)
+EOF
+dpkg-deb -b pkg i/debfilename_debfileversion~2_coal.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_coal.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_coal.deb)"
+cat > i/test.changes <<EOF
+EOF
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Could only find spaces within './i/test.changes'!
+*=There have been errors!
+EOF
+cat > i/test.changes <<EOF
+Dummyfield: test
+EOF
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Source' field!
+*=There have been errors!
+EOF
+echo "Source: sourceinchanges" > i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Binary' field!
+*=There have been errors!
+EOF
+echo "Binary: binaryinchanges" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Architecture' field!
+*=There have been errors!
+EOF
+echo "Architecture: funny" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Version' field!
+*=There have been errors!
+EOF
+echo "Version: 999:versioninchanges-0~" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Distribution' field!
+*=There have been errors!
+EOF
+echo "Distribution: A" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Missing 'Files' field!
+*=There have been errors!
+EOF
+echo "Files:" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': Empty 'Files' section!
+*=There have been errors!
+EOF
+# as it does not look for the file, but scanned the directory
+# and looked for it, there is no problem here, though it might
+# look like one
+echo " md5sum size - - ../ööü_v_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 249
+stderr
+=Data seems not to be signed trying to use directly...
+*=In 'test.changes': file '../ööü_v_all.deb' not found in the incoming dir!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " md5sum size - - \300\257.\300\257_v_funny.deb" >> i/test.changes
+touch "$(echo -e 'i/\300\257.\300\257_v_funny.deb')"
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='test.changes' lists architecture 'funny' not found in distribution 'A'!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " md5sum size - - \300\257.\300\257_v_all.deb" >> i/test.changes
+mv "$(echo -e 'i/\300\257.\300\257_v_funny.deb')" "$(echo -e 'i/\300\257.\300\257_v_all.deb')"
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='all' is not listed in the Architecture header of 'test.changes' but file 'À¯.À¯_v_all.deb' looks like it!
+*=There have been errors!
+EOF
+sed -i -e 's/funny/all/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Invalid filename 'À¯.À¯_v_all.deb' listed in 'test.changes': contains 8-bit characters
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " md5sum size - - debfilename_debfileversion~2_coal.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='coal' is not listed in the Architecture header of 'test.changes' but file 'debfilename_debfileversion~2_coal.deb' looks like it!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " md5sum size - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+mv i/debfilename_debfileversion~2_coal.deb i/debfilename_debfileversion~2_all.deb
+# // TODO: that should be ERROR: instead of WARNING:
+testrun - -V -b . processincoming default 3<<EOF
+returns 254
+stderr
+=Data seems not to be signed trying to use directly...
+*=WARNING: './i/debfilename_debfileversion~2_all.deb' has md5sum '$DEBMD5S', while 'md5sum size' was expected.
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+# TODO: these will hopefully change to not divulge the place of the temp dir some day...
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find Maintainer-header in control file of ./temp/debfilename_debfileversion~2_all.deb!
+*=There have been errors!
+EOF
+echo "Maintainer: noone <me@nowhere>" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find Description-header in control file of ./temp/debfilename_debfileversion~2_all.deb!
+*=There have been errors!
+EOF
+echo ...
+echo "Description: test-package" >> pkg/DEBIAN/control
+echo " a package to test reprepro" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find Architecture-header in control file of ./temp/debfilename_debfileversion~2_all.deb!
+*=There have been errors!
+EOF
+echo "Architecture: coal" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/debfilename_debfileversion~2_all.deb
+DEBMD5S="$(md5sum i/debfilename_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/debfilename_debfileversion~2_all.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - debfilename_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Name part of filename ('debfilename') and name within the file ('indebname') do not match for 'debfilename_debfileversion~2_all.deb' in 'test.changes'!
+*=There have been errors!
+EOF
+mv i/debfilename_debfileversion~2_all.deb i/indebname_debfileversion~2_all.deb
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Architecture 'coal' of 'indebname_debfileversion~2_all.deb' does not match 'all' specified in 'test.changes'!
+*=There have been errors!
+EOF
+sed -i -e "s/^Architecture: coal/Architecture: all/" pkg/DEBIAN/control
+dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
+DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Source-header 'sourceinchanges' of 'test.changes' and source name 'sourceindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
+*=There have been errors!
+EOF
+sed -i -e 's/sourceinchanges/sourceindeb/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Version-header '999:versioninchanges-0~' of 'test.changes' and source version 'sourceversionindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
+*=There have been errors!
+EOF
+sed -i -e 's/999:versioninchanges-0~/sourceversionindeb/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=Name 'indebname' of binary 'indebname_debfileversion~2_all.deb' is not listed in Binaries-header of 'test.changes'!
+*=There have been errors!
+EOF
+sed -i -e 's/binaryinchanges/indebname/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No section found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo "Section: test" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
+DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S - - indebname_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No section found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No priority found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo "Priority: survival" >> pkg/DEBIAN/control
+dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
+DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S test - indebname_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No priority found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo -e " $DEBMD5S section priority indebname_debfileversion~2_all.deb" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 0
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=Created directory "./pool/dog/s"
+*=Created directory "./pool/dog/s/sourceindeb"
+*=Exporting indices...
+stdout
+*=db: 'indebname' added to 'A|dog|abacus'.
+*=db: 'indebname' added to 'A|dog|calculator'.
+*=deleting './i/indebname_debfileversion~2_all.deb'...
+*=deleting './i/test.changes'...
+EOF
+find pool/dog/s -type f > results
+echo "pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb" > results.expected
+dodiff results.expected results
+
+touch i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+cat > i/test.changes <<EOF
+Source: sourceinchanges
+Binary: nothing
+Architecture: all
+Version: 1:versioninchanges
+Distribution: A
+Files:
+ md5sum size - - dscfilename_fileversion~.dsc
+EOF
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='source' is not listed in the Architecture header of 'test.changes' but file 'dscfilename_fileversion~.dsc' looks like it!
+*=There have been errors!
+EOF
+sed -i -e 's/^Architecture: all$/Architecture: source/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*='test.changes' lists architecture 'source' not found in distribution 'A'!
+*=There have been errors!
+EOF
+sed -i -e 's/^Distribution: A$/Distribution: B/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 254
+stderr
+=Data seems not to be signed trying to use directly...
+*=WARNING: './i/dscfilename_fileversion~.dsc' has md5sum 'd41d8cd98f00b204e9800998ecf8427e 0', while 'md5sum size' was expected.
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Could only find spaces within './temp/dscfilename_fileversion~.dsc'!
+*=There have been errors!
+EOF
+echo "Dummyheader:" > i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Missing 'Source'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo "Source: nameindsc" > i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find 'Format'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo "Format: 1.0" >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find 'Maintainer'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo "Maintainer: guess who <me@nowhere>" >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Cannot find 'Standards-Version'-header in ./temp/dscfilename_fileversion~.dsc!
+*=Missing 'Version'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo "Standards-Version: 0" >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Missing 'Version'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Missing 'Files'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo "Files:  " >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Name part of filename ('dscfilename') and name within the file ('nameindsc') do not match for 'dscfilename_fileversion~.dsc' in 'test.changes'!
+*=There have been errors!
+EOF
+sed -i 's/^Source: nameindsc$/Source: dscfilename/g' i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S - - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Source-header 'sourceinchanges' of 'test.changes' and name 'dscfilename' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=There have been errors!
+EOF
+sed -i 's/^Source: sourceinchanges$/Source: dscfilename/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Version-header '1:versioninchanges' of 'test.changes' and version 'versionindsc' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=There have been errors!
+EOF
+sed -i 's/^Version: 1:versioninchanges$/Version: versionindsc/' i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No section found for 'dscfilename' ('dscfilename_fileversion~.dsc' in 'test.changes')!
+*=There have been errors!
+EOF
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy - dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=No priority found for 'dscfilename' ('dscfilename_fileversion~.dsc' in 'test.changes')!
+*=There have been errors!
+EOF
+echo -e "g/^Format:/d\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=Cannot find 'Format'-header in ./temp/dscfilename_fileversion~.dsc!
+*=There have been errors!
+EOF
+echo -e "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+OLDDSCFILENAMEMD5S="$DSCMD5S"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 0
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=Created directory "./pool/dog/d"
+*=Created directory "./pool/dog/d/dscfilename"
+=Exporting indices...
+stdout
+*=db: 'dscfilename' added to 'B|dog|source'.
+*=deleting './i/dscfilename_fileversion~.dsc'...
+*=deleting './i/test.changes'...
+EOF
+# TODO: check Sources.gz
+cat >i/strangefile <<EOF
+just a line to make it non-empty
+EOF
+cat >i/dscfilename_fileversion~.dsc <<EOF
+Format: 1.0
+Source: dscfilename
+Maintainer: guess who <me@nowhere>
+Standards-Version: 0
+Version: 1:newversion~
+Files:
+ md5sumindsc sizeindsc strangefile
+EOF
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+cat >i/test.changes <<EOF
+Source: dscfilename
+Binary: nothing
+Architecture: source
+Version: 1:newversion~
+Distribution: B
+Files:
+ $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc
+EOF
+# this is a stupid error message, needs to get some context
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=Error in parsing size or missing space afterwards!
+*=There have been errors!
+EOF
+sed -i "s/ sizeindsc / 666 /" i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
+*=There have been errors!
+EOF
+echo " md5suminchanges 666 - - strangefile" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+*=No underscore in filename in 'md5suminchanges 666 - - strangefile'!
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " md5suminchanges 666 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 249
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: 'md5suminchanges 666 - - strangefile_xyz', assuming to be source format...
+*=In 'test.changes': file 'strangefile_xyz' not found in the incoming dir!
+*=There have been errors!
+EOF
+mv i/strangefile i/strangefile_xyz
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: 'md5suminchanges 666 - - strangefile_xyz', assuming to be source format...
+*=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " md5sumindsc 666 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 254
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: 'md5sumindsc 666 - - strangefile_xyz', assuming to be source format...
+*=WARNING: './i/strangefile_xyz' has md5sum '31a1096ff883d52f0c1f39e652d6336f 33', while 'md5sumindsc 666' was expected.
+*=There have been errors!
+EOF
+echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
+echo " 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz" >> i/dscfilename_fileversion~.dsc
+DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+DSCFILENAMEMD5S="$DSCMD5S"
+echo -e '$-1,$d\nw\nq\n' | ed -s i/test.changes
+echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
+echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 255
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: '33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
+*=file 'strangefile_xyz' is listed with md5sum '33a1096ff883d52f0c1f39e652d6336f 33' in 'test.changes' but with md5sum '31a1096ff883d52f0c1f39e652d6336f 33' in 'dscfilename_fileversion~.dsc'!
+*=There have been errors!
+EOF
+find pool -type f | sort > results
+cat > results.expected <<EOF
+pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1.dsc
+pool/cat/b/bird/bird_1.tar.gz
+pool/cat/b/bird/bird-addons_1_all.deb
+pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1.dsc
+pool/dog/b/bird/bird_1.tar.gz
+pool/dog/b/bird/bird-addons_1_all.deb
+pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
+pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
+EOF
+dodiff results.expected results
+find dists -type f | sort > results
+cat > results.expected <<EOF
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-calculator/Packages
+dists/A/cat/binary-calculator/Packages.gz
+dists/A/cat/binary-calculator/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-calculator/Packages
+dists/A/dog/binary-calculator/Packages.gz
+dists/A/dog/binary-calculator/Release
+dists/A/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
+dists/B/cat/source/Release
+dists/B/cat/source/Sources.gz
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
+dists/B/dog/source/Release
+dists/B/dog/source/Sources.gz
+dists/B/Release
+EOF
+dodiff results.expected results
+gunzip -c dists/B/dog/source/Sources.gz > results
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Priority: superfluous
+Section: tasty
+Directory: pool/dog/b/bird
+Files: 
+ $BIRDDSCMD5S bird_1.dsc
+ $BIRDTARMD5S bird_1.tar.gz
+
+Package: dscfilename
+Format: 1.0
+Maintainer: guess who <me@nowhere>
+Standards-Version: 0
+Version: versionindsc
+Priority: can't-live-without
+Section: dummy
+Directory: pool/dog/d/dscfilename
+Files: 
+ $OLDDSCFILENAMEMD5S dscfilename_versionindsc.dsc
+
+EOF
+dodiff results.expected results
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+echo -e '$d\nw\nq\n' | ed -s i/test.changes
+echo " 31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
+testrun - -V -b . processincoming default 3<<EOF
+returns 0
+stderr
+=Data seems not to be signed trying to use directly...
+=Unknown filetype: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
+=Exporting indices...
+=Deleting files no longer referenced...
+stdout
+*=db: removed old 'dscfilename' from 'B|dog|source'.
+*=db: 'dscfilename' added to 'B|dog|source'.
+*=deleting './i/dscfilename_fileversion~.dsc'...
+*=deleting './i/test.changes'...
+*=deleting './i/strangefile_xyz'...
+*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
+EOF
+
+find pool -type f | sort > results
+cat > results.expected <<EOF
+pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1.dsc
+pool/cat/b/bird/bird_1.tar.gz
+pool/cat/b/bird/bird-addons_1_all.deb
+pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1.dsc
+pool/dog/b/bird/bird_1.tar.gz
+pool/dog/b/bird/bird-addons_1_all.deb
+pool/dog/d/dscfilename/dscfilename_newversion~.dsc
+pool/dog/d/dscfilename/strangefile_xyz
+pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
+EOF
+dodiff results.expected results
+find dists -type f | sort > results
+cat > results.expected <<EOF
+dists/A/cat/binary-abacus/Packages
+dists/A/cat/binary-abacus/Packages.gz
+dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-calculator/Packages
+dists/A/cat/binary-calculator/Packages.gz
+dists/A/cat/binary-calculator/Release
+dists/A/dog/binary-abacus/Packages
+dists/A/dog/binary-abacus/Packages.gz
+dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-calculator/Packages
+dists/A/dog/binary-calculator/Packages.gz
+dists/A/dog/binary-calculator/Release
+dists/A/Release
+dists/B/cat/binary-abacus/Packages
+dists/B/cat/binary-abacus/Packages.gz
+dists/B/cat/binary-abacus/Release
+dists/B/cat/source/Release
+dists/B/cat/source/Sources.gz
+dists/B/Contents-abacus.gz
+dists/B/dog/binary-abacus/Packages
+dists/B/dog/binary-abacus/Packages.gz
+dists/B/dog/binary-abacus/Release
+dists/B/dog/source/Release
+dists/B/dog/source/Sources.gz
+dists/B/Release
+EOF
+dodiff results.expected results
+gunzip -c dists/B/dog/source/Sources.gz > results
+cat > results.expected <<EOF
+Package: bird
+Format: 1.0
+Version: 1
+Binary: bird, bird-addons
+Maintainer: me <guess@who>
+Architecture: any
+Standards-Version: 0.0
+Priority: superfluous
+Section: tasty
+Directory: pool/dog/b/bird
+Files: 
+ $BIRDDSCMD5S bird_1.dsc
+ $BIRDTARMD5S bird_1.tar.gz
+
+Package: dscfilename
+Format: 1.0
+Maintainer: guess who <me@nowhere>
+Standards-Version: 0
+Version: 1:newversion~
+Priority: unneeded
+Section: dummy
+Directory: pool/dog/d/dscfilename
+Files: 
+ $DSCFILENAMEMD5S dscfilename_newversion~.dsc
+ 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz
+
+EOF
+dodiff results.expected results
+
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+
+#echo "preliminary finish due to testing"
+#exit 0
+rm -r conf db pool dists i pkg
+#echo "preliminary finish due to testing"
+#exit 0
+###############################################################################
+
 mkdir -p conf
 cat > conf/options <<CONFEND
 export changed
@@ -433,7 +1525,7 @@ Files:
  pool/stupid/s/simple/simple_1.tar.gz s 1
 
 END
-dodiff -u results.expected results
+dodiff results.expected results
 testout "" -b . dumpunreferenced
 dodiff results.empty results 
 
@@ -475,10 +1567,10 @@ PACKAGE=4test EPOCH="1:" VERSION=b.1 REVISION="-1" SECTION="stupid/base" genpack
 testrun -  -b . include test1 test.changes 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
-*=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Warning: Package version 'b.1-1_all.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1_all.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=Exporting indices...
 EOF
 

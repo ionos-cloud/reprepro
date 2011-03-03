@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -37,6 +37,8 @@
 #include "release.h"
 #include "copyfile.h"
 #include "tracking.h"
+#include "override.h"
+#include "uploaderslist.h"
 #include "distribution.h"
 
 extern int verbose;
@@ -62,10 +64,17 @@ retvalue distribution_free(struct distribution *distribution) {
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
 		strlist_done(&distribution->pulls);
+		strlist_done(&distribution->alsoaccept);
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
 		contentsoptions_done(&distribution->contents);
+		override_free(distribution->overrides.deb);
+		override_free(distribution->overrides.udeb);
+		override_free(distribution->overrides.dsc);
+		if( distribution->uploaderslist != NULL ) {
+			uploaders_unlock(distribution->uploaderslist);
+		}
 		result = RET_OK;
 
 		while( distribution->targets != NULL ) {
@@ -79,6 +88,16 @@ retvalue distribution_free(struct distribution *distribution) {
 		return result;
 	} else
 		return RET_OK;
+}
+
+/* allow premature free'ing of overrides to save some memorty */
+void distribution_unloadoverrides(struct distribution *distribution) {
+	override_free(distribution->overrides.deb);
+	override_free(distribution->overrides.udeb);
+	override_free(distribution->overrides.dsc);
+	distribution->overrides.deb = NULL;
+	distribution->overrides.udeb = NULL;
+	distribution->overrides.dsc = NULL;
 }
 
 /* create all contained targets... */
@@ -126,7 +145,7 @@ static retvalue createtargets(struct distribution *distribution) {
 
 				}
 			}
-			
+
 		}
 		/* check if this distribution contains source
 		 * (yes, yes, source is not really an architecture, but
@@ -175,17 +194,17 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 	const char *missing;
 	char *option;
 static const char * const allowedfields[] = {
-"Codename", "Suite", "Version", "Origin", "Label", "Description", 
+"Codename", "Suite", "Version", "Origin", "Label", "Description",
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
 "UDebOverride", "DscOverride", "Tracking", "NotAutomatic",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 "Pull", "Contents", "ContentsArchitectures",
 "ContentsComponents", "ContentsUComponents",
-"Uploaders",
+"Uploaders", "AlsoAcceptFor",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
-	
+
 	// TODO: if those are checked anyway, there should be no reason to
 	// research them later...
 	ret = chunk_checkfields(chunk,allowedfields,TRUE);
@@ -221,7 +240,7 @@ NULL};
 		} else if( ret == RET_NOTHING) \
 			r->fieldname = NULL;
 #define getpossibleemptywordlist(key,fieldname) \
-		ret = chunk_getwordlist(chunk,key,&r->fieldname); \
+		ret = chunk_getuniqwordlist(chunk,key,&r->fieldname); \
 		if(RET_WAS_ERROR(ret)) { \
 			(void)distribution_free(r); \
 			return ret; \
@@ -229,14 +248,14 @@ NULL};
 			r->fieldname.count = 0; \
 			r->fieldname.values = NULL; \
 		}
-		
+
 	getpossibleemptyfield("Suite",suite);
 	getpossibleemptyfield("Version",version);
 	getpossibleemptyfield("Origin",origin);
 	getpossibleemptyfield("NotAutomatic",notautomatic);
 	getpossibleemptyfield("Label",label);
 	getpossibleemptyfield("Description",description);
-	ret = chunk_getwordlist(chunk,"Architectures",&r->architectures);
+	ret = chunk_getuniqwordlist(chunk,"Architectures",&r->architectures);
 	fieldrequired("Architectures");
 	if( RET_IS_OK(ret) )
 		ret = properarchitectures(&r->architectures);
@@ -244,7 +263,7 @@ NULL};
 		(void)distribution_free(r);
 		return ret;
 	}
-	ret = chunk_getwordlist(chunk,"Components",&r->components);
+	ret = chunk_getuniqwordlist(chunk,"Components",&r->components);
 	fieldrequired("Components");
 	if( RET_IS_OK(ret) )
 		ret = propercomponents(&r->components);
@@ -328,6 +347,12 @@ NULL};
 		return ret;
 	}
 
+	ret = chunk_getuniqwordlist(chunk, "AlsoAcceptFor", &r->alsoaccept);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
 	ret = contentsoptions_parse(r, chunk);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
@@ -348,7 +373,7 @@ NULL};
 #undef getpossibleemptyfield
 #undef getpossibleemptywordlist
 }
-	
+
 /* call <action> for each part of <distribution>. */
 retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
 	retvalue result,r;
@@ -385,8 +410,12 @@ struct target *distribution_getpart(const struct distribution *distribution,cons
 	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
 		t = t->next;
 	}
-	// todo: make sure UDEBs get never called here without real testing...!!!!
-	assert( t != NULL );
+	if( t == NULL ) {
+		fprintf(stderr, "Internal error in distribution_getpart: Bogus request for c='%s' a='%s' t='%s' in '%s'!\n",
+				component, architecture, packagetype,
+				distribution->codename);
+		abort();
+	}
 	return t;
 }
 
@@ -425,9 +454,9 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	if( mydata.filter.found == NULL )
 		return RET_ERROR_OOM;
 	mydata.distributions = NULL;
-	
+
 	fn = calc_dirconcat(conf,"distributions");
-	if( fn == NULL ) 
+	if( fn == NULL )
 		return RET_ERROR_OOM;
 
 	result = regularfileexists(fn);
@@ -439,7 +468,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 		free(fn);
 		return RET_ERROR_MISSING;
 	}
-	
+
 	result = chunk_foreach(fn,adddistribution,&mydata,FALSE);
 
 	if( !RET_WAS_ERROR(result) ) {
@@ -478,7 +507,7 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 	/* This is a bit overkill, as it does not stop when it finds the
 	 * definition of the distribution. But this way we can warn
 	 * about emtpy lines in the definition (as this would split
-	 * it in two definitions, the second one no valid one). 
+	 * it in two definitions, the second one no valid one).
 	 */
 	result = distribution_getmatched(confdir,1,&name,&d);
 
@@ -493,6 +522,51 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 
 	*distribution = d;
 	return RET_OK;
+}
+
+retvalue distribution_snapshot(struct distribution *distribution,
+		const char *confdir, const char *dbdir, const char *distdir,
+		references refs, const char *name) {
+	struct target *target;
+	retvalue result,r;
+	struct release *release;
+
+	assert( distribution != NULL );
+
+	r = release_initsnapshot(distdir,distribution->codename,name,&release);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	result = RET_NOTHING;
+	for( target=distribution->targets; target != NULL ; target = target->next ) {
+		r = release_mkdir(release, target->relativedirectory);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+		r = target_export(target,confdir,dbdir,FALSE,TRUE,release);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+		if( target->exportmode->release != NULL ) {
+			r = release_directorydescription(release,distribution,target,target->exportmode->release,FALSE);
+			RET_UPDATE(result,r);
+			if( RET_WAS_ERROR(r) )
+				break;
+		}
+	}
+	if( RET_WAS_ERROR(result) ) {
+		release_free(release);
+		return result;
+	}
+	result = release_write(release,distribution,FALSE);
+	if( RET_WAS_ERROR(result) )
+		return r;
+	/* add references so that the pool files belonging to it are not deleted */
+	for( target=distribution->targets; target != NULL ; target = target->next ) {
+		r = target_addsnapshotreference(target,dbdir,refs,name);
+		RET_UPDATE(result,r);
+	}
+	return result;
 }
 
 static retvalue export(struct distribution *distribution,
@@ -510,11 +584,11 @@ static retvalue export(struct distribution *distribution,
 
 	result = RET_NOTHING;
 	for( target=distribution->targets; target != NULL ; target = target->next ) {
-		r = target_mkdistdir(target,distdir);
+		r = release_mkdir(release, target->relativedirectory);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = target_export(target,confdir,dbdir,onlyneeded,release);
+		r = target_export(target,confdir,dbdir,onlyneeded,FALSE,release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -573,7 +647,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 	}
 
 	for( d=distributions; d != NULL; d = d->next ) {
-		if( RET_IS_OK(d->status) || 
+		if( RET_IS_OK(d->status) ||
 			( d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
 			when == EXPORT_FORCE) {
 			todo = TRUE;
@@ -590,14 +664,14 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 
 		if( (RET_WAS_ERROR(d->status)||interrupted()) && when != EXPORT_FORCE ) {
 			if( verbose >= 10 )
-				fprintf(stderr, 
+				fprintf(stderr,
 " Not exporting %s because there have been errors and no --export=force.\n",
 						d->codename);
 		} else if( d->status==RET_NOTHING && when==EXPORT_CHANGED ) {
 			struct target *t;
 
 			if( verbose >= 10 )
-				fprintf(stderr, 
+				fprintf(stderr,
 " Not exporting %s because of no recorded changes and --export=changed.\n",
 						d->codename);
 
@@ -617,14 +691,14 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 				}
 			}
 		} else {
-			assert( RET_IS_OK(d->status) || 
-					( d->status == RET_NOTHING && 
+			assert( RET_IS_OK(d->status) ||
+					( d->status == RET_NOTHING &&
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
 			r = export(d,confdir,dbdir,distdir,files, TRUE);
 			RET_UPDATE(result,r);
 		}
-		
+
 		r = distribution_free(d);
 		RET_ENDUPDATE(result,r);
 	}
@@ -634,14 +708,14 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
 	if( when == EXPORT_NEVER ) {
 		if( verbose >= 10 )
-			fprintf(stderr, 
+			fprintf(stderr,
 "Not exporting %s because of --export=never.\n"
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
 	}
 	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interrupted()) ) {
 		if( verbose >= 10 )
-			fprintf(stderr, 
+			fprintf(stderr,
 "Not exporting %s because there have been errors and no --export=force.\n"
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
@@ -650,7 +724,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 		struct target *t;
 
 		if( verbose >= 10 )
-			fprintf(stderr, 
+			fprintf(stderr,
 "Not exporting %s because of no recorded changes and --export=changed.\n",
 	distribution->codename);
 
@@ -677,3 +751,89 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	return export(distribution,confdir,dbdir,distdir,files, TRUE);
 }
 
+/* get a pointer to the apropiate part of the linked list */
+struct distribution *distribution_find(struct distribution *distributions, const char *name) {
+	struct distribution *d = distributions, *r;
+
+	while( d != NULL && strcmp(d->codename, name) != 0 )
+		d = d->next;
+	if( d != NULL )
+		return d;
+	d = distributions;
+	while( d != NULL && !strlist_in(&d->alsoaccept, name) )
+		d = d->next;
+	r = d;
+	if( r != NULL ) {
+		while( d != NULL && ! strlist_in(&d->alsoaccept, name) )
+			d = d->next;
+		if( d == NULL )
+			return r;
+		fprintf(stderr, "No distribution has codename '%s' and multiple have it in AlsoAcceptFor!\n", name);
+		return NULL;
+	}
+	d = distributions;
+	while( d != NULL && ( d->suite == NULL || strcmp(d->suite, name) != 0 ))
+		d = d->next;
+	r = d;
+	if( r == NULL ) {
+		fprintf(stderr, "No distribution named '%s' found!\n", name);
+		return NULL;
+	}
+	while( d != NULL && ( d->suite == NULL || strcmp(d->suite, name) != 0 ))
+		d = d->next;
+	if( d == NULL )
+		return r;
+	fprintf(stderr, "No distribution has codename '%s' and multiple have it as suite-name!\n", name);
+	return NULL;
+}
+
+retvalue distribution_loadalloverrides(struct distribution *distribution, const char *overridedir) {
+	retvalue r;
+
+	if( distribution->overrides.deb == NULL ) {
+		r = override_read(overridedir,distribution->deb_override,&distribution->overrides.deb);
+		if( RET_WAS_ERROR(r) ) {
+			distribution->overrides.deb = NULL;
+			return r;
+		}
+	}
+	if( distribution->overrides.udeb == NULL ) {
+		r = override_read(overridedir,distribution->udeb_override,&distribution->overrides.udeb);
+		if( RET_WAS_ERROR(r) ) {
+			distribution->overrides.udeb = NULL;
+			return r;
+		}
+	}
+	if( distribution->overrides.dsc == NULL ) {
+		r = override_read(overridedir,distribution->dsc_override,&distribution->overrides.dsc);
+		if( RET_WAS_ERROR(r) ) {
+			distribution->overrides.dsc = NULL;
+			return r;
+		}
+	}
+	if( distribution->overrides.deb != NULL ||
+	    distribution->overrides.udeb != NULL ||
+	    distribution->overrides.dsc != NULL )
+		return RET_OK;
+	else
+		return RET_NOTHING;
+}
+
+retvalue distribution_loaduploaders(struct distribution *distribution, const char *confdir) {
+	if( distribution->uploaders != NULL ) {
+		if( distribution->uploaderslist != NULL )
+			return RET_OK;
+		return uploaders_get(&distribution->uploaderslist,
+				confdir, distribution->uploaders);
+	} else {
+		distribution->uploaderslist = NULL;
+		return RET_NOTHING;
+	}
+}
+
+void distribution_unloaduploaders(struct distribution *distribution) {
+	if( distribution->uploaderslist != NULL ) {
+		uploaders_unlock(distribution->uploaderslist);
+		distribution->uploaderslist = NULL;
+	}
+}

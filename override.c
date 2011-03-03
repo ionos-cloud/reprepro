@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -33,17 +33,15 @@
 #include "names.h"
 #include "override.h"
 
-/*
 struct overrideinfo {
 	struct overrideinfo *next;
 	char *packagename;
 	struct strlist fields;
 };
-*/
 
 void override_free(struct overrideinfo *info) {
 	struct overrideinfo *i;
-	
+
 	while( (i = info) != NULL ) {
 		if( i == NULL )
 			return;
@@ -94,7 +92,10 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 	FILE *file;
 	char buffer[1001];
 
-	assert(filename != NULL );
+	if( filename == NULL ) {
+		*info = NULL;
+		return RET_OK;
+	}
 	if( overridedir != NULL && filename[0] != '/' ) {
 		char *fn = calc_dirconcat(overridedir,filename);
 		if( fn == NULL )
@@ -160,11 +161,11 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 			if( strcmp(last->packagename,firstpart) > 0 )
 				last = root;
 			if( strcmp(last->packagename,firstpart) < 0 ) {
-				while( last->next != NULL && 
+				while( last->next != NULL &&
 					strcmp(last->next->packagename,firstpart) < 0) {
 					last = last->next;
 				}
-				if( last->next == NULL || 
+				if( last->next == NULL ||
 				    strcmp(last->next->packagename,firstpart) != 0 ) {
 					/* add it after last and before last->next */
 					r = newoverrideinfo(firstpart,secondpart,thirdpart,&last->next);
@@ -198,7 +199,7 @@ retvalue override_read(const char *overridedir,const char *filename,struct overr
 			(void)fclose(file);
 			return r;
 		}
-	}	
+	}
 	(void)fclose(file);
 	*info = root;
 	if( root == NULL )
@@ -227,7 +228,7 @@ const char *override_get(const struct overrideinfo *override,const char *field) 
 
 	if( override == NULL )
 		return NULL;
-	
+
 	for( i = 0 ; i+1 < override->fields.count ; i+=2 ) {
 		// TODO curently case-sensitiv. warn if otherwise?
 		if( strcmp(override->fields.values[i],field) == 0 )
@@ -261,43 +262,3 @@ struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override
 
 }
 
-retvalue override_readall(const char *overridedir,struct alloverrides *ao,const char *debfile,const char *udebfile, const char *dscfile) {
-	retvalue r;
-
-	ao->deb = ao->udeb = ao->dsc = NULL;
-	if( debfile != NULL ) {
-		r = override_read(overridedir,debfile,&ao->deb);
-		if( RET_WAS_ERROR(r) ) {
-			ao->deb = NULL;
-			return r;
-		}
-	} else
-		ao->deb = NULL;
-	if( udebfile != NULL ) {
-		r = override_read(overridedir,udebfile,&ao->udeb);
-		if( RET_WAS_ERROR(r) ) {
-			override_free(ao->deb);
-			ao->deb = NULL;
-			ao->udeb = NULL;
-			return r;
-		}
-	} else
-		ao->udeb = NULL;
-	if( dscfile != NULL ) {
-		r = override_read(overridedir,dscfile,&ao->dsc);
-		if( RET_WAS_ERROR(r) ) {
-			override_free(ao->deb);
-			override_free(ao->udeb);
-			ao->deb = NULL;
-			ao->udeb = NULL;
-			ao->dsc = NULL;
-			return r;
-		}
-	} else
-		ao->dsc = NULL;
-
-	if( ao->deb != NULL || ao->udeb != NULL || ao->dsc != NULL )
-		return RET_OK;
-	else
-		return RET_NOTHING;
-}

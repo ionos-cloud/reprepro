@@ -25,6 +25,10 @@ retvalue references_remove(references ref,const char *neededby,/*@null@*/struct 
 retvalue references_insert(references ref,const char *identifer,
 		const struct strlist *files,const struct strlist *exclude);
 
+/* Add an reference by <identifer> for the given <files>,
+ * do not error out if reference already exists */
+retvalue references_add(references ref,const char *identifer,const struct strlist *files);
+
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL.
  * if dereferencedfilekeys is != NULL, add those losing one reference,

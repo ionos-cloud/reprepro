@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2003,2004,2005 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -143,7 +143,7 @@ retvalue chunk_read(gzFile f,char **chunk) {
 static const char *chunk_getfield(const char *name,const char *chunk) {
 	size_t l;
 
-	if( chunk == NULL ) 
+	if( chunk == NULL )
 		return NULL;
 	l = strlen(name);
 	while( *chunk != '\0' ) {
@@ -161,7 +161,7 @@ static const char *chunk_getfield(const char *name,const char *chunk) {
 }
 
 /* get the content of the given field, including all following lines, in a format
- * that may be put into chunk_replacefields 
+ * that may be put into chunk_replacefields
 static retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 	const char *field;
 	char *val;
@@ -193,7 +193,7 @@ static retvalue chunk_getcontent(const char *chunk,const char *name,char **value
 		e--;
 	if( e > b )
 		val = strndup(b,e-b+1);
-	else 
+	else
 		val = strdup("");
 	if( val == NULL )
 		return RET_ERROR_OOM;
@@ -226,7 +226,7 @@ retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {
 		e--;
 	if( !xisspace(*e) )
 		val = strndup(b,e-b+1);
-	else 
+	else
 		val = strdup("");
 	if( val == NULL )
 		return RET_ERROR_OOM;
@@ -285,7 +285,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 			e--;
 		if( !xisspace(*e) )
 			v = strndup(b,e-b+1);
-		else 
+		else
 			v = strdup("");
 		if( v == NULL ) {
 			strlist_done(strlist);
@@ -372,6 +372,45 @@ retvalue chunk_getwordlist(const char *chunk,const char *name,struct strlist *st
 	return RET_OK;
 }
 
+retvalue chunk_getuniqwordlist(const char *chunk,const char *name,struct strlist *strlist) {
+	retvalue r;
+	const char *f,*b;
+	char *v;
+
+	f = chunk_getfield(name,chunk);
+	if( f == NULL )
+		return RET_NOTHING;
+	strlist_init(strlist);
+	while( *f != '\0' ) {
+		/* walk over spaces */
+		while( *f != '\0' && xisspace(*f) ) {
+			if( *f == '\n' ) {
+				f++;
+				if( *f != ' ' && *f != '\t' )
+					return RET_OK;
+			} else
+				f++;
+		}
+		if( *f == '\0' )
+			return RET_OK;
+		b = f;
+		/* search for end of word */
+		while( *f != '\0' && !xisspace(*f) )
+			f++;
+		v = strndup(b,f-b);
+		if( v == NULL ) {
+			strlist_done(strlist);
+			return RET_ERROR_OOM;
+		}
+		r = strlist_adduniq(strlist,v);
+		if( !RET_IS_OK(r) ) {
+			strlist_done(strlist);
+			return r;
+		}
+	}
+	return RET_OK;
+}
+
 retvalue chunk_gettruth(const char *chunk,const char *name) {
 	const char *field;
 
@@ -382,7 +421,7 @@ retvalue chunk_gettruth(const char *chunk,const char *name) {
 
 	return RET_OK;
 }
-/* return RET_OK, if field is found, RET_NOTHING, if not */ 
+/* return RET_OK, if field is found, RET_NOTHING, if not */
 retvalue chunk_checkfield(const char *chunk,const char *name){
 	const char *field;
 
@@ -405,15 +444,15 @@ retvalue chunk_getname(const char *chunk,const char *name,
 		field++;
 	name_end = field;
 	/* this has now checked somewhere else for correctness and
-	 * is only a pure separation process: 
+	 * is only a pure separation process:
 	 * (as package(version) is possible, '(' must be checked) */
 	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !xisspace(*name_end) )
 		name_end++;
 	p = name_end;
 	while( *p != '\0' && *p != '\n' && xisspace(*p) )
 		p++;
-	if( name_end == field || 
-		( *p != '\0' && *p != '\n' && 
+	if( name_end == field ||
+		( *p != '\0' && *p != '\n' &&
 		  ( !allowversion || *p != '('))) {
 		if( *field == '\n' || *field == '\0' ) {
 			fprintf(stderr,"Error: Field '%s' is empty!\n",name);
@@ -459,15 +498,15 @@ retvalue chunk_getnameandversion(const char *chunk,const char *name,
 		field++;
 	name_end = field;
 	/* this has now checked somewhere else for correctness and
-	 * is only a pure separation process: 
+	 * is only a pure separation process:
 	 * (as package(version) is possible, '(' must be checked) */
 	while( *name_end != '\0' && *name_end != '\n' && *name_end != '(' && !xisspace(*name_end) )
 		name_end++;
 	p = name_end;
 	while( *p != '\0' && *p != '\n' && xisspace(*p) )
 		p++;
-	if( name_end == field || 
-		( *p != '\0' && *p != '\n' && 
+	if( name_end == field ||
+		( *p != '\0' && *p != '\n' &&
 		   *p != '(')) {
 		if( *field == '\n' || *field == '\0' ) {
 			fprintf(stderr,"Error: Field '%s' is empty!\n",name);
@@ -557,7 +596,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	result = RET_NOTHING;
 	do {
 		/* are we at the place to add the fields yet? */
-		if(!fieldsadded && strncmp(c,beforethis,len_beforethis) == 0 
+		if(!fieldsadded && strncmp(c,beforethis,len_beforethis) == 0
 				&& c[len_beforethis] == ':' ) {
 			/* add them now: */
 			f = toadd;
@@ -579,7 +618,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 		/* is this one of the fields we added/will add? */
 		f = toadd;
 		while( f != NULL ) {
-			if(strncmp(c,f->field,f->len_field) == 0 
+			if(strncmp(c,f->field,f->len_field) == 0
 					&& c[f->len_field] == ':' )
 				break;
 			f = f->next;
@@ -745,7 +784,7 @@ overlongcomments,"A comment is continued by a line starting with space in '%s'!\
 
 			for( ; *allowedfn != NULL ; allowedfn++,i = i << 1 ) {
 				const char *allowed = *allowedfn;
-				if( strncasecmp(allowed,c,nameend-c) == 0 
+				if( strncasecmp(allowed,c,nameend-c) == 0
 				    && allowed[nameend-c] == '\0' ) {
 					if( (i&alreadyfound) != 0 ) {
 						if( !IGNORING("Ignoring","To ignore this",

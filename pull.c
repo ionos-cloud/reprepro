@@ -133,7 +133,8 @@ inline static retvalue parse_rule(const char *confdir,const char *chunk, struct 
 	}
 
 	/* * Check which architectures to pull from * */
-	r = chunk_getwordlist(chunk,"Architectures",&architectureslist);
+	r = chunk_getuniqwordlist(chunk,"Architectures",&architectureslist);
+	// TODO: is this save if uniqwordlist could become sorted?
 	if( RET_WAS_ERROR(r) ) {
 		pull_rule_free(pull);
 		return r;
@@ -152,7 +153,7 @@ inline static retvalue parse_rule(const char *confdir,const char *chunk, struct 
 	}
 
 	/* * Check which components to pull from * */
-	r = chunk_getwordlist(chunk,"Components",&pull->components);
+	r = chunk_getuniqwordlist(chunk,"Components",&pull->components);
 	if( RET_WAS_ERROR(r) ) {
 		pull_rule_free(pull);
 		return r;
@@ -162,7 +163,7 @@ inline static retvalue parse_rule(const char *confdir,const char *chunk, struct 
 	}
 
 	/* * Check which components to pull udebs from * */
-	r = chunk_getwordlist(chunk,"UDebComponents",&pull->udebcomponents);
+	r = chunk_getuniqwordlist(chunk,"UDebComponents",&pull->udebcomponents);
 	if( RET_WAS_ERROR(r) ) {
 		pull_rule_free(pull);
 		return r;
@@ -402,7 +403,7 @@ static retvalue pull_loadmissingsourcedistributions(const char *confdir,
 	r = distribution_getmatched(confdir,count,names, extradistributions);
 	free(names);
 	assert( r != RET_NOTHING );
-	if( RET_IS_OK(r) ) { 
+	if( RET_IS_OK(r) ) {
 		pull_addsourcedistributions(rules, *extradistributions);
 		for( rule = rules ; rule != NULL ; rule = rule->next ) {
 			assert( !rule->used || rule->distribution != NULL );

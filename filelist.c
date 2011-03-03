@@ -112,7 +112,7 @@ findfile(const char *basefilename, struct dirlist *parent,
 		const struct filelist_package *package) {
 	struct filelist *file,*n,**p;
 
-/*	if( parent->lastfile != NULL && 
+/*	if( parent->lastfile != NULL &&
 			strcmp(basefilename,parent->lastfile->name) > 0 )
 		p = &parent->lastfile->next;
 	else */
@@ -134,13 +134,13 @@ findfile(const char *basefilename, struct dirlist *parent,
 		} else if ( c > 0 ) {
 			/* Sorted lists give us a right shift,
 			 * go a bit more left to reduce that */
-			if( file->nextl == NULL && 
+			if( file->nextl == NULL &&
 					file->nextr != NULL &&
 					file->nextr->nextl == NULL ) {
 				file->nextr->nextl = file;
 				*p = file->nextr;
 				file->nextr = NULL;
-			} else 
+			} else
 				p = &file->nextr;
 			file = *p;
 		} else  {
@@ -179,7 +179,7 @@ static int search(const char *p, struct dirlist *dir, const struct filelist_pack
 	}
 	if( dir->lastsubdir != NULL ) {
 		len = *(unsigned char*)dir->lastsubdir->name;
-		if( len == (size_t)(q-p) && 
+		if( len == (size_t)(q-p) &&
 				strncmp(p,dir->lastsubdir->name+1,len)==0 ) {
 			assert( p[len] == '/' );
 			return search(q+1, dir->lastsubdir, package);
@@ -197,7 +197,7 @@ static int search(const char *p, struct dirlist *dir, const struct filelist_pack
 			return search(q+1,d,package);
 		} else if( c >= 0 ) {
 			dir_p = &(d->next);
-		} else 
+		} else
 			break;
 	}
 	d = malloc(sizeof(struct dirlist));

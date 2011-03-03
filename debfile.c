@@ -1,7 +1,7 @@
 /*  This file is part of "reprepro"
  *  Copyright (C) 2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as 
+ *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  *
  *  This program is distributed in the hope that it will be useful,
@@ -71,7 +71,7 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 		fprintf(stderr, "Error reading control file from %s\n", debfile);
 		return RET_ERROR;
 	}
-	if( len < size ) 
+	if( len < size )
 		fprintf(stderr, "Warning: libarchive overcalculated length of the control file within '%s',\n"
 			" perhaps the file is corrupt, perhaps libarchive!\n", debfile);
 	buffer[len] = '\0';
@@ -89,7 +89,7 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 	len -= (startofchanges-buffer);
 	memmove(buffer, startofchanges, len+1);
 	endofchanges = buffer;
-	while( *endofchanges != '\0' && 
+	while( *endofchanges != '\0' &&
 		( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
 		endofchanges++;
 	}
@@ -129,7 +129,7 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 			ar_archivemember_close);
 	if( a != ARCHIVE_OK ) {
 		fprintf(stderr,"open control.tar.gz within '%s' failed: %d:%d:%s\n",
-				debfile, 
+				debfile,
 				a,archive_errno(tar),
 				archive_error_string(tar));
 		return RET_ERROR;
@@ -146,7 +146,7 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 						e, archive_error_string(tar));
 				return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 			}
-			if( interrupted() ) 
+			if( interrupted() )
 				return RET_ERROR_INTERUPTED;
 		} else {
 			r = read_control_file(control, debfile, tar, entry);
@@ -190,7 +190,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 					free(filename);
 					return r;
 				}
-				
+
 			}
 /* see below for a discussion about this #ifdef */
 #ifdef HAVE_LIBBZ2
@@ -207,7 +207,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 					free(filename);
 					return r;
 				}
-				
+
 			}
 #endif
 			free(filename);
@@ -237,7 +237,7 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 	if( a != ARCHIVE_OK ) {
 		free(filelist);
 		fprintf(stderr,"open data.tar.gz within '%s' failed: %d:%d:%s\n",
-				debfile, 
+				debfile,
 				a,archive_errno(tar),
 				archive_error_string(tar));
 		return RET_ERROR;
@@ -260,7 +260,7 @@ static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct 
 				char *n;
 
 				if( size > 1024*1024*1024 ) {
-					fprintf(stderr, "Ridicilous long filelist for %s!",debfile);
+					fprintf(stderr, "Ridicilous long filelist for %s!\n",debfile);
 					free(filelist);
 					return RET_ERROR;
 				}
@@ -334,7 +334,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 					free(filename);
 					return r;
 				}
-				
+
 			}
 /* TODO: here some better heuristic would be nice,
  * but when compiling against the static libarchive this is what needed,
@@ -356,7 +356,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 					free(filename);
 					return r;
 				}
-				
+
 			}
 #endif
 			free(filename);

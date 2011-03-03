@@ -45,14 +45,14 @@ retvalue files_printmissing(filesdb filesdb,const struct strlist *filekeys,const
 
 /* Include a given file into the pool. i.e.:
  * 1) if <md5dum> != NULL
- *    check if <filekey> with <md5sum> is already there, 
+ *    check if <filekey> with <md5sum> is already there,
  *    return RET_NOTHING if it is.
  *    return n RET_ERROR_WRONG_MD5 if wrong md5sum.
  * 2) Look if there is already a file in the pool with correct md5sum.
  * and add it to the database if yes.
  * return RET_OK, if done, (and set *calculatedmd5sum)
  * 3) copy or move file (depending on delete) file to destination,
- * making sure it has the correct <md5sum> if given, 
+ * making sure it has the correct <md5sum> if given,
  * or computing it, if <claculatemd5sum> is given.
  * return RET_OK, if done,
  * return RET_ERROR_MISSING, if there is no file to copy.
@@ -88,5 +88,12 @@ retvalue files_detect(filesdb db,const char *filekey);
 retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist);
 retvalue files_regenerate_filelist(filesdb db, bool_t redo);
+retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist);
+
+/* hardlink file with known md5sum and add it to database */
+retvalue files_hardlink(filesdb db,const char *tempfile, const char *filekey,const char *md5sum);
+/* check if file is already there (RET_NOTHING) or could be added (RET_OK)
+ * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
+retvalue files_ready(filesdb db,const char *filekey,const char *md5sum);
 
 #endif

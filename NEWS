@@ -1,3 +1,16 @@
+Updates since 1.3.1:
+- add "adddeb" action to changestool
+- fix bug in manpage ("accept" should have been "allow" for uploaders)
+- new AlsoAcceptFor:-header for conf/distributions to allow more fine
+  controled which distributions to allow than just codename/suite
+  or everything (via --ignore=wrongdistribution)
+- fail cleanly when getting a .dsc without Format header
+- fix bug in non-libarchive filelist extraction on large lists
+- add processincoming command to scan an incoming directory and add
+  packages from there. (this needed some refactorisations of other
+  code, so beware)
+- add gensnapshot command
+
 Updates since 1.3.0:
 - bugfix in changestool updatechecksums
 

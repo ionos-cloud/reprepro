@@ -24,7 +24,7 @@ retvalue downloadcache_initialize(struct downloadcache **download);
 /* free all memory */
 retvalue downloadcache_free(/*@null@*//*@only@*/struct downloadcache *download);
 
-/* queue a new file to be downloaded: 
+/* queue a new file to be downloaded:
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
 retvalue downloadcache_add(struct downloadcache *cache,filesdb filesdb,struct aptmethod *method,const char *orig,const char *filekey,const char *md5sum);
