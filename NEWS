@@ -1,3 +1,9 @@
+Updates between 3.0.0 and 3.0.1:
+- the default for --export is now "changed", as the old default was
+  just too confusing most of the time.
+- translatefilelist know also can convert databases with old and new
+  style entries
+
 Updates between 2.2.4 and 3.0.0:
 - new config file parser:
   * many error messages now with line numbers

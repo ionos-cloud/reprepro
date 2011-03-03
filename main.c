@@ -85,11 +85,11 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*overridedir = NULL,
 	*methoddir = NULL;
 static char /*@only@*/ /*@null@*/
-	*section = NULL,
-	*priority = NULL,
-	*component = NULL,
-	*architecture = NULL,
-	*packagetype = NULL;
+	*x_section = NULL,
+	*x_priority = NULL,
+	*x_component = NULL,
+	*x_architecture = NULL,
+	*x_packagetype = NULL;
 static int	delete = D_COPY;
 static bool	nothingiserror = false;
 static bool	nolistsdownload = false;
@@ -100,7 +100,7 @@ static bool	askforpassphrase = false;
 static bool	guessgpgtty = true;
 static bool	skipold = true;
 static size_t   waitforlock = 0;
-static enum exportwhen export = EXPORT_NORMAL;
+static enum exportwhen export = EXPORT_CHANGED;
 int		verbose = 0;
 static bool	fast = false;
 static bool	verbosedatabase = false;
@@ -114,7 +114,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase);
+O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -160,96 +160,98 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 	return result;
 }
 
-#define ACTION_N(name) static retvalue action_n_ ## name ( \
+#define y(type,name) type name
+#define n(type,name) UNUSED(type dummy_ ## name)
+
+#define ACTION_N(act,sp,name) static retvalue action_n_ ## act ## _ ## sp ## _ ## name ( \
 			UNUSED(struct distribution *dummy2), \
 			UNUSED(struct database *dummy),	\
 			UNUSED(struct strlist* dummy3), \
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			int argc,const char *argv[])
 
-#define ACTION_C(name) static retvalue action_c_ ## name ( \
+#define ACTION_C(act,sp,name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions, \
 			UNUSED(struct database *dummy),	\
 			UNUSED(struct strlist* dummy3), \
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			int argc,const char *argv[])
 
-#define ACTION_u_B(name) static retvalue action_b_ ## name ( \
-			UNUSED(struct distribution *ddummy), \
+#define ACTION_B(act,sp,u,name) static retvalue action_b_ ## act ## _ ## sp ## _ ## name ( \
+			u(struct distribution *,alldistributions), \
 			struct database *database,	\
 			UNUSED(struct strlist* dummy3), \
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			int argc,const char *argv[])
 
-#define ACTION_B(name) static retvalue action_b_ ## name ( \
-			struct distribution *alldistributions, \
-			struct database *database,	\
+#define ACTION_R(act,sp,d,a,name) static retvalue action_r_ ## act ## _ ## sp ## _ ## name ( \
+			d(struct distribution *, alldistributions), \
+			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			int argc,const char *argv[])
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
+			a(int, argc), a(const char *, argv[]))
 
-#define ACTION_U_R(name) static retvalue action_r_ ## name ( \
+#define ACTION_T(act,sp,name) static retvalue action_t_ ## act ## _ ## sp ## _ ## name ( \
 			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
 			UNUSED(int argc), UNUSED(const char *dummy4[]))
 
-#define ACTION_u_R(name) static retvalue action_r_ ## name ( \
-			UNUSED(struct distribution *ddummy), \
+#define ACTION_F(act,sp,d,a,name) static retvalue action_f_ ## act ## _ ## sp ## _ ## name ( \
+			d(struct distribution *,alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			int argc,const char *argv[])
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
+			a(int, argc), a(const char *, argv[]))
 
-#define ACTION_R(name) static retvalue action_r_ ## name ( \
-			struct distribution *alldistributions, \
+#define ACTION_RF(act,sp,u,name) static retvalue action_rf_ ## act ## _ ## sp ## _ ## name ( \
+			u(struct distribution *, alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			int argc,const char *argv[])
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
+			u(int, argc), u(const char *, argv[]))
 
-#define ACTION_T(name) static retvalue action_t_ ## name ( \
-			UNUSED(struct distribution *ddummy), \
-			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
-			UNUSED(int argc), UNUSED(const char *dummy4[]))
-
-#define ACTION_U_F(name) static retvalue action_f_ ## name ( \
-			UNUSED(struct distribution *ddummy), \
-			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
-			UNUSED(int argc), UNUSED(const char *dummy4[]))
-
-#define ACTION_u_F(name) static retvalue action_f_ ## name ( \
-			UNUSED(struct distribution *ddummy), \
-			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
-			int argc,const char *argv[])
-#define ACTION_F(name) static retvalue action_f_ ## name ( \
-			struct distribution *alldistributions, \
-			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
-			int argc,const char *argv[])
-
-#define ACTION_RF(name) static retvalue action_rf_ ## name ( \
-			struct distribution *alldistributions, \
-			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
-			int argc,const char *argv[])
-
-#define ACTION_U_RF(name) static retvalue action_rf_ ## name ( \
-			UNUSED(struct distribution *ddummy), \
-			struct database *database,		\
-			UNUSED(struct strlist* dummy3), \
-			UNUSED(int argc) ,UNUSED(const char *dumym4[]))
-
-#define ACTION_D(name) static retvalue action_d_ ## name ( \
+#define ACTION_D(act,sp,u,name) static retvalue action_d_ ## act ## _ ## sp ## _ ## name ( \
 			struct distribution *alldistributions, \
 			struct database *database,		\
 			struct strlist* dereferenced, 	\
-			int argc,const char *argv[])
+			sp(const char *, priority),		\
+			sp(const char *, section),		\
+			act(const char *, architecture),	\
+			act(const char *, component),		\
+			act(const char *, packagetype),		\
+			u(int,argc), u(const char *,argv[]))
 
-#define ACTION_U_D(name) static retvalue action_d_ ## name ( \
-			struct distribution *alldistributions, \
-			struct database *database,		\
-			struct strlist* dereferenced, 	\
-			UNUSED(int argc), UNUSED(const char *dummy4[]))
-
-ACTION_N(printargs) {
+ACTION_N(n, n, printargs) {
 	int i;
 
 	fprintf(stderr,"argc: %d\n",argc);
@@ -259,7 +261,7 @@ ACTION_N(printargs) {
 	return 0;
 }
 
-ACTION_N(extractcontrol) {
+ACTION_N(n, n, extractcontrol) {
 	retvalue result;
 	char *control;
 
@@ -272,7 +274,7 @@ ACTION_N(extractcontrol) {
 	return result;
 }
 
-ACTION_N(extractfilelist) {
+ACTION_N(n, n, extractfilelist) {
 	retvalue result;
 	char *filelist;
 	size_t fls, len;
@@ -327,12 +329,12 @@ ACTION_N(extractfilelist) {
 	return result;
 }
 
-ACTION_u_F(fakeemptyfilelist) {
+ACTION_F(n, n, n, y, fakeemptyfilelist) {
 	assert( argc == 2 );
 	return fakefilelist(database, argv[1]);
 }
 
-ACTION_u_F(generatefilelists) {
+ACTION_F(n, n, n, y, generatefilelists) {
 	assert( argc == 2 || argc == 3 );
 
 	if( argc == 2 )
@@ -346,12 +348,12 @@ ACTION_u_F(generatefilelists) {
 	return RET_ERROR;
 }
 
-ACTION_T(translatefilelists) {
+ACTION_T(n, n, translatefilelists) {
 	return database_translate_filelists(database);
 }
 
 
-ACTION_U_F(addmd5sums) {
+ACTION_F(n, n, n, n, addmd5sums) {
 	char buffer[2000],*c,*m;
 	retvalue result,r;
 
@@ -378,13 +380,13 @@ ACTION_U_F(addmd5sums) {
 }
 
 
-ACTION_u_R(removereferences) {
+ACTION_R(n, n, n, y, removereferences) {
 	assert( argc == 2 );
 	return references_remove(database, argv[1], NULL);
 }
 
 
-ACTION_U_R(dumpreferences) {
+ACTION_R(n, n, n, n, dumpreferences) {
 	return references_dump(database);
 }
 
@@ -402,7 +404,7 @@ static retvalue checkifreferenced(void *data,const char *filekey,UNUSED(const ch
 		return r;
 }
 
-ACTION_U_RF(dumpunreferenced) {
+ACTION_RF(n, n, n, dumpunreferenced) {
 	retvalue result;
 
 	result = files_foreach(database, checkifreferenced, database);
@@ -424,7 +426,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,UNUSED(const
 		return r;
 }
 
-ACTION_U_RF(deleteunreferenced) {
+ACTION_RF(n, n, n, deleteunreferenced) {
 	retvalue result;
 
 	if( keepunreferenced ) {
@@ -435,7 +437,7 @@ ACTION_U_RF(deleteunreferenced) {
 	return result;
 }
 
-ACTION_u_R(addreference) {
+ACTION_R(n, n, n, y, addreference) {
 	assert( argc == 2 || argc == 3 );
 	return references_increment(database, argv[1], argv[2]);
 }
@@ -464,7 +466,7 @@ static retvalue remove_from_target(/*@temp@*/void *data, struct target *target,
 	return result;
 }
 
-ACTION_D(remove) {
+ACTION_D(y, n, y, remove) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct remove_args d;
@@ -576,7 +578,7 @@ static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct d
 	return RET_OK;
 }
 
-ACTION_D(removesrc) {
+ACTION_D(n, n, y, removesrc) {
 	retvalue result, r;
 	struct distribution *distribution;
 	trackingdb tracks;
@@ -645,11 +647,9 @@ ACTION_D(removesrc) {
 			NULL, NULL, NULL,
 			package_source_fits, dereferenced, NULL,
 			&data);
-	if( RET_IS_OK(result) ) {
-		r = distribution_export(export, distribution,
-				confdir, distdir, database);
-		RET_ENDUPDATE(result, r);
-	}
+	r = distribution_export(export, distribution,
+			confdir, distdir, database);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -659,7 +659,7 @@ static retvalue package_matches_condition(UNUSED(struct database *da), UNUSED(st
 	return term_decidechunk(condition, control);
 }
 
-ACTION_D(removefilter) {
+ACTION_D(y, n, y, removefilter) {
 	retvalue result, r;
 	struct distribution *distribution;
 	trackingdb tracks;
@@ -708,11 +708,9 @@ ACTION_D(removefilter) {
 			package_matches_condition, dereferenced,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
-	if( RET_IS_OK(result) ) {
-		r = distribution_export(export, distribution,
-				confdir, distdir, database);
-		RET_ENDUPDATE(result, r);
-	}
+	r = distribution_export(export, distribution,
+			confdir, distdir, database);
+	RET_ENDUPDATE(result, r);
 	if( tracks != NULL ) {
 		trackingdata_finish(tracks, &trackingdata,
 					database, dereferenced);
@@ -745,7 +743,7 @@ static retvalue list_in_target(void *data, struct target *target,
 	return result;
 }
 
-ACTION_B(list) {
+ACTION_B(y, n, y, list) {
 	retvalue r,result;
 	struct distribution *distribution;
 
@@ -784,7 +782,7 @@ static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distr
 	return r;
 }
 
-ACTION_B(listfilter) {
+ACTION_B(y, n, y, listfilter) {
 	retvalue r,result;
 	struct distribution *distribution;
 	term *condition;
@@ -808,7 +806,7 @@ ACTION_B(listfilter) {
 	return result;
 }
 
-ACTION_u_F(detect) {
+ACTION_F(n, n, n, y, detect) {
 	char buffer[5000],*nl;
 	int i;
 	retvalue r,ret;
@@ -833,7 +831,7 @@ ACTION_u_F(detect) {
 	return ret;
 }
 
-ACTION_u_F(forget) {
+ACTION_F(n, n, n, y, forget) {
 	char buffer[5000],*nl;
 	int i;
 	retvalue r,ret;
@@ -858,11 +856,11 @@ ACTION_u_F(forget) {
 	return ret;
 }
 
-ACTION_U_F(listmd5sums) {
+ACTION_F(n, n, n, n, listmd5sums) {
 	return files_printmd5sums(database);
 }
 
-ACTION_u_B(dumpcontents) {
+ACTION_B(n, n, n, dumpcontents) {
 	retvalue result,r;
 	struct table *packages;
 	const char *package, *chunk;
@@ -891,7 +889,7 @@ ACTION_u_B(dumpcontents) {
 	return result;
 }
 
-ACTION_F(export) {
+ACTION_F(n, n, y, y, export) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -924,7 +922,7 @@ ACTION_F(export) {
 
 /***********************update********************************/
 
-ACTION_D(update) {
+ACTION_D(n, n, y, update) {
 	retvalue result,r;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -969,7 +967,7 @@ ACTION_D(update) {
 	return result;
 }
 
-ACTION_D(predelete) {
+ACTION_D(n, n, y, predelete) {
 	retvalue result,r;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -1013,7 +1011,7 @@ ACTION_D(predelete) {
 	return result;
 }
 
-ACTION_D(iteratedupdate) {
+ACTION_D(n, n, y, iteratedupdate) {
 	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -1050,7 +1048,7 @@ ACTION_D(iteratedupdate) {
 	return result;
 }
 
-ACTION_B(checkupdate) {
+ACTION_B(n, n, y, checkupdate) {
 	retvalue result;
 	struct update_pattern *patterns;
 	struct update_distribution *u_distributions;
@@ -1087,7 +1085,7 @@ ACTION_B(checkupdate) {
 }
 /***********************migrate*******************************/
 
-ACTION_D(pull) {
+ACTION_D(n, n, y, pull) {
 	retvalue result,r;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
@@ -1120,7 +1118,7 @@ ACTION_D(pull) {
 	return result;
 }
 
-ACTION_B(checkpull) {
+ACTION_B(n, n, y, checkpull) {
 	retvalue result;
 	struct pull_rule *rules;
 	struct pull_distribution *p;
@@ -1236,7 +1234,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 	return result;
 }
 
-ACTION_D(copy) {
+ACTION_D(y, n, y, copy) {
 	struct distribution *destination,*source;
 	retvalue result, r;
 	struct copy_data d;
@@ -1285,7 +1283,7 @@ ACTION_D(copy) {
 }
 
 /***********************rereferencing*************************/
-ACTION_R(rereference) {
+ACTION_R(n, n, y, y, rereference) {
 	retvalue result, r;
 	struct distribution *d;
 	struct target *t;
@@ -1329,7 +1327,7 @@ static retvalue package_retrack(struct database *database, UNUSED(struct distrib
 			tracks, database);
 }
 
-ACTION_D(retrack) {
+ACTION_D(n, n, y, retrack) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -1367,7 +1365,7 @@ ACTION_D(retrack) {
 		if( !RET_WAS_ERROR(r) ) {
 			/* add back information about actually used files */
 			r = distribution_foreach_package(d, database,
-					component, architecture, packagetype,
+					NULL, NULL, NULL,
 					package_retrack, NULL, tracks);
 			RET_UPDATE(result,r);
 		}
@@ -1384,7 +1382,7 @@ ACTION_D(retrack) {
 	return result;
 }
 
-ACTION_D(removetrack) {
+ACTION_D(n, n, y, removetrack) {
 	retvalue result,r;
 	struct distribution *distribution;
 	trackingdb tracks;
@@ -1407,7 +1405,7 @@ ACTION_D(removetrack) {
 	return result;
 }
 
-ACTION_D(removealltracks) {
+ACTION_D(n, n, y, removealltracks) {
 	retvalue result, r;
 	struct distribution *d;
 	const char *codename;
@@ -1455,7 +1453,7 @@ ACTION_D(removealltracks) {
 	return result;
 }
 
-ACTION_D(tidytracks) {
+ACTION_D(n, n, y, tidytracks) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -1499,7 +1497,7 @@ ACTION_D(tidytracks) {
 	return result;
 }
 
-ACTION_B(dumptracks) {
+ACTION_B(n, n, y, dumptracks) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -1535,7 +1533,7 @@ ACTION_B(dumptracks) {
 }
 /***********************checking*************************/
 
-ACTION_RF(check) {
+ACTION_RF(y, n, y, check) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -1563,7 +1561,7 @@ ACTION_RF(check) {
 	return result;
 }
 
-ACTION_u_F(checkpool) {
+ACTION_F(n, n, n, y, checkpool) {
 
 	if( argc == 2 && strcmp(argv[1],"fast") != 0 ) {
 		fprintf(stderr,"Error: Unrecognized second argument '%s'\n"
@@ -1576,7 +1574,7 @@ ACTION_u_F(checkpool) {
 }
 /*****************reapplying override info***************/
 
-ACTION_F(reoverride) {
+ACTION_F(y, n, y, y, reoverride) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -1616,7 +1614,7 @@ ACTION_F(reoverride) {
 
 /***********************include******************************************/
 
-ACTION_D(includedeb) {
+ACTION_D(y, y, y, includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
 	bool isudeb;
@@ -1721,7 +1719,7 @@ ACTION_D(includedeb) {
 }
 
 
-ACTION_D(includedsc) {
+ACTION_D(y, y, y, includedsc) {
 	retvalue result,r;
 	struct distribution *distribution;
 	trackingdb tracks;
@@ -1779,7 +1777,7 @@ ACTION_D(includedsc) {
 	return result;
 }
 
-ACTION_D(include) {
+ACTION_D(y, y, y, include) {
 	retvalue result,r;
 	struct distribution *distribution;
 	trackingdb tracks;
@@ -1833,6 +1831,8 @@ ACTION_D(include) {
 			packagetype, component, architecture,
 			section, priority, distribution,
 			argv[2], delete, dereferenced);
+	if( RET_WAS_ERROR(result) )
+		RET_UPDATE(distribution->status, result);
 
 	distribution_unloadoverrides(distribution);
 	distribution_unloaduploaders(distribution);
@@ -1846,7 +1846,7 @@ ACTION_D(include) {
 
 /***********************createsymlinks***********************************/
 
-ACTION_C(createsymlinks) {
+ACTION_C(n, n, createsymlinks) {
 	retvalue result,r;
 	struct distribution *d,*d2;
 
@@ -1960,7 +1960,7 @@ ACTION_C(createsymlinks) {
 
 /***********************clearvanished***********************************/
 
-ACTION_U_D(clearvanished) {
+ACTION_D(n, n, n, clearvanished) {
 	retvalue result,r;
 	struct distribution *d;
 	struct strlist identifiers, codenames;
@@ -2047,7 +2047,7 @@ ACTION_U_D(clearvanished) {
 	return result;
 }
 
-ACTION_N(versioncompare) {
+ACTION_N(n, n, versioncompare) {
 	retvalue r;
 	int i;
 
@@ -2074,7 +2074,7 @@ ACTION_N(versioncompare) {
 	return r;
 }
 /***********************processincoming********************************/
-ACTION_D(processincoming) {
+ACTION_D(n, n, y, processincoming) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -2092,7 +2092,7 @@ ACTION_D(processincoming) {
 	return result;
 }
 /***********************gensnapshot********************************/
-ACTION_R(gensnapshot) {
+ACTION_R(n, n, y, y, gensnapshot) {
 	retvalue result;
 	struct distribution *distribution;
 
@@ -2118,7 +2118,7 @@ static retvalue rerunnotifiersintarget(UNUSED(struct database *da), struct distr
 	return RET_OK;
 }
 
-ACTION_B(rerunnotifiers) {
+ACTION_B(y, n, y, rerunnotifiers) {
 	retvalue result,r;
 	struct distribution *d;
 
@@ -2160,6 +2160,7 @@ ACTION_B(rerunnotifiers) {
 /* argument handling */
 /*********************/
 
+// TODO: this has become an utter mess and needs some serious cleaning...
 #define NEED_REFERENCES 1
 #define NEED_FILESDB 2
 #define NEED_DEREF 4
@@ -2168,18 +2169,26 @@ ACTION_B(rerunnotifiers) {
 #define NEED_NO_PACKAGES 32
 #define IS_RO 64
 #define MAY_UNUSED 128
-#define A_N(w) action_n_ ## w, 0
-#define A_C(w) action_c_ ## w, NEED_CONFIG
-#define A_ROB(w) action_b_ ## w, NEED_DATABASE|IS_RO
-#define A_B(w) action_b_ ## w, NEED_DATABASE
-#define A_F(w) action_f_ ## w, NEED_DATABASE|NEED_FILESDB
-#define A_R(w) action_r_ ## w, NEED_DATABASE|NEED_REFERENCES
-#define A__F(w) action_f_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_NO_PACKAGES
-#define A__R(w) action_r_ ## w, NEED_DATABASE|NEED_REFERENCES|NEED_NO_PACKAGES
-#define A__T(w) action_t_ ## w, NEED_DATABASE|NEED_NO_PACKAGES|MAY_UNUSED
-#define A_RF(w) action_rf_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES
+#define NEED_ACT 256
+#define NEED_SP 512
+#define A_N(w) action_n_n_n_ ## w, 0
+#define A_C(w) action_c_n_n_ ## w, NEED_CONFIG
+#define A_ROB(w) action_b_n_n_ ## w, NEED_DATABASE|IS_RO
+#define A_ROBact(w) action_b_y_n_ ## w, NEED_ACT|NEED_DATABASE|IS_RO
+#define A_B(w) action_b_n_n_ ## w, NEED_DATABASE
+#define A_Bact(w) action_b_y_n_ ## w, NEED_ACT|NEED_DATABASE
+#define A_F(w) action_f_n_n_ ## w, NEED_DATABASE|NEED_FILESDB
+#define A_Fact(w) action_f_y_n_ ## w, NEED_ACT|NEED_DATABASE|NEED_FILESDB
+#define A_R(w) action_r_n_n_ ## w, NEED_DATABASE|NEED_REFERENCES
+#define A__F(w) action_f_n_n_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_NO_PACKAGES
+#define A__R(w) action_r_n_n_ ## w, NEED_DATABASE|NEED_REFERENCES|NEED_NO_PACKAGES
+#define A__T(w) action_t_n_n_ ## w, NEED_DATABASE|NEED_NO_PACKAGES|MAY_UNUSED
+#define A_RF(w) action_rf_n_n_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES
+#define A_RFact(w) action_rf_y_n_ ## w, NEED_ACT|NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES
 /* to dereference files, one needs files and references database: */
-#define A_D(w) action_d_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
+#define A_D(w) action_d_n_n_ ## w, NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
+#define A_Dact(w) action_d_y_n_ ## w, NEED_ACT|NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
+#define A_Dactsp(w) action_d_y_y_ ## w, NEED_ACT|NEED_SP|NEED_DATABASE|NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
 
 static const struct action {
 	const char *name;
@@ -2187,6 +2196,11 @@ static const struct action {
 			/*@null@*//*@only@*/struct distribution *,
 			/*@null@*/struct database*,
 			/*@null@*/struct strlist *dereferencedfilekeys,
+			/*@null@*/const char *priority,
+			/*@null@*/const char *section,
+			/*@null@*/const char *architecture,
+			/*@null@*/const char *component,
+			/*@null@*/const char *packagetype,
 			int argc,const char *argv[]);
 	int needs;
 	int minargs, maxargs;
@@ -2216,23 +2230,23 @@ static const struct action {
 		2, 2, "_addreference <reference> <referee>"},
 	{"_fakeemptyfilelist",	A__F(fakeemptyfilelist),
 		1, 1, "_fakeemptyfilelist <filekey>"},
-	{"remove", 		A_D(remove),
+	{"remove", 		A_Dact(remove),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
 	{"removesrc", 		A_D(removesrc),
 		2, 3, "removesrc <codename> <source-package-names> [<source-version>]"},
-	{"list", 		A_ROB(list),
+	{"list", 		A_ROBact(list),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] list <codename> <package-name>"},
-	{"listfilter", 		A_ROB(listfilter),
+	{"listfilter", 		A_ROBact(listfilter),
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] listfilter <codename> <term to describe which packages to list>"},
-	{"removefilter", 	A_D(removefilter),
+	{"removefilter", 	A_Dact(removefilter),
 		2, 2, "[-C <component>] [-A <architecture>] [-T <type>] removefilter <codename> <term to describe which packages to remove>"},
 	{"createsymlinks", 	A_C(createsymlinks),
 		0, -1, "createsymlinks [<distributions>]"},
 	{"export", 		A_F(export),
 		0, -1, "export [<distributions>]"},
-	{"check", 		A_RF(check),
+	{"check", 		A_RFact(check),
 		0, -1, "check [<distributions>]"},
-	{"reoverride", 		A_F(reoverride),
+	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
 	{"checkpool", 		A_F(checkpool),
 		0, 1, "checkpool [fast]"},
@@ -2264,17 +2278,17 @@ static const struct action {
 		0, -1, "predelete [<distributions>]"},
 	{"pull",		A_D(pull),
 		0, -1, "pull [<distributions>]"},
-	{"copy",		A_D(copy),
+	{"copy",		A_Dact(copy),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>"},
 	{"checkpull",		A_B(checkpull),
 		0, -1, "checkpull [<distributions>]"},
-	{"includedeb",		A_D(includedeb),
+	{"includedeb",		A_Dactsp(includedeb),
 		2, -1, "[--delete] includedeb <distribution> <.deb-file>"},
-	{"includeudeb",		A_D(includedeb),
+	{"includeudeb",		A_Dactsp(includedeb),
 		2, -1, "[--delete] includeudeb <distribution> <.udeb-file>"},
-	{"includedsc",		A_D(includedsc),
+	{"includedsc",		A_Dactsp(includedsc),
 		2, 2, "[--delete] includedsc <distribution> <package>"},
-	{"include",		A_D(include),
+	{"include",		A_Dactsp(include),
 		2, 2, "[--delete] include <distribution> <.changes-file>"},
 	{"generatefilelists",	A_F(generatefilelists),
 		0, 1, "generatefilelists [reread]"},
@@ -2286,7 +2300,7 @@ static const struct action {
 		1, 2, "processincoming <rule-name> [<.changes file>]"},
 	{"gensnapshot",		A_R(gensnapshot),
 		2, 2, "gensnapshot <distribution> <date or other name>"},
-	{"rerunnotifiers",	A_B(rerunnotifiers),
+	{"rerunnotifiers",	A_Bact(rerunnotifiers),
 		0, -1, "rerunnotifiers [<distributions>]"},
 	{NULL,NULL,0,0,0,NULL}
 };
@@ -2322,6 +2336,42 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	}
 	needs = action->needs;
 
+	if( !ISSET(needs, NEED_ACT) && ( x_architecture != NULL ) ) {
+		if( !IGNORING_(unusedoption,
+"Action '%s' cannot be restricted to an architecture!\n"
+"neither --archiecture or -A make sense here.\n",
+				action->name) )
+			return RET_ERROR;
+	}
+	if( !ISSET(needs, NEED_ACT) && ( x_component != NULL ) ) {
+		if( !IGNORING_(unusedoption,
+"Action '%s' cannot be restricted to a component!\n"
+"neither --component nor -C make sense here.\n",
+				action->name) )
+			return RET_ERROR;
+	}
+	if( !ISSET(needs, NEED_ACT) && ( x_packagetype != NULL ) ) {
+		if( !IGNORING_(unusedoption,
+"Action '%s' cannot be restricted to a packagetype!\n"
+"neither --packagetype nor -T make sense here.\n",
+				action->name) )
+			return RET_ERROR;
+	}
+	if( !ISSET(needs, NEED_SP) && ( x_section != NULL ) ) {
+		if( !IGNORING_(unusedoption,
+"Action '%s' cannot take a section option!\n"
+"neither --section nor -S make sense here.\n",
+				action->name) )
+			return RET_ERROR;
+	}
+	if( !ISSET(needs, NEED_SP) && ( x_priority != NULL ) ) {
+		if( !IGNORING_(unusedoption,
+"Action '%s' cannot take a priority option!\n"
+"neither --priority nor -P make sense here.\n",
+				action->name) )
+			return RET_ERROR;
+	}
+
 	if( ISSET(needs, NEED_DATABASE))
 		needs |= NEED_CONFIG;
 	if( ISSET(needs, NEED_CONFIG) ) {
@@ -2333,7 +2383,10 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	if( !ISSET(needs, NEED_DATABASE) ) {
 		assert( (needs & !NEED_CONFIG) == 0);
 
-		result = action->start(alldistributions, NULL, NULL, argc, argv);
+		result = action->start(alldistributions, NULL, NULL,
+				x_section, x_priority,
+				x_architecture, x_component, x_packagetype,
+				argc, argv);
 		return result;
 	}
 
@@ -2369,6 +2422,9 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				result = action->start(alldistributions,
 					database,
 					deletederef?&dereferencedfilekeys:NULL,
+					x_section, x_priority,
+					x_architecture, x_component,
+					x_packagetype,
 					argc,argv);
 
 				if( deletederef ) {
@@ -2458,6 +2514,10 @@ static void setexport(const char *optarg) {
 		return;
 	}
 	if( strcasecmp(optarg, "normal") == 0 ) {
+		CONFIGSET(export, EXPORT_NORMAL);
+		return;
+	}
+	if( strcasecmp(optarg, "lookedat") == 0 ) {
 		CONFIGSET(export, EXPORT_NORMAL);
 		return;
 	}
@@ -2698,44 +2758,44 @@ static void handle_option(int c,const char *optarg) {
 			}
 			break;
 		case 'C':
-			if( component != NULL &&
-					strcmp(component,optarg) != 0) {
+			if( x_component != NULL &&
+					strcmp(x_component, optarg) != 0) {
 				fprintf(stderr,"Multiple '-C' are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(component,optarg);
+			CONFIGDUP(x_component, optarg);
 			break;
 		case 'A':
-			if( architecture != NULL &&
-					strcmp(architecture,optarg) != 0) {
+			if( x_architecture != NULL &&
+					strcmp(x_architecture, optarg) != 0) {
 				fprintf(stderr,"Multiple '-A's are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(architecture,optarg);
+			CONFIGDUP(x_architecture, optarg);
 			break;
 		case 'T':
-			if( packagetype != NULL &&
-					strcmp(packagetype,optarg) != 0) {
+			if( x_packagetype != NULL &&
+					strcmp(x_packagetype, optarg) != 0) {
 				fprintf(stderr,"Multiple '-T's are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(packagetype,optarg);
+			CONFIGDUP(x_packagetype, optarg);
 			break;
 		case 'S':
-			if( section != NULL &&
-					strcmp(section,optarg) != 0) {
+			if( x_section != NULL &&
+					strcmp(x_section, optarg) != 0) {
 				fprintf(stderr,"Multiple '-S' are not supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(section,optarg);
+			CONFIGDUP(x_section, optarg);
 			break;
 		case 'P':
-			if( priority != NULL &&
-					strcmp(priority,optarg) != 0) {
+			if( x_priority != NULL &&
+					strcmp(x_priority, optarg) != 0) {
 				fprintf(stderr,"Multiple '-P's are mpt supported!\n");
 				exit(EXIT_FAILURE);
 			}
-			CONFIGDUP(priority,optarg);
+			CONFIGDUP(x_priority, optarg);
 			break;
 		case '?':
 			/* getopt_long should have already given an error msg */
@@ -2936,11 +2996,11 @@ int main(int argc,char *argv[]) {
 			free(overridedir);
 			free(mirrordir);
 			free(methoddir);
-			free(component);
-			free(architecture);
-			free(packagetype);
-			free(section);
-			free(priority);
+			free(x_component);
+			free(x_architecture);
+			free(x_packagetype);
+			free(x_section);
+			free(x_priority);
 			if( RET_WAS_ERROR(r) ) {
 				if( r == RET_ERROR_OOM )
 					fputs("Out of Memory!\n",stderr);
@@ -2962,11 +3022,11 @@ int main(int argc,char *argv[]) {
 	free(overridedir);
 	free(mirrordir);
 	free(methoddir);
-	free(component);
-	free(architecture);
-	free(packagetype);
-	free(section);
-	free(priority);
+	free(x_component);
+	free(x_architecture);
+	free(x_packagetype);
+	free(x_section);
+	free(x_priority);
 	exit(EXIT_FAILURE);
 }
 

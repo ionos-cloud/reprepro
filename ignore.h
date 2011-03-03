@@ -28,6 +28,7 @@
 	IGN(uploaders) \
 	IGN(undefinedtarget) \
 	IGN(undefinedtracking) \
+	IGN(unusedoption) \
 	IGN(missingfile)
 
 

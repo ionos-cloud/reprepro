@@ -363,12 +363,12 @@ static struct dirlist *finddir(struct dirlist *dir, cuchar *name, size_t namelen
 	return d;
 }
 
-static retvalue filelist_addfiles(struct filelist_list *list, const struct filelist_package *package, const char *filekey, const char *datastart, size_t len) {
+static retvalue filelist_addfiles(struct filelist_list *list, const struct filelist_package *package, const char *filekey, const char *datastart, size_t size) {
 	struct dirlist *curdir = list->root;
 	const unsigned char *data = (const unsigned char *)datastart;
 
 	while( *data != '\0' ) {
-		if( (size_t)(data - (const unsigned char *)datastart) >= len ) {
+		if( (size_t)(data - (const unsigned char *)datastart) >= size-1 ) {
 			/* This might not catch everything, but we are only
 			 * accessing it readonly */
 			fprintf(stderr, "Corrupted file list data for %s\n",
@@ -415,6 +415,13 @@ static retvalue filelist_addfiles(struct filelist_list *list, const struct filel
 				curdir = curdir->parent;
 		}
 	}
+	if( (size_t)(data - (const unsigned char *)datastart) != size-1 ) {
+		fprintf(stderr, "Corrupted file list data for %s (format suggest %llu, is %llu)\n",
+				filekey,
+				(unsigned long long)(data - (const unsigned char *)datastart),
+				(unsigned long long)(size-1));
+		return RET_ERROR;
+	}
 	return RET_OK;
 }
 
@@ -445,16 +452,16 @@ retvalue filelist_addpackage(struct filelist_list *list, struct database *databa
 	if( RET_IS_OK(r) ) {
 		r = filelist_addfiles(list, package, filekey, c, size);
 		if( contents != NULL )
-			r = table_adduniqlenrecord(database->contents, filekey,
-					contents, size, true);
+			r = table_adduniqsizedrecord(database->contents, filekey,
+					contents, size, true, false);
 	}
 	free(contents);
 	return r;
 }
 
 retvalue fakefilelist(struct database *database, const char *filekey) {
-	return table_adduniqlenrecord(database->contents, filekey,
-			"", 1, true);
+	return table_adduniqsizedrecord(database->contents, filekey,
+			"", 1, true, false);
 }
 
 static const char header[] = "FILE                                                    LOCATION\n";
@@ -685,8 +692,8 @@ retvalue filelists_translate(struct table *oldtable, struct table *newtable) {
 		r = filelistcompressor_finish(&c, &newdata, &newdata_size);
 		if( !RET_IS_OK(r) )
 			break;
-		r = table_adduniqlenrecord(newtable, filekey,
-				newdata, newdata_size, false);
+		r = table_adduniqsizedrecord(newtable, filekey,
+				newdata, newdata_size, false, false);
 		free(newdata);
 		if( RET_WAS_ERROR(r) )
 			break;

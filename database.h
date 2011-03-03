@@ -38,7 +38,7 @@ bool table_recordexists(struct table *, const char *);
 retvalue table_getrecord(struct table *, const char *, /*@out@*/char **);
 retvalue table_gettemprecord(struct table *, const char *, /*@out@*/const char **, /*@out@*/ size_t *);
 
-retvalue table_adduniqlenrecord(struct table *, const char *key, const char *data, size_t data_size, bool allowoverwrote);
+retvalue table_adduniqsizedrecord(struct table *, const char *key, const char *data, size_t data_size, bool allowoverwrote, bool nooverwrite);
 retvalue table_adduniqrecord(struct table *, const char *key, const char *data);
 retvalue table_replacerecord(struct table *, const char *key, const char *data);
 retvalue table_deleterecord(struct table *, const char *key, bool ignoremissing);

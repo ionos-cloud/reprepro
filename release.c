@@ -64,6 +64,8 @@ struct release {
 		char *fullfinalfilename;
 		char *fulltemporaryfilename;
 	} *files;
+	/* the Release file in preperation (only valid between _prepare and _finish) */
+	struct signedfile *signedfile;
 	/* the cache database for old files */
 	struct table *cachedb;
 };
@@ -80,6 +82,8 @@ void release_free(struct release *release) {
 		free(e->fulltemporaryfilename);
 		free(e);
 	}
+	if( release->signedfile != NULL )
+		signedfile_free(release->signedfile);
 	if( release->cachedb != NULL ) {
 		table_close(release->cachedb);
 	}
@@ -1079,49 +1083,43 @@ static retvalue storechecksums(struct release *release) {
 }
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool onlyifneeded) {
+retvalue release_prepare(struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
-	int e;
-	retvalue result,r;
+	retvalue r;
 	char buffer[100];
 	time_t t;
 	struct tm *gmt;
-	int i;
 	struct release_entry *file;
-	bool somethingwasdone;
-	struct signedfile *signedfile;
+	int i;
 
+	// TODO: check for existance of Release file here first?
 	if( onlyifneeded && !release->new ) {
-		release_free(release);
 		return RET_NOTHING;
 	}
 
 	(void)time(&t);
 	gmt = gmtime(&t);
 	if( gmt == NULL ) {
-		release_free(release);
 		return RET_ERROR_OOM;
 	}
 	s=strftime(buffer,99,"%a, %d %b %Y %H:%M:%S +0000",gmt);
 	if( s == 0 || s >= 99) {
 		fprintf(stderr,"strftime is doing strange things...\n");
-		release_free(release);
 		return RET_ERROR;
 	}
 
 	if( distribution->signwith != NULL )
 		r = signature_startsignedfile(release->dirofdist, "Release",
 				distribution->signwith,
-				&signedfile);
+				&release->signedfile);
 	else
 		r = signature_startunsignedfile(release->dirofdist, "Release",
-				&signedfile);
+				&release->signedfile);
 	if( RET_WAS_ERROR(r) ) {
-		release_free(release);
 		return r;
 	}
-#define writestring(s) signedfile_write(signedfile, s, strlen(s))
-#define writechar(c) {char __c = c ; signedfile_write(signedfile, &__c, 1); }
+#define writestring(s) signedfile_write(release->signedfile, s, strlen(s))
+#define writechar(c) {char __c = c ; signedfile_write(release->signedfile, &__c, 1); }
 
 	if( distribution->origin != NULL ) {
 		writestring("Origin: ");
@@ -1178,12 +1176,22 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 			writechar('\n');
 		}
 	}
-	r = signedfile_prepare(signedfile, distribution->signwith);
+	r = signedfile_prepare(release->signedfile, distribution->signwith);
 	if( RET_WAS_ERROR(r) ) {
-		signedfile_free(signedfile);
-		release_free(release);
+		signedfile_free(release->signedfile);
+		release->signedfile = NULL;
 		return r;
 	}
+	return RET_OK;
+}
+
+/* Generate a main "Release" file for a distribution */
+retvalue release_finish(/*@only@*/struct release *release, struct distribution *distribution) {
+	retvalue result,r;
+	int e;
+	struct release_entry *file;
+	bool somethingwasdone;
+
 	somethingwasdone = false;
 	result = RET_OK;
 
@@ -1205,7 +1213,6 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 				/* after something was done, do not stop
 				 * but try to do as much as possible */
 				if( !somethingwasdone ) {
-					signedfile_free(signedfile);
 					release_free(release);
 					return r;
 				}
@@ -1214,15 +1221,24 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 				somethingwasdone = true;
 		}
 	}
-	r = signedfile_finalize(signedfile, &somethingwasdone);
-	signedfile_free(signedfile);
+	r = signedfile_finalize(release->signedfile, &somethingwasdone);
 	if( RET_WAS_ERROR(r) && !somethingwasdone ) {
 		release_free(release);
 		return r;
 	}
 	RET_UPDATE(result,r);
-
+	if( RET_WAS_ERROR(result) && somethingwasdone ) {
+		fputs(
+"ATTENTION: some files were already moved to place, some could not be.\n"
+"The generated index files might be in a inconsistent state and currently\n"
+"not useable! You should remove the reason for the failure\n"
+"(most likely bad access permissions) and export the affected distributions\n"
+"manually (via reprepro export codenames) as soon as possible!\n", stderr);
+	}
 	if( release->cachedb != NULL ) {
+		// TODO: split this in removing before and adding later?
+		// remember which file were changed in case of error, so
+		// only those are changed...
 		/* now update the cache database, so we find those the next time */
 		r = storechecksums(release);
 		RET_UPDATE(result,r);

@@ -455,14 +455,19 @@ This can be useful for doing multiple operations in a row and not wanting to reg
 the indices all the time.
 Note that unless you do an explicit export or change the same parts later without that
 option, the generated index files may be permanently out of date.
-</dd><dt>normal</dt><dd>This is the default behaviour.
-In this mode all distributions are processed that were looked at without error.
+</dd><dt>changed</dt><dd>This is the default behaviour since 3.0.1.
+Only export distributions where something changed
+(and no error occoured that makes an inconsistent state likely).
+And in those distributions only (re-)generate files which content should have been changed
+by the current action or which are missing.
+</dd><dt>lookedat</dt><dd>New name for <tt>normal</tt> since 3.0.1.
+</dd><dt>normal</dt><dd>This was the default behaviour until 3.0.0 (changed in 3.0.1).
+In this mode all distributions are processed that were looked at without error
+(where error means only errors hapening while the package was open so have a chance
+to cause strange contents).
 This ensures that even after a operation that had nothing to do the looked at
-distribution has all the files exported needed to access it.
-</dd><dt>changed</dt><dd>Only look for missing files if something in a distribution
-actually changed. That means that if you generate or change the options of a distribution
-you have to actually do some action adding, removing or changing a package in that before
-the changes will hit the <tt class="dir">dists/</tt> directory.
+distribution has all the files exported needed to access it. (But still only files
+missing or that content would change with this action are regenerated).
 </dd><dt>force</dt><dd>Also try to write the current state if some error occured.
 In all other modes reprepro will not write the index files if there was a problem.
 While this keeps the repository usable for users, it means that you will need an
