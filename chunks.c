@@ -159,8 +159,8 @@ static const char *chunk_getfield(const char *name,const char *chunk) {
 }
 
 /* get the content of the given field, including all following lines, in a format
- * that may be put into chunk_replacefields */
-retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
+ * that may be put into chunk_replacefields 
+static retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 	const char *field;
 	char *val;
 	const char *b,*e;
@@ -171,11 +171,11 @@ retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 		return RET_NOTHING;
 
 	b = field;
-	/* jump over spaces at the beginning */
+	* jump over spaces at the beginning *
 	if( xisspace(*b) )
 		b++;
 
-	/* search for the end */
+	* search for the end *
 	e = b;
 	do {
 		while( *e != '\n' && *e != '\0' )
@@ -186,7 +186,7 @@ retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 
 	if( e > b && *e == '\0' )
 		e--;
-	/* remove trailing newline */
+	* remove trailing newline *
 	if( e > b && *e == '\n' )
 		e--;
 	if( e > b )
@@ -198,6 +198,7 @@ retvalue chunk_getcontent(const char *chunk,const char *name,char **value) {
 	*value = val;
 	return RET_OK;
 }
+*/
 
 /* look for name in chunk. returns RET_NOTHING if not found */
 retvalue chunk_getvalue(const char *chunk,const char *name,char **value) {

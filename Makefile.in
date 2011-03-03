@@ -440,10 +440,10 @@ sources.o: sources.c config.h error.h globals.h mprintf.h strlist.h \
 	packages.h files.h exports.h dpkgversions.h override.h \
 	tracking.h distribution.h
 strlist.o: strlist.c config.h error.h globals.h strlist.h
-target.o: target.c config.h error.h globals.h mprintf.h strlist.h \
-	names.h chunks.h packages.h files.h reference.h trackingt.h \
-	binaries.h target.h exports.h sources.h md5sum.h dirs.h \
-	dpkgversions.h override.h tracking.h distribution.h
+target.o: target.c config.h error.h globals.h ignore.h mprintf.h \
+	strlist.h names.h chunks.h packages.h files.h reference.h \
+	trackingt.h binaries.h target.h exports.h sources.h md5sum.h \
+	dirs.h dpkgversions.h override.h tracking.h distribution.h
 terms.o: terms.c config.h error.h globals.h mprintf.h strlist.h names.h \
 	chunks.h terms.h
 tracking.o: tracking.c config.h error.h globals.h names.h strlist.h \

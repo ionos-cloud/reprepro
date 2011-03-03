@@ -471,7 +471,7 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	return r;
 }
 
-retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,references refs,struct distribution *distribution,int force,struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
+retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,references refs,struct distribution *distribution,struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
 
@@ -479,7 +479,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
-		r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
+		r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}
@@ -491,7 +491,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
  * If basename, filekey and directory are != NULL, then they are used instead 
  * of beeing newly calculated. 
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -508,7 +508,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		}
 	}
 
-	r = dsc_addprepared(pkg,dbdir,refs,distribution,force,
+	r = dsc_addprepared(pkg,dbdir,refs,distribution,
 			dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL);
 	dsc_free(pkg);

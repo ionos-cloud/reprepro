@@ -1,3 +1,11 @@
+Updates since 0.6:
+- new --ignore=missingfield,brokenold,brokenversioncmp, 
+	unusedarch,surpisingarch
+- Fix segfault when update file is empty.
+	  (Thanks to Gianluigi Tiesi for noticing this.)
+- improve manpage a little bit
+- many little tidy ups
+
 Updates since 0.5:
 - no longer set execute bit of generated Release.gpg files
 - use REPREPRO_BASE_DIR for default basedir, parse conf/options

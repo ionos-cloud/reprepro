@@ -690,6 +690,7 @@ ACTION_D(update) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
+	assert( RET_IS_OK(result) );
 
 	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
 	if( RET_WAS_ERROR(result) ) {
@@ -698,6 +699,7 @@ ACTION_D(update) {
 		RET_ENDUPDATE(result,r);
 		return result;
 	}
+	assert( RET_IS_OK(result) );
 
 	if( !keepunneededlists ) {
 		result = updates_clearlists(listdir,u_distributions);
@@ -1250,7 +1252,7 @@ ACTION_D(includedeb) {
 
 	result = deb_add(dbdir,references,filesdb,component,architecture,
 			section,priority,isudeb?"udeb":"deb",distribution,argv[2],
-			NULL,NULL,override,force,delete,
+			NULL,NULL,override,delete,
 			dereferenced,tracks);
 
 	override_free(override);
@@ -1314,7 +1316,7 @@ ACTION_D(includedsc) {
 		tracks = NULL;
 	}
 
-	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,force,delete,dereferenced,onlyacceptsigned,tracks);
+	result = dsc_add(dbdir,references,filesdb,component,section,priority,distribution,argv[2],NULL,NULL,NULL,NULL,srcoverride,delete,dereferenced,onlyacceptsigned,tracks);
 	
 	override_free(srcoverride);
 	r = tracking_done(tracks);
@@ -1362,7 +1364,7 @@ ACTION_D(include) {
 		tracks = NULL;
 	}
 
-	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],force,delete,dereferenced,onlyacceptsigned);
+	result = changes_add(dbdir,tracks,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],delete,dereferenced,onlyacceptsigned);
 
 	override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
 
@@ -1443,7 +1445,7 @@ ACTION_N(createsymlinks) {
 			}
 		} else if( ret >= 0 ) {
 			buffer[ret] = '\0';
-			if( ret >= bufsize-4 ) {
+			if( ret >= ((int)bufsize)-4 ) {
 				buffer[bufsize-4]='.';
 				buffer[bufsize-3]='.';
 				buffer[bufsize-2]='.';
@@ -1977,10 +1979,10 @@ int main(int argc,char *argv[]) {
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
 	config_state = CONFIG_OWNER_ENVIRONMENT;
-	if( mirrordir == NULL && getenv("REPREPRO_BASE_DIR") ) {
+	if( mirrordir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
 		CONFIGDUP(mirrordir,getenv("REPREPRO_BASE_DIR"));
 	}
-	if( confdir == NULL && getenv("REPREPRO_CONFIG_DIR") ) {
+	if( confdir == NULL && getenv("REPREPRO_CONFIG_DIR") != NULL ) {
 		CONFIGDUP(confdir,getenv("REPREPRO_CONFIG_DIR"));
 	}
 

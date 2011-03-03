@@ -437,7 +437,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 }
 
 	
-retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,int force,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata){
+retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata){
 	retvalue r,result;
 	int i;
 
@@ -450,7 +450,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_ARCH_BINARY);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ARCH_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -460,7 +460,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -473,7 +473,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		r = target_initpackagesdb(t,dbdir);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
+			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -489,7 +489,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int force,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
+retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,const struct overrideinfo *binoverride,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
@@ -510,7 +510,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		}
 	}
 
-	r = deb_addprepared(pkg,dbdir,refs,forcearchitecture,packagetype,distribution,force, dereferencedfilekeys,(tracks!=NULL)?&trackingdata:NULL);
+	r = deb_addprepared(pkg,dbdir,refs,forcearchitecture,packagetype,distribution,dereferencedfilekeys,(tracks!=NULL)?&trackingdata:NULL);
 	deb_free(pkg);
 
 	if( tracks != NULL ) {

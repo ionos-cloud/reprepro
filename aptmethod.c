@@ -539,7 +539,7 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 
 /* shuffle files from failed to tobedone and nexttosend, if an
  * alternate baseuri to try too is given. */
-retvalue requeue_failed(struct aptmethod *method){
+static retvalue requeue_failed(struct aptmethod *method){
 	struct tobedone *todo;
 	size_t old_len,new_len;
 

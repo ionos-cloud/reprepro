@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "28 August, 2005" "reprepro" REPREPRO
+.TH REPREPRO 1 "25 September, 2005" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -115,6 +115,10 @@ Overrides the section of inclusions. (Also override possible override files)
 .TP
 .B \-P, \-\-priority \fIpriority\fP
 Overrides the priority of inclusions. (Also override possible override files)
+.TP
+.B \-\-ignore=\fIwhat\fP
+Ignore errors of type \fIwhat\fP. See the section \fBERROR IGNORING\fP
+for possible values.
 .TP
 .B \-\-nolistsdownload
 When running \fBupdate\fP or \fBcheckupdate\fP do not download any Release
@@ -595,7 +599,109 @@ with the downloaded list as first and a filename that will
 be used instead of this. (e.g. "ListHook: /bin/cp" works
 but does nothing.)
 .SH "OVERRIDE FILES"
-yet to be described
+Override files are yet only used when things are manually added,
+not when imported while updating from an external source.
+The format should resemble the extended ftp-archive format,
+to be specific it is:
+
+.B \fIpackagename\fP \fIfieldname\fP \fInewvalue\fP
+
+For example:
+.br
+.B kernel-image-2.4.31-yourorga Section protected/base
+.br
+.B kernel-image-2.4.31-yourorga Priority standard
+.br
+.B kernel-image-2.4.31-yourorga Maintainer That's me <me@localhost>
+.br
+.B reprepro Priority required
+
+All fields of a given package will be replaced by the new value specified
+in the override file.
+While the fieldname is compared case-insensitive, it is copied in
+exactly the form in the override file there.
+(Thus I suggest to keep to the exact case it is normaly found in 
+index files in case some other tool confuses them.)
+More than copied is the Section header (unless \fB\-S\fP is supplied),
+which is also used to guess the component (unless \fB\-C\fP is there).
+There is no protection against changing headers like \fBPackage\fP, 
+\fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
+fields may give the most curious results.
+(Most likely reprepro may error out in future invocations).
+.SH "ERROR IGNORING"
+With \fB\-\-ignore\fP on the command line or an \fIignore\fP
+line in the options file, the following type of errors can be
+ignored:
+.TP
+.B brokenold \fR(hopefully never seen)
+If there are errors parsing an installed version of package, do not 
+error out, but assume it is older than anything else, has not files
+or no source name.
+.TP
+.B brokenversioncmp \fR(hopefully never seen)
+If comparing an old and a new version fails, assume the new one is newer.
+.TP
+.B emptyfilenamepart \fR(insecure)
+Allow strings to be empty that are used to construct filenames.
+(like versions, architectures, ...)
+.TP
+.B forbiddenchar \fR(insecure)
+Do not insist on Debian policy for package and source names
+and versions.
+Thus allowing all 7-bit characters but slashes (as they would
+break the file storage) and things syntactically active
+(spaces, underscores in filenames in .changes files, opening
+ parantheses in source names of binary packages).
+To allow some 8-bit chars additionally, use \fB8but\fP additionally.
+.TP
+.B 8bit \fR(more insecure)
+Allow 8-bit characters not looking like overlong UTF-8 sequences
+in filenames and things used as parts of filenames.
+Though it hopefully rejects overlong UTF-8 sequences, there might
+be other characters your filesystem confuses with special characters,
+thus creating filenames possibly equivalent to 
+\fB/mirror/pool/main/../../../etc/shadow\fP 
+(Which should be save, as you do not run reprepro as root, do you?) 
+or simply overwriting your conf/distributions file adding some commands
+in there. So do not use this if you are paranoid, unless you are paranoid
+enough to have checked the code of your libs, kernel and filesystems.
+.TP
+.B ignore \fR(for forward compatibility)
+Ignore unknown ignore types given to \fI\-\-ignore\fP.
+.TP
+.B malformedchunk \fR(I hope you know what you do)
+Do not stop when finding a line not starting with a space but
+no colon(:) in it. These are otherwise rejected as they have no
+defined meaning.
+.TP
+.B missingfield \fR(save to ignore)
+Ignore missing fields in a .changes file that are only checked but
+not procesed. 
+Those include: Format, Date, Urgency, Maintainer, Description, Changes
+.TP
+.B overlongcomments \fR(I hope you know what you do)
+Allow overlong comments. That is a line started with a hash(#)
+followed by lines starting with spaces. By default reprepro errors
+out in that case, as marking every line as comment is as easy and
+people might try to comment a single line within a multi-line
+header (which does not work but makes all the rest a comment).
+.TP
+.B spaceonlyline \fR(I hope you know what you do)
+Allow lines containing only (but non-zero) spaces. As these
+do not seperate chunks as thus will cause reprepro to behave
+unexpected, they cause error messages by default.
+.TP
+.B wrongdistribution \fR(save to ignore)
+Do not error out if a .changes file is to be placed in a
+distribution not listed in that files' Distributions: header.
+.TP
+.B unknownfield \fR(for forward compatibility)
+Ignore unknown fields in the config files, instead of refusing to run
+then.
+.TP
+.B unusedarch \fR(save to ignore)
+No longer rejct a .changes file containing not files for any of the
+architectured listed in the Architecture-header within it.
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with
@@ -620,7 +726,8 @@ to end up there.
 unlike in dak, non\-US and non\-us are different things...
 .SH NOMENCLATURE
 .B Codename 
-is the identifier ...
+the primary identifier of a given distribution. This are normaly
+things like \fBsarge\fP, \fBetch\fP or \fBsid\fP.
 .TP
 .B basename
 the name of a file without any directory information.
@@ -632,51 +739,34 @@ the position relative to the mirrordir.  (as found as "Filename:" in Packages.gz
 the position relative to /
 .TP
 .B architecture
-The term like
-.B sparc
-,
-.B i386
-,
-.B mips
-,...
-
-To refer to the source packages, 
-.B source
-is sometimes also considered as architecture.
+The term like \fBsparc\fP, \fBi386\fP, \fBmips\fP, ... .
+To refer to the source packages, \fBsource\fP
+is sometimes also treated as architecture.
 .TP
 .B component
-Things like 
-.B main 
-.
-.B non\-free 
-and
-.B contrib
-  (sometimes also called sections)
+Things like \fBmain\fP, \fBnon\-free\fP and \fBcontrib\fP
+  (by policy and some other programs also called section, reprepro follows
+   the naming scheme of apt here.)
 .TP
 .B section
-Things like 
-.B base
-.B interpreters
-.B oldlibs
-  (sometimes also called subsections)
+Things like \fBbase\fP, \fBinterpreters\fP, \fBoldlibs\fP and \fBnon-free/math\fP
+  (by policy and some other programs also called subsections).
 .TP
 .B md5sum
-The checksum of a file, being in the format
+The checksum of a file in the format
 "\fI<md5sum of file>\fP \fI<length of file>\fP"
 .SH Some note on updates
 .SS A version is not overwritten with the same version.
 .B reprepro
 will never update a package with a version it already has. This would
 be equivalent to rebuilding the whole database with every single upgrade.
-To force the new same version in, remove it and then update. (If you
-do no 
-.B deleteunreferenced 
-in between, it will not need to reget the
-Packages files themselves. If those change, better to a 
-.B deleteunreferenced
-in between or a 
-.B __forget 
-on the specific files.
+To force the new same version in, remove it and then update. 
+(If files of
+the packages changed without changing their name, make sure the file is
+no longer remembered by reprepro. 
+Without \fB\-\-keepunreferencedfiled\fP
+and without errors while deleting it should already be forgotten, otherwise
+a \fBdeleteunreferenced\fP or even some \fB__forget\fP might help.)
 .SS The magic delete rule ("\-").
 A minus as a single word in the
 .B Updates:

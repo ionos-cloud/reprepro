@@ -14,7 +14,7 @@ ulong counts[256];
 ulong nextcount[256*256];
 ulong next[256*256*256];
 
-static inline uchar randomchar() {
+static inline uchar randomchar(void) {
 	uchar c = '\0';
 	ulong r = ((ulong)random())%(256+allcount);
 
@@ -56,7 +56,7 @@ static void generate(int size) {
 		if( (random() & 7) == 0 ) {
 			c[2] = randomchar();
 		} else {
-			c[2] = randomchar((((int)c[0])<<8)+c[1]);
+			c[2] = randomchar2((((int)c[0])<<8)+c[1]);
 		}
 		putchar(c[2]);
 		c[0] = c[1];

@@ -213,8 +213,8 @@ retvalue packages_remove(packagesdb db,const char *package) {
 	}
 }
 
-/* check for existance of the given version of a package in the arch, */
-retvalue package_check(packagesdb db,const char *package) {
+/* check for existance of the given version of a package in the arch, 
+static retvalue package_check(packagesdb db,const char *package) {
 	int dbret;
 	DBT key,data;
 
@@ -230,6 +230,7 @@ retvalue package_check(packagesdb db,const char *package) {
 		 return RET_DBERR(dbret);
 	}
 }
+*/
 
 /* action to be called by packages_forall */
 //typedef retvalue per_package_action(void *data,const char *package,const char *chunk);
