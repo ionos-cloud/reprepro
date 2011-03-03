@@ -1,0 +1,517 @@
+reprepro (3.10.0-1) unstable; urgency=low
+
+  * new release
+  - hint at what remove does with packages' files in manpage
+    (Closes: 528498)
+  - allow subkeys in uploader lists and Release.gpg checking when
+    requested (Closes: 522522)
+  - fix handling of 16-hexdigit keyids in VerifyRelease (Closes: 525941)
+  - more conditions in uploaders files (Closes: 497398)
+  * update Vcs-Browser field (Closes: 528291)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 03 Jun 2009 11:28:08 +0200
+
+reprepro (3.9.2-1) unstable; urgency=low
+
+  * new bugfix release
+  - fix logic inversion whether to download (Packages|Sources).diff without
+    a DownloadListsAs line. (Closes: 522329)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  3 Apr 2009 10:07:13 +0200
+
+reprepro (3.9.1-1) unstable; urgency=low
+
+  * new bugfix release
+  - fix misparsing some libz return code as error
+    (should hopefully only be visible when trying to extract
+     Section and Priority from a .dsc).
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 18 Mar 2009 18:39:51 +0100
+
+reprepro (3.9.0-1) unstable; urgency=low
+
+  * new release
+  - support using Packages.diff (Closes: 405634)
+  - fix hint to get gpg error message in case libgpgme returns generic error
+    to not list files deleted later, delete all .new files on error unless
+    new --keeptemporaries is specified (Closes: 516395)
+  - delete unexpected files in the pool which are in the way of new files
+    (Closes: 516578)
+  - describe conf/options in manual.html (Closes: 514801)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Mar 2009 13:28:28 +0100
+
+reprepro (3.8.2-1) unstable; urgency=low
+
+  * add conf/distribution ReadOnly: option (Closes: 515030)
+  * warn in manpage that Codename should be a permanent name (Closes: 515114)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 14 Feb 2009 13:10:13 +0100
+
+reprepro (3.8.1-1) experimental; urgency=low
+
+  * fix typo making copyfilter unuseable (Closes: 512586)
+  * fix bug preventing importing source packages from a flat
+    repository without Directory fields in Sources
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 24 Jan 2009 17:12:05 +0100
+
+reprepro (3.8.0-1) experimental; urgency=low
+
+  * new release
+  - support generation of Valid-Until lines
+  - support downloading .bz2 and .lzma index files
+  - run gunzip and bunzip2 as external programs to distribute load
+  - update rules can refer to other ones for default values
+  - new ls/dumpupdates/dumppulls actions
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 17 Jan 2009 22:20:34 +0100
+
+reprepro (3.6.3-1) experimental; urgency=low
+
+  * new point release with backports from the development branch
+  - fix sha256 generation of very large files (Closes: 506674),
+    thanks to Max Bowsher
+  - allow multiple export hooks at once (Closes: 495303)
+  - use libgpg-error directly (Closes: 502945)
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 24 Nov 2008 10:36:58 +0100
+
+reprepro (3.6.2-1) experimental; urgency=low
+
+  * new bugfix release
+  - fix parsing contents of very large .deb files (Closes: 504434)
+  - improve documentation of remove and removefilter (Closes: 500105)
+  - improve documentation of copysrc and -C (Closes: 496347)
+  - fix many spelling and other errors in the manpage (Closes: 502531)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  4 Nov 2008 21:20:21 +0100
+
+reprepro (3.6.1-2) experimental; urgency=low
+
+  * change to use libdb4.6 by default (Closes: 442668)
+    to enable upgrades from unstable to experimental
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon,  6 Oct 2008 09:38:23 +0200
+
+reprepro (3.6.1-1) experimental; urgency=medium
+
+  * new bugfix release
+  - make reoverride work again (LP: #206663)
+  - fix bzip2 compression
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 15 Aug 2008 15:43:37 +0200
+
+reprepro (3.6.0-1) experimental; urgency=low
+
+  * new upstream release
+  - fix bashism in doc/bzip2.example (Closes: 489652)
+  - add IgnoreHashes option (Closes: 488858)
+  - remove iteratedupdate
+  - speed up updating
+  - fix multiple little bugs
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon,  7 Jul 2008 15:32:52 +0200
+
+reprepro (3.5.2-1) unstable; urgency=medium
+
+  * new bugfix release
+  - repair option file processing broken in 3.5.0
+  - add FakeComponentPrefix to work around apt's / handling in codenames
+  (Closes: 487955)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 27 Jun 2008 17:11:23 +0200
+
+reprepro (3.5.1-1) unstable; urgency=low
+
+  * new bugfix version
+  - no error when trying to removing nonexistant package with
+    removesrc in a distribution with tracking enabled. (Closes: 484792)
+  - support for format 3.0 source packages
+  - improve portability (Closes: 485552)
+  * revert to unversioned libarchive-dev build-dependency
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 23 Jun 2008 16:55:52 +0200
+
+reprepro (3.5.0-1) unstable; urgency=medium
+
+  * new version
+  - put --delete in reprepro.1's description of createsymlinks at the correct
+    place. (Closes: 481404)
+  - allow suite names in command line arguments (Closes: 481402)
+  - add support for Sha256
+  - improve documentation of listfilter (Closes: 475558)
+  - fix misspelling of incoming (Closes: 482655)
+  * make build-depend on libarchive-dev temporarily versioned to allow
+    easier migration to testing.
+  * support parallel=n and only use noopt when space-delimited
+  * rename reprepro specific DEB_BUILD_OPTIONS from reprepro:* to reprepro-*
+  * bump standards-version to 3.8.0
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri,  6 Jun 2008 11:00:03 +0200
+
+reprepro (3.4.2-1) unstable; urgency=high
+
+  * new bugfix release
+  - do not segfault upon remove with Log-script (closes: 480993)
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 16 May 2008 12:06:43 +0200
+
+reprepro (3.4.1-1) unstable; urgency=high
+
+  * new bugfix release
+  - do not segfault upon remove with Log-script (Closes: 475557)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 13 Apr 2008 12:32:32 +0200
+
+reprepro (3.4.0-1) unstable; urgency=medium
+
+  * new release
+  - fix -S and -P mixup (Closes: 473609)
+  - includedsc supports extraction of Section and Priority from .diff and
+    .tar files (Closes: 469673)
+  - incorporate text improvements of messages by Marc Haber (Closes: 469646)
+  - add missing colons to DebIndicies example (Closes: 469810)
+  - set REPREPRO_CAUSING_FILE environment variable in log scripts to the
+    file causing this change. (Closes: 469651)
+  - fix save vs safe misspellings (Closes: 472577)
+  - document Log: directive in manual.html (Closes: 469817)
+  - add copysrc and copyfilter commands (Closes: 465219)
+  * add a doc-base file hinting to the manual
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  6 Apr 2008 15:18:17 +0200
+
+reprepro (3.3.2-1) unstable; urgency=low
+
+  * bugfix release
+  - fix stupid c&p error in includedeb triggered by not uptodate files
+    database (Closes: 468650)
+  - improve documentation of listfilter command (Closes: 468109)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  2 Mar 2008 16:24:57 +0100
+
+reprepro (3.3.1-1) unstable; urgency=low
+
+  * bugfix release
+  - fix --waitforlock on 64 bit architectures (Closes: 465141)
+  - add --outdir to set directory pool and dists are put (Closes: 465213)
+  - ignore missing Changes and Description lines in .changes files
+    (Closes: 465831)
+  - include* commands try harder to remove added files not used.
+  - fix the compilation with --without-libarchive (Closes: 466745)
+  * change Vcs-Cvs to format from cvs understandable to one debcheckout
+    likes. (Closes: 465924)
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu, 28 Feb 2008 12:07:44 +0100
+
+reprepro (3.3.0-1) unstable; urgency=low
+
+  * new version
+  - modified reading of .dsc/.changes/.deb-control files.
+    Should hopefully not change anything except filtering out CRs in them.
+  - add support for .tar.lzma and .diff.lzma in source packages
+  - add support for sha1 hashes (and prepare additional hashes to come)
+  * increase debhelper compatiblity to 5, standards-version to 3.7.3
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 09 Feb 2008 16:58:18 +0100
+
+reprepro (3.0.1-1) unstable; urgency=low
+
+  * new version
+  - fix c&p error in manpage, thanks to Raphael Geissert (Closes: 449210)
+  * move from XS-Vcs- to Vcs- headers
+  * move Homepage field into headers
+  * make apt recommends instead of depends, as only needed when updating
+    from other repositories.
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 13 Nov 2007 11:43:21 +0100
+
+reprepro (3.0.0-1) unstable; urgency=low
+
+  * new version
+  - ignore SIGPIPE, as libgpgme can cause it (Closes: 437138)
+  - new config file parser (Closes: 438941, 440029)
+  - always read and check distributions config first (Closes: 439154)
+  - fix grammar error in manpage (Closes: 441300)
+  - warn about unused tracking data (Closes: 426596)
+  - add removesrc (Closes: 440101)
+  - contents.cache.db file format changed
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon,  8 Oct 2007 12:38:10 +0200
+
+reprepro (2.2.4-1) unstable; urgency=high
+
+  * fix bug causing a Release.gpg with only unknown signatures
+    considered as properly signed.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 19 Aug 2007 16:36:44 +0200
+
+reprepro (2.2.3-1) unstable; urgency=low
+
+  * bugfix release
+  - properly handle binNMU .changes files
+  - fix directory guessing problems in bash completions scripts
+  - add zsh completion scripts
+  - fix some deficits in the changestool program
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 29 Jul 2007 13:22:40 +0200
+
+reprepro (2.2.2-1) unstable; urgency=low
+
+  * bugfix and integration release
+  - fix example typos in manual.html (Closes: 429172)
+  - set GPG_TTY to help pinentry-curses
+  - processincoming can be limited to a single file
+    (to better integrate with inoticoming).
+  * add Vcs- headers
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 24 Jun 2007 13:24:13 +0200
+
+reprepro (2.2.1-1) unstable; urgency=low
+
+  * bugfix release
+  - fix mixup of the name of the --spacecheck option
+  - fix missing options in bash completions
+  - fix segfault when including changes without notificators (closes: #427390)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  3 Jun 2007 20:02:22 +0200
+
+reprepro (2.2.0-1) unstable; urgency=low
+
+  * new release
+  - add notification scripts for .changes files (per distribution)
+  - fix bug not calling all notifiers when they need too long
+  - new --wait-for-lock option
+  - check for enough free space on update
+  - fix bug of remove not reducing tracking when mode is minimal
+  - renames cleartracks to removealltracks
+  - new tidytracks command
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat,  2 Jun 2007 12:54:02 +0200
+
+reprepro (2.1.0-1) experimental; urgency=low
+
+  * new release
+  - several changes in status messages (closes: 414514)
+  - add support for log files and to call notification scripts.
+  - example how to use this to generate something like packages.d.o/changelogs/
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 28 Mar 2007 19:14:26 +0200
+
+reprepro (2.0.0-1) experimental; urgency=low
+
+  * new release
+  - contains a little bit of factorisation that might break stuff, thus .0.0
+  - new action "processincoming" to get packages from an incoming directory
+  - new action "gensnapshot" to export a durable state of a distribution
+  - adds AlsoAcceptFor header, thanks for the suggestion (Closes: 406597)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue, 27 Feb 2007 19:07:16 +0100
+
+reprepro (1.3.1-1) unstable; urgency=low
+
+  * bugfix release
+  - make changestool's updatechecksums work with '-sd' .changes-files
+  - fix some spelling errors (Closes: 396316)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  1 Nov 2006 13:45:35 +0100
+
+reprepro (1.3.0-1) unstable;urgency=low
+
+  * make package description libdb version independent (Closes: 387345)
+  * fix typos and spelling errors in manpage (Closes: 390734, 390737)
+  * new release
+  - ported to newer libgpgme
+  - each distribution can now have a Uploaders: to require signatures of .changes files
+  - multiple chained filterlists possible
+  - more (--ignore'able) checks for source versions of binaries
+  - add changestool program to preprocess .changes
+  * build-depend on libgpgme11-dev
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed, 11 Oct 2006 15:45:37 +0200
+
+reprepro (1.2.0-1) unstable; urgency=low
+
+  * new release
+  - some debug/warning/errormessages improved
+  - manpage no longer claims using libdb3 (Closes: 384075)
+  - support .changes files referencing .tar.bz2 and/or .diff.bz2
+  - fix bug dalaying full Contents-* file generation
+  * no longer ignore make distclean errors
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon,  4 Sep 2006 17:08:10 +0200
+
+reprepro (1.1.0-1) unstable; urgency=low
+
+  * new release
+  - add "minimal" and "all" modes to the (still experimental) source
+    package tracking
+  - clarify manpage that tracking needs exactly one of minimal all or keep.
+  	(Closes: #378968)
+  - cleartracks removes now unnecessary files unless --keepunreferenced given
+  - fix bug of uncompressed Sources file sometimes not showing up in Release
+    files when the file is not generated.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 29 Jul 2006 12:52:45 +0200
+
+reprepro (1.0.1-1) unstable; urgency=low
+
+  * new release
+  - new clearvanished command to clean database files a bit
+  - cope with GNU ar style .deb files (Closes: 378237)
+  - retry control if no ./control in control.tar.gz of a .deb (Closes: 378425)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 16 Jul 2006 12:40:33 +0200
+
+reprepro (1.0.0-1) unstable; urgency=low
+
+  * new release
+  - fixed typos in --help output (Closes: 372024)
+  - catch Ctrl-C (Closes: 315162)
+  - adding a .changes files will copy files later
+    and delete the copies in the pool again if
+    an error is found before including any package (Closes: 359644)
+  - add predelete action (Closes: 371197)
+  - add a copy action to copy single packages from one distribution to another
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 24 Jun 2006 10:34:39 +0200
+
+reprepro (0.9.1-1) unstable; urgency=low
+
+  * fix bug in post-export script handling
+    (so that tiffany.example now generate diffs apt-get can parse)
+  * fix typo in description (Closes: 368813)
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  1 Jun 2006 10:29:02 +0200
+
+reprepro (0.9.0-1) unstable; urgency=low
+
+  * new release
+  - new --export= option
+  - new pull action to update one local distribion from another local one
+  - new Contents file generation support
+  - some minor bugfixes
+  * now build-depends on and links against libdb4.3-dev (Closes: #367015)
+  * now build-depends on and links against libarchive-dev
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 14 May 2006 16:22:59 +0200
+
+reprepro (0.8.2-1) unstable; urgency=low
+
+  * install bash_completion script (Closes: 356340)
+  * patch release with some bugfixes
+  - add --ignore=missingfile (Closes: 357803)
+  - explicitly remember which list files were already
+    successfully processed for --skipold  (Closes: 363411)
+  - some more warnings
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 22 Apr 2006 20:32:58 +0200
+
+reprepro (0.8.1-1) unstable; urgency=low
+
+  * patch release as new version may need some time
+  - some bugfixes (segfault, memmory leak, manpage typos)
+  - enforcement of extensions of include{,dsc,deb,udeb}
+  - support generation of the NotAutomatic field. (Closes: 353534)
+
+ -- Bernhard R. Link <brlink@debian.org>  Mon, 20 Feb 2006 12:23:37 +0100
+
+reprepro (0.8-1) unstable; urgency=low
+
+  * fix some spelling errors in description (Closes: #344331)
+  * new version
+  - rmdir directories after something was removed from them (Closes: 342772)
+  - new --keepdirectories option to get old behaviour
+  - skip updating targets when no new index files were downloaded
+  - new --noskipold option to get old behaviour
+  - always place the checksum of the uncompressed file in the Release
+    file, even if not generated. (Fixing problems newer apts have).
+  - add native .bz2 compression support
+  - speed partial exports by caching md5sums in a file instead of
+    reading them from disc.
+
+ -- Bernhard R. Link <brlink@debian.org>  Fri, 24 Dec 2005 13:30:41 +0100
+
+reprepro (0.7-1) unstable; urgency=low
+
+  * fix example config lines in bzip.example (Closes: 335959)
+  * new version
+  - missingfield,brokenold,brokenversioncmp,unusedarch,surpisingarch
+    are now --ignoreable
+  - some little bugfixes and cleanups (like segfault when empty
+    update file and others)
+  - documentation updates and improves
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  1 Dec 2005 20:40:34 +0100
+
+reprepro (0.6-1) unstable; urgency=low
+
+  * add suggest for gnupg-agent (Closes: 324151)
+  * new version
+  - adds createsymlinks command (Closes: 324155)
+  - fixes FilterList parsing (Closes: 326861)
+  - add conf/options file for default options
+  - putting .changes in wrong distribution is
+    now an (--ignoreable) error.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 24 Sep 2005 17:11:42 +0200
+
+reprepro (0.5-1) unstable; urgency=low
+
+  * new version
+  - add quick&dirty --ask-passphrase option
+  - SignWith's argument is now used
+  - allow ~ in versions of filenames listed in .changes files
+  - starts to track source packages, which yet mostly only:
+    + allow to include .changes files into the pool (Closes: 309703)
+    + keep no longer used files of one distribution (Closes: 309414)
+  - include English-fixes and new parts about apache2 
+    to short-howto from V. Stanley Jaddoe (Closes: 319708)
+  - include example from Goswin Brederlow (Closes: 306982)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  3 Aug 2005 20:22:37 +0200
+
+reprepro (0.4-1) unstable; urgency=low
+
+  * new version
+    - add Fallback mirror for updates
+    - fix bug that readded packages in some update-scenarios
+    - many tidy ups
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  2 Jun 2005 10:28:45 +0200
+
+reprepro (0.3-1) unstable; urgency=low
+
+  * new version:
+    - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
+    - new command reoverride to reapply override information.
+    - copied files are created without executable bit (Closes: #303195)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  5 Apr 2005 22:08:35 +0200
+
+reprepro (0.2-1) unstable; urgency=low
+
+  * new version:
+  - fix overflow in chunks_replacefield
+  - fix problem when downloading after no index files were downloaded
+  - --basedir no longer overwrites prior given more sepecific dirs
+  - exporting now writes index files and Release files into temporary
+    files and moved them to their final place all at once.
+  - new DebIndicies/UDebIndices/DscIndices options to control how to
+    generate Index files and run hooks over it. (Including examples
+    for generating .bz2 files or apt-qupdate'able .diff/ directories)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 20 Feb 2005 15:25:11 +0100
+
+reprepro (0.1.1-1) unstable; urgency=low
+
+  * new version fixing --includeonlysigned
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  9 Feb 2005 12:25:04 +0100
+
+reprepro (0.1-1) unstable; urgency=low
+
+  * Initial Upload.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  6 Feb 2005 13:43:25 +0100
+
