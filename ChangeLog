@@ -1,3 +1,36 @@
+2010-20-10
+	* fix failure if trying to extract exactly one of
+	section or priority from a tar file.
+
+2010-01-24
+	* add ByHandHooks to conf/distributions for hooks
+	called by processincoming (and in the future perhaps by include)
+
+2010-01-18
+	* properly handle relative LogDir in conf/incoming
+
+2009-12-08
+	* add byhand statement to uploaders files
+
+2009-11-22
+	* fix build with --without-libgpgme
+	(thanks to Reto Gantenbein for reporting)
+
+2009-11-16
+	* include <stdint.h> where *int*_t is used
+
+2009-11-13
+	* 'include' now errors out early if the .changes includes source files but
+	no .dsc file.
+
+2009-11-12
+	* add mode to rredtool to act as reprepro index hook and generate
+	and update a *.diff/Index file.
+
+2009-11-06
+	* when 'include'ing a .changes file, do not insist on section
+	information of non-.dsc source files.
+
 2009-10-27
 	* Do not warn about a missing VerifyRelease if there is a
 	IgnoreRelease.

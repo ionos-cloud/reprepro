@@ -61,6 +61,28 @@ void modification_freelist(struct modification *p) {
 	}
 }
 
+struct modification *modification_dup(const struct modification *p) {
+	struct modification *first = NULL, *last = NULL;
+
+	for( ; p != NULL ; p = p->next ) {
+		struct modification *m = malloc(sizeof(struct modification));
+
+		if( FAILEDTOALLOC(m) ) {
+			modification_freelist(first);
+			return NULL;
+		}
+		*m = *p;
+		m->next = NULL;
+		m->previous = last;
+		if( last == NULL )
+			first = m;
+		else
+			m->previous->next = m;
+		last = m;
+	}
+	return first;
+}
+
 struct modification *patch_getmodifications(struct rred_patch *p) {
 	struct modification *m;
 
@@ -92,6 +114,20 @@ void patch_free(/*@only@*/struct rred_patch *p) {
 }
 
 retvalue patch_load(const char *filename, off_t length, struct rred_patch **patch_p) {
+	int fd;
+
+	fd = open(filename, O_NOCTTY|O_RDONLY);
+	if( fd < 0 ) {
+		int err = errno;
+		fprintf(stderr,
+"Error %d opening '%s' for reading: %s\n", err, filename, strerror(err));
+		return RET_ERRNO(err);
+	}
+	return patch_loadfd(filename, fd, length, patch_p);
+
+}
+
+retvalue patch_loadfd(const char *filename, int fd, off_t length, struct rred_patch **patch_p) {
 	int i;
 	struct rred_patch *patch;
 	const char *p, *e, *d, *l;
@@ -101,16 +137,11 @@ retvalue patch_load(const char *filename, off_t length, struct rred_patch **patc
 	struct stat statbuf;
 
 	patch = calloc(1, sizeof(struct rred_patch));
-	if( FAILEDTOALLOC(patch) )
+	if( FAILEDTOALLOC(patch) ) {
+		(void)close(fd);
 		return RET_ERROR_OOM;
-	patch->fd = open(filename, O_NOCTTY|O_RDONLY);
-	if( patch->fd < 0 ) {
-		int err = errno;
-		fprintf(stderr,
-"Error %d opening '%s' for reading: %s\n", err, filename, strerror(err));
-		patch_free(patch);
-		return RET_ERRNO(err);
 	}
+	patch->fd = fd;
 	i = fstat(patch->fd, &statbuf);
 	if( i != 0 ) {
 		int err = errno;
@@ -609,8 +640,10 @@ retvalue patch_file(FILE *o, const char *source, const struct modification *patc
 	return RET_OK;
 }
 
-void modification_printaspatch(FILE *f, const struct modification *m) {
+void modification_printaspatch(void *f, const struct modification *m, void write_func(const void *, size_t, void *)) {
 	const struct modification *p, *q, *r;
+	char line[30];
+	int len;
 
 	if( m == NULL )
 		return;
@@ -643,25 +676,93 @@ void modification_printaspatch(FILE *f, const struct modification *m) {
 		if( newcount == 0 ) {
 			assert( oldcount > 0 );
 			if( oldcount == 1 )
-				fprintf(f, "%dd\n", start);
+				len = snprintf(line, sizeof(line), "%dd\n",
+						start);
 			else
-				fprintf(f, "%d,%dd\n", start, start + oldcount - 1);
+				len = snprintf(line, sizeof(line), "%d,%dd\n",
+						start, start + oldcount - 1);
 		} else {
 			if( oldcount == 0 )
-				fprintf(f, "%da\n", start-1);
+				len = snprintf(line, sizeof(line), "%da\n",
+						start - 1);
 			else if( oldcount == 1 )
-				fprintf(f, "%dc\n", start);
+				len = snprintf(line, sizeof(line), "%dc\n",
+						start);
 			else
-				fprintf(f, "%d,%dc\n", start, start + oldcount - 1);
+				len = snprintf(line, sizeof(line), "%d,%dc\n",
+						start, start + oldcount - 1);
+		}
+		assert( len < sizeof(line) );
+		write_func(line, len, f);
+		if( newcount != 0 ) {
 			while( r != p->next ) {
 				if( r->len > 0 )
-					fwrite(r->content, r->len, 1, f);
+					write_func(r->content, r->len, f);
 				newcount -= r->newlinecount;
 				r = r->next;
 			}
 			assert( newcount == 0 );
-			fputs(".\n", f);
+			write_func(".\n", 2, f);
 		}
 		p = q;
 	}
 }
+
+/* make sure a patch is not empty and does not only add lines at the start,
+ * to work around some problems in apt */
+
+retvalue modification_addstuff(const char *source, struct modification **patch_p, char **line_p) {
+	struct modification **pp, *n, *m = NULL;
+	char *line = NULL; size_t bufsize = 0;
+	ssize_t got;
+	FILE *i;
+	long lineno = 0;
+
+	pp = patch_p;
+	/* check if this only adds things at the start and count how many */
+	while( *pp != NULL ) {
+		m = *pp;
+		if( m->oldlinecount > 0 || m->oldlinestart > 1 ) {
+			*line_p = NULL;
+			return RET_OK;
+		}
+		lineno += m->newlinecount;
+		pp = &(*pp)->next;
+	}
+	/* not get the next line and claim it was changed */
+	i = fopen(source, "r");
+	if( i == NULL ) {
+		int e = errno;
+		fprintf(stderr, "Error %d opening '%s': %s\n",
+				e, source, strerror(e));
+		return RET_ERRNO(e);
+	}
+	do {
+		got = getline(&line, &bufsize, i);
+	} while( got >= 0 && lineno-- > 0 );
+	if( got < 0 ) {
+		int e = errno;
+
+		/* You should have made sure the old file is not empty */
+		fprintf(stderr, "Error %d reading '%s': %s\n",
+				e, source, strerror(e));
+		(void)fclose(i);
+		return RET_ERRNO(e);
+	}
+	(void)fclose(i);
+
+	n = malloc(sizeof(struct modification));
+	if( FAILEDTOALLOC(n) )
+		return RET_ERROR_OOM;
+	*pp = n;
+	n->next = NULL;
+	n->previous = m;
+	n->oldlinestart = 1;
+	n->oldlinecount = 1;
+	n->newlinecount = 1;
+	n->len = got;
+	n->content = line;
+	*line_p = line;
+	return RET_OK;
+}
+

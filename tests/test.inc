@@ -104,6 +104,7 @@ USE_VALGRIND=""
 VALGRIND_SUP=""
 VERBOSEDB="1"
 DEFAULTVERBOSITY=6
+deleteifmarked=true
 
 while [ $# -gt 0 ] ; do
 	case "$1" in
@@ -112,8 +113,14 @@ while [ $# -gt 0 ] ; do
 			SRCDIR="$(realpath -s "$1")"
 			shift
 			;;
+		--neverdelete)
+			deleteifmarked=false
+			shift
+			;;
 		--delete)
-			rm -r "$WORKDIR" || true
+			if ! $deleteifmarked ; then
+				rm -r "$WORKDIR" || true
+			fi
 			shift
 			;;
 		--valgrind)
@@ -173,6 +180,7 @@ if [ "2" -le "$#" ] ; then
 else
 	REPREPRO="$SRCDIR/reprepro"
 fi
+RREDTOOL="$(dirname "$REPREPRO")/rredtool"
 
 if [ -z "$TESTOPTIONS" ] ; then
 	if [ -z "$USE_VALGRIND" ] ; then
@@ -235,7 +243,12 @@ case $TESTTOOLVERSION in
 	   ;;
 esac
 
-mkdir "$WORKDIR"
+if test -d "$WORKDIR" && test -f "$WORKDIR/ThisDirectoryWillBeDeleted" && $deleteifmarked ; then
+	rm -r "$WORKDIR" || exit 3
+fi
+
+mkdir "$WORKDIR" || exit 1
+echo "Remove this file to avoid silent removal" > "$WORKDIR"/ThisDirectoryWillBeDeleted
 cd "$WORKDIR"
 
 touch results.empty
@@ -303,6 +316,11 @@ sha1sum "$1" | cut -d' ' -f1
 function sha1andsize() {
 cat <<EOF
 $(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
+EOF
+}
+function sha1and7size() {
+cat <<EOF
+$(sha1sum "$1" | cut -d' ' -f1) $(stat -c "%7s" "$1")
 EOF
 }
 function sha2() {

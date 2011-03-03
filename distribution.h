@@ -83,6 +83,8 @@ struct distribution {
 	/*@null@*/struct uploaders *uploaderslist;
 	/* how and where to log */
 	/*@null@*/struct logger *logger;
+	/* scripts to feed byhand/raw-* files in */
+	/*@null@*/struct byhandhook *byhandhooks;
 	/* a list of names beside Codename and Suite to accept .changes
 	 * files via include */
 	struct strlist alsoaccept;

@@ -1,4 +1,4 @@
-Some tipps what to do if (hopefully never), your database gets
+Some tips what to do if (hopefully never), your database gets
 corrupted:
 
 First there are three different databases used, residing in three
@@ -7,7 +7,7 @@ files in your --dbdir (normally db/):
 1) references.db
 This file only contains the information which file in the pool/
 is needed by which target (i.e. which type/distribution/
-component/architecture quadrupple). This is simply repairable by
+component/architecture quadruple). This is simply repairable by
 deleting references.db and running "rereference".
 
 The current state of this database can be seen with "dumpreferences".
@@ -15,7 +15,7 @@ All references from some specific target can be removed with
 "_removereferences".
 
 2) files.db and checksums.db
-These file contain the information which files in the pool/ dir
+These files contain the information about which files in the pool/ dir
 are known and what checksums they have. Files not in here will not be
 deleted with "deleteunreferenced". Files being wrong here will not realized
 (and thus not corrected even if told to be newly included)
@@ -27,7 +27,7 @@ have called collectnewchecksums since you last used a version prior to 3.3
 with this repository, you can just delete files.db. But make sure to
 never ever use a version prior to 3.0 on this repository after that.)
 
-To get this database in textform use "_listchecksums" without argument,
+To get this database in text form use "_listchecksums" without argument,
 to add items manually pipe it into "_addchecksums". (Filenames
 are handled as strings, so be careful).
 
@@ -42,12 +42,12 @@ Also single files can be removed or added by "_forget" and "_detect".
 
 4) packages.db
 This file contains multiple databases, one for each target, containing
-the chunks from the Packages or Sources files, indixed by package name.
+the chunks from the Packages or Sources files, indexed by package name.
 
 This one is the hardest to reconstruct. If you have still an uncorrupted
-"dists/" directory around, (e.g. you just deleted db/ accidentially),
+"dists/" directory around, (e.g. you just deleted db/ accidentally),
 it can be reconstructed by moving your dists/ directory to some other place, 
-moving the packages.db file (if still existant) away, and set every distribution 
+moving the packages.db file (if still existent) away, and set every distribution 
 in conf/distributions a "Update: localreadd" with localreadd in conf/updates like:
 Name: localreadd
 Suite: *
@@ -55,13 +55,13 @@ Method: copy:/<otherplace>
 
 with otherplace being the place you moved the dists/ directory too.
 
-If the packages-database is corrupt, the described way can at least reconstruct
-the Packages still landing in the the Packages.gz and Sources.gz files.
-If references.db is still accessable via dumpreferences, it can give hints
+If the packages database is corrupt, the described way can at least reconstruct
+the Packages still landing in the Packages.gz and Sources.gz files.
+If references.db is still accessible via dumpreferences, it can give hints
 where the other files belong to. Otherwise removing references.db and calling
 "rereference" and then "dumpunreferenced" will give you a list of files not
 yet anywhere.
 
 Last but not least, there are also the "check" and "checkpool" commands, which
-can give some hints about inconsitencies. (Check will also readd files missing
-from files.db+checksums.db if they are needed by packages but in the pool)
+can give some hints about inconsistencies. (Check will also read files missing
+from files.db+checksums.db if they are needed by packages but in the pool).

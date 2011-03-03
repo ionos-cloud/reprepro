@@ -6,11 +6,13 @@
 #include <gpgme.h>
 
 extern gpgme_ctx_t context;
+#endif
 
 #include "globals.h"
 #include "error.h"
 #include "signature.h"
 
+#ifdef HAVE_LIBGPGME
 retvalue gpgerror(gpg_error_t err);
 #endif
 #endif

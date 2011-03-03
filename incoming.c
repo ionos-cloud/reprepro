@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008,2009,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -50,6 +50,7 @@
 #include "incoming.h"
 #include "files.h"
 #include "configparser.h"
+#include "byhandhook.h"
 #include "changes.h"
 
 enum permitflags {
@@ -219,6 +220,15 @@ CFfinishparse(incoming) {
 		incoming_free(d->i);
 		d->i = NULL;
 		return RET_ERROR;
+	}
+	if( i->logdir != NULL && i->logdir[0] != '/' ) {
+		char *n = calc_dirconcat(global.basedir, i->logdir);
+		if( n == NULL ) {
+			incoming_free(i);
+			return RET_ERROR_OOM;
+		}
+		free(i->logdir);
+		i->logdir = n;
 	}
 	if( i->morguedir != NULL && i->morguedir[0] != '/' ) {
 		char *n = calc_dirconcat(global.basedir, i->morguedir);
@@ -391,7 +401,7 @@ CFSETPROC(incoming,options) {
 }
 
 CFvalueSETPROC(incoming, name)
-CFvalueSETPROC(incoming, logdir)
+CFdirSETPROC(incoming, logdir)
 CFdirSETPROC(incoming, tempdir)
 CFdirSETPROC(incoming, morguedir)
 CFdirSETPROC(incoming, directory)
@@ -498,6 +508,11 @@ struct candidate {
 			/* true if skipped because already there or newer */
 			bool skip;
 		} *packages;
+		struct byhandfile {
+			struct byhandfile *next;
+			const struct candidate_file *file;
+			const struct byhandhook *hook;
+		} *byhandhookstocall;
 	} *perdistribution;
 	/* the logsubdir, and the list of files to put there, otherwise both NULL */
 	char *logsubdir;
@@ -549,6 +564,11 @@ static void candidate_free(/*@only@*/struct candidate *c) {
 			struct candidate_package *p = d->packages;
 			d->packages = p->next;
 			candidate_package_free(p);
+		}
+		while( d->byhandhookstocall != NULL ) {
+			struct byhandfile *h = d->byhandhookstocall;
+			d->byhandhookstocall = h->next;
+			free(h);
 		}
 		free(d);
 	}
@@ -1320,7 +1340,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
-static retvalue candidate_preparebyhands(struct database *database, const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per) {
+static retvalue candidate_preparetrackbyhands(struct database *database, const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per) {
 	retvalue r;
 	char *byhanddir;
 	struct candidate_package *package;
@@ -1458,6 +1478,35 @@ static retvalue candidate_preparelogs(struct database *database, const struct in
 	return RET_OK;
 }
 
+static retvalue prepare_hookedbyhand(const struct incoming *i, const struct candidate *c, struct candidate_perdistribution *per, struct candidate_file *file) {
+	const struct distribution *d = per->into;
+	const struct byhandhook *h = NULL;
+	struct byhandfile **b_p, *b;
+	retvalue result = RET_NOTHING;
+	retvalue r;
+
+	b_p = &per->byhandhookstocall;
+	while( *b_p != NULL )
+		b_p = &(*b_p)->next;
+
+	while( byhandhooks_matched(d->byhandhooks, &h,
+				file->section, file->priority,
+				BASENAME(i, file->ofs)) ) {
+		r = candidate_usefile(i, c, file);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		b = calloc(1, sizeof(struct byhandfile));
+		if( FAILEDTOALLOC(b) )
+			return RET_ERROR_OOM;
+		b->file = file;
+		b->hook = h;
+		*b_p = b;
+		b_p = &b->next;
+		result = RET_OK;
+	}
+	return result;
+}
+
 static retvalue prepare_for_distribution(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *d) {
 	struct candidate_file *file;
 	retvalue r;
@@ -1473,6 +1522,9 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 			case fe_DSC:
 				r = prepare_dsc(database, i, c, d, file);
 				break;
+			case fe_BYHAND:
+				r = prepare_hookedbyhand(i, c, d, file);
+				break;
 			default:
 				r = RET_NOTHING;
 				break;
@@ -1483,7 +1535,7 @@ static retvalue prepare_for_distribution(struct database *database,const struct 
 	}
 	if( d->into->tracking != dt_NONE ) {
 		if( d->into->trackingoptions.includebyhand ) {
-			r = candidate_preparebyhands(database, i, c, d);
+			r = candidate_preparetrackbyhands(database, i, c, d);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -1583,14 +1635,12 @@ static retvalue checkadd_dsc(struct database *database,
 	return r;
 }
 
-static retvalue candidate_add_into(struct database *database, const struct incoming *i, const struct candidate *c, const struct candidate_perdistribution *d) {
+static retvalue candidate_add_into(struct database *database, const struct incoming *i, const struct candidate *c, const struct candidate_perdistribution *d, const char **changesfilekey_p) {
 	retvalue r;
 	struct candidate_package *p;
 	struct trackingdata trackingdata;
 	struct distribution *into = d->into;
 	trackingdb tracks;
-	const char *changesfilekey = NULL;
-	char *origfilename;
 	struct atomlist binary_architectures;
 
 	if( interrupted() )
@@ -1620,10 +1670,6 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 			// TODO, but better before we start adding...
 		}
 	}
-
-	origfilename = calc_dirconcat(i->directory,
-			BASENAME(i, changesfile(c)->ofs));
-	causingfile = origfilename;
 
 	atomlist_init(&binary_architectures);
 	for( p = d->packages ; p != NULL ; p = p->next ) {
@@ -1673,7 +1719,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					trackingdata.pkg,
 					ft_CHANGES, &p->filekeys, false, database);
 			if( p->filekeys.count > 0 )
-				changesfilekey = p->filekeys.values[0];
+				*changesfilekey_p = p->filekeys.values[0];
 		} else if( p->master->type == fe_BYHAND ) {
 			assert( tracks != NULL );
 
@@ -1690,10 +1736,8 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 		} else
 			r = RET_ERROR_INTERNAL;
 
-		if( RET_WAS_ERROR(r) ) {
-			// TODO: remove files not yet referenced
+		if( RET_WAS_ERROR(r) )
 			break;
-		}
 	}
 	atomlist_done(&binary_architectures);
 
@@ -1704,16 +1748,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		free(origfilename);
-		return r;
-	}
-	logger_logchanges(into->logger, into->codename,
-			c->source, c->changesversion, c->control,
-			changesfile(c)->tempfilename, changesfilekey);
-	free(origfilename);
-	causingfile = NULL;
-	return RET_OK;
+	return r;
 }
 
 static inline retvalue candidate_checkadd_into(struct database *database,const struct incoming *i,const struct candidate_perdistribution *d) {
@@ -1794,6 +1829,16 @@ static inline bool isallowed(UNUSED(struct incoming *i), struct candidate *c, UN
 					continue;
 				if( !uploaders_verifyatom(conditions,
 						file->architecture_atom) )
+					break;
+			}
+			break;
+		case uc_BYHAND:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( file->type != fe_BYHAND )
+					continue;
+				if( !uploaders_verifystring(conditions,
+						file->section) )
 					break;
 			}
 			break;
@@ -1962,11 +2007,79 @@ static retvalue candidate_finish_logdir(struct incoming *i, struct candidate *c)
 	return RET_OK;
 }
 
+static retvalue candidate_add_byhands(struct incoming *i, struct candidate *c, struct candidate_perdistribution *d) {
+	struct byhandfile *b;
+	retvalue r;
+
+	for( b = d->byhandhookstocall ; b != NULL ; b = b->next ){
+		const struct candidate_file *f = b->file;
+
+		r = byhandhook_call(b->hook, d->into->codename,
+				f->section, f->priority, BASENAME(i, f->ofs),
+				f->tempfilename);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+/* the actual adding of packages,
+ * everything that can be tested earlier should be already tested now */
+static retvalue candidate_really_add(struct database *database, struct incoming *i, struct candidate *c) {
+	struct candidate_perdistribution *d;
+	retvalue r;
+
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		if( d->byhandhookstocall == NULL )
+			continue;
+		r = candidate_add_byhands(i, c, d);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
+	/* make hardlinks/copies of the files */
+	r = candidate_addfiles(database, c);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( interrupted() )
+		return RET_ERROR_INTERRUPTED;
+
+	if( i->logdir != NULL ) {
+		r = candidate_finish_logdir(i, c);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( interrupted() )
+		return RET_ERROR_INTERRUPTED;
+	r = RET_OK;
+	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
+		struct distribution *into = d->into;
+		const char *changesfilekey = NULL;
+
+		/* if there are regular packages to add,
+		 * add them and call the log.
+		 * If all packages were skipped but a byhandhook run,
+		 * still advertise the .changes file to loggers */
+		if( !d->skip ) {
+			r = candidate_add_into(database, i, c, d,
+					&changesfilekey);
+			if( RET_WAS_ERROR(r) )
+				return r;
+		} if( d->byhandhookstocall == NULL )
+			continue;
+		logger_logchanges(into->logger, into->codename,
+				c->source, c->changesversion, c->control,
+				changesfile(c)->tempfilename, changesfilekey);
+	}
+	return RET_OK;
+}
+
 static retvalue candidate_add(struct database *database, struct incoming *i, struct candidate *c) {
 	struct candidate_perdistribution *d;
 	struct candidate_file *file;
 	retvalue r;
 	bool somethingtodo;
+	char *origfilename;
 	assert( c->perdistribution != NULL );
 
 	/* check if every distribution this is to be added to supports
@@ -2010,7 +2123,7 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 			fprintf(stderr,
 "Error: '%s' contains unused file '%s'!\n"
 "(Do Permit: unused_files to conf/incoming to ignore and\n"
-" additionaly Cleanup: unused_files to delete them)\n",
+" additionally Cleanup: unused_files to delete them)\n",
 				BASENAME(i,c->ofs), BASENAME(i,file->ofs));
 			if( file->type == fe_LOG || file->type == fe_BYHAND )
 				fprintf(stderr,
@@ -2029,9 +2142,11 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 			i, d);
 		if( RET_WAS_ERROR(r) )
 			return r;
-		if( r == RET_NOTHING )
+		if( r == RET_NOTHING ) {
 			d->skip = true;
-		else
+			if( d->byhandhookstocall != NULL )
+				somethingtodo = true;
+		} else
 			somethingtodo = true;
 	}
 	if( ! somethingtodo ) {
@@ -2052,28 +2167,17 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 	/* the actual adding of packages, make sure what can be checked was
 	 * checked by now */
 
-	/* make hardlinks/copies of the files */
-	r = candidate_addfiles(database, c);
+	origfilename = calc_dirconcat(i->directory,
+			BASENAME(i, changesfile(c)->ofs));
+	causingfile = origfilename;
+
+	r = candidate_really_add(database, i, c);
+
+	causingfile = NULL;
+	free(origfilename);
+
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( interrupted() )
-		return RET_ERROR_INTERRUPTED;
-
-	if( i->logdir != NULL ) {
-		r = candidate_finish_logdir(i, c);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
-	if( interrupted() )
-		return RET_ERROR_INTERRUPTED;
-	r = RET_OK;
-	for( d = c->perdistribution ; d != NULL ; d = d->next ) {
-		if( d->skip )
-			continue;
-		r = candidate_add_into(database, i, c, d);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	}
 
 	/* mark files as done */
 	for( file = c->files ; file != NULL ; file = file->next ) {
@@ -2083,7 +2187,7 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 			i->delete[file->ofs] = true;
 		}
 	}
-	return RET_OK;
+	return r;
 }
 
 static retvalue process_changes(struct database *database, struct incoming *i, int ofs) {

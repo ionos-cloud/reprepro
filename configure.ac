@@ -2,7 +2,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 
-AC_INIT(reprepro, 4.0.2, brlink@debian.org)
+AC_INIT(reprepro, 4.1.0, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])
@@ -11,15 +11,22 @@ AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 AC_GNU_SOURCE
 
+if test "${CFLAGS:+set}" != set ; then
+	CFLAGS="-Wall -O2 -g -Wmissing-prototypes -Wstrict-prototypes -Wshadow"
+fi
+
 AC_PROG_CC_C99
 AC_PROG_INSTALL
 AC_SYS_LARGEFILE
 
 AC_C_BIGENDIAN()
 AC_HEADER_STDBOOL
-AC_CHECK_FUNCS([closefrom])
-AC_CHECK_FUNCS([strndup])
-AC_CHECK_FUNCS([dprintf])
+AC_CHECK_FUNCS([closefrom strndup dprintf])
+found_mktemp=no
+AC_CHECK_FUNCS([mkostemp mkstemp],[found_mktemp=yes ; break],)
+if test "$found_mktemp" = "no" ; then
+	AC_MSG_ERROR([Missing mkstemp or mkostemp])
+fi
 AC_CHECK_FUNC([vasprintf],,[AC_MSG_ERROR([Could not find vasprintf implementation!])])
 
 DBLIBS=""
@@ -34,7 +41,7 @@ AC_SUBST([DBLIBS])
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
 
 AC_ARG_WITH(libgpgme,
-[  --with-libpgpme=path|yes|no	Give path to prefix libgpgme was installed with],[dnl
+[  --with-libgpgme=path|yes|no	Give path to prefix libgpgme was installed with],[dnl
 	case "$withval" in
 	no)
 	;;

@@ -500,6 +500,8 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 	struct fileentry *e;
 	retvalue r;
 	bool needsourcedir = false;
+	struct fileentry *needs_source_package = NULL;
+	bool has_source_package = false;
 
 	r = propersourcename(changes->source);
 	if( RET_WAS_ERROR(r) )
@@ -517,6 +519,13 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 
 		if( e->type == fe_BYHAND || e->type == fe_LOG ) {
 			needsourcedir = true;
+			continue;
+		}
+
+		/* section and priority are only needed for the dsc,
+		 * not for the other source files */
+		if( FE_SOURCE(e->type) && !FE_PACKAGE(e->type) ) {
+			needs_source_package = e;
 			continue;
 		}
 
@@ -582,6 +591,8 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 		}
 
 		if( FE_SOURCE(e->type) ) {
+			assert( FE_PACKAGE(e->type) );
+			has_source_package = true;
 			if( strcmp(changes->source,e->name) != 0 ) {
 				r = propersourcename(e->name);
 				if( RET_WAS_ERROR(r) )
@@ -617,6 +628,12 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 		}
 	}
 
+	if( needs_source_package != NULL && !has_source_package ) {
+		fprintf(stderr,
+"'%s' looks like part of an source package, but no dsc file listed in the .changes file!\n",
+				needs_source_package->basename);
+		return RET_ERROR;
+	}
 	if( atom_defined(changes->srccomponent) ) {
 		changes->srcdirectory = calc_sourcedir(changes->srccomponent,
 				changes->source);
@@ -1247,6 +1264,16 @@ static void verifybinary(const struct changes *changes, struct upload_conditions
 		}
 	}
 }
+static void verifybyhands(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( e->type == fe_BYHAND ) {
+			if( !uploaders_verifystring(conditions, e->name) )
+				break;
+		}
+	}
+}
 
 static bool permissionssuffice(struct changes *changes, struct upload_conditions *conditions) {
 	do switch( uploaders_nextcondition(conditions) ) {
@@ -1264,6 +1291,9 @@ static bool permissionssuffice(struct changes *changes, struct upload_conditions
 			break;
 		case uc_BINARIES:
 			verifybinary(changes, conditions);
+			break;
+		case uc_BYHAND:
+			verifybyhands(changes, conditions);
 			break;
 		case uc_ARCHITECTURES:
 			verifyarchitectures(changes, conditions);

@@ -422,7 +422,7 @@ downloads together with the size of completely downloaded packages.
 Generate all index files for the specified distributions.
 
 This regenerates all files unconditionally.
-It is only usefull if you want to be sure \fBdists\fP is up to date,
+It is only useful if you want to be sure \fBdists\fP is up to date,
 you called some other actions with \fB\-\-export=never\fP before or
 you want to create an initial empty but fully equipped
 .BI dists/ codename
@@ -629,7 +629,7 @@ Include the given binary Debian package (.deb) in the specified
 distribution, applying override information and guessing all
 values not given and guessable.
 .TP
-.B includeudeb \fIcodename\fP \fI.deb-filename\fP
+.B includeudeb \fIcodename\fP \fI.udeb-filename\fP
 Same like \fBincludedeb\fP, but for .udeb files.
 .TP
 .B includedsc \fIcodename\fP \fI.dsc-filename\fP
@@ -791,7 +791,7 @@ Do not forget to remove all exported package indices manually.
 .TP
 .B gensnapshot " " \fIcodename\fP " " \fIdirectoryname\fP
 Generate a snapshot of the distribution specified by \fIcodename\fP
-in the directory \fIconf\fB/\fIcodename\fB/snapshots/\fIdirectoryname\fB/\fR
+in the directory \fIdists\fB/\fIcodename\fB/snapshots/\fIdirectoryname\fB/\fR
 and reference all needed files in the pool as needed by that.
 No Content files are generated and no export hooks are run.
 
@@ -838,7 +838,7 @@ add architecture \fBall\fP packages from another architectures
  Packages are only upgraded, never downgraded.
  If there is a package not being architecture \fPall\fP,
 then architecture \fBall\fP packages of the same source from the same
-source version are prefered over those that have no such binary sibling.
+source version are preferred over those that have no such binary sibling.
  Otherwise the package with the highest version wins.
 
 You can restrict with architectures are looked for architecture \fPall\fP
@@ -1004,7 +1004,7 @@ from the Suite to the Codename, use the
 .TP
 .B FakeComponentPrefix
 If this field is present,
-its argument is added - seperated by a slash -  before every
+its argument is added - separated by a slash -  before every
 Component written to the main Release file
 (unless the component already starts with it),
 and removed from the end of the Codename and Suite fields in that file.
@@ -1305,6 +1305,23 @@ header in Release files that points 42 days into the future.
 .B ReadOnly
 Disallow all modifications of this distribution or its directory
 in \fBdists/\fP\fIcodename\fP (with the exception of snapshot subdirectories).
+.TP
+.B ByHandHooks
+This species hooks to call for handling byhand/raw files by processincoming
+(and in future versions perhaps by include).
+
+Each line consists out of 4 arguments:
+A glob pattern for the section
+(clasically \fBbyhand\fP, though Ubuntu uses \fBraw-\fP*),
+a glob pattern for the priority (not usually used),
+and a glob pattern for the filename.
+
+The 4th argument is the script to be called when all of the above match.
+It gets 5 arguments: the codename of the distribution,
+the section (usually \fBbyhand\fP),
+the priority (usually only \fB\-\fP),
+the filename in the changes file and
+the full filename (with processincoming in the secure TmpDir).
 .SS conf/updates
 .TP
 .B Name
@@ -1397,7 +1414,7 @@ with the key given here. (In the Format as
 by separating them with a "\fB|\fP" sign. Then finding a signature
 from one of the will suffice.
 To allow revoked or expired keys, add a "\fB!\fP" behind a key.
-(but to accept such signatures, the appropiate \fB\-\-ignore\fP
+(but to accept such signatures, the appropriate \fB\-\-ignore\fP
 is also needed).
 To also allow subkeys of a specified key, add a "\fB+\fP" behind a key.
 .TP
@@ -1465,7 +1482,7 @@ will be installed. Things listed as
 .B deinstall
 or
 .B purge
-will ignored.
+will be ignored.
 Things listed with
 .B warning
 are also ignored,
@@ -1510,14 +1527,14 @@ will limit the update rule to packages from the specified source packages.
 The arguments of this field, which much be elements of the
 form \fB.\fP, \fB.gz\fP, \fB.bz2\fP, \fB.lzma\fP, \fB.xz\fP and \fB.diff\fP
 specify in which order reprepro
-will look for a useable variant of needed index files
+will look for a usable variant of needed index files
 in the downloaded Release file.
 (The default is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
 download Packages.diff if listed in the Release file,
-otherwise or if not useable download .xz if
+otherwise or if not usable download .xz if
 listed in the Release file and there is a way to uncompress it,
-then .lzma if useable,
-then .bz2 if useable,
+then .lzma if usable,
+then .bz2 if usable,
 then .gz and then uncompressed).
 
 Together with \fBIgnoreRelease\fP reprepro will download the first
@@ -1630,7 +1647,7 @@ files.
 A directory where the files listed in the processed .changes files
 are copied into before they are read.
 You can avoid some copy operatations by placing this directory
-within the same moint point the pool hierachy
+within the same moint point the pool hierarchy
 is (at least partially) in.
 .TP
 .B LogDir
@@ -1683,7 +1700,7 @@ If an upload contains binaries from some architecture and architecture
 all packages,
 the architecture all packages are only put into the architectures within
 this upload.
-Usefull to combine with the \fBflood\fP command.
+Useful to combine with the \fBflood\fP command.
 .TP
 .B Permit
 A list of options to allow things otherwise causing errors:
@@ -1789,6 +1806,15 @@ Wildcards are not allowed.
 .TP
 .B architectures contain '\fIarchitecture\fP'\fR(\fP|'\fIarchitecture\fP'\fR)*\fP
 again only at least one instead of all is required.
+.TP
+.B byhand
+matches an upload with at least one byhand file
+(i.e. a file with section \fBbyhand\fP or \fBraw\-\fP\fIsomething\fP).
+.TP
+.B byhand '\fIsection\fP'\fR(\fP|'\fIsection\fP'\fR)*\fP
+matches an upload with at least one byhand file and
+all byhand files having a section listed in the list of given section.
+(i.e. \fBbyhand 'byhand'|'raw-*'\fP is currently is the same as \fBbyhand\fP).
 .PP
 Putting \fBnot\fP in front of a condition, inverses it's meaning.
 For example
