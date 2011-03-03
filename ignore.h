@@ -30,6 +30,9 @@
 	IGN(undefinedtracking) \
 	IGN(unusedoption) \
 	IGN(flatandnonflat) \
+	IGN(expiredkey) \
+	IGN(revokedkey) \
+	IGN(expiredsignature) \
 	IGN(missingfile)
 
 

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2007,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -28,13 +28,67 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
+#include "atoms.h"
+#include "signature.h"
 #include "uploaderslist.h"
+
+struct upload_condition {
+	/* linked list of all sub-nodes */
+	/*@null@*/struct upload_condition *next;
+
+	enum upload_condition_type type;
+	const struct upload_condition *next_if_true, *next_if_false;
+	bool accept_if_true, accept_if_false;
+	/* all binary packages must match something instead of only
+	   one of them */
+	bool needsall;
+	union {
+		/* uc_SECTIONS, uc_BINARIES, uc_SOURCENAME */
+		struct uploadnamecheck {
+			/* if one is NULL, do not care, allows
+			   begin*middle*end or exact match */
+			/*@null@*/ char *beginswith, *includes, *endswith, *exactly;
+			/*@null@*/struct uploadnamecheck *or;
+		} string;
+		/* uc_COMPONENTS, uc_ARCHITECTURES */
+		struct atomlist atoms;
+	};
+};
+struct upload_conditions {
+	/* condition currently tested */
+	const struct upload_condition *current;
+	/* current state of top most condition */
+	bool matching;
+	/* always use last next, then decrement */
+	int count;
+	const struct upload_condition *conditions[];
+};
+
+static retvalue upload_conditions_add(struct upload_conditions **c_p, const struct upload_condition *a) {
+	int newcount;
+	struct upload_conditions *n;
+
+	if( *c_p == NULL )
+		newcount = 1;
+	else
+		newcount = (*c_p)->count + 1;
+	n = realloc(*c_p, sizeof(struct upload_conditions)
+			+ newcount * sizeof(const struct upload_condition*));
+	if( n == NULL )
+		return RET_ERROR_OOM;
+	n->current = NULL;
+	n->count = newcount;
+	n->conditions[newcount - 1] = a;
+	*c_p = n;
+	return RET_OK;
+}
 
 struct uploader {
 	struct uploader *next;
 	size_t len;
 	char *reversed_fingerprint;
-	struct uploadpermissions permissions;
+	struct upload_condition permissions;
+	bool allow_subkeys;
 };
 
 struct uploaders {
@@ -44,12 +98,53 @@ struct uploaders {
 	size_t filename_len;
 
 	struct uploader *by_fingerprint;
-	struct uploadpermissions defaultpermissions;
-	struct uploadpermissions unsignedpermissions;
+	struct upload_condition anyvalidkeypermissions;
+	struct upload_condition unsignedpermissions;
+	struct upload_condition anybodypermissions;
 } *uploaderslists = NULL;
 
-static void uploadpermission_release(struct uploadpermissions *p) {
+static void uploadpermission_release(struct upload_condition *p) {
+	struct upload_condition *h, *f = NULL;
+
 	assert( p != NULL );
+
+	do {
+		h = p->next;
+		switch( p->type ) {
+			case uc_BINARIES:
+			case uc_SECTIONS:
+			case uc_SOURCENAME:
+				free(p->string.beginswith);
+				free(p->string.includes);
+				free(p->string.endswith);
+				free(p->string.exactly);
+				while( p->string.or != NULL ) {
+					struct uploadnamecheck *n;
+
+					n = p->string.or;
+					p->string.or = n->or;
+					free(n->beginswith);
+					free(n->includes);
+					free(n->endswith);
+					free(n->exactly);
+					free(n);
+				}
+				break;
+
+			case uc_ARCHITECTURES:
+				atomlist_done(&p->atoms);
+				break;
+
+			case uc_ALWAYS:
+			case uc_REJECTED:
+				break;
+		}
+		free(f);
+		/* next one must be freed: */
+		f = h;
+		/* and processed: */
+		p = h;
+	} while( p != NULL );
 }
 
 static void uploader_free(struct uploader *u) {
@@ -69,7 +164,8 @@ static void uploaders_free(struct uploaders *u) {
 		uploader_free(u->by_fingerprint);
 		u->by_fingerprint = next;
 	}
-	uploadpermission_release(&u->defaultpermissions);
+	uploadpermission_release(&u->anyvalidkeypermissions);
+	uploadpermission_release(&u->anybodypermissions);
 	uploadpermission_release(&u->unsignedpermissions);
 	free(u->filename);
 	free(u);
@@ -96,23 +192,17 @@ void uploaders_unlock(struct uploaders *u) {
 	}
 }
 
-retvalue uploaders_unsignedpermissions(struct uploaders *u, const struct uploadpermissions **permissions) {
-	assert( u != NULL );
-	*permissions = &u->unsignedpermissions;
-	return RET_OK;
-}
-
-retvalue uploaders_permissions(struct uploaders *u,const char *fingerprint,const struct uploadpermissions **permissions) {
-	size_t len,i;
+static retvalue find_key_and_add(struct uploaders *u, struct upload_conditions **c_p, const struct signature *s) {
+	size_t len, i, primary_len;
 	char *reversed;
+	const char *fingerprint, *primary_fingerprint;
+	char *reversed_primary_key;
 	const struct uploader *uploader;
+	retvalue r;
 
 	assert( u != NULL );
 
-	if( u->by_fingerprint == NULL ) {
-		*permissions = &u->defaultpermissions;
-		return RET_OK;
-	}
+	fingerprint = s->keyid;
 	assert( fingerprint != NULL );
 	len = strlen(fingerprint);
 	reversed = alloca(len+1);
@@ -135,20 +225,232 @@ retvalue uploaders_permissions(struct uploaders *u,const char *fingerprint,const
 	}
 	len = i;
 	reversed[len] = '\0';
-	for( uploader = u->by_fingerprint ; uploader != NULL ; uploader = uploader->next ) {
-		if( uploader->len > len )
-			continue;
-		if( memcmp(uploader->reversed_fingerprint, reversed, uploader->len) != 0 )
-			continue;
-		*permissions = &uploader->permissions;
-		return RET_OK;
+
+	/* hm, this only sees the key is expired when it is kind of late... */
+	primary_fingerprint = s->primary_keyid;
+	primary_len = strlen(primary_fingerprint);
+	reversed_primary_key = alloca(len+1);
+	if( FAILEDTOALLOC(reversed_primary_key) )
+		return RET_ERROR_OOM;
+
+	for( i = 0 ; i < primary_len ; i++ ) {
+		char c = primary_fingerprint[primary_len-i-1];
+		if( c >= 'a' && c <= 'f' )
+			c -= 'a' - 'A';
+		else if( c == 'x' && primary_len-i-1 == 1 &&
+				primary_fingerprint[0] == '0' )
+			break;
+		if( ( c < '0' || c > '9' ) && ( c <'A' && c > 'F') ) {
+			fprintf(stderr,
+"Strange character '%c'(=%hhu) in fingerprint/key-id '%s'.\n"
+"Search for appropriate rules in the uploaders file might fail.\n",
+					c, c, primary_fingerprint);
+			break;
+		}
+		reversed_primary_key[i] = c;
 	}
-	*permissions = &u->defaultpermissions;
+	primary_len = i;
+	reversed_primary_key[primary_len] = '\0';
+
+	for( uploader = u->by_fingerprint ; uploader != NULL ; uploader = uploader->next ) {
+		/* TODO: allow ignoring */
+		if( s->state != sist_valid )
+			continue;
+		if( uploader->allow_subkeys ) {
+			if( uploader->len > primary_len )
+				continue;
+			if( memcmp(uploader->reversed_fingerprint,
+						reversed_primary_key,
+						uploader->len) != 0 )
+				continue;
+		} else {
+			if( uploader->len > len )
+				continue;
+			if( memcmp(uploader->reversed_fingerprint,
+						reversed, uploader->len) != 0 )
+				continue;
+		}
+		r = upload_conditions_add(c_p, &uploader->permissions);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		/* no break here, as a key might match
+		 * multiple specifications of different length */
+	}
 	return RET_OK;
 }
 
+retvalue uploaders_permissions(struct uploaders *u, const struct signatures *signatures, struct upload_conditions **c_p) {
+	struct upload_conditions *conditions = NULL;
+	retvalue r;
+	int j;
 
-static struct uploadpermissions *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, const char *filename, long lineno) {
+	r = upload_conditions_add(&conditions,
+			&u->anybodypermissions);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( signatures == NULL ) {
+		/* signatures.count might be 0 meaning there is
+		 * something lile a gpg header but we could not get
+		 * keys, because of a gpg error or because of being
+		 * compiling without libgpgme */
+		r = upload_conditions_add(&conditions,
+				&u->unsignedpermissions);
+		if( RET_WAS_ERROR(r) ) {
+			free(conditions);
+			return r;
+		}
+	}
+	if( signatures != NULL && signatures->validcount > 0 ) {
+		r = upload_conditions_add(&conditions,
+				&u->anyvalidkeypermissions);
+		if( RET_WAS_ERROR(r) ) {
+			free(conditions);
+			return r;
+		}
+	}
+	if( signatures != NULL ) {
+		for( j = 0 ; j < signatures->count ; j++ ) {
+			r = find_key_and_add(u, &conditions,
+					&signatures->signatures[j]);
+			if( RET_WAS_ERROR(r) ) {
+				free(conditions);
+				return r;
+			}
+		}
+	}
+	*c_p = conditions;
+	return RET_OK;
+}
+
+/* uc_FAILED means rejected, uc_ACCEPTED means can go in */
+enum upload_condition_type uploaders_nextcondition(struct upload_conditions *c) {
+
+	if( c->current != NULL ) {
+		if( c->matching ) {
+			if( c->current->accept_if_true )
+				return uc_ACCEPTED;
+			c->current = c->current->next_if_true;
+		} else {
+			if( c->current->accept_if_false )
+				return uc_ACCEPTED;
+			c->current = c->current->next_if_false;
+		}
+	}
+
+	/* return the first non-trivial one left: */
+	while( true ) {
+		while( c->current != NULL ) {
+			assert( c->current->type > uc_REJECTED );
+			if( c->current->type == uc_ALWAYS ) {
+				if( c->current->accept_if_true )
+					return uc_ACCEPTED;
+				c->current = c->current->next_if_true;
+			} else {
+				/* empty set fullfills all conditions,
+				   but not an exists condition */
+				c->matching = c->current->needsall;
+				return c->current->type;
+			}
+		}
+		if( c->count == 0 )
+			return uc_REJECTED;
+		c->count--;
+		c->current = c->conditions[c->count];
+	}
+	/* not reached */
+}
+
+static bool match_namecheck(const struct uploadnamecheck *n, const char *name) {
+	size_t l = strlen(name);
+
+	for( ; n != NULL ; n = n->or ) {
+		size_t lb, lm, le;
+		bool matches;
+
+		if( n->exactly != NULL ) {
+			if( strcmp(n->exactly, name) == 0 )
+				return true;
+			continue;
+		}
+		if( n->beginswith != NULL )
+			lb = strlen(n->beginswith);
+		else
+			lb = 0;
+		if( n->includes != NULL )
+			lm = strlen(n->includes);
+		else
+			lm = 0;
+		if( n->endswith != NULL )
+			le = strlen(n->endswith);
+		else
+			le = 0;
+
+		matches = lb + lm + le <= l;
+		if( matches && lb > 0 ) {
+			if( memcmp(n->beginswith, name, lb) != 0 )
+				matches = false;
+		}
+		if( matches && le > 0 ) {
+			if( memcmp(name + (l - le),
+						n->endswith, le) != 0 )
+				matches = false;
+		}
+		if( matches && lm > 0 ) {
+			const char *p = strstr(name + lb, n->includes);
+			if( p == NULL || (size_t)(p - name) > (l - le - lm) )
+				matches = false;
+		}
+		if( matches )
+			return true;
+	}
+	return false;
+}
+
+bool uploaders_verifystring(struct upload_conditions *conditions, const char *name) {
+	const struct upload_condition *c = conditions->current;
+
+	assert( c != NULL );
+	assert( c->type == uc_BINARIES || c->type == uc_SECTIONS ||
+		c->type == uc_SOURCENAME );
+
+	if( conditions->current->needsall ) {
+		/* once one condition is false, the case is settled */
+
+		if( conditions->matching && !match_namecheck(&c->string, name) )
+			conditions->matching = false;
+		/* but while it is true, more info is needed */
+		return conditions->matching;
+	} else {
+		/* once one condition is true, the case is settled */
+		if( !conditions->matching && match_namecheck(&c->string, name) )
+			conditions->matching = true;
+		/* but while it is false, more info is needed */
+		return !conditions->matching;
+	}
+}
+
+bool uploaders_verifyatom(struct upload_conditions *conditions, atom_t atom) {
+	const struct upload_condition *c = conditions->current;
+
+	assert( c != NULL );
+	assert( c->type == uc_ARCHITECTURES );
+
+	if( conditions->current->needsall ) {
+		/* once one condition is false, the case is settled */
+
+		if( conditions->matching && !atomlist_in(&c->atoms, atom) )
+			conditions->matching = false;
+		/* but while it is true, more info is needed */
+		return conditions->matching;
+	} else {
+		/* once one condition is true, the case is settled */
+		if( !conditions->matching && atomlist_in(&c->atoms, atom) )
+			conditions->matching = true;
+		/* but while it is false, more info is needed */
+		return !conditions->matching;
+	}
+}
+static struct upload_condition *addfingerprint(struct uploaders *u, const char *fingerprint, size_t len, bool allow_subkeys) {
 	size_t i;
 	char *reversed = malloc(len+1);
 	struct uploader *uploader, **last;
@@ -165,28 +467,12 @@ static struct uploadpermissions *addfingerprint(struct uploaders *u, const char 
 	reversed[len] = '\0';
 	last = &u->by_fingerprint;
 	for( uploader = u->by_fingerprint ; uploader != NULL ; uploader = *(last = &uploader->next) ) {
-		if( uploader->len < len ) {
-			if( memcmp(uploader->reversed_fingerprint,
-			            reversed, uploader->len) == 0 ) {
-				fprintf(stderr,
-"%s:%lu: Warning: key '%.*s' shadowed by earlier, shorter definition for '%.*s'!\n",
-						filename, lineno, (int)len,
-						fingerprint, (int)uploader->len,
-						fingerprint);
-			}
+		if( uploader->len != len )
 			continue;
-		} else if( uploader->len > len ) {
-			if( memcmp(uploader->reversed_fingerprint, reversed, len) == 0 ) {
-				fprintf(stderr,
-"%s:%lu: Warning: key '%.*s' might shadow earlier, longer definition in future versions of reprepro!\n",
-					filename, lineno, (int)len, fingerprint);
-			}
-			continue;
-		}
 		if( memcmp(uploader->reversed_fingerprint, reversed, len) != 0 )
 			continue;
-		fprintf(stderr, "%s:%lu: Warning: key '%*s' defined multiple times!\n",
-				filename, lineno, (int)len, fingerprint);
+		if( uploader->allow_subkeys != allow_subkeys )
+			continue;
 		free(reversed);
 		return &uploader->permissions;
 	}
@@ -197,6 +483,7 @@ static struct uploadpermissions *addfingerprint(struct uploaders *u, const char 
 	*last = uploader;
 	uploader->reversed_fingerprint = reversed;
 	uploader->len = len;
+	uploader->allow_subkeys = allow_subkeys;
 	return &uploader->permissions;
 }
 
@@ -208,10 +495,396 @@ static inline const char *overkey(const char *p) {
 	return p;
 }
 
+static inline retvalue init_stringpart(struct uploadnamecheck *c, const char *startp, /*@null@*/const char *firstasterisk, /*@null@*/const char *secondasterisk, const char *endp) {
+	if( firstasterisk == NULL ) {
+		/* no '*' wildcard */
+		c->exactly = strndup(startp, endp-startp);
+		if( FAILEDTOALLOC(c->exactly) )
+			return RET_ERROR_OOM;
+		return RET_OK;
+	}
+
+	if( firstasterisk != startp ) {
+		c->beginswith = strndup(startp, firstasterisk-startp);
+		if( FAILEDTOALLOC(c->beginswith) )
+			return RET_ERROR_OOM;
+	}
+	if( secondasterisk == NULL )
+		secondasterisk = firstasterisk;
+	if( secondasterisk > firstasterisk + 1 ) {
+		c->includes = strndup(firstasterisk + 1,
+				secondasterisk - (firstasterisk + 1));
+		if( FAILEDTOALLOC(c->includes) )
+			return RET_ERROR_OOM;
+	}
+	if( secondasterisk + 1 < endp ) {
+		c->endswith = strndup(secondasterisk + 1,
+				endp - (secondasterisk + 1));
+		if( FAILEDTOALLOC(c->endswith) )
+			return RET_ERROR_OOM;
+	}
+	return RET_OK;
+}
+
+static retvalue parse_stringpart(struct uploadnamecheck *string, const char **pp, const char *filename, long lineno, int column) {
+	const char *p = *pp;
+	retvalue r;
+	do {
+		const char *startp, *firstasterisk = NULL,
+		      *secondasterisk = NULL, *endp;
+
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( *p != '\'' ) {
+			fprintf(stderr,
+"%s:%lu:%u: starting \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		p++;
+		startp = p;
+		while( *p != '\0' && *p != '\'' && *p != '*' )
+			p++;
+		if( *p == '*' ) {
+			firstasterisk = p;
+			p++;
+			while( *p != '\0' && *p != '\'' && *p != '*' )
+				p++;
+		}
+		if( *p == '*' ) {
+			secondasterisk = p;
+			p++;
+			while( *p != '\0' && *p != '\'' && *p != '*' )
+				p++;
+		}
+		if( *p == '*' ) {
+			fprintf(stderr,
+"%s:%lu:%u: Too many wildcards in string constant!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		if( *p == '\0' ) {
+			fprintf(stderr,
+"%s:%lu:%u: closing \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		assert( *p == '\'' );
+		endp = p;
+		p++;
+		r = init_stringpart(string, startp,
+				firstasterisk, secondasterisk, endp);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		column += (p - *pp);
+		*pp = p;
+		if( **pp == '|' ) {
+			string->or = calloc(1, sizeof(struct uploadnamecheck));
+			if( FAILEDTOALLOC(string->or) )
+				return RET_ERROR_OOM;
+			string = string->or;
+			p++;
+		}
+	} while ( **pp == '|' );
+	*pp = p;
+	return RET_OK;
+}
+
+static retvalue parse_architectures(/*@out@*/struct atomlist *atoms, const char **pp, const char *filename, long lineno, int column) {
+	const char *p = *pp;
+	retvalue r;
+
+	atomlist_init(atoms);
+	do {
+		const char *startp, *endp;
+		atom_t atom;
+
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( *p != '\'' ) {
+			fprintf(stderr,
+"%s:%lu:%u: starting \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		p++;
+		startp = p;
+		while( *p != '\0' && *p != '\'' && *p != '*' )
+			p++;
+		if( *p == '*' ) {
+			fprintf(stderr,
+"%s:%lu:%u: Wildcards are not allowed in architectures!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		if( *p == '\0' ) {
+			fprintf(stderr,
+"%s:%lu:%u: closing \"'\" expected!\n",
+					filename, lineno, column + (int)(p-*pp));
+			return RET_ERROR;
+		}
+		assert( *p == '\'' );
+		endp = p;
+		p++;
+		atom = architecture_find_l(startp, endp - startp);
+		if( !atom_defined(atom) ) {
+			fprintf(stderr,
+"%s:%lu:%u: Unknown architecture '%.*s'! (Did you mistype?)\n",
+					filename, lineno,
+					column + (int)(startp-*pp),
+					(int)(endp-startp), startp);
+			return RET_ERROR;
+		}
+		r = atomlist_add_uniq(atoms, atom);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		column += (p - *pp);
+		*pp = p;
+		if( **pp == '|' ) {
+			p++;
+		}
+	} while ( **pp == '|' );
+	*pp = p;
+	return RET_OK;
+}
+
+static retvalue parse_condition(const char *filename, long lineno, int column, const char **pp, /*@out@*/struct upload_condition *condition) {
+	const char *p = *pp;
+	struct upload_condition *fallback, *last, *or_scope;
+
+	memset( condition, 0, sizeof(struct upload_condition));
+
+	/* allocate a new fallback-node:
+	 * (this one is used to make it easier to concatenate those decision
+	 * trees, especially it keeps open the possibility to have deny
+	 * decisions) */
+	fallback = calloc(1, sizeof(struct upload_condition));
+	if( FAILEDTOALLOC(fallback) )
+		return RET_ERROR_OOM;
+	fallback->type = uc_ALWAYS;
+	assert(!fallback->accept_if_true);
+
+	/* the queue with next has all nodes, so they can be freed
+	 * (or otherwise modified) */
+	condition->next = fallback;
+
+
+	last = condition;
+	or_scope = condition;
+
+	while( true ) {
+		if( strncmp(p, "not", 3) == 0 &&
+				xisspace(p[3]) ) {
+			p += 3;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			/* negate means false is good and true
+			 * is bad: */
+			last->accept_if_false = true;
+			last->accept_if_true = false;
+			last->next_if_false = NULL;
+			last->next_if_true = fallback;
+		} else {
+			last->accept_if_false = false;
+			last->accept_if_true = true;
+			last->next_if_false = fallback;
+			last->next_if_true = NULL;
+		}
+		if( p[0] == '*' && xisspace(p[1]) ) {
+			last->type = uc_ALWAYS;
+			p++;
+		} else if( strncmp(p, "architectures", 13) == 0 &&
+			   strchr(" \t'", p[13]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_ARCHITECTURES;
+			last->needsall = true;
+			p += 13;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL ) {
+				last->needsall = false;
+				p += 7;
+			}
+
+			r = parse_architectures(&last->atoms, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
+		} else if( strncmp(p, "binaries", 8) == 0 &&
+			   strchr(" \t'", p[8]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_BINARIES;
+			last->needsall = true;
+			p += 8;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL ) {
+				last->needsall = false;
+				p += 7;
+			}
+
+			r = parse_stringpart(&last->string, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
+		} else if( strncmp(p, "sections", 8) == 0 &&
+			   strchr(" \t'", p[8]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_SECTIONS;
+			last->needsall = true;
+			p += 8;
+			while( *p != '\0' && xisspace(*p) )
+				p++;
+			if( strncmp(p, "contain", 7) == 0 &&
+					strchr(" \t'", p[7]) != NULL ) {
+				last->needsall = false;
+				p += 7;
+			}
+
+			r = parse_stringpart(&last->string, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
+		} else if( strncmp(p, "source", 6) == 0 &&
+			   strchr(" \t'", p[6]) != NULL ) {
+			retvalue r;
+
+			last->type = uc_SOURCENAME;
+			p += 6;
+
+			r = parse_stringpart(&last->string, &p,
+					filename, lineno,
+					column + (p-*pp));
+			if( RET_WAS_ERROR(r) ) {
+				uploadpermission_release(condition);
+				return r;
+			}
+
+		} else {
+			fprintf(stderr, "%s:%lu:%u: condition expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, lineno, column + (int)(p-*pp));
+			uploadpermission_release(condition);
+			return RET_ERROR;
+		}
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( strncmp(p, "and", 3) == 0 && xisspace(p[3]) ) {
+			struct upload_condition *n, *c;
+
+			p += 3;
+
+			n = calloc(1, sizeof(struct upload_condition));
+			if( FAILEDTOALLOC(n) ) {
+				uploadpermission_release(condition);
+				return RET_ERROR_OOM;
+			}
+			/* everything that yet made it succeed makes it need
+			 * to check this condition: */
+			for( c = condition ; c != NULL ; c = c->next ) {
+				if( c->accept_if_true ) {
+					c->next_if_true = n;
+					c->accept_if_true = false;
+				}
+				if( c->accept_if_false ) {
+					c->next_if_false = n;
+					c->accept_if_false = false;
+				}
+			}
+			/* or will only bind to this one */
+			or_scope = n;
+
+			/* add it to queue: */
+			assert( last->next == fallback );
+			n->next = fallback;
+			last->next = n;
+			last = n;
+		} else if( strncmp(p, "or", 2) == 0 && xisspace(p[2]) ) {
+			struct upload_condition *n, *c;
+
+			p += 2;
+
+			n = calloc(1, sizeof(struct upload_condition));
+			if( FAILEDTOALLOC(n) ) {
+				uploadpermission_release(condition);
+				return RET_ERROR_OOM;
+			}
+			/* everything in current scope that made it fail
+			 * now makes it check this: (currently that will
+			 * only be true at most for c == last, but with
+			 * parantheses this all will be needed) */
+			for( c = or_scope ; c != NULL ; c = c->next ) {
+				if( c->next_if_true == fallback )
+					c->next_if_true = n;
+				if( c->next_if_false == fallback )
+					c->next_if_false = n;
+			}
+			/* add it to queue: */
+			assert( last->next == fallback );
+			n->next = fallback;
+			last->next = n;
+			last = n;
+		} else if( strncmp(p, "by", 2) == 0 && xisspace(p[2]) ) {
+			p += 2;
+			break;
+		} else {
+			fprintf(stderr, "%s:%lu:%u: 'by','and' or 'or' keyword expected!\n", filename, (long)lineno, column + (int)(p-*pp));
+			uploadpermission_release(condition);
+			memset( condition, 0, sizeof(struct upload_condition));
+			return RET_ERROR;
+		}
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+	}
+	*pp = p;
+	return RET_OK;
+}
+
+static void condition_add(struct upload_condition *permissions, struct upload_condition *c) {
+	if( permissions->next == NULL ) {
+		/* first condition, as no fallback yet allocated */
+		*permissions = *c;
+		memset(c, 0, sizeof(struct upload_condition));
+	} else {
+		struct upload_condition *last;
+
+		last = permissions->next;
+		assert( last != NULL );
+		while( last->next != NULL )
+			last = last->next;
+
+		/* the very last is always the fallback-node to which all
+		 * other conditions fall back if they have no decision */
+		assert(last->type = uc_ALWAYS);
+		assert(!last->accept_if_true);
+
+		*last = *c;
+		memset(c, 0, sizeof(struct upload_condition));
+	}
+}
+
 static inline retvalue parseuploaderline(char *buffer, const char *filename, size_t lineno, struct uploaders *u) {
-	const char *p,*q;
+	retvalue r;
+	const char *p, *q, *qq;
 	size_t l;
-	struct uploadpermissions *permissions;
+	struct upload_condition *permissions;
+	struct upload_condition condition;
 
 	l = strlen(buffer);
 	if( l == 0 )
@@ -240,47 +913,50 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 	p+=5;
 	while( *p != '\0' && xisspace(*p) )
 		p++;
-	if( *p == '\0' || p[0] != '*' || !xisspace(p[1]) ) {
-		fprintf(stderr, "%s:%lu:%u: permission class expected after 'allow' keyword!\n(Currently only '*' is supported.)\n", filename, (long)lineno, (int)(1+p-buffer));
-		return RET_ERROR;
-	}
-	p++;
-	while( *p != '\0' && xisspace(*p) )
-		p++;
-	if( strncmp(p,"by",2) != 0 || !xisspace(p[2]) ) {
-		fprintf(stderr, "%s:%lu:%u: 'by' keyword expected!\n", filename, (long)lineno, (int)(1+p-buffer));
-		return RET_ERROR;
-	}
-	p += 2;
+	r = parse_condition(filename, lineno, (1+p-buffer), &p, &condition);
+	if( RET_WAS_ERROR(r) )
+		return r;
 	while( *p != '\0' && xisspace(*p) )
 		p++;
 	if( strncmp(p,"key",3) == 0 && (p[3] == '\0' || xisspace(p[3])) ) {
+		bool allow_subkeys = false;
+
 		p += 3;
 		while( *p != '\0' && xisspace(*p) )
 			p++;
 		if( p[0] == '0' && p[1] == 'x' )
 			p += 2;
 		q = overkey(p);
-		if( *p == '\0' || (*q !='\0' && !xisspace(*q)) || q==p ) {
+		if( *p == '\0' || (*q !='\0' && !xisspace(*q) && *q != '+') || q==p ) {
 			fprintf(stderr, "%s:%lu:%u: key id or fingerprint expected!\n", filename, (long)lineno, (int)(1+q-buffer));
 			return RET_ERROR;
 		}
-		if( *q != '\0' ) {
-			fprintf(stderr, "%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n", filename, (long)lineno, (int)(1+q-buffer));
+		qq = q;
+		while( xisspace(*qq) )
+			qq++;
+		if( *qq == '+' ) {
+			qq++;
+			allow_subkeys = true;
+		}
+		while( xisspace(*qq) )
+			qq++;
+		if( *qq != '\0' ) {
+			fprintf(stderr, "%s:%lu:%u: unexpected data after 'key <fingerprint>' statement!\n\n", filename, (long)lineno, (int)(1+qq-buffer));
 			if( *q == ' ' )
 				fprintf(stderr, " Hint: no spaces allowed in fingerprint specification.\n");
 			return RET_ERROR;
 		}
-		permissions = addfingerprint(u, p, q-p, filename, lineno);
+		permissions = addfingerprint(u, p, q-p, allow_subkeys);
 		if( permissions == NULL )
 			return RET_ERROR_OOM;
+		condition_add(permissions, &condition);
 	} else if( strncmp(p, "unsigned",8) == 0 && (p[8]=='\0' || xisspace(p[8])) ) {
 		p+=8;
 		if( *p != '\0' ) {
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'unsigned' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
 			return RET_ERROR;
 		}
-		permissions = &u->unsignedpermissions;
+		condition_add(&u->unsignedpermissions, &condition);
 	} else if( strncmp(p, "any",3) == 0 && xisspace(p[3]) ) {
 		p+=3;
 		while( *p != '\0' && xisspace(*p) )
@@ -294,16 +970,22 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 			fprintf(stderr, "%s:%lu:%u: unexpected data after 'any key' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
 			return RET_ERROR;
 		}
-		permissions = &u->defaultpermissions;
+		condition_add(&u->anyvalidkeypermissions, &condition);
+	} else if( strncmp(p, "anybody", 7) == 0 && (p[7] == '\0' || xisspace(p[7])) ) {
+		p+=7;
+		while( *p != '\0' && xisspace(*p) )
+			p++;
+		if( *p != '\0' ) {
+			fprintf(stderr, "%s:%lu:%u: unexpected data after 'anybody' statement!\n", filename, (long)lineno, (int)(1+p-buffer));
+			return RET_ERROR;
+		}
+		condition_add(&u->anybodypermissions, &condition);
 	} else {
-		fprintf(stderr, "%s:%lu:%u: 'key', 'unsigned' or 'any key' expected!\n", filename, (long)lineno, (int)(1+p-buffer));
+		fprintf(stderr, "%s:%lu:%u: 'key', 'unsigned', 'anybody' or 'any key' expected!\n", filename, (long)lineno, (int)(1+p-buffer));
 		return RET_ERROR;
 	}
-	permissions->allowall = true;
 	return RET_OK;
 }
-
-
 
 static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *filename) {
 	char *fullfilename = NULL;
@@ -327,11 +1009,15 @@ static retvalue uploaders_load(/*@out@*/struct uploaders **list, const char *fil
 		return RET_ERRNO(e);
 	}
 	u = calloc(1,sizeof(struct uploaders));
-	if( u == NULL ) {
+	if( FAILEDTOALLOC(u) ) {
 		(void)fclose(f);
 		free(fullfilename);
 		return RET_ERROR_OOM;
 	}
+	/* reject by default */
+	u->unsignedpermissions.type = uc_ALWAYS;
+	u->anyvalidkeypermissions.type = uc_ALWAYS;
+	u->anybodypermissions.type = uc_ALWAYS;
 
 	while( fgets(buffer,1024,f) != NULL ) {
 		lineno++;

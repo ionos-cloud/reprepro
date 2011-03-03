@@ -104,7 +104,7 @@ struct changes {
 		       binaries;
 	struct fileentry *files;
 	char *control;
-	struct strlist fingerprints;
+	struct signatures *signatures;
 	/* Things to be set by changes_fixfields: */
 	/* the component source files are put into */
 	component_t srccomponent;
@@ -156,7 +156,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 		free(changes->changesfilekey);
 //		trackedpackage_free(changes->trackedpkg);
 		free(changes->incomingdirectory);
-		strlist_done(&changes->fingerprints);
+		signatures_free(changes->signatures);
 	}
 	free(changes);
 }
@@ -391,7 +391,7 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 	if( c == NULL )
 		return RET_ERROR_OOM;
 	r = signature_readsignedchunk(filename, filename,
-			&c->control, &c->fingerprints, NULL, &broken);
+			&c->control, &c->signatures, &broken);
 	R;
 	if( broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
@@ -435,8 +435,6 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 	}
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field");
-	r = check(filename,c,"Urgency");
-	R;
 	r = check(filename,c,"Maintainer");
 	R;
 	r = chunk_getextralinelist(c->control,
@@ -1160,9 +1158,66 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 	return result;
 }
 
-static bool permissionssuffice(UNUSED(struct changes *changes),
-                                 const struct uploadpermissions *permissions) {
-	return permissions->allowall;
+static void verifyarchitectures(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( FE_SOURCE(e->type) ) {
+			if( !uploaders_verifyatom(conditions,
+						architecture_source) )
+				break;
+		} else if( FE_BINARY(e->type) ) {
+			if( !uploaders_verifyatom(conditions,
+						e->architecture_into) )
+				break;
+		}
+	}
+}
+static void verifysection(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( FE_SOURCE(e->type) ) {
+			if( !uploaders_verifystring(conditions, e->section) )
+				break;
+		} else if( FE_BINARY(e->type) ) {
+			if( !uploaders_verifystring(conditions, e->section) )
+				break;
+		}
+	}
+}
+static void verifybinary(const struct changes *changes, struct upload_conditions *conditions) {
+	const struct fileentry *e;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( FE_BINARY(e->type) ) {
+			if( !uploaders_verifystring(conditions, e->name) )
+				break;
+		}
+	}
+}
+
+static bool permissionssuffice(struct changes *changes, struct upload_conditions *conditions) {
+	do switch( uploaders_nextcondition(conditions) ) {
+		case uc_ACCEPTED:
+			return true;
+		case uc_REJECTED:
+			return false;
+		case uc_SOURCENAME:
+			assert( changes->source != NULL);
+			(void)uploaders_verifystring(conditions,
+						changes->source);
+			break;
+		case uc_SECTIONS:
+			verifysection(changes, conditions);
+			break;
+		case uc_BINARIES:
+			verifybinary(changes, conditions);
+			break;
+		case uc_ARCHITECTURES:
+			verifyarchitectures(changes, conditions);
+			break;
+	} while( true );
 }
 
 /* insert the given .changes into the mirror in the <distribution>
@@ -1197,39 +1252,23 @@ retvalue changes_add(struct database *database, trackingdb const tracks, package
 	/* make sure caller has called distribution_loaduploaders */
 	assert( distribution->uploaders == NULL || distribution->uploaderslist != NULL );
 	if( distribution->uploaderslist != NULL ) {
-		const struct uploadpermissions *permissions;
-		int i;
+		struct upload_conditions *conditions;
 
-		if( changes->fingerprints.count == 0 ) {
-			r = uploaders_unsignedpermissions(distribution->uploaderslist,
-					&permissions);
-			assert( r != RET_NOTHING );
-			if( RET_WAS_ERROR(r) ) {
-				changes_free(changes);
-				return r;
-			}
-			if( permissions == NULL || !permissionssuffice(changes,permissions) )
-				permissions = NULL;
+		r = uploaders_permissions(distribution->uploaderslist,
+				changes->signatures, &conditions);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			changes_free(changes);
+			return r;
 		}
-		for( i = 0; i < changes->fingerprints.count ; i++ ) {
-			const char *fingerprint = changes->fingerprints.values[i];
-			r = uploaders_permissions(distribution->uploaderslist,
-					fingerprint, &permissions);
-			assert( r != RET_NOTHING );
-			if( RET_WAS_ERROR(r) ) {
-				changes_free(changes);
-				return r;
-			}
-			if( permissions != NULL && permissionssuffice(changes,permissions) )
-				break;
-			permissions = NULL;
-		}
-		if( permissions == NULL &&
+		if( !permissionssuffice(changes, conditions) &&
 		    !IGNORING_(uploaders,"No rule allowing this package in found in %s!\n",
 			    distribution->uploaders) ) {
+			free(conditions);
 			changes_free(changes);
 			return RET_ERROR;
 		}
+		free(conditions);
 	}
 
 	/* look for component, section and priority to be correct or guess them*/

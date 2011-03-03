@@ -362,6 +362,7 @@ struct namelist {
 	int argc;
 	const char **argv;
 	bool *warnedabout;
+	bool *found;
 };
 
 static retvalue by_name(struct package_list *list, struct database *database, UNUSED(struct distribution *into), UNUSED(struct distribution *from), struct target *desttarget, struct target *fromtarget, void *data) {
@@ -385,6 +386,8 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 			if( verbose >= 0 && ! d->warnedabout[j])
 				fprintf(stderr, "Hint: '%s' was listed multiple times, ignoring all but first!\n", d->argv[i]);
 			d->warnedabout[j] = true;
+			/* do not complain second is missing if we ignore it: */
+			d->found[i] = true;
 			continue;
 		}
 
@@ -404,6 +407,7 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
+		d->found[i] = true;
 	}
 	r = target_closepackagesdb(fromtarget);
 	RET_ENDUPDATE(result, r);
@@ -428,15 +432,40 @@ static void packagelist_done(struct package_list *list) {
 
 retvalue copy_by_name(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct package_list list;
-	struct namelist names = { argc, argv, calloc(argc, sizeof(bool)) };
+	struct namelist names = { argc, argv, calloc(argc, sizeof(bool)),
+       			 calloc(argc, sizeof(bool))};
 	retvalue r;
 
-	if( FAILEDTOALLOC(names.warnedabout) )
+	if( FAILEDTOALLOC(names.warnedabout) || FAILEDTOALLOC(names.found) ) {
+		free(names.found);
+		free(names.warnedabout);
 		return RET_ERROR_OOM;
+	}
 
 	memset(&list, 0, sizeof(list));
 	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_name, &names);
 	free(names.warnedabout);
+	if( verbose >= 0 && !RET_WAS_ERROR(r) ) {
+		int i;
+		bool first = true;
+
+		assert(names.found != NULL);
+		for( i = 0 ; i < argc ; i++ ) {
+			if( names.found[i] )
+				continue;
+			if( first )
+				(void)fputs("Will not copy as not found: ", stderr);
+			else
+				(void)fputs(", ", stderr);
+			first = false;
+			(void)fputs(argv[i], stderr);
+		}
+		if( !first ) {
+			(void)fputc('.', stderr);
+			(void)fputc('\n', stderr);
+		}
+	}
+	free(names.found);
 	if( !RET_IS_OK(r) )
 		return r;
 	r = packagelist_add(database, into, &list, from->codename);
@@ -458,6 +487,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 		return r;
 	result = RET_NOTHING;
 	while( target_nextpackage(&iterator, &packagename, &chunk) ) {
+		int i;
 		char *source, *sourceversion;
 		architecture_t package_architecture;
 
@@ -474,8 +504,9 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 			free(source); free(sourceversion);
 			continue;
 		}
+		i = 0;
 		if( d->argc > 1 ) {
-			int i, c;
+			int c;
 
 			i = d->argc;
 			while( --i > 0 ) {
@@ -508,6 +539,8 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
+		d->found[0] = true;
+		d->found[i] = true;
 	}
 	r = target_closeiterator(&iterator);
 	RET_ENDUPDATE(result, r);
@@ -516,13 +549,74 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 
 retvalue copy_by_source(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct package_list list;
-	struct namelist names = { argc, argv, NULL };
+	struct namelist names = { argc, argv, NULL, calloc(argc, sizeof(bool)) };
 	retvalue r;
 
+	if( FAILEDTOALLOC(names.found) ) {
+		free(names.found);
+		return RET_ERROR_OOM;
+	}
 	memset(&list, 0, sizeof(list));
 	// TODO: implement fast way by looking at source tracking
 	// (also allow copying .changes and .logs)
 	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_source, &names);
+	if( argc == 1 && !RET_WAS_ERROR(r) && verbose >= 0 ) {
+		assert(names.found != NULL);
+
+		if( !names.found[0] ) {
+			assert( r == RET_NOTHING );
+			fprintf(stderr,
+"Nothing to do as no package with source '%s' found!\n",
+				       argv[0]);
+			free(names.found);
+			return RET_NOTHING;
+		}
+	} else if( !RET_WAS_ERROR(r) && verbose >= 0 ) {
+		int i;
+		bool first = true, anything = false;
+
+		for( i = 1 ; i < argc ; i++ ) {
+			if( names.found[i] )
+				anything = true;
+		}
+		if( !anything ) {
+			assert( r == RET_NOTHING );
+			fprintf(stderr,
+"Nothing to do as no packages with source '%s' and a requested source version found!\n",
+				       argv[0]);
+			free(names.found);
+			return RET_NOTHING;
+		}
+		for( i = 1 ; i < argc ; i++ ) {
+			if( names.found[i] )
+				continue;
+			if( first )
+				(void)fputs("Will not copy as not found: ", stderr);
+			else
+				(void)fputs(", ", stderr);
+			first = false;
+			(void)fputs(argv[i], stderr);
+		}
+		if( !first ) {
+			(void)fputc('.', stderr);
+			(void)fputc('\n', stderr);
+		}
+		if( verbose > 5 ) {
+			(void)fputs("Found versions are: ", stderr);
+			first = true;
+			for( i = 1 ; i < argc ; i++ ) {
+				if( !names.found[i] )
+					continue;
+				if( !first )
+					(void)fputs(", ", stderr);
+				first = false;
+				(void)fputs(argv[i], stderr);
+			}
+			(void)fputc('.', stderr);
+			(void)fputc('\n', stderr);
+		}
+	}
+	free(names.found);
 	if( !RET_IS_OK(r) )
 		return r;
 	r = packagelist_add(database, into, &list, from->codename);
@@ -654,7 +748,7 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	retvalue result, r;
 	struct target *target;
 	struct package_list list;
-	struct namelist d = {argc, argv, NULL};
+	struct namelist d = {argc, argv, NULL, NULL};
 	char *packagename, *version;
 	architecture_t package_architecture;
 	const char *control;
@@ -817,14 +911,14 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 }
 
 retvalue restore_by_name(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
-	struct namelist d = {argc, argv, NULL};
+	struct namelist d = {argc, argv, NULL, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_name, &d);
 }
 
 retvalue restore_by_source(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
-	struct namelist d = {argc, argv, NULL};
+	struct namelist d = {argc, argv, NULL, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
 			snapshotname, choose_by_source, &d);

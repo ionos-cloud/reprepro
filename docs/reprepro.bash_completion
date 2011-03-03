@@ -103,7 +103,8 @@ _reprepro()
 		undefinedtracking undefinedtarget unusedoption\
 		brokenversioncmp extension unusedarch surprisingarch\
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\
-		brokensignatures uploaders missingfile'
+		brokensignatures uploaders missingfile\
+	       	expiredkey expiredsignature revokedkey'
 	noargoptions='--delete --nodelete --help -h --verbose -v\
 	--nothingiserror --nolistsdownload --keepunreferencedfiles --keepunusednewfiles\
 	--keepdirectories --keeptemporaries\
@@ -246,7 +247,7 @@ _reprepro()
 			restore restoresrc restorefilter\
 			processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
-			_listmd5sums _listchecksums _addchecksums _dumpcontents\
+			_listmd5sums _listchecksums _addchecksums _listdbidentifiers _listconfidentifiers _dumpcontents\
 			_removereferences _addreference _versioncompare _fakeemptyfilelist\
 			_addpackage'
 

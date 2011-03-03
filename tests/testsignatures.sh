@@ -52,6 +52,7 @@ allow * by key FFFFFFFF
 allow * by any key
 allow * by unsigned
 allow * by key 00000000
+allow * by anybody
 CONFEND
 cat > conf/incoming <<CONFEND
 Name: abc
@@ -264,14 +265,14 @@ stderr
 *=No distribution accepting 'testrevsigned.changes'!
 -v0*=There have been errors!
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
--v0*='testrevsigned.changes' would have been accepted into 'BTest' if signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' was checkable and valid.
+#-v0*='testrevsigned.changes' would have been accepted into 'BTest' if signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' was checkable and valid.
 stdout
 EOF
 testrun - -b . processincoming abc 3<<EOF
 stderr
 =Data seems not to be signed trying to use directly...
 -v1*=Ignoring signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' on 'testrevsigned.changes', as the key is revoked.
--v0*='testrevsigned.changes' would have been accepted into 'BTest' if signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' was checkable and valid.
+#-v0*='testrevsigned.changes' would have been accepted into 'BTest' if signature with '12D6C95C8C737389EAAF535972F1D61F685AF714' was checkable and valid.
 stdout
 -v3*=Will not put 'package' in 'CTest|everything|source', as already there with same version '9-2'.
 -v3*=Will not put 'package' in 'CTest|everything|${FAKEARCHITECTURE}', as already there with same version '9-2'.
@@ -308,6 +309,9 @@ stdout
 -v3*=deleting './i/package_9-2_${FAKEARCHITECTURE}.deb'...
 -v3*=deleting './i/testbadsigned.changes'...
 EOF
+
+rm -rf db conf dists pool gpgtestdir i tmp
+rm package-addons* package_* *.changes
 
 if test x$STANDALONE = xtrue ; then
 	set +v +x

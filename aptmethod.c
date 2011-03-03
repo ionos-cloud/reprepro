@@ -513,7 +513,7 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 }
 
 /* look where a received file has to go to: */
-static retvalue uridone(struct aptmethod *method, const char *uri, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
+static retvalue uridone(struct aptmethod *method, const char *uri, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt) {
 	struct tobedone *todo,*lasttodo;
 	retvalue r;
 
@@ -608,7 +608,7 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 	return RET_OK;
 }
 
-static inline retvalue goturidone(struct aptmethod *method,const char *chunk,struct database *database) {
+static inline retvalue goturidone(struct aptmethod *method, const char *chunk) {
 	static const char * const method_hash_names[cs_COUNT] =
 		{ "MD5-Hash", "SHA1-Hash", "SHA256-Hash",
 		  "Size" };
@@ -669,7 +669,7 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 		/* ignore errors, we can recompute them from the file */
 		(void)checksums_init(&checksums, hashes);
 	}
- 	r = uridone(method, uri, filename, checksums, database);
+ 	r = uridone(method, uri, filename, checksums);
 	free(uri);
 	free(filename);
 	return r;
@@ -702,7 +702,7 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 	return r;
 }
 
-static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,struct database *database) {
+static inline retvalue parsereceivedblock(struct aptmethod *method, const char *input) {
 	const char *p;
 	retvalue r;
 #define OVERLINE {while( *p != '\0' && *p != '\n') p++; if(*p == '\n') p++; }
@@ -758,7 +758,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					OVERLINE;
 					if( verbose >= 1 )
 						logmessage(method,p,"got");
-					return goturidone(method, p, database);
+					return goturidone(method, p);
 				default:
 					fprintf(stderr,
 "Error or unsupported message received: '%s'\n",	input);
@@ -792,7 +792,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 	}
 }
 
-static retvalue receivedata(struct aptmethod *method,struct database *database) {
+static retvalue receivedata(struct aptmethod *method) {
 	retvalue result;
 	ssize_t r;
 	char *p;
@@ -859,7 +859,7 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 			return result;
 		}
 		*p ='\0'; p++; r--;
-		res = parsereceivedblock(method, method->inputbuffer, database);
+		res = parsereceivedblock(method, method->inputbuffer);
 		if( r > 0 )
 			memmove(method->inputbuffer,p,r);
 		method->alreadyread = r;
@@ -989,7 +989,7 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 }
 
 /* *workleft is always set, even when return indicated error. (workleft < 0 when critical)*/
-static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct database *database) {
+static retvalue readwrite(struct aptmethodrun *run, /*@out@*/int *workleft) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;
@@ -1042,7 +1042,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 	maxfd = 0;
 	for( method = run->methods ; method != NULL ; method = method->next ) {
 		if( method->mstdout != -1 && FD_ISSET(method->mstdout,&readfds) ) {
-			r = receivedata(method, database);
+			r = receivedata(method);
 			RET_UPDATE(result,r);
 		}
 		if( method->mstdin != -1 && FD_ISSET(method->mstdin,&writefds) ) {
@@ -1053,7 +1053,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 	return result;
 }
 
-retvalue aptmethod_download(struct aptmethodrun *run, struct database *database) {
+retvalue aptmethod_download(struct aptmethodrun *run) {
 	struct aptmethod *method;
 	retvalue result,r;
 	int workleft;
@@ -1073,7 +1073,7 @@ retvalue aptmethod_download(struct aptmethodrun *run, struct database *database)
 	do {
 	  r = checkchilds(run);
 	  RET_UPDATE(result,r);
-	  r = readwrite(run, &workleft, database);
+	  r = readwrite(run, &workleft);
 	  RET_UPDATE(result,r);
 	  // TODO: check interrupted here...
 	} while( workleft > 0 || uncompress_running() );

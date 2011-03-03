@@ -387,7 +387,7 @@ struct candidate {
 	/* from candidate_read */
 	int ofs;
 	char *control;
-	struct strlist keys, allkeys;
+	struct signatures *signatures;
 	/* from candidate_parse */
 	char *source, *sourceversion, *changesversion;
 	struct strlist distributions,
@@ -477,8 +477,7 @@ static void candidate_free(/*@only@*/struct candidate *c) {
 	if( c == NULL )
 		return;
 	free(c->control);
-	strlist_done(&c->keys);
-	strlist_done(&c->allkeys);
+	signatures_free(c->signatures);
 	free(c->source);
 	free(c->sourceversion);
 	free(c->changesversion);
@@ -562,7 +561,7 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 		return r;
 	}
 	assert( n->files->tempfilename != NULL );
-	r = signature_readsignedchunk(n->files->tempfilename, BASENAME(i,ofs), &n->control, &n->keys, &n->allkeys, broken);
+	r = signature_readsignedchunk(n->files->tempfilename, BASENAME(i,ofs), &n->control, &n->signatures, broken);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		candidate_free(n);
@@ -1678,13 +1677,56 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 		return RET_NOTHING;
 }
 
-static inline bool isallowed(UNUSED(struct incoming *i), UNUSED(struct candidate *c), UNUSED(struct distribution *into), const struct uploadpermissions *permissions) {
-	return permissions->allowall;
+static inline bool isallowed(UNUSED(struct incoming *i), struct candidate *c, UNUSED(struct distribution *into), struct upload_conditions *conditions) {
+	const struct candidate_file *file;
+
+	do switch( uploaders_nextcondition(conditions) ) {
+		case uc_ACCEPTED:
+			return true;
+		case uc_REJECTED:
+			return false;
+		case uc_SOURCENAME:
+			assert( c->source != NULL );
+			(void)uploaders_verifystring(conditions, c->source);
+			break;
+		case uc_SECTIONS:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( !FE_PACKAGE(file->type) )
+					continue;
+				if( !uploaders_verifystring(conditions,
+							(file->section == NULL)
+							?"-":file->section) )
+					break;
+			}
+			break;
+		case uc_BINARIES:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( !FE_BINARY(file->type) )
+					continue;
+				if( !uploaders_verifystring(conditions,
+							file->name) )
+					break;
+			}
+			break;
+		case uc_ARCHITECTURES:
+			for( file = c->files ; file != NULL ;
+					file = file->next ) {
+				if( !FE_PACKAGE(file->type) )
+					continue;
+				if( !uploaders_verifyatom(conditions,
+						file->architecture_atom) )
+					break;
+			}
+			break;
+	} while( true );
 }
 
 static retvalue candidate_checkpermissions(struct incoming *i, struct candidate *c, struct distribution *into) {
 	retvalue r;
-	int j;
+	struct upload_conditions *conditions;
+	bool allowed;
 
 	/* no rules means allowed */
 	if( into->uploaders == NULL )
@@ -1695,54 +1737,17 @@ static retvalue candidate_checkpermissions(struct incoming *i, struct candidate 
 		return r;
 	assert(into->uploaderslist != NULL);
 
-	if( c->keys.count == 0 ) {
-		const struct uploadpermissions *permissions;
-
-		r = uploaders_unsignedpermissions(into->uploaderslist,
-				&permissions);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( permissions != NULL && isallowed(i,c,into,permissions) )
-			return RET_OK;
-	} else for( j = 0; j < c->keys.count ; j++ ) {
-		const struct uploadpermissions *permissions;
-
-		r = uploaders_permissions(into->uploaderslist,
-				c->keys.values[j], &permissions);
-		assert( r != RET_NOTHING );
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( permissions != NULL && isallowed(i,c,into,permissions) )
-			return RET_OK;
-	}
-	/* reject, check if it would have been accepted with more signatures
-	 * valid: */
-	if( verbose >= 0 &&
-	    c->allkeys.count != 0 && c->allkeys.count != c->keys.count ) {
-		for( j = 0; j < c->allkeys.count ; j++ ) {
-			const struct uploadpermissions *permissions;
-			r = uploaders_permissions(into->uploaderslist,
-					c->allkeys.values[j], &permissions);
-			assert( r != RET_NOTHING );
-			if( RET_WAS_ERROR(r) )
-				return r;
-			if( permissions != NULL &&
-			    isallowed(i,c , into, permissions) ) {
-				// TODO: get information if it was invalid because
-				// missing pub-key, expire-state or something else
-				// here so warning can be more specific.
-				fprintf(stderr,
-"'%s' would have been accepted into '%s' if signature with '%s' was checkable and valid.\n",
-					i->files.values[c->ofs],
-					into->codename,
-					c->allkeys.values[j]);
-			}
-		}
-	}
-
-	/* reject */
-	return RET_NOTHING;
+	r = uploaders_permissions(into->uploaderslist, c->signatures, &conditions);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) )
+		return r;
+	allowed = isallowed(i, c, into, conditions);
+	free(conditions);
+	if( allowed )
+		return RET_OK;
+	else
+		/* reject */
+		return RET_NOTHING;
 }
 
 static retvalue check_architecture_availability(const struct incoming *i, const struct candidate *c) {

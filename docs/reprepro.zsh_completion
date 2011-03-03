@@ -238,6 +238,8 @@ hiddencommands=(
 	_addmd5sums:"add checksums to database"
 	_addchecksums:"add checksums to database"
 	_dumpcontents:"output contents of a part of the repository"
+	_listdbidentifiers:"list parts of the repository in the database"
+	_listconfidentifiers:"list parts of the repository in the configuration"
 	_addreference:"mark a filekey needed by an identifier"
 	_removereferences:"remove all references by an identifer"
 	__extractcontrol:"extract the control file from a .deb file"
@@ -290,14 +292,18 @@ _arguments \
 		brokensignatures\:"ignore corrupted signatures if there is a valid one"\
 		uploaders\:"allow even when forbidden by uploaders file"\
 		missingfile\:"include commands search harder for missing files like .orig.tar.gz"\
+		expiredkey\:"allow signatures with expired keys"\
+		expiredsignature\:"allow expired signatures"\
+		revokedkey\:"allow signatures with revoked keys"\
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
 		ignore flatandnonflat forbiddenchar 8bit emptyfilenamepart\
 		spaceonlyline malformedchunk unknownfield unusedoption\
 		wrongdistribution missingfield brokenold brokenversioncmp\
-		extension unusedarch surprisingarch surprisingbinary
-		wrongsourceversion wrongversion brokensignatures
-		missingfile uploaders undefinedtarget undefinedtracking)' \
+		extension unusedarch surprisingarch surprisingbinary\
+		wrongsourceversion wrongversion brokensignatures\
+		missingfile uploaders undefinedtarget undefinedtracking\
+		expiredkey expiredsignature revokedkey)' \
 	'--waitforlock=[Time to wait if database is locked]:count:(0 3600)' \
 	'--spacecheck[Mode for calculating free space before downloading packages]:behavior:(full none)' \
 	'--dbsafetymargin[Safety margin for the partition with the database]:bytes count:' \

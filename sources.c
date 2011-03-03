@@ -470,7 +470,7 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 	enum checksumtype cs;
 
 	r = signature_readsignedchunk(filename, filenametoshow,
-			&dsc->control, NULL, NULL, broken);
+			&dsc->control, NULL, broken);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}

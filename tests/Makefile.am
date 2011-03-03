@@ -8,6 +8,7 @@ test.sh \
 testatoms.sh \
 testcheck.sh \
 testchecksums.sh \
+testcopy.sh \
 testexporthooks.sh \
 testflat.sh \
 testincludeextra.sh \
@@ -24,5 +25,15 @@ testupdatecorners.sh \
 testvarious1.sh \
 testvarious2.sh \
 testvarious3.sh \
-tooltest.sh
+testverify.sh \
+tooltest.sh \
+evil.key \
+expired.key \
+expiredwithsubkey.key \
+expiredwithsubkey-working.key \
+good.key \
+revoked.key \
+revoked.pkey \
+withsubkeys.key \
+withsubkeys-works.key
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in

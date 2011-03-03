@@ -2097,7 +2097,7 @@ echo "Distribution: old" >> broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=In 'broken.changes': Missing 'Urgency' field!
+*=In 'broken.changes': Missing 'Maintainer' field!
 =To Ignore use --ignore=missingfield.
 -v0*=There have been errors!
 returns 255
@@ -2106,7 +2106,6 @@ echo "Distribution: old" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=In 'broken.changes': Missing 'Urgency' field!
 *=In 'broken.changes': Missing 'Maintainer' field!
 =Ignoring as --ignore=missingfield given.
 *=In 'broken.changes': Missing 'Files' field!
@@ -2117,7 +2116,6 @@ echo "Files:" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=In 'broken.changes': Missing 'Urgency' field!
 *=In 'broken.changes': Missing 'Maintainer' field!
 *=broken.changes: Not enough files in .changes!
 =Ignoring as --ignore=missingfield given.
@@ -2130,9 +2128,8 @@ echo " $EMPTYMD5 section priority filename_version.tar.gz" >> broken.changes
 testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
-=In 'broken.changes': Missing 'Urgency' field!
-=Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
+=Ignoring as --ignore=missingfield given.
 *=Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
 =I hope you know what you do.
 # grr, this message has really to improve...
@@ -2152,7 +2149,6 @@ EOF
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
-=In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
 =Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
@@ -2172,7 +2168,6 @@ touch filename_version.tar.gz
 testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistribution --ignore=missingfield include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'old' does not start with a digit, violating 'should'-directive in policy 5.6.11
-=In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
 =Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!

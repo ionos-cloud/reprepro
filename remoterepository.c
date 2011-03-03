@@ -94,8 +94,8 @@ struct remote_distribution {
 	/* hashes to ignore */
 	bool ignorehashes[cs_hashCOUNT];
 
-	/* list of key descriptions to check against, each must match */
-	struct strlist verify;
+	/* linked list of key descriptions to check against, each must match */
+	struct signature_requirement *verify;
 
 	/* local copy of Release and Release.gpg file, once and if available */
 	char *releasefile;
@@ -177,7 +177,7 @@ static void remote_distribution_free(/*@only@*/struct remote_distribution *d) {
 	if( d == NULL )
 		return;
 	free(d->suite);
-	strlist_done(&d->verify);
+	signature_requirements_free(d->verify);
 	free(d->releasefile);
 	free(d->releasegpgfile);
 	free(d->suite_base_dir);
@@ -490,7 +490,7 @@ void cachedlistfile_need(struct cachedlistfile *list, const char *type, unsigned
 	}
 }
 
-struct remote_distribution *remote_distribution_prepare(struct remote_repository *repository, const char *suite, bool ignorerelease, const char *verifyrelease, bool flat, bool *ignorehashes) {
+retvalue remote_distribution_prepare(struct remote_repository *repository, const char *suite, bool ignorerelease, const char *verifyrelease, bool flat, bool *ignorehashes, struct remote_distribution **out_p) {
 	struct remote_distribution *n, **last;
 	enum checksumtype cs;
 
@@ -544,31 +544,30 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 				n->ignorehashes[cs] = false;
 			}
 		}
-		if( verifyrelease != NULL
-				&& strcmp(verifyrelease, "blindtrust") != 0
-				&& !strlist_in(&n->verify, verifyrelease) ) {
+		if( verifyrelease != NULL ) {
 			retvalue r;
 
-			r = strlist_add_dup(&n->verify, verifyrelease);
+			r = signature_requirement_add(&n->verify, verifyrelease);
 			if( RET_WAS_ERROR(r) )
-				return NULL;
+				return r;
 		}
-		return n;
+		*out_p = n;
+		return RET_OK;
 	}
 
 	n = calloc(1, sizeof(struct remote_distribution));
 	if( FAILEDTOALLOC(n) )
-		return NULL;
+		return RET_ERROR_OOM;
 	n->repository = repository;
 	n->suite = strdup(suite);
 	n->ignorerelease = ignorerelease;
-	if( verifyrelease != NULL && strcmp(verifyrelease, "blindtrust") != 0 ) {
+	if( verifyrelease != NULL ) {
 		retvalue r;
 
-		r = strlist_add_dup(&n->verify, verifyrelease);
+		r = signature_requirement_add(&n->verify, verifyrelease);
 		if( RET_WAS_ERROR(r) ) {
 			remote_distribution_free(n);
-			return NULL;
+			return r;
 		}
 	}
 	memcpy(n->ignorehashes, ignorehashes, sizeof(bool [cs_hashCOUNT]));
@@ -580,7 +579,7 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 	if( FAILEDTOALLOC(n->suite) ||
 			FAILEDTOALLOC(n->suite_base_dir) ) {
 		remote_distribution_free(n);
-		return NULL;
+		return RET_ERROR_OOM;
 	}
 	/* ignorerelease can be unset later, so always calculate the filename */
 	if( flat )
@@ -592,15 +591,16 @@ struct remote_distribution *remote_distribution_prepare(struct remote_repository
 				repository->name, suite, ENDOFARGUMENTS);
 	if( FAILEDTOALLOC(n->releasefile) ) {
 		remote_distribution_free(n);
-		return NULL;
+		return RET_ERROR_OOM;
 	}
 	n->releasegpgfile = calc_addsuffix(n->releasefile, "gpg");
 	if( FAILEDTOALLOC(n->releasefile) ) {
 		remote_distribution_free(n);
-		return NULL;
+		return RET_ERROR_OOM;
 	}
 	*last = n;
-	return n;
+	*out_p = n;
+	return RET_OK;
 }
 
 static retvalue copytoplace(const char *gotfilename, const char *wantedfilename, const char *method, struct checksums **checksums_p) {
@@ -667,7 +667,7 @@ static retvalue remote_distribution_metalistqueue(struct remote_distribution *d)
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	if( d->verify.count != 0 ) {
+	if( d->verify != NULL ) {
 		(void)unlink(d->releasegpgfile);
 		r = aptmethod_enqueueindex(repository->download,
 				d->suite_base_dir, "Release", ".gpg",
@@ -736,8 +736,8 @@ static retvalue process_remoterelease(struct remote_distribution *rd) {
 	struct remote_index *ri;
 	retvalue r;
 
-	if( rd->verify.count != 0 ) {
-		r = signature_check(&rd->verify,
+	if( rd->verify != NULL ) {
+		r = signature_check(rd->verify,
 				rd->releasegpgfile,
 				rd->releasefile);
 		assert( r != RET_NOTHING );
@@ -779,7 +779,7 @@ retvalue remote_preparemetalists(struct aptmethodrun *run, bool nodownload) {
 					return r;
 			}
 		}
-		r = aptmethod_download(run, NULL);
+		r = aptmethod_download(run);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1329,7 +1329,7 @@ retvalue remote_preparelists(struct aptmethodrun *run, bool nodownload) {
 			}
 		}
 	}
-	r = aptmethod_download(run, NULL);
+	r = aptmethod_download(run);
 	if( RET_WAS_ERROR(r) ) {
 		cachedlistfile_freelist(oldfiles);
 		return r;

@@ -21,7 +21,7 @@ retvalue aptmethod_newmethod(struct aptmethodrun *, const char *uri, const char 
 retvalue aptmethod_enqueue(struct aptmethod *, const char *origfile, /*@only@*/char *destfile, queue_callback *, void *, void *);
 retvalue aptmethod_enqueueindex(struct aptmethod *, const char *suite, const char *origfile, const char *, const char *destfile, const char *, queue_callback *, void *, void *);
 
-retvalue aptmethod_download(struct aptmethodrun *, struct database *);
+retvalue aptmethod_download(struct aptmethodrun *);
 retvalue aptmethod_shutdown(/*@only@*/struct aptmethodrun *);
 
 #endif

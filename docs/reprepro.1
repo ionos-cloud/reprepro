@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-03-02" "reprepro" REPREPRO
+.TH REPREPRO 1 "2009-06-02" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -190,7 +190,7 @@ error possibly bringing it into a inconsistent state.
 .BR \-\-export=never
 No index files are exported. You will have to call \fBexport\fP later.
 .br
-\fINote\fP that you most likely additionally need the \fB\-\-keepunreferenced\fP
+\fINote\fP that you most likely additionally need the \fB\-\-keepunreferencedfiles\fP
 option, if you do want some of the files pointed to by the untouched index
 files to vanish.
 .TP
@@ -347,16 +347,46 @@ If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
 lzma files will not be possible.
 The program has to accept the compressed file as stdin and write
 the uncompressed file into stdout.
+.TP
+.BI \-\-list\-format " format"
+Set the output format of \fBlist\fP and \fBlistfilter\fP commands.
+The format is similar to dpkg-query's \fB\-\-showformat\fP:
+fields are specified as
+.BI ${ fieldname }
+or
+.BI ${ fieldname ; length }\fR.\fP
+Zero length or no length means unlimited.
+Positive numbers mean fill with spaces right, negative fill with spaces left.
+
+.BR \[rs]n ", " \[rs]r ", " \[rs]t ", " \[rs]0
+are new-line, carriage-return, tabulator and zero-byte.
+Backslash (\fB\[rs]\fP) can be used to escape every non-letter-or-digit.
+
+The special field names
+.BR $identifier ", " $architecture ", " $component ", " $type ", " $codename
+denote where the package was found.
+
+When \fB\-\-list\-format\fP is not given or \fBNONE\fP, then the default
+is equivalent to
+.br
+.BR "${$identifier} ${package} ${version}\[rs]n" .
+
+Escaping digits or letters not in above list,
+using dollars not escaped outside specified constructs,
+or any field names not listed as special and not consisting entirely out of
+letters, digits and minus signs have undefined behaviour
+and might change meaning without any further notice.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
-Generate all index files for the specified distributions. (For all if none
-is specified). This will normally be done automatically and more
-fine\-tuned when including or removing packages, so seldom needed; but is nevertheless
-a good way to see if
-a new
-.B distributions
-config\-file does the expected things.
+Generate all index files for the specified distributions.
+
+This regenerates all files unconditionally.
+It is only usefull if you want to be sure \fBdists\fP is up to date,
+you called some other actions with \fB\-\-export=never\fP before or
+you want to create an initial empty but fully equipped
+.BI dists/ codename
+directory.
 .TP
 .RB " [ " \-\-delete " ] " createsymlinks " [ " \fIcodenames\fP " ]"
 Creates \fIsuite\fP symbolic links in the \fBdists/\fP-directory pointing
@@ -378,6 +408,7 @@ is given) and architectures (except when
 .B \-A
 is given) of the specified distribution.
 If no package name is given, list everything.
+The format of the output can be changed with \fB\-\-list\-format\fP.
 .TP
 .B listfilter \fIcodename\fP \fIcondition\fP
 as list, but does not list a single package, but all packages
@@ -421,6 +452,11 @@ Delete all packages in the specified distribution,
 that have package name listed as argument.
 (i.e. remove all packages \fBlist\fP with the same arguments and options
 would list, except that an empty package list is not allowed.)
+
+Note that like any other operation removing or replacing a package,
+the old package's files are unreferenced and thus may be automatically
+deleted if this was their last reference and no \fB\-\-keepunreferencedfiles\fP
+specified.
 .TP
 .B removefilter \fIcodename\fP \fIcondition\fP
 Delete all packages \fBlistfilter\fP with the same arguments would list.
@@ -467,7 +503,7 @@ that update works.
 .B cleanlists
 Delete all files in \fIlistdir\fP (default \fIbasedir\fP\fB/lists\fP) that do not
 belong to any update rule for any distribution.
-I.e. all files are deleted in that directory that no \fbupdate\fP
+I.e. all files are deleted in that directory that no \fBupdate\fP
 command in the current configuration can use.
 (The files are usually left there, so if they are needed again they
 do not need to be downloaded again. Though in many easy cases not
@@ -743,6 +779,21 @@ List what compressions format can be uncompressed and how.
 .BI __uncompress " format compressed-file uncompressed-file"
 Use builtin or external uncompression to uncompress the specified
 file of the specified format into the specified target.
+.TP
+.B _listconfidentifiers  \fIidentifier\fP \fR[\fP \fIdistributions...\fP \fR]\fP
+Print - one per line - all identifiers of subdatabases as derived from the
+configuration.
+If a list of distributions is given, only identifiers of those are printed.
+
+.TP
+.B _listdbidentifiers  \fIidentifier\fP \fR[\fP \fIdistributions...\fP \fR]\fP
+Print - one per line - all identifiers of subdatabases in the current
+database.
+This will be a subset of the ones printed by \fB_listconfidentifiers\dP or
+most commands but \fBclearvanished\fP will refuse to run, and depending
+on the database compatibility version, will include all those if reprepro
+was run since the config was last changed.
+
 .SH "CONFIG FILES"
 .B reprepo
 uses three config files, which are searched in
@@ -1184,8 +1235,12 @@ file and check if it is a signature of the
 with the key given here. (In the Format as
 "gpg \-\-with\-colons \-\-list\-key" prints it, i.e. the last
 16 hex digits of the fingerprint) Multiple keys can be specified
-by separating them with a "|" sign. Then finding a signature
+by separating them with a "\fB|\fP" sign. Then finding a signature
 from one of the will suffice.
+To allow revoked or expired keys, add a "\fB!\fP" behind a key.
+(but to accept such signatures, the appropiate \fB\-\-ignore\fP
+is also needed).
+To also allow subkeys of a specified key, add a "\fB+\fP" behind a key.
 .TP
 .B IgnoreRelease
 If this is present, no
@@ -1276,6 +1331,21 @@ times, with the environment variables
 set to the where this file will be added and
 .B REPREPRO_FILTER_PATTERN
 to the name of the update rule causing it.
+
+.TP
+.B ListShellHook
+This is like ListHook, but the whole argument is given to the shell
+as argument, and the input and output file are stdin and stdout.
+
+i.e.:
+.br
+ListShellHook: cat
+.br
+works but does nothing but useless use of a shell and cat, while
+.br
+ListShellHook: grep-dctrl \-X \-S apt \-o \-X \-S dpkg || [ $? \-eq 1 ]
+.br
+will limit the update rule to packages from the specified source packages.
 .TP
 .B DownloadListsAs
 The arguments of this field, which much be elements of the
@@ -1473,22 +1543,83 @@ as to be signed with to be included in that distribution.
 .P
 Empty lines and lines starting with a hash are ignored, every other line
 has to be of one of this three forms:
+.TP
+.B allow \fIcondition\fP by anybody
+which allows everyone to upload packages matching \fIcondition\fP,
+.TP
+.B allow \fIcondition\fP by unsigned
+which allows everything matching that has no pgp/gpg header,
+.TP
+.B allow \fIcondition\fP by any key
+which allows everything matching with any valid signature in or
+.TP
+.B allow \fIcondition\fP by key \fIkey-id\fP
+which allows everything matching signed by this \fIkey-id\fP
+(to be specified without any spaces).
+If the \fIkey-id\fP ends with a \fB+\fP (plus), a signature with a subkey of
+this primary key also suffices.
+.PP
+The only conditions currently supported are:
+.TP
+.B *
+which means any package,
+.TP
+.BI "source '" name '
+which mean any package with source \fIname\fP.
+(up to two asterisks are allowed in \fIname\fP).
+.TP
+.B sections '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+matches an upload in which each section matches one of the names
+given.
+As upload conditions are checked very early,
+this is the section listed in the .changes file,
+not the one from the override file.
+(But this might change in the future,
+if you have the need for the one or the other behavior, let me know).
+.TP
+.B sections contain '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+The same, but not all sections must be from the given set,
+but at least one source or binary package needs to have one of those given.
+.TP
+.B binaries '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+matches an upload in which each binary (type deb or udeb)
+matches one of the names given.
+.TP
+.B binaries contain '\fIname\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+again only at least one instead of all is required.
+.TP
+.B architectures '\fIarchitecture\fP'\fR(\fP|'\fIname\fP'\fR)*\fP
+matches an upload in which each package has only architectures
+from the given set.
+\fBsource\fP and \fBall\fP are treated as unique architectures.
+Wildcards are not allowed.
+.TP
+.B architectures contain '\fIarchitecture\fP'\fR(\fP|'\fIarchitecture\fP'\fR)*\fP
+again only at least one instead of all is required.
+.PP
+Putting \fBnot\fP in front of a condition, inverses it's meaning.
+For example
 .br
-.B allow * by unsigned
+\fBallow not source 'r*' by anybody\fP
 .br
-which allows everything without a valid signature in,
+means anybody may upload packages which source name does not start
+with an 'r'.
+.PP
+Multiple conditions can be connected with \fBand\fP and \fBor\fP,
+with \fBor\fP binding stronger (but both weaker than \fBnot\fP).
+That means
 .br
-.B allow * by any key
+\fBallow source 'r*' and source '*xxx' or source '*o' by anybody\fP
 .br
-which allows everything with any valid signature in or
+is equivalent to
 .br
-.B allow *  by key \fIkey-id\fP
+\fBallow source 'r*xxx' by anybody\fP
 .br
-which allows everything signed by this \fIkey-id\fP (to be specified
-without any spaces) in.
-.P
-(Other statements
-will follow once somebody tells me what restrictions are useful).
+\fBallow source 'r*o' by anybody\fP
+
+(Other conditions
+will follow once somebody tells me what restrictions are useful.
+Currently planned is only something for architectures).
 .SH "ERROR IGNORING"
 With \fB\-\-ignore\fP on the command line or an \fIignore\fP
 line in the options file, the following type of errors can be
@@ -1642,6 +1773,18 @@ Do not reject a .changes file containing .dsc files with
 a different version.
 .br
 (Note: reprepro only compares literally here, not by meaning.)
+.TP
+.B expiredkey \fR(I hope you know what you do)
+Accept signatures with expired keys.
+(Only if the expired key is explicitly requested).
+.TP
+.B expiredsignature \fR(I hope you know what you do)
+Accept expired signatures with expired keys.
+(Only if the key is explicitly requested).
+.TP
+.B revokedkey \fR(I hope you know what you do)
+Accept signatures with revoked keys.
+(Only if the revoked key is explicitly requested).
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with
