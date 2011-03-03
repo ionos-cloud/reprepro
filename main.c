@@ -97,6 +97,7 @@ static bool_t	keepunreferenced = FALSE;
 static bool_t	keepunneededlists = FALSE;
 static bool_t	keepdirectories = FALSE;
 static bool_t	askforpassphrase = FALSE;
+static bool_t	guessgpgtty = TRUE;
 static bool_t	skipold = TRUE;
 static size_t   waitforlock = 0;
 static enum exportwhen export = EXPORT_NORMAL;
@@ -111,7 +112,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace);
+O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(section), O(priority), O(component), O(architecture), O(packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -2064,8 +2065,8 @@ ACTION_D(processincoming) {
 	retvalue result,r;
 	struct distribution *distributions;
 
-	if( argc != 2 ) {
-		fprintf(stderr,"reprepro processincoming <rule-name>\n");
+	if( argc != 2 && argc != 3 ) {
+		fprintf(stderr,"reprepro processincoming <rule-name> [<.changes file>]\n");
 		return RET_ERROR;
 	}
 
@@ -2075,7 +2076,7 @@ ACTION_D(processincoming) {
 		return r;
 	}
 
-	result = process_incoming(mirrordir, confdir, overridedir, filesdb, dbdir, references, dereferenced, distributions, argv[1]);
+	result = process_incoming(mirrordir, confdir, overridedir, filesdb, dbdir, references, dereferenced, distributions, argv[1], (argc==3)?argv[2]:NULL);
 
 	logger_wait();
 
@@ -2252,7 +2253,7 @@ static void releaselock(const char *dbdir) {
 #define A_D(w) action_d_ ## w, NEED_FILESDB|NEED_REFERENCES|NEED_DEREF
 
 static const struct action {
-	char *name;
+	const char *name;
 	retvalue (*start)(
 			/*@null@*/references references,
 			/*@null@*/filesdb filesdb,
@@ -2409,6 +2410,7 @@ LO_NOLISTDOWNLOAD,
 LO_ASKPASSPHRASE,
 LO_KEEPDIRECTORIES,
 LO_SKIPOLD,
+LO_GUESSGPGTTY,
 LO_NODELETE,
 LO_NOKEEPUNREFERENCED,
 LO_NOKEEPUNNEEDEDLISTS,
@@ -2417,6 +2419,7 @@ LO_LISTDOWNLOAD,
 LO_NOASKPASSPHRASE,
 LO_NOKEEPDIRECTORIES,
 LO_NOSKIPOLD,
+LO_NOGUESSGPGTTY,
 LO_EXPORT,
 LO_DISTDIR,
 LO_DBDIR,
@@ -2576,6 +2579,12 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NOASKPASSPHRASE:
 					CONFIGSET(askforpassphrase,FALSE);
+					break;
+				case LO_GUESSGPGTTY:
+					CONFIGSET(guessgpgtty,TRUE);
+					break;
+				case LO_NOGUESSGPGTTY:
+					CONFIGSET(guessgpgtty,FALSE);
 					break;
 				case LO_SKIPOLD:
 					CONFIGSET(skipold,TRUE);
@@ -2768,6 +2777,9 @@ int main(int argc,char *argv[]) {
 		{"nokeepunneededlists", no_argument, &longoption, LO_NOKEEPUNNEEDEDLISTS},
 		{"nokeepdirectories", no_argument, &longoption, LO_NOKEEPDIRECTORIES},
 		{"noask-passphrase", no_argument, &longoption, LO_NOASKPASSPHRASE},
+		{"guessgpgtty", no_argument, &longoption, LO_GUESSGPGTTY},
+		{"noguessgpgtty", no_argument, &longoption, LO_NOGUESSGPGTTY},
+		{"nonoguessgpgtty", no_argument, &longoption, LO_GUESSGPGTTY},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
@@ -2835,6 +2847,19 @@ int main(int argc,char *argv[]) {
 
 	config_state = CONFIG_OWNER_FILE;
 	optionsfile_parse(confdir,longopts,handle_option);
+
+	if( guessgpgtty && (getenv("GPG_TTY")==NULL) && isatty(0) ) {
+		static char terminalname[1024];
+		ssize_t len;
+
+		len = readlink("/proc/self/fd/0", terminalname, 1023);
+		if( len > 0 && len < 1024 ) {
+			terminalname[len] = '\0';
+			setenv("GPG_TTY", terminalname, 0);
+		} else if( verbose > 10 ) {
+			fprintf(stderr, "Could not readlink /proc/self/fd/0 (error was %s), not setting GPG_TTY.\n", strerror(errno));
+		}
+	}
 
 	/* basedir might have changed, so recalculate */
 	if( owner_confdir == CONFIG_OWNER_DEFAULT ) {

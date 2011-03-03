@@ -1651,7 +1651,7 @@ static retvalue process_changes(const char *confdir,const char *overridedir,file
 }
 
 /* tempdir should ideally be on the same partition like the pooldir */
-retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir,filesdb files,const char *dbdir,references refs,struct strlist *dereferenced,struct distribution *distributions,const char *name) {
+retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir,filesdb files,const char *dbdir,references refs,struct strlist *dereferenced,struct distribution *distributions,const char *name,const char *changesfilename) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
@@ -1668,6 +1668,8 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 #define C_SUFFIX ".changes"
 #define C_LEN strlen(C_SUFFIX)
 		if( l <= C_LEN || strcmp(basename+(l-C_LEN),C_SUFFIX) != 0 )
+			continue;
+		if( changesfilename != NULL && strcmp(basename, changesfilename) != 0 )
 			continue;
 		/* a .changes file, check it */
 		r = process_changes(confdir, overridedir, files, dbdir, refs, dereferenced, i, j);

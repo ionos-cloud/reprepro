@@ -1,3 +1,25 @@
+2007-06-24  Bernhard R. Link <brlink@debian.org>
+	* processincoming allows an optional second argument
+	to limit processing to a specific file for better
+	integration with inoticoming.
+
+2007-06-16  Bernhard R. Link <brlink@debian.org>
+	* when checking a file to have the expected checksum,
+	first check if the file size matches before calculating
+	its md5sum.
+
+2007-06-11  Bernhard R. Link <brlink@debian.org>
+	* detect "false" and "no" as false in boolean headers.
+	(Until now only existance was tested and considered as
+	 true, which broke apt-methods telling "Send-Config: false")
+
+2007-06-10  Bernhard R. Link <brlink@debian.org>
+	* don't waste filedescriptors by not closing .done-files
+
+2007-06-09  Bernhard R. Link <brlink@debian.org>
+	* set GPG_TTY when unset and stdin is a terminal.
+	  (and new option --noguessgpgtty to suppress this)
+
 2007-06-03  Bernhard R. Link <brlink@debian.org>
 	* fix segfault when running processincoming without notificators
 	(Thanks to Julien Valroff for finding this)

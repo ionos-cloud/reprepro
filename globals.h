@@ -26,7 +26,9 @@ typedef int bool_t;
 
 #ifdef SPLINT
 #define UNUSED(a) /*@unused@*/ a
+#define NORETURN
 #else
+#define NORETURN __attribute((noreturn))
 #ifndef NOUNUSEDATTRIBUTE
 #define UNUSED(a) a __attribute((unused))
 #else

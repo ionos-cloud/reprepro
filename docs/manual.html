@@ -122,11 +122,11 @@ reprepro -b $YOURBASEDIR createsymlinks
 </li>
 <li>Include some package, like:
 <pre>
-reprepro -b $YOURBASEDIR include mypackage.changes
+reprepro -b $YOURBASEDIR include mystuff mypackage.changes
 </pre>
 or:
 <pre>
-reprepro -b $YOURBASEDIR includedeb mypackage.deb
+reprepro -b $YOURBASEDIR includedeb mystuff mypackage.deb
 </pre>
 </li>
 <li>Take a look at at the generated <tt>pool</tt> and <tt>dists</tt>
@@ -154,11 +154,11 @@ Codename: etch
 Architectures: i386
 Components: main
 Description: Debian 4.0 etch + security updates
-Updates: - debian security
-Logfile: logfile
+Update: - debian security
+Log: logfile
 </pre>
 Actually only <tt>Codename</tt>, <tt>Components</tt>, <tt>Architecture</tt> and <tt>Update</tt> is needed, the rest is just information for clients.
-The <tt>Updates</tt> line tells to delete everything no longer available (<tt>-</tt>),
+The <tt>Update</tt> line tells to delete everything no longer available (<tt>-</tt>),
 then add the <tt>debian</tt> and <tt>security</tt> rules, which still have to be defined:
 </li>
 <li>In the <tt>conf/</tt> subdirectory create a file called <tt>updates</tt>,
@@ -179,7 +179,7 @@ Method: http://ftp2.de.debian.org/debian
 Config: Acquire::Http::Proxy=http://proxy.myorg.de:8080
 VerifyRelease: A99951DAF9BB569BDB50AD90A70DAF536070D3A1|7EA391D72477203B58C04FBCB5D0C804ADB11277
 </pre>
-(If there are no Architecture, Components or UDebComponents, it will try all the distribution to update has. Fallback means a URL to try when the first cannot offer some file).
+(If there are no Architecture, Components or UDebComponents, it will try all the distribution to update has. Fallback means a URL to try when the first cannot offer some file (Has to be the same method)).
 </li>
 <li>Tell reprepro to update:
 <pre>

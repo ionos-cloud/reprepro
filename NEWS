@@ -1,3 +1,8 @@
+Updates since 2.2.1:
+- processincoming can be limited to a single .changes file
+- fix to support apt-methods stating Send-Config: false
+- set GPG_TTY when stdin is a terminal to ease usage of pinentry-curses
+
 Updates since 2.2.0:
 - fix mixup of the name of the --spacecheck option
 - fix missing options in bash completions

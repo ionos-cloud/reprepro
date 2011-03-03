@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <malloc.h>
+#include <sys/types.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"

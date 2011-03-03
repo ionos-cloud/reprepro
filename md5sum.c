@@ -215,6 +215,7 @@ retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnif
 	int fd,i;
 	struct stat s;
 	off_t expectedsize;
+	retvalue r;
 
 	assert(md5sum != NULL);
 
@@ -235,12 +236,11 @@ retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnif
 		close(fd);
 		return RET_ERRNO(i);
 	}
-	// TODO: extract filesize from md5sum and compare here instead
-	// and change code below to check this number and not generate the
-	// full string...
-	expectedsize = s.st_size;
+	r = calc_extractsize(md5sum, &expectedsize);
 
-	if( s.st_size == expectedsize ) {
+	/* if length cannot be parsed, just proceed, otherwise only
+	 * calculare the actual file checksum, if the length matched */
+	if( !RET_IS_OK(r) || s.st_size == expectedsize ) {
 		char *foundmd5sum;
 
 		ret = md5sum_calc(fd,-1,&foundmd5sum,0);

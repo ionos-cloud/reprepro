@@ -417,8 +417,20 @@ retvalue chunk_gettruth(const char *chunk,const char *name) {
 	field = chunk_getfield(name,chunk);
 	if( field == NULL )
 		return RET_NOTHING;
-	// TODO: check for things like Yes and No...
-
+	while( *field == ' ' || *field == '\t' )
+		field++;
+	if( (field[0] == 'f' || field[0] == 'F') &&
+			(field[1] == 'a' || field[1] == 'A') &&
+			(field[2] == 'l' || field[2] == 'L') &&
+			(field[3] == 's' || field[3] == 'S') &&
+			(field[4] == 'e' || field[4] == 'E') ) {
+		return RET_NOTHING;
+	}
+	if( (field[0] == 'n' || field[0] == 'N') &&
+			(field[1] == 'o' || field[1] == 'O') ) {
+		return RET_NOTHING;
+	}
+	// TODO: strict check?
 	return RET_OK;
 }
 /* return RET_OK, if field is found, RET_NOTHING, if not */
