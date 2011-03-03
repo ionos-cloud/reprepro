@@ -1,3 +1,19 @@
+2009-03-18
+	* support new suffix ".new." for export hooks.
+	(Which moves filename + ".new" to filename on success,
+	but unlike ".new" does not mention the file in Release)
+	* new suffix ".keep" for export hooks tha just ignores that line,
+	for compatibility with future changes.
+	* warn if an (Deb|UDeb|Dsc)Indices line contains no filename.
+	(warn against everything starting with a dot to avoid a user putting
+	forgetting it and putting a compression identifier there).
+
+2009-03-14
+	* fix mishandling of libz return code
+	causing "Zlib error 1"..."stream end" error messages.
+	This defect seems to be only triggered with at least lenny's libz.
+	(And only when extracting Section and Priority from a dsc).
+
 2009-03-05
 	* Implement force.<compression> as DownLoadListAs item to download an
 	index not found in the Release file.

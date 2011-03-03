@@ -4,7 +4,7 @@ dnl and hereby in the public domain
 # Check for an enum, which seem to be forgotten in autoconf,
 # as this can neighter be checked with cpp, nor is it a symbol
 m4_define([CHECK_ENUM],
-[AS_VAR_PUSHDEF([check_Enum], [cv_check_enum_$1])dnl
+[AS_VAR_PUSHDEF([check_Enum], [rr_cv_check_enum_$1])dnl
 AC_CACHE_CHECK([for $1 in $2], check_Enum,
 [AC_COMPILE_IFELSE([AC_LANG_PROGRAM([AC_INCLUDES_DEFAULT([$5])
 @%:@include <$2>],
@@ -19,7 +19,7 @@ AS_VAR_POPDEF([check_Enum])dnl
 # extract the value of a #define from a header
 m4_define([GET_DEFINE],
 [AC_LANG_PREPROC_REQUIRE()dnl
-AS_VAR_PUSHDEF(get_Define, [cv_get_define_$1])dnl
+AS_VAR_PUSHDEF(get_Define, [rr_cv_get_define_$1])dnl
 AC_CACHE_CHECK([for $1], get_Define,
 [dnl
 	m4_ifvaln([$2],[dnl

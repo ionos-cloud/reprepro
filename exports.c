@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2005,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -154,6 +154,16 @@ retvalue exportmode_set(struct exportmode *mode, struct configiterator *iter) {
 		return RET_ERROR_MISSING;
 	}
 	assert( word[0] != '\0' );
+
+	if( word[0] == '.' ) {
+		free(word);
+		fprintf(stderr,
+"Error parsing %s, line %u, column %u: filename for index files expected!\n",
+			config_filename(iter),
+			config_markerline(iter), config_markercolumn(iter));
+		return RET_ERROR;
+	}
+
 	free(mode->filename);
 	mode->filename = word;
 
@@ -269,7 +279,20 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 			return RET_ERROR_OOM;
 		}
 		return release_addnew(release,tmpfilename,filename);
+	} else if( l > 5 && memcmp(relname + (l-5), ".new.", 5) == 0 ) {
+		char *filename, *tmpfilename;
 
+		filename = strndup(relname, l-5);
+		if( FAILEDTOALLOC(filename) )
+			return RET_ERROR_OOM;
+		tmpfilename = strndup(relname, l-1);
+		if( FAILEDTOALLOC(tmpfilename) ) {
+			free(filename);
+			return RET_ERROR_OOM;
+		}
+		return release_addsilentnew(release, tmpfilename, filename);
+	} else if( l > 5 && memcmp(relname + (l-5), ".keep", 5) == 0 ) {
+		return RET_OK;
 	} else {
 		char *filename;
 

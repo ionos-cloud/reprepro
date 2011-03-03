@@ -34,6 +34,7 @@ retvalue release_mkdir(struct release *release, const char *relativedirectory);
 const char *release_dirofdist(struct release *release);
 
 retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename);
+retvalue release_addsilentnew(struct release *release,/*@only@*/char *reltmpfile,/*@only@*/char *relfilename);
 retvalue release_adddel(struct release *release,/*@only@*/char *reltmpfile);
 retvalue release_addold(struct release *release,/*@only@*/char *relfilename);
 
