@@ -1,3 +1,7 @@
+Updates since 2.2.3:
+- [SECURITY] fix bug causing a Release.gpg with only
+  unknown signatures considered as properly signed.
+
 Updates since 2.2.2:
 - add support for binNMUs (i.e. .changes files having a Version: that is not
   the source version).

@@ -1054,6 +1054,12 @@ static inline retvalue readchecksums(struct update_origin *origin) {
 		r = signature_check(origin->pattern->verifyrelease,
 				origin->releasegpgfile,
 				origin->releasefile);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Error: No accepted signature found for update rule %s for distribution %s!\n",
+					origin->pattern->name,
+					origin->distribution->codename);
+			r = RET_ERROR_BADSIG;
+		}
 		if( RET_WAS_ERROR(r) ) {
 			origin->failed = TRUE;
 			return r;

@@ -118,7 +118,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		if( kl < 8 && !IGNORING("Ignoring","To ignore this",shortkeyid,"Too short keyid specified (less than 8 characters) in '%s'!\n",key)) {
 			return RET_ERROR;
 		}
-		if( kl < fl && strncmp(fingerprint+fl-kl,keypart,kl) == 0 )
+		if( kl < fl && strncasecmp(fingerprint+fl-kl,keypart,kl) == 0 )
 			return RET_OK;
 		keypart = p;
 		while( *keypart != '\0' && xisspace(*keypart) )
