@@ -1,0 +1,26 @@
+reprepro (0.2-1) unstable; urgency=low
+
+  * new version:
+  - fix overflow in chunks_replacefield
+  - fix problem when downloading after no index files were downloaded
+  - --basedir no longer overwrites prior given more sepecific dirs
+  - exporting now writes index files and Release files into temporary
+    files and moved them to their final place all at once.
+  - new DebIndicies/UDebIndices/DscIndices options to control how to
+    generate Index files and run hooks over it. (Including examples
+    for generating .bz2 files or apt-qupdate'able .diff/ directories)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 20 Feb 2005 15:25:11 +0100
+
+reprepro (0.1.1-1) unstable; urgency=low
+
+  * new version fixing --includeonlysigned
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  9 Feb 2005 12:25:04 +0100
+
+reprepro (0.1-1) unstable; urgency=low
+
+  * Initial Upload.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  6 Feb 2005 13:43:25 +0100
+
