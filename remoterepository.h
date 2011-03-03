@@ -37,7 +37,11 @@ struct encoding_preferences {
 	/* number of preferences, 0 means use default */
 	unsigned short count;
 	/* a list of compressions to use */
-	enum compression requested[3*c_COUNT];
+	struct compression_preference {
+		bool diff  :1;
+		bool force :1;
+		enum compression compression :6;
+	} requested[3*c_COUNT];
 };
 
 struct remote_index *remote_index(struct remote_distribution *, const char *architecture, const char *component, packagetype_t, const struct encoding_preferences *);

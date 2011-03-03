@@ -12,11 +12,13 @@ testlayeredupdate.sh \
 test.inc \
 test.sh \
 testincludeextra.sh \
+testpackagediff.sh \
 testsignatures.sh \
 testsnapshotcopyrestore.sh \
 testsubcomponents.sh \
 testtemplate.sh \
 testtrackingcorruption.sh \
+testupdatecorners.sh \
 testuncompress.sh \
 testvarious1.sh \
 testvarious2.sh \

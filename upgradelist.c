@@ -269,6 +269,8 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		decision = predecide(predecide_data, packagename_const, NULL, version, chunk);
 		if( decision != UD_UPGRADE ) {
 			upgrade->last = insertafter;
+			if( decision == UD_LOUDNO )
+				fprintf(stderr, "Loudly rejecting '%s' '%s' to enter '%s'!\n", packagename, version, upgrade->target->identifier);
 			free(packagename);
 			free(version);
 			return (decision==UD_ERROR)?RET_ERROR:RET_NOTHING;
@@ -358,6 +360,8 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privda
 		decision = predecide(predecide_data,current->name,
 				current->version,version,chunk);
 		if( decision != UD_UPGRADE ) {
+			if( decision == UD_LOUDNO )
+				fprintf(stderr, "Loudly rejecting '%s' '%s' to enter '%s'!\n", packagename, version, upgrade->target->identifier);
 			/* Even if we do not install it, setting it on hold
 			 * will keep it or even install from a mirror before
 			 * the delete was applied */
@@ -587,7 +591,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logge
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete){
+retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete, void (*callback)(void *, const char **, const char **)){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -605,6 +609,10 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 					pkg->new_origfiles.checksums);
 			if( ! RET_WAS_ERROR(r) ) {
 				/* upgrade (or possibly downgrade) */
+				const char *causingrule = NULL,
+				      *suitefrom = NULL;
+
+				callback(pkg->privdata, &causingrule, &suitefrom);
 // TODO: trackingdata?
 				if( interrupted() )
 					r = RET_ERROR_INTERRUPTED;
@@ -615,7 +623,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_version,
 						pkg->new_control,
 						&pkg->new_filekeys, true,
-						NULL, pkg->architecture);
+						NULL, pkg->architecture,
+						causingrule, suitefrom);
 			}
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )

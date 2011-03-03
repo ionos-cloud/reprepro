@@ -324,6 +324,13 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 				return RET_OK;
 			}
 		}
+		if( memcmp(p, "diff ", 4) == 0 ) {
+			if( !u_getline() ) {
+				/* strange file, but nothing explicitly wrong */
+				*found_p = false;
+				return RET_OK;
+			}
+		}
 		if( unlikely(memcmp(p, "--- ", 4) != 0) )
 			return RET_NOTHING;
 		if( !u_getline() )
@@ -342,9 +349,9 @@ static retvalue parsediff(struct compressedfile *f, /*@null@*/char **section_p, 
 		/* if it does not always have the same directory, then
 		 * we cannot be sure it has no debian/control, so we
 		 * have to fail... */
+		s++;
 		if( s != p + destlength )
 			return RET_NOTHING;
-		s++;
 	}
 	/* found debian/control */
 	if( !u_getline() )

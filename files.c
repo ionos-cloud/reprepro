@@ -161,6 +161,7 @@ retvalue files_deletefile(struct database *database, const char *filekey) {
 		r = RET_ERRNO(en);
 		if( errno == ENOENT ) {
 			fprintf(stderr,"%s not found, forgetting anyway\n",filename);
+			free(filename);
 			return RET_NOTHING;
 		} else {
 			fprintf(stderr, "error %d while unlinking %s: %s\n",
@@ -1025,7 +1026,7 @@ retvalue files_preinclude(struct database *database, const char *sourcefilename,
 	if( fullfilename == NULL )
 		return RET_ERROR_OOM;
 	(void)dirs_make_parent(fullfilename);
-	r = checksums_copyfile(fullfilename, sourcefilename, &checksums);
+	r = checksums_copyfile(fullfilename, sourcefilename, true, &checksums);
 	if( r == RET_ERROR_EXIST ) {
 		// TODO: deal with already existing files!
 		fprintf(stderr, "File '%s' does already exist!\n", fullfilename);
@@ -1088,7 +1089,7 @@ static retvalue checkimproveorinclude(struct database *database, const char *sou
 "trying to compensate...\n",
 				filekey);
 		(void)dirs_make_parent(fullfilename);
-		r = checksums_copyfile(fullfilename, sourcefilename,
+		r = checksums_copyfile(fullfilename, sourcefilename, false,
 				&checksums);
 		if( r == RET_ERROR_EXIST ) {
 			fprintf(stderr,
@@ -1202,11 +1203,7 @@ retvalue files_checkincludefile(struct database *database, const char *sourcedir
 	}
 
 	(void)dirs_make_parent(fullfilename);
-	r = checksums_copyfile(fullfilename, sourcefilename, &checksums);
-	if( r == RET_ERROR_EXIST ) {
-		// TODO: deal with already existing files!
-		fprintf(stderr, "File '%s' does already exist!\n", fullfilename);
-	}
+	r = checksums_copyfile(fullfilename, sourcefilename, true, &checksums);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr, "Could not open '%s'!\n", sourcefilename);
 		r = RET_ERROR_MISSING;

@@ -128,7 +128,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome);
+O(fast), O(x_outdir), O(x_basedir), O(x_distdir), O(dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -1733,11 +1733,9 @@ ACTION_D(y, n, y, addpackage) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	r = copy_from_file(database, destination,
+	result = copy_from_file(database, destination,
 			component, architecture, packagetype, argv[2],
 			argc-3, argv+3);
-	RET_ENDUPDATE(result,r);
-
 	logger_wait();
 
 	r = distribution_export(export, destination, database);
@@ -3143,7 +3141,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	}
 	logger_warn_waiting();
 	r = database_close(database);
-	RET_UPDATE(result, r);
+	RET_ENDUPDATE(result, r);
 	r = distribution_freelist(alldistributions);
 	RET_ENDUPDATE(result,r);
 	database = NULL;
@@ -3158,6 +3156,7 @@ LO_NOTHINGISERROR,
 LO_NOLISTDOWNLOAD,
 LO_ASKPASSPHRASE,
 LO_KEEPDIRECTORIES,
+LO_KEEPTEMPORARIES,
 LO_FAST,
 LO_SKIPOLD,
 LO_GUESSGPGTTY,
@@ -3169,6 +3168,7 @@ LO_NONOTHINGISERROR,
 LO_LISTDOWNLOAD,
 LO_NOASKPASSPHRASE,
 LO_NOKEEPDIRECTORIES,
+LO_NOKEEPTEMPORARIES,
 LO_NOFAST,
 LO_NOSKIPOLD,
 LO_NOGUESSGPGTTY,
@@ -3331,6 +3331,12 @@ static void handle_option(int c, const char *argument) {
 					fprintf(stderr,
 "Warning: --nokeepuneededlists no longer exists.\n"
 "Use cleanlists to clean manually.\n");
+					break;
+				case LO_KEEPTEMPORARIES:
+					CONFIGGSET(keeptemporaries, true);
+					break;
+				case LO_NOKEEPTEMPORARIES:
+					CONFIGGSET(keeptemporaries, false);
 					break;
 				case LO_KEEPDIRECTORIES:
 					CONFIGGSET(keepdirectories, true);
@@ -3609,6 +3615,7 @@ int main(int argc,char *argv[]) {
 		{"keepunusednewfiles", no_argument, &longoption, LO_KEEPUNUSEDNEW},
 		{"keepunneededlists", no_argument, &longoption, LO_KEEPUNNEEDEDLISTS},
 		{"keepdirectories", no_argument, &longoption, LO_KEEPDIRECTORIES},
+		{"keeptemporaries", no_argument, &longoption, LO_KEEPTEMPORARIES},
 		{"ask-passphrase", no_argument, &longoption, LO_ASKPASSPHRASE},
 		{"nonothingiserror", no_argument, &longoption, LO_NONOTHINGISERROR},
 		{"nonolistsdownload", no_argument, &longoption, LO_LISTDOWNLOAD},
@@ -3617,6 +3624,7 @@ int main(int argc,char *argv[]) {
 		{"nokeepunusednewfiles", no_argument, &longoption, LO_NOKEEPUNUSEDNEW},
 		{"nokeepunneededlists", no_argument, &longoption, LO_NOKEEPUNNEEDEDLISTS},
 		{"nokeepdirectories", no_argument, &longoption, LO_NOKEEPDIRECTORIES},
+		{"nokeeptemporaries", no_argument, &longoption, LO_NOKEEPTEMPORARIES},
 		{"noask-passphrase", no_argument, &longoption, LO_NOASKPASSPHRASE},
 		{"guessgpgtty", no_argument, &longoption, LO_GUESSGPGTTY},
 		{"noguessgpgtty", no_argument, &longoption, LO_NOGUESSGPGTTY},

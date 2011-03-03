@@ -31,7 +31,8 @@ POST_INSTALL = :
 NORMAL_UNINSTALL = :
 PRE_UNINSTALL = :
 POST_UNINSTALL = :
-bin_PROGRAMS = reprepro$(EXEEXT) changestool$(EXEEXT)
+bin_PROGRAMS = reprepro$(EXEEXT) changestool$(EXEEXT) \
+	rredtool$(EXEEXT)
 subdir = .
 DIST_COMMON = README $(am__configure_deps) $(noinst_HEADERS) \
 	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
@@ -67,8 +68,8 @@ am_changestool_OBJECTS = uncompression.$(OBJEXT) \
 changestool_OBJECTS = $(am_changestool_OBJECTS)
 am__DEPENDENCIES_1 =
 changestool_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am__reprepro_SOURCES_DIST = pool.c atoms.c uncompression.c \
-	remoterepository.c indexfile.c copypackages.c \
+am__reprepro_SOURCES_DIST = diffindex.c rredpatch.c pool.c atoms.c \
+	uncompression.c remoterepository.c indexfile.c copypackages.c \
 	sourceextraction.c checksums.c readtextfile.c filecntl.c \
 	sha1.c sha256.c configparser.c database.c freespace.c log.c \
 	changes.c incoming.c uploaderslist.c guesscomponent.c files.c \
@@ -81,14 +82,14 @@ am__reprepro_SOURCES_DIST = pool.c atoms.c uncompression.c \
 	contents.c filelist.c extractcontrol.c ar.c debfile.c \
 	debfilecontents.c
 @HAVE_LIBARCHIVE_TRUE@am__objects_2 = debfilecontents.$(OBJEXT)
-am_reprepro_OBJECTS = pool.$(OBJEXT) atoms.$(OBJEXT) \
-	uncompression.$(OBJEXT) remoterepository.$(OBJEXT) \
-	indexfile.$(OBJEXT) copypackages.$(OBJEXT) \
-	sourceextraction.$(OBJEXT) checksums.$(OBJEXT) \
-	readtextfile.$(OBJEXT) filecntl.$(OBJEXT) sha1.$(OBJEXT) \
-	sha256.$(OBJEXT) configparser.$(OBJEXT) database.$(OBJEXT) \
-	freespace.$(OBJEXT) log.$(OBJEXT) changes.$(OBJEXT) \
-	incoming.$(OBJEXT) uploaderslist.$(OBJEXT) \
+am_reprepro_OBJECTS = diffindex.$(OBJEXT) rredpatch.$(OBJEXT) \
+	pool.$(OBJEXT) atoms.$(OBJEXT) uncompression.$(OBJEXT) \
+	remoterepository.$(OBJEXT) indexfile.$(OBJEXT) \
+	copypackages.$(OBJEXT) sourceextraction.$(OBJEXT) \
+	checksums.$(OBJEXT) readtextfile.$(OBJEXT) filecntl.$(OBJEXT) \
+	sha1.$(OBJEXT) sha256.$(OBJEXT) configparser.$(OBJEXT) \
+	database.$(OBJEXT) freespace.$(OBJEXT) log.$(OBJEXT) \
+	changes.$(OBJEXT) incoming.$(OBJEXT) uploaderslist.$(OBJEXT) \
 	guesscomponent.$(OBJEXT) files.$(OBJEXT) md5.$(OBJEXT) \
 	dirs.$(OBJEXT) chunks.$(OBJEXT) reference.$(OBJEXT) \
 	binaries.$(OBJEXT) sources.$(OBJEXT) checks.$(OBJEXT) \
@@ -105,6 +106,9 @@ am_reprepro_OBJECTS = pool.$(OBJEXT) atoms.$(OBJEXT) \
 	$(am__objects_2)
 reprepro_OBJECTS = $(am_reprepro_OBJECTS)
 reprepro_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1)
+am_rredtool_OBJECTS = rredtool.$(OBJEXT) rredpatch.$(OBJEXT)
+rredtool_OBJECTS = $(am_rredtool_OBJECTS)
+rredtool_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/ac/depcomp
 am__depfiles_maybe = depfiles
@@ -112,9 +116,10 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(changestool_SOURCES) $(reprepro_SOURCES)
+SOURCES = $(changestool_SOURCES) $(reprepro_SOURCES) \
+	$(rredtool_SOURCES)
 DIST_SOURCES = $(am__changestool_SOURCES_DIST) \
-	$(am__reprepro_SOURCES_DIST)
+	$(am__reprepro_SOURCES_DIST) $(rredtool_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -239,12 +244,11 @@ EXTRA_DIST = autogen.sh
 AM_CPPFLAGS = -std=gnu99 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
-reprepro_SOURCES = pool.c atoms.c uncompression.c remoterepository.c indexfile.c copypackages.c sourceextraction.c checksums.c readtextfile.c filecntl.c sha1.c sha256.c configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED) $(ARCHIVE_CONTENTS)
+reprepro_SOURCES = diffindex.c rredpatch.c pool.c atoms.c uncompression.c remoterepository.c indexfile.c copypackages.c sourceextraction.c checksums.c readtextfile.c filecntl.c sha1.c sha256.c configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED) $(ARCHIVE_CONTENTS)
 EXTRA_reprepro_SOURCE = $(ARCHIVE_UNUSED)
 changestool_SOURCES = uncompression.c sourceextraction.c readtextfile.c filecntl.c tool.c chunkedit.c strlist.c checksums.c sha1.c sha256.c md5.c mprintf.c chunks.c signature.c dirs.c names.c $(ARCHIVE_USED)
-
-# rredtool_SOURCES = rredtool.c rredpatch.c
-noinst_HEADERS = pool.h atoms.h uncompression.h remoterepository.h copypackages.h sourceextraction.h checksums.h readtextfile.h filecntl.h sha1.h sha256.h configparser.h database_p.h database.h freespace.h log.h changes.h incoming.h guesscomponent.h md5.h dirs.h files.h chunks.h reference.h binaries.h sources.h checks.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h debfile.h checkindeb.h checkindsc.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h pull.h ar.h filelist.h contents.h chunkedit.h uploaderslist.h indexfile.h # rredpatch.h
+rredtool_SOURCES = rredtool.c rredpatch.c
+noinst_HEADERS = pool.h atoms.h uncompression.h remoterepository.h copypackages.h sourceextraction.h checksums.h readtextfile.h filecntl.h sha1.h sha256.h configparser.h database_p.h database.h freespace.h log.h changes.h incoming.h guesscomponent.h md5.h dirs.h files.h chunks.h reference.h binaries.h sources.h checks.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h debfile.h checkindeb.h checkindsc.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h pull.h ar.h filelist.h contents.h chunkedit.h uploaderslist.h indexfile.h rredpatch.h diffindex.h
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/configure $(srcdir)/stamp-h.in $(srcdir)/aclocal.m4 $(srcdir)/config.h.in
 SPLINT = splint
 SPLITFLAGSFORVIM = -linelen 10000 -locindentspaces 0
@@ -333,6 +337,9 @@ changestool$(EXEEXT): $(changestool_OBJECTS) $(changestool_DEPENDENCIES)
 reprepro$(EXEEXT): $(reprepro_OBJECTS) $(reprepro_DEPENDENCIES) 
 	@rm -f reprepro$(EXEEXT)
 	$(LINK) $(reprepro_OBJECTS) $(reprepro_LDADD) $(LIBS)
+rredtool$(EXEEXT): $(rredtool_OBJECTS) $(rredtool_DEPENDENCIES) 
+	@rm -f rredtool$(EXEEXT)
+	$(LINK) $(rredtool_OBJECTS) $(rredtool_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -358,6 +365,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/database.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/debfile.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/debfilecontents.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/diffindex.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/dirs.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/distribution.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/donefile.Po@am__quote@
@@ -388,6 +396,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reference.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/release.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/remoterepository.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rredpatch.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/rredtool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sha1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sha256.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signature.Po@am__quote@

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -39,6 +39,21 @@
 #include "aptmethod.h"
 #include "filecntl.h"
 
+struct tobedone {
+	/*@null@*/
+	struct tobedone *next;
+	/* must be saved to know where is should be moved to: */
+	/*@notnull@*/
+	char *uri;
+	/*@notnull@*/
+	char *filename;
+	/* callback and its data: */
+	queue_callback *callback;
+	/*@null@*/void *privdata1, *privdata2;
+	/* there is no fallback or that was already used */
+	bool lasttry;
+};
+
 struct aptmethod {
 	/*@only@*/ /*@null@*/
 	struct aptmethod *next;
@@ -54,15 +69,12 @@ struct aptmethod {
 	/*@null@*/struct tobedone *tobedone;
 	/*@null@*//*@dependent@*/struct tobedone *lasttobedone;
 	/*@null@*//*@dependent@*/const struct tobedone *nexttosend;
-	struct tobedone *failed;
 	/* what is currently read: */
 	/*@null@*/char *inputbuffer;
 	size_t input_size,alreadyread;
 	/* What is currently written: */
 	/*@null@*/char *command;
 	size_t alreadywritten,output_length;
-	/* true when we are already trying the fallbacks */
-	bool fallenback;
 };
 
 struct aptmethodrun {
@@ -71,10 +83,6 @@ struct aptmethodrun {
 
 static void todo_free(/*@only@*/ struct tobedone *todo) {
 	free(todo->filename);
-	if( !todo->indexfile ) {
-		checksums_free(todo->checksums);
-		free(todo->filekey);
-	}
 	free(todo->uri);
 	free(todo);
 }
@@ -100,7 +108,6 @@ static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 	free(method->command);
 
 	free_todolist(method->tobedone);
-	free_todolist(method->failed);
 
 	free(method);
 }
@@ -272,9 +279,6 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 	int mstdout[2];
 	int r;
 
-	/* new try, new luck */
-	method->fallenback = false;
-
 	/* When there is nothing to get, there is no reason to startup
 	 * the method. */
 	if( method->tobedone == NULL ) {
@@ -377,387 +381,98 @@ inline static retvalue aptmethod_startup(struct aptmethod *method) {
 
 /**************************how to add files*****************************/
 
-retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, const char *destfile, const struct checksums *checksums, const char *filekey, struct tobedone **t) {
-	struct tobedone *todo;
-
-	assert( origfile != NULL ); assert( destfile != NULL );
-	assert( checksums != NULL ); assert( filekey != NULL );
-	assert( t != NULL );
-
-	todo = malloc(sizeof(struct tobedone));
-	if( FAILEDTOALLOC(todo) )
-		return RET_ERROR_OOM;
-
+static inline void enqueue(struct aptmethod *method, /*@only@*/struct tobedone *todo) {
 	todo->next = NULL;
-	todo->indexfile = false;
-	todo->compression = c_none;
-	todo->uri = calc_dirconcat(method->baseuri, origfile);
-	todo->filename = strdup(destfile);
-	todo->filekey = strdup(filekey);
-	todo->checksums = checksums_dup(checksums);
-	if( FAILEDTOALLOC(todo->uri) || FAILEDTOALLOC(todo->filename) ||
-			FAILEDTOALLOC(todo->checksums) ||
-			FAILEDTOALLOC(todo->filekey) ) {
-		checksums_free(todo->checksums);
-		free(todo->uri);
-		free(todo->filename);
-		free(todo);
-		return RET_ERROR_OOM;
-	}
 	if( method->lasttobedone == NULL )
 		method->nexttosend = method->lasttobedone = method->tobedone = todo;
 	else {
 		method->lasttobedone->next = todo;
 		method->lasttobedone = todo;
+		if( method->nexttosend == NULL )
+			method->nexttosend = todo;
 	}
-	*t = todo;
+}
+
+static retvalue enqueuenew(struct aptmethod *method, /*@only@*/char *uri, /*@only@*/char *destfile, queue_callback *callback, void *privdata1, void *privdata2) {
+	struct tobedone *todo;
+
+	if( FAILEDTOALLOC(destfile) ) {
+		free(uri);
+		return RET_ERROR_OOM;
+	}
+	if( FAILEDTOALLOC(uri) ) {
+		free(destfile);
+		return RET_ERROR_OOM;
+	}
+
+	todo = malloc(sizeof(struct tobedone));
+	if( FAILEDTOALLOC(todo) ) {
+		free(uri); free(destfile);
+		return RET_ERROR_OOM;
+	}
+
+	todo->next = NULL;
+	todo->uri = uri;
+	todo->filename = destfile;
+	todo->callback = callback;
+	todo->privdata1 = privdata1;
+	todo->privdata2 = privdata2;
+	todo->lasttry = method->fallbackbaseuri == NULL;
+	enqueue(method, todo);
 	return RET_OK;
 }
 
-retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *suite, const char *origfile, const char *destfile, /*@null@*/struct checksums **checksums_p, enum compression compression, /*@null@*/const struct checksums *compressed_checksums) {
-	struct tobedone *todo;
+retvalue aptmethod_enqueue(struct aptmethod *method, const char *origfile, /*@only@*/char *destfile, queue_callback *callback, void *privdata1, void *privdata2) {
+	return enqueuenew(method,
+			calc_dirconcat(method->baseuri, origfile),
+			destfile, callback, privdata1, privdata2);
+}
 
-	if( origfile == NULL || destfile == NULL )
-		return RET_ERROR_OOM;
-
-	todo = malloc(sizeof(struct tobedone));
-	if( todo == NULL )
-		return RET_ERROR_OOM;
-
-	todo->next = NULL;
-	todo->uri = calc_dirconcat3(method->baseuri, suite, origfile);
-	todo->filename = strdup(destfile);
-	todo->indexfile = true;
-	todo->compressedchecksums = compressed_checksums;
-	todo->checksums_p = checksums_p;
-	todo->compression = compression;
-	if( FAILEDTOALLOC(todo->uri) || FAILEDTOALLOC(todo->filename) ) {
-		free(todo->uri);
-		free(todo->filename);
-		free(todo);
-		return RET_ERROR_OOM;
-	}
-
-	if( method->lasttobedone == NULL )
-		method->nexttosend = method->lasttobedone = method->tobedone = todo;
-	else {
-		method->lasttobedone->next = todo;
-		method->lasttobedone = todo;
-	}
-	return RET_OK;
+retvalue aptmethod_enqueueindex(struct aptmethod *method, const char *suite, const char *origfile, const char *suffix, const char *destfile, const char *downloadsuffix, queue_callback *callback, void *privdata1, void *privdata2) {
+	return enqueuenew(method,
+			mprintf("%s/%s/%s%s",
+				method->baseuri, suite, origfile, suffix),
+			mprintf("%s%s", destfile, downloadsuffix),
+			callback, privdata1, privdata2);
 }
 
 /*****************what to do with received files************************/
 
-/* If it is not an index file, it is easy: make sure we have all checksums
- * and add it to the database: */
-static inline retvalue todo_done(struct tobedone *todo, const char *method, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
+static retvalue requeue_or_fail(struct aptmethod *method, /*@only@*/struct tobedone *todo) {
 	retvalue r;
-	struct checksums *checksums = NULL;
-	bool improves;
 
-	assert( !todo->indexfile );
-	assert( todo->filekey != NULL );
-	assert( todo->checksums != NULL );
-
-	/* if the file is somewhere else, copy it: */
-	if( strcmp(filename, todo->filename) != 0 ) {
-		if( verbose > 1 )
-			fprintf(stderr,
-"Linking file '%s' to '%s'...\n", filename, todo->filename);
-		r = checksums_linkorcopyfile(todo->filename, filename,
-				&checksums);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr, "Cannot open '%s', obtained from '%s' method.\n",
-					filename, method);
-			r = RET_ERROR_MISSING;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			checksums_free(checksumsfromapt);
-			return r;
-		}
-	}
-
-	if( checksums == NULL ) {
-		/* trust apt-method if it gave some checksums */
-		checksums = checksumsfromapt;
-		if( checksums == NULL )
-			r = checksums_read(filename, &checksums);
+	if( todo->lasttry ) {
+		if( todo->callback == NULL )
+			r = RET_ERROR;
 		else
-			/* but make sure it computed all we would have, too */
-			r = checksums_complete(&checksums, filename);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,
-"Cannot open '%s', though '%s' method claims to have put it there!\n",
-					filename, method);
-			r = RET_ERROR_MISSING;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			checksums_free(checksumsfromapt);
-			return r;
-		}
-	} else
-		checksums_free(checksumsfromapt);
-
-	assert( checksums != NULL );
-
-	if( !checksums_check(todo->checksums, checksums, &improves) ) {
-		fprintf(stderr, "Wrong checksum during receive of '%s':\n",
-				todo->uri);
-		checksums_printdifferences(stderr, todo->checksums, checksums);
-		checksums_free(checksums);
-		return RET_ERROR_WRONG_MD5;
-	}
-	if( improves ) {
-		r = checksums_combine(&todo->checksums, checksums, NULL);
-		checksums_free(checksums);
-		if( RET_WAS_ERROR(r) )
-			return r;
-	} else
-		checksums_free(checksums);
-
-	r = files_add_checksums(database, todo->filekey, todo->checksums);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	return RET_OK;
-}
-
-/* check uncompressed file */
-static inline retvalue indexfile_done(void *data, const char *compressed, bool failed, bool early) {
-	struct tobedone *todo = data;
-	retvalue r;
-	struct checksums *checksums;
-	bool improves;
-
-	if( failed ) {
-		if( !early )
-			todo_free(todo);
-		return RET_ERROR;
-	}
-
-	/* file got uncompressed, check if it has the correct checksum */
-
-	if( todo->checksums_p != NULL ) {
-		r = checksums_read(todo->filename, &checksums);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,
-"Cannot open '%s', though apt-method for '%s' claims it is there!\n",
-					todo->filename, todo->uri);
-			r = RET_ERROR_MISSING;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			if( !early )
-				todo_free(todo);
-			return r;
-		}
-
-		if( !checksums_check(*todo->checksums_p, checksums, &improves) ) {
-			fprintf(stderr, "Wrong checksum during receive of '%s':\n",
-					todo->uri);
-			checksums_printdifferences(stderr,
-					*todo->checksums_p,
-					checksums);
-			checksums_free(checksums);
-			if( !early )
-				todo_free(todo);
-			return RET_ERROR_WRONG_MD5;
-		}
-		if( improves ) {
-			r = checksums_combine(todo->checksums_p,
-					checksums, NULL);
-			if( RET_WAS_ERROR(r) ) {
-				checksums_free(checksums);
-				if( !early )
-					todo_free(todo);
-				return r;
-			}
-		}
-		checksums_free(checksums);
-
-		/* if the compressed file was downloaded or copied, delete it.
-		 * This is only done if we know the uncompressed checksum, so
-		 * that less downloading is needed (though as apt no longer
-		 * supports such archieves, they are unlikely anyway). */
-
-		if( strncmp(todo->filename, compressed, strlen(todo->filename)) == 0 ) {
-			(void)unlink(compressed);
-		}
-	}
-	if( !early )
+			r = todo->callback(qa_error,
+				todo->privdata1, todo->privdata2,
+				todo->uri, NULL, todo->filename,
+				NULL, method->name);
 		todo_free(todo);
-	return RET_OK;
-}
-
-/* index files need more logic, possibly some uncompression... */
-static inline retvalue indexfile_downloaded(struct tobedone *todo, const char *method, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, bool *done_p) {
-	retvalue r;
-	struct checksums *checksums = NULL;
-
-	assert( todo->indexfile );
-	assert( todo->compression != c_none );
-
-	/* First check if the received files checksums are valid */
-	bool aptchecksumsincomplete;
-
-	/* Trust the checksums the apt-method gave us, if complete */
-	if( todo->compressedchecksums == NULL )
-		/* no checksums to check is expressed by saying
-		 * apt-method already verified it... */
-		aptchecksumsincomplete = false;
-	else if( checksumsfromapt == NULL )
-		aptchecksumsincomplete = true;
-	else if( !checksums_check(checksumsfromapt,
-				todo->compressedchecksums,
-				&aptchecksumsincomplete) ) {
-		fprintf(stderr, "Wrong checksum during receive of '%s':\n",
-				todo->uri);
-		checksums_printdifferences(stderr,
-				todo->compressedchecksums,
-				checksumsfromapt);
-		checksums_free(checksumsfromapt);
-		return RET_ERROR_WRONG_MD5;
-	}
-	checksums_free(checksumsfromapt);
-	checksumsfromapt = NULL;
-	if( aptchecksumsincomplete ) {
-		/* But if apt did not calculate all, we'll have to */
-		r = checksums_read(filename, &checksums);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,
-"Cannot open '%s', though '%s' method claims it is there!\n",
-					filename, method);
-			r = RET_ERROR_MISSING;
-		}
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( !checksums_check(todo->compressedchecksums,
-					checksums, NULL) ) {
-			fprintf(stderr, "Wrong checksum during receive of '%s':\n",
-					todo->uri);
-			checksums_printdifferences(stderr,
-					todo->compressedchecksums,
-					checksums);
-			checksums_free(checksums);
-			return RET_ERROR_WRONG_MD5;
-		}
-		checksums_free(checksums);
-	}
-	checksums = NULL;
-	/* compressed checksum verified, now uncompress */
-	return uncompress_queue_file(filename, todo->filename,
-			todo->compression, indexfile_done, todo, done_p);
-}
-
-/* the uncompressed file is easier, unless it is not in place... */
-static inline retvalue indexfile_got(struct tobedone *todo, const char *method, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt) {
-	retvalue r;
-	struct checksums *checksums = NULL;
-
-	assert( todo->indexfile );
-	assert( todo->compression == c_none );
-
-	/* if the file is somewhere else, copy it: */
-	if( strcmp(filename, todo->filename) != 0 ) {
-		/* never link index files, but copy them */
-		if( verbose > 1 )
-			fprintf(stderr,
-"Copy file '%s' to '%s'...\n", filename, todo->filename);
-		r = checksums_copyfile(todo->filename, filename, &checksums);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,
-"Cannot open '%s', obtained from '%s' method.\n",
-					filename, method);
-			r = RET_ERROR_MISSING;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			checksums_free(checksumsfromapt);
-			return r;
-		}
-	}
-	if( todo->checksums_p != NULL && checksums == NULL ) {
-		/* trust apt-method if it gave some checksums */
-		checksums = checksumsfromapt;
-		if( checksums == NULL )
-			r = checksums_read(filename, &checksums);
-		else
-			/* but make sure it computed all we would have, too */
-			r = checksums_complete(&checksums, filename);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,
-"Cannot open '%s', though '%s' method claims it is there!\n",
-					filename, method);
-			r = RET_ERROR_MISSING;
-		}
-		if( RET_WAS_ERROR(r) ) {
-			checksums_free(checksumsfromapt);
-			return r;
-		}
-	} else
-		checksums_free(checksumsfromapt);
-
-	/* check it if necessary, improving known checksums */
-	if( todo->checksums_p != NULL ) {
-		bool improves;
-
-		assert( checksums != NULL );
-
-		if( !checksums_check(*todo->checksums_p, checksums, &improves) ) {
-			fprintf(stderr, "Wrong checksum during receive of '%s':\n",
-					todo->uri);
-			checksums_printdifferences(stderr,
-					*todo->checksums_p,
-					checksums);
-			checksums_free(checksums);
-			return RET_ERROR_WRONG_MD5;
-		}
-		if( improves ) {
-			r = checksums_combine(todo->checksums_p,
-					checksums, NULL);
-			if( RET_WAS_ERROR(r) ) {
-				checksums_free(checksums);
-				return r;
-			}
-		}
-	}
-	checksums_free(checksums);
-	return RET_OK;
-}
-
-/* shuffle files from failed to tobedone and nexttosend, if an
- * alternate baseuri to try too is given. */
-static retvalue requeue_failed(struct aptmethod *method){
-	struct tobedone *todo;
-	size_t old_len,new_len;
-
-	if( method->failed == NULL )
-		return RET_OK;
-	if( method->fallbackbaseuri == NULL || method->fallenback )
-		return RET_ERROR;
-	method->tobedone = method->failed;
-	method->nexttosend = method->failed;
-	method->failed = NULL;
-
-	old_len = strlen(method->baseuri);
-	new_len = strlen(method->fallbackbaseuri);
-
-	/* try at most once */
-	method->fallenback = true;
-
-	for( todo = method->tobedone; todo != NULL ; todo = todo->next ) {
-		size_t l;
+		return r;
+	} else {
+		size_t l, old_len, new_len;
 		char *s;
 
+		assert( method->fallbackbaseuri != NULL );
+
+		old_len = strlen(method->baseuri);
+		new_len = strlen(method->fallbackbaseuri);
 		l = strlen(todo->uri);
 		s = malloc(l+new_len+1-old_len);
-		if( s != NULL ) {
-			memcpy(s,method->fallbackbaseuri,new_len);
-			strcpy(s+new_len,todo->uri + old_len);
-			free(todo->uri);
-			todo->uri = s;
+		if( FAILEDTOALLOC(s) ) {
+			todo_free(todo);
+			return RET_ERROR_OOM;
 		}
+		memcpy(s, method->fallbackbaseuri, new_len);
+		strcpy(s+new_len, todo->uri + old_len);
+		free(todo->uri);
+		todo->uri = s;
+		todo->lasttry = true;
+		enqueue(method, todo);
+		return RET_OK;
 	}
-
-	return RET_OK;
 }
 
 /* look which file could not be received and remove it: */
@@ -781,17 +496,11 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 			if( method->lasttobedone == todo ) {
 				method->lasttobedone = todo->next;
 			}
-			fprintf(stderr,"aptmethod error receiving '%s':\n'%s'\n",uri,message);
+			fprintf(stderr,"aptmethod error receiving '%s':\n'%s'\n",
+					uri, (message != NULL)?message:"");
 			/* put message in failed items to show it later? */
 			free(message);
-			/* put it in failed list to cope with it later */
-			todo->next = method->failed;
-			method->failed = todo;
-			/* if everything has answered, redo failed */
-			if( method->tobedone == NULL ) {
-				return requeue_failed(method);
-			}
-			return RET_OK;
+			return requeue_or_fail(method, todo);
 		}
 		lasttodo = todo;
 		todo = todo->next;
@@ -806,55 +515,37 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 /* look where a received file has to go to: */
 static retvalue uridone(struct aptmethod *method, const char *uri, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
 	struct tobedone *todo,*lasttodo;
+	retvalue r;
 
 	lasttodo = NULL; todo = method->tobedone;
 	while( todo != NULL ) {
-		if( strcmp(todo->uri,uri) == 0)  {
-			retvalue r;
-			bool itemdone = true;
-
-			if( todo->indexfile )
-				if( todo->compression == c_none)
-					r = indexfile_got(todo, method->name,
-							filename,
-							checksumsfromapt);
-				else
-					r = indexfile_downloaded(todo,
-							method->name,
-							filename,
-							checksumsfromapt,
-							&itemdone);
-			else
-				r = todo_done(todo, method->name, filename,
-						checksumsfromapt, database);
-
-			// TODO: check if unlinking can be done before so the
-			// free stuff can be implemented easier
-			/* remove item: */
-			if( lasttodo == NULL )
-				method->tobedone = todo->next;
-			else
-				lasttodo->next = todo->next;
-			if( method->nexttosend == todo ) {
-				/* just in case some method received
-				 * files before we request them ;-) */
-				method->nexttosend = todo->next;
-			}
-			if( method->lasttobedone == todo ) {
-				method->lasttobedone = todo->next;
-			}
-			if( itemdone )
-				todo_free(todo);
-			/* if everything is done, redo failed */
-			if( method->tobedone == NULL ) {
-				retvalue rr;
-				rr = requeue_failed(method);
-				RET_UPDATE(r,rr);
-			}
-			return r;
+		if( strcmp(todo->uri,uri) != 0)  {
+			lasttodo = todo;
+			todo = todo->next;
+			continue;
 		}
-		lasttodo = todo;
-		todo = todo->next;
+
+		r = todo->callback(qa_got,
+				todo->privdata1, todo->privdata2,
+				todo->uri, filename, todo->filename,
+				checksumsfromapt, method->name);
+		checksums_free(checksumsfromapt);
+
+		/* remove item: */
+		if( lasttodo == NULL )
+			method->tobedone = todo->next;
+		else
+			lasttodo->next = todo->next;
+		if( method->nexttosend == todo ) {
+			/* just in case some method received
+			 * files before we request them ;-) */
+			method->nexttosend = todo->next;
+		}
+		if( method->lasttobedone == todo ) {
+			method->lasttobedone = todo->next;
+		}
+		todo_free(todo);
+		return r;
 	}
 	/* huh? */
 	fprintf(stderr, "Method '%s' retrieved unexpected file '%s' at '%s'!\n",
@@ -935,16 +626,20 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 "Missing URI header in uridone received from '%s' method!\n",
 				method->name);
 		r = RET_ERROR;
+		method->status = ams_failed;
 	}
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	r = chunk_getvalue(chunk,"Filename",&filename);
 	if( r == RET_NOTHING ) {
+	// TODO: implement Alt-Filename handling the file method returns...
 		fprintf(stderr,
 "Missing Filename header in uridone received from '%s' method!\n",
 				method->name);
-		r = RET_ERROR;
+ 		r = urierror(method, uri, strdup("<no error but missing Filename from apt-method>"));
+		free(uri);
+		return r;
 	}
 	if( RET_WAS_ERROR(r) ) {
 		free(uri);
@@ -1200,9 +895,8 @@ static retvalue senddata(struct aptmethod *method) {
 		unlink(todo->filename);
 		*/
 		method->command = mprintf(
-			 "600 URI Acquire\nURI: %s\nFilename: %s%s\n\n",
-			 todo->uri, todo->filename,
-			 uncompression_suffix[todo->compression]);
+			 "600 URI Acquire\nURI: %s\nFilename: %s\n\n",
+			 todo->uri, todo->filename);
 		if( method->command == NULL ) {
 			return RET_ERROR_OOM;
 		}

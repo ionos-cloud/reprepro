@@ -3,7 +3,7 @@
 
 /* Things for making decisions what to upgrade and what not */
 
-typedef enum { UD_ERROR, UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
+typedef enum { UD_ERROR, UD_LOUDNO, UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
 
 typedef upgrade_decision upgrade_decide_function(void *privdata, const char *package,const char *old_version,const char *new_version,const char *newcontrolchunk);
 
@@ -36,7 +36,7 @@ typedef retvalue enqueueaction(void *, struct database *, const struct checksums
 /* request all wanted files refering the methods given before */
 retvalue upgradelist_enqueue(struct upgradelist *, enqueueaction *, void *, struct database *);
 
-retvalue upgradelist_install(struct upgradelist *upgrade, /*@null@*/struct logger *, struct database *, bool ignoredelete);
+retvalue upgradelist_install(struct upgradelist *upgrade, /*@null@*/struct logger *, struct database *, bool ignoredelete, void (*callback)(void *, const char **, const char **));
 
 /* remove all packages that would either be removed or upgraded by an upgrade */
 retvalue upgradelist_predelete(struct upgradelist *, /*@null@*/struct logger *, struct database *);

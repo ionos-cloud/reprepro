@@ -1,0 +1,59 @@
+.TH RREDTOOL 1 "06 Mar, 2009" "reprepro" REPREPRO
+.SH NAME
+rredtool \- merge or apply a very restricted subset of ed patches
+.SH SYNOPSIS
+.B rredtool \-\-help
+
+.B rredtool
+[
+\fIoptions\fP
+]
+.B \-\-merge
+.I patches...
+
+.B rredtool
+[
+\fIoptions\fP
+]
+.B \-\-patch
+.IR file-to-patch " " patches...
+.SH DESCRIPTION
+rredtool is a tool to handle a subset of ed patches in a safe way.
+It is especially targeted at ed patches as used in Packages.diff
+and Sources.diff.
+.SH "MODI"
+One of the following has to be given, so that rredtool know that to
+do.
+.TP
+.B \-\-version
+Print the version of this tool
+(or rather the version of reprepro which it is coming with).
+.TP
+.B \-\-help
+Print a short overview of the modi.
+.TP
+.B \-\-patch
+The first argument of rredtool is the file to patch,
+the other arguments are ed patches to apply on this one.
+.TP
+.B \-\-merge
+The arguments are treated as ed patches, which are merged into
+a single one.
+.SH "OPTIONS"
+.TP
+.B \-\-debug
+Print intermediate results or other details that might be intresting
+when trying to track down bugs in rredtool but not intresting otherwise.
+.TP
+.BR \-o | \-\-output
+Not yet implemented.
+.SH "REPORTING BUGS"
+Report bugs or wishlist requests the Debian BTS
+(e.g. by using \fBreportbug reperepro\fP)
+or directly to <brlink@debian.org>.
+.br
+.SH COPYRIGHT
+Copyright \(co 2009 Bernhard R. Link
+.br
+This is free software; see the source for copying conditions. There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

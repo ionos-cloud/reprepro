@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -88,8 +88,8 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	enum checksumtype type;
 	size_t len, hashlens[cs_COUNT];
 
-	/* everything assumes yet that those are available */
-	if( hashes[cs_length] == NULL || hashes[cs_md5sum] == NULL ) {
+	/* everything assumes yet that this is available */
+	if( hashes[cs_length] == NULL ) {
 		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
 			free(hashes[type]);
 		*checksums_p = NULL;
@@ -100,20 +100,26 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 	while( *size == '0' && size[1] >= '0' && size[1] <= '9' )
 		size++;
 
-	hashlens[cs_md5sum] = strlen(hashes[cs_md5sum]);
+	if( hashes[cs_md5sum] == NULL )
+		hashlens[cs_md5sum] = 1;
+	else
+		hashlens[cs_md5sum] = strlen(hashes[cs_md5sum]);
 	hashlens[cs_length] = strlen(size);
 	len = hashlens[cs_md5sum] + 1 + hashlens[cs_length];
 
 	p = hashes[cs_md5sum];
-	while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')
-			                || (*p >= 'A' && *p <= 'F') )
-		p++;
-	if( *p != '\0' ) {
-		// TODO: find way to give more meaningfull error message
-		fprintf(stderr, "Invalid md5 hash: '%s'\n", hashes[cs_md5sum]);
-		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
-			free(hashes[type]);
-		return RET_ERROR;
+	if( p != NULL ) {
+		while( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f')
+				|| (*p >= 'A' && *p <= 'F') )
+			p++;
+		if( *p != '\0' ) {
+			// TODO: find way to give more meaningfull error message
+			fprintf(stderr, "Invalid md5 hash: '%s'\n",
+					hashes[cs_md5sum]);
+			for( type = cs_md5sum ; type < cs_COUNT ; type++ )
+				free(hashes[type]);
+			return RET_ERROR;
+		}
 	}
 	p = size;
 	while( (*p >= '0' && *p <= '9') )
@@ -165,10 +171,16 @@ retvalue checksums_init(/*@out@*/struct checksums **checksums_p, char *hashes[cs
 		d += hashlens[type];
 		*(d++) = ' ';
 	}
-	n->parts[cs_md5sum].ofs = d - n->representation;
-	n->parts[cs_md5sum].len = (hashlen_t)hashlens[cs_md5sum];
-	memcpy(d, hashes[cs_md5sum], hashlens[cs_md5sum]);
-	d += hashlens[cs_md5sum];
+	if( hashes[cs_md5sum] == NULL ) {
+		n->parts[cs_md5sum].ofs = d - n->representation;
+		n->parts[cs_md5sum].len = 0;
+		*(d++) = '-';
+	} else {
+		n->parts[cs_md5sum].ofs = d - n->representation;
+		n->parts[cs_md5sum].len = (hashlen_t)hashlens[cs_md5sum];
+		memcpy(d, hashes[cs_md5sum], hashlens[cs_md5sum]);
+		d += hashlens[cs_md5sum];
+	}
 	*(d++) = ' ';
 	n->parts[cs_length].ofs = d - n->representation;
 	n->parts[cs_length].len = (hashlen_t)hashlens[cs_length];
@@ -188,14 +200,18 @@ retvalue checksums_initialize(struct checksums **checksums_p, const struct hash_
 	enum checksumtype type;
 	size_t len;
 
-	/* everything assumes yet that those are available */
-	if( hashes[cs_length].start == NULL || hashes[cs_md5sum].start == NULL ) {
+	/* everything assumes that this is available */
+	if( hashes[cs_length].start == NULL ) {
 		assert( 0 == 1 );
 		*checksums_p = NULL;
 		return RET_ERROR;
 	}
 
 	len = hashes[cs_md5sum].len + 1 + hashes[cs_length].len;
+	if( hashes[cs_md5sum].start == NULL ) {
+		assert(hashes[cs_md5sum].len == 0);
+		len++;
+	}
 
 	for( type = cs_firstEXTENDED ; type < cs_hashCOUNT ; type++ ) {
 		if( hashes[type].start == NULL )
@@ -222,10 +238,16 @@ retvalue checksums_initialize(struct checksums **checksums_p, const struct hash_
 		d += hashes[type].len;
 		*(d++) = ' ';
 	}
-	n->parts[cs_md5sum].ofs = d - n->representation;
-	n->parts[cs_md5sum].len = (hashlen_t)hashes[cs_md5sum].len;
-	memcpy(d, hashes[cs_md5sum].start, hashes[cs_md5sum].len);
-	d += hashes[cs_md5sum].len;
+	if( hashes[cs_md5sum].start == NULL ) {
+		n->parts[cs_md5sum].ofs = d - n->representation;
+		n->parts[cs_md5sum].len = 0;
+		*(d++) = '-';
+	} else {
+		n->parts[cs_md5sum].ofs = d - n->representation;
+		n->parts[cs_md5sum].len = (hashlen_t)hashes[cs_md5sum].len;
+		memcpy(d, hashes[cs_md5sum].start, hashes[cs_md5sum].len);
+		d += hashes[cs_md5sum].len;
+	}
 	*(d++) = ' ';
 	n->parts[cs_length].ofs = d - n->representation;
 	n->parts[cs_length].len = (hashlen_t)hashes[cs_length].len;
@@ -309,7 +331,11 @@ retvalue checksums_parse(struct checksums **checksums_p, const char *combinedche
 	}
 	n->parts[cs_md5sum].ofs = d - n->representation;
 	start = d;
-	while( *p != ' ' && *p != '\0' ) {
+	if( *p == '-' && p[1] == ' ' ) {
+		p++;
+		*(d++) = '-';
+		start = d;
+	} else while( *p != ' ' && *p != '\0' ) {
 		if( (*p >= '0' && *p <= '9') || (*p >= 'a' && *p <= 'f') ) {
 			*(d++) = *(p++);
 		} else if( *p >= 'A' && *p <= 'F' ) {
@@ -566,9 +592,11 @@ retvalue checksums_combine(struct checksums **checksums_p, const struct checksum
 				*(d++) = *(b++);
 		}
 	}
-	/* now take md5sum from original code */
+	/* now take md5sum from original code, unless only the new one has it */
 	n->parts[cs_md5sum].ofs = d - n->representation;
 	start = d;
+	if( *o == '-' && *b != '-' )
+		o = b;
 	while( *o != ' ' && *o != '\0' )
 		*(d++) = *(o++);
 	n->parts[cs_md5sum].len = (hashlen_t)(d - start);
@@ -790,7 +818,11 @@ retvalue checksumsarray_genfilelist(const struct checksumsarray *a, char **md5_p
 
 		len = 4 + filenamelen[i] + checksums->parts[cs_length].len;
 		assert( checksums != NULL );
-		for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		if( checksums->parts[cs_md5sum].len == 0 )
+			lens[cs_md5sum] += len + 1;
+		else
+			lens[cs_md5sum] += len + checksums->parts[cs_md5sum].len;
+		for( cs = cs_md5sum+1 ; cs < cs_hashCOUNT ; cs++ ) {
 			if( checksums->parts[cs].len == 0 )
 				missing[cs] = true;
 			lens[cs] += len + checksums->parts[cs].len;
@@ -820,8 +852,13 @@ retvalue checksumsarray_genfilelist(const struct checksumsarray *a, char **md5_p
 			const struct checksums *c = a->checksums[i];
 
 			*(p++) = ' ';
-			memcpy(p, checksums_hashpart(c, cs), c->parts[cs].len);
-			p +=  c->parts[cs].len;
+			if( c->parts[cs].len == 0 ) {
+				*(p++) = '-';
+			} else {
+				memcpy(p, checksums_hashpart(c, cs),
+						c->parts[cs].len);
+				p +=  c->parts[cs].len;
+			}
 			*(p++) = ' ';
 			memcpy(p, checksums_hashpart(c, cs_length),
 					c->parts[cs_length].len);
@@ -1230,7 +1267,7 @@ retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **ch
 	return checksums_from_context(checksums_p, &context);
 }
 
-retvalue checksums_copyfile(const char *destination, const char *source, struct checksums **checksums_p) {
+retvalue checksums_copyfile(const char *destination, const char *source, bool deletetarget, struct checksums **checksums_p) {
 	struct checksumscontext context;
 	static const size_t bufsize = 16384;
 	unsigned char *buffer = malloc(bufsize);
@@ -1239,7 +1276,7 @@ retvalue checksums_copyfile(const char *destination, const char *source, struct 
 	int e, i;
 	int infd, outfd;
 
-	if( buffer == NULL ) {
+	if( FAILEDTOALLOC(buffer) ) {
 		return RET_ERROR_OOM;
 	}
 
@@ -1254,11 +1291,36 @@ retvalue checksums_copyfile(const char *destination, const char *source, struct 
 	outfd = open(destination, O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL, 0666);
 	if( outfd < 0 ) {
 		e = errno;
-		fprintf(stderr, "Error %d creating '%s': %s\n",
-				e, destination, strerror(e));
-		(void)close(infd);
-		free(buffer);
-		return RET_ERRNO(e);
+		if( e == EEXIST ) {
+			if( deletetarget ) {
+				i = unlink(destination);
+				if( i != 0 ) {
+					e = errno;
+					fprintf(stderr,
+"Error %d deleting '%s': %s\n",
+						e, destination, strerror(e));
+					(void)close(infd);
+					free(buffer);
+					return RET_ERRNO(e);
+				}
+				outfd = open(destination,
+					O_NOCTTY|O_WRONLY|O_CREAT|O_EXCL,
+					0666);
+				e = errno;
+			} else {
+				(void)close(infd);
+				free(buffer);
+				return RET_ERROR_EXIST;
+			}
+		}
+		if( outfd < 0 ) {
+			fprintf(stderr,
+"Error %d creating '%s': %s\n",
+					e, destination, strerror(e));
+			(void)close(infd);
+			free(buffer);
+			return RET_ERRNO(e);
+		}
 	}
 	checksumscontext_init(&context);
 	do {
@@ -1320,11 +1382,10 @@ retvalue checksums_linkorcopyfile(const char *destination, const char *source, s
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	(void)unlink(destination);
 	errno = 0;
 	i = link(source, destination);
 	if( i != 0 )
-		return checksums_copyfile(destination, source, checksums_p);
+		return checksums_copyfile(destination, source, true, checksums_p);
 	*checksums_p = NULL;
 	return RET_OK;
 }

@@ -10,6 +10,7 @@ bool interrupted(void);
 /* retvalue is simply an int.
  * just named to show it follows the given semantics */
 /*@numabstract@*/ enum retvalue_enum {
+	RET_ERROR_INTERNAL = -12,
 	RET_ERROR_BZ2 = -11,
 	RET_ERROR_Z = -10,
 	RET_ERROR_INTERRUPTED = -9,
@@ -45,6 +46,8 @@ typedef enum retvalue_enum retvalue;
 /* code a db-error in a error */
 // TODO: to be implemented...
 #define RET_DBERR(e) RET_ERROR
+
+#define ASSERT_NOT_NOTHING(r) {assert( r != RET_NOTHING ); if ( r == RET_NOTHING ) r = RET_ERROR_INTERNAL; }
 
 #define EXIT_RET(ret) (RET_WAS_NO_ERROR(ret)?((nothingiserror&&ret==RET_NOTHING)?EXIT_FAILURE:EXIT_SUCCESS):(int)ret)
 

@@ -86,11 +86,13 @@ void release_free(struct release *release) {
 		free(e->relativefilename);
 		checksums_free(e->checksums);
 		free(e->fullfinalfilename);
+		if( !global.keeptemporaries && e->fulltemporaryfilename != NULL)
+			unlink(e->fulltemporaryfilename);
 		free(e->fulltemporaryfilename);
 		free(e);
 	}
 	if( release->signedfile != NULL )
-		signedfile_free(release->signedfile);
+		signedfile_free(release->signedfile, !global.keeptemporaries);
 	if( release->cachedb != NULL ) {
 		table_close(release->cachedb);
 	}
@@ -1281,9 +1283,10 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 			writechar('\n');
 		}
 	}
-	r = signedfile_prepare(release->signedfile, distribution->signwith);
+	r = signedfile_prepare(release->signedfile, distribution->signwith,
+			!global.keeptemporaries);
 	if( RET_WAS_ERROR(r) ) {
-		signedfile_free(release->signedfile);
+		signedfile_free(release->signedfile, !global.keeptemporaries);
 		release->signedfile = NULL;
 		return r;
 	}
@@ -1311,6 +1314,8 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 					e, file->fulltemporaryfilename,
 					strerror(e));
 			}
+			free(file->fulltemporaryfilename);
+			file->fulltemporaryfilename = NULL;
 		} else if( file->fulltemporaryfilename != NULL ) {
 			e = rename(file->fulltemporaryfilename,
 					file->fullfinalfilename);
@@ -1328,8 +1333,11 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 					return r;
 				}
 				RET_UPDATE(result,r);
-			} else
+			} else {
 				somethingwasdone = true;
+				free(file->fulltemporaryfilename);
+				file->fulltemporaryfilename = NULL;
+			}
 		}
 	}
 	r = signedfile_finalize(release->signedfile, &somethingwasdone);

@@ -11,6 +11,7 @@ retvalue copy_by_formula(struct database *, struct distribution *into, struct di
 
 retvalue copy_from_file(struct database *, struct distribution *into, component_t, architecture_t, packagetype_t, const char *filename, int, const char **);
 
+/* note that snapshotname must live till logger_wait has run */
 retvalue restore_by_name(struct database *, struct distribution *, component_t, architecture_t, packagetype_t, const char *snapshotname, int, const char **);
 retvalue restore_by_source(struct database *, struct distribution *, component_t, architecture_t, packagetype_t, const char *snapshotname, int, const char **);
 retvalue restore_by_formula(struct database *, struct distribution *, component_t, architecture_t, packagetype_t, const char *snapshotname, const char *filter);

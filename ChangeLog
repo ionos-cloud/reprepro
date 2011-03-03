@@ -1,3 +1,69 @@
+2009-03-05
+	* Implement force.<compression> as DownLoadListAs item to download an
+	index not found in the Release file.
+	* warn if database is in old format
+
+2009-03-04
+	* also continue downloading index files after failure to get the
+	prefered one in the IgnoreRelease case.
+
+2009-03-03
+	* regression fix: when updating with IgnoreRelease, old index
+	files were no longer deleted in 3.8 before telling the apt-methods to
+	download new ones, which can trigger buggy behaviour in those.
+	* if one index file fails to be downloaded, try the next one
+	(except for updates with IgnoreRelease, yet)
+
+2009-03-02
+	* fix bug not taking all DownloadListAs into account when multiple
+	update rules requests the same index file to be downloaded.
+	* if a .diff/Index file does not list the available Packages file
+	or if not for targeted file, proceed with other ways to retrieve
+	it.
+	* add .diff processing as first default when there is no
+	DownloadListsAs.
+
+2009-03-01
+	* support using Packages.diff when updating.
+	(Fallback to other methods not yet supported, so not yet enabled
+	 in the default DownloadlistsAs)
+
+2009-02-28
+	* fix some bugs in --nothingiserror handling
+
+2009-02-27
+	* move handling of downloaded files from aptmethod.c to
+	the code queuing the files. (refactorisation in preparation of later
+	changes)
+
+2009-02-24
+	* fix race condition causing external uncompressors sometimes
+	to catch a sigpipe if their output is closed before they receive
+	the signal to kill them.
+	* changestool now supports looking into lzma files
+	(and bz2 files even when not compiled against libbz2), if
+	external uncompressors are available.
+	* fix bug extracting the Section and Priority from .diff
+	files if control was not the first file in it.
+	* fix bug .diff parsing's exception to also allow diff
+	generated files.
+
+2009-02-23
+	* log notifiers get variables REPREPRO_CAUSING_RULE and
+	REPREPRO_FROM set when adding packages via update/pull.
+	The later also in copy* and restore* commands.
+	* delete unexpected (i.e. not registered in the database)
+	files in pool when trying to replace with new ones.
+
+2009-02-21
+	* add --keeptemporaries and without it delete all .new files when
+	exporting fails (and not only Release) and with it keep all
+	(including Release). Also fix gpg error message to not suggest trying
+	it with a file that later will be deleted.
+
+2009-02-20
+	* add 'warning' flag for FilterList files
+
 2009-02-13
 	* add ReadOnly option for conf/distributions
 

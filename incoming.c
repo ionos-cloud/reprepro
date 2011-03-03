@@ -807,8 +807,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		free(tempfilename);
 		return RET_ERROR_OOM;
 	}
-	(void)unlink(tempfilename);
-	r = checksums_copyfile(tempfilename, origfile, &readchecksums);
+	r = checksums_copyfile(tempfilename, origfile, true, &readchecksums);
 	free(origfile);
 	if( RET_WAS_ERROR(r) ) {
 		free(tempfilename);
@@ -1494,7 +1493,8 @@ static retvalue add_dsc(struct database *database, struct distribution *into, st
 					p->control,
 					&p->filekeys,
 					false, trackingdata,
-					architecture_source);
+					architecture_source,
+					NULL, NULL);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}

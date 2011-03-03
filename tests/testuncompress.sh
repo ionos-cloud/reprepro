@@ -302,6 +302,9 @@ Priority: required
 Package: abinary
 Architecture: all
 EOF
+cat > fake-1/debian/aaaaa <<EOF
+also test debian/control not being the first file...
+EOF
 diff -ruN fake-1.orig fake-1 | lzma > fake_1-1.diff.lzma
 rm -r fake-1 fake-1.orig
 

@@ -5,6 +5,7 @@ enum filterlisttype {
 	/* must be 0, so it is the default, when there is no list */
 	flt_install = 0,
 	flt_purge,
+	flt_warning,
 	flt_deinstall,
 	flt_hold,
 	flt_upgradeonly,

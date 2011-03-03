@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -357,6 +357,7 @@ CFUSETPROC(update_pattern, downloadlistsas) {
 	this->downloadlistsas_set = true;
 	r = config_getword(iter, &word);
 	while( RET_IS_OK(r) ) {
+		bool force;
 		if( e >= ARRAYCOUNT(this->downloadlistsas.requested) ) {
 			fprintf(stderr,
 "%s:%d:%d: Ignoring all but first %d entries...\n",
@@ -370,14 +371,11 @@ CFUSETPROC(update_pattern, downloadlistsas) {
 		}
 		if( strncmp(word, "force.", 6) == 0 ) {
 			u = word + 5;
-			fprintf(stderr,
-"%s:%d:%d: forcing not yet supported in this version, treating as normal '%s'\n",
-					config_filename(iter),
-					config_markerline(iter),
-					config_markercolumn(iter),
-					u);
-		} else
+			force = true;
+		} else {
 			u = word;
+			force = false;
+		}
 		for( c = 0 ; c < c_COUNT ; c++ ) {
 			if( strcmp(uncompression_config[c], u) == 0 ||
 			    strcmp(uncompression_config[c]+1, u) == 0 ) {
@@ -385,18 +383,19 @@ CFUSETPROC(update_pattern, downloadlistsas) {
 			}
 		}
 		if( c < c_COUNT ) {
-			this->downloadlistsas.requested[e++] = c;
+			this->downloadlistsas.requested[e].compression = c;
+			this->downloadlistsas.requested[e].diff = false;
+			this->downloadlistsas.requested[e].force = force;
+			e++;
 			free(word);
 			r = config_getword(iter, &word);
 			continue;
 		}
 		if( strcmp(u, ".diff") == 0 || strcmp(u, "diff") == 0 ) {
-			fprintf(stderr,
-"%s:%d:%d: ignoring '%s', as not yet supported in this version\n",
-					config_filename(iter),
-					config_markerline(iter),
-					config_markercolumn(iter),
-					word);
+			this->downloadlistsas.requested[e].compression = c_gzip;
+			this->downloadlistsas.requested[e].diff = true;
+			this->downloadlistsas.requested[e].force = force;
+			e++;
 			free(word);
 			r = config_getword(iter, &word);
 			continue;
@@ -1449,6 +1448,8 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 		case flt_deinstall:
 		case flt_purge:
 			return UD_NO;
+		case flt_warning:
+			return UD_LOUDNO;
 		case flt_hold:
 			decision = UD_HOLD;
 			break;
@@ -1607,6 +1608,13 @@ static retvalue updates_enqueue(struct downloadcache *cache,struct database *dat
  *          (missing files should have been downloaded first)               *
  ****************************************************************************/
 
+static void updates_from_callback(void *privdata, const char **rule_p, const char **from_p) {
+	struct update_index_connector *uindex = privdata;
+
+	*from_p = uindex->origin->suite_from;
+	*rule_p = uindex->origin->pattern->name;
+}
+
 static retvalue updates_install(struct database *database, struct update_distribution *distribution) {
 	retvalue result,r;
 	struct update_target *u;
@@ -1620,7 +1628,7 @@ static retvalue updates_install(struct database *database, struct update_distrib
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
 				database,
-				u->ignoredelete);
+				u->ignoredelete, updates_from_callback);
 		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = true;
@@ -1854,10 +1862,10 @@ retvalue updates_update(struct database *database, struct update_distribution *d
 	}
 	if( verbose >= 0 )
 		printf("Getting packages...\n");
-	r = downloadcache_free(cache);
-	RET_ENDUPDATE(result,r);
 	r = aptmethod_download(run, database);
 	RET_UPDATE(result,r);
+	r = downloadcache_free(cache);
+	RET_ENDUPDATE(result,r);
 	if( verbose > 0 )
 		printf("Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);

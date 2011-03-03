@@ -128,6 +128,8 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 			type = flt_hold;
 		} else if( strcmp(what, "upgradeonly") == 0 ) {
 			type = flt_upgradeonly;
+		} else if( strcmp(what, "warning") == 0 ) {
+			type = flt_warning;
 		} else if( strcmp(what,"error") == 0 ) {
 			type = flt_error;
 		} else {
@@ -292,6 +294,7 @@ static const struct constant filterlisttype_listtypes[] = {
 	{"deinstall",	(int)flt_deinstall},
 	{"purge",	(int)flt_purge},
 	{"upgradeonly",	(int)flt_upgradeonly},
+	{"warning",	(int)flt_warning},
 	{"error",	(int)flt_error},
 	{NULL, 0}
 };
