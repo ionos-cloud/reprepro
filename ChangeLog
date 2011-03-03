@@ -1,6 +1,3 @@
-2005-02-06  Bernhard R. Link <brlink@debian.org>
-	* Release 0.1
-
 2005-02-05  Bernhard R. Link <brlink@debian.org>
 	* Add --onlyacceptsigned to make include and includedsc only
 	accept signed files.
