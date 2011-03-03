@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -351,39 +351,20 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 		free(fsourcename);
 		return r;
 	}
-	r = tracking_get(tracks,sourcename,sourceversion,&pkg);
+	r = tracking_getornew(tracks,sourcename,sourceversion,&pkg);
+	free(fsourcename);
+	free(sourceversion);
 	if( RET_WAS_ERROR(r) ) {
-		free(fsourcename);
-		free(sourceversion);
 		free(filekey);
 		return r;
 	}
-	if( r == RET_NOTHING ) {
-		r = tracking_new(tracks,sourcename,sourceversion,&pkg);
-		free(fsourcename);
-		free(sourceversion);
-		if( RET_WAS_ERROR(r) ) {
-			free(filekey);
-			return r;
-		}
-		r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
-		free(filekey);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		r = tracking_put(tracks,pkg);
+	assert( r != RET_NOTHING );
+	r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
+	if( RET_WAS_ERROR(r) ) {
 		trackedpackage_free(pkg);
 		return r;
 	}
-	free(fsourcename);
-	free(sourceversion);
-
-	r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
-	free(filekey);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = tracking_replace(tracks,pkg);
-	trackedpackage_free(pkg);
-	return r;
+	return tracking_save(tracks, pkg);
 }
 
 retvalue binaries_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -185,7 +185,7 @@ static retvalue files_get(filesdb db,const char *filekey,/*@out@*/char **md5sum)
 
 
 /* remove file's md5sum from database */
-retvalue files_remove(filesdb db,const char *filekey) {
+retvalue files_remove(filesdb db,const char *filekey, bool_t ignoremissing) {
 	int dbret;
 	DBT key;
 
@@ -201,8 +201,13 @@ retvalue files_remove(filesdb db,const char *filekey) {
 			printf("db: %s: file forgotten.\n", (const char *)key.data);
 		return RET_OK;
 	} else if( dbret == DB_NOTFOUND ) {
-		fprintf(stderr, "To be forgotten filekey '%s' was not known.\n", filekey);
-		return RET_ERROR_MISSING;
+		if( ignoremissing )
+			return RET_NOTHING;
+		else {
+			fprintf(stderr, "To be forgotten filekey '%s' was not known.\n",
+					filekey);
+			return RET_ERROR_MISSING;
+		}
 	} else {
 		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
@@ -210,7 +215,7 @@ retvalue files_remove(filesdb db,const char *filekey) {
 }
 
 /* delete the file and remove its md5sum from database */
-retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs) {
+retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs, bool_t ignoreifnot) {
 	int err,en;
 	char *filename;
 	retvalue r;
@@ -227,7 +232,8 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 		en = errno;
 		r = RET_ERRNO(en);
 		if( errno == ENOENT ) {
-			fprintf(stderr,"%s not found, forgetting anyway\n",filename);
+			if( !ignoreifnot )
+				fprintf(stderr,"%s not found, forgetting anyway\n",filename);
 		} else {
 			fprintf(stderr,"error while unlinking %s: %m(%d)\n",filename,en);
 			free(filename);
@@ -270,8 +276,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 
 	}
 	free(filename);
-	r = files_remove(filesdb,filekey);
-	return r;
+	return files_remove(filesdb, filekey, ignoreifnot);
 }
 
 static retvalue files_calcmd5(/*@out@*/char **md5sum,const char *filename) {

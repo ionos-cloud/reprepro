@@ -1,3 +1,25 @@
+2006-07-28  Bernhard R. Link <brlink@debian.org>
+	* remove unreferenced files when doing removetracks
+	* fix bug omitting an uncompressed Sources entry in
+	  Release files when only exporting changed values and
+	  the source part changed not. (Thanks to Alexander Kuehn
+	  for finding this one).
+	* fix tiny memory in clearvanished
+
+2006-07-26  Bernhard R. Link <brlink@debian.org>
+	* do not error out if one file gets unreferenced by two different
+	reasons at the same time.
+	* implement "minimal" and "all" tracking support for packages losing
+	files because of getting replaced by newer ones...
+
+2006-07-23  Bernhard R. Link <brlink@debian.org>
+	* rewrite some parts of tracking support, implement
+	  "minimal" and "all" methods...
+
+2006-07-18  Bernhard R. Link <brlink@debian.org>
+	* fix segfault in non-libarchive control extraction code
+	  introduced with the last change
+
 2006-07-16  Bernhard R. Link <brlink@debian.org>
 	* cope with control.tar.gz files without leading ./
 	  when not using libarchive.

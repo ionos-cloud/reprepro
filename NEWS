@@ -1,3 +1,12 @@
+Updates since 1.0.2:
+- extended the (experimental) package tracking feature
+- cleartracks removes files losing their last reference (unless --keepunreferenced as usual)
+- fix bug of not generating a uncompressed Sources line in Release when no uncompressed
+  Sources file is generated.
+
+Updates since 1.0.1:
+- fix segfault in non-libarchive code introduced with 1.0.0
+
 Updates since 1.0.0:
 - add clearvanished command
 - cope with GNU ar style .deb files (when using libarchive)

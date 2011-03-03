@@ -120,7 +120,20 @@ static inline retvalue removeunreferencedfiles(references refs,filesdb files,str
 
 		r = references_isused(refs,filekey);
 		if( r == RET_NOTHING ) {
-			r = files_deleteandremove(files,filekey,!keepdirectories);
+			r = files_deleteandremove(files,filekey,!keepdirectories,TRUE);
+			if( r == RET_NOTHING ) {
+				/* not found, check if it was us removing it */
+				int j;
+				for( j = i-1 ; j >= 0 ; j-- ) {
+					if( strcmp(dereferencedfilekeys->values[i],
+					    dereferencedfilekeys->values[j]) == 0 )
+						break;
+				}
+				if( j < 0 ) {
+					fprintf(stderr, "To be forgotten filekey '%s' was not known.\n", dereferencedfilekeys->values[i]);
+					r = RET_ERROR_MISSING;
+				}
+			}
 		}
 		RET_UPDATE(result,r);
 	}
@@ -333,7 +346,7 @@ static retvalue deleteifunreferenced(void *data,const char *filekey,UNUSED(const
 
 	r = references_isused(dist->references,filekey);
 	if( r == RET_NOTHING ) {
-		r = files_deleteandremove(dist->filesdb,filekey,!keepdirectories);
+		r = files_deleteandremove(dist->filesdb,filekey,!keepdirectories,FALSE);
 		return r;
 	} else if( RET_IS_OK(r) ) {
 		return RET_NOTHING;
@@ -624,7 +637,7 @@ ACTION_F(forget) {
 	ret = RET_NOTHING;
 	if( argc > 1 ) {
 		for( i = 1 ; i < argc ; i++ ) {
-			r = files_remove(filesdb,argv[i]);
+			r = files_remove(filesdb, argv[i], FALSE);
 			RET_UPDATE(ret,r);
 		}
 
@@ -635,7 +648,7 @@ ACTION_F(forget) {
 				return RET_ERROR;
 			}
 			*nl = '\0';
-			r = files_remove(filesdb,buffer);
+			r = files_remove(filesdb, buffer, FALSE);
 			RET_UPDATE(ret,r);
 		} 
 	return ret;
@@ -1289,7 +1302,7 @@ ACTION_D_U(removetrack) {
 	return result;
 }
 	
-ACTION_R(cleartracks) {
+ACTION_D(cleartracks) {
 	retvalue result,r;
 	struct distribution *distributions,*d;
 
@@ -1319,7 +1332,7 @@ ACTION_R(cleartracks) {
 		}
 		r = tracking_clearall(tracks);
 		RET_UPDATE(result,r);
-		r = references_remove(references, d->codename, NULL);
+		r = references_remove(references, d->codename, dereferenced);
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
@@ -1923,6 +1936,7 @@ ACTION_D_UU(clearvanished) {
 		/* remove the database */
 		packages_drop(dbdir, identifier);
 	}
+	free(inuse);
 
 	strlist_done(&identifiers);
 	r = distribution_freelist(distributions);
@@ -2037,7 +2051,7 @@ static const struct action {
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
 	{"retrack",	 	A_R(retrack)},
 	{"dumptracks",	 	A_N(dumptracks)},
-	{"cleartracks",	 	A_R(cleartracks)},
+	{"cleartracks",	 	A_D(cleartracks)},
 	{"removetrack",		A_D(removetrack)},
 	{"update",		A_D(update)},
 	{"iteratedupdate",	A_D(iteratedupdate)},
