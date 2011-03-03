@@ -129,7 +129,8 @@ static retvalue createtargets(struct distribution *distribution) {
 			r = target_initialize_binary(
 					distribution->codename,
 					c, a,
-					&distribution->deb, &t);
+					&distribution->deb,
+					distribution->readonly, &t);
 			if( RET_IS_OK(r) ) {
 				if( last != NULL ) {
 					last->next = t;
@@ -144,7 +145,8 @@ static retvalue createtargets(struct distribution *distribution) {
 				r = target_initialize_ubinary(
 						distribution->codename,
 						c, a,
-						&distribution->udeb, &t);
+						&distribution->udeb,
+						distribution->readonly, &t);
 				if( RET_IS_OK(r) ) {
 					if( last != NULL ) {
 						last->next = t;
@@ -163,7 +165,8 @@ static retvalue createtargets(struct distribution *distribution) {
 		 *  the .changes files started with this...) */
 		if( has_source ) {
 			r = target_initialize_source(distribution->codename,
-					c, &distribution->dsc, &t);
+					c, &distribution->dsc,
+					distribution->readonly, &t);
 			if( last != NULL ) {
 				last->next = t;
 			} else {
@@ -322,6 +325,7 @@ CFallSETPROC(distribution, suite)
 CFallSETPROC(distribution, version)
 CFallSETPROC(distribution, origin)
 CFallSETPROC(distribution, notautomatic)
+CFtruthSETPROC2(distribution, readonly, readonly)
 CFallSETPROC(distribution, label)
 CFallSETPROC(distribution, description)
 CFkeySETPROC(distribution, signwith)
@@ -378,6 +382,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("NotAutomatic",	distribution,	notautomatic),
 	CF("Origin",		distribution,	origin),
 	CF("Pull",		distribution,	pulls),
+	CF("ReadOnly",		distribution,	readonly),
 	CF("SignWith",		distribution,	signwith),
 	CF("Suite",		distribution,	suite),
 	CF("Tracking",		distribution,	Tracking),
@@ -545,7 +550,7 @@ struct target *distribution_getpart(const struct distribution *distribution, com
 }
 
 /* mark all distributions matching one of the first argc argv */
-retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat) {
+retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat, bool allowreadonly) {
 	struct distribution *d;
 	bool found[argc], unusable_as_suite[argc];
 	struct distribution *has_suite[argc];
@@ -555,6 +560,8 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 
 	if( argc <= 0 ) {
 		for( d = alldistributions ; d != NULL ; d = d->next ) {
+			if( !allowreadonly && d->readonly )
+				continue;
 			d->selected = true;
 			d->lookedat = lookedat;
 		}
@@ -572,6 +579,12 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 				d->selected = true;
 				if( lookedat )
 					d->lookedat = lookedat;
+				if( !allowreadonly && d->readonly ) {
+					fprintf(stderr,
+"Error: %s is readonly, so operation not allowed!\n",
+							d->codename);
+					return RET_ERROR;
+				}
 			} else if( d->suite != NULL &&
 					strcmp(argv[i], d->suite) == 0 ) {
 				if( has_suite[i] != NULL )
@@ -583,6 +596,12 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 	for( i = 0 ; i < argc ; i++ ) {
 		if( !found[i] ) {
 			if( has_suite[i] != NULL && !unusable_as_suite[i] ) {
+				if( !allowreadonly && has_suite[i]->readonly ) {
+					fprintf(stderr,
+"Error: %s is readonly, so operation not allowed!\n",
+							has_suite[i]->codename);
+					return RET_ERROR;
+				}
 				has_suite[i]->selected = true;
 				if( lookedat )
 					has_suite[i]->lookedat = lookedat;
@@ -690,6 +709,12 @@ static retvalue export(struct distribution *distribution, struct database *datab
 	struct release *release;
 
 	assert( distribution != NULL );
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: trying to re-export read-only distribution %s\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
 
 	r = release_init(&release, database,
 			distribution->codename, distribution->suite,
@@ -975,6 +1000,12 @@ void distribution_unloaduploaders(struct distribution *distribution) {
 retvalue distribution_prepareforwriting(struct distribution *distribution) {
 	retvalue r;
 
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: distribution %s is read-only. Current operation not possible because it needs write access.\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
 	if( distribution->logger != NULL ) {
 		r = logger_prepare(distribution->logger);
 		if( RET_WAS_ERROR(r) )
@@ -990,6 +1021,12 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 	struct target *t;
 	struct target_cursor iterator;
 	const char *package, *control;
+
+	if( distribution->readonly ) {
+		fprintf(stderr, "Error: trying to delete packages in read-only distribution %s.\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {

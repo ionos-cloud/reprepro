@@ -4,6 +4,7 @@ set -e
 
 source $(dirname $0)/test.inc
 
+runtest includeextra
 runtest atoms
 runtest trackingcorruption
 runtest layeredupdate

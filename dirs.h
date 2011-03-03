@@ -10,6 +10,8 @@
 #include "strlist.h"
 #endif
 
+/* create a directory, return RET_NOTHING if already existing */
+retvalue dirs_create(const char *);
 /* create recursively all parent directories before the last '/' */
 retvalue dirs_make_parent(const char *filename);
 /* create dirname and any '/'-separated part of it */

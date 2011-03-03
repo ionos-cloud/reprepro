@@ -2,7 +2,7 @@ SUBDIRS = docs tests
 
 EXTRA_DIST = autogen.sh
 
-bin_PROGRAMS = reprepro changestool
+bin_PROGRAMS = reprepro changestool # rredtool
 
 if HAVE_LIBARCHIVE
 ARCHIVE_USED = ar.c debfile.c
@@ -23,7 +23,9 @@ EXTRA_reprepro_SOURCE = $(ARCHIVE_UNUSED)
 
 changestool_SOURCES = uncompression.c sourceextraction.c readtextfile.c filecntl.c tool.c chunkedit.c strlist.c checksums.c sha1.c sha256.c md5.c mprintf.c chunks.c signature.c dirs.c names.c $(ARCHIVE_USED)
 
-noinst_HEADERS = pool.h atoms.h uncompression.h remoterepository.h copypackages.h sourceextraction.h checksums.h readtextfile.h filecntl.h sha1.h sha256.h configparser.h database_p.h database.h freespace.h log.h changes.h incoming.h guesscomponent.h md5.h dirs.h files.h chunks.h reference.h binaries.h sources.h checks.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h debfile.h checkindeb.h checkindsc.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h pull.h ar.h filelist.h contents.h chunkedit.h uploaderslist.h indexfile.h
+# rredtool_SOURCES = rredtool.c rredpatch.c
+
+noinst_HEADERS = pool.h atoms.h uncompression.h remoterepository.h copypackages.h sourceextraction.h checksums.h readtextfile.h filecntl.h sha1.h sha256.h configparser.h database_p.h database.h freespace.h log.h changes.h incoming.h guesscomponent.h md5.h dirs.h files.h chunks.h reference.h binaries.h sources.h checks.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h debfile.h checkindeb.h checkindsc.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h pull.h ar.h filelist.h contents.h chunkedit.h uploaderslist.h indexfile.h # rredpatch.h
 
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/configure $(srcdir)/stamp-h.in $(srcdir)/aclocal.m4 $(srcdir)/config.h.in
 

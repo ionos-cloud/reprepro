@@ -59,7 +59,7 @@ static char *calc_identifier(const char *codename, component_t component, archit
 }
 
 
-static retvalue target_initialize(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
+static retvalue target_initialize(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, bool readonly, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -93,11 +93,12 @@ static retvalue target_initialize(const char *codename, component_t component, a
 	t->getsourceandversion = getsourceandversion;
 	t->doreoverride = doreoverride;
 	t->doretrack = doretrack;
+	t->readonly = readonly;
 	*d = t;
 	return RET_OK;
 }
 
-retvalue target_initialize_ubinary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, struct target **target) {
+retvalue target_initialize_ubinary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, struct target **target) {
 	return target_initialize(codename, component, architecture, pt_udeb,
 			binaries_getversion,
 			binaries_getinstalldata,
@@ -108,9 +109,9 @@ retvalue target_initialize_ubinary(const char *codename, component_t component, 
 			mprintf("%s/debian-installer/binary-%s",
 				atoms_components[component],
 				atoms_architectures[architecture]),
-			exportmode, target);
+			exportmode, readonly, target);
 }
-retvalue target_initialize_binary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, struct target **target) {
+retvalue target_initialize_binary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, bool readonly, struct target **target) {
 	return target_initialize(codename, component, architecture, pt_deb,
 			binaries_getversion,
 			binaries_getinstalldata,
@@ -121,10 +122,10 @@ retvalue target_initialize_binary(const char *codename, component_t component, a
 			mprintf("%s/binary-%s",
 				atoms_components[component],
 				atoms_architectures[architecture]),
-			exportmode, target);
+			exportmode, readonly, target);
 }
 
-retvalue target_initialize_source(const char *codename, component_t component, const struct exportmode *exportmode, struct target **target) {
+retvalue target_initialize_source(const char *codename, component_t component, const struct exportmode *exportmode, bool readonly, struct target **target) {
 	return target_initialize(codename, component, architecture_source, pt_dsc,
 			sources_getversion,
 			sources_getinstalldata,
@@ -133,7 +134,7 @@ retvalue target_initialize_source(const char *codename, component_t component, c
 			sources_getsourceandversion,
 			sources_doreoverride, sources_retrack,
 			mprintf("%s/source", atoms_components[component]),
-			exportmode, target);
+			exportmode, readonly, target);
 }
 
 retvalue target_free(struct target *target) {
@@ -159,6 +160,12 @@ retvalue target_free(struct target *target) {
 /* This opens up the database, if db != NULL, *db will be set to it.. */
 retvalue target_initpackagesdb(struct target *target, struct database *database, bool readonly) {
 	retvalue r;
+
+	if( !readonly && target->readonly ) {
+		fprintf(stderr, "Error trying to open '%s' read-write in read-only distribution '%s'\n",
+				target->identifier, target->codename);
+		return RET_ERROR;
+	}
 
 	assert( target->packages == NULL );
 	if( target->packages != NULL )

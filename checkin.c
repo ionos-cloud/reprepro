@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -29,6 +29,7 @@
 #include "error.h"
 #include "ignore.h"
 #include "strlist.h"
+#include "mprintf.h"
 #include "atoms.h"
 #include "checksums.h"
 #include "names.h"
@@ -161,7 +162,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 }
 
 
-static retvalue newentry(struct fileentry **entry, const char *fileline, packagetype_t packagetypeonly, architecture_t forcearchitecture, const char *sourcename) {
+static retvalue newentry(struct fileentry **entry, const char *fileline, packagetype_t packagetypeonly, architecture_t forcearchitecture, const char *sourcename, bool includebyhand, bool includelogs, bool *ignoredlines_p) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -178,26 +179,67 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 		return r;
 	}
 	assert( RET_IS_OK(r) );
+	if( e->type == fe_BYHAND ) {
+		if( !includebyhand ) {
+			// TODO: at least check them and fail if wrong?
+			fprintf(stderr, "Ignoring byhand file: '%s'!\n",
+							e->basename);
+			freeentries(e);
+			*ignoredlines_p = true;
+			return RET_NOTHING;
+		}
+		e->next = *entry;
+		*entry = e;
+		return RET_OK;
+	}
 	if( FE_SOURCE(e->type) && limitation_missed(packagetypeonly, pt_dsc) ) {
 		freeentries(e);
+		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
 	if( e->type == fe_DEB && limitation_missed(packagetypeonly, pt_deb) ) {
 		freeentries(e);
+		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
 	if( e->type == fe_UDEB && limitation_missed(packagetypeonly, pt_udeb) ) {
 		freeentries(e);
+		*ignoredlines_p = true;
 		return RET_NOTHING;
 	}
-	if( e->architecture_into == architecture_source &&
+	if( e->type != fe_LOG &&
+			e->architecture_into == architecture_source &&
 			strcmp(e->name, sourcename) != 0 ) {
 		fprintf(stderr,
 "Warning: File '%s' looks like source but does not start with '%s_'!\n",
 				e->basename, sourcename);
 	}
-
-	if( atom_defined(forcearchitecture) ) {
+	if( e->type == fe_LOG ) {
+		if( strcmp(e->name, sourcename) != 0 ) {
+			fprintf(stderr,
+"Warning: File '%s' looks like log but does not start with '%s_'!\n",
+					e->basename, sourcename);
+		}
+		if( !includelogs ) {
+			// TODO: at least check them and fail if wrong?
+			fprintf(stderr, "Ignoring log file: '%s'!\n",
+							e->basename);
+			freeentries(e);
+			*ignoredlines_p = true;
+			return RET_NOTHING;
+		}
+		if( atom_defined(forcearchitecture) &&
+				e->architecture_into != forcearchitecture ) {
+			if( verbose > 1 )
+				fprintf(stderr,
+"Skipping '%s' as not for architecture '%s'.\n",
+					e->basename,
+					atoms_architectures[forcearchitecture]);
+			freeentries(e);
+			*ignoredlines_p = true;
+			return RET_NOTHING;
+		}
+	} else if( atom_defined(forcearchitecture) ) {
 		if( forcearchitecture != architecture_source &&
 				e->architecture_into == architecture_all ) {
 			if( verbose > 2 )
@@ -213,6 +255,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 					e->basename,
 					atoms_architectures[forcearchitecture]);
 			freeentries(e);
+			*ignoredlines_p = true;
 			return RET_NOTHING;
 		}
 	}
@@ -223,7 +266,7 @@ static retvalue newentry(struct fileentry **entry, const char *fileline, package
 }
 
 /* Parse the Files-header to see what kind of files we carry around */
-static retvalue changes_parsefilelines(const char *filename, struct changes *changes, const struct strlist *filelines, packagetype_t packagetypeonly, architecture_t forcearchitecture) {
+static retvalue changes_parsefilelines(const char *filename, struct changes *changes, const struct strlist *filelines, packagetype_t packagetypeonly, architecture_t forcearchitecture, bool includebyhand, bool includelogs, bool *ignoredlines_p) {
 	retvalue result,r;
 	int i;
 
@@ -233,7 +276,10 @@ static retvalue changes_parsefilelines(const char *filename, struct changes *cha
 	for( i = 0 ; i < filelines->count ; i++ ) {
 		const char *fileline = filelines->values[i];
 
-		r = newentry(&changes->files,fileline,packagetypeonly,forcearchitecture,changes->source);
+		r = newentry(&changes->files, fileline,
+				packagetypeonly, forcearchitecture,
+				changes->source, includebyhand, includelogs,
+				ignoredlines_p);
 		RET_UPDATE(result,r);
 		if( r == RET_ERROR )
 			return r;
@@ -315,12 +361,12 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename, /*@out@*/struct changes **changes, packagetype_t packagetypeonly, architecture_t forcearchitecture) {
+static retvalue changes_read(const char *filename, /*@out@*/struct changes **changes, packagetype_t packagetypeonly, architecture_t forcearchitecture, bool includebyhand, bool includelogs) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines[cs_hashCOUNT];
 	enum checksumtype cs;
-	bool broken;
+	bool broken, ignoredlines;
 	int versioncmp;
 
 #define E(err) { \
@@ -397,8 +443,10 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 			changes_checksum_names[cs_md5sum],
 			&filelines[cs_md5sum]);
 	E("Missing 'Files' field!");
+	ignoredlines = false;
 	r = changes_parsefilelines(filename, c, &filelines[cs_md5sum],
-			packagetypeonly, forcearchitecture);
+			packagetypeonly, forcearchitecture,
+			includebyhand, includelogs, &ignoredlines);
 	if( RET_WAS_ERROR(r) ) {
 		strlist_done(&filelines[cs_md5sum]);
 		changes_free(c);
@@ -409,8 +457,7 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 				changes_checksum_names[cs], &filelines[cs]);
 		if( RET_IS_OK(r) )
 			r = changes_addhashes(filename, c, cs, &filelines[cs],
-					atom_defined(packagetypeonly) ||
-					atom_defined(forcearchitecture));
+					ignoredlines);
 		else
 			strlist_init(&filelines[cs]);
 		if( RET_WAS_ERROR(r) ) {
@@ -436,6 +483,7 @@ static retvalue changes_read(const char *filename, /*@out@*/struct changes **cha
 static retvalue changes_fixfields(const struct distribution *distribution, const char *filename, struct changes *changes, component_t forcecomponent, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority) {
 	struct fileentry *e;
 	retvalue r;
+	bool needsourcedir = false;
 
 	r = propersourcename(changes->source);
 	if( RET_WAS_ERROR(r) )
@@ -447,9 +495,15 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 		return RET_ERROR;
 	}
 
-	while( e != NULL ) {
+	for( ; e != NULL ; e = e->next ) {
 		const struct overrideinfo *oinfo = NULL;
 		const char *force = NULL;
+
+		if( e->type == fe_BYHAND || e->type == fe_LOG ) {
+			needsourcedir = true;
+			continue;
+		}
+
 		if( forcesection == NULL || forcepriority == NULL ) {
 			oinfo = override_search(
 			FE_BINARY(e->type)?(e->type==fe_UDEB?distribution->overrides.udeb:distribution->overrides.deb):distribution->overrides.dsc,
@@ -469,14 +523,6 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 		if( strcmp(e->section,"unknown") == 0 ) {
 			fprintf(stderr, "Invalid section '%s' of '%s'!\n",
 					e->section, filename);
-			return RET_ERROR;
-		}
-		if( strncmp(e->section,"byhand",6) == 0 ) {
-			fprintf(stderr,"Cannot cope with 'byhand' file '%s'!\n",e->basename);
-			return RET_ERROR;
-		}
-		if( strncmp(e->section, "raw-", 4) == 0 ) {
-			fprintf(stderr,"Cannot cope with raw file '%s'!\n",e->basename);
 			return RET_ERROR;
 		}
 		if( strcmp(e->section,"-") == 0 ) {
@@ -535,7 +581,7 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 					atoms_components[changes->srccomponent]);
 				return RET_ERROR;
 			}
-		} else if( FE_BINARY(e->type) ){
+		} else if( FE_BINARY(e->type) ) {
 			r = properpackagename(e->name);
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -553,8 +599,6 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 			fprintf(stderr,"Internal Error!\n");
 			return RET_ERROR;
 		}
-
-		e = e->next;
 	}
 
 	if( atom_defined(changes->srccomponent) ) {
@@ -562,7 +606,8 @@ static retvalue changes_fixfields(const struct distribution *distribution, const
 				changes->source);
 		if( changes->srcdirectory == NULL )
 			return RET_ERROR_OOM;
-	} else if( distribution->trackingoptions.includechanges ) {
+	} else if( distribution->trackingoptions.includechanges ||
+			needsourcedir ) {
 		component_t component = forcecomponent;
 		if( !atom_defined(forcecomponent) ) {
 			for( e = changes->files ; e != NULL ; e = e->next ) {
@@ -645,8 +690,9 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 	}
 	/* Then check for each file, if its architecture is sensible
 	 * and listed. */
-	e = changes->files;
-	while( e != NULL ) {
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		if( e->type == fe_BYHAND || e->type == fe_LOG )
+			continue;
 		if( atom_defined(e->architecture_into) ) {
 			if( e->architecture_into == architecture_all ) {
 				/* "all" can be added if at least one binary
@@ -712,8 +758,6 @@ static retvalue changes_check(const struct distribution *distribution, const cha
 		} else if( e->type == fe_TAR ) {
 			havetar = true;
 		}
-
-		e = e->next;
 	}
 
 	if( havetar && !haveorig && havediff ) {
@@ -742,7 +786,16 @@ static retvalue changes_checkfiles(struct database *database,const char *filenam
 
 	for( e = changes->files; e != NULL ; e = e->next ) {
 		//TODO: decide earlier which files to include
-		if( FE_SOURCE(e->type) ) {
+		if( e->type == fe_BYHAND ) {
+			/* byhand files might have the same name and not
+			 * contain the version, so store separately */
+			assert(changes->srcdirectory!=NULL);
+			e->filekey = mprintf("%s/%s_%s_byhand/%s",
+					changes->srcdirectory,
+					changes->source,
+					changes->changesversion,
+					e->basename);
+		} else if( FE_SOURCE(e->type) || e->type == fe_LOG) {
 			assert(changes->srcdirectory!=NULL);
 			e->filekey = calc_dirconcat(changes->srcdirectory,e->basename);
 		} else {
@@ -1056,7 +1109,8 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 
 	e = changes->files;
 	while( e != NULL ) {
-		if( e->type != fe_DEB && e->type != fe_DSC && e->type != fe_UDEB) {
+		if( e->type != fe_DEB && e->type != fe_DSC && e->type != fe_UDEB
+				&& e->type != fe_LOG && e->type != fe_BYHAND ) {
 			e = e->next;
 			continue;
 		}
@@ -1081,6 +1135,18 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 					distribution, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
+		} else if( e->type == fe_LOG && trackingdata != NULL ) {
+			r = trackedpackage_addfilekey(trackingdata->tracks,
+					trackingdata->pkg,
+					ft_LOG, e->filekey, false,
+					database);
+			e->filekey = NULL;
+		} else if( e->type == fe_BYHAND && trackingdata != NULL ) {
+			r = trackedpackage_addfilekey(trackingdata->tracks,
+					trackingdata->pkg,
+					ft_XTRA_DATA, e->filekey, false,
+					database);
+			e->filekey = NULL;
 		}
 		RET_UPDATE(result, r);
 
@@ -1110,7 +1176,10 @@ retvalue changes_add(struct database *database, trackingdb const tracks, package
 
 	causingfile = changesfilename;
 
-	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
+	r = changes_read(changesfilename, &changes,
+			packagetypeonly, forcearchitecture,
+			distribution->trackingoptions.includebyhand,
+			distribution->trackingoptions.includelogs);
 	if( RET_WAS_ERROR(r) )
 		return r;
 

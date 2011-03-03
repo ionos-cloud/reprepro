@@ -30,7 +30,7 @@
 #include "names.h"
 
 /* create directory dirname. */
-static retvalue dirs_check(const char *dirname) {
+retvalue dirs_create(const char *dirname) {
 	int ret, e;
 
 	ret = mkdir(dirname,0775);
@@ -56,7 +56,7 @@ retvalue dirs_make_parent(const char *filename) {
 	for( p = filename+1, i = 1 ; *p != '\0' ; p++,i++) {
 		if( *p == '/' ) {
 			h = strndup(filename,i);
-			r = dirs_check(h);
+			r = dirs_create(h);
 			if( RET_WAS_ERROR(r) ) {
 				free(h);
 				return r;
@@ -75,7 +75,7 @@ retvalue dirs_make_recursive(const char *directory) {
 		return RET_ERROR_INTERRUPTED;
 	}
 	r = dirs_make_parent(directory);
-	result = dirs_check(directory);
+	result = dirs_create(directory);
 	RET_UPDATE(result,r);
 	return result;
 }
@@ -130,7 +130,7 @@ retvalue dir_create_needed(const char *directory, int *createddepth) {
 		this = strndup(directory, len);
 		if( this == NULL )
 			return RET_ERROR_OOM;
-		r = dirs_check(this);
+		r = dirs_create(this);
 		free(this);
 		if( RET_WAS_ERROR(r) )
 			return r;

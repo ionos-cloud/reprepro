@@ -583,6 +583,7 @@ static retvalue parse_changes_files(struct changes *c, struct strlist filelines[
 			return r;
 	}
 	assert( count == ofs );
+	free(hashes);
 
 	return RET_OK;
 }

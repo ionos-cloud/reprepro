@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -651,3 +651,18 @@ char *calc_filekey(component_t component, const char *sourcename, const char *fi
 		return NULL;
 }
 
+char *calc_byhanddir(component_t component, const char *sourcename, const char *version) {
+	if( sourcename[0] == 'l' && sourcename[1] == 'i' &&
+			sourcename[2] == 'b' && sourcename[3] != '\0' )
+		return mprintf("pool/%s/lib%c/%s/%s_%s_byhand",
+				atoms_components[component],
+				sourcename[3], sourcename,
+				sourcename, version);
+	else if( *sourcename != '\0' )
+		return mprintf("pool/%s/%c/%s/%s_%s_byhand",
+				atoms_components[component],
+				sourcename[0], sourcename,
+				sourcename, version);
+	else
+		return NULL;
+}
