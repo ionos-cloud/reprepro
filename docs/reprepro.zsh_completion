@@ -201,6 +201,7 @@ commands=( export:"export index files"
 	processincoming:"process files from an incoming directory"
 	check:"check if all references are correct"
 	checkpool:"check if all files are still there and correct"
+	collectnewchecksums:"calculate missing file hashes"
 	rereference:"recreate references"
 	dumpreferences:"dump reference information"
 	dumpunreferenced:"dump files without reference (i.e. unneded)"
@@ -221,8 +222,10 @@ commands=( export:"export index files"
 hiddencommands=(
 	_detect:"look if the file belonging to a filekey exists and add to the database."
 	_forget:"forget a file specified by filekey."
-	_listmd5sums:"print a list of filekeys and their checksums"
-	_addm5sums:"add checksums to database"
+	_listmd5sums:"print a list of filekeys and their md5 hashes"
+	_listchecksums:"print a list of filekeys and their checksums"
+	_addmd5sums:"add checksums to database"
+	_addchecksums:"add checksums to database"
 	_dumpcontents:"output contents of a part of the repository"
 	_addreference:"mark a filekey needed by an identifier"
 	_removereferences:"remove all references by an identifer"
@@ -294,6 +297,7 @@ _arguments \
 	'(--noask-passphrase)--ask-passphrase[Ask for passphrases (insecure)]' \
   	'(--nonoskipold --skipold)--noskipold[Do not ignore parts where no new index file is available]' \
 	'(--guessgpgtty --nonoguessgpgtty)--noguessgpgtty[Do not set GPG_TTY variable even when unset and stdin is a tty]' \
+	'(--oldfilesdb --nonooldfilesdb)--nooldfilesdb[Make speeder repository, which versions before 3.3 cannot access]' \
 	':reprepro command:->commands' \
 	'2::arguments:->first' \
 	'3::arguments:->second' \
@@ -320,7 +324,7 @@ case "$state" in
 		fi
 		;;
 
-	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_addmd5sums)
+	 (clearvanished|dumpreferences|dumpunreferened|deleteunreferenced|_listmd5sums|_listchecksums|_addmd5sums|_addchecksums)
 		;;
 	 (_dumpcontents|_removereferences)
 		if [[ "$state" = "first argument" ]] ; then

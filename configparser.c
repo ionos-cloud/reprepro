@@ -98,7 +98,7 @@ bool config_nextline(struct configiterator *iter) {
 		iter->eol = false;
 		return true;
 	}
-	ungetc(c, iter->f);
+	(void)ungetc(c, iter->f);
 	return false;
 }
 
@@ -277,7 +277,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 			c = fgetc(iter.f);
 			iter.column++;
 		} while( c == ' ' || c == '\t' );
-		ungetc(c, iter.f);
+		(void)ungetc(c, iter.f);
 
 		iter.eol = false;
 		if( i < fieldcount ) {
@@ -298,7 +298,7 @@ retvalue configfile_parse(const char *confdir, const char *filename, bool ignore
 				!RET_WAS_ERROR(result));
 		RET_UPDATE(result, r);
 	}
-	if( ferror(iter.f) ) {
+	if( ferror(iter.f) != 0) {
 		int e = errno;
 		fprintf(stderr, "Error reading config file '%s': %s(%d)\n",
 				iter.filename, strerror(e), e);
@@ -501,6 +501,7 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 "Malformed %s-header element '%s': %s\n", header, value, errormessage);
 			checkerror_free(errormessage);
 			free(value);
+			strlist_done(&data);
 			return RET_ERROR;
 		} else {
 			r = strlist_add(&data, value);
@@ -614,7 +615,7 @@ retvalue config_getconstant(struct configiterator *iter, const struct constant *
 }
 
 retvalue config_getflags(struct configiterator *iter, const char *header, const struct constant *constants, bool *flags, bool ignoreunknown, const char *msg) {
-	retvalue r, result = RET_NOTHING;;
+	retvalue r, result = RET_NOTHING;
 	int option = -1;
 
 	while( (r = config_getconstant(iter, constants, &option)) != RET_NOTHING ) {
@@ -794,7 +795,7 @@ retvalue config_getnumber(struct configiterator *iter, const char *name, long lo
 	return RET_OK;
 }
 
-static retvalue config_getline(struct configiterator *iter, char **result_p) {
+static retvalue config_getline(struct configiterator *iter, /*@out@*/char **result_p) {
 	size_t size = 0, len = 0;
 	char *value = NULL, *nv;
 	int c;

@@ -27,11 +27,12 @@
 #include <string.h>
 #include <malloc.h>
 #include <ctype.h>
-#include <zlib.h>
 #include "error.h"
+#include "filecntl.h"
 #include "strlist.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "names.h"
+#include "checksums.h"
 #include "dirs.h"
 #include "chunks.h"
 #include "checkindsc.h"
@@ -86,19 +87,14 @@ struct dscpackage {
 	struct dsc_headers dsc;
 	/* things that will still be NULL then: */
 	char *component; //This might be const, too and save some strdups, but...
-	/* calculated or set by files_include of the dsc */
-	char *dscmd5sum;
 	/* Things that may be calculated by dsc_calclocations: */
-	char *directory, *dscbasename, *dscfilekey;
 	struct strlist filekeys;
 };
 
-void dsc_free(/*@only@*/struct dscpackage *pkg) {
+static void dsc_free(/*@only@*/struct dscpackage *pkg) {
 	if( pkg != NULL ) {
 		sources_done(&pkg->dsc);
 		free(pkg->component);
-		free(pkg->dscmd5sum);
-		free(pkg->directory);free(pkg->dscbasename);free(pkg->dscfilekey);
 		strlist_done(&pkg->filekeys);
 		free(pkg);
 	}
@@ -112,7 +108,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 
 	dsc = calloc(1,sizeof(struct dscpackage));
 
-	r = sources_readdsc(&dsc->dsc, filename, &broken);
+	r = sources_readdsc(&dsc->dsc, filename, filename, &broken);
 	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
 "This most likely means the file was damaged (or edited improperly)\n",
@@ -123,7 +119,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	if( RET_IS_OK(r) )
 		r = properversion(dsc->dsc.version);
 	if( RET_IS_OK(r) )
-		r = properfilenames(&dsc->dsc.basenames);
+		r = properfilenames(&dsc->dsc.files.names);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(dsc);
 		return r;
@@ -133,70 +129,41 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	return RET_OK;
 }
 
-static retvalue dsc_calclocations(struct dscpackage *pkg,/*@null@*/const char *filekey,/*@null@*/const char *basename,/*@null@*/const char *directory) {
+retvalue dsc_addprepared(struct database *database, const struct dsc_headers *dsc, const char *component, const struct strlist *filekeys, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
 	retvalue r;
+	struct target *t = distribution_getpart(distribution,component,"source","dsc");
 
-	assert( pkg != NULL && pkg->dsc.name != NULL && pkg->dsc.version != NULL );
-	assert( pkg->component != NULL );
+	assert( logger_isprepared(distribution->logger) );
 
-	if( basename != NULL )
-		pkg->dscbasename = strdup(basename);
-	else
-		pkg->dscbasename = calc_source_basename(pkg->dsc.name,pkg->dsc.version);
-	if( pkg->dscbasename == NULL ) {
-		return RET_ERROR_OOM;
+	/* finally put it into the source distribution */
+	r = target_initpackagesdb(t, database, READWRITE);
+	if( !RET_WAS_ERROR(r) ) {
+		retvalue r2;
+		if( interrupted() )
+			r = RET_ERROR_INTERRUPTED;
+		else
+			r = target_addpackage(t, distribution->logger, database,
+					dsc->name, dsc->version,
+					dsc->control, filekeys,
+					false, dereferencedfilekeys,
+					trackingdata, ft_SOURCE);
+		r2 = target_closepackagesdb(t);
+		RET_ENDUPDATE(r,r2);
 	}
-
-	if( directory != NULL )
-		pkg->directory = strdup(directory);
-	else
-		pkg->directory = calc_sourcedir(pkg->component,pkg->dsc.name);
-	if( pkg->directory == NULL ) {
-		return RET_ERROR_OOM;
-	}
-
-	/* Calculate the filekeys: */
-	r = calc_dirconcats(pkg->directory,&pkg->dsc.basenames,&pkg->filekeys);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	if( filekey != NULL )
-		pkg->dscfilekey = strdup(filekey);
-	else
-		pkg->dscfilekey = calc_dirconcat(pkg->directory,pkg->dscbasename);
-	if( pkg->dscfilekey == NULL ) {
-		return RET_ERROR_OOM;
-	}
-	return RET_OK;
+	RET_UPDATE(distribution->status, r);
+	return r;
 }
 
-/* Add the dsc-file to basenames,filekeys and md5sums, so that it will
- * be referenced and listed in the Sources.gz */
-static retvalue dsc_adddsc(struct dscpackage *pkg) {
-	retvalue r;
-
-	r = strlist_include(&pkg->dsc.basenames,pkg->dscbasename);
-	pkg->dscbasename = NULL;
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = strlist_include(&pkg->dsc.md5sums,pkg->dscmd5sum);
-	pkg->dscmd5sum = NULL;
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = strlist_include(&pkg->filekeys,pkg->dscfilekey);
-	pkg->dscfilekey = NULL;
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	return RET_OK;
-}
-
-
-retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int delete, const char *expectedname, const char *expectedversion){
+/* insert the given .dsc into the mirror in <component> in the <distribution>
+ * if component is NULL, guessing it from the section.
+ * If basename, filekey and directory are != NULL, then they are used instead
+ * of being newly calculated.
+ * (And all files are expected to already be in the pool). */
+retvalue dsc_add(struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
+	struct trackingdata trackingdata;
+	char *destdirectory, *origdirectory;
 	const struct overrideinfo *oinfo;
 	char *control;
 	int i;
@@ -210,28 +177,9 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 		return RET_ERROR;
 	}
 
-	/* Then take a closer look in the file: */
-
-	r = dsc_read(&pkg,dscfilename);
+	r = dsc_read(&pkg, dscfilename);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
-	}
-	if( expectedname != NULL &&
-	    strcmp(expectedname, pkg->dsc.name) != 0 ) {
-		/* This cannot be ignored, as too much depends on it yet */
-		fprintf(stderr,
-"'%s' says it is '%s', while .changes file said it is '%s'\n",
-				basename, pkg->dsc.name, expectedname);
-		dsc_free(pkg);
-		return RET_ERROR;
-	}
-	if( expectedversion != NULL &&
-	    strcmp(expectedversion, pkg->dsc.version) != 0 &&
-	    !IGNORING_(wrongversion,
-"'%s' says it is version '%s', while .changes file said it is '%s'\n",
-				basename, pkg->dsc.version, expectedversion)) {
-		dsc_free(pkg);
-		return RET_ERROR;
 	}
 
 	oinfo = override_search(distribution->overrides.dsc,pkg->dsc.name);
@@ -260,20 +208,20 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 	}
 
 	if( pkg->dsc.section == NULL ) {
-		fprintf(stderr,"No section was given for '%s', skipping.\n",pkg->dsc.name);
+		fprintf(stderr, "No section was given for '%s', skipping.\n",pkg->dsc.name);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
 	if( pkg->dsc.priority == NULL ) {
-		fprintf(stderr,"No priority was given for '%s', skipping.\n",pkg->dsc.name);
+		fprintf(stderr, "No priority was given for '%s', skipping.\n",pkg->dsc.name);
 		dsc_free(pkg);
 		return RET_ERROR;
 	}
 
 	/* decide where it has to go */
 
-	r = guess_component(distribution->codename,&distribution->components,
-			pkg->dsc.name,pkg->dsc.section,forcecomponent,
+	r = guess_component(distribution->codename, &distribution->components,
+			pkg->dsc.name, pkg->dsc.section, forcecomponent,
 			&pkg->component);
 	if( RET_WAS_ERROR(r) ) {
 		dsc_free(pkg);
@@ -283,94 +231,79 @@ retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const cha
 		fprintf(stderr,"%s: component guessed as '%s'\n",dscfilename,pkg->component);
 	}
 
-	r = dsc_calclocations(pkg,filekey,basename,directory);
-
-	/* then look if we already have this, or copy it in */
-
-	if( !RET_WAS_ERROR(r) ) {
-		/* evil things will hapen if delete is not D_INPLACE when
-		 * called from includechanges */
-		r = files_include(database,
-				dscfilename, pkg->dscfilekey,
-				md5sum, &pkg->dscmd5sum, delete);
+	r = dirs_getdirectory(dscfilename, &origdirectory);
+	if( RET_WAS_ERROR(r) ) {
+		dsc_free(pkg);
+		return r;
 	}
 
-	assert( pkg->dsc.basenames.count == pkg->dsc.md5sums.count );
-	assert( pkg->dsc.basenames.count == pkg->filekeys.count );
-	for( i = 0 ; i < pkg->dsc.basenames.count ; i ++ ) {
-		if( !RET_WAS_ERROR(r) ) {
-			const char *basename = pkg->dsc.basenames.values[i];
-			const char *filekey = pkg->filekeys.values[i];
-			const char *md5sum = pkg->dsc.md5sums.values[i];
+	{	char *dscbasename, *dscfilekey;
+		struct checksums *dscchecksums;
 
-			r = files_includefile(database, sourcedir,
-					basename, filekey, md5sum,
-					NULL, delete);
+		dscbasename = calc_source_basename(pkg->dsc.name, pkg->dsc.version);
+		destdirectory = calc_sourcedir(pkg->component, pkg->dsc.name);
+		/* Calculate the filekeys: */
+		if( destdirectory != NULL )
+			r = calc_dirconcats(destdirectory,
+					&pkg->dsc.files.names,
+					&pkg->filekeys);
+		if( dscbasename == NULL || destdirectory == NULL || RET_WAS_ERROR(r) ) {
+			free(dscbasename);
+			free(destdirectory); free(origdirectory);
+			dsc_free(pkg);
+			return r;
+		}
+		dscfilekey = calc_dirconcat(destdirectory, dscbasename);
+		dscchecksums = NULL;
+		if( dscfilename == NULL )
+			r = RET_ERROR_OOM;
+		else
+			/* then look if we already have this, or copy it in */
+			r = files_preinclude(database,
+					dscfilename, dscfilekey,
+					&dscchecksums);
+
+		if( !RET_WAS_ERROR(r) ) {
+			/* Add the dsc-file to basenames,filekeys and md5sums,
+			 * so that it will be listed in the Sources.gz */
+
+			r = checksumsarray_include(&pkg->dsc.files,
+					dscbasename, dscchecksums);
+			if( RET_IS_OK(r) )
+				r = strlist_include(&pkg->filekeys, dscfilekey);
+			else
+				free(dscfilekey);
+		} else {
+			free(dscfilekey);
+			free(dscbasename);
+		}
+		checksums_free(dscchecksums);
+	}
+
+	assert( pkg->dsc.files.names.count == pkg->filekeys.count );
+	for( i = 1 ; i < pkg->dsc.files.names.count ; i ++ ) {
+		if( !RET_WAS_ERROR(r) ) {
+			r = files_checkincludefile(database, origdirectory,
+					pkg->dsc.files.names.values[i],
+					pkg->filekeys.values[i],
+					&pkg->dsc.files.checksums[i]);
 		}
 	}
+	free(origdirectory);
 
 	/* Calculate the chunk to include: */
 
 	if( !RET_WAS_ERROR(r) )
-		r = dsc_adddsc(pkg);
-
-	if( !RET_WAS_ERROR(r) )
-		r = sources_complete(&pkg->dsc,pkg->directory,oinfo,
+		r = sources_complete(&pkg->dsc, destdirectory, oinfo,
 				pkg->dsc.section, pkg->dsc.priority, &control);
+	free(destdirectory);
 	if( RET_IS_OK(r) ) {
 		free(pkg->dsc.control);
 		pkg->dsc.control = control;
-		*dsc = pkg;
-	} else
+	} else {
 		dsc_free(pkg);
-
-	return r;
-}
-
-retvalue dsc_addprepared(const struct dscpackage *pkg,struct database *database,struct distribution *distribution,struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
-	retvalue r;
-	struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
-
-	assert( logger_isprepared(distribution->logger) );
-
-	/* finally put it into the source distribution */
-	r = target_initpackagesdb(t, database, READWRITE);
-	if( !RET_WAS_ERROR(r) ) {
-		retvalue r2;
-		if( interrupted() )
-			r = RET_ERROR_INTERRUPTED;
-		else
-			r = target_addpackage(t, distribution->logger, database,
-					pkg->dsc.name, pkg->dsc.version,
-					pkg->dsc.control, &pkg->filekeys,
-					false, dereferencedfilekeys,
-					trackingdata, ft_SOURCE);
-		r2 = target_closepackagesdb(t);
-		RET_ENDUPDATE(r,r2);
+		return r;
 	}
-	RET_UPDATE(distribution->status, r);
-	return r;
-}
-
-/* insert the given .dsc into the mirror in <component> in the <distribution>
- * if component is NULL, guessing it from the section.
- * If basename, filekey and directory are != NULL, then they are used instead
- * of being newly calculated.
- * (And all files are expected to already be in the pool). */
-retvalue dsc_add(struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
-	retvalue r;
-	struct dscpackage *pkg;
-	struct trackingdata trackingdata;
-	char *dscdirectory;
-
-	r = dirs_getdirectory(dscfilename,&dscdirectory);
-	if( RET_WAS_ERROR(r) )
-		return r;
-
-	r = dsc_prepare(&pkg,database,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,delete,NULL,NULL);
-	free(dscdirectory);
-	if( RET_WAS_ERROR(r) )
-		return r;
 
 	if( interrupted() ) {
 		dsc_free(pkg);
@@ -385,9 +318,35 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		}
 	}
 
-	r = dsc_addprepared(pkg, database, distribution,
-			dereferencedfilekeys,
+	r = dsc_addprepared(database, &pkg->dsc, pkg->component,
+			&pkg->filekeys, distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL);
+
+	/* delete source files, if they are to be */
+	if( ( RET_IS_OK(r) && delete >= D_MOVE ) ||
+			( r == RET_NOTHING && delete >= D_DELETE ) ) {
+		char *origdirectory, *fullfilename;
+		retvalue r2;
+
+		r2 = dirs_getdirectory(dscfilename, &origdirectory);
+		if( RET_IS_OK(r2) ) {
+			for( i = 0 ; i < pkg->dsc.files.names.count ; i++ ) {
+				fullfilename = calc_dirconcat(origdirectory,
+						pkg->dsc.files.names.values[i]);
+				if( fullfilename == NULL ) {
+					r = RET_ERROR_OOM;
+					break;
+				}
+				if( isregularfile(fullfilename) )
+					deletefile(fullfilename);
+				free(fullfilename);
+			}
+			free(origdirectory);
+		}
+		RET_ENDUPDATE(r, r2);
+	}
+	// TODO: delete files included into the pool, if inclusion failed
+	// TODO: how to decide inclusion failed and nothing after that?
 	dsc_free(pkg);
 
 	if( tracks != NULL ) {

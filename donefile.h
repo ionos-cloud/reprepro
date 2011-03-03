@@ -5,8 +5,9 @@
 #include "error.h"
 #endif
 
-retvalue donefile_isold(const char *filename, const char *expected);
-retvalue donefile_create(const char *filename, const char *md5sum);
+struct checksums;
+retvalue donefile_isold(const char *filename, const struct checksums *expected);
+retvalue donefile_create(const char *filename, const struct checksums *);
 void donefile_delete(const char *filename);
 
 #endif

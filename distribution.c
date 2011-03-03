@@ -26,16 +26,13 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
-#include <zlib.h>
 #include "error.h"
 #include "mprintf.h"
 #include "chunks.h"
 #include "sources.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "names.h"
 #include "release.h"
-#include "copyfile.h"
 #include "tracking.h"
 #include "override.h"
 #include "log.h"
@@ -524,7 +521,7 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobaluniqcursor(t->packages, &cursor);
+		r = table_newglobalcursor(t->packages, &cursor);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			(void)target_closepackagesdb(t);
@@ -566,7 +563,7 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobaluniqcursor(t->packages, &cursor);
+		r = table_newglobalcursor(t->packages, &cursor);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			(void)target_closepackagesdb(t);
@@ -674,9 +671,7 @@ retvalue distribution_get(struct distribution *alldistributions, const char *nam
 	return RET_OK;
 }
 
-retvalue distribution_snapshot(struct distribution *distribution,
-		const char *confdir, const char *distdir,
-		struct database *database, const char *name) {
+retvalue distribution_snapshot(struct distribution *distribution, const char *distdir, struct database *database, const char *name) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
@@ -694,8 +689,7 @@ retvalue distribution_snapshot(struct distribution *distribution,
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = target_export(target, confdir, database,
-				false, true, release);
+		r = target_export(target, database, false, true, release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -728,9 +722,7 @@ retvalue distribution_snapshot(struct distribution *distribution,
 	return result;
 }
 
-static retvalue export(struct distribution *distribution,
-		const char *confdir, const char *distdir,
-		struct database *database, bool onlyneeded) {
+static retvalue export(struct distribution *distribution, const char *distdir, struct database *database, bool onlyneeded) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
@@ -747,8 +739,7 @@ static retvalue export(struct distribution *distribution,
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
-		r = target_export(target, confdir, database,
-				onlyneeded, false, release);
+		r = target_export(target, database, onlyneeded, false, release);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -778,7 +769,7 @@ static retvalue export(struct distribution *distribution,
 			workleft |= target->saved_wasmodified;
 		}
 		if( workleft ) {
-			fputs(
+			(void)fputs(
 "This means that from outside your repository will still look like before (and\n"
 "should still work if this old state worked), but the things you changed in this\n"
 "call will not be visible until you call export directly (via reprepro export)\n"
@@ -787,8 +778,6 @@ static retvalue export(struct distribution *distribution,
 "same distribution will not!\n",	stderr);
 		}
 	} else {
-		retvalue r;
-
 		r = release_finish(release,distribution);
 		RET_UPDATE(result,r);
 	}
@@ -797,8 +786,8 @@ static retvalue export(struct distribution *distribution,
 	return result;
 }
 
-retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *distdir, struct database *database) {
-	return export(distribution, confdir, distdir, database, false);
+retvalue distribution_fullexport(struct distribution *distribution, const char *distdir, struct database *database) {
+	return export(distribution, distdir, database, false);
 }
 
 retvalue distribution_freelist(struct distribution *distributions) {
@@ -814,7 +803,7 @@ retvalue distribution_freelist(struct distribution *distributions) {
 	return result;
 }
 
-retvalue distribution_exportlist(enum exportwhen when, struct distribution *distributions, const char *confdir,const char *distdir, struct database *database) {
+retvalue distribution_exportlist(enum exportwhen when, struct distribution *distributions, const char *distdir, struct database *database) {
 	retvalue result,r;
 	bool todo = false;
 	struct distribution *d;
@@ -870,8 +859,7 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						d->codename);
-					r = export(d, confdir, distdir,
-							database, true);
+					r = export(d, distdir, database, true);
 					RET_UPDATE(result,r);
 					break;
 				}
@@ -881,14 +869,14 @@ retvalue distribution_exportlist(enum exportwhen when, struct distribution *dist
 					( d->status == RET_NOTHING &&
 					  when != EXPORT_CHANGED) ||
 					when == EXPORT_FORCE);
-			r = export(d, confdir, distdir, database, true);
+			r = export(d, distdir, database, true);
 			RET_UPDATE(result,r);
 		}
 	}
 	return result;
 }
 
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *distdir,struct database *database) {
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution, const char *distdir, struct database *database) {
 	if( when == EXPORT_NEVER ) {
 		if( verbose >= 10 )
 			fprintf(stderr,
@@ -921,7 +909,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Please report this and how you got this message as bugreport. Thanks.\n"
 "Doing a export despite --export=changed....\n",
 						distribution->codename);
-				return export(distribution, confdir, distdir,
+				return export(distribution, distdir,
 						database, true);
 				break;
 			}
@@ -931,7 +919,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 	}
 	if( verbose >= 0 )
 		printf("Exporting indices...\n");
-	return export(distribution, confdir, distdir, database, true);
+	return export(distribution, distdir, database, true);
 }
 
 /* get a pointer to the apropiate part of the linked list */
@@ -1052,7 +1040,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			return result;
-		r = table_newglobaluniqcursor(t->packages, &cursor);
+		r = table_newglobalcursor(t->packages, &cursor);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			(void)target_closepackagesdb(t);

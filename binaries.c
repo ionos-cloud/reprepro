@@ -38,40 +38,38 @@
 
 extern int verbose;
 
-/* get md5sums out of a "Packages.gz"-chunk. */
-static retvalue binaries_parse_md5sum(const char *chunk,/*@out@*/struct strlist *md5sums) {
-	retvalue r;
-	/* collect the given md5sum and size */
+static const char * const deb_checksum_headers[cs_COUNT] = {"MD5sum", "SHA1",
+	// "SHA256",
+	"Size"};
 
-	char *pmd5,*psize,*md5sum;
+/* get checksums out of a "Packages"-chunk. */
+static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct checksums **checksums_p) {
+	retvalue result, r;
+	char *checksums[cs_COUNT];
+	enum checksumtype type;
 
-	r = chunk_getvalue(chunk,"MD5sum",&pmd5);
-	if( r == RET_NOTHING ) {
+	result = RET_NOTHING;
+
+	for( type = 0 ; type < cs_COUNT ; type++ ) {
+		checksums[type] = NULL;
+		r = chunk_getvalue(chunk, deb_checksum_headers[type],
+				&checksums[type]);
+		RET_UPDATE(result, r);
+	}
+	if( checksums[cs_md5sum] == NULL ) {
 		fprintf(stderr,"Missing 'MD5sum'-line in binary control chunk:\n '%s'\n",chunk);
-		r = RET_ERROR_MISSING;
+		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	r = chunk_getvalue(chunk,"Size",&psize);
-	if( r == RET_NOTHING ) {
+	if( checksums[cs_length] == NULL ) {
 		fprintf(stderr,"Missing 'Size'-line in binary control chunk:\n '%s'\n",chunk);
-		r = RET_ERROR_MISSING;
+		RET_UPDATE(result, RET_ERROR_MISSING);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		free(pmd5);
-		return r;
+	if( RET_WAS_ERROR(result) ) {
+		for( type = 0 ; type < cs_COUNT ; type++ )
+			free(checksums[type]);
+		return result;
 	}
-	md5sum = calc_concatmd5andsize(pmd5,psize);
-	free(pmd5);free(psize);
-	if( md5sum == NULL ) {
-		return RET_ERROR_OOM;
-	}
-	r = strlist_init_singleton(md5sum,md5sums);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	return RET_OK;
+	return checksums_init(checksums_p, checksums);
 }
 
 /* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
@@ -121,7 +119,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 }
 
 /* get files out of a "Packages.gz"-chunk. */
-static retvalue binaries_parse_getfilekeys(const char *chunk,struct strlist *files) {
+retvalue binaries_getfilekeys(const char *chunk, struct strlist *files) {
 	retvalue r;
 	char *filename;
 
@@ -194,50 +192,59 @@ retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char *
 	return r;
 }
 
-retvalue binaries_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,struct strlist *filekeys,struct strlist *md5sums,struct strlist *origfiles) {
+retvalue binaries_getinstalldata(struct target *t, const char *packagename, const char *version, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	char *sourcename IFSTUPIDCC(=NULL) ,*basename IFSTUPIDCC(=NULL);
-	struct strlist mymd5sums;
+	struct checksumsarray origfilekeys;
 	retvalue r;
 
-	r = binaries_parse_md5sum(chunk,&mymd5sums);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	r = binaries_parse_chunk(chunk,packagename,t->packagetype,version,&sourcename,&basename);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&mymd5sums);
 		return r;
 	} else if( r == RET_NOTHING ) {
 		fprintf(stderr,"Does not look like a binary package: '%s'!\n",chunk);
 		return RET_ERROR;
 	}
-	r = binaries_parse_getfilekeys(chunk,origfiles);
+	r = binaries_getchecksums(chunk, &origfilekeys);
 	if( RET_WAS_ERROR(r) ) {
 		free(sourcename);free(basename);
-		strlist_done(&mymd5sums);
 		return r;
 	}
 
 	r = calcnewcontrol(chunk,sourcename,basename,t->component,filekeys,control);
 	if( RET_WAS_ERROR(r) ) {
-		strlist_done(&mymd5sums);
+		checksumsarray_done(&origfilekeys);
 	} else {
 		assert( r != RET_NOTHING );
-		strlist_move(md5sums,&mymd5sums);
+		checksumsarray_move(origfiles, &origfilekeys);
 	}
 	free(sourcename);free(basename);
 	return r;
 }
 
-retvalue binaries_getfilekeys(UNUSED(struct target *t),const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
+retvalue binaries_getchecksums(const char *chunk, struct checksumsarray *filekeys) {
 	retvalue r;
-	r = binaries_parse_getfilekeys(chunk,filekeys);
+	struct checksumsarray a;
+
+	r = binaries_getfilekeys(chunk, &a.names);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	if( md5sums == NULL )
+	assert( a.names.count == 1 );
+	a.checksums = malloc(sizeof(struct checksums *));
+	if( a.checksums == NULL ) {
+		strlist_done(&a.names);
+		return RET_ERROR_OOM;
+	}
+	r = binaries_parse_checksums(chunk, a.checksums);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
+		free(a.checksums);
+		strlist_done(&a.names);
 		return r;
-	r = binaries_parse_md5sum(chunk,md5sums);
-	return r;
+	}
+	checksumsarray_move(filekeys, &a);
+	return RET_OK;
 }
+
 char *binaries_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
 		const char *component_from,const char *architecture) {
 	return mprintf("dists/%s/%s/binary-%s/Packages.gz",suite_from,component_from,architecture);
@@ -293,7 +300,7 @@ retvalue ubinaries_doreoverride(const struct distribution *distribution,const ch
 	return RET_OK;
 }
 
-retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const char *chunk, trackingdb tracks,struct database *database) {
+retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *database) {
 	retvalue r;
 	const char *sourcename;
 	char *fsourcename,*sourceversion,*arch,*filekey;
@@ -506,30 +513,30 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 	return RET_OK;
 }
 
-/* do overwrites, add Filename, Size and md5sum to the control-item */
-retvalue binaries_complete(const struct deb_headers *pkg,const char *filekey,const char *md5sum,const struct overrideinfo *override,const char *section,const char *priority, char **newcontrol) {
-	const char *size;
+/* do overwrites, add Filename and Checksums to the control-item */
+retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, const struct checksums *checksums, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol) {
 	struct fieldtoadd *replace;
 	char *newchunk;
+	enum checksumtype type;
 
 	assert( section != NULL && priority != NULL);
-	assert( filekey != NULL && md5sum != NULL);
+	assert( filekey != NULL && checksums != NULL);
 
-	size = md5sum;
-	while( !xisblank(*size) && *size != '\0' )
-		size++;
-	replace = addfield_newn("MD5sum", md5sum, size-md5sum,NULL);
+	replace = NULL;
+	for( type = 0 ; type < cs_COUNT ; type++ ) {
+		const char *start;
+		size_t len;
+		if( checksums_getpart(checksums, type, &start, &len) ) {
+			replace = addfield_newn(deb_checksum_headers[type],
+					start, len, replace);
+			if( replace == NULL )
+				return RET_ERROR_OOM;
+		}
+	}
+	replace = addfield_new("Filename", filekey, replace);
 	if( replace == NULL )
 		return RET_ERROR_OOM;
-	while( *size != '\0' && xisblank(*size) )
-		size++;
-	replace = addfield_new("Size", size, replace);
-	if( replace == NULL )
-		return RET_ERROR_OOM;
-	replace = addfield_new("Filename", filekey,replace);
-	if( replace == NULL )
-		return RET_ERROR_OOM;
-	replace = addfield_new(SECTION_FIELDNAME, section ,replace);
+	replace = addfield_new(SECTION_FIELDNAME, section, replace);
 	if( replace == NULL )
 		return RET_ERROR_OOM;
 	replace = addfield_new(PRIORITY_FIELDNAME, priority, replace);

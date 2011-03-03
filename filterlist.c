@@ -317,7 +317,6 @@ retvalue filterlist_load(struct filterlist *list, const char *confdir, struct co
 	files = NULL;
 	while( (r = config_getword(iter, &filename)) != RET_NOTHING ) {
 		struct filterlistfile **n;
-		retvalue r;
 
 		n = realloc(files, (count+1)*
 				sizeof(struct filterlistfile *));

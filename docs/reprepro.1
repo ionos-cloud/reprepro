@@ -255,6 +255,14 @@ Don't set the environment variable
 even when it is not set, stdin is terminal and
 .B /proc/self/fd/0
 is a readable symbolic link.
+.TP
+.B \-\-nooldfilesdb
+Do not create a files.db file, but only newer checksums.db file.
+This will make it impossible for reprepro versions before 3.3.0 to
+access this repository.
+Versions before 3.0 will not recognize that and destroy it.
+Thus it is still switched off by default, even though it gives an space
+and speed improvement.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -398,6 +406,10 @@ have the known md5sum. When
 .B fast
 is specified md5sum is not checked.
 .TP
+.BR collectnewchecksums
+Calculate all supported checksums for all files in the pool.
+(Versions prior to 3.3 did only store md5sums, 3.3 added sha1).
+.TP
 .B rereference
 Forget which files are needed and recollect this information.
 .TP
@@ -520,9 +532,15 @@ or normalization is done.)
 .B _listmd5sums
 Print a list of all known files and their md5sums.
 .TP
+.B _listchecksums
+Print a list of all known files and their recorded checksums.
+.TP
 .B _addmd5sums
+alias for the newer
+.TP
+.B _addchecksums
 Add information of known files (without any check done)
-in the strict format of _listmd5sums output (i.e. don't dare to
+in the strict format of _listchecksums output (i.e. don't dare to
 use a single space anywhere more than needed).
 .TP
 .BI _dumpcontents " identifier"

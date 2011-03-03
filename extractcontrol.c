@@ -25,10 +25,10 @@
 #include <getopt.h>
 #include <string.h>
 #include <malloc.h>
-#include <zlib.h>
 #include "error.h"
-#include "md5sum.h"
 #include "chunks.h"
+#include "filecntl.h"
+#include "readtextfile.h"
 #include "debfile.h"
 
 #ifdef HAVE_LIBARCHIVE
@@ -113,34 +113,46 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 
 	}
 
-	close(pipe1[0]);close(pipe1[1]);
-	close(pipe2[1]);
+	close(pipe1[0]); close(pipe1[1]);
+	markcloseonexec(pipe2[0]); close(pipe2[1]);
+
+	controlchunk = NULL;
 
 	/* read data: */
 	if( RET_IS_OK(result) ) {
-		gzFile f;
-		//TODO: making a gzdopen here is kinda stupid...
-		f = gzdopen(pipe2[0],"r");
-		if( f == NULL ) {
-			fprintf(stderr,"Error opening gzip-stream for pipe!\n");
-			RET_UPDATE(result,RET_ERROR);
-		} else {
-			r = chunk_read(f,&controlchunk);
-			if( r == RET_NOTHING ) {
-				controlchunk = NULL;
-				fprintf(stderr,"Got no control information from .deb!\n");
-				/* only report error now if we haven't try everything yet */
-				if( brokentar )
-					r = RET_ERROR_MISSING;
-			}
-			RET_UPDATE(result,r);
-			gzclose(f);
-		}
-	}
+		size_t len; char *afterchanges;
 
-	/* avoid being a memory leak */
-	if( !(RET_IS_OK(result)) )
-		controlchunk = NULL;
+		r = readtextfilefd(pipe2[0],
+				brokentar?
+				"output from ar p <debfile> control.tar.gz | tar -XOzf - control":
+				"output from ar p <debfile> control.tar.gz | tar -XOzf - ./control",
+				&controlchunk, NULL);
+		if( RET_IS_OK(r) ) {
+			len = chunk_extract(controlchunk, controlchunk, &afterchanges);
+			if( len == 0 )
+				r = RET_NOTHING;
+			if( *afterchanges != '\0' ) {
+				fprintf(stderr,
+"Unexpected emtpy line in control information within '%s'\n"
+"(obtained via 'ar p %s control.tar.gz | tar -XOzf - %scontrol')\n",
+						debfilename, debfilename,
+						brokentar?"":"./");
+				free(controlchunk);
+				controlchunk = NULL;
+				r = RET_ERROR;
+			}
+		}
+		if( r == RET_NOTHING ) {
+			free(controlchunk);
+			controlchunk = NULL;
+			fprintf(stderr,"Got no control information from .deb!\n");
+			/* only report error now if we haven't try everything yet */
+			if( brokentar )
+				r = RET_ERROR_MISSING;
+		}
+		RET_UPDATE(result,r);
+
+	}
 
 	while( ar != -1 || tar != -1 ) {
 		pid=wait(&status);
@@ -174,7 +186,7 @@ static retvalue try_extractcontrol(char **control, const char *debfile, bool bro
 				}
 			} else {
 				// WTH?
-				fprintf(stderr,"Who is %d, and why does this bother me?\n",pid);
+				fprintf(stderr,"Who is %d, and why does this bother me?\n",(int)pid);
 			}
 		}
 
@@ -207,7 +219,7 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	return r;
 }
 
-retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
+retvalue getfilelist(/*@out@*/char **filelist, /*@out@*/size_t *size, const char *debfile) {
 	fprintf(stderr, "Extracing of filelist currently not implemented without libarchive.\n");
 	return RET_ERROR;
 #if 0

@@ -35,7 +35,6 @@
 #include "binaries.h"
 #include "sources.h"
 #include "names.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "dpkgversions.h"
 #include "tracking.h"
@@ -45,15 +44,7 @@
 
 extern int verbose;
 
-static retvalue target_initialize(
-	const char *codename,const char *component,const char *architecture,
-	/*@observer@*/const char *packagetype,
-	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,
-	get_sourceandversion getsourceandversion,
-	do_reoverride doreoverride,do_retrack doretrack,
-	/*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
-
+static retvalue target_initialize(const char *codename, const char *component, const char *architecture, /*@observer@*/const char *packagetype, get_name getname, get_version getversion, get_installdata getinstalldata, get_filekeys getfilekeys, get_checksums getchecksums, get_upstreamindex getupstreamindex, get_sourceandversion getsourceandversion, do_reoverride doreoverride,do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -81,6 +72,7 @@ static retvalue target_initialize(
 	t->getversion = getversion;
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
+	t->getchecksums = getchecksums;
 	t->getupstreamindex = getupstreamindex;
 	t->getsourceandversion = getsourceandversion;
 	t->doreoverride = doreoverride;
@@ -89,17 +81,38 @@ static retvalue target_initialize(
 	return RET_OK;
 }
 
-retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,binaries_getsourceandversion,ubinaries_doreoverride,binaries_retrack,mprintf("%s/debian-installer/binary-%s",component,architecture),exportmode,target);
+retvalue target_initialize_ubinary(const char *codename, const char *component, const char *architecture, const struct exportmode *exportmode, struct target **target) {
+	return target_initialize(codename, component, architecture, "udeb",
+			binaries_getname, binaries_getversion,
+			binaries_getinstalldata,
+			binaries_getfilekeys, binaries_getchecksums,
+			ubinaries_getupstreamindex,
+			binaries_getsourceandversion,
+			ubinaries_doreoverride, binaries_retrack,
+			mprintf("%s/debian-installer/binary-%s",component,architecture),
+			exportmode, target);
 }
-retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,binaries_getsourceandversion,binaries_doreoverride,binaries_retrack,mprintf("%s/binary-%s",component,architecture),exportmode,target);
+retvalue target_initialize_binary(const char *codename, const char *component, const char *architecture, const struct exportmode *exportmode, struct target **target) {
+	return target_initialize(codename, component, architecture, "deb",
+			binaries_getname, binaries_getversion,
+			binaries_getinstalldata,
+			binaries_getfilekeys, binaries_getchecksums,
+			binaries_getupstreamindex,
+			binaries_getsourceandversion,
+			binaries_doreoverride, binaries_retrack,
+			mprintf("%s/binary-%s",component,architecture),
+			exportmode, target);
 }
 
-retvalue target_initialize_source(const char *codename,const char *component,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,sources_getsourceandversion,sources_doreoverride,sources_retrack,mprintf("%s/source",component),exportmode,target);
+retvalue target_initialize_source(const char *codename, const char *component,const struct exportmode *exportmode,struct target **target) {
+	return target_initialize(codename, component, "source", "dsc",
+			sources_getname, sources_getversion,
+			sources_getinstalldata,
+			sources_getfilekeys, sources_getchecksums,
+			sources_getupstreamindex, sources_getsourceandversion,
+			sources_doreoverride, sources_retrack,
+			mprintf("%s/source",component), exportmode, target);
 }
-
 
 retvalue target_free(struct target *target) {
 	retvalue result = RET_OK;
@@ -172,7 +185,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 		if( RET_IS_OK(r) )
 			oldpversion = oldpversion_ifunknown;
 	}
-	r = target->getfilekeys(target, oldcontrol, &files, NULL);
+	r = target->getfilekeys(oldcontrol, &files);
 	if( RET_WAS_ERROR(r) ) {
 		free(oldpversion_ifunknown);
 		return r;
@@ -254,7 +267,7 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 		if( RET_IS_OK(r) )
 			oldpversion = oldpversion_ifunknown;
 	}
-	r = target->getfilekeys(target, control, &files, NULL);
+	r = target->getfilekeys(control, &files);
 	if( RET_WAS_ERROR(r) ) {
 		free(oldpversion_ifunknown);
 		return r;
@@ -271,7 +284,7 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 	if( verbose > 0 )
 		printf("removing '%s' from '%s'...\n",
 				name, target->identifier);
-	result = cursor_delete(target->packages, cursor, name);
+	result = cursor_delete(target->packages, cursor, name, NULL);
 	if( RET_IS_OK(result) ) {
 		target->wasmodified = true;
 		if( oldsource != NULL && oldsversion != NULL ) {
@@ -404,7 +417,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 			}
 		} else
 			oldpversion = NULL;
-		r = (*target->getfilekeys)(target,oldcontrol,&oldfilekeys,NULL);
+		r = target->getfilekeys(oldcontrol, &oldfilekeys);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
 			if( IGNORING_(brokenold,"Error parsing files belonging to installed version of %s!\n",name)) {
@@ -519,8 +532,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 			free(oldcontrol);
 			return r;
 		}
-		r = (*target->getfilekeys)(target,
-				oldcontrol, &oldfilekeys, NULL);
+		r = target->getfilekeys(oldcontrol, &oldfilekeys);
 		ofk = &oldfilekeys;
 		if( RET_WAS_ERROR(r) ) {
 			fprintf(stderr,
@@ -573,14 +585,14 @@ retvalue target_rereference(struct target *target, struct database *database) {
 	if( verbose > 2 )
 		printf("Referencing %s...\n", target->identifier);
 
-	r = table_newglobaluniqcursor(target->packages, &cursor);
+	r = table_newglobalcursor(target->packages, &cursor);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
 	while( cursor_nexttemp(target->packages, cursor, &package, &control) ) {
 		struct strlist filekeys;
 
-		r = target->getfilekeys(target, control, &filekeys, NULL);
+		r = target->getfilekeys(control, &filekeys);
 		RET_UPDATE(result, r);
 		if( !RET_IS_OK(r) )
 			continue;
@@ -604,7 +616,7 @@ retvalue package_referenceforsnapshot(struct database *database, UNUSED(struct d
 	struct strlist filekeys;
 	retvalue r;
 
-	r = (*target->getfilekeys)(target, chunk, &filekeys, NULL);
+	r = target->getfilekeys(chunk, &filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( verbose > 15 ) {
@@ -619,7 +631,8 @@ retvalue package_referenceforsnapshot(struct database *database, UNUSED(struct d
 }
 
 retvalue package_check(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *package, const char *chunk, UNUSED(void *pd)) {
-	struct strlist expectedfilekeys, actualfilekeys, md5sums;
+	struct checksumsarray files;
+	struct strlist expectedfilekeys;
 	char *dummy, *version;
 	retvalue result,r;
 
@@ -631,7 +644,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 		return r;
 	}
 	r = target->getinstalldata(target, package, version, chunk, &dummy,
-			&expectedfilekeys, &md5sums, &actualfilekeys);
+			&expectedfilekeys, &files);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr, "Error extracting information of package '%s'!\n",
 				package);
@@ -640,18 +653,20 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 	result = r;
 	if( RET_IS_OK(r) ) {
 		free(dummy);
-		if( !strlist_subset(&expectedfilekeys, &actualfilekeys, NULL) ||
-		    !strlist_subset(&expectedfilekeys, &actualfilekeys, NULL) ) {
+		if( !strlist_subset(&expectedfilekeys, &files.names, NULL) ||
+		    !strlist_subset(&expectedfilekeys, &files.names, NULL) ) {
 			(void)fprintf(stderr, "Reparsing the package information of '%s' yields to the expectation to find:\n", package);
 			(void)strlist_fprint(stderr, &expectedfilekeys);
 			(void)fputs("but found:\n", stderr);
-			(void)strlist_fprint(stderr, &actualfilekeys);
+			(void)strlist_fprint(stderr, &files.names);
 			(void)putc('\n',stderr);
 			result = RET_ERROR;
 		}
 		strlist_done(&expectedfilekeys);
 	} else {
-		r = target->getfilekeys(target, chunk, &actualfilekeys, &md5sums);
+		r = target->getchecksums(chunk, &files);
+		if( r == RET_NOTHING )
+			r = RET_ERROR;
 		if( RET_WAS_ERROR(r) ) {
 			fprintf(stderr, "Even more errors extracting information of package '%s'!\n",
 					package);
@@ -662,7 +677,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 	if( verbose > 10 ) {
 		fprintf(stderr, "checking files of '%s'\n", package);
 	}
-	r = files_expectfiles(database, &actualfilekeys, &md5sums);
+	r = files_expectfiles(database, &files.names, files.checksums);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Files are missing for '%s'!\n", package);
 	}
@@ -670,13 +685,12 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 	if( verbose > 10 ) {
 		(void)fprintf(stderr, "checking references to '%s' for '%s': ",
 				target->identifier, package);
-		(void)strlist_fprint(stderr, &actualfilekeys);
+		(void)strlist_fprint(stderr, &files.names);
 		(void)putc('\n', stderr);
 	}
-	r = references_check(database, target->identifier, &actualfilekeys);
+	r = references_check(database, target->identifier, &files.names);
 	RET_UPDATE(result,r);
-	strlist_done(&actualfilekeys);
-	strlist_done(&md5sums);
+	checksumsarray_done(&files);
 	return result;
 }
 
@@ -695,7 +709,7 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 		fprintf(stderr,"Reapplying overrides packages in '%s'...\n",target->identifier);
 	}
 
-	r = table_newglobaluniqcursor(table, &cursor);
+	r = table_newglobalcursor(table, &cursor);
 	if( !RET_IS_OK(r) )
 		return r;
 	result = RET_NOTHING;
@@ -707,11 +721,12 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) ) {
 			if( verbose > 0 )
-				fputs("target_reoverride: Stopping procession of further packages due to previous errors\n", stderr);
+				(void)fputs("target_reoverride: Stopping procession of further packages due to previous errors\n", stderr);
 			break;
 		}
 		if( RET_IS_OK(r) ) {
-			r = cursor_replace(table, cursor, newcontrolchunk);
+			r = cursor_replace(table, cursor,
+				newcontrolchunk, strlen(newcontrolchunk));
 			free(newcontrolchunk);
 			if( RET_WAS_ERROR(r) )
 				return r;
@@ -725,7 +740,7 @@ retvalue target_reoverride(UNUSED(void *dummy), struct target *target, struct di
 
 /* export a database */
 
-retvalue target_export(struct target *target, const char *confdir, struct database *database, bool onlyneeded, bool snapshot, struct release *release) {
+retvalue target_export(struct target *target, struct database *database, bool onlyneeded, bool snapshot, struct release *release) {
 	retvalue result,r;
 	bool onlymissing;
 
@@ -743,7 +758,7 @@ retvalue target_export(struct target *target, const char *confdir, struct databa
 	/* not exporting if file is already there? */
 	onlymissing = onlyneeded && !target->wasmodified;
 
-	result = export_target(confdir,target->relativedirectory,
+	result = export_target(target->relativedirectory,
 				target->packages,
 				target->exportmode,
 				release,
@@ -772,7 +787,7 @@ retvalue package_rerunnotifiers(UNUSED(struct database *da), struct distribution
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = target->getfilekeys(target, chunk, &filekeys, NULL);
+	r = target->getfilekeys(chunk, &filekeys);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr,"Error extracting information about used files from package '%s'!\n",package);
 		free(version);

@@ -30,12 +30,12 @@
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"
+#include "filecntl.h"
 #include "strlist.h"
 #include "dirs.h"
 #include "names.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "chunks.h"
-#include "copyfile.h"
 #include "target.h"
 #include "signature.h"
 #include "binaries.h"
@@ -88,7 +88,6 @@ struct incoming {
 	struct strlist files;
 	bool *processed;
 	bool *delete;
-	struct strlist md5sums;
 	bool permit[pmf_COUNT];
 	bool cleanup[cuf_COUNT];
 	/* only to ease parsing: */
@@ -109,7 +108,6 @@ static void incoming_free(/*@only@*/ struct incoming *i) {
 	strlist_done(&i->files);
 	free(i->processed);
 	free(i->delete);
-	strlist_done(&i->md5sums);
 	free(i);
 }
 
@@ -139,7 +137,7 @@ static retvalue incoming_prepare(struct incoming *i) {
 			continue;
 		r = strlist_add_dup(&i->files, ent->d_name) ;
 		if( RET_WAS_ERROR(r) ) {
-			closedir(dir);
+			(void)closedir(dir);
 			return r;
 		}
 	}
@@ -149,9 +147,6 @@ static retvalue incoming_prepare(struct incoming *i) {
 		fprintf(stderr, "Error scaning '%s': %s\n", i->directory, strerror(e));
 		return RET_ERRNO(e);
 	}
-	r = strlist_init_n(i->files.count,&i->md5sums);
-	if( RET_WAS_ERROR(r) )
-		return r;
 	i->processed = calloc(i->files.count, sizeof(bool));
 	if( i->processed == NULL )
 		return RET_ERROR_OOM;
@@ -405,11 +400,12 @@ struct candidate {
 		filetype type;
 		/* all NULL if it is the .changes itself,
 		 * otherwise the data from the .changes for this file: */
-		char *md5sum;
 		char *section;
 		char *priority;
 		char *architecture;
 		char *name;
+		/* like above, but updated once files are copied */
+		struct checksums *checksums;
 		/* set later */
 		bool used;
 		char *tempfilename;
@@ -445,7 +441,7 @@ struct candidate {
 };
 
 static void candidate_file_free(/*@only@*/struct candidate_file *f) {
-	free(f->md5sum);
+	checksums_free(f->checksums);
 	free(f->section);
 	free(f->priority);
 	free(f->architecture);
@@ -455,7 +451,7 @@ static void candidate_file_free(/*@only@*/struct candidate_file *f) {
 	if( f->type == fe_DSC )
 		sources_done(&f->dsc);
 	if( f->tempfilename != NULL ) {
-		unlink(f->tempfilename);
+		(void)unlink(f->tempfilename);
 		free(f->tempfilename);
 		f->tempfilename = NULL;
 	}
@@ -567,17 +563,24 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 
 static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, const char *fileline) {
 	struct candidate_file **p, *n;
-	char *basename;
+	char *basename, *md5sum;
 	retvalue r;
 
 	n = calloc(1,sizeof(struct candidate_file));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &n->type, &basename, &n->md5sum,
+	r = changes_parsefileline(fileline, &n->type, &basename, &md5sum,
 			&n->section, &n->priority, &n->architecture, &n->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
+		return r;
+	}
+	r = checksums_set(&n->checksums, md5sum);
+	free(md5sum);
+	if( RET_WAS_ERROR(r) ) {
+		free(basename);
+		candidate_file_free(n);
 		return r;
 	}
 	n->ofs = strlist_ofs(&i->files, basename);
@@ -686,7 +689,9 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 static retvalue candidate_usefile(const struct incoming *i,const struct candidate *c,struct candidate_file *file) {
 	const char *basename;
 	char *origfile,*tempfilename;
+	struct checksums *readchecksums;
 	retvalue r;
+	bool improves;
 	const char *p;
 
 	if( file->used && file->tempfilename != NULL )
@@ -707,18 +712,40 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		free(tempfilename);
 		return RET_ERROR_OOM;
 	}
-	unlink(tempfilename);
-	r = copy(tempfilename, origfile, file->md5sum, (file->md5sum==NULL)?&file->md5sum:NULL);
+	(void)unlink(tempfilename);
+	r = checksums_copyfile(tempfilename, origfile, &readchecksums);
 	free(origfile);
 	if( RET_WAS_ERROR(r) ) {
 		free(tempfilename);
-		// ...
 		return r;
 	}
+	if( file->checksums == NULL ) {
+		file->checksums = readchecksums;
+		file->tempfilename = tempfilename;
+		file->used = true;
+		return RET_OK;
+	}
+	if( !checksums_check(file->checksums, readchecksums, &improves) ) {
+		fprintf(stderr, "ERROR: File '%s' does not match expectations:\n", basename);
+		checksums_printdifferences(stderr, file->checksums, readchecksums);
+		checksums_free(readchecksums);
+		deletefile(tempfilename);
+		free(tempfilename);
+		return RET_ERROR_WRONG_MD5;
+	}
+	if( improves ) {
+		r = checksums_combine(&file->checksums, readchecksums);
+		if( RET_WAS_ERROR(r) ) {
+			checksums_free(readchecksums);
+			deletefile(tempfilename);
+			free(tempfilename);
+			return r;
+		}
+	}
+	checksums_free(readchecksums);
 	file->tempfilename = tempfilename;
 	file->used = true;
 	return RET_OK;
-
 }
 
 static inline retvalue getsectionprioritycomponent(const struct incoming *i,const struct candidate *c,const struct distribution *into,const struct candidate_file *file, const char *name, const struct overrideinfo *oinfo, /*@out@*/const char **section_p, /*@out@*/const char **priority_p, /*@out@*/char **component) {
@@ -812,27 +839,23 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 	return RET_OK;
 }
 
-static retvalue candidate_read_dsc(struct candidate_file *file) {
+static retvalue candidate_read_dsc(struct incoming *i, struct candidate_file *file) {
 	retvalue r;
 	bool broken = false;
 	char *p;
 
-	r = sources_readdsc(&file->dsc, file->tempfilename, &broken);
+	r = sources_readdsc(&file->dsc, file->tempfilename,
+			BASENAME(i, file->ofs), &broken);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	p = calc_source_basename(file->dsc.name,
 			file->dsc.version);
 	if( p == NULL )
 		return RET_ERROR_OOM;
-	r = strlist_include(&file->dsc.basenames, p);
-	if( RET_WAS_ERROR(r) )
+	r = checksumsarray_include(&file->dsc.files, p, file->checksums);
+	if( RET_WAS_ERROR(r) ) {
 		return r;
-	p = strdup(file->md5sum);
-	if( p == NULL )
-		return RET_ERROR_OOM;
-	r = strlist_include(&file->dsc.md5sums, p);
-	if( RET_WAS_ERROR(r) )
-		return r;
+	}
 	// TODO: take a look at "broken"...
 	return RET_OK;
 }
@@ -858,7 +881,7 @@ static retvalue candidate_read_files(struct incoming *i, struct candidate *c) {
 		if( FE_BINARY(file->type) )
 			r = candidate_read_deb(i, c, file);
 		else if( file->type == fe_DSC )
-			r = candidate_read_dsc(file);
+			r = candidate_read_dsc(i, file);
 		else {
 			r = RET_ERROR;
 			assert( FE_BINARY(file->type) || file->type == fe_DSC );
@@ -889,11 +912,11 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 
 	file = changesfile(c);
 
-	/* copy the .changes file, to get its md5sum and be sure it is
-	 * still there */
+	/* make sure the file is already copied */
 	assert( file->used );
-	assert( file->md5sum != NULL );
+	assert( file->checksums != NULL );
 
+	/* pseudo package containing the .changes file */
 	package = candidate_newpackage(per, c->files);
 	if( package == NULL )
 		return RET_ERROR_OOM;
@@ -915,7 +938,7 @@ static retvalue candidate_preparechangesfile(struct database *database,const str
 	package->files = calloc(1, sizeof(struct candidate_file *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(database, filekey, file->md5sum);
+	r = files_canadd(database, filekey, file->checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) )
@@ -968,16 +991,78 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	package->files = calloc(1, sizeof(struct candidate_file *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(database, filekey, file->md5sum);
+	r = files_canadd(database, filekey, file->checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( RET_IS_OK(r) )
 		package->files[0] = file;
-	r = binaries_complete(&file->deb, filekey, file->md5sum, oinfo,
+	r = binaries_complete(&file->deb, filekey, file->checksums, oinfo,
 			section, priority, &package->control);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	return RET_OK;
+}
+
+static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const struct checksums *checksums, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
+	struct candidate_file *f;
+	retvalue r;
+
+	f = c->files;
+	while( f != NULL && (f->checksums == NULL ||
+				strcmp(BASENAME(i, f->ofs), basename) != 0) )
+		f = f->next;
+
+	if( f == NULL ) {
+		r = files_canadd(database, filekey, checksums);
+		if( !RET_IS_OK(r) )
+			return r;
+		/* no file by this name and also no file with these
+		 * characteristics in the pool, look for differently-named
+		 * file with the same characteristics: */
+
+		f = c->files;
+		while( f != NULL && ( f->checksums == NULL ||
+					!checksums_check(f->checksums,
+						checksums, NULL)))
+			f = f->next;
+
+		if( f == NULL ) {
+			fprintf(stderr, "file '%s' is needed for '%s', not yet registered in the pool and not found in '%s'\n",
+					basename, BASENAME(i, package_ofs),
+					BASENAME(i, c->ofs));
+			return RET_ERROR;
+		}
+		/* otherwise proceed with the found file: */
+	}
+
+	// TODO: is the error message sensible?
+	// perhaps currently, but in the future when .changes or .dsc
+	// can have additional hashes, they might not conflict with each
+	// other, but with the file's hash previously computed...
+	if( !checksums_check(f->checksums, checksums, NULL) ) {
+		fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
+				basename,
+				BASENAME(i, c->ofs),
+				BASENAME(i, package_ofs));
+		return RET_ERROR;
+	}
+	r = files_canadd(database, filekey, f->checksums);
+	if( r == RET_NOTHING ) {
+		/* already in the pool, mark as used (in the sense
+		 * of "only not needed because it is already there") */
+		f->used = true;
+
+	} else if( RET_IS_OK(r) ) {
+		/* don't have this file in the pool, make sure it is ready
+		 * here */
+
+		r = candidate_usefile(i, c, f);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		// TODO: update checksums to now received checksums?
+		*foundfile_p = f;
+	}
+	return r;
 }
 
 static retvalue prepare_dsc(struct database *database,const struct incoming *i,const struct candidate *c,struct candidate_perdistribution *per,const struct candidate_file *file) {
@@ -1032,7 +1117,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	if( RET_IS_OK(r) )
 		r = properversion(file->dsc.version);
 	if( RET_IS_OK(r) )
-		r = properfilenames(&file->dsc.basenames);
+		r = properfilenames(&file->dsc.files.names);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	oinfo = override_search(into->overrides.dsc, file->dsc.name);
@@ -1045,66 +1130,23 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	package->directory = calc_sourcedir(package->component, file->dsc.name);
 	if( package->directory == NULL )
 		return RET_ERROR_OOM;
-	r = calc_dirconcats(package->directory, &file->dsc.basenames, &package->filekeys);
+	r = calc_dirconcats(package->directory, &file->dsc.files.names, &package->filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	package->files = calloc(package->filekeys.count,sizeof(struct candidate *));
 	if( package->files == NULL )
 		return RET_ERROR_OOM;
-	r = files_ready(database, package->filekeys.values[0], file->md5sum);
+	r = files_canadd(database, package->filekeys.values[0], file->checksums);
 	if( RET_IS_OK(r) )
 		package->files[0] = file;
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( j = 1 ; j < package->filekeys.count ; j++ ) {
-		const char *filekey = package->filekeys.values[j];
-		const char *basename = file->dsc.basenames.values[j];
-		const char *md5sum = file->dsc.md5sums.values[j];
-		struct candidate_file *f = c->files;
-
-		while( f != NULL && (f->md5sum == NULL ||
-				     strcmp(BASENAME(i,f->ofs), basename) != 0) )
-			f = f->next;
-
-		if( f != NULL && strcmp(f->md5sum,md5sum) != 0 ) {
-			fprintf(stderr, "file '%s' is listed with md5sum '%s' in '%s' but with md5sum '%s' in '%s'!\n",
-					basename,
-					f->md5sum, BASENAME(i,c->ofs),
-					md5sum, BASENAME(i,file->ofs));
-			return RET_ERROR;
-		}
-		r = files_ready(database, filekey, md5sum);
-		if( r == RET_NOTHING ) {
-			/* already in the pool, mark as used (in the sense
-			 * of "only not needed because it is already there") */
-
-			if( f != NULL )
-				f->used = true;
-
-		} else if( RET_IS_OK(r) ) {
-			/* don't have this file in the pool, make sure it is ready
-			 * here */
-
-			if( f == NULL ) {
-				/* if md5sum and size match, it's our file */
-				f = c->files;
-				while( f != NULL && ( f->md5sum == NULL
-				                 || strcmp(f->md5sum,md5sum)) != 0 )
-					f = f->next;
-			}
-
-			if( f == NULL ) {
-				fprintf(stderr, "file '%s' is needed for '%s', not yet registered in the pool and not found in '%s'\n",
-						basename, BASENAME(i,file->ofs),
-						BASENAME(i,c->ofs));
-				return RET_ERROR;
-			}
-
-			r = candidate_usefile(i,c, f);
-			if( RET_WAS_ERROR(r) )
-				return r;
-			package->files[j] = f;
-		}
+		r = prepare_source_file(database, i, c,
+				package->filekeys.values[j],
+				file->dsc.files.names.values[j],
+				file->dsc.files.checksums[j],
+				file->ofs, &package->files[j]);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -1191,14 +1233,16 @@ static retvalue candidate_addfiles(struct database *database,struct candidate *c
 				if(  f == NULL )
 					continue;
 				assert(f->tempfilename != NULL);
-				r = files_hardlink(database, f->tempfilename,
+				r = files_hardlinkandadd(database,
+						f->tempfilename,
 						p->filekeys.values[j],
-						f->md5sum);
+						f->checksums);
 				if( !RET_IS_OK(r) )
 					/* when we did not add it, do not remove it: */
 					p->files[j] = NULL;
 				if( RET_WAS_ERROR(r) ) {
-					candidate_removefiles(database, c, d, p, j);
+					(void)candidate_removefiles(database,
+							c, d, p, j);
 					return r;
 				}
 			}
@@ -1288,7 +1332,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 		r = trackingdata_summon(tracks, c->source, c->sourceversion,
 				&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
-			tracking_done(tracks);
+			(void)tracking_done(tracks);
 			return r;
 		}
 		if( into->trackingoptions.needsources ) {
@@ -1559,7 +1603,7 @@ static retvalue candidate_add(const char *confdir, const char *overridedir,struc
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( interrupted() ) {
-		candidate_removefiles(database,c,NULL,NULL,0);
+		(void)candidate_removefiles(database,c,NULL,NULL,0);
 		return RET_ERROR_INTERRUPTED;
 	}
 	r = RET_OK;
@@ -1717,7 +1761,7 @@ retvalue process_incoming(const char *basedir,const char *confdir,const char *ov
 		}
 		if( verbose >= 3 )
 			printf("deleting '%s'...\n", fullfilename);
-		copyfile_delete(fullfilename);
+		deletefile(fullfilename);
 		free(fullfilename);
 	}
 	incoming_free(i);

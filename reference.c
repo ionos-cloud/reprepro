@@ -22,165 +22,65 @@
 #include <stdio.h>
 #include <malloc.h>
 #include <string.h>
-#include <db.h>
 
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "database_p.h"
 #include "reference.h"
 
-struct references {
-	DB *db;
-};
-
 extern int verbose;
 
-retvalue references_done(struct references *refs) {
-	int r;
-	if( refs == NULL )
-		return RET_NOTHING;
-	r = refs->db->close(refs->db,0);
-	free(refs);
-	if( r == 0 )
-		return RET_OK;
-	else
-		return RET_DBERR(r);
-}
-
-retvalue references_initialize(struct references **refs,struct database *database) {
-	retvalue r;
-	struct references *ref;
-
-	/* what stupidities are done for abstraction... */
-	ref = malloc(sizeof(*ref));
-	if( ref == NULL )
-		return RET_ERROR_OOM;
-
-	r = database_opentable(database, "references.db", "references",
-			DB_BTREE, DB_DUPSORT, NULL, false, &ref->db);
-	if( RET_WAS_ERROR(r) ) {
-		free(ref);
-		return r;
-	}
-	*refs = ref;
-	return RET_OK;
-}
-
 retvalue references_isused(struct database *database,const char *what) {
-	int dbret;
-	DBT key,data;
-	struct references *refs = database->references;
-
-	SETDBT(key,what);
-	CLEARDBT(data);
-	if( (dbret = refs->db->get(refs->db, NULL, &key, &data, 0)) == 0){
-		return RET_OK;
-	} else if( dbret == DB_NOTFOUND ){
-		return RET_NOTHING;
-	} else {
-		refs->db->err(refs->db, dbret, "references.db:");
-		return RET_DBERR(dbret);
-	}
+	return table_gettemprecord(database->references, what, NULL, NULL);
 }
 
-static retvalue references_checksingle(struct database *database,const char *what,const char *by) {
-	int dbret;
-	retvalue r;
-	DBT key,data;
-	DBC *cursor;
-	struct references *refs = database->references;
-
-	cursor = NULL;
-	if( (dbret = refs->db->cursor(refs->db,NULL,&cursor,0)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_check dberror:");
-		return RET_DBERR(dbret);
-	}
-	SETDBT(key,what);
-	SETDBT(data,by);
-	if( (dbret=cursor->c_get(cursor,&key,&data,DB_GET_BOTH)) == 0 ) {
-		r = RET_OK;
-	} else
-	if( dbret != DB_NOTFOUND ) {
-		refs->db->err(refs->db, dbret, "references_check dberror(get):");
-		return RET_DBERR(dbret);
-	} else {
-		fprintf(stderr,"Missing reference to '%s' by '%s'\n",what,by);
-		r = RET_ERROR;
-	}
-	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_check dberror(cl):");
-		return RET_DBERR(dbret);
-	}
-	return r;
-}
 retvalue references_check(struct database *database,const char *referee,const struct strlist *filekeys) {
 	int i;
-	retvalue ret,r;
+	retvalue result, r;
 
-	ret = RET_NOTHING;
+	result = RET_NOTHING;
 	for( i = 0 ; i < filekeys->count ; i++ ) {
-		r = references_checksingle(database, filekeys->values[i], referee);
-		RET_UPDATE(ret,r);
-
+		r = table_checkrecord(database->references,
+				filekeys->values[i], referee);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Missing reference to '%s' by '%s'\n",
+					filekeys->values[i], referee);
+			r = RET_ERROR;
+		}
+		RET_UPDATE(result, r);
 	}
-	return ret;
+	return result;
 }
 
 /* add an reference to a file for an identifier. multiple calls */
 retvalue references_increment(struct database *database,const char *needed,const char *neededby) {
-	int dbret;
-	DBT key,data;
-	struct references *refs = database->references;
+	retvalue r;
 
-	SETDBT(key,needed);
-	SETDBT(data,neededby);
-	if ((dbret = refs->db->put(refs->db, NULL, &key, &data, 0)) == 0) {
-		if( verbose > 8 )
-			printf("Adding reference to '%s' by '%s'\n", needed,neededby);
-		return RET_OK;
-	} else {
-		refs->db->err(refs->db, dbret, "references_increment dberror:");
-		return RET_DBERR(dbret);
-	}
+	r = table_addrecord(database->references, needed,
+			neededby, strlen(neededby), false);
+	if( RET_IS_OK(r) && verbose > 8 )
+		printf("Adding reference to '%s' by '%s'\n", needed,neededby);
+	return r;
 }
 
 /* remove reference for a file from a given reference */
 retvalue references_decrement(struct database *database,const char *needed,const char *neededby) {
-	struct references *refs = database->references;
-	DBC *cursor;
-	DBT key,data;
-	int dbret;
 	retvalue r;
 
-	r = RET_OK;
-	cursor = NULL;
-	if( (dbret = refs->db->cursor(refs->db,NULL,&cursor,0)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_decrement dberror:");
-		return RET_DBERR(dbret);
+	r = table_removerecord(database->references, needed, neededby);
+	if( r == RET_NOTHING )
+		return r;
+	if( RET_WAS_ERROR(r) ) {
+		fprintf(stderr,
+"Error while trying to removing reference to '%s' by '%s'\n",
+				needed, neededby);
+		return r;
 	}
-	SETDBT(key,needed);
-	SETDBT(data,neededby);
-	if( (dbret=cursor->c_get(cursor,&key,&data,DB_GET_BOTH)) == 0 ) {
-			if( verbose > 8 )
-				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
-					(const char *)key.data,neededby);
-			dbret = cursor->c_del(cursor,0);
-			if( dbret != 0 ) {
-				refs->db->err(refs->db, dbret, "references_decrement dberror(del):");
-				RET_UPDATE(r,RET_DBERR(dbret));
-			}
-	} else
-	if( dbret != DB_NOTFOUND ) {
-		refs->db->err(refs->db, dbret, "references_decrement dberror(get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_decrement dberror(cl):");
-		return RET_DBERR(dbret);
-	}
+	if( verbose > 8 )
+		fprintf(stderr,"Removed reference to '%s' by '%s'\n",
+				needed, neededby);
 	return r;
 }
 
@@ -206,22 +106,15 @@ retvalue references_insert(struct database *database,const char *identifier,
 
 /* add possible already existing references */
 retvalue references_add(struct database *database,const char *identifier,const struct strlist *files) {
-	struct references *refs = database->references;
-	int dbret;
 	int i;
-	DBT key,data;
+	retvalue r;
 
 	for( i = 0 ; i < files->count ; i++ ) {
 		const char *filekey = files->values[i];
-		SETDBT(key,filekey);
-		SETDBT(data,identifier);
-		if ((dbret = refs->db->put(refs->db, NULL, &key, &data, DB_NODUPDATA)) == 0) {
-			if( verbose > 8 )
-				fprintf(stderr,"Added reference to '%s' by '%s'\n", filekey, identifier);
-		} else if( dbret != DB_KEYEXIST) {
-			refs->db->err(refs->db, dbret, "references_add dberror:");
-			return RET_DBERR(dbret);
-		}
+		r = table_addrecord(database->references, filekey,
+				identifier, strlen(identifier), true);
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	return RET_OK;
 }
@@ -261,99 +154,37 @@ retvalue references_delete(struct database *database,const char *identifier,
 /* remove all references from a given identifier */
 retvalue references_remove(struct database *database,const char *neededby,
 		struct strlist *dereferenced) {
-	struct references *refs = database->references;
-	DBC *cursor;
-	DBT key,data;
-	int dbret;
-	retvalue r;
-	size_t l;
+	struct cursor *cursor;
+	retvalue result, r;
+	const char *found_to, *found_by;
+	size_t datalen, l;
 
-	r = RET_NOTHING;
-	cursor = NULL;
-	if( (dbret = refs->db->cursor(refs->db,NULL,&cursor,0)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_remove dberror(cursor):");
-		return RET_DBERR(dbret);
-	}
+	r = table_newglobalcursor(database->references, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+
 	l = strlen(neededby);
-	CLEARDBT(key);
-	CLEARDBT(data);
-	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		const char *found_to = key.data;
-		const char *found_by = data.data;
-		if( strncmp( found_by,neededby,l) == 0 &&
+
+	result = RET_NOTHING;
+	while( cursor_nexttempdata(database->references, cursor,
+				&found_to, &found_by, &datalen) ) {
+
+		if( datalen >= l && strncmp(found_by, neededby, l) == 0 &&
 		    (found_by[l] == '\0' || found_by[l] == ' ')) {
 			if( verbose > 8 )
 				fprintf(stderr,"Removing reference to '%s' by '%s'\n",
 					found_to,neededby);
-			dbret = cursor->c_del(cursor,0);
-			if( dbret == 0 ) {
-				if( dereferenced != NULL ) {
-					char *f = strndup(key.data,key.size-1);
-					retvalue r2;
-					if( f == NULL ) {
-						r = RET_ERROR_OOM;
-						continue;
-					}
-					r2 = strlist_add(dereferenced, f);
-					if( RET_WAS_ERROR(r2) ) {
-						r = r2;
-					}
-				}
-			} else {
-				refs->db->err(refs->db, dbret, "references_remove dberror(del):");
-				RET_UPDATE(r,RET_DBERR(dbret));
+			r = cursor_delete(database->references, cursor,
+					found_to, NULL);
+			RET_UPDATE(result, r);
+			if( RET_IS_OK(r) && dereferenced != NULL ) {
+				r = strlist_add_dup(dereferenced, found_to);
+				RET_ENDUPDATE(result, r);
 			}
 		}
 	}
-	if( dbret != DB_NOTFOUND ) {
-		refs->db->err(refs->db, dbret, "references_remove dberror(get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_remove dberror(cl):");
-		return RET_DBERR(dbret);
-	}
-	return r;
-}
-
-/* print out all referee-referenced-pairs. */
-retvalue references_dump(struct database *database) {
-	struct references *refs = database->references;
-	DBC *cursor;
-	DBT key,data;
-	int dbret;
-	retvalue result;
-
-	cursor = NULL;
-	if( (dbret = refs->db->cursor(refs->db,NULL,&cursor,0)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_dump dberror(cursor):");
-		return RET_DBERR(dbret);
-	}
-	CLEARDBT(key);
-	CLEARDBT(data);
-	result = RET_NOTHING;
-	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		const char *found_to = (const char*)key.data;
-		const char *found_by = (const char*)data.data;
-		if( fputs(found_by,stdout) == EOF ||
-		    putchar(' ') == EOF ||
-		    puts(found_to) == EOF ) {
-			result = RET_ERROR;
-			break;
-		}
-		result = RET_OK;
-		if( interrupted() ) {
-			result = RET_ERROR_INTERRUPTED;
-			break;
-		}
-	}
-	if( dbret != DB_NOTFOUND && dbret != 0 ) {
-		refs->db->err(refs->db, dbret, "references_dump dberror(get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret = cursor->c_close(cursor)) != 0 ) {
-		refs->db->err(refs->db, dbret, "references_dump dberror:");
-		return RET_DBERR(dbret);
-	}
+	r = cursor_close(database->references, cursor);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
+

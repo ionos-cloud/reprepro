@@ -31,6 +31,7 @@ extern int verbose;
 //TODO: this should now also be able to parse \r\n terminated lines instead
 // of only \n terminated oned. Though this has still to be tested properly...
 
+static retvalue chunk_read(gzFile f,char **chunk);
 /* Call action for each chunk in <filename> */
 retvalue chunk_foreach(const char *filename, chunkaction action, void *data, bool stopwhenok){
 	gzFile f;
@@ -738,5 +739,54 @@ char *chunk_replacefield(const char *chunk,const char *fieldname,const char *dat
 	toadd.len_data = strlen(data);
 	toadd.next = NULL;
 	return chunk_replacefields(chunk,&toadd,fieldname);
+}
+
+/* this is a bit wastefull, as with normaly perfect formated input, it just
+ * writes everything to itself in a inefficent way. But when there are \r
+ * in it or spaces before it or stuff like that, it will be in perfect
+ * form afterwards. */
+size_t chunk_extract(char *buffer, const char *start, char **next) {
+	const char *startofchanges, *endofchanges, *afterchanges;
+	char *p;
+
+	assert( start >= buffer);
+	p = buffer;
+	startofchanges = start;
+	while( *startofchanges == ' ' || *startofchanges == '\t' ||
+			*startofchanges == '\r' || *startofchanges =='\n' )
+		startofchanges++;
+
+	endofchanges = startofchanges;
+	afterchanges = NULL;
+	while( *endofchanges != '\0' ) {
+		if( *endofchanges == '\n' ) {
+			*(p++) = *(endofchanges++);
+			afterchanges = endofchanges;
+			while( *afterchanges =='\r' )
+				afterchanges++;
+			if( *afterchanges == '\n' )
+				break;
+			endofchanges = afterchanges;
+			afterchanges = NULL;
+		} else {
+			*(p++) = *(endofchanges++);
+		}
+	}
+
+	if( afterchanges == NULL ) {
+		afterchanges = endofchanges;
+		assert( *afterchanges == '\0' );
+		assert( p <= afterchanges );
+		*p = '\0';
+	} else {
+		assert( *afterchanges == '\n' );
+		afterchanges++;
+		assert( p < afterchanges );
+		*p = '\0';
+		while( *afterchanges == '\n' || *afterchanges =='\r' )
+			afterchanges++;
+	}
+	*next = buffer + (afterchanges-buffer);
+	return p-buffer;
 }
 

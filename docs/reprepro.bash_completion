@@ -74,7 +74,7 @@ _reprepro()
 	--keepunneededlists --keepdirectories\
 	--ask-passphrase --nonothingiserror --listsdownload\
 	--nokeepunreferencesfiles --nokeepunneededfiles --nokeepdirectories\
-	--noask-passphrase --skipold --noskipold'
+	--noask-passphrase --skipold --noskipold --nooldfilesdb --oldfilesdb'
 	options='-b -i --basedir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \
@@ -184,12 +184,13 @@ _reprepro()
 		commands='remove list listfilter createsymlinks export\
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
-			tidytracks removealltracks removetrack update checkupdate predelete pull\
+			tidytracks removealltracks removetrack update checkupdate \
+			predelete pull collectnewchecksums\
 			checkpull includedeb includeudeb includedsc include\
 			translatefilelists\
 			generatefilelists clearvanished copy processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
-			_listmd5sums _addmd5sums _dumpcontents\
+			_listmd5sums _listchecksums _addchecksums _dumpcontents\
 			_removereferences _addreference _versioncompare _fakeemptyfilelist'
 
 		if [[ "$cur" == -* ]]; then
@@ -247,6 +248,20 @@ _reprepro()
 				COMPREPLY=( $( compgen -W "$importrules" -- $cur ) )
 				return 0
 			fi
+			;;
+
+		collectnewchecksums)
+			return 0
+			;;
+
+		checkpool)
+			# first argument can be fast
+			if [[ $i -eq $COMP_CWORD ]] ; then
+				parse_config
+				COMPREPLY=( $( compgen -W "fast" -- $cur ) )
+				return 0
+			fi
+			return 0
 			;;
 
 		includedeb)

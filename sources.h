@@ -10,24 +10,25 @@
 #endif
 
 /* Calculate the filelines in a form suitable for chunk_replacefields: */
-retvalue sources_calcfilelines(const struct strlist *basenames,const struct strlist *md5sums,/*@out@*/char **item);
+retvalue sources_calcfilelines(const struct checksumsarray *, /*@out@*/char **item);
 
 /* Functions for the target.h-stuff: */
 retvalue sources_getname(struct target * t,const char *chunk,/*@out@*/char **packagename);
 retvalue sources_getversion(struct target *t,const char *chunk,/*@out@*/char **version);
-retvalue sources_getinstalldata(struct target *t,const char *packagename,const char *version,const char *chunk,char **control,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums,/*@out@*/struct strlist *origfiles);
-retvalue sources_getfilekeys(struct target *t,const char *chunk,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sums);
+retvalue sources_getinstalldata(struct target *t, const char *packagename, const char *version, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
+retvalue sources_getfilekeys(const char *, /*@out@*/struct strlist *);
+retvalue sources_getchecksums(const char *, /*@out@*/struct checksumsarray *);
 char *sources_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-retvalue sources_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,struct database *);
+retvalue sources_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *);
 retvalue sources_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
 /* Functions for checkindsc.c and incoming.c: */
 struct dsc_headers {
 	char *name, *version;
 	char *control;
-	struct strlist basenames, md5sums;
+	struct checksumsarray files;
 	/* normaly not in a .dsc file: */
 	/*@null@*/ char *section, *priority;
 };
@@ -37,7 +38,7 @@ struct dsc_headers {
  * - does not follow retvalue conventions, some fields may be set even when
  *   error returned
  * - no checks for sanity of values, left to the caller */
-retvalue sources_readdsc(struct dsc_headers *, const char *filename, bool *broken);
+retvalue sources_readdsc(struct dsc_headers *, const char *filename, const char *filenametoshow, bool *broken);
 
 void sources_done(struct dsc_headers *);
 

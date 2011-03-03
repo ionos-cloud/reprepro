@@ -26,7 +26,6 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
-#include "md5sum.h"
 #include "pull.h"
 #include "upgradelist.h"
 #include "distribution.h"

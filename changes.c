@@ -153,6 +153,12 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 			type = fe_TAR;
 		else if( p-versionstart > 9 && strncmp(p-9,".diff.bz2",9) == 0 )
 			type = fe_DIFF;
+		else if( p-versionstart > 14 && strncmp(p-14,".orig.tar.lzma",14) == 0 )
+			type = fe_ORIG;
+		else if( p-versionstart > 9 && strncmp(p-9,".tar.lzma",9) == 0 )
+			type = fe_TAR;
+		else if( p-versionstart > 10 && strncmp(p-10,".diff.lzma",10) == 0 )
+			type = fe_DIFF;
 		else {
 			type = fe_UNKNOWN;
 			fprintf(stderr,"Unknown filetype: '%s', assuming to be source format...\n",fileline);

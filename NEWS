@@ -1,3 +1,26 @@
+Updates between 3.1.0 and 3.3.0:
+- add support for different checksums.
+  The new checksums.db which stores all the checksums, while
+  files.db still only stores md5sum and is the canonical information,
+  when it exists. This way repositories keep backward compatible.
+  A repository generated with --nooldfilesdb only has checksums.db
+  and will not work with reprepro version prior to 3.3.
+  New command collectnewchecksums to calculate checksums missing
+  in the database.
+
+Updates between 3.0.1 and 3.1.0:
+- add sha1 hashes to the generated Release files.
+  the changes semantics needed in the release.caches.db file for this
+  should be transient. This will only cause index files without
+  uncompressed variants to be regenerated once uppon upgrade, but
+  switching back and forth between previous versions and this or
+  later versions will cause regenerating of unchanged files.
+- internal changes of reading of text files (.dsc/.changes/Release/
+  control from .deb). Should not make any difference with normal input,
+  and make the situation better with strange input.
+- source packages now can have .tar und .diff lzma compressed
+  (still missing is support for lzma compressed binary packages)
+
 Updates between 3.0.0 and 3.0.1:
 - the default for --export is now "changed", as the old default was
   just too confusing most of the time.

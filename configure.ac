@@ -4,7 +4,7 @@ dnl
 
 AC_INIT(main.c)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(reprepro,3.0.1)
+AM_INIT_AUTOMAKE(reprepro,3.3.0)
 
 AM_MAINTAINER_MODE
 AC_GNU_SOURCE
@@ -14,6 +14,10 @@ AC_PROG_INSTALL
 AC_SYS_LARGEFILE
 
 AC_HEADER_STDBOOL
+AC_CHECK_FUNCS([closefrom])
+AC_CHECK_FUNCS([strndup])
+AC_CHECK_FUNCS([dprintf])
+AC_CHECK_FUNC([vasprintf],,[AC_MSG_ERROR([Could not find vasprintf implementation!])])
 
 DBLIBS=""
 DBCPPFLAGS=""

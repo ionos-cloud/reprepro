@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include "error.h"
 #include "database.h"
+#include "checksums.h"
 #include "freespace.h"
 
 struct device {
@@ -150,7 +151,7 @@ retvalue space_prepare(struct database *database,struct devices **devices,enum s
 	return RET_OK;
 }
 
-retvalue space_needed(struct devices *devices,const char *filename,const char *md5sum) {
+retvalue space_needed(struct devices *devices, const char *filename, const struct checksums *checksums) {
 	size_t l = strlen(filename);
 	char buffer[l+1];
 	struct stat s;
@@ -159,7 +160,6 @@ retvalue space_needed(struct devices *devices,const char *filename,const char *m
 	retvalue r;
 	fsblkcnt_t blocks;
 	off_t filesize;
-	const char *p;
 
 	if( devices == NULL )
 		return RET_NOTHING;
@@ -180,25 +180,7 @@ retvalue space_needed(struct devices *devices,const char *filename,const char *m
 	r = device_find_or_create(devices, s.st_dev, buffer, &device);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	p = md5sum;
-	/* over md5 part to the length part */
-	while( *p != ' ' && *p != '\0' )
-		p++;
-	if( *p != ' ' ) {
-		fprintf(stderr, "Cannot extract filesize from '%s'\n", md5sum);
-		return RET_ERROR;
-	}
-	while( *p == ' ' )
-		p++;
-	filesize = 0;
-	while( *p <= '9' && *p >= '0' ) {
-		filesize = filesize*10 + (*p-'0');
-		p++;
-	}
-	if( *p != '\0' ) {
-		fprintf(stderr, "Cannot extract filesize from '%s'\n", md5sum);
-		return RET_ERROR;
-	}
+	filesize = checksums_getfilesize(checksums);
 	blocks = (filesize + device->blocksize - 1) / device->blocksize;
 	device->needed += 1 + blocks;
 

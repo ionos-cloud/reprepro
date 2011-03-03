@@ -17,9 +17,6 @@
 
 struct references;
 
-retvalue references_initialize(/*@out@*/struct references **ref,struct database *);
-retvalue references_done(/*@only@*/struct references *ref);
-
 /* remove all references from a given identifier */
 retvalue references_remove(struct database *,const char *neededby,/*@null@*/struct strlist *);
 
@@ -51,8 +48,5 @@ retvalue references_isused(struct database *,const char *what);
 
 /* check if a reference is found as expected */
 retvalue references_check(struct database *,const char *referee,const struct strlist *what);
-
-/* print out all referee-referenced-pairs. */
-retvalue references_dump(struct database *);
 
 #endif

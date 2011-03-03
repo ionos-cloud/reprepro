@@ -10,22 +10,6 @@
  * returns RET_NOTHING, if it does not exist.*/
 retvalue md5sum_read(const char *filename,/*@out@*/char **result);
 
-/* copy orig to dest and calculate the md5sum while dooing so.
- * return RET_NOTHING, if does not exist, and RET_ERROR_EXIST, if dest
- * is already existing before. */
-retvalue md5sum_copy(const char *origfilename,const char *destfilename,
-			/*@out@*/char **result);
-/* same as above, but delete existing files and try to hardlink first. */
-retvalue md5sum_place(const char *origfilename,const char *destfilename,
-			/*@out@*/char **result);
-/* return RET_OK, if fullfilename is there and has md5sum md5sum,
- * return RET_NOTHING, if it is not there,
- * return RET_NOTHING and delete it (and warn if warnifwrong) if it has wrong */
-retvalue md5sum_ensure(const char *fullfilename, const char *md5sum, bool warnifwrong);
-
-struct MD5Context;
-retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize);
-
 /* replace the given name by data of size len and return its md5sum */
 retvalue md5sum_replace(const char *filename, const char *data, size_t len, /*@null@*/char **md5sum);
 #endif

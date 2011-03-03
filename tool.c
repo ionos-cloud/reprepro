@@ -28,11 +28,11 @@
 #include <signal.h>
 #include <time.h>
 #include "error.h"
+#include "filecntl.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
 #include "dirs.h"
-#include "copyfile.h"
 #include "md5sum.h"
 #include "chunks.h"
 #include "chunkedit.h"
@@ -98,12 +98,14 @@ static void binaryfile_free(struct binaryfile *p) {
 enum filetype { ft_UNKNOWN,
 			ft_TAR_GZ, ft_ORIG_TAR_GZ, ft_DIFF_GZ,
 	                ft_TAR_BZ2, ft_ORIG_TAR_BZ2, ft_DIFF_BZ2,
+	                ft_TAR_LZMA, ft_ORIG_TAR_LZMA, ft_DIFF_LZMA,
 #define ft_MaxInSource ft_DSC-1
 			ft_DSC, ft_DEB, ft_UDEB , ft_Count};
 #define ft_Max ft_Count-1
 static const char * const typesuffix[ft_Count] = { "?",
 	".tar.gz", ".orig.tar.gz", ".diff.gz",
 	".tar.bz2", ".orig.tar.bz2", ".diff.bz2",
+	".tar.lzma", ".orig.tar.lzma", ".diff.lzma",
 	".dsc", ".deb", ".udeb"};
 
 struct dscfile {
@@ -1338,21 +1340,27 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 						file->fullfilename,
 						f->basename);
 					break;
-				case ft_TAR_GZ: case ft_TAR_BZ2:
+				case ft_TAR_GZ:
+				case ft_TAR_BZ2:
+				case ft_TAR_LZMA:
 					if( has_tar || has_orig )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
 					has_tar = true;
 					break;
-				case ft_ORIG_TAR_GZ: case ft_ORIG_TAR_BZ2:
+				case ft_ORIG_TAR_GZ:
+				case ft_ORIG_TAR_BZ2:
+				case ft_ORIG_TAR_LZMA:
 					if( has_tar || has_orig )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
 					has_orig = true;
 					break;
-				case ft_DIFF_GZ: case ft_DIFF_BZ2:
+				case ft_DIFF_GZ:
+				case ft_DIFF_BZ2:
+				case ft_DIFF_LZMA:
 					if( has_diff )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .diff files!\n",

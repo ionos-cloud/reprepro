@@ -15,6 +15,9 @@
 #ifndef REPREPRO_APTMETHOD_H
 #include "aptmethod.h"
 #endif
+#ifndef REPREPRO_CHECKSUMS_H
+#include "checksums.h"
+#endif
 #ifndef REPREPRO_FREESPACE_H
 #include "freespace.h"
 #endif
@@ -35,12 +38,11 @@ retvalue downloadcache_free(/*@null@*//*@only@*/struct downloadcache *download);
 /* queue a new file to be downloaded:
  * results in RET_ERROR_WRONG_MD5, if someone else already asked
  * for the same destination with other md5sum created. */
-retvalue downloadcache_add(struct downloadcache *cache,struct database *database,struct aptmethod *method,const char *orig,const char *filekey,const char *md5sum);
+retvalue downloadcache_add(struct downloadcache *, struct database *, struct aptmethod *, const char *orig, const char *filekey, const struct checksums *);
 
 /* some as above, only for more files... */
 retvalue downloadcache_addfiles(struct downloadcache *cache,struct database *,
 		struct aptmethod *method,
-		const struct strlist *origfiles,
-		const struct strlist *filekeys,
-		const struct strlist *md5sums);
+		const struct checksumsarray *origfiles,
+		const struct strlist *filekeys);
 #endif

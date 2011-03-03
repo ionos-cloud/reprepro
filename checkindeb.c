@@ -26,11 +26,11 @@
 #include <string.h>
 #include <malloc.h>
 #include <ctype.h>
-#include <zlib.h>
 #include "error.h"
 #include "ignore.h"
+#include "filecntl.h"
 #include "strlist.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "names.h"
 #include "chunks.h"
 #include "checkindeb.h"
@@ -64,8 +64,6 @@ struct debpackage {
 	/* with deb_calclocations: */
 	const char *filekey;
 	struct strlist filekeys;
-	/* with deb_copyfiles or deb_checkfiles: */
-	char *md5sum;
 };
 
 void deb_free(/*@only@*/struct debpackage *pkg) {
@@ -74,7 +72,6 @@ void deb_free(/*@only@*/struct debpackage *pkg) {
 		free(pkg->component);
 		if( pkg->filekey != NULL )
 			strlist_done(&pkg->filekeys);
-		free(pkg->md5sum);
 	}
 	free(pkg);
 }
@@ -106,52 +103,11 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const char * const givenmd5sum, int delete, bool needsourceversion, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
-	retvalue r;
-	struct debpackage *pkg;
-	const struct overrideinfo *oinfo;
+static retvalue deb_preparelocation(struct debpackage *pkg, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
 	const struct strlist *components;
 	const struct overrideinfo *binoverride;
-	char *control;
-
-	assert( givenmd5sum!=NULL ||
-		(givenmd5sum==NULL && givenfilekey==NULL ) );
-
-	/* First taking a closer look to the file: */
-
-	r = deb_read(&pkg,debfilename,
-			needsourceversion || expectedsourceversion != NULL);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	if( allowed_binaries != NULL &&
-	    !strlist_in(allowed_binaries, pkg->deb.name) &&
-	    !IGNORING_(surprisingbinary,
-"'%s' has packagename '%s' not listed in the .changes file!\n",
-					debfilename, pkg->deb.name)) {
-		deb_free(pkg);
-		return RET_ERROR;
-	}
-	if( expectedsourcepackage != NULL &&
-	    strcmp(pkg->deb.source, expectedsourcepackage) != 0 ) {
-		/* this cannot ne ignored easily, as it determines
-		 * the directory this file is stored into */
-	    fprintf(stderr,
-"'%s' lists source package '%s', but .changes says it is '%s'!\n",
-				debfilename, pkg->deb.source,
-				expectedsourcepackage);
-		deb_free(pkg);
-		return RET_ERROR;
-	}
-	if( expectedsourceversion != NULL &&
-	    strcmp(pkg->deb.sourceversion, expectedsourceversion) != 0 &&
-	    !IGNORING_(wrongsourceversion,
-"'%s' lists source version '%s', but .changes says it is '%s'!\n",
-				debfilename, pkg->deb.sourceversion,
-				expectedsourceversion)) {
-		deb_free(pkg);
-		return RET_ERROR;
-	}
+	const struct overrideinfo *oinfo;
+	retvalue r;
 
 	if( strcmp(packagetype,"udeb") == 0 ) {
 		binoverride = distribution->overrides.udeb;
@@ -162,6 +118,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 	}
 
 	oinfo = override_search(binoverride,pkg->deb.name);
+	*oinfo_ptr = oinfo;
 	if( forcesection == NULL ) {
 		forcesection = override_get(oinfo,SECTION_FIELDNAME);
 	}
@@ -173,7 +130,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 		free(pkg->deb.section);
 		pkg->deb.section = strdup(forcesection);
 		if( pkg->deb.section == NULL ) {
-			deb_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
@@ -181,7 +137,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 		free(pkg->deb.priority);
 		pkg->deb.priority = strdup(forcepriority);
 		if( pkg->deb.priority == NULL ) {
-			deb_free(pkg);
 			return RET_ERROR_OOM;
 		}
 	}
@@ -189,13 +144,11 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 	if( pkg->deb.section == NULL ) {
 		fprintf(stderr,"No section was given for '%s', skipping.\n",
 				pkg->deb.name);
-		deb_free(pkg);
 		return RET_ERROR;
 	}
 	if( pkg->deb.priority == NULL ) {
 		fprintf(stderr,"No priority was given for '%s', skipping.\n",
 				pkg->deb.name);
-		deb_free(pkg);
 		return RET_ERROR;
 	}
 
@@ -204,10 +157,8 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 	r = guess_component(distribution->codename, components,
 			pkg->deb.name, pkg->deb.section,
 			forcecomponent, &pkg->component);
-	if( RET_WAS_ERROR(r) ) {
-		deb_free(pkg);
+	if( RET_WAS_ERROR(r) )
 		return r;
-	}
 	if( verbose > 0 && forcecomponent == NULL ) {
 		fprintf(stderr,"%s: component guessed as '%s'\n",debfilename,pkg->component);
 	}
@@ -217,72 +168,88 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 	if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 &&
 			strcmp(pkg->deb.architecture,forcearchitecture) != 0 &&
 			strcmp(pkg->deb.architecture,"all") != 0 ) {
-		fprintf(stderr,"Cannot checking in '%s' into architecture '%s', as it is '%s'!\n",
+		fprintf(stderr,"Cannot put '%s' into architecture '%s', as it is '%s'!\n",
 				debfilename,forcearchitecture,pkg->deb.architecture);
-		deb_free(pkg);
-/* TODO: this should be moved upwards...
-		if( delete >= D_DELETE ) {
-			if( verbose >= 0 )
-				fprintf(stderr,"Deleting '%s' as requested!\n",debfilename);
-			if( unlink(debfilename) != 0 ) {
-				fprintf(stderr,"Error deleting '%s': %m\n",debfilename);
-			}
-		}
-*/
 		return RET_ERROR;
 	} else if( strcmp(pkg->deb.architecture,"all") != 0 &&
 	    !strlist_in( &distribution->architectures, pkg->deb.architecture )) {
-		(void)fprintf(stderr,"While checking in '%s': '%s' is not listed in '",
+		(void)fprintf(stderr,"Error looking at '%s': '%s' is not one of the valid architectures: '",
 				debfilename, pkg->deb.architecture);
 		(void)strlist_fprint(stderr, &distribution->architectures);
 		(void)fputs("'\n",stderr);
-		deb_free(pkg);
 		return RET_ERROR;
 	}
 	if( !strlist_in(components,pkg->component) ) {
-		fprintf(stderr,"While checking in '%s': Would put in component '%s', but that is not available!\n",debfilename,pkg->component);
+		fprintf(stderr,"Error looking at %s': Would put in component '%s', but that is not available!\n",debfilename,pkg->component);
 		/* this cannot be ignored as there is not data structure available*/
 		return RET_ERROR;
 	}
 
 	r = binaries_calcfilekeys(pkg->component, &pkg->deb, packagetype, &pkg->filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	pkg->filekey = pkg->filekeys.values[0];
+	return RET_OK;
+}
+
+
+retvalue deb_prepare(/*@out@*/struct debpackage **deb, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const struct checksums * checksums, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
+	retvalue r;
+	struct debpackage *pkg;
+	const struct overrideinfo *oinfo;
+	char *control;
+
+	assert( givenfilekey != NULL );
+	assert( checksums != NULL );
+	assert( allowed_binaries != NULL );
+	assert( expectedsourcepackage != NULL );
+	assert( expectedsourceversion != NULL );
+
+	/* First taking a closer look in the file: */
+
+	r = deb_read(&pkg,debfilename, true);
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	if( !strlist_in(allowed_binaries, pkg->deb.name) &&
+	    !IGNORING_(surprisingbinary,
+"'%s' has packagename '%s' not listed in the .changes file!\n",
+					debfilename, pkg->deb.name)) {
+		deb_free(pkg);
+		return RET_ERROR;
+	}
+	if( strcmp(pkg->deb.source, expectedsourcepackage) != 0 ) {
+		/* this cannot be ignored easily, as it determines
+		 * the directory this file is stored into */
+	    fprintf(stderr,
+"'%s' lists source package '%s', but .changes says it is '%s'!\n",
+				debfilename, pkg->deb.source,
+				expectedsourcepackage);
+		deb_free(pkg);
+		return RET_ERROR;
+	}
+	if( strcmp(pkg->deb.sourceversion, expectedsourceversion) != 0 &&
+	    !IGNORING_(wrongsourceversion,
+"'%s' lists source version '%s', but .changes says it is '%s'!\n",
+				debfilename, pkg->deb.sourceversion,
+				expectedsourceversion)) {
+		deb_free(pkg);
+		return RET_ERROR;
+	}
+
+	r = deb_preparelocation(pkg, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
 	}
-	pkg->filekey = pkg->filekeys.values[0];
 
-	if( givenfilekey!=NULL && strcmp(givenfilekey,pkg->filekey) != 0 ) {
+	if( strcmp(givenfilekey,pkg->filekey) != 0 ) {
 		fprintf(stderr,"Name mismatch, .changes indicates '%s', but the file itself says '%s'!\n",givenfilekey,pkg->filekey);
 		deb_free(pkg);
 		return RET_ERROR;
 	}
-	/* then looking if we already have this, or copy it in */
-	if( givenmd5sum != NULL ) {
-		pkg->md5sum = strdup(givenmd5sum);
-		if( pkg->md5sum == NULL ) {
-			deb_free(pkg);
-			return RET_ERROR_OOM;
-		}
-		if( givenfilekey == NULL ) {
-			r = files_ready(database, pkg->filekey,pkg->md5sum);
-			if( RET_WAS_ERROR(r) ) {
-				deb_free(pkg);
-				return r;
-			}
-		}
-	} else {
-		assert(givenfilekey == NULL);
-		r = files_include(database,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
-		if( RET_WAS_ERROR(r) ) {
-			deb_free(pkg);
-			return r;
-		}
-
-	}
-	assert( pkg->md5sum != NULL );
 	/* Prepare everything that can be prepared beforehand */
-	r = binaries_complete(&pkg->deb, pkg->filekey, pkg->md5sum, oinfo,
+	r = binaries_complete(&pkg->deb, pkg->filekey, checksums, oinfo,
 			pkg->deb.section, pkg->deb.priority, &control);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
@@ -291,12 +258,6 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database
 	free(pkg->deb.control); pkg->deb.control = control;
 	*deb = pkg;
 	return RET_OK;
-}
-
-retvalue deb_hardlinkfiles(struct debpackage *deb,struct database *database,const char *debfilename) {
-	assert( deb != NULL );
-	assert( deb->filekey != NULL && deb-> md5sum != NULL );
-	return files_hardlink(database, debfilename, deb->filekey, deb->md5sum);
 }
 
 retvalue deb_addprepared(const struct debpackage *pkg,struct database *database,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
@@ -310,17 +271,37 @@ retvalue deb_addprepared(const struct debpackage *pkg,struct database *database,
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(struct database *database,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
+retvalue deb_add(struct database *database,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
+	const struct overrideinfo *oinfo;
+	char *control;
+	struct checksums *checksums;
 
-	if( givenfilekey != NULL && givenmd5sum != NULL ) {
-		assert( delete == D_INPLACE );
-	}
-	r = deb_prepare(&pkg,database,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,delete,tracks!=NULL,NULL,NULL,NULL);
-	if( RET_WAS_ERROR(r) )
+	r = deb_read(&pkg, debfilename, tracks != NULL );
+	if( RET_WAS_ERROR(r) ) {
 		return r;
+	}
+	r = deb_preparelocation(pkg, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
+	if( RET_WAS_ERROR(r) ) {
+		deb_free(pkg);
+		return r;
+	}
+	r = files_preinclude(database, debfilename, pkg->filekey, &checksums);
+	if( RET_WAS_ERROR(r) ) {
+		deb_free(pkg);
+		return r;
+	}
+	/* Prepare everything that can be prepared beforehand */
+	r = binaries_complete(&pkg->deb, pkg->filekey, checksums, oinfo,
+			pkg->deb.section, pkg->deb.priority, &control);
+	checksums_free(checksums);
+	if( RET_WAS_ERROR(r) ) {
+		deb_free(pkg);
+		return r;
+	}
+	free(pkg->deb.control); pkg->deb.control = control;
 
 	if( tracks != NULL ) {
 		assert(pkg->deb.sourceversion != NULL);
@@ -345,6 +326,11 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 		r2 = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
 		RET_ENDUPDATE(r,r2);
 	}
+
+	if( RET_IS_OK(r) && delete >= D_MOVE ) {
+		deletefile(debfilename);
+	} else if( r == RET_NOTHING && delete >= D_DELETE )
+		deletefile(debfilename);
 
 	return r;
 }

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -22,7 +22,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <db.h>
 
 #include "error.h"
 #include "names.h"
@@ -43,33 +42,22 @@ extern int verbose;
 
 struct s_tracking {
 	char *codename;
-	DB *db;
+	struct table *table;
 	enum trackingtype type;
 	struct trackingoptions options;
 };
 
 retvalue tracking_done(trackingdb db) {
-	int dbret;
+	retvalue r;
 
 	if( db == NULL )
 		return RET_OK;
 
-	dbret = db->db->close(db->db,0);
+	r = table_close(db->table);
 	free(db->codename);
 	free(db);
-	if( dbret < 0 )
-		return RET_DBERR(dbret);
-	else
-		return RET_OK;
+	return r;
 }
-
-static int mydatacompare(UNUSED(DB *db), const DBT *a, const DBT *b) {
-	if( a->size < b->size )
-		return strncmp(a->data,b->data,a->size);
-	else
-		return strncmp(a->data,b->data,b->size);
-}
-
 
 retvalue tracking_initialize(/*@out@*/trackingdb *db, struct database *database, const struct distribution *distribution, bool readonly) {
 	struct s_tracking *t;
@@ -87,8 +75,7 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db, struct database *database,
 	assert( distribution->tracking != dt_NONE || readonly );
 	t->type = distribution->tracking;
 	t->options = distribution->trackingoptions;
-	r = database_opentable(database, "tracking.db", t->codename,
-			DB_BTREE, DB_DUPSORT, mydatacompare, readonly, &t->db);
+	r = database_opentracking(database, t->codename, readonly, &t->table);
 	if( !RET_IS_OK(r) ) {
 		free(t->codename);
 		free(t);
@@ -157,7 +144,8 @@ retvalue trackedpackage_addfilekey(trackingdb tracks, struct trackedpackage *pkg
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	id = calc_trackreferee(tracks->codename,pkg->sourcename,pkg->sourceversion);
+	id = calc_trackreferee(tracks->codename,
+			pkg->sourcename, pkg->sourceversion);
 	if( id == NULL )
 		return RET_ERROR_OOM;
 	r = references_increment(database, filekey, id);
@@ -259,35 +247,8 @@ static retvalue tracking_new(const char *sourcename,const char *version,/*@out@*
 	return RET_OK;
 }
 
-static inline int search(DBC *cursor,DBT *key,DBT *data,const char *version, size_t versionlen) {
-	const char *d;
-	int dbret;
-
-	CLEARDBT(*data);
-	dbret=cursor->c_get(cursor,key,data,DB_SET);
-	while( true ) {
-		if( dbret != 0 ) {
-			return dbret;
-		}
-		d = data->data;
-		/* Check if this is the version we are looking for.  *
-		 * (this compares versions literally, not by value!) */
-		if( data->size > versionlen+1 &&
-				strncmp(d,version,versionlen) == 0 &&
-				d[versionlen] == '\0' )
-			break;
-
-		CLEARDBT(*data);
-		dbret = cursor->c_get(cursor,key,data,DB_NEXT_DUP);
-	}
-	return 0;
-
-}
-
-static inline retvalue parsedata(const char *name,const char *version,size_t versionlen,DBT data,/*@out@*/struct trackedpackage **pkg) {
+static inline retvalue parse_data(const char *name, const char *version, const char *data, size_t datalen, /*@out@*/struct trackedpackage **pkg) {
 	struct trackedpackage *p;
-	const char *d = data.data;
-	size_t size = data.size;
 	int i;
 
 	p = calloc(1,sizeof(struct trackedpackage));
@@ -295,16 +256,15 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 		return RET_ERROR_OOM;
 	p->sourcename = strdup(name);
 	p->sourceversion = strdup(version);
-	assert( size >= versionlen+1 );
-	d += versionlen+1;
-	size -= versionlen+1;
 	if( p->sourcename == NULL || p->sourceversion == NULL /*||
 				     p->sourcedir == NULL */ ) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
 	}
-	while( *d != '\0' && size > 0 ) {
+	while( datalen > 0 && *data != '\0' ) {
 		char *filekey;
+		const char *separator;
+		size_t filekeylen;
 		retvalue r;
 
 		if( ((p->filekeys.count)&31) == 0 ) {
@@ -316,36 +276,45 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 			}
 			p->filetypes = n;
 		}
-		p->filetypes[p->filekeys.count] = *d;
-		d++;size--;
-		filekey = strndup(d,size-1);
+		p->filetypes[p->filekeys.count] = *data;
+		data++; datalen--;
+		separator = memchr(data, '\0', datalen);
+		if( separator == NULL ) {
+			fprintf(stderr,"Internal Error: Corrupt tracking data for %s %s\n",name,version);
+			trackedpackage_free(p);
+			return RET_ERROR;
+		}
+		filekeylen = separator - data;
+		filekey = strndup(data, filekeylen);
 		if( filekey == NULL ) {
 			trackedpackage_free(p);
 			return RET_ERROR_OOM;
 		}
-		r = strlist_add(&p->filekeys,filekey);
+		r = strlist_add(&p->filekeys, filekey);
 		if( RET_WAS_ERROR(r) ) {
 			trackedpackage_free(p);
 			return r;
 		}
-		d += strlen(filekey)+1;
-		size -= strlen(filekey)+1;
+		data += filekeylen + 1;
+		datalen -= filekeylen + 1;
 	}
-	d++,size--;
+	data++; datalen--;
 	p->refcounts = calloc(p->filekeys.count,sizeof(int));
 	if( p->refcounts == NULL ) {
 		trackedpackage_free(p);
 		return RET_ERROR_OOM;
 	}
 	for( i = 0 ; i < p->filekeys.count ; i++ ) {
-		if( (p->refcounts[i] = parsenumber(&d,&size)) < 0 ) {
+		if( (p->refcounts[i] = parsenumber(&data, &datalen)) < 0 ) {
 			fprintf(stderr,"Internal Error: Corrupt tracking data for %s %s\n",name,version);
 			trackedpackage_free(p);
 			return RET_ERROR;
 		}
 	}
-	if( size > 1 ) {
-		fprintf(stderr,"Internal Error: Trailing garbage in tracking data for %s %s\n (%ld bytes)",name,version,(long)size);
+	if( datalen > 0 ) {
+		fprintf(stderr,
+"Internal Error: Trailing garbage in tracking data for %s %s\n (%ld bytes)",
+					name, version, (long)datalen);
 		trackedpackage_free(p);
 		return RET_ERROR;
 	}
@@ -355,59 +324,19 @@ static inline retvalue parsedata(const char *name,const char *version,size_t ver
 	return RET_OK;
 }
 
-static inline retvalue parseunknowndata(DBT key,DBT data,/*@out@*/struct trackedpackage **pkg) {
-	size_t versionlen;
-	const char *sep;
-
-	if( ((const char*)key.data)[key.size-1] != '\0' ) {
-		fprintf(stderr, "Tracking database corrupted! (unterminated key name!)\n");
-		return RET_ERROR;
-	}
-	sep = memchr(data.data, '\0', data.size);
-	if( sep == NULL ) {
-		fprintf(stderr, "Tracking database corrupted! (unterminated data!)\n");
-		return RET_ERROR;
-	}
-	versionlen = (sep - (const char*)data.data);
-	return parsedata(key.data, data.data, versionlen, data, pkg);
-}
-
-
 static retvalue tracking_get(trackingdb t,const char *sourcename,const char *version,/*@out@*/struct trackedpackage **pkg) {
-	int dbret;
-	DBT key,data;
-	DBC *cursor;
 	size_t versionlen;
+	const char *data;
+	size_t datalen;
 	retvalue r;
 
-
 	assert( pkg != NULL && sourcename != NULL && version != NULL );
-//	printf("[tracking_get %s %s %s]\n",t->codename,sourcename,version);
 
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_get dberror:");
-		return RET_DBERR(dbret);
-	}
 	versionlen = strlen(version);
-	SETDBT(key,sourcename);
-	dbret = search(cursor,&key,&data,version,versionlen);
-	if( dbret != 0 ) {
-		(void)cursor->c_close(cursor);
-		if( dbret == DB_KEYEMPTY || dbret == DB_NOTFOUND )
-			return RET_NOTHING;
-		else {
-			t->db->err(t->db, dbret, "tracking_get dberror(get):");
-			return RET_DBERR(dbret);
-		}
-	}
-
-//	printf("[tracking_get found %s %s %s]\n",t->codename,sourcename,version);
-	/* we have found it, now parse it */
-	r = parsedata(sourcename,version,versionlen,data,pkg);
-	assert( r != RET_NOTHING );
-	(void)cursor->c_close(cursor);
-	return r;
+	r = table_getpair(t->table, sourcename, version, &data, &datalen);
+	if( !RET_IS_OK(r) )
+		return r;
+	return parse_data(sourcename, version, data, datalen, pkg);
 }
 
 retvalue tracking_getornew(trackingdb tracks,const char *name,const char *version,/*@out@*/struct trackedpackage **pkg) {
@@ -418,30 +347,27 @@ retvalue tracking_getornew(trackingdb tracks,const char *name,const char *versio
 	return r;
 }
 
-static retvalue gendata(DBT *data,struct trackedpackage *pkg) {
-	size_t 	versionsize = strlen(pkg->sourceversion)+1,
-		filekeysize;
+static retvalue gen_data(struct trackedpackage *pkg, /*@out@*/char **newdata_p, /*@out@*/size_t *newdatalen_p) {
+	size_t 	versionsize = strlen(pkg->sourceversion)+1;
 	int i;
-	char *d;
-	CLEARDBT(*data);
+	char *d, *data;
+	size_t datalen;
 
-	filekeysize = 2;
+	datalen = versionsize + 1;
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 		size_t l;
 		l = strlen(pkg->filekeys.values[i]);
 		if( l > 0 )
-			filekeysize += l+9;
+			datalen += l+9;
 	}
-	data->size = versionsize+/*dirsize+*/filekeysize;
-	data->data = d = malloc(data->size);
-	if( d == NULL )
+	data = malloc(datalen + 1);
+	if( data == NULL )
 		return RET_ERROR_OOM;
-	memcpy(d,pkg->sourceversion,versionsize);d+=versionsize;
-	/*memcpy(d,pkg->sourcedir,dirsize);d+=dirsize;*/
+	memcpy(data, pkg->sourceversion, versionsize);
+	d = data + versionsize;
 	for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 		size_t l;
 		l = strlen(pkg->filekeys.values[i]);
-//		printf("[save %s]\n",pkg->filekeys.values[i]);
 		if( l > 0 ) {
 			*d = pkg->filetypes[i];
 			d++;
@@ -465,100 +391,78 @@ static retvalue gendata(DBT *data,struct trackedpackage *pkg) {
 		}
 #undef MAXREFCOUNTOCTETS
 		assert( count == 0 );
-//		printf("[made %d to %s]\n",pkg->refcounts[i],countstring+j);
 
 		memcpy(d,countstring+j,7-j);
 		d+=7-j;
-		data->size -= j;
+		datalen -= j;
 	}
 	*d ='\0';
-	assert( (size_t)(d-((char*)data->data)) == data->size-1 );
+	assert( (size_t)(d-data) == datalen );
+	*newdata_p = data;
+	*newdatalen_p = datalen;
 	return RET_OK;
 }
 
-static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
-	int dbret;
-	DBT key,data;
-	DBC *cursor;
-	retvalue r;
-
-	assert( pkg != NULL );
-//	printf("[tracking_save %s %s %s]\n", t->codename,
-//			pkg->sourcename, pkg->sourceversion);
-
-	SETDBT(key,pkg->sourcename);
-
-	cursor = NULL;
-	if( !pkg->flags.isnew ) {
-		/* If it is not new, move a db cursor to the old one */
-		dbret = t->db->cursor(t->db,NULL,&cursor,0);
-		if( dbret != 0 ) {
-			t->db->err(t->db, dbret, "tracking_save dberror:");
-			return RET_DBERR(dbret);
-		}
-		dbret = search(cursor, &key, &data,
-				pkg->sourceversion,
-				strlen(pkg->sourceversion));
-		if( dbret != 0 ) {
-			(void)cursor->c_close(cursor);
-			if( dbret == DB_KEYEMPTY || dbret == DB_NOTFOUND ) {
-				fprintf(stderr, "tracking_save with isnew=false called but could not find %s_%s in %s!\n", pkg->sourcename, pkg->sourceversion, t->codename);
-				pkg->flags.isnew = true;
-				cursor = NULL;
-			} else {
-				t->db->err(t->db, dbret, "tracking_save(replace) dberror(get):");
-				return RET_DBERR(dbret);
-			}
-		} else if( pkg->flags.deleted ) {
-			/* delete if delete is requested
-			 * (all unreferencing has to be done before) */
-			dbret = cursor->c_del(cursor, 0);
-			(void)cursor->c_close(cursor);
-			if( dbret != 0 ) {
-				t->db->err(t->db, dbret, "tracking_save(delete) dberror:");
-				return RET_DBERR(dbret);
-			} else {
-//				printf("[tracking: removed %s_%s from %s.]\n",
-//						pkg->sourcename,
-//						pkg->sourceversion,
-//						t->codename);
-				return RET_OK;
-			}
-		}
-	}
-
+static retvalue tracking_saveatcursor(trackingdb t, struct cursor *cursor, struct trackedpackage *pkg) {
 	if( pkg->flags.deleted ) {
-		assert( cursor == NULL );
-		return RET_OK;
-	}
+		/* delete if delete is requested
+		 * (all unreferencing has to be done before) */
+		return cursor_delete(t->table, cursor,
+				pkg->sourcename, pkg->sourceversion);
+	} else {
+		char *newdata;
+		size_t newdatalen;
+		retvalue r;
 
-	r = gendata(&data,pkg);
-	if( RET_WAS_ERROR(r) ) {
-		if( cursor != NULL)
-			(void)cursor->c_close(cursor);
+		r = gen_data(pkg, &newdata, &newdatalen);
+		if( RET_IS_OK(r) ) {
+			r = cursor_replace(t->table, cursor, newdata, newdatalen);
+			free(newdata);
+		}
 		return r;
 	}
+}
 
-	if( pkg->flags.isnew )
-		dbret = t->db->put(t->db, NULL, &key, &data, 0);
-	else
-		dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT);
-	free(data.data);
-	if( cursor != NULL)
-		(void)cursor->c_close(cursor);
-	if( dbret != 0 ) {
-		t->db->err(t->db, dbret, "tracking_save dberror(%sput):",
-				pkg->flags.isnew?"":"c_");
-		return RET_DBERR(dbret);
+static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
+	retvalue r, r2;
+	char *newdata;
+	size_t newdatalen;
+
+	assert( pkg != NULL );
+
+	if( !pkg->flags.isnew ) {
+		struct cursor *cursor;
+
+		r = table_newpairedcursor(t->table,
+				pkg->sourcename, pkg->sourceversion, &cursor,
+				NULL, NULL);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Internal error: tracking_save with isnew=false called but could not find %s_%s in %s!\n", pkg->sourcename, pkg->sourceversion, t->codename);
+			pkg->flags.isnew = true;
+		} else {
+			r = tracking_saveatcursor(t, cursor, pkg);
+			r2 = cursor_close(t->table, cursor);
+			RET_ENDUPDATE(r, r2);
+			return r;
+		}
 	}
 
+	if( pkg->flags.deleted )
+		return RET_OK;
+
+	r = gen_data(pkg, &newdata, &newdatalen);
+	assert( r != RET_NOTHING );
+	if( !RET_IS_OK(r) )
+		return r;
+
+	r = table_addrecord(t->table, pkg->sourcename, newdata, newdatalen, false);
+	free(newdata);
 	if( verbose > 18 )
 		fprintf(stderr,"Adding tracked package '%s'_'%s' to '%s'\n",
 				pkg->sourcename, pkg->sourceversion,
 				t->codename);
-//TODO: find out why I did this here:
-	return RET_OK;
-	trackedpackage_free(pkg);
 	return r;
 }
 
@@ -583,30 +487,32 @@ retvalue tracking_drop(struct database *db, const char *codename, struct strlist
 }
 
 static retvalue tracking_recreatereferences(trackingdb t, struct database *database) {
-	DBC *cursor;
-	DBT key, data;
+	struct cursor *cursor;
 	retvalue result, r;
 	struct trackedpackage *pkg;
 	char *id;
 	int i;
-	int dbret;
+	const char *key, *value, *data;
+	size_t datalen;
+
+	r = table_newglobalcursor(t->table, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
 
 	result = RET_NOTHING;
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db, NULL, &cursor, 0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_recreatereferences dberror(cursor):");
-		return RET_DBERR(dbret);
-	}
-	CLEARDBT(key);
-	CLEARDBT(data);
-	while( (dbret=cursor->c_get(cursor, &key, &data, DB_NEXT)) == 0 ) {
-		r = parseunknowndata(key, data, &pkg);
-		if( RET_WAS_ERROR(r) )
+
+	while( cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen) ) {
+		r = parse_data(key, value, data, datalen, &pkg);
+		if( RET_WAS_ERROR(r) ) {
+			(void)cursor_close(t->table, cursor);
 			return r;
+		}
 		id = calc_trackreferee(t->codename, pkg->sourcename,
 				                    pkg->sourceversion);
 		if( id == NULL ) {
 			trackedpackage_free(pkg);
+			(void)cursor_close(t->table, cursor);
 			return RET_ERROR_OOM;
 		}
 		for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
@@ -617,15 +523,8 @@ static retvalue tracking_recreatereferences(trackingdb t, struct database *datab
 		free(id);
 		trackedpackage_free(pkg);
 	}
-	if( dbret != DB_NOTFOUND ) {
-		(void)cursor->c_close(cursor);
-		t->db->err(t->db, dbret, "tracking_recreatereferences dberror(c_get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret=cursor->c_close(cursor)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_recreatereferences dberror(close):");
-		return RET_DBERR(dbret);
-	}
+	r = cursor_close(t->table, cursor);
+	RET_UPDATE(result, r);
 	return result;
 }
 
@@ -648,65 +547,53 @@ retvalue tracking_rereference(struct database *database, struct distribution *di
 }
 
 retvalue tracking_remove(trackingdb t,const char *sourcename,const char *version,struct database *database,/*@null@*/struct strlist *dereferencedfilekeys) {
-	DBC *cursor;
-	DBT key,data;
-	retvalue result,r;
-	int dbret;
+	retvalue result, r;
+	struct cursor *cursor;
+	const char *data;
+	size_t datalen;
+	char *id;
+	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
 
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_remove dberror(cursor):");
-		return RET_DBERR(dbret);
+	r = table_newpairedcursor(t->table, sourcename, version, &cursor,
+			&data, &datalen);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	id = calc_trackreferee(t->codename, sourcename, version);
+	if( id == NULL ) {
+		(void)cursor_close(t->table, cursor);
+		return RET_ERROR_OOM;
 	}
-	result = RET_OK;
-	SETDBT(key,sourcename);
-	dbret = search(cursor,&key,&data,version,strlen(version));
-	if( dbret == 0 ) {
-		char *id;
-		struct trackedpackage *pkg;
 
-		id = calc_trackreferee(t->codename,sourcename,version);
-		if( id == NULL )
-			return RET_ERROR_OOM;
+	result = parse_data(sourcename, version, data, datalen, &pkg);
+	if( RET_IS_OK(r) ) {
+		int i;
+		for( i = 0; i < pkg->filekeys.count ; i++ ) {
+			const char *filekey = pkg->filekeys.values[i];
 
-		r = parsedata(sourcename,version,strlen(version),data,&pkg);
-		if( RET_IS_OK(r) ) {
-			int i;
-			for( i = 0; i < pkg->filekeys.count ; i++ ) {
-				const char *filekey = pkg->filekeys.values[i];
-
-				r = references_decrement(database, filekey, id);
-				RET_UPDATE(result,r);
-				if( dereferencedfilekeys != NULL )
-					r = strlist_adduniq(dereferencedfilekeys,strdup(filekey));
-				RET_UPDATE(result,r);
-			}
-			trackedpackage_free(pkg);
-
-		} else {
-			RET_UPDATE(result,r);
-			fprintf(stderr,"Could not parse data, removing all references blindly...\n");
-			r = references_remove(database, id, NULL);
-			RET_UPDATE(result,r);
+			r = references_decrement(database, filekey, id);
+			RET_UPDATE(result, r);
+			if( dereferencedfilekeys != NULL )
+				r = strlist_adduniq(dereferencedfilekeys,
+						strdup(filekey));
+			RET_UPDATE(result, r);
 		}
-		free(id);
-		dbret = cursor->c_del(cursor,0);
-		if( dbret != 0 ) {
-			t->db->err(t->db, dbret, "tracking_remove dberror(del):");
-			RET_UPDATE(result,RET_DBERR(dbret));
-		} else {
-			fprintf(stderr,"Removed %s_%s from %s.\n",sourcename,version,t->codename);
-		}
-	} else if( dbret != DB_NOTFOUND ) {
-		(void)cursor->c_close(cursor);
-		t->db->err(t->db, dbret, "tracking_remove dberror(get):");
-		return RET_DBERR(dbret);
-	} else
-		result = RET_NOTHING;
-	if( (dbret=cursor->c_close(cursor)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_remove dberror(close):");
-		return RET_DBERR(dbret);
+		trackedpackage_free(pkg);
+	} else {
+		RET_UPDATE(result, r);
+		fprintf(stderr,
+"Could not parse data, removing all references blindly...\n");
+		r = references_remove(database, id, NULL);
+		RET_UPDATE(result, r);
 	}
+	free(id);
+	r = cursor_delete(t->table, cursor, sourcename, version);
+	if( RET_IS_OK(r) )
+		fprintf(stderr, "Removed %s_%s from %s.\n",
+				sourcename, version, t->codename);
+	RET_UPDATE(result, r);
+	r = cursor_close(t->table, cursor);
+	RET_ENDUPDATE(result, r);
 	return result;
 }
 
@@ -723,42 +610,34 @@ static void print(const char *codename,const struct trackedpackage *pkg){
 		printf(" %s %c %d\n",filekey,
 				pkg->filetypes[i],pkg->refcounts[i]);
 	}
-	fputs("\n",stdout);
+	(void)fputs("\n",stdout);
 }
 
 retvalue tracking_printall(trackingdb t) {
-	DBC *cursor;
-	DBT key,data;
-	retvalue r;
-	int dbret;
+	struct cursor *cursor;
+	retvalue result, r;
+	struct trackedpackage *pkg;
+	const char *key, *value, *data;
+	size_t datalen;
 
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_printall dberror(cursor):");
-		return RET_DBERR(dbret);
-	}
-	r = RET_OK;
-	CLEARDBT(key);
-	CLEARDBT(data);
-	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		struct trackedpackage *pkg;
+	r = table_newglobalcursor(t->table, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
 
-		r = parsedata(key.data,data.data,strlen(data.data),data,&pkg);
+	result = RET_NOTHING;
+
+	while( cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen) ) {
+		r = parse_data(key, value, data, datalen, &pkg);
 		if( RET_IS_OK(r) ) {
-			print(t->codename,pkg);
+			print(t->codename, pkg);
 			trackedpackage_free(pkg);
 		}
+		RET_UPDATE(result, r);
 	}
-	if( dbret != DB_NOTFOUND ) {
-		(void)cursor->c_close(cursor);
-		t->db->err(t->db, dbret, "tracking_printall dberror(get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret=cursor->c_close(cursor)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_printall dberror(close):");
-		return RET_DBERR(dbret);
-	}
-	return r;
+	r = cursor_close(t->table, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
 }
 
 retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
@@ -1099,139 +978,94 @@ retvalue trackingdata_finish(trackingdb tracks, struct trackingdata *d, struct d
 }
 
 retvalue tracking_tidyall(trackingdb t, struct database *database, struct strlist *dereferenced) {
-	DBC *cursor;
-	DBT key,data;
-	retvalue result,r;
-	int dbret;
+	struct cursor *cursor;
+	retvalue result, r;
+	struct trackedpackage *pkg;
+	const char *key, *value, *data;
+	size_t datalen;
+
+	r = table_newglobalcursor(t->table, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
 
 	result = RET_NOTHING;
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_tidyall dberror(cursor):");
-		return RET_DBERR(dbret);
-	}
-	CLEARDBT(key);
-	CLEARDBT(data);
-	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		struct trackedpackage *pkg;
-		r = parseunknowndata(key, data, &pkg);
-		if( RET_WAS_ERROR(r) )
-			return r;
+
+	while( cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen) ) {
+		r = parse_data(key, value, data, datalen, &pkg);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
 		r = trackedpackage_tidy(t, pkg, database, dereferenced);
 		RET_UPDATE(result, r);
-		if( pkg->flags.deleted ) {
-			/* delete if delete is requested
-			 * (all unreferencing has to be done before) */
-			dbret = cursor->c_del(cursor, 0);
-			if( dbret != 0 ) {
-				trackedpackage_free(pkg);
-				(void)cursor->c_close(cursor);
-				t->db->err(t->db, dbret, "tracking_tidyall(delete) dberror:");
-				return RET_DBERR(dbret);
-			}
-		} else {
-			r = gendata(&data,pkg);
-			if( RET_WAS_ERROR(r) ) {
-				(void)cursor->c_close(cursor);
-				return r;
-			}
-			dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT);
-			free(data.data);
-			if( dbret != 0 ) {
-				trackedpackage_free(pkg);
-				(void)cursor->c_close(cursor);
-				t->db->err(t->db, dbret, "tracking_tidyall c_put:");
-				return RET_DBERR(dbret);
-			}
-		}
+		r = tracking_saveatcursor(t, cursor, pkg);
+		RET_UPDATE(result, r);
 		trackedpackage_free(pkg);
 	}
-	if( dbret != DB_NOTFOUND ) {
-		(void)cursor->c_close(cursor);
-		t->db->err(t->db, dbret, "tracking_tidyall dberror(get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret=cursor->c_close(cursor)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_tidyall dberror(close):");
-		return RET_DBERR(dbret);
-	}
+	r = cursor_close(t->table, cursor);
+	RET_UPDATE(result, r);
 	return result;
 }
 
 retvalue tracking_reset(trackingdb t) {
-	DBC *cursor;
-	DBT key, data;
+	struct cursor *cursor;
 	retvalue result, r;
 	struct trackedpackage *pkg;
+	const char *key, *value, *data;
+	char *newdata;
+	size_t datalen, newdatalen;
 	int i;
-	int dbret;
+
+	r = table_newglobalcursor(t->table, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
 
 	result = RET_NOTHING;
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db, NULL, &cursor, 0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_reset dberror(cursor):");
-		return RET_DBERR(dbret);
-	}
-	CLEARDBT(key);
-	CLEARDBT(data);
-	while( (dbret=cursor->c_get(cursor, &key, &data, DB_NEXT)) == 0 ) {
+
+	while( cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen) ) {
 		// this would perhaps be more stable if it just replaced
 		// everything within the string just received...
-		r = parseunknowndata(key, data, &pkg);
-		if( RET_WAS_ERROR(r) )
-			return r;
+		result = parse_data(key, value, data, datalen, &pkg);
+		if( RET_WAS_ERROR(result) )
+			break;
 		for( i = 0 ; i < pkg->filekeys.count ; i++ ) {
 			pkg->refcounts[i] = 0;
 		}
-		r = gendata(&data, pkg);
+		result = gen_data(pkg, &newdata, &newdatalen);
 		trackedpackage_free(pkg);
-		if( RET_WAS_ERROR(r) ) {
-			(void)cursor->c_close(cursor);
-			return r;
-		}
-		dbret = cursor->c_put(cursor, &key, &data, DB_CURRENT);
-		free(data.data);
-		if( dbret != 0 ) {
-			(void)cursor->c_close(cursor);
-			t->db->err(t->db, dbret, "tracking_reset c_put:");
-			return RET_DBERR(dbret);
-		}
+		if( RET_IS_OK(result) )
+			result = cursor_replace(t->table, cursor,
+					newdata, newdatalen);
+		free(newdata);
+		if( RET_WAS_ERROR(result) )
+			break;
 	}
-	if( dbret != DB_NOTFOUND ) {
-		(void)cursor->c_close(cursor);
-		t->db->err(t->db, dbret, "tracking_reset dberror(c_get):");
-		return RET_DBERR(dbret);
-	}
-	if( (dbret=cursor->c_close(cursor)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_reset dberror(close):");
-		return RET_DBERR(dbret);
-	}
+	r = cursor_close(t->table, cursor);
+	RET_UPDATE(result, r);
 	return result;
 }
 
 static retvalue tracking_foreachversion(trackingdb t, struct database *db, struct distribution *distribution,  const char *sourcename, retvalue (action)(trackingdb t,struct trackedpackage *,struct database *,struct distribution *,struct strlist *), struct strlist *dereferenced) {
-	int dbret;
-	DBT key, data;
-	DBC *cursor;
+	struct cursor *cursor;
 	retvalue result, r;
 	struct trackedpackage *pkg;
+	const char *value, *data;
+	size_t datalen;
 
-	assert( sourcename != NULL );
+	r = table_newduplicatecursor(t->table, sourcename, &cursor,
+			&value, &data, &datalen);
+	if( !RET_IS_OK(r) )
+		return r;
 
-	cursor = NULL;
-	if( (dbret = t->db->cursor(t->db, NULL, &cursor, 0)) != 0 ) {
-		t->db->err(t->db, dbret, "tracking_foreachversion dberror:");
-		return RET_DBERR(dbret);
-	}
-	SETDBT(key, sourcename);
-	CLEARDBT(data);
 	result = RET_NOTHING;
-	dbret = cursor->c_get(cursor, &key, &data, DB_SET);
-	while( dbret == 0 ) {
-		r = parseunknowndata(key, data, &pkg);
+
+	do {
+		r = parse_data(sourcename, value, data, datalen, &pkg);
 		if( RET_WAS_ERROR(r) ) {
-			(void)cursor->c_close(cursor);
-			return r;
+			result = r;
+			break;
 		}
 		if( verbose > 10 )
 			printf("Processing track of '%s' version '%s'\n",
@@ -1239,47 +1073,20 @@ static retvalue tracking_foreachversion(trackingdb t, struct database *db, struc
 		r = action(t, pkg, db, distribution, dereferenced);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) ) {
-			(void)cursor->c_close(cursor);
+			(void)cursor_close(t->table, cursor);
+			trackedpackage_free(pkg);
 			return r;
 		}
 		r = trackedpackage_tidy(t, pkg, db, dereferenced);
 		RET_ENDUPDATE(result, r);
-		if( pkg->flags.deleted ) {
-			/* delete if delete is requested
-			 * (all unreferencing has to be done before) */
-			dbret = cursor->c_del(cursor, 0);
-			if( dbret != 0 ) {
-				trackedpackage_free(pkg);
-				(void)cursor->c_close(cursor);
-				t->db->err(t->db, dbret, "tracking_foreachversion(delete) dberror:");
-				return RET_DBERR(dbret);
-			}
-		} else {
-			r = gendata(&data,pkg);
-			if( RET_WAS_ERROR(r) ) {
-				(void)cursor->c_close(cursor);
-				return r;
-			}
-			dbret = cursor->c_put(cursor,&key,&data,DB_CURRENT);
-			free(data.data);
-			if( dbret != 0 ) {
-				trackedpackage_free(pkg);
-				(void)cursor->c_close(cursor);
-				t->db->err(t->db, dbret, "tracking_foreachversion c_put:");
-				return RET_DBERR(dbret);
-			}
-		}
+		r = tracking_saveatcursor(t, cursor, pkg);
+		RET_UPDATE(result, r);
 		trackedpackage_free(pkg);
-		CLEARDBT(data);
-		dbret = cursor->c_get(cursor, &key, &data, DB_NEXT_DUP);
-	}
-	(void)cursor->c_close(cursor);
-	if( dbret == DB_KEYEMPTY || dbret == DB_NOTFOUND )
-		return result;
-	else {
-		t->db->err(t->db, dbret, "tracking_foreachversion dberror(get):");
-		return RET_DBERR(dbret);
-	}
+	} while( cursor_nextpair(t->table, cursor, NULL,
+				&value, &data, &datalen) );
+	r = cursor_close(t->table, cursor);
+	RET_UPDATE(result, r);
+	return result;
 }
 
 
@@ -1404,7 +1211,7 @@ static retvalue targetremovesourcepackage(trackingdb t, struct trackedpackage *p
 			continue;
 		}
 		free(version);
-		r = target->getfilekeys(target, control, &filekeys, NULL);
+		r = target->getfilekeys(control, &filekeys);
 		assert( r != RET_NOTHING );
 		if( RET_WAS_ERROR(r) ) {
 			free(package);

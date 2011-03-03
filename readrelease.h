@@ -5,12 +5,12 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef REPREPRO_STRLIST_H
-#include "strlist.h"
+#ifndef REPREPRO_CHECKSUMS_H
+#include "checksums.h"
 #endif
 
 /* get a strlist with the md5sums of a Release-file */
-retvalue release_getchecksums(const char *releasefile,struct strlist *info);
+retvalue release_getchecksums(const char *releasefile, /*@out@*/struct checksumsarray *);
 
 #endif
 

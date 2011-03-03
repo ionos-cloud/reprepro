@@ -26,7 +26,6 @@
 #include "error.h"
 #include "mprintf.h"
 #include "chunks.h"
-#include "md5sum.h"
 #include "dirs.h"
 #include "names.h"
 #include "release.h"
@@ -62,18 +61,18 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	r = config_getflags(iter, "Contents", contentsflags, flags,
 			IGNORABLE(unknownfield), "");
 	if( r == RET_ERROR_UNKNOWNFIELD )
-		fputs(
+		(void)fputs(
 "Note that the format of the Contents field has changed with reprepro 3.0.0.\n"
 "There is no longer a number needed (nor possible) there.\n", stderr);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( flags[cf_dummy] ) {
-		fputs(
+		(void)fputs(
 "Warning: Contents-headers in conf/distribution no longer need an\n"
 "rate argument. Ignoring the number there, this might cause a error\n"
 "future versions.\n", stderr);
 	} else if( flags[cf_disable] ) {
-		fputs(
+		(void)fputs(
 "Warning: Contents-headers in conf/distribution no longer need an\n"
 "rate argument. Treating the '0' as sign to not activate Contents-\n"
 "-generation, but it will cause an error in future version.\n", stderr);

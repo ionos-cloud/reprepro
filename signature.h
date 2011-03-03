@@ -26,7 +26,7 @@ retvalue signedfile_prepare(struct signedfile *, const char *options);
 /* move temporary files to final places */
 retvalue signedfile_finalize(struct signedfile *, bool *toolate);
 /* may only be called after signedfile_prepare */
-retvalue signedfile_free(struct signedfile *);
+void signedfile_free(/*@only@*/struct signedfile *);
 
 void signatures_done(void);
 

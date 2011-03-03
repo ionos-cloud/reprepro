@@ -20,7 +20,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <zlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -35,9 +34,8 @@
 #include "chunks.h"
 #include "database.h"
 #include "exports.h"
-#include "md5sum.h"
-#include "copyfile.h"
 #include "configparser.h"
+#include "filecntl.h"
 
 extern int verbose;
 
@@ -56,7 +54,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 	assert( buffersize > 50 );
 	*buffer++ = ' '; buffersize--;
 	*buffer++ = '('; buffersize--;
-	for( ic = 0 ; ic < ic_count ; ic++ ) {
+	for( ic = ic_first ; ic < ic_count ; ic++ ) {
 		if( (mode->compressions & IC_FLAG(ic)) != 0 ) {
 			size_t l = strlen(compression_names[ic]);
 			assert( buffersize > l+3 );
@@ -121,7 +119,7 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 		return r;
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,
-"Error parsing %s, line %u, column %u: Unexpected and of field!\n"
+"Error parsing %s, line %u, column %u: Unexpected end of field!\n"
 "Filename to use for index files (Packages, Sources, ...) missing.\n",
 			config_filename(iter),
 			config_markerline(iter), config_markercolumn(iter));
@@ -146,7 +144,7 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 	}
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,
-"Error parsing %s, line %u, column %u: Unexpected and of field!\n"
+"Error parsing %s, line %u, column %u: Unexpected end of field!\n"
 "Compression identifiers ('.', '.gz' or '.bz2') missing.\n",
 			config_filename(iter),
 			config_markerline(iter), config_markercolumn(iter));
@@ -190,8 +188,17 @@ retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct con
 			return r;
 	}
 	if( r != RET_NOTHING ) {
-		free(mode->hook);
-		mode->hook = word;
+		if( word[0] == '/' ) {
+			free(mode->hook);
+			mode->hook = word;
+		} else {
+			char *fullfilename = calc_dirconcat(confdir, word);
+			free(word);
+			if( fullfilename == NULL )
+				return RET_ERROR_OOM;
+			free(mode->hook);
+			mode->hook = fullfilename;
+		}
 	}
 	r = config_getword(iter, &word);
 	if( RET_WAS_ERROR(r) )
@@ -242,7 +249,7 @@ static retvalue gotfilename(const char *relname, size_t l, struct release *relea
 	}
 }
 
-static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, const char *relfilename, const char *mode, struct release *release) {
+static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilename, const char *mode, struct release *release) {
 	pid_t f,c;
 	int status;
 	int io[2];
@@ -268,7 +275,6 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
-		long maxopen;
 		char *reltmpfilename;
 
 		if( dup2(io[1],3) < 0 ) {
@@ -276,38 +282,24 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 					io[1],errno);
 			exit(255);
 		}
-		/* Try to close all open fd but 0,1,2,3 */
-		maxopen = sysconf(_SC_OPEN_MAX);
-		if( maxopen > 0 ) {
-			int fd;
-			for( fd = 4 ; fd < maxopen ; fd++ )
-				(void)close(fd);
-		} else { // otherweise we have to hope...
-			if( io[0] != 3 )
-				(void)close(io[0]);
-			if( io[1] != 3 )
-				(void)close(io[1]);
-		}
+		/* "Doppelt haelt besser": */
+		if( io[0] != 3 )
+			(void)close(io[0]);
+		if( io[1] != 3 )
+			(void)close(io[1]);
+		closefrom(4);
 		/* backward compatibilty */
 		reltmpfilename = calc_addsuffix(relfilename,"new");
 		if( reltmpfilename == NULL ) {
 			exit(255);
 		}
-		if( hook[0] == '/' )
-			(void)execl(hook,hook,release_dirofdist(release),reltmpfilename,relfilename,mode,NULL);
-		else {
-			char *fullfilename = calc_dirconcat(confdir,hook);
-			if( fullfilename == NULL ) {
-				fprintf(stderr,"Out of Memory!\n");
-				exit(255);
-
-			}
-			(void)execl(fullfilename,fullfilename,release_dirofdist(release),reltmpfilename,relfilename,mode,NULL);
-		}
-		fprintf(stderr,"Error while executing '%s': %d=%m\n",hook,errno);
+		(void)execl(hook, hook, release_dirofdist(release),
+				reltmpfilename, relfilename, mode, NULL);
+		fprintf(stderr, "Error while executing '%s': %d=%m\n", hook, errno);
 		exit(255);
 	}
 	close(io[1]);
+	markcloseonexec(io[0]);
 
 	if( verbose > 6 )
 		printf("Called %s '%s' '%s.new' '%s' '%s'\n",
@@ -387,7 +379,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir, const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
+retvalue export_target(const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
@@ -420,7 +412,7 @@ retvalue export_target(const char *confdir, const char *relativedir, struct tabl
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = table_newglobaluniqcursor(packages, &cursor);
+		r = table_newglobalcursor(packages, &cursor);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			free(relfilename);
@@ -454,8 +446,7 @@ retvalue export_target(const char *confdir, const char *relativedir, struct tabl
 		status = "old";
 	}
 	if( !snapshot )
-		r = callexporthook(confdir,
-					exportmode->hook,
+		r = callexporthook(exportmode->hook,
 					relfilename,
 					status,
 					release);

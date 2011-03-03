@@ -33,9 +33,10 @@
 #include "names.h"
 #include "dirs.h"
 #include "chunks.h"
-#include "md5sum.h"
+#include "checksums.h"
 #include "files.h"
 #include "aptmethod.h"
+#include "filecntl.h"
 
 extern int verbose;
 
@@ -47,7 +48,7 @@ struct aptmethod {
 	char *baseuri;
 	/*@null@*/char *fallbackbaseuri;
 	/*@null@*/char *config;
-	int stdin,stdout;
+	int mstdin,mstdout;
 	pid_t child;
 
 	enum { ams_notstarted=0, ams_waitforcapabilities, ams_ok, ams_failed } status;
@@ -78,7 +79,8 @@ static void free_todolist(/*@only@*/ struct tobedone *todo) {
 
 		free(todo->filekey);
 		free(todo->filename);
-		free(todo->md5sum);
+		if( todo->filekey != NULL )
+			checksums_free(todo->checksums);
 		free(todo->uri);
 		free(todo);
 		todo = h;
@@ -124,18 +126,18 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 
 	/* finally get rid of all the processes: */
 	for( method = run->methods ; method != NULL ; method = method->next ) {
-		if( method->stdin >= 0 ) {
-			(void)close(method->stdin);
+		if( method->mstdin >= 0 ) {
+			(void)close(method->mstdin);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdin of %d\n",(int)method->child);
+				fprintf(stderr,"Closing mstdin of %d\n",(int)method->child);
 		}
-		method->stdin = -1;
-		if( method->stdout >= 0 ) {
-			(void)close(method->stdout);
+		method->mstdin = -1;
+		if( method->mstdout >= 0 ) {
+			(void)close(method->mstdout);
 			if( verbose > 30 )
-				fprintf(stderr,"Closing stdout %d\n",(int)method->child);
+				fprintf(stderr,"Closing mstdout %d\n",(int)method->child);
 		}
-		method->stdout = -1;
+		method->mstdout = -1;
 	}
 	while( run->methods != NULL ) {
 		pid_t pid;int status;
@@ -184,8 +186,8 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 	method = calloc(1,sizeof(struct aptmethod));
 	if( method == NULL )
 		return RET_ERROR_OOM;
-	method->stdin = -1;
-	method->stdout = -1;
+	method->mstdin = -1;
+	method->mstdout = -1;
 	method->child = -1;
 	method->status = ams_notstarted;
 	p = uri;
@@ -254,10 +256,10 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const ch
 
 /**************************Fire up a method*****************************/
 
-inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmethod *method,const char *methoddir) {
+inline static retvalue aptmethod_startup(struct aptmethod *method, const char *methoddir) {
 	pid_t f;
-	int stdin[2];
-	int stdout[2];
+	int mstdin[2];
+	int mstdout[2];
 	int r;
 
 	/* new try, new luck */
@@ -276,63 +278,47 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 
 	method->status = ams_waitforcapabilities;
 
-	r = pipe(stdin);
+	r = pipe(mstdin);
 	if( r < 0 ) {
 		int err = errno;
 		fprintf(stderr,"Error while creating pipe: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
-	r = pipe(stdout);
+	r = pipe(mstdout);
 	if( r < 0 ) {
 		int err = errno;
-		(void)close(stdin[0]);(void)close(stdin[1]);
+		(void)close(mstdin[0]);(void)close(mstdin[1]);
 		fprintf(stderr,"Error while pipe: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
 
 	if( interrupted() ) {
-		(void)close(stdin[0]);(void)close(stdin[1]);
-		(void)close(stdout[0]);(void)close(stdout[1]);
+		(void)close(mstdin[0]);(void)close(mstdin[1]);
+		(void)close(mstdout[0]);(void)close(mstdout[1]);
 		return RET_ERROR_INTERRUPTED;
 	}
 	f = fork();
 	if( f < 0 ) {
 		int err = errno;
-		(void)close(stdin[0]);(void)close(stdin[1]);
-		(void)close(stdout[0]);(void)close(stdout[1]);
+		(void)close(mstdin[0]);(void)close(mstdin[1]);
+		(void)close(mstdout[0]);(void)close(mstdout[1]);
 		fprintf(stderr,"Error while forking: %d=%m\n",err);
 		return RET_ERRNO(err);
 	}
 	if( f == 0 ) {
-		long maxopen;
 		char *methodname;
 		/* child: */
-		(void)close(stdin[1]);
-		(void)close(stdout[0]);
-		if( dup2(stdin[0],0) < 0 ) {
-			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
+		(void)close(mstdin[1]);
+		(void)close(mstdout[0]);
+		if( dup2(mstdin[0],0) < 0 ) {
+			fprintf(stderr,"Error while setting mstdin: %d=%m\n",errno);
 			exit(255);
 		}
-		if( dup2(stdout[1],1) < 0 ) {
-			fprintf(stderr,"Error while setting stdin: %d=%m\n",errno);
+		if( dup2(mstdout[1],1) < 0 ) {
+			fprintf(stderr,"Error while setting mstdin: %d=%m\n",errno);
 			exit(255);
 		}
-		/* Try to close all open fd but 0,1,2 */
-		maxopen = sysconf(_SC_OPEN_MAX);
-		if( maxopen > 0 ) {
-			int fd;
-			for( fd = 3 ; fd < maxopen ; fd++ )
-				(void)close(fd);
-		} else {
-			/* closeat least the ones definitly causing problems*/
-			const struct aptmethod *m;
-			for( m = run->methods; m != NULL ; m = m->next ) {
-				if( m != method ) {
-					(void)close(m->stdin);
-					(void)close(m->stdout);
-				}
-			}
-		}
+		closefrom(3);
 
 		methodname = calc_dirconcat(methoddir,method->name);
 
@@ -348,10 +334,12 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	method->child = f;
 	if( verbose > 10 )
 		fprintf(stderr,"Method '%s' started as %d\n",method->baseuri,(int)f);
-	(void)close(stdin[0]);
-	(void)close(stdout[1]);
-	method->stdin = stdin[1];
-	method->stdout = stdout[0];
+	(void)close(mstdin[0]);
+	(void)close(mstdout[1]);
+	markcloseonexec(mstdin[1]);
+	markcloseonexec(mstdout[0]);
+	method->mstdin = mstdin[1];
+	method->mstdout = mstdout[0];
 	method->inputbuffer = NULL;
 	method->input_size = 0;
 	method->alreadyread = 0;
@@ -363,7 +351,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 
 /**************************how to add files*****************************/
 
-/*@null@*/static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey) {
+/*@null@*/static inline struct tobedone *newtodo(const char *baseuri, const char *origfile, const char *destfile, /*@null@*/const struct checksums *checksums, /*@null@*/const char *filekey) {
 	struct tobedone *todo;
 
 	todo = malloc(sizeof(struct tobedone));
@@ -373,18 +361,20 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	todo->next = NULL;
 	todo->uri = calc_dirconcat(baseuri,origfile);
 	todo->filename = strdup(destfile);
-	if( filekey != NULL )
+	if( filekey != NULL ) {
+		assert( checksums != NULL );
 		todo->filekey = strdup(filekey);
-	else
-		todo->filekey = NULL;
-	if( md5sum != NULL ) {
-		todo->md5sum = strdup(md5sum);
 	} else
-		todo->md5sum = NULL;
+		todo->filekey = NULL;
+	if( checksums != NULL ) {
+		assert( filekey != NULL );
+		todo->checksums = checksums_dup(checksums);
+	} else
+		todo->checksums = NULL;
 	if( todo->uri == NULL || todo->filename == NULL ||
-			(md5sum != NULL && todo->md5sum == NULL) ||
+			(checksums != NULL && todo->checksums == NULL) ||
 			(filekey != NULL && todo->filekey == NULL) ) {
-		free(todo->md5sum);
+		checksums_free(todo->checksums);
 		free(todo->uri);
 		free(todo->filename);
 		free(todo);
@@ -393,14 +383,14 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, const char *destfile, const char *md5sum, const char *filekey, struct tobedone **t) {
+retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, const char *destfile, const struct checksums *checksums, const char *filekey, struct tobedone **t) {
 	struct tobedone *todo;
 
 	assert( origfile != NULL ); assert( destfile != NULL );
-	assert( md5sum != NULL ); assert( filekey != NULL );
+	assert( checksums != NULL ); assert( filekey != NULL );
 	assert( t != NULL );
 
-	todo = newtodo(method->baseuri, origfile, destfile, md5sum, filekey);
+	todo = newtodo(method->baseuri, origfile, destfile, checksums, filekey);
 	if( todo == NULL )
 		return RET_ERROR_OOM;
 
@@ -414,15 +404,16 @@ retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, con
 	return RET_OK;
 }
 
-retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile, const char *destfile, /*@null@*/const char *md5sum) {
+retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile, const char *destfile, /*@null@*/struct checksums **checksums_p) {
 	struct tobedone *todo;
 
 	if( origfile == NULL || destfile == NULL )
 		return RET_ERROR_OOM;
 
-	todo = newtodo(method->baseuri, origfile, destfile, md5sum, NULL);
+	todo = newtodo(method->baseuri, origfile, destfile, NULL, NULL);
 	if( todo == NULL )
 		return RET_ERROR_OOM;
+	todo->checksums_p = checksums_p;
 
 	if( method->lasttobedone == NULL )
 		method->nexttosend = method->lasttobedone = method->tobedone = todo;
@@ -436,67 +427,86 @@ retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(const struct tobedone *todo,const char *filename,const char *md5sum,struct database *database) {
-	char *calculatedmd5;
+static inline retvalue todo_done(struct tobedone *todo, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
+	retvalue r;
+	struct checksums *checksums = NULL;
+	struct checksums **checksums_p;
+
+	if( todo->filekey != NULL )
+		checksums_p = &todo->checksums;
+	else
+		checksums_p = todo->checksums_p;
 
 	/* if the file is somewhere else, copy it: */
-	if( strcmp(filename,todo->filename) != 0 ) {
-		retvalue r;
+	if( strcmp(filename, todo->filename) != 0 ) {
 		/* never link index files, but copy them */
 		if( todo->filekey == NULL ) {
 			if( verbose > 1 )
 				fprintf(stderr,
 "Copy file '%s' to '%s'...\n", filename, todo->filename);
-			r = md5sum_copy(filename, todo->filename,
-					&calculatedmd5);
+			r = checksums_copyfile(todo->filename, filename,
+					&checksums);
 		} else {
 			if( verbose > 1 )
 				fprintf(stderr,
 "Linking file '%s' to '%s'...\n", filename, todo->filename);
-			r = md5sum_place(filename, todo->filename,
-					&calculatedmd5);
+			r = checksums_linkorcopyfile(todo->filename, filename,
+					&checksums);
 		}
 		if( r == RET_NOTHING ) {
 			fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
 			r = RET_ERROR_MISSING;
 		}
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			checksums_free(checksumsfromapt);
 			return r;
-		/* this we trust more */
-		// todo: reimplement the pure copyfile without md5sum?
-		md5sum = calculatedmd5;
-	} else {
-		retvalue r;
-	/* if it should be in place, calculate its md5sum, if needed */
-		if( todo->md5sum != NULL && md5sum == NULL) {
-			r = md5sum_read(filename,&calculatedmd5);
-			if( r == RET_NOTHING ) {
-				fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
-				r = RET_ERROR_MISSING;
-			}
-			if( RET_WAS_ERROR(r) )
-				return r;
-			md5sum = calculatedmd5;
-		} else
-			calculatedmd5 = NULL;
-	}
-
-	/* if we know what it should be, check it: */
-	if( todo->md5sum != NULL ) {
-		if( md5sum == NULL || strcmp(md5sum,todo->md5sum) != 0) {
-			fprintf(stderr,"Receiving '%s' wrong md5sum: got '%s' expected '%s'!\n",todo->uri,md5sum,todo->md5sum);
-			free(calculatedmd5);
-			return RET_ERROR_WRONG_MD5;
 		}
 	}
-	free(calculatedmd5); md5sum=NULL;
+
+	if( checksums_p != NULL && checksums == NULL ) {
+		/* trust apt-method if it gave some checksums */
+		checksums = checksumsfromapt;
+		if( checksums == NULL )
+			r = checksums_read(filename, &checksums);
+		else
+			/* but make sure it computed all we would have, too */
+			r = checksums_complete(&checksums, filename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Cannot open '%s', though it whould have been there now!\n",filename);
+			r = RET_ERROR_MISSING;
+		}
+		if( RET_WAS_ERROR(r) )
+			return r;
+	} else
+		checksums_free(checksumsfromapt);
+
+	/* if we know what it should be, check it: */
+	if( checksums_p != NULL ) {
+		bool improves;
+
+		assert( checksums != NULL );
+		assert( *checksums_p != NULL );
+
+		if( !checksums_check(*checksums_p, checksums, &improves) ) {
+			fprintf(stderr,"Receiving '%s' wrong checksums: ", todo->uri);
+			checksums_printdifferences(stderr, *checksums_p,
+					checksums);
+			checksums_free(checksums);
+			return RET_ERROR_WRONG_MD5;
+		}
+		if( improves ) {
+			r = checksums_combine(checksums_p, checksums);
+			if( RET_WAS_ERROR(r) ) {
+				checksums_free(checksums);
+				return r;
+			}
+		}
+	}
+	checksums_free(checksums);
 
 	if( todo->filekey != NULL ) {
-		retvalue r;
-
-		assert(todo->md5sum != NULL);
-
-		r = files_add(database, todo->filekey, todo->md5sum);
+		assert(todo->checksums != NULL);
+		r = files_add_checksums(database, todo->filekey, todo->checksums);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
@@ -584,14 +594,14 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 }
 
 /* look where a received file has to go to: */
-static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename,/*@null@*/const char *md5sum,struct database *database) {
+static retvalue uridone(struct aptmethod *method, const char *uri, const char *filename, /*@only@*//*@null@*/struct checksums *checksumsfromapt, struct database *database) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
 	while( todo != NULL ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
-			r = todo_done(todo, filename, md5sum, database);
+			r = todo_done(todo, filename, checksumsfromapt, database);
 
 			/* remove item: */
 			if( lasttodo == NULL )
@@ -608,7 +618,8 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 			}
 			free(todo->uri);
 			free(todo->filename);
-			free(todo->md5sum);
+			if( todo->filekey != NULL )
+				checksums_free(todo->checksums);
 			free(todo->filekey);
 			free(todo);
 			/* if everything is done, redo failed */
@@ -624,6 +635,7 @@ static retvalue uridone(struct aptmethod *method,const char *uri,const char *fil
 	}
 	/* huh? */
 	fprintf(stderr,"Received unexpected file '%s' at '%s'!\n",uri,filename);
+	checksums_free(checksumsfromapt);
 	return RET_ERROR;
 }
 
@@ -681,8 +693,14 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 }
 
 static inline retvalue goturidone(struct aptmethod *method,const char *chunk,struct database *database) {
-	retvalue r;
-	char *uri,*filename,*md5,*size,*md5sum;
+	static const char * const method_hash_names[cs_COUNT] =
+		{ "MD5-Hash", "SHA1-Hash", // "SHA256-Hash"
+		  "Size" };
+	retvalue result, r;
+	char *uri, *filename;
+	enum checksumtype type;
+	char *hashes[cs_COUNT];
+	struct checksums *checksums = NULL;
 
 	//TODO: is it worth the mess to make this in-situ?
 
@@ -704,28 +722,32 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,str
 		return r;
 	}
 
-	md5sum = NULL;
-	r = chunk_getvalue(chunk,"MD5-Hash",&md5);
-	if( RET_IS_OK(r) ) {
-		r = chunk_getvalue(chunk,"Size",&size);
-		if( RET_IS_OK(r) ) {
-			md5sum = calc_concatmd5andsize(md5,size);
-			if( md5sum == NULL )
-				r = RET_ERROR_OOM;
-			free(size);
-		}
-		free(md5);
+	result = RET_NOTHING;
+	for( type = cs_md5sum ; type < cs_COUNT ; type++ ) {
+		hashes[type] = NULL;
+		r = chunk_getvalue(chunk, method_hash_names[type],
+				&hashes[type]);
+		RET_UPDATE(result, r);
 	}
-	if( RET_WAS_ERROR(r) ) {
-		free(uri);
-		free(filename);
-		return r;
+	if( RET_IS_OK(result) && hashes[cs_md5sum] == NULL ) {
+		/* the lenny version also has this, better ask for
+		 * in case the old MD5-Hash vanishes in the future */
+		r = chunk_getvalue(chunk, "MD5Sum-Hash", &hashes[cs_md5sum]);
+		RET_UPDATE(result, r);
 	}
-
- 	r = uridone(method, uri, filename, md5sum, database);
+	if( RET_WAS_ERROR(result) ) {
+		free(uri); free(filename);
+		for( type = cs_md5sum ; type < cs_COUNT ; type++ )
+			free(hashes[type]);
+		return result;
+	}
+	if( RET_IS_OK(result) ) {
+		/* ignore errors, we can recompute them from the file */
+		(void)checksums_init(&checksums, hashes);
+	}
+ 	r = uridone(method, uri, filename, checksums, database);
 	free(uri);
 	free(filename);
-	free(md5sum);
 	return r;
 }
 
@@ -870,7 +892,7 @@ static retvalue receivedata(struct aptmethod *method,struct database *database) 
 	assert( method->inputbuffer != NULL );
 	/* then read as much as the pipe is able to fill of our buffer */
 
-	r = read(method->stdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
+	r = read(method->mstdout,method->inputbuffer+method->alreadyread,method->input_size-method->alreadyread-1);
 
 	if( r < 0 ) {
 		int err = errno;
@@ -949,7 +971,7 @@ static retvalue senddata(struct aptmethod *method) {
 
 	l = method->output_length - method->alreadywritten;
 
-	r = write(method->stdin,method->command+method->alreadywritten,l);
+	r = write(method->mstdin,method->command+method->alreadywritten,l);
 	if( r < 0 ) {
 		int err;
 
@@ -984,13 +1006,13 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 			continue;
 		}
 		/* Make sure we do not cope with this child any more */
-		if( method->stdin != -1 ) {
-			(void)close(method->stdin);
-			method->stdin = -1;
+		if( method->mstdin != -1 ) {
+			(void)close(method->mstdin);
+			method->mstdin = -1;
 		}
-		if( method->stdout != -1 ) {
-			(void)close(method->stdout);
-			method->stdout = -1;
+		if( method->mstdout != -1 ) {
+			(void)close(method->mstdout);
+			method->mstdout = -1;
 		}
 		method->child = -1;
 		if( method->status != ams_failed )
@@ -1030,9 +1052,9 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 	for( method = run->methods ; method != NULL ; method = method->next ) {
 		if( method->status == ams_ok &&
 		    ( method->command != NULL || method->nexttosend != NULL )) {
-			FD_SET(method->stdin,&writefds);
-			if( method->stdin > maxfd )
-				maxfd = method->stdin;
+			FD_SET(method->mstdin,&writefds);
+			if( method->mstdin > maxfd )
+				maxfd = method->mstdin;
 			(*workleft)++;
 			if( verbose > 19 )
 				fprintf(stderr,"want to write to '%s'\n",method->baseuri);
@@ -1040,9 +1062,9 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 		if( method->status == ams_waitforcapabilities ||
 				(method->status == ams_ok &&
 				method->tobedone != NULL ) ) {
-			FD_SET(method->stdout,&readfds);
-			if( method->stdout > maxfd )
-				maxfd = method->stdout;
+			FD_SET(method->mstdout,&readfds);
+			if( method->mstdout > maxfd )
+				maxfd = method->mstdout;
 			(*workleft)++;
 			if( verbose > 19 )
 				fprintf(stderr,"want to read from '%s'\n",method->baseuri);
@@ -1067,11 +1089,11 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct
 
 	maxfd = 0;
 	for( method = run->methods ; method != NULL ; method = method->next ) {
-		if( method->stdout != -1 && FD_ISSET(method->stdout,&readfds) ) {
+		if( method->mstdout != -1 && FD_ISSET(method->mstdout,&readfds) ) {
 			r = receivedata(method, database);
 			RET_UPDATE(result,r);
 		}
-		if( method->stdin != -1 && FD_ISSET(method->stdin,&writefds) ) {
+		if( method->mstdin != -1 && FD_ISSET(method->mstdin,&writefds) ) {
 			r = senddata(method);
 			RET_UPDATE(result,r);
 		}
@@ -1088,7 +1110,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struc
 
 	/* fire up all methods, removing those that do not work: */
 	for( method = run->methods; method != NULL ; method = method->next ) {
-		r = aptmethod_startup(run,method,methoddir);
+		r = aptmethod_startup(method, methoddir);
 		/* do not remove failed methods here any longer,
 		 * and not remove methods having nothing to do,
 		 * as this breaks when no index files are downloaded

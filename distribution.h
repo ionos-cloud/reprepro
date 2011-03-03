@@ -93,7 +93,6 @@ struct distribution {
 };
 
 retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);
-// retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 /* set lookedat, start logger, ... */
 retvalue distribution_prepareforwriting(struct distribution *distribution);
@@ -125,12 +124,12 @@ retvalue distribution_remove_packages(struct distribution *, struct database *, 
 /* like distribtion_getpart, but returns NULL if there is no such target */
 /*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
-retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *distdir,struct database *);
+retvalue distribution_fullexport(struct distribution *distribution, const char *distdir, struct database *);
 
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *distdir,struct database *);
+retvalue distribution_export(enum exportwhen, struct distribution *, const char *distdir, struct database *);
 
-retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *distdir,struct database *,const char *name);
+retvalue distribution_snapshot(struct distribution *distribution, const char *distdir, struct database *, const char *name);
 
 /* read the configuration from all distributions */
 retvalue distribution_readall(const char *confdir,const char *logdir,/*@out@*/struct distribution **distributions);
@@ -143,7 +142,7 @@ struct distribution *distribution_find(struct distribution *distributions, const
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
 retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
-retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
+retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions, const char *distdir, struct database *);
 
 retvalue distribution_loadalloverrides(struct distribution *, const char *confdir, const char *overridedir);
 void distribution_unloadoverrides(struct distribution *distribution);

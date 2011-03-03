@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -35,9 +35,9 @@
 #include "strlist.h"
 #include "dirs.h"
 #include "names.h"
-#include "md5sum.h"
 #include "chunks.h"
 #include "files.h"
+#include "filelist.h"
 #include "database_p.h"
 #include "target.h"
 #include "reference.h"
@@ -104,6 +104,7 @@ static enum exportwhen export = EXPORT_CHANGED;
 int		verbose = 0;
 static bool	fast = false;
 static bool	verbosedatabase = false;
+static bool	oldfilesdb = true;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
@@ -114,7 +115,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase);
+O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), O(overridedir), O(methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunreferenced), O(keepunneededlists), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -125,7 +126,7 @@ O(fast), O(mirrordir), O(distdir), O(dbdir), O(listdir), O(confdir), O(logdir), 
 					free(variable); \
 					variable = strdup(value); \
 					if( variable == NULL ) { \
-						fputs("Out of Memory!",stderr); \
+						(void)fputs("Out of Memory!",stderr); \
 						exit(EXIT_FAILURE); \
 					} }
 
@@ -258,7 +259,7 @@ ACTION_N(n, n, printargs) {
 	for( i=0 ; i < argc ; i++ ) {
 		fprintf(stderr,"%s\n",argv[i]);
 	}
-	return 0;
+	return RET_OK;
 }
 
 ACTION_N(n, n, extractcontrol) {
@@ -311,17 +312,17 @@ ACTION_N(n, n, extractfilelist) {
 					p++;
 				}
 				len += *(p++);
-				putchar('/');
+				(void)putchar('/');
 				for( i = 0 ; i < depth ; i++ ) {
 					const unsigned char *n = dirs[i];
 					j = lengths[i];
 					while( j-- > 0 )
-						putchar(*(n++));
-					putchar('/');
+						(void)putchar(*(n++));
+					(void)putchar('/');
 				}
 				while( len-- > 0 )
-					putchar(*(p++));
-				putchar('\n');
+					(void)putchar(*(p++));
+				(void)putchar('\n');
 			}
 		}
 		free(filelist);
@@ -360,6 +361,8 @@ ACTION_F(n, n, n, n, addmd5sums) {
 	result = RET_NOTHING;
 
 	while( fgets(buffer,1999,stdin) != NULL ) {
+		struct checksums *checksums;
+
 		c = strchr(buffer,'\n');
 		if( c == NULL ) {
 			fprintf(stderr,"Line too long\n");
@@ -372,8 +375,16 @@ ACTION_F(n, n, n, n, addmd5sums) {
 			return RET_ERROR;
 		}
 		*m = '\0'; m++;
-		r = files_add(database,buffer,m);
+		if( *m == '\0' ) {
+			fprintf(stderr,"Malformed line\n");
+			return RET_ERROR;
+		}
+		r = checksums_setall(&checksums, m, strlen(m), NULL);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = files_add_checksums(database, buffer, checksums);
 		RET_UPDATE(result,r);
+		checksums_free(checksums);
 
 	}
 	return result;
@@ -387,10 +398,36 @@ ACTION_R(n, n, n, y, removereferences) {
 
 
 ACTION_R(n, n, n, n, dumpreferences) {
-	return references_dump(database);
+	struct cursor *cursor;
+	retvalue result, r;
+	const char *found_to, *found_by;
+
+	r = table_newglobalcursor(database->references, &cursor);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	result = RET_OK;
+	while( cursor_nexttemp(database->references, cursor,
+	                               &found_to, &found_by) ) {
+		if( fputs(found_by, stdout) == EOF ||
+		    putchar(' ') == EOF ||
+		    puts(found_to) == EOF ) {
+			result = RET_ERROR;
+			break;
+		}
+		result = RET_OK;
+		if( interrupted() ) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
+	}
+	r = cursor_close(database->references, cursor);
+	RET_ENDUPDATE(result, r);
+	return result;
+	return result;
 }
 
-static retvalue checkifreferenced(void *data,const char *filekey,UNUSED(const char *md5sum)) {
+static retvalue checkifreferenced(void *data, const char *filekey) {
 	struct database *database = data;
 	retvalue r;
 
@@ -411,7 +448,7 @@ ACTION_RF(n, n, n, dumpunreferenced) {
 	return result;
 }
 
-static retvalue deleteifunreferenced(void *data,const char *filekey,UNUSED(const char *md5sum)) {
+static retvalue deleteifunreferenced(void *data, const char *filekey) {
 	struct database *database = data;
 	retvalue r;
 
@@ -515,7 +552,7 @@ ACTION_D(y, n, y, remove) {
 
 	logger_wait();
 
-	r = distribution_export(export, distribution, confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	if( d.trackingdata != NULL ) {
@@ -631,7 +668,7 @@ ACTION_D(n, n, y, removesrc) {
 						distribution->codename);
 			}
 		} else {
-			r = distribution_export(export, distribution, confdir, distdir, database);
+			r = distribution_export(export, distribution, distdir, database);
 			RET_ENDUPDATE(result,r);
 		}
 		r = tracking_done(tracks);
@@ -647,8 +684,7 @@ ACTION_D(n, n, y, removesrc) {
 			NULL, NULL, NULL,
 			package_source_fits, dereferenced, NULL,
 			&data);
-	r = distribution_export(export, distribution,
-			confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result, r);
 	return result;
 }
@@ -708,8 +744,7 @@ ACTION_D(y, n, y, removefilter) {
 			package_matches_condition, dereferenced,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
-	r = distribution_export(export, distribution,
-			confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result, r);
 	if( tracks != NULL ) {
 		trackingdata_finish(tracks, &trackingdata,
@@ -860,6 +895,10 @@ ACTION_F(n, n, n, n, listmd5sums) {
 	return files_printmd5sums(database);
 }
 
+ACTION_F(n, n, n, n, listchecksums) {
+	return files_printchecksums(database);
+}
+
 ACTION_B(n, n, n, dumpcontents) {
 	retvalue result,r;
 	struct table *packages;
@@ -871,7 +910,7 @@ ACTION_B(n, n, n, dumpcontents) {
 	result = database_openpackages(database, argv[1], true, &packages);
 	if( RET_WAS_ERROR(result) )
 		return result;
-	r = table_newglobaluniqcursor(packages, &cursor);
+	r = table_newglobalcursor(packages, &cursor);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		(void)table_close(packages);
@@ -911,7 +950,7 @@ ACTION_F(n, n, y, y, export) {
 			printf("Exporting %s...\n",d->codename);
 		}
 
-		r = distribution_fullexport(d, confdir, distdir, database);
+		r = distribution_fullexport(d, distdir, database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && export != EXPORT_FORCE) {
 			return r;
@@ -960,8 +999,7 @@ ACTION_D(n, n, y, update) {
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1004,8 +1042,7 @@ ACTION_D(n, n, y, predelete) {
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
-	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result, r);
 
 	return result;
@@ -1041,7 +1078,7 @@ ACTION_D(n, n, y, iteratedupdate) {
 		result = updates_clearlists(listdir,u_distributions);
 	}
 	if( !RET_WAS_ERROR(result) )
-		result = updates_iteratedupdate(confdir, database, distdir, methoddir, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
+		result = updates_iteratedupdate(database, distdir, methoddir, u_distributions, nolistsdownload, skipold, dereferenced, export, spacecheckmode, reserveddbspace, reservedotherspace);
 	updates_freeupdatedistributions(u_distributions);
 	updates_freepatterns(patterns);
 
@@ -1111,8 +1148,7 @@ ACTION_D(n, n, y, pull) {
 	pull_freerules(rules);
 	pull_freedistributions(p);
 
-	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1195,7 +1231,7 @@ static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
 		return result;
 	}
 
-	result = origtarget->getfilekeys(origtarget, chunk, &filekeys, NULL);
+	result = origtarget->getfilekeys(chunk, &filekeys);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
 		free(chunk);
@@ -1275,7 +1311,7 @@ ACTION_D(y, n, y, copy) {
 	d.removedfiles = NULL;
 	d.destination = NULL;
 
-	r = distribution_export(export, destination, confdir, distdir, database);
+	r = distribution_export(export, destination, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1323,7 +1359,7 @@ ACTION_R(n, n, y, y, rereference) {
 static retvalue package_retrack(struct database *database, UNUSED(struct distribution *di), struct target *target, const char *packagename, const char *controlchunk, void *data) {
 	trackingdb tracks = data;
 
-	return target->doretrack(target, packagename, controlchunk,
+	return target->doretrack(packagename, controlchunk,
 			tracks, database);
 }
 
@@ -1411,7 +1447,7 @@ ACTION_D(n, n, y, removealltracks) {
 	const char *codename;
 	int i;
 
-	if( !delete )
+	if( delete <= 0 )
 		for( i = 1 ; i < argc ; i ++ ) {
 			codename = argv[i];
 
@@ -1572,6 +1608,13 @@ ACTION_F(n, n, n, y, checkpool) {
 
 	return files_checkpool(database, argc == 2);
 }
+
+/* Update checksums of existing files */
+
+ACTION_F(n, n, n, n, collectnewchecksums) {
+
+	return files_collectnewchecksums(database);
+}
 /*****************reapplying override info***************/
 
 ACTION_F(y, n, y, y, reoverride) {
@@ -1606,7 +1649,7 @@ ACTION_F(y, n, y, y, reoverride) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
-	r = distribution_exportlist(export, alldistributions, confdir, distdir, database);
+	r = distribution_exportlist(export, alldistributions, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1700,8 +1743,7 @@ ACTION_D(y, y, y, includedeb) {
 
 		r = deb_add(database, component, architecture,
 				section,priority,isudeb?"udeb":"deb",distribution,filename,
-				NULL,NULL,delete,
-				dereferenced,tracks);
+				delete, dereferenced,tracks);
 		RET_UPDATE(result, r);
 	}
 
@@ -1712,7 +1754,7 @@ ACTION_D(y, y, y, includedeb) {
 
 	logger_wait();
 
-	r = distribution_export(export, distribution, confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1770,8 +1812,7 @@ ACTION_D(y, y, y, includedsc) {
 	distribution_unloadoverrides(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export, distribution,
-			confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1838,7 +1879,7 @@ ACTION_D(y, y, y, include) {
 	distribution_unloaduploaders(distribution);
 	r = tracking_done(tracks);
 	RET_ENDUPDATE(result,r);
-	r = distribution_export(export,distribution,confdir, distdir, database);
+	r = distribution_export(export, distribution, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -1897,7 +1938,7 @@ ACTION_C(n, n, createsymlinks) {
 		buffer = calloc(1,bufsize);
 		if( linkname == NULL || buffer == NULL ) {
 			free(linkname);free(buffer);
-			fputs("Out of Memory!\n",stderr);
+			(void)fputs("Out of Memory!\n",stderr);
 			return RET_ERROR_OOM;
 		}
 
@@ -2007,6 +2048,7 @@ ACTION_D(n, n, n, clearvanished) {
 				if( !table_isempty(packages) ) {
 					fprintf(stderr,
 "There are still packages in '%s', not removing (give --delete to do so)!\n", identifier);
+					(void)table_close(packages);
 					continue;
 				}
 				r = table_close(packages);
@@ -2086,7 +2128,7 @@ ACTION_D(n, n, y, processincoming) {
 	logger_wait();
 
 	r = distribution_exportlist(export, alldistributions,
-			confdir, distdir, database);
+			distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
@@ -2103,11 +2145,7 @@ ACTION_R(n, n, y, y, gensnapshot) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 
-	result = distribution_snapshot(distribution,
-	                               confdir, distdir,
-				       database,
-	                               argv[2]);
-	return result;
+	return distribution_snapshot(distribution, distdir, database, argv[2]);
 }
 
 
@@ -2193,7 +2231,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 static const struct action {
 	const char *name;
 	retvalue (*start)(
-			/*@null@*//*@only@*/struct distribution *,
+			/*@null@*/struct distribution *,
 			/*@null@*/struct database*,
 			/*@null@*/struct strlist *dereferencedfilekeys,
 			/*@null@*/const char *priority,
@@ -2219,7 +2257,11 @@ static const struct action {
 	{"_forget", 		A__F(forget),
 		-1, -1, NULL},
 	{"_listmd5sums",	A__F(listmd5sums),
-		0, 0, "_listmd5sums "},
+		0, 0, "_listmd5sums"},
+	{"_listchecksums",	A__F(listchecksums),
+		0, 0, "_listchecksums"},
+	{"_addchecksums",	A__F(addmd5sums),
+		0, 0, "_addchecksums < data"},
 	{"_addmd5sums",		A__F(addmd5sums),
 		0, 0, "_addmd5sums < data"},
 	{"_dumpcontents", 	A_ROB(dumpcontents)|MAY_UNUSED,
@@ -2248,6 +2290,8 @@ static const struct action {
 		0, -1, "check [<distributions>]"},
 	{"reoverride", 		A_Fact(reoverride),
 		0, -1, "[-T ...] [-C ...] [-A ...] reoverride [<distributions>]"},
+	{"collectnewchecksums", A_F(collectnewchecksums),
+		0, 0, "collectnewchecksums"},
 	{"checkpool", 		A_F(checkpool),
 		0, 1, "checkpool [fast]"},
 	{"rereference", 	A_R(rereference),
@@ -2387,6 +2431,8 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				x_section, x_priority,
 				x_architecture, x_component, x_packagetype,
 				argc, argv);
+		r = distribution_freelist(alldistributions);
+		RET_ENDUPDATE(result,r);
 		return result;
 	}
 
@@ -2395,8 +2441,10 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 	result = database_create(&database, dbdir, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
 			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
-			waitforlock, verbosedatabase || (verbose >= 30) );
+			waitforlock, verbosedatabase || (verbose >= 30),
+			oldfilesdb);
 	if( !RET_IS_OK(result) ) {
+		(void)distribution_freelist(alldistributions);
 		return result;
 	}
 
@@ -2430,8 +2478,6 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				if( deletederef ) {
 					if( dereferencedfilekeys.count > 0 ) {
 					    if( RET_IS_OK(result) && !interrupted() ) {
-						retvalue r;
-
 						logger_wait();
 
 						if( verbose >= 0 )
@@ -2487,6 +2533,8 @@ LO_NOSKIPOLD,
 LO_NOGUESSGPGTTY,
 LO_VERBOSEDB,
 LO_NOVERBOSEDB,
+LO_OLDFILESDB,
+LO_NOOLDFILESDB,
 LO_EXPORT,
 LO_DISTDIR,
 LO_DBDIR,
@@ -2674,6 +2722,12 @@ static void handle_option(int c,const char *optarg) {
 					break;
 				case LO_NOVERBOSEDB:
 					CONFIGSET(verbosedatabase, false);
+					break;
+				case LO_OLDFILESDB:
+					CONFIGSET(oldfilesdb, true);
+					break;
+				case LO_NOOLDFILESDB:
+					CONFIGSET(oldfilesdb, false);
 					break;
 				case LO_EXPORT:
 					setexport(optarg);
@@ -2871,6 +2925,9 @@ int main(int argc,char *argv[]) {
 		{"noverbosedb", no_argument, &longoption, LO_NOVERBOSEDB},
 		{"verbosedatabase", no_argument, &longoption, LO_VERBOSEDB},
 		{"noverbosedatabase", no_argument, &longoption, LO_NOVERBOSEDB},
+		{"oldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
+		{"nooldfilesdb", no_argument, &longoption, LO_NOOLDFILESDB},
+		{"nonooldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
@@ -2889,7 +2946,13 @@ int main(int argc,char *argv[]) {
 	struct sigaction sa;
 
 	sigemptyset(&sa.sa_mask);
+#if defined(SA_ONESHOT)
 	sa.sa_flags = SA_ONESHOT;
+#elif defined(SA_RESETHAND)
+	sa.sa_flags = SA_RESETHAND;
+#elif !defined(SPLINT)
+#       error "missing argument to sigaction!"
+#endif
 	sa.sa_handler = interrupt_signaled;
 	(void)sigaction(SIGTERM, &sa, NULL);
 	(void)sigaction(SIGABRT, &sa, NULL);
@@ -2960,6 +3023,8 @@ int main(int argc,char *argv[]) {
 		confdir=calc_dirconcat(mirrordir,"conf");
 	}
 
+	if( delete < D_COPY )
+		delete = D_COPY;
 	if( methoddir == NULL )
 		methoddir = strdup(STD_METHOD_DIR);
 	if( distdir == NULL )
@@ -3003,9 +3068,9 @@ int main(int argc,char *argv[]) {
 			free(x_priority);
 			if( RET_WAS_ERROR(r) ) {
 				if( r == RET_ERROR_OOM )
-					fputs("Out of Memory!\n",stderr);
+					(void)fputs("Out of Memory!\n",stderr);
 				else if( verbose >= 0 )
-					fputs("There have been errors!\n",stderr);
+					(void)fputs("There have been errors!\n",stderr);
 			}
 			exit(EXIT_RET(r));
 		} else

@@ -8,12 +8,12 @@
 #ifndef REPREPRO_DATABASE_H
 #include "database.h"
 #endif
-#include "filelist.h"
 
-struct filesdb;
+struct checksums;
+struct checksumsarray;
 
 /* Add file's md5sum to database */
-retvalue files_add(struct database *,const char *filekey,const char *md5sum);
+retvalue files_add_checksums(struct database *, const char *, const struct checksums *);
 
 /* remove file's md5sum from database */
 retvalue files_remove(struct database *, const char *filekey, bool ignoremissing);
@@ -23,12 +23,12 @@ retvalue files_remove(struct database *, const char *filekey, bool ignoremissing
 retvalue files_deleteandremove(struct database *, const char *filekey, bool rmdirs, bool ignoremissing);
 
 /* check for file in the database and if not found there in the pool */
-retvalue files_expect(struct database *,const char *filekey,const char *md5sum);
+retvalue files_expect(struct database *, const char *, const struct checksums *);
 /* same for multiple files */
-retvalue files_expectfiles(struct database *,const struct strlist *filekeys,const struct strlist *md5sums);
+retvalue files_expectfiles(struct database *, const struct strlist *, struct checksums **);
 
 /* print missing files */
-retvalue files_printmissing(struct database *,const struct strlist *filekeys,const struct strlist *md5sums,const struct strlist *origfiles);
+retvalue files_printmissing(struct database *, const struct strlist *filekeys, const struct checksumsarray *);
 
 /* what to do with files */
 /* file should already be there, just make sure it is in the database */
@@ -40,48 +40,40 @@ retvalue files_printmissing(struct database *,const struct strlist *filekeys,con
 /* move needed and delete unneeded files: */
 #define D_DELETE	2
 
-/* Include a given file into the pool. i.e.:
- * 1) if <md5dum> != NULL
- *    check if <filekey> with <md5sum> is already there,
- *    return RET_NOTHING if it is.
- *    return n RET_ERROR_WRONG_MD5 if wrong md5sum.
- * 2) Look if there is already a file in the pool with correct md5sum.
- * and add it to the database if yes.
- * return RET_OK, if done, (and set *calculatedmd5sum)
- * 3) copy or move file (depending on delete) file to destination,
- * making sure it has the correct <md5sum> if given,
- * or computing it, if <claculatemd5sum> is given.
- * return RET_OK, if done,
+/* Include a given file into the pool
+ * return RET_NOTHING, if a file with the same checksums is already there
+ * return RET_OK, if copied and added
  * return RET_ERROR_MISSING, if there is no file to copy.
  * return RET_ERROR_WRONG_MD5 if wrong md5sum.
  *  (the original file is not deleted in that case, even if delete is positive)
- * 4) add it to the database
  */
-retvalue files_include(struct database *,const char *sourcefilename,const char *filekey, /*@null@*/const char *md5sum, /*@null@*/char **calculatedmd5sum, int delete);
+retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
+retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
 
-/* same as above, but use sourcedir/basename instead of sourcefilename */
-retvalue files_includefile(struct database *,const char *sourcedir,const char *basename, const char *filekey, const char *md5sum, /*@null@*/char **calculatedmd5sum, int delete);
-
-typedef retvalue per_file_action(void *data,const char *filekey,const char *md5sum);
+typedef retvalue per_file_action(void *data, const char *filekey);
 
 /* callback for each registered file */
 retvalue files_foreach(struct database *,per_file_action action,void *data);
 
 /* check if all files are corect. (skip md5sum if fast is true) */
 retvalue files_checkpool(struct database *, bool fast);
+/* calculate all missing hashes */
+retvalue files_collectnewchecksums(struct database *);
 
 /* dump out all information */
 retvalue files_printmd5sums(struct database *);
+retvalue files_printchecksums(struct database *);
 
 /* look for the given filekey and add it into the filesdatabase */
 retvalue files_detect(struct database *,const char *filekey);
 
 retvalue files_regenerate_filelist(struct database *, bool redo);
 
-/* hardlink file with known md5sum and add it to database */
-retvalue files_hardlink(struct database *,const char *tempfile, const char *filekey,const char *md5sum);
+/* hardlink file with known checksums and add it to database */
+retvalue files_hardlinkandadd(struct database *, const char *tempfile, const char *filekey, const struct checksums *);
+
 /* check if file is already there (RET_NOTHING) or could be added (RET_OK)
  * or RET_ERROR_WRONG_MD5SUM if filekey is already there with different md5sum */
-retvalue files_ready(struct database *,const char *filekey,const char *md5sum);
+retvalue files_canadd(struct database *, const char *filekey, const struct checksums *);
 
 #endif

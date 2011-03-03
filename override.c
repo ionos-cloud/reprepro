@@ -26,7 +26,6 @@
 #include <strings.h>
 #include <ctype.h>
 #include <time.h>
-#include <zlib.h>
 #include "error.h"
 #include "chunks.h"
 #include "sources.h"
