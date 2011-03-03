@@ -45,14 +45,14 @@ retvalue guess_component(const char *codename,const struct strlist *components,
 
 #define RETURNTHIS(comp) { \
 		char *c = strdup(comp); \
-		if( !c ) \
+		if( c == NULL ) \
 			return RET_ERROR_OOM; \
 		*guess = c; \
 		return RET_OK; \
 	}
 	
-	if( givencomponent ) {
-		if( givencomponent && !strlist_in(components,givencomponent) ) {
+	if( givencomponent != NULL ) {
+		if( !strlist_in(components,givencomponent) ) {
 			(void)fprintf(stderr,"Could not find '%s' in components of '%s': ",
 					givencomponent,codename);
 			(void)strlist_fprint(stderr,components);
@@ -82,7 +82,8 @@ retvalue guess_component(const char *codename,const struct strlist *components,
 		const char *component = components->values[i];
 		size_t len = strlen(component);
 
-		if( len<section_len && section[len] == '/' && strncmp(section,component,len) == 0 )
+		if( len<section_len && section[len] == '/' && 
+				strncmp(section,component,len) == 0 )
 			RETURNTHIS(component);
 	}
 	for( i = 0 ; i < components->count ; i++ ) {

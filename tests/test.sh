@@ -4,6 +4,18 @@ set -e -v
 
 WORKDIR="`pwd`/testdir"
 
+if [ "x$1" == "x--delete" ] ; then
+	rm -r "$WORKDIR" || true
+	shift
+fi
+HELPER=""
+#HELPER="valgrind -v --leak-check=full"
+if [ "x$1" == "x--helper" ] ; then
+	shift
+	HELPER="$1"
+	shift
+fi
+
 mkdir "$WORKDIR"
 cd "$WORKDIR"
 
@@ -26,6 +38,7 @@ Codename: test1
 Architectures: abacus source
 Components: stupid ugly
 Update: Test2toTest1
+Tracking: keep includechanges needsources includebyhand embargoalls
 
 Codename: test2
 Architectures: abacus coal source
@@ -42,7 +55,7 @@ DebOverride: binoverride
 DscOverride: srcoverride
 CONFEND
 
-"$REPREPRO" -b . export
+$HELPER "$REPREPRO" -b . export
 test -f dists/test1/Release
 test -f dists/test2/Release
 
@@ -104,20 +117,20 @@ echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test2/Relea
 diff -u dists/test1/Release.expected dists/test1/Release || exit 1
 diff -u dists/test2/Release.expected dists/test2/Release || exit 1
 
-PACKAGE=simple EPOCH="" VERSION=123 REVISION=-0 SECTION="stupid/base" genpackage.sh
-"$REPREPRO" -b . include test1 test.changes
+PACKAGE=simple EPOCH="" VERSION=1 REVISION="" SECTION="stupid/base" genpackage.sh
+$HELPER "$REPREPRO" -b . include test1 test.changes
 echo returned: $?
 
 PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=0.9-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/base" genpackage.sh
-"$REPREPRO" -b . include test1 test.changes
+$HELPER "$REPREPRO" -b . include test1 test.changes
 echo returned: $?
 
-"$REPREPRO" -b . -Tdsc remove test1 simple
-"$REPREPRO" -b . -Tdeb remove test1 bloat+-0a9z.app
-"$REPREPRO" -b . -A source remove test1 bloat+-0a9z.app
-"$REPREPRO" -b . -A abacus remove test1 simple
-"$REPREPRO" -b . -C ugly remove test1 bloat+-0a9z.app-addons
-"$REPREPRO" -b . -C stupid remove test1 simple-addons
+$HELPER "$REPREPRO" -b . -Tdsc remove test1 simple
+$HELPER "$REPREPRO" -b . -Tdeb remove test1 bloat+-0a9z.app
+$HELPER "$REPREPRO" -b . -A source remove test1 bloat+-0a9z.app
+$HELPER "$REPREPRO" -b . -A abacus remove test1 simple
+$HELPER "$REPREPRO" -b . -C ugly remove test1 bloat+-0a9z.app-addons
+$HELPER "$REPREPRO" -b . -C stupid remove test1 simple-addons
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\nw\nq' | ed -s dists/test1/Release
 
@@ -148,12 +161,12 @@ bloat+-0a9z.app-addons Maintainer bloat.add.maintainer
 bloat+-0a9z.app-addons Priority optional
 END
 
-"$REPREPRO" -b . -Tdsc -A source includedsc test2 simple_123-0.dsc
-"$REPREPRO" -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
-"$REPREPRO" -b . -Tdeb -A abacus includedeb test2 simple_123-0_abacus.deb
-"$REPREPRO" -b . -Tdeb -A coal includedeb test2 simple-addons_123-0_all.deb
-"$REPREPRO" -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
-"$REPREPRO" -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+$HELPER "$REPREPRO" -b . -Tdsc -A source includedsc test2 simple_1.dsc
+$HELPER "$REPREPRO" -b . -Tdsc -A source includedsc test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+$HELPER "$REPREPRO" -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb
+$HELPER "$REPREPRO" -b . -Tdeb -A coal includedeb test2 simple-addons_1_all.deb
+$HELPER "$REPREPRO" -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
+$HELPER "$REPREPRO" -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' > results
 cat >results.expected <<END
 dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
@@ -182,14 +195,14 @@ dists/test2/ugly/source/Sources.gz:Priority: optional
 dists/test2/ugly/source/Sources.gz:Section: ugly/games
 END
 diff -u results.expected results
-"$REPREPRO" -b . listfilter test2 'Source(==simple)|(!Source,Package(==simple))' > results
+$HELPER "$REPREPRO" -b . listfilter test2 'Source(==simple)|(!Source,Package(==simple))' > results
 cat > results.expected << END
-test2|ugly|abacus: simple 123-0
-test2|ugly|coal: simple-addons 123-0
-test2|ugly|source: simple 123-0
+test2|ugly|abacus: simple 1
+test2|ugly|coal: simple-addons 1
+test2|ugly|source: simple 1
 END
 diff -u results.expected results
-"$REPREPRO" -b . listfilter test2 'Source(==bloat+-0a9z.app)|(!Source,Package(==bloat+-0a9z.app))' > results
+$HELPER "$REPREPRO" -b . listfilter test2 'Source(==bloat+-0a9z.app)|(!Source,Package(==bloat+-0a9z.app))' > results
 cat > results.expected << END
 test2|stupid|abacus: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 test2|stupid|coal: bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
@@ -214,19 +227,100 @@ simple			install
 bloat+-0a9z.app-addons	install
 END
 
-"$REPREPRO" -b . $UPDATETYPE test1
-"$REPREPRO" -b . $UPDATETYPE test1
-"$REPREPRO" --nolistsdownload -b . $UPDATETYPE test1
+$HELPER "$REPREPRO" -b . $UPDATETYPE test1
+$HELPER "$REPREPRO" -b . $UPDATETYPE test1
+$HELPER "$REPREPRO" --nolistsdownload -b . $UPDATETYPE test1
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
 diff -u test2 test1
 
-"$REPREPRO" -b . check test1 test2
-"$REPREPRO" -b . checkpool
-"$REPREPRO" -b . rereference test1 test2
-"$REPREPRO" -b . check test1 test2
+$HELPER "$REPREPRO" -b . check test1 test2
+$HELPER "$REPREPRO" -b . checkpool
+$HELPER "$REPREPRO" -b . rereference test1 test2
+$HELPER "$REPREPRO" -b . check test1 test2
 
-set +v
+$HELPER "$REPREPRO" -b . dumptracks > results
+cat >results.expected <<END
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
+ pool/ugly/b/bloat+-0a9z.app/test.changes c 0
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple-addons_1_all.deb a 0
+ pool/stupid/s/simple/simple_1_abacus.deb b 0
+ pool/stupid/s/simple/simple_1.dsc s 0
+ pool/stupid/s/simple/simple_1.tar.gz s 0
+ pool/stupid/s/simple/test.changes c 0
+
+END
+diff -u results.expected results
+
+$HELPER "$REPREPRO" -b . cleartracks
+echo returned: $?
+$HELPER "$REPREPRO" -b . include test1 test.changes
+echo returned: $?
+OUTPUT=test2.changes PACKAGE=bloat+-0a9z.app EPOCH=99: VERSION=9.0-A:Z+a:z REVISION=-0+aA.9zZ SECTION="ugly/extra" genpackage.sh
+$HELPER "$REPREPRO" -b . include test1 test2.changes
+echo returned: $?
+$HELPER "$REPREPRO" -b . -S test -P test includedeb test1 simple_1_abacus.deb
+echo returned: $?
+$HELPER "$REPREPRO" -b . -S test -P test includedsc test1 simple_1.dsc
+echo returned: $?
+
+$HELPER "$REPREPRO" -b . dumptracks > results
+cat >results.expected <<END
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
+ pool/ugly/b/bloat+-0a9z.app/test.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/test2.changes c 0
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+
+END
+diff -u results.expected results
+
+echo "now testing some error messages:"
+ERRORCODE=0
+$HELPER "$REPREPRO" -b . include unknown || ERRORCODE=$?
+[ $ERRORCODE == 255 ]
+ERRORCODE=0
+$HELPER "$REPREPRO" -b . include unknown test.changes test2.changes || ERRORCODE=$?
+[ $ERRORCODE == 255 ]
+ERRORCODE=0
+$HELPER "$REPREPRO" -b . include unknown test.changes || ERRORCODE=$?
+[ $ERRORCODE == 249 ]
+
+set +v 
 echo
 echo "If the script is still running to show this,"
 echo "all tested cases seem to work. (Though writing some tests more can never harm)."

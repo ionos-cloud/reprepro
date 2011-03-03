@@ -45,7 +45,7 @@ void term_free(term *term) {
 static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,int options) {
 	struct term_atom *a;
 	const char *f = *formula;
-#define overspace() while( *f != '\0' && isspace(*f) ) f++
+#define overspace() while( *f != '\0' && xisspace(*f) ) f++
 	const char *keystart,*keyend;
 	const char *valuestart,*valueend;
 	enum term_comparison comparison = tc_none;
@@ -59,7 +59,7 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 	}
 	keystart = f;
 	// TODO: allow more strict checking again with some option?
-	while( *f != '\0' && *f != '(' && !isspace(*f) && *f != ',' && *f != '|' && *f !='(' && *f != ')' && *f != '[' && *f != '!' )
+	while( *f != '\0' && *f != '(' && !xisspace(*f) && *f != ',' && *f != '|' && *f !='(' && *f != ')' && *f != '[' && *f != '!' )
 		f++;
 	keyend = f;
 	if( keystart == keyend ) {
@@ -127,7 +127,7 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 		while( *f != '\0' && *f != ')' ) {
 			valueend = f+1;
 			f++;
-			while( *f != '\0' && isspace(*f) )
+			while( *f != '\0' && xisspace(*f) )
 				f++;
 		}
 		if( *f != ')' || valueend == valuestart ) {
@@ -179,8 +179,8 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 static void orterm(term *termtochange, /*@dependent@*/term *termtoor) {
 	struct term_atom *p = termtochange;
 
-	while( p ) {
-		while( p->nextiffalse )
+	while( p != NULL ) {
+		while( p->nextiffalse != NULL )
 			p = p->nextiffalse;
 		p->nextiffalse= termtoor;
 		p = p->nextiftrue;
@@ -189,8 +189,8 @@ static void orterm(term *termtochange, /*@dependent@*/term *termtoor) {
 static void andterm(term *termtochange, /*@dependent@*/term *termtoand) {
 	struct term_atom *p = termtochange;
 
-	while( p ) {
-		while( p->nextiftrue )
+	while( p != NULL ) {
+		while( p->nextiftrue != NULL )
 			p = p->nextiftrue;
 		p->nextiftrue = termtoand;
 		p = p->nextiffalse;
@@ -217,7 +217,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 		assert( "Not yet implemented!" == NULL); 
 	}
 
-#define overspace() while( *formula!='\0' && isspace(*formula) ) formula++
+#define overspace() while( *formula!='\0' && xisspace(*formula) ) formula++
 
 	lastinitializeddepth=-1;
 	depth=0;
@@ -313,7 +313,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 
 retvalue term_decidechunk(term *condition,const char *controlchunk) {
 	struct term_atom *atom = condition;
-	while( atom ) {
+	while( atom != NULL ) {
 		bool_t correct;char *value;
 		enum term_comparison c = atom->comparison;
 		retvalue r;

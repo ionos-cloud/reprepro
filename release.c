@@ -57,7 +57,7 @@ retvalue release_getchecksums(const char *releasefile,struct strlist *info) {
 	int i;
 
 	fi = gzopen(releasefile,"r");
-	if( !fi ) {
+	if( fi == NULL ) {
 		fprintf(stderr,"Error opening %s: %m!\n",releasefile);
 		return RET_ERRNO(errno);
 	}
@@ -145,7 +145,7 @@ retvalue release_genrelease(const char *distributiondir,const struct distributio
 
 	(void)unlink(filename);
 	f = fopen(filename,"w");
-	if( !f ) {
+	if( f == NULL ) {
 		e = errno;
 		fprintf(stderr,"Error writing file %s: %m\n",filename);
 		free(filename);
@@ -205,13 +205,13 @@ retvalue release_gen(const char *dirofdist,const struct distribution *distributi
 	}
 
 	filename = calc_dirconcat(dirofdist,"Release.new");
-	if( !filename ) {
+	if( filename == NULL ) {
 		return RET_ERROR_OOM;
 	}
 	(void)dirs_make_parent(filename);
 	(void)unlink(filename);
 	f = fopen(filename,"w");
-	if( !f ) {
+	if( f == NULL ) {
 		e = errno;
 		fprintf(stderr,"Error writing file %s: %m\n",filename);
 		free(filename);
@@ -299,7 +299,7 @@ retvalue release_gen(const char *dirofdist,const struct distribution *distributi
 	checkwritten;
 #undef checkwritten
 
-	if( distribution->signwith ) { 
+	if( distribution->signwith != NULL ) { 
 		char *newfilename;
 
 		newfilename = calc_dirconcat(dirofdist,"Release.gpg.new");

@@ -31,6 +31,7 @@
 #include "names.h"
 #include "dpkgversions.h"
 #include "override.h"
+#include "tracking.h"
 
 extern int verbose;
 
@@ -129,7 +130,7 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 
 	/* collect the given md5sum and size */
 
-  	if( basefiles ) {
+  	if( basefiles != NULL ) {
 		struct strlist filelines;
   
 		r = chunk_getextralinelist(chunk,"Files",&filelines);
@@ -138,7 +139,7 @@ static retvalue parse_chunk(const char *chunk,/*@out@*/char **origdirectory,/*@o
 				free(od);
   			return r;
 		}
-		if( md5sums )
+		if( md5sums != NULL )
 			r = getBasenamesAndMd5(&filelines,basefiles,md5sums);
 		else
 			r = getBasenames(&filelines,basefiles);
@@ -184,7 +185,7 @@ static inline retvalue calcnewcontrol(
 	}
 	*newchunk = chunk_replacefield(chunk,"Directory",directory);
 	free(directory);
-	if( !newchunk ) {
+	if( newchunk == NULL ) {
 		strlist_done(filekeys);
 		return RET_ERROR_OOM;
 	}
@@ -221,7 +222,7 @@ retvalue sources_calcfilelines(const struct strlist *basenames,const struct strl
 		len += 3+strlen(basenames->values[i])+strlen(md5sums->values[i]);
 	}
 	result = malloc(len*sizeof(char));
-	if( !result )
+	if( result == NULL )
 		return RET_ERROR_OOM;
 	*item = result;
 	*(result++) = '\n';
@@ -245,7 +246,7 @@ retvalue sources_getname(UNUSED(struct target *t),const char *control,char **pac
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not found Package name in chunk:'%s'\n",control);
+		fprintf(stderr,"Did not find Package name in chunk:'%s'\n",control);
 		return RET_ERROR;
 	}
 	return r;
@@ -257,7 +258,7 @@ retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not found Version in chunk:'%s'\n",control);
+		fprintf(stderr,"Did not find Version in chunk:'%s'\n",control);
 		return RET_ERROR;
 	}
 	return r;
@@ -306,12 +307,12 @@ retvalue sources_getinstalldata(struct target *t,const char *packagename,UNUSED(
 	return r;
 }
 
-retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct strlist *filekeys,struct strlist *md5sums) {
+retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct strlist *filekeys,/*@null@*/struct strlist *md5sums) {
 	char *origdirectory;
 	struct strlist basenames,mymd5sums;
 	retvalue r;
 	
-	if( md5sums )
+	if( md5sums != NULL )
 		r = parse_chunk(chunk,&origdirectory,&basenames,&mymd5sums);
 	else
 		r = parse_chunk(chunk,&origdirectory,&basenames,NULL);
@@ -329,11 +330,11 @@ retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct s
 	free(origdirectory);
 	strlist_done(&basenames);
 	if( RET_WAS_ERROR(r) ) {
-		if( md5sums )
+		if( md5sums != NULL )
 			strlist_done(&mymd5sums);
 		return r;
 	}
-	if( md5sums )
+	if( md5sums != NULL )
 		strlist_move(md5sums,&mymd5sums);
 	return r;
 }
@@ -360,5 +361,91 @@ retvalue sources_doreoverride(const struct alloverrides *ao,const char *packagen
 	if( newchunk == NULL )
 		return RET_ERROR_OOM;
 	*newcontrolchunk = newchunk;
+	return RET_OK;
+}
+
+retvalue sources_retrack(struct target *t,const char *sourcename,const char *chunk, trackingdb tracks,references refs) {
+	retvalue r;
+	char *sourceversion;
+	struct trackedpackage *pkg;
+	struct strlist filekeys;
+
+	//TODO: elliminate duplicate code!
+	assert(sourcename!=NULL);
+
+	r = chunk_getvalue(chunk,"Version",&sourceversion);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+
+	r = sources_getfilekeys(t,chunk,&filekeys,NULL);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Malformed source control:'%s'\n",chunk);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(sourceversion);
+		return r;
+	}
+
+	r = tracking_get(tracks,sourcename,sourceversion,&pkg);
+	if( RET_WAS_ERROR(r) ) {
+		free(sourceversion);
+		strlist_done(&filekeys);
+		return r;
+	}
+	if( r == RET_NOTHING ) {
+		r = tracking_new(tracks,sourcename,sourceversion,&pkg);
+		free(sourceversion);
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&filekeys);
+			return r;
+		}
+		r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,TRUE,refs);
+		strlist_done(&filekeys);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = tracking_put(tracks,pkg);
+		trackedpackage_free(pkg);
+		return r;
+	}
+	free(sourceversion);
+
+	r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,TRUE,refs);
+	strlist_done(&filekeys);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = tracking_replace(tracks,pkg);
+	trackedpackage_free(pkg);
+	return r;
+}
+
+retvalue sources_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {
+	retvalue r;
+	char *sourceversion;
+	char *sourcename;
+
+	//TODO: elliminate duplicate code!
+	assert(packagename!=NULL);
+
+	r = chunk_getvalue(chunk,"Version",&sourceversion);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		return r;
+	}
+	sourcename = strdup(packagename);
+	if( sourcename == NULL ) {
+		free(sourceversion);
+		return RET_ERROR_OOM;
+	}
+	*source = sourcename;
+	*version = sourceversion;
 	return RET_OK;
 }

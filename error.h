@@ -1,6 +1,10 @@
 #ifndef REPREPRO_ERROR_H
 #define REPREPRO_ERROR_H
 
+#ifndef REPREPRO_GLOBALS_H
+#include "globals.h"
+#endif
+
 /* retvalue is simply an int.
  * just named to show it follows the given semantics */
 typedef int retvalue;
@@ -37,24 +41,5 @@ typedef int retvalue;
 #define RET_DBERR(e) RET_ERROR
 
 #define EXIT_RET(ret) (RET_WAS_NO_ERROR(ret)?((nothingiserror&&ret==RET_NOTHING)?EXIT_FAILURE:EXIT_SUCCESS):(int)ret)
-
-// Now it gets more to global.h ... :-)
-
-typedef int bool_t;
-#define TRUE (1==1)
-#define FALSE (0==42)
-
-#define ISSET(a,b) (a&b)!=0
-#define NOTSET(a,b) (a&b)==0
-
-#ifdef SPLINT
-#define UNUSED(a) /*@unused@*/ a
-#else
-#ifndef NOUNUSEDATTRIBUTE
-#define UNUSED(a) a __attribute((unused))
-#else
-#define UNUSED(a) a
-#endif
-#endif
 
 #endif

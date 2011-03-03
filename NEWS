@@ -1,8 +1,22 @@
+Updates since 0.4:
+- starts of source package tracking
+- add quick&dirty --ask-passphrase option
+- SignWith's argument is now used, use "yes" or "default" to get old behaviour
+- allow ~ in versions listed in .changes files
+
+Updates since 0.3:
+- minor bugfix: no longer readd existing packages, when after a delete rule
+  a old package was found first.
+- adopt short-howto to changes in keywords.
+- many tidy ups and little bugfixes
+- add Fallback option to specify another host to get mirrored files from
+- default basedir is now "." i.e. the current directory.
+
 Updates since 0.2:
 - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
 - new command reoverride to reapply override information.
 - sometimes be a bit more verbose
-- new iteratedupdate command , which is a variant of 
+- new experimental iteratedupdate command , which is a variant of 
   update but needs less memory.
 - to ignore Release signature failures two --force's are needed now.
 

@@ -1,6 +1,8 @@
 #ifndef REPREPRO_DISTRIBUTION_H
 #define REPREPRO_DISTRIBUTION_H
 
+struct distribution;
+
 #ifndef REPREPRO_ERROR_H
 #include "error.h"
 #warning "What's hapening here?"
@@ -10,6 +12,9 @@
 #endif
 #ifndef REPREPRO_TARGET_H
 #include "target.h"
+#endif
+#ifndef REPREPRO_EXPORTS_H
+#include "exports.h"
 #endif
 
 struct distribution {
@@ -33,6 +38,13 @@ struct distribution {
 	struct strlist udebcomponents;
 	/* what kind of index files to generate */
 	struct exportmode dsc,deb,udeb;
+	/* is tracking enabled for this distribution? */
+	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
+	struct { bool_t includechanges:1; 
+		bool_t includebyhand:1;
+		bool_t needsources:1;
+		bool_t embargoalls:1;
+		} trackingoptions;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 };

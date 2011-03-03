@@ -103,3 +103,13 @@ retvalue dirs_getdirectory(const char *filename,char **directory) {
 		return RET_OK;
 	
 }
+const char *dirs_basename(const char *filename) {
+	const char *bn;
+	
+	bn = strrchr(filename,'/');
+	if( bn == NULL )
+		return filename;
+	// not really suited for the basename of directories,
+	// things like /bla/blub/ will give emtpy string...
+	return bn+1;
+}

@@ -6,8 +6,6 @@ TODO:
 	moving files between distributions
 	- only those with source in given thing...
 	add override-support while updating (or decide if this should be done)
-	add support to specify the key used for signing
-		(allow it needing a passphrase)
 	extend FilterFormula, FilterList et al to specify type/architecture/component
 	switch to only include if source is present
 
@@ -20,3 +18,5 @@ far goals:
 		source of this package would be left.
 	write dokumentation, some examples
 	update for use with newer gpgpme
+	allow multiple versions in a distribution (needs major rewrite I fear)
+	option to keep source to each binary (needs mutliple source versions)

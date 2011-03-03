@@ -68,7 +68,7 @@ MAKEINFO = @MAKEINFO@
 PACKAGE = @PACKAGE@
 VERSION = @VERSION@
 
-EXTRA_DIST = short-howto reprepro.1 recovery bzip.example tiffany.example
+EXTRA_DIST = short-howto reprepro.1 recovery bzip.example tiffany.example di.example/README di.example/DI-filter.sh di.example/distributions di.example/updates
 man_MANS = reprepro.1
 MAINTAINERCLEANFILES = Makefile.in
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
@@ -142,6 +142,7 @@ distdir = $(top_builddir)/$(PACKAGE)-$(VERSION)/$(subdir)
 subdir = docs
 
 distdir: $(DISTFILES)
+	$(mkinstalldirs) $(distdir)/di.example
 	@for file in $(DISTFILES); do \
 	  d=$(srcdir); \
 	  if test -d $$d/$$file; then \

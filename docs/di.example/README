@@ -1,0 +1,13 @@
+This is an example from Goswin Brederlow <brederlo@informatik.uni-tuebingen.de>
+for the ListHook directive.
+
+He describes the example as:
+> attached a sample config that mirrors only packages from the debian-cd
+> netinstall CD image task. I think this would make a usefull example
+> for making a partial mirror by filtering.
+
+The speciality of the example needing the ListHook and not
+easer possible with FilterList is the need for different
+packages in different architectured. (Though extending
+FilterList to support this is on my TODO-List)
+

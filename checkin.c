@@ -37,6 +37,7 @@
 #include "signature.h"
 #include "sources.h"
 #include "files.h"
+#include "tracking.h"
 #include "guesscomponent.h"
 #include "override.h"
 #include "checkindsc.h"
@@ -85,6 +86,8 @@ struct fileentry {
 	char *component;
 	/* only set after changes_includefiles */
 	char *filekey;
+	/* set between checkpkg and includepkg */
+	union { struct dscpackage *dsc; struct debpackage *deb;} pkg;
 };
 
 struct changes {
@@ -98,6 +101,8 @@ struct changes {
 	/* Things to be set by changes_fixfields: */
 	/* the component source files are put into */
 	const char *srccomponent;
+	/* != NULL if changesfile was put into pool/ */
+	/*@null@*/ char *changesfilekey;
 	/* the directory where source files are put into */
 	char *srcdirectory;
 	/* (only to warn if multiple are used) */
@@ -107,7 +112,7 @@ struct changes {
 static void freeentries(/*@only@*/struct fileentry *entry) {
 	struct fileentry *h;
 
-	while( entry ) {
+	while( entry != NULL ) {
 		h = entry->next;
 		free(entry->filekey);
 		free(entry->component);
@@ -117,6 +122,10 @@ static void freeentries(/*@only@*/struct fileentry *entry) {
 		free(entry->priority);
 		free(entry->architecture);
 		free(entry->name);
+		if( entry->type == fe_DEB || entry->type == fe_UDEB)
+			deb_free(entry->pkg.deb);
+		 else if( entry->type == fe_DSC )
+			dsc_free(entry->pkg.dsc);
 		free(entry);
 		entry = h;
 	}
@@ -132,6 +141,8 @@ static void changes_free(/*@only@*/struct changes *changes) {
 		strlist_done(&changes->distributions);
 		free(changes->control);
 		free(changes->srcdirectory);
+		free(changes->changesfilekey);
+//		trackedpackage_free(changes->trackedpkg);
 	}
 	free(changes);
 }
@@ -149,37 +160,37 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	filetype type;
 
 	p = fileline;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	md5start = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	md5end = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	sizestart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	sizeend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	sectionstart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	sectionend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	priostart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	prioend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	filestart = p;
-	while( *p !='\0' && !isspace(*p) )
+	while( *p !='\0' && !xisspace(*p) )
 		p++;
 	fileend = p;
-	while( *p !='\0' && isspace(*p) )
+	while( *p !='\0' && xisspace(*p) )
 		p++;
 	if( *p != '\0' ) {
 		fprintf(stderr,"Unexpected sixth argument in '%s'!\n",fileline);
@@ -192,7 +203,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	}
 
 	p = filestart;
-	while( *p != '\0' && *p != '_' && !isspace(*p) )
+	while( *p != '\0' && *p != '_' && !xisspace(*p) )
 		p++;
 	if( *p != '_' ) {
 		if( *p == '\0' )
@@ -226,7 +237,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		archend = p;
 		p++;
 		typestart = p;
-		while( *p !='\0' && !isspace(*p) )
+		while( *p !='\0' && !xisspace(*p) )
 			p++;
 		if( p-typestart == 3 && strncmp(typestart,"deb",3) == 0 )
 			type = fe_DEB;
@@ -243,7 +254,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	} else {
 		/* this looks like some source-package, we will have
 		 * to look for the packagetype ourself... */
-		while( *p !='\0' && !isspace(*p) ) {
+		while( *p !='\0' && !xisspace(*p) ) {
 			p++;
 		}
 		if( p-versionstart > 12 && strncmp(p-12,".orig.tar.gz",12) == 0 )
@@ -283,11 +294,12 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	e->name = strndup(filestart,nameend-filestart);
 	e->type = type;
 
-	if( !e->basename || !e->md5sum || !e->section || !e->priority || !e->architecture || !e->name ) {
+	if( e->basename == NULL || e->md5sum == NULL || e->section == NULL || 
+	    e->priority == NULL || e->architecture == NULL || e->name == NULL ) {
 		freeentries(e);
 		return RET_ERROR_OOM;
 	}
-	if( forcearchitecture ) {
+	if( forcearchitecture != NULL ) {
 		if( strcmp(forcearchitecture,"source") != 0 && 
 				strcmp(e->architecture,"all") == 0 ) {
 			if( verbose > 2 )
@@ -340,7 +352,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	r = chunk_checkfield(changes->control,field);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"In '%s': Missing '%s' field!\n",filename,field);
-		if( !force )
+		if( force <= 0 )
 			return RET_ERROR;
 	}
 	return r;
@@ -438,20 +450,20 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		return RET_ERROR;
 	}
 	
-	while( e ) {
+	while( e != NULL ) {
 		const struct overrideinfo *oinfo = NULL;
 		const char *force = NULL;
-		if( !forcesection || !forcepriority ) {
+		if( forcesection == NULL || forcepriority == NULL ) {
 			oinfo = override_search(
 			FE_BINARY(e->type)?(e->type==fe_UDEB?ao->udeb:ao->deb):ao->dsc,
 					e->name);
 		}
 		
-		if( forcesection ) 
+		if( forcesection != NULL ) 
 			force = forcesection;
 		else
 			force = override_get(oinfo,SECTION_FIELDNAME);
-		if( force ) {
+		if( force != NULL ) {
 			free(e->section);
 			e->section = strdup(force);
 			if( e->section == NULL )
@@ -469,11 +481,11 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			fprintf(stderr,"No section specified for '%s'!\n",filename);
 			return RET_ERROR;
 		}
-		if( forcepriority )
+		if( forcepriority != NULL )
 			force = forcepriority;
 		else
 			force = override_get(oinfo,PRIORITY_FIELDNAME);
-		if( force ) {
+		if( force != NULL ) {
 			free(e->priority);
 			e->priority = strdup(force);
 			if( e->priority == NULL )
@@ -536,6 +548,23 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		changes->srcdirectory = calc_sourcedir(changes->srccomponent,changes->source);
 		if( changes->srcdirectory == NULL )
 			return RET_ERROR_OOM;
+	} else if( distribution->trackingoptions.includechanges ) {
+		const char *component = forcecomponent;
+		if( forcecomponent == NULL ) {
+			for( e = changes->files ; e != NULL ; e = e->next ) {
+				if( FE_BINARY(e->type) ){
+					component = e->component;
+					break;
+				}
+			}
+		}
+		if( component == NULL ) {
+			fprintf(stderr,"No component found to place .changes or byhand files in. Aborting.\n");
+			return RET_ERROR;
+		}
+		changes->srcdirectory = calc_sourcedir(component,changes->source);
+		if( changes->srcdirectory == NULL )
+			return RET_ERROR_OOM;
 	}
 
 	return RET_OK;
@@ -558,7 +587,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	bool_t havedsc=FALSE, haveorig=FALSE, havetar=FALSE, havediff=FALSE;
 	
 	/* First check for each given architecture, if it has files: */
-	if( forcearchitecture ) {
+	if( forcearchitecture != NULL ) {
 		if( !strlist_in(&changes->architectures,forcearchitecture) ){
 			fprintf(stderr,"Architecture-header does not list the"
 				     " architecture '%s' to be forced in!\n",
@@ -579,7 +608,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	/* Then check for each file, if its architecture is sensible
 	 * and listed. */
 	e = changes->files;
-	while( e ) {
+	while( e != NULL ) {
 		if( !strlist_in(&changes->architectures,e->architecture) ) {
 			fprintf(stderr,"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",filename,e->architecture);
 			r = RET_ERROR;
@@ -655,7 +684,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	r = RET_NOTHING;
 
 	e = changes->files;
-	while( e ) {
+	while( e != NULL ) {
 		if( FE_SOURCE(e->type) ) {
 			assert(changes->srcdirectory!=NULL);
 			e->filekey = calc_dirconcat(changes->srcdirectory,e->basename);
@@ -687,7 +716,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao,int force,/*@null@*/struct strlist *dereferencedfilekeys, bool_t onlysigned) {
+static retvalue changes_checkpkgs(filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao, bool_t onlysigned) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -695,7 +724,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 	r = RET_NOTHING;
 
 	e = changes->files;
-	while( e ) {
+	while( e != NULL ) {
 		char *fullfilename;
 		if( e->type != fe_DEB && e->type != fe_DSC && e->type != fe_UDEB) {
 			e = e->next;
@@ -705,37 +734,34 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {
-			r = deb_add(dbdir,refs,filesdb,
+			r = deb_prepare(&e->pkg.deb,filesdb,
 				e->component,e->architecture,
 				e->section,e->priority,
 				"deb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->deb,
-				force,D_INPLACE,dereferencedfilekeys);
+				ao->deb,D_INPLACE,FALSE);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_UDEB ) {
-			r = deb_add(dbdir,refs,filesdb,
+			r = deb_prepare(&e->pkg.deb,filesdb,
 				e->component,e->architecture,
 				e->section,e->priority,
 				"udeb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				ao->udeb,
-				force,D_INPLACE,dereferencedfilekeys);
+				ao->udeb,D_INPLACE,FALSE);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		} else if( e->type == fe_DSC ) {
 			assert(changes->srccomponent!=NULL);
 			assert(changes->srcdirectory!=NULL);
-			r = dsc_add(dbdir,refs,filesdb,
+			r = dsc_prepare(&e->pkg.dsc,filesdb,
 				changes->srccomponent,e->section,e->priority,
 				distribution,fullfilename,
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
-				ao->dsc,
-				force,D_INPLACE,dereferencedfilekeys,onlysigned);
+				ao->dsc,D_INPLACE,onlysigned);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
 		}
@@ -751,59 +777,154 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 	}
 	return r;
 }
+static retvalue changes_includepkgs(const char *dbdir,references refs,struct distribution *distribution,struct changes *changes,int force,/*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata) {
+	struct fileentry *e;
+	retvalue r;
+	bool_t somethingwasmissed = FALSE;
+
+	r = RET_NOTHING;
+
+	e = changes->files;
+	while( e != NULL ) {
+		if( e->type != fe_DEB && e->type != fe_DSC && e->type != fe_UDEB) {
+			e = e->next;
+			continue;
+		}
+		if( e->type == fe_DEB ) {
+			r = deb_addprepared(e->pkg.deb,dbdir,refs,
+				e->architecture,"deb",
+				distribution,force,dereferencedfilekeys,trackingdata);
+			if( r == RET_NOTHING )
+				somethingwasmissed = TRUE;
+		} else if( e->type == fe_UDEB ) {
+			r = deb_addprepared(e->pkg.deb,dbdir,refs,
+				e->architecture,"udeb",
+				distribution,force,dereferencedfilekeys,trackingdata);
+			if( r == RET_NOTHING )
+				somethingwasmissed = TRUE;
+		} else if( e->type == fe_DSC ) {
+			r = dsc_addprepared(e->pkg.dsc,dbdir,refs,
+				distribution,force,dereferencedfilekeys,trackingdata);
+			if( r == RET_NOTHING )
+				somethingwasmissed = TRUE;
+		}
+		
+		if( RET_WAS_ERROR(r) )
+			break;
+		e = e->next;
+	}
+
+	if( RET_IS_OK(r) && somethingwasmissed ) {
+		return RET_NOTHING;
+	}
+	return r;
+}
 
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
-	retvalue r;
+retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
+	retvalue result,r;
 	struct changes *changes;
+	struct trackingdata trackingdata;
 
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture,force,onlysigned);
 	if( RET_WAS_ERROR(r) )
 		return r;
-//	if( changes->distributions.count != 1 ) {
-//		fprintf(stderr,"There is not exactly one distribution given!\n");
-//		changes_free(changes);
-//		return RET_ERROR;
-//	}
+
 	if( (distribution->suite == NULL || 
 		!strlist_in(&changes->distributions,distribution->suite)) &&
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
+
 	/* look for component, section and priority to be correct or guess them*/
 	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,ao);
-	if( RET_WAS_ERROR(r) ) {
-		changes_free(changes);
-		return r;
-	}
+
 	/* do some tests if values are sensible */
-	r = changes_check(changesfilename,changes,forcearchitecture);
-	if( RET_WAS_ERROR(r) ) {
-		changes_free(changes);
-		return r;
-	}
-	
+	if( !RET_WAS_ERROR(r) )
+		r = changes_check(changesfilename,changes,forcearchitecture);
+
 	/* add files in the pool */
 	//TODO: D_DELETE would fail here, what to do?
-	r = changes_includefiles(filesdb,changesfilename,changes,delete);
+	if( !RET_WAS_ERROR(r) )
+		r = changes_includefiles(filesdb,changesfilename,changes,delete);
+
+	if( !RET_WAS_ERROR(r) )
+		r = changes_checkpkgs(filesdb,distribution,changes,ao,onlysigned);
+
+
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
+	}
+
+	if( tracks != NULL ) {
+		r = trackingdata_summon(tracks,changes->source,changes->version,&trackingdata);
+		if( RET_WAS_ERROR(r) ) {
+			changes_free(changes);
+			return r;
+		}
+		if( distribution->trackingoptions.includechanges ) {
+			const char *basename;
+			assert( changes->srcdirectory != NULL );
+
+			basename = dirs_basename(changesfilename);
+			changes->changesfilekey = 
+				calc_dirconcat(changes->srcdirectory,basename);
+			if( changes->changesfilekey == NULL ) {
+				changes_free(changes);
+				trackingdata_done(&trackingdata);
+				return RET_ERROR_OOM;
+			}
+			/* always D_COPY, and only delete it afterwards... */
+			r = files_include(filesdb,changesfilename,
+					changes->changesfilekey,
+					NULL,NULL,D_COPY);
+			if( RET_WAS_ERROR(r) ) {
+				changes_free(changes);
+				trackingdata_done(&trackingdata);
+				return r;
+			}
+		}
 	}
 
 	/* add the source and binary packages in the given distribution */
-	r = changes_includepkgs(dbdir,refs,filesdb,
-		distribution,changes,ao,force,
-		dereferencedfilekeys, onlysigned);
+	result = changes_includepkgs(dbdir,refs,
+		distribution,changes,force,dereferencedfilekeys,
+		(tracks!=NULL)?&trackingdata:NULL);
+
 	if( RET_WAS_ERROR(r) ) {
+		if( tracks != NULL ) {
+			trackingdata_done(&trackingdata);
+		}
 		changes_free(changes);
 		return r;
 	}
 
-	if( delete >= D_MOVE ) {
-		if( r == RET_NOTHING && delete < D_DELETE ) {
+	if( tracks != NULL ) {
+		if( changes->changesfilekey != NULL ) {
+			assert( changes->srcdirectory != NULL );
+
+			r = trackedpackage_addfilekey(tracks,trackingdata.pkg,ft_CHANGES,changes->changesfilekey,FALSE,refs);
+			RET_ENDUPDATE(result,r);
+		}
+		if( trackingdata.isnew ) {
+			r = tracking_put(tracks,trackingdata.pkg);
+		} else {
+			r = tracking_replace(tracks,trackingdata.pkg);
+		}
+		trackingdata_done(&trackingdata);
+		RET_ENDUPDATE(result,r);
+		if( RET_WAS_ERROR(result) ) {
+			changes_free(changes);
+			return result;
+		}
+	}
+
+	if( delete >= D_MOVE && changesfilename != NULL ) {
+		if( result == RET_NOTHING && delete < D_DELETE && 
+				changes->changesfilekey == NULL) {
 			if( verbose >= 0 ) {
 				fprintf(stderr,"Not deleting '%s' as no package was added or some package was missed.\n(Use --delete --delete to delete anyway in such cases)\n",changesfilename);
 			}
@@ -816,6 +937,7 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 			}
 		}
 	}
+	(void)changes_free(changes);
 
 	return RET_OK;
 }

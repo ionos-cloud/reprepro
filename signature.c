@@ -42,27 +42,62 @@ extern int verbose;
 static GpgmeCtx context = NULL;
 
 static retvalue gpgerror(GpgmeError err){
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		fprintf(stderr,"gpgme gave error: %s\n",gpgme_strerror(err));
 		return RET_ERROR_GPGME;
 	} else
 		return RET_OK;
 }
 
-static retvalue signature_init(void){
+/* Quick&dirty passphrase asking */
+static const char *signature_getpassphrase(void *hook,const char*descr,void **r_hd) {
+	if( descr != NULL ) {
+		const char *p;
+		char *passphrase;
+
+		if( hook != NULL )
+			return hook;
+
+		p = getpass(descr);
+		if( p == NULL ) {
+			*r_hd = NULL;
+			return NULL;
+		}
+		passphrase = strdup(p);
+		if( passphrase == NULL ) {
+			*r_hd = NULL;
+			return NULL;
+		}
+		*r_hd = passphrase;
+		return passphrase;
+	} else {
+		if( r_hd != NULL ) {
+			char *p = *r_hd;
+			if( p != NULL ) {
+				memset(p,0,strlen(p));
+			}
+			free(p);
+		}
+		return NULL;
+	}
+}
+
+retvalue signature_init(bool_t allowpassphrase){
 	GpgmeError err;
 
 	if( context != NULL )
 		return RET_NOTHING;
 	err = gpgme_engine_check_version(GPGME_PROTOCOL_OpenPGP);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
 	err = gpgme_new(&context);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
 	err = gpgme_set_protocol(context,GPGME_PROTOCOL_OpenPGP);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
+	if( allowpassphrase )
+		gpgme_set_passphrase_cb(context,signature_getpassphrase,NULL);
 	gpgme_set_armor(context,1);
 	return RET_OK;
 }
@@ -82,14 +117,14 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 	fl = strlen(fingerprint);
 
 	keypart = key;
-	while( 1 ) {
-		while( *keypart != '\0' && isspace(*keypart) )
+	while( TRUE ) {
+		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
 			/* nothing more to check, so nothing fullfilled */
 			return RET_NOTHING;
 		p = keypart;
-		while( *p != '\0' && !isspace(*p) && *p != '|' )
+		while( *p != '\0' && !xisspace(*p) && *p != '|' )
 			p++;
 		kl = p-keypart;
 		if( kl < 8 && !IGNORING("Ignoring","To ignore this",shortkeyid,"Too short keyid specified (less than 8 characters) in '%s'!\n",key)) {
@@ -98,7 +133,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		if( kl < fl && strncmp(fingerprint+fl-kl,keypart,kl) == 0 )
 			return RET_OK;
 		keypart = p;
-		while( *keypart != '\0' && isspace(*keypart) )
+		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
 			return RET_NOTHING;
@@ -152,8 +187,10 @@ static inline retvalue checksignatures(GpgmeCtx context,const char *key,const ch
 #else
 		if( status == GPGME_SIG_STAT_GOOD ) {
 #endif
-
-			if( key == NULL || containskey(key,fingerprint) ) {
+			retvalue r = (key==NULL) ? 
+					RET_OK : 
+					containskey(key,fingerprint);
+			if( RET_IS_OK(r) ) {
 				result = RET_OK;
 				if( verbose <= 3 )
 					break;
@@ -176,10 +213,10 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	GpgmeData dh,dh_gpg;
 	GpgmeSigStat stat;
 
-	if( !release || !releasegpg )
+	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
 
-	r = signature_init();
+	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -187,11 +224,11 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 
 	//TODO: Use callbacks for file-reading to have readable errormessages?
 	err = gpgme_data_new_from_file(&dh_gpg,releasegpg,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_file(&dh,release,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
@@ -201,7 +238,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	err = gpgme_op_verify(context,dh_gpg,dh,&stat);
 	gpgme_data_release(dh_gpg);
 	gpgme_data_release(dh);
-	if( err )
+	if( err != GPGME_No_Error )
 		return gpgerror(err);
 
 	switch( stat ) {
@@ -239,7 +276,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	GpgmeData dh,dh_gpg;
 	int ret;
 
-	r = signature_init();
+	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -253,20 +290,51 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		return RET_ERROR;
 	}
 
+	assert(options != NULL);
+	while( *options != '\0' && xisspace(*options) )
+		options++;
+	if( *options == '!' ) {
+		// TODO: allow external programs, too
+		fprintf(stderr,"'!' not allowed at start of signing options yet.\n");
+		return RET_ERROR;
+	} else if( strcasecmp(options,"yes") == 0 || strcasecmp(options,"default") == 0 ) {
+		gpgme_signers_clear(context);
+	} else {
+		GpgmeKey key;
+
+		gpgme_signers_clear(context);
+		err = gpgme_op_keylist_start(context,options,TRUE);
+		if( err != GPGME_No_Error )
+			return gpgerror(err);
+		err = gpgme_op_keylist_next(context,&key);
+		if( err == GPGME_EOF ) {
+			fprintf(stderr,"Could not find any key matching '%s'!\n",options);
+			return RET_ERROR;
+		}
+		if( err != GPGME_No_Error )
+			return gpgerror(err);
+		err = gpgme_op_keylist_end(context);
+		if( err != GPGME_No_Error && err != GPGME_No_Request )
+			return gpgerror(err);
+		err = gpgme_signers_add(context,key);
+		if( err != GPGME_No_Error )
+			return gpgerror(err);
+	}
+
 	// TODO: Supply our own read functions to get sensible error messages.
 	err = gpgme_data_new(&dh_gpg);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new_from_file(&dh,filename,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
 
 	err = gpgme_op_sign(context,dh,dh_gpg,GPGME_SIG_MODE_DETACH);
 	gpgme_data_release(dh);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	} else {
@@ -307,21 +375,21 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 	char *plain_data;
 	retvalue r;
 	
-	r = signature_init();
+	r = signature_init(FALSE);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	err = gpgme_data_new_from_file(&dh_gpg,filename,1);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		return gpgerror(err);
 	}
 	err = gpgme_data_new(&dh);
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		return gpgerror(err);
 	}
 	err = gpgme_op_verify(context,dh_gpg,dh,&stat); 
-	if( err ) {
+	if( err != GPGME_No_Error ) {
 		gpgme_data_release(dh_gpg);
 		gpgme_data_release(dh);
 		return gpgerror(err);
@@ -397,26 +465,27 @@ retvalue signature_readsignedchunk(const char *filename, char **chunkread, bool_
 	}
 
 	startofchanges = plain_data;
-	while( startofchanges - plain_data < plain_len && 
-			*startofchanges && isspace(*startofchanges)) {
+	while( (size_t)(startofchanges - plain_data) < plain_len && 
+			*startofchanges != '\0' && xisspace(*startofchanges)) {
 		startofchanges++;
 	}
-	if( startofchanges - plain_data >= plain_len ) {
+	if( (size_t)(startofchanges - plain_data) >= plain_len ) {
 		fprintf(stderr,"Could only find spaces within '%s'!\n",filename);
 		free(plain_data);
 		return RET_ERROR;
 	}
 	endofchanges = startofchanges;
-	while( endofchanges - plain_data < plain_len && 
-		*endofchanges && ( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
+	while( (size_t)(endofchanges - plain_data) < plain_len && 
+		*endofchanges != '\0' && 
+		( *endofchanges != '\n' || *(endofchanges-1)!= '\n')) {
 		endofchanges++;
 	}
 	afterchanges = endofchanges;
-	while( afterchanges - plain_data < plain_len && 
-		*afterchanges && isspace(*afterchanges)) {
+	while( (size_t)(afterchanges - plain_data) < plain_len && 
+		*afterchanges != '\0' && xisspace(*afterchanges)) {
 		afterchanges++;
 	}
-	if( afterchanges - plain_data != plain_len ) {
+	if( (size_t)(afterchanges - plain_data) != plain_len ) {
 		if( *afterchanges == '\0' ) {
 			fprintf(stderr,"Unexpected \\0 character within '%s'!\n",filename);
 			free(plain_data);

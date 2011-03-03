@@ -1,0 +1,23 @@
+Origin: Debian-Installer
+Label: Debian-Installer
+Suite: testing
+Codename: sarge
+Version: 3.1
+Architectures: sparc i386
+Components: main
+UDebComponents: main
+Description: Debian Installer partial mirror
+Update: - debian
+#SignWith: yes
+
+Origin: Debian-Installer
+Label: Debian-Installer
+Suite: unstable
+Codename: sid
+Version: 3.2
+Architectures: sparc i386
+Components: main
+UDebComponents: main
+Description: Debian Installer partial mirror
+Update: - debian
+#SignWith: yes

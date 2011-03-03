@@ -23,6 +23,7 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,/*@out@*/char **v
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *' */
 retvalue chunk_getname(const char *chunk,const char *name,/*@out@*/char **pkgname,bool_t allowversion);
+retvalue chunk_getnameandversion(const char *chunk,const char *name,/*@out@*/char **pkgname,/*@out@*/char **version);
 
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */ 
 retvalue chunk_gettruth(const char *chunk,const char *name);

@@ -4,6 +4,9 @@ set -e
 #EPOCH=99:
 #VERSION=0.9-A:Z+a:z
 #REVISION=-0+aA.9zZ
+if [ "x$OUTPUT" == "x" ] ; then
+	OUTPUT=test.changes
+fi
 
 DIR="$PACKAGE-$VERSION"
 mkdir "$DIR"
@@ -40,4 +43,4 @@ for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
 	dpkg --build debian/tmp .. 
 done
 #dpkg-genchanges > ../"${PACKAGE}_$VERSION$REVISION"_abbacus.changes
-dpkg-genchanges > ../test.changes
+dpkg-genchanges > ../"$OUTPUT"

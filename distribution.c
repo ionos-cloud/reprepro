@@ -35,12 +35,13 @@
 #include "names.h"
 #include "release.h"
 #include "copyfile.h"
+#include "tracking.h"
 #include "distribution.h"
 
 retvalue distribution_free(struct distribution *distribution) {
 	retvalue result,r;
 
-	if( distribution) {
+	if( distribution != NULL ) {
 		free(distribution->codename);
 		free(distribution->suite);
 		free(distribution->version);
@@ -60,7 +61,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		exportmode_done(&distribution->udeb);
 		result = RET_OK;
 
-		while( distribution->targets ) {
+		while( distribution->targets != NULL ) {
 			struct target *next = distribution->targets->next;
 
 			r = target_free(distribution->targets);
@@ -88,7 +89,7 @@ static retvalue createtargets(struct distribution *distribution) {
 			if( strcmp(arch,"source") != 0 ) {
 				r = target_initialize_binary(distribution->codename,comp,arch,&distribution->deb,&t);
 				if( RET_IS_OK(r) ) {
-					if( last ) {
+					if( last != NULL ) {
 						last->next = t;
 					} else {
 						distribution->targets = t;
@@ -100,7 +101,7 @@ static retvalue createtargets(struct distribution *distribution) {
 				if( strlist_in(&distribution->udebcomponents,comp) ) {
 					r = target_initialize_ubinary(distribution->codename,comp,arch,&distribution->udeb,&t);
 					if( RET_IS_OK(r) ) {
-						if( last ) {
+						if( last != NULL ) {
 							last->next = t;
 						} else {
 							distribution->targets = t;
@@ -119,7 +120,7 @@ static retvalue createtargets(struct distribution *distribution) {
 		 *  the .changes files started with this...) */
 		if( strlist_in(&distribution->architectures,"source") ) {
 			r = target_initialize_source(distribution->codename,comp,&distribution->dsc,&t);
-			if( last ) {
+			if( last != NULL ) {
 				last->next = t;
 			} else {
 				distribution->targets = t;
@@ -163,7 +164,7 @@ static retvalue distribution_parse_and_filter(struct distribution **distribution
 static const char * const allowedfields[] = {
 "Codename", "Suite", "Version", "Origin", "Label", "Description", 
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
-"UDebOverride", "DscOverride", 
+"UDebOverride", "DscOverride", "Tracking",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 NULL};
 
@@ -176,7 +177,7 @@ NULL};
 		return ret;
 
 	r = calloc(1,sizeof(struct distribution));
-	if( !r )
+	if( r == NULL )
 		return RET_ERROR_OOM;
 
 #define fieldrequired(name)	if( ret == RET_NOTHING ) { fputs("While parsing distribution definition, required field " name " not found!\n",stderr); ret = RET_ERROR_MISSING; }
@@ -292,6 +293,19 @@ NULL};
 		return ret;
 	}
 
+	ret = chunk_getvalue(chunk,"Tracking",&option);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	} else if( ret == RET_NOTHING)
+		option = NULL;
+	ret = tracking_parse(option,r);
+	if(RET_WAS_ERROR(ret)) {
+		(void)distribution_free(r);
+		return ret;
+	}
+
+
 	ret = createtargets(r);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
@@ -312,7 +326,7 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 	struct target *t;
 
 	result = RET_NOTHING;
-	for( t = distribution->targets ; t ; t = t->next ) {
+	for( t = distribution->targets ; t != NULL ; t = t->next ) {
 		if( component != NULL && strcmp(component,t->component) != 0 )
 			continue;
 		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
@@ -330,11 +344,11 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
 	struct target *t = distribution->targets;
 
-	while( t && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) || strcmp(t->packagetype,packagetype) )) {
+	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
 		t = t->next;
 	}
 	// todo: make sure UDEBs get never called here without real testing...!!!!
-	assert(t);
+	assert( t != NULL );
 	return t;
 }
 
@@ -375,7 +389,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	mydata.distributions = NULL;
 	
 	fn = calc_dirconcat(conf,"distributions");
-	if( !fn ) 
+	if( fn == NULL ) 
 		return RET_ERROR_OOM;
 
 	result = regularfileexists(fn);
@@ -409,7 +423,7 @@ retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],st
 	if( RET_IS_OK(result) ) {
 		*distributions = mydata.distributions;
 	} else  {
-		while( mydata.distributions ) {
+		while( mydata.distributions != NULL ) {
 			struct distribution *next = mydata.distributions->next;
 			(void)distribution_free(mydata.distributions);
 			mydata.distributions = next;
@@ -463,7 +477,7 @@ retvalue distribution_export(struct distribution *distribution,
 	}
 
 	result = RET_NOTHING;
-	for( target=distribution->targets; target ; target = target->next ) {
+	for( target=distribution->targets; target != NULL ; target = target->next ) {
 		r = target_mkdistdir(target,distdir);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
@@ -497,7 +511,7 @@ retvalue distribution_freelist(struct distribution *distributions) {
 	retvalue result,r;
 
 	result = RET_NOTHING;
-	while( distributions ) {
+	while( distributions != NULL ) {
 		struct distribution *d = distributions->next;
 		r = distribution_free(distributions);
 		RET_UPDATE(result,r);
@@ -512,7 +526,7 @@ retvalue distribution_exportandfreelist(struct distribution *distributions,
 	retvalue result,r;
 
 	result = RET_NOTHING;
-	while( distributions ) {
+	while( distributions != NULL ) {
 		struct distribution *d = distributions->next;
 
 		r = distribution_export(distributions,confdir,dbdir,distdir,force,TRUE);

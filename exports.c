@@ -60,7 +60,7 @@ static retvalue zprintout(void *data,UNUSED(const char *package),const char *chu
 	size_t l;
 
 	l = strlen(chunk);
-	if( gzwrite(pf,(const voidp)chunk,l) != l || gzwrite(pf,"\n",1) != 1 )
+	if( gzwrite(pf,(const voidp)chunk,l) != (ssize_t)l || gzwrite(pf,"\n",1) != 1 )
 		return RET_ERROR;
 	else {
 		if( chunk[l-1] != '\n' )
@@ -77,7 +77,7 @@ static retvalue packagesdb_printout(packagesdb packagesdb,const char *filename) 
 	FILE *pf;
 
 	pf = fopen(filename,"wb");
-	if( !pf ) {
+	if( pf == NULL ) {
 		fprintf(stderr,"Error creating '%s': %m\n",filename);
 		return RET_ERRNO(errno);
 	}
@@ -98,7 +98,7 @@ static retvalue packagesdb_zprintout(packagesdb packagesdb,const char *filename)
 	gzFile pf;
 
 	pf = gzopen(filename,"wb");
-	if( !pf ) {
+	if( pf == NULL ) {
 		fprintf(stderr,"Error creating '%s': %m\n",filename);
 		/* if errno is zero, it's a memory error: */
 		return RET_ERRNO(errno);
@@ -163,11 +163,11 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 	} else {
 		const char *b;
 		b = options;
-		while( *b != '\0' && isspace(*b) )
+		while( *b != '\0' && xisspace(*b) )
 			b++;
 		if( *b != '\0' && *b != '.' ) {
 			const char *e = b;
-			while( *e != '\0' && !isspace(*e) )
+			while( *e != '\0' && !xisspace(*e) )
 				e++;
 			mode->filename = strndup(b,e-b);
 			b = e;
@@ -176,11 +176,11 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 		}
 		if( mode->filename == NULL )
 			return RET_ERROR_OOM;
-		while( *b != '\0' && isspace(*b) )
+		while( *b != '\0' && xisspace(*b) )
 			b++;
 		if( *b != '\0' && *b != '.' ) {
 			const char *e = b;
-			while( *e != '\0' && !isspace(*e) )
+			while( *e != '\0' && !xisspace(*e) )
 				e++;
 			mode->release = strndup(b,e-b);
 			if( mode->release == NULL )
@@ -189,7 +189,7 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 		} else {
 			mode->release = NULL;
 		}
-		while( *b != '\0' && isspace(*b) )
+		while( *b != '\0' && xisspace(*b) )
 			b++;
 		if( *b != '.' ) {
 			if( *b == '\0' )
@@ -203,12 +203,12 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 		mode->compressions[ic_gzip] = FALSE;
 		while( *b == '.' ) {
 			const char *e = b;
-			while( *e != '\0' && !isspace(*e) )
+			while( *e != '\0' && !xisspace(*e) )
 				e++;
-			if( isspace(b[1]) || b[1] == '\0' )
+			if( xisspace(b[1]) || b[1] == '\0' )
 				mode->compressions[ic_uncompressed] = TRUE;
 			else if( b[1] == 'g' && b[2] == 'z' &&
-					(isspace(b[3]) || b[3] == '\0'))
+					(xisspace(b[3]) || b[3] == '\0'))
 				mode->compressions[ic_gzip] = TRUE;
 			else {
 				fprintf(stderr,"Unsupported extension '.%c'... in '%s'!\n",b[1],options);
@@ -216,12 +216,12 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 				return RET_ERROR;
 			}
 			b = e;
-			while( *b != '\0' && isspace(*b) )
+			while( *b != '\0' && xisspace(*b) )
 				b++;
 		}
 		if( *b != '\0' ) {
 			const char *e = b;
-			while( *e != '\0' && !isspace(*e) )
+			while( *e != '\0' && !xisspace(*e) )
 				e++;
 			mode->hook = strndup(b,e-b);
 			if( mode->hook == NULL ) {
@@ -230,7 +230,7 @@ retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*
 			}
 			b = e;
 		}
-		while( *b != '\0' && isspace(*b) )
+		while( *b != '\0' && xisspace(*b) )
 			b++;
 		if( *b != '\0' ) {
 			fprintf(stderr,"More than one hook specified(perhaps you have spaces in them?) in '%s'!\n",options);
@@ -328,9 +328,9 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 			if( buffer[j] == '\n' || buffer[j] == '\0' ) {
 				int next = j+1;
 
-				while( last<j && isspace(buffer[last]) )
+				while( last<j && xisspace(buffer[last]) )
 						last++;
-				while( j>last && isspace(buffer[j]) )
+				while( j>last && xisspace(buffer[j]) )
 					j--;
 				// This makes on character long files impossible,
 				// but who needs them?
@@ -432,7 +432,7 @@ retvalue export_target(const char *confdir,const char *dirofdist,const char *rel
 						releasedfiles);
 				free(reltmpfilename);
 				RET_UPDATE(result,r);
-				if( !force && RET_WAS_ERROR(r) ) {
+				if( force <= 0  && RET_WAS_ERROR(r) ) {
 					free(relfilename);
 					return r;
 				}
@@ -447,7 +447,7 @@ retvalue export_target(const char *confdir,const char *dirofdist,const char *rel
 					fullfilename,compression);
 			free(fullfilename);
 			RET_UPDATE(result,r);
-			if( !force && RET_WAS_ERROR(r) ) {
+			if( force <= 0  && RET_WAS_ERROR(r) ) {
 				free(reltmpfilename);
 				free(relfilename);
 				return r;
@@ -461,7 +461,7 @@ retvalue export_target(const char *confdir,const char *dirofdist,const char *rel
 					releasedfiles);
 			free(relfilename);
 			RET_UPDATE(result,r);
-			if( !force && RET_WAS_ERROR(r) ) {
+			if( force <= 0 && RET_WAS_ERROR(r) ) {
 				free(reltmpfilename);
 				return r;
 			}
@@ -478,6 +478,7 @@ void exportmode_done(struct exportmode *mode) {
 	assert( mode != NULL);
 	free(mode->filename);
 	free(mode->hook);
+	free(mode->release);
 }
 
 retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *releasedfiles, int force) {
@@ -533,7 +534,7 @@ retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *released
 			free(md5sum);
 			e = -1;
 			checkwritten;
-			assert(0);
+			assert(FALSE);
 		}
 		e = fputs(md5sum,f);
 		free(md5sum);

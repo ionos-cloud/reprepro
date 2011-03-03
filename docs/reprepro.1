@@ -121,13 +121,20 @@ are from is deleted/replaced with a newer version from the last distribution
 it was in.
 .TP 
 .B \-\-keepunneededlists
-Do not try to delete files from \fBlists/f\P before updating, that seem to
+Do not try to delete files from \fBlists/\fP before updating, that seem to
 belong to one of the updated distributions but will not be needed. 
 Those file may happen to exist when you removed 
 some Update: rule or changed Components/Architectures/... .
 This is mostly only useful if you want to temporarily disable some update
 rule and want to avoid downloading their index files again when you readd
 it later.
+.TP 
+.B \-\-ask-passphrase
+Ask for passphrases when signing things and one is needed. This is a quick
+and dirty implementation using the obsolete \fBgetpass(3)\fP function
+with the description gpgme is supplying. So the prompt will look quite
+funny and support for passphrases with more than 8 characters depend on your libc.
+I suggest using gpg-agent or something like that instead.
 .SH COMMANDS
 .TP
 .BR export " [ " \fIcodenames\fP " ]"
@@ -241,6 +248,25 @@ thereof given by \fB\-Af\fP,\fB\-C\fP or \fB\-T\fP).
 Note: only the control information is changed. Changing a section
 to a value, that would cause an other component to be guessed, will
 not cause any warning.
+.TP
+.BR dumptracks " [ " \fIcodenames\fP " ]"
+Print out all information about tracked source packages in the
+given distributions.
+.TP
+.BR retrack " [ " \fIcodenames\fP " ]"
+Recreate a tracking database for the specified distributions.
+As this only takes information from the Indices into account,
+this will loose all information about older packages or
+changes files.
+.TP
+.BR cleartracks " [ " \fIcodenames\fP " ]"
+Removes all source package tracking information for the
+given distributions.
+.TP
+.BR removetrack \fIcodename\fP \fIsourcename\fP \fIversion\fP
+Remove the trackingdata of the given version of a given sourcepackage
+from a given distribution. This also removes the references for all
+used files.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -372,8 +398,11 @@ see below.
 .TP
 .B SignWith
 When this field is present, a Relese.gpg file will be generated.
-The content will be used by future version to choose the key used
-to sign.
+If the value is "yes" and "default", the default key
+is used.
+Otherwise the value will be given to libgpgme to determine to key to 
+use.
+(That should be roughly the one \fBgpg --list-secret-keys\fP \fIvalue\fP would output).
 .TP
 .B DebOverride
 When this field is present, it describes the override file used
@@ -404,6 +433,32 @@ DebIndices Packages Release . .gz
 UDebIndices Packages . .gz
 .br
 DscIndices Sources Release .gz
+.TP
+.B Tracking
+Enable the (experimental) tracking of source packages.
+The argument is a list of the following:
+.br
+.B keep
+Keeps all files of a given source package, until that
+is deleted explicitly via \fBremovetrack\fP. This is
+currently the only possibility to keep older packages
+around when all indicies contain newer files.
+.br
+.B all
+Not yet implemented
+.br
+.B minimal
+Not yet implemented
+.br
+.B includechanges
+Add the .changes file to the tracked files of an source
+package. Thus it is also put into the pool.
+.br
+.B includebyhand
+Not yet implemented.
+.br
+.B ambargoalls
+Not yet implemented.
 .SS conf/updates
 .TP
 .B Name
@@ -412,7 +467,7 @@ The name of this update\-upstream as it can be used in the
 field in conf/distributions.
 .TP
 .B Method
-An URL as one could also give it apt, e.g.
+An URI as one could also give it apt, e.g.
 .I http://ftp.debian.de/debian
 which is simply given to the corresponding
 .B apt\-get
@@ -421,6 +476,13 @@ method. (So either
 .B \-\-methoddir
 to a place where such methods are found.
 .TP
+.B Fallback
+(Still experimental:) A fallback URI, where all files are
+tried that failed the first one. They are given to the
+same method as the previous URI (e.g. both http://), and
+the fallback-server must have everything at the same place.
+No recalculation is done, but single files are just retried from
+this location.
 .B Config
 This can contain any number of lines, each in the format
 .B apt\-get \-\-option

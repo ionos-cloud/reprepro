@@ -33,12 +33,10 @@ retvalue references_delete(references ref,const char *identifer,
 		struct strlist *files,/*@null@*/const struct strlist *exclude,
 		/*@null@*/struct strlist *dereferencedfilekeys);
 
-/* add an reference to a file for an identifier. multiple calls
- * will add multiple references to allow source packages to share
- * files over versions. (as first the new is added, then the old removed) */
+/* add an reference to a file for an identifier. */
 retvalue references_increment(references ref,const char *needed,const char *needey);
 
-/* delete *one* reference to a file for an identifier */
+/* delete reference to a file for an identifier */
 retvalue references_decrement(references ref,const char *needed,const char *needey);
 
 /* check if an item is needed, returns RET_NOTHING if not */

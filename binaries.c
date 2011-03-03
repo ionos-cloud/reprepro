@@ -31,6 +31,7 @@
 #include "names.h"
 #include "dpkgversions.h"
 #include "override.h"
+#include "tracking.h"
 
 extern int verbose;
 
@@ -82,7 +83,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	r = chunk_getname(chunk,"Source",&mysourcename,TRUE);
 	if( r == RET_NOTHING ) {
 		mysourcename = strdup(packagename);
-		if( !mysourcename )
+		if( mysourcename == NULL )
 			r = RET_ERROR_OOM;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -106,7 +107,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	}
 	mybasename = calc_binary_basename(packagename,version,parch,packagetype);
 	free(parch);
-	if( !mybasename ) {
+	if( mybasename == NULL ) {
 		free(mysourcename);
 		return RET_ERROR_OOM;
 	}
@@ -143,7 +144,7 @@ retvalue binaries_calcfilekeys(const char *component,const char *sourcename,cons
 		return r;
 	}
 	filekey =  calc_filekey(component,sourcename,basename);
-	if( !filekey )
+	if( filekey == NULL )
 		return RET_ERROR_OOM;
 	r = strlist_init_singleton(filekey,filekeys);
 	return r;
@@ -172,7 +173,7 @@ retvalue binaries_getname(UNUSED(struct target *t),const char *control,char **pa
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not found Package name in chunk:'%s'\n",control);
+		fprintf(stderr,"Did not find Package name in chunk:'%s'\n",control);
 		return RET_ERROR;
 	}
 	return r;
@@ -184,7 +185,7 @@ retvalue binaries_getversion(UNUSED(struct target *t),const char *control,char *
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not found Version in chunk:'%s'\n",control);
+		fprintf(stderr,"Did not find Version in chunk:'%s'\n",control);
 		return RET_ERROR;
 	}
 	return r;
@@ -280,5 +281,136 @@ retvalue ubinaries_doreoverride(const struct alloverrides *ao,const char *packag
 	if( newchunk == NULL )
 		return RET_ERROR_OOM;
 	*newcontrolchunk = newchunk;
+	return RET_OK;
+}
+
+retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const char *chunk, trackingdb tracks,references refs) {
+	retvalue r;
+	const char *sourcename;
+	char *fsourcename,*sourceversion,*arch,*filekey;
+	enum filetype filetype;
+	struct trackedpackage *pkg;
+
+	//TODO: elliminate duplicate code!
+	assert(packagename!=NULL);
+
+	/* is there a sourcename */
+	r = chunk_getnameandversion(chunk,"Source",&fsourcename,&sourceversion);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		sourceversion = NULL;
+		sourcename = packagename;
+		fsourcename = NULL;
+	} else {
+		sourcename = fsourcename;
+	}
+	if( sourceversion == NULL ) {
+		// Think about binNMUs, can something be done here?
+		r = chunk_getvalue(chunk,"Version",&sourceversion);
+		if( RET_WAS_ERROR(r) ) {
+			free(fsourcename);
+			return r;
+		}
+		if( r == RET_NOTHING ) {
+			free(fsourcename);
+			fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+			return RET_ERROR;
+		}
+	}
+
+	r = chunk_getvalue(chunk,"Architecture",&arch);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,"Did not find Architecture in chunk:'%s'\n",chunk);
+		r = RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		free(sourceversion);
+		free(fsourcename);
+		return r;
+	}
+	if( strcmp(arch,"all") == 0 ) {
+		filetype = ft_ALL_BINARY;
+	} else {
+		filetype = ft_ARCH_BINARY;
+	}
+	free(arch);
+
+	r = chunk_getvalue(chunk,"Filename",&filekey);
+	if( !RET_IS_OK(r) ) {
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Did not find a Filename in chunk: '%s'\n",chunk);
+			r = RET_ERROR;
+		}
+		free(sourceversion);
+		free(fsourcename);
+		return r;
+	}
+	r = tracking_get(tracks,sourcename,sourceversion,&pkg);
+	if( RET_WAS_ERROR(r) ) {
+		free(fsourcename);
+		free(sourceversion);
+		free(filekey);
+		return r;
+	}
+	if( r == RET_NOTHING ) {
+		r = tracking_new(tracks,sourcename,sourceversion,&pkg);
+		free(fsourcename);
+		free(sourceversion);
+		if( RET_WAS_ERROR(r) ) {
+			free(filekey);
+			return r;
+		}
+		r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
+		free(filekey);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = tracking_put(tracks,pkg);
+		trackedpackage_free(pkg);
+		return r;
+	}
+	free(fsourcename);
+	free(sourceversion);
+
+	r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
+	free(filekey);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = tracking_replace(tracks,pkg);
+	trackedpackage_free(pkg);
+	return r;
+}
+
+retvalue binaries_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {
+	retvalue r;
+	char *sourcename,*sourceversion;
+
+	//TODO: elliminate duplicate code!
+	assert(packagename!=NULL);
+
+	/* is there a sourcename */
+	r = chunk_getnameandversion(chunk,"Source",&sourcename,&sourceversion);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		sourceversion = NULL;
+		sourcename = strdup(packagename);
+		if( sourcename == NULL )
+			return RET_ERROR_OOM;
+	}
+	if( sourceversion == NULL ) {
+		r = chunk_getvalue(chunk,"Version",&sourceversion);
+		if( RET_WAS_ERROR(r) ) {
+			free(sourcename);
+			return r;
+		}
+		if( r == RET_NOTHING ) {
+			free(sourcename);
+			fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+			return RET_ERROR;
+		}
+	}
+	*source = sourcename;
+	*version = sourceversion;
 	return RET_OK;
 }

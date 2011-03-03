@@ -41,6 +41,7 @@
 #include "sources.h"
 #include "files.h"
 #include "guesscomponent.h"
+#include "tracking.h"
 
 extern int verbose;
 
@@ -128,8 +129,8 @@ struct dscpackage {
 	struct strlist filekeys;
 };
 
-static void dsc_free(/*@only@*/struct dscpackage *pkg) {
-	if( pkg ) {
+void dsc_free(/*@only@*/struct dscpackage *pkg) {
+	if( pkg != NULL ) {
 		free(pkg->package);free(pkg->version);
 		free(pkg->control);
 		strlist_done(&pkg->basenames);strlist_done(&pkg->md5sums);
@@ -139,8 +140,8 @@ static void dsc_free(/*@only@*/struct dscpackage *pkg) {
 		free(pkg->dscmd5sum);
 		free(pkg->directory);free(pkg->dscbasename);free(pkg->dscfilekey);
 		strlist_done(&pkg->filekeys);
+		free(pkg);
 	}
-	free(pkg);
 }
 
 static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename, bool_t onlysigned) {
@@ -283,10 +284,10 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 
 	/* first replace the "Source" with a "Package": */
 	name = addfield_new("Package",pkg->package,NULL);
-	if( !name )
+	if( name == NULL )
 		return RET_ERROR_OOM;
 	name = deletefield_new("Source",name);
-	if( !name )
+	if( name == NULL )
 		return RET_ERROR_OOM;
 	newchunk2  = chunk_replacefields(pkg->control,name,"Format");
 	addfield_free(name);
@@ -300,17 +301,17 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 		return RET_ERROR_OOM;
 	}
 	replace = addfield_new("Files",newfilelines,NULL);
-	if( replace )
+	if( replace != NULL )
 		replace = addfield_new("Directory",pkg->directory,replace);
-	if( replace )
+	if( replace != NULL )
 		replace = deletefield_new("Status",replace);
-	if( replace )
+	if( replace != NULL )
 		replace = addfield_new(SECTION_FIELDNAME,pkg->section,replace);
-	if( replace )
+	if( replace != NULL )
 		replace = addfield_new(PRIORITY_FIELDNAME,pkg->priority,replace);
-	if( replace )
+	if( replace != NULL )
 		replace = override_addreplacefields(override,replace);
-	if( !replace ) {
+	if( replace == NULL ) {
 		free(newfilelines);
 		free(newchunk2);
 		return RET_ERROR_OOM;
@@ -368,13 +369,8 @@ static retvalue dsc_checkfiles(filesdb filesdb,
 	return r;
 }
 
-/* insert the given .dsc into the mirror in <component> in the <distribution>
- * if component is NULL, guessing it from the section.
- * If basename, filekey and directory are != NULL, then they are used instead 
- * of beeing newly calculated. 
- * (And all files are expected to already be in the pool). */
 
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned){
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, bool_t onlysigned){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -390,7 +386,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		return RET_ERROR;
 	}
 
-	/* Then take a closer look to the file: */
+	/* Then take a closer look in the file: */
 
 	r = dsc_read(&pkg,dscfilename,onlysigned);
 	if( RET_WAS_ERROR(r) ) {
@@ -405,7 +401,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		forcepriority = override_get(oinfo,PRIORITY_FIELDNAME);
 	}
 
-	if( forcesection ) {
+	if( forcesection != NULL ) {
 		free(pkg->section);
 		pkg->section = strdup(forcesection);
 		if( pkg->section == NULL ) {
@@ -413,7 +409,7 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 			return RET_ERROR_OOM;
 		}
 	}
-	if( forcepriority ) {
+	if( forcepriority != NULL ) {
 		free(pkg->priority);
 		pkg->priority = strdup(forcepriority);
 		if( pkg->priority == NULL ) {
@@ -467,18 +463,65 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( !RET_WAS_ERROR(r) )
 		r = dsc_complete(pkg,oinfo);
 
+	if( RET_IS_OK(r) )
+		*dsc = pkg;
+	else
+		dsc_free(pkg);
+
+	return r;
+}
+
+retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,references refs,struct distribution *distribution,int force,struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
+	retvalue r;
+	struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
+
 	/* finaly put it into the source distribution */
+	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
-		struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
-		r = target_initpackagesdb(t,dbdir);
-		if( !RET_WAS_ERROR(r) ) {
-			retvalue r2;
-			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys);
-			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
+		retvalue r2;
+		r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,force,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
+		r2 = target_closepackagesdb(t);
+		RET_ENDUPDATE(r,r2);
+	}
+	return r;
+}
+
+/* insert the given .dsc into the mirror in <component> in the <distribution>
+ * if component is NULL, guessing it from the section.
+ * If basename, filekey and directory are != NULL, then they are used instead 
+ * of beeing newly calculated. 
+ * (And all files are expected to already be in the pool). */
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int force,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
+	retvalue r;
+	struct dscpackage *pkg;
+	struct trackingdata trackingdata;
+
+	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscfilename,filekey,basename,directory,md5sum,srcoverride,delete,onlysigned);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
+	if( tracks != NULL ) {
+		r = trackingdata_summon(tracks,pkg->package,pkg->version,&trackingdata);
+		if( RET_WAS_ERROR(r) ) {
+			dsc_free(pkg);
+			return r;
 		}
 	}
+
+	r = dsc_addprepared(pkg,dbdir,refs,distribution,force,
+			dereferencedfilekeys,
+			(tracks!=NULL)?&trackingdata:NULL);
 	dsc_free(pkg);
 
+	if( tracks != NULL ) {
+		retvalue r2;
+		if( trackingdata.isnew ) {
+			r2 = tracking_put(tracks,trackingdata.pkg);
+		} else {
+			r2 = tracking_replace(tracks,trackingdata.pkg);
+		}
+		trackingdata_done(&trackingdata);
+		RET_ENDUPDATE(r,r2);
+	}
 	return r;
 }
