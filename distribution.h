@@ -7,6 +7,9 @@ struct distribution;
 #include "error.h"
 #warning "What's hapening here?"
 #endif
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
+#endif
 #ifndef REPREPRO_STRLIST_H
 #include "strlist.h"
 #endif
@@ -26,6 +29,8 @@ struct distribution {
 	struct distribution *next;
 	/* the primary name to access this distribution: */
 	char *codename;
+	/* for more helpfull error messages: */
+	unsigned int firstline, lastline;
 	/* additional information for the Release-file to be
 	 * generated, may be NULL. only suite is sometimes used
 	 * (and only for sanity checks) */
@@ -49,16 +54,23 @@ struct distribution {
 	struct strlist udebcomponents;
 	/* what kind of index files to generate */
 	struct exportmode dsc,deb,udeb;
-	/* is tracking enabled for this distribution? */
+	/* is tracking enabled for this distribution? (NONE must be 0 so it is the default) */
 	enum trackingtype { dt_NONE=0, dt_KEEP, dt_ALL, dt_MINIMAL } tracking;
-	struct trackingoptions { bool_t includechanges:1;
-		bool_t includebyhand:1;
-		bool_t needsources:1;
-		bool_t keepsources:1;
-		bool_t embargoalls:1;
+	struct trackingoptions { bool includechanges:1;
+		bool includebyhand:1;
+		bool includelogs:1;
+		bool needsources:1;
+		bool keepsources:1;
+		bool embargoalls:1;
 		} trackingoptions;
 	/* what content files to generate */
 	struct contentsoptions contents;
+	struct strlist contents_architectures,
+		       contents_components,
+		       contents_ucomponents;
+	bool contents_architectures_set,
+		       contents_components_set,
+		       contents_ucomponents_set;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* a filename to look for who is allowed to upload packages */
@@ -74,12 +86,14 @@ struct distribution {
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */
 	retvalue status;
-	/* FALSE: not looked at, do not export at all */
-	bool_t lookedat;
+	/* false: not looked at, do not export at all */
+	bool lookedat;
+	/* false: not requested, do not handle at all */
+	bool selected;
 };
 
-retvalue distribution_get(const char *confdir,const char *logdir,const char *name, bool_t lookedat,/*@out@*/struct distribution **distribution);
-retvalue distribution_free(/*@only@*/struct distribution *distribution);
+retvalue distribution_get(struct distribution *all, const char *name, bool lookedat, /*@out@*/struct distribution **);
+// retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
 /* set lookedat, start logger, ... */
 retvalue distribution_prepareforwriting(struct distribution *distribution);
@@ -90,28 +104,48 @@ typedef retvalue distribution_each_action(void *data, struct target *t, struct d
  * not NULL or "all", only do those parts */
 retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data);
 
+typedef retvalue each_target_action(struct database *, struct distribution *, struct target *, void *);
+typedef retvalue each_package_action(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
+
+/* call <action> for each package of <distribution> */
+retvalue distribution_foreach_package(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action, each_target_action, void *);
+retvalue distribution_foreach_package_c(struct distribution *, struct database *, const struct strlist *components, const char *architecture, const char *packagetype, each_package_action, void *);
+
+/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
+retvalue distribution_foreach_roopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
+/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb,
+ * setting distribution->status to some error if there are any*/
+retvalue distribution_foreach_rwopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
+
+/* delete every package decider returns RET_OK for */
+retvalue distribution_remove_packages(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *, void *);
+
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 /* like distribtion_getpart, but returns NULL if there is no such target */
 /*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
-retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
+retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *distdir,struct database *);
 
 enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
-retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *distdir,struct database *);
 
-retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,references refs,const char *name);
+retvalue distribution_snapshot(struct distribution *distribution,const char *confdir,const char *distdir,struct database *,const char *name);
 
-/* get all dists from <conf> fitting in the filter given in <argc,argv> */
-retvalue distribution_getmatched(const char *confdir,const char *logdir,int argc,const char *argv[],bool_t lookedat,/*@out@*/struct distribution **distributions);
+/* read the configuration from all distributions */
+retvalue distribution_readall(const char *confdir,const char *logdir,/*@out@*/struct distribution **distributions);
+
+/* mark all dists from <conf> fitting in the filter given in <argc,argv> */
+retvalue distribution_match(struct distribution *alldistributions, int argc, const char *argv[], bool lookedat);
 
 /* get a pointer to the apropiate part of the linked list */
 struct distribution *distribution_find(struct distribution *distributions, const char *name);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, filesdb);
+retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
+retvalue distribution_exportlist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *distdir, struct database *);
 
-retvalue distribution_loadalloverrides(struct distribution *, const char *overridedir);
+retvalue distribution_loadalloverrides(struct distribution *, const char *confdir, const char *overridedir);
 void distribution_unloadoverrides(struct distribution *distribution);
 
 retvalue distribution_loaduploaders(struct distribution *, const char *confdir);

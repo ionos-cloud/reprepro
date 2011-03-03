@@ -41,6 +41,8 @@ echo "$@"
 "$@"
 }
 
+export FAKEARCHITECTURE=abacus
+export FALEN=${#FAKEARCHITECTURE}
 WORKDIR="`pwd`/testdir"
 USE_VALGRIND=""
 VALGRIND_SUP=""
@@ -103,6 +105,8 @@ if [ "3" -le "$#" ] ; then
 else
 	REPREPRO="$SRCDIR/reprepro"
 fi
+TESTOPTIONS="-D x=0 -D d=1 $TESTOPTIONS"
+VERBOSITY="--verbosedb $VERBOSITY"
 TESTS="$SRCDIR/tests"
 UPDATETYPE=update
 export PATH="$TESTS:$PATH"
@@ -118,14 +122,89 @@ case $TESTTOOLVERSION in
 	   ;;
 esac
 touch results.empty
+function printindexpart() {
+	FILENAME="$1"
+	dpkg-deb -I "$FILENAME" control >"$FILENAME".control
+	ed -s "$FILENAME".control << EOF
+H
+/^Description:/ kd
+/^Priority/ m 'd-1
+/^Section/ m 'd-1
+'d i
+Filename: $FILENAME
+Size: $(stat -c "%s" "$FILENAME")
+MD5sum: $(md5sum "$FILENAME" | cut -d' ' -f1)
+.
+$ a
 
+.
+w
+q
+EOF
+cat "$FILENAME".control
+rm "$FILENAME".control
+}
+function mdandsize() {
+cat <<EOF
+$(md5sum "$1" | cut -d' ' -f1) $(stat -c "%s" "$1")
+EOF
+}
+
+dodo test ! -d db
+testrun - -b . _versioncompare 0 1 3<<EOF
+stdout
+*='0' is smaller than '1'.
+EOF
+mkdir -p conf
+cat > conf/distributions <<EOF
+
+#
+
+Codename:		test	
+Architectures:
+# This is an comment
+ 	a
+Components:
+ 	c
+
+#
+#
+
+EOF
+# touch conf/updates
+# dodo test ! -d db
+# testrun - -b . checkupdate test 3<<EOF
+# stderr
+# *=Nothing to do found. (Use --noskipold to force processing)
+# stdout
+# -v2*=Created directory "./db"
+# -v2=Created directory "./lists"
+# -v2*=Removed empty directory "./db"
+# EOF
+# dodo test ! -d db
+# mkdir d
+# testrun - -b . --dbdir d/ab/c//x checkupdate test 3<<EOF
+# stderr
+# *=Nothing to do found. (Use --noskipold to force processing)
+# stdout
+# -v2*=Created directory "d/ab"
+# -v2*=Created directory "d/ab/c"
+# -v2*=Created directory "d/ab/c//x"
+# -v2=Created directory "./lists"
+# -v2*=Removed empty directory "d/ab/c//x"
+# -v2*=Removed empty directory "d/ab/c"
+# -v2*=Removed empty directory "d/ab"
+# EOF
+# rm -r -f lists
+rm -r conf
+dodo test ! -d d/ab
 mkdir -p conf
 cat > conf/options <<CONFEND
 export changed
 CONFEND
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
  --bla
@@ -133,125 +212,122 @@ CONFEND
 testrun - -b . export 3<<EOF
 return 255
 stdout
--v2*=Created directory "./db"
 stderr
-*=Unknown option in notifiers of 'A': '--bla' (in '--bla')
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Unknown Log notifier option in ./conf/distributions, line 5, column 2: '--bla'
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
  -A
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Missing '=' in notifiers of 'A' after '-A' (in '-A')
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Log notifier option -A misses an argument in ./conf/distributions, line 5, column 4
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
- -A=abacus
+ -A=${FAKEARCHITECTURE}
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Missing notification script to call in '-A=abacus' of 'A'
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Error parsing config file ./conf/distributions, line 5, column $(( 5 + $FALEN )):
+*=Unexpected end of line: name of notifier script missing!
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
- -A=abacus --architecture=coal
+ -A=${FAKEARCHITECTURE} --architecture=coal
 CONFEND
 testrun - -b . export 3<<EOF
 return 255
-*=Double notifier option '--architecture' (in '-A=abacus --architecture=coal' from 'A')
--v0=Stop reading further chunks from './conf/distributions' due to previous errors.
+*=Repeated notifier option --architecture in ./conf/distributions, line 5, column $(( 6 + $FALEN))!
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
 Codename: A
-Architectures: abacus calculator
+Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
  -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
 
 Codename: B
-Architectures: abacus source
+Architectures: ${FAKEARCHITECTURE} source
 Components: dog cat
-Contents: 1
+Contents:
 Log: logfile
 CONFEND
 testrun - -b . export 3<<EOF
 stdout
+-v2*=Created directory "./db"
 -v1*=Exporting B...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/B"
 -v2*=Created directory "./dists/B/dog"
--v2*=Created directory "./dists/B/dog/binary-abacus"
--v6*= exporting 'B|dog|abacus'...
--v6*=  creating './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/B/dog/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'B|dog|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/B/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/B/dog/source"
 -v6*= exporting 'B|dog|source'...
 -v6*=  creating './dists/B/dog/source/Sources' (gzipped)
 -v2*=Created directory "./dists/B/cat"
--v2*=Created directory "./dists/B/cat/binary-abacus"
--v6*= exporting 'B|cat|abacus'...
+-v2*=Created directory "./dists/B/cat/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'B|cat|${FAKEARCHITECTURE}'...
 -v2*=Created directory "./dists/B/cat/source"
--v6*=  creating './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*=  creating './dists/B/cat/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v6*= exporting 'B|cat|source'...
 -v6*=  creating './dists/B/cat/source/Sources' (gzipped)
--v1*= generating Contents-abacus...
+-v1*= generating Contents-${FAKEARCHITECTURE}...
 -v1*=Exporting A...
 -v2*=Created directory "./dists/A"
 -v2*=Created directory "./dists/A/dog"
--v2*=Created directory "./dists/A/dog/binary-abacus"
--v6*= exporting 'A|dog|abacus'...
--v6*=  creating './dists/A/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/A/dog/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'A|dog|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/A/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/dog/binary-calculator"
 -v6*= exporting 'A|dog|calculator'...
 -v6*=  creating './dists/A/dog/binary-calculator/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/cat"
--v2*=Created directory "./dists/A/cat/binary-abacus"
--v6*= exporting 'A|cat|abacus'...
--v6*=  creating './dists/A/cat/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/A/cat/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'A|cat|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/A/cat/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/A/cat/binary-calculator"
 -v6*= exporting 'A|cat|calculator'...
 -v6*=  creating './dists/A/cat/binary-calculator/Packages' (uncompressed,gzipped)
 EOF
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<END
-dists/A/cat/binary-abacus/Packages
-dists/A/cat/binary-abacus/Packages.gz
-dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-${FAKEARCHITECTURE}/Packages
+dists/A/cat/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/A/cat/binary-${FAKEARCHITECTURE}/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-abacus/Packages
-dists/A/dog/binary-abacus/Packages.gz
-dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-${FAKEARCHITECTURE}/Packages
+dists/A/dog/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/A/dog/binary-${FAKEARCHITECTURE}/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-abacus/Packages
-dists/B/cat/binary-abacus/Packages.gz
-dists/B/cat/binary-abacus/Release
+dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
+dists/B/cat/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/B/cat/binary-${FAKEARCHITECTURE}/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-abacus.gz
-dists/B/dog/binary-abacus/Packages
-dists/B/dog/binary-abacus/Packages.gz
-dists/B/dog/binary-abacus/Release
+dists/B/Contents-${FAKEARCHITECTURE}.gz
+dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
+dists/B/dog/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/B/dog/binary-${FAKEARCHITECTURE}/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
@@ -260,7 +336,7 @@ dodiff results.expected results
 testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
-*=Unable to open file ./conf/incoming: No such file or directory
+*=Error opening config file './conf/incoming': No such file or directory(2)
 -v0*=There have been errors!
 stdout
 EOF
@@ -274,6 +350,8 @@ stdout
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+Tempdir: bla
+Incomingdir: bla
 EOF
 testrun - -b . processincoming default 3<<EOF
 returns 249
@@ -284,6 +362,11 @@ stdout
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+Tempdir: bla
+Incomingdir: bla
+
+# a comment
+#
 
 Name: default
 
@@ -292,12 +375,17 @@ EOF
 testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
-*=Expected 'TempDir' header not found in definition for 'default' in './conf/incoming'!
--v0=Stop reading further chunks from './conf/incoming' due to previous errors.
+*=Error parsing config file ./conf/incoming, line 9:
+*=Required field 'TempDir' expected (since line 8).
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+Tempdir: bla
+Incomingdir: bla
+
+# a comment
+#
 
 Name: default
 TempDir: temp
@@ -307,36 +395,71 @@ EOF
 testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
-*=Expected 'IncomingDir' header not found in definition for 'default' in './conf/incoming'!
--v0=Stop reading further chunks from './conf/incoming' due to previous errors.
+*=Error parsing config file ./conf/incoming, line 10:
+*=Required field 'IncomingDir' expected (since line 8).
+-v0*=There have been errors!
+EOF
+cat > conf/incoming <<EOF
+# commentary
+Name: bla
+Tempdir: bla
+Incomingdir: bla
+Permit: unused_files bla older_version
+Cleanup: unused_files bla on_deny
+
+# a comment
+#
+
+Name: default
+TempDir: temp
+
+Name: blub
+EOF
+testrun - -b . processincoming default 3<<EOF
+returns 249
+stderr
+*=Warning: ignored error parsing config file ./conf/incoming, line 5, column 22:
+*=Unknown flag in Permit-header. (but not within the rule we are intrested in.)
+*=Warning: ignored error parsing config file ./conf/incoming, line 6, column 23:
+*=Unknown flag in Cleanup-header. (but not within the rule we are intrested in.)
+*=Error parsing config file ./conf/incoming, line 13:
+*=Required field 'IncomingDir' expected (since line 11).
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+TempDir: bla
+IncomingDir: bla
 
 Name: default
 TempDir: temp
-IncomingDir: i
+IncomingDir:		i
 
 Name: blub
+TempDir: blub
+IncomingDir: blub
 EOF
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-*='default' in './conf/incoming' has neither a 'Allow' nor a 'Default' definition!
+*=There ia neither a 'Allow' nor a 'Default' definition in rule 'default'
+*=(starting at line 5, ending at line 8 of ./conf/incoming)!
 *=Aborting as nothing would be let in.
--v0=Stop reading further chunks from './conf/incoming' due to previous errors.
 -v0*=There have been errors!
 EOF
 cat > conf/incoming <<EOF
 Name: bla
+TempDir: bla
+IncomingDir: blub
 
 Name: default
 TempDir: temp
-IncomingDir: i
+IncomingDir:		i	
 Allow: A B
 
 Name: blub
+TempDir: bla
+IncomingDir: blub
 EOF
 testrun - -b . processincoming default 3<<EOF
 returns 254
@@ -352,10 +475,6 @@ testrun "" -b . processincoming default
 echo returned: $?
 DSCMD5S="$(md5sum i/bird_1.dsc | cut -d' ' -f1) $(stat -c '%s' i/bird_1.dsc)"
 TARMD5S="$(md5sum i/bird_1.tar.gz | cut -d' ' -f1) $(stat -c '%s' i/bird_1.tar.gz)"
-DEBMD5="$(md5sum i/bird_1_abacus.deb | cut -d' ' -f1)"
-DEBSIZE="$(stat -c '%s' i/bird_1_abacus.deb)"
-DEBAMD5="$(md5sum i/bird-addons_1_all.deb | cut -d' ' -f1)"
-DEBASIZE="$(stat -c '%s' i/bird-addons_1_all.deb)"
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -385,39 +504,45 @@ stderr
 stdout
 -v9*=Adding reference to 'pool/dog/b/bird/bird_1.dsc' by 'B|dog|source'
 -v9*=Adding reference to 'pool/dog/b/bird/bird_1.tar.gz' by 'B|dog|source'
--v9*=Adding reference to 'pool/dog/b/bird/bird_1_abacus.deb' by 'B|dog|abacus'
--v9*=Adding reference to 'pool/dog/b/bird/bird-addons_1_all.deb' by 'B|dog|abacus'
+-v9*=Adding reference to 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' by 'B|dog|${FAKEARCHITECTURE}'
+-v9*=Adding reference to 'pool/dog/b/bird/bird-addons_1_all.deb' by 'B|dog|${FAKEARCHITECTURE}'
 -v2*=Created directory "./pool"
 -v2*=Created directory "./pool/dog"
 -v2*=Created directory "./pool/dog/b"
 -v2*=Created directory "./pool/dog/b/bird"
+-d1*=db: 'pool/dog/b/bird/bird_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/dog/b/bird/bird_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to files.db(md5sums).
 -v2*=Created directory "./logs"
--v3*=db: 'bird' added to 'B|dog|source'.
--v3*=db: 'bird' added to 'B|dog|abacus'.
--v3*=db: 'bird-addons' added to 'B|dog|abacus'.
+-d1*=db: 'bird' added to packages.db(B|dog|source).
+-d1*=db: 'bird' added to packages.db(B|dog|${FAKEARCHITECTURE}).
+-d1*=db: 'bird-addons' added to packages.db(B|dog|${FAKEARCHITECTURE}).
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
--v3*=deleting './i/bird_1_abacus.deb'...
+-v3*=deleting './i/bird_1_${FAKEARCHITECTURE}.deb'...
 -v3*=deleting './i/bird-addons_1_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|dog|abacus'...
--v6*=  replacing './dists/B/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/B/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'B|cat|source'...
--v1*= generating Contents-abacus...
--v4*=Reading filelist for pool/dog/b/bird/bird_1_abacus.deb
+-v1*= generating Contents-${FAKEARCHITECTURE}...
+-v4*=Reading filelist for pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(compressedfilelists).
 -v4*=Reading filelist for pool/dog/b/bird/bird-addons_1_all.deb
+-d1*=db: 'pool/dog/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
 LOGDATE="$(date +'%Y-%m-%d %H:')"
 echo normalizing logfile: DATESTR is "$LOGDATE??:??"
 sed -i -e 's/^'"$LOGDATE"'[0-9][0-9]:[0-9][0-9] /DATESTR /g' logs/logfile
 cat > results.log.expected <<EOF
 DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog abacus bird 1
-DATESTR add B deb dog abacus bird-addons 1
+DATESTR add B deb dog ${FAKEARCHITECTURE} bird 1
+DATESTR add B deb dog ${FAKEARCHITECTURE} bird-addons 1
 EOF
 dodiff results.log.expected logs/logfile
 find temp -type f > results
@@ -432,67 +557,43 @@ dir/another	    tasty/bird,tasty/bird-addons
 dir/file	    tasty/bird,tasty/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons
 EOF
-gunzip -c dists/B/Contents-abacus.gz > results
+gunzip -c dists/B/Contents-${FAKEARCHITECTURE}.gz > results
 dodiff results.expected results
-cat > results.expected <<EOF
-Package: bird
-Version: 1
-Architecture: abacus
-Installed-Size: 20
-Maintainer: me <guess@who>
-Priority: superfluous
-Section: tasty
-Filename: pool/dog/b/bird/bird_1_abacus.deb
-Size: $DEBSIZE
-MD5sum: $DEBMD5
-Description: bla
- blub
-
-Package: bird-addons
-Version: 1
-Architecture: all
-Installed-Size: 24
-Maintainer: me <guess@who>
-Source: bird
-Priority: superfluous
-Section: tasty
-Filename: pool/dog/b/bird/bird-addons_1_all.deb
-Size: $DEBASIZE
-MD5sum: $DEBAMD5
-Description: bla
- blub
-
-EOF
-dodiff results.expected dists/B/dog/binary-abacus/Packages
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
+printindexpart pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb > results.expected
+printindexpart pool/dog/b/bird/bird-addons_1_all.deb >> results.expected
+dodiff results.expected dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
+cat pool/dog/b/bird/bird_1.dsc >results.expected
+ed -s results.expected <<EOF
+H
+/^Source: / m 0
+s/^Source: /Package: /
+/^Files: / kf
+'f i
 Priority: superfluous
 Section: tasty
 Directory: pool/dog/b/bird
-Files: 
+.
+'f a
  $DSCMD5S bird_1.dsc
- $TARMD5S bird_1.tar.gz
+.
+$ a
 
+.
+w
+q
 EOF
 gunzip -c dists/B/dog/source/Sources.gz > results
 dodiff results.expected results
 
 echo "DebOverride: debo" >> conf/distributions
 echo "DscOverride: dsco" >> conf/distributions
-mkdir override
-echo "bird Section cat/tasty" > override/debo
-echo "bird Priority hungry" >> override/debo
-echo "bird Task lunch" >> override/debo
-echo "bird-addons Section cat/ugly" >> override/debo
-echo "bird Section cat/nest" > override/dsco
-echo "bird Priority hurry" >> override/dsco
-echo "bird Homepage gopher://tree" >> override/dsco
+echo "bird Section cat/tasty" > conf/debo
+echo "bird Priority hungry" >> conf/debo
+echo "bird Task lunch" >> conf/debo
+echo "bird-addons Section cat/ugly" >> conf/debo
+echo "bird Section cat/nest" > conf/dsco
+echo "bird Priority hurry" >> conf/dsco
+echo "bird Homepage gopher://tree" >> conf/dsco
 
 mv i2/* i/
 rmdir i2
@@ -503,28 +604,30 @@ stdout
 -v2*=Created directory "./pool/cat"
 -v2*=Created directory "./pool/cat/b"
 -v2*=Created directory "./pool/cat/b/bird"
--v3*=db: 'bird' added to 'B|cat|source'.
--v3*=db: 'bird' added to 'B|cat|abacus'.
--v3*=db: 'bird-addons' added to 'B|cat|abacus'.
--v7*=db: pool/cat/b/bird/bird_1.dsc: file added.
--v7*=db: pool/cat/b/bird/bird_1.tar.gz: file added.
--v7*=db: pool/cat/b/bird/bird_1_abacus.deb: file added.
--v7*=db: pool/cat/b/bird/bird-addons_1_all.deb: file added.
+-d1*=db: 'pool/cat/b/bird/bird_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/cat/b/bird/bird_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to files.db(md5sums).
+-d1*=db: 'bird' added to packages.db(B|cat|source).
+-d1*=db: 'bird' added to packages.db(B|cat|${FAKEARCHITECTURE}).
+-d1*=db: 'bird-addons' added to packages.db(B|cat|${FAKEARCHITECTURE}).
 -v3*=deleting './i/bird_1.dsc'...
 -v3*=deleting './i/bird_1.tar.gz'...
--v3*=deleting './i/bird_1_abacus.deb'...
+-v3*=deleting './i/bird_1_${FAKEARCHITECTURE}.deb'...
 -v3*=deleting './i/bird-addons_1_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'B|cat|source'...
--v6*= looking for changes in 'B|dog|abacus'...
--v6*=  replacing './dists/B/cat/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/B/cat/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/cat/source/Sources' (gzipped)
--v1*= generating Contents-abacus...
--v4*=Reading filelist for pool/cat/b/bird/bird_1_abacus.deb
+-v1*= generating Contents-${FAKEARCHITECTURE}...
+-v4*=Reading filelist for pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb' added to contents.cache.db(compressedfilelists).
 -v4*=Reading filelist for pool/cat/b/bird/bird-addons_1_all.deb
+-d1*=db: 'pool/cat/b/bird/bird-addons_1_all.deb' added to contents.cache.db(compressedfilelists).
 EOF
 function checklog() {
 	cat > results.log.expected
@@ -537,11 +640,11 @@ function checklog() {
 }
 checklog logfile <<EOF
 DATESTR add B dsc dog source bird 1
-DATESTR add B deb dog abacus bird 1
-DATESTR add B deb dog abacus bird-addons 1
+DATESTR add B deb dog ${FAKEARCHITECTURE} bird 1
+DATESTR add B deb dog ${FAKEARCHITECTURE} bird-addons 1
 DATESTR add B dsc cat source bird 1
-DATESTR add B deb cat abacus bird 1
-DATESTR add B deb cat abacus bird-addons 1
+DATESTR add B deb cat ${FAKEARCHITECTURE} bird 1
+DATESTR add B deb cat ${FAKEARCHITECTURE} bird-addons 1
 EOF
 find temp -type f > results
 dodiff results.empty results
@@ -555,55 +658,42 @@ dir/another	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 dir/subdir/file	    tasty/bird,tasty/bird-addons,cat/tasty/bird,cat/ugly/bird-addons
 EOF
-gunzip -c dists/B/Contents-abacus.gz > results
+gunzip -c dists/B/Contents-${FAKEARCHITECTURE}.gz > results
 dodiff results.expected results
-cat > results.expected <<EOF
-Package: bird
-Version: 1
-Architecture: abacus
-Installed-Size: 20
-Maintainer: me <guess@who>
+printindexpart pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb > results.expected
+printindexpart pool/cat/b/bird/bird-addons_1_all.deb >> results.expected
+ed -s results.expected <<EOF
+H
+/^Priority: / s/^Priority: superfluous$/Priority: hungry/
+i
 Task: lunch
-Priority: hungry
-Section: cat/tasty
-Filename: pool/cat/b/bird/bird_1_abacus.deb
-Size: $DEBSIZE
-MD5sum: $DEBMD5
-Description: bla
- blub
-
-Package: bird-addons
-Version: 1
-Architecture: all
-Installed-Size: 24
-Maintainer: me <guess@who>
-Source: bird
-Priority: superfluous
-Section: cat/ugly
-Filename: pool/cat/b/bird/bird-addons_1_all.deb
-Size: $DEBASIZE
-MD5sum: $DEBAMD5
-Description: bla
- blub
-
+.
+/^Section: / s/^Section: tasty$/Section: cat\/tasty/
+/^Section: tasty/ s/^Section: tasty$/Section: cat\/ugly/
+w
+q
 EOF
-dodiff results.expected dists/B/cat/binary-abacus/Packages
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
+dodiff results.expected dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
+cat pool/cat/b/bird/bird_1.dsc >results.expected
+ed -s results.expected <<EOF
+H
+/^Source: / m 0
+s/^Source: /Package: /
+/^Files: / kf
+'f i
 Homepage: gopher://tree
 Priority: hurry
 Section: cat/nest
 Directory: pool/cat/b/bird
-Files: 
+.
+'f a
  $DSCMD5S bird_1.dsc
- $TARMD5S bird_1.tar.gz
+.
+$ a
 
+.
+w
+q
 EOF
 BIRDDSCMD5S="$DSCMD5S"
 BIRDTARMD5S="$TARMD5S"
@@ -891,20 +981,21 @@ stderr
 stdout
 -v2*=Created directory "./pool/dog/s"
 -v2*=Created directory "./pool/dog/s/sourceindeb"
--v3*=db: 'indebname' added to 'A|dog|abacus'.
--v3*=db: 'indebname' added to 'A|dog|calculator'.
+-d1*=db: 'pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb' added to files.db(md5sums).
+-d1*=db: 'indebname' added to packages.db(A|dog|${FAKEARCHITECTURE}).
+-d1*=db: 'indebname' added to packages.db(A|dog|calculator).
 -v3*=deleting './i/indebname_debfileversion~2_all.deb'...
 -v3*=deleting './i/test.changes'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'A|cat|abacus'...
--v6*=  replacing './dists/A/dog/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'A|cat|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/A/dog/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v6*= looking for changes in 'A|cat|calculator'...
 -v6*=  replacing './dists/A/dog/binary-calculator/Packages' (uncompressed,gzipped)
--v6*= looking for changes in 'A|dog|abacus'...
+-v6*= looking for changes in 'A|dog|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'A|dog|calculator'...
 EOF
 checklog logfile <<EOF
-DATESTR add A deb dog abacus indebname 1:versionindeb~1
+DATESTR add A deb dog ${FAKEARCHITECTURE} indebname 1:versionindeb~1
 DATESTR add A deb dog calculator indebname 1:versionindeb~1
 EOF
 find pool/dog/s -type f > results
@@ -1095,16 +1186,17 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 stdout
--v3*=db: 'dscfilename' added to 'B|dog|source'.
 -v2*=Created directory "./pool/dog/d"
 -v2*=Created directory "./pool/dog/d/dscfilename"
+-d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' added to files.db(md5sums).
+-d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v0=Exporting indices...
--v6*= looking for changes in 'B|dog|abacus'...
+-v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'B|cat|source'...
 EOF
 checklog logfile <<EOF
@@ -1210,60 +1302,66 @@ cat > results.expected <<EOF
 pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
 pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
 pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
 EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-dists/A/cat/binary-abacus/Packages
-dists/A/cat/binary-abacus/Packages.gz
-dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-${FAKEARCHITECTURE}/Packages
+dists/A/cat/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/A/cat/binary-${FAKEARCHITECTURE}/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-abacus/Packages
-dists/A/dog/binary-abacus/Packages.gz
-dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-${FAKEARCHITECTURE}/Packages
+dists/A/dog/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/A/dog/binary-${FAKEARCHITECTURE}/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-abacus/Packages
-dists/B/cat/binary-abacus/Packages.gz
-dists/B/cat/binary-abacus/Release
+dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
+dists/B/cat/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/B/cat/binary-${FAKEARCHITECTURE}/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-abacus.gz
-dists/B/dog/binary-abacus/Packages
-dists/B/dog/binary-abacus/Packages.gz
-dists/B/dog/binary-abacus/Release
+dists/B/Contents-${FAKEARCHITECTURE}.gz
+dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
+dists/B/dog/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/B/dog/binary-${FAKEARCHITECTURE}/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
 EOF
 dodiff results.expected results
 gunzip -c dists/B/dog/source/Sources.gz > results
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
+cat pool/dog/b/bird/bird_1.dsc >bird.preprocessed
+ed -s bird.preprocessed <<EOF
+H
+/^Source: / m 0
+s/^Source: /Package: /
+/^Files: / kf
+'f i
 Priority: superfluous
 Section: tasty
 Directory: pool/dog/b/bird
-Files: 
+.
+'f a
  $BIRDDSCMD5S bird_1.dsc
- $BIRDTARMD5S bird_1.tar.gz
+.
+$ a
 
+.
+w
+q
+EOF
+cat bird.preprocessed - > results.expected <<EOF
 Package: dscfilename
 Format: 1.0
 Maintainer: guess who <me@nowhere>
@@ -1288,19 +1386,22 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 =Unknown filetype: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
 stdout
--v3*=db: removed old 'dscfilename' from 'B|dog|source'.
--v3*=db: 'dscfilename' added to 'B|dog|source'.
+-d1*=db: 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/dog/d/dscfilename/strangefile_xyz' added to files.db(md5sums).
+-d1*=db: 'dscfilename' removed from packages.db(B|dog|source).
+-d1*=db: 'dscfilename' added to packages.db(B|dog|source).
 -v3*=deleting './i/dscfilename_fileversion~.dsc'...
 -v3*=deleting './i/test.changes'...
 -v3*=deleting './i/strangefile_xyz'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'B|dog|abacus'...
+-v6*= looking for changes in 'B|dog|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'B|dog|source'...
 -v6*=  replacing './dists/B/dog/source/Sources' (gzipped)
--v6*= looking for changes in 'B|cat|abacus'...
+-v6*= looking for changes in 'B|cat|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'B|cat|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/dog/d/dscfilename/dscfilename_versionindsc.dsc
+-d1*=db: 'pool/dog/d/dscfilename/dscfilename_versionindsc.dsc' removed from files.db(md5sums).
 EOF
 checklog logfile <<EOF
 DATESTR replace B dsc dog source dscfilename 1:newversion~ versionindsc
@@ -1311,11 +1412,11 @@ cat > results.expected <<EOF
 pool/cat/b/bird/bird-addons_1_all.deb
 pool/cat/b/bird/bird_1.dsc
 pool/cat/b/bird/bird_1.tar.gz
-pool/cat/b/bird/bird_1_abacus.deb
+pool/cat/b/bird/bird_1_${FAKEARCHITECTURE}.deb
 pool/dog/b/bird/bird-addons_1_all.deb
 pool/dog/b/bird/bird_1.dsc
 pool/dog/b/bird/bird_1.tar.gz
-pool/dog/b/bird/bird_1_abacus.deb
+pool/dog/b/bird/bird_1_${FAKEARCHITECTURE}.deb
 pool/dog/d/dscfilename/dscfilename_newversion~.dsc
 pool/dog/d/dscfilename/strangefile_xyz
 pool/dog/s/sourceindeb/indebname_versionindeb~1_all.deb
@@ -1323,49 +1424,35 @@ EOF
 dodiff results.expected results
 find dists -type f | LC_ALL=C sort -f > results
 cat > results.expected <<EOF
-dists/A/cat/binary-abacus/Packages
-dists/A/cat/binary-abacus/Packages.gz
-dists/A/cat/binary-abacus/Release
+dists/A/cat/binary-${FAKEARCHITECTURE}/Packages
+dists/A/cat/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/A/cat/binary-${FAKEARCHITECTURE}/Release
 dists/A/cat/binary-calculator/Packages
 dists/A/cat/binary-calculator/Packages.gz
 dists/A/cat/binary-calculator/Release
-dists/A/dog/binary-abacus/Packages
-dists/A/dog/binary-abacus/Packages.gz
-dists/A/dog/binary-abacus/Release
+dists/A/dog/binary-${FAKEARCHITECTURE}/Packages
+dists/A/dog/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/A/dog/binary-${FAKEARCHITECTURE}/Release
 dists/A/dog/binary-calculator/Packages
 dists/A/dog/binary-calculator/Packages.gz
 dists/A/dog/binary-calculator/Release
 dists/A/Release
-dists/B/cat/binary-abacus/Packages
-dists/B/cat/binary-abacus/Packages.gz
-dists/B/cat/binary-abacus/Release
+dists/B/cat/binary-${FAKEARCHITECTURE}/Packages
+dists/B/cat/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/B/cat/binary-${FAKEARCHITECTURE}/Release
 dists/B/cat/source/Release
 dists/B/cat/source/Sources.gz
-dists/B/Contents-abacus.gz
-dists/B/dog/binary-abacus/Packages
-dists/B/dog/binary-abacus/Packages.gz
-dists/B/dog/binary-abacus/Release
+dists/B/Contents-${FAKEARCHITECTURE}.gz
+dists/B/dog/binary-${FAKEARCHITECTURE}/Packages
+dists/B/dog/binary-${FAKEARCHITECTURE}/Packages.gz
+dists/B/dog/binary-${FAKEARCHITECTURE}/Release
 dists/B/dog/source/Release
 dists/B/dog/source/Sources.gz
 dists/B/Release
 EOF
 dodiff results.expected results
 gunzip -c dists/B/dog/source/Sources.gz > results
-cat > results.expected <<EOF
-Package: bird
-Format: 1.0
-Version: 1
-Binary: bird, bird-addons
-Maintainer: me <guess@who>
-Architecture: any
-Standards-Version: 0.0
-Priority: superfluous
-Section: tasty
-Directory: pool/dog/b/bird
-Files: 
- $BIRDDSCMD5S bird_1.dsc
- $BIRDTARMD5S bird_1.tar.gz
-
+cat bird.preprocessed - > results.expected <<EOF
 Package: dscfilename
 Format: 1.0
 Maintainer: guess who <me@nowhere>
@@ -1397,7 +1484,7 @@ export changed
 CONFEND
 cat > conf/distributions <<CONFEND
 Codename: test1
-Architectures: abacus source
+Architectures: ${FAKEARCHITECTURE} source
 Components: stupid ugly
 Update: Test2toTest1
 DebIndices: Packages Release . .gz .bz2
@@ -1407,7 +1494,7 @@ Tracking: keep includechanges includebyhand
 Log: log1
 
 Codename: test2
-Architectures: abacus coal source
+Architectures: ${FAKEARCHITECTURE} coal source
 Components: stupid ugly
 Origin: Brain
 Label: Only a test
@@ -1431,10 +1518,10 @@ stdout
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/test2"
 -v2*=Created directory "./dists/test2/stupid"
--v2*=Created directory "./dists/test2/stupid/binary-abacus"
--v6*= exporting 'test2|stupid|abacus'...
--v6*=  creating './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'new'
+-v2*=Created directory "./dists/test2/stupid/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'test2|stupid|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'new'
 -v11*=Exporthook successfully returned!
 -v2*=Created directory "./dists/test2/stupid/binary-coal"
 -v6*= exporting 'test2|stupid|coal'...
@@ -1445,10 +1532,10 @@ stdout
 -v6*=  creating './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'new'
 -v2*=Created directory "./dists/test2/ugly"
--v2*=Created directory "./dists/test2/ugly/binary-abacus"
--v6*= exporting 'test2|ugly|abacus'...
--v6*=  creating './dists/test2/ugly/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'new'
+-v2*=Created directory "./dists/test2/ugly/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'test2|ugly|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'new'
 -v2*=Created directory "./dists/test2/ugly/binary-coal"
 -v6*= exporting 'test2|ugly|coal'...
 -v6*=  creating './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
@@ -1460,16 +1547,16 @@ stdout
 -v1*=Exporting test1...
 -v2*=Created directory "./dists/test1"
 -v2*=Created directory "./dists/test1/stupid"
--v2*=Created directory "./dists/test1/stupid/binary-abacus"
--v6*= exporting 'test1|stupid|abacus'...
--v6*=  creating './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v2*=Created directory "./dists/test1/stupid/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v2*=Created directory "./dists/test1/stupid/source"
 -v6*= exporting 'test1|stupid|source'...
 -v6*=  creating './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
 -v2*=Created directory "./dists/test1/ugly"
--v2*=Created directory "./dists/test1/ugly/binary-abacus"
--v6*= exporting 'test1|ugly|abacus'...
--v6*=  creating './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v2*=Created directory "./dists/test1/ugly/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v2*=Created directory "./dists/test1/ugly/source"
 -v6*= exporting 'test1|ugly|source'...
 -v6*=  creating './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
@@ -1479,29 +1566,59 @@ test -f dists/test2/Release
 
 EMPTYGZMD5SUM=7029066c27ac6f5ef18d660d5741979a
 EMPTYBZ2MD5SUM=4059d198768f9f8dc9372dc1c54bc3c3
+cat > dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release.expected <<END
+Component: stupid
+Architecture: ${FAKEARCHITECTURE}
+END
+dodiff dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release.expected dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release
+cat > dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release.expected <<END
+Component: ugly
+Architecture: ${FAKEARCHITECTURE}
+END
+dodiff dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release.expected dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release
 cat > dists/test1/Release.expected <<END
 Codename: test1
 Date: normalized
-Architectures: abacus
+Architectures: ${FAKEARCHITECTURE}
 Components: stupid ugly
 MD5Sum:
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 stupid/binary-abacus/Packages.gz
- $EMPTYBZ2MD5SUM 14 stupid/binary-abacus/Packages.bz2
- d9f0fad5d54ad09dd4ecee86c73b64d4 39 stupid/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5SUM 20 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2MD5SUM 14 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(mdandsize dists/test1/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/source/Sources
  $EMPTYGZMD5SUM 20 stupid/source/Sources.gz
  $EMPTYBZ2MD5SUM 14 stupid/source/Sources.bz2
  e38c7da133734e1fd68a7e344b94fe96 39 stupid/source/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 ugly/binary-abacus/Packages.gz
- $EMPTYBZ2MD5SUM 14 ugly/binary-abacus/Packages.bz2
- 236fcd9339b1813393819d464e37c7c6 37 ugly/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5SUM 20 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ $EMPTYBZ2MD5SUM 14 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(mdandsize dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/source/Sources
  $EMPTYGZMD5SUM 20 ugly/source/Sources.gz
  $EMPTYBZ2MD5SUM 14 ugly/source/Sources.bz2
  ed4ee9aa5d080f67926816133872fd02 37 ugly/source/Release
 END
+cat > dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release.expected <<END
+Archive: broken
+Version: 9999999.02
+Component: stupid
+Origin: Brain
+Label: Only a test
+Architecture: ${FAKEARCHITECTURE}
+Description: test with all fields set
+END
+dodiff dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release.expected dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release
+cat > dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release.expected <<END
+Archive: broken
+Version: 9999999.02
+Component: ugly
+Origin: Brain
+Label: Only a test
+Architecture: ${FAKEARCHITECTURE}
+Description: test with all fields set
+END
+dodiff dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release.expected dists/test1/ugly/binary-${FAKEARCHITECTURE}/Release
 cat > dists/test2/Release.expected <<END
 Origin: Brain
 Label: Only a test
@@ -1509,14 +1626,14 @@ Suite: broken
 Codename: test2
 Version: 9999999.02
 Date: normalized
-Architectures: abacus coal
+Architectures: ${FAKEARCHITECTURE} coal
 Components: stupid ugly
 Description: test with all fields set
 MD5Sum:
- d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 stupid/binary-abacus/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-abacus/Packages.bz2
- e142c47c1be0c32cd120138066b73c73 146 stupid/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5SUM 20 stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(mdandsize dists/test2/stupid/binary-${FAKEARCHITECTURE}/Release) stupid/binary-${FAKEARCHITECTURE}/Release
  d41d8cd98f00b204e9800998ecf8427e 0 stupid/binary-coal/Packages
  $EMPTYGZMD5SUM 20 stupid/binary-coal/Packages.gz
  4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/binary-coal/Packages.bz2
@@ -1525,10 +1642,10 @@ MD5Sum:
  $EMPTYGZMD5SUM 20 stupid/source/Sources.gz
  4059d198768f9f8dc9372dc1c54bc3c3 14 stupid/source/Sources.bz2
  b923b3eb1141e41f0b8bb74297ac8a36 146 stupid/source/Release
- d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-abacus/Packages
- $EMPTYGZMD5SUM 20 ugly/binary-abacus/Packages.gz
- 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-abacus/Packages.bz2
- 22eb57e60d3c621b8bd8461eae218b16 144 ugly/binary-abacus/Release
+ d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-${FAKEARCHITECTURE}/Packages
+ $EMPTYGZMD5SUM 20 ugly/binary-${FAKEARCHITECTURE}/Packages.gz
+ 4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-${FAKEARCHITECTURE}/Packages.bz2
+ $(mdandsize dists/test2/ugly/binary-${FAKEARCHITECTURE}/Release) ugly/binary-${FAKEARCHITECTURE}/Release
  d41d8cd98f00b204e9800998ecf8427e 0 ugly/binary-coal/Packages
  $EMPTYGZMD5SUM 20 ugly/binary-coal/Packages.gz
  4059d198768f9f8dc9372dc1c54bc3c3 14 ugly/binary-coal/Packages.bz2
@@ -1553,24 +1670,26 @@ stdout
 -v2*=Created directory "./pool/stupid"
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
-=[tracking_get test1 simple 1]
-=[tracking_new test1 simple 1]
--v3*=db: 'simple-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'simple' added to 'test1|stupid|abacus'.
--v3*=db: 'simple' added to 'test1|stupid|source'.
-=[tracking_save test1 simple 1]
+-d1*=db: 'pool/stupid/s/simple/simple-addons_1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: 'simple-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'simple' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'simple' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
 checklog log1 << EOF
-DATESTR add test1 deb stupid abacus simple-addons 1
-DATESTR add test1 deb stupid abacus simple 1
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} simple-addons 1
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} simple 1
 DATESTR add test1 dsc stupid source simple 1
 EOF
 
@@ -1582,39 +1701,41 @@ stdout
 -v2*=Created directory "./pool/ugly"
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
-=[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
-=[tracking_new test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
-=[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 echo returned: $?
 checklog log1 <<EOF
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR add test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 
 testrun - -b . -Tdsc remove test1 simple 3<<EOF
 stdout
 -v1*=removing 'simple' from 'test1|stupid|source'...
--v3*=db: 'simple' removed from 'test1|stupid|source'.
+-d1*=db: 'simple' removed from packages.db(test1|stupid|source).
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
@@ -1623,33 +1744,33 @@ DATESTR remove test1 dsc stupid source simple 1
 EOF
 testrun - -b . -Tdeb remove test1 bloat+-0a9z.app 3<<EOF
 stdout
--v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|abacus'...
--v3*=db: 'bloat+-0a9z.app' removed from 'test1|ugly|abacus'.
+-v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|${FAKEARCHITECTURE}'...
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|${FAKEARCHITECTURE}).
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR remove test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -A source remove test1 bloat+-0a9z.app 3<<EOF
 stdout
 -v1*=removing 'bloat+-0a9z.app' from 'test1|ugly|source'...
--v3*=db: 'bloat+-0a9z.app' removed from 'test1|ugly|source'.
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|source).
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
@@ -1657,67 +1778,66 @@ EOF
 checklog log1 <<EOF
 DATESTR remove test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -A abacus remove test1 simple 3<<EOF
+testrun - -b . -A ${FAKEARCHITECTURE} remove test1 simple 3<<EOF
 stdout
--v1*=removing 'simple' from 'test1|stupid|abacus'...
--v3*=db: 'simple' removed from 'test1|stupid|abacus'.
+-v1*=removing 'simple' from 'test1|stupid|${FAKEARCHITECTURE}'...
+-d1*=db: 'simple' removed from packages.db(test1|stupid|${FAKEARCHITECTURE}).
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb stupid abacus simple 1
+DATESTR remove test1 deb stupid ${FAKEARCHITECTURE} simple 1
 EOF
 testrun - -b . -C ugly remove test1 bloat+-0a9z.app-addons 3<<EOF
 stdout
--v1*=removing 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'...
--v3*=db: 'bloat+-0a9z.app-addons' removed from 'test1|ugly|abacus'.
+-v1*=removing 'bloat+-0a9z.app-addons' from 'test1|ugly|${FAKEARCHITECTURE}'...
+-d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|${FAKEARCHITECTURE}).
 =[tracking_get test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_get found test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 =[tracking_save test1 bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR remove test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -C stupid remove test1 simple-addons 3<<EOF
 stdout
--v1*=removing 'simple-addons' from 'test1|stupid|abacus'...
--v3*=db: 'simple-addons' removed from 'test1|stupid|abacus'.
+-v1*=removing 'simple-addons' from 'test1|stupid|${FAKEARCHITECTURE}'...
+-d1*=db: 'simple-addons' removed from packages.db(test1|stupid|${FAKEARCHITECTURE}).
 =[tracking_get test1 simple 1]
 =[tracking_get found test1 simple 1]
 =[tracking_save test1 simple 1]
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb stupid abacus simple-addons 1
+DATESTR remove test1 deb stupid ${FAKEARCHITECTURE} simple-addons 1
 EOF
 CURDATE="`TZ=GMT LC_ALL=C date +'%a, %d %b %Y %H:%M:%S +0000'`"
 echo -e '%g/^Date:/s/Date: .*/Date: normalized/\n%g/gz$/s/^ 163be0a88c70ca629fd516dbaadad96a / 7029066c27ac6f5ef18d660d5741979a /\nw\nq' | ed -s dists/test1/Release
 
 dodiff dists/test1/Release.expected dists/test1/Release || exit 1
 
-mkdir -p override
-cat > override/srcoverride <<END
+cat > conf/srcoverride <<END
 simple Section ugly/games
 simple Priority optional
 simple Maintainer simple.source.maintainer
@@ -1726,7 +1846,7 @@ bloat+-0a9z.app Priority optional
 bloat+-0a9z.app X-addition totally-unsupported
 bloat+-0a9z.app Maintainer bloat.source.maintainer
 END
-cat > override/binoverride <<END
+cat > conf/binoverride <<END
 simple Maintainer simple.maintainer
 simple Section ugly/base
 simple Priority optional
@@ -1748,17 +1868,19 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/s"
 -v2*=Created directory "./pool/ugly/s/simple"
--v3*=db: 'simple' added to 'test2|ugly|source'.
+-d1*=db: 'pool/ugly/s/simple/simple_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/s/simple/simple_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'simple' added to packages.db(test2|ugly|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
@@ -1775,18 +1897,20 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/b"
 -v2*=Created directory "./pool/stupid/b/bloat+-0a9z.app"
--v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|source'.
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'change'
 -v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
@@ -1795,47 +1919,49 @@ EOF
 checklog log2 <<EOF
 DATESTR add test2 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -Tdeb -A abacus includedeb test2 simple_1_abacus.deb 3<<EOF
+testrun - -b . -Tdeb -A ${FAKEARCHITECTURE} includedeb test2 simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v1=simple_1_abacus.deb: component guessed as 'ugly'
+-v1=simple_1_${FAKEARCHITECTURE}.deb: component guessed as 'ugly'
 stdout
--v3*=db: 'simple' added to 'test2|ugly|abacus'.
+-d1*=db: 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'simple' added to packages.db(test2|ugly|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'change'
--v6*=  replacing './dists/test2/ugly/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'change'
+-v6*=  replacing './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2  <<EOF
-DATESTR add test2 deb ugly abacus simple 1
+DATESTR add test2 deb ugly ${FAKEARCHITECTURE} simple 1
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 simple-addons_1_all.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=simple-addons_1_all.deb: component guessed as 'ugly'
 stdout
--v3*=db: 'simple-addons' added to 'test2|ugly|coal'.
+-d1*=db: 'pool/ugly/s/simple/simple-addons_1_all.deb' added to files.db(md5sums).
+-d1*=db: 'simple-addons' added to packages.db(test2|ugly|coal).
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*=  replacing './dists/test2/ugly/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'change'
@@ -1845,48 +1971,50 @@ EOF
 checklog log2  <<EOF
 DATESTR add test2 deb ugly coal simple-addons 1
 EOF
-testrun - -b . -Tdeb -A abacus includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb 3<<EOF
+testrun - -b . -Tdeb -A ${FAKEARCHITECTURE} includedeb test2 bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb: component guessed as 'stupid'
+-v1=bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb: component guessed as 'stupid'
 stdout
--v3*=db: 'bloat+-0a9z.app' added to 'test2|stupid|abacus'.
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test2|stupid|${FAKEARCHITECTURE}).
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'change'
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'change'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/source/Sources.new' 'ugly/source/Sources' 'old'
 EOF
 checklog log2 <<EOF
-DATESTR add test2 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test2 deb stupid ${FAKEARCHITECTURE} bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 testrun - -b . -Tdeb -A coal includedeb test2 bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1=bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb: component guessed as 'stupid'
 stdout
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test2|stupid|coal'.
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test2|stupid|coal).
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-abacus/Packages.new' 'stupid/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-${FAKEARCHITECTURE}/Packages.new' 'stupid/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v11*=Exporthook successfully returned!
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*=  replacing './dists/test2/stupid/binary-coal/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/binary-coal/Packages.new' 'stupid/binary-coal/Packages' 'change'
 -v6*= looking for changes in 'test2|stupid|source'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'stupid/source/Sources.new' 'stupid/source/Sources' 'old'
--v6*= looking for changes in 'test2|ugly|abacus'...
--v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-abacus/Packages.new' 'ugly/binary-abacus/Packages' 'old'
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
+-v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-${FAKEARCHITECTURE}/Packages.new' 'ugly/binary-${FAKEARCHITECTURE}/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v11*=Called $SRCDIR/docs/bzip.example './dists/test2' 'ugly/binary-coal/Packages.new' 'ugly/binary-coal/Packages' 'old'
 -v6*= looking for changes in 'test2|ugly|source'...
@@ -1897,10 +2025,10 @@ DATESTR add test2 deb stupid coal bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^\(Package\|Maintainer\|Section\|Priority\): ' | sort > results
 cat >results.expected <<END
-dists/test2/stupid/binary-abacus/Packages.gz:Maintainer: bloat.maintainer
-dists/test2/stupid/binary-abacus/Packages.gz:Package: bloat+-0a9z.app
-dists/test2/stupid/binary-abacus/Packages.gz:Priority: optional
-dists/test2/stupid/binary-abacus/Packages.gz:Section: stupid/base
+dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz:Maintainer: bloat.maintainer
+dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz:Package: bloat+-0a9z.app
+dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz:Priority: optional
+dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz:Section: stupid/base
 dists/test2/stupid/binary-coal/Packages.gz:Maintainer: bloat.add.maintainer
 dists/test2/stupid/binary-coal/Packages.gz:Package: bloat+-0a9z.app-addons
 dists/test2/stupid/binary-coal/Packages.gz:Priority: optional
@@ -1909,10 +2037,10 @@ dists/test2/stupid/source/Sources.gz:Maintainer: bloat.source.maintainer
 dists/test2/stupid/source/Sources.gz:Package: bloat+-0a9z.app
 dists/test2/stupid/source/Sources.gz:Priority: optional
 dists/test2/stupid/source/Sources.gz:Section: stupid/X11
-dists/test2/ugly/binary-abacus/Packages.gz:Maintainer: simple.maintainer
-dists/test2/ugly/binary-abacus/Packages.gz:Package: simple
-dists/test2/ugly/binary-abacus/Packages.gz:Priority: optional
-dists/test2/ugly/binary-abacus/Packages.gz:Section: ugly/base
+dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz:Maintainer: simple.maintainer
+dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz:Package: simple
+dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz:Priority: optional
+dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz:Section: ugly/base
 dists/test2/ugly/binary-coal/Packages.gz:Maintainer: simple.add.maintainer
 dists/test2/ugly/binary-coal/Packages.gz:Package: simple-addons
 dists/test2/ugly/binary-coal/Packages.gz:Priority: optional
@@ -1927,14 +2055,14 @@ rm results
 testout "" -b . listfilter test2 'Source(==simple)|(!Source,Package(==simple))'
 ls -la results
 cat > results.expected << END
-test2|ugly|abacus: simple 1
+test2|ugly|${FAKEARCHITECTURE}: simple 1
 test2|ugly|coal: simple-addons 1
 test2|ugly|source: simple 1
 END
 dodiff results.expected results
 testout "" -b . listfilter test2 'Source(==bloat+-0a9z.app)|(!Source,Package(==bloat+-0a9z.app))'
 cat > results.expected << END
-test2|stupid|abacus: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+test2|stupid|${FAKEARCHITECTURE}: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 test2|stupid|coal: bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 test2|stupid|source: bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 END
@@ -1944,7 +2072,7 @@ cat >conf/updates <<END
 Name: Test2toTest1
 Method: copy:$WORKDIR
 Suite: test2
-Architectures: coal>abacus abacus source
+Architectures: coal>${FAKEARCHITECTURE} ${FAKEARCHITECTURE} source
 FilterFormula: Priority(==optional),Package(>=alpha),Package(<=zeta)
 FilterList: error list
 ListHook: /bin/cp
@@ -1965,63 +2093,63 @@ stderr
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/Release'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/source/Sources.gz'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-abacus/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-abacus/Packages.gz'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/ugly/binary-coal/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/source/Sources.gz'
--v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-abacus/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-abacus/Packages.gz'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages.gz'
 -v6*=aptmethod start 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/test2/stupid/binary-coal/Packages.gz'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_ugly_source' './lists/test1_Test2toTest1_dsc_ugly_source_changed'
 -v6*=Listhook successfully returned!
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_abacus' './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_coal' './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_stupid_source' './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_abacus' './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_coal' './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 stdout
 -v2*=Created directory "./lists"
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
--v3*=  processing updates for 'test1|ugly|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v3*=  processing updates for 'test1|ugly|${FAKEARCHITECTURE}'
+-v5*=  reading './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v3*=  processing updates for 'test1|stupid|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v3*=  processing updates for 'test1|stupid|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v3*=  processing updates for 'test1|stupid|${FAKEARCHITECTURE}'
+-v5*=  reading './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
 -v1=Freeing some memory...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: 'simple' added to 'test1|ugly|source'.
--v3*=db: 'simple' added to 'test1|ugly|abacus'.
--v3*=db: 'simple-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|source'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|stupid|abacus'.
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|stupid|abacus'.
+-d1*=db: 'simple' added to packages.db(test1|ugly|source).
+-d1*=db: 'simple' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'simple-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|source).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 checklog log1 <<EOF
 DATESTR add test1 dsc ugly source simple 1
-DATESTR add test1 deb ugly abacus simple 1
-DATESTR add test1 deb ugly abacus simple-addons 1
+DATESTR add test1 deb ugly ${FAKEARCHITECTURE} simple 1
+DATESTR add test1 deb ugly ${FAKEARCHITECTURE} simple-addons 1
 DATESTR add test1 dsc stupid source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb stupid abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb stupid abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 checknolog log1
 checknolog log2
@@ -2041,22 +2169,22 @@ testrun - --nolistsdownload -b . $UPDATETYPE test1 3<<EOF
 -v0*=Warning: As --nolistsdownload is given, index files are NOT checked.
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_ugly_source' './lists/test1_Test2toTest1_dsc_ugly_source_changed'
 -v6*=Listhook successfully returned!
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_abacus' './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_ugly_coal' './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_dsc_stupid_source' './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_abacus' './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}' './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
 -v6*=Called /bin/cp './lists/test1_Test2toTest1_deb_stupid_coal' './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 stdout
 -v0*=Calculating packages to get...
 -v3*=  processing updates for 'test1|ugly|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_ugly_source_changed'
--v3*=  processing updates for 'test1|ugly|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_ugly_abacus_changed'
+-v3*=  processing updates for 'test1|ugly|${FAKEARCHITECTURE}'
+-v5*=  reading './lists/test1_Test2toTest1_deb_ugly_${FAKEARCHITECTURE}_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_ugly_coal_changed'
 -v3*=  processing updates for 'test1|stupid|source'
 -v5*=  reading './lists/test1_Test2toTest1_dsc_stupid_source_changed'
--v3*=  processing updates for 'test1|stupid|abacus'
--v5*=  reading './lists/test1_Test2toTest1_deb_stupid_abacus_changed'
+-v3*=  processing updates for 'test1|stupid|${FAKEARCHITECTURE}'
+-v5*=  reading './lists/test1_Test2toTest1_deb_stupid_${FAKEARCHITECTURE}_changed'
 -v5*=  reading './lists/test1_Test2toTest1_deb_stupid_coal_changed'
 -v0*=Getting packages...
 -v1=Freeing some memory...
@@ -2066,75 +2194,75 @@ EOF
 checklog log1 < /dev/null
 checknolog log2
 
-find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' | sort > test2
+find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e "s/coal/${FAKEARCHITECTURE}/" | sort > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sort > test1
 dodiff test2 test1
 
 testrun - -b . check test1 test2 3<<EOF
 stdout
 -v1*=Checking test2...
--v2*=Checking packages in 'test2|stupid|abacus'...
--v2*=Checking packages in 'test2|stupid|coal'...
--v2*=Checking packages in 'test2|stupid|source'...
--v2*=Checking packages in 'test2|ugly|abacus'...
--v2*=Checking packages in 'test2|ugly|coal'...
--v2*=Checking packages in 'test2|ugly|source'...
+-x1*=Checking packages in 'test2|stupid|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test2|stupid|coal'...
+-x1*=Checking packages in 'test2|stupid|source'...
+-x1*=Checking packages in 'test2|ugly|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test2|ugly|coal'...
+-x1*=Checking packages in 'test2|ugly|source'...
 -v1*=Checking test1...
--v2*=Checking packages in 'test1|stupid|abacus'...
--v2*=Checking packages in 'test1|stupid|source'...
--v2*=Checking packages in 'test1|ugly|abacus'...
--v2*=Checking packages in 'test1|ugly|source'...
+-x1*=Checking packages in 'test1|stupid|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test1|stupid|source'...
+-x1*=Checking packages in 'test1|ugly|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test1|ugly|source'...
 EOF
 testrun "" -b . checkpool
 testrun - -b . rereference test1 test2 3<<EOF
 stdout
 -v1*=Referencing test2...
--v2=Rereferencing test2|stupid|abacus...
+-v2=Rereferencing test2|stupid|${FAKEARCHITECTURE}...
 -v2=Rereferencing test2|stupid|coal...
 -v2=Rereferencing test2|stupid|source...
--v2=Rereferencing test2|ugly|abacus...
+-v2=Rereferencing test2|ugly|${FAKEARCHITECTURE}...
 -v2=Rereferencing test2|ugly|coal...
 -v2=Rereferencing test2|ugly|source...
--v3*=Unlocking depencies of test2|stupid|abacus...
--v3*=Referencing test2|stupid|abacus...
+-v3*=Unlocking depencies of test2|stupid|${FAKEARCHITECTURE}...
+-v3*=Referencing test2|stupid|${FAKEARCHITECTURE}...
 -v3*=Unlocking depencies of test2|stupid|coal...
 -v3*=Referencing test2|stupid|coal...
 -v3*=Unlocking depencies of test2|stupid|source...
 -v3*=Referencing test2|stupid|source...
--v3*=Unlocking depencies of test2|ugly|abacus...
--v3*=Referencing test2|ugly|abacus...
+-v3*=Unlocking depencies of test2|ugly|${FAKEARCHITECTURE}...
+-v3*=Referencing test2|ugly|${FAKEARCHITECTURE}...
 -v3*=Unlocking depencies of test2|ugly|coal...
 -v3*=Referencing test2|ugly|coal...
 -v3*=Unlocking depencies of test2|ugly|source...
 -v3*=Referencing test2|ugly|source...
 -v1*=Referencing test1...
--v2=Rereferencing test1|stupid|abacus...
+-v2=Rereferencing test1|stupid|${FAKEARCHITECTURE}...
 -v2=Rereferencing test1|stupid|source...
--v2=Rereferencing test1|ugly|abacus...
+-v2=Rereferencing test1|ugly|${FAKEARCHITECTURE}...
 -v2=Rereferencing test1|ugly|source...
--v3*=Unlocking depencies of test1|stupid|abacus...
--v3*=Referencing test1|stupid|abacus...
+-v3*=Unlocking depencies of test1|stupid|${FAKEARCHITECTURE}...
+-v3*=Referencing test1|stupid|${FAKEARCHITECTURE}...
 -v3*=Unlocking depencies of test1|stupid|source...
 -v3*=Referencing test1|stupid|source...
--v3*=Unlocking depencies of test1|ugly|abacus...
--v3*=Referencing test1|ugly|abacus...
+-v3*=Unlocking depencies of test1|ugly|${FAKEARCHITECTURE}...
+-v3*=Referencing test1|ugly|${FAKEARCHITECTURE}...
 -v3*=Unlocking depencies of test1|ugly|source...
 -v3*=Referencing test1|ugly|source...
 EOF
 testrun - -b . check test1 test2 3<<EOF
 stdout
 -v1*=Checking test1...
--v2*=Checking packages in 'test2|stupid|abacus'...
--v2*=Checking packages in 'test2|stupid|coal'...
--v2*=Checking packages in 'test2|stupid|source'...
--v2*=Checking packages in 'test2|ugly|abacus'...
--v2*=Checking packages in 'test2|ugly|coal'...
--v2*=Checking packages in 'test2|ugly|source'...
+-x1*=Checking packages in 'test2|stupid|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test2|stupid|coal'...
+-x1*=Checking packages in 'test2|stupid|source'...
+-x1*=Checking packages in 'test2|ugly|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test2|ugly|coal'...
+-x1*=Checking packages in 'test2|ugly|source'...
 -v1*=Checking test2...
--v2*=Checking packages in 'test1|stupid|abacus'...
--v2*=Checking packages in 'test1|stupid|source'...
--v2*=Checking packages in 'test1|ugly|abacus'...
--v2*=Checking packages in 'test1|ugly|source'...
+-x1*=Checking packages in 'test1|stupid|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test1|stupid|source'...
+-x1*=Checking packages in 'test1|ugly|${FAKEARCHITECTURE}'...
+-x1*=Checking packages in 'test1|ugly|source'...
 EOF
 
 testout "" -b . dumptracks
@@ -2144,43 +2272,61 @@ Source: bloat+-0a9z.app
 Version: 99:0.9-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
 
 Distribution: test1
 Source: simple
 Version: 1
 Files:
  pool/stupid/s/simple/simple-addons_1_all.deb a 0
- pool/stupid/s/simple/simple_1_abacus.deb b 0
+ pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 0
  pool/stupid/s/simple/simple_1.dsc s 0
  pool/stupid/s/simple/simple_1.tar.gz s 0
- pool/stupid/s/simple/simple_1_source+abacus+all.changes c 0
+ pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes c 0
 
 END
 dodiff results.expected results
 
 testout "" -b . dumpunreferenced
 dodiff results.empty results
-testrun - -b . removealltracks 3<<EOF
+testrun - -b . removealltracks test2 test1 3<<EOF
+stdout
+stderr
+*=Error: Requested removing of all tracks of distribution 'test1',
+*=which still has tracking enabled. Use --delete to delete anyway.
+-v0*=There have been errors!
+returns 255
+EOF
+testrun - --delete -b . removealltracks test2 test1 3<<EOF
 stdout
 -v0*=Deleting all tracks for test2...
 -v0*=Deleting all tracks for test1...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/s/simple/simple-addons_1_all.deb
+-d1*=db: 'pool/stupid/s/simple/simple-addons_1_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
--v1*=deleting and forgetting pool/stupid/s/simple/simple_1_abacus.deb
--v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+abacus+all.changes
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/s/simple/simple_1_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/s/simple
 -v1*=removed now empty directory ./pool/stupid/s
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
--v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
--v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
 -v1*=removed now empty directory ./pool/ugly/b
 EOF
@@ -2191,20 +2337,25 @@ stderr
 stdout
 -v2*=Created directory "./pool/ugly/b"
 -v2*=Created directory "./pool/ugly/b/bloat+-0a9z.app"
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR add test1 deb ugly abacus bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR add test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR add test1 dsc ugly source bloat+-0a9z.app 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
 echo returned: $?
@@ -2213,56 +2364,64 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'bloat+-0a9z.app-addons' from 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app-addons' added to 'test1|ugly|abacus'.
--v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|abacus'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|abacus'.
--v3*=db: removed old 'bloat+-0a9z.app' from 'test1|ugly|source'.
--v3*=db: 'bloat+-0a9z.app' added to 'test1|ugly|source'.
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: 'bloat+-0a9z.app-addons' removed from packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app-addons' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'bloat+-0a9z.app' removed from packages.db(test1|ugly|source).
+-d1*=db: 'bloat+-0a9z.app' added to packages.db(test1|ugly|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
 EOF
 echo returned: $?
 checklog log1 <<EOF
-DATESTR replace test1 deb ugly abacus bloat+-0a9z.app-addons 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
-DATESTR replace test1 deb ugly abacus bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR replace test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
+DATESTR replace test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR replace test1 dsc ugly source bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -S test -P test includedeb test1 simple_1_abacus.deb 3<<EOF
+testrun - -b . -S test -P test includedeb test1 simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
 stderr
--v1*=simple_1_abacus.deb: component guessed as 'stupid'
+-v1*=simple_1_${FAKEARCHITECTURE}.deb: component guessed as 'stupid'
 stdout
 -v2*=Created directory "./pool/stupid/s"
 -v2*=Created directory "./pool/stupid/s/simple"
--v3*=db: 'simple' added to 'test1|stupid|abacus'.
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'simple' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus simple 1
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} simple 1
 EOF
 testrun - -b . -S test -P test includedsc test1 simple_1.dsc 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1*=simple_1.dsc: component guessed as 'stupid'
 stdout
--v3*=db: 'simple' added to 'test1|stupid|source'.
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'simple' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
@@ -2277,26 +2436,26 @@ Source: bloat+-0a9z.app
 Version: 99:0.9-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
 
 Distribution: test1
 Source: bloat+-0a9z.app
 Version: 99:9.0-A:Z+a:z-0+aA.9zZ
 Files:
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_abacus.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
  pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
- pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+abacus+all.changes c 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
 
 Distribution: test1
 Source: simple
 Version: 1
 Files:
- pool/stupid/s/simple/simple_1_abacus.deb b 1
+ pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 1
  pool/stupid/s/simple/simple_1.dsc s 1
  pool/stupid/s/simple/simple_1.tar.gz s 1
 
@@ -2319,10 +2478,18 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
--v1*=deleting and forgetting pool/stupid/t/test/test_1-2_abacus.deb
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.diff.gz
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/t/test/test_1-2.dsc
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/t/test
 -v1*=removed now empty directory ./pool/stupid/t
 EOF
@@ -2336,20 +2503,26 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
--v3*=db: 'test-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'test' added to 'test1|stupid|abacus'.
--v3*=db: 'test' added to 'test1|stupid|source'.
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1.orig.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: 'test-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'test' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'test' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus test-addons 1-2
-DATESTR add test1 deb stupid abacus test 1-2
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} test-addons 1-2
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} test 1-2
 DATESTR add test1 dsc stupid source test 1-2
 EOF
 dodo zgrep test_1-2.dsc dists/test1/stupid/source/Sources.gz
@@ -2361,20 +2534,26 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
 -v2*=Created directory "./pool/stupid/t/testb"
--v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|source'.
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2.orig.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-2_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: 'testb-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'testb' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'testb' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus testb-addons 1:2-2
-DATESTR add test1 deb stupid abacus testb 1:2-2
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} testb-addons 1:2-2
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} testb 1:2-2
 DATESTR add test1 dsc stupid source testb 1:2-2
 EOF
 dodo zgrep testb_2-2.dsc dists/test1/stupid/source/Sources.gz
@@ -2384,24 +2563,29 @@ testrun - -b . include test1 test2.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'testb-addons' from 'test1|stupid|abacus'.
--v3*=db: 'testb-addons' added to 'test1|stupid|abacus'.
--v3*=db: removed old 'testb' from 'test1|stupid|abacus'.
--v3*=db: 'testb' added to 'test1|stupid|abacus'.
--v3*=db: removed old 'testb' from 'test1|stupid|source'.
--v3*=db: 'testb' added to 'test1|stupid|source'.
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-3_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: 'testb-addons' removed from packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'testb-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'testb' removed from packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'testb' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'testb' removed from packages.db(test1|stupid|source).
+-d1*=db: 'testb' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR replace test1 deb stupid abacus testb-addons 1:2-3 1:2-2
-DATESTR replace test1 deb stupid abacus testb 1:2-3 1:2-2
+DATESTR replace test1 deb stupid ${FAKEARCHITECTURE} testb-addons 1:2-3 1:2-2
+DATESTR replace test1 deb stupid ${FAKEARCHITECTURE} testb 1:2-3 1:2-2
 DATESTR replace test1 dsc stupid source testb 1:2-3 1:2-2
 EOF
 dodo zgrep testb_2-3.dsc dists/test1/stupid/source/Sources.gz
@@ -2417,20 +2601,25 @@ stderr
 stdout
 -v2*=Created directory "./pool/stupid/4"
 -v2*=Created directory "./pool/stupid/4/4test"
--v3*=db: '4test-addons' added to 'test1|stupid|abacus'.
--v3*=db: '4test' added to 'test1|stupid|abacus'.
--v3*=db: '4test' added to 'test1|stupid|source'.
+-d1*=db: 'pool/stupid/4/4test/4test-addons_b.1-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes' added to files.db(md5sums).
+-d1*=db: '4test-addons' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: '4test' added to packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: '4test' added to packages.db(test1|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 checklog log1 <<EOF
-DATESTR add test1 deb stupid abacus 4test-addons 1:b.1-1
-DATESTR add test1 deb stupid abacus 4test 1:b.1-1
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} 4test-addons 1:b.1-1
+DATESTR add test1 deb stupid ${FAKEARCHITECTURE} 4test 1:b.1-1
 DATESTR add test1 dsc stupid source 4test 1:b.1-1
 EOF
 
@@ -2438,7 +2627,8 @@ cat >includeerror.rules <<EOF
 returns 255
 stderr
 -v0*=There have been errors!
-=reprepro [--delete] include <distribution> <.changes-file>
+*=Error: Too few arguments for command 'include'!
+*=Syntax: reprepro [--delete] include <distribution> <.changes-file>
 EOF
 testrun includeerror -b . include unknown 3<<EOF
 testrun includeerror -b . include unknown test.changes test2.changes
@@ -2450,11 +2640,430 @@ returns 249
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
+
+testout "" -b . dumptracks
+# TODO: check those if they are really expected...
+cat > results.expected <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 0
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+ pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: testb
+Version: 1:2-2
+Files:
+ pool/stupid/t/testb/testb-addons_2-2_all.deb a 0
+ pool/stupid/t/testb/testb_2-2_${FAKEARCHITECTURE}.deb b 0
+ pool/stupid/t/testb/testb_2-2.dsc s 0
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 0
+ pool/stupid/t/testb/testb_2-2.diff.gz s 0
+ pool/stupid/t/testb/testb_1:2-2_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+ pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes c 0
+
+EOF
+dodiff results.expected results
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+EOF
+testout "" -b . dumptracks
+dodiff results.expected results
+sed -i -e 's/^Tracking: keep/Tracking: all/' conf/distributions
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:0.9-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb-addons_2-2_all.deb
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-2_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/testb/testb_2-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2.dsc
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-2.diff.gz
+-d1*=db: 'pool/stupid/t/testb/testb_2-2.diff.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_1:2-2_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-2_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
+EOF
+cp db/tracking.db db/saved2tracking.db
+cp db/references.db db/saved2references.db
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+testout "" -b . dumptracks
+cat > results.expected <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+ pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+ pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes c 0
+
+EOF
+dodiff results.expected results
+sed -i -e 's/^Tracking: all/Tracking: minimal/' conf/distributions
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+testout "" -b . dumptracks
+dodiff results.expected results
+sed -i -e 's/^Tracking: minimal includechanges/Tracking: minimal/' conf/distributions
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes
+-d1*=db: 'pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes' removed from files.db(md5sums).
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+testout "" -b . dumptracks
+cat > results.expected <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+
+EOF
+dodiff results.expected results
+testrun -  -b . tidytracks 3<<EOF
+stdout
+-v0*=Looking for old tracks in test1...
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+# Earlier update rules made this tracking data outdated.
+# so copy it, so it can be replayed so that also outdated data
+# is tested to be handled correctly.
+mv db/tracking.db db/savedtracking.db
+mv db/references.db db/savedreferences.db
+# Try this with .changes files still listed
+mv db/saved2tracking.db db/tracking.db
+mv db/saved2references.db db/references.db
+sed -i -e 's/^Tracking: minimal/Tracking: minimal includechanges/' conf/distributions
+testrun -  -b . retrack 3<<EOF
+stdout
+-v1*=Chasing test1...
+-x1*=  Tracking test1|stupid|${FAKEARCHITECTURE}...
+-x1*=  Tracking test1|stupid|source...
+-x1*=  Tracking test1|ugly|${FAKEARCHITECTURE}...
+-x1*=  Tracking test1|ugly|source...
+EOF
+testout "" -b . dumptracks
+cat > results.expected <<EOF
+Distribution: test1
+Source: 4test
+Version: 1:b.1-1
+Files:
+ pool/stupid/4/4test/4test-addons_b.1-1_all.deb a 1
+ pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/4/4test/4test_b.1-1.dsc s 1
+ pool/stupid/4/4test/4test_b.1-1.tar.gz s 1
+ pool/stupid/4/4test/4test_1:b.1-1_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:0.9-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+
+Distribution: test1
+Source: bloat+-0a9z.app
+Version: 99:9.0-A:Z+a:z-0+aA.9zZ
+Files:
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb a 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb b 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz s 1
+ pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_99:9.0-A:Z+a:z-0+aA.9zZ_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: simple
+Version: 1
+Files:
+ pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/s/simple/simple_1.dsc s 1
+ pool/stupid/s/simple/simple_1.tar.gz s 1
+ pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb b 1
+ pool/ugly/s/simple/simple-addons_1_all.deb a 1
+ pool/ugly/s/simple/simple_1.dsc s 1
+ pool/ugly/s/simple/simple_1.tar.gz s 1
+
+Distribution: test1
+Source: test
+Version: 1-2
+Files:
+ pool/stupid/t/test/test-addons_1-2_all.deb a 1
+ pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/test/test_1-2.dsc s 1
+ pool/stupid/t/test/test_1.orig.tar.gz s 1
+ pool/stupid/t/test/test_1-2.diff.gz s 1
+ pool/stupid/t/test/test_1-2_source+${FAKEARCHITECTURE}+all.changes c 0
+
+Distribution: test1
+Source: testb
+Version: 1:2-3
+Files:
+ pool/stupid/t/testb/testb-addons_2-3_all.deb a 1
+ pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb b 1
+ pool/stupid/t/testb/testb_2-3.dsc s 1
+ pool/stupid/t/testb/testb_2.orig.tar.gz s 1
+ pool/stupid/t/testb/testb_2-3.diff.gz s 1
+ pool/stupid/t/testb/testb_1:2-3_source+${FAKEARCHITECTURE}+all.changes c 0
+
+EOF
+dodiff results.expected results
+
+testout "" -b . dumpunreferenced
+dodiff results.empty results
+testout ""  -b . dumpreferences
+cp results results.expected
+testrun - -b . rereference 3<<EOF
+stdout
+-v1*=Referencing test1...
+-v2*=Unlocking depencies of test1|stupid|${FAKEARCHITECTURE}...
+=Rereferencing test1|stupid|${FAKEARCHITECTURE}...
+-v2*=Referencing test1|stupid|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test1|stupid|source...
+=Rereferencing test1|stupid|source...
+-v2*=Referencing test1|stupid|source...
+-v2*=Unlocking depencies of test1|ugly|${FAKEARCHITECTURE}...
+=Rereferencing test1|ugly|${FAKEARCHITECTURE}...
+-v2*=Referencing test1|ugly|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test1|ugly|source...
+=Rereferencing test1|ugly|source...
+-v2*=Referencing test1|ugly|source...
+-v1*=Referencing test2...
+-v2*=Unlocking depencies of test2|stupid|${FAKEARCHITECTURE}...
+=Rereferencing test2|stupid|${FAKEARCHITECTURE}...
+-v2*=Referencing test2|stupid|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test2|stupid|coal...
+=Rereferencing test2|stupid|coal...
+-v2*=Referencing test2|stupid|coal...
+-v2*=Unlocking depencies of test2|stupid|source...
+=Rereferencing test2|stupid|source...
+-v2*=Referencing test2|stupid|source...
+-v2*=Unlocking depencies of test2|ugly|${FAKEARCHITECTURE}...
+=Rereferencing test2|ugly|${FAKEARCHITECTURE}...
+-v2*=Referencing test2|ugly|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test2|ugly|coal...
+=Rereferencing test2|ugly|coal...
+-v2*=Referencing test2|ugly|coal...
+-v2*=Unlocking depencies of test2|ugly|source...
+=Rereferencing test2|ugly|source...
+-v2*=Referencing test2|ugly|source...
+EOF
+testout ""  -b . dumpreferences
+dodiff results results.expected
+rm db/references.db
+testrun - -b . rereference 3<<EOF
+stdout
+-v1*=Referencing test1...
+-v2*=Unlocking depencies of test1|stupid|${FAKEARCHITECTURE}...
+=Rereferencing test1|stupid|${FAKEARCHITECTURE}...
+-v2*=Referencing test1|stupid|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test1|stupid|source...
+=Rereferencing test1|stupid|source...
+-v2*=Referencing test1|stupid|source...
+-v2*=Unlocking depencies of test1|ugly|${FAKEARCHITECTURE}...
+=Rereferencing test1|ugly|${FAKEARCHITECTURE}...
+-v2*=Referencing test1|ugly|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test1|ugly|source...
+=Rereferencing test1|ugly|source...
+-v2*=Referencing test1|ugly|source...
+-v1*=Referencing test2...
+-v2*=Unlocking depencies of test2|stupid|${FAKEARCHITECTURE}...
+=Rereferencing test2|stupid|${FAKEARCHITECTURE}...
+-v2*=Referencing test2|stupid|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test2|stupid|coal...
+=Rereferencing test2|stupid|coal...
+-v2*=Referencing test2|stupid|coal...
+-v2*=Unlocking depencies of test2|stupid|source...
+=Rereferencing test2|stupid|source...
+-v2*=Referencing test2|stupid|source...
+-v2*=Unlocking depencies of test2|ugly|${FAKEARCHITECTURE}...
+=Rereferencing test2|ugly|${FAKEARCHITECTURE}...
+-v2*=Referencing test2|ugly|${FAKEARCHITECTURE}...
+-v2*=Unlocking depencies of test2|ugly|coal...
+=Rereferencing test2|ugly|coal...
+-v2*=Referencing test2|ugly|coal...
+-v2*=Unlocking depencies of test2|ugly|source...
+=Rereferencing test2|ugly|source...
+-v2*=Referencing test2|ugly|source...
+EOF
+testout ""  -b . dumpreferences
+dodiff results results.expected
+testout ""  -b . dumpreferences
+dodiff results.expected results
+
+sed -i -e 's/^Tracking: minimal/Tracking: keep includechanges/' conf/distributions
+mv db/savedtracking.db db/tracking.db
+mv db/savedreferences.db db/references.db
+
 mkdir conf2
 testrun - -b . --confdir conf2 update 3<<EOF
-returns 249
+returns 254
 stderr
-*=Could not find 'conf2/distributions'!
+*=Error opening config file 'conf2/distributions': No such file or directory(2)
 =(Have you forgotten to specify a basedir by -b?
 =To only set the conf/ dir use --confdir)
 -v0*=There have been errors!
@@ -2463,33 +3072,106 @@ touch conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 returns 249
 stderr
-*=No distribution definitons found!
+*=No distribution definitions found in conf2/distributions!
 -v0*=There have been errors!
 EOF
 echo -e 'Codename: foo' > conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
 stderr
-*=While parsing distribution definition, required field Architectures not found!
--v1*=Stop reading further chunks from 'conf2/distributions' due to previous errors.
+*=Error parsing config file conf2/distributions, line 2:
+*=Required field 'Architectures' expected (since line 1).
 -v0*=There have been errors!
 returns 249
 EOF
-echo -e 'Architectures: abacus fingers' >> conf2/distributions
+echo -e "Architectures: ${FAKEARCHITECTURE} fingers" >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
-*=While parsing distribution definition, required field Components not found!
--v1*=Stop reading further chunks from 'conf2/distributions' due to previous errors.
+*=Error parsing config file conf2/distributions, line 3:
+*=Required field 'Components' expected (since line 1).
 -v0*=There have been errors!
 returns 249
 EOF
 echo -e 'Components: unneeded bloated i386' >> conf2/distributions
 testrun - -b . --confdir conf2 update 3<<EOF
-*=Unable to open file conf2/updates: No such file or directory
+*=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=To ignore use --ignore=undefinedtarget.
+-v0*=There have been errors!
+returns 255
+EOF
+testrun - -b . --confdir conf2 --ignore=undefinedtarget update 3<<EOF
+*=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=Ignoring as --ignore=undefinedtarget given.
+*=Error: packages database contains unused 'test1|ugly|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test1|ugly|source' database.
+*=Error: packages database contains unused 'test1|stupid|source' database.
+*=Error: packages database contains unused 'test2|stupid|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test2|stupid|coal' database.
+*=Error: packages database contains unused 'test2|stupid|source' database.
+*=Error: packages database contains unused 'test2|ugly|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test2|ugly|coal' database.
+*=Error: packages database contains unused 'test2|ugly|source' database.
+*=Error: tracking database contains unused 'test1' database.
+*=This either means you removed a distribution from the distributions config
+*=file without calling clearvanished (or at least removealltracks), you were
+*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
+*=config does not belong to this database.
+*=To ignore use --ignore=undefinedtracking.
+-v0*=There have been errors!
+returns 255
+EOF
+testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracking update 3<<EOF
+*=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=Ignoring as --ignore=undefinedtarget given.
+*=Error: tracking database contains unused 'test1' database.
+*=This either means you removed a distribution from the distributions config
+*=file without calling clearvanished (or at least removealltracks), you were
+*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
+*=config does not belong to this database.
+*=Ignoring as --ignore=undefinedtracking given.
+*=Error: packages database contains unused 'test1|ugly|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test1|ugly|source' database.
+*=Error: packages database contains unused 'test1|stupid|source' database.
+*=Error: packages database contains unused 'test2|stupid|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test2|stupid|coal' database.
+*=Error: packages database contains unused 'test2|stupid|source' database.
+*=Error: packages database contains unused 'test2|ugly|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test2|ugly|coal' database.
+*=Error: packages database contains unused 'test2|ugly|source' database.
+*=Error opening config file 'conf2/updates': No such file or directory(2)
 -v0*=There have been errors!
 returns 254
 EOF
 touch conf2/updates
-testrun - -b . --confdir conf2 --noskipold update 3<<EOF
+testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracking --noskipold update 3<<EOF
 stderr
+*=Error: packages database contains unused 'test1|stupid|${FAKEARCHITECTURE}' database.
+*=This either means you removed a distribution, component or architecture from
+*=the distributions config file without calling clearvanished, or your config
+*=does not belong to this database.
+*=Ignoring as --ignore=undefinedtarget given.
+*=Error: packages database contains unused 'test1|ugly|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test1|ugly|source' database.
+*=Error: packages database contains unused 'test1|stupid|source' database.
+*=Error: packages database contains unused 'test2|stupid|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test2|stupid|coal' database.
+*=Error: packages database contains unused 'test2|stupid|source' database.
+*=Error: packages database contains unused 'test2|ugly|${FAKEARCHITECTURE}' database.
+*=Error: packages database contains unused 'test2|ugly|coal' database.
+*=Error: packages database contains unused 'test2|ugly|source' database.
+*=Error: tracking database contains unused 'test1' database.
+*=This either means you removed a distribution from the distributions config
+*=file without calling clearvanished (or at least removealltracks), you were
+*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
+*=config does not belong to this database.
+*=Ignoring as --ignore=undefinedtracking given.
 stdout
 -v2=Created directory "./lists"
 -v0*=Calculating packages to get...
@@ -2500,27 +3182,38 @@ stdout
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/foo"
 -v2*=Created directory "./dists/foo/unneeded"
--v2*=Created directory "./dists/foo/unneeded/binary-abacus"
--v6*= looking for changes in 'foo|unneeded|abacus'...
--v6*=  creating './dists/foo/unneeded/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/unneeded/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'foo|unneeded|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/foo/unneeded/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/unneeded/binary-fingers"
 -v6*= looking for changes in 'foo|unneeded|fingers'...
 -v6*=  creating './dists/foo/unneeded/binary-fingers/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/bloated"
--v2*=Created directory "./dists/foo/bloated/binary-abacus"
--v6*= looking for changes in 'foo|bloated|abacus'...
--v6*=  creating './dists/foo/bloated/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/bloated/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'foo|bloated|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/foo/bloated/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/bloated/binary-fingers"
 -v6*= looking for changes in 'foo|bloated|fingers'...
 -v6*=  creating './dists/foo/bloated/binary-fingers/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/i386"
--v2*=Created directory "./dists/foo/i386/binary-abacus"
--v6*= looking for changes in 'foo|i386|abacus'...
--v6*=  creating './dists/foo/i386/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/foo/i386/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'foo|i386|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/foo/i386/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/foo/i386/binary-fingers"
 -v6*= looking for changes in 'foo|i386|fingers'...
 -v6*=  creating './dists/foo/i386/binary-fingers/Packages' (uncompressed,gzipped)
 EOF
+testrun - -b . clearvanished 3<<EOF
+stdout
+*=Deleting vanished identifier 'foo|bloated|${FAKEARCHITECTURE}'.
+*=Deleting vanished identifier 'foo|bloated|fingers'.
+*=Deleting vanished identifier 'foo|i386|${FAKEARCHITECTURE}'.
+*=Deleting vanished identifier 'foo|i386|fingers'.
+*=Deleting vanished identifier 'foo|unneeded|${FAKEARCHITECTURE}'.
+*=Deleting vanished identifier 'foo|unneeded|fingers'.
+EOF
+testout "" -b . dumpunreferenced
+dodiff results.empty results
 echo "Format: 2.0" > broken.changes
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
@@ -2632,8 +3325,6 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =Warning: Strange file 'filename_version.tar.gz'!
 =Looks like source but does not start with 'nowhere_' as I would have guessed!
 =I hope you know what you do.
-# again
-=Warning: Package version 'version.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
 *=Architecture-header lists architecture 'brain', but no files for this!
@@ -2665,6 +3356,7 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 stdout
 -v2*=Created directory "./pool/stupid/n"
 -v2*=Created directory "./pool/stupid/n/nowhere"
+-d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' added to files.db(md5sums).
 EOF
 testout "" -b . dumpunreferenced
 cat >results.expected <<EOF
@@ -2674,67 +3366,75 @@ dodiff results.expected results
 testrun - -b . deleteunreferenced 3<<EOF
 stdout
 -v1*=deleting and forgetting pool/stupid/n/nowhere/filename_version.tar.gz
+-d1*=db: 'pool/stupid/n/nowhere/filename_version.tar.gz' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/n/nowhere
 -v1*=removed now empty directory ./pool/stupid/n
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
+testout "" -b . dumpreferences
 # first remove file, then try to remove the package
-testrun "" -b . _forget pool/ugly/s/simple/simple_1_abacus.deb
+testrun - -b . _forget pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
+stdout
+-d1*=db: 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+EOF
 testrun - -b . remove test1 simple 3<<EOF
 # ???
 =Warning: tracking database of test1 missed files for simple_1.
 stdout
--v1*=removing 'simple' from 'test1|stupid|abacus'...
+-v1*=removing 'simple' from 'test1|stupid|${FAKEARCHITECTURE}'...
 -v1*=removing 'simple' from 'test1|stupid|source'...
--v1*=removing 'simple' from 'test1|ugly|abacus'...
+-v1*=removing 'simple' from 'test1|ugly|${FAKEARCHITECTURE}'...
 -v1*=removing 'simple' from 'test1|ugly|source'...
--v3*=db: 'simple' removed from 'test1|stupid|abacus'.
--v3*=db: 'simple' removed from 'test1|stupid|source'.
--v3*=db: 'simple' removed from 'test1|ugly|abacus'.
--v3*=db: 'simple' removed from 'test1|ugly|source'.
+-d1*=db: 'simple' removed from packages.db(test1|stupid|${FAKEARCHITECTURE}).
+-d1*=db: 'simple' removed from packages.db(test1|stupid|source).
+-d1*=db: 'simple' removed from packages.db(test1|ugly|${FAKEARCHITECTURE}).
+-d1*=db: 'simple' removed from packages.db(test1|ugly|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test1|stupid|abacus'...
--v6*=  replacing './dists/test1/stupid/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|stupid|source'...
 -v6*=  replacing './dists/test1/stupid/source/Sources' (gzipped,bzip2ed)
--v6*= looking for changes in 'test1|ugly|abacus'...
--v6*=  replacing './dists/test1/ugly/binary-abacus/Packages' (uncompressed,gzipped,bzip2ed)
+-v6*= looking for changes in 'test1|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test1/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,bzip2ed)
 -v6*= looking for changes in 'test1|ugly|source'...
 -v6*=  replacing './dists/test1/ugly/source/Sources' (gzipped,bzip2ed)
 -v0*=Deleting files no longer referenced...
 EOF
 checklog log1 <<EOF
-DATESTR remove test1 deb stupid abacus simple 1
+DATESTR remove test1 deb stupid ${FAKEARCHITECTURE} simple 1
 DATESTR remove test1 dsc stupid source simple 1
-DATESTR remove test1 deb ugly abacus simple 1
+DATESTR remove test1 deb ugly ${FAKEARCHITECTURE} simple 1
 DATESTR remove test1 dsc ugly source simple 1
 EOF
 testrun - -b . remove test2 simple 3<<EOF
-*=To be forgotten filekey 'pool/ugly/s/simple/simple_1_abacus.deb' was not known.
+*=To be forgotten filekey 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' was not known.
 -v0*=There have been errors!
 stdout
--v1=removing 'simple' from 'test2|ugly|abacus'...
--v3*=db: 'simple' removed from 'test2|ugly|abacus'.
+-v1=removing 'simple' from 'test2|ugly|${FAKEARCHITECTURE}'...
+-d1*=db: 'simple' removed from packages.db(test2|ugly|${FAKEARCHITECTURE}).
 -v1=removing 'simple' from 'test2|ugly|source'...
--v3*=db: 'simple' removed from 'test2|ugly|source'.
+-d1*=db: 'simple' removed from packages.db(test2|ugly|source).
 -v0=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
--v6*= looking for changes in 'test2|ugly|abacus'...
--v6*=  replacing './dists/test2/ugly/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test2/ugly/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
 -v6*=  replacing './dists/test2/ugly/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v0=Deleting files no longer referenced...
--v1=deleting and forgetting pool/ugly/s/simple/simple_1_abacus.deb
+-v1=deleting and forgetting pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb
+-d1=db: 'pool/ugly/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.dsc
+-d1=db: 'pool/ugly/s/simple/simple_1.dsc' removed from files.db(md5sums).
 -v1=deleting and forgetting pool/ugly/s/simple/simple_1.tar.gz
+-d1=db: 'pool/ugly/s/simple/simple_1.tar.gz' removed from files.db(md5sums).
 returns 249
 EOF
 checklog log2 <<EOF
-DATESTR remove test2 deb ugly abacus simple 1
+DATESTR remove test2 deb ugly ${FAKEARCHITECTURE} simple 1
 DATESTR remove test2 dsc ugly source simple 1
 EOF
 testout "" -b . dumpunreferenced
@@ -2745,7 +3445,7 @@ Format: -1.0
 Date: yesterday
 Source: differently
 Version: 0another
-Architecture: source abacus
+Architecture: source ${FAKEARCHITECTURE}
 Urgency: super-hyper-duper-important
 Maintainer: still me <guess@who>
 Description: missing
@@ -2754,7 +3454,7 @@ Binary: none and nothing
 Distribution: test2
 Files: 
  `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b differently_0another.dsc
- `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
+ `md5sum 4test_b.1-1_${FAKEARCHITECTURE}.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_${FAKEARCHITECTURE}.deb` a b 4test_b.1-1_${FAKEARCHITECTURE}.deb
 EOF
 #todo: make it work without this..
 cp 4test_b.1-1.dsc differently_0another.dsc
@@ -2763,7 +3463,7 @@ testrun - -b . include test2 broken.changes 3<<EOF
 =Warning: Package version 'b.1-1.dsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
 =Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
-=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+=Warning: Package version 'b.1-1_${FAKEARCHITECTURE}.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
 *=I don't know what to do having a .dsc without a .diff.gz or .tar.gz in 'broken.changes'!
 -v0*=There have been errors!
 returns 255
@@ -2776,15 +3476,21 @@ testrun - -b . include test2 broken.changes 3<<EOF
 *=Warning: Strange file '4test_b.1-1.tar.gz'!
 *=Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*='./pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' has packagename '4test' not listed in the .changes file!
 *=To ignore use --ignore=surprisingbinary.
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
--v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_abacus.deb
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/d/differently
 -v1*=removed now empty directory ./pool/stupid/d
 returns 255
@@ -2794,16 +3500,22 @@ testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
 *=Warning: Strange file '4test_b.1-1.tar.gz'!
 *=Looks like source but does not start with 'differently_' as I would have guessed!
 =I hope you know what you do.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' has packagename '4test' not listed in the .changes file!
+*='./pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' has packagename '4test' not listed in the .changes file!
 *=Ignoring as --ignore=surprisingbinary given.
-*='./pool/stupid/d/differently/4test_b.1-1_abacus.deb' lists source package '4test', but .changes says it is 'differently'!
+*='./pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' lists source package '4test', but .changes says it is 'differently'!
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/d"
 -v2*=Created directory "./pool/stupid/d/differently"
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1.tar.gz
--v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_abacus.deb
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/d/differently/differently_0another.dsc
+-d1*=db: 'pool/stupid/d/differently/differently_0another.dsc' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/stupid/d/differently
 -v1*=removed now empty directory ./pool/stupid/d
 returns 255
@@ -2813,7 +3525,7 @@ Format: -1.0
 Date: yesterday
 Source: 4test
 Version: 0orso
-Architecture: source abacus
+Architecture: source ${FAKEARCHITECTURE}
 Urgency: super-hyper-duper-important
 Maintainer: still me <guess@who>
 Description: missing
@@ -2822,76 +3534,82 @@ Binary: 4test
 Distribution: test2
 Files: 
  `md5sum 4test_b.1-1.dsc| cut -d" " -f 1` `stat -c%s 4test_b.1-1.dsc` a b 4test_0orso.dsc
- `md5sum 4test_b.1-1_abacus.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_abacus.deb` a b 4test_b.1-1_abacus.deb
+ `md5sum 4test_b.1-1_${FAKEARCHITECTURE}.deb| cut -d" " -f 1` `stat -c%s 4test_b.1-1_${FAKEARCHITECTURE}.deb` a b 4test_b.1-1_${FAKEARCHITECTURE}.deb
  `md5sum 4test_b.1-1.tar.gz| cut -d" " -f 1` `stat -c%s 4test_b.1-1.tar.gz` a b 4test_b.1-1.tar.gz
 EOF
 cp 4test_b.1-1.dsc 4test_0orso.dsc
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-=Warning: Package version 'b.1-1_abacus.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+=Warning: Package version 'b.1-1_${FAKEARCHITECTURE}.deb' does not start with a digit, violating 'should'-directive in policy 5.6.11
+*='./pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=To ignore use --ignore=wrongsourceversion.
 -v0*=There have been errors!
 stdout
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 returns 255
 EOF
 testrun - -b . --ignore=wrongsourceversion include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*='./pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
 *=To ignore use --ignore=wrongversion.
 -v0*=There have been errors!
 stdout
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 returns 255
 EOF
 checknolog log1
 checknolog log2
 testrun - -b . --ignore=wrongsourceversion --ignore=wrongversion include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*='./pool/stupid/4/4test/4test_b.1-1_abacus.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
+*='./pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb' lists source version '1:b.1-1', but .changes says it is '0orso'!
 *=Ignoring as --ignore=wrongsourceversion given.
 *='4test_0orso.dsc' says it is version '1:b.1-1', while .changes file said it is '0orso'
 *=Ignoring as --ignore=wrongversion given.
 stdout
--v3*=db: '4test' added to 'test2|stupid|abacus'.
--v3*=db: '4test' added to 'test2|stupid|source'.
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' added to files.db(md5sums).
+-d1*=db: '4test' added to packages.db(test2|stupid|${FAKEARCHITECTURE}).
+-d1*=db: '4test' added to packages.db(test2|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
 -v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v6*= looking for changes in 'test2|ugly|abacus'...
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
 EOF
 checklog log2 <<EOF
-DATESTR add test2 deb stupid abacus 4test 1:b.1-1
+DATESTR add test2 deb stupid ${FAKEARCHITECTURE} 4test 1:b.1-1
 DATESTR add test2 dsc stupid source 4test 1:b.1-1
 EOF
 testrun - -b . remove test2 4test 3<<EOF
 stdout
--v1*=removing '4test' from 'test2|stupid|abacus'...
--v3*=db: '4test' removed from 'test2|stupid|abacus'.
+-v1*=removing '4test' from 'test2|stupid|${FAKEARCHITECTURE}'...
+-d1*=db: '4test' removed from packages.db(test2|stupid|${FAKEARCHITECTURE}).
 -v1*=removing '4test' from 'test2|stupid|source'...
--v3*=db: '4test' removed from 'test2|stupid|source'.
+-d1*=db: '4test' removed from packages.db(test2|stupid|source).
 -v0*=Exporting indices...
--v6*= looking for changes in 'test2|stupid|abacus'...
--v6*=  replacing './dists/test2/stupid/binary-abacus/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
+-v6*= looking for changes in 'test2|stupid|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/test2/stupid/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
 -v6*= looking for changes in 'test2|stupid|coal'...
 -v6*= looking for changes in 'test2|stupid|source'...
 -v6*=  replacing './dists/test2/stupid/source/Sources' (uncompressed,gzipped,script: $SRCDIR/docs/bzip.example)
--v6*= looking for changes in 'test2|ugly|abacus'...
+-v6*= looking for changes in 'test2|ugly|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'test2|ugly|coal'...
 -v6*= looking for changes in 'test2|ugly|source'...
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/stupid/4/4test/4test_0orso.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_0orso.dsc' removed from files.db(md5sums).
 EOF
 checklog log2 <<EOF
-DATESTR remove test2 deb stupid abacus 4test 1:b.1-1
+DATESTR remove test2 deb stupid ${FAKEARCHITECTURE} 4test 1:b.1-1
 DATESTR remove test2 dsc stupid source 4test 1:b.1-1
 EOF
 testout "" -b . dumpunreferenced
@@ -2899,54 +3617,110 @@ dodiff results.empty results
 
 checknolog log1
 checknolog log2
-for tracking in true false ; do
+
+testout "" -b . dumptracks
+# TODO: check here for what should be here,
+# check the othe stuff, too
+#dodiff results.empty results
 cat > conf/distributions <<EOF
 Codename: X
 Architectures: none
 Components: test
 EOF
-if $tracking ; then
 testrun - -b . --delete clearvanished 3<<EOF
 stderr
 -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
 stdout
-*=Deleting vanished identifier 'foo|bloated|abacus'.
-*=Deleting vanished identifier 'foo|bloated|fingers'.
-*=Deleting vanished identifier 'foo|i386|abacus'.
-*=Deleting vanished identifier 'foo|i386|fingers'.
-*=Deleting vanished identifier 'foo|unneeded|abacus'.
-*=Deleting vanished identifier 'foo|unneeded|fingers'.
-*=Deleting vanished identifier 'test1|stupid|abacus'.
+*=Deleting vanished identifier 'test1|stupid|${FAKEARCHITECTURE}'.
 *=Deleting vanished identifier 'test1|stupid|source'.
-*=Deleting vanished identifier 'test1|ugly|abacus'.
+*=Deleting vanished identifier 'test1|ugly|${FAKEARCHITECTURE}'.
 *=Deleting vanished identifier 'test1|ugly|source'.
-*=Deleting vanished identifier 'test2|stupid|abacus'.
+*=Deleting vanished identifier 'test2|stupid|${FAKEARCHITECTURE}'.
 *=Deleting vanished identifier 'test2|stupid|coal'.
 *=Deleting vanished identifier 'test2|stupid|source'.
-*=Deleting vanished identifier 'test2|ugly|abacus'.
+*=Deleting vanished identifier 'test2|ugly|${FAKEARCHITECTURE}'.
 *=Deleting vanished identifier 'test2|ugly|coal'.
 *=Deleting vanished identifier 'test2|ugly|source'.
+*=Deleting tracking data for vanished distribution 'test1'.
 -v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/stupid/4/4test/4test-addons_b.1-1_all.deb
+-d1*=db: 'pool/stupid/4/4test/4test-addons_b.1-1_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1.dsc
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/4/4test/4test_b.1-1.tar.gz
+-d1*=db: 'pool/stupid/4/4test/4test_b.1-1.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_9.0-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz
+-d1*=db: 'pool/ugly/b/bloat+-0a9z.app/bloat+-0a9z.app_9.0-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb
--v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_abacus.deb
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app-addons_0.9-A:Z+a:z-0+aA.9zZ_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz
+-d1*=db: 'pool/stupid/b/bloat+-0a9z.app/bloat+-0a9z.app_0.9-A:Z+a:z-0+aA.9zZ.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/s/simple/simple_1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1.dsc
+-d1*=db: 'pool/stupid/s/simple/simple_1.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/s/simple/simple_1.tar.gz
+-d1*=db: 'pool/stupid/s/simple/simple_1.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/test/test-addons_1-2_all.deb
+-d1*=db: 'pool/stupid/t/test/test-addons_1-2_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/test/test_1-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2.dsc
+-d1*=db: 'pool/stupid/t/test/test_1-2.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/test/test_1.orig.tar.gz
+-d1*=db: 'pool/stupid/t/test/test_1.orig.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/test/test_1-2.diff.gz
+-d1*=db: 'pool/stupid/t/test/test_1-2.diff.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb-addons_2-3_all.deb
+-d1*=db: 'pool/stupid/t/testb/testb-addons_2-3_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/stupid/t/testb/testb_2-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3.dsc
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2.orig.tar.gz
+-d1*=db: 'pool/stupid/t/testb/testb_2.orig.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/stupid/t/testb/testb_2-3.diff.gz
+-d1*=db: 'pool/stupid/t/testb/testb_2-3.diff.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/ugly/s/simple/simple-addons_1_all.deb
+-d1*=db: 'pool/ugly/s/simple/simple-addons_1_all.deb' removed from files.db(md5sums).
+-v1*=removed now empty directory ./pool/stupid/4/4test
+-v1*=removed now empty directory ./pool/stupid/4
 -v1*=removed now empty directory ./pool/stupid/b/bloat+-0a9z.app
 -v1*=removed now empty directory ./pool/stupid/b
--v1*=deleting and forgetting pool/ugly/s/simple/simple-addons_1_all.deb
+-v1*=removed now empty directory ./pool/stupid/s/simple
+-v1*=removed now empty directory ./pool/stupid/s
+-v1*=removed now empty directory ./pool/stupid/t/testb
+-v1*=removed now empty directory ./pool/stupid/t/test
+-v1*=removed now empty directory ./pool/stupid/t
+-v1*=removed now empty directory ./pool/stupid
+-v1*=removed now empty directory ./pool/ugly/b/bloat+-0a9z.app
+-v1*=removed now empty directory ./pool/ugly/b
 -v1*=removed now empty directory ./pool/ugly/s/simple
 -v1*=removed now empty directory ./pool/ugly/s
+-v1*=removed now empty directory ./pool/ugly
+-v1*=removed now empty directory ./pool
 EOF
+
+for tracking in true false ; do
+if $tracking ; then
+echo "this is the test variant with tracking on"
 else
-testrun - -b . --delete clearvanished 3<<EOF
--v4*=Strange, 'X|test|none' does not appear in packages.db yet.
-stdout
-*=Deleting vanished identifier 'a|all|abacus'.
-*=Deleting vanished identifier 'a|all|source'.
-*=Deleting vanished identifier 'b|all|abacus'.
--v0*=Deleting files no longer referenced...
-EOF
+echo "this is the test variant with tracking off"
 fi
+testout "" -b . dumptracks
+dodiff results.empty results
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 
@@ -2958,13 +3732,13 @@ if $tracking ; then
 cat >> conf/distributions <<EOF
 
 Codename: a
-Architectures: abacus source
+Architectures: ${FAKEARCHITECTURE} source
 Components: all
 Tracking: minimal
 Log: logab
 
 Codename: b
-Architectures: abacus
+Architectures: ${FAKEARCHITECTURE}
 Components: all
 Pull: froma
 Log: logab
@@ -2973,60 +3747,69 @@ else
 cat >> conf/distributions <<EOF
 
 Codename: a
-Architectures: abacus source
+Architectures: ${FAKEARCHITECTURE} source
 Components: all
 Log: logab
 
 Codename: b
-Architectures: abacus
+Architectures: ${FAKEARCHITECTURE}
 Components: all
 Pull: froma
 Log: logab
 EOF
 fi
-cat > conf/pulls <<EOF
-Name: froma
-From: a
-EOF
-
 checknolog logab
 
 rm -r dists
-if $tracking ; then
-testrun - -b . removealltracks a 3<<EOF
-stdout
--v0*=Deleting all tracks for a...
-EOF
-else
-testrun - -b . removealltracks a 3<<EOF
-stdout
--v0*=Deleting all tracks for a...
--v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
--v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
--v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
--v1*=deleting and forgetting pool/all/a/aa/aa_1-3_abacus.deb
--v1*=removed now empty directory ./pool/all/a/aa
--v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
--v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
--v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
--v1*=deleting and forgetting pool/all/a/ab/ab_3-1_abacus.deb
--v1*=removed now empty directory ./pool/all/a/ab
--v1*=removed now empty directory ./pool/all/a
--v1*=removed now empty directory ./pool/all
-EOF
-fi
 checknolog logab
 testout "" -b . dumptracks a
 dodiff results.empty results
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 checknolog logab
+cat > conf/pulls <<EOF
+Name: froma
+From: a
+Architectures: froma>toa froma>toa2 froma2>toa2
+Components: c1 c2
+UDebComponents: u1 u2
+EOF
 testrun - -b . --export=changed pull a b 3<<EOF
+stderr
+*=(This will simply be ignored and is not even checked when using --fast).
+*=Warning: pull rule 'froma' wants to get something from architecture 'froma',
+*=Warning: pull rule 'froma' wants to get something from architecture 'froma2',
+*=but there is no such architecture in distribution 'a'.
+*=Warning: pull rule 'froma' wants to get something from component 'c1',
+*=Warning: pull rule 'froma' wants to get something from component 'c2',
+*=but there is no such component in distribution 'a'.
+*=Warning: pull rule 'froma' wants to get something from udeb component 'u1',
+*=Warning: pull rule 'froma' wants to get something from udeb component 'u2',
+*=but there is no such udeb component in distribution 'a'.
+*=Warning: pull rule 'froma' wants to put something into architecture 'toa',
+*=but no distribution using this has such an architecture.
+*=Warning: pull rule 'froma' wants to put something into architecture 'toa2',
+*=Warning: pull rule 'froma' wants to put something into component 'c1',
+*=but no distribution using this has such an component.
+*=Warning: pull rule 'froma' wants to put something into component 'c2',
+*=Warning: pull rule 'froma' wants to put something into udeb component 'u1',
+*=but no distribution using this has such an udeb component.
+*=Warning: pull rule 'froma' wants to put something into udeb component 'u2',
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
+-v0*=Installing (and possibly deleting) packages...
+EOF
+cat > conf/pulls <<EOF
+Name: froma
+From: a
+EOF
+testrun - -b . --export=changed pull a b 3<<EOF
+stderr
+stdout
+-v0*=Calculating packages to pull...
+-v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
+-v5*=  looking what to get from 'a|all|${FAKEARCHITECTURE}'
 -v0*=Installing (and possibly deleting) packages...
 EOF
 checklog logab < /dev/null
@@ -3035,16 +3818,16 @@ test ! -d dists/b
 testrun - -b . --export=normal pull b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
+-v5*=  looking what to get from 'a|all|${FAKEARCHITECTURE}'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
 -v2*=Created directory "./dists"
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
--v2*=Created directory "./dists/b/all/binary-abacus"
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/b/all/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 EOF
 checklog logab < /dev/null
 test ! -d dists/a
@@ -3052,16 +3835,16 @@ test -d dists/b
 testrun - -b . --export=normal pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
+-v5*=  looking what to get from 'a|all|${FAKEARCHITECTURE}'
 -v0*=Installing (and possibly deleting) packages...
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= looking for changes in 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
@@ -3073,32 +3856,37 @@ rm -r dists/a dists/b
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=never --delete --delete include a test.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: database 'a|all|abacus' was modified but no index file was exported.
+*=Warning: database 'a|all|${FAKEARCHITECTURE}' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
+-v2*=Created directory "./pool"
 -v2*=Created directory "./pool/all"
 -v2*=Created directory "./pool/all/a"
 -v2*=Created directory "./pool/all/a/aa"
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|source'.
+-d1*=db: 'pool/all/a/aa/aa-addons_1-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-1.dsc' added to files.db(md5sums).
+-d1*=db: 'aa-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' added to packages.db(a|all|source).
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
-DATESTR add a deb all abacus aa-addons 1-1
-DATESTR add a deb all abacus aa 1-1
+DATESTR add a deb all ${FAKEARCHITECTURE} aa-addons 1-1
+DATESTR add a deb all ${FAKEARCHITECTURE} aa 1-1
 DATESTR add a dsc all source aa 1-1
 EOF
 test ! -d dists/a
 test ! -d dists/b
 test ! -f test.changes
-test ! -f aa_1-1_abacus.deb
+test ! -f aa_1-1_${FAKEARCHITECTURE}.deb
 test ! -f aa_1-1.dsc
 test ! -f aa_1-1.tar.gz
 test ! -f aa-addons_1-1_all.deb
 test -f pool/all/a/aa/aa-addons_1-1_all.deb
-test -f pool/all/a/aa/aa_1-1_abacus.deb
+test -f pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb
 test -f pool/all/a/aa/aa_1-1.dsc
 test -f pool/all/a/aa/aa_1-1.tar.gz
 testout "" -b . dumptracks a
@@ -3108,7 +3896,7 @@ Source: aa
 Version: 1-1
 Files:
  pool/all/a/aa/aa-addons_1-1_all.deb a 1
- pool/all/a/aa/aa_1-1_abacus.deb b 1
+ pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb b 1
  pool/all/a/aa/aa_1-1.dsc s 1
  pool/all/a/aa/aa_1-1.tar.gz s 1
 
@@ -3119,75 +3907,81 @@ stdout
 -v1*=Exporting a...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= exporting 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-${FAKEARCHITECTURE}"
+-v6*= exporting 'a|all|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= exporting 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 EOF
 checknolog logab
-dogrep "Version: 1-1" dists/a/all/binary-abacus/Packages
+dogrep "Version: 1-1" dists/a/all/binary-${FAKEARCHITECTURE}/Packages
 rm -r dists/a
 testrun - -b . --export=changed pull a b 3<<EOF
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
+-v5*=  looking what to get from 'a|all|${FAKEARCHITECTURE}'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
+-d1*=db: 'aa' added to packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
--v2*=Created directory "./dists/b/all/binary-abacus"
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/b/all/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 EOF
 checklog logab << EOF
-DATESTR add b deb all abacus aa 1-1
-DATESTR add b deb all abacus aa-addons 1-1
+DATESTR add b deb all ${FAKEARCHITECTURE} aa 1-1
+DATESTR add b deb all ${FAKEARCHITECTURE} aa-addons 1-1
 EOF
 test ! -d dists/a
 test -d dists/b
-dogrep "Version: 1-1" dists/b/all/binary-abacus/Packages
+dogrep "Version: 1-1" dists/b/all/binary-${FAKEARCHITECTURE}/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=changed --delete include a test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|source'.
--v3*=db: 'aa' added to 'a|all|source'.
+-d1*=db: 'pool/all/a/aa/aa-addons_1-2_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-2.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-2.dsc' added to files.db(md5sums).
+-d1*=db: 'aa-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' removed from packages.db(a|all|source).
+-d1*=db: 'aa' added to packages.db(a|all|source).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= looking for changes in 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-1.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-1.tar.gz' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
-DATESTR replace a deb all abacus aa-addons 1-2 1-1
-DATESTR replace a deb all abacus aa 1-2 1-1
+DATESTR replace a deb all ${FAKEARCHITECTURE} aa-addons 1-2 1-1
+DATESTR replace a deb all ${FAKEARCHITECTURE} aa 1-2 1-1
 DATESTR replace a dsc all source aa 1-2 1-1
 EOF
 test -f test.changes
-test ! -f aa_1-2_abacus.deb
+test ! -f aa_1-2_${FAKEARCHITECTURE}.deb
 test ! -f aa_1-2.dsc
 test ! -f aa_1-2.tar.gz
 test ! -f aa-addons_1-2_all.deb
 test -d dists/a
-dogrep "Version: 1-2" dists/a/all/binary-abacus/Packages
-dogrep "Version: 1-1" dists/b/all/binary-abacus/Packages
+dogrep "Version: 1-2" dists/a/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep "Version: 1-1" dists/b/all/binary-${FAKEARCHITECTURE}/Packages
 testout "" -b . dumptracks a
 cat >results.expected <<END
 Distribution: a
@@ -3195,7 +3989,7 @@ Source: aa
 Version: 1-2
 Files:
  pool/all/a/aa/aa-addons_1-2_all.deb a 1
- pool/all/a/aa/aa_1-2_abacus.deb b 1
+ pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb b 1
  pool/all/a/aa/aa_1-2.dsc s 1
  pool/all/a/aa/aa_1-2.tar.gz s 1
 
@@ -3206,59 +4000,67 @@ testrun - -b . --export=changed pull a b 3<<EOF
 stderr
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
+-v5*=  looking what to get from 'a|all|${FAKEARCHITECTURE}'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: removed old 'aa' from 'b|all|abacus'.
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
+-d1*=db: 'aa' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' added to packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -v0=Exporting indices...
 -v2*=Created directory "./dists/b"
 -v2*=Created directory "./dists/b/all"
--v2*=Created directory "./dists/b/all/binary-abacus"
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  creating './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/b/all/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/aa/aa_1-1_abacus.deb
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-1_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-1_all.deb' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
-DATESTR replace b deb all abacus aa 1-2 1-1
-DATESTR replace b deb all abacus aa-addons 1-2 1-1
+DATESTR replace b deb all ${FAKEARCHITECTURE} aa 1-2 1-1
+DATESTR replace b deb all ${FAKEARCHITECTURE} aa-addons 1-2 1-1
 EOF
 test ! -d dists/a
 test -d dists/b
-dogrep "Version: 1-2" dists/b/all/binary-abacus/Packages
+dogrep "Version: 1-2" dists/b/all/binary-${FAKEARCHITECTURE}/Packages
 DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-3" SECTION="stupid/base" genpackage.sh
 testrun - -b . --export=never include a test.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: database 'a|all|abacus' was modified but no index file was exported.
+*=Warning: database 'a|all|${FAKEARCHITECTURE}' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 *=Changes will only be visible after the next 'export'!
 stdout
--v3*=db: removed old 'aa-addons' from 'a|all|abacus'.
--v3*=db: 'aa-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|abacus'.
--v3*=db: 'aa' added to 'a|all|abacus'.
--v3*=db: removed old 'aa' from 'a|all|source'.
--v3*=db: 'aa' added to 'a|all|source'.
+-d1*=db: 'pool/all/a/aa/aa-addons_1-3_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-3.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/aa/aa_1-3.dsc' added to files.db(md5sums).
+-d1*=db: 'aa-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' removed from packages.db(a|all|source).
+-d1*=db: 'aa' added to packages.db(a|all|source).
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-2.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa_1-2.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-2.tar.gz' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
-DATESTR replace a deb all abacus aa-addons 1-3 1-2
-DATESTR replace a deb all abacus aa 1-3 1-2
+DATESTR replace a deb all ${FAKEARCHITECTURE} aa-addons 1-3 1-2
+DATESTR replace a deb all ${FAKEARCHITECTURE} aa 1-3 1-2
 DATESTR replace a dsc all source aa 1-3 1-2
 EOF
 test -f test.changes
-test -f aa_1-3_abacus.deb
+test -f aa_1-3_${FAKEARCHITECTURE}.deb
 test -f aa_1-3.dsc
 test -f aa_1-3.tar.gz
 test -f aa-addons_1-3_all.deb
 test ! -f pool/all/a/aa/aa_1-2.dsc
-test -f pool/all/a/aa/aa_1-2_abacus.deb # still in b
+test -f pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb # still in b
 testout "" -b . dumptracks a
 cat >results.expected <<END
 Distribution: a
@@ -3266,7 +4068,7 @@ Source: aa
 Version: 1-3
 Files:
  pool/all/a/aa/aa-addons_1-3_all.deb a 1
- pool/all/a/aa/aa_1-3_abacus.deb b 1
+ pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb b 1
  pool/all/a/aa/aa_1-3.dsc s 1
  pool/all/a/aa/aa_1-3.tar.gz s 1
 
@@ -3278,51 +4080,57 @@ DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpa
 testrun - -b . --delete --delete --export=never include a test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: database 'a|all|abacus' was modified but no index file was exported.
+*=Warning: database 'a|all|${FAKEARCHITECTURE}' was modified but no index file was exported.
 *=Warning: database 'a|all|source' was modified but no index file was exported.
 =Changes will only be visible after the next 'export'!
 stdout
 -v2*=Created directory "./pool/all/a/ab"
--v3*=db: 'ab-addons' added to 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|source'.
+-d1*=db: 'pool/all/a/ab/ab-addons_2-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_2-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_2-1.dsc' added to files.db(md5sums).
+-d1*=db: 'ab-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ab' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ab' added to packages.db(a|all|source).
 -v5*=Deleting 'test.changes'.
 EOF
 checklog logab << EOF
-DATESTR add a deb all abacus ab-addons 2-1
-DATESTR add a deb all abacus ab 2-1
+DATESTR add a deb all ${FAKEARCHITECTURE} ab-addons 2-1
+DATESTR add a deb all ${FAKEARCHITECTURE} ab 2-1
 DATESTR add a dsc all source ab 2-1
 EOF
 testrun - -b . --export=changed pull b 3<<EOF
 stderr
 stdout
 -v0*=Calculating packages to pull...
--v3*=  pulling into 'b|all|abacus'
--v5*=  looking what to get from 'a|all|abacus'
+-v3*=  pulling into 'b|all|${FAKEARCHITECTURE}'
+-v5*=  looking what to get from 'a|all|${FAKEARCHITECTURE}'
 -v0*=Installing (and possibly deleting) packages...
--v3*=db: removed old 'aa' from 'b|all|abacus'.
--v3*=db: 'aa' added to 'b|all|abacus'.
--v3*=db: removed old 'aa-addons' from 'b|all|abacus'.
--v3*=db: 'aa-addons' added to 'b|all|abacus'.
--v3*=db: 'ab' added to 'b|all|abacus'.
--v3*=db: 'ab-addons' added to 'b|all|abacus'.
+-d1*=db: 'aa' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa' added to packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'aa-addons' added to packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ab' added to packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ab-addons' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -v0=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/aa/aa_1-2_abacus.deb
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-2_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-2_all.deb' removed from files.db(md5sums).
 EOF
 checklog logab << EOF
-DATESTR replace b deb all abacus aa 1-3 1-2
-DATESTR replace b deb all abacus aa-addons 1-3 1-2
-DATESTR add b deb all abacus ab 2-1
-DATESTR add b deb all abacus ab-addons 2-1
+DATESTR replace b deb all ${FAKEARCHITECTURE} aa 1-3 1-2
+DATESTR replace b deb all ${FAKEARCHITECTURE} aa-addons 1-3 1-2
+DATESTR add b deb all ${FAKEARCHITECTURE} ab 2-1
+DATESTR add b deb all ${FAKEARCHITECTURE} ab-addons 2-1
 EOF
-dogrep "Version: 1-3" dists/b/all/binary-abacus/Packages
-dogrep "Version: 2-1" dists/b/all/binary-abacus/Packages
-test ! -f pool/all/a/aa/aa_1-2_abacus.deb
-test -f pool/all/a/aa/aa_1-3_abacus.deb
+dogrep "Version: 1-3" dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep "Version: 2-1" dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+test ! -f pool/all/a/aa/aa_1-2_${FAKEARCHITECTURE}.deb
+test -f pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
 DISTRI=a PACKAGE=ab EPOCH="" VERSION=3 REVISION="-1" SECTION="stupid/base" genpackage.sh
 grep -v '\.tar\.gz' test.changes > broken.changes
 testrun - -b . --delete --delete include a broken.changes 3<<EOF
@@ -3343,46 +4151,48 @@ checknolog logab
 test -f broken.changes
 test ! -f ab_3-1.diff.gz
 test -f ab-addons_3-1_all.deb
-test -f ab_3-1_abacus.deb
+test -f ab_3-1_${FAKEARCHITECTURE}.deb
 test -f ab_3-1.dsc
 test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test ! -f pool/all/a/ab/ab-addons_3-1_all.deb
-test ! -f pool/all/a/ab/ab_3-1_abacus.deb
+test ! -f pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 touch ab_3-1.diff.gz
 testrun - -b . --delete -T deb include a broken.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 stdout
--v3*=db: removed old 'ab-addons' from 'a|all|abacus'.
--v3*=db: 'ab-addons' added to 'a|all|abacus'.
--v3*=db: removed old 'ab' from 'a|all|abacus'.
--v3*=db: 'ab' added to 'a|all|abacus'.
+-d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' added to files.db(md5sums).
+-d1*=db: 'ab-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ab-addons' added to packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ab' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ab' added to packages.db(a|all|${FAKEARCHITECTURE}).
 -v0*=Exporting indices...
 -v2*=Created directory "./dists/a"
 -v2*=Created directory "./dists/a/all"
--v2*=Created directory "./dists/a/all/binary-abacus"
--v6*= looking for changes in 'a|all|abacus'...
--v6*=  creating './dists/a/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v2*=Created directory "./dists/a/all/binary-${FAKEARCHITECTURE}"
+-v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
+-v6*=  creating './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v2*=Created directory "./dists/a/all/source"
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  creating './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
 EOF
 checklog logab <<EOF
-DATESTR replace a deb all abacus ab-addons 3-1 2-1
-DATESTR replace a deb all abacus ab 3-1 2-1
+DATESTR replace a deb all ${FAKEARCHITECTURE} ab-addons 3-1 2-1
+DATESTR replace a deb all ${FAKEARCHITECTURE} ab 3-1 2-1
 EOF
 testout "" -b . dumpunreferenced
 dodiff results.empty results
 test -f broken.changes
 test -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
-test ! -f ab_3-1_abacus.deb
+test ! -f ab_3-1_${FAKEARCHITECTURE}.deb
 test -f ab_3-1.dsc
 test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
-test -f pool/all/a/ab/ab_3-1_abacus.deb
+test -f pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 testout "" -b . dumptracks a
 cat >results.expected <<END
@@ -3391,7 +4201,7 @@ Source: aa
 Version: 1-3
 Files:
  pool/all/a/aa/aa-addons_1-3_all.deb a 1
- pool/all/a/aa/aa_1-3_abacus.deb b 1
+ pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb b 1
  pool/all/a/aa/aa_1-3.dsc s 1
  pool/all/a/aa/aa_1-3.tar.gz s 1
 
@@ -3407,7 +4217,7 @@ Source: ab
 Version: 3-1
 Files:
  pool/all/a/ab/ab-addons_3-1_all.deb a 1
- pool/all/a/ab/ab_3-1_abacus.deb b 1
+ pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb b 1
 
 END
 if $tracking; then dodiff results.expected results ; else dodiff results.empty results ; fi
@@ -3420,18 +4230,22 @@ testrun - -b . --delete --delete include a broken.changes 3<<EOF
 = or you cound try --ignore=missingfile
 -v0*=There have been errors!
 stdout
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
+-d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' removed from files.db(md5sums).
 returns 249
 EOF
 test -f broken.changes
 test -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
-test ! -f ab_3-1_abacus.deb
+test ! -f ab_3-1_${FAKEARCHITECTURE}.deb
 test -f ab_3-1.dsc
 test ! -f pool/all/a/ab/ab_3-1.diff.gz
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
-test -f pool/all/a/ab/ab_3-1_abacus.deb
+test -f pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
 test ! -f pool/all/a/ab/ab_3-1.dsc
 cat broken.changes
 testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.changes 3<<EOF
@@ -3439,16 +4253,21 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 *=Unable to find ./pool/all/a/ab/ab_3-1.tar.gz!
 *=Looking around if it is elsewhere as --ignore=missingfile given.
 stdout
--v3*=db: removed old 'ab' from 'a|all|source'.
--v3*=db: 'ab' added to 'a|all|source'.
+-d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1.diff.gz' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to files.db(md5sums).
+-d1*=db: 'ab' removed from packages.db(a|all|source).
+-d1*=db: 'ab' added to packages.db(a|all|source).
 -v5*=Deleting 'broken.changes'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'a|all|abacus'...
+-v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
 -v6*= looking for changes in 'a|all|source'...
 -v6*=  replacing './dists/a/all/source/Sources' (gzipped)
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_2-1.dsc' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab_2-1.tar.gz
+-d1*=db: 'pool/all/a/ab/ab_2-1.tar.gz' removed from files.db(md5sums).
 EOF
 checklog logab <<EOF
 DATESTR replace a dsc all source ab 3-1 2-1
@@ -3456,11 +4275,11 @@ EOF
 test ! -f broken.changes
 test ! -f ab_3-1.diff.gz
 test ! -f ab-addons_3-1_all.deb
-test ! -f ab_3-1_abacus.deb
+test ! -f ab_3-1_${FAKEARCHITECTURE}.deb
 test ! -f ab_3-1.dsc
 # test ! -f pool/all/a/ab/ab_3-1.diff.gz # decide later (TODO: let reprepro check for those)
 test -f pool/all/a/ab/ab-addons_3-1_all.deb
-test -f pool/all/a/ab/ab_3-1_abacus.deb
+test -f pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
 test -f pool/all/a/ab/ab_3-1.dsc
 testout "" -b . dumpunreferenced
 cat > results.expected << EOF
@@ -3470,34 +4289,37 @@ dodiff results.empty results || dodiff results.expected results
 testrun - -b . deleteunreferenced 3<<EOF
 stdout
 -v1=deleting and forgetting pool/all/a/ab/ab_3-1.diff.gz
+-d1=db: 'pool/all/a/ab/ab_3-1.diff.gz' removed from files.db(md5sums).
 EOF
 
 DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
-testrun - -b . -A abacus --delete --delete --ignore=missingfile include b test.changes 3<<EOF
+testrun - -b . -A ${FAKEARCHITECTURE} --delete --delete --ignore=missingfile include b test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v2*=Skipping 'ac_1-1.dsc' as not for architecture 'abacus'.
--v2*=Skipping 'ac_1-1.tar.gz' as not for architecture 'abacus'.
--v3*=Placing 'ac-addons_1-1_all.deb' only in architecture 'abacus' as requested.
+-v2*=Skipping 'ac_1-1.dsc' as not for architecture '${FAKEARCHITECTURE}'.
+-v2*=Skipping 'ac_1-1.tar.gz' as not for architecture '${FAKEARCHITECTURE}'.
+-v3*=Placing 'ac-addons_1-1_all.deb' only in architecture '${FAKEARCHITECTURE}' as requested.
 stdout
 -v2*=Created directory "./pool/all/a/ac"
--v3*=db: 'ac-addons' added to 'b|all|abacus'.
--v3*=db: 'ac' added to 'b|all|abacus'.
+-d1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' added to files.db(md5sums).
+-d1*=db: 'pool/all/a/ac/ac_1-1_abacus.deb' added to files.db(md5sums).
+-d1*=db: 'ac-addons' added to packages.db(b|all|${FAKEARCHITECTURE}).
+-d1*=db: 'ac' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -v5*=Deleting 'test.changes'.
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 EOF
 checklog logab <<EOF
-DATESTR add b deb all abacus ac-addons 1-1
-DATESTR add b deb all abacus ac 1-1
+DATESTR add b deb all ${FAKEARCHITECTURE} ac-addons 1-1
+DATESTR add b deb all ${FAKEARCHITECTURE} ac 1-1
 EOF
-dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ab$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ac$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+dogrep '^Package: aa$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep '^Package: aa-addons$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep '^Package: ab$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep '^Package: ab-addons$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep '^Package: ac$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep '^Package: ac-addons$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
 echo "Update: - froma" >> conf/distributions
 cat >conf/updates <<END
 Name: froma
@@ -3509,67 +4331,280 @@ testrun - -b . predelete b 3<<EOF
 =WARNING: Single-Instance not yet supported!
 -v6*=aptmethod start 'copy:$WORKDIR/dists/a/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/dists/a/Release'
--v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-abacus/Packages.gz'
--v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-abacus/Packages.gz'
--v6*=Called /bin/cp './lists/b_froma_deb_all_abacus' './lists/b_froma_deb_all_abacus_changed'
+-v6*=aptmethod start 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
+-v1*=aptmethod got 'copy:$WORKDIR/dists/a/all/binary-${FAKEARCHITECTURE}/Packages.gz'
+-v6*=Called /bin/cp './lists/b_froma_deb_all_${FAKEARCHITECTURE}' './lists/b_froma_deb_all_${FAKEARCHITECTURE}_changed'
 -v6*=Listhook successfully returned!
 stdout
 -v0*=Removing obsolete or to be replaced packages...
--v3*=  processing updates for 'b|all|abacus'
+-v3*=  processing updates for 'b|all|${FAKEARCHITECTURE}'
 -v5*=  marking everything to be deleted
--v5*=  reading './lists/b_froma_deb_all_abacus_changed'
--v3*=db: 'ac-addons' removed from 'b|all|abacus'.
--v1*=removing 'ab' from 'b|all|abacus'...
--v3*=db: 'ab' removed from 'b|all|abacus'.
--v1*=removing 'ab-addons' from 'b|all|abacus'...
--v3*=db: 'ab-addons' removed from 'b|all|abacus'.
--v1*=removing 'ac' from 'b|all|abacus'...
--v3*=db: 'ac' removed from 'b|all|abacus'.
--v1*=removing 'ac-addons' from 'b|all|abacus'...
+-v5*=  reading './lists/b_froma_deb_all_${FAKEARCHITECTURE}_changed'
+-d1*=db: 'ac-addons' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ab' from 'b|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'ab' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ab-addons' from 'b|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'ab-addons' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ac' from 'b|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'ac' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ac-addons' from 'b|all|${FAKEARCHITECTURE}'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 -v1*=Shutting down aptmethods...
 -v0*=Deleting files no longer referenced...
--v1*=deleting and forgetting pool/all/a/ab/ab_2-1_abacus.deb
+-v1*=deleting and forgetting pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ab/ab-addons_2-1_all.deb
--v1*=deleting and forgetting pool/all/a/ac/ac_1-1_abacus.deb
+-d1*=db: 'pool/all/a/ab/ab-addons_2-1_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/ac/ac_1-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ac/ac_1-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
 -v1*=deleting and forgetting pool/all/a/ac/ac-addons_1-1_all.deb
+-d1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' removed from files.db(md5sums).
 -v1*=removed now empty directory ./pool/all/a/ac
 EOF
 checklog logab <<EOF
-DATESTR remove b deb all abacus ab 2-1
-DATESTR remove b deb all abacus ab-addons 2-1
-DATESTR remove b deb all abacus ac 1-1
-DATESTR remove b deb all abacus ac-addons 1-1
+DATESTR remove b deb all ${FAKEARCHITECTURE} ab 2-1
+DATESTR remove b deb all ${FAKEARCHITECTURE} ab-addons 2-1
+DATESTR remove b deb all ${FAKEARCHITECTURE} ac 1-1
+DATESTR remove b deb all ${FAKEARCHITECTURE} ac-addons 1-1
 EOF
-dogrep '^Package: aa$' dists/b/all/binary-abacus/Packages
-dogrep '^Package: aa-addons$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ab$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ab-addons$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ac$' dists/b/all/binary-abacus/Packages
-dongrep '^Package: ac-addons$' dists/b/all/binary-abacus/Packages
+dogrep '^Package: aa$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dogrep '^Package: aa-addons$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dongrep '^Package: ab$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dongrep '^Package: ab-addons$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dongrep '^Package: ac$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
+dongrep '^Package: ac-addons$' dists/b/all/binary-${FAKEARCHITECTURE}/Packages
 test ! -f pool/all/a/ac/ac-addons_1-1_all.deb
-test ! -f pool/all/a/ab/ab_2-1_abacus.deb
-test -f pool/all/a/aa/aa_1-3_abacus.deb
+test ! -f pool/all/a/ab/ab_2-1_${FAKEARCHITECTURE}.deb
+test -f pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
 testrun - -b . copy b a ab ac 3<<EOF
 stdout
--v9*=Adding reference to 'pool/all/a/ab/ab_3-1_abacus.deb' by 'b|all|abacus'
--v1*=Moving 'ab' from 'a|all|abacus' to 'b|all|abacus'.
+-v9*=Adding reference to 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' by 'b|all|${FAKEARCHITECTURE}'
+-v1*=Moving 'ab' from 'a|all|${FAKEARCHITECTURE}' to 'b|all|${FAKEARCHITECTURE}'.
 -v3*=Not looking into 'a|all|source' as no matching target in 'b'!
 -v3*=No instance of 'ab' found in 'a|all|source'!
--v3*=No instance of 'ac' found in 'a|all|abacus'!
+-v3*=No instance of 'ac' found in 'a|all|${FAKEARCHITECTURE}'!
 -v3*=No instance of 'ac' found in 'a|all|source'!
 -v1*=Looking for 'ab' in 'a' to be copied to 'b'...
--v3*=db: 'ab' added to 'b|all|abacus'.
+-d1*=db: 'ab' added to packages.db(b|all|${FAKEARCHITECTURE}).
 -v1*=Looking for 'ac' in 'a' to be copied to 'b'...
 -v0*=Exporting indices...
--v6*= looking for changes in 'b|all|abacus'...
--v6*=  replacing './dists/b/all/binary-abacus/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 EOF
 checklog logab <<EOF
-DATESTR add b deb all abacus ab 3-1
+DATESTR add b deb all ${FAKEARCHITECTURE} ab 3-1
 EOF
+if $tracking ; then
+testout "" -b . dumptracks
+cat > results.expected <<EOF
+Distribution: a
+Source: aa
+Version: 1-3
+Files:
+ pool/all/a/aa/aa-addons_1-3_all.deb a 1
+ pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb b 1
+ pool/all/a/aa/aa_1-3.dsc s 1
+ pool/all/a/aa/aa_1-3.tar.gz s 1
+
+Distribution: a
+Source: ab
+Version: 3-1
+Files:
+ pool/all/a/ab/ab-addons_3-1_all.deb a 1
+ pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb b 1
+ pool/all/a/ab/ab_3-1.dsc s 1
+ pool/all/a/ab/ab_3-1.tar.gz s 1
+
+EOF
+dodiff results.expected results
+testout "" -b . dumpreferences
+cat > results.expected <<EOF
+a aa 1-3 pool/all/a/aa/aa-addons_1-3_all.deb
+a|all|${FAKEARCHITECTURE} pool/all/a/aa/aa-addons_1-3_all.deb
+b|all|${FAKEARCHITECTURE} pool/all/a/aa/aa-addons_1-3_all.deb
+a aa 1-3 pool/all/a/aa/aa_1-3.dsc
+a|all|source pool/all/a/aa/aa_1-3.dsc
+a aa 1-3 pool/all/a/aa/aa_1-3.tar.gz
+a|all|source pool/all/a/aa/aa_1-3.tar.gz
+a aa 1-3 pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+a|all|${FAKEARCHITECTURE} pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+b|all|${FAKEARCHITECTURE} pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+a ab 3-1 pool/all/a/ab/ab-addons_3-1_all.deb
+a|all|${FAKEARCHITECTURE} pool/all/a/ab/ab-addons_3-1_all.deb
+a ab 3-1 pool/all/a/ab/ab_3-1.dsc
+a|all|source pool/all/a/ab/ab_3-1.dsc
+a ab 3-1 pool/all/a/ab/ab_3-1.tar.gz
+a|all|source pool/all/a/ab/ab_3-1.tar.gz
+a ab 3-1 pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+a|all|${FAKEARCHITECTURE} pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+b|all|${FAKEARCHITECTURE} pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+EOF
+dodiff results.expected results
+fi
+rm -r -f db2
+cp -a db db2
+echo tracking is $tracking
+testrun - --keepunreferenced --dbdir db2 -b . removesrc a ab 3-1 3<<EOF
+stdout
+-v1*=removing 'ab-addons' from 'a|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'ab-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ab' from 'a|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'ab' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ab' from 'a|all|source'...
+-d1*=db: 'ab' removed from packages.db(a|all|source).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'a|all|source'...
+-v6*=  replacing './dists/a/all/source/Sources' (gzipped)
+EOF
+if $tracking ; then
+checklog logab <<EOF
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab-addons 3-1
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+else
+checklog logab <<EOF
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab 3-1
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab-addons 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+fi
+rm -r db2
+cp -a db db2
+testrun - --keepunreferenced --dbdir db2 -b . removesrc a ab 3<<EOF
+stdout
+-v1*=removing 'ab-addons' from 'a|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'ab-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ab' from 'a|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'ab' removed from packages.db(a|all|${FAKEARCHITECTURE}).
+-v1*=removing 'ab' from 'a|all|source'...
+-d1*=db: 'ab' removed from packages.db(a|all|source).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'a|all|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/a/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+-v6*= looking for changes in 'a|all|source'...
+-v6*=  replacing './dists/a/all/source/Sources' (gzipped)
+EOF
+if $tracking ; then
+checklog logab <<EOF
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab-addons 3-1
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+else
+checklog logab <<EOF
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab 3-1
+DATESTR remove a deb all ${FAKEARCHITECTURE} ab-addons 3-1
+DATESTR remove a dsc all source ab 3-1
+EOF
+fi
+testrun - --keepunreferenced --dbdir db2 -b . removefilter b "Version (== 1-3), Package (>> aa)" 3<<EOF
+stdout
+-v1*=removing 'aa-addons' from 'b|all|${FAKEARCHITECTURE}'...
+-d1*=db: 'aa-addons' removed from packages.db(b|all|${FAKEARCHITECTURE}).
+-v0*=Exporting indices...
+-v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
+-v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
+EOF
+checklog logab <<EOF
+DATESTR remove b deb all ${FAKEARCHITECTURE} aa-addons 1-3
+EOF
+if $tracking ; then
+testrun - -b . --delete removealltracks a 3<<EOF
+stdout
+-v0*=Deleting all tracks for a...
+-v0=Deleting files no longer referenced...
+EOF
+testout "" -b . dumptracks
+dodiff results.empty results
+fi
+testout "" -b . dumpreferences
+cat > results.expected <<EOF
+a|all|${FAKEARCHITECTURE} pool/all/a/aa/aa-addons_1-3_all.deb
+b|all|${FAKEARCHITECTURE} pool/all/a/aa/aa-addons_1-3_all.deb
+a|all|source pool/all/a/aa/aa_1-3.dsc
+a|all|source pool/all/a/aa/aa_1-3.tar.gz
+a|all|${FAKEARCHITECTURE} pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+b|all|${FAKEARCHITECTURE} pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+a|all|${FAKEARCHITECTURE} pool/all/a/ab/ab-addons_3-1_all.deb
+a|all|source pool/all/a/ab/ab_3-1.dsc
+a|all|source pool/all/a/ab/ab_3-1.tar.gz
+a|all|${FAKEARCHITECTURE} pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+b|all|${FAKEARCHITECTURE} pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+EOF
+dodiff results.expected results
+cat > conf/distributions <<EOF
+Codename: X
+Architectures: none
+Components: test
+EOF
+checknolog logab
+if $tracking ; then
+testrun - -b . --delete clearvanished 3<<EOF
+#-v4*=Strange, 'X|test|none' does not appear in packages.db yet.
+stdout
+*=Deleting vanished identifier 'a|all|${FAKEARCHITECTURE}'.
+*=Deleting vanished identifier 'a|all|source'.
+*=Deleting vanished identifier 'b|all|${FAKEARCHITECTURE}'.
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-3_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-3.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-3.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=removed now empty directory ./pool/all/a/aa
+-v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
+-d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
+-d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=removed now empty directory ./pool/all/a/ab
+-v1*=removed now empty directory ./pool/all/a
+-v1*=removed now empty directory ./pool/all
+-v1*=removed now empty directory ./pool
+EOF
+else
+testrun - -b . --delete clearvanished 3<<EOF
+# -v4*=Strange, 'X|test|none' does not appear in packages.db yet.
+stdout
+*=Deleting vanished identifier 'a|all|${FAKEARCHITECTURE}'.
+*=Deleting vanished identifier 'a|all|source'.
+*=Deleting vanished identifier 'b|all|${FAKEARCHITECTURE}'.
+-v0*=Deleting files no longer referenced...
+-v1*=deleting and forgetting pool/all/a/aa/aa-addons_1-3_all.deb
+-d1*=db: 'pool/all/a/aa/aa-addons_1-3_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.dsc
+-d1*=db: 'pool/all/a/aa/aa_1-3.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3.tar.gz
+-d1*=db: 'pool/all/a/aa/aa_1-3.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=removed now empty directory ./pool/all/a/aa
+-v1*=deleting and forgetting pool/all/a/ab/ab-addons_3-1_all.deb
+-d1*=db: 'pool/all/a/ab/ab-addons_3-1_all.deb' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.dsc
+-d1*=db: 'pool/all/a/ab/ab_3-1.dsc' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1.tar.gz
+-d1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' removed from files.db(md5sums).
+-v1*=deleting and forgetting pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb
+-d1*=db: 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' removed from files.db(md5sums).
+-v1*=removed now empty directory ./pool/all/a/ab
+-v1*=removed now empty directory ./pool/all/a
+-v1*=removed now empty directory ./pool/all
+-v1*=removed now empty directory ./pool
+EOF
+fi
+checknolog logab
 done
 set +v +x
 echo

@@ -6,5 +6,5 @@
 #warning "What's hapening here?"
 #endif
 
-retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir,filesdb files,const char *dbdir,references refs,struct strlist *dereferenced,struct distribution *distributions,const char *name,/*@null@*/const char *onlychangesfilename);
+retvalue process_incoming(const char *basedir,const char *confdir,const char *overridedir, struct database *,struct strlist *dereferenced,struct distribution *distributions,const char *name,/*@null@*/const char *onlychangesfilename);
 #endif

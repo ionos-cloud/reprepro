@@ -25,9 +25,11 @@
 #include <string.h>
 #include <malloc.h>
 #include <fcntl.h>
+#ifdef HAVE_LIBGPGME
 #include <gpgme.h>
+#endif
+#include "globals.h"
 #include "error.h"
-#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "dirs.h"
@@ -39,6 +41,7 @@
 
 extern int verbose;
 
+#ifdef HAVE_LIBGPGME
 static gpgme_ctx_t context = NULL;
 
 static retvalue gpgerror(gpgme_error_t err) {
@@ -69,8 +72,10 @@ static gpgme_error_t signature_getpassphrase(UNUSED(void *hook), const char *uid
 	free(msg);
 	return GPG_ERR_NO_ERROR;
 }
+#endif /* HAVE_LIBGPGME */
 
-retvalue signature_init(bool_t allowpassphrase){
+retvalue signature_init(bool allowpassphrase){
+#ifdef HAVE_LIBGPGME
 	gpgme_error_t err;
 
 	if( context != NULL )
@@ -87,25 +92,28 @@ retvalue signature_init(bool_t allowpassphrase){
 	if( allowpassphrase )
 		gpgme_set_passphrase_cb(context,signature_getpassphrase,NULL);
 	gpgme_set_armor(context,1);
+#endif /* HAVE_LIBGPGME */
 	return RET_OK;
 }
 
 void signatures_done(void) {
+#ifdef HAVE_LIBGPGME
 	if( context != NULL ) {
 		gpgme_release(context);
 		context = NULL;
 	}
+#endif /* HAVE_LIBGPGME */
 }
 
+#ifdef HAVE_LIBGPGME
 static inline retvalue containskey(const char *key, const char *fingerprint) {
-
 	size_t fl,kl;
 	const char *keypart,*p;
 
 	fl = strlen(fingerprint);
 
 	keypart = key;
-	while( TRUE ) {
+	while( true ) {
 		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
@@ -115,7 +123,8 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		while( *p != '\0' && !xisspace(*p) && *p != '|' )
 			p++;
 		kl = p-keypart;
-		if( kl < 8 && !IGNORING("Ignoring","To ignore this",shortkeyid,"Too short keyid specified (less than 8 characters) in '%s'!\n",key)) {
+		if( kl < 8 ) {
+			fprintf(stderr, "Too short keyid specified (less than 8 characters) in '%s'!\n",key);
 			return RET_ERROR;
 		}
 		if( kl < fl && strncasecmp(fingerprint+fl-kl,keypart,kl) == 0 )
@@ -133,24 +142,27 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		}
 	}
 }
+#endif /* HAVE_LIBGPGME */
 
 retvalue signature_check(const char *options, const char *releasegpg, const char *release) {
 	retvalue r;
+#ifdef HAVE_LIBGPGME
 	gpgme_error_t err;
 	int fd,gpgfd;
 	gpgme_data_t dh,dh_gpg;
 	gpgme_verify_result_t result;
 	gpgme_signature_t s;
+#endif /* HAVE_LIBGPGME */
 
 	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
 
-	r = signature_init(FALSE);
+	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
+#ifdef HAVE_LIBGPGME
 	/* Read the file and its signature into memory: */
-
 	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
 	if( gpgfd < 0 ) {
 		int e = errno;
@@ -194,9 +206,14 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		r = containskey(options, s->fpr);
 		if( RET_WAS_ERROR(r) )
 			return r;
-		if( r == RET_NOTHING )
+		if( r == RET_NOTHING ) {
+			if( gpgme_err_code(s->status) == GPG_ERR_NO_ERROR &&
+					verbose > 10 ) {
+				printf("Valid signature with key '%s', but that key is not looked at.\n", s->fpr);
+			}
 			/* there's no use in checking signatures not sufficient */
 			continue;
+		}
 		assert( RET_IS_OK(r) );
 		switch( gpgme_err_code(s->status) ) {
 			case GPG_ERR_NO_ERROR:
@@ -263,17 +280,24 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			gpgme_err_code(s->status));
 		return RET_ERROR_GPGME;
 	}
-
 	return RET_NOTHING;
+#else /* HAVE_LIBGPGME */
+	fprintf(stderr,
+"ERROR: Cannot check signature as this reprepro binary is compiled with support\n"
+"for libgpgme.\n"); // TODO: "Only running external programs is supported.\n"
+	return RET_ERROR_GPGME;
+#endif /* HAVE_LIBGPGME */
 }
 
 retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
 	retvalue r;
+	int ret;
+#ifdef HAVE_LIBGPGME
 	gpgme_error_t err;
 	gpgme_data_t dh,dh_gpg;
-	int ret;
+#endif /* HAVE_LIBGPGME */
 
-	r = signature_init(FALSE);
+	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -292,7 +316,9 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		// TODO: allow external programs, too
 		fprintf(stderr,"'!' not allowed at start of signing options yet.\n");
 		return RET_ERROR;
-	} else if( strcasecmp(options,"yes") == 0 || strcasecmp(options,"default") == 0 ) {
+	}
+#ifdef HAVE_LIBGPGME
+	if( strcasecmp(options,"yes") == 0 || strcasecmp(options,"default") == 0 ) {
 		gpgme_signers_clear(context);
 		options = NULL;
 	} else {
@@ -425,16 +451,23 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	}
 
 	return r;
+#else /* HAVE_LIBGPGME */
+	fprintf(stderr,
+"ERROR: Cannot creature signatures as this reprepro binary is compiled with support\n"
+"for libgpgme.\n"); // TODO: "Only running external programs is supported.\n"
+	return RET_ERROR_GPGME;
+#endif /* HAVE_LIBGPGME */
 }
 
+#ifdef HAVE_LIBGPGME
 /* retrieve a list of fingerprints of keys having signed (valid) or
  * which are mentioned in the signature (all). set broken if all signatures
  * was broken (hints to a broken file, as opposed to expired or whatever
  * else may make a signature invalid)). */
-static retvalue checksigs(const char *filename, struct strlist *valid, struct strlist *all, bool_t *broken) {
+static retvalue checksigs(const char *filename, struct strlist *valid, struct strlist *all, bool *broken) {
 	gpgme_verify_result_t result;
 	gpgme_signature_t s;
-	bool_t had_valid=FALSE, had_broken=FALSE;
+	bool had_valid = false, had_broken = false;
 
 	result = gpgme_op_verify_result(context);
 	if( result == NULL ) {
@@ -449,7 +482,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 		}
 		switch( gpgme_err_code(s->status) ) {
 			case GPG_ERR_NO_ERROR:
-				had_valid = TRUE;
+				had_valid = true;
 				if( valid != NULL ) {
 					retvalue r = strlist_add_dup(valid,
 								s->fpr);
@@ -458,21 +491,21 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 				}
 				continue;
 			case GPG_ERR_KEY_EXPIRED:
-				had_valid = TRUE;
+				had_valid = true;
 				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key has expired.\n",
 						s->fpr, filename);
 				continue;
 			case GPG_ERR_CERT_REVOKED:
-				had_valid = TRUE;
+				had_valid = true;
 				if( verbose > 0 )
 					fprintf(stderr,
 "Ignoring signature with '%s' on '%s', as the key is revoked.\n",
 						s->fpr, filename);
 				continue;
 			case GPG_ERR_SIG_EXPIRED:
-				had_valid = TRUE;
+				had_valid = true;
 				if( verbose > 0 ) {
 					time_t timestamp = s->timestamp,
 					      exp_timestamp = s->exp_timestamp;
@@ -485,7 +518,7 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 				}
 				continue;
 			case GPG_ERR_BAD_SIGNATURE:
-				had_broken = TRUE;
+				had_broken = true;
 				if( verbose > 0 ) {
 					fprintf(stderr,
 "WARNING: '%s' has a invalid signature with '%s'\n", filename, s->fpr);
@@ -518,12 +551,14 @@ static retvalue checksigs(const char *filename, struct strlist *valid, struct st
 		return RET_ERROR_GPGME;
 	}
 	if( broken != NULL && had_broken && ! had_valid )
-		*broken = TRUE;
+		*broken = true;
 	return RET_OK;
 }
+#endif /* HAVE_LIBGPGME */
 
 /* Read a single chunk from a file, that may be signed. */
-retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool_t *brokensignature) {
+retvalue signature_readsignedchunk(const char *filename, const char *filenametoshow, char **chunkread, /*@null@*/ /*@out@*/struct strlist *validkeys, /*@null@*/ /*@out@*/ struct strlist *allkeys, bool *brokensignature) {
+#ifdef HAVE_LIBGPGME
 	const char *startofchanges,*endofchanges,*afterchanges;
 	char *chunk;
 	gpgme_error_t err;
@@ -532,12 +567,12 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 	char *plain_data;
 	retvalue r;
 	struct strlist validfingerprints, allfingerprints;
-	bool_t foundbroken = FALSE;
+	bool foundbroken = false;
 
 	strlist_init(&validfingerprints);
 	strlist_init(&allfingerprints);
 
-	r = signature_init(FALSE);
+	r = signature_init(false);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -653,6 +688,98 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 			strlist_done(&allfingerprints);
 	}
 	return r;
+#else /* HAVE_LIBGPGME */
+	char *chunk;
+	gzFile f;
+	retvalue r;
+	bool issigned = false, finished = false;
+
+	f = gzopen(filename, "r");
+	if( !f ) {
+		fprintf(stderr, "Unable to open file %s: %m\n",
+				filenametoshow);
+		return RET_ERRNO(errno);
+	}
+	r = chunk_read(f, &chunk);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+				"Could only find spaces within '%s'!\n",
+				filenametoshow);
+		gzclose(f);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) ) {
+		gzclose(f);
+		return r;
+	}
+
+	if( strncmp(chunk, "-----BEGIN", 10) == 0 ) {
+		char *endmarker;
+
+		issigned = true;
+		if( verbose >= 0 ) {
+			fprintf(stderr,
+"Cannot extract signatures from '%s' as compiled without support for libgpgme!\n"
+"Trying to extract the content manually...\n", filenametoshow);
+		}
+		free(chunk);
+		r = chunk_read(f, &chunk);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,"Could not find any data within '%s'!\n",
+					filenametoshow);
+			gzclose(f);
+			return RET_ERROR;
+		}
+		endmarker = strstr(chunk+10, "-----");
+		while( endmarker != NULL && *(endmarker-1) != '\n'
+				&& *(endmarker-1) != '\r' ) {
+			char *newline = strchr(endmarker, '\n');
+			if( newline == NULL )
+				endmarker = NULL;
+			else
+				endmarker = strstr(newline+1, "-----");
+		}
+		if( endmarker != NULL ) {
+			if( verbose > 0 )
+				fprintf(stderr,"Truncating at -----\n");
+			*endmarker ='\0';
+			finished = true;
+		}
+	}
+	while( !finished ) {
+		char *chunk2;
+		r = chunk_read(f, &chunk2);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		if( r == RET_NOTHING )
+			break;
+		if( strncmp(chunk2, "-----", 5) == 0 ) {
+			if( !issigned ) {
+				fprintf(stderr, "Unexpected ---- in '%s'!\n",
+						filenametoshow);
+			} else {
+				finished = true;
+
+			}
+		} else {
+			fprintf(stderr, "Unexpected extra data in '%s'!",
+					filenametoshow);
+		}
+		free(chunk2);
+	}
+	// TODO: check result:
+	gzclose(f);
+	*chunkread = chunk;
+	if( validkeys != NULL )
+		strlist_init(validkeys);
+	if( allkeys != NULL )
+		strlist_init(allkeys);
+	if( brokensignature != NULL )
+		*brokensignature = false;
+	return RET_OK;
+#endif /* HAVE_LIBGPGME */
 }
 
 struct signedfile {
@@ -794,6 +921,9 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options) {
 		if( f->newsignfilename == NULL )
 			return RET_ERROR_OOM;
 
+		// TODO: make this in-situ (i.e. not signing the file but the memory
+		// content to be saved before):
+
 		r = signature_sign(options,
 				f->newplainfilename,
 				f->newsignfilename);
@@ -803,7 +933,7 @@ retvalue signedfile_prepare(struct signedfile *f, const char *options) {
 	return RET_OK;
 }
 
-retvalue signedfile_finalize(struct signedfile *f, bool_t *toolate) {
+retvalue signedfile_finalize(struct signedfile *f, bool *toolate) {
 	int result = RET_OK, r;
 	int e;
 
@@ -823,7 +953,7 @@ retvalue signedfile_finalize(struct signedfile *f, bool_t *toolate) {
 			/* does not need deletion any more */
 			free(f->newsignfilename);
 			f->newsignfilename = NULL;
-			*toolate = TRUE;
+			*toolate = true;
 		}
 	}
 	e = rename(f->newplainfilename, f->plainfilename);

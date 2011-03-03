@@ -1,23 +1,58 @@
-Updates since 2.2.3:
+Updates between 2.2.4 and 3.0.0:
+- new config file parser:
+  * many error messages now with line numbers
+  * native support of comments (i.e. lines starting with # are now ignored,
+    instead of treated as ignored headers, # within lines is now comment, too)
+  * better support of tabs
+  * meaning of empty fields changed, empty now means nothing and not all.
+- always parse the whole distributions file first before doing anything else
+  (avoids actions started in the wrong base directory and helps to catch more
+   disambiguities, may lead to the need of a valid config file for some actions
+   not needing one, though).
+- check pull and update rules to not list any architectures or components that
+  will never be used, so typos won't go unnoticed.
+- obsolete --overridedir and searching files in overrides/ directory by default.
+  This places are still search, but so is the configuration directory now and
+  future version will stop accepting --overridedir and not search in that
+  directory.
+- added db/version file to document database format
+  (so future versions can warn about incompatibilities)
+- cleaned up tracking handling a bit:
+  * retrack no longer created tracking data for distribtions without tracking
+  * retrack only recreates usage data, not all data
+    (so .changes files and old versions are no longer lost when run)
+    also references from tracking data are now refreshed by rereferences instead
+  * removealltracks now needs explicitly needs distribution names
+  * tidytracks now removes all tracking data from a distribution without tracking
+  * clearvanished removes tracking data from vanished distributions.
+- make update's ListHook relative to confdir (unless absolute)
+- added removesrc and removefilter
+- new format for contents.cache.db. Only needs half of the disk space and runtime
+  to generate Contents files, but you need to run translatefilelists to translate
+  the cached items (or delete your contents.cache.db and let reprepro reread
+  all your .deb files). Also format and meaning of the Contents-fields changed, a
+  rate no longer can be specified.
+
+Updates between 2.2.3 and 2.2.4:
 - [SECURITY] fix bug causing a Release.gpg with only
   unknown signatures considered as properly signed.
 
-Updates since 2.2.2:
+Updates between 2.2.2 and 2.2.3:
 - add support for binNMUs (i.e. .changes files having a Version: that is not
   the source version).
 - add zsh auto-completions script
 
-Updates since 2.2.1:
+Updates between 2.2.1 and 2.2.2:
 - processincoming can be limited to a single .changes file
 - fix to support apt-methods stating Send-Config: false
 - set GPG_TTY when stdin is a terminal to ease usage of pinentry-curses
 
-Updates since 2.2.0:
+Updates between 2.2.0 and 2.2.1:
 - fix mixup of the name of the --spacecheck option
 - fix missing options in bash completions
 - fix segfault when including changes without notificators
 
-Updates since 2.1.0:
+Updates between 2.1.0 and 2.2.0:
 - renamed cleartracks in removealltracks
 - new notifier type for accepted changes files
 - bugs fixed:
@@ -33,7 +68,7 @@ Updates since 2.1.0:
   * option when to delete rejected or faulty package (Cleanup:)
 - include command names incldued .changes files like processincoming does
 
-Updates since 2.0.0:
+Updates between 2.0.0 and 2.1.0:
 - add --silent option
 - change some status output to stdout instead of stderr.
 - fix some uncessary exporting of index files
@@ -42,7 +77,7 @@ Updates since 2.0.0:
 - example-script to generate a packages.debian.org/changelogs like
   hierachy with changelog and copyright files.
 
-Updates since 1.3.1:
+Updates between 1.3.1 and 2.0.0:
 - add "adddeb" action to changestool
 - fix bug in manpage ("accept" should have been "allow" for uploaders)
 - new AlsoAcceptFor:-header for conf/distributions to allow more fine
@@ -55,10 +90,10 @@ Updates since 1.3.1:
   code, so beware)
 - add gensnapshot command
 
-Updates since 1.3.0:
+Updates between 1.3.0 and 1.3.1:
 - bugfix in changestool updatechecksums
 
-Updates since 1.2.0:
+Updates between 1.2.0 and 1.3.0:
 - now uses libgpgme11 instead of libgpgme6.
 - remove --onlyacceptsigned switch (soon to be be replaced by something
     useable, hopefully)
@@ -81,28 +116,28 @@ Updates since 1.2.0:
   allows to specify what a .changes file has to be signed with to be allowed in
 - new helper program "changestool" to preprocess .changes files.
 
-Updates since 1.1.0:
+Updates between 1.1.0 and 1.2.0:
 - improve message of missing files
 - checkin now support .tar.bz2, .diff.bz2 and .tar.bz2
   (checkindsc did not care, binaries may contain tar.bz2 if reprepro
    is compiled with libarchive and libbz2)
 - fix bug delaying full Contents- generation
 
-Updates since 1.0.2:
+Updates between 1.0.2 and 1.1.0:
 - extended the (experimental) package tracking feature
 - cleartracks removes files losing their last reference (unless --keepunreferenced as usual)
 - fix bug of not generating a uncompressed Sources line in Release when no uncompressed
   Sources file is generated.
 
-Updates since 1.0.1:
+Updates between 1.0.1 and 1.0.2:
 - fix segfault in non-libarchive code introduced with 1.0.0
 
-Updates since 1.0.0:
+Updates between 1.0.0 and 1.0.1:
 - add clearvanished command
 - cope with GNU ar style .deb files (when using libarchive)
 - cope with strange control.tar.gz files (when not using libarchive)
 
-Updates since 0.9.1:
+Updates between 0.9.1 and 1.0.0:
 - reject some .changes earlier, delete added files
   when checks after copying files to the pool failed.
 - handle some signals (TERM, ABRT, INT and QUIT) a bit
@@ -113,12 +148,12 @@ Updates since 0.9.1:
 - add new copy command to copy a single package from
   one distribution to another.
 
-Updates since 0.9.0:
+Updates between 0.9.0 and 0.9.1:
 - fix bug in post-export script handling.
 - fixed documentation in tiffany.example how to generate
   .diff directories the new apt can read.
 
-Updates since 0.8.2:
+Updates between 0.8.2 and 0.9.0:
 - added --export= option and harmonized exporting of
   distributions. (Now every distribution processed
   without errors is exported by default, with options
@@ -134,14 +169,14 @@ Updates since 0.8.2:
 - added Contents file generation support
 - now supporting libdb-4.4, libdb-4.3 and libdb3
 
-Updates since 0.8.1:
+Updates between 0.8.1 and 0.8.2:
 - mark process list files and only skip those not marked
   as processed instead those not newly downloaded.
 - change the wording of some warnings, add some new
 - new WORKAROUND part in the manpage
 - add example bash_completion script
 
-Updates since 0.8:
+Updates between 0.8 and 0.8.1:
 - some bugfixes (segfault, memmory leak, manpage typos)
 - enforcement of extensions of include{,dsc,deb,udeb} files
   to .changes,.dsc,.deb,.udeb and new --ignore=extension to
@@ -151,7 +186,7 @@ Updates since 0.8:
   a .changes file, but lying around and requested by
   a .dsc file.
 
-Updates since 0.7:
+Updates between 0.7 and 0.8:
 - unless the new --keepdirectories option is given,
   try to remove pool/ directories that got empty by 
   removing things from them. (To be exact, try to rmdir(2) 
@@ -180,7 +215,7 @@ Updates since 0.7:
   fragile anyway, so better do not do it but ask me
   if some feature is missing overrides cannot offer yet).
 
-Updates since 0.6:
+Updates between 0.6 and 0.7:
 - new --ignore=missingfield,brokenold,brokenversioncmp, 
 	unusedarch,surpisingarch
 - Fix segfault when update file is empty.
@@ -188,7 +223,7 @@ Updates since 0.6:
 - improve manpage a little bit
 - many little tidy ups
 
-Updates since 0.5:
+Updates between 0.5 and 0.6:
 - no longer set execute bit of generated Release.gpg files
 - use REPREPRO_BASE_DIR for default basedir, parse conf/options
   for further default options. (and add --no options to disable
@@ -199,13 +234,13 @@ Updates since 0.5:
   without --ignore=wrongdistribution (and without
   "ignore wrongdistributions" in conf/options)
 
-Updates since 0.4:
+Updates between 0.4 and 0.5:
 - starts of source package tracking
 - add quick&dirty --ask-passphrase option
 - SignWith's argument is now used, use "yes" or "default" to get old behaviour
 - allow ~ in versions listed in .changes files
 
-Updates since 0.3:
+Updates between 0.3 and 0.4:
 - minor bugfix: no longer readd existing packages, when after a delete rule
   a old package was found first.
 - adopt short-howto to changes in keywords.
@@ -213,15 +248,15 @@ Updates since 0.3:
 - add Fallback option to specify another host to get mirrored files from
 - default basedir is now "." i.e. the current directory.
 
-Updates since 0.2:
+Updates between 0.2 and 0.3:
 - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
 - new command reoverride to reapply override information.
 - sometimes be a bit more verbose
-- new experimental iteratedupdate command , which is a variant of 
+- new experimental iteratedupdate command , which is a variant of
   update but needs less memory.
 - to ignore Release signature failures two --force's are needed now.
 
-Updates since 0.1.1:
+Updates between 0.1.1 and 0.2:
 - _md5sums command got removed. New command to dump
   the contents of the files database is _listmd5sums
 - --basedir (alias -b) will no longer override prior
@@ -230,4 +265,3 @@ Updates since 0.1.1:
 - write Release, Packages, and Sources files first
   to .new variants and move then all at once.
 - new Options DebIndices DscIndices UDebIndices
-  

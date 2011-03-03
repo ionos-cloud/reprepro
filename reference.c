@@ -23,23 +23,22 @@
 #include <malloc.h>
 #include <string.h>
 #include <db.h>
+
 #include "error.h"
 #include "strlist.h"
 #include "names.h"
 #include "md5sum.h"
 #include "dirs.h"
+#include "database_p.h"
 #include "reference.h"
 
 struct references {
 	DB *db;
 };
 
-#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
-#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
-
 extern int verbose;
 
-retvalue references_done(references refs) {
+retvalue references_done(struct references *refs) {
 	int r;
 	if( refs == NULL )
 		return RET_NOTHING;
@@ -51,58 +50,29 @@ retvalue references_done(references refs) {
 		return RET_DBERR(r);
 }
 
-retvalue references_initialize(references *refs,const char *dbpath) {
-	int ret;
-	char *filename;
+retvalue references_initialize(struct references **refs,struct database *database) {
 	retvalue r;
-	references ref;
+	struct references *ref;
 
 	/* what stupidities are done for abstraction... */
 	ref = malloc(sizeof(*ref));
 	if( ref == NULL )
 		return RET_ERROR_OOM;
 
-	filename = calc_dirconcat(dbpath,"references.db");
-	if( filename == NULL ) {
-		free(ref);
-		return RET_ERROR_OOM;
-	}
-	r = dirs_make_parent(filename);
+	r = database_opentable(database, "references.db", "references",
+			DB_BTREE, DB_DUPSORT, NULL, false, &ref->db);
 	if( RET_WAS_ERROR(r) ) {
-		free(filename);
 		free(ref);
-		return RET_ERROR_OOM;
+		return r;
 	}
-	if( (ret = db_create(&ref->db, NULL, 0)) != 0) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(ret));
-		free(filename);
-		free(ref);
-		return RET_DBERR(ret);
-	}
-	/* allow a file referenced by multiple dists: */
-	if( (ret = ref->db->set_flags(ref->db,DB_DUPSORT)) != 0 ) {
-		ref->db->err(ref->db, ret, "db_set_flags:%s", filename);
-		(void)ref->db->close(ref->db,0);
-		free(filename);
-		free(ref);
-		return RET_DBERR(ret);
-	}
-	ret = DB_OPEN(ref->db, filename, "references", DB_BTREE, DB_CREATE);
-	if( ret != 0) {
-		ref->db->err(ref->db, ret, "db_open:%s", filename);
-		(void)ref->db->close(ref->db,0);
-		free(filename);
-		free(ref);
-		return RET_DBERR(ret);
-	}
-	free(filename);
 	*refs = ref;
 	return RET_OK;
 }
 
-retvalue references_isused(references refs,const char *what) {
+retvalue references_isused(struct database *database,const char *what) {
 	int dbret;
 	DBT key,data;
+	struct references *refs = database->references;
 
 	SETDBT(key,what);
 	CLEARDBT(data);
@@ -116,11 +86,12 @@ retvalue references_isused(references refs,const char *what) {
 	}
 }
 
-static retvalue references_checksingle(references refs,const char *what,const char *by) {
+static retvalue references_checksingle(struct database *database,const char *what,const char *by) {
 	int dbret;
 	retvalue r;
 	DBT key,data;
 	DBC *cursor;
+	struct references *refs = database->references;
 
 	cursor = NULL;
 	if( (dbret = refs->db->cursor(refs->db,NULL,&cursor,0)) != 0 ) {
@@ -145,13 +116,13 @@ static retvalue references_checksingle(references refs,const char *what,const ch
 	}
 	return r;
 }
-retvalue references_check(references refs,const char *referee,const struct strlist *filekeys) {
+retvalue references_check(struct database *database,const char *referee,const struct strlist *filekeys) {
 	int i;
 	retvalue ret,r;
 
 	ret = RET_NOTHING;
 	for( i = 0 ; i < filekeys->count ; i++ ) {
-		r = references_checksingle(refs,filekeys->values[i],referee);
+		r = references_checksingle(database, filekeys->values[i], referee);
 		RET_UPDATE(ret,r);
 
 	}
@@ -159,9 +130,10 @@ retvalue references_check(references refs,const char *referee,const struct strli
 }
 
 /* add an reference to a file for an identifier. multiple calls */
-retvalue references_increment(references refs,const char *needed,const char *neededby) {
+retvalue references_increment(struct database *database,const char *needed,const char *neededby) {
 	int dbret;
 	DBT key,data;
+	struct references *refs = database->references;
 
 	SETDBT(key,needed);
 	SETDBT(data,neededby);
@@ -176,7 +148,8 @@ retvalue references_increment(references refs,const char *needed,const char *nee
 }
 
 /* remove reference for a file from a given reference */
-retvalue references_decrement(references refs,const char *needed,const char *neededby) {
+retvalue references_decrement(struct database *database,const char *needed,const char *neededby) {
+	struct references *refs = database->references;
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -213,7 +186,7 @@ retvalue references_decrement(references refs,const char *needed,const char *nee
 
 /* Add an reference by <identifer> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_insert(references refs,const char *identifier,
+retvalue references_insert(struct database *database,const char *identifier,
 		const struct strlist *files,const struct strlist *exclude) {
 	retvalue result,r;
 	int i;
@@ -224,7 +197,7 @@ retvalue references_insert(references refs,const char *identifier,
 		const char *filename = files->values[i];
 
 		if( exclude == NULL || !strlist_in(exclude,filename) ) {
-			r = references_increment(refs,filename,identifier);
+			r = references_increment(database, filename, identifier);
 			RET_UPDATE(result,r);
 		}
 	}
@@ -232,7 +205,8 @@ retvalue references_insert(references refs,const char *identifier,
 }
 
 /* add possible already existing references */
-retvalue references_add(references refs,const char *identifier,const struct strlist *files) {
+retvalue references_add(struct database *database,const char *identifier,const struct strlist *files) {
+	struct references *refs = database->references;
 	int dbret;
 	int i;
 	DBT key,data;
@@ -254,7 +228,7 @@ retvalue references_add(references refs,const char *identifier,const struct strl
 
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_delete(references refs,const char *identifier,
+retvalue references_delete(struct database *database,const char *identifier,
 		struct strlist *files,const struct strlist *exclude,
 		struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
@@ -269,7 +243,7 @@ retvalue references_delete(references refs,const char *identifier,
 		files->values[i] = NULL;
 
 		if( exclude == NULL || !strlist_in(exclude,filekey) ) {
-			r = references_decrement(refs,filekey,identifier);
+			r = references_decrement(database, filekey, identifier);
 			RET_UPDATE(result,r);
 			if( RET_IS_OK(r) && dereferencedfilekeys != NULL ) {
 				r = strlist_adduniq(dereferencedfilekeys, filekey);
@@ -285,8 +259,9 @@ retvalue references_delete(references refs,const char *identifier,
 }
 
 /* remove all references from a given identifier */
-retvalue references_remove(references refs,const char *neededby,
+retvalue references_remove(struct database *database,const char *neededby,
 		struct strlist *dereferenced) {
+	struct references *refs = database->references;
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -342,7 +317,8 @@ retvalue references_remove(references refs,const char *neededby,
 }
 
 /* print out all referee-referenced-pairs. */
-retvalue references_dump(references refs) {
+retvalue references_dump(struct database *database) {
+	struct references *refs = database->references;
 	DBC *cursor;
 	DBT key,data;
 	int dbret;
@@ -366,8 +342,12 @@ retvalue references_dump(references refs) {
 			break;
 		}
 		result = RET_OK;
+		if( interrupted() ) {
+			result = RET_ERROR_INTERRUPTED;
+			break;
+		}
 	}
-	if( dbret != DB_NOTFOUND ) {
+	if( dbret != DB_NOTFOUND && dbret != 0 ) {
 		refs->db->err(refs->db, dbret, "references_dump dberror(get):");
 		return RET_DBERR(dbret);
 	}

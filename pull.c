@@ -22,10 +22,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include "error.h"
+#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
-#include "chunks.h"
 #include "md5sum.h"
 #include "pull.h"
 #include "upgradelist.h"
@@ -33,6 +33,7 @@
 #include "terms.h"
 #include "filterlist.h"
 #include "log.h"
+#include "configparser.h"
 
 extern int verbose;
 
@@ -50,19 +51,22 @@ struct pull_rule {
 	char *name;
 	//e.g. "From: woody"
 	char *from;
-	//e.g. "Architectures: i386 sparc mips" (empty means all)
+	//e.g. "Architectures: i386 sparc mips" (not set means all)
 	struct strlist architectures_from;
 	struct strlist architectures_into;
-	//e.g. "Components: main contrib" (empty means all)
+	bool architectures_set;
+	//e.g. "Components: main contrib" (not set means all)
 	struct strlist components;
-	//e.g. "UDebComponents: main" // (empty means all)
+	bool components_set;
+	//e.g. "UDebComponents: main" // (not set means all)
 	struct strlist udebcomponents;
+	bool udebcomponents_set;
 	// NULL means no condition
 	/*@null@*/term *includecondition;
 	struct filterlist filterlist;
 	/*----only set after _addsourcedistribution----*/
 	/*@NULL@*/ struct distribution *distribution;
-	bool_t used;
+	bool used;
 };
 
 static void pull_rule_free(/*@only@*/struct pull_rule *pull) {
@@ -89,167 +93,58 @@ void pull_freerules(struct pull_rule *p) {
 	}
 }
 
-inline static retvalue parse_rule(const char *confdir,const char *chunk, struct pull_rule **rule) {
-	struct pull_rule *pull;
-	struct strlist architectureslist;
-	char *formula,*filename;
-	retvalue r;
-	static const char * const allowedfields[] = {"Name", "From",
-"Architectures", "Components", "UDebComponents",
-"FilterFormula", "FilterList", NULL};
+CFlinkedlistinit(pull_rule)
+CFvalueSETPROC(pull_rule, name)
+CFvalueSETPROC(pull_rule, from)
+CFuniqstrlistSETPROCset(pull_rule, components)
+CFuniqstrlistSETPROCset(pull_rule, udebcomponents)
+CFfilterlistSETPROC(pull_rule, filterlist)
+CFtermSETPROC(pull_rule, includecondition)
 
-	pull = calloc(1,sizeof(struct pull_rule));
-	if( pull == NULL )
-		return RET_ERROR_OOM;
-	r = chunk_getvalue(chunk,"Name",&pull->name);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Unexpected chunk in pulls-file: '%s'.\n",chunk);
-		return RET_ERROR;
-	}
-	if( RET_WAS_ERROR(r) ) {
-		free(pull);
-		return r;
-	}
-	if( verbose > 30 ) {
-		fprintf(stderr,"parsing pull-chunk '%s'\n",pull->name);
-	}
-
-	/* * Look where we are getting it from: * */
-
-	r = chunk_getvalue(chunk,"From",&pull->from);
-	if( !RET_IS_OK(r) ) {
-		if( r == RET_NOTHING ) {
-			fprintf(stderr,"No From found in pull-block %s!\n",
-					pull->name);
-			r = RET_ERROR_MISSING;
-		}
-		pull_rule_free(pull);
-		return r;
-	}
-
-	r = chunk_checkfields(chunk,allowedfields,TRUE);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-
-	/* * Check which architectures to pull from * */
-	r = chunk_getuniqwordlist(chunk,"Architectures",&architectureslist);
-	// TODO: is this save if uniqwordlist could become sorted?
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		pull->architectures_from.count = 0;
-		pull->architectures_into.count = 0;
-	} else {
-		r = splitlist(&pull->architectures_from,
-				&pull->architectures_into,&architectureslist);
-		strlist_done(&architectureslist);
-		if( RET_WAS_ERROR(r) ) {
-			pull_rule_free(pull);
-			return r;
-		}
-	}
-
-	/* * Check which components to pull from * */
-	r = chunk_getuniqwordlist(chunk,"Components",&pull->components);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		pull->components.count = 0;
-	}
-
-	/* * Check which components to pull udebs from * */
-	r = chunk_getuniqwordlist(chunk,"UDebComponents",&pull->udebcomponents);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r == RET_NOTHING ) {
-		pull->udebcomponents.count = 0;
-	}
-
-	/* * Check if there is a Include condition * */
-	r = chunk_getvalue(chunk,"FilterFormula",&formula);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r != RET_NOTHING ) {
-		r = term_compile(&pull->includecondition,formula,
-			T_OR|T_BRACKETS|T_NEGATION|T_VERSION|T_NOTEQUAL);
-		free(formula);
-		if( RET_WAS_ERROR(r) ) {
-			pull->includecondition = NULL;
-			pull_rule_free(pull);
-			return r;
-		}
-		assert( r != RET_NOTHING );
-	}
-	/* * Check if there is a list to say what can be included by pull * */
-	r = chunk_getvalue(chunk,"FilterList",&filename);
-	if( RET_WAS_ERROR(r) ) {
-		pull_rule_free(pull);
-		return r;
-	}
-	if( r != RET_NOTHING ) {
-		r = filterlist_load(&pull->filterlist,confdir,filename);
-		free(filename);
-		if( RET_WAS_ERROR(r) ) {
-			pull_rule_free(pull);
-			return r;
-		}
-		assert( r != RET_NOTHING );
-	} else {
-		filterlist_empty(&pull->filterlist,flt_install);
-	}
-	pull->distribution = NULL;
-	pull->used = FALSE;
-
-	*rule = pull;
-	return RET_OK;
-}
-
-struct getrules_data {
-	struct pull_rule **rules;
-	const char *confdir;
-};
-
-static retvalue pull_parsechunk(void *data,const char *chunk) {
-	struct pull_rule *pull;
-	struct getrules_data *d = data;
+CFUSETPROC(pull_rule, architectures) {
+	CFSETPROCVAR(pull_rule, this);
 	retvalue r;
 
-	r = parse_rule(d->confdir,chunk,&pull);
-	if( RET_IS_OK(r) ) {
-		pull->next = *d->rules;
-		*d->rules = pull;
+	this->architectures_set = true;
+	r = config_getsplitwords(iter, "Architectures",
+			&this->architectures_from,
+			&this->architectures_into);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+"Warning parsing %s, line %u: an empty Architectures field\n"
+"causes the whole rule to do nothing.\n",
+				config_filename(iter),
+				config_markerline(iter));
 	}
 	return r;
 }
 
+static const struct configfield pullconfigfields[] = {
+	CFr("Name", pull_rule, name),
+	CFr("From", pull_rule, from),
+	CF("Architectures", pull_rule, architectures),
+	CF("Components", pull_rule, components),
+	CF("UDebComponents", pull_rule, udebcomponents),
+	CF("FilterFormula", pull_rule, includecondition),
+	CF("FilterList", pull_rule, filterlist)
+};
+
 retvalue pull_getrules(const char *confdir,struct pull_rule **rules) {
-	char *pullfile;
 	struct pull_rule *pull = NULL;
-	struct getrules_data data;
 	retvalue r;
 
-	pullfile = calc_dirconcat(confdir,"pulls");
-	if( pullfile == NULL )
-		return RET_ERROR_OOM;
-	data.rules = &pull;
-	data.confdir = confdir;
-	r = chunk_foreach(pullfile,pull_parsechunk,&data,FALSE);
-	free(pullfile);
+	r = configfile_parse(confdir, "pulls", IGNORABLE(unknownfield),
+			configparser_pull_rule_init, linkedlistfinish,
+			pullconfigfields, ARRAYCOUNT(pullconfigfields), &pull);
 	if( RET_IS_OK(r) )
 		*rules = pull;
 	else if( r == RET_NOTHING ) {
+		assert( pull == NULL );
 		*rules = NULL;
 		r = RET_OK;
+	} else {
+		// TODO special handle unknownfield
+		pull_freerules(pull);
 	}
 	return r;
 }
@@ -313,7 +208,7 @@ static retvalue pull_initdistribution(struct pull_distribution **pp,
 				return RET_ERROR_MISSING;
 			}
 			p->rules[i] = rule;
-			rule->used = TRUE;
+			rule->used = true;
 		}
 	}
 	*pp = p;
@@ -328,6 +223,8 @@ static retvalue pull_init(struct pull_distribution **pulls,
 	retvalue r;
 
 	for( d = distributions ; d != NULL ; d = d->next ) {
+		if( !d->selected )
+			continue;
 		r = pull_initdistribution(pp, d, rules);
 		if( RET_WAS_ERROR(r) ) {
 			pull_freedistributions(p);
@@ -347,71 +244,26 @@ static retvalue pull_init(struct pull_distribution **pulls,
  * load the config of the distributions mentioned in the rules             *
  **************************************************************************/
 
-static inline void pull_addsourcedistribution(struct pull_rule *rules,
-		struct distribution *distribution) {
+static retvalue pull_loadsourcedistributions(struct distribution *alldistributions, struct pull_rule *rules) {
 	struct pull_rule *rule;
-
-	for( rule = rules ; rule != NULL ; rule = rule->next ) {
-		if( strcmp(rule->from, distribution->codename) == 0 )
-			rule->distribution = distribution;
-	}
-}
-
-static inline void pull_addsourcedistributions(struct pull_rule *rules,
-		struct distribution *distributions) {
 	struct distribution *d;
-
-	for( d = distributions ; d != NULL ; d = d->next ) {
-		pull_addsourcedistribution(rules, d);
-	}
-}
-
-static retvalue pull_loadmissingsourcedistributions(const char *confdir,
-		const char *logdir,
-		struct pull_rule *rules,
-		struct distribution **extradistributions) {
-	const char **names = NULL;
-	struct pull_rule *rule;
-	size_t count = 0;
-	retvalue r;
 
 	for( rule = rules ; rule != NULL ; rule = rule->next ) {
 		if( rule->used && rule->distribution == NULL ) {
-			unsigned int i;
-
-			for( i = 0 ; i < count ; i++ ) {
-				if( strcmp(names[i],rule->from) == 0 )
+			for( d = alldistributions ; d != NULL ; d = d->next ) {
+				if( strcmp(d->codename, rule->from) == 0 ) {
+					rule->distribution = d;
 					break;
-			}
-			if( i != count )
-				break;
-
-			if( (count & 7) == 0 ) {
-				const char **n = realloc(names,
-					(count+8)* sizeof(const char*));
-				if( n == NULL ) {
-					free(names);
-					return RET_ERROR_OOM;
 				}
-				names = n;
 			}
-			names[count++] = rule->from;
+			if( d == NULL ) {
+				fprintf(stderr, "Error: Unknown distribution '%s' referenced in pull rule '%s'\n",
+						rule->from, rule->name);
+				return RET_ERROR_MISSING;
+			}
 		}
 	}
-	if( count == 0 ) {
-		*extradistributions = NULL;
-		return RET_OK;
-	}
-	r = distribution_getmatched(confdir, logdir, count, names, FALSE, extradistributions);
-	free(names);
-	assert( r != RET_NOTHING );
-	if( RET_IS_OK(r) ) {
-		pull_addsourcedistributions(rules, *extradistributions);
-		for( rule = rules ; rule != NULL ; rule = rule->next ) {
-			assert( !rule->used || rule->distribution != NULL );
-		}
-	}
-	return r;
+	return RET_OK;
 }
 
 /***************************************************************************
@@ -431,7 +283,7 @@ struct pull_target {
 	/*@dependent@*/struct target *target;
 	/*@null@*/struct upgradelist *upgradelist;
 	/* Ignore delete marks (as some lists were missing) */
-	bool_t ignoredelete;
+	bool ignoredelete;
 };
 
 static void pull_freetargets(struct pull_target *targets) {
@@ -457,7 +309,7 @@ static retvalue pull_createsource(struct pull_rule *rule,
 	assert( rule != NULL );
 	assert( rule->distribution != NULL );
 
-	if( rule->architectures_into.count > 0 ) {
+	if( rule->architectures_set ) {
 		a_from = &rule->architectures_from;
 		a_into = &rule->architectures_into;
 	} else {
@@ -465,12 +317,12 @@ static retvalue pull_createsource(struct pull_rule *rule,
 		a_into = &rule->distribution->architectures;
 	}
 	if( strcmp(target->packagetype,"udeb") == 0 )  {
-		if( rule->udebcomponents.count > 0 )
+		if( rule->udebcomponents_set )
 			c = &rule->udebcomponents;
 		else
 			c = &rule->distribution->udebcomponents;
 	} else {
-		if( rule->components.count > 0 )
+		if( rule->components_set )
 			c = &rule->components;
 		else
 			c = &rule->distribution->components;
@@ -527,7 +379,7 @@ static retvalue generatepulltarget(struct pull_distribution *pd, struct target *
 	pt->target = target;
 	pt->next = pd->targets;
 	pt->upgradelist = NULL;
-	pt->ignoredelete = FALSE;
+	pt->ignoredelete = false;
 	pt->sources = NULL;
 	s = &pt->sources;
 	pd->targets = pt;
@@ -567,33 +419,204 @@ static retvalue pull_generatetargets(struct pull_distribution *pull_distribution
 }
 
 /***************************************************************************
+ * Some checking to be able to warn against typos                          *
+ **************************************************************************/
+
+static inline void markasused(const struct strlist *pulls, const char *rulename, const struct strlist *needed, const struct strlist *have, bool *found) {
+	int i, j, o;
+
+	for( i = 0 ; i < pulls->count ; i++ ) {
+		if( strcmp(pulls->values[i], rulename) != 0 )
+			continue;
+		for( j = 0 ; j < have->count ; j++ ) {
+			o = strlist_ofs(needed, have->values[j]);
+			if( o >= 0 )
+				found[o] = true;
+		}
+	}
+}
+
+static void checkifarchitectureisused(const struct strlist *architectures, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+	bool *found;
+	const struct distribution *d;
+	int i;
+
+	assert( rule != NULL );
+	if( architectures->count == 0 )
+		return;
+	found = strlist_preparefoundlist(architectures, true);
+	if( found == NULL )
+		return;
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		markasused(&d->pulls, rule->name,
+				architectures, &d->architectures,
+				found);
+	}
+	for( i = 0 ; i < architectures->count ; i++ ) {
+		if( found[i] )
+			continue;
+		fprintf(stderr,
+"Warning: pull rule '%s' wants to %s architecture '%s',\n"
+"but no distribution using this has such an architecture.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+				rule->name, action,
+				architectures->values[i]);
+	}
+	free(found);
+	return;
+}
+
+static void checkifcomponentisused(const struct strlist *components, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+	bool *found;
+	const struct distribution *d;
+	int i;
+
+	assert( rule != NULL );
+	if( components->count == 0 )
+		return;
+	found = strlist_preparefoundlist(components, true);
+	if( found == NULL )
+		return;
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		markasused(&d->pulls, rule->name,
+				components, &d->components,
+				found);
+	}
+	for( i = 0 ; i < components->count ; i++ ) {
+		if( found[i] )
+			continue;
+		fprintf(stderr,
+"Warning: pull rule '%s' wants to %s component '%s',\n"
+"but no distribution using this has such an component.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+				rule->name, action,
+				components->values[i]);
+	}
+	free(found);
+	return;
+}
+
+static void checkifudebcomponentisused(const struct strlist *udebcomponents, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+	bool *found;
+	const struct distribution *d;
+	int i;
+
+	assert( rule != NULL );
+	if( udebcomponents->count == 0 )
+		return;
+	found = strlist_preparefoundlist(udebcomponents, true);
+	if( found == NULL )
+		return;
+	for( d = alldistributions ; d != NULL ; d = d->next ) {
+		markasused(&d->pulls, rule->name,
+				udebcomponents, &d->udebcomponents,
+				found);
+	}
+	for( i = 0 ; i < udebcomponents->count ; i++ ) {
+		if( found[i] )
+			continue;
+		fprintf(stderr,
+"Warning: pull rule '%s' wants to %s udeb component '%s',\n"
+"but no distribution using this has such an udeb component.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+				rule->name, action,
+				udebcomponents->values[i]);
+	}
+	free(found);
+	return;
+}
+
+static void checksubset(const struct strlist *needed, const struct strlist *have, const char *rulename, const char *from, const char *what) {
+	int i, j;
+
+	for( i = 0 ; i < needed->count ; i++ ) {
+		const char *value = needed->values[i];
+
+		if( strcmp(value, "none") == 0 )
+			continue;
+
+		for( j = 0 ; j < i ; j++ ) {
+			if( strcmp(value, needed->values[j]) == 0 )
+				break;
+		}
+		if( j < i )
+			continue;
+
+		if( !strlist_in(have, value) ) {
+			fprintf(stderr,
+"Warning: pull rule '%s' wants to get something from %s '%s',\n"
+"but there is no such %s in distribution '%s'.\n"
+"(This will simply be ignored and is not even checked when using --fast).\n",
+					rulename, what, value, what, from);
+		}
+	}
+}
+
+static void searchunused(const struct distribution *alldistributions, const struct pull_rule *rule) {
+	if( rule->distribution != NULL ) {
+		// TODO: move this part of the checks into parsing?
+		checksubset(&rule->architectures_from,
+				&rule->distribution->architectures,
+				rule->name, rule->from, "architecture");
+		checksubset(&rule->components,
+				&rule->distribution->components,
+				rule->name, rule->from, "component");
+		checksubset(&rule->udebcomponents,
+				&rule->distribution->udebcomponents,
+				rule->name, rule->from, "udeb component");
+	}
+
+	if( rule->distribution == NULL ) {
+		assert( strcmp(rule->from, "*") == 0 );
+		checkifarchitectureisused(&rule->architectures_from,
+				alldistributions, rule, "get something from");
+		/* no need to check component and udebcomponent, as those
+		 * are the same with the others */
+	}
+	checkifarchitectureisused(&rule->architectures_into,
+			alldistributions, rule, "put something into");
+	checkifcomponentisused(&rule->components,
+			alldistributions, rule, "put something into");
+	checkifudebcomponentisused(&rule->udebcomponents,
+			alldistributions, rule, "put something into");
+}
+
+static void pull_searchunused(const struct distribution *alldistributions, struct pull_rule *pull_rules) {
+	struct pull_rule *rule;
+
+	for( rule = pull_rules ; rule != NULL ; rule = rule->next ) {
+		if( !rule->used )
+			continue;
+
+		searchunused(alldistributions, rule);
+	}
+}
+
+/***************************************************************************
  * combination of the steps two, three and four                            *
  **************************************************************************/
 
-retvalue pull_prepare(const char *confdir,const char *logdir,struct pull_rule *rules,struct distribution *distributions, struct pull_distribution **pd,struct distribution **alsoneeded) {
-	struct distribution *extra;
+retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *rules, bool fast, struct pull_distribution **pd) {
 	struct pull_distribution *pulls;
 	retvalue r;
 
-	r = pull_init(&pulls, rules, distributions);
+	r = pull_init(&pulls, rules, alldistributions);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	pull_addsourcedistributions(rules, distributions);
-
-	r = pull_loadmissingsourcedistributions(confdir, logdir, rules, &extra);
+	r = pull_loadsourcedistributions(alldistributions, rules);
 	if( RET_WAS_ERROR(r) ) {
 		pull_freedistributions(pulls);
 		return r;
 	}
+	if( !fast )
+		pull_searchunused(alldistributions, rules);
+
 	r = pull_generatetargets(pulls);
 	if( RET_WAS_ERROR(r) ) {
-		// thats a bit ugly, as rules are already poluted with them...
-		distribution_freelist(extra);
 		pull_freedistributions(pulls);
 		return r;
 	}
-	*alsoneeded = extra;
 	*pd = pulls;
 	return RET_OK;
 }
@@ -633,14 +656,14 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 	return UD_UPGRADE;
 }
 
-static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct pull_target *p) {
+static inline retvalue pull_searchformissing(FILE *out,struct database *database,struct pull_target *p) {
 	struct pull_source *source;
 	retvalue result,r;
 
 	if( verbose > 2 )
 		fprintf(out,"  pulling into '%s'\n",p->target->identifier);
 	assert(p->upgradelist == NULL);
-	r = upgradelist_initialize(&p->upgradelist,p->target,dbdir);
+	r = upgradelist_initialize(&p->upgradelist, p->target, database);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -655,7 +678,7 @@ static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct 
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				return result;
-			p->ignoredelete = FALSE;
+			p->ignoredelete = false;
 			continue;
 		}
 
@@ -665,7 +688,7 @@ static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct 
 		r = upgradelist_pull(p->upgradelist,
 				source->source,
 				ud_decide_by_rule, source->rule,
-				dbdir);
+				database);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -674,7 +697,7 @@ static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct 
 	return result;
 }
 
-static retvalue pull_search(FILE *out,const char *dbdir,struct pull_distribution *d) {
+static retvalue pull_search(FILE *out,struct database *database,struct pull_distribution *d) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -694,7 +717,7 @@ static retvalue pull_search(FILE *out,const char *dbdir,struct pull_distribution
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
-		r = pull_searchformissing(out,dbdir,u);
+		r = pull_searchformissing(out, database, u);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -702,7 +725,7 @@ static retvalue pull_search(FILE *out,const char *dbdir,struct pull_distribution
 	return result;
 }
 
-static retvalue pull_install(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distribution,struct strlist *dereferencedfilekeys) {
+static retvalue pull_install(struct database *database,struct pull_distribution *distribution,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -712,7 +735,7 @@ static retvalue pull_install(const char *dbdir,filesdb filesdb,references refs,s
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
-				dbdir, filesdb, refs,
+				database,
 				u->ignoredelete, dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		RET_UPDATE(result,r);
@@ -737,7 +760,7 @@ static void pull_dump(struct pull_distribution *distribution) {
 	}
 }
 
-retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys) {
+retvalue pull_update(struct database *database,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys) {
 	retvalue result,r;
 	struct pull_distribution *d;
 
@@ -753,7 +776,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 	result = RET_NOTHING;
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(stdout, dbdir, d);
+		r = pull_search(stdout, database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -773,7 +796,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
+		r = pull_install(database, d, dereferencedfilekeys);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -783,7 +806,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 	return result;
 }
 
-retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributions) {
+retvalue pull_checkupdate(struct database *database, struct pull_distribution *distributions) {
 	struct pull_distribution *d;
 	retvalue result,r;
 
@@ -793,7 +816,7 @@ retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributi
 	result = RET_NOTHING;
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(stderr, dbdir, d);
+		r = pull_search(stderr, database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;

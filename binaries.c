@@ -83,7 +83,7 @@ static retvalue binaries_parse_chunk(const char *chunk,const char *packagename,c
 	assert(packagename!=NULL);
 
 	/* get the sourcename */
-	r = chunk_getname(chunk,"Source",&mysourcename,TRUE);
+	r = chunk_getname(chunk, "Source", &mysourcename, true);
 	if( r == RET_NOTHING ) {
 		mysourcename = strdup(packagename);
 		if( mysourcename == NULL )
@@ -253,7 +253,7 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 	char *newchunk;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(distribution->overrides.deb, packagename);
 	if( o == NULL )
@@ -276,7 +276,7 @@ retvalue ubinaries_doreoverride(const struct distribution *distribution,const ch
 	char *newchunk;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(distribution->overrides.udeb, packagename);
 	if( o == NULL )
@@ -293,7 +293,7 @@ retvalue ubinaries_doreoverride(const struct distribution *distribution,const ch
 	return RET_OK;
 }
 
-retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const char *chunk, trackingdb tracks,references refs) {
+retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const char *chunk, trackingdb tracks,struct database *database) {
 	retvalue r;
 	const char *sourcename;
 	char *fsourcename,*sourceversion,*arch,*filekey;
@@ -304,7 +304,7 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 	assert(packagename!=NULL);
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	/* is there a sourcename */
 	r = chunk_getnameandversion(chunk,"Source",&fsourcename,&sourceversion);
@@ -366,7 +366,8 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 		return r;
 	}
 	assert( r != RET_NOTHING );
-	r = trackedpackage_addfilekey(tracks,pkg,filetype,filekey,TRUE,refs);
+	r = trackedpackage_addfilekey(tracks, pkg, filetype, filekey, true,
+			database);
 	if( RET_WAS_ERROR(r) ) {
 		trackedpackage_free(pkg);
 		return r;
@@ -449,7 +450,7 @@ void binaries_debdone(struct deb_headers *pkg) {
 	free(pkg->priority);
 }
 
-retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t needssourceversion) {
+retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool needssourceversion) {
 	retvalue r;
 
 	r = extractcontrol(&deb->control,filename);
@@ -457,7 +458,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t 
 		return r;
 	/* first look for fields that should be there */
 
-	r = chunk_getname(deb->control,"Package",&deb->name,FALSE);
+	r = chunk_getname(deb->control, "Package", &deb->name, false);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing 'Package' field in %s!\n",filename);
 		r = RET_ERROR;
@@ -480,7 +481,7 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool_t 
 	if( needssourceversion )
 		r = chunk_getnameandversion(deb->control,"Source",&deb->source,&deb->sourceversion);
 	else
-		r = chunk_getname(deb->control,"Source",&deb->source,TRUE);
+		r = chunk_getname(deb->control, "Source", &deb->source, true);
 	if( r == RET_NOTHING ) {
 		deb->source = strdup(deb->name);
 		if( deb->source == NULL )
@@ -550,7 +551,7 @@ retvalue binaries_complete(const struct deb_headers *pkg,const char *filekey,con
 	return RET_OK;
 }
 
-retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,const char *component,const struct strlist *filekeys, const char *control) {
+retvalue binaries_adddeb(const struct deb_headers *deb,struct database *database,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata,const char *component,const struct strlist *filekeys, const char *control) {
 	retvalue r,result;
 	int i;
 
@@ -564,17 +565,17 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 		struct target *t = distribution_getpart(distribution,
 				component, deb->architecture,
 				packagetype);
-		r = target_initpackagesdb(t,dbdir);
+		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
-						refs, deb->name,
-						deb->version,
+						database,
+						deb->name, deb->version,
 						control,
-						filekeys, FALSE,
+						filekeys, false,
 						dereferencedfilekeys,
 						trackingdata, ft_ARCH_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -585,17 +586,17 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 		struct target *t = distribution_getpart(distribution,
 				component, forcearchitecture,
 				packagetype);
-		r = target_initpackagesdb(t,dbdir);
+		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
-						refs, deb->name,
-						deb->version,
+						database,
+						deb->name, deb->version,
 						control,
-						filekeys, FALSE,
+						filekeys, false,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -607,17 +608,17 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 		if( strcmp(distribution->architectures.values[i],"source") == 0 )
 			continue;
 		t = distribution_getpart(distribution,component,distribution->architectures.values[i],packagetype);
-		r = target_initpackagesdb(t,dbdir);
+		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
 			if( interrupted() )
-				r = RET_ERROR_INTERUPTED;
+				r = RET_ERROR_INTERRUPTED;
 			else
 				r = target_addpackage(t, distribution->logger,
-						refs, deb->name,
-						deb->version,
+						database,
+						deb->name, deb->version,
 						control,
-						filekeys, FALSE,
+						filekeys, false,
 						dereferencedfilekeys,
 						trackingdata, ft_ALL_BINARY);
 			r2 = target_closepackagesdb(t);
@@ -630,22 +631,22 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 	return result;
 }
 
-static inline retvalue checkadddeb(const char *dbdir,struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,bool_t tracking,const struct deb_headers *deb,bool_t permitnewerold) {
+static inline retvalue checkadddeb(struct database *database, struct distribution *distribution, const char *component, const char *architecture, const char *packagetype, bool tracking, const struct deb_headers *deb, bool permitnewerold) {
 	retvalue r;
 	struct target *t;
 
 	t = distribution_getpart(distribution,
 			component, architecture, packagetype);
 	assert( t != NULL );
-	r = target_initpackagesdb(t, dbdir);
+	r = target_initpackagesdb(t, database, READONLY);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
-			r = RET_ERROR_INTERUPTED;
+			r = RET_ERROR_INTERRUPTED;
 		else
 			r = target_checkaddpackage(t,
-					deb->name,
-					deb->version, tracking,
+					deb->name, deb->version,
+					tracking,
 					permitnewerold);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
@@ -653,7 +654,7 @@ static inline retvalue checkadddeb(const char *dbdir,struct distribution *distri
 	return r;
 }
 
-retvalue binaries_checkadddeb(const struct deb_headers *deb,const char *dbdir,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,bool_t tracking,const char *component,bool_t permitnewerold) {
+retvalue binaries_checkadddeb(const struct deb_headers *deb, struct database *database, const char *forcearchitecture, const char *packagetype, struct distribution *distribution, bool tracking, const char *component, bool permitnewerold) {
 	retvalue r,result;
 	int i;
 
@@ -661,13 +662,13 @@ retvalue binaries_checkadddeb(const struct deb_headers *deb,const char *dbdir,co
 	result = RET_NOTHING;
 
 	if( strcmp(deb->architecture,"all") != 0 ) {
-		r = checkadddeb(dbdir, distribution,
+		r = checkadddeb(database, distribution,
 				component, deb->architecture, packagetype,
 				tracking, deb,
 				permitnewerold);
 		RET_UPDATE(result,r);
 	} else if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 ) {
-		r = checkadddeb(dbdir, distribution,
+		r = checkadddeb(database, distribution,
 				component, forcearchitecture, packagetype,
 				tracking, deb,
 				permitnewerold);
@@ -676,7 +677,7 @@ retvalue binaries_checkadddeb(const struct deb_headers *deb,const char *dbdir,co
 		const char *a = distribution->architectures.values[i];
 		if( strcmp(a, "source") == 0 )
 			continue;
-		r = checkadddeb(dbdir, distribution,
+		r = checkadddeb(database, distribution,
 				component, a, packagetype,
 				tracking, deb,
 				permitnewerold);

@@ -10,14 +10,11 @@
 	IGN(forbiddenchar) \
 	IGN(8bit) \
 	IGN(emptyfilenamepart) \
-	IGN(overlongcomments) \
 	IGN(spaceonlyline) \
 	IGN(malformedchunk) \
-	IGN(shortkeyid) \
 	IGN(unknownfield) \
 	IGN(wrongdistribution) \
 	IGN(missingfield) \
-	IGN(doublefield) \
 	IGN(brokenold) \
 	IGN(brokenversioncmp) \
 	IGN(extension) \
@@ -29,6 +26,8 @@
 	IGN(dscinbinnmu) \
 	IGN(brokensignatures) \
 	IGN(uploaders) \
+	IGN(undefinedtarget) \
+	IGN(undefinedtracking) \
 	IGN(missingfile)
 
 
@@ -41,7 +40,7 @@ enum ignore {
 };
 
 extern int ignored[IGN_COUNT];
-extern bool_t ignore[IGN_COUNT];
+extern bool ignore[IGN_COUNT];
 
 #define IGNORING(ignoring,toignore,what,...) \
 	({ 	fprintf(stderr, ## __VA_ARGS__); \
@@ -62,6 +61,6 @@ extern bool_t ignore[IGN_COUNT];
 
 void init_ignores(void);
 
-retvalue set_ignore(const char *given,bool_t newvalue, enum config_option_owner newowner);
+retvalue set_ignore(const char *given, bool newvalue, enum config_option_owner newowner);
 
 #endif

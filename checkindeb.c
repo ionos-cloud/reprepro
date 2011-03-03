@@ -80,7 +80,7 @@ void deb_free(/*@only@*/struct debpackage *pkg) {
 }
 
 /* read the data from a .deb, make some checks and extract some data */
-static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename, bool_t needssourceversion) {
+static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename, bool needssourceversion) {
 	retvalue r;
 	struct debpackage *deb;
 
@@ -106,7 +106,7 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char * const forcecomponent,const char * const forcearchitecture,const char *forcesection,const char *forcepriority,const char * const packagetype,struct distribution *distribution,const char *debfilename,const char * const givenfilekey,const char * const givenmd5sum,int delete,bool_t needsourceversion,const struct strlist *allowed_binaries,const char *expectedsourcepackage,const char *expectedsourceversion){
+retvalue deb_prepare(/*@out@*/struct debpackage **deb, struct database *database, const char * const forcecomponent, const char * const forcearchitecture, const char *forcesection, const char *forcepriority, const char * const packagetype, struct distribution *distribution, const char *debfilename, const char * const givenfilekey, const char * const givenmd5sum, int delete, bool needsourceversion, const struct strlist *allowed_binaries, const char *expectedsourcepackage, const char *expectedsourceversion){
 	retvalue r;
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -265,7 +265,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 			return RET_ERROR_OOM;
 		}
 		if( givenfilekey == NULL ) {
-			r = files_ready(filesdb, pkg->filekey,pkg->md5sum);
+			r = files_ready(database, pkg->filekey,pkg->md5sum);
 			if( RET_WAS_ERROR(r) ) {
 				deb_free(pkg);
 				return r;
@@ -273,7 +273,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 		}
 	} else {
 		assert(givenfilekey == NULL);
-		r = files_include(filesdb,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
+		r = files_include(database,debfilename,pkg->filekey,NULL,&pkg->md5sum,delete);
 		if( RET_WAS_ERROR(r) ) {
 			deb_free(pkg);
 			return r;
@@ -293,14 +293,14 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb,filesdb filesdb,const char
 	return RET_OK;
 }
 
-retvalue deb_hardlinkfiles(struct debpackage *deb,filesdb filesdb,const char *debfilename) {
+retvalue deb_hardlinkfiles(struct debpackage *deb,struct database *database,const char *debfilename) {
 	assert( deb != NULL );
 	assert( deb->filekey != NULL && deb-> md5sum != NULL );
-	return files_hardlink(filesdb, debfilename, deb->filekey, deb->md5sum);
+	return files_hardlink(database, debfilename, deb->filekey, deb->md5sum);
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,references refs,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
-	return binaries_adddeb(&pkg->deb, dbdir, refs, forcearchitecture,
+retvalue deb_addprepared(const struct debpackage *pkg,struct database *database,const char *forcearchitecture,const char *packagetype,struct distribution *distribution,struct strlist *dereferencedfilekeys,struct trackingdata *trackingdata) {
+	return binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			trackingdata,
 			pkg->component, &pkg->filekeys, pkg->deb.control);
@@ -310,7 +310,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
+retvalue deb_add(struct database *database,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,const char *packagetype,struct distribution *distribution,const char *debfilename,const char *givenfilekey,const char *givenmd5sum,int delete,struct strlist *dereferencedfilekeys,/*@null@*/trackingdb tracks){
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
@@ -318,7 +318,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( givenfilekey != NULL && givenmd5sum != NULL ) {
 		assert( delete == D_INPLACE );
 	}
-	r = deb_prepare(&pkg,filesdb,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,delete,tracks!=NULL,NULL,NULL,NULL);
+	r = deb_prepare(&pkg,database,forcecomponent,forcearchitecture,forcesection,forcepriority,packagetype,distribution,debfilename,givenfilekey,givenmd5sum,delete,tracks!=NULL,NULL,NULL,NULL);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -333,7 +333,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		}
 	}
 
-	r = binaries_adddeb(&pkg->deb, dbdir, refs, forcearchitecture,
+	r = binaries_adddeb(&pkg->deb, database, forcearchitecture,
 			packagetype, distribution, dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL,
 			pkg->component, &pkg->filekeys, pkg->deb.control);
@@ -342,7 +342,7 @@ retvalue deb_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 
 	if( tracks != NULL ) {
 		retvalue r2;
-		r2 = trackingdata_finish(tracks, &trackingdata, refs, dereferencedfilekeys);
+		r2 = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
 		RET_ENDUPDATE(r,r2);
 	}
 

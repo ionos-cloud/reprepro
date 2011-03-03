@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "March, 29th 2007" "reprepro" REPREPRO
+.TH REPREPRO 1 "2007-10-08" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -108,10 +108,14 @@ when not in an update run.
 
 If none is given, \fIbasedir\fP\fB/lists\fP is used.
 .TP
-.B \-\-overridedir \fIoverridedir\fP
+.B \-\-overridedir \fIoverridedir\fP \fR(OBSOLETE)\fP
 Sets the directory where specified override\-files will be searched in if
 they do not start with a slash.
 If none is given, \fIbasedir\fP\fB/override\fP is used.
+.br
+This will be removed in a future version.
+Since reprepro 3.0.0, also the directory given to \-\-confdir is searched
+for override files.
 .TP
 .B \-\-methoddir \fImethoddir\fP
 Look in \fImethoddir\fP instead of
@@ -287,6 +291,17 @@ number with its Source, as binary and source version differ).
 .B remove \fIcodename\fP \fIpackage name\fP
 same as list, but remove instead of list.
 .TP
+.B removefilter \fIcodename\fP \fIcondition\fP
+as listfilter, but remove matched packages instead of listing them.
+.TP
+.B removesrc \fIcodename\fP \fIsource-name\fP \fR[\fP\fIversion\fP\fR]\fP
+Remove all packages in distribution \fIcodename\fP belonging to source
+package \fIsource-name\fP.
+(Limited to those with source version \fIversion\fP if specified).
+
+If package tracking is activated, it will use that information to find the
+packages, otherwise it traverses all package indicies for the distribution.
+.TP
 .BR update " [ " \fIcodenames\fP " ]"
 Sync the specified distributions (all if none given) as
 specified in the config with their upstreams. See the
@@ -405,9 +420,17 @@ given distributions.
 .TP
 .BR retrack " [ " \fIcodenames\fP " ]"
 Recreate a tracking database for the specified distributions.
-As this only takes information from the Indices into account,
-this will loose all information about older packages or
-changes files.
+This contains ouf of three steps.
+First all files marked as part of a source package are set to
+unused.
+Then all files actually used are marked as thus.
+Finaly tidytracks is called remove everything no longer needed
+with the new information about used files.
+
+(This behaviour, though a bit longsome, keeps even files only
+kept because of tracking mode \fBkeep\fP and files not otherwise
+used but kept due to \fBincludechanges\fP or its relatives.
+Before version 3.0.0 such files were lost by running retrack).
 .TP
 .BR removealltracks " [ " \fIcodenames\fP " ]"
 Removes all source package tracking information for the
@@ -458,6 +481,15 @@ your sources.list file:
 .BR rerunnotifiers " [ " \fIcodenames\fP " ]"
 Run all external scripts specified in the \fBLog:\fP options of the
 specified distributions.
+.TP
+.B translatefilelists
+Translate the file list chache within
+.IB db /contents.cache.db
+into the new format used since reprepro 3.0.0.
+
+Make sure you have at least half of the space of the current
+.IB db /contents.cache.db
+file size available in that partition.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -511,8 +543,6 @@ of the specified .deb-file.
 .BI _fakeemptyfilelist filekey
 Insert an empty filelist for \fIfilekey\fP. This is a evil
 hack around broken .deb files that cannot be read by reprepro.
-.B control
-file of the specified .deb-file.
 .SH "CONFIG FILES"
 .B reprepo
 uses three config files, which are searched in
@@ -544,13 +574,19 @@ The file
 is always needed and describes what distributions
 to manage, while
 .B updates
-is only needed when syncing with external repositories.
+is only needed when syncing with external repositories and
+.B pulls
+is only needed when syncing with repositories in the same reprepro database.
 
-The last both are in the format control files in Debian are in,
-i.e. paragraphs separated by blank lines consisting of
+The last three are in the format control files in Debian are in,
+i.e. paragraphs separated by empty lines consisting of
 fields. Each field consists of an fieldname, followed
 by a colon, possible whitespace and the data. A field
 ends with a newline not followed by a space or tab.
+
+Lines starting with # as first character are ignored,
+while in other lines the # character and
+everything after it till the newline character are ignored.
 .SS conf/distributions
 .TP
 .B Codename
@@ -641,8 +677,7 @@ See the description for \fBconf/pulls\fP.
 .TP
 .B SignWith
 When this field is present, a Release.gpg file will be generated.
-If the value is "yes" and "default", the default key
-is used.
+If the value is "yes" or "default", the default key is used.
 Otherwise the value will be given to libgpgme to determine to key to
 use.
 (That should be roughly the one \fBgpg \-\-list\-secret\-keys\fP \fIvalue\fP would output).
@@ -688,16 +723,12 @@ Enable the creation of Contents files listing all the files
 within the binary packages of a distribution.
 (Which is quite slow, you have been warned).
 
-The first argument is the rate at which to extract the files
-from packages.
-If it is 1, every file will be processed.
-If it is 2, at least half of the uncached files and at most half
-of all files are read to extract their filelist.
-If it is 3, at least a third of yet uncached files and at most a
-third of all files is read.
-And so on...
+In earlier versions, the first argument was a rate at which
+to extract file lists.
+As this did not work and was no longer easily possible after
+some factorisation, this is no longer supported.
 
-After that a space separated list of options can be given.
+The arguments of this field is a space separated list of options.
 If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
 (in a file called \fBuContents\-\fP\fIarchitecture\fP.)
 If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
@@ -708,19 +739,31 @@ of only gzipped.
 .TP
 .B ContentsArchitectures
 Limit generation of Contents files to the architectures given.
-If this field is not there or empty, all architectures are processed.
+If this field is not there, all architectures are processed.
+An empty field means no architectures are processed, thus not
+very useful.
 .TP
 .B ContentsComponents
-Limit what components are processed for the Contents files to
-the components given.
-If this field is not there or empty, all components are processed.
+Limit what components are processed for the \fBContents-\fP\fIarch\fP
+files to the components given.
+If this field is not there, all components are processed.
+An empty field is equivalent to specify \fBnodebs\fP in the
+\fBContents\fP field, while a non-empty field overrides a
+\fBnodebs\fP there.
 .TP
 .B ContentsUComponents
 Limit what components are processed for the uContents files to
 the components given.
-If this field is not there or empty, all components are processed.
-(Note unless you specify \fBudebs\fP in the \fBContents:\fP line,
-no udeb Components are processed at all.)
+If this field is not there and there is the \fBudebs\fP keyword
+in the Contents field, all .udebs of all components are put
+in the \fBuContents.\fP\fIarch\fP files.
+If this field is not there and there is no \fBudebs\fP keyword
+in the Contents field, no \fBuContents\fP-\fIarch\fP files are
+generated at all.
+A non-empty fields implies generation of \fBuContents\fP-\fIarch\fP
+files (just like the \fBudebs\fP keyword in the Contents field),
+while an empty one causes no \fBuContents-\fP\fIarch\fP files to
+be generated.
 .TP
 .B Uploaders
 Specified a file (relative to confdir if not starting with a slash)
@@ -829,9 +872,21 @@ is replaced by "<codename>/whatever"
 The components to update. Each item can be either the name
 of a component or a pair of a upstream component and a local
 component separated with ">". (e.g. "main>all contrib>all non\-free>notall")
-Items with a local part are ignored. If no items are there
-all from the updated distribution are taken. (Use some non existing
-like "none", if you want none).
+
+If this field is not there, all components from the distribution
+to update are tried.
+
+And emtpy field means no source or .deb packages are updated by this rule,
+but only .udeb packages, if there are any.
+
+A rule might list components not available in all distributions
+using this rule. In this case unknown components are silently
+ignored.
+(Unless you start reprepro with the \fB\-\-fast\fP option,
+it will warn about components unusable in all distributions using
+that rule. As exceptions, unusable components called \fBnone\fP
+are never warned about, for compatibility with versions prior to
+3.0.0 where and empty field had a different meaning.)
 .TP
 .B Architectures
 The architectures to update. If omitted all from the distribution
@@ -839,7 +894,7 @@ to update from. (As with components, you can use ">" to download
 from one Architecture and add into an other one. (This only determine
 in which Package list they land, it neither overwrites the Architecture
 line in its description, nor the one in the filename determined from this
-one. In other words, it is no really useful without additional things)
+one. In other words, it is no really useful without additional filtering)
 .TP
 .B UDebComponents
 Like
@@ -918,9 +973,17 @@ The codename of the distribution to pull packages from.
 .TP
 .B Components
 The components of the distribution to get from.
-Unknown items are ignored to ease rule reuse.
-If there are no items, all components from distribution are taken.
-(Use some non existing like "none", if you want none).
+
+If this field is not there,
+all components from the distribution to  update are tried.
+
+A rule might list components not available in all distributions using this
+rule. In this case unknown components are silently ignored.
+(Unless you start reprepro with the \-\-fast option,
+it will warn about components unusable in all distributions using that rule.
+As exception, unusable components called \fBnone\fP are never warned about,
+for compatibility with versions prior to 3.0.0 where and empty field had
+a different meaning.)
 .TP
 .B Architectures
 The architectures to update.
@@ -1085,13 +1148,6 @@ ignore directive is given.
 .B brokenversioncmp \fR(hopefully never seen)
 If comparing an old and a new version fails, assume the new one is newer.
 .TP
-.B doublefield \fR(better comment the second one)
-Ignore doubled fields in the config files,
-instead of refusing to run then.
-In general the second one should be ignored then, but
-perhaps sometimes the first one.
-So I hope you know what you do.
-.TP
 .B dscinbinnmu
 If a .changes file has an explicit Source version that is different the
 to the version header of the file,
@@ -1154,16 +1210,6 @@ try to get files needed but not listed in the .changes file
 from the directory the .changes file is in instead of erroring out.
 (\fB\-\-delete\fP will not work with those files, though.)
 .TP
-.B overlongcomments \fR(I hope you know what you do)
-Allow overlong comments. That is a line started with a hash(#)
-followed by lines starting with spaces. By default reprepro errors
-out in that case, as marking every line as comment is as easy and
-people might try to comment a single line within a multi-line
-header (which does not work but makes all the rest a comment).
-.TP
-.B shortkeyid \fR(insecure)
-Allow gpg-keys to be specified with less than 8 hexdigits of their fingerprint.
-.TP
 .B spaceonlyline \fR(I hope you know what you do)
 Allow lines containing only (but non-zero) spaces. As these
 do not separate chunks as thus will cause reprepro to behave
@@ -1177,6 +1223,28 @@ architecture not listed in the Architecture-header within it.
 Do not reject a .changes file containing .deb files containing
 packages whose name is not listed in the "Binary:" header
 of that changes file.
+.TP
+.B undefinedtarget \fR(hope you are not using the wrong db directory)
+Do not stop when the packages.db file contains databases for
+codename/packagetype/component/architectures combinations that are
+not listed in your distributions file.
+
+This allows you to temporarily remove some distribution from the config files,
+without having to remove the packages in it with the \fBclearvanished\fP
+command.
+You might even temporarily remove single architectures or components,
+though that might cause inconsistencies in some situations.
+.TP
+.B undefinedtracking \fR(hope you are not using the wrong db directory)
+Do not stop when the tracking file contains databases for
+distributions that are not listed in your \fBdistributions\fP file.
+
+This allows you to temporarily remove some distribution from the config files,
+without having to remove the packages in it with the \fBclearvanished\fP
+command.
+You might even temporarily disable tracking in some distribution, but that
+is likely to cause inconsistencies in there, if you do not know, what you
+are doing.
 .TP
 .B unknownfield \fR(for forward compatibility)
 Ignore unknown fields in the config files, instead of refusing to run

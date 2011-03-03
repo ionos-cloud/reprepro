@@ -207,7 +207,7 @@ commands=( export:"export index files"
 	deleteunreferenced:"delete files without reference"
 	reoverride:"apply override information to already existing packages"
 	dumptracks:"dump tracking information"
-	retrack:"recreate tracking information"
+	retrack:"refresh tracking information"
 	removealltracks:"remove tracking information"
 	removetrack:"remove a single tracking data"
 	tidytracks:"look for files referened by tracks but no longer needed"
@@ -215,6 +215,8 @@ commands=( export:"export index files"
 	clearvanished:"remove empty databases"
 	gensnapshot:"generate a snapshot"
 	rerunnotifiers:"call notificators as if all packages were just included"
+	generatefilelists:"pre-prepare filelist caches for all binary packages"
+	translatefilelists:"translate pre-3.0.0 contents.cache.db into new format"
    	)
 hiddencommands=(
 	_detect:"look if the file belonging to a filekey exists and add to the database."
@@ -252,10 +254,8 @@ _arguments \
 		forbiddenchar\:"allow more 7bit characters for names and versions"\
 		8bit\:"allow 8 bit characters"\
 		emptyfilenamepart\:"allow strings used to construct filenames to be empty"\
-		overlongcomments\:"allow multiline comments"\
 		spaceonlyline\:"do not warn about lines containing only spaces"\
 		malformedchunk\:"ignore lines without colons"\
-		shortkeyid\:"allow gpg-keys specified with less than 8 hex-digits"\
 		unknownfield\:"ignore unknown fields"\
 		wrongdistribution\:"put .changes files in distributed they were not made for"\
 		missingfield\:"allow missing fields"\
@@ -263,6 +263,8 @@ _arguments \
 		brokenversioncmp\:"ignore versions not parseable"\
 		extension\:"ignore unexpected suffixes of files"\
 		unusedarch\:"allow changes files to list achitectures not used"\
+		undefinedtarget\:"allow unspecified package databases"\
+		undefinedtracking\:"allow unspecified tracking databases"\
 		surprisingarch\:"do not protest when a changes file does not list a architecture it has files for"\
 		surprisingbinary\:"do not demand a .changes Binaries header to list all binaries"\
 		wrongsourceversion\:"do not demand coherent source versions in a .changes"\
@@ -273,12 +275,12 @@ _arguments \
 		missingfile\:"include commands search harder for missing files like .orig.tar.gz"\
 		))' \
 	'*--unignore=[Do not ignore errors of type]:error type:(
-		ignore forbiddenchar 8bit emptyfilenamepart overlongcomments\
-		spaceonlyline malformedchunk shortkeyid unknownfield\
+		ignore forbiddenchar 8bit emptyfilenamepart\
+		spaceonlyline malformedchunk unknownfield\
 		wrongdistribution missingfield brokenold brokenversioncmp\
 		extension unusedarch surprisingarch surprisingbinary
 		wrongsourceversion wrongversion brokensignatures
-		missingfile uploaders)' \
+		missingfile uploaders undefinedtarget undefinedtracking)' \
 	'--waitforlock=[Time to wait if database is locked]:count:(0 3600)' \
 	'--spacecheck[Mode for calculating free space before downloading packages]:behavior:(full none)' \
 	'--dbsafetymargin[Safety margin for the partition with the database]:bytes count:' \

@@ -48,12 +48,12 @@ static retvalue parseatom(const char **formula,/*@out@*/struct term_atom **atom,
 	const char *keystart,*keyend;
 	const char *valuestart,*valueend;
 	enum term_comparison comparison = tc_none;
-	bool_t negated = FALSE;
+	bool negated = false;
 
 
 	overspace();
 	if( *f == '!' && ISSET(options,T_NEGATION) ) {
-		negated = TRUE;
+		negated = true;
 		f++;
 	}
 	keystart = f;
@@ -222,7 +222,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 	depth=0;
 	first = last = NULL;
 
-	while( TRUE ) {
+	while( true ) {
 		overspace();
 		while( *formula == '(' && ISSET(options,T_BRACKETS)) {
 			depth++;formula++;
@@ -313,7 +313,7 @@ retvalue term_compile(term **term, const char *origformula, int options) {
 retvalue term_decidechunk(term *condition,const char *controlchunk) {
 	struct term_atom *atom = condition;
 	while( atom != NULL ) {
-		bool_t correct;char *value;
+		bool correct;char *value;
 		enum term_comparison c = atom->comparison;
 		retvalue r;
 
@@ -323,7 +323,7 @@ retvalue term_decidechunk(term *condition,const char *controlchunk) {
 		if( r == RET_NOTHING ) {
 			correct = ( c == tc_notequal );
 		} else if( c == tc_none) {
-			correct = TRUE;
+			correct = true;
 			free(value);
 		} else {
 			int i;

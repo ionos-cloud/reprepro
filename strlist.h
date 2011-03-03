@@ -39,11 +39,19 @@ void strlist_move(/*@out@*/struct strlist *dest,struct strlist *orig);
 /* empty orig and add everything to the end of dest, on error nothing is freed */
 retvalue strlist_mvadd(struct strlist *dest,struct strlist *orig);
 
-bool_t strlist_in(const struct strlist *strlist,const char *element);
+bool strlist_in(const struct strlist *strlist, const char *element);
 int strlist_ofs(const struct strlist *strlist,const char *element);
 
-bool_t strlist_intersects(const struct strlist *,const struct strlist *);
+bool strlist_intersects(const struct strlist *, const struct strlist *);
 /* if missing != NULL And subset no subset of strlist, set *missing to the first missing one */
-bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset,const char **missing);
+bool strlist_subset(const struct strlist *strlist, const struct strlist *subset, const char **missing);
 
+/* a list of bool for all values, duplicates already set to true */
+bool *strlist_preparefoundlist(const struct strlist *, bool ignorenone);
+
+/* concatenate <prefix> <values separated by infix> <suffix> */
+char *strlist_concat(const struct strlist *, const char *prefix, const char *infix, const char *suffix);
+
+/* remove all strings equal to the argument */
+void strlist_remove(struct strlist *, const char *);
 #endif

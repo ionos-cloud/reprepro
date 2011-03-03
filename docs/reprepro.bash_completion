@@ -62,9 +62,10 @@ _reprepro()
 
 	COMPREPLY=()
 
-	ignores='ignore forbiddenchar 8bit emptyfilenamepart overlongcomments\
-		spaceonlyline malformedchunk shortkeyid unknownfield\
-		wrongdistribution missingfield doublefield brokenold\
+	ignores='ignore forbiddenchar 8bit emptyfilenamepart\
+		spaceonlyline malformedchunk unknownfield\
+		wrongdistribution missingfield brokenold\
+		undefinedtracking undefinedtarget\
 		brokenversioncmp extension unusedarch surprisingarch\
 		surprisingbinary wrongsourceversion wrongversion dscinbinnmu\
 		brokensignatures uploaders missingfile'
@@ -185,6 +186,7 @@ _reprepro()
 			dumpunreferenced deleteunreferenced retrack dumptracks\
 			tidytracks removealltracks removetrack update checkupdate predelete pull\
 			checkpull includedeb includeudeb includedsc include\
+			translatefilelists\
 			generatefilelists clearvanished copy processincoming gensnapshot'
 		hiddencommands='__d __extractcontrol __extractfilelist _detect _forget\
 			_listmd5sums _addmd5sums _dumpcontents\

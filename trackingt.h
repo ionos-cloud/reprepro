@@ -1,13 +1,10 @@
 #ifndef REPREPRO_TRACKINGT_H
 #define REPREPRO_TRACKINGT_H
 
-#ifndef REPREPRO_REFERENCE_H
-#include "reference.h"
-#endif
-
 enum filetype { ft_ALL_BINARY='a',
 		ft_ARCH_BINARY='b',
 		ft_CHANGES = 'c',
+		ft_LOG='l',
 		ft_SOURCE='s',
 		ft_XTRA_DATA='x'};
 
@@ -18,8 +15,8 @@ struct trackedpackage {
 	int *refcounts;
 	enum filetype *filetypes;
 	struct {
-		bool_t isnew:1;
-		bool_t deleted:1;
+		bool isnew:1;
+		bool deleted:1;
 	} flags;
 };
 typedef struct s_tracking *trackingdb;

@@ -338,7 +338,7 @@ retvalue sources_doreoverride(const struct distribution *distribution,const char
 	char *newchunk;
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	o = override_search(distribution->overrides.dsc, packagename);
 	if( o == NULL )
@@ -355,17 +355,18 @@ retvalue sources_doreoverride(const struct distribution *distribution,const char
 	return RET_OK;
 }
 
-retvalue sources_retrack(struct target *t,const char *sourcename,const char *chunk, trackingdb tracks,references refs) {
+retvalue sources_retrack(struct target *t,const char *sourcename,const char *chunk, trackingdb tracks,struct database *database) {
 	retvalue r;
 	char *sourceversion;
 	struct trackedpackage *pkg;
 	struct strlist filekeys;
+	int i;
 
 	//TODO: elliminate duplicate code!
 	assert(sourcename!=NULL);
 
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 
 	r = chunk_getvalue(chunk,"Version",&sourceversion);
 	if( r == RET_NOTHING ) {
@@ -393,11 +394,21 @@ retvalue sources_retrack(struct target *t,const char *sourcename,const char *chu
 		return r;
 	}
 
-	r = trackedpackage_addfilekeys(tracks,pkg,ft_SOURCE,&filekeys,TRUE,refs);
-	if( RET_WAS_ERROR(r) ) {
-		trackedpackage_free(pkg);
-		return r;
+	// TODO: error handling is suboptimal here.
+	//  is there a way to again remove old additions (esp. references)
+	//  where something fails?
+	for( i = 0 ; i < filekeys.count ; i++ ) {
+		r = trackedpackage_addfilekey(tracks, pkg,
+				ft_SOURCE, filekeys.values[i],
+				true, database);
+		filekeys.values[i] = NULL;
+		if( RET_WAS_ERROR(r) ) {
+			strlist_done(&filekeys);
+			trackedpackage_free(pkg);
+			return r;
+		}
 	}
+	strlist_done(&filekeys);
 	return tracking_save(tracks, pkg);
 }
 
@@ -461,7 +472,7 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 	return r;
 }
 
-retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *broken) {
+retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool *broken) {
 	retvalue r;
 
 	r = signature_readsignedchunk(filename, filename, &dsc->control, NULL, NULL, broken);
@@ -474,7 +485,7 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, bool_t *
 
 	/* first look for fields that should be there */
 
-	r = chunk_getname(dsc->control,"Source",&dsc->name,FALSE);
+	r = chunk_getname(dsc->control, "Source", &dsc->name, false);
 	if( r == RET_NOTHING ) {
 		fprintf(stderr,"Missing 'Source'-header in %s!\n",filename);
 		return RET_ERROR;

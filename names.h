@@ -35,7 +35,7 @@ retvalue calc_dirconcats(const char *directory, const struct strlist *basefilena
 retvalue calc_parsefileline(const char *fileline,/*@out@*/char **filename,/*@out@*//*@null@*/char **md5sum);
 
 /* move over a version number, if epochsuppresed is true, colons may happen even without epoch there */
-void names_overversion(const char **version,bool_t epochsuppressed);
+void names_overversion(const char **version, bool epochsuppressed);
 
 /* check for forbidden characters */
 retvalue propersourcename(const char *string);
@@ -44,19 +44,8 @@ retvalue properfilename(const char *string);
 retvalue properfilenames(const struct strlist *names);
 retvalue properpackagename(const char *string);
 retvalue properversion(const char *string);
-retvalue propercodename(const char *codename);
-retvalue properarchitectures(const struct strlist *architectures);
-retvalue propercomponents(const struct strlist *components);
 
-/* create two stringlists out of one,
- * from[i]=into[i]=list[i] if list[i] contains no '>'
- * from[i] '>' into[i] = list[i] when list[i] contains a '>'
- */
-retvalue splitlist(/*@out@*/struct strlist *from,
-				/*@out@*/struct strlist *into,
-				const struct strlist *list);
-
-static inline bool_t endswith(const char *name, const char *suffix) {
+static inline bool endswith(const char *name, const char *suffix) {
 	size_t ln,ls;
 	ln = strlen(name);
 	ls = strlen(suffix);

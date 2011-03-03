@@ -4,14 +4,16 @@ dnl
 
 AC_INIT(main.c)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(reprepro,2.2.4)
+AM_INIT_AUTOMAKE(reprepro,3.0.0)
 
 AM_MAINTAINER_MODE
+AC_GNU_SOURCE
 
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_SYS_LARGEFILE
 
+AC_HEADER_STDBOOL
 
 DBLIBS=""
 DBCPPFLAGS=""
@@ -31,13 +33,13 @@ AC_ARG_WITH(libdb,
 	4.4)
 	DB_WANT_VERSION=4.4
 	;;
-	?|?.?)
-	AC_MSG_ERROR([Unknown --with-libdb argument $withval])
-	;;
-	*)
+	/*)
 	DB_WANT_VERSION=any
 	DBLIBS="-L$withval/lib"
 	DBCPPFLAGS="-I$withval/include"
+	;;
+	*)
+	AC_MSG_ERROR([Unparseable --with-libdb argument $withval])
 	;;
 	esac
 ],[DB_WANT_VERSION=any])
@@ -103,9 +105,30 @@ AC_SUBST([DBLIBS])
 AC_SUBST([DBCPPFLAGS])
 
 AC_CHECK_LIB(z,gzopen,,[AC_MSG_ERROR(["no zlib found"])],)
-AC_CHECK_LIB(gpg-error,gpg_strsource,,[AC_MSG_ERROR(["no libgpg-error found"])],)
-AC_CHECK_LIB(gpgme,gpgme_get_protocol_name,,[AC_MSG_ERROR(["no libgpgme found (need at least 0.4.1)"])],)
-AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found"])])
+
+AC_ARG_WITH(libgpgme,
+[  --with-libpgpme=path|yes|no	Give path to prefix libgpgme was installed with],[dnl
+	case "$withval" in
+	no)
+	;;
+	yes)
+	AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found"])])
+	AC_CHECK_LIB(gpg-error,gpg_strsource,,[AC_MSG_ERROR(["no libgpg-error found"])],)
+	AC_CHECK_LIB(gpgme,gpgme_get_protocol_name,,[AC_MSG_ERROR(["no libgpgme found (need at least 0.4.1)"])],)
+	;;
+	*)
+	CPPFLAGS="$CPPFLAGS -I$withval/include"
+	LIBS="$LIBS -L$withval/lib"
+	AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found"])])
+	AC_CHECK_LIB(gpg-error,gpg_strsource,,[AC_MSG_ERROR(["no libgpg-error found"])],)
+	AC_CHECK_LIB(gpgme,gpgme_get_protocol_name,,[AC_MSG_ERROR(["no libgpgme found (need at least 0.4.1)"])],)
+	;;
+	esac
+],[dnl default is to behave like yes (for libgpgme only)
+	AC_CHECK_HEADER(gpgme.h,,[AC_MSG_ERROR(["no gpgme.h found (to disable run with --without-libgpgme)"])])
+	AC_CHECK_LIB(gpg-error,gpg_strsource,,[AC_MSG_ERROR(["no libgpg-error found (to disable run with --without-libgpgme)"])],)
+	AC_CHECK_LIB(gpgme,gpgme_get_protocol_name,,[AC_MSG_ERROR(["did not find libgpgme versoion 0.4.1 or later (to disable run with --without-libgpgme)"])],)
+])
 
 AC_ARG_WITH(libbz2,
 [  --with-libbz2=path|yes|no	Give path to prefix libbz2 was installed with],[dnl

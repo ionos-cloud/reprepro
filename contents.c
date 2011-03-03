@@ -31,171 +31,82 @@
 #include "names.h"
 #include "release.h"
 #include "distribution.h"
+#include "filelist.h"
+#include "files.h"
+#include "ignore.h"
+#include "configparser.h"
 
 extern int verbose;
 
-void contentsoptions_done(struct contentsoptions *options) {
-	strlist_done(&options->architectures);
-	strlist_done(&options->components);
-	strlist_done(&options->ucomponents);
-}
-
-struct distribution;
-
 /* options are zerroed when called, when error is returned contentsopions_done
  * is called by the caller */
-retvalue contentsoptions_parse(struct distribution *distribution, const char *chunk) {
-	char *option,*e;
+retvalue contentsoptions_parse(struct distribution *distribution, struct configiterator *iter) {
+	enum contentsflags { cf_disable, cf_dummy, cf_udebs, cf_nodebs, cf_uncompressed, cf_gz, cf_bz2, cf_COUNT};
+	bool flags[cf_COUNT];
+	static const struct constant contentsflags[] = {
+		{"0", cf_disable},
+		{"1", cf_dummy},
+		{"2", cf_dummy},
+		{"udebs", cf_udebs},
+		{"nodebs", cf_nodebs},
+		{".bz2", cf_bz2},
+		{".gz", cf_gz},
+		{".", cf_uncompressed},
+		{NULL,	-1}
+	};
 	retvalue r;
-	long l;
-	bool_t defaultcompressions;
 
-	r = chunk_getvalue(chunk,"Contents",&option);
-	if( RET_WAS_ERROR(r) ) {
+	distribution->contents.flags.enabled = true;
+
+	memset(flags, 0, sizeof(flags));
+	r = config_getflags(iter, "Contents", contentsflags, flags,
+			IGNORABLE(unknownfield), "");
+	if( r == RET_ERROR_UNKNOWNFIELD )
+		fputs(
+"Note that the format of the Contents field has changed with reprepro 3.0.0.\n"
+"There is no longer a number needed (nor possible) there.\n", stderr);
+	if( RET_WAS_ERROR(r) )
 		return r;
-	} else if( r == RET_NOTHING ) {
-		// check the other fields or just ignore them?
-		distribution->contents.rate = 0;
-		return RET_NOTHING;
+	if( flags[cf_dummy] ) {
+		fputs(
+"Warning: Contents-headers in conf/distribution no longer need an\n"
+"rate argument. Ignoring the number there, this might cause a error\n"
+"future versions.\n", stderr);
+	} else if( flags[cf_disable] ) {
+		fputs(
+"Warning: Contents-headers in conf/distribution no longer need an\n"
+"rate argument. Treating the '0' as sign to not activate Contents-\n"
+"-generation, but it will cause an error in future version.\n", stderr);
+		distribution->contents.flags.enabled = false;
 	}
-	assert( RET_IS_OK(r) );
-	l = strtol(option, &e, 10);
-	if( l == LONG_MAX || l >= INT_MAX ) {
-		fprintf(stderr,"Too large rate value in Contents: line of %s: %s\n",
-				distribution->codename,
-				option);
-		free(option);
-		return RET_ERROR;
+
+#ifndef HAVE_LIBBZ2
+	if( flags[cf_bz2] ) {
+		fprintf(stderr,
+"Warning: Ignoring request to generate .bz2'ed Contents files.\n"
+"(not compiled with libbzip2, so no support available.)\n"
+"Request was in %s in the Contents-header ending in line %u\n",
+			config_filename(iter), config_line(iter));
+		flags[cf_bz2] = false;
 	}
-	if( l <= 0 )
-		distribution->contents.rate = 0;
-	else
-		distribution->contents.rate = l;
-	defaultcompressions = TRUE;
-	distribution->contents.compressions = IC_FLAG(ic_gzip);
-	while( *e != '\0' && xisspace(*e) )
-		e++;
-	while( *e != '\0' ) {
-		if( strncmp(e, "udebs", 5) == 0 &&
-				(e[5] == '\0' || isspace(e[5])) ) {
-			distribution->contents.flags.udebs = TRUE;
-			e += 5;
-		} else if( strncmp(e, "nodebs", 6) == 0 &&
-				(e[6] == '\0' || isspace(e[6])) ) {
-			distribution->contents.flags.nodebs = TRUE;
-			e += 6;
-		} else if( strncmp(e, ".bz2", 4) == 0 &&
-				(e[4] == '\0' || isspace(e[4])) ) {
-#ifdef HAVE_LIBBZ2
-			if( defaultcompressions ) {
-				defaultcompressions = FALSE;
-				distribution->contents.compressions = 0;
-			}
-			distribution->contents.compressions |=
-				IC_FLAG(ic_bzip2);
-#else
-			fprintf(stderr, "Warning: Ignoring request to generate .bz2'ed Contents files as compiled without libbz2.\n");
 #endif
-			e += 4;
-		} else if( strncmp(e, ".gz", 3) == 0 &&
-				(e[3] == '\0' || isspace(e[3])) ) {
-			if( defaultcompressions ) {
-				defaultcompressions = FALSE;
-				distribution->contents.compressions = 0;
-			}
-			distribution->contents.compressions |=
-				IC_FLAG(ic_gzip);
-			e += 3;
-		} else if( e[0] == '.' && (e[1] == '\0' || isspace(e[1])) ) {
-			if( defaultcompressions ) {
-				defaultcompressions = FALSE;
-				distribution->contents.compressions = 0;
-			}
-			distribution->contents.compressions |=
-				IC_FLAG(ic_uncompressed);
-			e += 1;
-		} else {
-			fprintf(stderr, "Unknown Contents: option in %s: '%s'\n",
-					distribution->codename, e);
-			free(option);
-			return RET_ERROR;
-		}
-		while( *e != '\0' && xisspace(*e) )
-			e++;
-	}
-	free(option);
-	if( distribution->contents.rate == 0 )
-		return RET_NOTHING;
-	r = chunk_getuniqwordlist(chunk, "ContentsArchitectures",
-			&distribution->contents.architectures);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		distribution->contents.architectures.count = 0;
-		distribution->contents.architectures.values = NULL;
-	} else {
-		const char *missing;
+	distribution->contents.compressions = 0;
+	if( flags[cf_uncompressed] )
+		distribution->contents.compressions |= IC_FLAG(ic_uncompressed);
+	if( flags[cf_gz] )
+		distribution->contents.compressions |= IC_FLAG(ic_gzip);
+#ifdef HAVE_LIBBZ2
+	if( flags[cf_bz2] )
+		distribution->contents.compressions |= IC_FLAG(ic_bzip2);
+#endif
+	distribution->contents.flags.udebs = flags[cf_udebs];
+	distribution->contents.flags.nodebs = flags[cf_nodebs];
 
-		if( !strlist_subset(&distribution->architectures,
-					&distribution->contents.architectures,
-					&missing) ) {
-			fprintf(stderr, "ContentsArchitectures of %s lists architecture %s not found in its Architectures: list!\n",
-					distribution->codename,
-					missing);
-			return RET_ERROR;
-		}
-	}
-	r = chunk_getuniqwordlist(chunk, "ContentsComponents",
-			&distribution->contents.components);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		distribution->contents.components.count = 0;
-		distribution->contents.components.values = NULL;
-	} else {
-		const char *missing;
-
-		if( !strlist_subset(&distribution->components,
-					&distribution->contents.components,
-					&missing) ) {
-			fprintf(stderr, "ContentsComponents of %s lists component %s not found in its Components: list!\n",
-					distribution->codename,
-					missing);
-			return RET_ERROR;
-		}
-	}
-	r = chunk_getuniqwordlist(chunk, "ContentsUComponents",
-			&distribution->contents.ucomponents);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( r == RET_NOTHING ) {
-		distribution->contents.ucomponents.count = 0;
-		distribution->contents.ucomponents.values = NULL;
-	} else {
-		const char *missing;
-
-		if( !strlist_subset(&distribution->udebcomponents,
-					&distribution->contents.ucomponents,
-					&missing) ) {
-			fprintf(stderr, "ContentsUComponents of %s lists udeb-component %s not found in its UComponents: list!\n",
-					distribution->codename,
-					missing);
-			return RET_ERROR;
-		}
-	}
 	return RET_OK;
 }
 
-struct addcontentsdata {
-	int rate;
-	size_t work, leisure;
-	struct filelist_list *contents;
-	filesdb files;
-};
-
-static retvalue addpackagetocontents(void *data, const char *packagename, const char *chunk) {
-	struct addcontentsdata *d = data;
-	const struct filelist_package *package;
+static retvalue addpackagetocontents(struct database *database, UNUSED(struct distribution *di), UNUSED(struct target *ta), const char *packagename, const char *chunk, void *data) {
+	struct filelist_list *contents = data;
 	retvalue r;
 	char *section, *filekey;
 
@@ -209,49 +120,31 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 		free(section);
 		return r;
 	}
-	r = filelist_newpackage(d->contents, packagename, section, &package);
-	assert( r != RET_NOTHING );
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = files_getfilelist(d->files, filekey, package, d->contents);
-	if( r == RET_NOTHING ) {
-		if( d->rate <= 1 || d->work <= d->leisure/(d->rate-1) ) {
-			if( verbose > 3 )
-				printf("Reading filelist for %s\n", filekey);
-			r = files_genfilelist(d->files, filekey, package, d->contents);
-			if( RET_IS_OK(r) )
-				d->work++;
-		} else {
-			d->leisure++;
-			if( verbose > 3 )
-				fprintf(stderr, "Missing filelist for %s\n", filekey);
-		}
-	} else if( RET_IS_OK(r) )
-		d->leisure++;
+	r = filelist_addpackage(contents, database,
+			packagename, section, filekey);
 
 	free(filekey);
 	free(section);
 	return r;
 }
 
-static retvalue genarchcontents(filesdb files, struct distribution *distribution, const char *dbdir, const char *architecture, struct release *release, bool_t onlyneeded) {
+static retvalue genarchcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
-	struct target *target;
 	char *contentsfilename;
 	struct filetorelease *file;
-	struct addcontentsdata data;
+	struct filelist_list *contents;
 	const struct strlist *components;
 
-	data.rate = distribution->contents.rate;
-	data.work = data.leisure = 0;
-	data.files = files;
-
-	if( distribution->contents.components.count > 0 )
-		components = &distribution->contents.components;
+	if( distribution->contents_components_set )
+		components = &distribution->contents_components;
 	else
 		components = &distribution->components;
 
+	if( components->count == 0 )
+		return RET_NOTHING;
+
 	if( onlyneeded ) {
+		struct target *target;
 		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
@@ -261,7 +154,7 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 					break;
 		}
 		if( target != NULL )
-			onlyneeded = FALSE;
+			onlyneeded = false;
 	}
 
 	contentsfilename = mprintf("Contents-%s",architecture);
@@ -279,55 +172,41 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 	}
 	free(contentsfilename);
 
-	r = filelist_init(&data.contents);
+	r = filelist_init(&contents);
 	if( RET_WAS_ERROR(r) ) {
 		release_abortfile(file);
 		return r;
 	}
-	for( target=distribution->targets;target!=NULL;target=target->next ) {
-		if( strcmp(target->packagetype,"deb") != 0 )
-			continue;
-		if( strcmp(target->architecture,architecture) != 0 )
-			continue;
-		if( !strlist_in(components, target->component) )
-			continue;
-		r = target_initpackagesdb(target, dbdir);
-		if( RET_WAS_ERROR(r) )
-			break;
-		r = packages_foreach(target->packages,addpackagetocontents,&data);
-		(void)target_closepackagesdb(target);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
+	r = distribution_foreach_package_c(distribution, database,
+			components, architecture, "deb",
+			addpackagetocontents, contents);
 	if( !RET_WAS_ERROR(r) )
-		r = filelist_write(data.contents, file);
+		r = filelist_write(contents, file);
 	if( RET_WAS_ERROR(r) )
 		release_abortfile(file);
 	else
 		r = release_finishfile(release,file);
-	filelist_free(data.contents);
+	filelist_free(contents);
 	return r;
 }
 
-static retvalue genarchudebcontents(filesdb files, struct distribution *distribution, const char *dbdir, const char *architecture, struct release *release, bool_t onlyneeded) {
+static retvalue genarchudebcontents(struct database *database, struct distribution *distribution, const char *architecture, struct release *release, bool onlyneeded) {
 	retvalue r;
-	struct target *target;
 	char *contentsfilename;
 	struct filetorelease *file;
-	struct addcontentsdata data;
+	struct filelist_list *contents;
 	const struct strlist *components;
 
-	data.rate = distribution->contents.rate;
-	data.work = data.leisure = 0;
-	data.files = files;
-
-	if( distribution->contents.ucomponents.count > 0 )
-		components = &distribution->contents.ucomponents;
+	if( distribution->contents_ucomponents_set )
+		components = &distribution->contents_ucomponents;
 	else
 		components = &distribution->udebcomponents;
 
+	if( components->count == 0 )
+		return RET_NOTHING;
 
 	if( onlyneeded ) {
+		struct target *target;
 		for( target=distribution->targets; target!=NULL;
 				target=target->next ) {
 			if( target->saved_wasmodified
@@ -337,7 +216,7 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 				break;
 		}
 		if( target != NULL )
-			onlyneeded = FALSE;
+			onlyneeded = false;
 	}
 
 	contentsfilename = mprintf("uContents-%s",architecture);
@@ -354,42 +233,33 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 		printf(" generating %s...\n",contentsfilename);
 	}
 	free(contentsfilename);
-	r = filelist_init(&data.contents);
+	r = filelist_init(&contents);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	for( target=distribution->targets;target!=NULL;target=target->next ) {
-		if( strcmp(target->packagetype,"udeb") != 0 )
-			continue;
-		if( strcmp(target->architecture,architecture) != 0 )
-			continue;
-		if( !strlist_in(components, target->component) )
-			continue;
-		r = target_initpackagesdb(target, dbdir);
-		if( RET_WAS_ERROR(r) )
-			break;
-		r = packages_foreach(target->packages,addpackagetocontents,&data);
-		(void)target_closepackagesdb(target);
-		if( RET_WAS_ERROR(r) )
-			break;
-	}
+	r = distribution_foreach_package_c(distribution, database,
+			components, architecture, "udeb",
+			addpackagetocontents, contents);
 	if( !RET_WAS_ERROR(r) )
-		r = filelist_write(data.contents, file);
+		r = filelist_write(contents, file);
 	if( RET_WAS_ERROR(r) )
 		release_abortfile(file);
 	else
 		r = release_finishfile(release,file);
-	filelist_free(data.contents);
+	filelist_free(contents);
 	return r;
 }
 
-retvalue contents_generate(filesdb files, struct distribution *distribution, const char *dbdir, struct release *release, bool_t onlyneeded) {
+retvalue contents_generate(struct database *database, struct distribution *distribution, struct release *release, bool onlyneeded) {
 	retvalue result,r;
 	int i;
 	const struct strlist *architectures;
 
+	if( distribution->contents.compressions == 0 )
+		distribution->contents.compressions = IC_FLAG(ic_gzip);
+
 	result = RET_NOTHING;
-	if( distribution->contents.architectures.count > 0 ) {
-		architectures = &distribution->contents.architectures;
+	if( distribution->contents_architectures_set ) {
+		architectures = &distribution->contents_architectures;
 	} else {
 		architectures = &distribution->architectures;
 	}
@@ -398,18 +268,16 @@ retvalue contents_generate(filesdb files, struct distribution *distribution, con
 		if( strcmp(architecture,"source") == 0 )
 			continue;
 
-		if( !distribution->contents.flags.nodebs) {
-			r = genarchcontents(files, distribution, dbdir,
+		if( !distribution->contents.flags.nodebs ) {
+			r = genarchcontents(database, distribution,
 					architecture,release,onlyneeded);
 			RET_UPDATE(result,r);
 		}
-		if( distribution->contents.flags.udebs) {
-			r = genarchudebcontents(files, distribution, dbdir,
+		if( distribution->contents.flags.udebs ) {
+			r = genarchudebcontents(database, distribution,
 					architecture,release,onlyneeded);
 			RET_UPDATE(result,r);
 		}
 	}
 	return result;
 }
-
-

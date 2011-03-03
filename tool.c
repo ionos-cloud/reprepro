@@ -27,9 +27,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <time.h>
-#define DEFINE_IGNORE_VARIABLES
 #include "error.h"
-#include "ignore.h"
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
@@ -43,10 +41,10 @@
 
 /* for compatibility with used code */
 int verbose=0;
-bool_t interrupted(void) {return FALSE;}
+bool interrupted(void) {return false;}
 
-static void about(bool_t help) NORETURN;
-static void about(bool_t help) {
+static void about(bool help) NORETURN;
+static void about(bool help) {
 	fprintf(help?stdout:stderr,
 "modifychanges: Modify a Debian style .changes file\n"
 "Syntax: modifychanges [--create] <changesfile> <commands>\n"
@@ -77,7 +75,7 @@ struct binaryfile {
 	char *maintainer;
 	char *section, *priority;
 	char *shortdescription;
-	bool_t hasmd5sums;
+	bool hasmd5sums;
 };
 
 static void binaryfile_free(struct binaryfile *p) {
@@ -125,7 +123,7 @@ struct dscfile {
 		char *expectedmd5sum;
 		struct fileentry *file;
 	} *files;
-	bool_t parsed, modified;
+	bool parsed, modified;
 };
 
 static void dscfile_free(struct dscfile *p) {
@@ -166,7 +164,7 @@ struct fileentry {
 	int refcount;
 };
 struct changes;
-static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool_t source);
+static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool source);
 
 struct changes {
 	/* the filename of the .changes file */
@@ -185,10 +183,10 @@ struct changes {
 		char *name;
 		char *description;
 		struct binaryfile *files;
-		bool_t missedinheader, uncheckable;
+		bool missedinheader, uncheckable;
 	} *binaries;
 	struct fileentry *files;
-	bool_t modified;
+	bool modified;
 };
 
 static void fileentry_free(struct fileentry *f) {
@@ -236,7 +234,7 @@ static void changes_free(struct changes *c) {
 	free(c);
 }
 
-static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool_t source) {
+static struct fileentry *add_fileentry(struct changes *c, const char *basename, size_t len, bool source) {
 	struct fileentry **fp = &c->files;
 	struct fileentry *f;
 	while( (f=*fp) != NULL ) {
@@ -266,7 +264,7 @@ static struct fileentry *add_fileentry(struct changes *c, const char *basename, 
 
 static retvalue searchforfile(const char *changesdir, const char *basename,
 		const struct strlist *searchpath, char **result) {
-	int i; bool_t found;
+	int i; bool found;
 	char *fullname = calc_dirconcat(changesdir,basename);
 	if( fullname == NULL )
 		return RET_ERROR_OOM;
@@ -280,7 +278,7 @@ static retvalue searchforfile(const char *changesdir, const char *basename,
 		if( fullname == NULL )
 			return RET_ERROR_OOM;
 		if( isregularfile(fullname) ) {
-			found = TRUE;
+			found = true;
 			break;
 		}
 		i++;
@@ -370,8 +368,8 @@ static struct binary *get_binary(struct changes *c, const char *p, size_t len) {
 		c->binaries[j].name = name;
 		c->binaries[j].description = NULL;
 		c->binaries[j].files = NULL;
-		c->binaries[j].missedinheader = TRUE;
-		c->binaries[j].uncheckable = FALSE;
+		c->binaries[j].missedinheader = true;
+		c->binaries[j].uncheckable = false;
 	}
 	assert( j < c->binarycount );
 	return &c->binaries[j];
@@ -451,7 +449,7 @@ static retvalue parse_changes_files(struct changes *c, struct strlist *tmp) {
 			fprintf(stderr,"Unexpected sixth argument in '%s'!\n", tmp->values[i]);
 			return RET_ERROR;
 		}
-		f = add_fileentry(c, filestart, fileend-filestart, FALSE);
+		f = add_fileentry(c, filestart, fileend-filestart, false);
 		if( f->changesmd5sum != NULL ) {
 			fprintf(stderr, "WARNING: Multiple occourance of '%s' in .changes file!\nIgnoring all but the first one.\n",
 					f->basename);
@@ -495,7 +493,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 		free(n);
 		return r;
 	}
-	r = chunk_getname(n->controlchunk, "Source",&n->name,FALSE);
+	r = chunk_getname(n->controlchunk, "Source", &n->name, false);
 	if( RET_WAS_ERROR(r) ) {
 		dscfile_free(n);
 		return r;
@@ -554,7 +552,7 @@ static retvalue read_dscfile(const char *fullfilename, struct dscfile **dsc) {
 static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 	struct dscfile *n;
 	retvalue r;
-	int i;
+	size_t i;
 
 	if( dscfile->fullfilename == NULL )
 		return RET_NOTHING;
@@ -566,7 +564,7 @@ static retvalue parse_dsc(struct fileentry *dscfile, struct changes *changes) {
 		n->files[i].file = add_fileentry(changes,
 				n->files[i].basename,
 				strlen(n->files[i].basename),
-				TRUE);
+				true);
 		if( n->files[i].file == NULL ) {
 			dscfile_free(n);
 			return RET_ERROR_OOM;
@@ -653,7 +651,7 @@ static retvalue read_binaryfile(const char *fullfilename, struct binaryfile **re
 			return RET_NOTHING;
 	}
 
-	r = chunk_getname(n->controlchunk, "Package", &n->name, FALSE);
+	r = chunk_getname(n->controlchunk, "Package", &n->name, false);
 	if( RET_WAS_ERROR(r) ) {
 		binaryfile_free(n);
 		return r;
@@ -762,7 +760,7 @@ static retvalue processfiles(const char *changesfilename, struct changes *change
 					free(dir);
 					return RET_ERROR_OOM;
 				}
-				b->uncheckable = TRUE;
+				b->uncheckable = true;
 			}
 		}
 	}
@@ -1191,7 +1189,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 	for( file = changes->files; file != NULL ; file = file->next ) {
 		const char *name, *version, *p;
 		size_t namelen, versionlen, l;
-		bool_t has_tar, has_diff, has_orig;
+		bool has_tar, has_diff, has_orig;
 
 		if( file->type != ft_DSC )
 			continue;
@@ -1326,9 +1324,9 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 					(unsigned int)namelen, name,
 					(unsigned int)versionlen, version);
 		}
-		has_tar = FALSE;
-		has_diff = FALSE;
-		has_orig = FALSE;
+		has_tar = false;
+		has_diff = false;
+		has_orig = false;
 		for( j = 0 ; j < file->dsc->filecount ; j++ ) {
 			const struct sourcefile *f = &file->dsc->files[j];
 			size_t expectedversionlen;
@@ -1345,21 +1343,21 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
-					has_tar = TRUE;
+					has_tar = true;
 					break;
 				case ft_ORIG_TAR_GZ: case ft_ORIG_TAR_BZ2:
 					if( has_tar || has_orig )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .tar files!\n",
 						file->fullfilename);
-					has_orig = TRUE;
+					has_orig = true;
 					break;
 				case ft_DIFF_GZ: case ft_DIFF_BZ2:
 					if( has_diff )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .diff files!\n",
 						file->fullfilename);
-					has_diff = TRUE;
+					has_diff = true;
 					break;
 				default:
 					assert( f->file->type == ft_UNKNOWN );
@@ -1615,14 +1613,14 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 	return RET_OK;
 }
 
-static bool_t isarg(int argc, char **argv, const char *name) {
+static bool isarg(int argc, char **argv, const char *name) {
 	while( argc > 0 ) {
 		if( strcmp(*argv, name) == 0 )
-			return TRUE;
+			return true;
 		argc--;
 		argv++;
 	}
-	return FALSE;
+	return false;
 }
 
 static retvalue updatemd5sums(const char *changesfilename, struct changes *c, int argc, char **argv) {
@@ -1648,7 +1646,7 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 		assert( file->fullfilename != NULL );
 		for( i = 0 ; i < file->dsc->filecount ; i++ ) {
 			struct sourcefile *f = &file->dsc->files[i];
-			bool_t doit;
+			bool doit;
 			char *md5sum = NULL;
 			const char *realmd5;
 
@@ -1694,7 +1692,7 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 				if( f->expectedmd5sum == NULL )
 					return RET_ERROR_OOM;
 			}
-			file->dsc->modified = TRUE;
+			file->dsc->modified = true;
 		}
 		if( file->dsc->modified ) {
 			r = write_dsc_file(file, DSC_WRITE_FILES);
@@ -1722,7 +1720,7 @@ static retvalue updatemd5sums(const char *changesfilename, struct changes *c, in
 		file->changesmd5sum = strdup(file->realmd5sum);
 		if( file->changesmd5sum == NULL )
 			return RET_ERROR_OOM;
-		c->modified = TRUE;
+		c->modified = true;
 	}
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c, CHANGES_WRITE_FILES);
@@ -1778,7 +1776,7 @@ static retvalue includeallsources(const char *changesfilename, struct changes *c
 "Going to add '%s' with '%s' to '%s'.\n",
 					f->basename, f->expectedmd5sum,
 					changesfilename);
-			c->modified = TRUE;
+			c->modified = true;
 		}
 	}
 	if( c->modified ) {
@@ -1792,7 +1790,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 	struct fileentry *f;
 	struct dscfile *dsc;
 	char *fullfilename, *basename;
-	int i;
+	size_t i;
 
 	r = findfile(dscfilename, c, NULL, &fullfilename);
 	if( RET_WAS_ERROR(r) )
@@ -1891,7 +1889,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 
 		file = add_fileentry(c, basefilename,
 				strlen(basefilename),
-				TRUE);
+				true);
 		if( file == NULL )
 			return RET_ERROR_OOM;
 		dsc->files[i].file = file;
@@ -1903,7 +1901,7 @@ static retvalue adddsc(struct changes *c, const char *dscfilename) {
 		} // TODO: otherwise warn if not the same
 	}
 
-	c->modified = TRUE;
+	c->modified = true;
 	r = md5sum_read(f->fullfilename, &f->realmd5sum);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -2089,8 +2087,8 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	}
 	deb->next = deb->binary->files;
 	deb->binary->files = deb;
-	deb->binary->missedinheader = FALSE;
-	c->modified = TRUE;
+	deb->binary->missedinheader = false;
+	c->modified = true;
 	r = md5sum_read(f->fullfilename, &f->realmd5sum);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
@@ -2102,7 +2100,7 @@ static retvalue adddeb(struct changes *c, const char *debfilename) {
 	if( deb->shortdescription != NULL ) {
 		if( deb->binary->description == NULL ) {
 			deb->binary->description = strdup(deb->shortdescription);
-			deb->binary->missedinheader = FALSE;
+			deb->binary->missedinheader = false;
 		} else if( strcmp(deb->binary->description,
 		                  deb->shortdescription) != 0 ) {
 			fprintf(stderr,
@@ -2209,7 +2207,7 @@ static retvalue addrawfile(struct changes *c, const char *filename) {
 		fullfilename = NULL;
 	}
 
-	c->modified = TRUE;
+	c->modified = true;
 	assert( f->changesmd5sum == NULL );
 	f->changesmd5sum = md5sum;
 	md5sum = NULL;
@@ -2292,7 +2290,7 @@ static retvalue setdistribution(const char *changesfilename, struct changes *c, 
 			CHANGES_WRITE_DISTRIBUTIONS);
 }
 
-static int execute_command(int argc, char **argv, const char *changesfilename, bool_t file_exists, bool_t create_file, struct changes *changesdata) {
+static int execute_command(int argc, char **argv, const char *changesfilename, bool file_exists, bool create_file, struct changes *changesdata) {
 	const char *command = argv[0];
 	retvalue r;
 
@@ -2395,32 +2393,26 @@ int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"create", no_argument, NULL, 'C'},
-		{"ignore", required_argument, NULL, 'i'},
 		{"searchpath", required_argument, NULL, 's'},
 		{NULL, 0, NULL, 0},
 	};
 	int c;
 	const char *changesfilename;
-	bool_t file_exists;
-	bool_t create_file = FALSE;
+	bool file_exists;
+	bool create_file = false;
 	struct strlist validkeys,keys;
 	struct strlist searchpath;
 	struct changes *changesdata;
 	retvalue r;
 
 	strlist_init(&searchpath);
-	init_ignores();
-
 
 	while( (c = getopt_long(argc,argv,"+hi:s:",longopts,NULL)) != -1 ) {
 		switch( c ) {
 			case 'h':
-				about(TRUE);
-			case 'i':
-				set_ignore(optarg,FALSE,CONFIG_OWNER_CMDLINE);
-				break;
+				about(true);
 			case 'C':
-				create_file = TRUE;
+				create_file = true;
 				break;
 			case 's':
 				r = splitpath(&searchpath, optarg);
@@ -2433,15 +2425,15 @@ int main(int argc,char *argv[]) {
 		}
 	}
 	if( argc - optind < 2 ) {
-		about(FALSE);
+		about(false);
 	}
-	signature_init(FALSE);
+	signature_init(false);
 
 	changesfilename = argv[optind];
-	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes")
-			&& !IGNORING_(extension,
-				"first argument does not ending with '.changes'\n") )
+	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes") ) {
+		fprintf(stderr, "first argument does not ending with '.changes'\n");
 		exit(EXIT_FAILURE);
+	}
 	file_exists = isregularfile(changesfilename);
 	if( file_exists ) {
 		char *changes;

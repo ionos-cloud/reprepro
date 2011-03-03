@@ -110,6 +110,21 @@ track which package should get a mark that files where missing needs a
 n-to-n relation that should never be uses expect the case where such a
 error happens)).
 What you can do when a upstream repository you update from misses a file:
+- try once with a different mirror not missing those files. You can either
+  change the mirror to use once and change it back afterwards. Or if both
+  mirrors have the same inner directory structure (they usually have) and
+  are accessible via the same method (like both http or both ftp) you can
+  also use the Fallback: option in conf/updates to tell reprepro to get
+  missing files from the other Mirror. This an even be used for things not
+  being a mirror of the same thing, but only having some files at the same
+  place. For example to work around etch r1 listing many older kernel
+  packages but no longer having the needed files, a line
+  Fallback: http://snapshot.debian.net/archive/2007/04/02/debian/
+  can help. (But make sure to look at the run and remove this line
+  once reprepro downloaded the missing files. With this line active and
+  the primary mirror you list in Method: unreachable, reprepro will also
+  download index files from snapshot and make your repository a copy of
+  unstable from 2007-04-02 instead of an updated etch version.)
 - get the file elsewhere (with the correct md5sum), place it in the
   appropriate place in the pool/ hierarchy and do the update. Reprepro will
   see the file is already there, add it to its database and just continue

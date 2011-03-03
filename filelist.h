@@ -5,15 +5,28 @@
 #include "release.h"
 #endif
 
-struct filelist_package;
 struct filelist_list;
 
 retvalue filelist_init(struct filelist_list **list);
-retvalue filelist_newpackage(struct filelist_list *filelist, const char *name, const char *section, const struct filelist_package **pkg);
 
-retvalue filelist_add(struct filelist_list *,const struct filelist_package *,const char *);
+retvalue filelist_addpackage(struct filelist_list *, struct database *, const char *package, const char *section, const char *filekey);
 
 retvalue filelist_write(struct filelist_list *list, struct filetorelease *file);
 
 void filelist_free(/*@only@*/struct filelist_list *);
+
+retvalue fakefilelist(struct database *, const char *filekey);
+retvalue filelists_translate(struct table *, struct table *);
+
+/* for use in routines reading the data: */
+struct filelistcompressor {
+	unsigned int offsets[256];
+	size_t size, len;
+	unsigned int dirdepth;
+	char *filelist;
+};
+retvalue filelistcompressor_setup(/*@out@*/struct filelistcompressor *);
+retvalue filelistcompressor_add(struct filelistcompressor *, const char *, size_t);
+retvalue filelistcompressor_finish(struct filelistcompressor *, /*@out@*/char **, /*@out@*/size_t *);
+void filelistcompressor_cancel(struct filelistcompressor *);
 #endif

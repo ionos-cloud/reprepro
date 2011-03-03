@@ -23,7 +23,7 @@
 #include "error.h"
 #include "strlist.h"
 
-bool_t strlist_in(const struct strlist *strlist,const char *element) {
+bool strlist_in(const struct strlist *strlist, const char *element) {
 	int c;
 	char **t;
 
@@ -33,9 +33,9 @@ bool_t strlist_in(const struct strlist *strlist,const char *element) {
 	t = strlist->values;
 	while( c-- != 0 ) {
 		if( strcmp(*(t++),element) == 0 )
-			return TRUE;
+			return true;
 	}
-	return FALSE;
+	return false;
 }
 int strlist_ofs(const struct strlist *strlist,const char *element) {
 	int c;
@@ -52,7 +52,7 @@ int strlist_ofs(const struct strlist *strlist,const char *element) {
 	return -1;
 }
 
-bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset,const char **missing) {
+bool strlist_subset(const struct strlist *strlist, const struct strlist *subset, const char **missing) {
 	int c;
 	char **t;
 
@@ -64,10 +64,10 @@ bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset
 		if( !strlist_in(strlist,*(t++)) ) {
 			if( missing != NULL )
 				*missing = *(t-1);
-			return FALSE;
+			return false;
 		}
 	}
-	return TRUE;
+	return true;
 
 }
 
@@ -260,11 +260,86 @@ retvalue strlist_adduniq(struct strlist *strlist,char *element) {
 
 }
 
-bool_t strlist_intersects(const struct strlist *a,const struct strlist *b) {
-	size_t i;
+bool strlist_intersects(const struct strlist *a, const struct strlist *b) {
+	int i;
 
 	for( i = 0 ; i < a->count ; i++ )
 		if( strlist_in(b, a->values[i]) )
-			return TRUE;
-	return FALSE;
+			return true;
+	return false;
+}
+
+bool *strlist_preparefoundlist(const struct strlist *list, bool ignorenone) {
+	bool *found;
+	int i, j;
+
+	found = calloc(list->count, sizeof(bool));
+	if( found == NULL )
+		return found;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( found[i] )
+			continue;
+		if( ignorenone && strcmp(list->values[i], "none") == 0 ) {
+			found[i] = true;
+			continue;
+		}
+		for( j = i + 1 ; j < list->count ; j++ )
+			if( strcmp(list->values[i], list->values[j]) == 0 )
+				found[j] = true;
+	}
+	return found;
+}
+
+char *strlist_concat(const struct strlist *list, const char *prefix, const char *infix, const char *suffix) {
+	size_t l, prefix_len, infix_len, suffix_len, line_len;
+	char *c, *n;
+	int i;
+
+	prefix_len = strlen(prefix);
+	infix_len = strlen(infix);
+	suffix_len = strlen(suffix);
+
+	l = prefix_len + suffix_len;
+	for( i = 0 ; i < list->count ; i++ )
+		l += strlen(list->values[i]);
+	if( list->count > 0 )
+		l += (list->count-1)*infix_len;
+	c = malloc(l + 1);
+	if( c == NULL )
+		return c;
+	memcpy(c, prefix, prefix_len);
+	n = c + prefix_len;
+	for( i = 0 ; i < list->count ; i++ ) {
+		line_len = strlen(list->values[i]);
+		memcpy(n, list->values[i], line_len);
+		n += line_len;
+		if( i+1 < list->count ) {
+			memcpy(n, infix, infix_len);
+			n += infix_len;
+		} else {
+			memcpy(n, suffix, suffix_len);
+			n += suffix_len;
+		}
+	}
+	assert( (size_t)(n-c) == l );
+	*n = '\0';
+	return c;
+}
+
+void strlist_remove(struct strlist *strlist, const char *element) {
+	int i, j;
+
+	assert(strlist != NULL);
+	assert(element != NULL);
+
+	j = 0;
+	for( i = 0 ; i < strlist->count ; i++ ) {
+		if( strcmp(strlist->values[i], element) != 0 ) {
+			if( i != j )
+				strlist->values[j] = strlist->values[i];
+			j++;
+		} else
+			free(strlist->values[i]);
+	}
+	strlist->count = j;
 }

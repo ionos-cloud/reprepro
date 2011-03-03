@@ -27,7 +27,6 @@
 #include "mprintf.h"
 #include "strlist.h"
 #include "names.h"
-#include "chunks.h"
 #include "uploaderslist.h"
 
 extern int verbose;
@@ -294,7 +293,7 @@ static inline retvalue parseuploaderline(char *buffer, const char *filename, siz
 		fprintf(stderr, "%s:%lu:%u: 'key', 'unsigned' or 'any key' expected!\n", filename, (long)lineno, (int)(1+p-buffer));
 		return RET_ERROR;
 	}
-	permissions->allowall = TRUE;
+	permissions->allowall = true;
 	return RET_OK;
 }
 

@@ -1,19 +1,31 @@
 #ifndef REPREPRO_GLOBALS_H
 #define REPREPRO_GLOBALS_H
 
-#define TRUE (1==1)
-#define FALSE (0==42)
 #ifdef AVOID_CHECKPROBLEMS
-#define bool_t _Bool
+# define bool _Bool
+# define true (1==1)
+# define false (0==42)
 /* avoid problems with __builtin_expect being long instead of boolean */
-#define __builtin_expect(a,b) (a)
-#define __builtin_constant_p(a) (__builtin_constant_p(a) != 0)
+# define __builtin_expect(a,b) (a)
+# define __builtin_constant_p(a) (__builtin_constant_p(a) != 0)
 #else
-typedef int bool_t;
+# if HAVE_STDBOOL_H
+#  include <stdbool.h>
+# else
+#  if ! HAVE__BOOL
+typedef int _Bool;
+#  endif
+#  define true (1==1)
+#  define false (0==42)
+# endif
 #endif
+
 #define xisspace(c) (isspace(c)!=0)
 #define xisblank(c) (isblank(c)!=0)
 #define xisdigit(c) (isdigit(c)!=0)
+
+#define READONLY true
+#define READWRITE false
 
 #define ISSET(a,b) (a&b)!=0
 #define NOTSET(a,b) (a&b)==0
@@ -36,20 +48,10 @@ typedef int bool_t;
 #endif
 #endif
 
+#define ARRAYCOUNT(a) (sizeof(a)/sizeof(a[0]))
+
 enum config_option_owner { 	CONFIG_OWNER_DEFAULT=0,
 				CONFIG_OWNER_FILE,
 				CONFIG_OWNER_ENVIRONMENT,
 		           	CONFIG_OWNER_CMDLINE};
-#if LIBDB_VERSION == 44
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
-#elif LIBDB_VERSION == 43
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
-#else
-#if LIBDB_VERSION == 3
-#define DB_OPEN(database,filename,name,type,flags) database->open(database,filename,name,type,flags,0664)
-#else
-#error Unexpected LIBDB_VERSION!
-#endif
-#endif
-
 #endif

@@ -23,7 +23,6 @@
 #include <zlib.h>
 #include <assert.h>
 #include "error.h"
-#include "ignore.h"
 #include "chunks.h"
 #include "names.h"
 
@@ -33,7 +32,7 @@ extern int verbose;
 // of only \n terminated oned. Though this has still to be tested properly...
 
 /* Call action for each chunk in <filename> */
-retvalue chunk_foreach(const char *filename,chunkaction action,void *data,bool_t stopwhenok){
+retvalue chunk_foreach(const char *filename, chunkaction action, void *data, bool stopwhenok){
 	gzFile f;
 	retvalue result,ret;
 	char *chunk;
@@ -46,7 +45,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,bool_t
 	result = RET_NOTHING;
 	while( (ret = chunk_read(f,&chunk)) == RET_OK ) {
 		if( interrupted() ) {
-			RET_UPDATE(result,RET_ERROR_INTERUPTED);
+			RET_UPDATE(result, RET_ERROR_INTERRUPTED);
 			free(chunk);
 			break;
 		}
@@ -73,7 +72,7 @@ retvalue chunk_foreach(const char *filename,chunkaction action,void *data,bool_t
 retvalue chunk_read(gzFile f,char **chunk) {
 	char *buffer,*bhead;
 	size_t size,already,without,l;
-	bool_t afternewline = FALSE;
+	bool afternewline = false;
 
 	size = 4096;
 	already = 0; without = 0;
@@ -305,7 +304,7 @@ retvalue chunk_getextralinelist(const char *chunk,const char *name,struct strlis
 
 retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	const char *f,*p,*e;
-	bool_t afternewline = FALSE;
+	bool afternewline = false;
 	char *v;
 
 	f = chunk_getfield(name,chunk);
@@ -314,13 +313,13 @@ retvalue chunk_getwholedata(const char *chunk,const char *name,char **value) {
 	for ( e = p = f ; *p != '\0' ; p++ ) {
 		if( afternewline ) {
 			if( *p == ' ' || *p == '\t' )
-				afternewline = FALSE;
+				afternewline = false;
 			else if( *p != '\r' )
 				break;
 		} else {
 			if(  *p == '\n' ) {
 				e = p;
-				afternewline = TRUE;
+				afternewline = true;
 			}
 		}
 	}
@@ -445,8 +444,7 @@ retvalue chunk_checkfield(const char *chunk,const char *name){
 }
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *' */
-retvalue chunk_getname(const char *chunk,const char *name,
-		char **pkgname,bool_t allowversion) {
+retvalue chunk_getname(const char *chunk, const char *name, char **pkgname, bool allowversion) {
 	const char *field,*name_end,*p;
 
 	field = chunk_getfield(name,chunk);
@@ -581,7 +579,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	size_t size,len_beforethis;
 	const struct fieldtoadd *f;
 	retvalue result;
-	bool_t fieldsadded = FALSE;
+	bool fieldsadded = false;
 
 	assert( chunk != NULL && beforethis != NULL );
 
@@ -625,7 +623,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 				f = f->next;
 			}
 			result = RET_OK;
-			fieldsadded = TRUE;
+			fieldsadded = true;
 		}
 		/* is this one of the fields we added/will add? */
 		f = toadd;
@@ -666,7 +664,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 
 	if( result == RET_NOTHING ) {
 		fprintf(stderr,"Could not find field '%s' in chunk '%s'!!!\n",beforethis,chunk);
-		assert(FALSE);
+		assert(false);
 	}
 
 	return newchunk;
@@ -742,94 +740,3 @@ char *chunk_replacefield(const char *chunk,const char *fieldname,const char *dat
 	return chunk_replacefields(chunk,&toadd,fieldname);
 }
 
-retvalue chunk_checkfields(const char *chunk,const char * const *allowedfieldnames,bool_t commentsallowed) {
-	const char *c = chunk;
-	long long alreadyfound = 0;
-
-	assert( chunk != NULL );
-	assert( allowedfieldnames != NULL );
-
-	while( *c != '\0' ) {
-		const char *nameend = c;
-
-		if( *c == '#' && commentsallowed ) {
-			while( *c != '\0' && *c != '\n' )
-				c++;
-			if( *c == '\0' )
-				return RET_OK;
-			c++;
-			if( *c == ' ' ) {
-				if( !IGNORING("Ignoring","To ignore this",
-overlongcomments,"A comment is continued by a line starting with space in '%s'!\n",chunk) )
-					return RET_ERROR;
-			}
-			do {
-				while( *c != '\0' && *c != '\n' )
-					c++;
-				if( *c == '\0' )
-					return RET_OK;
-				c++;
-			} while ( *c == ' ' );
-			continue;
-		}
-		while( *nameend != '\0' && *nameend != '\n' && *nameend != ':' ) {
-			nameend++;
-		}
-		if( *nameend != ':' ) {
-			const char *p = c;
-			while( xisspace(*p) && *p != '\0' && *p != '\n' ) {
-				p++;
-			}
-			if( p == nameend ) {
-				if( !IGNORING("Ignoring","To ignore this",spaceonlyline,
-				"Line only containing spaces in '%s'!\n",chunk) )
-					return RET_ERROR;
-			} else {
-				if( !IGNORING("Ignoring","To ignore this",malformedchunk,
-				"Malformed chunk! Expecting colon in '%s'!\n",c) )
-					return RET_ERROR;
-			}
-
-		} else {
-			const char * const *allowedfn = allowedfieldnames;
-			long long i = 1;
-
-			for( ; *allowedfn != NULL ; allowedfn++,i = i << 1 ) {
-				const char *allowed = *allowedfn;
-				if( strncasecmp(allowed,c,nameend-c) == 0
-				    && allowed[nameend-c] == '\0' ) {
-					if( (i&alreadyfound) != 0 ) {
-						if( !IGNORING("Ignoring","To ignore this",
-doublefield, "Doubled field name: %s (only first will be used)\n",allowed) ) {
-							return RET_ERROR;
-						}
-					}
-					alreadyfound |= i;
-					break;
-				}
-			}
-			if( *allowedfn == NULL ) {
-				char *fieldname = strndup(c,nameend-c);
-				if( !IGNORING("Ignoring","To ignore this",
-unknownfield, "Unknown field name: '%s'\n",(fieldname!=NULL)?fieldname:c) ) {
-					free(fieldname);
-					return RET_ERROR;
-				}
-				free(fieldname);
-			}
-
-		}
-		c = nameend;
-
-		do {
-			while( *c != '\0' && *c != '\n' )
-				c++;
-			if( *c == '\0' )
-				return RET_OK;
-			c++;
-			// TODO: whitespace or any space?
-		} while ( *(c) == ' ' );
-
-	}
-	return RET_OK;
-}

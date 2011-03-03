@@ -11,45 +11,48 @@
 #warning "What's happening?"
 #endif
 
-typedef struct references *references;
+#ifndef REPREPRO_DATABASE_H
+#include "database.h"
+#endif
 
+struct references;
 
-retvalue references_initialize(/*@out@*/references *ref, const char *path);
-retvalue references_done(/*@only@*/references ref);
+retvalue references_initialize(/*@out@*/struct references **ref,struct database *);
+retvalue references_done(/*@only@*/struct references *ref);
 
 /* remove all references from a given identifier */
-retvalue references_remove(references ref,const char *neededby,/*@null@*/struct strlist *);
+retvalue references_remove(struct database *,const char *neededby,/*@null@*/struct strlist *);
 
 /* Add an reference by <identifer> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */
-retvalue references_insert(references ref,const char *identifer,
+retvalue references_insert(struct database *,const char *identifer,
 		const struct strlist *files,const struct strlist *exclude);
 
 /* Add an reference by <identifer> for the given <files>,
  * do not error out if reference already exists */
-retvalue references_add(references ref,const char *identifer,const struct strlist *files);
+retvalue references_add(struct database *,const char *identifer,const struct strlist *files);
 
 /* Remove reference by <identifer> for the given <oldfiles>,
  * excluding <exclude>, if it is nonNULL.
  * if dereferencedfilekeys is != NULL, add those losing one reference,
  * files will be freed (or moved to dereferencedfilekeys) */
-retvalue references_delete(references ref,const char *identifer,
+retvalue references_delete(struct database *,const char *identifer,
 		struct strlist *files,/*@null@*/const struct strlist *exclude,
 		/*@null@*/struct strlist *dereferencedfilekeys);
 
 /* add an reference to a file for an identifier. */
-retvalue references_increment(references ref,const char *needed,const char *needey);
+retvalue references_increment(struct database *,const char *needed,const char *needey);
 
 /* delete reference to a file for an identifier */
-retvalue references_decrement(references ref,const char *needed,const char *needey);
+retvalue references_decrement(struct database *,const char *needed,const char *needey);
 
 /* check if an item is needed, returns RET_NOTHING if not */
-retvalue references_isused(references ref,const char *what);
+retvalue references_isused(struct database *,const char *what);
 
 /* check if a reference is found as expected */
-retvalue references_check(references ref,const char *referee,const struct strlist *what);
+retvalue references_check(struct database *,const char *referee,const struct strlist *what);
 
 /* print out all referee-referenced-pairs. */
-retvalue references_dump(references ref);
+retvalue references_dump(struct database *);
 
 #endif

@@ -23,7 +23,7 @@ retvalue chunk_getuniqwordlist(const char *chunk,const char *name,/*@out@*/struc
 retvalue chunk_getwholedata(const char *chunk,const char *name,/*@out@*/char **value);
 
 /* Parse a package/source-field: ' *value( ?\(version\))? *' */
-retvalue chunk_getname(const char *chunk,const char *name,/*@out@*/char **pkgname,bool_t allowversion);
+retvalue chunk_getname(const char *chunk, const char *name, /*@out@*/char **pkgname, bool allowversion);
 retvalue chunk_getnameandversion(const char *chunk,const char *name,/*@out@*/char **pkgname,/*@out@*/char **version);
 
 /* return RET_OK, if field is found, RET_NOTHING, if not (or value indicates false in future variants) */
@@ -36,7 +36,7 @@ typedef retvalue chunkaction(/*@temp@*/void *data,/*@temp@*/const char *chunk);
 
 /* Call action for each chunk in <filename>,
  * until error or until ok when <stopwhenok> */
-retvalue chunk_foreach(const char *filename,chunkaction action,/*@null@*/ /*@temp@*/void *data,bool_t stopwhenok);
+retvalue chunk_foreach(const char *filename, chunkaction action, /*@null@*/ /*@temp@*/void *data, bool stopwhenok);
 
 /* modifications of a chunk: */
 struct fieldtoadd {
@@ -63,6 +63,6 @@ void addfield_free(/*@only@*//*@null@*/struct fieldtoadd *f);
 /*@null@*/char *chunk_replacefield(const char *chunk,const char *fieldname,const char *data);
 
 /* check if all field names  are in allowedfieldnames */
-retvalue chunk_checkfields(const char *chunk,const char * const *allowedfieldnames,bool_t commentsallowed);
+retvalue chunk_checkfields(const char *chunk, const char * const *allowedfieldnames, bool commentsallowed);
 
 #endif

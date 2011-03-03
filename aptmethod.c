@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -63,7 +63,7 @@ struct aptmethod {
 	/*@null@*/char *command;
 	size_t alreadywritten,output_length;
 	/* true when we are already trying the fallbacks */
-	bool_t fallenback;
+	bool fallenback;
 };
 
 struct aptmethodrun {
@@ -90,6 +90,7 @@ static void aptmethod_free(/*@only@*/struct aptmethod *method) {
 		return;
 	free(method->name);
 	free(method->baseuri);
+	free(method->config);
 	free(method->fallbackbaseuri);
 	free(method->inputbuffer);
 	free(method->command);
@@ -176,7 +177,7 @@ retvalue aptmethod_initialize_run(struct aptmethodrun **run) {
 	}
 }
 
-retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char *fallbackuri,const char *config,struct aptmethod **m) {
+retvalue aptmethod_newmethod(struct aptmethodrun *run, const char *uri, const char *fallbackuri, const struct strlist *config, struct aptmethod **m) {
 	struct aptmethod *method;
 	const char *p;
 
@@ -231,17 +232,19 @@ retvalue aptmethod_newmethod(struct aptmethodrun *run,const char *uri,const char
 			return RET_ERROR_OOM;
 		}
 	}
-	if( config != NULL ) {
-		method->config = strdup(config);
-		if( method->config == NULL ) {
-			free(method->fallbackbaseuri);
-			free(method->baseuri);
-			free(method->name);
-			free(method);
-			return RET_ERROR_OOM;
-		}
-	} else {
-		method->config = NULL;
+#define CONF601 "601 Configuration"
+#define CONFITEM "\nConfig-Item: "
+	if( config->count == 0 )
+		method->config = strdup(CONF601 CONFITEM "Dir=/" "\n\n");
+	else
+		method->config = strlist_concat(config,
+				CONF601 CONFITEM, CONFITEM, "\n\n");
+	if( method->config == NULL ) {
+		free(method->fallbackbaseuri);
+		free(method->baseuri);
+		free(method->name);
+		free(method);
+		return RET_ERROR_OOM;
 	}
 	method->next = run->methods;
 	run->methods = method;
@@ -258,7 +261,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	int r;
 
 	/* new try, new luck */
-	method->fallenback = FALSE;
+	method->fallenback = false;
 
 	/* When there is nothing to get, there is no reason to startup
 	 * the method. */
@@ -290,7 +293,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	if( interrupted() ) {
 		(void)close(stdin[0]);(void)close(stdin[1]);
 		(void)close(stdout[0]);(void)close(stdout[1]);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 	f = fork();
 	if( f < 0 ) {
@@ -358,67 +361,6 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 	return RET_OK;
 }
 
-/************************Sending Configuration**************************/
-
-static inline retvalue sendconfig(struct aptmethod *method) {
-#define CONF601 "601 Configuration"
-#define CONFITEM "\nConfig-Item: "
-	size_t l;
-	const char *p;
-	char *c;
-	bool_t wasnewline;
-
-	assert(method->command == NULL);
-
-	method->alreadywritten = 0;
-
-	if( method->config == NULL ) {
-		method->command = mprintf(CONF601 "Config-Item: Dir=/\n\n");
-		if( method->command == NULL ) {
-			return RET_ERROR_OOM;
-		}
-		method->output_length = strlen(method->command);
-		return RET_OK;
-	}
-
-	l = sizeof(CONF601)+sizeof(CONFITEM)+1;
-	for( p = method->config; *p != '\0' ; p++ ) {
-		if( *p == '\n' )
-			l += sizeof(CONFITEM)-1;
-		else
-			l++;
-	}
-	c = method->command = malloc(l);
-	if( method->command == NULL ) {
-		return RET_ERROR_OOM;
-	}
-
-	strcpy(c,CONF601 CONFITEM);
-	c += sizeof(CONF601)+sizeof(CONFITEM)-2;
-	wasnewline = TRUE;
-	for( p = method->config; *p != '\0'  ; p++ ) {
-		if( *p != '\n' ) {
-			if( !wasnewline || !xisspace(*p) )
-				*(c++) = *p;
-			wasnewline = FALSE;
-		} else {
-			strcpy(c,CONFITEM);
-			c += sizeof(CONFITEM)-1;
-			wasnewline = TRUE;
-		}
-	}
-	*(c++) = '\n';
-	*(c++) = '\n';
-	*c = '\0';
-
-	if( verbose > 11 ) {
-		fprintf(stderr,"Sending config: '%s'\n",method->command);
-	}
-
-	method->output_length = strlen(method->command);
-	return RET_OK;
-}
-
 /**************************how to add files*****************************/
 
 /*@null@*/static inline struct tobedone *newtodo(const char *baseuri,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey) {
@@ -451,13 +393,16 @@ static inline retvalue sendconfig(struct aptmethod *method) {
 	return todo;
 }
 
-retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const char *destfile,/*@null@*/const char *md5sum,/*@null@*/const char *filekey,/*@null@*/struct tobedone **t) {
+retvalue aptmethod_queuefile(struct aptmethod *method, const char *origfile, const char *destfile, const char *md5sum, const char *filekey, struct tobedone **t) {
 	struct tobedone *todo;
 
-	todo = newtodo(method->baseuri,origfile,destfile,md5sum,filekey);
-	if( todo == NULL ) {
+	assert( origfile != NULL ); assert( destfile != NULL );
+	assert( md5sum != NULL ); assert( filekey != NULL );
+	assert( t != NULL );
+
+	todo = newtodo(method->baseuri, origfile, destfile, md5sum, filekey);
+	if( todo == NULL )
 		return RET_ERROR_OOM;
-	}
 
 	if( method->lasttobedone == NULL )
 		method->nexttosend = method->lasttobedone = method->tobedone = todo;
@@ -465,31 +410,52 @@ retvalue aptmethod_queuefile(struct aptmethod *method,const char *origfile,const
 		method->lasttobedone->next = todo;
 		method->lasttobedone = todo;
 	}
-	if( t != NULL )
-		*t = todo;
+	*t = todo;
 	return RET_OK;
-
 }
 
-retvalue aptmethod_queueindexfile(struct aptmethod *method,const char *origfile,const char *destfile) {
+retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *origfile, const char *destfile, /*@null@*/const char *md5sum) {
+	struct tobedone *todo;
+
 	if( origfile == NULL || destfile == NULL )
 		return RET_ERROR_OOM;
-	return aptmethod_queuefile(method,origfile,destfile,NULL,NULL,NULL);
+
+	todo = newtodo(method->baseuri, origfile, destfile, md5sum, NULL);
+	if( todo == NULL )
+		return RET_ERROR_OOM;
+
+	if( method->lasttobedone == NULL )
+		method->nexttosend = method->lasttobedone = method->tobedone = todo;
+	else {
+		method->lasttobedone->next = todo;
+		method->lasttobedone = todo;
+	}
+	return RET_OK;
 }
 
 /*****************what to do with received files************************/
 
 /* process a received file, possibly copying it around... */
-static inline retvalue todo_done(const struct tobedone *todo,const char *filename,const char *md5sum,filesdb filesdb) {
+static inline retvalue todo_done(const struct tobedone *todo,const char *filename,const char *md5sum,struct database *database) {
 	char *calculatedmd5;
 
 	/* if the file is somewhere else, copy it: */
 	if( strcmp(filename,todo->filename) != 0 ) {
 		retvalue r;
-		if( verbose > 1 ) {
-			fprintf(stderr,"Linking file '%s' to '%s'...\n",filename,todo->filename);
+		/* never link index files, but copy them */
+		if( todo->filekey == NULL ) {
+			if( verbose > 1 )
+				fprintf(stderr,
+"Copy file '%s' to '%s'...\n", filename, todo->filename);
+			r = md5sum_copy(filename, todo->filename,
+					&calculatedmd5);
+		} else {
+			if( verbose > 1 )
+				fprintf(stderr,
+"Linking file '%s' to '%s'...\n", filename, todo->filename);
+			r = md5sum_place(filename, todo->filename,
+					&calculatedmd5);
 		}
-		r = md5sum_place(filename,todo->filename,&calculatedmd5);
 		if( r == RET_NOTHING ) {
 			fprintf(stderr,"Cannot open '%s', which was given by method.\n",filename);
 			r = RET_ERROR_MISSING;
@@ -523,19 +489,17 @@ static inline retvalue todo_done(const struct tobedone *todo,const char *filenam
 			return RET_ERROR_WRONG_MD5;
 		}
 	}
-	free(calculatedmd5);md5sum=NULL;
+	free(calculatedmd5); md5sum=NULL;
 
 	if( todo->filekey != NULL ) {
 		retvalue r;
 
-		assert(filesdb != NULL);
 		assert(todo->md5sum != NULL);
 
-		r = files_add(filesdb,todo->filekey,todo->md5sum);
+		r = files_add(database, todo->filekey, todo->md5sum);
 		if( RET_WAS_ERROR(r) )
 			return r;
 	}
-
 
 	return RET_OK;
 }
@@ -558,7 +522,7 @@ static retvalue requeue_failed(struct aptmethod *method){
 	new_len = strlen(method->fallbackbaseuri);
 
 	/* try at most once */
-	method->fallenback = TRUE;
+	method->fallenback = true;
 
 	for( todo = method->tobedone; todo != NULL ; todo = todo->next ) {
 		size_t l;
@@ -620,14 +584,14 @@ static retvalue urierror(struct aptmethod *method,const char *uri,/*@only@*/char
 }
 
 /* look where a received file has to go to: */
-static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename,/*@null@*/const char *md5sum,filesdb filesdb) {
+static retvalue uridone(struct aptmethod *method,const char *uri,const char *filename,/*@null@*/const char *md5sum,struct database *database) {
 	struct tobedone *todo,*lasttodo;
 
 	lasttodo = NULL; todo = method->tobedone;
 	while( todo != NULL ) {
 		if( strcmp(todo->uri,uri) == 0)  {
 			retvalue r;
-			r = todo_done(todo,filename,md5sum,filesdb);
+			r = todo_done(todo, filename, md5sum, database);
 
 			/* remove item: */
 			if( lasttodo == NULL )
@@ -700,15 +664,23 @@ static inline retvalue gotcapabilities(struct aptmethod *method,const char *chun
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r != RET_NOTHING ) {
-		r = sendconfig(method);
-		if( RET_WAS_ERROR(r) )
-			return r;
+		assert(method->command == NULL);
+		method->alreadywritten = 0;
+		method->command = method->config;
+		method->config = NULL;
+		method->output_length = strlen(method->command);
+		if( verbose > 11 ) {
+			fprintf(stderr,"Sending config: '%s'\n",method->command);
+		}
+	} else {
+		free(method->config);
+		method->config = NULL;
 	}
 	method->status = ams_ok;
 	return RET_OK;
 }
 
-static inline retvalue goturidone(struct aptmethod *method,const char *chunk,filesdb filesdb) {
+static inline retvalue goturidone(struct aptmethod *method,const char *chunk,struct database *database) {
 	retvalue r;
 	char *uri,*filename,*md5,*size,*md5sum;
 
@@ -750,7 +722,7 @@ static inline retvalue goturidone(struct aptmethod *method,const char *chunk,fil
 		return r;
 	}
 
- 	r = uridone(method,uri,filename,md5sum,filesdb);
+ 	r = uridone(method, uri, filename, md5sum, database);
 	free(uri);
 	free(filename);
 	free(md5sum);
@@ -783,7 +755,7 @@ static inline retvalue goturierror(struct aptmethod *method,const char *chunk) {
 	return r;
 }
 
-static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,filesdb filesdb) {
+static inline retvalue parsereceivedblock(struct aptmethod *method,const char *input,struct database *database) {
 	const char *p;
 	retvalue r;
 #define OVERLINE {while( *p != '\0' && *p != '\n') p++; if(*p == '\n') p++; }
@@ -837,7 +809,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 					OVERLINE;
 					if( verbose >= 1 )
 						logmessage(method,p,"got");
-					return goturidone(method,p,filesdb);
+					return goturidone(method, p, database);
 				default:
 					fprintf(stderr,"Got error or unsupported mesage: '%s'\n",input);
 					return RET_ERROR;
@@ -868,7 +840,7 @@ static inline retvalue parsereceivedblock(struct aptmethod *method,const char *i
 	}
 }
 
-static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
+static retvalue receivedata(struct aptmethod *method,struct database *database) {
 	retvalue result;
 	ssize_t r;
 	char *p;
@@ -909,7 +881,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 	method->alreadyread += r;
 
 	result = RET_NOTHING;
-	while(TRUE) {
+	while(true) {
 		retvalue res;
 
 		r = method->alreadyread;
@@ -934,7 +906,7 @@ static retvalue receivedata(struct aptmethod *method,filesdb filesdb) {
 			return result;
 		}
 		*p ='\0'; p++; r--;
-		res = parsereceivedblock(method,method->inputbuffer,filesdb);
+		res = parsereceivedblock(method, method->inputbuffer, database);
 		if( r > 0 )
 			memmove(method->inputbuffer,p,r);
 		method->alreadyread = r;
@@ -956,7 +928,7 @@ static retvalue senddata(struct aptmethod *method) {
 		}
 
 		if( interrupted() )
-			return RET_ERROR_INTERUPTED;
+			return RET_ERROR_INTERRUPTED;
 
 		method->alreadywritten = 0;
 		// TODO: make sure this is already checked for earlier...
@@ -1044,7 +1016,7 @@ static retvalue checkchilds(struct aptmethodrun *run) {
 }
 
 /* *workleft is always set, even when return indicated error. (workleft < 0 when critical)*/
-static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,filesdb filesdb) {
+static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,struct database *database) {
 	int maxfd,v;
 	fd_set readfds,writefds;
 	struct aptmethod *method;
@@ -1096,7 +1068,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,filesd
 	maxfd = 0;
 	for( method = run->methods ; method != NULL ; method = method->next ) {
 		if( method->stdout != -1 && FD_ISSET(method->stdout,&readfds) ) {
-			r = receivedata(method,filesdb);
+			r = receivedata(method, database);
 			RET_UPDATE(result,r);
 		}
 		if( method->stdin != -1 && FD_ISSET(method->stdin,&writefds) ) {
@@ -1107,7 +1079,7 @@ static retvalue readwrite(struct aptmethodrun *run,/*@out@*/int *workleft,filesd
 	return result;
 }
 
-retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,filesdb filesdb) {
+retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,struct database *database) {
 	struct aptmethod *method;
 	retvalue result,r;
 	int workleft;
@@ -1127,7 +1099,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,files
 	do {
 	  r = checkchilds(run);
 	  RET_UPDATE(result,r);
-	  r = readwrite(run,&workleft,filesdb);
+	  r = readwrite(run, &workleft, database);
 	  RET_UPDATE(result,r);
 	  // TODO: check interrupted here...
 	} while( workleft > 0 );

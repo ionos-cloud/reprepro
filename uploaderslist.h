@@ -3,7 +3,7 @@
 
 struct uploadpermissions {
 	/* later more fine grained permissions */
-	bool_t allowall;
+	bool allowall;
 };
 
 struct uploaders;

@@ -32,7 +32,6 @@
 #ifdef HAVE_LIBBZ2
 #include <bzlib.h>
 #endif
-#include <db.h>
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
@@ -53,9 +52,9 @@ struct release {
 	/* The base-directory of the distribution we are exporting */
 	char *dirofdist;
 	/* anything new yet added */
-	bool_t new;
+	bool new;
 	/* snapshot */
-	bool_t snapshot;
+	bool snapshot;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -66,7 +65,7 @@ struct release {
 		char *fulltemporaryfilename;
 	} *files;
 	/* the cache database for old files */
-	DB *cachedb;
+	struct table *cachedb;
 };
 
 void release_free(struct release *release) {
@@ -82,7 +81,7 @@ void release_free(struct release *release) {
 		free(e);
 	}
 	if( release->cachedb != NULL ) {
-		release->cachedb->close(release->cachedb,0);
+		table_close(release->cachedb);
 	}
 	free(release);
 }
@@ -115,10 +114,9 @@ static retvalue newreleaseentry(struct release *release, /*@only@*/ char *relati
 	return RET_OK;
 }
 
-retvalue release_init(const char *dbdir, const char *distdir, const char *codename, struct release **release) {
+retvalue release_init(struct release **release, struct database *database, const char *distdir, const char *codename) {
 	struct release *n;
-	int dbret;
-	char *filename;
+	retvalue r;
 
 	n = calloc(1,sizeof(struct release));
 	n->dirofdist = calc_dirconcat(distdir,codename);
@@ -126,30 +124,14 @@ retvalue release_init(const char *dbdir, const char *distdir, const char *codena
 		free(n);
 		return RET_ERROR_OOM;
 	}
-	dbret = db_create(&n->cachedb,NULL,0);
-	if( dbret < 0 ) {
-		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
+	r = database_openreleasecache(database, codename, &n->cachedb);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
 		n->cachedb = NULL;
 		free(n->dirofdist);
 		free(n);
-		return RET_DBERR(dbret);
+		return r;
 	}
-	filename = calc_dirconcat(dbdir,"release.cache.db");
-	if( filename == NULL ) {
-		(void)n->cachedb->close(n->cachedb,0);
-		return RET_ERROR_OOM;
-	}
-	dbret = DB_OPEN(n->cachedb,filename,codename, DB_HASH, DB_CREATE);
-	if( dbret < 0 ) {
-		n->cachedb->err(n->cachedb, dbret, "%s(%s)",
-				filename,codename);
-		(void)n->cachedb->close(n->cachedb,0);
-		free(filename);
-		free(n->dirofdist);
-		free(n);
-		return RET_DBERR(dbret);
-	}
-	free(filename);
 	*release = n;
 	return RET_OK;
 }
@@ -164,7 +146,7 @@ retvalue release_initsnapshot(const char *distdir, const char *codename, const c
 		return RET_ERROR_OOM;
 	}
 	n->cachedb = NULL;
-	n->snapshot = TRUE;
+	n->snapshot = true;
 	*release = n;
 	return RET_OK;
 }
@@ -205,7 +187,7 @@ retvalue release_addnew(struct release *release,/*@only@*/char *reltmpfile,/*@on
 		free(md5sum);
 		return RET_ERROR_OOM;
 	}
-	release->new = TRUE;
+	release->new = true;
 	return newreleaseentry(release,relfilename,md5sum,finalfilename,filename);
 }
 
@@ -397,7 +379,7 @@ void release_abortfile(struct filetorelease *file) {
 #endif
 }
 
-bool_t release_oldexists(struct filetorelease *file) {
+bool release_oldexists(struct filetorelease *file) {
 	if( file->f[ic_uncompressed].fullfinalfilename != NULL ) {
 		if( file->f[ic_gzip].fullfinalfilename != NULL ) {
 			return isregularfile(file->f[ic_gzip].fullfinalfilename) &&
@@ -574,7 +556,7 @@ static retvalue	initbzcompression(struct filetorelease *f) {
 
 static retvalue startfile(struct release *release,
 		char *filename, compressionset compressions,
-		bool_t usecache,
+		bool usecache,
 		struct filetorelease **file) {
 	struct filetorelease *n;
 	enum indexcompression i;
@@ -657,7 +639,7 @@ static retvalue startfile(struct release *release,
 
 retvalue release_startfile2(struct release *release,
 		const char *relative_dir, const char *filename, compressionset compressions,
-		bool_t usecache,
+		bool usecache,
 		struct filetorelease **file) {
 	char *relfilename;
 
@@ -668,7 +650,7 @@ retvalue release_startfile2(struct release *release,
 }
 retvalue release_startfile(struct release *release,
 		const char *filename, compressionset compressions,
-		bool_t usecache,
+		bool usecache,
 		struct filetorelease **file) {
 	char *relfilename;
 
@@ -992,7 +974,7 @@ retvalue release_finishfile(struct release *release, struct filetorelease *file)
 		file->f[ic_bzip2].fd = -1;
 	}
 #endif
-	release->new = TRUE;
+	release->new = true;
 	result = RET_OK;
 
 	for( i = ic_uncompressed ; i < ic_count ; i++ ) {
@@ -1035,7 +1017,7 @@ retvalue release_writedata(struct filetorelease *file, const char *data, size_t 
 }
 
 /* Generate a "Release"-file for arbitrary directory */
-retvalue release_directorydescription(struct release *release, const struct distribution *distribution,const struct target *target,const char *releasename,bool_t onlyifneeded) {
+retvalue release_directorydescription(struct release *release, const struct distribution *distribution, const struct target *target, const char *releasename, bool onlyifneeded) {
 	retvalue r;
 	struct filetorelease *f;
 
@@ -1066,70 +1048,38 @@ retvalue release_directorydescription(struct release *release, const struct dist
 	return r;
 }
 
-#define CLEARDBT(dbt) {memset(&dbt,0,sizeof(dbt));}
-#define SETDBT(dbt,datastr) {const char *my = datastr;memset(&dbt,0,sizeof(dbt));dbt.data=(void *)my;dbt.size=strlen(my)+1;}
-
 static retvalue getcachevalue(struct release *r,const char *relfilename, char **md5sum) {
-	int dbret;
-	DBT key,data;
 
 	if( r->cachedb == NULL )
 		return RET_NOTHING;
 
-	SETDBT(key,relfilename);
-	CLEARDBT(data);
-	dbret = r->cachedb->get(r->cachedb, NULL, &key, &data, 0);
-	if( dbret == 0 ) {
-		char *c;
-		c = strdup(data.data);
-		if( c == NULL )
-			return RET_ERROR_OOM;
-		else {
-			*md5sum = c;
-			return RET_OK;
-		}
-	} else if( dbret == DB_NOTFOUND ) {
-		return RET_NOTHING;
-	} else {
-		r->cachedb->err(r->cachedb, dbret, "release.cache.db:");
-		return RET_DBERR(dbret);
-	}
+	return table_getrecord(r->cachedb, relfilename, md5sum);
 }
 
-static retvalue storechecksums(struct release *r) {
-
+static retvalue storechecksums(struct release *release) {
 	struct release_entry *file;
 
-	for( file = r->files ; file != NULL ; file = file->next ) {
-		int dbret;
-		DBT key,data;
+	for( file = release->files ; file != NULL ; file = file->next ) {
+		retvalue r;
 
 		if( file->md5sum == NULL || file->relativefilename == NULL )
 			continue;
 
-		SETDBT(key,file->relativefilename);
+		r = table_deleterecord(release->cachedb,
+				file->relativefilename, true);
+		if( RET_WAS_ERROR(r) )
+			return r;
 
-		dbret = r->cachedb->del(r->cachedb, NULL, &key, 0);
-		if( dbret < 0 && dbret != DB_NOTFOUND ) {
-			r->cachedb->err(r->cachedb, dbret, "release.cache.db:");
-			return RET_DBERR(dbret);
-		}
-		SETDBT(key,file->relativefilename);
-		SETDBT(data,file->md5sum);
-
-		dbret = r->cachedb->put(r->cachedb,NULL,&key,&data,DB_NOOVERWRITE);
-		if( dbret < 0 ) {
-			r->cachedb->err(r->cachedb, dbret, "release.cache.db:");
-			return RET_DBERR(dbret);
-		}
+		r = table_adduniqrecord(release->cachedb,
+				file->relativefilename, file->md5sum);
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	return RET_OK;
 }
-#undef CLEARDBT
-#undef SETDBT
 
 /* Generate a main "Release" file for a distribution */
-retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool_t onlyifneeded) {
+retvalue release_write(/*@only@*/struct release *release, struct distribution *distribution, bool onlyifneeded) {
 	size_t s;
 	int e;
 	retvalue result,r;
@@ -1138,7 +1088,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	struct tm *gmt;
 	int i;
 	struct release_entry *file;
-	bool_t somethingwasdone;
+	bool somethingwasdone;
 	struct signedfile *signedfile;
 
 	if( onlyifneeded && !release->new ) {
@@ -1234,7 +1184,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 		release_free(release);
 		return r;
 	}
-	somethingwasdone = FALSE;
+	somethingwasdone = false;
 	result = RET_OK;
 
 	for( file = release->files ; file != NULL ; file = file->next ) {
@@ -1261,7 +1211,7 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 				}
 				RET_UPDATE(result,r);
 			} else
-				somethingwasdone = TRUE;
+				somethingwasdone = true;
 		}
 	}
 	r = signedfile_finalize(signedfile, &somethingwasdone);
@@ -1273,20 +1223,13 @@ retvalue release_write(/*@only@*/struct release *release, struct distribution *d
 	RET_UPDATE(result,r);
 
 	if( release->cachedb != NULL ) {
-	 	int dbret;
-
 		/* now update the cache database, so we find those the next time */
 		r = storechecksums(release);
 		RET_UPDATE(result,r);
 
-		/* check for an possible error in the cachedb,
-		 * release_free return no error */
-		dbret = release->cachedb->close(release->cachedb,0);
-		if( dbret < 0 ) {
-			release_free(release);
-			return RET_DBERR(dbret);
-		}
+		r = table_close(release->cachedb);
 		release->cachedb = NULL;
+		RET_ENDUPDATE(result, r);
 	}
 	/* free everything */
 	release_free(release);

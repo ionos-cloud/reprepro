@@ -21,7 +21,7 @@ char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 retvalue binaries_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue ubinaries_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
-retvalue binaries_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,references refs);
+retvalue binaries_retrack(struct target *t,const char *packagename,const char *chunk, trackingdb tracks,struct database *);
 retvalue binaries_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
 
 /* Functions for checkindeb.c and incoming.c: */
@@ -42,7 +42,7 @@ struct deb_headers {
  *   error returned
  * - no checks for sanity of values, left to the caller */
 
-retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool_t needssourceversion);
+retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool needssourceversion);
 void binaries_debdone(struct deb_headers *);
 
 retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *,const char *packagetype,struct strlist *filekeys);
@@ -50,6 +50,6 @@ retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *,
 struct overrideinfo;
 retvalue binaries_complete(const struct deb_headers *,const char *filekey,const char *md5sum,const struct overrideinfo *,const char *section,const char *priority,char **newcontrol);
 
-retvalue binaries_adddeb(const struct deb_headers *,const char *dbdir,references,const char *forcearchitecture,const char *packagetype,struct distribution *,struct strlist *dereferencedfilekeys,struct trackingdata *,const char *component,const struct strlist *filekeys,const char *control);
-retvalue binaries_checkadddeb(const struct deb_headers *,const char *dbdir,const char *forcearchitecture,const char *packagetype,struct distribution *,bool_t tracking,const char *component,bool_t permitnewerold);
+retvalue binaries_adddeb(const struct deb_headers *,struct database *,const char *forcearchitecture,const char *packagetype,struct distribution *,struct strlist *dereferencedfilekeys,struct trackingdata *,const char *component,const struct strlist *filekeys,const char *control);
+retvalue binaries_checkadddeb(const struct deb_headers *, struct database *, const char *forcearchitecture, const char *packagetype, struct distribution *, bool tracking, const char *component, bool permitnewerold);
 #endif

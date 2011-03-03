@@ -107,7 +107,7 @@ void dsc_free(/*@only@*/struct dscpackage *pkg) {
 static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename) {
 	retvalue r;
 	struct dscpackage *dsc;
-	bool_t broken;
+	bool broken;
 
 
 	dsc = calloc(1,sizeof(struct dscpackage));
@@ -194,11 +194,12 @@ static retvalue dsc_adddsc(struct dscpackage *pkg) {
 }
 
 
-retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int delete, const char *expectedname, const char *expectedversion){
+retvalue dsc_prepare(struct dscpackage **dsc,struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,int delete, const char *expectedname, const char *expectedversion){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
 	char *control;
+	int i;
 
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
@@ -289,11 +290,23 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	if( !RET_WAS_ERROR(r) ) {
 		/* evil things will hapen if delete is not D_INPLACE when
 		 * called from includechanges */
-		r = files_include(filesdb,dscfilename,pkg->dscfilekey,md5sum,&pkg->dscmd5sum,delete);
+		r = files_include(database,
+				dscfilename, pkg->dscfilekey,
+				md5sum, &pkg->dscmd5sum, delete);
 	}
 
-	if( !RET_WAS_ERROR(r) ) {
-		r = files_includefiles(filesdb,sourcedir,&pkg->dsc.basenames,&pkg->filekeys,&pkg->dsc.md5sums,delete);
+	assert( pkg->dsc.basenames.count == pkg->dsc.md5sums.count );
+	assert( pkg->dsc.basenames.count == pkg->filekeys.count );
+	for( i = 0 ; i < pkg->dsc.basenames.count ; i ++ ) {
+		if( !RET_WAS_ERROR(r) ) {
+			const char *basename = pkg->dsc.basenames.values[i];
+			const char *filekey = pkg->filekeys.values[i];
+			const char *md5sum = pkg->dsc.md5sums.values[i];
+
+			r = files_includefile(database, sourcedir,
+					basename, filekey, md5sum,
+					NULL, delete);
+		}
 	}
 
 	/* Calculate the chunk to include: */
@@ -314,23 +327,23 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 	return r;
 }
 
-retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,references refs,struct distribution *distribution,struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
+retvalue dsc_addprepared(const struct dscpackage *pkg,struct database *database,struct distribution *distribution,struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata){
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
 
 	assert( logger_isprepared(distribution->logger) );
 
 	/* finally put it into the source distribution */
-	r = target_initpackagesdb(t,dbdir);
+	r = target_initpackagesdb(t, database, READWRITE);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
 		if( interrupted() )
-			r = RET_ERROR_INTERUPTED;
+			r = RET_ERROR_INTERRUPTED;
 		else
-			r = target_addpackage(t, distribution->logger, refs,
+			r = target_addpackage(t, distribution->logger, database,
 					pkg->dsc.name, pkg->dsc.version,
 					pkg->dsc.control, &pkg->filekeys,
-					FALSE, dereferencedfilekeys,
+					false, dereferencedfilekeys,
 					trackingdata, ft_SOURCE);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
@@ -344,7 +357,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
  * If basename, filekey and directory are != NULL, then they are used instead
  * of being newly calculated.
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
+retvalue dsc_add(struct database *database,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -354,14 +367,14 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,delete,NULL,NULL);
+	r = dsc_prepare(&pkg,database,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,delete,NULL,NULL);
 	free(dscdirectory);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	if( interrupted() ) {
 		dsc_free(pkg);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 
 	if( tracks != NULL ) {
@@ -372,14 +385,15 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 		}
 	}
 
-	r = dsc_addprepared(pkg,dbdir,refs,distribution,
+	r = dsc_addprepared(pkg, database, distribution,
 			dereferencedfilekeys,
 			(tracks!=NULL)?&trackingdata:NULL);
 	dsc_free(pkg);
 
 	if( tracks != NULL ) {
 		retvalue r2;
-		r2 = trackingdata_finish(tracks, &trackingdata, refs, dereferencedfilekeys);
+		r2 = trackingdata_finish(tracks, &trackingdata, database,
+				dereferencedfilekeys);
 		RET_ENDUPDATE(r,r2);
 	}
 	return r;

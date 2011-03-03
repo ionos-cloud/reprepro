@@ -77,7 +77,7 @@ retvalue donefile_create(const char *filename, const char *expected) {
 	ssize_t written;
 	int fd;
 	if( interrupted() )
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	char *donefilename = calc_addsuffix(filename,"done");
 
 	if( donefilename == NULL )

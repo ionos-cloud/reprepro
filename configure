@@ -1295,6 +1295,7 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-libdb=path|4.4|4.3|3 Give prefix of libdb-4.3 or older version to use
+  --with-libpgpme=path|yes|no	Give path to prefix libgpgme was installed with
   --with-libbz2=path|yes|no	Give path to prefix libbz2 was installed with
   --with-libarchive=path|yes|no  Give path to prefix libarchive was installed with
   --with-static-libarchive=.a-file  static libarchive library to be linked against
@@ -2070,7 +2071,7 @@ fi
 
 # Define the identity of the package.
  PACKAGE=reprepro
- VERSION=2.2.4
+ VERSION=3.0.0
 
 
 cat >>confdefs.h <<_ACEOF
@@ -2237,6 +2238,12 @@ else
 fi
 
   MAINT=$MAINTAINER_MODE_TRUE
+
+
+
+cat >>confdefs.h <<\_ACEOF
+#define _GNU_SOURCE 1
+_ACEOF
 
 
 
@@ -3761,50 +3768,6 @@ rm -f conftest*
 fi
 
 
-
-DBLIBS=""
-DBCPPFLAGS=""
-
-
-
-# Check whether --with-libdb was given.
-if test "${with_libdb+set}" = set; then
-  withval=$with_libdb; 	case "$withval" in
-	no)
-	{ { echo "$as_me:$LINENO: error: \"Cannot compile without libdb\"" >&5
-echo "$as_me: error: \"Cannot compile without libdb\"" >&2;}
-   { (exit 1); exit 1; }; };
-	;;
-	3)
-	DB_WANT_VERSION=3
-	;;
-	yes|4.3)
-	DB_WANT_VERSION=4.3
-	;;
-	4.4)
-	DB_WANT_VERSION=4.4
-	;;
-	?|?.?)
-	{ { echo "$as_me:$LINENO: error: Unknown --with-libdb argument $withval" >&5
-echo "$as_me: error: Unknown --with-libdb argument $withval" >&2;}
-   { (exit 1); exit 1; }; }
-	;;
-	*)
-	DB_WANT_VERSION=any
-	DBLIBS="-L$withval/lib"
-	DBCPPFLAGS="-I$withval/include"
-	;;
-	esac
-
-else
-  DB_WANT_VERSION=any
-fi
-
-
-# the only way to find out which is compileable is to look into db.h:
-
-mysave_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $DBCPPFLAGS"
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -4441,6 +4404,236 @@ fi
 done
 
 
+{ echo "$as_me:$LINENO: checking for stdbool.h that conforms to C99" >&5
+echo $ECHO_N "checking for stdbool.h that conforms to C99... $ECHO_C" >&6; }
+if test "${ac_cv_header_stdbool_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+#include <stdbool.h>
+#ifndef bool
+ "error: bool is not defined"
+#endif
+#ifndef false
+ "error: false is not defined"
+#endif
+#if false
+ "error: false is not 0"
+#endif
+#ifndef true
+ "error: true is not defined"
+#endif
+#if true != 1
+ "error: true is not 1"
+#endif
+#ifndef __bool_true_false_are_defined
+ "error: __bool_true_false_are_defined is not defined"
+#endif
+
+	struct s { _Bool s: 1; _Bool t; } s;
+
+	char a[true == 1 ? 1 : -1];
+	char b[false == 0 ? 1 : -1];
+	char c[__bool_true_false_are_defined == 1 ? 1 : -1];
+	char d[(bool) 0.5 == true ? 1 : -1];
+	bool e = &s;
+	char f[(_Bool) 0.0 == false ? 1 : -1];
+	char g[true];
+	char h[sizeof (_Bool)];
+	char i[sizeof s.t];
+	enum { j = false, k = true, l = false * true, m = true * 256 };
+	_Bool n[m];
+	char o[sizeof n == m * sizeof n[0] ? 1 : -1];
+	char p[-1 - (_Bool) 0 < 0 && -1 - (bool) 0 < 0 ? 1 : -1];
+#	if defined __xlc__ || defined __GNUC__
+	 /* Catch a bug in IBM AIX xlc compiler version 6.0.0.0
+	    reported by James Lemley on 2005-10-05; see
+	    http://lists.gnu.org/archive/html/bug-coreutils/2005-10/msg00086.html
+	    This test is not quite right, since xlc is allowed to
+	    reject this program, as the initializer for xlcbug is
+	    not one of the forms that C requires support for.
+	    However, doing the test right would require a runtime
+	    test, and that would make cross-compilation harder.
+	    Let us hope that IBM fixes the xlc bug, and also adds
+	    support for this kind of constant expression.  In the
+	    meantime, this test will reject xlc, which is OK, since
+	    our stdbool.h substitute should suffice.  We also test
+	    this with GCC, where it should work, to detect more
+	    quickly whether someone messes up the test in the
+	    future.  */
+	 char digs[] = "0123456789";
+	 int xlcbug = 1 / (&(digs + 5)[-2 + (bool) 1] == &digs[4] ? 1 : -1);
+#	endif
+	/* Catch a bug in an HP-UX C compiler.  See
+	   http://gcc.gnu.org/ml/gcc-patches/2003-12/msg02303.html
+	   http://lists.gnu.org/archive/html/bug-coreutils/2005-11/msg00161.html
+	 */
+	_Bool q = true;
+	_Bool *pq = &q;
+
+int
+main ()
+{
+
+	*pq |= q;
+	*pq |= ! q;
+	/* Refer to every declared value, to avoid compiler optimizations.  */
+	return (!a + !b + !c + !d + !e + !f + !g + !h + !i + !!j + !k + !!l
+		+ !m + !n + !o + !p + !q + !pq);
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_cv_header_stdbool_h=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_header_stdbool_h=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_stdbool_h" >&5
+echo "${ECHO_T}$ac_cv_header_stdbool_h" >&6; }
+{ echo "$as_me:$LINENO: checking for _Bool" >&5
+echo $ECHO_N "checking for _Bool... $ECHO_C" >&6; }
+if test "${ac_cv_type__Bool+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+typedef _Bool ac__type_new_;
+int
+main ()
+{
+if ((ac__type_new_ *) 0)
+  return 0;
+if (sizeof (ac__type_new_))
+  return 0;
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_cv_type__Bool=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_type__Bool=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_type__Bool" >&5
+echo "${ECHO_T}$ac_cv_type__Bool" >&6; }
+if test $ac_cv_type__Bool = yes; then
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE__BOOL 1
+_ACEOF
+
+
+fi
+
+if test $ac_cv_header_stdbool_h = yes; then
+
+cat >>confdefs.h <<\_ACEOF
+#define HAVE_STDBOOL_H 1
+_ACEOF
+
+fi
+
+
+DBLIBS=""
+DBCPPFLAGS=""
+
+
+
+# Check whether --with-libdb was given.
+if test "${with_libdb+set}" = set; then
+  withval=$with_libdb; 	case "$withval" in
+	no)
+	{ { echo "$as_me:$LINENO: error: \"Cannot compile without libdb\"" >&5
+echo "$as_me: error: \"Cannot compile without libdb\"" >&2;}
+   { (exit 1); exit 1; }; };
+	;;
+	3)
+	DB_WANT_VERSION=3
+	;;
+	yes|4.3)
+	DB_WANT_VERSION=4.3
+	;;
+	4.4)
+	DB_WANT_VERSION=4.4
+	;;
+	/*)
+	DB_WANT_VERSION=any
+	DBLIBS="-L$withval/lib"
+	DBCPPFLAGS="-I$withval/include"
+	;;
+	*)
+	{ { echo "$as_me:$LINENO: error: Unparseable --with-libdb argument $withval" >&5
+echo "$as_me: error: Unparseable --with-libdb argument $withval" >&2;}
+   { (exit 1); exit 1; }; }
+	;;
+	esac
+
+else
+  DB_WANT_VERSION=any
+fi
+
+
+# the only way to find out which is compileable is to look into db.h:
+
+mysave_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $DBCPPFLAGS"
 if test "${ac_cv_header_db_h+set}" = set; then
   { echo "$as_me:$LINENO: checking for db.h" >&5
 echo $ECHO_N "checking for db.h... $ECHO_C" >&6; }
@@ -5007,6 +5200,148 @@ echo "$as_me: error: \"no zlib found\"" >&2;}
 fi
 
 
+
+# Check whether --with-libgpgme was given.
+if test "${with_libgpgme+set}" = set; then
+  withval=$with_libgpgme; 	case "$withval" in
+	no)
+	;;
+	yes)
+	if test "${ac_cv_header_gpgme_h+set}" = set; then
+  { echo "$as_me:$LINENO: checking for gpgme.h" >&5
+echo $ECHO_N "checking for gpgme.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_gpgme_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_gpgme_h" >&5
+echo "${ECHO_T}$ac_cv_header_gpgme_h" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking gpgme.h usability" >&5
+echo $ECHO_N "checking gpgme.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <gpgme.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking gpgme.h presence" >&5
+echo $ECHO_N "checking gpgme.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <gpgme.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: gpgme.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: gpgme.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: gpgme.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: gpgme.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: gpgme.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: gpgme.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: gpgme.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: gpgme.h: in the future, the compiler will take precedence" >&2;}
+
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for gpgme.h" >&5
+echo $ECHO_N "checking for gpgme.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_gpgme_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_gpgme_h=$ac_header_preproc
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_gpgme_h" >&5
+echo "${ECHO_T}$ac_cv_header_gpgme_h" >&6; }
+
+fi
+if test $ac_cv_header_gpgme_h = yes; then
+  :
+else
+  { { echo "$as_me:$LINENO: error: \"no gpgme.h found\"" >&5
+echo "$as_me: error: \"no gpgme.h found\"" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+
 { echo "$as_me:$LINENO: checking for gpg_strsource in -lgpg-error" >&5
 echo $ECHO_N "checking for gpg_strsource in -lgpg-error... $ECHO_C" >&6; }
 if test "${ac_cv_lib_gpg_error_gpg_strsource+set}" = set; then
@@ -5156,7 +5491,11 @@ echo "$as_me: error: \"no libgpgme found (need at least 0.4.1)\"" >&2;}
    { (exit 1); exit 1; }; }
 fi
 
-if test "${ac_cv_header_gpgme_h+set}" = set; then
+	;;
+	*)
+	CPPFLAGS="$CPPFLAGS -I$withval/include"
+	LIBS="$LIBS -L$withval/lib"
+	if test "${ac_cv_header_gpgme_h+set}" = set; then
   { echo "$as_me:$LINENO: checking for gpgme.h" >&5
 echo $ECHO_N "checking for gpgme.h... $ECHO_C" >&6; }
 if test "${ac_cv_header_gpgme_h+set}" = set; then
@@ -5289,6 +5628,447 @@ echo "$as_me: error: \"no gpgme.h found\"" >&2;}
    { (exit 1); exit 1; }; }
 fi
 
+
+
+{ echo "$as_me:$LINENO: checking for gpg_strsource in -lgpg-error" >&5
+echo $ECHO_N "checking for gpg_strsource in -lgpg-error... $ECHO_C" >&6; }
+if test "${ac_cv_lib_gpg_error_gpg_strsource+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lgpg-error  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char gpg_strsource ();
+int
+main ()
+{
+return gpg_strsource ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_gpg_error_gpg_strsource=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_gpg_error_gpg_strsource=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_gpg_error_gpg_strsource" >&5
+echo "${ECHO_T}$ac_cv_lib_gpg_error_gpg_strsource" >&6; }
+if test $ac_cv_lib_gpg_error_gpg_strsource = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBGPG_ERROR 1
+_ACEOF
+
+  LIBS="-lgpg-error $LIBS"
+
+else
+  { { echo "$as_me:$LINENO: error: \"no libgpg-error found\"" >&5
+echo "$as_me: error: \"no libgpg-error found\"" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+{ echo "$as_me:$LINENO: checking for gpgme_get_protocol_name in -lgpgme" >&5
+echo $ECHO_N "checking for gpgme_get_protocol_name in -lgpgme... $ECHO_C" >&6; }
+if test "${ac_cv_lib_gpgme_gpgme_get_protocol_name+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lgpgme  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char gpgme_get_protocol_name ();
+int
+main ()
+{
+return gpgme_get_protocol_name ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_gpgme_gpgme_get_protocol_name=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_gpgme_gpgme_get_protocol_name=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_gpgme_gpgme_get_protocol_name" >&5
+echo "${ECHO_T}$ac_cv_lib_gpgme_gpgme_get_protocol_name" >&6; }
+if test $ac_cv_lib_gpgme_gpgme_get_protocol_name = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBGPGME 1
+_ACEOF
+
+  LIBS="-lgpgme $LIBS"
+
+else
+  { { echo "$as_me:$LINENO: error: \"no libgpgme found (need at least 0.4.1)\"" >&5
+echo "$as_me: error: \"no libgpgme found (need at least 0.4.1)\"" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+	;;
+	esac
+
+else
+  	if test "${ac_cv_header_gpgme_h+set}" = set; then
+  { echo "$as_me:$LINENO: checking for gpgme.h" >&5
+echo $ECHO_N "checking for gpgme.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_gpgme_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_gpgme_h" >&5
+echo "${ECHO_T}$ac_cv_header_gpgme_h" >&6; }
+else
+  # Is the header compilable?
+{ echo "$as_me:$LINENO: checking gpgme.h usability" >&5
+echo $ECHO_N "checking gpgme.h usability... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+$ac_includes_default
+#include <gpgme.h>
+_ACEOF
+rm -f conftest.$ac_objext
+if { (ac_try="$ac_compile"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_compile") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest.$ac_objext; then
+  ac_header_compiler=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_header_compiler=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
+echo "${ECHO_T}$ac_header_compiler" >&6; }
+
+# Is the header present?
+{ echo "$as_me:$LINENO: checking gpgme.h presence" >&5
+echo $ECHO_N "checking gpgme.h presence... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+#include <gpgme.h>
+_ACEOF
+if { (ac_try="$ac_cpp conftest.$ac_ext"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_cpp conftest.$ac_ext") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } >/dev/null && {
+	 test -z "$ac_c_preproc_warn_flag$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       }; then
+  ac_header_preproc=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+  ac_header_preproc=no
+fi
+
+rm -f conftest.err conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
+echo "${ECHO_T}$ac_header_preproc" >&6; }
+
+# So?  What about this header?
+case $ac_header_compiler:$ac_header_preproc:$ac_c_preproc_warn_flag in
+  yes:no: )
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: accepted by the compiler, rejected by the preprocessor!" >&5
+echo "$as_me: WARNING: gpgme.h: accepted by the compiler, rejected by the preprocessor!" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: proceeding with the compiler's result" >&5
+echo "$as_me: WARNING: gpgme.h: proceeding with the compiler's result" >&2;}
+    ac_header_preproc=yes
+    ;;
+  no:yes:* )
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: present but cannot be compiled" >&5
+echo "$as_me: WARNING: gpgme.h: present but cannot be compiled" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h:     check for missing prerequisite headers?" >&5
+echo "$as_me: WARNING: gpgme.h:     check for missing prerequisite headers?" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: see the Autoconf documentation" >&5
+echo "$as_me: WARNING: gpgme.h: see the Autoconf documentation" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h:     section \"Present But Cannot Be Compiled\"" >&5
+echo "$as_me: WARNING: gpgme.h:     section \"Present But Cannot Be Compiled\"" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: proceeding with the preprocessor's result" >&5
+echo "$as_me: WARNING: gpgme.h: proceeding with the preprocessor's result" >&2;}
+    { echo "$as_me:$LINENO: WARNING: gpgme.h: in the future, the compiler will take precedence" >&5
+echo "$as_me: WARNING: gpgme.h: in the future, the compiler will take precedence" >&2;}
+
+    ;;
+esac
+{ echo "$as_me:$LINENO: checking for gpgme.h" >&5
+echo $ECHO_N "checking for gpgme.h... $ECHO_C" >&6; }
+if test "${ac_cv_header_gpgme_h+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_cv_header_gpgme_h=$ac_header_preproc
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_header_gpgme_h" >&5
+echo "${ECHO_T}$ac_cv_header_gpgme_h" >&6; }
+
+fi
+if test $ac_cv_header_gpgme_h = yes; then
+  :
+else
+  { { echo "$as_me:$LINENO: error: \"no gpgme.h found (to disable run with --without-libgpgme)\"" >&5
+echo "$as_me: error: \"no gpgme.h found (to disable run with --without-libgpgme)\"" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+
+{ echo "$as_me:$LINENO: checking for gpg_strsource in -lgpg-error" >&5
+echo $ECHO_N "checking for gpg_strsource in -lgpg-error... $ECHO_C" >&6; }
+if test "${ac_cv_lib_gpg_error_gpg_strsource+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lgpg-error  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char gpg_strsource ();
+int
+main ()
+{
+return gpg_strsource ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_gpg_error_gpg_strsource=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_gpg_error_gpg_strsource=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_gpg_error_gpg_strsource" >&5
+echo "${ECHO_T}$ac_cv_lib_gpg_error_gpg_strsource" >&6; }
+if test $ac_cv_lib_gpg_error_gpg_strsource = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBGPG_ERROR 1
+_ACEOF
+
+  LIBS="-lgpg-error $LIBS"
+
+else
+  { { echo "$as_me:$LINENO: error: \"no libgpg-error found (to disable run with --without-libgpgme)\"" >&5
+echo "$as_me: error: \"no libgpg-error found (to disable run with --without-libgpgme)\"" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+{ echo "$as_me:$LINENO: checking for gpgme_get_protocol_name in -lgpgme" >&5
+echo $ECHO_N "checking for gpgme_get_protocol_name in -lgpgme... $ECHO_C" >&6; }
+if test "${ac_cv_lib_gpgme_gpgme_get_protocol_name+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lgpgme  $LIBS"
+cat >conftest.$ac_ext <<_ACEOF
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char gpgme_get_protocol_name ();
+int
+main ()
+{
+return gpgme_get_protocol_name ();
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  ac_cv_lib_gpgme_gpgme_get_protocol_name=yes
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	ac_cv_lib_gpgme_gpgme_get_protocol_name=no
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_gpgme_gpgme_get_protocol_name" >&5
+echo "${ECHO_T}$ac_cv_lib_gpgme_gpgme_get_protocol_name" >&6; }
+if test $ac_cv_lib_gpgme_gpgme_get_protocol_name = yes; then
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBGPGME 1
+_ACEOF
+
+  LIBS="-lgpgme $LIBS"
+
+else
+  { { echo "$as_me:$LINENO: error: \"did not find libgpgme versoion 0.4.1 or later (to disable run with --without-libgpgme)\"" >&5
+echo "$as_me: error: \"did not find libgpgme versoion 0.4.1 or later (to disable run with --without-libgpgme)\"" >&2;}
+   { (exit 1); exit 1; }; }
+fi
+
+
+fi
 
 
 

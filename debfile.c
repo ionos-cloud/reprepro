@@ -64,7 +64,7 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 	}
 	if( interrupted() ) {
 		free(buffer);
-		return RET_ERROR_INTERUPTED;
+		return RET_ERROR_INTERRUPTED;
 	}
 	if( got < 0 ) {
 		free(buffer);
@@ -147,7 +147,7 @@ static retvalue read_control_tar(char **control, const char *debfile, struct ar_
 				return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
 			}
 			if( interrupted() )
-				return RET_ERROR_INTERUPTED;
+				return RET_ERROR_INTERRUPTED;
 		} else {
 			r = read_control_file(control, debfile, tar, entry);
 			if( r != RET_NOTHING )
@@ -215,154 +215,5 @@ retvalue extractcontrol(char **control,const char *debfile) {
 	} while( RET_IS_OK(r) );
 	ar_close(ar);
 	fprintf(stderr,"Could not find a control.tar.gz file within '%s'!\n",debfile);
-	return RET_ERROR_MISSING;
-}
-
-static retvalue read_data_tar(/*@out@*/char **list, const char *debfile, struct ar_archive *ar, struct archive *tar) {
-	struct archive_entry *entry;
-	char *filelist;
-	size_t size,len;
-	int a;
-
-	size = 2000; len = 0;
-	filelist = malloc(size);
-	if( filelist == NULL )
-		return RET_ERROR_OOM;
-
-	archive_read_support_format_tar(tar);
-	a = archive_read_open(tar,ar,
-			ar_archivemember_open,
-			ar_archivemember_read,
-			ar_archivemember_close);
-	if( a != ARCHIVE_OK ) {
-		free(filelist);
-		fprintf(stderr,"open data.tar.gz within '%s' failed: %d:%d:%s\n",
-				debfile,
-				a,archive_errno(tar),
-				archive_error_string(tar));
-		return RET_ERROR;
-	}
-	while( (a=archive_read_next_header(tar, &entry)) == ARCHIVE_OK ) {
-		const char *name = archive_entry_pathname(entry);
-		mode_t mode;
-
-		if( name[0] == '.' )
-			name++;
-		if( name[0] == '/' )
-			name++;
-		if( name[0] == '\0' )
-			continue;
-		mode = archive_entry_mode(entry);
-		if( !S_ISDIR(mode) ) {
-			size_t n_len = strlen(name);
-
-			if( len + n_len + 2 > size ) {
-				char *n;
-
-				if( size > 1024*1024*1024 ) {
-					fprintf(stderr, "Ridicilous long filelist for %s!\n",debfile);
-					free(filelist);
-					return RET_ERROR;
-				}
-				size = len + n_len + 2048;
-				n = realloc(filelist, size);
-				if( n == NULL ) {
-					free(filelist);
-					return RET_ERROR_OOM;
-				}
-				filelist = n;
-
-			}
-			memcpy(filelist + len, name, n_len+1);
-			len += n_len+1;
-		}
-		if( interrupted() ) {
-			free(filelist);
-			return RET_ERROR_INTERUPTED;
-		}
-		a = archive_read_data_skip(tar);
-		if( a != ARCHIVE_OK ) {
-			int e = archive_errno(tar);
-			printf("Error skipping %s within data.tar.gz from %s: %d=%s\n",
-					archive_entry_pathname(entry),
-					debfile,
-					e, archive_error_string(tar));
-			free(filelist);
-			return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
-		}
-	}
-	if( a != ARCHIVE_EOF ) {
-		int e = archive_errno(tar);
-		printf("Error reading data.tar.gz from %s: %d=%s\n",
-				debfile,
-				e, archive_error_string(tar));
-		free(filelist);
-		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
-	}
-	filelist[len] = '\0';
-	*list = realloc(filelist, len+1);
-	if( *list == NULL ) {
-		free(filelist);
-		return RET_ERROR_OOM;
-	}
-	return RET_OK;
-}
-
-
-retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
-	struct ar_archive *ar;
-	retvalue r;
-
-	r = ar_open(&ar,debfile);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	assert( r != RET_NOTHING);
-	do {
-		char *filename;
-
-		r = ar_nextmember(ar, &filename);
-		if( RET_IS_OK(r) ) {
-			if( strcmp(filename,"data.tar.gz") == 0 ) {
-				struct archive *tar;
-
-				tar = archive_read_new();
-				archive_read_support_compression_gzip(tar);
-				r = read_data_tar(filelist, debfile, ar, tar);
-				archive_read_finish(tar);
-				if( r != RET_NOTHING ) {
-					ar_close(ar);
-					free(filename);
-					return r;
-				}
-
-			}
-/* TODO: here some better heuristic would be nice,
- * but when compiling against the static libarchive this is what needed,
- * and when libarchive is compiled locally it will have bz2 support
- * essentially when we have it, too.
- * Thus this ifdef is quite a good choice, especially as no offical
- * files should have this member, anyway */
-#ifdef HAVE_LIBBZ2
-			if( strcmp(filename,"data.tar.bz2") == 0 ) {
-				struct archive *tar;
-
-				tar = archive_read_new();
-				archive_read_support_compression_gzip(tar);
-				archive_read_support_compression_bzip2(tar);
-				r = read_data_tar(filelist, debfile, ar, tar);
-				archive_read_finish(tar);
-				if( r != RET_NOTHING ) {
-					ar_close(ar);
-					free(filename);
-					return r;
-				}
-
-			}
-#endif
-			free(filename);
-		}
-	} while( RET_IS_OK(r) );
-	ar_close(ar);
-	fprintf(stderr,"Could not find a data.tar.gz file within '%s'!\n",debfile);
 	return RET_ERROR_MISSING;
 }

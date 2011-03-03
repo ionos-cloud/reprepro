@@ -1,3 +1,119 @@
+2007-10-07  Bernhard R. Link <brlink@debian.org>
+	* change db/version file to final format,
+	  abort if version or libdb version specified
+	  there cannot be fulfilled.
+
+2007-09-27  Bernhard R. Link <brlink@debian.org>
+	* allow comments starting within lines in config files
+	* also allow tab as first character for continued lines as
+	manpage already says.
+
+2007-09-23  Bernhard R. Link <brlink@debian.org>
+	* save another 2 seconds while sorting filelists for Contents files
+
+2007-09-22  Bernhard R. Link <brlink@debian.org>
+	* make empty Architectures and Components fields
+	  in conf/distributions an error.
+	* Contents: fields no longer has a rate value,
+	  ContentsComponents/Architectures/UComponents
+	  triggers or disables contents generation if non-/empty.
+	* empty Architecturs/Components/UdebComponents in
+  	  conf/updates and conf/pulls now mean nothing instead of all.
+	* minimal additional speedup when sorting filelists
+
+2007-09-21  Bernhard R. Link <brlink@debian.org>
+	* save cached filelists of packages for Contents files
+	in a preprocessed form, needing only about half the disk
+	space and only half the time when generating the Contents file.
+	* new translatefilelists command to translate old to new format
+	* filelists reading no longer available without libarchive
+
+2007-09-19  Bernhard R. Link <brlink@debian.org>
+	* files.c uses database.c instead of accessing libdb directly
+	* release.c uses database.c instead of accessing libdb directly
+
+2007-09-16  Bernhard R. Link <brlink@debian.org>
+	* add removesrc and removefilter action
+
+2007-09-15  Bernhard R. Link <brlink@debian.org>
+	* move package database handling from packages.c to database.c
+
+2007-09-14  Bernhard R. Link <brlink@debian.org>
+	* rereference now also refreshes references by tracking data.
+
+2007-09-13  Bernhard R. Link <brlink@debian.org>
+	* retrack no longer create track records for distributions with
+	tracking disabled, dumptracks no longer generated empty databases.
+	* removealltracks now also works on distributions no longer listed
+	in conf/distributions, no longer supports being used on all
+	distributions listed there (i.e. without argumnts)
+	* tidytracks not remove all tracking data from a distribution without
+	tracking activated.
+	* clearvanished removes tracking data from vanished distributions.
+	* in default --nofast mode, check for unexpected tracking data and
+	do not run, unless --ignore=undefinedtracking is defined
+	* retrack refreshes tracking information instead of destroying and
+	starting new.
+	* make update's ListHook relative to confdir
+	* low level part of the includelogs options added
+
+2007-09-11  Bernhard R. Link <brlink@debian.org>
+	* reject spaces and tabs in key-names (i.e. before :) in config files,
+	instead of bubbling about unknown fields.
+
+2007-09-10  Bernhard R. Link <brlink@debian.org>
+	* improve parsing of update's Config lines
+
+2007-09-09  Bernhard R. Link <brlink@debian.org>
+	* never hardlink index files, but copy them always into the lists
+	  directory. (Should not make a difference yet, but feels safer).
+	* warn if update rules list components or architectures are always ignored
+
+2007-09-08  Bernhard R. Link <brlink@debian.org>
+	* warn if pull rules list components or architectures are always ignored
+
+2007-09-07  Bernhard R. Link <brlink@debian.org>
+	* create db/version
+	* always create all packages.db subtables, so future
+	  versions can detect new architectures/components.
+
+2007-09-06  Bernhard R. Link <brlink@debian.org>
+	* read all distribution definitions before starting
+	  any action.
+
+2007-09-04  Bernhard R. Link <brlink@debian.org>
+	* test number of arguments earlier.
+
+2007-09-03  Bernhard R. Link <brlink@debian.org>
+	* remove the dbdirs and all its parents created at startup
+	that are still empty at shutdown. (Does not make much difference
+	yet, as most commands create an empty file database in there.)
+	* obsolete --overridedir, overrides belong to conf dir like all
+	the other config files now.
+
+2007-09-02  Bernhard R. Link <brlink@debian.org>
+	* fix uninitialized use of errno in listclean.
+	  (might cause update to report error opening dir: file exists)
+	* new config file parser
+	* remove --ignore from changestool, --ignore=shortkeyid from reprepro
+	* move to C99's bool, false and true
+
+2007-08-21  Bernhard R. Link <brlink@debian.org>
+	* ignore SIGPIPE, so that libgpgme cannot tear us apart
+	so easily.
+
+2007-08-20  Bernhard R. Link <brlink@debian.org>
+	* Print ignored signatures in Release.gpg files
+	when verbosity > 10
+
+2007-08-18  Bernhard R. Link <brlink@debian.org>
+	* stop dumpreferences output when Ctrl-c is received.
+
+2007-08-03  Bernhard R. Link <brlink@debian.org>
+	* add --without-libgpgme to compile without
+	gpgme support (checking and signing are then not
+	available, yet).
+
 2007-08-19  Bernhard R. Link <brlink@debian.org>
 	* [SECURITY] fix bug causing a Release.gpg with only
 	unknown signatures considered as properly signed.

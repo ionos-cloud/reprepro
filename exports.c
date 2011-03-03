@@ -31,11 +31,13 @@
 #include "error.h"
 #include "mprintf.h"
 #include "strlist.h"
+#include "names.h"
 #include "chunks.h"
-#include "packages.h"
+#include "database.h"
 #include "exports.h"
 #include "md5sum.h"
 #include "copyfile.h"
+#include "configparser.h"
 
 extern int verbose;
 
@@ -49,7 +51,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 		,"bzip2ed"
 #endif
 	};
-	bool_t needcomma = FALSE;
+	bool needcomma = false;
 
 	assert( buffersize > 50 );
 	*buffer++ = ' '; buffersize--;
@@ -63,7 +65,7 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 			}
 			memcpy(buffer, compression_names[ic], l);
 			buffer += l; buffersize -= l;
-			needcomma = TRUE;
+			needcomma = true;
 		}
 	}
 	if( mode->hook != NULL ) {
@@ -93,117 +95,117 @@ static const char *exportdescription(const struct exportmode *mode,char *buffer,
 	return result;
 }
 
-static retvalue printout(void *data,UNUSED(const char *package),const char *chunk) {
-	struct filetorelease *file = data;
-	size_t l;
-
-	l = strlen(chunk);
-	if( l == 0 )
-		return RET_NOTHING;
-	(void)release_writedata(file,chunk,l);
-	(void)release_writestring(file,"\n");
-	if( chunk[l-1] != '\n' )
-		(void)release_writestring(file,"\n");
+retvalue exportmode_init(/*@out@*/struct exportmode *mode, bool uncompressed, /*@null@*/const char *release, const char *indexfile) {
+	mode->hook = NULL;
+	mode->compressions = IC_FLAG(ic_gzip) | (uncompressed?IC_FLAG(ic_uncompressed):0);
+	mode->filename = strdup(indexfile);
+	if( mode->filename == NULL )
+		return RET_ERROR_OOM;
+	if( release == NULL )
+		mode->release = NULL;
+	else {
+		mode->release = strdup(release);
+		if( mode->release == NULL )
+			return RET_ERROR_OOM;
+	}
 	return RET_OK;
 }
 
-retvalue exportmode_init(/*@out@*/struct exportmode *mode,bool_t uncompressed,/*@null@*/const char *release,const char *indexfile,/*@null@*//*@only@*/char *options) {
-	mode->hook = NULL;
-	if( options == NULL ) {
-		mode->compressions = IC_FLAG(ic_gzip) | (uncompressed?IC_FLAG(ic_uncompressed):0);
-		mode->filename = strdup(indexfile);
-		if( mode->filename == NULL )
-			return RET_ERROR_OOM;
-		if( release == NULL )
-			mode->release = NULL;
-		else {
-			mode->release = strdup(release);
-			if( mode->release == NULL )
-				return RET_ERROR_OOM;
-		}
-	} else {
-		const char *b;
-		b = options;
-		while( *b != '\0' && xisspace(*b) )
-			b++;
-		if( *b != '\0' && *b != '.' ) {
-			const char *e = b;
-			while( *e != '\0' && !xisspace(*e) )
-				e++;
-			mode->filename = strndup(b,e-b);
-			b = e;
-		} else {
-			mode->filename = strdup(indexfile);
-		}
-		if( mode->filename == NULL )
-			return RET_ERROR_OOM;
-		while( *b != '\0' && xisspace(*b) )
-			b++;
-		if( *b != '\0' && *b != '.' ) {
-			const char *e = b;
-			while( *e != '\0' && !xisspace(*e) )
-				e++;
-			mode->release = strndup(b,e-b);
-			if( mode->release == NULL )
-				return RET_ERROR_OOM;
-			b = e;
-		} else {
-			mode->release = NULL;
-		}
-		while( *b != '\0' && xisspace(*b) )
-			b++;
-		if( *b != '.' ) {
-			if( *b == '\0' )
-				fprintf(stderr,"Expecting '.' or '.gz' in '%s'!\n",options);
-			else
-				fprintf(stderr,"Third argument is still not '.' nor '.gz' in '%s'!\n",options);
-			free(options);
-			return RET_ERROR;
-		}
-		mode->compressions = 0;
-		while( *b == '.' ) {
-			const char *e = b;
-			while( *e != '\0' && !xisspace(*e) )
-				e++;
-			if( xisspace(b[1]) || b[1] == '\0' )
-				mode->compressions |= IC_FLAG(ic_uncompressed);
-			else if( b[1] == 'g' && b[2] == 'z' &&
-					(xisspace(b[3]) || b[3] == '\0'))
-				mode->compressions |= IC_FLAG(ic_gzip);
-#ifdef HAVE_LIBBZ2
-			else if( b[1] == 'b' && b[2] == 'z' && b[3] == '2' &&
-					(xisspace(b[4]) || b[4] == '\0'))
-				mode->compressions |= IC_FLAG(ic_bzip2);
-#endif
-			else {
-				fprintf(stderr,"Unsupported extension '.%c'... in '%s'!\n",b[1],options);
-				free(options);
-				return RET_ERROR;
-			}
-			b = e;
-			while( *b != '\0' && xisspace(*b) )
-				b++;
-		}
-		if( *b != '\0' ) {
-			const char *e = b;
-			while( *e != '\0' && !xisspace(*e) )
-				e++;
-			mode->hook = strndup(b,e-b);
-			if( mode->hook == NULL ) {
-				free(options);
-				return RET_ERROR_OOM;
-			}
-			b = e;
-		}
-		while( *b != '\0' && xisspace(*b) )
-			b++;
-		if( *b != '\0' ) {
-			fprintf(stderr,"More than one hook specified(perhaps you have spaces in them?) in '%s'!\n",options);
-			free(options);
-			return RET_ERROR;
-		}
+// TODO: check for scripts in confdir early...
+retvalue exportmode_set(struct exportmode *mode, const char *confdir, struct configiterator *iter) {
+	retvalue r;
+	char *word;
+
+	r = config_getword(iter, &word);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+"Error parsing %s, line %u, column %u: Unexpected and of field!\n"
+"Filename to use for index files (Packages, Sources, ...) missing.\n",
+			config_filename(iter),
+			config_markerline(iter), config_markercolumn(iter));
+		return RET_ERROR_MISSING;
 	}
-	free(options);
+	assert( word[0] != '\0' );
+	free(mode->filename);
+	mode->filename = word;
+
+	r = config_getword(iter, &word);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r == RET_NOTHING )
+		word = NULL;
+	if( r != RET_NOTHING && word[0] != '.' ) {
+		assert( word[0] != '\0' );
+		free(mode->release);
+		mode->release = word;
+		r = config_getword(iter, &word);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( r == RET_NOTHING ) {
+		fprintf(stderr,
+"Error parsing %s, line %u, column %u: Unexpected and of field!\n"
+"Compression identifiers ('.', '.gz' or '.bz2') missing.\n",
+			config_filename(iter),
+			config_markerline(iter), config_markercolumn(iter));
+		return RET_ERROR;
+	}
+	if( word[0] != '.' ) {
+		fprintf(stderr,
+"Error parsing %s, line %u, column %u:\n"
+"Compression extension ('.', '.gz' or '.bz2') expected.\n",
+			config_filename(iter),
+			config_markerline(iter), config_markercolumn(iter));
+		free(word);
+		return RET_ERROR;
+	}
+	mode->compressions = 0;
+	while( r != RET_NOTHING && word[0] == '.' ) {
+		if( word[1] == '\0' )
+			mode->compressions |= IC_FLAG(ic_uncompressed);
+		else if( word[1] == 'g' && word[2] == 'z' &&
+				word[3] == '\0')
+			mode->compressions |= IC_FLAG(ic_gzip);
+#ifdef HAVE_LIBBZ2
+		else if( word[1] == 'b' && word[2] == 'z' && word[3] == '2' &&
+				word[4] == '\0')
+			mode->compressions |= IC_FLAG(ic_bzip2);
+#endif
+		else {
+			fprintf(stderr,
+"Error parsing %s, line %u, column %u:\n"
+"Unsupported compression extension '%s'!\n",
+					config_filename(iter),
+					config_markerline(iter),
+					config_markercolumn(iter),
+					word);
+			free(word);
+			return RET_ERROR;
+		}
+		free(word);
+		r = config_getword(iter, &word);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	if( r != RET_NOTHING ) {
+		free(mode->hook);
+		mode->hook = word;
+	}
+	r = config_getword(iter, &word);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	if( r != RET_NOTHING ) {
+		fprintf(stderr,
+"Error parsing %s, line %u, column %u:\n"
+"Trailing garbage after export hook script!\n",
+				config_filename(iter),
+				config_markerline(iter),
+				config_markercolumn(iter));
+		free(word);
+		return RET_ERROR;
+	}
 	return RET_OK;
 }
 
@@ -311,7 +313,7 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 		printf("Called %s '%s' '%s.new' '%s' '%s'\n",
 			hook,release_dirofdist(release),relfilename,relfilename,mode);
 	/* read what comes from the client */
-	while( TRUE ) {
+	while( true ) {
 		ssize_t r;
 		int last,j;
 
@@ -385,12 +387,15 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 }
 
-retvalue export_target(const char *confdir,const char *relativedir,packagesdb packages,const struct exportmode *exportmode,struct release *release, bool_t onlyifmissing, bool_t snapshot) {
+retvalue export_target(const char *confdir, const char *relativedir, struct table *packages, const struct exportmode *exportmode, struct release *release, bool onlyifmissing, bool snapshot) {
 	retvalue r;
 	struct filetorelease *file;
 	const char *status;
 	char *relfilename;
 	char buffer[100];
+	const char *chunk;
+	size_t chunk_len;
+	struct cursor *cursor;
 
 	relfilename = calc_dirconcat(relativedir,exportmode->filename);
 	if( relfilename == NULL )
@@ -415,7 +420,22 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 					exportdescription(exportmode, buffer, 100));
 			status = "new";
 		}
-		r = packages_foreach(packages,printout,file);
+		r = table_newglobaluniqcursor(packages, &cursor);
+		if( RET_WAS_ERROR(r) ) {
+			release_abortfile(file);
+			free(relfilename);
+			return r;
+		}
+		while( cursor_nexttempdata(packages, cursor, NULL,
+					&chunk, &chunk_len) ) {
+			if( chunk_len == 0 )
+				continue;
+			(void)release_writedata(file, chunk, chunk_len);
+			(void)release_writestring(file, "\n");
+			if( chunk[chunk_len-1] != '\n' )
+				(void)release_writestring(file, "\n");
+		}
+		r = cursor_close(packages, cursor);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
 			free(relfilename);

@@ -40,7 +40,7 @@
 // * found.
 // **********************************************************************
 
-static retvalue try_extractcontrol(char **control,const char *debfile, bool_t brokentar) {
+static retvalue try_extractcontrol(char **control, const char *debfile, bool brokentar) {
 	int pipe1[2];
 	int pipe2[2];
 	int ret;
@@ -193,12 +193,12 @@ static retvalue try_extractcontrol(char **control,const char *debfile, bool_t br
 retvalue extractcontrol(char **control,const char *debfile) {
 	retvalue r;
 
-	r = try_extractcontrol(control, debfile, FALSE);
+	r = try_extractcontrol(control, debfile, false);
 	if( r != RET_NOTHING )
 		return r;
 	/* perhaps the control.tar.gz is packaged by hand wrongly,
 	 * try again: */
-	r = try_extractcontrol(control, debfile, TRUE);
+	r = try_extractcontrol(control, debfile, true);
 	if( RET_IS_OK(r) ) {
 		fprintf(stderr, "WARNING: '%s' contains a broken/unusual control.tar.gz.\n"
 				"reprepro was able to work around this but other tools or versions might not.\n", debfile);
@@ -208,15 +208,22 @@ retvalue extractcontrol(char **control,const char *debfile) {
 }
 
 retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
+	fprintf(stderr, "Extracing of filelist currently not implemented without libarchive.\n");
+	return RET_ERROR;
+#if 0
 	int pipe1[2];
 	int pipe2[2];
 	int ret;
 	pid_t ar,tar,pid;
 	int status;
-	char *list = NULL;
-	size_t listsize = 0;
-	size_t len=0, last = 0;
+	struct filelistcompressor c;
+	size_t last = 0;
 	retvalue result;
+
+#error this still needs to be reimplemented...
+	result = filelistcompressor_setup(&c);
+	if( RET_WAS_ERROR(result) )
+		return result;
 
 	result = RET_OK;
 
@@ -224,6 +231,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 	if( ret < 0 ) {
 		int e = errno;
 		fprintf(stderr, "Error while creating pipe: %d=%s\n",e,strerror(e));
+		filelistcompressor_cancel(&c);
 		return RET_ERRNO(e);
 	}
 
@@ -232,6 +240,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 		int e = errno;
 		fprintf(stderr, "Error while creating pipe: %d=%s\n",e,strerror(e));
 		close(pipe1[0]);close(pipe1[1]);
+		filelistcompressor_cancel(&c);
 		return RET_ERRNO(e);
 	}
 
@@ -242,6 +251,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 		result = RET_ERRNO(e);
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
+		filelistcompressor_cancel(&c);
 		return result;
 	}
 
@@ -348,7 +358,7 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 				len -= ignore;
 			}
 		}
-	} while( TRUE );
+	} while( true );
 	if( len != last ) {
 		fprintf(stderr, "WARNING: unterminated output from tar over pipe while extracting filelist of %s\n",debfile);
 		list[len] = '\0';
@@ -395,11 +405,11 @@ retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {
 				fprintf(stderr,"Who is %d, and why does this bother me?\n",pid);
 			}
 		}
-
 	}
 	if( RET_IS_OK(result) )
-		*filelist = list;
+		return filelistcompressor_finish(&c, filelist);
 	else
-		free(list);
+		filelistcompressor_cancel(&c);
 	return result;
+#endif
 }

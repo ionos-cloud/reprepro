@@ -1,6 +1,7 @@
 TODO:
 	do not put/leave files in pool when include gets an older version than already there
 	write more automated test-cases
+	 (not even run in the testcase yet: reoverride, ... (probably many))
 	finish import from incoming dir, implement sending mails to uploader
 	extend FilterFormula, FilterList et al to specify type/architecture/component
 	switch to only include if source is present

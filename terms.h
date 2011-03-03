@@ -12,7 +12,7 @@ typedef struct term_atom {
 	 * nextiftrue  == NULL means total result is true,
 	 * nextiffalse == NULL means total result is false. */
 	/*@dependent@*/struct term_atom *nextiftrue,*nextiffalse;
-	bool_t negated;
+	bool negated;
 
 	/* package-name or key */
 	char *key;
@@ -20,7 +20,7 @@ typedef struct term_atom {
 	enum term_comparison comparison;
 	char *comparewith;
 	/* architecture requirements */
-	bool_t architectures_negated;
+	bool architectures_negated;
 	struct strlist architectures;
 } term;
 
