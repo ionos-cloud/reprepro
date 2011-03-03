@@ -144,15 +144,23 @@ void dsc_free(/*@only@*/struct dscpackage *pkg) {
 	}
 }
 
-static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename, bool_t onlysigned) {
+static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename) {
 	retvalue r;
 	struct dscpackage *dsc;
+	bool_t broken;
 
 
 	dsc = calloc(1,sizeof(struct dscpackage));
 
-	r = signature_readsignedchunk(filename,&dsc->control,onlysigned);
+	r = signature_readsignedchunk(filename,&dsc->control,NULL,NULL, &broken);
 	if( RET_WAS_ERROR(r) ) {
+		dsc_free(dsc);
+		return r;
+	}
+	if( broken && !IGNORING_(brokensignatures, 
+"'%s' contains only broken signatures.\n"
+"This most likely means the file was damaged (or edited improperly)\n",
+				filename) ) {
 		dsc_free(dsc);
 		return r;
 	}
@@ -331,7 +339,7 @@ static retvalue dsc_complete(struct dscpackage *pkg,const struct overrideinfo *o
 	return RET_OK;
 }
 
-retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, bool_t onlysigned){
+retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *sourcedir, const char *dscfilename,const char *filekey,const char *basename,const char *directory,const char *md5sum,const struct overrideinfo *srcoverride,int delete, const char *expectedname, const char *expectedversion){
 	retvalue r;
 	struct dscpackage *pkg;
 	const struct overrideinfo *oinfo;
@@ -347,9 +355,26 @@ retvalue dsc_prepare(struct dscpackage **dsc,filesdb filesdb,const char *forceco
 
 	/* Then take a closer look in the file: */
 
-	r = dsc_read(&pkg,dscfilename,onlysigned);
+	r = dsc_read(&pkg,dscfilename);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
+	}
+	if( expectedname != NULL &&
+	    strcmp(expectedname, pkg->package) != 0 ) {
+		/* This cannot be ignored, as too much depends on it yet */
+		fprintf(stderr,
+"'%s' says it is '%s', while .changes file said it is '%s'\n", 
+				basename, pkg->package, expectedname);
+		dsc_free(pkg);
+		return RET_ERROR;
+	}
+	if( expectedversion != NULL &&
+	    strcmp(expectedversion, pkg->version) != 0 &&
+	    !IGNORING_(wrongversion, 
+"'%s' says it is version '%s', while .changes file said it is '%s'\n", 
+				basename, pkg->version, expectedversion)) {
+		dsc_free(pkg);
+		return RET_ERROR;
 	}
 
 	oinfo = override_search(srcoverride,pkg->package);
@@ -439,7 +464,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
 		retvalue r2;
-		if( interupted() ) 
+		if( interrupted() ) 
 			r = RET_ERROR_INTERUPTED;
 		else
 			r = target_addpackage(t,refs,pkg->package,pkg->version,pkg->control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
@@ -455,7 +480,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
  * If basename, filekey and directory are != NULL, then they are used instead 
  * of being newly calculated. 
  * (And all files are expected to already be in the pool). */
-retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, bool_t onlysigned, trackingdb tracks){
+retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *forcecomponent,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *dscfilename,const struct overrideinfo *srcoverride,int delete,struct strlist *dereferencedfilekeys, trackingdb tracks){
 	retvalue r;
 	struct dscpackage *pkg;
 	struct trackingdata trackingdata;
@@ -465,12 +490,12 @@ retvalue dsc_add(const char *dbdir,references refs,filesdb filesdb,const char *f
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,srcoverride,delete,onlysigned);
+	r = dsc_prepare(&pkg,filesdb,forcecomponent,forcesection,forcepriority,distribution,dscdirectory,dscfilename,NULL,NULL,NULL,NULL,srcoverride,delete,NULL,NULL);
 	free(dscdirectory);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	if( interupted() ) {
+	if( interrupted() ) {
 		dsc_free(pkg);
 		return RET_ERROR_INTERUPTED;
 	}

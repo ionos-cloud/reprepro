@@ -55,6 +55,8 @@ struct distribution {
 	struct contentsoptions contents;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
+	/* a filename to look for who is allowed to upload packages */
+	char *uploaders;
 	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */

@@ -1,8 +1,5 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
-/* Defined if libgpgme contains GPGME_SIG_STAT_GOOD_EXP */
-#undef HASGPGMEGOODEXP
-
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -14,6 +11,9 @@
 
 /* Define to 1 if you have the `gpgme' library (-lgpgme). */
 #undef HAVE_LIBGPGME
+
+/* Define to 1 if you have the `gpg-error' library (-lgpg-error). */
+#undef HAVE_LIBGPG_ERROR
 
 /* Define to 1 if you have the `z' library (-lz). */
 #undef HAVE_LIBZ

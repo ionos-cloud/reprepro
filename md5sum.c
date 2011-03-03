@@ -30,6 +30,7 @@
 #include "dirs.h"
 #include "md5.h"
 #include "md5sum.h"
+#include "names.h"
 
 extern int verbose;
 
@@ -264,4 +265,80 @@ retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnif
 	}
 	fprintf(stderr,"Could not delete '%s' out of the way!\n",fullfilename);
 	return RET_ERROR_WRONG_MD5;
+}
+
+
+retvalue md5sum_replace(const char *filename, const char *data, size_t len, char **result){
+	struct MD5Context context;
+	size_t todo; const char *towrite;
+	char *tempfilename;
+	int fd, ret;
+	retvalue r;
+	char *md5sum;
+
+	tempfilename = calc_addsuffix(filename,"new");
+	if( tempfilename == NULL )
+		return RET_ERROR_OOM;
+
+	fd = open(tempfilename, O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY, 0666);
+	if( fd < 0 ) {
+		int e = errno;
+		fprintf(stderr, "ERROR creating '%s': %s\n", tempfilename,
+				strerror(e));
+		free(tempfilename);
+		return RET_ERRNO(e);
+	}
+
+	todo = len; towrite = data;
+	while( todo > 0 ) {
+		ssize_t written = write(fd, towrite, todo);
+		if( written >= 0 ) {
+			todo -= written;
+			towrite += written;
+		} else {
+			int e = errno;
+			close(fd);
+			fprintf(stderr, "Error writing to '%s': %s\n",
+					tempfilename, strerror(e));
+			unlink(tempfilename);
+			free(tempfilename);
+			return RET_ERRNO(e);
+		}
+	}
+	ret = close(fd);
+	if( ret < 0 ) {
+		int e = errno;
+		fprintf(stderr, "Error writing to '%s': %s\n",
+				tempfilename, strerror(e));
+		unlink(tempfilename);
+		free(tempfilename);
+		return RET_ERRNO(e);
+	}
+
+	if( result != NULL ) {
+		MD5Init(&context);
+		MD5Update(&context,data,len);
+		r = md5sum_genstring(&md5sum, &context,len);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) ) {
+			unlink(tempfilename);
+			free(tempfilename);
+			return r;
+		}
+	} else
+		md5sum = NULL;
+	ret = rename(tempfilename, filename);
+	if( ret < 0 ) {
+		int e = errno;
+		free(md5sum);
+		fprintf(stderr, "Error moving '%s' to '%s': %s\n",
+				tempfilename, filename,  strerror(e));
+		unlink(tempfilename);
+		free(tempfilename);
+		return RET_ERRNO(e);
+	}
+	free(tempfilename);
+	if( result != NULL )
+		*result = md5sum;
+	return RET_OK;
 }

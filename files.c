@@ -220,7 +220,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 	char *filename;
 	retvalue r;
 
-	if( interupted() )
+	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
 	if( verbose >= 0 )
 		printf("deleting and forgetting %s\n",filekey);

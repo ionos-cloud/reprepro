@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "23 July, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "11 October, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -128,7 +128,7 @@ Overrides the section of inclusions. (Also override possible override files)
 Overrides the priority of inclusions. (Also override possible override files)
 .TP 
 .BR \-\-export= ( never | changed | normal | force )
-This option specify weather and how the high level actions
+This option specify whether and how the high level actions
 (e.g. install, update, pull, delete)
 should export the index files of the distributions they work with.
 .TP
@@ -141,11 +141,11 @@ between before and after the action will be written.
 To get a guaranteed current export, use the \fBexport\fP action.
 .TP
 .BR \-\-export=changed
-Like \fBnormal\fP but do not look for missing files in distributions where
+Like \fBnormal\fP, but do not look for missing files in distributions where
 nothing changed.
 .TP
 .BR \-\-export=force
-Like \fBnormal\rP, but exporting also happens for distributions where
+Like \fBnormal\fP, but exporting also happens for distributions where
 some error occurred.
 .TP
 .BR \-\-export=never
@@ -304,19 +304,11 @@ given them via
 .B \-S
 and
 .B \-P
-
-Unsigned files are accepted, except when \fB\-\-onlyacceptsigned\fP
-is given. Then the .dsc files has
-to be signed with a key found in the local keyring.
 .TP
 .B include  \fIcodename\fP \fI.changes-filename\fP
 Include in the specified distribution all packages found and suitable
 in the \fI.changes\fP file, applying override information guessing all 
 values not given and guessable.
-
-Unsigned files are accepted, except when \fB\-\-onlyacceptsigned\fP
-is given. Then the .changes file and all contained .dsc files have
-to be signed with a key found in the local keyring.
 .TP
 .BR check " [ " \fIcodenames\fP " ]"
 Check if all packages in the specified distributions have all files
@@ -603,7 +595,7 @@ And so on...
 
 After that a space seperated list of options can be given.
 If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
-(in a file called \fBuContents-\fP\fIarchitecture\fP.)
+(in a file called \fBuContents\-\fP\fIarchitecture\fP.)
 If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
 (Only usefull together with \fBudebs\fP)
 If there is at least one of the keywords \fB.\fP, \fB.gz\fP and/or \fB.bz2\fP,
@@ -625,6 +617,12 @@ the components given.
 If this field is not there or empty, all components are processed.
 (Note unless you specify \fBudebs\fP in the \fBContents:\fP line,
 no udeb Components are processed at all.)
+.TP
+.B Uploaders
+Specified a file (relative to confdir if not starting with a slash)
+to specify who is allowed to upload packages. With this there are no
+limits, and this file can be ignored via \fB\-\-ignore=uploaders\fP.
+See the section \fBUPLOADERS FILES\fP below.
 .TP
 .B Tracking
 Enable the (experimental) tracking of source packages.
@@ -690,7 +688,7 @@ this location.
 .B Config
 This can contain any number of lines, each in the format
 .B apt\-get \-\-option
-would expect. (Multiple lines - as always - marked with
+would expect. (Multiple lines \(hy as always \(hy marked with
 leading spaces).
 .P
 For example: Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
@@ -746,11 +744,11 @@ Dependency lines. To get only architecture all packages use
 packages use "priority (==required) | priority (==important)".
 .TP
 .B FilterList
-This takes two arguments: The first one is the default action
-when something is not found, the second is a
-filename (relative to
-.B \-\-confdir
-, if not starting with a slash), 
+This takes at least two arguments: The first one is the default action
+when something is not found, the then a list of
+filenames (relative to
+.B \-\-confdir\fR,
+if not starting with a slash), 
 in the format of dpkg \-\-get\-selections and only packages listed in
 there as 
 .B install
@@ -762,6 +760,8 @@ or nonexistent will be treated like not being known.
 A package being
 .B hold
 will not be upgraded but also not downgraded or removed.
+To abort the whole upgrade/pull if a package is available, use
+.B error\fR.
 .TP
 .B ListHook
 If this is given, it is executed for all downloaded index files
@@ -838,6 +838,29 @@ There is no protection against changing headers like \fBPackage\fP,
 \fBFilename\fP, \fBSize\fP or \fBMD5sum\fP, though changing these functional
 fields may give the most curious results.
 (Most likely reprepro may error out in future invocations).
+.SH "UPLOADERS FILES"
+These files specified by the \fBUploaders\fP header in the distribution
+definition as explained above describe what key a \fB.changes\fP file
+as to be signed with to be included in that distribution.
+.P
+Empty lines and lines starting with a hash are ignored, every other line
+has to be of one of this three forms:
+.br
+.B accept * by unsigned
+.br
+which allows everything without a valid signature in,
+.br
+.B accept * by any key
+.br
+which allows everything with any valid signature in or
+.br
+.B accept * by key \fIkey-id\fP
+.br
+which allows everything signed by this \fIkey-id\fP (to be specified
+without any spaces) in.
+.P
+(Other statements
+will follow once somebody tells me what restrictions are usefull).
 .SH "ERROR IGNORING"
 With \fB\-\-ignore\fP on the command line or an \fIignore\fP
 line in the options file, the following type of errors can be
@@ -847,6 +870,12 @@ ignored:
 If there are errors parsing an installed version of package, do not 
 error out, but assume it is older than anything else, has not files
 or no source name.
+.TP
+.B brokensignatures
+If a .changes or .dsc file contains at least one invalid signature
+and no valid signature (not even expired or from an expired or revoked key),
+reprepro assumes the file got corrupted and refuses to use it unless this
+ignore directive is given.
 .TP
 .B brokenversioncmp \fR(hopefully never seen)
 If comparing an old and a new version fails, assume the new one is newer.
@@ -924,8 +953,13 @@ do not separate chunks as thus will cause reprepro to behave
 unexpected, they cause error messages by default.
 .TP
 .B surprisingarch
-No longer reject a .changes file containing files for a
+Do not reject a .changes file containing files for a
 architecture not listed in the Architecture-header within it.
+.TP
+.B surprisingbinary
+Do not reject a .changes file containing .deb files containing
+packages whose name is not listed in the "Binary:" header
+of that changes file.
 .TP
 .B unknownfield \fR(for forward compatibility)
 Ignore unknown fields in the config files, instead of refusing to run
@@ -938,6 +972,18 @@ architectures listed in the Architecture-header within it.
 .B wrongdistribution \fR(save to ignore)
 Do not error out if a .changes file is to be placed in a
 distribution not listed in that files' Distributions: header.
+.TP
+.B wrongsourceversion
+Do not reject a .changes file containing .deb files with
+a different opinion on what the version of the source package is.
+.br
+(Note: reprepro only compares literally here, not by meaning.)
+.TP
+.B wrongversion
+Do not reject a .changes file containing .dsc files with
+a different version.
+.br
+(Note: reprepro only compares literally here, not by meaning.)
 .SH GUESSING
 When including a binary or source package without explicitly
 declaring a component with

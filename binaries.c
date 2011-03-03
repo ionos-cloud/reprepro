@@ -268,7 +268,7 @@ retvalue ubinaries_doreoverride(const struct alloverrides *ao,const char *packag
 	struct fieldtoadd *fields;
 	char *newchunk;
 
-	if( interupted() )
+	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
 
 	o = override_search(ao->udeb, packagename);
@@ -296,7 +296,7 @@ retvalue binaries_retrack(UNUSED(struct target *t),const char *packagename,const
 	//TODO: elliminate duplicate code!
 	assert(packagename!=NULL);
 
-	if( interupted() )
+	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
 
 	/* is there a sourcename */

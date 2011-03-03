@@ -1,0 +1,94 @@
+.TH CHANGESTOOL 1 "08 October, 2006" "reprepro" REPREPRO
+.SH NAME
+changestool \- verify, dump, modify or fix Debian .changes files
+.SH SYNOPSIS
+.B changestool \-\-help
+
+.B changestool
+[
+\fIoptions\fP
+]
+\fI.changes-filename\fP
+\fIcommand\fP
+[ 
+\fIper-command-arguments\fP 
+]
+.SH DESCRIPTION
+changestool is a little program to operate on Debian .changes files,
+as they are produced by \fBdpkg\-genchanges\fP(1) and used to feed
+build Debian packages into Debian repository managers like
+.BR  reprepro (1)
+or
+.BR dak .
+
+The version this manpage belongs to is yet mostly a torso,
+more actions will hopefully be added in the future.
+
+.SH EXAMPLES
+.B changestool \fIreprepro_1.2.0\-1.local_sparc.changes\fP includeallsources
+.br
+will modify the given file to also list \fB.orig.tar.gz\fP it does not list
+because you forgot to build it with
+.BR "dpkg\-buildpackage \-sa" .
+.P
+.B changestool \fIblafasel_1.0_abacus.changes\fP updatechecksums
+.br
+will update the md5sums to those of the files referenced by this file.
+(So one can do quick'n'dirty corrections to them before uploading to
+your private package repository)
+
+.SH "GLOBAL OPTIONS"
+Options can be specified before the command. Each affects a different
+subset of commands and is ignored by other commands.
+.TP
+.B \-h \-\-help
+Displays a short list of options and commands with description.
+.TP
+.B \-o \-\-outputdir
+Not yet implemented.
+.TP
+.B \-s \-\-searchpath
+Not yet implemented.
+.SH COMMANDS
+.TP
+.BR verify
+Check for inconsistencies in the specified \fB.changes\fP file and the
+files referenced by it.
+.TP
+.BR updatechecksums " [ " \fIfilename\fP " ]"
+Update the checksum (md5sum and size) information within the specified
+\fB.changes\fP file and all \fB.dsc\fP files referenced by it.
+Without arguments, all files will be updated.
+To only update specific files, give their filename (without path) as
+arguments.
+.TP
+.BR includeallsources " [ " \fIfilename\fP " ]"
+List all files referenced by \fB.dsc\fP files mentioned in the \fB.changes\fP
+file in said file. 
+Without arguments, all missing files will be included.
+To only include specific files, give their filename (without path) as
+arguments.
+
+Take a look at the description of \fB\-si\fP, \fB\-sa\fP and \fB\-sd\fP in
+the manpage of \fBdpkg\-genchanges\fP/\fBdpkg\-buildpackage\fP how to avoid
+to have to do this at all.
+
+Note that while \fBreprepro\fP will just ignore files listed in a \fB.changes\fP
+file when it already has the file with the same size and md5sum, \fBdak\fP
+might choke in that case.
+
+.SH "SEE ALSO"
+.BR reprepro (1),
+.BR dpkg\-genchanges (1),
+.BR dpkg\-buildpackage (1),
+.BR md5sum (1).
+.SH "REPORTING BUGS"
+Report bugs or wishlist requests the Debian BTS
+(e.g. by using \fBreportbug reperepro\fP)
+or directly to <brlink@debian.org>.
+.br
+.SH COPYRIGHT
+Copyright \(co 2006 Bernhard R. Link
+.br 
+This is free software; see the source for copying conditions. There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.

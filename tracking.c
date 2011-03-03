@@ -139,7 +139,7 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db,const char *dbpath,const st
 	return RET_OK;
 }
 
-static inline char filetypechar(enum filetype filetype) {
+static inline enum filetype filetypechar(enum filetype filetype) {
 	switch( filetype ) {
 		case ft_CHANGES:
 		case ft_ALL_BINARY:
@@ -149,12 +149,12 @@ static inline char filetypechar(enum filetype filetype) {
 			return filetype;
 	}
 	assert(FALSE);
-	return 'x';
+	return ft_XTRA_DATA;
 }
 
 retvalue trackedpackage_addfilekey(trackingdb tracks,struct trackedpackage *pkg,enum filetype filetype,char *filekey,bool_t used,references refs) {
 	char *id;
-	char ft = filetypechar(filetype);
+	enum filetype ft = filetypechar(filetype);
 	int i, *newrefcounts;
 	enum filetype *newfiletypes;
 	retvalue r;
@@ -1003,15 +1003,18 @@ static inline retvalue trackedpackage_removeunneeded(trackingdb tracks, struct t
 				if( id == NULL )
 					result = RET_ERROR_OOM;
 			}
-			printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
-			r = references_decrement(refs, filekey, id);
-			RET_UPDATE(result,r);
-			r = strlist_add(dereferenced, filekey);
-			RET_UPDATE(result,r);
+			if( id != NULL ) {
+				printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
+				r = references_decrement(refs, filekey, id);
+				RET_UPDATE(result,r);
+				r = strlist_add(dereferenced, filekey);
+				RET_UPDATE(result,r);
+			}
 		}
 	}
 	assert( j <= pkg->filekeys.count );
 	pkg->filekeys.count = j;
+	free(id);
 	return result;
 }
 

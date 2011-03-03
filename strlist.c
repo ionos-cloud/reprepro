@@ -99,14 +99,12 @@ retvalue strlist_init_singleton(char *value,struct strlist *strlist) {
 	return RET_OK;
 }
 
-retvalue strlist_init(struct strlist *strlist) {
+void strlist_init(struct strlist *strlist) {
 	assert(strlist != NULL);
 	
 	strlist->count = 0;
 	strlist->size = 0;
 	strlist->values = NULL;
-
-	return RET_OK;
 }
 
 void strlist_done(struct strlist *strlist) {
@@ -142,6 +140,14 @@ retvalue strlist_add(struct strlist *strlist, char *element) {
 
 	strlist->values[strlist->count++] = element;
 	return RET_OK;
+}
+
+retvalue strlist_add_dup(struct strlist *strlist, const char *todup) {
+	char *element = strdup(todup);
+
+	if( element == NULL )
+		return RET_ERROR_OOM;
+	return strlist_add(strlist, element);
 }
 
 retvalue strlist_include(struct strlist *strlist, char *element) {

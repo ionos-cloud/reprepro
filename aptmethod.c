@@ -285,7 +285,7 @@ inline static retvalue aptmethod_startup(struct aptmethodrun *run,struct aptmeth
 		return RET_ERRNO(err);
 	}
 
-	if( interupted() ) {
+	if( interrupted() ) {
 		(void)close(stdin[0]);(void)close(stdin[1]);
 		(void)close(stdout[0]);(void)close(stdout[1]);
 		return RET_ERROR_INTERUPTED;
@@ -953,7 +953,7 @@ static retvalue senddata(struct aptmethod *method) {
 			return RET_OK;
 		}
 
-		if( interupted() )
+		if( interrupted() )
 			return RET_ERROR_INTERUPTED;
 
 		method->alreadywritten = 0;
@@ -1082,7 +1082,7 @@ static retvalue readwrite(struct aptmethodrun *run,int *workleft,filesdb filesdb
 	v = select(maxfd+1,&readfds,&writefds,NULL,NULL);
 	if( v < 0 ) {
 		int err = errno;
-		//TODO: handle (err == EINTR) && interupted() specially
+		//TODO: handle (err == EINTR) && interrupted() specially
 		fprintf(stderr,"Select returned error: %d=%m\n",err);
 		*workleft = -1;
 		// TODO: what to do here?
@@ -1127,7 +1127,7 @@ retvalue aptmethod_download(struct aptmethodrun *run,const char *methoddir,files
 	  RET_UPDATE(result,r);
 	  r = readwrite(run,&workleft,filesdb);
 	  RET_UPDATE(result,r);
-	  // TODO: check interupted here...
+	  // TODO: check interrupted here...
 	} while( workleft > 0 );
 
 	return result;

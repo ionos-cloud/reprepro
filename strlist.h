@@ -15,7 +15,7 @@ struct strlist {
 	int count,size;
 };
 
-retvalue strlist_init(/*@out@*/struct strlist *strlist);
+void strlist_init(/*@out@*/struct strlist *strlist);
 retvalue strlist_init_n(int startsize,/*@out@*/struct strlist *strlist);
 retvalue strlist_init_singleton(/*@only@*/char *value,/*@out@*/struct strlist *strlist);
 void strlist_done(struct strlist *strlist);
@@ -26,6 +26,8 @@ retvalue strlist_add(struct strlist *strlist,/*@only@*/char *element);
 retvalue strlist_include(struct strlist *strlist,/*@only@*/char *element);
 /* add a string alphabetically, discarding if already there. */
 retvalue strlist_adduniq(struct strlist *strlist,/*@only@*/char *element);
+/* like strlist_add, but strdup it first */
+retvalue strlist_add_dup(struct strlist *strlist, const char *todup);
 
 /* print a space seperated list of elements */
 retvalue strlist_fprint(FILE *file,const struct strlist *strlist);

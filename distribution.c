@@ -56,6 +56,7 @@ retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->deb_override);
 		free(distribution->udeb_override);
 		free(distribution->dsc_override);
+		free(distribution->uploaders);
 		strlist_done(&distribution->udebcomponents);
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
@@ -180,6 +181,7 @@ static const char * const allowedfields[] = {
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
 "Pull", "Contents", "ContentsArchitectures",
 "ContentsComponents", "ContentsUComponents",
+"Uploaders",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
@@ -264,6 +266,7 @@ NULL};
 	getpossibleemptyfield("DebOverride",deb_override);
 	getpossibleemptyfield("UDebOverride",udeb_override);
 	getpossibleemptyfield("DscOverride",dsc_override);
+	getpossibleemptyfield("Uploaders",uploaders);
 
 	getpossibleemptywordlist("UDebComponents",udebcomponents);
 
@@ -585,7 +588,7 @@ retvalue distribution_exportandfreelist(enum exportwhen when,
 		d = distributions;
 		distributions = d->next;
 
-		if( (RET_WAS_ERROR(d->status)||interupted()) && when != EXPORT_FORCE ) {
+		if( (RET_WAS_ERROR(d->status)||interrupted()) && when != EXPORT_FORCE ) {
 			if( verbose >= 10 )
 				fprintf(stderr, 
 " Not exporting %s because there have been errors and no --export=force.\n",
@@ -636,7 +639,7 @@ retvalue distribution_export(enum exportwhen when, struct distribution *distribu
 "Make sure to run a full export soon.\n", distribution->codename);
 		return RET_NOTHING;
 	}
-	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interupted()) ) {
+	if( when != EXPORT_FORCE && (RET_WAS_ERROR(distribution->status)||interrupted()) ) {
 		if( verbose >= 10 )
 			fprintf(stderr, 
 "Not exporting %s because there have been errors and no --export=force.\n"

@@ -25,4 +25,7 @@ retvalue md5sum_ensure(const char *fullfilename,const char *md5sum,bool_t warnif
 
 struct MD5Context;
 retvalue md5sum_genstring(char **md5,struct MD5Context *context,off_t filesize);
+
+/* replace the given name by data of size len and return its md5sum */
+retvalue md5sum_replace(const char *filename, const char *data, size_t len, /*@null@*/char **md5sum);
 #endif

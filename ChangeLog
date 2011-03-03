@@ -1,3 +1,60 @@
+2006-10-11  Bernhard R. Link <brlink@debian.org>
+	* add Uploaders: rule to conf/distributions to
+	limit include to .changes files signed with specific keys.
+
+2006-10-07  Bernhard R. Link <brlink@debian.org>
+	* only show control information of to be added packages
+	  in checkpull/checkupdate with -V
+	* fixed a missed refcount increasing in yesterdays code
+	* give hints where to look when gpgme reports no error on
+	  failure
+
+2006-10-06  Bernhard R. Link <brlink@debian.org>
+	* FilterList in update and pull rules now
+	  is a space seperated list of files.
+
+2006-10-03  Bernhard R. Link <brlink@debian.org>
+	* fix typos and spelling errors in manpage (Thanks to Bruce Sass)
+	* fix type-mismatch to silence compiler-warning
+	* work around signing problems in gpgme11, fix some memory holes
+
+2006-10-01  Bernhard R. Link <brlink@debian.org>
+	* new includeallsources command for changestool
+	  to change a .changes as if it was created with -sa
+
+2006-09-30  Bernhard R. Link <brlink@debian.org>
+	* new updatechecksums command for changestool 
+
+2006-09-24  Bernhard R. Link <brlink@debian.org>
+	* ported to libgpgme11
+	* removed --onlyacceptsigned
+
+2006-09-20  Bernhard R. Link <brlink@debian.org>
+	* make strlist_init void
+
+2006-09-19  Bernhard R. Link <brlink@debian.org>
+	* rename modifychanges to changestool
+
+2006-09-17  Bernhard R. Link <brlink@debian.org>
+	* fix return of fingerprints in new signature handling code
+	* move endswith from main.c to names.h
+	* add modifychanges helper program (yet only validating some stuff)
+
+2006-09-12  Bernhard R. Link <brlink@debian.org>
+	* reject .changes with binaries not listed, unless --ignore=surprisingbinary
+	* reject .changes with .dsc or .deb with wrong source version
+	  unless --ignore=wrongversion or --ignore=wrongsourceversion
+	* earlier and better error message if source name differs from the one
+	  given in the .changes file.
+	
+2006-09-11  Bernhard R. Link <brlink@debian.org>
+	* new strlist_add_dup
+	* more fine tuned signature checking (one valid signature suffices)
+	* fix a little memory hole in tracking code
+
+2006-09-07  Bernhard R. Link <brlink@debian.org>
+	* fix some typos (thanks to Jordi Mallach for noting)
+
 2006-09-04  Bernhard R. Link <brlink@debian.org>
 	* support .orig.tar.bz2 .tar.bz2 and .diff.bz2 in source packages
 	* fix bug, causing  Contents-* files containing only the first file

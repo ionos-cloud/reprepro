@@ -518,7 +518,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,ref
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version_in_use != NULL &&
 				(pkg->version == pkg->new_version || pkg->deleted)) {
-			if( interupted() )
+			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
 				r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
@@ -550,7 +550,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 			if( ! RET_WAS_ERROR(r) ) {
 				/* upgrade (or possibly downgrade) */
 // TODO: trackingdata?
-				if( interupted() )
+				if( interrupted() )
 					r = RET_ERROR_INTERUPTED;
 				else
 					r = target_addpackage(upgrade->target,
@@ -565,7 +565,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 				break;
 		}
 		if( pkg->deleted && pkg->version_in_use != NULL && !ignoredelete ) {
-			if( interupted() )
+			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
 				r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
@@ -585,7 +585,7 @@ void upgradelist_dump(struct upgradelist *upgrade){
 	assert(upgrade != NULL);
 
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
-		if( interupted() )
+		if( interrupted() )
 			return;
 		if( pkg->deleted ) {
 			if( pkg->version_in_use != NULL && 
@@ -628,9 +628,12 @@ void upgradelist_dump(struct upgradelist *upgrade){
 					       " as '%s':\n files needed: ",
 					       pkg->name, pkg->new_version);
 				(void)strlist_fprint(stdout,&pkg->new_filekeys);
-				(void)printf("\nwith md5sums: ");
+				(void)printf("\n with md5sums: ");
 				(void)strlist_fprint(stdout,&pkg->new_md5sums);
-				(void)printf("\ninstalling as: '%s'\n",pkg->new_control);
+				if( verbose > 2) 
+					(void)printf("\n installing as: '%s'\n",pkg->new_control);
+				else
+					(void)putchar('\n');
 			}
 		}
 	}

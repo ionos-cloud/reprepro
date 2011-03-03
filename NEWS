@@ -1,3 +1,26 @@
+Updates since 1.2.0:
+- now uses libgpgme11 instead of libgpgme6.
+- remove --onlyacceptsigned switch (soon to be be replaced by something
+    useable, hopefully)
+- only reject a package because of signatures if it only has bad signatures
+  and no good one. (Rejecting a package because of a missing key when
+  it would have processed without signature did not really make sense)
+- new --ignore=brokensignatures to also accept packages with broken signatures
+  without any valid signature.
+- Now looks at the Binary: and Version: fields of a .changes file.
+  Unless the new --ignore=wrongversion is specified, a dsc must
+  have the same version, and a .deb must have this source version
+  unless --ignore=wrongsourceversion is given. A .deb must also
+  contain a package listed in the Binary: header unless 
+  --ignore=surprisingbinary is given. (A .dsc with an other name
+  or a .deb with an other Source than the Source-header if the
+  .changes file is still not ignoreable due to file naming issues)
+- FilterList in update and pull rules now has a space seperated list
+  of filenames instead of only a single filename.
+- new Uploaders field in conf/distributions:
+  allows to specify what a .changes file has to be signed with to be allowed in
+- new helper program "changestool" to preprocess .changes files.
+
 Updates since 1.1.0:
 - improve message of missing files
 - checkin now support .tar.bz2, .diff.bz2 and .tar.bz2
