@@ -1,0 +1,71 @@
+reprepro (0.6-1) unstable; urgency=low
+
+  * add suggest for gnupg-agent (Closes: 324151)
+  * new version
+  - adds createsymlinks command (Closes: 324155)
+  - fixes FilterList parsing (Closes: 326861)
+  - add conf/options file for default options
+  - putting .changes in wrong distribution is
+    now an (--ignoreable) error.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sat, 24 Sep 2005 17:11:42 +0200
+
+reprepro (0.5-1) unstable; urgency=low
+
+  * new version
+  - add quick&dirty --ask-passphrase option
+  - SignWith's argument is now used
+  - allow ~ in versions of filenames listed in .changes files
+  - starts to track source packages, which yet mostly only:
+    + allow to include .changes files into the pool (Closes: 309703)
+    + keep no longer used files of one distribution (Closes: 309414)
+  - include English-fixes and new parts about apache2 
+    to short-howto from V. Stanley Jaddoe (Closes: 319708)
+  - include example from Goswin Brederlow (Closes: 306982)
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  3 Aug 2005 20:22:37 +0200
+
+reprepro (0.4-1) unstable; urgency=low
+
+  * new version
+    - add Fallback mirror for updates
+    - fix bug that readded packages in some update-scenarios
+    - many tidy ups
+
+ -- Bernhard R. Link <brlink@debian.org>  Thu,  2 Jun 2005 10:28:45 +0200
+
+reprepro (0.3-1) unstable; urgency=low
+
+  * new version:
+    - Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
+    - new command reoverride to reapply override information.
+    - copied files are created without executable bit (Closes: #303195)
+
+ -- Bernhard R. Link <brlink@debian.org>  Tue,  5 Apr 2005 22:08:35 +0200
+
+reprepro (0.2-1) unstable; urgency=low
+
+  * new version:
+  - fix overflow in chunks_replacefield
+  - fix problem when downloading after no index files were downloaded
+  - --basedir no longer overwrites prior given more sepecific dirs
+  - exporting now writes index files and Release files into temporary
+    files and moved them to their final place all at once.
+  - new DebIndicies/UDebIndices/DscIndices options to control how to
+    generate Index files and run hooks over it. (Including examples
+    for generating .bz2 files or apt-qupdate'able .diff/ directories)
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun, 20 Feb 2005 15:25:11 +0100
+
+reprepro (0.1.1-1) unstable; urgency=low
+
+  * new version fixing --includeonlysigned
+
+ -- Bernhard R. Link <brlink@debian.org>  Wed,  9 Feb 2005 12:25:04 +0100
+
+reprepro (0.1-1) unstable; urgency=low
+
+  * Initial Upload.
+
+ -- Bernhard R. Link <brlink@debian.org>  Sun,  6 Feb 2005 13:43:25 +0100
+
