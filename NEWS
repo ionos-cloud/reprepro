@@ -1,7 +1,13 @@
-Updates since 3.12.0:
+Updates between 3.12.1 and 4.0.0:
+- disable old files.db handling (remove all support but
+  translatelegacyfilelists), remove --oldfilesdb options
+- remove --overridedir
+- bugfixes in documentation and bash/zsh completion
+
+Updates between 3.12.0 and 3.12.1:
 - fix problems with libgpgme 1.2.0
 
-Updates since 3.11.1:
+Updates between 3.11.1 and 3.12.0:
 - warn if directories are relative to the currect directory but do not start
   with './'
 - directories starting '+b/' '+o/' and '+c/' are relative to basedir, outdir
@@ -15,7 +21,7 @@ Updates since 3.11.1:
 - add new translatelegacyfilelists command for easier migration.
   (just a collectnewchecksums and deleting that file was enough, though)
 
-Updates since 3.11.0:
+Updates between 3.11.0 and 3.11.1:
 - new changestool option --create-with-all-fields
 - new --morguedir option (or morguedir in conf/options, of course)
 - new $Version, $Source, $SourceVersion et al on formulas

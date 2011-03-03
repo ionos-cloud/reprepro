@@ -2,7 +2,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 
-AC_INIT(reprepro, 3.12.1, brlink@debian.org)
+AC_INIT(reprepro, 4.0.0, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])
@@ -11,7 +11,7 @@ AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 AC_GNU_SOURCE
 
-AC_PROG_CC
+AC_PROG_CC_C99
 AC_PROG_INSTALL
 AC_SYS_LARGEFILE
 
@@ -249,6 +249,5 @@ dnl
 dnl Create makefiles
 dnl
 
-AC_OUTPUT([Makefile docs/Makefile tests/Makefile])
-
-
+AC_CONFIG_FILES([Makefile docs/Makefile tests/Makefile])
+AC_OUTPUT

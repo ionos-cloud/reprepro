@@ -142,9 +142,6 @@ with '\fB+c/\fP' relative to confdir.
 
 If none is given, deleted files are just deleted.
 .TP
-.B \-\-overridedir \fIoverridedir\fP \fR(OBSOLETE)\fP
-This option is obsolete. Do not use.
-.TP
 .B \-\-methoddir \fImethoddir\fP
 Look in \fImethoddir\fP instead of
 .B /usr/lib/apt/methods
@@ -339,14 +336,6 @@ This option in the command line is usually not very useful, as it is possible
 to set the environment variable directly.
 Its main reason for existance is that it can be used in \fIconf\fP\fB/options\fP.
 .TP
-.B \-\-oldfilesdb
-Do not only create checksums.db but also older files.db file.
-This will make it possible for reprepro versions before 3.3.0 to
-access this repository.
-Without this versions before 3.0 will not recognize the database and destroy it.
-
-Note that future versions of reprepro will no longer support the old version.
-.TP
 .BI \-\-gunzip " gz-uncompressor"
 While reprepro links against \fBlibz\fP, it will look for the program given
 with this option (or \fBgunzip\fP if not given) and use that when uncompressing
@@ -538,7 +527,7 @@ is the better way to do this (but only available since 3.11.1).
 is another (less efficient) way.
 
 .B reprepro \-b . listfilter test2 'Package (% linux\-*\-2.6*)'
-lists alls packages with names starting with \fBlinux-\fP and later
+lists all packages with names starting with \fBlinux-\fP and later
 having an \fB\-2.6\fP.
 .TP
 .B ls \fIpackage-name\fP

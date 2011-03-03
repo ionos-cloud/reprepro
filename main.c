@@ -95,8 +95,6 @@ static char /*@only@*/ /*@notnull@*/ // *g*
 	*x_confdir = NULL,
 	*x_logdir = NULL,
 	*x_morguedir = NULL,
-	/* This should have never been a seperate directory, well to late... */
-	*x_overridedir = NULL,
 	*x_methoddir = NULL;
 static char /*@only@*/ /*@null@*/
 	*x_section = NULL,
@@ -125,7 +123,6 @@ static enum exportwhen export = EXPORT_CHANGED;
 int		verbose = 0;
 static bool	fast = false;
 static bool	verbosedatabase = false;
-static bool	oldfilesdb = false;
 static enum spacecheckmode spacecheckmode = scm_FULL;
 /* default: 100 MB for database to grow */
 static off_t reserveddbspace = 1024*1024*100
@@ -136,7 +133,7 @@ static off_t reservedotherspace = 1024*1024;
  * to change something owned by lower owners. */
 enum config_option_owner config_state,
 #define O(x) owner_ ## x = CONFIG_OWNER_DEFAULT
-O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_overridedir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(oldfilesdb), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
+O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(x_listdir), O(x_confdir), O(x_logdir), O(x_methoddir), O(x_section), O(x_priority), O(x_component), O(x_architecture), O(x_packagetype), O(nothingiserror), O(nolistsdownload), O(keepunusednew), O(keepunreferenced), O(keeptemporaries), O(keepdirectories), O(askforpassphrase), O(skipold), O(export), O(waitforlock), O(spacecheckmode), O(reserveddbspace), O(reservedotherspace), O(guessgpgtty), O(verbosedatabase), O(gunzip), O(bunzip2), O(unlzma), O(gnupghome), O(listformat), O(listmax), O(listskip);
 #undef O
 
 #define CONFIGSET(variable,value) if(owner_ ## variable <= config_state) { \
@@ -1061,7 +1058,7 @@ static retvalue list_package(UNUSED(struct database *dummy1), UNUSED(struct dist
 }
 
 ACTION_B(y, n, y, list) {
-	retvalue r;
+	retvalue result = RET_NOTHING, r;
 	struct distribution *distribution;
 	struct target *t;
 
@@ -1082,8 +1079,9 @@ ACTION_B(y, n, y, list) {
 		r = list_in_target(database, t, argv[2]);
 		if( RET_WAS_ERROR(r) )
 			return r;
+		RET_UPDATE(result, r);
 	}
-	return r;
+	return result;
 }
 
 struct lsversion {
@@ -3218,7 +3216,7 @@ static const struct action {
 	{"__extractfilelist",	A_N(extractfilelist),
 		1, 1, "__extractfilelist <.deb-file>"},
 	{"_versioncompare",	A_N(versioncompare),
-		2, 2, "versioncompare <version> <version>"},
+		2, 2, "_versioncompare <version> <version>"},
 	{"_detect", 		A__F(detect),
 		-1, -1, NULL},
 	{"_forget", 		A__F(forget),
@@ -3524,8 +3522,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	result = database_create(&database, alldistributions,
 			fast, ISSET(needs, NEED_NO_PACKAGES),
 			ISSET(needs, MAY_UNUSED), ISSET(needs, IS_RO),
-			waitforlock, verbosedatabase || (verbose >= 30),
-			oldfilesdb);
+			waitforlock, verbosedatabase || (verbose >= 30));
 	if( !RET_IS_OK(result) ) {
 		(void)distribution_freelist(alldistributions);
 		return result;
@@ -3631,8 +3628,6 @@ LO_NOSKIPOLD,
 LO_NOGUESSGPGTTY,
 LO_VERBOSEDB,
 LO_NOVERBOSEDB,
-LO_OLDFILESDB,
-LO_NOOLDFILESDB,
 LO_EXPORT,
 LO_OUTDIR,
 LO_DISTDIR,
@@ -3723,7 +3718,6 @@ static void handle_option(int c, const char *argument) {
 "     --listdir <dir>:               Directory to place downloaded lists in.\n"
 "     --confdir <dir>:               Directory to search configuration in.\n"
 "     --logdir <dir>:                Directory to put requeted log files in.\n"
-"     --overridedir <dir>:           Directory to search override files in.\n"
 "     --methodir <dir>:              Use instead of /usr/lib/apt/methods/\n"
 " -S, --section <section>:           Force include* to set section.\n"
 " -P, --priority <priority>:         Force include* to set priority.\n"
@@ -3852,12 +3846,6 @@ static void handle_option(int c, const char *argument) {
 				case LO_NOVERBOSEDB:
 					CONFIGSET(verbosedatabase, false);
 					break;
-				case LO_OLDFILESDB:
-					CONFIGSET(oldfilesdb, true);
-					break;
-				case LO_NOOLDFILESDB:
-					CONFIGSET(oldfilesdb, false);
-					break;
 				case LO_EXPORT:
 					setexport(argument);
 					break;
@@ -3872,11 +3860,6 @@ static void handle_option(int c, const char *argument) {
 					break;
 				case LO_LISTDIR:
 					CONFIGDUP(x_listdir, argument);
-					break;
-				case LO_OVERRIDEDIR:
-					if( verbose >= -1 )
-						fprintf(stderr, "Warning: --overridedir is obsolete. \nPlease put override files in the conf dir for compatibility with future version.\n");
-					CONFIGDUP(x_overridedir, argument);
 					break;
 				case LO_CONFDIR:
 					CONFIGDUP(x_confdir, argument);
@@ -4051,7 +4034,6 @@ static void myexit(int status) {
 	free(x_listdir);
 	free(x_logdir);
 	free(x_confdir);
-	free(x_overridedir);
 	free(x_basedir);
 	free(x_outdir);
 	free(x_methoddir);
@@ -4133,7 +4115,6 @@ int main(int argc,char *argv[]) {
 		{"distdir", required_argument, &longoption, LO_DISTDIR},
 		{"dbdir", required_argument, &longoption, LO_DBDIR},
 		{"listdir", required_argument, &longoption, LO_LISTDIR},
-		{"overridedir", required_argument, &longoption, LO_OVERRIDEDIR},
 		{"confdir", required_argument, &longoption, LO_CONFDIR},
 		{"logdir", required_argument, &longoption, LO_LOGDIR},
 		{"section", required_argument, NULL, 'S'},
@@ -4171,9 +4152,6 @@ int main(int argc,char *argv[]) {
 		{"noverbosedb", no_argument, &longoption, LO_NOVERBOSEDB},
 		{"verbosedatabase", no_argument, &longoption, LO_VERBOSEDB},
 		{"noverbosedatabase", no_argument, &longoption, LO_NOVERBOSEDB},
-		{"oldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
-		{"nooldfilesdb", no_argument, &longoption, LO_NOOLDFILESDB},
-		{"nonooldfilesdb", no_argument, &longoption, LO_OLDFILESDB},
 		{"skipold", no_argument, &longoption, LO_SKIPOLD},
 		{"noskipold", no_argument, &longoption, LO_NOSKIPOLD},
 		{"nonoskipold", no_argument, &longoption, LO_SKIPOLD},
@@ -4230,7 +4208,6 @@ int main(int argc,char *argv[]) {
 	CONFIGDUP(x_dbdir, "+b/db");
 	CONFIGDUP(x_logdir, "+b/logs");
 	CONFIGDUP(x_listdir, "+b/lists");
-	CONFIGDUP(x_overridedir, "+b/override");
 
 	config_state = CONFIG_OWNER_CMDLINE;
 	if( interrupted() )

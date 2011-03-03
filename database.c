@@ -155,11 +155,6 @@ retvalue database_close(struct database *db) {
 		RET_UPDATE(result, r);
 		db->references = NULL;
 	}
-	if( db->oldmd5sums != NULL ) {
-		r = table_close(db->oldmd5sums);
-		RET_UPDATE(result, r);
-		db->oldmd5sums = NULL;
-	}
 	if( db->checksums != NULL ) {
 		r = table_close(db->checksums);
 		RET_UPDATE(result, r);
@@ -624,11 +619,6 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 		return r;
 	if( c >= 0 )
 		db->capabilities.createnewtables = true;
-	r = dpkgversions_cmp(db->lastsupportedversion, "3.3.0", &c);
-	if( RET_WAS_ERROR(r) )
-		return r;
-	if( c >= 0 )
-		db->capabilities.nomd5legacy = true;
 
 	/* ensure we can understand it */
 
@@ -696,11 +686,8 @@ static retvalue writeversionfile(struct database *db) {
 		(void)fputc('\n', f);
 	}
 	if( db->lastsupportedversion == NULL ) {
-		if( db->capabilities.nomd5legacy )
-			(void)fputs("3.3.0\n", f);
-		else
-			(void)fputs("0\n", f);
-	} else if( db->capabilities.nomd5legacy ) {
+		(void)fputs("3.3.0\n", f);
+	} else {
 		int c;
 		retvalue r;
 
@@ -711,9 +698,6 @@ static retvalue writeversionfile(struct database *db) {
 			(void)fputs(db->lastsupportedversion, f);
 			(void)fputc('\n', f);
 		}
-	} else {
-		(void)fputs(db->lastsupportedversion, f);
-		(void)fputc('\n', f);
 	}
 	if( db->dbversion == NULL )
 		fprintf(f, "bdb%d.%d.%d\n", DB_VERSION_MAJOR, DB_VERSION_MINOR, DB_VERSION_PATCH);
@@ -794,7 +778,7 @@ static retvalue createnewdatabase(struct database *db, struct distribution *dist
  * - if readonly, do not create but return with RET_NOTHING
  * - lock database, waiting a given amount of time if already locked
  */
-retvalue database_create(struct database **result, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb, bool legacymd5format) {
+retvalue database_create(struct database **result, struct distribution *alldistributions, bool fast, bool nopackages, bool allowunused, bool readonly, size_t waitforlock, bool verbosedb) {
 	struct database *n;
 	retvalue r;
 	bool packagesfileexists, trackingfileexists, nopackagesyet;
@@ -817,7 +801,6 @@ retvalue database_create(struct database **result, struct distribution *alldistr
 	}
 	n->readonly = readonly;
 	n->verbose = verbosedb;
-	n->capabilities.nomd5legacy = !legacymd5format;
 
 	r = database_hasdatabasefile(n, "packages.db", &packagesfileexists);
 	if( RET_WAS_ERROR(r) )
@@ -1785,9 +1768,9 @@ retvalue database_droppackages(struct database *database, const char *identifier
 retvalue database_openfiles(struct database *db) {
 	retvalue r;
 	struct strlist identifiers;
-	bool checksumsexisted;
+	bool checksumsexisted, oldfiles;
 
-	assert( db->checksums == NULL && db->oldmd5sums == NULL );
+	assert( db->checksums == NULL );
 	assert( db->contents == NULL );
 
 	r = database_listsubtables(db, "contents.cache.db", &identifiers);
@@ -1811,28 +1794,20 @@ retvalue database_openfiles(struct database *db) {
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		db->checksums = NULL;
-		db->oldmd5sums = NULL;
 		return r;
 	}
-	r = database_table(db, "files.db", "md5sums",
-			dbt_BTREE,
-			(db->capabilities.nomd5legacy || checksumsexisted)?
-				0 : DB_CREATE,
-			&db->oldmd5sums);
-	if( r == RET_NOTHING )
-		db->capabilities.nomd5legacy = true;
-	else if( RET_WAS_ERROR(r) ) {
+	r = database_hasdatabasefile(db, "files.db", &oldfiles);
+	if( RET_WAS_ERROR(r) ) {
 		(void)table_close(db->checksums);
 		db->checksums = NULL;
-		db->oldmd5sums = NULL;
 		return r;
-	} else
-		db->capabilities.nomd5legacy = false;
-
-	if( !db->capabilities.nomd5legacy )
+	}
+	if( oldfiles ) {
 		fprintf(stderr,
-"Warning: database uses deprecated format.\n"
-"Please consider running translatelegacychecksums to update to the new format.\n");
+"Error: database uses deprecated format.\n"
+"Please run translatelegacychecksums to update to the new format first.\n");
+		return RET_ERROR;
+	}
 
 	// TODO: only create this file once it is actually needed...
 	r = database_table(db, "contents.cache.db", "compressedfilelists",
@@ -1840,9 +1815,7 @@ retvalue database_openfiles(struct database *db) {
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		(void)table_close(db->checksums);
-		(void)table_close(db->oldmd5sums);
 		db->checksums = NULL;
-		db->oldmd5sums = NULL;
 		db->contents = NULL;
 	}
 	return r;
@@ -2257,7 +2230,6 @@ retvalue database_translate_legacy_checksums(bool verbosedb) {
 		database_free(n);
 		return RET_ERRNO(e);
 	}
-	n->capabilities.nomd5legacy = true;
 	r = writeversionfile(n);
 	releaselock(n);
 	database_free(n);
