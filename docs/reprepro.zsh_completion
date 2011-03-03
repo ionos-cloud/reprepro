@@ -237,9 +237,11 @@ commands=(
 	restorematched:"restore packages matching a glob from a snapshot"
 	restoresrc:"restore packages belonging to a specific source from a snapshot"
 	retrack:"refresh tracking information"
+	sourcemissing:"list binary packages with no source package"
 	tidytracks:"look for files referened by tracks but no longer needed"
 	translatefilelists:"translate pre-3.0.0 contents.cache.db into new format"
 	translatelegacychecksums:"get rid of obsolete files.db"
+	unusedsources:"list source packages with no binary packages"
 	update:"update from external source"
    	)
 hiddencommands=(
@@ -328,6 +330,7 @@ _arguments \
 	'--bunzip2[external Program to extract .bz2 files]:bunzip binary:_files' \
 	'--unlzma[external Program to extract .lzma files]:unlzma binary:_files' \
 	'--unxz[external Program to extract .xz files]:unxz binary:_files' \
+	'--lunzip[external Program to extract .lz files]:lunzip binary:_files' \
 	'--list-format[Format for list output]:listfilter format:' \
 	'--list-skip[Number of packages to skip in list output]:list skip:' \
 	'--list-max[Maximum number of packages in list output]:list max:' \
@@ -358,7 +361,7 @@ case "$state" in
 
  (first argument|second argument|third argument|argument)
 	case "$words[1]" in
-	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers)
+	 (export|update|checkupdate|predelete|pull|checkpull|check|reoverride|rereference|dumptracks|retrack|removealltracks|tidytracks|dumppull|dumpupdate|rerunnotifiers|unusedsources|sourcemissing)
 		_reprepro_codenames
 		;;
 	 (checkpool)
@@ -484,7 +487,7 @@ case "$state" in
 		;;
 	  (__uncompress)
 		if [[ "$state" = "first argument" ]] ; then
-			uncompressions=(.gz .bz2 .lzma .xz)
+			uncompressions=(.gz .bz2 .lzma .xz .lz)
 		      	_wanted -V 'uncompressions' expl 'uncompression' compadd -a uncompressions
 		elif [[ "$state" = "second argument" ]] ; then
 			_files

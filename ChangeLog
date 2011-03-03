@@ -1,3 +1,25 @@
+2010-10-16
+       * support "ButAutomaticUpgrades" field to be copied to
+         the generated Release files (Thanks to Modestas Vainius)
+
+2010-10-15
+	* add support for lzip compressed files
+	(Thanks to Daniel Baumann for the patch).
+
+2010-09-10
+	* add special '$Delete' override field to delete fields
+
+2010-09-09
+	* fix reoverride problem with packages only having a $Component
+	  special-override-field.
+
+2010-08-12
+	* fix missing #ifdef breaking --without-libbz2 compiles
+	* include sys/stat.h in filecntl.c, thanks to Jeroen van Meeuwen
+
+2010-08-04
+	* add unusedsources and sourcemissing commands.
+
 2010-07-10
 	* create InRelease files when signing...
 

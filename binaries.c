@@ -280,7 +280,7 @@ retvalue binaries_doreoverride(const struct target *target, const char *packagen
 		return RET_NOTHING;
 
 	r = override_allreplacefields(o, &fields);
-	if( RET_WAS_ERROR(r) )
+	if( !RET_IS_OK(r) )
 		return r;
 	newchunk = chunk_replacefields(controlchunk, fields, "Filename", false);
 	addfield_free(fields);

@@ -121,11 +121,19 @@ static retvalue add_override_field(struct overridedata *data, const char *second
 				secondpart);
 		return RET_ERROR;
 	}
-	if( secondpart[0] == '$'
-			&& strcasecmp(secondpart, "$Component") != 0 ) {
-		fprintf(stderr,
+	if( secondpart[0] == '$' ) {
+		if( strcasecmp(secondpart, "$Delete") == 0 ) {
+			if( forbidden_field_name(source, thirdpart) ) {
+				fprintf(stderr,
+"Error: field '%s' not allowed in override files (not even as to be deleted).\n",
+						thirdpart);
+				return RET_ERROR;
+			}
+		} else if( strcasecmp(secondpart, "$Component") != 0 ) {
+			fprintf(stderr,
 "Warning: special override field '%s' unknown and will be ignored\n",
-				secondpart);
+					secondpart);
+		}
 	}
 	p = strdup(secondpart);
 	if( FAILEDTOALLOC(p) )
@@ -360,6 +368,12 @@ struct fieldtoadd *override_addreplacefields(const struct overridedata *override
 				otherreplaces);
 			if( otherreplaces == NULL )
 				return NULL;
+		} else if( strcasecmp(override->fields.values[i],
+					"$delete") == 0 ) {
+			otherreplaces = deletefield_new(
+				override->fields.values[i+1], otherreplaces);
+			if( otherreplaces == NULL )
+				return NULL;
 		}
 	}
 	return otherreplaces;
@@ -380,8 +394,16 @@ retvalue override_allreplacefields(const struct overridedata *override, struct f
 				fields);
 			if( fields == NULL )
 				return RET_ERROR_OOM;
+		} else if( strcasecmp(override->fields.values[i],
+					"$delete") == 0 ) {
+			fields = deletefield_new(
+				override->fields.values[i+1], fields);
+			if( fields == NULL )
+				return RET_ERROR_OOM;
 		}
 	}
+	if( fields == NULL )
+		return RET_NOTHING;
 	*fields_p = fields;
 	return RET_OK;
 }

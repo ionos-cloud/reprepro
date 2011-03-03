@@ -1131,6 +1131,8 @@ retvalue release_directorydescription(struct release *release, const struct dist
 	release_writeheader("Architecture",
 			atoms_architectures[target->architecture_atom]);
 	release_writeheader("NotAutomatic",distribution->notautomatic);
+	release_writeheader("ButAutomaticUpgrades",
+			distribution->butautomaticupgrades);
 	release_writeheader("Description",distribution->description);
 #undef release_writeheader
 	r = release_finishfile(release, f);
@@ -1290,6 +1292,10 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 	if( distribution->notautomatic != NULL ) {
 		writestring("\nNotAutomatic: ");
 		writestring(distribution->notautomatic);
+	}
+	if( distribution->butautomaticupgrades != NULL ) {
+		writestring("\nButAutomaticUpgrades: ");
+		writestring(distribution->butautomaticupgrades);
 	}
 	writechar('\n');
 

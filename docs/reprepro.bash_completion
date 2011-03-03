@@ -118,7 +118,7 @@ _reprepro()
 	--section -S --priority -P --component -C\
 	--architecture -A --type -T --export --waitforlock \
 	--spacecheck --safetymargin --dbsafetymargin\
-	--gunzip --bunzip2 --unlzma --unxz --gnupghome --list-format --list-skip --list-max'
+	--gunzip --bunzip2 --unlzma --unxz --lunzip --gnupghome --list-format --list-skip --list-max'
 
 	i=1
 	prev=""
@@ -166,7 +166,7 @@ _reprepro()
 				confdir="${COMP_WORDS[i+1]}"
 				i=$((i+2))
 				;;
-			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export|--waitforlock|--spacecheck|--checkspace|--safetymargin|--dbsafetymargin|--logdir|--gunzip|--bunzip2|--unlzma|--unxz|--gnupghome|--morguedir)
+			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export|--waitforlock|--spacecheck|--checkspace|--safetymargin|--dbsafetymargin|--logdir|--gunzip|--bunzip2|--unlzma|--unxz|--lunzip|--gnupghome|--morguedir)
 
 				prev="$cur"
 				i=$((i+2))
@@ -287,9 +287,11 @@ _reprepro()
 			restorematched\
 			restoresrc\
 			retrack\
+			sourcemissing\
 			tidytracks\
 			translatefilelists\
 			translatelegacychecksums\
+			unusedsources\
 			update'
 		hiddencommands='__d\
 			__dumpuncompressors
@@ -351,7 +353,7 @@ _reprepro()
 			# these later could also look for stuff, but
 			# that might become a bit slow
 			;;
-		export|update|checkupdate|pull|checkpull|rereference|retrack|removealltracks|tidytracks|dumptracks|check|reoverride|rerunnotifiers|dumppull|dumpupdate)
+		export|update|checkupdate|pull|checkpull|rereference|retrack|removealltracks|tidytracks|dumptracks|check|reoverride|rerunnotifiers|dumppull|dumpupdate|unusedsources|sourcemissing)
 			# all arguments are codenames
 			parse_config
 			COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )
@@ -419,7 +421,7 @@ _reprepro()
 		__uncompress)
 			# first argument is method
 			if [[ $i -eq $COMP_CWORD ]] ; then
-				COMPREPLY=( $( compgen -W ".gz .bz2 .lzma .xz" -- $cur ) )
+				COMPREPLY=( $( compgen -W ".gz .bz2 .lzma .xz .lz" -- $cur ) )
 				return 0
 			fi
 			if [[ $(( $i + 1 )) -eq $COMP_CWORD ]] ; then

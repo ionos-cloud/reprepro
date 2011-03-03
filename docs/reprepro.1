@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2010-07-05" "reprepro" REPREPRO
+.TH REPREPRO 1 "2010-10-16" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -371,6 +371,15 @@ will be used.
 The default value is \fBunxz\fP.
 If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
 xz files will not be possible.
+The program has to accept the compressed file as stdin and write
+the uncompressed file into stdout.
+.TP
+.BI \-\-lunzip " lzip-uncompressor"
+When trying to uncompress or read \fPlzip\fP compressed files, this program
+will be used.
+The default value is \fBlunzip\fP.
+If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
+lz files will not be possible.
 The program has to accept the compressed file as stdin and write
 the uncompressed file into stdout.
 .TP
@@ -873,6 +882,18 @@ Or if you included some architecture all packages only to some architectures
 using \fB\-A\fP to avoid breaking the other architectures for which the binary
 packages were still missing and now want to copy it to those architectures were
 they are unlikely to break something (because a newbinary is already available).
+.TP
+.B unusedsource \fR[\fP\fIdistributions\fP\fR]\fP
+List all source packages for which no binary package build from them is found.
+
+Currently only works with distributions having tracking enabled.
+.TP
+.B sourcemissing \fR[\fP\fIdistributions\fP\fR]\fP
+List all binary packages for which no source package is found
+(the source package must be in the same distribution,
+but source packages only kept by package tracking is enough).
+
+Currently only works with distributions having tracking enabled.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -1083,8 +1104,15 @@ Release files.
 .B NotAutomatic
 This optional field is simply copied into the
 Release files.
-(The value is handled as arbitrary string,
-though anything but \fByes\fP does make much
+(The value is handled as an arbitrary string,
+though anything but \fByes\fP does not make much
+sense right now.)
+.TP
+.B ButAutomaticUpgrades
+This optional field is simply copied into the
+Release files.
+(The value is handled as an arbitrary string,
+though anything but \fByes\fP does not make much
 sense right now.)
 .TP
 .B Description
@@ -1665,6 +1693,12 @@ will put the package in the component given as value
 (unless itself overridden with \fB-C\fP).
 Note that the proper way to specify the component is by setting the
 section field and using this extension will most likely confuse people.
+
+ \fB$Delete\fP: the value is treated a fieldname and fields of that
+name are removed.
+(This way one can remove fields previously added without removing and
+readding the package.
+And fields already included in the package can be removed, too).
 
 .SS conf/incoming
 Every chunk is a rule set for the

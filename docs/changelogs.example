@@ -51,7 +51,7 @@ addsource() {
 		echo "extract $CANONDSCFILE information to $TARGETDIR"
 		mkdir -p -- "$TARGETDIR"
 		EXTRACTDIR="$(mktemp -d)"
-		(cd -- "$EXTRACTDIR" && dpkg-source -sn -x "$CANONDSCFILE" > /dev/null)
+		(cd -- "$EXTRACTDIR" && dpkg-source --no-copy -x "$CANONDSCFILE" > /dev/null)
 		install -D -- "$EXTRACTDIR"/*/debian/copyright "$TARGETDIR/copyright"
 		install -D -- "$EXTRACTDIR"/*/debian/changelog "$TARGETDIR/changelog"
 		chmod -R u+rwX -- "$EXTRACTDIR"

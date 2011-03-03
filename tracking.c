@@ -639,6 +639,43 @@ retvalue tracking_printall(trackingdb t) {
 	return result;
 }
 
+retvalue tracking_foreach_ro(struct database *db, struct distribution *d, tracking_foreach_ro_action *action) {
+	trackingdb t;
+	struct cursor *cursor;
+	retvalue result, r;
+	struct trackedpackage *pkg IFSTUPIDCC(=NULL);
+	const char *key, *value, *data;
+	size_t datalen;
+
+	r = tracking_initialize(&t, db, d, true);
+	if( !RET_IS_OK(r) )
+		return r;
+
+	r = table_newglobalcursor(t->table, &cursor);
+	if( !RET_IS_OK(r) ) {
+		(void)tracking_done(t);
+		return r;
+	}
+
+	result = RET_NOTHING;
+	while( cursor_nextpair(t->table, cursor,
+				&key, &value, &data, &datalen) ) {
+		r = parse_data(key, value, data, datalen, &pkg);
+		if( RET_IS_OK(r) ) {
+			r = action(d, pkg);
+			trackedpackage_free(pkg);
+		}
+		RET_UPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			break;
+	}
+	r = cursor_close(t->table, cursor);
+	RET_ENDUPDATE(result, r);
+	r = tracking_done(t);
+	RET_ENDUPDATE(result, r);
+	return result;
+}
+
 retvalue tracking_parse(struct distribution *d, struct configiterator *iter) {
 	enum trackingflags { tf_keep, tf_all, tf_minimal,
 		tf_includechanges, tf_includebyhand, tf_includelogs,

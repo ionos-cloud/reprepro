@@ -375,7 +375,7 @@ static inline retvalue parse_old_index(char *p, size_t len, struct old_index_fil
 	 * (otherwise not having merged patches would most likely break
 	 * things in ugly ways), so parsing it can be very strict and easy: */
 
-#define checkorfail(val) if( e - p < strlen(val) || memcmp(p, val, strlen(val)) != 0) return RET_NOTHING; else { p += strlen(val); }
+#define checkorfail(val) if( e - p < (intptr_t)strlen(val) || memcmp(p, val, strlen(val)) != 0) return RET_NOTHING; else { p += strlen(val); }
 
 	checkorfail("SHA1-Current: ");
 	q = strchr(p, '\n');
@@ -895,7 +895,7 @@ static retvalue read_old_patch(const char *directory, const char *relfilename, c
 	return patch_loadfd("<temporary file>", fd, -1, rred_p);
 }
 
-static retvalue handle_diff(const char *directory, const char *mode, const char *relfilename, const char *relnewfilename, const char *fullfilename, const char *fullnewfilename, const char *diffdirectory, const char *indexfilename, const char *newindexfilename) {
+static retvalue handle_diff(const char *directory, const char *mode, const char *relfilename, const char *fullfilename, const char *fullnewfilename, const char *diffdirectory, const char *indexfilename, const char *newindexfilename) {
 	retvalue r;
 	int patch_count;
 	struct hash oldhash, newhash;
@@ -1264,7 +1264,7 @@ static retvalue handle_diff_dir(const char *args[4]) {
 		free(fullnewfilename);
 		return RET_ERROR_OOM;
 	}
-	r = handle_diff(directory, mode, relfilename, relnewfilename, fullfilename, fullnewfilename, diffdirectory, indexfilename, newindexfilename);
+	r = handle_diff(directory, mode, relfilename, fullfilename, fullnewfilename, diffdirectory, indexfilename, newindexfilename);
 	free(diffdirectory);
 	free(indexfilename);
 	free(newindexfilename);
