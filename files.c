@@ -484,6 +484,10 @@ retvalue files_foreach(struct database *database,per_file_action action,void *pr
 		result = RET_NOTHING;
 		while( cursor_nexttemp(database->checksums, cursor,
 					&filekey, &checksum) ) {
+			if( interrupted() ) {
+				RET_UPDATE(result, RET_ERROR_INTERRUPTED);
+				break;
+			}
 			r = action(privdata, filekey);
 			RET_UPDATE(result, r);
 		}
@@ -497,6 +501,10 @@ retvalue files_foreach(struct database *database,per_file_action action,void *pr
 	result = RET_NOTHING;
 	while( cursor_nexttemp(database->oldmd5sums, cursor,
 				&filekey, &checksum) ) {
+		if( interrupted() ) {
+			RET_UPDATE(result, RET_ERROR_INTERRUPTED);
+			break;
+		}
 		r = action(privdata, filekey);
 		RET_UPDATE(result,r);
 	}

@@ -1,3 +1,13 @@
+2008-08-12
+	* check for Ctrl-C in file_foreach (dumpunreferenced, ...)
+
+2008-08-08
+	* fix handling of libbz2 return codes
+
+2008-08-07
+	* make reoverride work again...
+	  (and not ignore section and priority)
+
 2008-08-03
 	* remove iteratedupdate
 

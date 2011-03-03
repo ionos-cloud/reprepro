@@ -249,6 +249,7 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 	const struct overrideinfo *o;
 	struct fieldtoadd *fields;
 	char *newchunk;
+	retvalue r;
 
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
@@ -257,10 +258,10 @@ retvalue binaries_doreoverride(const struct distribution *distribution,const cha
 	if( o == NULL )
 		return RET_NOTHING;
 
-	fields = override_addreplacefields(o,NULL);
-	if( fields == NULL )
-		return RET_ERROR_OOM;
-	newchunk = chunk_replacefields(controlchunk,fields,"Description");
+	r = override_allreplacefields(o, &fields);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	newchunk = chunk_replacefields(controlchunk, fields, "Filename");
 	addfield_free(fields);
 	if( newchunk == NULL )
 		return RET_ERROR_OOM;

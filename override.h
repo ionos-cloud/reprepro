@@ -29,7 +29,9 @@ retvalue override_read(const char *filename, /*@out@*/struct overrideinfo **info
 
 /* add new fields to otherreplaces, but not "Section", or "Priority".
  * incorporates otherreplaces, or frees them on error */
-/*@null@*/struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override,
-		/*@only@*/struct fieldtoadd *otherreplaces);
+/*@null@*/struct fieldtoadd *override_addreplacefields(const struct overrideinfo *override, /*@only@*/struct fieldtoadd *otherreplaces);
+
+/* as above, but all fields. and may return NULL if there are no overrides */
+retvalue override_allreplacefields(const struct overrideinfo *, /*@out@*/struct fieldtoadd **);
 
 #endif

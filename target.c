@@ -700,8 +700,8 @@ retvalue target_reoverride(struct target *target, struct distribution *distribut
 	retvalue result, r;
 	const char *package, *controlchunk;
 
-	assert(target->packages!=NULL);
-	assert(distribution!=NULL);
+	assert(target->packages == NULL);
+	assert(distribution != NULL);
 
 	if( verbose > 1 ) {
 		fprintf(stderr,"Reapplying overrides packages in '%s'...\n",target->identifier);

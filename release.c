@@ -907,9 +907,12 @@ static retvalue finishbz(struct filetorelease *f) {
 		bzret = BZ2_bzCompress(&f->bzstream,BZ_FINISH);
 		f->bz_waiting_bytes = BZBUFSIZE - f->bzstream.avail_out;
 
-		if( bzret == BZ_RUN_OK || bzret == BZ_STREAM_END ) {
+		/* BZ_RUN_OK most likely is not possible here, but BZ_FINISH_OK
+		 * is returned when it cannot be finished in one step.
+		 * but better safe then sorry... */
+		if( (bzret == BZ_RUN_OK || bzret == BZ_FINISH_OK || bzret == BZ_STREAM_END)
+		    && f->bz_waiting_bytes > 0 ) {
 			retvalue r;
-			assert( f->bz_waiting_bytes != 0 );
 			r = writetofile(&f->f[ic_bzip2],
 					(const unsigned char*)f->bzoutputbuffer,
 					f->bz_waiting_bytes);
@@ -918,7 +921,7 @@ static retvalue finishbz(struct filetorelease *f) {
 				return r;
 			f->bz_waiting_bytes = 0;
 		}
-	} while( bzret == BZ_RUN_OK );
+	} while( bzret == BZ_RUN_OK || bzret == BZ_FINISH_OK );
 
 	if( bzret != BZ_STREAM_END ) {
 		fprintf(stderr,"Error from bzlib's bzCompress: "

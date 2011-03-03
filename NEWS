@@ -1,3 +1,8 @@
+Updates between 3.6.0 and 3.6.1:
+- fix reoverride
+- fix bz2 compression (newer libbz2 sometimes uses more return codes
+  than previous versions, triggering a bug in reprepro)
+
 Updates between 3.5.2 and 3.6.0:
 - add IgnoreHashes option
 - allow list to list all packages if not package name specified.
