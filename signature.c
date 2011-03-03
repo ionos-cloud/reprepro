@@ -73,6 +73,7 @@ retvalue signature_init(bool allowpassphrase){
 #ifdef HAVE_LIBGPGME
 	gpg_error_t err;
 
+	gpgme_check_version(NULL);
 	if( context != NULL )
 		return RET_NOTHING;
 	err = gpgme_engine_check_version(GPGME_PROTOCOL_OpenPGP);
