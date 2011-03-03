@@ -9,6 +9,7 @@ TODO:
 	also support pdiff on upstream-repositories to download from.
 
 half far goals:
+	handle components, architectures and types as numeric atoms for filters
 	rewrite error handling, caching error messages and handling Ctrl-C better.
 
 far goals:

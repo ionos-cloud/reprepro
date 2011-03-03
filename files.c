@@ -222,7 +222,7 @@ retvalue files_deleteandremove(filesdb filesdb,const char *filekey,bool_t rmdirs
 
 	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
-	if( verbose >= 0 )
+	if( verbose >= 1 )
 		printf("deleting and forgetting %s\n",filekey);
 	filename = calc_fullfilename(filesdb->mirrordir,filekey);
 	if( filename == NULL )

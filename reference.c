@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -167,7 +167,7 @@ retvalue references_increment(references refs,const char *needed,const char *nee
 	SETDBT(data,neededby);
 	if ((dbret = refs->db->put(refs->db, NULL, &key, &data, 0)) == 0) {
 		if( verbose > 8 )
-			fprintf(stderr,"Adding reference to '%s' by '%s'\n", needed,neededby);
+			printf("Adding reference to '%s' by '%s'\n", needed,neededby);
 		return RET_OK;
 	} else {
 		refs->db->err(refs->db, dbret, "references_increment dberror:");

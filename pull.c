@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006 Bernhard R. Link
+ *  Copyright (C) 2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -32,6 +32,7 @@
 #include "distribution.h"
 #include "terms.h"
 #include "filterlist.h"
+#include "log.h"
 
 extern int verbose;
 
@@ -366,6 +367,7 @@ static inline void pull_addsourcedistributions(struct pull_rule *rules,
 }
 
 static retvalue pull_loadmissingsourcedistributions(const char *confdir,
+		const char *logdir,
 		struct pull_rule *rules,
 		struct distribution **extradistributions) {
 	const char **names = NULL;
@@ -400,7 +402,7 @@ static retvalue pull_loadmissingsourcedistributions(const char *confdir,
 		*extradistributions = NULL;
 		return RET_OK;
 	}
-	r = distribution_getmatched(confdir,count,names, extradistributions);
+	r = distribution_getmatched(confdir, logdir, count, names, FALSE, extradistributions);
 	free(names);
 	assert( r != RET_NOTHING );
 	if( RET_IS_OK(r) ) {
@@ -568,7 +570,7 @@ static retvalue pull_generatetargets(struct pull_distribution *pull_distribution
  * combination of the steps two, three and four                            *
  **************************************************************************/
 
-retvalue pull_prepare(const char *confdir,struct pull_rule *rules,struct distribution *distributions, struct pull_distribution **pd,struct distribution **alsoneeded) {
+retvalue pull_prepare(const char *confdir,const char *logdir,struct pull_rule *rules,struct distribution *distributions, struct pull_distribution **pd,struct distribution **alsoneeded) {
 	struct distribution *extra;
 	struct pull_distribution *pulls;
 	retvalue r;
@@ -579,7 +581,7 @@ retvalue pull_prepare(const char *confdir,struct pull_rule *rules,struct distrib
 
 	pull_addsourcedistributions(rules, distributions);
 
-	r = pull_loadmissingsourcedistributions(confdir, rules, &extra);
+	r = pull_loadmissingsourcedistributions(confdir, logdir, rules, &extra);
 	if( RET_WAS_ERROR(r) ) {
 		pull_freedistributions(pulls);
 		return r;
@@ -631,12 +633,12 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 	return UD_UPGRADE;
 }
 
-static inline retvalue pull_searchformissing(const char *dbdir,struct pull_target *p) {
+static inline retvalue pull_searchformissing(FILE *out,const char *dbdir,struct pull_target *p) {
 	struct pull_source *source;
 	retvalue result,r;
 
 	if( verbose > 2 )
-		fprintf(stderr,"  pulling into '%s'\n",p->target->identifier);
+		fprintf(out,"  pulling into '%s'\n",p->target->identifier);
 	assert(p->upgradelist == NULL);
 	r = upgradelist_initialize(&p->upgradelist,p->target,dbdir);
 	if( RET_WAS_ERROR(r) )
@@ -648,7 +650,7 @@ static inline retvalue pull_searchformissing(const char *dbdir,struct pull_targe
 
 		if( source->rule == NULL ) {
 			if( verbose > 4 )
-				fprintf(stderr,"  marking everything to be deleted\n");
+				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(p->upgradelist);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
@@ -658,7 +660,7 @@ static inline retvalue pull_searchformissing(const char *dbdir,struct pull_targe
 		}
 
 		if( verbose > 4 )
-			fprintf(stderr,"  looking what to get from '%s'\n",
+			fprintf(out,"  looking what to get from '%s'\n",
 					source->source->identifier);
 		r = upgradelist_pull(p->upgradelist,
 				source->source,
@@ -672,7 +674,7 @@ static inline retvalue pull_searchformissing(const char *dbdir,struct pull_targe
 	return result;
 }
 
-static retvalue pull_search(const char *dbdir,struct pull_distribution *d) {
+static retvalue pull_search(FILE *out,const char *dbdir,struct pull_distribution *d) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -692,7 +694,7 @@ static retvalue pull_search(const char *dbdir,struct pull_distribution *d) {
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
-		r = pull_searchformissing(dbdir,u);
+		r = pull_searchformissing(out,dbdir,u);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -704,9 +706,14 @@ static retvalue pull_install(const char *dbdir,filesdb filesdb,references refs,s
 	retvalue result,r;
 	struct pull_target *u;
 
+	assert( logger_isprepared(distribution->distribution->logger) );
+
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,u->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(u->upgradelist,
+				distribution->distribution->logger,
+				dbdir, filesdb, refs,
+				u->ignoredelete, dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
@@ -734,13 +741,19 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 	retvalue result,r;
 	struct pull_distribution *d;
 
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_prepareforwriting(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+
 	if( verbose >= 0 )
-		fprintf(stderr,"Calculating packages to pull...\n");
+		printf("Calculating packages to pull...\n");
 
 	result = RET_NOTHING;
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(dbdir,d);
+		r = pull_search(stdout, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -757,7 +770,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
+		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = pull_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
@@ -765,6 +778,7 @@ retvalue pull_update(const char *dbdir,filesdb filesdb,references refs,struct pu
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
+	logger_wait();
 
 	return result;
 }
@@ -779,7 +793,7 @@ retvalue pull_checkupdate(const char *dbdir,struct pull_distribution *distributi
 	result = RET_NOTHING;
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_search(dbdir,d);
+		r = pull_search(stderr, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;

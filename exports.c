@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005 Bernhard R. Link
+ *  Copyright (C) 2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -38,6 +38,60 @@
 #include "copyfile.h"
 
 extern int verbose;
+
+static const char *exportdescription(const struct exportmode *mode,char *buffer,size_t buffersize) {
+	char *result = buffer;
+	enum indexcompression ic;
+	static const char* compression_names[ic_count] = {
+		"uncompressed"
+		,"gzipped"
+#ifdef HAVE_LIBBZ2
+		,"bzip2ed"
+#endif
+	};
+	bool_t needcomma = FALSE;
+
+	assert( buffersize > 50 );
+	*buffer++ = ' '; buffersize--;
+	*buffer++ = '('; buffersize--;
+	for( ic = 0 ; ic < ic_count ; ic++ ) {
+		if( (mode->compressions & IC_FLAG(ic)) != 0 ) {
+			size_t l = strlen(compression_names[ic]);
+			assert( buffersize > l+3 );
+			if( needcomma ) {
+				*buffer++ = ','; buffersize--;
+			}
+			memcpy(buffer, compression_names[ic], l);
+			buffer += l; buffersize -= l;
+			needcomma = TRUE;
+		}
+	}
+	if( mode->hook != NULL ) {
+		size_t l = strlen(mode->hook);
+		if( needcomma ) {
+			*buffer++ = ','; buffersize--;
+		}
+		strcpy(buffer, "script: ");
+		buffer += 8; buffersize -= 8;
+		if( l > buffersize - 2 ) {
+			memcpy(buffer, mode->hook, buffersize-5);
+			buffer += (buffersize-5);
+			buffersize -= (buffersize-5);
+			*buffer++ = '.'; buffersize--;
+			*buffer++ = '.'; buffersize--;
+			*buffer++ = '.'; buffersize--;
+			assert( buffersize >= 2 );
+		} else {
+			memcpy(buffer, mode->hook, l);
+			buffer += l; buffersize -= l;
+			assert( buffersize >= 2 );
+		}
+	}
+	assert( buffersize >= 2  );
+	*buffer++ = ')'; buffersize--;
+	*buffer = '\0';
+	return result;
+}
 
 static retvalue printout(void *data,UNUSED(const char *package),const char *chunk) {
 	struct filetorelease *file = data;
@@ -253,8 +307,8 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	}
 	close(io[1]);
 
-	if( verbose > 5 )
-		fprintf(stderr,"Called %s '%s' '%s.new' '%s' '%s'\n",
+	if( verbose > 6 )
+		printf("Called %s '%s' '%s.new' '%s' '%s'\n",
 			hook,release_dirofdist(release),relfilename,relfilename,mode);
 	/* read what comes from the client */
 	while( TRUE ) {
@@ -318,8 +372,8 @@ static retvalue callexporthook(const char *confdir,/*@null@*/const char *hook, c
 	} while( c != f );
 	if( WIFEXITED(status) ) {
 		if( WEXITSTATUS(status) == 0 ) {
-			if( verbose > 5 )
-				fprintf(stderr,"Exporthook successfully returned!\n");
+			if( verbose > 6 )
+				printf("Exporthook successfully returned!\n");
 			return RET_OK;
 		} else {
 			fprintf(stderr,"Exporthook failed with exitcode %d!\n",(int)WEXITSTATUS(status));
@@ -336,6 +390,7 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 	struct filetorelease *file;
 	const char *status;
 	char *relfilename;
+	char buffer[100];
 
 	relfilename = calc_dirconcat(relativedir,exportmode->filename);
 	if( relfilename == NULL )
@@ -347,10 +402,19 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 		return r;
 	}
 	if( RET_IS_OK(r) ) {
-		if( release_oldexists(file) )
+		if( release_oldexists(file) ) {
+			if( verbose > 5 )
+				printf("  replacing '%s/%s'%s\n",
+					release_dirofdist(release), relfilename,
+					exportdescription(exportmode, buffer, 100));
 			status = "change";
-		else
+		} else {
+			if( verbose > 5 )
+				printf("  creating '%s/%s'%s\n",
+					release_dirofdist(release), relfilename,
+					exportdescription(exportmode, buffer, 100));
 			status = "new";
+		}
 		r = packages_foreach(packages,printout,file);
 		if( RET_WAS_ERROR(r) ) {
 			release_abortfile(file);
@@ -363,6 +427,10 @@ retvalue export_target(const char *confdir,const char *relativedir,packagesdb pa
 			return r;
 		}
 	} else {
+		if( verbose > 9 )
+			printf("  keeping old '%s/%s'%s\n",
+				release_dirofdist(release), relfilename,
+				exportdescription(exportmode, buffer, 100));
 		status = "old";
 	}
 	if( !snapshot )

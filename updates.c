@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -43,6 +43,7 @@
 #include "terms.h"
 #include "filterlist.h"
 #include "readrelease.h"
+#include "log.h"
 #include "donefile.h"
 
 // TODO: what about other signatures? Is hard-coding ".gpg" sensible?
@@ -1301,18 +1302,18 @@ static upgrade_decision ud_decide_by_pattern(void *privdata, const char *package
 	return UD_UPGRADE;
 }
 
-static inline retvalue searchformissing(const char *dbdir,struct update_target *u) {
+static inline retvalue searchformissing(FILE *out,const char *dbdir,struct update_target *u) {
 	struct update_index *index;
 	retvalue result,r;
 
 	if( u->nothingnew ) {
 		if( verbose >= 0 ) {
-		fprintf(stderr,"  nothing new for '%s' (use --noskipold to process anyway)\n",u->target->identifier);
+		fprintf(out,"  nothing new for '%s' (use --noskipold to process anyway)\n",u->target->identifier);
 		}
 		return RET_NOTHING;
 	}
 	if( verbose > 2 )
-		fprintf(stderr,"  processing updates for '%s'\n",u->target->identifier);
+		fprintf(out,"  processing updates for '%s'\n",u->target->identifier);
 	r = upgradelist_initialize(&u->upgradelist,u->target,dbdir);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1323,7 +1324,7 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 
 		if( index->origin == NULL ) {
 			if( verbose > 4 )
-				fprintf(stderr,"  marking everything to be deleted\n");
+				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = TRUE;
@@ -1343,7 +1344,7 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 		}
 
 		if( verbose > 4 )
-			fprintf(stderr,"  reading '%s'\n",index->filename);
+			fprintf(out,"  reading '%s'\n",index->filename);
 		assert(index->origin->download!= NULL);
 		r = upgradelist_update(u->upgradelist,
 				index->origin->download,index->filename,
@@ -1361,13 +1362,13 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 	return result;
 }
 
-static retvalue updates_readindices(const char *dbdir,struct update_distribution *d) {
+static retvalue updates_readindices(FILE *out,const char *dbdir,struct update_distribution *d) {
 	retvalue result,r;
 	struct update_target *u;
 
 	result = RET_NOTHING;
 	for( u=d->targets ; u != NULL ; u=u->next ) {
-		r = searchformissing(dbdir,u);
+		r = searchformissing(out, dbdir, u);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
@@ -1400,11 +1401,16 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 	retvalue result,r;
 	struct update_target *u;
 
+	assert( logger_isprepared(distribution->distribution->logger) );
+
 	result = RET_NOTHING;
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->nothingnew )
 			continue;
-		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,u->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(u->upgradelist,
+				distribution->distribution->logger,
+				dbdir, filesdb, refs,
+				u->ignoredelete, dereferencedfilekeys);
 		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
@@ -1495,6 +1501,11 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	struct aptmethodrun *run;
 	struct downloadcache *cache;
 
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_prepareforwriting(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1528,7 +1539,8 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		 * add a check if some of the upstreams without Release files
 		 * are unchanged and if this changes anything? */
 		if( !anythingtodo ) {
-			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
+			if( verbose >= 0 )
+				fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
 			aptmethod_shutdown(run);
 			if( RET_IS_OK(result) )
 				return RET_NOTHING;
@@ -1548,7 +1560,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 
 	/* Then get all packages */
 	if( verbose >= 0 )
-		fprintf(stderr,"Calculating packages to get...\n");
+		printf("Calculating packages to get...\n");
 	r = downloadcache_initialize(&cache);
 	if( !RET_IS_OK(r) ) {
 		aptmethod_shutdown(run);
@@ -1557,7 +1569,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 	}
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(dbdir,d);
+		r = updates_readindices(stdout, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1580,15 +1592,15 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stderr,"Getting packages...\n");
+		printf("Getting packages...\n");
 	r = aptmethod_download(run,methoddir,filesdb);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
-		fprintf(stderr,"Freeing some memory...\n");
+		printf("Freeing some memory...\n");
 	r = downloadcache_free(cache);
 	RET_UPDATE(result,r);
 	if( verbose > 0 )
-		fprintf(stderr,"Shutting down aptmethods...\n");
+		printf("Shutting down aptmethods...\n");
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
 
@@ -1603,7 +1615,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		return result;
 	}
 	if( verbose >= 0 )
-		fprintf(stderr,"Installing (and possibly deleting) packages...\n");
+		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
 		r = updates_install(dbdir,filesdb,refs,d,dereferencedfilekeys);
@@ -1619,6 +1631,7 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 			markdone(u);
 		}
 	}
+	logger_wait();
 
 	return result;
 }
@@ -1681,7 +1694,7 @@ retvalue updates_checkupdate(const char *dbdir,const char *methoddir,struct upda
 		fprintf(stderr,"Calculating packages to get...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = updates_readindices(dbdir,d);
+		r = updates_readindices(stderr, dbdir, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -1696,6 +1709,11 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	struct update_distribution *d;
 	struct aptmethodrun *run;
 
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = distribution_prepareforwriting(d->distribution);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 	r = aptmethod_initialize_run(&run);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1729,7 +1747,8 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 		 * add a check if some of the upstreams without Release files
 		 * are unchanged and if this changes anything? */
 		if( !anythingtodo ) {
-			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
+			if( verbose >= 0 )
+				printf("Nothing to do found. (Use --noskipold to force processing)\n");
 			aptmethod_shutdown(run);
 			if( RET_IS_OK(result) )
 				return RET_NOTHING;
@@ -1748,7 +1767,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	}
 
 	if( verbose > 0 )
-		fprintf(stderr,"Shutting down aptmethods...\n");
+		printf("Shutting down aptmethods...\n");
 
 	r = aptmethod_shutdown(run);
 	RET_UPDATE(result,r);
@@ -1757,12 +1776,12 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 	}
 
 	if( verbose >= 0 )
-		fprintf(stderr,"Removing obsolete or to be replaced packages...\n");
+		printf("Removing obsolete or to be replaced packages...\n");
 	for( d=distributions ; d != NULL ; d=d->next) {
 		struct update_target *u;
 
 		for( u=d->targets ; u != NULL ; u=u->next ) {
-			r = searchformissing(dbdir,u);
+			r = searchformissing(stdout, dbdir, u);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) ) {
 				u->incomplete = TRUE;
@@ -1773,7 +1792,9 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 				u->upgradelist = NULL;
 				continue;
 			}
-			r = upgradelist_predelete(u->upgradelist,dbdir,refs,dereferencedfilekeys);
+			r = upgradelist_predelete(u->upgradelist,
+					d->distribution->logger,
+					dbdir, refs, dereferencedfilekeys);
 			RET_UPDATE(d->distribution->status, r);
 			if( RET_WAS_ERROR(r) )
 				u->incomplete = TRUE;
@@ -1784,6 +1805,7 @@ retvalue updates_predelete(const char *dbdir,const char *methoddir,references re
 				return r;
 		}
 	}
+	logger_wait();
 	return result;
 }
 
@@ -1794,6 +1816,9 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	struct update_target *target;
 	retvalue result,r;
 
+	result = distribution_prepareforwriting(d->distribution);
+	if( RET_WAS_ERROR(result) )
+		return result;
 	result = RET_OK;
 
 	r = aptmethod_initialize_run(&run);
@@ -1891,7 +1916,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 		}
 		/* Then get all packages */
 		if( verbose >= 0 )
-			fprintf(stderr,"Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
+			printf("Calculating packages to get for %s's %s...\n",d->distribution->codename,target->target->identifier);
 		r = downloadcache_initialize(&cache);
 		RET_UPDATE(result,r);
 		if( !RET_IS_OK(r) ) {
@@ -1902,7 +1927,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 			}
 			continue;
 		}
-		r = searchformissing(dbdir,target);
+		r = searchformissing(stdout, dbdir, target);
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		else if( r == RET_NOTHING ) {
@@ -1938,7 +1963,11 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 
 		if( verbose >= 0 )
 			fprintf(stderr,"Installing/removing packages for %s's %s...\n",d->distribution->codename,target->target->identifier);
-		r = upgradelist_install(target->upgradelist,dbdir,filesdb,refs,target->ignoredelete,dereferencedfilekeys);
+		r = upgradelist_install(target->upgradelist,
+				d->distribution->logger,
+				dbdir, filesdb, refs,
+				target->ignoredelete, dereferencedfilekeys);
+		logger_wait();
 		if( RET_WAS_ERROR(r) )
 			target->incomplete = TRUE;
 		RET_UPDATE(result,r);

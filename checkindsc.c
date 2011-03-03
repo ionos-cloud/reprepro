@@ -42,6 +42,7 @@
 #include "tracking.h"
 #include "ignore.h"
 #include "override.h"
+#include "log.h"
 
 extern int verbose;
 
@@ -317,6 +318,8 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 	retvalue r;
 	struct target *t = distribution_getpart(distribution,pkg->component,"source","dsc");
 
+	assert( logger_isprepared(distribution->logger) );
+
 	/* finally put it into the source distribution */
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
@@ -324,7 +327,11 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 		if( interrupted() )
 			r = RET_ERROR_INTERUPTED;
 		else
-			r = target_addpackage(t,refs,pkg->dsc.name,pkg->dsc.version,pkg->dsc.control,&pkg->filekeys,FALSE,dereferencedfilekeys,trackingdata,ft_SOURCE);
+			r = target_addpackage(t, distribution->logger, refs,
+					pkg->dsc.name, pkg->dsc.version,
+					pkg->dsc.control, &pkg->filekeys,
+					FALSE, dereferencedfilekeys,
+					trackingdata, ft_SOURCE);
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}

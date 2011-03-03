@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -275,7 +275,7 @@ static retvalue release_usecached(struct release *release,
 #ifdef HAVE_LIBBZ2
 	if( (compressions & IC_FLAG(ic_bzip2)) != 0 ) {
 		char *bzfilename;
-		bzfilename = calc_addsuffix(filename,"bz");
+		bzfilename = calc_addsuffix(filename,"bz2");
 		if( bzfilename == NULL ) {
 			free(filename);
 			return RET_ERROR_OOM;

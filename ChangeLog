@@ -1,3 +1,35 @@
+2007-03-29  Bernhard R. Link <brlink@debian.org>
+	* add rerunnotifiers command
+
+2007-03-28  Bernhard R. Link <brlink@debian.org>
+	* add support logging to external notificators
+	  (including example to create changelog/ hierachy)
+
+2007-03-26  Bernhard R. Link <brlink@debian.org>
+	* fix bug in term parsing not accepting '<<'
+
+2007-03-23  Bernhard R. Link <brlink@debian.org>
+	* first part of logging code
+
+2007-03-16  Bernhard R. Link <brlink@debian.org>
+	* fix bug not recognizing already existing .bz2 files
+	  when exporting only changes.
+	* more changes in verbose output
+
+2007-03-15  Bernhard R. Link <brlink@debian.org>
+	* more output to stdout instead of stderr
+
+2007-03-14  Bernhard R. Link <brlink@debian.org>
+	* processincoming only exports distributions looked at
+	  with --export=always (the default) and not every distribution.
+	  (other commands should not have changed)
+	* changed output of many status messages to stdout instead of stderr
+	* changed verbosity level needed to see some messages
+
+2007-03-12  Bernhard R. Link <brlink@debian.org>
+	* add --silent option
+	* change some status output to stdout instead of stderr.
+
 2007-02-26  Bernhard R. Link <brlink@debian.org>
 	* add gensnapshot command
 

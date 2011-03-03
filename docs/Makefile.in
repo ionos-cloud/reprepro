@@ -135,7 +135,7 @@ sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-EXTRA_DIST = short-howto reprepro.1 changestool.1 recovery bzip.example tiffany.example di.example/README di.example/DI-filter.sh di.example/distributions di.example/updates reprepro.bash_completion FAQ
+EXTRA_DIST = short-howto reprepro.1 changestool.1 recovery bzip.example tiffany.example di.example/README di.example/DI-filter.sh di.example/distributions di.example/updates reprepro.bash_completion FAQ changelogs.example
 man_MANS = reprepro.1 changestool.1
 MAINTAINERCLEANFILES = Makefile.in
 all: all-am

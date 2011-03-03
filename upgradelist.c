@@ -506,7 +506,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 }
 
 /* delete all packages that will not be kept (i.e. either deleted or upgraded) */
-retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,references refs,struct strlist *dereferencedfilekeys) {
+retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger,const char *dbdir,references refs,struct strlist *dereferencedfilekeys) {
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
@@ -521,7 +521,11 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,ref
 			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
-				r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
+				r = target_removepackage(upgrade->target,
+						logger, refs,
+						pkg->name,
+						pkg->version_in_use,
+						dereferencedfilekeys, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r))
 				break;
@@ -532,7 +536,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,ref
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs, bool_t ignoredelete, struct strlist *dereferencedfilekeys){
+retvalue upgradelist_install(struct upgradelist *upgrade,struct logger *logger,const char *dbdir,filesdb files,references refs,bool_t ignoredelete, struct strlist *dereferencedfilekeys){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -554,7 +558,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 					r = RET_ERROR_INTERUPTED;
 				else
 					r = target_addpackage(upgrade->target,
-						refs, pkg->name,
+						logger, refs,
+						pkg->name,
 						pkg->new_version,
 						pkg->new_control,
 						&pkg->new_filekeys, TRUE,
@@ -568,7 +573,11 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
-				r = target_removepackage(upgrade->target,refs,pkg->name,dereferencedfilekeys,NULL);
+				r = target_removepackage(upgrade->target,
+						logger, refs,
+						pkg->name,
+						pkg->version_in_use,
+						dereferencedfilekeys, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;

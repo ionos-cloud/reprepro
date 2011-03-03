@@ -4,6 +4,7 @@ This is a list of "frequently" asked questions.
 1.2) Why does it refuse a file when one in an other suite has the same name?
 1.4) The key to sign my Release files needs a passphrase, what to do?
 1.5) How do I change how files are downloaded.
+1.6) How to omit packages missing files when updating.
 2.1) Does reprepro support to generate Release.gpg files?
 2.2) Does reprepro support tildes ('~') in versions?
 2.3) Does reprepro support generation of Contents-<arch>.gz files?
@@ -14,11 +15,11 @@ This is a list of "frequently" asked questions.
 1.1) What can I do when reprepro complains about a missing .orig.tar.gz?
 ------------------------------------------------------------------------
 When 'include'ing a .changes file reprepro by default only adds files
-referenced in the .changes file into the pool/-hierachy and does not
+referenced in the .changes file into the pool/-hierarchy and does not
 search for files referenced in a .dsc file and thus fails if this .orig.tar.gz
 is not already in the pool.
 You are facing the choice:
-- copy the .orig.tar.gz by hand into the appropiate place within pool/
+- copy the .orig.tar.gz by hand into the appropriate place within pool/
   and try again. reprepro will find it there when you try it the next time
   and add it to its database.
 - use --ignore=missingfile to tell reprepro to search for such files
@@ -32,7 +33,7 @@ You are facing the choice:
 
 1.2) Why does it refuse a file when one in an other suite has the same name?
 ----------------------------------------------------------------------------
-Reprepro uses Debian's way to organize the pool hierachy, which means
+Reprepro uses Debian's way to organize the pool hierarchy, which means
 that the directory and name a file is saved under is only determined by
 its sourcename, its name and its version and especially not by the
 distribution it belongs to. (This is the intend of having a pool directory,
@@ -44,7 +45,7 @@ into different distributions within that), reprepro will refuse to do so.
 just replace the second with the first).
 
 The only way to work around, is too put the different distributions into
-different repositories. But in general it is really worth the efford to
+different repositories. But in general it is really worth the effort to
 get the versioning right instead: Having multiple packages with the same
 version make it hard to track down problems, because it is easy to mix
 them up. Also up/downgrading a host from one distribution to the other
@@ -65,11 +66,11 @@ you reached this situation:
   the other version, err other same version, err ...
 - backports (i.e. packages rebuild for older distributions)
   Common practise is to append the version with reducing ~,
-  i.e. 1.0-1 gets 1.0-1~bpo.7, or 3.0~sarge.
+  i.e. 1.0-1 becomes 1.0-1~bpo.7, or 3.0 becomes 3.0~sarge.
   (This makes sure that if a host is updated the backport is
    replaced by the real package).
   If backporting to multiple distributions you get bonus points
-  for making sure newer distributions have heigher version numbers.
+  for making sure newer distributions have higher version numbers.
   (To make sure which version is considered newer by dpkg use
    dpkg's --compare-versions action).
 - a package built for multiple distributions
@@ -97,9 +98,52 @@ Config: Acquire::Http::Proxy=http://proxy.yours.org:8080
 or replace them with other programs speaking the same
 interface.
 
+1.6) How to omit packages missing files when updating.
+------------------------------------------------------
+reprepro does not like broken upstream repositories and just splits out
+errors and does not process the rest. (Implementing simply a ignore for
+that is not that easy, as I would have special case holding an old version
+in that case when unavailable packages should be deleted, and make some
+costly information-pushing between layers (after all, each file can belong
+to multiple packages and packages can have more than one file, so keeping
+track which package should get a mark that files where missing needs a
+n-to-n relation that should never be uses expect the case where such a
+error happens)).
+What you can do when a upstream repository you update from misses a file:
+- get the file elsewhere (with the correct md5sum), place it in the
+  appropriate place in the pool/ hierarchy and do the update. Reprepro will
+  see the file is already there, add it to its database and just continue
+  with the update.
+- tell reprepro to exclude this package
+* There are multiple ways to do so. Easiest is adding something like
+  FilterFormula: package (!= xen-shell)
+  or
+  FilterFormula: package (!= xen-shell) | version (!=1.0-2) | !files
+  to your rule in conf/updates. ( the "| ! files" tells it to only
+  omit the source package xen-shell, as source packages have a files
+  field. Make sure the package in question does not require you to
+  make the source available or you are not making your repository
+  accessible to others).
+* Another way is adding something like
+  FilterList: install excludefile
+  and adding a file conf/excludefile with content
+  xen-shell deinstall
+  (the install will tell it to install what is not listed in the file,
+   the deinstall on xen-shell will tell it to not install that package)
+* Finally you can also supply a ListHook: with a script copying
+  its first argument to the second argument, removing all occurrences
+  of the package you do not want (take a look intro the dctrl-tool
+  package for tools helping you with this).
+- the worst solution is to just propagate the problem further, by just
+  telling reprepro the file is there with the correct md5sum while it
+  is not. (Via the _addmd5sums command of reprepro). Unless you
+  run checkpool reprepro will not notice what you have done and will
+  not even try to download that file once it becomes available. So
+  don't do this.
+
 2.1) Does reprepro support to generate Release.gpg files?
 ---------------------------------------------------------
-Yes, add a SignWith in the suite's defintion in conf/distributions.
+Yes, add a SignWith in the suite's definition in conf/distributions.
 (and take a look what the man page says about SignWith)
 
 2.2) Does reprepro support tildes ('~') in versions?
@@ -119,7 +163,7 @@ Look for "Contents" in the man page.
 -------------------------------------------------------------------
 Sorry, this is not possible right now, as reprepro heavily optimizes
 at only having one version of a package in a suite-type-component-architecture
-quadrupel.
+quadruple.
 You can have different versions in different architectures and/or components
 within the same suite. (Even different versions of a architecture all package
 in different architectures of the same suite). But within the same
@@ -132,6 +176,6 @@ very good, so it is easy to overlook some feature even when it is described
 already. If it is not there, just write me a mail (or better write a wishlist
 report to the Debian BTS, then it cannot get lost). Some things I add quite
 fast, other stuff takes a bit. Things incompatible with the current underlying
-infrastuctures or past design decisions may never come, but if I have it on the
+infrastructures or past design decisions may never come, but if I have it on the
 TODO list of things to add, it help the code to develop in a direction that
 things like that might be possible in the future.

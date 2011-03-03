@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006 Bernhard R. Link
+ *  Copyright (C) 2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -216,14 +216,14 @@ static retvalue addpackagetocontents(void *data, const char *packagename, const 
 	r = files_getfilelist(d->files, filekey, package, d->contents);
 	if( r == RET_NOTHING ) {
 		if( d->rate <= 1 || d->work <= d->leisure/(d->rate-1) ) {
-			if( verbose > 2 )
-				fprintf(stderr, "Reading filelist for %s\n", filekey);
+			if( verbose > 3 )
+				printf("Reading filelist for %s\n", filekey);
 			r = files_genfilelist(d->files, filekey, package, d->contents);
 			if( RET_IS_OK(r) )
 				d->work++;
 		} else {
 			d->leisure++;
-			if( verbose > 2 )
+			if( verbose > 3 )
 				fprintf(stderr, "Missing filelist for %s\n", filekey);
 		}
 	} else if( RET_IS_OK(r) )
@@ -275,7 +275,7 @@ static retvalue genarchcontents(filesdb files, struct distribution *distribution
 		return r;
 	}
 	if( verbose > 0 ) {
-		fprintf(stderr, " generating %s...\n",contentsfilename);
+		printf(" generating %s...\n",contentsfilename);
 	}
 	free(contentsfilename);
 
@@ -351,7 +351,7 @@ static retvalue genarchudebcontents(filesdb files, struct distribution *distribu
 		return r;
 	}
 	if( verbose > 0 ) {
-		fprintf(stderr, " generating %s...\n",contentsfilename);
+		printf(" generating %s...\n",contentsfilename);
 	}
 	free(contentsfilename);
 	r = filelist_init(&data.contents);

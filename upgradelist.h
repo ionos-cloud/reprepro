@@ -22,6 +22,7 @@ upgrade_decision ud_always(void *privdata, const char *p,const char *ov,const ch
 /* The main part: */
 
 struct target;
+struct logger;
 struct upgradelist;
 
 retvalue upgradelist_initialize(struct upgradelist **ul,/*@dependent@*/struct target *target,const char *dbdir);
@@ -46,9 +47,9 @@ retvalue upgradelist_deleteall(struct upgradelist *upgrade);
 /* request all wanted files refering the methods given before */
 retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,filesdb filesdb);
 
-retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,filesdb files,references refs, bool_t ignoredelete, struct strlist *dereferencedfilekeys);
+retvalue upgradelist_install(struct upgradelist *upgrade,/*@null@*/struct logger *,const char *dbdir,filesdb files,references refs,bool_t ignoredelete, struct strlist *dereferencedfilekeys);
 
 /* remove all packages that would either be removed or upgraded by an upgrade */
-retvalue upgradelist_predelete(struct upgradelist *upgrade,const char *dbdir,references refs,struct strlist *dereferencedfilekeys);
+retvalue upgradelist_predelete(struct upgradelist *upgrade,/*@null@*/struct logger *logger,const char *dbdir,references refs,struct strlist *dereferencedfilekeys);
 
 #endif

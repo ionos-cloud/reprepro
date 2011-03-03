@@ -35,8 +35,8 @@ static retvalue dirs_check(const char *dirname) {
 
 	ret = mkdir(dirname,0775);
 	if( ret == 0 ) {
-		if( verbose > 0)
-			fprintf(stderr,"Created directory \"%s\"\n",dirname);
+		if( verbose > 1)
+			printf("Created directory \"%s\"\n",dirname);
 		return RET_OK;
 	} else if( ret < 0 && errno != EEXIST ) {
 		fprintf(stderr,"Can not create directory \"%s\": %m\n",dirname);

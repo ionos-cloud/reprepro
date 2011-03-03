@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2005,2006 Bernhard R. Link
+ *  Copyright (C) 2005,2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -294,7 +294,7 @@ static retvalue tracking_new(trackingdb t,const char *sourcename,const char *ver
 	struct trackedpackage *p;
 	assert( pkg != NULL && sourcename != NULL && version != NULL );
 
-	printf("[tracking_new %s %s %s]\n",t->codename,sourcename,version);
+//	printf("[tracking_new %s %s %s]\n",t->codename,sourcename,version);
 	p = calloc(1,sizeof(struct trackedpackage));
 	if( p == NULL )
 		return RET_ERROR_OOM;
@@ -415,7 +415,7 @@ static retvalue tracking_get(trackingdb t,const char *sourcename,const char *ver
 
 
 	assert( pkg != NULL && sourcename != NULL && version != NULL );
-	printf("[tracking_get %s %s %s]\n",t->codename,sourcename,version);
+//	printf("[tracking_get %s %s %s]\n",t->codename,sourcename,version);
 
 	cursor = NULL;
 	if( (dbret = t->db->cursor(t->db,NULL,&cursor,0)) != 0 ) {
@@ -435,7 +435,7 @@ static retvalue tracking_get(trackingdb t,const char *sourcename,const char *ver
 		}
 	}
 
-	printf("[tracking_get found %s %s %s]\n",t->codename,sourcename,version);
+//	printf("[tracking_get found %s %s %s]\n",t->codename,sourcename,version);
 	/* we have found it, now parse it */
 	r = parsedata(sourcename,version,versionlen,data,pkg);
 	(void)cursor->c_close(cursor);
@@ -515,8 +515,8 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 	retvalue r;
 
 	assert( pkg != NULL );
-	printf("[tracking_save %s %s %s]\n", t->codename,
-			pkg->sourcename, pkg->sourceversion);
+//	printf("[tracking_save %s %s %s]\n", t->codename,
+//			pkg->sourcename, pkg->sourceversion);
 
 	SETDBT(key,pkg->sourcename);
 
@@ -550,10 +550,10 @@ static retvalue tracking_saveonly(trackingdb t, struct trackedpackage *pkg) {
 				t->db->err(t->db, dbret, "tracking_save(delete) dberror:");
 				return RET_DBERR(dbret);
 			} else {
-				printf("[tracking: removed %s_%s from %s.]\n",
-						pkg->sourcename,
-						pkg->sourceversion,
-						t->codename);
+//				printf("[tracking: removed %s_%s from %s.]\n",
+//						pkg->sourcename,
+//						pkg->sourceversion,
+//						t->codename);
 				return RET_OK;
 			}
 		}
@@ -946,7 +946,7 @@ static inline retvalue trackedpackage_removeall(trackingdb tracks, struct tracke
 	char *id;
 	int i;
 
-	printf("[trackedpackage_removeall %s %s %s]\n",tracks->codename,pkg->sourcename,pkg->sourceversion);
+//	printf("[trackedpackage_removeall %s %s %s]\n",tracks->codename,pkg->sourcename,pkg->sourceversion);
 	id = calc_trackreferee(tracks->codename, pkg->sourcename, pkg->sourceversion);
 	if( id == NULL )
 		return RET_ERROR_OOM;
@@ -1005,7 +1005,7 @@ static inline retvalue trackedpackage_removeunneeded(trackingdb tracks, struct t
 					result = RET_ERROR_OOM;
 			}
 			if( id != NULL ) {
-				printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
+//				printf("[trackedpackage_removeunneeded %s %s %s: '%s']\n",tracks->codename,pkg->sourcename,pkg->sourceversion, filekey);
 				r = references_decrement(refs, filekey, id);
 				RET_UPDATE(result,r);
 				r = strlist_add(dereferenced, filekey);

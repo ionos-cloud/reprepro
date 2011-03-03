@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006 Bernhard R. Link
+ *  Copyright (C) 2006,2007 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -43,6 +43,7 @@
 #include "dpkgversions.h"
 #include "uploaderslist.h"
 #include "guesscomponent.h"
+#include "log.h"
 #include "override.h"
 #include "tracking.h"
 #include "incoming.h"
@@ -261,7 +262,7 @@ static retvalue incoming_parse(void *data, const char *chunk) {
 	}
 	if( r == RET_NOTHING ) {
 		if( i->default_into == NULL ) {
-			fprintf(stderr, "'%s' in '%s' has neither a 'Allow' nor a 'Default' definition!\nAborting as nothing would be left in.\n", d->name, d->filename);
+			fprintf(stderr, "'%s' in '%s' has neither a 'Allow' nor a 'Default' definition!\nAborting as nothing would be let in.\n", d->name, d->filename);
 			incoming_free(i);
 			return RET_ERROR;
 		}
@@ -1030,6 +1031,8 @@ static retvalue prepare_for_distribution(filesdb filesdb,const struct incoming *
 	struct candidate_file *file;
 	retvalue r;
 
+	d->into->lookedat = TRUE;
+
 	for( file = c->files ; file != NULL ; file = file->next ) {
 		switch( file->type ) {
 			case fe_UDEB:
@@ -1120,6 +1123,8 @@ static retvalue add_dsc(const char *dbdir, references refs,
 	retvalue r;
 	struct target *t = distribution_getpart(into, p->component, "source", "dsc");
 
+	assert( logger_isprepared(into->logger) );
+
 	/* finally put it into the source distribution */
 	r = target_initpackagesdb(t,dbdir);
 	if( !RET_WAS_ERROR(r) ) {
@@ -1127,7 +1132,7 @@ static retvalue add_dsc(const char *dbdir, references refs,
 		if( interrupted() )
 			r = RET_ERROR_INTERUPTED;
 		else
-			r = target_addpackage(t,refs,
+			r = target_addpackage(t, into->logger, refs,
 					p->master->dsc.name,
 					p->master->dsc.version,
 					p->control,
@@ -1150,6 +1155,13 @@ static retvalue candidate_add_into(const char *confdir,filesdb filesdb,const cha
 
 	if( interrupted() )
 		return RET_ERROR_INTERUPTED;
+
+	d->into->lookedat = TRUE;
+	if( d->into->logger != NULL ) {
+		r = logger_prepare(d->into->logger);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
 
 	tracks = NULL;
 	if( into->tracking != dt_NONE ) {

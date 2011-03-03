@@ -30,6 +30,7 @@
 #include "binaries.h"
 #include "names.h"
 #include "dpkgversions.h"
+#include "log.h"
 #include "override.h"
 #include "tracking.h"
 #include "debfile.h"
@@ -552,6 +553,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 	retvalue r,result;
 	int i;
 
+	assert( logger_isprepared(distribution->logger) );
+
 	/* finally put it into one or more architectures of the distribution */
 
 	result = RET_NOTHING;
@@ -566,7 +569,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
-				r = target_addpackage(t, refs, deb->name,
+				r = target_addpackage(t, distribution->logger,
+						refs, deb->name,
 						deb->version,
 						control,
 						filekeys, FALSE,
@@ -586,7 +590,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
-				r = target_addpackage(t, refs, deb->name,
+				r = target_addpackage(t, distribution->logger,
+						refs, deb->name,
 						deb->version,
 						control,
 						filekeys, FALSE,
@@ -607,7 +612,8 @@ retvalue binaries_adddeb(const struct deb_headers *deb,const char *dbdir,referen
 			if( interrupted() )
 				r = RET_ERROR_INTERUPTED;
 			else
-				r = target_addpackage(t, refs, deb->name,
+				r = target_addpackage(t, distribution->logger,
+						refs, deb->name,
 						deb->version,
 						control,
 						filekeys, FALSE,

@@ -106,7 +106,7 @@ retvalue aptmethod_shutdown(struct aptmethodrun *run) {
 	while( *method_ptr != NULL ) {
 
 		if( (*method_ptr)->child > 0 ) {
-			if( verbose > 5 )
+			if( verbose > 10 )
 				fprintf(stderr,"Still waiting for %d\n",(int)(*method_ptr)->child);
 			method_ptr = &(*method_ptr)->next;
 			continue;

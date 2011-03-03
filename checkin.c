@@ -45,6 +45,7 @@
 #include "checkindeb.h"
 #include "checkin.h"
 #include "uploaderslist.h"
+#include "log.h"
 #include "changes.h"
 
 extern int verbose;
@@ -781,6 +782,10 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
 
+	r = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(r) )
+		return r;
+
 	r = RET_NOTHING;
 
 	e = changes->files;
@@ -815,6 +820,8 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,struct dis
 			break;
 		e = e->next;
 	}
+
+	logger_wait();
 
 	if( RET_IS_OK(r) && somethingwasmissed ) {
 		return RET_NOTHING;
@@ -1010,7 +1017,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 			}
 		} else {
 			if( verbose >= 5 ) {
-				fprintf(stderr,"Deleting '%s'.\n",changesfilename);
+				printf("Deleting '%s'.\n",changesfilename);
 			}
 			if( unlink(changesfilename) != 0 ) {
 				fprintf(stderr,"Error deleting '%s': %m\n",changesfilename);
