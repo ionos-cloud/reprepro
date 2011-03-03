@@ -37,6 +37,20 @@ bool_t strlist_in(const struct strlist *strlist,const char *element) {
 	}
 	return FALSE;
 }
+int strlist_ofs(const struct strlist *strlist,const char *element) {
+	int c;
+	char **t;
+
+	assert(strlist != NULL);
+
+	c = strlist->count; 
+	t = strlist->values;
+	while( c-- != 0 ) {
+		if( strcmp(*(t++),element) == 0 )
+			return (t-strlist->values)-1;
+	}
+	return -1;
+}
 
 bool_t strlist_subset(const struct strlist *strlist,const struct strlist *subset,const char **missing) {
 	int c;

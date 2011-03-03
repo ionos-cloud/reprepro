@@ -40,7 +40,7 @@
 // * found.
 // **********************************************************************
 
-retvalue extractcontrol(char **control,const char *debfile) {
+static retvalue try_extractcontrol(char **control,const char *debfile, bool_t brokentar) {
 	int pipe1[2];
 	int pipe2[2];
 	int ret;
@@ -106,7 +106,8 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		close(pipe1[0]);close(pipe1[1]);
 		close(pipe2[0]);close(pipe2[1]);
 		//TODO without explicit path
-		execl("/bin/tar","tar","-xOzf","-","./control",NULL);
+		execl("/bin/tar", "tar", "-xOzf", "-",
+				brokentar?"control":"./control", NULL);
 		fprintf(stderr,"calling tar failed: %m\n");
 		exit(254);
 		
@@ -127,7 +128,9 @@ retvalue extractcontrol(char **control,const char *debfile) {
 			r = chunk_read(f,&controlchunk);
 			if( r == RET_NOTHING ) {
 				fprintf(stderr,"Got no control information from .deb!\n");
-				r = RET_ERROR_MISSING;
+				/* only report error now if we haven't try everything yet */
+				if( brokentar )
+					r = RET_ERROR_MISSING;
 			}
 			RET_UPDATE(result,r);
 			gzclose(f);
@@ -146,15 +149,22 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		} else {
 			if( pid == ar ) {
 				ar = -1;
-				if( !WIFEXITED(status) || 
-						WEXITSTATUS(status) != 0) {
+				if( !WIFEXITED(status) ) {
+					fprintf(stderr,"Ar exited unnaturally!\n");
+					result = RET_ERROR;
+				} else if( WEXITSTATUS(status) != 0) {
 					fprintf(stderr,"Error from ar: %d\n",WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
 			} else if( pid == tar ) {
 				tar = -1;
-				if( !WIFEXITED(status) || 
-						WEXITSTATUS(status) != 0 ) {
+				if( !WIFEXITED(status) ) {
+					fprintf(stderr,"Tar exited unnaturally!\n");
+					result = RET_ERROR;
+				} else if( !brokentar && WEXITSTATUS(status) == 2 ) {
+					if( RET_IS_OK(result) )
+						result = RET_NOTHING;
+				} else if( WEXITSTATUS(status) != 0 ) {
 					fprintf(stderr,"Error from tar: %d\n",WEXITSTATUS(status));
 					result = RET_ERROR;
 				}
@@ -165,11 +175,32 @@ retvalue extractcontrol(char **control,const char *debfile) {
 		}
 		
 	}
-	if( RET_IS_OK(result) )
-		*control = controlchunk;
-	else
+	if( RET_IS_OK(result) ) {
+		if( controlchunk == NULL )
+			/* we got not data but tar gave not error.. */
+			return RET_ERROR_MISSING;
+		else
+			*control = controlchunk;
+	} else
 		free(controlchunk);
 	return result;
+}
+
+retvalue extractcontrol(char **control,const char *debfile) {
+	retvalue r;
+
+	r = try_extractcontrol(control, debfile, FALSE);
+	if( r != RET_NOTHING )
+		return r;
+	/* perhaps the control.tar.gz is packaged by hand wrongly,
+	 * try again: */
+	r = try_extractcontrol(control, debfile, TRUE);
+	if( RET_IS_OK(r) ) {
+		fprintf(stderr, "WARNING: '%s' contains a broken/unusual control.tar.gz.\n"
+				"reprepro was able to work around this but other tools or versions might not.\n", debfile);
+	}
+	assert( r != RET_NOTHING );
+	return r;
 }
 
 retvalue getfilelist(/*@out@*/char **filelist, const char *debfile) {

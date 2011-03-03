@@ -180,6 +180,11 @@ static inline retvalue removeunreferencedfiles(references refs,filesdb files,str
 			UNUSED(filesdb dummy2),		\
 			struct strlist* dereferenced, 	\
 			int argc,const char *argv[])
+#define ACTION_D_UU(name) static retvalue action_d_ ## name ( \
+			references references, 		\
+			UNUSED(filesdb dummy2),		\
+			struct strlist* dereferenced, 	\
+			int argc,UNUSED(const char *dummy4[]))
 
 ACTION_N(printargs) {
 	int i;
@@ -277,7 +282,7 @@ ACTION_R(removereferences) {
 		fprintf(stderr,"reprepro _removereferences <identifier>\n");
 		return RET_ERROR;
 	}
-	return references_remove(references,argv[1]);
+	return references_remove(references, argv[1], NULL);
 }
 
 
@@ -1237,7 +1242,7 @@ ACTION_R(retrack) {
 		}
 		r = tracking_clearall(dat.tracks);
 		RET_UPDATE(result,r);
-		r = references_remove(references,d->codename);
+		r = references_remove(references,d->codename, NULL);
 		RET_UPDATE(result,r);
 
 		r = distribution_foreach_part(d,component,architecture,packagetype,
@@ -1314,7 +1319,7 @@ ACTION_R(cleartracks) {
 		}
 		r = tracking_clearall(tracks);
 		RET_UPDATE(result,r);
-		r = references_remove(references,d->codename);
+		r = references_remove(references, d->codename, NULL);
 		RET_UPDATE(result,r);
 		r = tracking_done(tracks);
 		RET_ENDUPDATE(result,r);
@@ -1837,6 +1842,93 @@ ACTION_N(createsymlinks) {
 	return result;
 }
 
+/***********************clearvanished***********************************/
+
+static retvalue docount(void *data,UNUSED(const char *a),UNUSED(const char *b)) {
+	long int *p = data;
+
+	(*p)++;
+	return RET_OK;
+}
+
+
+ACTION_D_UU(clearvanished) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+	struct strlist identifiers;
+	bool_t *inuse;
+	int i;
+
+	if( argc != 1 ) {
+		fprintf(stderr,"reprepro [--delete] clearvanished\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir,0,NULL,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = packages_getdatabases(dbdir, &identifiers);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+
+	inuse = calloc(identifiers.count,sizeof(bool_t));
+	if( inuse == NULL ) {
+		strlist_done(&identifiers);
+		(void)distribution_freelist(distributions);
+		return RET_ERROR_OOM;
+	}
+	for( d = distributions; d != NULL ; d = d->next ) {
+		struct target *t;
+		for( t = d->targets; t != NULL ; t = t->next ) {
+			int i = strlist_ofs(&identifiers, t->identifier);
+			if( i >= 0 ) {
+				inuse[i] = TRUE;
+				if( verbose > 6 )
+					fprintf(stderr,
+"Marking '%s' as used.\n", t->identifier);
+			} else if( verbose > 3 ){
+				fprintf(stderr,
+"Strange, '%s' does not appear in packages.db yet.\n", t->identifier);
+
+			}
+		}
+	}
+	for( i = 0 ; i < identifiers.count ; i ++ ) {
+		const char *identifier = identifiers.values[i];
+		if( inuse[i] )
+			continue;
+		if( delete <= 0 ) {
+			long int count = 0;
+			packagesdb db;
+			r = packages_initialize(&db, dbdir, identifier);
+			if( !RET_WAS_ERROR(r) )
+				r = packages_foreach(db, docount, &count);
+			if( !RET_WAS_ERROR(r) )
+				r = packages_done(db);
+			if( count > 0 ) {
+				fprintf(stderr,
+"There are still %ld packages in '%s', not removing (give --delete to do so)!\n", count, identifier);
+				continue;
+			}
+		}
+		fprintf(stderr,
+"Deleting vanished identifier '%s'.\n", identifier);
+		/* derference anything left */
+		references_remove(references, identifier, dereferenced);
+		/* remove the database */
+		packages_drop(dbdir, identifier);
+	}
+
+	strlist_done(&identifiers);
+	r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
 
 /**********************/
 /* lock file handling */
@@ -1959,6 +2051,7 @@ static const struct action {
 	{"includedsc",		A_D(includedsc)},
 	{"include",		A_D(include)},
 	{"generatefilelists",	A_F(generatefilelists)},
+	{"clearvanished",	A_D(clearvanished)},
 	{NULL,NULL,0}
 };
 #undef A_N
@@ -2152,6 +2245,8 @@ static void handle_option(int c,const char *optarg) {
 "       List all packages by the given name occurring in the given distribution.\n"
 " listfilter <distribution> <condition>\n"
 "       List all packages in the given distribution matching the condition.\n"
+" clearvanished\n"
+"       Remove everything no longer referenced in the distributions config file.\n"
 "\n");
 			exit(EXIT_SUCCESS);
 		case '\0':

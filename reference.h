@@ -18,7 +18,7 @@ retvalue references_initialize(/*@out@*/references *ref, const char *path);
 retvalue references_done(/*@only@*/references ref);
 
 /* remove all references from a given identifier */
-retvalue references_remove(references ref,const char *needey);
+retvalue references_remove(references ref,const char *neededby,/*@null@*/struct strlist *);
 
 /* Add an reference by <identifer> for the given <files>,
  * excluding <exclude>, if it is nonNULL. */

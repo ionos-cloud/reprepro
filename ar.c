@@ -202,6 +202,10 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 		int i = sizeof(ar->currentheader.ah_filename);
 		while( i > 0 && ar->currentheader.ah_filename[i-1] == ' ')
 			i--;
+		/* hop over GNU style filenames, though they should not
+		 * be in a .deb file... */
+		if( i > 0 && ar->currentheader.ah_filename[i-1] == '/' )
+			i--;
 		*filename = strndup(ar->currentheader.ah_filename,i);
 	}
 	return RET_OK;
