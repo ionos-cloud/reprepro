@@ -40,6 +40,7 @@ atom_t atom_find(enum atom_type, const char *);
 retvalue atom_intern(enum atom_type, const char *, /*@out@*/atom_t *);
 
 #define limitation_missed(a, b) ((atom_defined(a) && (a) != (b) ))
+#define limitations_missed(a, b) ((a) != NULL && !atomlist_in(a, b))
 
 
 struct atomlist {
@@ -59,6 +60,7 @@ retvalue atomlist_add(struct atomlist *, atom_t);
 /* replace the contents of dest with those from orig, which get emptied */
 void atomlist_move(/*@out@*/struct atomlist *, /*@special@*/struct atomlist *orig) /*@releases orig->values @*/;
 
+bool atomlist_hasexcept(const struct atomlist *, atom_t);
 bool atomlist_in(const struct atomlist *, atom_t);
 int atomlist_ofs(const struct atomlist *, atom_t);
 
@@ -68,4 +70,5 @@ bool atomlist_subset(const struct atomlist *, const struct atomlist *subset, /*@
 /* print a space separated list of elements */
 retvalue atomlist_fprint(FILE *, enum atom_type, const struct atomlist *);
 
+retvalue atomlist_filllist(enum atom_type, /*@out@*/struct atomlist *, char *string, /*@out@*/const char **missing);
 #endif

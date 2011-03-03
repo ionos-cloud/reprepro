@@ -270,6 +270,16 @@ void atomlist_move(struct atomlist *dest, struct atomlist *orig) {
 	orig->atoms = NULL;
 }
 
+bool atomlist_hasexcept(const struct atomlist *list, atom_t atom) {
+	int i;
+
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( list->atoms[i] != atom )
+			return true;
+	}
+	return false;
+}
+
 bool atomlist_in(const struct atomlist *list, atom_t atom) {
 	int i;
 
@@ -347,4 +357,34 @@ retvalue atomlist_fprint(FILE *file, enum atom_type type, const struct atomlist 
 
 component_t components_count(void) {
 	return components.count;
+}
+
+retvalue atomlist_filllist(enum atom_type type, struct atomlist *list, char *string, const char **missing) {
+	struct atomlist l;
+	char *e;
+	retvalue r;
+	atom_t a;
+
+	atomlist_init(&l);
+	while( *string != '\0' ) {
+		e = strchr(string, '|');
+		if( e == NULL )
+			e = strchr(string, '\0');
+		else
+			*(e++) = '\0';
+		a = atom_find(type, string);
+		if( !atom_defined(a) ) {
+			atomlist_done(&l);
+			*missing = string;
+			return RET_NOTHING;
+		}
+		r = atomlist_add(&l, a);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&l);
+			return r;
+		}
+		string = e;
+	}
+	atomlist_move(list, &l);
+	return RET_OK;
 }

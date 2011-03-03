@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -140,7 +140,9 @@ static retvalue createtargets(struct distribution *distribution) {
 					distribution->codename,
 					c, a,
 					&distribution->deb,
-					distribution->readonly, &t);
+					distribution->readonly,
+					distribution->fakecomponentprefix,
+					&t);
 			if( RET_IS_OK(r) ) {
 				if( last != NULL ) {
 					last->next = t;
@@ -156,7 +158,9 @@ static retvalue createtargets(struct distribution *distribution) {
 						distribution->codename,
 						c, a,
 						&distribution->udeb,
-						distribution->readonly, &t);
+						distribution->readonly,
+						distribution->fakecomponentprefix,
+						&t);
 				if( RET_IS_OK(r) ) {
 					if( last != NULL ) {
 						last->next = t;
@@ -176,7 +180,8 @@ static retvalue createtargets(struct distribution *distribution) {
 		if( has_source ) {
 			r = target_initialize_source(distribution->codename,
 					c, &distribution->dsc,
-					distribution->readonly, &t);
+					distribution->readonly,
+					distribution->fakecomponentprefix, &t);
 			if( last != NULL ) {
 				last->next = t;
 			} else {
@@ -239,6 +244,44 @@ static bool notpropersuperset(const struct atomlist *allowed, const char *allowe
 		return true;
 	}
 	return false;
+}
+
+static inline retvalue checkcomponentsequalduetofake(const struct distribution *d) {
+	size_t l;
+	int i, j;
+
+	if( d->fakecomponentprefix == NULL )
+		return RET_OK;
+
+	l = strlen(d->fakecomponentprefix);
+
+	for( i = 0 ; i < d->components.count ; i++ ) {
+		const char *c1 = atoms_components[d->components.atoms[i]];
+
+		if( strncmp(c1, d->fakecomponentprefix, l) != 0 )
+			continue;
+		if( d->fakecomponentprefix[l] != '/' )
+			continue;
+
+		for( j = 0 ; i < d->components.count ; j++ ) {
+			const char *c2;
+
+			if( j == i )
+				continue;
+
+			c2 = atoms_components[d->components.atoms[j]];
+
+			if( strcmp(c1 + l + 1, c2) == 0) {
+				fprintf(stderr,
+"ERROR: distribution '%s' has components '%s' and '%s',\n"
+"which would be output to the same place due to FakeComponentPrefix '%s'.\n",
+					d->codename, c1, c2,
+					d->fakecomponentprefix);
+				return RET_ERROR;
+			}
+		}
+	}
+	return RET_OK;
 }
 
 CFfinishparse(distribution) {
@@ -311,6 +354,13 @@ CFfinishparse(distribution) {
 		else
 			n->contents.flags.enabled = false;
 	}
+
+	r = checkcomponentsequalduetofake(n);
+	if( RET_WAS_ERROR(r) ) {
+		(void)distribution_free(n);
+		return r;
+	}
+
 	/* prepare substructures */
 
 	r = createtargets(n);
@@ -448,7 +498,7 @@ retvalue distribution_readall(struct distribution **distributions) {
 }
 
 /* call <action> for each package */
-retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action action, each_target_action target_action, void *data) {
+retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result,r;
 	struct target *t;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
@@ -456,7 +506,7 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
+		if( !target_matches(t, components, architectures, packagetypes) )
 			continue;
 		if( target_action != NULL ) {
 			r = target_action(database, distribution, t, data);
@@ -490,13 +540,14 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 	const char *package, *control;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 
-	assert( components != NULL );
-
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !atomlist_in(components, t->component_atom) )
+		if( components != NULL &&
+				!atomlist_in(components, t->component_atom) )
 			continue;
-		if( !target_matches(t, atom_unknown, architecture, packagetype) )
+		if( limitation_missed(architecture, t->architecture_atom) )
+			continue;
+		if( limitation_missed(packagetype, t->packagetype_atom) )
 			continue;
 		r = target_openiterator(t, database, READONLY, &iterator);
 		RET_UPDATE(result, r);
@@ -1028,7 +1079,7 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 }
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action decider, struct trackingdata *trackingdata, void *data) {
+retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, const struct atomlist *components, const struct atomlist *architectures, const struct atomlist *packagetypes, each_package_action decider, struct trackingdata *trackingdata, void *data) {
 	retvalue result,r;
 	struct target *t;
 	struct target_cursor iterator;
@@ -1042,7 +1093,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
+		if( !target_matches(t, components, architectures, packagetypes) )
 			continue;
 		r = target_openiterator(t, database, READWRITE, &iterator);
 		RET_UPDATE(result, r);

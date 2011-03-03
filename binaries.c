@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -587,7 +587,7 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	return RET_OK;
 }
 
-retvalue binaries_adddeb(const struct deb_headers *deb, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, component_t component, const struct strlist *filekeys, const char *control) {
+retvalue binaries_adddeb(const struct deb_headers *deb, struct database *database, const struct atomlist *forcearchitectures, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, component_t component, const struct strlist *filekeys, const char *control) {
 	retvalue r,result;
 	int i;
 
@@ -620,34 +620,27 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 			RET_ENDUPDATE(r,r2);
 		}
 		RET_UPDATE(result,r);
-	} else if( atom_defined(forcearchitecture) && forcearchitecture != architecture_all ) {
-		struct target *t = distribution_getpart(distribution,
-				component, forcearchitecture,
-				packagetype);
-		r = target_initpackagesdb(t, database, READWRITE);
-		if( !RET_WAS_ERROR(r) ) {
-			retvalue r2;
-			if( interrupted() )
-				r = RET_ERROR_INTERRUPTED;
-			else
-				r = target_addpackage(t, distribution->logger,
-						database,
-						deb->name, deb->version,
-						control,
-						filekeys,
-						false,
-						trackingdata,
-						deb->architecture_atom,
-						NULL, NULL);
-			r2 = target_closepackagesdb(t);
-			RET_ENDUPDATE(r,r2);
-		}
-		RET_UPDATE(result,r);
-	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
+		RET_UPDATE(distribution->status, result);
+		return result;
+	}
+	/* It's an architecture all package */
+
+	/* if -A includes all, it is added everywhere, as if no -A was
+	 * given. (as it behaved this way when there was only one -A possible,
+	 * and to allow incoming to force it into architecture 'all' )
+	 * */
+       	if( forcearchitectures != NULL &&
+			atomlist_in(forcearchitectures, architecture_all) )
+		forcearchitectures = NULL;
+
+	for( i = 0 ; i < distribution->architectures.count ; i++ ) {
 		/*@dependent@*/struct target *t;
 		architecture_t a = distribution->architectures.atoms[i];
 
 		if( a == architecture_source )
+			continue;
+		if( forcearchitectures != NULL &&
+				!atomlist_in(forcearchitectures, a) )
 			continue;
 		t = distribution_getpart(distribution,
 				component, a, packagetype);
@@ -672,7 +665,6 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 		RET_UPDATE(result,r);
 	}
 	RET_UPDATE(distribution->status, result);
-
 	return result;
 }
 

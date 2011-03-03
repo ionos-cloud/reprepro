@@ -1,3 +1,17 @@
+Updates since 3.11.1:
+- warn if directories are relative to the currect directory but do not start
+  with './'
+- directories starting '+b/' '+o/' and '+c/' are relative to basedir, outdir
+  or confdir.
+- FakeComponentPrefix now no longer adds its arguments to components already
+  having it and shortens their dist directories to not duplicate that either.
+- -A, -C and -T can have multiple arguments now, separated with '|'.
+- new 'flood' action to align architecture all packages
+- new '--show-percent' option
+- warn if old legacy files.db is still used
+- add new translatelegacyfilelists command for easier migration.
+  (just a collectnewchecksums and deleting that file was enough, though)
+
 Updates since 3.11.0:
 - new changestool option --create-with-all-fields
 - new --morguedir option (or morguedir in conf/options, of course)

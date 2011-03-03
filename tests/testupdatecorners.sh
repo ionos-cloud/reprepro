@@ -54,7 +54,8 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources':
-*='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2: No such file or directory)'
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./db"
@@ -85,7 +86,8 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
-*='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v1*=aptmethod got 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v2*=Uncompress './lists/u_a_c_Sources.lzma' into './lists/u_a_c_Sources' using '/usr/bin/unlzma'...
@@ -132,7 +134,8 @@ stderr
 -v6*=aptmethod start 'copy:$WORKDIR/test/dists/a/Release'
 -v1*=aptmethod got 'copy:$WORKDIR/test/dists/a/Release'
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
-*='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v1*=aptmethod got 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v2*=Uncompress './lists/u_a_c_Sources.lzma' into './lists/u_a_c_Sources' using '/usr/bin/unlzma'...
@@ -147,7 +150,8 @@ rm test/dists/a/Release
 testrun - -b . update 3<<EOF
 stderr
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/Release':
-*='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2: No such file or directory)'
 -v0*=There have been errors!
 returns 255
 EOF
@@ -157,7 +161,8 @@ echo "IgnoreRelease: Yes" >> conf/updates
 testrun - -b . update 3<<EOF
 stderr
 *=aptmethod error receiving 'copy:$WORKDIR/test/dists/a/c/source/Sources.gz':
-*='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2 No such file or directory)'
+='Failed to stat - stat (2: No such file or directory)'
 -v6*=aptmethod start 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v1*=aptmethod got 'copy:${WORKDIR}/test/dists/a/c/source/Sources.lzma'
 -v2*=Uncompress './lists/u_a_c_Sources.lzma' into './lists/u_a_c_Sources' using '/usr/bin/unlzma'...

@@ -27,6 +27,7 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <dirent.h>
+#include <time.h>
 #include "error.h"
 #include "ignore.h"
 #include "mprintf.h"
@@ -54,8 +55,6 @@
 enum permitflags {
 	/* do not error out on unused files */
 	pmf_unused_files = 0,
-	/* allow .changes file to specify multipe distributions */
-	pmf_multiple_distributions,
 	/* do not error out if there already is a newer package */
 	pmf_oldpackagenewer,
 	pmf_COUNT /* must be last */
@@ -74,11 +73,20 @@ enum cleanupflags {
 	cuf_unused_files,
 	cuf_COUNT /* must be last */
 };
+enum optionsflags {
+	/* only put _all.deb comes with those of some architecture,
+	 * only put in those architectures */
+	iof_limit_arch_all = 0,
+	/* allow .changes file to specify multipe distributions */
+	iof_multiple_distributions,
+	iof_COUNT /* must be last */
+};
 
 struct incoming {
 	/* by incoming_parse: */
 	char *name;
 	char *directory;
+	char *morguedir;
 	char *tempdir;
 	char *logdir;
 	struct strlist allow;
@@ -90,6 +98,7 @@ struct incoming {
 	bool *delete;
 	bool permit[pmf_COUNT];
 	bool cleanup[cuf_COUNT];
+	bool options[iof_COUNT];
 	/* only to ease parsing: */
 	size_t lineno;
 };
@@ -101,6 +110,7 @@ static void incoming_free(/*@only@*/ struct incoming *i) {
 	if( i == NULL )
 		return;
 	free(i->name);
+	free(i->morguedir);
 	free(i->tempdir);
 	free(i->logdir);
 	free(i->directory);
@@ -210,6 +220,15 @@ CFfinishparse(incoming) {
 		d->i = NULL;
 		return RET_ERROR;
 	}
+	if( i->morguedir != NULL && i->morguedir[0] != '/' ) {
+		char *n = calc_dirconcat(global.basedir, i->morguedir);
+		if( n == NULL ) {
+			incoming_free(i);
+			return RET_ERROR_OOM;
+		}
+		free(i->morguedir);
+		i->morguedir = n;
+	}
 	if( i->tempdir[0] != '/' ) {
 		char *n = calc_dirconcat(global.basedir, i->tempdir);
 		if( n == NULL ) {
@@ -238,6 +257,16 @@ CFfinishparse(incoming) {
 				config_filename(iter));
 			incoming_free(i);
 			return RET_ERROR;
+	}
+	if( i->morguedir != NULL && !i->cleanup[cuf_on_deny]
+			&& !i->cleanup[cuf_on_error]
+			&& !i->cleanup[cuf_unused_files] ) {
+		fprintf(stderr,
+"Warning: There is a 'MorgueDir' but no 'Cleanup' to act on in rule '%s'\n"
+"(starting at line %u, ending at line %u of %s)!\n",
+				d->name,
+				config_firstline(iter), config_line(iter),
+				config_filename(iter));
 	}
 
 	d->i = i;
@@ -336,19 +365,47 @@ CFSETPROC(incoming,cleanup) {
 " (use --ignore=unknownfield to ignore this)\n");
 }
 
+CFSETPROC(incoming,options) {
+	CFSETPROCVARS(incoming,i,d);
+	static const struct constant const optionsconstants[] = {
+		{ "limit_arch_all", iof_limit_arch_all},
+		{ "multiple_distributions", iof_multiple_distributions},
+		{ NULL, -1}
+	};
+
+	if( IGNORABLE(unknownfield) )
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, true, "");
+	else if( i->name == NULL )
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, false,
+"\n(try put Name: before Options: to ignore if it is from the wrong rule");
+	else if( strcmp(i->name, d->name) != 0 )
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, true,
+" (but not within the rule we are intrested in.)");
+	else
+		return config_getflags(iter, headername, optionsconstants,
+				i->options, false,
+" (use --ignore=unknownfield to ignore this)\n");
+}
+
 CFvalueSETPROC(incoming, name)
 CFvalueSETPROC(incoming, logdir)
 CFdirSETPROC(incoming, tempdir)
+CFdirSETPROC(incoming, morguedir)
 CFdirSETPROC(incoming, directory)
-CFtruthSETPROC2(incoming, multiple, permit[pmf_multiple_distributions])
+CFtruthSETPROC2(incoming, multiple, options[iof_multiple_distributions])
 
 static const struct configfield incomingconfigfields[] = {
 	CFr("Name", incoming, name),
 	CFr("TempDir", incoming, tempdir),
 	CFr("IncomingDir", incoming, directory),
+	CF("MorgueDir", incoming, morguedir),
 	CF("Default", incoming, default),
 	CF("Allow", incoming, allow),
 	CF("Multiple", incoming, multiple),
+	CF("Options", incoming, options),
 	CF("Cleanup", incoming, cleanup),
 	CF("Permit", incoming, permit),
 	CF("Logdir", incoming, logdir)
@@ -553,7 +610,7 @@ static retvalue candidate_read(struct incoming *i, int ofs, struct candidate **r
 		return RET_ERROR_OOM;
 	}
 	n->files->ofs = n->ofs;
-	n->files->type = fe_UNKNOWN;
+	n->files->type = fe_CHANGES;
 	r = candidate_usefile(i, n, n->files);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
@@ -586,15 +643,6 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
 		return r;
-	}
-	if( n->type != fe_BYHAND && n->type != fe_LOG &&
-			!atom_defined(n->architecture_atom) ) {
-		fprintf(stderr,
-"'%s' contains '%s' not matching an valid architecture in any distribution known!\n",
-				BASENAME(i,c->ofs), basefilename);
-		free(basefilename);
-		candidate_file_free(n);
-		return RET_ERROR;
 	}
 	n->ofs = strlist_ofs(&i->files, basefilename);
 	if( n->ofs < 0 ) {
@@ -763,6 +811,15 @@ static retvalue candidate_earlychecks(struct incoming *i, struct candidate *c) {
 	if( RET_WAS_ERROR(r) )
 		return r;
 	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->type != fe_CHANGES && file->type != fe_BYHAND &&
+				file->type != fe_LOG &&
+				!atom_defined(file->architecture_atom) ) {
+			fprintf(stderr,
+"'%s' contains '%s' not matching an valid architecture in any distribution known!\n",
+					BASENAME(i, c->ofs),
+					BASENAME(i, file->ofs));
+			return RET_ERROR;
+		}
 		if( !FE_PACKAGE(file->type) )
 			continue;
 		assert( atom_defined(file->architecture_atom) );
@@ -1534,6 +1591,7 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 	trackingdb tracks;
 	const char *changesfilekey = NULL;
 	char *origfilename;
+	struct atomlist binary_architectures;
 
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
@@ -1567,6 +1625,16 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 			BASENAME(i, changesfile(c)->ofs));
 	causingfile = origfilename;
 
+	atomlist_init(&binary_architectures);
+	for( p = d->packages ; p != NULL ; p = p->next ) {
+		if( FE_BINARY(p->master->type) ) {
+			architecture_t a = p->master->architecture_atom;
+
+			if( a != architecture_all )
+				atomlist_add_uniq(&binary_architectures, a);
+		}
+	}
+
 	r = RET_OK;
 	for( p = d->packages ; p != NULL ; p = p->next ) {
 		if( p->skip ) {
@@ -1582,13 +1650,21 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					(tracks==NULL)?NULL:&trackingdata,
 					p);
 		} else if( FE_BINARY(p->master->type) ) {
+			architecture_t a = p->master->architecture_atom;
+			const struct atomlist *as, architectures = {&a, 1, 1};
+
+			if( i->options[iof_limit_arch_all] &&
+					a == architecture_all &&
+					binary_architectures.count > 0 )
+				as = &binary_architectures;
+			else
+				as = &architectures;
 			r = binaries_adddeb(&p->master->deb, database,
-					p->master->architecture_atom,
-					p->packagetype, into,
+					as, p->packagetype, into,
 					(tracks==NULL)?NULL:&trackingdata,
 					p->component_atom, &p->filekeys,
 					p->control);
-		} else if( p->master->type == fe_UNKNOWN ) {
+		} else if( p->master->type == fe_CHANGES ) {
 			/* finally add the .changes to tracking, if requested */
 			assert( p->master->name == NULL );
 			assert( tracks != NULL );
@@ -1612,13 +1688,14 @@ static retvalue candidate_add_into(struct database *database, const struct incom
 					trackingdata.pkg,
 					ft_LOG, &p->filekeys, false, database);
 		} else
-			r = RET_ERROR;
+			r = RET_ERROR_INTERNAL;
 
 		if( RET_WAS_ERROR(r) ) {
 			// TODO: remove files not yet referenced
 			break;
 		}
 	}
+	atomlist_done(&binary_architectures);
 
 	if( tracks != NULL ) {
 		retvalue r2;
@@ -1657,12 +1734,12 @@ static inline retvalue candidate_checkadd_into(struct database *database,const s
 					into, into->tracking != dt_NONE,
 					p->component_atom,
 					i->permit[pmf_oldpackagenewer]);
-		} else if( p->master->type == fe_UNKNOWN
+		} else if( p->master->type == fe_CHANGES
 				|| p->master->type == fe_BYHAND
 				|| p->master->type == fe_LOG ) {
 			continue;
 		} else
-			r = RET_ERROR;
+			r = RET_ERROR_INTERNAL;
 
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -2000,6 +2077,8 @@ static retvalue candidate_add(struct database *database, struct incoming *i, str
 
 	/* mark files as done */
 	for( file = c->files ; file != NULL ; file = file->next ) {
+		if( file->used )
+			i->processed[file->ofs] = true;
 		if( file->used || i->cleanup[cuf_unused_files] ) {
 			i->delete[file->ofs] = true;
 		}
@@ -2024,6 +2103,14 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 	}
 	r = candidate_earlychecks(i, c);
 	if( RET_WAS_ERROR(r) ) {
+		if( i->cleanup[cuf_on_error] ) {
+			struct candidate_file *file;
+
+			i->delete[c->ofs] = true;
+			for( file = c->files ; file != NULL ; file = file->next ) {
+				i->delete[file->ofs] = true;
+			}
+		}
 		candidate_free(c);
 		return r;
 	}
@@ -2049,7 +2136,7 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 			}
 		}
 		if( c->perdistribution != NULL &&
-				!i->permit[pmf_multiple_distributions] )
+				!i->options[iof_multiple_distributions] )
 			break;
 	}
 	if( c->perdistribution == NULL && i->default_into != NULL ) {
@@ -2077,7 +2164,7 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 					i->delete[file->ofs] = true;
 			}
 		}
-		r = RET_ERROR;
+		r = RET_ERROR_INCOMING_DENY;
 	} else {
 		if( broken ) {
 			fprintf(stderr,
@@ -2102,11 +2189,50 @@ static retvalue process_changes(struct database *database, struct incoming *i, i
 	return r;
 }
 
+static inline /*@null@*/char *create_uniq_subdir(const char *basedir) {
+	char date[16], *dir;
+	unsigned long number = 0;
+	retvalue r;
+	time_t curtime;
+	struct tm *tm;
+	int e;
+
+	r = dirs_make_recursive(basedir);
+	if( RET_WAS_ERROR(r) )
+		return NULL;
+
+	if( time(&curtime) == (time_t)-1 )
+		tm = NULL;
+	else
+		tm = gmtime(&curtime);
+	if( tm == NULL || strftime(date, 16, "%Y-%m-%d", tm) != 10 )
+		strcpy(date, "timeerror");
+
+	for( number = 0 ; number < 10000 ; number ++ ) {
+		dir = mprintf("%s/%s-%lu", basedir, date, number);
+		if( FAILEDTOALLOC(dir) )
+			return NULL;
+		if( mkdir(dir, 0777) == 0 )
+			return dir;
+		e = errno;
+		if( e != EEXIST ) {
+			fprintf(stderr, "Error %d creating directory '%s': %s\n",
+					e, dir, strerror(e));
+			free(dir);
+			return NULL;
+		}
+		free(dir);
+	}
+	fprintf(stderr, "Could not create unique subdir in '%s'!\n", basedir);
+	return NULL;
+}
+
 /* tempdir should ideally be on the same partition like the pooldir */
 retvalue process_incoming(struct database *database, struct distribution *distributions, const char *name, const char *changesfilename) {
 	struct incoming *i;
 	retvalue result,r;
 	int j;
+	char *morguedir;
 
 	result = RET_NOTHING;
 
@@ -2130,6 +2256,11 @@ retvalue process_incoming(struct database *database, struct distribution *distri
 	}
 
 	logger_wait();
+	if( i->morguedir == NULL )
+		morguedir = NULL;
+	else {
+		morguedir = create_uniq_subdir(i->morguedir);
+	}
 	for( j = 0 ; j < i->files.count ; j ++ ) {
 		char *fullfilename;
 
@@ -2141,10 +2272,37 @@ retvalue process_incoming(struct database *database, struct distribution *distri
 			result = RET_ERROR_OOM;
 			continue;
 		}
+		if( morguedir != NULL && !i->processed[j] ) {
+			char *newname = calc_dirconcat(morguedir,
+					i->files.values[j]);
+			if( newname != NULL &&
+					rename(fullfilename, newname) == 0 ) {
+				free(newname);
+				free(fullfilename);
+				continue;
+			} else if( newname == NULL ) {
+				result = RET_ERROR_OOM;
+			} else {
+				int e = errno;
+
+				fprintf(stderr,
+"Error %d moving '%s' to '%s': %s\n",		e,
+						i->files.values[j],
+						morguedir, strerror(e));
+				RET_UPDATE(result, RET_ERRNO(e));
+				/* no continue, instead
+				 * delete the file as normal: */
+			}
+		}
 		if( verbose >= 3 )
 			printf("deleting '%s'...\n", fullfilename);
 		deletefile(fullfilename);
 		free(fullfilename);
+	}
+	if( morguedir != NULL ) {
+		/* in the case it is empty, remove again */
+		(void)rmdir(morguedir);
+		free(morguedir);
 	}
 	incoming_free(i);
 	return result;

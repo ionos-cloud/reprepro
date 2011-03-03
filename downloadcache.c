@@ -43,7 +43,7 @@ retvalue downloadcache_initialize(enum spacecheckmode mode, off_t reserveddb, of
 	struct downloadcache *cache;
 	retvalue r;
 
-	cache = malloc(sizeof(struct downloadcache));
+	cache = calloc(1, sizeof(struct downloadcache));
 	if( cache == NULL )
 		return RET_ERROR_OOM;
 	r = space_prepare(&cache->devices, mode, reserveddb, reservedother);
@@ -51,7 +51,6 @@ retvalue downloadcache_initialize(enum spacecheckmode mode, off_t reserveddb, of
 		free(cache);
 		return r;
 	}
-	cache->items = NULL;
 	*download = cache;
 	return RET_OK;
 }
@@ -79,7 +78,8 @@ retvalue downloadcache_free(struct downloadcache *download) {
 
 static retvalue downloaditem_callback(enum queue_action action, void *privdata, void *privdata2, const char *uri, const char *gotfilename, const char *wantedfilename, /*@null@*/const struct checksums *checksums, const char *method) {
 	struct downloaditem *d = privdata;
-	struct database *database = privdata2;
+	struct downloadcache *cache = privdata2;
+	struct database *database = cache->database;
 	struct checksums *read_checksums = NULL;
 	retvalue r;
 	bool improves;
@@ -142,6 +142,50 @@ static retvalue downloaditem_callback(enum queue_action action, void *privdata, 
 	} else
 		checksums_free(read_checksums);
 
+	if( global.showdownloadpercent > 0 ) {
+		unsigned int percent;
+
+		cache->size_done += checksums_getfilesize(d->checksums);
+
+		percent = (100 * cache->size_done) / cache->size_todo;
+		if( global.showdownloadpercent > 1
+				|| percent > cache->last_percent ) {
+			unsigned long long all = cache->size_done;
+			int kb, mb, gb, tb, b, groups = 0;
+
+			cache->last_percent = percent;
+
+			printf("Got %u%%: ", percent);
+			b = all & 1023;
+			all = all >> 10;
+			kb = all & 1023;
+			all = all >> 10;
+			mb = all & 1023;
+			all = all >> 10;
+			gb = all & 1023;
+			all = all >> 10;
+			tb = all;
+			if( tb != 0 ) {
+				printf("%dT ", tb);
+				groups++;
+			}
+			if( groups < 2 && (groups > 0 || gb != 0 ) ) {
+				printf("%dG ", gb);
+				groups++;
+			}
+			if( groups < 2 && (groups > 0 || mb != 0 ) ) {
+				printf("%dM ", mb);
+				groups++;
+			}
+			if( groups < 2 && (groups > 0 || kb != 0 ) ) {
+				printf("%dK ", kb);
+				groups++;
+			}
+			if( groups < 2 && (groups > 0 || b != 0 ) )
+				printf("%d ", b);
+			puts("bytes");
+		}
+	}
 	r = files_add_checksums(database, d->filekey, d->checksums);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -234,8 +278,9 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 		freeitem(item);
 		return r;
 	}
+	cache->database = database;
 	r = aptmethod_enqueue(method, orig, fullfilename,
-			downloaditem_callback, item, database);
+			downloaditem_callback, item, cache);
 	if( RET_WAS_ERROR(r) ) {
 		freeitem(item);
 		return r;
@@ -244,6 +289,8 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 
 	item->parent = parent;
 	*h = item;
+
+	cache->size_todo += checksums_getfilesize(item->checksums);
 
 	return RET_OK;
 }

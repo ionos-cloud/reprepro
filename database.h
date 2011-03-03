@@ -27,6 +27,7 @@ retvalue database_openpackages(struct database *, const char *identifier, bool r
 retvalue database_openreleasecache(struct database *, const char *codename, /*@out@*/struct table **);
 retvalue database_opentracking(struct database *, const char *codename, bool readonly, /*@out@*/struct table **);
 retvalue database_translate_filelists(struct database *);
+retvalue database_translate_legacy_checksums(bool verbosedb);
 
 retvalue table_close(/*@only@*/struct table *);
 

@@ -703,9 +703,9 @@ DISTRI=b PACKAGE=ac EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpa
 testrun - -b . -A ${FAKEARCHITECTURE} --delete --delete --ignore=missingfile include b test.changes 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
--v2*=Skipping 'ac_1-1.dsc' as not for architecture '${FAKEARCHITECTURE}'.
--v2*=Skipping 'ac_1-1.tar.gz' as not for architecture '${FAKEARCHITECTURE}'.
--v3*=Placing 'ac-addons_1-1_all.deb' only in architecture '${FAKEARCHITECTURE}' as requested.
+-v2*=Skipping 'ac_1-1.dsc' as architecture 'source' is not in the requested set.
+-v2*=Skipping 'ac_1-1.tar.gz' as architecture 'source' is not in the requested set.
+-v3*=Limiting 'ac-addons_1-1_all.deb' to architectures ${FAKEARCHITECTURE} as requested.
 stdout
 -v2*=Created directory "./pool/all/a/ac"
 -e1*=db: 'pool/all/a/ac/ac-addons_1-1_all.deb' added to files.db(md5sums).
@@ -892,14 +892,14 @@ fi
 rm -r -f db2
 cp -a db db2
 echo tracking is $tracking
-testrun - --keepunreferenced --dbdir db2 -b . removesrc a unknown 3<<EOF
+testrun - --keepunreferenced --dbdir ./db2 -b . removesrc a unknown 3<<EOF
 stderr
 -t1*=Nothing about source package 'unknown' found in the tracking data of 'a'!
 -t1*=This either means nothing from this source in this version is there,
 -t1*=or the tracking information might be out of date.
 stdout
 EOF
-testrun - --keepunreferenced --dbdir db2 -b . removesrc a ab 3-1 3<<EOF
+testrun - --keepunreferenced --dbdir ./db2 -b . removesrc a ab 3-1 3<<EOF
 stdout
 -v1*=removing 'ab-addons' from 'a|all|${FAKEARCHITECTURE}'...
 -d1*=db: 'ab-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
@@ -931,7 +931,7 @@ EOF
 fi
 rm -r db2
 cp -a db db2
-testrun - --keepunreferenced --dbdir db2 -b . removesrc a ab 3<<EOF
+testrun - --keepunreferenced --dbdir ./db2 -b . removesrc a ab 3<<EOF
 stdout
 -v1*=removing 'ab-addons' from 'a|all|${FAKEARCHITECTURE}'...
 -d1*=db: 'ab-addons' removed from packages.db(a|all|${FAKEARCHITECTURE}).
@@ -961,7 +961,7 @@ DATESTR remove a deb all ${FAKEARCHITECTURE} ab-addons 3-1
 DATESTR remove a dsc all source ab 3-1
 EOF
 fi
-testout "" --keepunreferenced --dbdir db2 dumppull
+testout "" --keepunreferenced --dbdir ./db2 dumppull
 cat > results.expected <<EOF
 Updates needed for 'b|all|${FAKEARCHITECTURE}':
 keep 'aa' '1-3' '1-3'
@@ -969,7 +969,7 @@ keep 'aa-addons' '1-3' '1-3'
 keep 'ab' '3-1' unavailable
 EOF
 dodiff results.expected results
-testrun - --keepunreferenced --dbdir db2 -b . removefilter b "Version (== 1-3), Package (>> aa)" 3<<EOF
+testrun - --keepunreferenced --dbdir ./db2 -b . removefilter b "Version (== 1-3), Package (>> aa)" 3<<EOF
 stdout
 -v1*=removing 'aa-addons' from 'b|all|${FAKEARCHITECTURE}'...
 -d1*=db: 'aa-addons' removed from packages.db(b|all|${FAKEARCHITECTURE}).
@@ -980,7 +980,7 @@ EOF
 checklog logab <<EOF
 DATESTR remove b deb all ${FAKEARCHITECTURE} aa-addons 1-3
 EOF
-testout "" --keepunreferenced --dbdir db2 dumppull
+testout "" --keepunreferenced --dbdir ./db2 dumppull
 cat > results.expected <<EOF
 Updates needed for 'b|all|${FAKEARCHITECTURE}':
 keep 'aa' '1-3' '1-3'

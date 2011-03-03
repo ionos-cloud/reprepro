@@ -7,7 +7,7 @@ fi
 
 mkdir conf
 cat > conf/options <<EOF
-morguedir morgue
+morguedir ./morgue
 export never
 EOF
 cat > conf/distributions <<EOF
@@ -52,7 +52,7 @@ stdout
 -d1*=db: 'bla' removed from packages.db(test|main|source).
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
--v2*=Created directory "morgue"
+-v2*=Created directory "./morgue"
 -v2*=removed now empty directory ./pool/main/b/bla
 -v2*=removed now empty directory ./pool/main/b
 -v2*=removed now empty directory ./pool/main
@@ -93,7 +93,7 @@ stdout
 -v0*=Deleting files no longer referenced...
 -v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 stderr
-*=error 13 creating morgue-file morgue/bla_1.7.dsc: Permission denied
+*=error 13 creating morgue-file ./morgue/bla_1.7.dsc: Permission denied
 -v0*=There have been errors!
 returns 243
 EOF
@@ -114,7 +114,7 @@ testrun - deleteunreferenced 3<<EOF
 stdout
 -v1*=deleting and forgetting pool/main/b/bla/bla_1.7.dsc
 stderr
-*=error 13 creating morgue-file morgue/bla_1.7.dsc: Permission denied
+*=error 13 creating morgue-file ./morgue/bla_1.7.dsc: Permission denied
 -v0*=There have been errors!
 returns 243
 EOF

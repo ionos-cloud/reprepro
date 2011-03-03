@@ -69,6 +69,7 @@
 #include "printlistformat.h"
 #include "globmatch.h"
 #include "needbuild.h"
+#include "archallflood.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -161,9 +162,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			UNUSED(struct database *dummy),	\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			int argc, args(const char *,argv[]))
 
 #define ACTION_C(act,sp,name) static retvalue action_c_ ## act ## _ ## sp ## _ ## name ( \
@@ -171,9 +172,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			UNUSED(struct database *dummy),	\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			int argc,const char *argv[])
 
 #define ACTION_B(act,sp,u,name) static retvalue action_b_ ## act ## _ ## sp ## _ ## name ( \
@@ -181,9 +182,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			struct database *database,	\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			int argc, const char *argv[])
 
 #define ACTION_L(act,sp,u,args,name) static retvalue action_l_ ## act ## _ ## sp ## _ ## name ( \
@@ -191,9 +192,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			u(struct database *,database),	\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			int argc, args(const char *,argv[]))
 
 #define ACTION_R(act,sp,d,a,name) static retvalue action_r_ ## act ## _ ## sp ## _ ## name ( \
@@ -201,9 +202,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			struct database *database,		\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			a(int, argc), a(const char *, argv[]))
 
 #define ACTION_T(act,sp,name) static retvalue action_t_ ## act ## _ ## sp ## _ ## name ( \
@@ -211,9 +212,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			struct database *database,		\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			UNUSED(int argc), UNUSED(const char *dummy4[]))
 
 #define ACTION_F(act,sp,d,a,name) static retvalue action_f_ ## act ## _ ## sp ## _ ## name ( \
@@ -221,9 +222,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			struct database *database,		\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			a(int, argc), a(const char *, argv[]))
 
 #define ACTION_RF(act,sp,u,name) static retvalue action_rf_ ## act ## _ ## sp ## _ ## name ( \
@@ -231,9 +232,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			struct database *database,		\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			u(int, argc), u(const char *, argv[]))
 
 #define ACTION_D(act,sp,u,name) static retvalue action_d_ ## act ## _ ## sp ## _ ## name ( \
@@ -241,9 +242,9 @@ O(fast), O(x_morguedir), O(x_outdir), O(x_basedir), O(x_distdir), O(x_dbdir), O(
 			struct database *database,		\
 			sp(const char *, section),		\
 			sp(const char *, priority),		\
-			act(architecture_t, architecture),	\
-			act(component_t, component),		\
-			act(packagetype_t, packagetype),		\
+			act(const struct atomlist *, architectures),	\
+			act(const struct atomlist *, components),	\
+			act(const struct atomlist *, packagetypes),	\
 			u(int,argc), u(const char *,argv[]))
 
 ACTION_N(n, n, y, printargs) {
@@ -463,6 +464,14 @@ ACTION_T(n, n, translatefilelists) {
 	return database_translate_filelists(database);
 }
 
+ACTION_N(n, n, n, translatelegacychecksums) {
+
+	assert( argc == 1);
+
+	return database_translate_legacy_checksums(
+			verbosedatabase || verbose > 10);
+}
+
 
 ACTION_F(n, n, n, n, addmd5sums) {
 	char buffer[2000],*c,*m;
@@ -576,7 +585,14 @@ ACTION_RF(n, n, n, deleteunreferenced) {
 	retvalue result;
 
 	if( keepunreferenced ) {
-		fprintf(stderr,"Calling deleteunreferenced with --keepunreferencedfiles does not really make sense, does it?\n");
+		if( owner_keepunreferenced == CONFIG_OWNER_CMDLINE )
+			fprintf(stderr,"Calling deleteunreferenced with --keepunreferencedfiles does not really make sense, does it?\n");
+		else
+			fprintf(stderr,
+"Error: deleteunreferenced called with option\n"
+"'keepunreferencedfiles' activated. Please run\n"
+"'reprepro --nokeepunreferencedfiles deleteunreferenced',\n"
+"if you are sure you want to delete those files.\n");
 		return RET_ERROR;
 	}
 	result = files_foreach(database, deleteifunreferenced, database);
@@ -650,7 +666,7 @@ ACTION_D(y, n, y, remove) {
 	if( FAILEDTOALLOC(gotremoved) )
 		result = RET_ERROR_OOM;
 	else for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		 if( !target_matches(t, component, architecture, packagetype) )
+		 if( !target_matches(t, components, architectures, packagetypes) )
 			 continue;
 		 r = target_initpackagesdb(t, database, READWRITE);
 		 RET_UPDATE(result, r);
@@ -872,7 +888,7 @@ ACTION_D(y, n, y, removefilter) {
 		tracks = NULL;
 
 	result = distribution_remove_packages(distribution, database,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			package_matches_condition,
 			(tracks != NULL)?&trackingdata:NULL,
 			condition);
@@ -934,7 +950,7 @@ ACTION_D(y, n, y, removematched) {
 		tracks = NULL;
 
 	result = distribution_remove_packages(distribution, database,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			package_matches_glob,
 			(tracks != NULL)?&trackingdata:NULL,
 			(void*)argv[2]);
@@ -954,12 +970,12 @@ ACTION_B(y, n, y, buildneeded) {
 	const char *glob;
 	architecture_t arch;
 
-	if( atom_defined(architecture) ) {
+	if( architectures != NULL ) {
 		fprintf(stderr, "Error: build-needing cannot be used with --architecture!\n");
 		return RET_ERROR;
 	}
-	if( atom_defined(packagetype) ) {
-		fprintf(stderr, "Error: build-needing cannot be used with --architecture!\n");
+	if( packagetypes != NULL ) {
+		fprintf(stderr, "Error: build-needing cannot be used with --packagetype!\n");
 		return RET_ERROR;
 	}
 
@@ -998,7 +1014,7 @@ ACTION_B(y, n, y, buildneeded) {
 	}
 
 
-	return find_needs_build(database, distribution, arch, component,
+	return find_needs_build(database, distribution, arch, components,
 			glob);
 }
 
@@ -1058,10 +1074,10 @@ ACTION_B(y, n, y, list) {
 
 	if( argc == 2 )
 		return distribution_foreach_package(distribution, database,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			list_package, NULL, NULL);
 	else for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
+		if( !target_matches(t, components, architectures, packagetypes) )
 			continue;
 		r = list_in_target(database, t, argv[2]);
 		if( RET_WAS_ERROR(r) )
@@ -1135,7 +1151,7 @@ ACTION_B(y, n, y, ls) {
 		int i;
 
 		for( t = d->targets ; t != NULL ; t = t->next ) {
-			if( !target_matches(t, component, architecture, packagetype) )
+			if( !target_matches(t, components, architectures, packagetypes) )
 				continue;
 			r = ls_in_target(database, t, argv[1], &versions);
 			if( RET_WAS_ERROR(r) )
@@ -1216,7 +1232,7 @@ ACTION_B(y, n, y, listfilter) {
 	}
 
 	result = distribution_foreach_package(distribution, database,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			listfilterprint, NULL, condition);
 	term_free(condition);
 	return result;
@@ -1254,7 +1270,7 @@ ACTION_B(y, n, y, listmatched) {
 		return r;
 	}
 	result = distribution_foreach_package(distribution, database,
-			component, architecture, packagetype,
+			components, architectures, packagetypes,
 			listmatchprint, NULL, (void*)argv[2]);
 	return result;
 }
@@ -1692,7 +1708,7 @@ ACTION_D(y, n, y, copy) {
 		return result;
 
 	r = copy_by_name(database, destination, source, argc-3, argv+3,
-			component, architecture, packagetype);
+			components, architectures, packagetypes);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1726,7 +1742,7 @@ ACTION_D(y, n, y, copysrc) {
 		return result;
 
 	r = copy_by_source(database, destination, source, argc-3, argv+3,
-			component, architecture, packagetype);
+			components, architectures, packagetypes);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1761,7 +1777,7 @@ ACTION_D(y, n, y, copyfilter) {
 		return result;
 
 	r = copy_by_formula(database, destination, source, argv[3],
-			component, architecture, packagetype);
+			components, architectures, packagetypes);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1796,7 +1812,7 @@ ACTION_D(y, n, y, copymatched) {
 		return result;
 
 	r = copy_by_glob(database, destination, source, argv[3],
-			component, architecture, packagetype);
+			components, architectures, packagetypes);
 	RET_ENDUPDATE(result,r);
 
 	logger_wait();
@@ -1825,7 +1841,7 @@ ACTION_D(y, n, y, restore) {
 		return result;
 
 	r = restore_by_name(database, destination,
-			component, architecture, packagetype, argv[2],
+			components, architectures, packagetypes, argv[2],
 			argc-3, argv+3);
 	RET_ENDUPDATE(result,r);
 
@@ -1856,7 +1872,7 @@ ACTION_D(y, n, y, restoresrc) {
 		return result;
 
 	r = restore_by_source(database, destination,
-			component, architecture, packagetype, argv[2],
+			components, architectures, packagetypes, argv[2],
 			argc-3, argv+3);
 	RET_ENDUPDATE(result,r);
 
@@ -1888,7 +1904,7 @@ ACTION_D(y, n, y, restorematched) {
 		return result;
 
 	r = restore_by_glob(database, destination,
-			component, architecture, packagetype, argv[2],
+			components, architectures, packagetypes, argv[2],
 			argv[3]);
 	RET_ENDUPDATE(result,r);
 
@@ -1920,7 +1936,7 @@ ACTION_D(y, n, y, restorefilter) {
 		return result;
 
 	r = restore_by_formula(database, destination,
-			component, architecture, packagetype, argv[2],
+			components, architectures, packagetypes, argv[2],
 			argv[3]);
 	RET_ENDUPDATE(result,r);
 
@@ -1935,6 +1951,31 @@ ACTION_D(y, n, y, restorefilter) {
 ACTION_D(y, n, y, addpackage) {
 	struct distribution *destination;
 	retvalue result, r;
+	architecture_t architecture = atom_unknown;
+	component_t component = atom_unknown;
+	packagetype_t packagetype = atom_unknown;
+
+	if( packagetypes != NULL ) {
+		if( packagetypes->count > 1 ) {
+			fprintf(stderr, "_addpackage can only cope with one packagetype at a time!\n");
+			return RET_ERROR;
+		}
+		packagetype = packagetypes->atoms[0];
+	}
+	if( architectures != NULL ) {
+		if( architectures->count > 1 ) {
+			fprintf(stderr, "_addpackage can only cope with one architecture at a time!\n");
+			return RET_ERROR;
+		}
+		architecture = architectures->atoms[0];
+	}
+	if( components != NULL ) {
+		if( components->count > 1 ) {
+			fprintf(stderr, "_addpackage can only cope with one component at a time!\n");
+			return RET_ERROR;
+		}
+		component = components->atoms[0];
+	}
 
 	if( !atom_defined(packagetype) && atom_defined(architecture) &&
 			architecture == architecture_source )
@@ -2207,7 +2248,7 @@ ACTION_RF(y, n, y, check) {
 		}
 
 		r = distribution_foreach_package(d, database,
-				component, architecture, packagetype,
+				components, architectures, packagetypes,
 				package_check, NULL, NULL);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -2262,7 +2303,7 @@ ACTION_F(y, n, y, y, reoverride) {
 
 			for( t = d->targets ; t != NULL ; t = t->next ) {
 				if( !target_matches(t,
-				      component, architecture, packagetype) )
+				      components, architectures, packagetypes) )
 					continue;
 				r = target_reoverride(t, d, database);
 				RET_UPDATE(result, r);
@@ -2293,21 +2334,33 @@ ACTION_D(y, y, y, includedeb) {
 	bool isudeb;
 	trackingdb tracks;
 	int i = 0;
+	component_t component = atom_unknown;
 
-	if( architecture == architecture_source ) {
-		fprintf(stderr,"Error: -A source is not possible with includedeb!\n");
-		return RET_ERROR;
+	if( components != NULL ) {
+		if( components->count > 1 ) {
+			fprintf(stderr, "Error: Only one component is allowed with %s!\n",argv[0]);
+			return RET_ERROR;
+		}
+		assert(components->count > 0 );
+		component = components->atoms[0];
 	}
+
+	if( architectures != NULL )
+		if( !atomlist_hasexcept(architectures, architecture_source) ) {
+			fprintf(stderr,
+"Error: -A source is not possible with includedeb!\n");
+			return RET_ERROR;
+		}
 	if( strcmp(argv[0],"includeudeb") == 0 ) {
 		isudeb = true;
-		if( limitation_missed(packagetype, pt_udeb) ) {
-			fprintf(stderr,"Calling includeudeb with a -T different from 'udeb' makes no sense!\n");
+		if( limitations_missed(packagetypes, pt_udeb) ) {
+			fprintf(stderr, "Calling includeudeb with a -T not containing udeb makes no sense!\n");
 			return RET_ERROR;
 		}
 	} else if( strcmp(argv[0],"includedeb") == 0 ) {
 		isudeb = false;
-		if( limitation_missed(packagetype, pt_deb) ) {
-			fprintf(stderr,"Calling includedeb with -T something where something is not 'deb' makes no sense!\n");
+		if( limitations_missed(packagetypes, pt_deb) ) {
+			fprintf(stderr, "Calling includedeb with a -T not containing deb makes no sense!\n");
 			return RET_ERROR;
 		}
 
@@ -2352,14 +2405,17 @@ ACTION_D(y, y, y, includedeb) {
 	}
 
 	// TODO: same for component? (depending on type?)
-	if( atom_defined(architecture) &&
-			!atomlist_in(&distribution->architectures,
-				architecture) ){
-		fprintf(stderr,
+	if( architectures != NULL ) {
+		architecture_t missing = atom_unknown;
+
+		if( !atomlist_subset(&distribution->architectures,
+				architectures, &missing) ){
+			fprintf(stderr,
 "Cannot force into the architecture '%s' not available in '%s'!\n",
-			atoms_architectures[architecture],
-			distribution->codename);
-		return RET_ERROR;
+				atoms_architectures[missing],
+				distribution->codename);
+			return RET_ERROR;
+		}
 	}
 
 	r = distribution_prepareforwriting(distribution);
@@ -2379,7 +2435,7 @@ ACTION_D(y, y, y, includedeb) {
 	for( i = 2 ; i < argc ; i++ ) {
 		const char *filename = argv[i];
 
-		r = deb_add(database, component, architecture,
+		r = deb_add(database, component, architectures,
 				section, priority, isudeb?pt_udeb:pt_deb,
 				distribution, filename,
 				delete, tracks);
@@ -2404,14 +2460,25 @@ ACTION_D(y, y, y, includedsc) {
 	retvalue result,r;
 	struct distribution *distribution;
 	trackingdb tracks;
+	component_t component = atom_unknown;
+
+	if( components != NULL ) {
+		if( components->count > 1 ) {
+			fprintf(stderr, "Error: Only one component is allowed with %s!\n",argv[0]);
+			return RET_ERROR;
+		}
+		assert(components->count > 0 );
+		component = components->atoms[0];
+	}
+
 
 	assert( argc == 3 );
 
-	if( limitation_missed(architecture, architecture_source) ) {
+	if( limitations_missed(architectures, architecture_source) ) {
 		fprintf(stderr, "Cannot put a source package anywhere else than in architecture 'source'!\n");
 		return RET_ERROR;
 	}
-	if( limitation_missed(packagetype, pt_dsc) ) {
+	if( limitations_missed(packagetypes, pt_dsc) ) {
 		fprintf(stderr, "Cannot put a source package anywhere else than in type 'dsc'!\n");
 		return RET_ERROR;
 	}
@@ -2464,6 +2531,17 @@ ACTION_D(y, y, y, include) {
 	retvalue result,r;
 	struct distribution *distribution;
 	trackingdb tracks;
+	component_t component = atom_unknown;
+
+	if( components != NULL ) {
+		if( components->count > 1 ) {
+			fprintf(stderr, "Error: Only one component is allowed with %s!\n",
+					argv[0]);
+			return RET_ERROR;
+		}
+		assert(components->count > 0 );
+		component = components->atoms[0];
+	}
 
 	assert( argc == 3 );
 
@@ -2502,7 +2580,7 @@ ACTION_D(y, y, y, include) {
 		return result;
 	}
 	result = changes_add(database, tracks,
-			packagetype, component, architecture,
+			packagetypes, component, architectures,
 			section, priority, distribution,
 			argv[2], delete);
 	if( RET_WAS_ERROR(result) )
@@ -2995,7 +3073,7 @@ ACTION_B(y, n, y, rerunnotifiers) {
 			break;
 
 		r = distribution_foreach_package(d, database,
-				component, architecture, packagetype,
+				components, architectures, packagetypes,
 				package_rerunnotifiers,
 				rerunnotifiersintarget, NULL);
 		logger_wait();
@@ -3004,6 +3082,74 @@ ACTION_B(y, n, y, rerunnotifiers) {
 		if( RET_WAS_ERROR(r) )
 			break;
 	}
+	return result;
+}
+
+/*********************** flood ****************************/
+
+ACTION_D(y, n, y, flood) {
+	retvalue result,r;
+	struct distribution *distribution;
+	trackingdb tracks;
+	component_t architecture = atom_unknown;
+
+	result = distribution_get(alldistributions, argv[1], true, &distribution);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	if( distribution->readonly ) {
+		fprintf(stderr, "Cannot add packages to read-only distribution '%s'.\n",
+				distribution->codename);
+		return RET_ERROR;
+	}
+
+	if( argc == 3 ) {
+		architecture = architecture_find(argv[2]);
+		if( !atom_defined(architecture) ) {
+			fprintf(stderr, "Error: Unknown architecture '%s'!\n",
+					argv[2]);
+			return RET_ERROR;
+		}
+		if( architecture == architecture_source ) {
+			fprintf(stderr,
+"Error: Architecture 'source' does not make sense with 'flood'!\n");
+			return RET_ERROR;
+		}
+		if( !atomlist_in(&distribution->architectures, architecture) ) {
+			fprintf(stderr,
+"Error: Architecture '%s' not part of '%s'!\n",
+					argv[2], distribution->codename);
+			return RET_ERROR;
+		}
+	}
+
+	result = distribution_prepareforwriting(distribution);
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	if( distribution->tracking != dt_NONE ) {
+		result = tracking_initialize(&tracks, database, distribution, false);
+		if( RET_WAS_ERROR(result) ) {
+			return result;
+		}
+	} else
+		tracks = NULL;
+	result = flood(distribution, components, architectures, packagetypes,
+			architecture, database, tracks);
+
+	logger_wait();
+
+	if( RET_WAS_ERROR(result) )
+		RET_UPDATE(distribution->status, result);
+
+	if( tracks != NULL ) {
+		r = tracking_done(tracks);
+		RET_ENDUPDATE(result, r);
+	}
+	r = distribution_export(export, distribution, database);
+	RET_ENDUPDATE(result, r);
+
 	return result;
 }
 
@@ -3051,9 +3197,9 @@ static const struct action {
 			/*@null@*/struct database*,
 			/*@null@*/const char *priority,
 			/*@null@*/const char *section,
-			/*@null@*/architecture_t,
-			/*@null@*/component_t,
-			/*@null@*/packagetype_t,
+			/*@null@*/const struct atomlist *,
+			/*@null@*/const struct atomlist *,
+			/*@null@*/const struct atomlist *,
 			int argc,const char *argv[]);
 	int needs;
 	int minargs, maxargs;
@@ -3183,6 +3329,8 @@ static const struct action {
 		0, 1, "generatefilelists [reread]"},
 	{"translatefilelists",	A__T(translatefilelists),
 		0, 0, "translatefilelists"},
+	{"translatelegacychecksums",	A_N(translatelegacychecksums),
+		0, 0, "translatelegacychecksums"},
 	{"_listconfidentifiers",	A_C(listconfidentifiers),
 		0, -1, "_listconfidentifiers"},
 	{"_listdbidentifiers",	A_ROB(listdbidentifiers)|MAY_UNUSED,
@@ -3199,6 +3347,8 @@ static const struct action {
 		0, 0,  "cleanlists"},
 	{"build-needing", 	A_ROBact(buildneeded),
 		2, 3, "[-C <component>] build-needing <codename> <architecture> [<glob>]"},
+	{"flood", 		A_Dact(flood)|MAY_UNUSED,
+		1, 2, "[-C <component> ] [-A <architecture>] [-T <packagetype>] flood <codename> [<architecture>]"},
 	{NULL,NULL,0,0,0,NULL}
 };
 #undef A_N
@@ -3217,9 +3367,9 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	struct distribution *alldistributions = NULL;
 	bool deletederef, deletenew;
 	int needs;
-	architecture_t architecture = atom_unknown;
-	component_t component = atom_unknown;
-	packagetype_t packagetype = atom_unknown;
+	struct atomlist as, *architectures;
+	struct atomlist cs, *components;
+	struct atomlist ps, *packagetypes;
 
 	assert(action != NULL);
 
@@ -3295,50 +3445,75 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	}
 
 	if( ISSET(needs, NEED_ACT) ) {
+		const char *unknownitem;
 		if( x_architecture != NULL ) {
-			architecture = architecture_find(x_architecture);
-			if( !atom_defined(architecture) ) {
+			r = atomlist_filllist(at_architecture, &as,
+					x_architecture, &unknownitem);
+			if( r == RET_NOTHING ) {
 				fprintf(stderr,
 "Error: Architecture '%s' as given to --architecture is not know.\n"
 "(it does not appear as architecture in %s/distributions (did you mistype?))\n",
-					x_architecture, global.confdir);
-				(void)distribution_freelist(alldistributions);
-				return RET_ERROR;
+					unknownitem, global.confdir);
+				r = RET_ERROR;
 			}
+			if( RET_WAS_ERROR(r) ) {
+				(void)distribution_freelist(alldistributions);
+				return r;
+			}
+			architectures = &as;
+		} else {
+			atomlist_init(&as);
+			architectures = NULL;
 		}
 		if( x_component != NULL ) {
-			component = component_find(x_component);
-			if( !atom_defined(component) ) {
+			r = atomlist_filllist(at_component, &cs,
+					x_component, &unknownitem);
+			if( r == RET_NOTHING ) {
 				fprintf(stderr,
 "Error: Component '%s' as given to --component is not know.\n"
 "(it does not appear as component in %s/distributions (did you mistype?))\n",
-					x_component, global.confdir);
-				(void)distribution_freelist(alldistributions);
-				return RET_ERROR;
+					unknownitem, global.confdir);
+				r = RET_ERROR;
 			}
+			if( RET_WAS_ERROR(r) ) {
+				(void)distribution_freelist(alldistributions);
+				return r;
+			}
+			components = &cs;
+		} else {
+			atomlist_init(&cs);
+			components = NULL;
 		}
 		if( x_packagetype != NULL ) {
-			packagetype = packagetype_find(x_packagetype);
-			if( !atom_defined(packagetype) ) {
+			r = atomlist_filllist(at_packagetype, &ps,
+					x_packagetype, &unknownitem);
+			if( r == RET_NOTHING ) {
 				fprintf(stderr,
 "Error: Packagetype '%s' as given to --packagetype is not know.\n"
-"(The only valid values currently are 'dsc', 'deb' and 'udeb')\n",
-						x_packagetype);
-				(void)distribution_freelist(alldistributions);
-				return RET_ERROR;
+"(only dsc, deb, udeb and combinations of those are allowed)\n",
+					unknownitem);
+				r = RET_ERROR;
 			}
+			if( RET_WAS_ERROR(r) ) {
+				(void)distribution_freelist(alldistributions);
+				return r;
+			}
+			packagetypes = &ps;
+		} else {
+			atomlist_init(&ps);
+			packagetypes = NULL;
 		}
-		if( packagetype == pt_dsc &&
-				limitation_missed(architecture,
+		if( ps.count == 1 && ps.atoms[0] == pt_dsc &&
+				limitations_missed(architectures,
 					architecture_source) ) {
 			fprintf(stderr,
-"Error: Only -A source is possible with -T dsc!\n");
+"Error: -T dsc is not possible with -A not including source!\n");
 			return RET_ERROR;
 		}
-		if( architecture == architecture_source &&
-				limitation_missed(packagetype, pt_dsc) ) {
+		if( as.count == 1 && as.atoms[0] == architecture_source &&
+				limitations_missed(packagetypes, pt_dsc) ) {
 			fprintf(stderr,
-"Error: -A source is not possible with -T deb or -T udeb!\n");
+"Error: -A source is not possible with -T not including dsc!\n");
 			return RET_ERROR;
 		}
 	}
@@ -3380,7 +3555,7 @@ static retvalue callaction(command_t command, const struct action *action, int a
 				result = action->start(alldistributions,
 					database,
 					x_section, x_priority,
-					architecture, component, packagetype,
+					architectures, components, packagetypes,
 					argc, argv);
 				/* wait for package specific loggers */
 				logger_wait();
@@ -3415,6 +3590,11 @@ static retvalue callaction(command_t command, const struct action *action, int a
 	}
 	if( !interrupted() ) {
 		logger_wait();
+	}
+	if( ISSET(needs, NEED_ACT) ) {
+		atomlist_done(&as);
+		atomlist_done(&cs);
+		atomlist_done(&ps);
 	}
 	logger_warn_waiting();
 	r = database_close(database);
@@ -3475,6 +3655,7 @@ LO_LISTFORMAT,
 LO_LISTSKIP,
 LO_LISTMAX,
 LO_MORGUEDIR,
+LO_SHOWPERCENT,
 LO_UNIGNORE};
 static int longoption = 0;
 const char *programname;
@@ -3586,6 +3767,9 @@ static void handle_option(int c, const char *argument) {
 					if( RET_WAS_ERROR(r) ) {
 						exit(EXIT_FAILURE);
 					}
+					break;
+				case LO_SHOWPERCENT:
+					global.showdownloadpercent++;
 					break;
 				case LO_DELETE:
 					delete++;
@@ -3809,13 +3993,6 @@ static void handle_option(int c, const char *argument) {
 			CONFIGDUP(x_architecture, argument);
 			break;
 		case 'T':
-			if( strcmp(argument, "dsc") != 0 &&
-			    strcmp(argument, "deb") != 0 &&
-			    strcmp(argument, "udeb") != 0 ) {
-				fprintf(stderr, "Unknown packagetype '%s' (only dsc deb and udeb are known)!\n",
-						argument);
-				exit(EXIT_FAILURE);
-			}
 			if( x_packagetype != NULL &&
 					strcmp(x_packagetype, argument) != 0) {
 				fprintf(stderr,"Multiple '-T's are not supported!\n");
@@ -3886,6 +4063,61 @@ static void myexit(int status) {
 	free(x_morguedir);
 	free(gnupghome);
 	exit(status);
+}
+
+static void disallow_plus_prefix(const char *dir, const char *name, const char *allowed) {
+	if( dir[0] != '+'  )
+		return;
+	if( dir[1] == '\0' || dir[2] != '/' ) {
+		fprintf(stderr, "Error: %s starts with +, but does not continue with '+b/'.\n",
+				name);
+		myexit(EXIT_FAILURE);
+	}
+	if( strchr(allowed, dir[1]) != NULL )
+		return;
+	fprintf(stderr, "Error: %s is not allowed to start with '+%c/'.\n"
+"(if your directory is named like that, set it to './+%c/')\n",
+			name, dir[1], dir[1]);
+	myexit(EXIT_FAILURE);
+}
+
+static char *expand_plus_prefix(/*@only@*/char *dir, const char *name, const char *allowed, bool freedir) {
+	const char *fromdir;
+	char *newdir;
+
+	disallow_plus_prefix(dir, name, allowed);
+
+	if( dir[0] == '/' || (dir[0] == '.' && dir[1] == '/') )
+		return dir;
+	if( dir[0] != '+' ) {
+		fprintf(stderr,
+"Warning: %s '%s'  does not start with '/', './', or '+'.\n"
+"This currently means it is relative to the current working directory,\n"
+"but that might change in the future or cause an error instead!\n",
+				name, dir);
+		return dir;
+	}
+	if( dir[1] == 'b' ) {
+		fromdir = x_basedir;
+	} else if( dir[1] == 'o' ) {
+		fromdir = x_outdir;
+	} else if( dir[1] == 'c' ) {
+		fromdir = x_confdir;
+	} else {
+		abort();
+		return dir;
+	}
+	if( dir[3] == '\0' )
+		newdir = strdup(fromdir);
+	else
+		newdir = calc_dirconcat(fromdir, dir + 3);
+	if( FAILEDTOALLOC(newdir) ) {
+		(void)fputs("Out of Memory!\n",stderr);
+		exit(EXIT_FAILURE);
+	}
+	if( freedir )
+		free(dir);
+	return newdir;
 }
 
 int main(int argc,char *argv[]) {
@@ -3960,12 +4192,14 @@ int main(int argc,char *argv[]) {
 		{"list-skip", required_argument, &longoption, LO_LISTSKIP},
 		{"list-max", required_argument, &longoption, LO_LISTMAX},
 		{"morguedir", required_argument, &longoption, LO_MORGUEDIR},
+		{"show-percent", no_argument, &longoption, LO_SHOWPERCENT},
 		{NULL, 0, NULL, 0}
 	};
 	const struct action *a;
 	retvalue r;
 	int c;
 	struct sigaction sa;
+	char *tempconfdir;
 
 	sigemptyset(&sa.sa_mask);
 #if defined(SA_ONESHOT)
@@ -3987,8 +4221,18 @@ int main(int argc,char *argv[]) {
 
 	init_ignores();
 
-	config_state = CONFIG_OWNER_CMDLINE;
+	config_state = CONFIG_OWNER_DEFAULT;
+	CONFIGDUP(x_basedir, STD_BASE_DIR);
+	CONFIGDUP(x_confdir, "+b/conf");
+	CONFIGDUP(x_methoddir, STD_METHOD_DIR);
+	CONFIGDUP(x_outdir, "+b/");
+	CONFIGDUP(x_distdir, "+o/dists");
+	CONFIGDUP(x_dbdir, "+b/db");
+	CONFIGDUP(x_logdir, "+b/logs");
+	CONFIGDUP(x_listdir, "+b/lists");
+	CONFIGDUP(x_overridedir, "+b/override");
 
+	config_state = CONFIG_OWNER_CMDLINE;
 	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 
@@ -4005,25 +4249,32 @@ int main(int argc,char *argv[]) {
 	/* only for this CONFIG_OWNER_ENVIRONMENT is a bit stupid,
 	 * but perhaps it gets more... */
 	config_state = CONFIG_OWNER_ENVIRONMENT;
-	if( x_basedir == NULL && getenv("REPREPRO_BASE_DIR") != NULL ) {
+	if( getenv("REPREPRO_BASE_DIR") != NULL ) {
 		CONFIGDUP(x_basedir, getenv("REPREPRO_BASE_DIR"));
 	}
-	if( x_confdir == NULL && getenv("REPREPRO_CONFIG_DIR") != NULL ) {
+	if( getenv("REPREPRO_CONFIG_DIR") != NULL ) {
 		CONFIGDUP(x_confdir,getenv("REPREPRO_CONFIG_DIR"));
 	}
 
-	if( x_basedir == NULL )
-		x_basedir = strdup(STD_BASE_DIR);
-	if( x_confdir == NULL && x_basedir != NULL )
-		x_confdir = calc_dirconcat(x_basedir, "conf");
-	if( FAILEDTOALLOC(x_basedir) || FAILEDTOALLOC(x_confdir) ) {
-		(void)fputs("Out of Memory!\n",stderr);
-		exit(EXIT_FAILURE);
-	}
+	disallow_plus_prefix(x_basedir, "basedir", "");
+	tempconfdir = expand_plus_prefix(x_confdir, "confdir", "b", false);
 
 	config_state = CONFIG_OWNER_FILE;
-	global.confdir = x_confdir;
-	optionsfile_parse(longopts, handle_option);
+	optionsfile_parse(tempconfdir, longopts, handle_option);
+	if( tempconfdir != x_confdir )
+		free(tempconfdir);
+
+	disallow_plus_prefix(x_basedir, "basedir", "");
+	disallow_plus_prefix(x_methoddir, "methoddir", "");
+	x_confdir = expand_plus_prefix(x_confdir, "confdir", "b", true);
+	x_outdir = expand_plus_prefix(x_outdir, "outdir", "bc", true);
+	x_logdir = expand_plus_prefix(x_logdir, "logdir", "boc", true);
+	x_dbdir = expand_plus_prefix(x_dbdir, "dbdir", "boc", true);
+	x_distdir = expand_plus_prefix(x_distdir, "distdir", "boc", true);
+	x_listdir = expand_plus_prefix(x_listdir, "listdir", "boc", true);
+	if( x_morguedir != NULL )
+		x_morguedir = expand_plus_prefix(x_morguedir, "morguedir",
+				"boc", true);
 
 	if( guessgpgtty && (getenv("GPG_TTY")==NULL) && isatty(0) ) {
 		static char terminalname[1024];
@@ -4038,34 +4289,8 @@ int main(int argc,char *argv[]) {
 		}
 	}
 
-	/* basedir might have changed, so recalculate */
-	if( owner_x_confdir == CONFIG_OWNER_DEFAULT ) {
-		free(x_confdir);
-		x_confdir = calc_dirconcat(x_basedir, "conf");
-	}
 	if( delete < D_COPY )
 		delete = D_COPY;
-	if( x_methoddir == NULL )
-		x_methoddir = strdup(STD_METHOD_DIR);
-	if( x_outdir == NULL )
-		x_outdir = strdup(x_basedir);
-	if( x_distdir == NULL && x_outdir != NULL )
-		x_distdir = calc_dirconcat(x_outdir, "dists");
-	if( x_dbdir == NULL )
-		x_dbdir = calc_dirconcat(x_basedir, "db");
-	if( x_logdir == NULL )
-		x_logdir = calc_dirconcat(x_basedir, "logs");
-	if( x_listdir == NULL )
-		x_listdir = calc_dirconcat(x_basedir, "lists");
-	if( x_overridedir == NULL )
-		x_overridedir = calc_dirconcat(x_basedir, "override");
-	if( FAILEDTOALLOC(x_outdir) || FAILEDTOALLOC(x_distdir) ||
-	    FAILEDTOALLOC(x_dbdir) || FAILEDTOALLOC(x_listdir) ||
-	    FAILEDTOALLOC(x_logdir) || FAILEDTOALLOC(x_confdir) ||
-	    FAILEDTOALLOC(x_overridedir) || FAILEDTOALLOC(x_methoddir) ) {
-		(void)fputs("Out of Memory!\n",stderr);
-		exit(EXIT_FAILURE);
-	}
 	if( interrupted() )
 		exit(EXIT_RET(RET_ERROR_INTERRUPTED));
 	global.basedir = x_basedir;
@@ -4078,6 +4303,12 @@ int main(int argc,char *argv[]) {
 	global.listdir = x_listdir;
 	global.morguedir = x_morguedir;
 
+	if( gunzip != NULL && gunzip[0] == '+' )
+		gunzip = expand_plus_prefix(gunzip, "gunzip", "boc", true);
+	if( bunzip2 != NULL && bunzip2[0] == '+' )
+		bunzip2 = expand_plus_prefix(bunzip2, "bunzip2", "boc", true);
+	if( unlzma != NULL && unlzma[0] == '+' )
+		unlzma = expand_plus_prefix(unlzma, "unlzma", "boc", true);
 	uncompressions_check(gunzip, bunzip2, unlzma);
 	free(gunzip);
 	free(bunzip2);
@@ -4097,6 +4328,8 @@ int main(int argc,char *argv[]) {
 	}
 
 	if( gnupghome != NULL ) {
+		gnupghome = expand_plus_prefix(gnupghome,
+				"gnupghome", "boc", true);
 		if( setenv("GNUPGHOME", gnupghome, 1) != 0 ) {
 			int e = errno;
 

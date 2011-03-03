@@ -26,14 +26,14 @@
 #include "names.h"
 #include "optionsfile.h"
 
-void optionsfile_parse(const struct option *longopts, void handle_option(int,const char *)) {
+void optionsfile_parse(const char *directory, const struct option *longopts, void handle_option(int,const char *)) {
 	FILE *f;
 	char *filename;
 	char buffer[1000];
 	int linenr = 0;
 	const struct option *option;
 
-	filename = calc_conffile("options");
+	filename = calc_dirconcat(directory, "options");
 	if( FAILEDTOALLOC(filename) ) {
 		(void)fputs("Out of memory!\n", stderr);
 		exit(EXIT_FAILURE);

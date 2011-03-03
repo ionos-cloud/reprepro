@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2009 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -98,7 +98,7 @@ static retvalue deb_read(/*@out@*/struct debpackage **pkg, const char *filename,
 	return RET_OK;
 }
 
-static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
+static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const struct overrideinfo **oinfo_ptr, const char *debfilename){
 	const struct atomlist *components;
 	const struct overrideinfo *binoverride;
 	const struct overrideinfo *oinfo;
@@ -161,14 +161,15 @@ static retvalue deb_preparelocation(struct debpackage *pkg, component_t forcecom
 
 	/* some sanity checks: */
 
-	if( atom_defined(forcearchitecture) &&
-			forcearchitecture != architecture_all &&
-			pkg->deb.architecture_atom != forcearchitecture &&
-			pkg->deb.architecture_atom != architecture_all ) {
-		fprintf(stderr,"Cannot put '%s' into architecture '%s', as it is '%s'!\n",
+	if( forcearchitectures != NULL &&
+			pkg->deb.architecture_atom != architecture_all &&
+			!atomlist_in(forcearchitectures,
+				pkg->deb.architecture_atom) ) {
+		fprintf(stderr, "Cannot add '%s', as it is architecture '%s' and you specified to only include ",
 				debfilename,
-				atoms_architectures[forcearchitecture],
 				atoms_architectures[pkg->deb.architecture_atom]);
+		atomlist_fprint(stderr, at_architecture, forcearchitectures);
+		fputs(".\n", stderr);
 		return RET_ERROR;
 	} else if( pkg->deb.architecture_atom != architecture_all &&
 			!atomlist_in(&distribution->architectures,
@@ -205,6 +206,7 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	struct debpackage *pkg;
 	const struct overrideinfo *oinfo;
 	char *control;
+	struct atomlist forcearchitectures;
 
 	assert( givenfilekey != NULL );
 	assert( checksums != NULL );
@@ -244,7 +246,11 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 		return RET_ERROR;
 	}
 
-	r = deb_preparelocation(pkg, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
+	forcearchitectures.count = 1;
+	forcearchitectures.size = 1;
+	forcearchitectures.atoms = &forcearchitecture;
+
+	r = deb_preparelocation(pkg, forcecomponent, &forcearchitectures, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -269,8 +275,8 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, component_t forcecomponen
 	return RET_OK;
 }
 
-retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata) {
-	return binaries_adddeb(&pkg->deb, database, forcearchitecture,
+retvalue deb_addprepared(const struct debpackage *pkg, struct database *database, const struct atomlist *forcearchitectures, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata) {
+	return binaries_adddeb(&pkg->deb, database, forcearchitectures,
 			packagetype, distribution, trackingdata,
 			pkg->component_atom, &pkg->filekeys,
 			pkg->deb.control);
@@ -280,7 +286,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, struct database *database
  * putting things with architecture of "all" into <d->architectures> (and also
  * causing error, if it is not one of them otherwise)
  * if component is NULL, guessing it from the section. */
-retvalue deb_add(struct database *database, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, int delete, /*@null@*/trackingdb tracks) {
+retvalue deb_add(struct database *database, component_t forcecomponent, const struct atomlist *forcearchitectures, const char *forcesection, const char *forcepriority, packagetype_t packagetype, struct distribution *distribution, const char *debfilename, int delete, /*@null@*/trackingdb tracks) {
 	struct debpackage *pkg;
 	retvalue r;
 	struct trackingdata trackingdata;
@@ -294,7 +300,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	r = deb_preparelocation(pkg, forcecomponent, forcearchitecture, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
+	r = deb_preparelocation(pkg, forcecomponent, forcearchitectures, forcesection, forcepriority, packagetype, distribution, &oinfo, debfilename);
 	if( RET_WAS_ERROR(r) ) {
 		deb_free(pkg);
 		return r;
@@ -325,7 +331,7 @@ retvalue deb_add(struct database *database, component_t forcecomponent, architec
 		}
 	}
 
-	r = binaries_adddeb(&pkg->deb, database, forcearchitecture,
+	r = binaries_adddeb(&pkg->deb, database, forcearchitectures,
 			packagetype, distribution,
 			(tracks!=NULL)?&trackingdata:NULL,
 			pkg->component_atom, &pkg->filekeys,

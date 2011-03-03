@@ -328,7 +328,7 @@ TARSHA1S="$(sha1andsize i/bird_1.tar.gz)"
 DSCSHA2S="$(sha2andsize i/bird_1.dsc)"
 TARSHA2S="$(sha2andsize i/bird_1.tar.gz)"
 testrun - -b . processincoming default 3<<EOF
-returns 255
+returns 243
 stderr
 -v0=Data seems not to be signed trying to use directly...
 *=No distribution found for 'test.changes'!

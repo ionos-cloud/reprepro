@@ -232,7 +232,7 @@ static retvalue check_source_needs_build(UNUSED(struct database *database), stru
 }
 
 
-retvalue find_needs_build(struct database *database, struct distribution *distribution, architecture_t architecture, component_t onlycomponent, const char *glob) {
+retvalue find_needs_build(struct database *database, struct distribution *distribution, architecture_t architecture, const struct atomlist *onlycomponents, const char *glob) {
 	retvalue result, r;
 	struct needbuild_data d;
 
@@ -259,9 +259,9 @@ retvalue find_needs_build(struct database *database, struct distribution *distri
 	} else
 			d.tracks = NULL;
 
-	result = distribution_foreach_package(distribution, database,
-			onlycomponent, architecture_source, pt_dsc,
-			check_source_needs_build, NULL, &d);
+	result = distribution_foreach_package_c(distribution, database,
+			onlycomponents, architecture_source, pt_dsc,
+			check_source_needs_build, &d);
 
 	r = tracking_done(d.tracks);
 	RET_ENDUPDATE(result, r);
