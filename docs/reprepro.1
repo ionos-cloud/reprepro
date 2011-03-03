@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "11 April, 2006" "reprepro" REPREPRO
+.TH REPREPRO 1 "12 May, 2006" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -65,7 +65,7 @@ If none is given, \fIbasedir\fP\fB/dists\fP is used.
 .B Note: 
 apt has 
 .B dists
-hardcoded in it, so this is mostly only useful for testing or when your webserver
+hard-coded in it, so this is mostly only useful for testing or when your webserver
 pretends another directory structure than your physical layout.
 
 .B Warning:
@@ -125,6 +125,34 @@ Overrides the section of inclusions. (Also override possible override files)
 .TP
 .B \-P, \-\-priority \fIpriority\fP
 Overrides the priority of inclusions. (Also override possible override files)
+.TP 
+.BR \-\-export= ( never | changed | normal | force )
+This option specify weather and how the high level actions
+(e.g. install, update, pull, delete)
+should export the index files of the distributions they work with.
+.TP
+.BR \-\-export=normal " (default)"
+In this mode every distribution the action handled without error
+will be exported.
+.br
+\fINote\fP that only missing files and files whose intended content changed
+between before and after the action will be written.
+To get a guaranteed current export, use the \fBexport\fP action.
+.TP
+.BR \-\-export=changed
+Like \fBnormal\fP but do not look for missing files in distributions where
+nothing changed.
+.TP
+.BR \-\-export=force
+Like \fBnormal\rP, but exporting also happens for distributions where
+some error occurred.
+.TP
+.BR \-\-export=never
+No index files are exported. You will have to call \fBexport\fP later.
+.br
+\fINote\fP that you most likely additionally need the \fB\-\-keepunreferenced\fP
+option, if you do want some of the files pointed to by the untouched index
+files to vanish.
 .TP
 .B \-\-ignore=\fIwhat\fP
 Ignore errors of type \fIwhat\fP. See the section \fBERROR IGNORING\fP
@@ -208,7 +236,7 @@ matching the given condition.
 will e.g. find all .deb Packages with Source blub. (Except those also specifying a version
 number with its Source, as binary and source version differ).
 .TP
-.B remove \fIcodename\fP \fIpackagename\fP
+.B remove \fIcodename\fP \fIpackage name\fP
 same as list, but remove instead of list.
 .TP
 .BR update " [ " \fIcodenames\fP " ]"
@@ -218,7 +246,7 @@ description of
 .B conf/updates
 below.
 .TP
-.BR iteratedupdate " [ " \fIcodenames\fP " ]"
+.BR iteratedupdate " [ " \fIcodenames\fP " ] (EXPERIMENTAL!)"
 This is an experimental variant of update, that processes
 the distributions and targets within them one by one,
 resulting in much lower memory consumption for an update
@@ -226,7 +254,19 @@ of multiple distributions.
 .TP
 .BR checkupdate " [ " \fIcodenames\fP " ]"
 Same like
-.B update,
+.BR update ,
+but will show what it will change instead of actually changing it.
+.TP
+.BR pull " [ " \fIcodenames\fP " ]"
+pull in newer packages into the specified distributions (all if none given)
+from other distributions in the same repository.
+See the description of
+.B conf/pulls
+below.
+.TP
+.BR checkpull " [ " \fIcodenames\fP " ]"
+Same like
+.BR pull ,
 but will show what it will change instead of actually changing it.
 .TP
 .B includedeb \fIcodename\fP \fI.deb-filename\fP
@@ -455,13 +495,20 @@ for rules which component packages are included into
 by default. This will also be copied into the Release files.
 .TP
 .B UDebComponents
-Components with a debian\-installer subhierachy containing .udebs.
+Components with a debian\-installer subhierarchy containing .udebs.
 (E.g. simply "main")
 .TP
 .B Update
 When this field is present, it describes which update rules are used
 for this distribution. There also can be a magic rule minus ("\-"),
 see below.
+.TP
+.B Pull
+When this field is present, it describes which pull rules are used
+for this distribution.
+Pull rules are like Update rules,
+but get their stuff from other distributions and not from external sources.
+See the description for \fBconf/pulls\fP.
 .TP
 .B SignWith
 When this field is present, a Release.gpg file will be generated.
@@ -479,7 +526,7 @@ when including .deb files.
 .TP
 .B UDebOverride
 When this field is present, it describes the override file used
-when including .ddeb files.
+when including .deb files.
 .TP
 .B DscOverride
 When this field is present, it describes the override file used
@@ -506,6 +553,45 @@ DebIndices Packages Release . .gz
 UDebIndices Packages . .gz
 .br
 DscIndices Sources Release .gz
+.TP
+.B Contents
+Enable the creation of Contents files listing all the files
+within the binary packages of a distribution.
+(Which is quite slow, you have been warned).
+
+The first argument is the rate at which to extract the files
+from packages.
+If it is 1, every file will be processed.
+If it is 2, at least half of the uncached files and at most half
+of all files are read to extract their filelist.
+If it is 3, at least a third of yet uncached files and at most a
+third of all files is read.
+And so on...
+
+After that a space seperated list of options can be given.
+If there is a \fBudebs\fP keyword, \fB.udeb\fPs are also listed
+(in a file called \fBuContents-\fP\fIarchitecture\fP.)
+If there is a \fBnodebs\fP keyword, \fB.deb\fPs are not listed.
+(Only usefull together with \fBudebs\fP)
+If there is at least one of the keywords \fB.\fP, \fB.gz\fP and/or \fB.bz2\fP,
+the Contents files are written uncompressed, gzipped and/or bzip2ed instead
+of only gzipped.
+.TP
+.B ContentsArchitectures
+Limit generation of Contents files to the architectures given.
+If this field is not there or empty, all architectures are processed.
+.TP
+.B ContentsComponents
+Limit what components are processed for the Contents files to
+the components given.
+If this field is not there or empty, all components are processed.
+.TP
+.B ContentsUComponents
+Limit what components are processed for the uContents files to
+the components given.
+If this field is not there or empty, all components are processed.
+(Note unless you specify \fBudebs\fP in the \fBContents:\fP line,
+no udeb Components are processed at all.)
 .TP
 .B Tracking
 Enable the (experimental) tracking of source packages.
@@ -575,7 +661,7 @@ The components to update. Each item can be either the name
 of a component or a pair of a upstream component and a local
 component separated with ">". (e.g. "main>all contrib>all non\-free>notall")
 Items with a local part are ignored. If no items are there
-all from the updated distribution are taken. (Use some nonexisting
+all from the updated distribution are taken. (Use some non existing
 like "none", if you want none).
 .TP
 .B Architectures
@@ -638,13 +724,53 @@ If this is given, it is executed for all downloaded index files
 with the downloaded list as first and a filename that will
 be used instead of this. (e.g. "ListHook: /bin/cp" works
 but does nothing.)
+.SS conf/pulls
+This file contains the rules for pulling packages from one
+distribution to another.
+While this can also be done with update rules using the file
+or copy method and using the exported indices of that other
+distribution, this way is faster.
+It also ensures the current files are used and no copies
+are made.
+(This also leads to the limitation that pulling from one
+component to another is not possible.)
+
+Each rule consists out of the following fields:
+.TP
+.B Name
+The name of this pull rule as it can be used in the 
+.B Pull
+field in conf/distributions.
+.TP
+.B From
+The codename of the distribution to pull packages from.
+.TP
+.B Components
+The components of the distribution to get from.
+Unknown items are ignored to ease rule reusal.
+If there are no items, all components from distribution are taken.
+(Use some non existing like "none", if you want none).
+.TP
+.B Architectures
+The architectures to update.
+If omitted all from the distribution to pull from.
+.TP
+.B UDebComponents
+Like
+.B Components
+but for the udebs.
+.TP
+.B FilterFormula
+.TP
+.B FilterList
+The same as with update rules.
 .SH "OVERRIDE FILES"
 Override files are yet only used when things are manually added,
 not when imported while updating from an external source.
 The format should resemble the extended ftp\-archive format,
 to be specific it is:
 
-.B \fIpackagename\fP \fIfieldname\fP \fInewvalue\fP
+.B \fIpackagename\fP \fIfield name\fP \fInew value\fP
 
 For example:
 .br
@@ -658,9 +784,9 @@ For example:
 
 All fields of a given package will be replaced by the new value specified
 in the override file.
-While the fieldname is compared case-insensitive, it is copied in
+While the field name is compared case-insensitive, it is copied in
 exactly the form in the override file there.
-(Thus I suggest to keep to the exact case it is normaly found in 
+(Thus I suggest to keep to the exact case it is normally found in 
 index files in case some other tool confuses them.)
 More than copied is the Section header (unless \fB\-S\fP is supplied),
 which is also used to guess the component (unless \fB\-C\fP is there).
@@ -681,6 +807,13 @@ or no source name.
 .B brokenversioncmp \fR(hopefully never seen)
 If comparing an old and a new version fails, assume the new one is newer.
 .TP
+.B doublefield \fR(better comment the second one)
+Ignore doubled fields in the config files,
+instead of refusing to run then.
+In general the second one should be ignored then, but
+perhaps sometimes the first one.
+So I hope you know what you do.
+.TP
 .B emptyfilenamepart \fR(insecure)
 Allow strings to be empty that are used to construct filenames.
 (like versions, architectures, ...)
@@ -696,7 +829,7 @@ and versions.
 Thus allowing all 7-bit characters but slashes (as they would
 break the file storage) and things syntactically active
 (spaces, underscores in filenames in .changes files, opening
-parantheses in source names of binary packages).
+parentheses in source names of binary packages).
 To allow some 8-bit chars additionally, use \fB8bit\fP additionally.
 .TP
 .B 8bit \fR(more insecure)
@@ -721,7 +854,7 @@ defined meaning.
 .TP
 .B missingfield \fR(save to ignore)
 Ignore missing fields in a .changes file that are only checked but
-not procesed. 
+not processed. 
 Those include: Format, Date, Urgency, Maintainer, Description, Changes
 .TP
 .B missingfile \fR(might be insecure)
@@ -743,11 +876,11 @@ Allow gpg-keys to be specified with less than 8 hexdigits of their fingerprint.
 .TP
 .B spaceonlyline \fR(I hope you know what you do)
 Allow lines containing only (but non-zero) spaces. As these
-do not seperate chunks as thus will cause reprepro to behave
+do not separate chunks as thus will cause reprepro to behave
 unexpected, they cause error messages by default.
 .TP
 .B surprisingarch
-No longer rejct a .changes file containing files for a
+No longer reject a .changes file containing files for a
 architecture not listed in the Architecture-header within it.
 .TP
 .B unknownfield \fR(for forward compatibility)
@@ -755,7 +888,7 @@ Ignore unknown fields in the config files, instead of refusing to run
 then.
 .TP
 .B unusedarch \fR(save to ignore)
-No longer rejct a .changes file containing no files for any of the
+No longer reject a .changes file containing no files for any of the
 architectures listed in the Architecture-header within it.
 .TP
 .B wrongdistribution \fR(save to ignore)
@@ -785,7 +918,7 @@ to end up there.
 unlike in dak, non\-US and non\-us are different things...
 .SH NOMENCLATURE
 .B Codename 
-the primary identifier of a given distribution. This are normaly
+the primary identifier of a given distribution. This are normally
 things like \fBsarge\fP, \fBetch\fP or \fBsid\fP.
 .TP
 .B basename
@@ -828,7 +961,7 @@ and without errors while deleting it should already be forgotten, otherwise
 a \fBdeleteunreferenced\fP or even some \fB__forget\fP might help.)
 .SS The magic delete rule ("\-").
 A minus as a single word in the
-.B Updates:
+.B Update:
 line of an distribution marks everything to be deleted. The mark causes later rules
 to get packages even if they have (strict) lower versions. The mark will
 get removed if a later rule sets the package on hold (hold is not yet implemented,
@@ -836,12 +969,12 @@ in case you might wonder) or would get a package with the same version
 (Which it will not, see above). If the mark is still there at the end of the processing,
 the package will get removed.
 .P
-Thus the line "Updates: \- 
+Thus the line "Update: \- 
 .I rules
 " will cause all packages to be exactly the
 highest Version found in 
 .I rules.
-The line "Updates: 
+The line "Update: 
 .I near 
 \- 
 .I rules
@@ -864,7 +997,7 @@ of a distribution, not only those some other update rule applies to.
 .SH ENVIRONMENT VARIABLES
 Environment variables are always overwritten by command line options,
 but overwrite options set in the \fBoptions\fP file. (Even when the
-options file is obiously parsed after the environment variables as
+options file is obviously parsed after the environment variables as
 the environment may determine the place of the options file).
 .TP 
 .B REPREPRO_BASE_DIR
@@ -889,11 +1022,11 @@ some parts may still not use this notation.
 .SH "WORK-AROUNDS TO COMMON PROBLEMS"
 .TP
 .B gpgme returned an impossible condition
-With the woody version this normaly meant that there was no .gnupg
+With the woody version this normally meant that there was no .gnupg
 directory in $HOME, but it created one and reprepro succeeds when called
 again with the same command.
 Since sarge the problem sometimes shows up, too. But it is no longer
-reproducible and it does not fix itself, neighter. Try running
+reproducible and it does not fix itself, neither. Try running
 \fBgpg \-\-verify \fP\fIfile-you-had-problems-with\fP manually as the
 user reprepro is running and with the same $HOME. This alone might
 fix the problem. It should not print any messages except perhaps
@@ -923,7 +1056,7 @@ call reprepro with \-\-ignore=missingfile (discouraged)
 reprepro is sometimes a bit too timid of deleting stuff. When things
 go wrong and there have been errors it sometimes just leaves everything
 where it is.
-To see what files reprepro rememberes to be in your pool directory but
+To see what files reprepro remembers to be in your pool directory but
 does not know anything needing them right know, you can use
 .br
 \fBreprepro dumpunreferenced\fP

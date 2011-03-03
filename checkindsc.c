@@ -443,6 +443,7 @@ retvalue dsc_addprepared(const struct dscpackage *pkg,const char *dbdir,referenc
 		r2 = target_closepackagesdb(t);
 		RET_ENDUPDATE(r,r2);
 	}
+	RET_UPDATE(distribution->status, r);
 	return r;
 }
 

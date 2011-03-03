@@ -36,7 +36,7 @@
 #include "reference.h"
 #include "binaries.h"
 #include "files.h"
-#include "extractcontrol.h"
+#include "debfile.h"
 #include "guesscomponent.h"
 #include "tracking.h"
 
@@ -476,6 +476,7 @@ retvalue deb_addprepared(const struct debpackage *pkg, const char *dbdir,referen
 		}
 		RET_UPDATE(result,r);
 	}
+	RET_UPDATE(distribution->status, result);
 
 //	deb_free(pkg);
 

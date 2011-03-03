@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e -v
+set -e
 
 WORKDIR="`pwd`/testdir"
 
@@ -9,7 +9,7 @@ if [ "x$1" == "x--delete" ] ; then
 	shift
 fi
 HELPER=""
-#HELPER="valgrind -v --leak-check=full"
+#HELPER="valgrind -v --leak-check=full --suppressions=../valgrind.supp --log-fd=5"
 if [ "x$1" == "x--helper" ] ; then
 	shift
 	HELPER="$1"
@@ -37,6 +37,9 @@ if ! [ -x "$REPREPRO" ] ; then
 	exit 1
 fi
 mkdir -p conf
+cat > conf/options <<CONFEND
+export changed
+CONFEND
 cat > conf/distributions <<CONFEND
 Codename: test1
 Architectures: abacus source
@@ -62,6 +65,7 @@ DebOverride: binoverride
 DscOverride: srcoverride
 CONFEND
 
+set -v
 $HELPER "$REPREPRO" -b . export
 test -f dists/test1/Release
 test -f dists/test2/Release
@@ -336,7 +340,7 @@ tar -czf testb_2.orig.tar.gz test.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-2" SECTION="stupid/base" genpackage.sh -sa
 $HELPER "$REPREPRO" -b . include test1 test.changes
 grep testb_2-2.dsc dists/test1/stupid/source/Sources
-rm -r testb-2 test2.changes
+rm test2.changes
 PACKAGE=testb EPOCH="1:" VERSION=2 REVISION="-3" SECTION="stupid/base" OUTPUT="test2.changes" genpackage.sh -sd
 $HELPER "$REPREPRO" -b . include test1 test2.changes
 grep testb_2-3.dsc dists/test1/stupid/source/Sources
@@ -437,6 +441,71 @@ echo $ERRORMSG | grep -q "does not start with 'nowhere_'"
 echo $ERRORMSG | grep -q "but no files for this"
 echo $ERRORMSG | grep -q "put in a distribution not listed within"
 echo $ERRORMSG | grep -q "but this is not listed in the Architecture-Header!"
+# first remove file, then try to remove the package
+$HELPER "$REPREPRO" -b . _forget pool/ugly/s/simple/simple_1_abacus.deb
+$HELPER "$REPREPRO" -b . remove test1 simple
+ERRORMSG="`$HELPER "$REPREPRO" -b . remove test2 simple 2>&1 || echo "error:$?"`"
+echo $ERRORMSG | grep -q "error:249"
+echo $ERRORMSG | grep -q "To be forgotten filekey 'pool/ugly/s/simple/simple_1_abacus.deb' was not known"
+
+cat >> conf/distributions <<EOF
+
+Codename: a
+Architectures: abacus source
+Components: all
+
+Codename: b
+Architectures: abacus
+Components: all
+Pull: froma
+EOF
+cat > conf/pulls <<EOF
+Name: froma
+From: a
+EOF
+
+$HELPER "$REPREPRO" -b . --export=changed pull a b
+test ! -d dists/a
+test ! -d dists/b
+$HELPER "$REPREPRO" -b . --export=normal pull b
+test ! -d dists/a
+test -d dists/b
+$HELPER "$REPREPRO" -b . --export=normal pull a b
+test -d dists/a
+test -d dists/b
+rm -r dists/a dists/b
+DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-1" SECTION="stupid/base" genpackage.sh
+$HELPER "$REPREPRO" -b . --export=never include a test.changes
+test ! -d dists/a
+test ! -d dists/b
+$HELPER "$REPREPRO" -b . export a
+grep -q "Version: 1-1" dists/a/all/binary-abacus/Packages
+rm -r dists/a
+$HELPER "$REPREPRO" -b . --export=changed pull a b
+test ! -d dists/a
+test -d dists/b
+grep -q "Version: 1-1" dists/b/all/binary-abacus/Packages
+DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-2" SECTION="stupid/base" genpackage.sh
+$HELPER "$REPREPRO" -b . --export=changed include a test.changes
+test -d dists/a
+grep -q "Version: 1-2" dists/a/all/binary-abacus/Packages
+grep -q "Version: 1-1" dists/b/all/binary-abacus/Packages
+rm -r dists/a dists/b
+$HELPER "$REPREPRO" -b . --export=changed pull a b
+test ! -d dists/a
+test -d dists/b
+grep -q "Version: 1-2" dists/b/all/binary-abacus/Packages
+DISTRI=a PACKAGE=aa EPOCH="" VERSION=1 REVISION="-3" SECTION="stupid/base" genpackage.sh
+$HELPER "$REPREPRO" -b . --export=never include a test.changes
+DISTRI=a PACKAGE=ab EPOCH="" VERSION=2 REVISION="-1" SECTION="stupid/base" genpackage.sh
+$HELPER "$REPREPRO" -b . --export=never include a test.changes
+test ! -f pool/all/a/aa/aa_1-2.dsc
+test -f pool/all/a/aa/aa_1-2_abacus.deb
+$HELPER "$REPREPRO" -b . --export=changed pull b
+grep -q "Version: 1-3" dists/b/all/binary-abacus/Packages
+grep -q "Version: 2-1" dists/b/all/binary-abacus/Packages
+test ! -f pool/all/a/aa/aa_1-2_abacus.deb
+test -f pool/all/a/aa/aa_1-3_abacus.deb
 
 set +v 
 echo

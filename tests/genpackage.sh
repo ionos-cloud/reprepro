@@ -27,8 +27,11 @@ Architecture: all
 Description: bla
  blub
 END
+if test -z "$DISTRI" ; then
+	DISTRI=test1
+fi
 cat >"$DIR"/debian/changelog <<END
-$PACKAGE ($EPOCH$VERSION$REVISION) test1; urgency=critical
+$PACKAGE ($EPOCH$VERSION$REVISION) $DISTRI; urgency=critical
 
    * new upstream release (Closes: #allofthem)
 
@@ -44,3 +47,5 @@ for pkg in `grep '^Package: ' debian/control | sed -e 's/^Package: //'` ; do
 done
 #dpkg-genchanges > ../"${PACKAGE}_$VERSION$REVISION"_abbacus.changes
 dpkg-genchanges "$@" > ../"$OUTPUT"
+cd ..
+rm -r "$DIR"

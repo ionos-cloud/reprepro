@@ -49,7 +49,7 @@ _reprepro()
 	--noonlyacceptsigned --noask-passphrase --skipold --noskipold --force'
 	options='-b -i --basedir --ignore --unignore --methoddir --distdir --dbdir\
 	--listdir --overridedir --confdir --section -S --priority -P --component -C\
-	--architecture -A --type -T'
+	--architecture -A --type -T --export'
 
 	i=1
 	prev=""
@@ -80,7 +80,7 @@ _reprepro()
 				i=$((i+2))
 				;;
 			
-			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T)
+			-i|--ignore|--unignore|--methoddir|--distdir|--dbdir|--listdir|--overridedir|--section|-S|--priority|-P|--component|-C|--architecture|-A|--type|-T|--export)
 
 				prev="$cur"
 				i=$((i+2))
@@ -129,6 +129,10 @@ _reprepro()
         			COMPREPLY=( $( compgen -W "$components" -- $cur ) )
 				return 0
 				;;
+			--export)
+        			COMPREPLY=( $( compgen -W "never changed normal force" -- $cur ) )
+				return 0
+				;;
 		esac
 	fi
 
@@ -136,8 +140,8 @@ _reprepro()
 		commands='remove list listfilter createsymlinks export\
 			check reoverride checkpool rereference dumpreferences\
 			dumpunreferenced deleteunreferenced retrack dumptracks\
-			cleartracks removetrack update iteratedupdate\
-			checkupdate includedeb includeudeb includedsc include'
+			cleartracks removetrack update checkupdate pull \
+			checkpull includedeb includeudeb includedsc include'
 		hiddencommands='__d __extractcontrol _detect _forget\
 			_listmd5sums _addmd5sum _dumpcontents\
 			_removereferences _addreference'
@@ -182,7 +186,7 @@ _reprepro()
 			# these later could also look for stuff, but
 			# that might become a bit slow
 			;;
-		export|update|iteratedupdate|checkupdate|rereference|retrack|cleartracks|dumptracks|check|reoverride)
+		export|update|checkupdate|pull|checkpull|rereference|retrack|cleartracks|dumptracks|check|reoverride)
 			# all arguments are codenames
 			parse_config
 			COMPREPLY=( $( compgen -W "$codenames" -- $cur ) )

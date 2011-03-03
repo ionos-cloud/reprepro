@@ -120,8 +120,8 @@ retvalue tracking_initialize(/*@out@*/trackingdb *db,const char *dbpath,const st
 		return RET_DBERR(dbret);
 	}
 
-	if ((dbret = t->db->open(t->db,filename,t->codename,
-					DB_BTREE,DB_CREATE,0664)) != 0 ) {
+	dbret = DB_OPEN(t->db,filename, t->codename, DB_BTREE, DB_CREATE);
+	if( dbret != 0 ) {
 		t->db->err(t->db, dbret, "db_open:%s:%s", filename, t->codename);
 		(void)t->db->close(t->db,0);
 		free(filename);

@@ -35,9 +35,12 @@
 #include "files.h"
 #include "copyfile.h"
 #include "ignore.h"
+#include "filelist.h"
+#include "debfile.h"
 
 struct s_filesdb {
 	DB *database;
+	DB *contents;
 	char *mirrordir;
 };
 
@@ -82,8 +85,35 @@ retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir)
 		free(db);
 		return RET_DBERR(dbret);
 	}
-	if ((dbret = db->database->open(db->database, filename, "md5sums", DB_BTREE, DB_CREATE, 0664)) != 0) {
+	dbret = DB_OPEN(db->database, filename, "md5sums", DB_BTREE,DB_CREATE);
+	if (dbret != 0) {
 		db->database->err(db->database, dbret, "%s", filename);
+		(void)db->database->close(db->database,0);
+		free(filename);
+		free(db->mirrordir);
+		free(db);
+		return RET_DBERR(dbret);
+	}
+	free(filename);
+	filename = calc_dirconcat(dbpath,"contents.cache.db");
+	if( filename == NULL ) {
+		(void)db->database->close(db->database,0);
+		free(db->mirrordir);
+		free(db);
+		return RET_ERROR_OOM;
+	}
+	if ((dbret = db_create(&db->contents, NULL, 0)) != 0) {
+		fprintf(stderr, "db_create: %s\n", db_strerror(dbret));
+		(void)db->database->close(db->database,0);
+		free(filename);
+		free(db->mirrordir);
+		free(db);
+		return RET_DBERR(dbret);
+	}
+	dbret = DB_OPEN(db->contents,filename,"filelists",DB_BTREE,DB_CREATE);
+	if( dbret != 0 ) {
+		db->contents->err(db->contents, dbret, "%s", filename);
+		(void)db->contents->close(db->contents,0);
 		(void)db->database->close(db->database,0);
 		free(filename);
 		free(db->mirrordir);
@@ -97,16 +127,19 @@ retvalue files_initialize(filesdb *fdb,const char *dbpath,const char *mirrordir)
 
 /* release the files-database initialized got be files_initialize */
 retvalue files_done(filesdb db) {
-	int dberr;
+	int dberr,dberr2;
 
 	assert( db != NULL);
 
 	free( db->mirrordir );
 	/* just in case we want something here later */
 	dberr = db->database->close(db->database,0);
+	dberr2 = db->contents->close(db->contents,0);
 	free(db);
 	if( dberr != 0 )
 		return RET_DBERR(dberr);
+	else if( dberr2 != 0 )
+		return RET_DBERR(dberr2);
 	else
 		return RET_OK;
 }
@@ -156,11 +189,20 @@ retvalue files_remove(filesdb db,const char *filekey) {
 	int dbret;
 	DBT key;
 
+	if( db->contents != NULL ) {
+		SETDBT(key,filekey);
+		(void)db->contents->del(db->contents,
+				NULL, &key, 0);
+	}
 	SETDBT(key,filekey);
-	if ((dbret = db->database->del(db->database, NULL, &key, 0)) == 0) {
+	dbret = db->database->del(db->database, NULL, &key, 0);
+	if( dbret == 0 ) {
 		if( verbose > 6 )
 			printf("db: %s: file forgotten.\n", (const char *)key.data);
 		return RET_OK;
+	} else if( dbret == DB_NOTFOUND ) {
+		fprintf(stderr, "To be forgotten filekey '%s' was not known.\n", filekey);
+		return RET_ERROR_MISSING;
 	} else {
 		db->database->err(db->database, dbret, "files.db:");
 		return RET_DBERR(dbret);
@@ -388,7 +430,22 @@ retvalue files_foreach(filesdb db,per_file_action action,void *privdata) {
 	CLEARDBT(data);	
 	result = RET_NOTHING;
 	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
-		r = action(privdata,(const char*)key.data,(const char*)data.data);
+		size_t fk_len = key.size-1;
+		const char *filekey = key.data;
+		size_t md_len = data.size-1;
+		const char *md5sum = data.data;
+
+		if( filekey[fk_len] != '\0' ) {
+			fprintf(stderr, "Incoherent data in file database!\n");
+			cursor->c_close(cursor);
+			return RET_ERROR;
+		}
+		if( md5sum[md_len] != '\0' ) {
+			fprintf(stderr, "Incoherent data in file database!\n");
+			cursor->c_close(cursor);
+			return RET_ERROR;
+		}
+		r = action(privdata,filekey,md5sum);
 		RET_UPDATE(result,r);
 	}
 	if( dbret != DB_NOTFOUND ) {
@@ -655,4 +712,168 @@ retvalue files_includefiles(filesdb db,const char *sourcedir,const struct strlis
 /* concat mirrordir. return NULL if OutOfMemory */
 char *files_calcfullfilename(const filesdb filesdb,const char *filekey) {
 	return calc_dirconcat(filesdb->mirrordir,filekey);
+}
+
+static retvalue files_addfilelist(filesdb db,const char *filekey,const char *filelist) {
+	int dbret;
+	DBT key,data;
+	const char *e;
+
+	SETDBT(key,filekey);
+	SETDBT(data,filelist);
+        memset(&data,0,sizeof(data));
+	e = filelist;
+	while( *e != '\0' ) {
+		while( *e != '\0' )
+			e++;
+		e++;
+	}
+	e++;
+	data.data = (void*)filelist;
+	data.size = e-filelist;
+	dbret = db->contents->put(db->contents, NULL, &key, &data, 0);
+	if( dbret == 0) {
+		return RET_OK;
+	} else {
+		db->contents->err(db->contents, dbret, "filelists.db:");
+		return RET_DBERR(dbret);
+	}
+}
+
+retvalue files_getfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
+	int dbret;
+	DBT key,data;
+
+	SETDBT(key,filekey);
+	CLEARDBT(data);
+
+	if( (dbret = db->contents->get(db->contents, NULL, &key, &data, 0)) == 0){
+		const char *p = data.data; size_t size = data.size;
+
+		while( size > 0 && *p != '\0' ) {
+			size_t len = strnlen(p,size);
+			if( p[len] != '\0' ) {
+				fprintf(stderr,"Corrupt filelist for %s in filelists.db!\n",
+						filekey);
+				return RET_ERROR;
+			}
+			filelist_add(filelist, package, p);
+			p += len+1;
+			size -= len+1;
+		}
+		if( size != 1 || *p != '\0' ) {
+			fprintf(stderr,"Corrupt filelist for %s in filelists.db!\n",
+					filekey);
+			return RET_ERROR;
+		}
+		return RET_OK;
+	} else if( dbret != DB_NOTFOUND ){
+		 db->contents->err(db->contents, dbret, "filelists.db:");
+		 return RET_DBERR(dbret);
+	}
+	return RET_NOTHING;
+}
+
+retvalue files_genfilelist(filesdb db,const char *filekey,const struct filelist_package *package, struct filelist_list *filelist) {
+	char *debfilename = calc_dirconcat(db->mirrordir, filekey);
+	char *contents;
+	retvalue result,r;
+
+	if( debfilename == NULL ) {
+		return RET_ERROR_OOM;
+	}
+	r = getfilelist(&contents, debfilename);
+	free(debfilename);
+	if( !RET_IS_OK(r) )
+		return r;
+	result = files_addfilelist(db, filekey, contents);
+	r = filelist_add(filelist, package, contents);
+	free(contents);
+	RET_UPDATE(result,r);
+	return result;
+}
+
+retvalue files_regenerate_filelist(filesdb db, bool_t reread) {
+	DBC *cursor;
+	DBT key,data;
+	int dbret;
+	retvalue result,r;
+
+	assert( db->contents != NULL );
+
+	cursor = NULL;
+	if( (dbret = db->database->cursor(db->database,NULL,&cursor,0)) != 0 ) {
+		db->database->err(db->database, dbret, "files.db:");
+		return RET_DBERR(dbret);
+	}
+	CLEARDBT(key);	
+	CLEARDBT(data);	
+	result = RET_NOTHING;
+	while( (dbret=cursor->c_get(cursor,&key,&data,DB_NEXT)) == 0 ) {
+		size_t l = key.size-1;
+		const char *filekey = key.data;
+
+		if( filekey[l] != '\0' ) {
+			fprintf(stderr, "File database is in a broken shape!\n");
+			cursor->c_close(cursor);
+			return RET_ERROR;
+		}
+		if( l > 4 && strcmp(filekey+l-4,".deb") == 0 ) {
+			bool_t needed;
+
+			if( reread )
+				needed = TRUE;
+			else {
+				DBT listkey,listdata;
+
+				SETDBT(listkey,filekey);
+				CLEARDBT(listdata);
+
+				dbret = db->contents->get(db->contents, NULL, &listkey, &listdata, 0);
+				needed = dbret != 0;
+			}
+			if( needed ) {
+				char *debfilename;
+				char *filelist;
+
+				debfilename = calc_dirconcat(db->mirrordir, filekey);
+				if( debfilename == NULL ) {
+					cursor->c_close(cursor);
+					return RET_ERROR_OOM;
+				}
+
+				r = getfilelist(&filelist, debfilename);
+				free(debfilename);
+				if( RET_IS_OK(r) ) {
+					if( verbose > 0 )
+						puts(filekey);
+					if( verbose > 6 ) {
+						const char *p = filelist;
+						while( *p != '\0' ) {
+							putchar(' ');
+							puts(p);
+							p += strlen(p)+1;
+						}
+					}
+					r = files_addfilelist(db, filekey, filelist);
+					free(filelist);
+				}
+				if( RET_WAS_ERROR(r) ) {
+					cursor->c_close(cursor);
+					return r;
+				}
+			}
+		}
+		CLEARDBT(key);	
+		CLEARDBT(data);	
+	}
+	if( dbret != DB_NOTFOUND ) {
+		db->database->err(db->database, dbret, "files.db:");
+		return RET_DBERR(dbret);
+	}
+	if( (dbret = cursor->c_close(cursor)) != 0 ) {
+		db->database->err(db->database, dbret, "files.db:");
+		return RET_DBERR(dbret);
+	}
+	return result;
 }

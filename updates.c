@@ -264,67 +264,6 @@ static inline retvalue newupdatetarget(struct update_target **ts,/*@dependent@*/
 	return RET_OK;
 }
 
-static retvalue splitlist(struct strlist *from,
-				struct strlist *into,
-				const struct strlist *list) {
-	retvalue r;
-	int i;
-
-	r = strlist_init(from);
-	if( RET_WAS_ERROR(r) ) {
-		return r;
-	}
-	r = strlist_init(into);
-	if( RET_WAS_ERROR(r) ) {
-		strlist_done(from);
-		return r;
-	}
-
-	/* * Iterator over components to update * */
-	r = RET_NOTHING;
-	for( i = 0 ; i < list->count ; i++ ) {
-		const char *item,*seperator;
-		char *origin,*destination;
-
-		item = list->values[i];
-		// TODO: isn't this broken for the !*(dest+1) case ?
-		if( (seperator = strchr(item,'>')) == NULL ) {
-			destination = strdup(item);
-			origin = strdup(item);
-		} else if( seperator == item ) {
-			destination = strdup(seperator+1);
-			origin = strdup(seperator+1);
-		} else if( *(seperator+1) == '\0' ) {
-			destination = strndup(item,seperator-item);
-			origin = strndup(item,seperator-item);
-		} else {
-			origin = strndup(item,seperator-item);
-			destination = strdup(seperator+1);
-		}
-		if( origin == NULL || destination == NULL ) {
-			free(origin);free(destination);
-			strlist_done(from);
-			strlist_done(into);
-			return RET_ERROR_OOM;
-		}
-		r = strlist_add(from,origin);
-		if( RET_WAS_ERROR(r) ) {
-			free(destination);
-			strlist_done(from);
-			strlist_done(into);
-			return r;
-		}
-		r = strlist_add(into,destination);
-		if( RET_WAS_ERROR(r) ) {
-			strlist_done(from);
-			strlist_done(into);
-			return r;
-		}
-		r = RET_OK;
-	}
-	return r;
-}
-
 inline static retvalue parse_pattern(const char *confdir,const char *chunk, struct update_pattern **pattern) {
 	struct update_pattern *update;
 	struct strlist componentslist,architectureslist;
@@ -1396,10 +1335,11 @@ static inline retvalue searchformissing(const char *dbdir,struct update_target *
 			if( verbose > 4 )
 				fprintf(stderr,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(u->upgradelist);
+			if( RET_WAS_ERROR(r) )
+				u->incomplete = TRUE;
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) && force <= 0 )
 				return result;
-			u->incomplete = TRUE;
 			u->ignoredelete = FALSE;
 			continue;
 		}
@@ -1476,6 +1416,7 @@ static retvalue updates_install(const char *dbdir,filesdb filesdb,references ref
 		if( u->nothingnew )
 			continue;
 		r = upgradelist_install(u->upgradelist,dbdir,filesdb,refs,force,u->ignoredelete,dereferencedfilekeys);
+		RET_UPDATE(distribution->distribution->status, r);
 		if( RET_WAS_ERROR(r) )
 			u->incomplete = TRUE;
 		RET_UPDATE(result,r);
@@ -1519,8 +1460,12 @@ static void updates_dump(struct update_distribution *distribution) {
 	struct update_target *u;
 
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->nothingnew )
+			continue;
 		printf("Updates needed for '%s':\n",u->target->identifier);
 		upgradelist_dump(u->upgradelist);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
 	}
 }
 
@@ -1596,7 +1541,10 @@ retvalue updates_update(const char *dbdir,const char *methoddir,filesdb filesdb,
 		if( !anythingtodo ) {
 			fprintf(stderr,"Nothing to do found. (Use --noskipold to force processing)\n");
 			aptmethod_shutdown(run);
-			return result;
+			if( RET_IS_OK(result) )
+				return RET_NOTHING;
+			else
+				return result;
 		}
 	}
 	/* Call ListHooks (if given) on the downloaded index files.
@@ -1918,7 +1866,7 @@ static retvalue singledistributionupdate(const char *dbdir,const char *methoddir
 	return result;
 }
 
-retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys) {
+retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char *distdir,const char *methoddir,filesdb filesdb,references refs,struct update_distribution *distributions,int force,bool_t nolistsdownload,bool_t skipold,struct strlist *dereferencedfilekeys, enum exportwhen export) {
 	retvalue result,r;
 	struct update_distribution *d;
 
@@ -1943,11 +1891,10 @@ retvalue updates_iteratedupdate(const char *confdir,const char *dbdir,const char
 			fprintf(stderr,"WARNING: Updating does not update trackingdata. Trackingdata of %s will be outdated!\n",d->distribution->codename);
 		}
 		r = singledistributionupdate(dbdir,methoddir,filesdb,refs,d,force,nolistsdownload,skipold,dereferencedfilekeys);
+		RET_ENDUPDATE(d->distribution->status,r);
 		RET_UPDATE(result,r);
-		if( RET_IS_OK(r) ) {
-			r = distribution_export(d->distribution,confdir,dbdir,distdir,TRUE);
-			RET_UPDATE(result,r);
-		}
+		r = distribution_export(export,d->distribution,confdir,dbdir,distdir,filesdb);
+		RET_UPDATE(result,r);
 	}
 	return result;
 }

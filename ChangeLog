@@ -1,3 +1,57 @@
+2006-05-15  Bernhard R. Link <brlink@debian.org>
+	* warn against dobuled fields in 
+	config files. (ignorable with --ignore=doublefield)
+	* better error message when trying to forget
+	filekey not existing
+
+2006-05-14  Bernhard R. Link <brlink@debian.org>
+	* add support for libdb4.3 and libdb4.4,
+	default is libdb4.4 now.
+
+2006-05-13  Bernhard R. Link <brlink@debian.org>
+	* add support for contents file when compiled
+	without libarchive.
+
+2006-05-12  Bernhard R. Link <brlink@debian.org>
+	* add content file generation
+
+2006-05-07  Bernhard R. Link <brlink@debian.org>
+	* add support for extracting filelists from
+	Debian packages for future usage and a
+	__extractfilelist action. (only available when
+	compiled with libarchive)
+
+2006-05-06  Bernhard R. Link <brlink@debian.org>
+	* add support for using libarchive to get the
+	control file out of a .deb instead of calling
+	ar and tar.
+
+2006-05-03  Bernhard R. Link <brlink@debian.org>
+	* add new pull and checkpull actions
+	* repair checkupdate statistics of newest available
+	  version of checkupdate when using delete rules.
+	  (Showed 'unavailable for reload').
+	* fix segfault and memory leak in checkupdate
+	* fix including a changes file with source and restricting
+	  to some binary distribution or to binary package type.
+	* add some warnings against impossible combinations of -T and -A
+
+2006-04-29  Bernhard R. Link <brlink@debian.org>
+	* fix some minor memory leaks
+
+2006-04-28  Bernhard R. Link <brlink@debian.org>
+	* rewrite decision for exporting distributions a bit:
+	export all distributions that did not have errors by default
+	(it did not export anything when an error occured)
+	added new --export option with possible values
+	   never, changed, normal and forced.
+
+2006-04-25  Bernhard R. Link <brlink@debian.org>
+	* do not export indices if all upgrades were skipped
+
+2006-04-23  Bernhard R. Link <brlink@debian.org>
+	* unbreak new skipold for delete rules
+	
 2006-04-22  Bernhard R. Link <brlink@debian.org>
 	* explicitly save which files are already
 	processed and to be skipped by --skipold.

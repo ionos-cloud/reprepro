@@ -63,6 +63,7 @@ retvalue donefile_isold(const char *filename, const char *expected) {
 		free(donefilename);
 		return RET_ERRNO(e);
 	}
+	free(donefilename);
 	buffer[len] = '\0';
 	if( strcmp(expected, buffer) == 0 )
 		return RET_NOTHING;

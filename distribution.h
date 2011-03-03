@@ -16,6 +16,9 @@ struct distribution;
 #ifndef REPREPRO_EXPORTS_H
 #include "exports.h"
 #endif
+#ifndef REPREPRO_CONTENTS_H
+#include "contents.h"
+#endif
 
 struct distribution {
 	struct distribution *next;
@@ -30,6 +33,8 @@ struct distribution {
 	struct strlist architectures,components;
 	/* which update rules to use */
 	struct strlist updates;
+	/* which rules to use to pull packages from other distributions */
+	struct strlist pulls;
 	/* the key to sign with, may be NULL: */
 	/*@null@*/char *signwith;
 	/* the override file to use by default */
@@ -45,27 +50,36 @@ struct distribution {
 		bool_t needsources:1;
 		bool_t embargoalls:1;
 		} trackingoptions;
+	/* what content files to generate */
+	struct contentsoptions contents;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
+	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
+	 * RET_OK: export unless EXPORT_NEVER
+	 * RET_ERROR_*: only export with EXPORT_FORCE */
+	retvalue status;
 };
 
 
 retvalue distribution_get(/*@out@*/struct distribution **distribution,const char *conf,const char *name);
 retvalue distribution_free(/*@only@*/struct distribution *distribution);
 
-typedef retvalue distribution_each_action(void *data, struct target *t);
+typedef retvalue distribution_each_action(void *data, struct target *t, struct distribution *d);
 
 /* call <action> for each part of <distribution>, if component or architecture is 
  * not NULL or "all", only do those parts */
-retvalue distribution_foreach_part(const struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data,int force);
+retvalue distribution_foreach_part(struct distribution *distribution,/*@null@*/const char *component,/*@null@*/const char *architecture,/*@null@*/const char *packagetype,distribution_each_action action,/*@null@*/void *data,int force);
 
 /*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
-retvalue distribution_export(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,bool_t onlyneeded);
+retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
+
+enum exportwhen {EXPORT_NEVER, EXPORT_CHANGED, EXPORT_NORMAL, EXPORT_FORCE };
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir,filesdb);
 
 /* get all dists from <conf> fitting in the filter given in <argc,argv> */
 retvalue distribution_getmatched(const char *conf,int argc,const char *argv[],/*@out@*/struct distribution **distributions);
 
 retvalue distribution_freelist(/*@only@*/struct distribution *distributions);
-retvalue distribution_exportandfreelist(/*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir);
+retvalue distribution_exportandfreelist(enum exportwhen when, /*@only@*/struct distribution *distributions,const char *confdir, const char *dbdir, const char *distdir, filesdb);
 #endif

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2004,2005 Bernhard R. Link
+ *  Copyright (C) 2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -289,7 +289,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			free(version);
 			return RET_ERROR_OOM;
 		}
-		assert(upgrade->currentaptmethod!=NULL);
+//		assert(upgrade->currentaptmethod!=NULL);
 		new->deleted = FALSE; //to be sure...
 		new->aptmethod = upgrade->currentaptmethod;
 		new->name = packagename;
@@ -365,9 +365,14 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		if( versioncmp == 0 ) {
 		/* we are replacing a package with the same version,
 		 * so we keep the old one for sake of speed. */
-		// TODO: add switch to force reimport of everything...
+			if( current->deleted && 
+				current->version != current->new_version) {
+				/* remember the version for checkupdate/pull */
+				free(current->new_version);
+				current->new_version = version;
+			} else
+					free(version);
 			current->deleted = FALSE;
-			free(version);
 			free(packagename);
 			return RET_NOTHING;
 		}
@@ -380,9 +385,13 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 			int vcmp = 1;
 			(void)dpkgversions_cmp(version,current->version_in_use,&vcmp);
 			if( vcmp == 0 ) {
-				current->deleted = FALSE;
 				current->version = current->version_in_use;
-				free(version);
+				if( current->deleted ) {
+					free(current->new_version);
+					current->new_version = version;
+				} else
+					free(version);
+				current->deleted = FALSE;
 				free(packagename);
 				return RET_NOTHING;
 			}
@@ -403,7 +412,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
-		assert(upgrade->currentaptmethod!=NULL);
+//		assert(upgrade->currentaptmethod!=NULL);
 		current->aptmethod = upgrade->currentaptmethod;
 		strlist_move(&current->new_filekeys,&files);
 		strlist_move(&current->new_md5sums,&md5sums);
@@ -422,6 +431,28 @@ retvalue upgradelist_update(struct upgradelist *upgrade,struct aptmethod *method
 	upgrade->predecide_data = decide_data;
 
 	return chunk_foreach(filename,upgradelist_trypackage,upgrade,force,FALSE);
+}
+
+static retvalue try(void *data,UNUSED(const char *package),const char *chunk) {
+	return upgradelist_trypackage(data,chunk);
+}
+
+
+retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,int force,const char *dbdir) {
+	retvalue result,r;
+
+	upgrade->last = NULL;
+	upgrade->currentaptmethod = NULL;
+	upgrade->predecide = predecide;
+	upgrade->predecide_data = decide_data;
+
+	r =  target_initpackagesdb(source,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = packages_foreach(source->packages,try,upgrade,force);
+	r = target_closepackagesdb(source);
+	RET_UPDATE(result,r);
+	return result;
 }
 
 /* mark all packages as deleted, so they will vanis unless readded or reholded */
@@ -484,6 +515,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 	result = target_initpackagesdb(upgrade->target,dbdir);
 	if( RET_WAS_ERROR(result) )
 		return result;
+	result = RET_NOTHING;
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted ) {
 			r = files_expectfiles(files,&pkg->new_filekeys,
@@ -512,6 +544,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade,const char *dbdir,files
 
 void upgradelist_dump(struct upgradelist *upgrade){
 	struct package_data *pkg;
+	
+	assert(upgrade != NULL);
 
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->deleted ) {

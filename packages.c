@@ -115,7 +115,8 @@ retvalue packages_initialize(packagesdb *db,const char *dbpath,const char *ident
 	isopen++;
 	if( isopen > 1 )
 		fprintf(stderr,"isopen: %d\n",isopen);
-	if ((dbret = pkgs->database->open(pkgs->database, filename, identifier, DB_BTREE, DB_CREATE, 0664)) != 0) {
+	dbret = DB_OPEN(pkgs->database, filename, identifier, DB_BTREE, DB_CREATE);
+	if (dbret != 0) {
 		pkgs->database->err(pkgs->database, dbret, "%s(%s)", filename,identifier);
 		(void)pkgs->database->close(pkgs->database,0);
 		free(filename);

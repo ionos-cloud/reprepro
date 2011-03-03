@@ -1,5 +1,5 @@
-#ifndef REPREPRO_EXTRACTCONTROL_H
-#define REPREPRO_EXTRACTCONTROL_H
+#ifndef REPREPRO_DEBFILE_H
+#define REPREPRO_DEBFILE_H
 
 #ifndef REPREPRO_ERROR_H
 #include "error.h"
@@ -8,8 +8,9 @@
 
 /* Read the control information of <debfile> and save it's only chunk
  * into <control> */
-
 retvalue extractcontrol(/*@out@*/char **control,const char *debfile);
 
+/* Read a list of files of <debfile> */
+retvalue getfilelist(/*@out@*/char **filelist, const char *debfile);
 
 #endif

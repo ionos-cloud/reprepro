@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -571,7 +571,7 @@ static inline retvalue checkforarchitecture(const struct fileentry *e,const char
 	return RET_OK;
 }
 
-static retvalue changes_check(const char *filename,struct changes *changes,/*@null@*/const char *forcearchitecture) {
+static retvalue changes_check(const char *filename,struct changes *changes,/*@null@*/const char *forcearchitecture, /*@null@*/const char *packagetypeonly) {
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
@@ -590,12 +590,29 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		r = checkforarchitecture(changes->files,forcearchitecture);
 		if( RET_WAS_ERROR(r) )
 			return r;
-	} else {
+	} else if( packagetypeonly == NULL ) {
 		for( i = 0 ; i < changes->architectures.count ; i++ ) {
+			const char *architecture = changes->architectures.values[i];
 			r = checkforarchitecture(changes->files,
-				changes->architectures.values[i]);
+					architecture);
 			if( RET_WAS_ERROR(r) )
 				return r;
+		}
+	} else if( strcmp(packagetypeonly,"dsc") == 0 ) {
+		if( strlist_in(&changes->architectures,"source") ) {
+			r = checkforarchitecture(changes->files, "source");
+			if( RET_WAS_ERROR(r) )
+				return r;
+		}
+	} else {
+		for( i = 0 ; i < changes->architectures.count ; i++ ) {
+			const char *architecture = changes->architectures.values[i];
+			if( strcmp(architecture,"source") != 0 ) {
+				r = checkforarchitecture(changes->files,
+						architecture);
+				if( RET_WAS_ERROR(r) )
+					return r;
+			}
 		}
 	}
 	/* Then check for each file, if its architecture is sensible
@@ -654,7 +671,12 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		fprintf(stderr,"I don't know what to do having a .tar.gz not being a .orig.tar.gz and a .diff.gz in '%s'!\n",filename);
 		return RET_ERROR;
 	}
-	if( strlist_in(&changes->architectures,"source") && !havedsc ) {
+	if( strlist_in(&changes->architectures,"source") && !havedsc &&
+			( forcearchitecture == NULL 
+			  || strcmp(forcearchitecture,"source") == 0 ) &&
+			( packagetypeonly == NULL 
+			  || strcmp(packagetypeonly,"dsc") == 0 )
+			) {
 		fprintf(stderr,"I don't know what to do with a source-upload not containing a .dsc in '%s'!\n",filename);
 		return RET_ERROR;
 	}
@@ -829,8 +851,10 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 
 	if( IGNORABLE(missingfile) ) {
 		r = dirs_getdirectory(changesfilename,&directory);
-		if( RET_WAS_ERROR(r) )
+		if( RET_WAS_ERROR(r) ) {
+			changes_free(changes);
 			return r;
+		}
 	} else
 		directory = NULL;
 
@@ -839,6 +863,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 	    !strlist_in(&changes->distributions,distribution->codename) ) {
 		if( !IGNORING("Ignoring","To ignore",wrongdistribution,".changes put in a distribution not listed within it!\n") ) {
 			free(directory);
+			changes_free(changes);
 			return RET_ERROR;
 		}
 	}
@@ -848,7 +873,7 @@ retvalue changes_add(const char *dbdir,trackingdb const tracks,references refs,f
 
 	/* do some tests if values are sensible */
 	if( !RET_WAS_ERROR(r) )
-		r = changes_check(changesfilename,changes,forcearchitecture);
+		r = changes_check(changesfilename,changes,forcearchitecture,packagetypeonly);
 
 	/* add files in the pool */
 	//TODO: D_DELETE would fail here, what to do?

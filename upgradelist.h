@@ -33,6 +33,9 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade,filesdb files);
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
 retvalue upgradelist_update(struct upgradelist *upgrade,/*@dependent@*/struct aptmethod *method,const char *filename,upgrade_decide_function *predecide,void *decide_data,int force);
 
+/* Take all items in source into account */
+retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,int force, const char *dbdir);
+
 /* mark all packages as deleted, so they will vanis unless readded or reholded */
 retvalue upgradelist_deleteall(struct upgradelist *upgrade);
 

@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as 
  *  published by the Free Software Foundation.
@@ -16,6 +16,7 @@
 #include <config.h>
 
 #include <errno.h>
+#include <limits.h>
 #include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -27,6 +28,7 @@
 #include <time.h>
 #include <zlib.h>
 #include "error.h"
+#include "mprintf.h"
 #include "chunks.h"
 #include "sources.h"
 #include "md5sum.h"
@@ -58,9 +60,11 @@ retvalue distribution_free(struct distribution *distribution) {
 		strlist_done(&distribution->architectures);
 		strlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
+		strlist_done(&distribution->pulls);
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
+		contentsoptions_done(&distribution->contents);
 		result = RET_OK;
 
 		while( distribution->targets != NULL ) {
@@ -174,6 +178,8 @@ static const char * const allowedfields[] = {
 "Architectures", "Components", "Update", "SignWith", "DebOverride",
 "UDebOverride", "DscOverride", "Tracking", "NotAutomatic",
 "UDebComponents", "DebIndices", "DscIndices", "UDebIndices",
+"Pull", "Contents", "ContentsArchitectures",
+"ContentsComponents", "ContentsUComponents",
 NULL};
 
 	assert( chunk !=NULL && distribution != NULL );
@@ -249,6 +255,11 @@ NULL};
 		(void)distribution_free(r);
 		return ret;
 	}
+	ret = chunk_getwordlist(chunk,"Pull",&r->pulls);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
 	getpossibleemptyfield("SignWith",signwith);
 	getpossibleemptyfield("DebOverride",deb_override);
 	getpossibleemptyfield("UDebOverride",udeb_override);
@@ -314,12 +325,18 @@ NULL};
 		return ret;
 	}
 
+	ret = contentsoptions_parse(r, chunk);
+	if( RET_WAS_ERROR(ret) ) {
+		(void)distribution_free(r);
+		return ret;
+	}
 
 	ret = createtargets(r);
 	if( RET_WAS_ERROR(ret) ) {
 		(void)distribution_free(r);
 		return ret;
 	}
+	r->status = RET_NOTHING;
 
 	*distribution = r;
 	return RET_OK;
@@ -330,7 +347,7 @@ NULL};
 }
 	
 /* call <action> for each part of <distribution>. */
-retvalue distribution_foreach_part(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data,int force) {
+retvalue distribution_foreach_part(struct distribution *distribution,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data,int force) {
 	retvalue result,r;
 	struct target *t;
 
@@ -342,7 +359,7 @@ retvalue distribution_foreach_part(const struct distribution *distribution,const
 			continue;
 		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
 			continue;
-		r = action(data,t);
+		r = action(data,t,distribution);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) && force <= 0 )
 			return result;
@@ -466,9 +483,9 @@ retvalue distribution_get(struct distribution **distribution,const char *confdir
 	return RET_OK;
 }
 
-retvalue distribution_export(struct distribution *distribution,
+static retvalue export(struct distribution *distribution,
 		const char *confdir, const char *dbdir, const char *distdir,
-		bool_t onlyneeded) {
+		filesdb files, bool_t onlyneeded) {
 	struct target *target;
 	retvalue result,r;
 	struct release *release;
@@ -496,6 +513,9 @@ retvalue distribution_export(struct distribution *distribution,
 				break;
 		}
 	}
+	if( !RET_WAS_ERROR(result) && distribution->contents.rate > 0 ) {
+		r = contents_generate(files, distribution, dbdir, release, onlyneeded);
+	}
 	if( RET_WAS_ERROR(result) )
 		release_free(release);
 	else {
@@ -504,7 +524,13 @@ retvalue distribution_export(struct distribution *distribution,
 		r = release_write(release,distribution,onlyneeded);
 		RET_UPDATE(result,r);
 	}
+	if( RET_IS_OK(result) )
+		distribution->status = RET_NOTHING;
 	return result;
+}
+
+retvalue distribution_fullexport(struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
+	return export(distribution,confdir,dbdir,distdir,files,FALSE);
 }
 
 retvalue distribution_freelist(struct distribution *distributions) {
@@ -520,20 +546,122 @@ retvalue distribution_freelist(struct distribution *distributions) {
 	return result;
 }
 
-retvalue distribution_exportandfreelist(struct distribution *distributions,
-		const char *confdir,const char *dbdir, const char *distdir) {
+retvalue distribution_exportandfreelist(enum exportwhen when,
+		struct distribution *distributions,
+		const char *confdir,const char *dbdir, const char *distdir,
+		filesdb files) {
 	retvalue result,r;
+	bool_t todo = FALSE;
+	struct distribution *d;
+
+	if( when == EXPORT_NEVER ) {
+		if( verbose > 10 )
+			fprintf(stderr, "Not exporting anything as --export=never specified\n");
+		return distribution_freelist(distributions);
+	}
+
+	for( d=distributions; d != NULL; d = d->next ) {
+		if( RET_IS_OK(d->status) || 
+			( d->status == RET_NOTHING && when != EXPORT_CHANGED) ||
+			when == EXPORT_FORCE) {
+			todo = TRUE;
+		}
+	}
+
+	if( (verbose >= 0 && todo) || verbose >= 10 )
+		fprintf(stderr,"Exporting indices...\n");
 
 	result = RET_NOTHING;
 	while( distributions != NULL ) {
-		struct distribution *d = distributions->next;
+		d = distributions;
+		distributions = d->next;
 
-		r = distribution_export(distributions,confdir,dbdir,distdir,TRUE);
-		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(d->status) && when != EXPORT_FORCE ) {
+			if( verbose >= 10 )
+				fprintf(stderr, 
+" Not exporting %s because there have been errors and no --export=force.\n",
+						d->codename);
+		} else if( d->status==RET_NOTHING && when==EXPORT_CHANGED ) {
+			struct target *t;
+
+			if( verbose >= 10 )
+				fprintf(stderr, 
+" Not exporting %s because of no recorded changes and --export=changed.\n",
+						d->codename);
+
+			/* some paranoid check */
+
+			for( t = d->targets ; t != NULL ; t = t->next ) {
+				if( t->wasmodified ) {
+					fprintf(stderr,
+"A paranoid check found distribution %s would not have been exported,\n"
+"despite having parts that are marked changed by deeper code.\n"
+"Please report this and how you got this message as bugreport. Thanks.\n"
+"Doing a export despite --export=changed....\n",
+						d->codename);
+					r = export(d,confdir,dbdir,distdir,files,TRUE);
+					RET_UPDATE(result,r);
+					break;
+				}
+			}
+		} else {
+			assert( RET_IS_OK(d->status) || 
+					( d->status == RET_NOTHING && 
+					  when != EXPORT_CHANGED) ||
+					when == EXPORT_FORCE);
+			r = export(d,confdir,dbdir,distdir,files, TRUE);
+			RET_UPDATE(result,r);
+		}
 		
-		r = distribution_free(distributions);
+		r = distribution_free(d);
 		RET_ENDUPDATE(result,r);
-		distributions = d;
 	}
 	return result;
 }
+
+retvalue distribution_export(enum exportwhen when, struct distribution *distribution,const char *confdir,const char *dbdir,const char *distdir, filesdb files) {
+	if( when == EXPORT_NEVER ) {
+		if( verbose >= 10 )
+			fprintf(stderr, 
+"Not exporting %s because of --export=never.\n"
+"Make sure to run a full export soon.\n", distribution->codename);
+		return RET_NOTHING;
+	}
+	if( when != EXPORT_FORCE && RET_WAS_ERROR(distribution->status) ) {
+		if( verbose >= 10 )
+			fprintf(stderr, 
+"Not exporting %s because there have been errors and no --export=force.\n"
+"Make sure to run a full export soon.\n", distribution->codename);
+		return RET_NOTHING;
+	}
+	if( when == EXPORT_CHANGED && distribution->status == RET_NOTHING ) {
+		struct target *t;
+
+		if( verbose >= 10 )
+			fprintf(stderr, 
+"Not exporting %s because of no recorded changes and --export=changed.\n",
+	distribution->codename);
+
+		/* some paranoid check */
+
+		for( t = distribution->targets ; t != NULL ; t = t->next ) {
+			if( t->wasmodified ) {
+				fprintf(stderr,
+"A paranoid check found distribution %s would not have been exported,\n"
+"despite having parts that are marked changed by deeper code.\n"
+"Please report this and how you got this message as bugreport. Thanks.\n"
+"Doing a export despite --export=changed....\n",
+						distribution->codename);
+				return export(distribution,
+						confdir,dbdir,distdir,files,TRUE);
+				break;
+			}
+		}
+
+		return RET_NOTHING;
+	}
+	if( verbose >= 0 )
+		fprintf(stderr, "Exporting indices...\n");
+	return export(distribution,confdir,dbdir,distdir,files, TRUE);
+}
+

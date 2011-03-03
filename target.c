@@ -485,6 +485,8 @@ retvalue target_export(struct target *target,const char *confdir,const char *dbd
 	RET_ENDUPDATE(result,r);
 
 	if( !RET_WAS_ERROR(result) ) {
+		target->saved_wasmodified =
+			target->saved_wasmodified || target->wasmodified;
 		target->wasmodified = FALSE;
 	}
 	return result;
