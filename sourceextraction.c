@@ -69,18 +69,8 @@ void sourceextraction_setpart(struct sourceextraction *e, int i, const char *bas
 	if( e->failed )
 		return;
 
-	if( endswith(basefilename, bl, ".gz" ) ) {
-		c = c_gzip;
-		bl -= 3;
-	} else if( endswith(basefilename, bl, ".bz2" ) ) {
-		c = c_bzip2;
-		bl -= 4;
-	} else if( endswith(basefilename, bl, ".lzma" ) ) {
-		c = c_lzma;
-		bl -= 5;
-	} else {
-		c = c_none;
-	}
+	c = compression_by_suffix(basefilename, &bl);
+
 	if( endswith(basefilename, bl, ".dsc" ) )
 		return;
 	else if( endswith(basefilename, bl, ".diff" ) ) {

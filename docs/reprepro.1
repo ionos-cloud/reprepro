@@ -365,6 +365,15 @@ lzma files will not be possible.
 The program has to accept the compressed file as stdin and write
 the uncompressed file into stdout.
 .TP
+.BI \-\-unxz " xz-uncompressor"
+When trying to uncompress or read \fPxz\fP compressed files, this program
+will be used.
+The default value is \fBunxz\fP.
+If the program is not found or is \fBNONE\fP (all-uppercase) then uncompressing
+xz files will not be possible.
+The program has to accept the compressed file as stdin and write
+the uncompressed file into stdout.
+.TP
 .BI \-\-list\-max " count"
 Limits the output of \fBlist\fP, \fBlistmatched\fP and \fBlistfilter\fP to the first \fIcount\fP
 results.
@@ -1499,15 +1508,17 @@ will limit the update rule to packages from the specified source packages.
 .TP
 .B DownloadListsAs
 The arguments of this field, which much be elements of the
-form \fB.\fP, \fB.gz\fP, \fB.bz2\fP, \fB.lzma\fP and \fB.diff\fP
+form \fB.\fP, \fB.gz\fP, \fB.bz2\fP, \fB.lzma\fP, \fB.xz\fP and \fB.diff\fP
 specify in which order reprepro
 will look for a useable variant of needed index files
 in the downloaded Release file.
-(The default is \fB.diff .lzma .bz2 .gz .\fP, i.e.
+(The default is \fB.diff .xz .lzma .bz2 .gz .\fP, i.e.
 download Packages.diff if listed in the Release file,
-otherwise or if not useable download .lzma if
+otherwise or if not useable download .xz if
 listed in the Release file and there is a way to uncompress it,
-then .bz2 if useable, then .gz and then uncompressed).
+then .lzma if useable,
+then .bz2 if useable,
+then .gz and then uncompressed).
 
 Together with \fBIgnoreRelease\fP reprepro will download the first
 in this list that could be unpacked.

@@ -21,6 +21,8 @@ extern const char * const uncompression_config[c_COUNT];
 		uncompression_builtin(c) || \
 		extern_uncompressors[c] != NULL)
 
+enum compression compression_by_suffix(const char *, size_t *);
+
 /**** functions for aptmethod.c ****/
 
 /* we got an pid, check if it is a uncompressor we care for */
@@ -53,7 +55,7 @@ retvalue uncompress_fdopen(/*@out@*/struct compressedfile **, int, off_t, enum c
 /**** general initialisation ****/
 
 /* check for existance of external programs */
-void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma);
+void uncompressions_check(const char *gunzip, const char *bunzip2, const char *unlzma, const  char *unxz);
 
 #endif
 

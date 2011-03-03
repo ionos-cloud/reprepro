@@ -11,46 +11,51 @@ dodo test ! -d pool
 
 # First test if finding the binaries works properly...
 
-testrun - __dumpuncompressors 3<<EOF
+testrun - --unxz=NONE __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in + '/bin/gunzip'
 *=.bz2: built-in + '/bin/bunzip2'
 *=.lzma: '/usr/bin/unlzma'
+*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
 EOF
 
-testrun - --gunzip=NONE --bunzip2=NONE --unlzma=NONE __dumpuncompressors 3<<EOF
+testrun - --gunzip=NONE --bunzip2=NONE --unlzma=NONE --unxz=NONE __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in
 *=.bz2: built-in
 *=.lzma: not supported (install lzma or use --unlzma to tell where unlzma is).
+*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
 EOF
 
-testrun - --gunzip=false --bunzip2=false --unlzma=false __dumpuncompressors 3<<EOF
+testrun - --gunzip=false --bunzip2=false --unlzma=false --unxz=NONE __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in + '/bin/false'
 *=.bz2: built-in + '/bin/false'
 *=.lzma: '/bin/false'
+*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
 EOF
 
-touch fakeg fakeb fakel
+touch fakeg fakeb fakel fakexz
 
-testrun - --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel __dumpuncompressors 3<<EOF
+testrun - --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel --unxz=./fakexz __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in
 *=.bz2: built-in
 *=.lzma: not supported (install lzma or use --unlzma to tell where unlzma is).
+*=.xz: not supported (install xz-utils or use --unxz to tell where unxz is).
 EOF
 
-chmod u+x fakeg fakeb fakel
+chmod u+x fakeg fakeb fakel fakexz
 
-testrun - --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel __dumpuncompressors 3<<EOF
+testrun - --gunzip=./fakeg --bunzip2=./fakeb --unlzma=./fakel --unxz=./fakexz __dumpuncompressors 3<<EOF
 stdout
 *=.gz: built-in + './fakeg'
 *=.bz2: built-in + './fakeb'
 *=.lzma: './fakel'
+*=.xz: './fakexz'
 EOF
 
-rm fakeg fakeb fakel
+rm fakeg fakeb fakel fakexz
 
 # Then test the builtin formats and the external one...
 
@@ -70,12 +75,31 @@ echo bzip2 -c testfile \> testfile.bz2
 bzip2 -c testfile > testfile.bz2
 echo lzma -c testfile \> testfile.lzma
 lzma -c testfile > testfile.lzma
+if test -x /usr/bin/xz ; then
+	echo xz -c testfile \> testfile.xz
+	xz -c testfile > testfile.xz
+fi
 echo gzip -c smallfile \> smallfile.gz
 gzip -c smallfile > smallfile.gz
 echo bzip2 -c smallfile \> smallfile.bz2
 bzip2 -c smallfile > smallfile.bz2
 echo lzma -c smallfile \> smallfile.lzma
 lzma -c smallfile > smallfile.lzma
+
+if test -x /usr/bin/xz ; then
+echo xz -c smallfile \> smallfile.xz
+xz -c smallfile > smallfile.xz
+testrun - __uncompress .xz testfile.xz testfile.xz.uncompressed 3<<EOF
+-v2*=Uncompress 'testfile.xz' into 'testfile.xz.uncompressed'...
+EOF
+dodiff testfile testfile.xz.uncompressed
+rm *.uncompressed
+testrun - __uncompress .xz smallfile.xz smallfile.xz.uncompressed 3<<EOF
+-v2*=Uncompress 'smallfile.xz' into 'smallfile.xz.uncompressed'...
+EOF
+dodiff smallfile smallfile.xz.uncompressed
+rm *.uncompressed
+fi
 
 testrun - __uncompress .gz testfile.gz testfile.gz.uncompressed 3<<EOF
 -v2*=Uncompress 'testfile.gz' into 'testfile.gz.uncompressed'...

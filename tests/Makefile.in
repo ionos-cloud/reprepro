@@ -165,6 +165,7 @@ testvarious1.sh \
 testvarious2.sh \
 testvarious3.sh \
 testverify.sh \
+testwrongarch.sh \
 tooltest.sh \
 evil.key \
 expired.key \

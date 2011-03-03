@@ -633,11 +633,19 @@ static inline retvalue goturidone(struct aptmethod *method, const char *chunk) {
 
 	r = chunk_getvalue(chunk,"Filename",&filename);
 	if( r == RET_NOTHING ) {
-	// TODO: implement Alt-Filename handling the file method returns...
-		fprintf(stderr,
+		char *altfilename;
+
+		r = chunk_getvalue(chunk, "Alt-Filename", &altfilename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr,
 "Missing Filename header in uridone received from '%s' method!\n",
-				method->name);
- 		r = urierror(method, uri, strdup("<no error but missing Filename from apt-method>"));
+					method->name);
+			r = urierror(method, uri, strdup("<no error but missing Filename from apt-method>"));
+		} else {
+			r = urierror(method, uri, mprintf(
+"<File not there, apt-method suggests '%s' instead>", altfilename));
+			free(altfilename);
+		}
 		free(uri);
 		return r;
 	}
@@ -645,6 +653,8 @@ static inline retvalue goturidone(struct aptmethod *method, const char *chunk) {
 		free(uri);
 		return r;
 	}
+	if( verbose >= 1 )
+		fprintf(stderr, "aptmethod got '%s'\n", uri);
 
 	result = RET_NOTHING;
 	for( type = cs_md5sum ; type < cs_COUNT ; type++ ) {
@@ -756,8 +766,6 @@ static inline retvalue parsereceivedblock(struct aptmethod *method, const char *
 				/* 201 URI Done */
 				case '1':
 					OVERLINE;
-					if( verbose >= 1 )
-						logmessage(method,p,"got");
 					return goturidone(method, p);
 				default:
 					fprintf(stderr,

@@ -1,3 +1,8 @@
+Updates between 4.0.1 and 4.0.2:
+- add support for xz de-compression
+- fix regression (since 3.8.0) breaking arch1>arch2 update rules.
+- some small warning output fixes in update code
+
 Updates between 4.0.0 and 4.0.1:
 - strip the last '/' from Method and Fallback in conf/updates to work
   around problems in some apt methods. (to get old behaviour, use "//")

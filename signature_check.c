@@ -61,7 +61,7 @@ static retvalue parse_condition_part(bool *allow_subkeys_p, bool *allow_bad_p, c
 	if( kl < 8 ) {
 		fprintf(stderr,
 "Error: Too short key id '%.*s' in VerifyRelease condition '%s'!\n",
-				kl, key, full_condition);
+				(int)kl, key, full_condition);
 		return RET_ERROR;
 	}
 	next_key = strndup(key, kl);

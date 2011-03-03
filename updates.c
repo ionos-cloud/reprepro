@@ -208,6 +208,8 @@ struct update_index_connector {
 
 	/*@null@*/char *afterhookfilename;
 
+	/* ignore wrong architecture packages (arch1>arch2 or flat) */
+	bool ignorewrongarchitecture;
 	/* if newly downloaded or not in done file */
 	bool new;
 	/* content needed (i.e. listhooks have to be run) */
@@ -788,6 +790,13 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 	update->pattern = pattern;
 	update->failed = false;
 
+	p = pattern;
+	while( p != NULL && !p->ignorerelease_set )
+		p = p->pattern_from;
+	if( p == NULL )
+		ignorerelease = false;
+	else
+		ignorerelease = p->ignorerelease;
 	/* find the first set values: */
 	p = pattern;
 	while( p != NULL && p->verifyrelease == NULL )
@@ -796,7 +805,7 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 		verifyrelease = NULL;
 	else
 		verifyrelease = p->verifyrelease;
-	if( verifyrelease == NULL && verbose >= 0 ) {
+	if( !ignorerelease && verifyrelease == NULL && verbose >= 0 ) {
 		fprintf(stderr,
 "Warning: No VerifyRelease line in '%s' or any rule it includes via 'From:'.\n"
 "Release.gpg cannot be checked unless you tell which key to check with.\n"
@@ -804,13 +813,6 @@ static retvalue instance_pattern(struct update_pattern *pattern, const struct di
 				pattern->name);
 
 	}
-	p = pattern;
-	while( p != NULL && !p->ignorerelease_set )
-		p = p->pattern_from;
-	if( p == NULL )
-		ignorerelease = false;
-	else
-		ignorerelease = p->ignorerelease;
 	p = pattern;
 	while( p != NULL && !p->ignorehashes_set )
 		p = p->pattern_from;
@@ -960,7 +962,11 @@ static inline bool addremoteindex(struct update_origin *origin, struct target *t
 		free(uindex);
 		return false;
 	}
+	assert( !origin->flat );
 	uindex->next = updatetargets->indices;
+	uindex->ignorewrongarchitecture = strcmp(architecture,
+				atoms_architectures[
+				target->architecture_atom]) != 0;
 	updatetargets->indices = uindex;
 	return true;
 }
@@ -1091,6 +1097,8 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 			return RET_ERROR_OOM;
 		}
 		uindex->next = updatetargets->indices;
+		assert( origin->flat );
+		uindex->ignorewrongarchitecture = true;
 		updatetargets->indices = uindex;
 		return RET_OK;
 	}
@@ -1117,6 +1125,8 @@ static retvalue addflatorigintotarget(struct update_origin *origin, struct targe
 			return RET_ERROR_OOM;
 		}
 		uindex->next = updatetargets->indices;
+		assert( origin->flat );
+		uindex->ignorewrongarchitecture = true;
 		updatetargets->indices = uindex;
 	}
 	return RET_OK;
@@ -1680,7 +1690,7 @@ static inline retvalue searchformissing(/*@null@*/FILE *out,struct database *dat
 				filename,
 				ud_decide_by_pattern,
 				(void*)uindex->origin->pattern,
-				uindex->origin->flat);
+				uindex->ignorewrongarchitecture);
 		if( RET_WAS_ERROR(r) ) {
 			u->incomplete = true;
 			u->ignoredelete = true;

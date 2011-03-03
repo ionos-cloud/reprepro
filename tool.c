@@ -97,17 +97,24 @@ static void binaryfile_free(struct binaryfile *p) {
 }
 
 enum filetype { ft_UNKNOWN,
-			ft_TAR_GZ, ft_ORIG_TAR_GZ, ft_DIFF_GZ,
-	                ft_TAR_BZ2, ft_ORIG_TAR_BZ2, ft_DIFF_BZ2,
-	                ft_TAR_LZMA, ft_ORIG_TAR_LZMA, ft_DIFF_LZMA,
+			ft_TAR, ft_ORIG_TAR, ft_DIFF,
 #define ft_MaxInSource ft_DSC-1
 			ft_DSC, ft_DEB, ft_UDEB , ft_Count};
 #define ft_Max ft_Count-1
-static const char * const typesuffix[ft_Count] = { "?",
-	".tar.gz", ".orig.tar.gz", ".diff.gz",
-	".tar.bz2", ".orig.tar.bz2", ".diff.bz2",
-	".tar.lzma", ".orig.tar.lzma", ".diff.lzma",
-	".dsc", ".deb", ".udeb"};
+
+static const struct {
+	const char *suffix;
+	size_t len;
+	bool allowcompressed;
+} typesuffix[ft_Count] = {
+	{ "?", -1, false},
+	{ ".tar", 4, true},
+	{ ".orig.tar", 9, true},
+	{ ".diff", 5, true},
+	{ ".dsc", 4, false},
+	{ ".deb", 4, false},
+	{ ".udeb", 5, false}
+};
 
 struct dscfile {
 	struct fileentry *file;
@@ -147,6 +154,7 @@ struct fileentry {
 			 *realchecksums;
 	char *section, *priority;
 	enum filetype type;
+	enum compression compression;
 	/* only if type deb or udeb */
 	struct binaryfile *deb;
 	/* only if type dsc */
@@ -237,18 +245,31 @@ static struct fileentry *add_fileentry(struct changes *c, const char *basefilena
 		ofs++;
 	}
 	if( f == NULL ) {
+		enum compression;
+
 		f = calloc(1,sizeof(struct fileentry));
 		if( f == NULL )
 			return NULL;
 		*fp = f;
 		f->basename = strndup(basefilename, len);
 		f->namelen = len;
+
+		/* guess compression */
+		f->compression = compression_by_suffix(f->basename, &len);
+
 		/* guess type */
 		for( f->type = source?ft_MaxInSource:ft_Max ;
 				f->type > ft_UNKNOWN ; f->type-- ) {
-			size_t l = strlen(typesuffix[f->type]);
-			if( len > l && strcmp(f->basename+(len-l),
-						typesuffix[f->type]) == 0 )
+			size_t l = typesuffix[f->type].len;
+
+			if( f->compression != c_none &&
+					!typesuffix[f->type].allowcompressed )
+				continue;
+			if( len <= l )
+				continue;
+			if( strncmp(f->basename + (len-l),
+						typesuffix[f->type].suffix,
+						l) == 0 )
 				break;
 		}
 	}
@@ -345,6 +366,7 @@ static retvalue add_file(struct changes *c, /*@only@*/char *basefilename, /*@onl
 	f->namelen = basenamelen;
 	f->fullfilename = fullfilename;
 	f->type = type;
+	f->compression = c_none;
 
 	*fp = f;
 	*file = f;
@@ -1310,6 +1332,18 @@ static retvalue getchecksums(struct changes *changes) {
 	return RET_OK;
 }
 
+static bool may_be_type(const char *name, enum filetype ft) {
+	enum compression c;
+	size_t len = strlen(name);
+
+	c = compression_by_suffix(name, &len);
+	if( c != c_none && !typesuffix[ft].allowcompressed )
+		return false;
+	return strncmp(name + (len - typesuffix[ft].len),
+			typesuffix[ft].suffix,
+			typesuffix[ft].len) == 0;
+}
+
 static void verify_sourcefile_checksums(struct dscfile *dsc, int i, const char *dscfile) {
 	const struct fileentry * const file = dsc->uplink[i];
 	const struct checksums * const expectedchecksums = dsc->expected.checksums[i];
@@ -1317,8 +1351,7 @@ static void verify_sourcefile_checksums(struct dscfile *dsc, int i, const char *
 	assert( file != NULL );
 
 	if( file->checksumsfromchanges == NULL ) {
-		if( endswith(basefilename, typesuffix[ft_ORIG_TAR_GZ])
-		|| endswith(basefilename, typesuffix[ft_ORIG_TAR_BZ2])) {
+		if( may_be_type(basefilename, ft_ORIG_TAR) ) {
 			fprintf(stderr,
 "Not checking checksums of '%s', as not included in .changes file.\n",
 				basefilename);
@@ -1350,8 +1383,8 @@ static void verify_sourcefile_checksums(struct dscfile *dsc, int i, const char *
 	}
 }
 
-static void verify_binary_name(const char *basefilename, const char *name, const char *version, const char *architecture, enum filetype type) {
-	size_t nlen, vlen, alen;
+static void verify_binary_name(const char *basefilename, const char *name, const char *version, const char *architecture, enum filetype type, enum compression c) {
+	size_t nlen, vlen, alen, slen;
 	const char *versionwithoutepoch;
 
 	if( name == NULL )
@@ -1381,12 +1414,17 @@ static void verify_binary_name(const char *basefilename, const char *name, const
 	if( architecture == NULL )
 		return;
 	alen = strlen(architecture);
+	slen = typesuffix[type].len;
 	if( strncmp(basefilename+nlen+1+vlen+1, architecture, alen) != 0
-	|| strcmp(basefilename+nlen+1+vlen+1+alen, typesuffix[type]) != 0 )
+	|| strncmp(basefilename+nlen+1+vlen+1+alen,
+			typesuffix[type].suffix, slen) != 0
+	|| strcmp(basefilename+nlen+1+vlen+1+alen+slen,
+			uncompression_suffix[c]) != 0 )
 		fprintf(stderr,
-"ERROR: '%s' is not called '%s_%s_%s%s' as expected!\n",
+"ERROR: '%s' is not called '%s_%s_%s%s%s' as expected!\n",
 			basefilename, name, versionwithoutepoch,
-			architecture, typesuffix[type]);
+			architecture, typesuffix[type].suffix,
+			uncompression_suffix[c]);
 }
 
 static retvalue verify(const char *changesfilename, struct changes *changes) {
@@ -1552,24 +1590,18 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 						file->fullfilename,
 						basefilename);
 					break;
-				case ft_TAR_GZ:
-				case ft_TAR_BZ2:
-				case ft_TAR_LZMA:
+				case ft_TAR:
 					istar = true;
 					has_tar = true;
 					break;
-				case ft_ORIG_TAR_GZ:
-				case ft_ORIG_TAR_BZ2:
-				case ft_ORIG_TAR_LZMA:
+				case ft_ORIG_TAR:
 					if( has_orig )
 						fprintf(stderr,
-"ERROR: '%s' lists multiple .tar files!\n",
+"ERROR: '%s' lists multiple .orig..tar files!\n",
 						file->fullfilename);
 					has_orig = true;
 					break;
-				case ft_DIFF_GZ:
-				case ft_DIFF_BZ2:
-				case ft_DIFF_LZMA:
+				case ft_DIFF:
 					if( has_diff )
 						fprintf(stderr,
 "ERROR: '%s' lists multiple .diff files!\n",
@@ -1595,9 +1627,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			if( version == NULL )
 				continue;
 
-			if( sfile->type == ft_ORIG_TAR_GZ
-					|| sfile->type == ft_ORIG_TAR_BZ2
-					|| sfile->type == ft_ORIG_TAR_LZMA ) {
+			if( sfile->type == ft_ORIG_TAR ) {
 				const char *q, *revision;
 				revision = NULL;
 				for( q = version; *q != '\0'; q++ ) {
@@ -1640,24 +1670,31 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 				expectedformatlen = 0;
 			}
 
-			if( !versionok ) {
-				if( sfile->type == ft_UNKNOWN )
-					continue;
-				if( strcmp(sfile->basename+namelen+1
-						+expectedversionlen
-						+expectedformatlen,
-						typesuffix[sfile->type]) == 0 )
-					continue;
-				fprintf(stderr,
-"ERROR: '%s' is not called '%*s_%*s%*s%s' as expected!\n",
+			if( sfile->type == ft_UNKNOWN )
+				continue;
+			if( versionok
+			    && strncmp(sfile->basename+namelen+1
+				    +expectedversionlen
+				    +expectedformatlen,
+				    typesuffix[sfile->type].suffix,
+				    typesuffix[sfile->type].len) == 0
+			    && strcmp(sfile->basename+namelen+1
+				    +expectedversionlen
+				    +expectedformatlen
+				    +typesuffix[sfile->type].len,
+				    uncompression_suffix[sfile->compression])
+			    == 0 )
+				continue;
+			fprintf(stderr,
+"ERROR: '%s' is not called '%.*s_%.*s%.*s%s%s' as expected!\n",
 					sfile->basename,
 					(unsigned int)namelen, name,
 					(unsigned int)expectedversionlen,
 					version,
 					(unsigned int)expectedformatlen,
 					expectedformat,
-					typesuffix[sfile->type]);
-			}
+					typesuffix[sfile->type].suffix,
+					uncompression_suffix[sfile->compression]);
 		}
 		if( !has_tar && !has_orig )
 			if( has_diff )
@@ -1809,7 +1846,7 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 				file->fullfilename,
 				deb->priority, file->priority);
 		verify_binary_name(file->basename, deb->name, deb->version,
-				deb->architecture, file->type);
+				deb->architecture, file->type, file->compression);
 		if( deb->architecture != NULL
 		&& !strlist_in(&changes->architectures,  deb->architecture) ) {
 			fprintf(stderr,
@@ -1826,6 +1863,10 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 		return r;
 	for( file = changes->files; file != NULL ; file = file->next ) {
 
+		if( file->checksumsfromchanges == NULL )
+			/* nothing to check here */
+			continue;
+
 		if( file->fullfilename == NULL ) {
 			fprintf(stderr, "WARNING: Could not check checksums of '%s' as file not found!\n", file->basename);
 			if( file->type == ft_DSC ) {
@@ -1833,10 +1874,6 @@ static retvalue verify(const char *changesfilename, struct changes *changes) {
 			}
 			continue;
 		}
-		if( file->checksumsfromchanges == NULL )
-			/* nothing to check here */
-			continue;
-
 		if( file->realchecksums == NULL ) {
 			fprintf(stderr, "WARNING: Could not check checksums of '%s'! File vanished while checking or not readable?\n", file->basename);
 		} else if( !checksums_check(file->realchecksums, file->checksumsfromchanges, NULL)) {
@@ -2791,11 +2828,12 @@ int main(int argc,char *argv[]) {
 	static const struct option longopts[] = {
 		{"help", no_argument, NULL, 'h'},
 		{"create", no_argument, NULL, 'C'},
-		{"create-with-all-fields", no_argument, &longoption, 4},
+		{"create-with-all-fields", no_argument, &longoption, 5},
 		{"searchpath", required_argument, NULL, 's'},
 		{"gunzip", required_argument, &longoption, 1},
 		{"bunzip2", required_argument, &longoption, 2},
 		{"unlzma", required_argument, &longoption, 3},
+		{"unxz", required_argument, &longoption, 4},
 		{NULL, 0, NULL, 0},
 	};
 	int c;
@@ -2805,7 +2843,7 @@ int main(int argc,char *argv[]) {
 	bool all_fields = false;
 	struct strlist searchpath;
 	struct changes *changesdata IFSTUPIDCC(=NULL);
-	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL;
+	char *gunzip = NULL, *bunzip2 = NULL, *unlzma = NULL, *unxz = NULL;
 	retvalue r;
 
 	strlist_init(&searchpath);
@@ -2824,6 +2862,9 @@ int main(int argc,char *argv[]) {
 						unlzma = strdup(optarg);
 						break;
 					case 4:
+						unxz = strdup(optarg);
+						break;
+					case 5:
 						create_file = true;
 						all_fields = true;
 						break;
@@ -2848,7 +2889,7 @@ int main(int argc,char *argv[]) {
 		about(false);
 	}
 	signature_init(false);
-	uncompressions_check(gunzip, bunzip2, unlzma);
+	uncompressions_check(gunzip, bunzip2, unlzma, unxz);
 
 	changesfilename = argv[optind];
 	if( strcmp(changesfilename,"-") != 0 && !endswith(changesfilename,".changes") ) {
