@@ -111,6 +111,32 @@ retvalue listformat_print(const char *listformat, const struct target *target, c
 				strncasecmp(p, "{$component", 11) == 0 ) {
 			value = NULL;
 			v = atoms_components[target->component_atom];
+		} else if( q - p == 8 && strncasecmp(p, "{$source", 8) == 0 ) {
+			char *dummy = NULL;
+			r = target->getsourceandversion(control, package,
+					&value, &dummy);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( RET_IS_OK(r) ) {
+				free(dummy);
+				v = value;
+			} else {
+				value = NULL;
+				v = "";
+			}
+		} else if( q - p == 15 && strncasecmp(p, "{$sourceversion", 15) == 0 ) {
+			char *dummy = NULL;
+			r = target->getsourceandversion(control, package,
+					&dummy, &value);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( RET_IS_OK(r) ) {
+				free(dummy);
+				v = value;
+			} else {
+				value = NULL;
+				v = "";
+			}
 		} else if( q - p == 8 && strncasecmp(p, "{package", 8) == 0 ) {
 			value = NULL;
 			v = package;

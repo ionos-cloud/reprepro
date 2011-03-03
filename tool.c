@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2006,2007,2008,2009 Bernhard R. Link
+ *  Copyright (C) 2006,2007,2008,2009,2010 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -59,6 +59,7 @@ static void about(bool help) {
 " addrawfile <filenames>\n"
 " add <filenames processed by filename suffix>\n"
 " setdistribution <distributions to list>\n"
+" dumbremove <filenames>\n"
 );
 	if( help )
 		exit(EXIT_SUCCESS);
@@ -187,7 +188,7 @@ struct changes {
 	bool modified;
 };
 
-static void fileentry_free(struct fileentry *f) {
+static void fileentry_free(/*@only@*/struct fileentry *f) {
 	if( f == NULL )
 		return;
 	free(f->basename);
@@ -232,18 +233,29 @@ static void changes_free(struct changes *c) {
 	free(c);
 }
 
-static struct fileentry *add_fileentry(struct changes *c, const char *basefilename, size_t len, bool source, size_t *ofs_p) {
+static struct fileentry **find_fileentry(struct changes *c, const char *basefilename, size_t basenamelen, size_t *ofs_p) {
 	struct fileentry **fp = &c->files;
 	struct fileentry *f;
 	size_t ofs = 0;
 
 	while( (f=*fp) != NULL ) {
-		if( f->namelen == len &&
-		    strncmp(basefilename, f->basename, len) == 0 )
+		if( f->namelen == basenamelen &&
+		    strncmp(basefilename, f->basename, basenamelen) == 0 ) {
 			break;
+		}
 		fp = &f->next;
 		ofs++;
 	}
+	if( ofs_p != NULL )
+		*ofs_p = ofs;
+	return fp;
+}
+
+static struct fileentry *add_fileentry(struct changes *c, const char *basefilename, size_t len, bool source, size_t *ofs_p) {
+	size_t ofs = 0;
+	struct fileentry **fp = find_fileentry(c, basefilename, len, &ofs);
+	struct fileentry *f = *fp;
+
 	if( f == NULL ) {
 		enum compression;
 
@@ -343,23 +355,24 @@ static retvalue findfile(const char *filename, const struct changes *c, /*@null@
 }
 
 static retvalue add_file(struct changes *c, /*@only@*/char *basefilename, /*@only@*/char *fullfilename, enum filetype type, struct fileentry **file) {
-	size_t basenamelen;
-	struct fileentry **fp = &c->files;
+	size_t basenamelen = strlen(basefilename);
+	struct fileentry **fp;
 	struct fileentry *f;
 
-	basenamelen = strlen(basefilename);
+	fp = find_fileentry(c, basefilename, basenamelen, NULL);
+	f = *fp;
 
-	while( (f=*fp) != NULL ) {
-		if( f->namelen == basenamelen &&
-		    strncmp(basefilename, f->basename, basenamelen) == 0 ) {
-			*file = f;
-			return RET_NOTHING;
-		}
-		fp = &f->next;
+	if( f != NULL ) {
+		*file = f;
+		free(basefilename);
+		free(fullfilename);
+		return RET_NOTHING;
 	}
 	assert( f == NULL );
 	f = calloc(1,sizeof(struct fileentry));
 	if( f == NULL ) {
+		free(basefilename);
+		free(fullfilename);
 		return RET_ERROR_OOM;
 	}
 	f->basename = basefilename;
@@ -2236,16 +2249,12 @@ static retvalue adddsc(struct changes *c, const char *dscfilename, const struct 
 	if( RET_WAS_ERROR(r) ) {
 		dscfile_free(dsc);
 		free(origdirectory);
-		free(fullfilename);
-		free(basefilename);
 		return r;
 	}
 	if( r == RET_NOTHING ) {
 		fprintf(stderr, "ERROR: '%s' already contains a file of the same name!\n", c->filename);
 		dscfile_free(dsc);
 		free(origdirectory);
-		free(fullfilename);
-		free(basefilename);
 		// TODO: check instead if it is already the same...
 		return RET_ERROR;
 	}
@@ -2497,15 +2506,11 @@ static retvalue adddeb(struct changes *c, const char *debfilename, const struct 
 	r = add_file(c, basefilename, fullfilename, type, &f);
 	if( RET_WAS_ERROR(r) ) {
 		binaryfile_free(deb);
-		free(fullfilename);
-		free(basefilename);
 		return r;
 	}
 	if( r == RET_NOTHING ) {
 		fprintf(stderr, "ERROR: '%s' already contains a file of the same name!\n", c->filename);
 		binaryfile_free(deb);
-		free(fullfilename);
-		free(basefilename);
 		// TODO: check instead if it is already the same...
 		return RET_ERROR;
 	}
@@ -2599,9 +2604,10 @@ static retvalue addrawfile(struct changes *c, const char *filename, const struct
 		return r;
 	}
 	r = add_file(c, basefilename, fullfilename, ft_UNKNOWN, &f);
+	// fullfilename and basefilename now belong to *f or are already free'd
+	basefilename = NULL;
+	fullfilename = NULL;
 	if( RET_WAS_ERROR(r) ) {
-		free(fullfilename);
-		free(basefilename);
 		checksums_free(checksums);
 		return r;
 	}
@@ -2613,28 +2619,18 @@ static retvalue addrawfile(struct changes *c, const char *filename, const struct
 			/* already listed in .changes */
 
 			if( !checksums_check(f->checksumsfromchanges, checksums, NULL) ) {
-				fprintf(stderr, "ERROR: '%s' already contains a file with name '%s' but different checksums!\n", c->filename, basefilename);
-				free(fullfilename);
-				free(basefilename);
+				fprintf(stderr, "ERROR: '%s' already contains a file with name '%s' but different checksums!\n", c->filename, f->basename);
 				checksums_free(checksums);
 				return RET_ERROR;
 			}
-			printf("'%s' already lists '%s' with same checksums. Doing nothing.\n", c->filename, basefilename);
-			free(fullfilename);
-			free(basefilename);
+			printf("'%s' already lists '%s' with same checksums. Doing nothing.\n", c->filename, f->basename);
 			checksums_free(checksums);
 			return RET_NOTHING;
 		} else {
 			/* file already expected by some other part (e.g. a .dsc) */
 
 			// TODO: find out whom this files belong to and warn if different
-			free(fullfilename);
-			free(basefilename);
 		}
-	} else {
-		// fullfilename and basefilename now belong to *f
-		basefilename = NULL;
-		fullfilename = NULL;
 	}
 
 	c->modified = true;
@@ -2690,6 +2686,37 @@ static retvalue addfiles(const char *changesfilename, struct changes *c, int arg
 	if( c->modified ) {
 		return write_changes_file(changesfilename, c,
 				CHANGES_WRITE_ALL, fakefields);
+	} else
+		return RET_NOTHING;
+}
+
+static retvalue dumbremovefiles(const char *changesfilename, struct changes *c, int argc, char **argv) {
+	if( argc <= 0 ) {
+		fprintf(stderr, "Filenames of files to remove (without further parsing) expected!\n");
+		return RET_ERROR;
+	}
+	while( argc > 0 ) {
+		struct fileentry **fp;
+		/*@null@*/ struct fileentry *f;
+
+		fp = find_fileentry(c, argv[0], strlen(argv[0]), NULL);
+	       	f = *fp;
+		if( f == NULL ) {
+			fprintf(stderr, "Not removing '%s' as not listed in '%s'!\n",
+					argv[0], c->filename);
+		} else if( f->checksumsfromchanges != NULL ) {
+			/* removing its checksums makes it vanish from the
+			 * .changes file generated, while still keeping pointers
+			 * from other files intact */
+			checksums_free(f->checksumsfromchanges);
+			f->checksumsfromchanges = NULL;
+			c->modified = true;
+		}
+		argc--; argv++;
+	}
+	if( c->modified ) {
+		return write_changes_file(changesfilename, c,
+				CHANGES_WRITE_FILES, false);
 	} else
 		return RET_NOTHING;
 }
@@ -2791,6 +2818,15 @@ static int execute_command(int argc, char **argv, const char *changesfilename, c
 	} else if( strcasecmp(command, "setdistribution") == 0 ) {
 		if( file_exists )
 			r = setdistribution(changesfilename, changesdata,
+					argc-1, argv+1);
+		else {
+			fprintf(stderr, "No such file '%s'!\n",
+					changesfilename);
+			r = RET_ERROR;
+		}
+	} else if( strcasecmp(command, "dumbremove") == 0 ) {
+		if( file_exists )
+			r = dumbremovefiles(changesfilename, changesdata,
 					argc-1, argv+1);
 		else {
 			fprintf(stderr, "No such file '%s'!\n",

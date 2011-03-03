@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2009-08-21" "reprepro" REPREPRO
+.TH REPREPRO 1 "2010-04-07" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of Debian packages
 .SH SYNOPSIS
@@ -400,6 +400,17 @@ Backslash (\fB\[rs]\fP) can be used to escape every non-letter-or-digit.
 The special field names
 .BR $identifier ", " $architecture ", " $component ", " $type ", " $codename
 denote where the package was found.
+
+The special field names
+.BR $source " and " $sourceversion
+denote the source and source version a package belongs to.
+(i.e.
+.B ${$source}
+will either be the same as
+.B ${source}
+(without a possible version in parentheses at the end)
+or the same as
+.BR ${package} .
 
 When \fB\-\-list\-format\fP is not given or \fBNONE\fP, then the default
 is equivalent to
@@ -2033,6 +2044,15 @@ things like \fBsarge\fP, \fBetch\fP or \fBsid\fP.
 .TP
 .B basename
 the name of a file without any directory information.
+.TP
+.B byhand
+Changes files can have files with section 'byhand' (Debian) or 'raw-' (Ubuntu).
+Those files are not packages but other data generated (usually together with
+packages) and then uploaded together with this changes files.
+
+With reprepro those can be stored in the pool next to their packages whith
+tracking, put in some log directory when using processincoming, or given to
+an hook script (currently only possible with processincoming).
 .TP
 .B filekey
 the position relative to the mirrordir.  (as found as "Filename:" in Packages.gz)

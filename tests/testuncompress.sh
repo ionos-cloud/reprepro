@@ -90,12 +90,12 @@ if test -x /usr/bin/xz ; then
 echo xz -c smallfile \> smallfile.xz
 xz -c smallfile > smallfile.xz
 testrun - __uncompress .xz testfile.xz testfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'testfile.xz' into 'testfile.xz.uncompressed'...
+-v2*=Uncompress 'testfile.xz' into 'testfile.xz.uncompressed' using '/usr/bin/unxz'...
 EOF
 dodiff testfile testfile.xz.uncompressed
 rm *.uncompressed
 testrun - __uncompress .xz smallfile.xz smallfile.xz.uncompressed 3<<EOF
--v2*=Uncompress 'smallfile.xz' into 'smallfile.xz.uncompressed'...
+-v2*=Uncompress 'smallfile.xz' into 'smallfile.xz.uncompressed' using '/usr/bin/unxz'...
 EOF
 dodiff smallfile smallfile.xz.uncompressed
 rm *.uncompressed
@@ -177,6 +177,7 @@ stdout
 *=/testfile.bz2
 *=/testfile.gz
 *=/testfile.lzma
+=/testfile.xz
 EOF
 
 rm fake.deb
