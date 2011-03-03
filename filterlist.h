@@ -7,6 +7,7 @@ enum filterlisttype {
 	flt_purge,
 	flt_deinstall,
 	flt_hold,
+	flt_upgradeonly,
 	flt_error
 };
 
@@ -18,6 +19,8 @@ struct filterlist {
 
 	/* to be used when not found */
 	enum filterlisttype defaulttype;
+	/* true if this is loaded from config */
+	bool set;
 };
 
 struct configiterator;
@@ -25,6 +28,6 @@ retvalue filterlist_load(/*@out@*/struct filterlist *, struct configiterator *);
 
 void filterlist_release(struct filterlist *list);
 
-enum filterlisttype filterlist_find(const char *name,struct filterlist *root);
+enum filterlisttype filterlist_find(const char *name, const struct filterlist *root);
 
 #endif

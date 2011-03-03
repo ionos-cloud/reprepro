@@ -29,8 +29,6 @@
 #include "dirs.h"
 #include "names.h"
 
-extern int verbose;
-
 /* create directory dirname. */
 static retvalue dirs_check(const char *dirname) {
 	int ret, e;

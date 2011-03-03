@@ -35,8 +35,6 @@
 #include "tracking.h"
 #include "signature.h"
 
-extern int verbose;
-
 /* split a "<md5> <size> <filename>" into md5sum and filename */
 static retvalue calc_parsefileline(const char *fileline, /*@out@*/char **filename) {
 	const char *p, *fn, *fnend;
@@ -94,14 +92,19 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 		return r;
 	r = RET_NOTHING;
 	for( i = 0 ; i < filelines->count ; i++ ) {
-		char *basename IFSTUPIDCC(=NULL);
-		const char *fileline=filelines->values[i];
+		char *basefilename IFSTUPIDCC(=NULL);
+		const char *fileline = filelines->values[i];
 
-		r = calc_parsefileline(fileline, &basename);
+		r = calc_parsefileline(fileline, &basefilename);
+		if( r == RET_NOTHING ) {
+			fprintf(stderr, "Malformed Files: line '%s'!\n",
+					fileline);
+			r = RET_ERROR;
+		}
 		if( RET_WAS_ERROR(r) )
 			break;
 
-		r = strlist_add(basenames,basename);
+		r = strlist_add(basenames, basefilename);
 		if( RET_WAS_ERROR(r) ) {
 			break;
 		}
@@ -128,13 +131,20 @@ retvalue sources_getversion(const char *control, char **version) {
 	return r;
 }
 
-retvalue sources_getinstalldata(const struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *type_p) {
+retvalue sources_getarchitecture(UNUSED(const char *chunk), architecture_t *architecture_p) {
+	*architecture_p = architecture_source;
+	return RET_OK;
+}
+
+retvalue sources_getinstalldata(const struct target *t, const char *packagename, UNUSED(const char *version), architecture_t architecture, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
 	retvalue r;
 	char *origdirectory, *directory, *mychunk;
 	struct strlist myfilekeys;
 	struct strlist filelines[cs_hashCOUNT];
 	struct checksumsarray files;
 	enum checksumtype cs;
+
+	assert( architecture == architecture_source );
 
 	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
 		assert( source_checksum_names[cs] != NULL );
@@ -188,7 +198,7 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 		return r;
 	}
 
-	directory = calc_sourcedir(t->component, packagename);
+	directory = calc_sourcedir(t->component_atom, packagename);
 	if( directory == NULL )
 		r = RET_ERROR_OOM;
 	else
@@ -215,8 +225,6 @@ retvalue sources_getinstalldata(const struct target *t, const char *packagename,
 	*control = mychunk;
 	strlist_move(filekeys, &myfilekeys);
 	checksumsarray_move(origfiles, &files);
-	if( type_p != NULL )
-		*type_p = ft_SOURCE;
 	return RET_OK;
 }
 
@@ -599,5 +607,45 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	*newcontrol = newchunk;
 
 	return RET_OK;
+}
+
+char *calc_source_basename(const char *name, const char *version) {
+	const char *v = strchr(version, ':');
+	if( v != NULL )
+		v++;
+	else
+		v = version;
+	return mprintf("%s_%s.dsc", name, v);
+}
+
+char *calc_sourcedir(component_t component, const char *sourcename) {
+
+	assert( *sourcename != '\0' );
+
+	if( sourcename[0] == 'l' && sourcename[1] == 'i' &&
+			sourcename[2] == 'b' && sourcename[3] != '\0' )
+		return mprintf("pool/%s/lib%c/%s",
+				atoms_components[component],
+				sourcename[3], sourcename);
+	else if( *sourcename != '\0' )
+		return mprintf("pool/%s/%c/%s",
+				atoms_components[component],
+				sourcename[0], sourcename);
+	else
+		return NULL;
+}
+
+char *calc_filekey(component_t component, const char *sourcename, const char *filename) {
+	if( sourcename[0] == 'l' && sourcename[1] == 'i' &&
+			sourcename[2] == 'b' && sourcename[3] != '\0' )
+		return mprintf("pool/%s/lib%c/%s/%s",
+				atoms_components[component],
+				sourcename[3], sourcename, filename);
+	else if( *sourcename != '\0' )
+		return mprintf("pool/%s/%c/%s/%s",
+				atoms_components[component],
+				sourcename[0], sourcename, filename);
+	else
+		return NULL;
 }
 

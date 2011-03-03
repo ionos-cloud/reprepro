@@ -39,7 +39,7 @@ fi
 mkdir -p conf
 cat > conf/distributions <<CONFEND
 Codename: test
-Architectures: abacus source
+Architectures: ${FAKEARCHITECTURE} source
 Components: stupid ugly
 CONFEND
 
@@ -63,7 +63,7 @@ echo $ERRORMSG | grep -q "error:255"
 echo "Package: test1" > test/DEBIAN/control
 echo "Version: 1" >> test/DEBIAN/control
 echo "Maintainer: me <its@me>" >> test/DEBIAN/control
-echo "Architecture: abacus" >> test/DEBIAN/control
+echo "Architecture: ${FAKEARCHITECTURE}" >> test/DEBIAN/control
 echo "Description: test" >> test/DEBIAN/control
 echo " bla fasel" >> test/DEBIAN/control
 dpkg-deb -b test
@@ -86,7 +86,7 @@ echo "Version: 1" >> test/DEBIAN/control
 echo "Maintainer: me <its@me>" >> test/DEBIAN/control
 echo "Section: funnystuff" >> test/DEBIAN/control
 echo "Priority: useless" >> test/DEBIAN/control
-echo "Architecture: abacus" >> test/DEBIAN/control
+echo "Architecture: ${FAKEARCHITECTURE}" >> test/DEBIAN/control
 echo "Description: test" >> test/DEBIAN/control
 echo " bla fasel" >> test/DEBIAN/control
 dpkg-deb -b test
@@ -99,7 +99,7 @@ echo "Version: 1" >> test/DEBIAN/control
 echo "Maintainer: me <its@me>" >> test/DEBIAN/control
 echo "Section: funnystuff" >> test/DEBIAN/control
 echo "Priority: useless" >> test/DEBIAN/control
-echo "Architecture: abacus" >> test/DEBIAN/control
+echo "Architecture: ${FAKEARCHITECTURE}" >> test/DEBIAN/control
 echo "Description: test" >> test/DEBIAN/control
 echo " bla fasel" >> test/DEBIAN/control
 (cd test/DEBIAN &&  tar -cvvzf ../../control.tar.gz ./control)

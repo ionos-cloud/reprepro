@@ -21,18 +21,18 @@
 #include <string.h>
 #include <stdio.h>
 #include <ctype.h>
-#include <zlib.h>
 #include <assert.h>
 #include "error.h"
 #include "chunks.h"
 #include "names.h"
+#include "uncompression.h"
 #include "indexfile.h"
 
 /* the purpose of this code is to read index files, either from a snapshot
  * previously generated or downloaded while updating. */
 
 struct indexfile {
-	gzFile f;
+	struct compressedfile *f;
 	char *filename;
 	int linenumber, startlinenumber;
 	retvalue status;
@@ -41,10 +41,9 @@ struct indexfile {
 	bool failed;
 };
 
-extern int verbose;
-
-retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
+retvalue indexfile_open(struct indexfile **file_p, const char *filename, enum compression compression) {
 	struct indexfile *f = calloc(1, sizeof(struct indexfile));
+	retvalue r;
 
 	if( FAILEDTOALLOC(f) )
 		return RET_ERROR_OOM;
@@ -53,10 +52,9 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 		free(f);
 		return RET_ERROR_OOM;
 	}
-	f->f = gzopen(filename, "r");
-	if( f->f == NULL ) {
-		fprintf(stderr, "Unable to open file %s: %s\n",
-				filename, strerror(errno));
+	r = uncompress_open(&f->f, filename, compression);
+	assert( r != RET_NOTHING );
+	if( RET_WAS_ERROR(r) ) {
 		free(f->filename);
 		free(f);
 		return RET_ERRNO(errno);
@@ -70,7 +68,8 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 	/* +1 for *d = '\0' in eof case */
 	f->buffer = malloc(f->size + 1);
 	if( FAILEDTOALLOC(f->buffer) ) {
-		(void)gzclose(f->f);
+		uncompress_abort(f->f);
+		free(f->filename);
 		free(f);
 		return RET_ERROR_OOM;
 	}
@@ -81,12 +80,11 @@ retvalue indexfile_open(struct indexfile **file_p, const char *filename) {
 retvalue indexfile_close(struct indexfile *f) {
 	retvalue r;
 
-	//TODO: check result:
-	gzclose(f->f);
+	r = uncompress_close(f->f);
 
 	free(f->filename);
 	free(f->buffer);
-	r = f->status;
+	RET_UPDATE(r, f->status);
 	free(f);
 
 	return r;
@@ -166,7 +164,7 @@ static retvalue indexfile_get(struct indexfile *f) {
 			return RET_ERROR;
 		}
 
-		bytes_read = gzread(f->f, d, f->size - f->ofs);
+		bytes_read = uncompress_read(f->f, d, f->size - f->ofs);
 		if( bytes_read < 0 )
 			return RET_ERROR;
 		else if( bytes_read == 0 )
@@ -186,11 +184,12 @@ static retvalue indexfile_get(struct indexfile *f) {
 	return RET_OK;
 }
 
-bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, const char **control_p, const struct target *target, bool allowwrongarchitecture) {
+bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, const char **control_p, architecture_t *architecture_p, const struct target *target, bool allowwrongarchitecture) {
 	retvalue r;
 	bool ignorecruft = false; // TODO
 	char *packagename, *version, *architecture;
 	const char *control;
+	architecture_t atom;
 
 	packagename = NULL; version = NULL;
 	do {
@@ -233,8 +232,9 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 			break;
 		if( r == RET_NOTHING )
 			architecture = NULL;
-		if( strcmp(target->packagetype, "dsc") == 0 ) {
+		if( target->packagetype_atom == pt_dsc ) {
 			free(architecture);
+			atom = architecture_source;
 		} else {
 			/* check if architecture fits for target and error
 			    out if not ignorewrongarchitecture */
@@ -248,9 +248,14 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 					break;
 				} else
 					continue;
-			} else if( strcmp(architecture, "all") != 0 &&
-			           strcmp(architecture,
-						target->architecture) != 0) {
+			} else if( strcmp(architecture, "all") == 0 ) {
+				atom = architecture_all;
+			} else if( strcmp(architecture,
+					   atoms_architectures[
+						target->architecture_atom
+						]) == 0) {
+				atom = target->architecture_atom;
+			} else {
 				if( allowwrongarchitecture ) {
 					free(architecture);
 					continue;
@@ -260,7 +265,9 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 						f->filename,
 						f->startlinenumber, f->linenumber,
 						architecture,
-						target->architecture);
+						atoms_architectures[
+						 target->architecture_atom
+						  ]);
 					r = RET_ERROR;
 				}
 			}
@@ -271,6 +278,7 @@ bool indexfile_getnext(struct indexfile *f, char **name_p, char **version_p, con
 		*control_p = control;
 		*name_p = packagename;
 		*version_p = version;
+		*architecture_p = atom;
 		return true;
 	} while( true );
 	free(packagename);

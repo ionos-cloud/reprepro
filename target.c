@@ -43,9 +43,23 @@
 #include "files.h"
 #include "target.h"
 
-extern int verbose;
+static char *calc_identifier(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype) {
+	assert( strchr(codename, '|') == NULL );
+	assert( codename != NULL ); assert( atom_defined(component) );
+	assert( atom_defined(architecture) );
+	assert( atom_defined(packagetype) );
+	if( packagetype == pt_udeb )
+		return mprintf("u|%s|%s|%s", codename,
+				atoms_components[component],
+				atoms_architectures[architecture]);
+	else
+		return mprintf("%s|%s|%s", codename,
+				atoms_components[component],
+				atoms_architectures[architecture]);
+}
 
-static retvalue target_initialize(const char *codename, const char *component, const char *architecture, /*@observer@*/const char *packagetype, get_version getversion, get_installdata getinstalldata, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride,do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
+
+static retvalue target_initialize(const char *codename, component_t component, architecture_t architecture, packagetype_t packagetype, get_version getversion, get_installdata getinstalldata, get_architecture getarchitecture, get_filekeys getfilekeys, get_checksums getchecksums, get_sourceandversion getsourceandversion, do_reoverride doreoverride, do_retrack doretrack, /*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
 	struct target *t;
 
 	assert(exportmode != NULL);
@@ -60,17 +74,20 @@ static retvalue target_initialize(const char *codename, const char *component, c
 	t->relativedirectory = directory;
 	t->exportmode = exportmode;
 	t->codename = strdup(codename);
-	t->component = strdup(component);
-	t->architecture = strdup(architecture);
-	t->packagetype = packagetype;
+	assert( atom_defined(component) );
+	t->component_atom = component;
+	assert( atom_defined(architecture) );
+	t->architecture_atom = architecture;
+	assert( atom_defined(packagetype) );
+	t->packagetype_atom = packagetype;
 	t->identifier = calc_identifier(codename,component,architecture,packagetype);
-	if( t->codename == NULL || t->component == NULL ||
-			t->architecture == NULL || t->identifier == NULL ) {
+	if( t->codename == NULL || t->identifier == NULL ) {
 		(void)target_free(t);
 		return RET_ERROR_OOM;
 	}
 	t->getversion = getversion;
 	t->getinstalldata = getinstalldata;
+	t->getarchitecture = getarchitecture;
 	t->getfilekeys = getfilekeys;
 	t->getchecksums = getchecksums;
 	t->getsourceandversion = getsourceandversion;
@@ -80,35 +97,43 @@ static retvalue target_initialize(const char *codename, const char *component, c
 	return RET_OK;
 }
 
-retvalue target_initialize_ubinary(const char *codename, const char *component, const char *architecture, const struct exportmode *exportmode, struct target **target) {
-	return target_initialize(codename, component, architecture, "udeb",
+retvalue target_initialize_ubinary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, struct target **target) {
+	return target_initialize(codename, component, architecture, pt_udeb,
 			binaries_getversion,
 			binaries_getinstalldata,
+			binaries_getarchitecture,
 			binaries_getfilekeys, binaries_getchecksums,
 			binaries_getsourceandversion,
 			ubinaries_doreoverride, binaries_retrack,
-			mprintf("%s/debian-installer/binary-%s",component,architecture),
+			mprintf("%s/debian-installer/binary-%s",
+				atoms_components[component],
+				atoms_architectures[architecture]),
 			exportmode, target);
 }
-retvalue target_initialize_binary(const char *codename, const char *component, const char *architecture, const struct exportmode *exportmode, struct target **target) {
-	return target_initialize(codename, component, architecture, "deb",
+retvalue target_initialize_binary(const char *codename, component_t component, architecture_t architecture, const struct exportmode *exportmode, struct target **target) {
+	return target_initialize(codename, component, architecture, pt_deb,
 			binaries_getversion,
 			binaries_getinstalldata,
+			binaries_getarchitecture,
 			binaries_getfilekeys, binaries_getchecksums,
 			binaries_getsourceandversion,
 			binaries_doreoverride, binaries_retrack,
-			mprintf("%s/binary-%s",component,architecture),
+			mprintf("%s/binary-%s",
+				atoms_components[component],
+				atoms_architectures[architecture]),
 			exportmode, target);
 }
 
-retvalue target_initialize_source(const char *codename, const char *component,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename, component, "source", "dsc",
+retvalue target_initialize_source(const char *codename, component_t component, const struct exportmode *exportmode, struct target **target) {
+	return target_initialize(codename, component, architecture_source, pt_dsc,
 			sources_getversion,
 			sources_getinstalldata,
+			sources_getarchitecture,
 			sources_getfilekeys, sources_getchecksums,
 			sources_getsourceandversion,
 			sources_doreoverride, sources_retrack,
-			mprintf("%s/source",component), exportmode, target);
+			mprintf("%s/source", atoms_components[component]),
+			exportmode, target);
 }
 
 retvalue target_free(struct target *target) {
@@ -125,8 +150,6 @@ retvalue target_free(struct target *target) {
 	}
 
 	free(target->codename);
-	free(target->component);
-	free(target->architecture);
 	free(target->identifier);
 	free(target->relativedirectory);
 	free(target);
@@ -164,9 +187,8 @@ retvalue target_closepackagesdb(struct target *target) {
 	return r;
 }
 
-/* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
- * filekeys that lost references */
-retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+/* Remove a package from the given target. */
+retvalue target_removereadpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *oldcontrol, struct trackingdata *trackingdata) {
 	char *oldpversion = NULL;
 	struct strlist files;
 	retvalue result,r;
@@ -212,17 +234,16 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 					NULL, oldcontrol,
 					NULL, &files);
 		r = references_delete(database, target->identifier, &files,
-				NULL, dereferencedfilekeys);
+				NULL);
 		RET_UPDATE(result, r);
-	} else
-		strlist_done(&files);
+	}
+	strlist_done(&files);
 	free(oldpversion);
 	return result;
 }
 
-/* Remove a package from the given target. If dereferencedfilekeys != NULL, add there the
- * filekeys that lost references */
-retvalue target_removepackage(struct target *target, struct logger *logger, struct database *database, const char *name, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+/* Remove a package from the given target. */
+retvalue target_removepackage(struct target *target, struct logger *logger, struct database *database, const char *name, struct trackingdata *trackingdata) {
 	char *oldchunk;
 	retvalue r;
 
@@ -239,15 +260,14 @@ retvalue target_removepackage(struct target *target, struct logger *logger, stru
 		return RET_NOTHING;
 	}
 	r = target_removereadpackage(target, logger, database,
-			name, oldchunk, dereferencedfilekeys,
-			trackingdata);
+			name, oldchunk, trackingdata);
 	free(oldchunk);
 	return r;
 }
 
 
 /* Like target_removepackage, but delete the package record by cursor */
-retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct database *database, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata) {
+retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger *logger, struct database *database, struct trackingdata *trackingdata) {
 	struct target * const target = tc->target;
 	const char * const name = tc->lastname;
 	const char * const control = tc->lastcontrol;
@@ -296,10 +316,10 @@ retvalue target_removepackage_by_cursor(struct target_cursor *tc, struct logger 
 					NULL, control,
 					NULL, &files);
 		r = references_delete(database, target->identifier, &files,
-				NULL, dereferencedfilekeys);
+				NULL);
 		RET_UPDATE(result, r);
-	} else
-		strlist_done(&files);
+	}
+	strlist_done(&files);
 	free(oldpversion);
 	return result;
 }
@@ -311,13 +331,22 @@ static retvalue addpackages(struct target *target, struct database *database,
 		const struct strlist *files,
 		/*@only@*//*@null@*/struct strlist *oldfiles,
 		/*@null@*/struct logger *logger,
-		/*@null@*/struct strlist *dereferencedfilekeys,
 		/*@null@*/struct trackingdata *trackingdata,
-		enum filetype filetype,
+		architecture_t architecture,
 		/*@null@*//*@only@*/char *oldsource,/*@null@*//*@only@*/char *oldsversion) {
 
 	retvalue result,r;
 	struct table *table = target->packages;
+	enum filetype filetype;
+
+	assert( atom_defined(architecture) );
+
+	if( architecture == architecture_source )
+		filetype = ft_SOURCE;
+	else if( architecture == architecture_all )
+		filetype = ft_ALL_BINARY;
+	else
+		filetype = ft_ARCH_BINARY;
 
 	/* mark it as needed by this distribution */
 
@@ -359,14 +388,15 @@ static retvalue addpackages(struct target *target, struct database *database,
 
 	if( oldfiles != NULL ) {
 		r = references_delete(database, target->identifier,
-				oldfiles, files, dereferencedfilekeys);
+				oldfiles, files);
 		RET_UPDATE(result,r);
+		strlist_done(oldfiles);
 	}
 
 	return result;
 }
 
-retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool *usedmarker, bool downgrade, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, enum filetype filetype) {
+retvalue target_addpackage(struct target *target, struct logger *logger, struct database *database, const char *name, const char *version, const char *control, const struct strlist *filekeys, bool downgrade, struct trackingdata *trackingdata, enum filetype filetype) {
 	struct strlist oldfilekeys,*ofk;
 	char *oldcontrol,*oldsource,*oldsversion;
 	char *oldpversion;
@@ -446,13 +476,10 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 		}
 
 	}
-	if( usedmarker != NULL )
-		*usedmarker = true;
 	r = addpackages(target, database, name, control, oldcontrol,
 			version, oldpversion,
 			filekeys, ofk,
 			logger,
-			dereferencedfilekeys,
 			trackingdata, filetype, oldsource, oldsversion);
 	if( RET_IS_OK(r) ) {
 		target->wasmodified = true;
@@ -573,14 +600,14 @@ retvalue target_rereference(struct target *target, struct database *database) {
 
 	if( verbose > 1 ) {
 		if( verbose > 2 )
-			printf("Unlocking depencies of %s...\n",
+			printf("Unlocking dependencies of %s...\n",
 					target->identifier);
 		else
 			printf("Rereferencing %s...\n",
 					target->identifier);
 	}
 
-	result = references_remove(database, target->identifier, NULL);
+	result = references_remove(database, target->identifier);
 	if( verbose > 2 )
 		printf("Referencing %s...\n", target->identifier);
 
@@ -634,6 +661,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 	struct strlist expectedfilekeys;
 	char *dummy, *version;
 	retvalue result,r;
+	architecture_t package_architecture;
 
 	r = target->getversion(chunk, &version);
 	if( !RET_IS_OK(r) ) {
@@ -642,8 +670,16 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 			r = RET_ERROR_MISSING;
 		return r;
 	}
-	r = target->getinstalldata(target, package, version, chunk, &dummy,
-			&expectedfilekeys, &files, NULL);
+	r = target->getarchitecture(chunk, &package_architecture);
+	if( !RET_IS_OK(r) ) {
+		fprintf(stderr, "Error extraction architecture from package control info of '%s'!\n", package);
+		if( r == RET_NOTHING )
+			r = RET_ERROR_MISSING;
+		return r;
+	}
+	r = target->getinstalldata(target, package, version,
+			package_architecture, chunk, &dummy,
+			&expectedfilekeys, &files);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr, "Error extracting information of package '%s'!\n",
 				package);

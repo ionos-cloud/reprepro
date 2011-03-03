@@ -40,8 +40,6 @@
 #include "readtextfile.h"
 #include "signature.h"
 
-extern int verbose;
-
 #ifdef HAVE_LIBGPGME
 static gpgme_ctx_t context = NULL;
 
@@ -118,7 +116,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 		while( *keypart != '\0' && xisspace(*keypart) )
 			keypart++;
 		if( *keypart == '\0' )
-			/* nothing more to check, so nothing fullfilled */
+			/* nothing more to check, so nothing fulfilled */
 			return RET_NOTHING;
 		p = keypart;
 		while( *p != '\0' && !xisspace(*p) && *p != '|' )
@@ -145,7 +143,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 }
 #endif /* HAVE_LIBGPGME */
 
-retvalue signature_check(const char *options, const char *releasegpg, const char *release) {
+retvalue signature_check(const struct strlist *requirements, const char *releasegpg, const char *release) {
 	retvalue r;
 #ifdef HAVE_LIBGPGME
 	gpg_error_t err;
@@ -153,7 +151,11 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 	gpgme_data_t dh,dh_gpg;
 	gpgme_verify_result_t result;
 	gpgme_signature_t s;
+	bool totalfulfilled[requirements->count], keyfulfills[requirements->count];
+	int i,j;
 #endif /* HAVE_LIBGPGME */
+
+	assert( requirements->count > 0 );
 
 	if( release == NULL || releasegpg == NULL )
 		return RET_ERROR_OOM;
@@ -163,6 +165,8 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		return r;
 
 #ifdef HAVE_LIBGPGME
+	for( i = 0 ; i < requirements->count ; i++ )
+		totalfulfilled[i] = false;
 	/* Read the file and its signature into memory: */
 	gpgfd = open(releasegpg, O_RDONLY|O_NOCTTY);
 	if( gpgfd < 0 ) {
@@ -204,10 +208,19 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 		return RET_ERROR_GPGME;
 	}
 	for( s = result->signatures ; s != NULL ; s = s->next ) {
-		r = containskey(options, s->fpr);
-		if( RET_WAS_ERROR(r) )
-			return r;
-		if( r == RET_NOTHING ) {
+		bool keyused = false;
+
+		for( i = 0 ; i < requirements->count ; i++ ) {
+			r = containskey(requirements->values[i], s->fpr);
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( RET_IS_OK(r) ) {
+				keyused = true;
+				keyfulfills[i] = true;
+			} else
+				keyfulfills[i] = false;
+		}
+		if( !keyused ) {
 			if( gpg_err_code(s->status) == GPG_ERR_NO_ERROR &&
 					verbose > 10 ) {
 				printf("Valid signature with key '%s', but that key is not looked at.\n", s->fpr);
@@ -224,16 +237,22 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 "WARNING: valid signature in '%s' with '%s', which has been expired.\n"
 "         as the key was manually specified it is still accepted!\n",
 						releasegpg, s->fpr);
-				return RET_OK;
+				for( i = 0 ; i < requirements->count ; i++ ) {
+					if( keyfulfills[i] )
+						totalfulfilled[i] = true;
+				}
+				continue;
 			case GPG_ERR_CERT_REVOKED:
-				if( verbose >= 0 ) {
-					fprintf(stderr,
+				fprintf(stderr,
 "WARNING\n"
 "WARNING: valid signature in '%s' with '%s', which has been revoked.\n"
 "WARNING: as the key was manually specified it is still accepted!\n"
 "WARNING\n", releasegpg, s->fpr);
+				for( i = 0 ; i < requirements->count ; i++ ) {
+					if( keyfulfills[i] )
+						totalfulfilled[i] = true;
 				}
-				return RET_OK;
+				continue;
 			case GPG_ERR_SIG_EXPIRED:
 				if( verbose > 0 ) {
 					time_t timestamp = s->timestamp,
@@ -281,7 +300,27 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 			gpg_err_code(s->status));
 		return RET_ERROR_GPGME;
 	}
-	return RET_NOTHING;
+	for( i = 0 ; i < requirements->count ; i++ ) {
+		if( totalfulfilled[i] )
+			continue;
+		j = 0;
+		while( j < requirements->count && !totalfulfilled[j] )
+			j++;
+		if( j >= requirements->count ) {
+			/* none of the requirements matches */
+			fprintf(stderr,
+"Error: No accepted signature for '%s' found in '%s'!\n",
+					release, releasegpg);
+		} else {
+			fprintf(stderr,
+"Error: '%s' misses requirement '%s'.\n"
+"At least one other requirement on that file was not missed,\n"
+"but all requirements have to be fulfilled to accept it.\n",
+					releasegpg, requirements->values[i]);
+		}
+		return RET_ERROR_BADSIG;
+	}
+	return RET_OK;
 #else /* HAVE_LIBGPGME */
 	fprintf(stderr,
 "ERROR: Cannot check signature as this reprepro binary is compiled with support\n"
@@ -424,7 +463,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 		while( signature_len > 0 ) {
 			written = write(fd,p,signature_len);
 			if( written < 0 ) {
-				int e = errno;
+				e = errno;
 				fprintf(stderr, "Error %d writing to %s: %s\n",
 						e, signaturename,
 						strerror(e));
@@ -441,7 +480,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 #endif
 		ret = close(fd);
 		if( ret < 0 ) {
-			int e = errno;
+			e = errno;
 			fprintf(stderr, "Error %d writing to %s: %s\n",
 					e, signaturename,
 					strerror(e));
@@ -622,7 +661,7 @@ static retvalue extract_signed_data(const char *buffer, size_t bufferlen, const 
 	}
 	err = gpgme_op_verify(context, dh_gpg, NULL, dh);
 	if( gpg_err_code(err) == GPG_ERR_NO_DATA ) {
-		if( verbose > -1 )
+		if( verbose > 5 )
 			fprintf(stderr,"Data seems not to be signed trying to use directly....\n");
 		gpgme_data_release(dh);
 		gpgme_data_release(dh_gpg);
@@ -760,7 +799,7 @@ retvalue signature_readsignedchunk(const char *filename, const char *filenametos
 
 	/* fast-track unsigned chunks: */
 	if( startofchanges[0] != '-' && *afterchanges == '\0' ) {
-		if( verbose > -1 )
+		if( verbose > 5 )
 			fprintf(stderr,"Data seems not to be signed trying to use directly...\n");
 		len = chunk_extract(chunk, chunk, &afterchunk);
 		assert( *afterchunk == '\0' );
@@ -872,14 +911,14 @@ struct signedfile {
 };
 
 
-static retvalue newpossiblysignedfile(const char *directory, const char *basename, struct signedfile **out) {
+static retvalue newpossiblysignedfile(const char *directory, const char *basefilename, struct signedfile **out) {
 	struct signedfile *n;
 
 	n = calloc(1, sizeof(struct signedfile));
 	if( n == NULL )
 		return RET_ERROR_OOM;
 	n->fd = -1;
-	n->plainfilename = calc_dirconcat(directory, basename);
+	n->plainfilename = calc_dirconcat(directory, basefilename);
 	if( n->plainfilename == NULL ) {
 		free(n);
 		return RET_ERROR_OOM;
@@ -927,11 +966,11 @@ void signedfile_free(struct signedfile *f) {
 	return;
 }
 
-retvalue signature_startsignedfile(const char *directory, const char *basename, UNUSED(const char *options), struct signedfile **out) {
+retvalue signature_startsignedfile(const char *directory, const char *basefilename, UNUSED(const char *options), struct signedfile **out) {
 	retvalue r;
 	struct signedfile *n;
 
-	r = newpossiblysignedfile(directory, basename, &n);
+	r = newpossiblysignedfile(directory, basefilename, &n);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	// create object to place data into...
@@ -939,11 +978,11 @@ retvalue signature_startsignedfile(const char *directory, const char *basename, 
 	return RET_OK;
 }
 
-retvalue signature_startunsignedfile(const char *directory, const char *basename, struct signedfile **out) {
+retvalue signature_startunsignedfile(const char *directory, const char *basefilename, struct signedfile **out) {
 	retvalue r;
 	struct signedfile *n;
 
-	r = newpossiblysignedfile(directory, basename, &n);
+	r = newpossiblysignedfile(directory, basefilename, &n);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	*out = n;

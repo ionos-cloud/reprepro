@@ -34,15 +34,15 @@
 #include <malloc.h>
 #include "error.h"
 #include "strlist.h"
+#include "atoms.h"
 #include "dirs.h"
 #include "target.h"
 #include "configparser.h"
 #include "log.h"
 #include "filecntl.h"
 
-extern int verbose;
-
 const char *causingfile = NULL;
+command_t causingcommand_atom = atom_unknown;
 
 /*@null@*/ static /*@refcounted@*/ struct logfile {
 	/*@null@*/struct logfile *next;
@@ -148,20 +148,26 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 		if( version != NULL && oldversion != NULL )
 			ret = dprintf(logfile->fd,
 "EEEE-EE-EE EE:EE:EE replace %s %s %s %s %s %s %s\n",
-				target->codename, target->packagetype,
-				target->component, target->architecture,
+				target->codename,
+				atoms_packagetypes[target->packagetype_atom],
+				atoms_components[target->component_atom],
+				atoms_architectures[target->architecture_atom],
 				name, version, oldversion);
 		else if( version != NULL )
 			ret = dprintf(logfile->fd,
 "EEEE-EE-EE EE:EE:EE add %s %s %s %s %s %s\n",
-				target->codename, target->packagetype,
-				target->component, target->architecture,
+				target->codename,
+				atoms_packagetypes[target->packagetype_atom],
+				atoms_components[target->component_atom],
+				atoms_architectures[target->architecture_atom],
 				name, version);
 		else
 			ret = dprintf(logfile->fd,
 "EEEE-EE-EE EE:EE:EE remove %s %s %s %s %s %s\n",
-				target->codename, target->packagetype,
-				target->component, target->architecture,
+				target->codename,
+				atoms_packagetypes[target->packagetype_atom],
+				atoms_components[target->component_atom],
+				atoms_architectures[target->architecture_atom],
 				name, oldversion);
 	} else if( version != NULL && oldversion != NULL )
 		ret = dprintf(logfile->fd,
@@ -169,8 +175,10 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 			1900+t.tm_year, t.tm_mon+1,
 			t.tm_mday, t.tm_hour,
 			t.tm_min, t.tm_sec,
-			target->codename, target->packagetype,
-			target->component, target->architecture,
+			target->codename,
+			atoms_packagetypes[target->packagetype_atom],
+			atoms_components[target->component_atom],
+			atoms_architectures[target->architecture_atom],
 			name, version, oldversion);
 	else if( version != NULL )
 		ret = dprintf(logfile->fd,
@@ -178,8 +186,10 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 			1900+t.tm_year, t.tm_mon+1,
 			t.tm_mday, t.tm_hour,
 			t.tm_min, t.tm_sec,
-			target->codename, target->packagetype,
-			target->component, target->architecture,
+			target->codename,
+			atoms_packagetypes[target->packagetype_atom],
+			atoms_components[target->component_atom],
+			atoms_architectures[target->architecture_atom],
 			name, version);
 	else
 		ret = dprintf(logfile->fd,
@@ -187,8 +197,10 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 			1900+t.tm_year, t.tm_mon+1,
 			t.tm_mday, t.tm_hour,
 			t.tm_min, t.tm_sec,
-			target->codename, target->packagetype,
-			target->component, target->architecture,
+			target->codename,
+			atoms_packagetypes[target->packagetype_atom],
+			atoms_components[target->component_atom],
+			atoms_architectures[target->architecture_atom],
 			name, oldversion);
 	if( ret < 0 ) {
 		int e = errno;
@@ -201,18 +213,16 @@ static retvalue logfile_write(struct logfile *logfile,struct target *target,cons
 
 struct notificator {
 	char *scriptname;
-	/* if one of the following is non-NULL, only call if it matches the package: */
-	/*@null@*/char *packagetype;
-	/*@null@*/char *component;
-	/*@null@*/char *architecture;
+	/* if defined, only call if it matches the package: */
+	packagetype_t packagetype_atom;
+	component_t component_atom;
+	architecture_t architecture_atom;
+	command_t command_atom;
 	bool withcontrol, changesacceptrule;
 };
 
 static void notificator_done(/*@special@*/struct notificator *n) /*@releases n->scriptname,n->packagename,n->component,n->architecture@*/{
 	free(n->scriptname);
-	free(n->packagetype);
-	free(n->component);
-	free(n->architecture);
 }
 
 static retvalue notificator_parse(struct notificator *n, struct configiterator *iter) {
@@ -220,11 +230,16 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 	int c;
 
 	memset(n, 0, sizeof(struct notificator));
+	n->architecture_atom = atom_unknown;
+	n->component_atom = atom_unknown;
+	n->packagetype_atom = atom_unknown;
+	n->command_atom = atom_unknown;
 	while( (c = config_nextnonspaceinline(iter)) != EOF ) {
 		if( c == '-' ) {
 			char *word, *s, *detachedargument = NULL;
 			const char *argument;
-			char **value_p = NULL;
+			atom_t *value_p = NULL;
+			enum atom_type value_type;
 			bool error = false;
 
 			r = config_completeword(iter, c, &word);
@@ -242,19 +257,30 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 				argument = NULL;
 			switch( s-word ) {
 				case 2:
-					if( word[1] == 'A' )
-						value_p = &n->architecture;
-					else if( word[1] == 'C' )
-						value_p = &n->component;
-					else if( word[1] == 'T' )
-						value_p = &n->packagetype;
-					else
+					if( word[1] == 'A' ) {
+						value_p = &n->architecture_atom;
+						value_type = at_architecture;
+					} else if( word[1] == 'C' ) {
+						value_p = &n->component_atom;
+						value_type = at_component;
+					} else if( word[1] == 'T' ) {
+						value_p = &n->packagetype_atom;
+						value_type = at_packagetype;
+					} else
+						error = true;
+					break;
+				case 5:
+					if( strcmp(word, "--via") == 0 ) {
+						value_p = &n->command_atom;
+						value_type = at_command;
+					} else
 						error = true;
 					break;
 				case 6:
-					if( strcmp(word, "--type") == 0 )
-						value_p = &n->packagetype;
-					else
+					if( strcmp(word, "--type") == 0 ) {
+						value_p = &n->packagetype_atom;
+						value_type = at_packagetype;
+					} else
 						error = true;
 					break;
 				case 9:
@@ -264,9 +290,10 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 						error = true;
 					break;
 				case 11:
-					if( strcmp(word, "--component") == 0 )
-						value_p = &n->component;
-					else
+					if( strcmp(word, "--component") == 0 ) {
+						value_p = &n->component_atom;
+						value_type = at_component;
+					} else
 						error = true;
 					break;
 				case 13:
@@ -276,9 +303,10 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 						error = true;
 					break;
 				case 14:
-					if( strcmp(word, "--architecture") == 0 )
-						value_p = &n->architecture;
-					else
+					if( strcmp(word, "--architecture") == 0 ) {
+						value_p = &n->architecture_atom;
+						value_type = at_architecture;
+					} else
 						error = true;
 					break;
 				default:
@@ -309,7 +337,7 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 				continue;
 			}
 			/* option expecting string value: */
-			if( *value_p != NULL ) {
+			if( atom_defined(*value_p) ) {
 				fprintf(stderr,
 "Repeated notifier option %s in %s, line %u, column %u!\n", word,
 					config_filename(iter),
@@ -317,6 +345,7 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 				free(word);
 				return RET_ERROR;
 			}
+			detachedargument = NULL;
 			if( argument == NULL ) {
 				r = config_getwordinline(iter, &detachedargument);
 				if( RET_WAS_ERROR(r) )
@@ -330,30 +359,38 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 					free(word);
 					return RET_ERROR;
 				}
+				argument = detachedargument;
 			}
-			if( argument == NULL )
-				*value_p = detachedargument;
-			else
-				*value_p = strdup(argument);
+			*value_p = atom_find(value_type, argument);
+			if( !atom_defined(*value_p) ) {
+				fprintf(stderr,
+"Warning: unknown %s '%s', ignoring notificator line line %u in %s\n",
+					atomtypes[value_type],
+					argument, config_line(iter),
+					config_filename(iter));
+				config_overline(iter);
+				free(detachedargument);
+				free(word);
+				return RET_NOTHING;
+			}
+			free(detachedargument);
 			free(word);
-			if( *value_p == NULL )
-				return RET_ERROR_OOM;
 		} else {
 			char *script;
 
-			if( n->changesacceptrule && n->architecture != NULL ) {
+			if( n->changesacceptrule && atom_defined(n->architecture_atom) ) {
 				fprintf(stderr,
 "Error: --changes and --architecture cannot be combined! (line %u in '%s')\n",
 					config_markerline(iter), config_filename(iter));
 				return RET_ERROR;
 			}
-			if( n->changesacceptrule && n->component != NULL ) {
+			if( n->changesacceptrule && atom_defined(n->component_atom) ) {
 				fprintf(stderr,
 "Error: --changes and --component cannot be combined! (line %u in %s)\n",
 					config_markerline(iter), config_filename(iter));
 				return RET_ERROR;
 			}
-			if( n->changesacceptrule && n->packagetype != NULL ) {
+			if( n->changesacceptrule && atom_defined(n->packagetype_atom) ) {
 				fprintf(stderr,
 "Error: --changes and --type cannot be combined! (line %u in %s)\n",
 					config_markerline(iter), config_filename(iter));
@@ -398,6 +435,7 @@ static retvalue notificator_parse(struct notificator *n, struct configiterator *
 	/*@null@*/struct notification_process *next;
 	char **arguments;
 	/*@null@*/char *causingfile;
+	command_t causingcommand_atom;
 	/* data to send to the process */
 	size_t datalen, datasent;
 	/*@null@*/char *data;
@@ -472,7 +510,7 @@ static int catchchildren(void) {
 	return returned;
 }
 
-static void feedchildren(bool wait) {
+static void feedchildren(bool dowait) {
 	struct notification_process *p;
 	fd_set w;
 	int ret;
@@ -489,7 +527,7 @@ static void feedchildren(bool wait) {
 	}
 	if( number == 0 )
 		return;
-	ret = select(number, NULL, &w, NULL, wait?NULL:&tv);
+	ret = select(number, NULL, &w, NULL, dowait?NULL:&tv);
 	if( ret < 0 ) {
 		// TODO...
 		return;
@@ -567,6 +605,12 @@ static retvalue startchild(void) {
 			setenv("REPREPRO_CAUSING_FILE", p->causingfile, true);
 		else
 			unsetenv("REPREPRO_CAUSING_FILE");
+		if( atom_defined(p->causingcommand_atom) )
+			setenv("REPREPRO_CAUSING_COMMAND",
+					atoms_commands[p->causingcommand_atom],
+					true);
+		else
+			unsetenv("REPREPRO_CAUSING_COMMAND");
 		setenv("REPREPRO_BASE_DIR", global.basedir, true);
 		setenv("REPREPRO_OUT_DIR", global.outdir, true);
 		setenv("REPREPRO_CONF_DIR", global.confdir, true);
@@ -653,6 +697,9 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 	feedchildren(false);
 	if( !n->changesacceptrule )
 		return RET_NOTHING;
+	if( limitation_missed(n->command_atom, causingcommand_atom) ) {
+		return RET_NOTHING;
+	}
 	count = 6; /* script "accepted" codename name version safename */
 	if( filekey != NULL )
 		count++;
@@ -693,6 +740,7 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 		free(arguments);
 		return RET_ERROR_OOM;
 	}
+	p->causingcommand_atom = causingcommand_atom;
 	if( causingfile != NULL ) {
 		p->causingfile = strdup(causingfile);
 		if( FAILEDTOALLOC(p->causingfile) ) {
@@ -731,20 +779,22 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 	if( n->changesacceptrule )
 		return RET_NOTHING;
 	// some day, some atom handling for those would be nice
-	if( n->architecture != NULL &&
-			strcmp(n->architecture,target->architecture) != 0 ) {
+	if( limitation_missed(n->architecture_atom, target->architecture_atom) ) {
 		if( runningchildren() < 1 )
 			startchild();
 		return RET_NOTHING;
 	}
-	if( n->component != NULL &&
-			strcmp(n->component,target->component) != 0 ) {
+	if( limitation_missed(n->component_atom, target->component_atom) ) {
 		if( runningchildren() < 1 )
 			startchild();
 		return RET_NOTHING;
 	}
-	if( n->packagetype != NULL &&
-			strcmp(n->packagetype,target->packagetype) != 0 ) {
+	if( limitation_missed(n->packagetype_atom, target->packagetype_atom) ) {
+		if( runningchildren() < 1 )
+			startchild();
+		return RET_NOTHING;
+	}
+	if( limitation_missed(n->command_atom, causingcommand_atom) ) {
 		if( runningchildren() < 1 )
 			startchild();
 		return RET_NOTHING;
@@ -778,9 +828,9 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 	arguments[i++] = strdup(n->scriptname);
 	arguments[i++] = strdup(action);
 	arguments[i++] = strdup(target->codename);
-	arguments[i++] = strdup(target->packagetype);
-	arguments[i++] = strdup(target->component);
-	arguments[i++] = strdup(target->architecture);
+	arguments[i++] = strdup(atoms_packagetypes[target->packagetype_atom]);
+	arguments[i++] = strdup(atoms_components[target->component_atom]);
+	arguments[i++] = strdup(atoms_architectures[target->architecture_atom]);
 	arguments[i++] = strdup(name);
 	if( version != NULL )
 		arguments[i++] = strdup(version);
@@ -828,6 +878,7 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 		free(arguments);
 		return RET_ERROR_OOM;
 	}
+	p->causingcommand_atom = causingcommand_atom;
 	if( causingfile != NULL ) {
 		size_t j;
 		p->causingfile = strdup(causingfile);
@@ -981,6 +1032,8 @@ retvalue logger_init(struct configiterator *iter, struct logger **logger_p) {
 			logger_free(n);
 			return r;
 		}
+		if( r == RET_NOTHING )
+			n->notificator_count--;
 		// TODO assert eol here...
 		havenotificators = config_nextline(iter);
 	}
@@ -1053,18 +1106,12 @@ bool logger_rerun_needs_target(const struct logger *logger, const struct target 
 	for( i = 0 ; i < logger->notificator_count ; i++ ) {
 		n = &logger->notificators[i];
 
-		if( n->architecture != NULL &&
-				strcmp(n->architecture,target->architecture) != 0 ) {
+		if( limitation_missed(n->architecture_atom, target->architecture_atom) )
 			continue;
-		}
-		if( n->component != NULL &&
-				strcmp(n->component,target->component) != 0 ) {
+		if( limitation_missed(n->component_atom, target->component_atom) )
 			continue;
-		}
-		if( n->packagetype != NULL &&
-				strcmp(n->packagetype,target->packagetype) != 0 ) {
+		if( limitation_missed(n->packagetype_atom, target->packagetype_atom) )
 			continue;
-		}
 		return true;
 	}
 	return false;

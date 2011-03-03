@@ -1,4 +1,7 @@
 TODO:
+        think about a way to make removesrc work on all distributions ('*'?)
+	-> or make things like remove(src)/list/.. work with distribution globs...
+	write something for manual.html how to manually modify snapshots...
 	write more automated test-cases
 	 (not even run in the testcase yet: reoverride, ... (probably many))
 	finish import from incoming dir, implement sending mails to uploader
@@ -6,11 +9,13 @@ TODO:
 	switch to only include if source is present
 	action to redownload missing pool/ files from some update-rules (looking for md5sum)
 	check for harmful override entries (Package, Source, ....)
-	also support .bz2 Index file download
 	also support pdiff download when mirroring
+	Fields to exclude architectures and components in update rules,
+	 (or alternatively allow ! in inclusion lists).
 
 half far goals:
-	handle components, architectures and types as numeric atoms for filters
+	use numeric atoms for components, architectures and types in more
+	 places (especially in filters)
 	rewrite error handling, caching error messages and handling Ctrl-C better.
 
 far goals:

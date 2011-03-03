@@ -29,6 +29,7 @@
 #include "strlist.h"
 #include "names.h"
 #include "chunks.h"
+#include "sources.h"
 #include "binaries.h"
 #include "names.h"
 #include "dpkgversions.h"
@@ -37,10 +38,21 @@
 #include "tracking.h"
 #include "debfile.h"
 
-extern int verbose;
-
 static const char * const deb_checksum_headers[cs_COUNT] = {
 	"MD5sum", "SHA1", "SHA256", "Size"};
+
+static char *calc_binary_basename(const char *name, const char *version, architecture_t arch, packagetype_t packagetype) {
+	const char *v;
+	assert( name != NULL && version != NULL && atom_defined(arch) && atom_defined(packagetype) );
+	v = strchr(version, ':');
+	if( v != NULL )
+		v++;
+	else
+		v = version;
+	return mprintf("%s_%s_%s.%s", name, v, atoms_architectures[arch],
+			atoms_packagetypes[packagetype]);
+}
+
 
 /* get checksums out of a "Packages"-chunk. */
 static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct checksums **checksums_p) {
@@ -74,10 +86,32 @@ static retvalue binaries_parse_checksums(const char *chunk, /*@out@*/struct chec
 	return checksums_init(checksums_p, checksums);
 }
 
-/* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
-static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, const char *packagetype, const char *version, /*@out@*/char **sourcename, /*@out@*/char **basename, /*@out@*/enum filetype *ft_p) {
-	retvalue r;
+retvalue binaries_getarchitecture(const char *chunk, architecture_t *architecture_p) {
 	char *parch;
+	retvalue r;
+
+	r = chunk_getvalue(chunk, "Architecture", &parch);
+	if( r == RET_NOTHING ) {
+		fprintf(stderr, "Internal Error: Missing Architecture: header in '%s'!\n",
+				chunk);
+		return RET_ERROR;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	*architecture_p = architecture_find(parch);
+	free(parch);
+
+	if( !atom_defined(*architecture_p) ) {
+		fprintf(stderr, "Internal Error: Unexpected Architecture: header in '%s'!\n",
+				chunk);
+		return RET_ERROR;
+	}
+	return RET_OK;
+}
+
+/* get somefields out of a "Packages.gz"-chunk. returns RET_OK on success, RET_NOTHING if incomplete, error otherwise */
+static retvalue binaries_parse_chunk(const char *chunk, const char *packagename, packagetype_t packagetype_atom, architecture_t package_architecture, const char *version, /*@out@*/char **sourcename_p, /*@out@*/char **basename_p) {
+	retvalue r;
 	char *mysourcename,*mybasename;
 
 	assert(packagename!=NULL);
@@ -93,34 +127,21 @@ static retvalue binaries_parse_chunk(const char *chunk, const char *packagename,
 		return r;
 	}
 
-	/* generate a base filename based on package,version and architecture */
-	r = chunk_getvalue(chunk,"Architecture",&parch);
-	if( !RET_IS_OK(r) ) {
-		free(mysourcename);
-		return r;
-	}
-	if( strcmp(parch, "all") == 0 )
-		*ft_p = ft_ALL_BINARY;
-	else
-		*ft_p = ft_ARCH_BINARY;
 	r = properpackagename(packagename);
 	if( !RET_WAS_ERROR(r) )
 		r = properversion(version);
-	if( !RET_WAS_ERROR(r) )
-		r = properfilenamepart(parch);
 	if( RET_WAS_ERROR(r) ) {
-		free(parch);
 		return r;
 	}
-	mybasename = calc_binary_basename(packagename,version,parch,packagetype);
-	free(parch);
+	mybasename = calc_binary_basename(packagename, version,
+			package_architecture, packagetype_atom);
 	if( mybasename == NULL ) {
 		free(mysourcename);
 		return RET_ERROR_OOM;
 	}
 
-	*basename = mybasename;
-	*sourcename = mysourcename;
+	*basename_p = mybasename;
+	*sourcename_p = mysourcename;
 	return RET_OK;
 }
 
@@ -143,7 +164,7 @@ retvalue binaries_getfilekeys(const char *chunk, struct strlist *files) {
 	return r;
 }
 
-static retvalue calcfilekeys(const char *component,const char *sourcename,const char *basename,struct strlist *filekeys) {
+static retvalue calcfilekeys(component_t component_atom, const char *sourcename, const char *basefilename, struct strlist *filekeys) {
 	char *filekey;
 	retvalue r;
 
@@ -151,17 +172,17 @@ static retvalue calcfilekeys(const char *component,const char *sourcename,const 
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	}
-	filekey =  calc_filekey(component,sourcename,basename);
+	filekey = calc_filekey(component_atom, sourcename, basefilename);
 	if( filekey == NULL )
 		return RET_ERROR_OOM;
 	r = strlist_init_singleton(filekey,filekeys);
 	return r;
 }
 
-static inline retvalue calcnewcontrol(const char *chunk,const char *sourcename,const char *basename,const char *component,struct strlist *filekeys,char **newchunk) {
+static inline retvalue calcnewcontrol(const char *chunk, const char *sourcename, const char *basefilename, component_t component_atom, struct strlist *filekeys, char **newchunk) {
 	retvalue r;
 
-	r = calcfilekeys(component,sourcename,basename,filekeys);
+	r = calcfilekeys(component_atom, sourcename, basefilename, filekeys);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -187,14 +208,14 @@ retvalue binaries_getversion(const char *control, char **version) {
 	return r;
 }
 
-retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *type_p) {
-	char *sourcename IFSTUPIDCC(=NULL) ,*basename IFSTUPIDCC(=NULL);
+retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, architecture_t package_architecture, const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+	char *sourcename IFSTUPIDCC(=NULL), *basefilename IFSTUPIDCC(=NULL);
 	struct checksumsarray origfilekeys;
 	retvalue r;
-	enum filetype ft IFSTUPIDCC(='?');
 
-	r = binaries_parse_chunk(chunk, packagename, t->packagetype,
-			version, &sourcename, &basename, &ft);
+	r = binaries_parse_chunk(chunk, packagename,
+			t->packagetype_atom, package_architecture,
+			version, &sourcename, &basefilename);
 	if( RET_WAS_ERROR(r) ) {
 		return r;
 	} else if( r == RET_NOTHING ) {
@@ -203,21 +224,19 @@ retvalue binaries_getinstalldata(const struct target *t, const char *packagename
 	}
 	r = binaries_getchecksums(chunk, &origfilekeys);
 	if( RET_WAS_ERROR(r) ) {
-		free(sourcename);free(basename);
+		free(sourcename); free(basefilename);
 		return r;
 	}
 
-	r = calcnewcontrol(chunk, sourcename, basename,
-			t->component, filekeys, control);
+	r = calcnewcontrol(chunk, sourcename, basefilename,
+			t->component_atom, filekeys, control);
 	if( RET_WAS_ERROR(r) ) {
 		checksumsarray_done(&origfilekeys);
 	} else {
 		assert( r != RET_NOTHING );
 		checksumsarray_move(origfiles, &origfilekeys);
 	}
-	if( type_p != NULL )
-		*type_p = ft;
-	free(sourcename);free(basename);
+	free(sourcename); free(basefilename);
 	return r;
 }
 
@@ -448,7 +467,6 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 void binaries_debdone(struct deb_headers *pkg) {
 	free(pkg->name);free(pkg->version);
 	free(pkg->source);free(pkg->sourceversion);
-	free(pkg->architecture);
 	free(pkg->control);
 	free(pkg->section);
 	free(pkg->priority);
@@ -456,6 +474,7 @@ void binaries_debdone(struct deb_headers *pkg) {
 
 retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool needssourceversion) {
 	retvalue r;
+	char *architecture;
 
 	r = extractcontrol(&deb->control,filename);
 	if( RET_WAS_ERROR(r) )
@@ -478,7 +497,16 @@ retvalue binaries_readdeb(struct deb_headers *deb, const char *filename, bool ne
 	r = getvalue(filename,deb->control,"Version",&deb->version);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = getvalue(filename,deb->control,"Architecture",&deb->architecture);
+	r = getvalue(filename, deb->control, "Architecture", &architecture);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	r = properfilenamepart(architecture);
+	if( RET_WAS_ERROR(r) ) {
+		free(architecture);
+		return r;
+	}
+	r = architecture_intern(architecture, &deb->architecture_atom);
+	free(architecture);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	/* can be there, otherwise we also know what it is */
@@ -555,7 +583,7 @@ retvalue binaries_complete(const struct deb_headers *pkg, const char *filekey, c
 	return RET_OK;
 }
 
-retvalue binaries_adddeb(const struct deb_headers *deb, struct database *database, const char *forcearchitecture, const char *packagetype, struct distribution *distribution, struct strlist *dereferencedfilekeys, struct trackingdata *trackingdata, const char *component, const struct strlist *filekeys, bool *usedmarker, const char *control) {
+retvalue binaries_adddeb(const struct deb_headers *deb, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, struct trackingdata *trackingdata, component_t component, const struct strlist *filekeys, const char *control) {
 	retvalue r,result;
 	int i;
 
@@ -565,9 +593,9 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 
 	result = RET_NOTHING;
 
-	if( strcmp(deb->architecture,"all") != 0 ) {
+	if( deb->architecture_atom != architecture_all ) {
 		struct target *t = distribution_getpart(distribution,
-				component, deb->architecture,
+				component, deb->architecture_atom,
 				packagetype);
 		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
@@ -579,15 +607,15 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, usedmarker,
+						filekeys,
 						false,
-						dereferencedfilekeys,
-						trackingdata, ft_ARCH_BINARY);
+						trackingdata,
+						deb->architecture_atom);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
 		RET_UPDATE(result,r);
-	} else if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 ) {
+	} else if( atom_defined(forcearchitecture) && forcearchitecture != architecture_all ) {
 		struct target *t = distribution_getpart(distribution,
 				component, forcearchitecture,
 				packagetype);
@@ -601,19 +629,22 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, usedmarker,
+						filekeys,
 						false,
-						dereferencedfilekeys,
-						trackingdata, ft_ALL_BINARY);
+						trackingdata,
+						deb->architecture_atom);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
 		/*@dependent@*/struct target *t;
-		if( strcmp(distribution->architectures.values[i],"source") == 0 )
+		architecture_t a = distribution->architectures.atoms[i];
+
+		if( a == architecture_source )
 			continue;
-		t = distribution_getpart(distribution,component,distribution->architectures.values[i],packagetype);
+		t = distribution_getpart(distribution,
+				component, a, packagetype);
 		r = target_initpackagesdb(t, database, READWRITE);
 		if( !RET_WAS_ERROR(r) ) {
 			retvalue r2;
@@ -624,10 +655,10 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 						database,
 						deb->name, deb->version,
 						control,
-						filekeys, usedmarker,
+						filekeys,
 						false,
-						dereferencedfilekeys,
-						trackingdata, ft_ALL_BINARY);
+						trackingdata,
+						deb->architecture_atom);
 			r2 = target_closepackagesdb(t);
 			RET_ENDUPDATE(r,r2);
 		}
@@ -638,7 +669,7 @@ retvalue binaries_adddeb(const struct deb_headers *deb, struct database *databas
 	return result;
 }
 
-static inline retvalue checkadddeb(struct database *database, struct distribution *distribution, const char *component, const char *architecture, const char *packagetype, bool tracking, const struct deb_headers *deb, bool permitnewerold) {
+static inline retvalue checkadddeb(struct database *database, struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype, bool tracking, const struct deb_headers *deb, bool permitnewerold) {
 	retvalue r;
 	struct target *t;
 
@@ -661,28 +692,28 @@ static inline retvalue checkadddeb(struct database *database, struct distributio
 	return r;
 }
 
-retvalue binaries_checkadddeb(const struct deb_headers *deb, struct database *database, const char *forcearchitecture, const char *packagetype, struct distribution *distribution, bool tracking, const char *component, bool permitnewerold) {
+retvalue binaries_checkadddeb(const struct deb_headers *deb, struct database *database, architecture_t forcearchitecture, packagetype_t packagetype, struct distribution *distribution, bool tracking, component_t component, bool permitnewerold) {
 	retvalue r,result;
 	int i;
 
 	/* finally put it into one or more architectures of the distribution */
 	result = RET_NOTHING;
 
-	if( strcmp(deb->architecture,"all") != 0 ) {
+	if( deb->architecture_atom != architecture_all ) {
 		r = checkadddeb(database, distribution,
-				component, deb->architecture, packagetype,
+				component, deb->architecture_atom, packagetype,
 				tracking, deb,
 				permitnewerold);
 		RET_UPDATE(result,r);
-	} else if( forcearchitecture != NULL && strcmp(forcearchitecture,"all") != 0 ) {
+	} else if( atom_defined(forcearchitecture) && forcearchitecture != architecture_all ) {
 		r = checkadddeb(database, distribution,
 				component, forcearchitecture, packagetype,
 				tracking, deb,
 				permitnewerold);
 		RET_UPDATE(result,r);
 	} else for( i = 0 ; i < distribution->architectures.count ; i++ ) {
-		const char *a = distribution->architectures.values[i];
-		if( strcmp(a, "source") == 0 )
+		architecture_t a = distribution->architectures.atoms[i];
+		if( a == architecture_source )
 			continue;
 		r = checkadddeb(database, distribution,
 				component, a, packagetype,
@@ -693,17 +724,17 @@ retvalue binaries_checkadddeb(const struct deb_headers *deb, struct database *da
 	return result;
 }
 
-retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *deb,const char *packagetype,struct strlist *filekeys) {
+retvalue binaries_calcfilekeys(component_t component, const struct deb_headers *deb, packagetype_t packagetype, struct strlist *filekeys) {
 	retvalue r;
-	char *basename;
+	char *basefilename;
 
-	basename = calc_binary_basename(deb->name, deb->version,
-			deb->architecture, packagetype);
-	if( basename == NULL )
+	basefilename = calc_binary_basename(deb->name, deb->version,
+			deb->architecture_atom, packagetype);
+	if( FAILEDTOALLOC(basefilename) )
 		return RET_ERROR_OOM;
 
-	r = calcfilekeys(component, deb->source, basename, filekeys);
-	free(basename);
+	r = calcfilekeys(component, deb->source, basefilename, filekeys);
+	free(basefilename);
 	return r;
 }
 

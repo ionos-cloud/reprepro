@@ -25,13 +25,11 @@ touch conf/updates
 dodo test ! -d db
 testrun - -b . checkupdate test 3<<EOF
 stderr
-*=Nothing to do found. (Use --noskipold to force processing)
+*=Nothing to do, because none of the selected distributions has an Update: field.
 stdout
 -v2*=Created directory "./db"
 -v2=Created directory "./lists"
-#-v2*=Removed empty directory "./db"
 EOF
-#dodo test ! -d db
 rm -r -f lists
 rm -r -f db conf
 dodo test ! -d d/ab
@@ -91,11 +89,15 @@ return 255
 -v0*=There have been errors!
 EOF
 cat > conf/distributions <<CONFEND
+Codename: getmoreatoms
+Architectures: funny coal
+Components: dog
+
 Codename: A
 Architectures: ${FAKEARCHITECTURE} calculator
 Components: dog cat
 Log: logfile
- -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
+# -A=nonexistant -C=nocomponent --type=none --withcontrol noscript.sh
 
 Codename: B
 Architectures: ${FAKEARCHITECTURE} source
@@ -103,7 +105,7 @@ Components: dog cat
 Contents:
 Log: logfile
 CONFEND
-testrun - -b . export 3<<EOF
+testrun - -b . export B A 3<<EOF
 stdout
 -v2*=Created directory "./db"
 -v1*=Exporting B...

@@ -26,9 +26,8 @@
 
 #include "error.h"
 #include "names.h"
+#include "atoms.h"
 #include "configparser.h"
-
-extern int verbose;
 
 struct configiterator {
 	FILE *f;
@@ -446,6 +445,58 @@ retvalue config_getword(struct configiterator *iter, char **result_p) {
 	return config_completeword(iter, c, result_p);
 }
 
+retvalue config_gettimespan(struct configiterator *iter, const char *header, time_t *time_p) {
+	time_t currentnumber, currentsum = 0;
+	bool empty = true;
+	int c;
+
+	do {
+		c = config_nextnonspace(iter);
+		if( c == EOF ) {
+			if( empty ) {
+				configparser_errorlast(iter,
+"Unexpected end of %s header (value expected).", header);
+				return RET_ERROR;
+			}
+			*time_p = currentsum;
+			return RET_OK;
+		}
+		iter->markerline = iter->line;
+		iter->markercolumn = iter->column;
+		currentnumber = 0;
+		if( c < '0' || c > '9' ) {
+			configparser_errorlast(iter,
+"Unexpected character '%c' where a digit was expected in %s header.",
+					(char)c, header);
+			return RET_ERROR;
+		}
+		empty = false;
+		do {
+			currentnumber *= 10;
+			currentnumber += (c - '0');
+			c = config_nextchar(iter);
+		} while( c >= '0' && c <= '9');
+		if( c == ' ' || c == '\t' || c == '\n' )
+			c = config_nextnonspace(iter);
+		if( c == 'y' ) {
+			currentnumber *= 365*24*60*60;
+		} else if( c == 'm' ) {
+			currentnumber *= 31*24*60*60;
+		} else if( c == 'd' ) {
+			currentnumber *= 24*60*60;
+		} else {
+			currentnumber *= 24*60*60;
+			if( c != EOF ) {
+				configparser_errorlast(iter,
+"Unexpected character '%c' where a 'd','m' or 'y' was expected in %s header.",
+					(char)c, header);
+				return RET_ERROR;
+			}
+		}
+		currentsum += currentnumber;
+	} while( true );
+}
+
 retvalue config_getonlyword(struct configiterator *iter, const char *header, checkfunc check, char **result_p) {
 	char *value;
 	retvalue r;
@@ -468,7 +519,7 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 		const char *errormessage = check(value);
 		if( errormessage != NULL ) {
 			configparser_errorlast(iter,
-"Malformed %s header content '%s': %s\n", header, value, errormessage);
+"Malformed %s content '%s': %s", header, value, errormessage);
 			free(value);
 			checkerror_free(errormessage);
 			return RET_ERROR;
@@ -498,7 +549,7 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 			return RET_ERROR;
 		} else if( check != NULL && (errormessage = check(value)) != NULL ) {
 			configparser_errorlast(iter,
-"Malformed %s header element '%s': %s\n", header, value, errormessage);
+"Malformed %s element '%s': %s", header, value, errormessage);
 			checkerror_free(errormessage);
 			free(value);
 			strlist_done(&data);
@@ -512,6 +563,217 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 		}
 	}
 	strlist_move(result_p, &data);
+	return RET_OK;
+}
+
+retvalue config_getinternatomlist(struct configiterator *iter, const char *header, enum atom_type type, checkfunc check, struct atomlist *result_p) {
+	char *value;
+	retvalue r;
+	struct atomlist data;
+	const char *errormessage;
+	atom_t atom;
+
+	atomlist_init(&data);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+		if( check != NULL && (errormessage = check(value)) != NULL ) {
+			configparser_errorlast(iter,
+"Malformed %s element '%s': %s", header, value, errormessage);
+			checkerror_free(errormessage);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		r = atom_intern(type, value, &atom);
+		if( RET_WAS_ERROR(r) )
+			return r;
+		r = atomlist_add_uniq(&data, atom);
+		if( r == RET_NOTHING ) {
+			configparser_errorlast(iter,
+"Unexpected duplicate '%s' within %s header.", value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		free(value);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+	}
+	atomlist_move(result_p, &data);
+	return RET_OK;
+}
+
+retvalue config_getatom(struct configiterator *iter, const char *header, enum atom_type type, atom_t *result_p) {
+	char *value;
+	retvalue r;
+	atom_t atom;
+
+	r = config_getword(iter, &value);
+	if( r == RET_NOTHING ) {
+		configparser_errorlast(iter,
+"Unexpected empty '%s' field.", header);
+		r = RET_ERROR_MISSING;
+	}
+	if( RET_WAS_ERROR(r) )
+		return r;
+	atom = atom_find(type, value);
+	if( !atom_defined(atom) ) {
+		configparser_errorlast(iter,
+"Not previously seen %s '%s' within '%s' field.", atomtypes[type], value, header);
+		free(value);
+		return RET_ERROR;
+	}
+	*result_p = atom;
+	free(value);
+	return RET_OK;
+}
+
+retvalue config_getatomlist(struct configiterator *iter, const char *header, enum atom_type type, struct atomlist *result_p) {
+	char *value;
+	retvalue r;
+	struct atomlist data;
+	atom_t atom;
+
+	atomlist_init(&data);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+		atom = atom_find(type, value);
+		if( !atom_defined(atom) ) {
+			configparser_errorlast(iter,
+"Not previously seen %s '%s' within '%s' header.", atomtypes[type], value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		r = atomlist_add_uniq(&data, atom);
+		if( r == RET_NOTHING ) {
+			configparser_errorlast(iter,
+"Unexpected duplicate '%s' within %s header.", value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		free(value);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+	}
+	atomlist_move(result_p, &data);
+	return RET_OK;
+}
+
+retvalue config_getsplitatoms(struct configiterator *iter, const char *header, enum atom_type type, struct atomlist *from_p, struct atomlist *into_p) {
+	char *value, *separator;
+	atom_t origin, destination;
+	retvalue r;
+	struct atomlist data_from, data_into;
+
+	atomlist_init(&data_from);
+	atomlist_init(&data_into);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return r;
+		}
+		separator = strchr(value, '>');
+		if( separator == NULL ) {
+			separator = value;
+			destination = atom_find(type, value);
+			origin = destination;;
+		} else if( separator == value ) {
+			destination = atom_find(type, separator + 1);
+			origin = destination;;
+		} else if( separator[1] == '\0' ) {
+			*separator = '\0';
+			separator = value;
+			destination = atom_find(type, value);
+			origin = destination;;
+		} else {
+			*separator = '\0';
+			separator++;
+			origin = atom_find(type, value);
+			destination = atom_find(type, separator);
+		}
+		if( !atom_defined(origin) ) {
+			configparser_errorlast(iter,
+"Unknown %s '%s' in %s.", atomtypes[type], value, header);
+			free(value);
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return RET_ERROR;
+		}
+		if( !atom_defined(destination) ) {
+			configparser_errorlast(iter,
+"Unknown %s '%s' in %s.", atomtypes[type], separator, header);
+			free(value);
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return RET_ERROR;
+		}
+		free(value);
+		r = atomlist_add(&data_from, origin);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return r;
+		}
+		r = atomlist_add(&data_into, destination);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data_from);
+			atomlist_done(&data_into);
+			return r;
+		}
+	}
+	atomlist_move(from_p, &data_from);
+	atomlist_move(into_p, &data_into);
+	return RET_OK;
+}
+
+retvalue config_getatomsublist(struct configiterator *iter, const char *header, enum atom_type type, struct atomlist *result_p, const struct atomlist *superset, const char *superset_header) {
+	char *value;
+	retvalue r;
+	struct atomlist data;
+	atom_t atom;
+
+	atomlist_init(&data);
+	while( (r = config_getword(iter, &value)) != RET_NOTHING ) {
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+		atom = atom_find(type, value);
+		if( !atom_defined(atom) || !atomlist_in(superset, atom) ) {
+			configparser_errorlast(iter,
+"'%s' not allowed in %s as it was not in %s.", value, header, superset_header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		r = atomlist_add_uniq(&data, atom);
+		if( r == RET_NOTHING ) {
+			configparser_errorlast(iter,
+"Unexpected duplicate '%s' within %s header.", value, header);
+			free(value);
+			atomlist_done(&data);
+			return RET_ERROR;
+		}
+		free(value);
+		if( RET_WAS_ERROR(r) ) {
+			atomlist_done(&data);
+			return r;
+		}
+	}
+	atomlist_move(result_p, &data);
 	return RET_OK;
 }
 

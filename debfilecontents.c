@@ -27,6 +27,7 @@
 #include <archive.h>
 #include <archive_entry.h>
 #include "error.h"
+#include "uncompression.h"
 #include "ar.h"
 #include "filelist.h"
 #include "debfile.h"
@@ -39,22 +40,28 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 	struct archive_entry *entry;
 	struct filelistcompressor c;
 	retvalue r;
-	int a;
+	int a, e;
 
 	r = filelistcompressor_setup(&c);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
 	archive_read_support_format_tar(tar);
+	archive_read_support_format_gnutar(tar);
 	a = archive_read_open(tar,ar,
 			ar_archivemember_open,
 			ar_archivemember_read,
 			ar_archivemember_close);
 	if( a != ARCHIVE_OK ) {
 		filelistcompressor_cancel(&c);
-		fprintf(stderr,"open data.tar.gz within '%s' failed: %d:%d:%s\n",
-				debfile,
-				a,archive_errno(tar),
+		e = archive_errno(tar);
+		if( e == -EINVAL) /* special code to say there is none */
+			fprintf(stderr,
+"open data.tar within '%s' failed: %s\n",
+				debfile, archive_error_string(tar));
+		else
+			fprintf(stderr,
+"open data.tar within '%s' failed: %d:%d:%s\n", debfile, a, e,
 				archive_error_string(tar));
 		return RET_ERROR;
 	}
@@ -82,22 +89,44 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 		}
 		a = archive_read_data_skip(tar);
 		if( a != ARCHIVE_OK ) {
-			int e = archive_errno(tar);
-			printf("Error skipping %s within data.tar.gz from %s: %d=%s\n",
+			e = archive_errno(tar);
+			if( e == -EINVAL ) {
+				r = RET_ERROR;
+				fprintf(stderr,
+"Error skipping %s within data.tar from %s: %s\n",
 					archive_entry_pathname(entry),
-					debfile,
-					e, archive_error_string(tar));
+					debfile, archive_error_string(tar));
+			} else {
+				fprintf(stderr,
+"Error %d skipping %s within data.tar from %s: %s\n",
+					e, archive_entry_pathname(entry),
+					debfile, archive_error_string(tar));
+				if( e != 0 )
+					r = RET_ERRNO(e);
+				else
+					r = RET_ERROR;
+			}
 			filelistcompressor_cancel(&c);
-			return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
+			return r;
 		}
 	}
 	if( a != ARCHIVE_EOF ) {
-		int e = archive_errno(tar);
-		printf("Error reading data.tar.gz from %s: %d=%s\n",
-				debfile,
-				e, archive_error_string(tar));
+		e = archive_errno(tar);
+		if( e == -EINVAL ) {
+			r = RET_ERROR;
+			fprintf(stderr,
+"Error reading data.tar from %s: %s\n", debfile, archive_error_string(tar));
+		} else {
+			fprintf(stderr,
+"Error %d reading data.tar from %s: %s\n",
+					e, debfile, archive_error_string(tar));
+			if( e != 0 )
+				r = RET_ERRNO(e);
+			else
+				r = RET_ERROR;
+		}
 		filelistcompressor_cancel(&c);
-		return (e!=0)?(RET_ERRNO(e)):RET_ERROR;
+		return r;
 	}
 	return filelistcompressor_finish(&c, list, size);
 }
@@ -106,6 +135,7 @@ static retvalue read_data_tar(/*@out@*/char **list, /*@out@*/size_t *size, const
 retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile) {
 	struct ar_archive *ar;
 	retvalue r;
+	bool hadcandidate = false;
 
 	r = ar_open(&ar,debfile);
 	if( RET_WAS_ERROR(r) )
@@ -113,16 +143,32 @@ retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile
 	assert( r != RET_NOTHING);
 	do {
 		char *filename;
+		enum compression c;
 
 		r = ar_nextmember(ar, &filename);
 		if( RET_IS_OK(r) ) {
-			if( strcmp(filename,"data.tar.gz") == 0 ) {
+			if( strncmp(filename, "data.tar", 8) != 0 ) {
+				free(filename);
+				continue;
+			}
+			hadcandidate = true;
+			for( c = 0 ; c < c_COUNT ; c++ ) {
+				if( strcmp(filename + 8,
+						uncompression_suffix[c]) == 0)
+					break;
+			}
+			if( c >= c_COUNT ) {
+				free(filename);
+				continue;
+			}
+			ar_archivemember_setcompression(ar, c);
+			if( uncompression_supported(c) ) {
 				struct archive *tar;
 
 				tar = archive_read_new();
-				archive_read_support_compression_gzip(tar);
 				r = read_data_tar(filelist, size,
 						debfile, ar, tar);
+				// TODO: check how to get an error message here..
 				archive_read_finish(tar);
 				if( r != RET_NOTHING ) {
 					ar_close(ar);
@@ -131,34 +177,15 @@ retvalue getfilelist(/*@out@*/char **filelist, size_t *size, const char *debfile
 				}
 
 			}
-/* TODO: here some better heuristic would be nice,
- * but when compiling against the static libarchive this is what needed,
- * and when libarchive is compiled locally it will have bz2 support
- * essentially when we have it, too.
- * Thus this ifdef is quite a good choice, especially as no offical
- * files should have this member, anyway */
-#ifdef HAVE_LIBBZ2
-			if( strcmp(filename,"data.tar.bz2") == 0 ) {
-				struct archive *tar;
-
-				tar = archive_read_new();
-				archive_read_support_compression_gzip(tar);
-				archive_read_support_compression_bzip2(tar);
-				r = read_data_tar(filelist, size,
-						debfile, ar, tar);
-				archive_read_finish(tar);
-				if( r != RET_NOTHING ) {
-					ar_close(ar);
-					free(filename);
-					return r;
-				}
-
-			}
-#endif
 			free(filename);
 		}
 	} while( RET_IS_OK(r) );
 	ar_close(ar);
-	fprintf(stderr,"Could not find a data.tar.gz file within '%s'!\n",debfile);
+	if( hadcandidate )
+		fprintf(stderr,
+"Could not find a suitable data.tar file within '%s'!\n", debfile);
+	else
+		fprintf(stderr,
+"Could not find a data.tar file within '%s'!\n", debfile);
 	return RET_ERROR_MISSING;
 }

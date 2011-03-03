@@ -31,7 +31,6 @@
 #include "names.h"
 #include "checks.h"
 
-extern int verbose;
 typedef unsigned char uchar;
 
 /* check if the character starting where <character> points

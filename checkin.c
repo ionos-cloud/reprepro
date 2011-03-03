@@ -29,6 +29,7 @@
 #include "error.h"
 #include "ignore.h"
 #include "strlist.h"
+#include "atoms.h"
 #include "checksums.h"
 #include "names.h"
 #include "filecntl.h"
@@ -48,8 +49,6 @@
 #include "log.h"
 #include "dpkgversions.h"
 #include "changes.h"
-
-extern int verbose;
 
 /* Things to do when including a .changes-file:
  *  - Read in the chunk of the possible signed file.
@@ -78,17 +77,16 @@ struct fileentry {
 	struct checksums *checksums;
 	char *section;
 	char *priority;
-	char *architecture;
+	architecture_t architecture_into;
 	char *name;
 	/* this might be different for different files,
 	 * (though this is only allowed in rare cases),
 	 * will be set by _fixfields */
-	char *component;
+	component_t component_atom;
 	/* only set after changes_includefiles */
 	char *filekey;
 	/* was already found in the pool before */
 	bool wasalreadythere;
-	bool included;
 	/* set between checkpkg and includepkg */
 	struct strlist needed_filekeys;
 	union { struct dsc_headers dsc;
@@ -108,14 +106,13 @@ struct changes {
 	struct strlist fingerprints;
 	/* Things to be set by changes_fixfields: */
 	/* the component source files are put into */
-	const char *srccomponent;
+	component_t srccomponent;
 	/* != NULL if changesfile was put into pool/ */
 	/*@null@*/ char *changesfilekey;
-	bool includedchangesfile;
 	/* the directory where source files are put into */
 	char *srcdirectory;
 	/* (only to warn if multiple are used) */
-	const char *firstcomponent;
+	component_t firstcomponent;
 	/* the directory the .changes file resides in */
 	char *incomingdirectory;
 	/* the Version: and the version in Source: differ */
@@ -128,12 +125,10 @@ static void freeentries(/*@only@*/struct fileentry *entry) {
 	while( entry != NULL ) {
 		h = entry->next;
 		free(entry->filekey);
-		free(entry->component);
 		free(entry->basename);
 		checksums_free(entry->checksums);
 		free(entry->section);
 		free(entry->priority);
-		free(entry->architecture);
 		free(entry->name);
 		if( entry->type == fe_DEB || entry->type == fe_UDEB)
 			deb_free(entry->pkg.deb);
@@ -166,7 +161,7 @@ static void changes_free(/*@only@*/struct changes *changes) {
 }
 
 
-static retvalue newentry(struct fileentry **entry,const char *fileline,const char *packagetypeonly,const char *forcearchitecture, const char *sourcename) {
+static retvalue newentry(struct fileentry **entry, const char *fileline, packagetype_t packagetypeonly, architecture_t forcearchitecture, const char *sourcename) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -177,46 +172,48 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	r = changes_parsefileline(fileline, &e->type, &e->basename,
 			&e->hashes.hashes[cs_md5sum],
 			&e->hashes.hashes[cs_length],
-			&e->section, &e->priority, &e->architecture, &e->name);
+			&e->section, &e->priority, &e->architecture_into, &e->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(e);
 		return r;
 	}
 	assert( RET_IS_OK(r) );
-	if( FE_SOURCE(e->type) && packagetypeonly != NULL && strcmp(packagetypeonly,"dsc")!=0) {
+	if( FE_SOURCE(e->type) && limitation_missed(packagetypeonly, pt_dsc) ) {
 		freeentries(e);
 		return RET_NOTHING;
 	}
-	if( e->type == fe_DEB && packagetypeonly != NULL && strcmp(packagetypeonly,"deb")!=0) {
+	if( e->type == fe_DEB && limitation_missed(packagetypeonly, pt_deb) ) {
 		freeentries(e);
 		return RET_NOTHING;
 	}
-	if( e->type == fe_UDEB && packagetypeonly != NULL && strcmp(packagetypeonly,"udeb")!=0) {
+	if( e->type == fe_UDEB && limitation_missed(packagetypeonly, pt_udeb) ) {
 		freeentries(e);
 		return RET_NOTHING;
 	}
-	if( strcmp(e->architecture, "source") == 0 && strcmp(e->name, sourcename) != 0 ) {
+	if( e->architecture_into == architecture_source &&
+			strcmp(e->name, sourcename) != 0 ) {
 		fprintf(stderr,
 "Warning: File '%s' looks like source but does not start with '%s_'!\n",
 				e->basename, sourcename);
 	}
 
-	if( forcearchitecture != NULL ) {
-		if( strcmp(forcearchitecture,"source") != 0 &&
-				strcmp(e->architecture,"all") == 0 ) {
+	if( atom_defined(forcearchitecture) ) {
+		if( forcearchitecture != architecture_source &&
+				e->architecture_into == architecture_all ) {
 			if( verbose > 2 )
-				fprintf(stderr,"Placing '%s' only in architecture '%s' as requested.\n",e->basename,forcearchitecture);
-			free(e->architecture);
-			e->architecture = strdup(forcearchitecture);
-		} else if( strcmp(forcearchitecture,e->architecture) != 0) {
+				fprintf(stderr,
+"Placing '%s' only in architecture '%s' as requested.\n",
+					e->basename,
+					atoms_architectures[forcearchitecture]);
+			e->architecture_into = forcearchitecture;
+		} else if( e->architecture_into != forcearchitecture ) {
 			if( verbose > 1 )
-				fprintf(stderr,"Skipping '%s' as not for architecture '%s'.\n",e->basename,forcearchitecture);
+				fprintf(stderr,
+"Skipping '%s' as not for architecture '%s'.\n",
+					e->basename,
+					atoms_architectures[forcearchitecture]);
 			freeentries(e);
 			return RET_NOTHING;
-		}
-		if( e->architecture == NULL ) {
-			freeentries(e);
-			return RET_ERROR_OOM;
 		}
 	}
 
@@ -226,7 +223,7 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 }
 
 /* Parse the Files-header to see what kind of files we carry around */
-static retvalue changes_parsefilelines(const char *filename,struct changes *changes,const struct strlist *filelines,const char *packagetypeonly,const char *forcearchitecture) {
+static retvalue changes_parsefilelines(const char *filename, struct changes *changes, const struct strlist *filelines, packagetype_t packagetypeonly, architecture_t forcearchitecture) {
 	retvalue result,r;
 	int i;
 
@@ -256,15 +253,15 @@ static retvalue changes_addhashes(const char *filename, struct changes *changes,
 		struct hash_data data, size;
 		const char *fileline = filelines->values[i];
 		struct fileentry *e;
-		const char *basename;
+		const char *basefilename;
 
-		r = hashline_parse(filename, fileline, cs, &basename, &data, &size);
+		r = hashline_parse(filename, fileline, cs, &basefilename, &data, &size);
 		if( r == RET_NOTHING )
 			continue;
 		if( RET_WAS_ERROR(r) )
 			return r;
 		e = changes->files;
-		while( e != NULL && strcmp(e->basename, basename) != 0 )
+		while( e != NULL && strcmp(e->basename, basefilename) != 0 )
 			e = e->next;
 		if( e == NULL ) {
 			if( ignoresomefiles )
@@ -274,7 +271,7 @@ static retvalue changes_addhashes(const char *filename, struct changes *changes,
 				continue;
 			fprintf(stderr,
 "In '%s': file '%s' listed in '%s' but not in 'Files'\n",
-				filename, basename, changes_checksum_names[cs]);
+				filename, basefilename, changes_checksum_names[cs]);
 			return RET_ERROR;
 		}
 		if( e->hashes.hashes[cs_length].len != size.len ||
@@ -282,7 +279,7 @@ static retvalue changes_addhashes(const char *filename, struct changes *changes,
 					size.start, size.len) != 0 ) {
 			fprintf(stderr,
 "In '%s': file '%s' listed in '%s' with different size than in 'Files'\n",
-				filename, basename, changes_checksum_names[cs]);
+				filename, basefilename, changes_checksum_names[cs]);
 			return RET_ERROR;
 		}
 		e->hashes.hashes[cs] = data;
@@ -318,7 +315,7 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 	return r;
 }
 
-static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture) {
+static retvalue changes_read(const char *filename, /*@out@*/struct changes **changes, packagetype_t packagetypeonly, architecture_t forcearchitecture) {
 	retvalue r;
 	struct changes *c;
 	struct strlist filelines[cs_hashCOUNT];
@@ -412,8 +409,8 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 				changes_checksum_names[cs], &filelines[cs]);
 		if( RET_IS_OK(r) )
 			r = changes_addhashes(filename, c, cs, &filelines[cs],
-					packagetypeonly != NULL ||
-					forcearchitecture != NULL);
+					atom_defined(packagetypeonly) ||
+					atom_defined(forcearchitecture));
 		else
 			strlist_init(&filelines[cs]);
 		if( RET_WAS_ERROR(r) ) {
@@ -436,7 +433,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 #undef R
 }
 
-static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority) {
+static retvalue changes_fixfields(const struct distribution *distribution, const char *filename, struct changes *changes, component_t forcecomponent, /*@null@*/const char *forcesection, /*@null@*/const char *forcepriority) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -478,6 +475,10 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 			fprintf(stderr,"Cannot cope with 'byhand' file '%s'!\n",e->basename);
 			return RET_ERROR;
 		}
+		if( strncmp(e->section, "raw-", 4) == 0 ) {
+			fprintf(stderr,"Cannot cope with raw file '%s'!\n",e->basename);
+			return RET_ERROR;
+		}
 		if( strcmp(e->section,"-") == 0 ) {
 			fprintf(stderr,"No section specified for '%s' in '%s'!\n", e->basename, filename);
 			return RET_ERROR;
@@ -500,18 +501,22 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		// I'm undecided here. If this is a udeb, one could also use
 		// distribution->udebcomponents. Though this might result
 		// in not really predictable guesses for the section.
-		r = guess_component(distribution->codename,&distribution->components,changes->source,e->section,forcecomponent,&e->component);
+		r = guess_component(distribution->codename,
+				&distribution->components, changes->source,
+				e->section, forcecomponent,
+				&e->component_atom);
 		if( RET_WAS_ERROR(r) )
 			return r;
-		assert(e->component != NULL);
+		assert(atom_defined(e->component_atom));
 
-		if( changes->firstcomponent == NULL ) {
-			changes->firstcomponent = e->component;
-		} else if( strcmp(changes->firstcomponent,e->component) != 0)  {
+		if( !atom_defined(changes->firstcomponent) ) {
+			changes->firstcomponent = e->component_atom;
+		} else if( changes->firstcomponent != e->component_atom )  {
 				fprintf(stderr,
 "Warning: %s contains files guessed to be in different components ('%s' vs '%s)!\n",
-					filename, e->component,
-					changes->firstcomponent);
+					filename,
+					atoms_components[e->component_atom],
+					atoms_components[changes->firstcomponent]);
 		}
 
 		if( FE_SOURCE(e->type) ) {
@@ -520,23 +525,27 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 				if( RET_WAS_ERROR(r) )
 					return r;
 			}
-			if( changes->srccomponent == NULL ) {
-				changes->srccomponent = e->component;
-			} else if( strcmp(changes->srccomponent,e->component) != 0)  {
-				fprintf(stderr,"%s contains source files guessed to be in different components ('%s' vs '%s)!\n",filename,e->component,changes->firstcomponent);
+			if( !atom_defined(changes->srccomponent) ) {
+				changes->srccomponent = e->component_atom;
+			} else if( changes->srccomponent != e->component_atom ) {
+				fprintf(stderr,
+"%s contains source files guessed to be in different components ('%s' vs '%s)!\n",
+					filename,
+					atoms_components[e->component_atom],
+					atoms_components[changes->srccomponent]);
 				return RET_ERROR;
 			}
 		} else if( FE_BINARY(e->type) ){
 			r = properpackagename(e->name);
 			if( RET_WAS_ERROR(r) )
 				return r;
-			r = properfilenamepart(e->architecture);
-			if( RET_WAS_ERROR(r) )
-				return r;
 			// Let's just check here, perhaps
 			if( e->type == fe_UDEB &&
-					!strlist_in(&distribution->udebcomponents,e->component)) {
-				fprintf(stderr,"Cannot put file '%s' into component '%s', as it is not listed in UDebComponents!\n",e->basename,e->component);
+					!atomlist_in(&distribution->udebcomponents,
+						e->component_atom)) {
+				fprintf(stderr,
+"Cannot put file '%s' into component '%s', as it is not listed in UDebComponents!\n",
+					e->basename, atoms_components[e->component_atom]);
 				return RET_ERROR;
 			}
 		} else {
@@ -548,21 +557,22 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		e = e->next;
 	}
 
-	if( changes->srccomponent != NULL ) {
-		changes->srcdirectory = calc_sourcedir(changes->srccomponent,changes->source);
+	if( atom_defined(changes->srccomponent) ) {
+		changes->srcdirectory = calc_sourcedir(changes->srccomponent,
+				changes->source);
 		if( changes->srcdirectory == NULL )
 			return RET_ERROR_OOM;
 	} else if( distribution->trackingoptions.includechanges ) {
-		const char *component = forcecomponent;
-		if( forcecomponent == NULL ) {
+		component_t component = forcecomponent;
+		if( !atom_defined(forcecomponent) ) {
 			for( e = changes->files ; e != NULL ; e = e->next ) {
-				if( FE_BINARY(e->type) ){
-					component = e->component;
+				if( FE_PACKAGE(e->type) ){
+					component = e->component_atom;
 					break;
 				}
 			}
 		}
-		if( component == NULL ) {
+		if( !atom_defined(component) ) {
 			fprintf(stderr,"No component found to place .changes or byhand files in. Aborting.\n");
 			return RET_ERROR;
 		}
@@ -574,48 +584,51 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 	return RET_OK;
 }
 
-static inline retvalue checkforarchitecture(const struct fileentry *e,const char *architecture ) {
-	while( e !=NULL && strcmp(e->architecture,architecture) != 0 )
+static inline retvalue checkforarchitecture(const struct fileentry *e, architecture_t architecture ) {
+	if( !atom_defined(architecture) )
+		return RET_NOTHING;
+	while( e != NULL && e->architecture_into != architecture )
 		e = e->next;
 	if( e == NULL ) {
 		if( !IGNORING_(unusedarch,
 "Architecture header lists architecture '%s', but no files for it!\n",
-				architecture))
+				atoms_architectures[architecture]))
 			return RET_ERROR;
 	}
 	return RET_OK;
 }
 
-static retvalue changes_check(const char *filename,struct changes *changes,/*@null@*/const char *forcearchitecture, /*@null@*/const char *packagetypeonly) {
+static retvalue changes_check(const struct distribution *distribution, const char *filename, struct changes *changes, architecture_t forcearchitecture, packagetype_t packagetypeonly) {
 	int i;
 	struct fileentry *e;
 	retvalue r = RET_OK;
 	bool havedsc = false, haveorig = false, havetar = false, havediff = false;
 
 	/* First check for each given architecture, if it has files: */
-	if( forcearchitecture != NULL ) {
-		if( !strlist_in(&changes->architectures,forcearchitecture) ){
+	if( atom_defined(forcearchitecture) ) {
+		if( !strlist_in(&changes->architectures,
+					atoms_architectures[forcearchitecture]) ){
 			// TODO: check if this is sensible
 			if( !IGNORING_(surprisingarch,
 				     "Architecture header does not list the"
 				     " architecture '%s' to be forced in!\n",
-					forcearchitecture))
+					atoms_architectures[forcearchitecture]))
 				return RET_ERROR_MISSING;
 		}
 		r = checkforarchitecture(changes->files,forcearchitecture);
 		if( RET_WAS_ERROR(r) )
 			return r;
-	} else if( packagetypeonly == NULL ) {
+	} else if( !atom_defined(packagetypeonly) ) {
 		for( i = 0 ; i < changes->architectures.count ; i++ ) {
 			const char *architecture = changes->architectures.values[i];
 			r = checkforarchitecture(changes->files,
-					architecture);
+					architecture_find(architecture));
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
-	} else if( strcmp(packagetypeonly,"dsc") == 0 ) {
-		if( strlist_in(&changes->architectures,"source") ) {
-			r = checkforarchitecture(changes->files, "source");
+	} else if( packagetypeonly == pt_dsc ) {
+		if( strlist_in(&changes->architectures, "source") ) {
+			r = checkforarchitecture(changes->files, architecture_source);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}
@@ -624,7 +637,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 			const char *architecture = changes->architectures.values[i];
 			if( strcmp(architecture,"source") != 0 ) {
 				r = checkforarchitecture(changes->files,
-						architecture);
+						architecture_find(architecture));
 				if( RET_WAS_ERROR(r) )
 					return r;
 			}
@@ -634,11 +647,35 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 	 * and listed. */
 	e = changes->files;
 	while( e != NULL ) {
-		if( !strlist_in(&changes->architectures,e->architecture) ) {
-			if( !IGNORING_(surprisingarch,
-			"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",e->basename,e->architecture))
-				r = RET_ERROR;
+		if( atom_defined(e->architecture_into) ) {
+			if( e->architecture_into == architecture_all ) {
+				/* "all" can be added if at least one binary
+				 *  architecture */
+				if( distribution->architectures.count == 1 &&
+						distribution->architectures.atoms[0]
+						== architecture_source ) {
+					e->architecture_into = atom_unknown;
+				}
+			} else if( !atomlist_in(&distribution->architectures,
+						e->architecture_into) )
+				e->architecture_into = atom_unknown;
 		}
+		if( !atom_defined(e->architecture_into) ) {
+			fprintf(stderr,
+"Error: '%s' has the wrong architecture to add it to %s!\n",
+				e->basename, distribution->codename);
+			return RET_ERROR;
+
+		}
+		if( !strlist_in(&changes->architectures,
+					atoms_architectures[e->architecture_into]) ) {
+			if( !IGNORING_(surprisingarch,
+"'%s' looks like architecture '%s', but this is not listed in the Architecture-Header!\n",
+					e->basename,
+					atoms_architectures[e->architecture_into]))
+				return RET_ERROR;
+		}
+
 		if( e->type == fe_DSC ) {
 			char *calculatedname;
 			if( havedsc ) {
@@ -684,11 +721,8 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		return RET_ERROR;
 	}
 	if( strlist_in(&changes->architectures,"source") && !havedsc &&
-			( forcearchitecture == NULL
-			  || strcmp(forcearchitecture,"source") == 0 ) &&
-			( packagetypeonly == NULL
-			  || strcmp(packagetypeonly,"dsc") == 0 )
-			) {
+			!limitation_missed(forcearchitecture, architecture_source) &&
+			!limitation_missed(packagetypeonly, pt_dsc)) {
 		fprintf(stderr,"I don't know what to do with a source-upload not containing a .dsc in '%s'!\n",filename);
 		return RET_ERROR;
 	}
@@ -717,8 +751,8 @@ static retvalue changes_checkfiles(struct database *database,const char *filenam
 			// TODO: make this in-situ?
 			/* as the directory depends on the sourcename, it can be
 			 * different for every file... */
-			directory = calc_sourcedir(e->component,changes->source);
-			if( directory == NULL )
+			directory = calc_sourcedir(e->component_atom, changes->source);
+			if( FAILEDTOALLOC(directory) )
 				return RET_ERROR_OOM;
 			e->filekey = calc_dirconcat(directory,e->basename);
 			free(directory);
@@ -767,60 +801,14 @@ static retvalue changes_includefiles(struct database *database,struct changes *c
 		if( e->wasalreadythere && checksums_iscomplete(e->checksums) )
 			continue;
 
-		e->included = false;
 		r = files_checkincludefile(database,
 				changes->incomingdirectory, e->basename,
-				e->filekey, &e->checksums, &e->included);
+				e->filekey, &e->checksums);
 		if( RET_WAS_ERROR(r) )
 			return r;
-		assert( e->included || e->wasalreadythere );
-		assert( !(e->included && e->wasalreadythere) );
 	}
 
 	return r;
-}
-/* run if packages are not all includeable and the stuff put into the
- * pool shall be removed again */
-static void changes_unincludefiles(struct database *database,struct changes *changes) {
-	struct fileentry *e;
-
-	for( e = changes->files; e != NULL ; e = e->next ) {
-
-		if( e->filekey == NULL || e->wasalreadythere || !e->included )
-			continue;
-
-		(void)files_deleteandremove(database, e->filekey, true, false);
-	}
-	if( changes->includedchangesfile )
-		(void)files_deleteandremove(database, changes->changesfilekey,
-			true, false);
-}
-
-static void check_all_files_included(struct database *database, struct changes *changes, bool unusedpartsexpected) {
-	struct fileentry *e;
-	retvalue r;
-
-	for( e = changes->files; e != NULL ; e = e->next ) {
-
-		if( e->filekey == NULL || e->wasalreadythere || !e->included )
-			continue;
-
-		if( unusedpartsexpected ) {
-			(void)files_deleteandremove(database, e->filekey, true, false);
-			continue;
-		}
-
-		fprintf(stderr, "Warning: File '%s' was listed in the .changes\n"
-			" but seems unused. Checking for references...\n",
-			e->filekey);
-		r = references_isused(database, e->filekey);
-		if( r == RET_NOTHING ) {
-			fprintf(stderr, " indeed unused, deleting it...\n");
-			(void)files_deleteandremove(database, e->filekey, true, false);
-		} else if( RET_IS_OK(r) ) {
-			fprintf(stderr, " It looks used. Strange. Please report this bug.\n");
-		}
-	}
 }
 
 /* delete the files included */
@@ -845,11 +833,11 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 					e->basename);
 
 		if( unlink(fullorigfilename) != 0 ) {
-			int e = errno;
+			int err = errno;
 			fprintf(stderr, "Error deleting '%s': %d=%s\n",
-					fullorigfilename, e, strerror(e));
-			r = RET_ERRNO(e);
-			RET_UPDATE(result,r);
+					fullorigfilename, err, strerror(err));
+			r = RET_ERRNO(err);
+			RET_UPDATE(result, r);
 		}
 		free(fullorigfilename);
 	}
@@ -857,9 +845,8 @@ static retvalue changes_deleteleftoverfiles(struct changes *changes,int delete) 
 	return result;
 }
 
-static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basename, const char *filekey, struct checksums **checksums_p) {
+static retvalue changes_check_sourcefile(struct changes *changes, struct fileentry *dsc, struct database *database, const char *basefilename, const char *filekey, struct checksums **checksums_p) {
 	retvalue r;
-	bool dummy = false;
 
 	r = files_expect(database, filekey, *checksums_p);
 	if( RET_WAS_ERROR(r) )
@@ -881,10 +868,8 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 "Perhaps you forgot to give dpkg-buildpackage the -sa option.\n"
 "--ignore=missingfile was given, searching for file...\n", filekey);
 
-	// TODO: if this is included and a error occours, it currently stays.
-	// how can this be fixed?
 	return files_checkincludefile(database, changes->incomingdirectory,
-			basename, filekey, checksums_p, &dummy);
+			basefilename, filekey, checksums_p);
 }
 
 static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, struct database *database, struct distribution *distribution, const char *dscfilename){
@@ -897,7 +882,7 @@ static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, stru
 
 	assert( dsc->section != NULL );
 	assert( dsc->priority != NULL );
-	assert( changes->srccomponent != NULL );
+	assert( atom_defined(changes->srccomponent) );
 	assert( dsc->basename != NULL );
 	assert( dsc->checksums != NULL );
 	assert( changes->source != NULL );
@@ -905,8 +890,10 @@ static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, stru
 
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
-	if( !strlist_in(&distribution->architectures,"source") ) {
-		fprintf(stderr,"Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",distribution->codename);
+	if( !atomlist_in(&distribution->architectures, architecture_source) ) {
+		fprintf(stderr,
+"Cannot put a source package into Distribution '%s' not having 'source' in its 'Architectures:'-field!\n",
+			distribution->codename);
 		/* nota bene: this cannot be forced or ignored, as no target has
 		   been created for this. */
 		return RET_ERROR;
@@ -1016,18 +1003,18 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 			return RET_ERROR_OOM;
 		if( e->type == fe_DEB ) {
 			r = deb_prepare(&e->pkg.deb,
-				e->component, e->architecture,
+				e->component_atom, e->architecture_into,
 				e->section, e->priority,
-				"deb",
+				pt_deb,
 				distribution, fullfilename,
 				e->filekey, e->checksums,
 				&changes->binaries,
 				changes->source, changes->sourceversion);
 		} else if( e->type == fe_UDEB ) {
 			r = deb_prepare(&e->pkg.deb,
-				e->component, e->architecture,
+				e->component_atom, e->architecture_into,
 				e->section, e->priority,
-				"udeb",
+				pt_udeb,
 				distribution, fullfilename,
 				e->filekey, e->checksums,
 				&changes->binaries,
@@ -1039,7 +1026,7 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 				e->filekey, changes->sourceversion,
 				changes->changesversion) ) {
 
-				assert(changes->srccomponent!=NULL);
+				assert( atom_defined(changes->srccomponent));
 				assert(changes->srcdirectory!=NULL);
 				r = dsc_prepare(changes, e, database,
 						distribution, fullfilename);
@@ -1056,10 +1043,9 @@ static retvalue changes_checkpkgs(struct database *database, struct distribution
 	return r;
 }
 
-static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *trackingdata, bool *missed_p) {
+static retvalue changes_includepkgs(struct database *database, struct distribution *distribution, struct changes *changes, /*@null@*/struct trackingdata *trackingdata, bool *missed_p) {
 	struct fileentry *e;
 	retvalue result,r;
-	bool markedasused;
 
 	*missed_p = false;
 	r = distribution_prepareforwriting(distribution);
@@ -1076,46 +1062,25 @@ static retvalue changes_includepkgs(struct database *database, struct distributi
 		}
 		if( interrupted() )
 			return RET_ERROR_INTERRUPTED;
-		markedasused = false;
 		if( e->type == fe_DEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
-				e->architecture, "deb",
-				distribution, dereferencedfilekeys,
-				trackingdata, &markedasused);
+				e->architecture_into, pt_deb,
+				distribution, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
-			if( markedasused )
-				e->included = false;
 		} else if( e->type == fe_UDEB ) {
 			r = deb_addprepared(e->pkg.deb, database,
-				e->architecture, "udeb",
-				distribution,dereferencedfilekeys,
-				trackingdata, &markedasused);
+				e->architecture_into, pt_udeb,
+				distribution, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
-			if( markedasused )
-				e->included = false;
 		} else if( e->type == fe_DSC ) {
 			r = dsc_addprepared(database, &e->pkg.dsc,
 					changes->srccomponent,
-					&e->needed_filekeys, &markedasused,
-					distribution, dereferencedfilekeys,
-					trackingdata);
+					&e->needed_filekeys,
+					distribution, trackingdata);
 			if( r == RET_NOTHING )
 				*missed_p = true;
-			if( markedasused ) {
-				struct fileentry *f;
-				const struct strlist *referenced = &e->needed_filekeys;
-
-				/* mark any file no longer allowed to be deleted */
-
-				for( f = changes->files ; f != NULL ; f = f->next ) {
-					if( !f->included )
-						continue;
-					if( strlist_in(referenced, f->filekey) )
-						f->included = false;
-				}
-			}
 		}
 		RET_UPDATE(result, r);
 
@@ -1137,7 +1102,7 @@ static bool permissionssuffice(UNUSED(struct changes *changes),
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(struct database *database,trackingdb const tracks,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const char *changesfilename,int delete,struct strlist *dereferencedfilekeys) {
+retvalue changes_add(struct database *database, trackingdb const tracks, packagetype_t packagetypeonly, component_t forcecomponent, architecture_t forcearchitecture, const char *forcesection, const char *forcepriority, struct distribution *distribution, const char *changesfilename, int delete) {
 	retvalue result,r;
 	struct changes *changes;
 	struct trackingdata trackingdata;
@@ -1199,11 +1164,12 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	}
 
 	/* look for component, section and priority to be correct or guess them*/
-	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority);
+	r = changes_fixfields(distribution, changesfilename, changes, forcecomponent, forcesection, forcepriority);
 
 	/* do some tests if values are sensible */
 	if( !RET_WAS_ERROR(r) )
-		r = changes_check(changesfilename,changes,forcearchitecture,packagetypeonly);
+		r = changes_check(distribution, changesfilename, changes,
+				forcearchitecture, packagetypeonly);
 
 	if( interrupted() )
 		RET_UPDATE(r, RET_ERROR_INTERRUPTED);
@@ -1222,7 +1188,6 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 		r = changes_checkpkgs(database, distribution, changes);
 
 	if( RET_WAS_ERROR(r) ) {
-		changes_unincludefiles(database, changes);
 		changes_free(changes);
 		return r;
 	}
@@ -1230,20 +1195,21 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	if( tracks != NULL ) {
 		r = trackingdata_summon(tracks,changes->source,changes->sourceversion,&trackingdata);
 		if( RET_WAS_ERROR(r) ) {
-			changes_unincludefiles(database, changes);
 			changes_free(changes);
 			return r;
 		}
 		if( distribution->trackingoptions.includechanges ) {
-			char *basename;
+			char *basefilename;
 			assert( changes->srcdirectory != NULL );
 
-			basename = calc_changes_basename(changes->source, changes->changesversion, &changes->architectures);
+			basefilename = calc_changes_basename(changes->source,
+					changes->changesversion,
+					&changes->architectures);
 			changes->changesfilekey =
-				calc_dirconcat(changes->srcdirectory,basename);
-			free(basename);
+				calc_dirconcat(changes->srcdirectory,
+						basefilename);
+			free(basefilename);
 			if( changes->changesfilekey == NULL ) {
-				changes_unincludefiles(database, changes);
 				changes_free(changes);
 				trackingdata_done(&trackingdata);
 				return RET_ERROR_OOM;
@@ -1254,9 +1220,8 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 				r = files_preinclude(database,
 					changesfilename,
 					changes->changesfilekey,
-					NULL, &changes->includedchangesfile);
+					NULL);
 			if( RET_WAS_ERROR(r) ) {
-				changes_unincludefiles(database, changes);
 				changes_free(changes);
 				trackingdata_done(&trackingdata);
 				return r;
@@ -1266,26 +1231,21 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	if( interrupted() ) {
 		if( tracks != NULL )
 			trackingdata_done(&trackingdata);
-		changes_unincludefiles(database, changes);
 		changes_free(changes);
 		return RET_ERROR_INTERRUPTED;
 	}
 
 	/* add the source and binary packages in the given distribution */
-	result = changes_includepkgs(database,
-		distribution,changes,dereferencedfilekeys,
+	result = changes_includepkgs(database, distribution, changes,
 		(tracks!=NULL)?&trackingdata:NULL, &somethingwasmissed);
 
 	if( RET_WAS_ERROR(result) ) {
 		if( tracks != NULL ) {
 			trackingdata_done(&trackingdata);
 		}
-		changes_unincludefiles(database, changes);
 		changes_free(changes);
 		return result;
 	}
-
-	check_all_files_included(database, changes, somethingwasmissed);
 
 	if( tracks != NULL ) {
 		if( changes->changesfilekey != NULL ) {
@@ -1301,10 +1261,8 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 					ft_CHANGES, changesfilekey, false,
 					database);
 			RET_ENDUPDATE(result,r);
-			/* no longer delete when done */
-			changes->includedchangesfile = false;
 		}
-		r = trackingdata_finish(tracks, &trackingdata, database, dereferencedfilekeys);
+		r = trackingdata_finish(tracks, &trackingdata, database);
 		RET_ENDUPDATE(result,r);
 		if( RET_WAS_ERROR(result) ) {
 			changes_free(changes);

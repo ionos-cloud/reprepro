@@ -27,11 +27,8 @@
 #include "indexfile.h"
 #include "dpkgversions.h"
 #include "target.h"
-#include "downloadcache.h"
 #include "files.h"
 #include "upgradelist.h"
-
-extern int verbose;
 
 struct package_data {
 	struct package_data *next;
@@ -53,7 +50,7 @@ struct package_data {
 	 * NULL means nothing found. */
 	char *new_version;
 	/* where the recent version comes from: */
-	/*@dependent@*/struct aptmethod *aptmethod;
+	/*@dependent@*/void *privdata;
 
 	/* the new control-chunk for the package to go in
 	 * non-NULL if new_version && newversion == version_in_use */
@@ -62,7 +59,8 @@ struct package_data {
 	 * same validity */
 	struct strlist new_filekeys;
 	struct checksumsarray new_origfiles;
-	enum filetype new_filetype;
+	/* to destinguish arch all from not arch all */
+	architecture_t architecture;
 };
 
 struct upgradelist {
@@ -105,7 +103,7 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 		return RET_ERROR_OOM;
 	}
 
-	package->aptmethod = NULL;
+	package->privdata = NULL;
 	package->name = strdup(packagename);
 	if( package->name == NULL ) {
 		free(package);
@@ -193,7 +191,7 @@ void upgradelist_free(struct upgradelist *upgrade) {
 	return;
 }
 
-static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/struct aptmethod *aptmethod, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, const char *chunk){
+static retvalue upgradelist_trypackage(struct upgradelist *upgrade, void *privdata, upgrade_decide_function *predecide, void *predecide_data, const char *packagename_const, /*@null@*//*@only@*/char *packagename, /*@only@*/char *version, architecture_t architecture, const char *chunk){
 	retvalue r;
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
@@ -283,7 +281,7 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 			return RET_ERROR_OOM;
 		}
 		new->deleted = false; //to be sure...
-		new->aptmethod = aptmethod;
+		new->privdata = privdata;
 		if( packagename == NULL ) {
 			new->name = strdup(packagename_const);
 			if( FAILEDTOALLOC(new->name) ) {
@@ -297,11 +295,13 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 		packagename = NULL; //to be sure...
 		new->new_version = version;
 		new->version = version;
+		new->architecture = architecture;
 		version = NULL; //to be sure...
 		r = upgrade->target->getinstalldata(upgrade->target,
-				new->name, new->new_version, chunk,
+				new->name, new->new_version,
+				new->architecture, chunk,
 				&new->new_control, &new->new_filekeys,
-				&new->new_origfiles, &new->new_filetype);
+				&new->new_origfiles);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
 			return r;
@@ -319,7 +319,6 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 		char *control;
 		struct strlist files;
 		struct checksumsarray origfiles;
-		enum filetype filetype;
 		int versioncmp;
 
 		upgrade->last = current;
@@ -409,9 +408,11 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 //		if( versioncmp >= 0 && current->version == current->version_in_use
 //				&& current->new_version != NULL ) {
 
+		current->architecture = architecture;
 		r = upgrade->target->getinstalldata(upgrade->target,
-				packagename_const, version, chunk,
-				&control, &files, &origfiles, &filetype);
+				packagename_const, version,
+				architecture, chunk,
+				&control, &files, &origfiles);
 		free(packagename);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
@@ -421,32 +422,34 @@ static retvalue upgradelist_trypackage(struct upgradelist *upgrade, /*@null@*/st
 		free(current->new_version);
 		current->new_version = version;
 		current->version = version;
-		current->aptmethod = aptmethod;
+		current->privdata = privdata;
 		strlist_move(&current->new_filekeys,&files);
 		checksumsarray_move(&current->new_origfiles, &origfiles);
 		free(current->new_control);
-		current->new_filetype = filetype;
 		current->new_control = control;
 	}
 	return RET_OK;
 }
 
-retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *method, const char *filename, upgrade_decide_function *decide, void *decide_data, bool ignorewrongarchitecture) {
+retvalue upgradelist_update(struct upgradelist *upgrade, void *privdata, const char *filename, upgrade_decide_function *decide, void *decide_data, bool ignorewrongarchitecture) {
 	struct indexfile *i;
 	char *packagename, *version;
 	const char *control;
 	retvalue result, r;
+	architecture_t package_architecture;
 
-	r = indexfile_open(&i, filename);
+	r = indexfile_open(&i, filename, c_none);
 	if( !RET_IS_OK(r) )
 		return r;
 
 	result = RET_NOTHING;
 	upgrade->last = NULL;
 	while( indexfile_getnext(i, &packagename, &version, &control,
+				&package_architecture,
 				upgrade->target, ignorewrongarchitecture) ) {
-		r = upgradelist_trypackage(upgrade, method, decide, decide_data,
-				packagename, packagename, version, control);
+		r = upgradelist_trypackage(upgrade, privdata, decide, decide_data,
+				packagename, packagename, version,
+				package_architecture, control);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) ) {
 			if( verbose > 0 )
@@ -464,7 +467,7 @@ retvalue upgradelist_update(struct upgradelist *upgrade, struct aptmethod *metho
 	return result;
 }
 
-retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *database) {
+retvalue upgradelist_pull(struct upgradelist *upgrade, struct target *source, upgrade_decide_function *predecide, void *decide_data, struct database *database, void *privdata) {
 	retvalue result, r;
 	const char *package, *control;
 	struct target_cursor iterator;
@@ -476,6 +479,7 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 	result = RET_NOTHING;
 	while( target_nextpackage(&iterator, &package, &control) ) {
 		char *version;
+		architecture_t package_architecture;
 
 		r = upgrade->target->getversion(control, &version);
 		assert( r != RET_NOTHING );
@@ -483,9 +487,15 @@ retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgr
 			RET_UPDATE(result, r);
 			break;
 		}
-		r = upgradelist_trypackage(upgrade, NULL,
+		r = upgrade->target->getarchitecture(control, &package_architecture);
+		if( !RET_IS_OK(r) ) {
+			RET_UPDATE(result, r);
+			break;
+		}
+		r = upgradelist_trypackage(upgrade, privdata,
 				predecide, decide_data,
-				package, NULL, version, control);
+				package, NULL, version,
+				package_architecture, control);
 		RET_UPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -528,18 +538,18 @@ retvalue upgradelist_listmissing(struct upgradelist *upgrade,struct database *da
 	return RET_OK;
 }
 
+
 /* request all wanted files in the downloadlists given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,struct database *database) {
+retvalue upgradelist_enqueue(struct upgradelist *upgrade, enqueueaction *action, void *calldata, struct database *database) {
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
 	assert(upgrade != NULL);
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( pkg->version == pkg->new_version && !pkg->deleted) {
-			assert(pkg->aptmethod != NULL);
-			r = downloadcache_addfiles(cache, database,
-				pkg->aptmethod,
-				&pkg->new_origfiles, &pkg->new_filekeys);
+			r = action(calldata, database,
+					&pkg->new_origfiles,
+					&pkg->new_filekeys, pkg->privdata);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
@@ -549,7 +559,7 @@ retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *c
 }
 
 /* delete all packages that will not be kept (i.e. either deleted or upgraded) */
-retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger,struct database *database,struct strlist *dereferencedfilekeys) {
+retvalue upgradelist_predelete(struct upgradelist *upgrade, struct logger *logger, struct database *database) {
 	struct package_data *pkg;
 	retvalue result,r;
 	result = RET_NOTHING;
@@ -566,8 +576,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 			else
 				r = target_removepackage(upgrade->target,
 						logger, database,
-						pkg->name,
-						dereferencedfilekeys, NULL);
+						pkg->name, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r))
 				break;
@@ -578,7 +587,7 @@ retvalue upgradelist_predelete(struct upgradelist *upgrade,struct logger *logger
 	return result;
 }
 
-retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete, struct strlist *dereferencedfilekeys){
+retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger, struct database *database, bool ignoredelete){
 	struct package_data *pkg;
 	retvalue result,r;
 
@@ -605,9 +614,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->name,
 						pkg->new_version,
 						pkg->new_control,
-						&pkg->new_filekeys, NULL, true,
-						dereferencedfilekeys, NULL,
-						pkg->new_filetype);
+						&pkg->new_filekeys, true,
+						NULL, pkg->architecture);
 			}
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
@@ -619,8 +627,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 			else
 				r = target_removepackage(upgrade->target,
 						logger, database,
-						pkg->name,
-						dereferencedfilekeys, NULL);
+						pkg->name, NULL);
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )
 				break;
@@ -631,7 +638,7 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 	return result;
 }
 
-void upgradelist_dump(struct upgradelist *upgrade){
+void upgradelist_dump(struct upgradelist *upgrade, dumpaction action){
 	struct package_data *pkg;
 
 	assert(upgrade != NULL);
@@ -639,56 +646,19 @@ void upgradelist_dump(struct upgradelist *upgrade){
 	for( pkg = upgrade->list ; pkg != NULL ; pkg = pkg->next ) {
 		if( interrupted() )
 			return;
-		if( pkg->deleted ) {
-			if( pkg->version_in_use != NULL &&
-					pkg->new_version != NULL ) {
-				printf("'%s': '%s' will be deleted"
-				       " (best new: '%s')\n",
-				       pkg->name,pkg->version_in_use,
-				       pkg->new_version);
-			} else if( pkg->version_in_use != NULL ) {
-				printf("'%s': '%s' will be deleted"
-					" (no longer available)\n",
-					pkg->name,pkg->version_in_use);
-			} else {
-				printf("'%s': will NOT be added as '%s'\n",
-						pkg->name,pkg->new_version);
-			}
-		} else {
-			if( pkg->version == pkg->version_in_use ) {
-				if( pkg->new_version != NULL ) {
-					if( verbose > 1 )
-					printf("'%s': '%s' will be kept"
-					       " (best new: '%s')\n",
-					       pkg->name,pkg->version_in_use,
-					       pkg->new_version);
-				} else {
-					if( verbose > 0 )
-					printf("'%s': '%s' will be kept"
-					" (unavailable for reload)\n",
-					pkg->name,pkg->version_in_use);
-				}
-
-			} else {
-				if( pkg->version_in_use != NULL )
-					(void)printf("'%s': '%s' will be upgraded"
-					       " to '%s':\n files needed: ",
-						pkg->name,pkg->version_in_use,
-						pkg->new_version);
-				else
-					(void)printf("'%s': newly installed"
-					       " as '%s':\n files needed: ",
-					       pkg->name, pkg->new_version);
-				(void)strlist_fprint(stdout,&pkg->new_filekeys);
-// TODO: readd
-//				(void)printf("\n with md5sums: ");
-//				(void)strlist_fprint(stdout,&pkg->new_md5sums);
-				if( verbose > 2)
-					(void)printf("\n installing as: '%s'\n",pkg->new_control);
-				else
-					(void)putchar('\n');
-			}
-		}
+		if( pkg->deleted )
+			action(pkg->name, pkg->version_in_use,
+					NULL, pkg->new_version,
+					NULL, NULL, pkg->privdata);
+		else if( pkg->version == pkg->version_in_use )
+			action(pkg->name, pkg->version_in_use,
+					pkg->version_in_use, pkg->new_version,
+					NULL, NULL, pkg->privdata);
+		else
+			action(pkg->name, pkg->version_in_use,
+					pkg->new_version, NULL,
+					&pkg->new_filekeys, pkg->new_control,
+					pkg->privdata);
 	}
 }
 

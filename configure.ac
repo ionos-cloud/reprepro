@@ -2,7 +2,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script
 dnl
 
-AC_INIT(reprepro, 3.6.3, brlink@debian.org)
+AC_INIT(reprepro, 3.8.0, brlink@debian.org)
 AC_CONFIG_SRCDIR(main.c)
 AC_CONFIG_AUX_DIR(ac)
 AM_INIT_AUTOMAKE([-Wall -Werror -Wno-portability])
@@ -26,7 +26,7 @@ DBLIBS=""
 DBCPPFLAGS=""
 AH_TEMPLATE([LIBDB_VERSION],[variant of libdb used])
 AC_ARG_WITH(libdb,
-[  --with-libdb=path|4.4|4.3|3 Give prefix of libdb-4.6 or number of older version to use],[dnl
+[  --with-libdb=path|4.7|4.6|4.4|4.3|3 Give prefix of libdb or specify version to use],[dnl
 	case "$withval" in
 	no)
 	AC_MSG_ERROR(["Cannot compile without libdb"]);
@@ -42,6 +42,9 @@ AC_ARG_WITH(libdb,
 	;;
 	4.6)
 	DB_WANT_VERSION=4.6
+	;;
+	4.7)
+	DB_WANT_VERSION=4.7
 	;;
 	/*)
 	DB_WANT_VERSION=any
@@ -89,13 +92,28 @@ elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x6" ; then
 	elif test "$DB_WANT_VERSION" != "4.6" ; then
 		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
 	fi
+elif test "x$DB_VERSION_MAJOR" = "x4" -a "x$DB_VERSION_MINOR" = "x7" ; then
+	if test "$DB_WANT_VERSION" = "any" ; then
+		AC_MSG_ERROR([reprepro not yet tested with libdb4.7, use --with-libdb=4.7 to use it])
+		DB_WANT_VERSION=4.7
+	elif test "$DB_WANT_VERSION" != "4.7" ; then
+		AC_MSG_ERROR([Found libdb major version $DB_VERSION_MAJOR.$DB_VERSION_MINOR, need $DB_WANT_VERSION])
+	else
+		AC_MSG_WARN([reprepro not yet tested with libdb4.7, use on your own risk])
+	fi
 else
 	AC_MSG_ERROR([Unsupported libdb major $DB_VERSION_MAJOR minor $DB_VERSION_MINOR
-Only 4.3 (stronly recommended) or 3.2 or 4.4 or 4.6 are supported])
+Only 4.6 (recommended) or 3.2 or 4.4 or 4.3 or 4.7 are supported])
 fi
 
 # now we have a header with the expected version, check for the library:
 case "$DB_WANT_VERSION" in
+4.7)
+	AC_CHECK_LIB(db-4.7,db_create,[dnl
+			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),47)
+			DBLIBS="-ldb-4.7 $DBLIBS"
+	],[AC_MSG_ERROR(["no libdb-4.7 found"])],[$DBLIBS])
+;;
 4.6)
 	AC_CHECK_LIB(db-4.6,db_create,[dnl
 			AC_DEFINE_UNQUOTED(AS_TR_CPP(LIBDB_VERSION),46)

@@ -28,7 +28,7 @@
 #include "checksums.h"
 #include "changes.h"
 
-retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type, /*@out@*/char **result_basename, /*@out@*/struct hash_data *hash_p, /*@out@*/struct hash_data *size_p, /*@out@*/char **result_section, /*@out@*/char **result_priority, /*@out@*/char **result_architecture, /*@out@*/char **result_name) {
+retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_type, /*@out@*/char **result_basename, /*@out@*/struct hash_data *hash_p, /*@out@*/struct hash_data *size_p, /*@out@*/char **result_section, /*@out@*/char **result_priority, /*@out@*/architecture_t *result_architecture, /*@out@*/char **result_name) {
 
 	const char *p,*md5start,*md5end;
 	const char *sizestart,*sizeend;
@@ -38,7 +38,8 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	const char *archstart,*archend;
 	const char *versionstart,*typestart;
 	filetype type;
-	char *section, *priority, *basename, *architecture, *name;
+	char *section, *priority, *basefilename, *name;
+	architecture_t architecture;
 
 	p = fileline;
 	while( *p !='\0' && xisspace(*p) )
@@ -190,15 +191,15 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 		archstart = "source";
 		archend = archstart + 6;
 	}
-	section = strndup(sectionstart,sectionend-sectionstart);
-	priority = strndup(priostart,prioend-priostart);
-	basename = strndup(filestart,fileend-filestart);
-	architecture = strndup(archstart,archend-archstart);
-	name = strndup(filestart,nameend-filestart);
-	if( section == NULL || priority == NULL ||
-	    basename == NULL || architecture == NULL || name == NULL ) {
+	section = strndup(sectionstart, sectionend - sectionstart);
+	priority = strndup(priostart, prioend - priostart);
+	basefilename = strndup(filestart, fileend - filestart);
+	architecture = architecture_find_l(archstart, archend - archstart);
+	name = strndup(filestart, nameend - filestart);
+	if( FAILEDTOALLOC(section) || FAILEDTOALLOC(priority) ||
+	    FAILEDTOALLOC(basefilename) || FAILEDTOALLOC(name) ) {
 		free(section); free(priority);
-		free(basename); free(architecture); free(name);
+		free(basefilename); free(name);
 		return RET_ERROR_OOM;
 	}
 	hash_p->start = md5start;
@@ -207,7 +208,7 @@ retvalue changes_parsefileline(const char *fileline, /*@out@*/filetype *result_t
 	size_p->len = sizeend - sizestart;
 	*result_section = section;
 	*result_priority = priority;
-	*result_basename = basename;
+	*result_basename = basefilename;
 	*result_architecture = architecture;
 	*result_name = name;
 	*result_type = type;

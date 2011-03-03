@@ -17,6 +17,7 @@ EOF
 cat > conf/updates.base <<EOF
 Name: flattest
 Flat: a
+VerifyRelease: blindtrust
 Method: file:$WORKDIR
 Suite: flatsource
 EOF
@@ -67,7 +68,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 6: Update pattern may not contain Components and Flat fields ad the same time.
+*=./conf/updates:1 to 7: Update pattern may not contain Components and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF
@@ -80,7 +81,7 @@ EOF
 testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
-*=./conf/updates:1 to 6: Update pattern may not contain UDebComponents and Flat fields ad the same time.
+*=./conf/updates:1 to 7: Update pattern may not contain UDebComponents and Flat fields ad the same time.
 -v0*=There have been errors!
 stdout
 EOF
@@ -103,8 +104,8 @@ testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
-*=Missing 'MD5Sum' field in Release file './lists/1234_flattest_rel_Release_data'!
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+*=Missing 'MD5Sum' field in Release file './lists/flattest_flatsource_flat_Release'!
 -v0*=There have been errors!
 stdout
 EOF
@@ -115,9 +116,8 @@ testrun - -b . update 1234 3<<EOF
 returns 254
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
-*=Could not find 'Sources.gz' within the Release file of 'flattest':
-*='./lists/1234_flattest_rel_Release_data'
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+*=Could not find 'Packages' within './lists/flattest_flatsource_flat_Release'
 -v0*=There have been errors!
 stdout
 EOF
@@ -128,16 +128,17 @@ testrun - -b . update 1234 3<<EOF
 returns 255
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
-*=Error parsing md5 checksum line ' trash' within './lists/1234_flattest_rel_Release_data'
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
+*=Error parsing md5 checksum line ' trash' within './lists/flattest_flatsource_flat_Release'
 -v0*=There have been errors!
 stdout
 EOF
 
-touch flatsource/Sources.gz
-touch flatsource/Packages.gz
+gzip -c < /dev/null > flatsource/Sources.gz
+gzip -c < /dev/null > flatsource/Packages.gz
 cat > flatsource/Release <<EOF
 MD5Sum:
+ $EMPTYMD5 Sources
  $(mdandsize flatsource/Sources.gz) Sources.gz
  $(mdandsize flatsource/Packages.gz) Packages.gz
 EOF
@@ -145,44 +146,48 @@ EOF
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Sources.gz'
--v2*=Copy file '$WORKDIR/flatsource/Sources.gz' to './lists/1234_flattest_dsc_a_flat'...
+-v2*=Uncompress '$WORKDIR/flatsource/Sources.gz' into './lists/flattest_flatsource_Sources' using '/bin/gunzip'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
 -v4*=  nothing to do for '1234|bb|yyyyyyyyyy'
 -v4*=  nothing to do for '1234|bb|x'
 -v3*=  processing updates for '1234|a|source'
--v5*=  reading './lists/1234_flattest_dsc_a_flat'
+-v5*=  reading './lists/flattest_flatsource_Sources'
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/1234_flattest_deb_a_flat'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/1234_flattest_deb_a_flat'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v0*=Getting packages...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 EOF
 
-cat > flatsource/Packages.gz <<EOF
+cat > flatsource/Packages <<EOF
 
 EOF
+pkgmd="$(mdandsize flatsource/Packages)"
+gzip -f flatsource/Packages
 cat > flatsource/Release <<EOF
 MD5Sum:
+ $EMPTYMD5 Sources
  $(mdandsize flatsource/Sources.gz) Sources.gz
+ $pkgmd Packages
  $(mdandsize flatsource/Packages.gz) Packages.gz
 EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
@@ -191,33 +196,37 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/1234_flattest_deb_a_flat'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/1234_flattest_deb_a_flat'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v0*=Getting packages...
 -v1*=Shutting down aptmethods...
 -v0*=Installing (and possibly deleting) packages...
 EOF
 
-cat > flatsource/Packages.gz <<EOF
+cat > flatsource/Packages <<EOF
 Package: test
 Architecture: all
 Version: 0
 Filename: flatsource/test.deb
 EOF
+pkgmd="$(mdandsize flatsource/Packages)"
+gzip -f flatsource/Packages
 cat > flatsource/Release <<EOF
 MD5Sum:
+ $EMPTYMD5 Sources
  $(mdandsize flatsource/Sources.gz) Sources.gz
+ $pkgmd Packages
  $(mdandsize flatsource/Packages.gz) Packages.gz
 EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
@@ -226,7 +235,7 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/1234_flattest_deb_a_flat'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 stderr
 *=Missing 'Size' line in binary control chunk:
 *=Missing 'MD5sum' line in binary control chunk:
@@ -234,12 +243,12 @@ stderr
 *=Architecture: all
 *=Version: 0
 *=Filename: flatsource/test.deb'
--v1*=Stop reading further chunks from './lists/1234_flattest_deb_a_flat' due to previous errors.
+-v1*=Stop reading further chunks from './lists/flattest_flatsource_Packages' due to previous errors.
 -v0*=There have been errors!
 return 249
 EOF
 
-cat > flatsource/Packages.gz <<EOF
+cat > flatsource/Packages <<EOF
 Package: test
 Architecture: all
 Version: 0
@@ -247,18 +256,22 @@ Filename: flatsource/test.deb
 Size: 0
 MD5Sum: $EMPTYMD5ONLY
 EOF
+pkgmd="$(mdandsize flatsource/Packages)"
+gzip -f flatsource/Packages
 cat > flatsource/Release <<EOF
 MD5Sum:
+ $EMPTYMD5 Sources
  $(mdandsize flatsource/Sources.gz) Sources.gz
+ $pkgmd Packages
  $(mdandsize flatsource/Packages.gz) Packages.gz
 EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 stdout
 -v0*=Calculating packages to get...
 -v4*=  nothing to do for '1234|bb|source'
@@ -267,10 +280,10 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/1234_flattest_deb_a_flat'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/1234_flattest_deb_a_flat'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v2=Created directory "./pool"
 -v2=Created directory "./pool/a"
 -v2=Created directory "./pool/a/t"
@@ -289,7 +302,7 @@ touch flatsource/test.deb
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
 -v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_0_all.deb'...
 stdout
@@ -300,10 +313,10 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/1234_flattest_deb_a_flat'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
-#-v5*=  reading './lists/1234_flattest_deb_a_flat'
+#-v5*=  reading './lists/flattest_flatsource_Packages'
 -v2=Created directory "./pool"
 -v2=Created directory "./pool/a"
 -v2=Created directory "./pool/a/t"
@@ -328,7 +341,7 @@ stdout
 -v6*= looking for changes in '1234|bb|source'...
 EOF
 
-cat > flatsource/Packages.gz <<EOF
+cat > flatsource/Packages <<EOF
 Package: test
 Architecture: yyyyyyyyyy
 Version: 1
@@ -336,18 +349,22 @@ Filename: flatsource/test.deb
 Size: 0
 MD5Sum: $EMPTYMD5ONLY
 EOF
+pkgmd="$(mdandsize flatsource/Packages)"
+gzip -f flatsource/Packages
 cat > flatsource/Release <<EOF
 MD5Sum:
+ $EMPTYMD5 Sources
  $(mdandsize flatsource/Sources.gz) Sources.gz
+ $pkgmd Packages
  $(mdandsize flatsource/Packages.gz) Packages.gz
 EOF
 
 testrun - -b . update 1234 3<<EOF
 stderr
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Release'
--v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/1234_flattest_rel_Release_data'...
+-v2*=Copy file '$WORKDIR/flatsource/Release' to './lists/flattest_flatsource_flat_Release'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/Packages.gz'
--v2*=Copy file '$WORKDIR/flatsource/Packages.gz' to './lists/1234_flattest_deb_a_flat'...
+-v2*=Uncompress '$WORKDIR/flatsource/Packages.gz' into './lists/flattest_flatsource_Packages' using '/bin/gunzip'...
 -v1*=aptmethod got 'file:$WORKDIR/flatsource/test.deb'
 -v2*=Linking file '$WORKDIR/flatsource/test.deb' to './pool/a/t/test/test_1_yyyyyyyyyy.deb'...
 stdout
@@ -358,7 +375,7 @@ stdout
 -v0*=  nothing new for '1234|a|source' (use --noskipold to process anyway)
 -v4*=  nothing to do for 'u|1234|a|yyyyyyyyyy'
 -v3*=  processing updates for '1234|a|yyyyyyyyyy'
--v5*=  reading './lists/1234_flattest_deb_a_flat'
+-v5*=  reading './lists/flattest_flatsource_Packages'
 -v4*=  nothing to do for 'u|1234|a|x'
 -v3*=  processing updates for '1234|a|x'
 -v2=Created directory "./pool"
@@ -382,7 +399,6 @@ stdout
 -v6*= looking for changes in '1234|bb|x'...
 -v6*= looking for changes in '1234|bb|yyyyyyyyyy'...
 -v6*= looking for changes in '1234|bb|source'...
--v0*=Deleting files no longer referenced...
 EOF
 
 rm -r -f db conf dists pool lists flatsource

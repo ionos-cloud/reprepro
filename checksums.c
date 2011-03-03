@@ -43,6 +43,9 @@ const char * const changes_checksum_names[] = {
 const char * const source_checksum_names[] = {
 	"Files", "Checksums-Sha1", "Checksums-Sha256"
 };
+const char * const release_checksum_names[cs_hashCOUNT] = {
+	"MD5Sum", "SHA1", "SHA256"
+};
 
 
 /* The internal representation of a checksum, as written to the databases,
@@ -920,6 +923,40 @@ retvalue checksums_cheaptest(const char *fullfilename, const struct checksums *c
 	return RET_ERROR_WRONG_MD5;
 }
 
+retvalue checksums_test(const char *filename, const struct checksums *checksums, struct checksums **checksums_p) {
+	retvalue r;
+	struct checksums *filechecksums;
+	bool improves;
+
+	/* check if it is there and has the correct size */
+	r = checksums_cheaptest(filename, checksums, false);
+	/* if it is, read its checksums */
+	if( RET_IS_OK(r) )
+		r = checksums_read(filename, &filechecksums);
+	if( !RET_IS_OK(r) )
+		return r;
+	if( !checksums_check(checksums, filechecksums, &improves) ) {
+		checksums_free(filechecksums);
+		return RET_ERROR_WRONG_MD5;
+	}
+	if( improves && checksums_p != NULL ) {
+		if( *checksums_p == NULL ) {
+			*checksums_p = checksums_dup(checksums);
+			if( FAILEDTOALLOC(*checksums_p) ) {
+				checksums_free(filechecksums);
+				return RET_ERROR_OOM;
+			}
+		}
+		r = checksums_combine(checksums_p, filechecksums, NULL);
+		if( RET_WAS_ERROR(r) ) {
+			checksums_free(filechecksums);
+			return r;
+		}
+	}
+	checksums_free(filechecksums);
+	return RET_OK;
+}
+
 /* copy, only checking file size, perhaps add some paranoia checks later */
 static retvalue copy(const char *destination, const char *source, const struct checksums *checksums) {
 	off_t filesize = 0, expected;
@@ -1137,31 +1174,10 @@ bool checksums_iscomplete(const struct checksums *checksums) {
 /* Collect missing checksums.
  * if the file is not there, return RET_NOTHING.
  * return RET_ERROR_WRONG_MD5 if already existing do not match */
-retvalue checksums_complete(struct checksums **checksums_p, const char *fullfilename, bool *improvedchecksums) {
-	retvalue r;
-	struct checksums *realchecksums;
-	bool improves;
-
+retvalue checksums_complete(struct checksums **checksums_p, const char *fullfilename) {
 	if( checksums_iscomplete(*checksums_p) )
 		return RET_OK;
-
-	r = checksums_cheaptest(fullfilename, *checksums_p, false);
-	if( !RET_IS_OK(r) )
-		return r;
-	r = checksums_read(fullfilename, &realchecksums);
-	if( !RET_IS_OK(r) )
-		return r;
-	if( checksums_check(*checksums_p, realchecksums, &improves) ) {
-		assert(improves);
-
-		r = checksums_combine(checksums_p, realchecksums,
-				improvedchecksums);
-		checksums_free(realchecksums);
-		return r;
-	} else {
-		checksums_free(realchecksums);
-		return RET_ERROR_WRONG_MD5;
-	}
+	return checksums_test(fullfilename, *checksums_p, checksums_p);
 }
 
 retvalue checksums_read(const char *fullfilename, /*@out@*/struct checksums **checksums_p) {

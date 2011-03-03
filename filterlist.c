@@ -30,8 +30,6 @@
 #include "configparser.h"
 #include "filterlist.h"
 
-extern int verbose;
-
 struct filterlistfile {
 	size_t reference_count;
 
@@ -128,6 +126,8 @@ static inline retvalue filterlistfile_parse(struct filterlistfile *n, const char
 			type = flt_purge;
 		} else if( strcmp(what,"hold") == 0 ) {
 			type = flt_hold;
+		} else if( strcmp(what, "upgradeonly") == 0 ) {
+			type = flt_upgradeonly;
 		} else if( strcmp(what,"error") == 0 ) {
 			type = flt_error;
 		} else {
@@ -291,6 +291,7 @@ static const struct constant filterlisttype_listtypes[] = {
 	{"hold",	(int)flt_hold},
 	{"deinstall",	(int)flt_deinstall},
 	{"purge",	(int)flt_purge},
+	{"upgradeonly",	(int)flt_upgradeonly},
 	{"error",	(int)flt_error},
 	{NULL, 0}
 };
@@ -344,6 +345,7 @@ retvalue filterlist_load(struct filterlist *list, struct configiterator *iter) {
 	list->count = count;
 	list->files = files;
 	list->defaulttype = defaulttype;
+	list->set = true;
 	return RET_OK;
 }
 
@@ -391,7 +393,7 @@ static inline bool find(const char *name, /*@null@*/struct filterlistfile *list)
 	return false;
 }
 
-enum filterlisttype filterlist_find(const char *name,struct filterlist *list) {
+enum filterlisttype filterlist_find(const char *name, const struct filterlist *list) {
 	size_t i;
 	for( i = 0 ; i < list->count ; i++ ) {
 		if( list->files[i]->root != NULL && find(name,list->files[i]) )

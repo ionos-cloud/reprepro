@@ -14,7 +14,8 @@ retvalue sources_calcfilelines(const struct checksumsarray *, /*@out@*/char **it
 
 /* Functions for the target.h-stuff: */
 retvalue sources_getversion(const char *chunk, /*@out@*/char **version);
-retvalue sources_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *);
+retvalue sources_getinstalldata(const struct target *t, const char *packagename, const char *version, architecture_t, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
+retvalue sources_getarchitecture(const char *chunk, /*@out@*/architecture_t *);
 retvalue sources_getfilekeys(const char *, /*@out@*/struct strlist *);
 retvalue sources_getchecksums(const char *, /*@out@*/struct checksumsarray *);
 retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
@@ -42,4 +43,7 @@ void sources_done(struct dsc_headers *);
 struct overrideinfo;
 retvalue sources_complete(const struct dsc_headers *, const char *directory, const struct overrideinfo *override, const char *section, const char *priority, char **newcontrol);
 
+char *calc_source_basename(const char *name, const char *version);
+char *calc_sourcedir(component_t, const char *sourcename);
+char *calc_filekey(component_t, const char *sourcename, const char *filename);
 #endif

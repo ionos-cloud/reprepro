@@ -15,7 +15,8 @@
 
 /* Functions for the target.h-stuff: */
 retvalue binaries_getversion(const char *chunk,char **version);
-retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, /*@out@*/char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *);
+retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, architecture_t, const char *chunk, /*@out@*/char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
+retvalue binaries_getarchitecture(const char *chunk, /*@out@*/architecture_t *);
 retvalue binaries_getfilekeys(const char *chunk, /*@out@*/struct strlist *);
 retvalue binaries_getchecksums(const char *chunk, /*@out@*/struct checksumsarray *);
 retvalue binaries_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
@@ -27,7 +28,8 @@ retvalue binaries_getsourceandversion(const char *chunk, const char *packagename
 
 struct deb_headers {
 	char *name,*version;
-	char *source,*architecture;
+	char *source;
+	architecture_t architecture_atom;
 	char *control;
 	/* only extracted when requested: */
 	/*@null@*/char *sourceversion;
@@ -44,11 +46,11 @@ struct deb_headers {
 retvalue binaries_readdeb(struct deb_headers *, const char *filename, bool needssourceversion);
 void binaries_debdone(struct deb_headers *);
 
-retvalue binaries_calcfilekeys(const char *component,const struct deb_headers *,const char *packagetype,struct strlist *filekeys);
+retvalue binaries_calcfilekeys(component_t, const struct deb_headers *, packagetype_t, /*@out@*/struct strlist *);
 
 struct overrideinfo;
 retvalue binaries_complete(const struct deb_headers *, const char *filekey, const struct checksums *, const struct overrideinfo *, const char *section, const char *priority, char **newcontrol);
 
-retvalue binaries_adddeb(const struct deb_headers *, struct database *, /*@null@*/const char *forcearchitecture, const char *packagetype, struct distribution *, /*@null@*/struct strlist *dereferencedfilekeys, /*@null@*/struct trackingdata *, const char *component, const struct strlist *filekeys, bool *usedmarker, const char *control);
-retvalue binaries_checkadddeb(const struct deb_headers *, struct database *, const char *forcearchitecture, const char *packagetype, struct distribution *, bool tracking, const char *component, bool permitnewerold);
+retvalue binaries_adddeb(const struct deb_headers *, struct database *, architecture_t forcedarchitecture, packagetype_t, struct distribution *, /*@null@*/struct trackingdata *, component_t, const struct strlist *filekeys, const char *control);
+retvalue binaries_checkadddeb(const struct deb_headers *, struct database *, architecture_t forcearchitecture, packagetype_t, struct distribution *, bool tracking, component_t, bool permitnewerold);
 #endif

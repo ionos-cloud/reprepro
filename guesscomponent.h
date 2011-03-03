@@ -5,13 +5,10 @@
 #include "error.h"
 #warning "What's hapening here?"
 #endif
-#ifndef REPREPRO_STRLIST_H
-#include "strlist.h"
-#warning "What's hapening here?"
+#ifndef REPREPRO_ATOMS_H
+#include "atoms.h"
 #endif
 
-retvalue guess_component(const char *codename,const struct strlist *components,
-			const char *package,const char *section,
-			/*@null@*/const char *givencomponent,char **component);
+retvalue guess_component(const char *codename, const struct atomlist *components, const char *package, const char *section, component_t, /*@out@*/component_t *);
 
 #endif

@@ -1,13 +1,6 @@
 #ifndef REPREPRO_UPGRADELIST_H
 #define REPREPRO_UPGRADELIST_H
 
-#ifndef REPREPRO_APTMETHOD_H
-#include "aptmethod.h"
-#endif
-#ifndef REPREPRO_DOWNLOADCACHE_H
-#include "downloadcache.h"
-#endif
-
 /* Things for making decisions what to upgrade and what not */
 
 typedef enum { UD_ERROR, UD_NO, UD_UPGRADE, UD_HOLD } upgrade_decision;
@@ -25,28 +18,27 @@ struct upgradelist;
 retvalue upgradelist_initialize(struct upgradelist **ul,/*@dependent@*/struct target *target,struct database *);
 void upgradelist_free(/*@only@*/struct upgradelist *upgrade);
 
-void upgradelist_dump(struct upgradelist *upgrade);
+typedef void dumpaction(const char */*packagename*/, /*@null@*/const char */*oldversion*/, /*@null@*/const char */*newversion*/, /*@null@*/const char */*bestcandidate*/, /*@null@*/const struct strlist */*newfilekeys*/, /*@null@*/const char */*newcontrol*/, void *);
+
+void upgradelist_dump(struct upgradelist *upgrade, dumpaction *action);
 retvalue upgradelist_listmissing(struct upgradelist *upgrade,struct database *);
 
 /* Take all items in 'filename' into account, and remember them coming from 'method' */
-retvalue upgradelist_update(struct upgradelist *upgrade, /*@dependent@*/struct aptmethod *method, const char *filename, upgrade_decide_function *predecide, void *decide_data, bool ignorewrongarchitecture);
+retvalue upgradelist_update(struct upgradelist *upgrade, /*@dependent@*/void *, const char *filename, upgrade_decide_function *predecide, void *decide_data, bool ignorewrongarchitecture);
 
 /* Take all items in source into account */
-retvalue upgradelist_pull(struct upgradelist *upgrade,struct target *source,upgrade_decide_function *predecide,void *decide_data,struct database *);
+retvalue upgradelist_pull(struct upgradelist *, struct target *, upgrade_decide_function *, void *, struct database *, void *);
 
 /* mark all packages as deleted, so they will vanis unless readded or reholded */
 retvalue upgradelist_deleteall(struct upgradelist *upgrade);
 
-//TODO add a function to reduce data-load by removing anything not needed
-//any longer. (perhaps with a flag to remove all packages that are no
-//longer available upstream)
-
+typedef retvalue enqueueaction(void *, struct database *, const struct checksumsarray *, const struct strlist *, void *);
 /* request all wanted files refering the methods given before */
-retvalue upgradelist_enqueue(struct upgradelist *upgrade,struct downloadcache *cache,struct database *);
+retvalue upgradelist_enqueue(struct upgradelist *, enqueueaction *, void *, struct database *);
 
-retvalue upgradelist_install(struct upgradelist *upgrade, /*@null@*/struct logger *, struct database *, bool ignoredelete, struct strlist *dereferencedfilekeys);
+retvalue upgradelist_install(struct upgradelist *upgrade, /*@null@*/struct logger *, struct database *, bool ignoredelete);
 
 /* remove all packages that would either be removed or upgraded by an upgrade */
-retvalue upgradelist_predelete(struct upgradelist *upgrade,/*@null@*/struct logger *logger,struct database *,struct strlist *dereferencedfilekeys);
+retvalue upgradelist_predelete(struct upgradelist *, /*@null@*/struct logger *, struct database *);
 
 #endif

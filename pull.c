@@ -34,8 +34,6 @@
 #include "log.h"
 #include "configparser.h"
 
-extern int verbose;
-
 /***************************************************************************
  * step one:                                                               *
  * parse CONFDIR/pull to get pull information saved in                     *
@@ -51,14 +49,14 @@ struct pull_rule {
 	//e.g. "From: woody"
 	char *from;
 	//e.g. "Architectures: i386 sparc mips" (not set means all)
-	struct strlist architectures_from;
-	struct strlist architectures_into;
+	struct atomlist architectures_from;
+	struct atomlist architectures_into;
 	bool architectures_set;
 	//e.g. "Components: main contrib" (not set means all)
-	struct strlist components;
+	struct atomlist components;
 	bool components_set;
 	//e.g. "UDebComponents: main" // (not set means all)
-	struct strlist udebcomponents;
+	struct atomlist udebcomponents;
 	bool udebcomponents_set;
 	// NULL means no condition
 	/*@null@*/term *includecondition;
@@ -73,10 +71,10 @@ static void pull_rule_free(/*@only@*/struct pull_rule *pull) {
 		return;
 	free(pull->name);
 	free(pull->from);
-	strlist_done(&pull->architectures_from);
-	strlist_done(&pull->architectures_into);
-	strlist_done(&pull->components);
-	strlist_done(&pull->udebcomponents);
+	atomlist_done(&pull->architectures_from);
+	atomlist_done(&pull->architectures_into);
+	atomlist_done(&pull->components);
+	atomlist_done(&pull->udebcomponents);
 	term_free(pull->includecondition);
 	filterlist_release(&pull->filterlist);
 	free(pull);
@@ -95,8 +93,8 @@ void pull_freerules(struct pull_rule *p) {
 CFlinkedlistinit(pull_rule)
 CFvalueSETPROC(pull_rule, name)
 CFvalueSETPROC(pull_rule, from)
-CFuniqstrlistSETPROCset(pull_rule, components)
-CFuniqstrlistSETPROCset(pull_rule, udebcomponents)
+CFatomlistSETPROC(pull_rule, components, at_component)
+CFatomlistSETPROC(pull_rule, udebcomponents, at_component)
 CFfilterlistSETPROC(pull_rule, filterlist)
 CFtermSETPROC(pull_rule, includecondition)
 
@@ -105,7 +103,8 @@ CFUSETPROC(pull_rule, architectures) {
 	retvalue r;
 
 	this->architectures_set = true;
-	r = config_getsplitwords(iter, "Architectures",
+	r = config_getsplitatoms(iter, "Architectures",
+			at_architecture,
 			&this->architectures_from,
 			&this->architectures_into);
 	if( r == RET_NOTHING ) {
@@ -301,8 +300,8 @@ static void pull_freetargets(struct pull_target *targets) {
 static retvalue pull_createsource(struct pull_rule *rule,
 		struct target *target,
 		struct pull_source ***s) {
-	const struct strlist *c;
-	const struct strlist *a_from,*a_into;
+	const struct atomlist *c;
+	const struct atomlist *a_from, *a_into;
 	int ai;
 
 	assert( rule != NULL );
@@ -315,7 +314,7 @@ static retvalue pull_createsource(struct pull_rule *rule,
 		a_from = &rule->distribution->architectures;
 		a_into = &rule->distribution->architectures;
 	}
-	if( strcmp(target->packagetype,"udeb") == 0 )  {
+	if( target->packagetype_atom == pt_udeb )  {
 		if( rule->udebcomponents_set )
 			c = &rule->udebcomponents;
 		else
@@ -327,12 +326,13 @@ static retvalue pull_createsource(struct pull_rule *rule,
 			c = &rule->distribution->components;
 	}
 
-	if( !strlist_in(c, target->component) )
+	if( !atomlist_in(c, target->component_atom) )
 		return RET_NOTHING;
 
 	for( ai = 0 ; ai < a_into->count ; ai++ ) {
 		struct pull_source *source;
-		if( strcmp(a_into->values[ai],target->architecture) != 0 )
+
+		if( a_into->atoms[ai] != target->architecture_atom )
 			continue;
 
 		source = malloc(sizeof(struct pull_source));
@@ -342,8 +342,9 @@ static retvalue pull_createsource(struct pull_rule *rule,
 		source->next = NULL;
 		source->rule = rule;
 		source->source = distribution_getpart(rule->distribution,
-				target->component, a_from->values[ai],
-				target->packagetype);
+				target->component_atom,
+				a_from->atoms[ai],
+				target->packagetype_atom);
 		**s = source;
 		*s = &source->next;
 	}
@@ -421,21 +422,39 @@ static retvalue pull_generatetargets(struct pull_distribution *pull_distribution
  * Some checking to be able to warn against typos                          *
  **************************************************************************/
 
-static inline void markasused(const struct strlist *pulls, const char *rulename, const struct strlist *needed, const struct strlist *have, bool *found) {
+static bool *preparefoundlist(const struct atomlist *list) {
+	bool *found;
+	int i, j;
+
+	found = calloc(list->count, sizeof(bool));
+	if( found == NULL )
+		return found;
+	for( i = 0 ; i < list->count ; i++ ) {
+		if( found[i] )
+			continue;
+		for( j = i + 1 ; j < list->count ; j++ )
+			if( list->atoms[i] == list->atoms[j] )
+				found[j] = true;
+	}
+	return found;
+}
+
+
+static inline void markasused(const struct strlist *pulls, const char *rulename, const struct atomlist *needed, const struct atomlist *have, bool *found) {
 	int i, j, o;
 
 	for( i = 0 ; i < pulls->count ; i++ ) {
 		if( strcmp(pulls->values[i], rulename) != 0 )
 			continue;
 		for( j = 0 ; j < have->count ; j++ ) {
-			o = strlist_ofs(needed, have->values[j]);
+			o = atomlist_ofs(needed, have->atoms[j]);
 			if( o >= 0 )
 				found[o] = true;
 		}
 	}
 }
 
-static void checkifarchitectureisused(const struct strlist *architectures, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+static void checkifarchitectureisused(const struct atomlist *architectures, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
 	bool *found;
 	const struct distribution *d;
 	int i;
@@ -443,7 +462,7 @@ static void checkifarchitectureisused(const struct strlist *architectures, const
 	assert( rule != NULL );
 	if( architectures->count == 0 )
 		return;
-	found = strlist_preparefoundlist(architectures, true);
+	found = preparefoundlist(architectures);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -459,13 +478,13 @@ static void checkifarchitectureisused(const struct strlist *architectures, const
 "but no distribution using this has such an architecture.\n"
 "(This will simply be ignored and is not even checked when using --fast).\n",
 				rule->name, action,
-				architectures->values[i]);
+				atoms_architectures[architectures->atoms[i]]);
 	}
 	free(found);
 	return;
 }
 
-static void checkifcomponentisused(const struct strlist *components, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+static void checkifcomponentisused(const struct atomlist *components, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
 	bool *found;
 	const struct distribution *d;
 	int i;
@@ -473,7 +492,7 @@ static void checkifcomponentisused(const struct strlist *components, const struc
 	assert( rule != NULL );
 	if( components->count == 0 )
 		return;
-	found = strlist_preparefoundlist(components, true);
+	found = preparefoundlist(components);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -489,13 +508,13 @@ static void checkifcomponentisused(const struct strlist *components, const struc
 "but no distribution using this has such an component.\n"
 "(This will simply be ignored and is not even checked when using --fast).\n",
 				rule->name, action,
-				components->values[i]);
+				atoms_components[components->atoms[i]]);
 	}
 	free(found);
 	return;
 }
 
-static void checkifudebcomponentisused(const struct strlist *udebcomponents, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
+static void checkifudebcomponentisused(const struct atomlist *udebcomponents, const struct distribution *alldistributions, const struct pull_rule *rule, const char *action) {
 	bool *found;
 	const struct distribution *d;
 	int i;
@@ -503,7 +522,7 @@ static void checkifudebcomponentisused(const struct strlist *udebcomponents, con
 	assert( rule != NULL );
 	if( udebcomponents->count == 0 )
 		return;
-	found = strlist_preparefoundlist(udebcomponents, true);
+	found = preparefoundlist(udebcomponents);
 	if( found == NULL )
 		return;
 	for( d = alldistributions ; d != NULL ; d = d->next ) {
@@ -519,34 +538,32 @@ static void checkifudebcomponentisused(const struct strlist *udebcomponents, con
 "but no distribution using this has such an udeb component.\n"
 "(This will simply be ignored and is not even checked when using --fast).\n",
 				rule->name, action,
-				udebcomponents->values[i]);
+				atoms_components[udebcomponents->atoms[i]]);
 	}
 	free(found);
 	return;
 }
 
-static void checksubset(const struct strlist *needed, const struct strlist *have, const char *rulename, const char *from, const char *what) {
+static void checksubset(const struct atomlist *needed, const struct atomlist *have, const char *rulename, const char *from, const char *what, const char **atoms) {
 	int i, j;
 
 	for( i = 0 ; i < needed->count ; i++ ) {
-		const char *value = needed->values[i];
-
-		if( strcmp(value, "none") == 0 )
-			continue;
+		atom_t value = needed->atoms[i];
 
 		for( j = 0 ; j < i ; j++ ) {
-			if( strcmp(value, needed->values[j]) == 0 )
+			if( value == needed->atoms[j])
 				break;
 		}
 		if( j < i )
 			continue;
 
-		if( !strlist_in(have, value) ) {
+		if( !atomlist_in(have, value) ) {
 			fprintf(stderr,
 "Warning: pull rule '%s' wants to get something from %s '%s',\n"
 "but there is no such %s in distribution '%s'.\n"
 "(This will simply be ignored and is not even checked when using --fast).\n",
-					rulename, what, value, what, from);
+					rulename, what,
+					atoms[value], what, from);
 		}
 	}
 }
@@ -556,13 +573,16 @@ static void searchunused(const struct distribution *alldistributions, const stru
 		// TODO: move this part of the checks into parsing?
 		checksubset(&rule->architectures_from,
 				&rule->distribution->architectures,
-				rule->name, rule->from, "architecture");
+				rule->name, rule->from, "architecture",
+				atoms_architectures);
 		checksubset(&rule->components,
 				&rule->distribution->components,
-				rule->name, rule->from, "component");
+				rule->name, rule->from, "component",
+				atoms_components);
 		checksubset(&rule->udebcomponents,
 				&rule->distribution->udebcomponents,
-				rule->name, rule->from, "udeb component");
+				rule->name, rule->from, "udeb component",
+				atoms_components);
 	}
 
 	if( rule->distribution == NULL ) {
@@ -625,8 +645,9 @@ retvalue pull_prepare(struct distribution *alldistributions, struct pull_rule *r
  * decide what gets pulled                                                 *
  **************************************************************************/
 
-static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UNUSED(const char *old_version),UNUSED(const char *new_version),const char *newcontrolchunk) {
+static upgrade_decision ud_decide_by_rule(void *privdata, const char *package, /*@null@*/const char *old_version, UNUSED(const char *new_version), const char *newcontrolchunk) {
 	struct pull_rule *rule = privdata;
+	upgrade_decision decision = UD_UPGRADE;
 	retvalue r;
 
 	switch( filterlist_find(package,&rule->filterlist) ) {
@@ -634,12 +655,17 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 		case flt_purge:
 			return UD_NO;
 		case flt_hold:
-			return UD_HOLD;
+			decision = UD_HOLD;
+			break;
 		case flt_error:
 			/* cannot yet be handled! */
 			fprintf(stderr,
 "Package name marked to be unexpected('error'): '%s'!\n", package);
 			return UD_ERROR;
+		case flt_upgradeonly:
+			if( old_version == NULL )
+				return UD_NO;
+			break;
 		case flt_install:
 			break;
 	}
@@ -653,14 +679,14 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 		}
 	}
 
-	return UD_UPGRADE;
+	return decision;
 }
 
-static inline retvalue pull_searchformissing(FILE *out,struct database *database,struct pull_target *p) {
+static inline retvalue pull_searchformissing(/*@null@*/FILE *out,struct database *database,struct pull_target *p) {
 	struct pull_source *source;
 	retvalue result,r;
 
-	if( verbose > 2 )
+	if( verbose > 2 && out != NULL )
 		fprintf(out,"  pulling into '%s'\n",p->target->identifier);
 	assert(p->upgradelist == NULL);
 	r = upgradelist_initialize(&p->upgradelist, p->target, database);
@@ -672,7 +698,7 @@ static inline retvalue pull_searchformissing(FILE *out,struct database *database
 	for( source=p->sources ; source != NULL ; source=source->next ) {
 
 		if( source->rule == NULL ) {
-			if( verbose > 4 )
+			if( verbose > 4 && out != NULL )
 				fprintf(out,"  marking everything to be deleted\n");
 			r = upgradelist_deleteall(p->upgradelist);
 			RET_UPDATE(result,r);
@@ -682,13 +708,13 @@ static inline retvalue pull_searchformissing(FILE *out,struct database *database
 			continue;
 		}
 
-		if( verbose > 4 )
+		if( verbose > 4 && out != NULL )
 			fprintf(out,"  looking what to get from '%s'\n",
 					source->source->identifier);
 		r = upgradelist_pull(p->upgradelist,
 				source->source,
 				ud_decide_by_rule, source->rule,
-				database);
+				database, source);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			return result;
@@ -697,7 +723,7 @@ static inline retvalue pull_searchformissing(FILE *out,struct database *database
 	return result;
 }
 
-static retvalue pull_search(FILE *out,struct database *database,struct pull_distribution *d) {
+static retvalue pull_search(/*@null@*/FILE *out,struct database *database,struct pull_distribution *d) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -725,7 +751,7 @@ static retvalue pull_search(FILE *out,struct database *database,struct pull_dist
 	return result;
 }
 
-static retvalue pull_install(struct database *database,struct pull_distribution *distribution,struct strlist *dereferencedfilekeys) {
+static retvalue pull_install(struct database *database, struct pull_distribution *distribution) {
 	retvalue result,r;
 	struct pull_target *u;
 
@@ -735,8 +761,7 @@ static retvalue pull_install(struct database *database,struct pull_distribution 
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		r = upgradelist_install(u->upgradelist,
 				distribution->distribution->logger,
-				database,
-				u->ignoredelete, dereferencedfilekeys);
+				database, u->ignoredelete);
 		RET_UPDATE(distribution->distribution->status, r);
 		RET_UPDATE(result,r);
 		upgradelist_free(u->upgradelist);
@@ -747,20 +772,114 @@ static retvalue pull_install(struct database *database,struct pull_distribution 
 	return result;
 }
 
+static void pull_dumppackage(const char *packagename, /*@null@*/const char *oldversion, /*@null@*/const char *newversion, /*@null@*/const char *bestcandidate, /*@null@*/const struct strlist *newfilekeys, /*@null@*/const char *newcontrol, void *privdata) {
+	struct pull_source *source = privdata;
+
+	if( newversion == NULL ) {
+		if( oldversion != NULL && bestcandidate != NULL ) {
+			printf("'%s': '%s' will be deleted"
+					" (best new: '%s')\n",
+					packagename, oldversion, bestcandidate);
+		} else if( oldversion != NULL ) {
+			printf("'%s': '%s' will be deleted"
+					" (no longer available)\n",
+					packagename, oldversion);
+		} else {
+			printf("'%s': will NOT be added as '%s'\n",
+					packagename, bestcandidate);
+		}
+	} else if( newversion == oldversion ) {
+		if( bestcandidate != NULL ) {
+			if( verbose > 1 )
+				printf("'%s': '%s' will be kept"
+						" (best new: '%s')\n",
+						packagename, oldversion,
+						bestcandidate);
+		} else {
+			if( verbose > 0 )
+				printf("'%s': '%s' will be kept"
+						" (unavailable for reload)\n",
+						packagename, oldversion);
+		}
+	} else {
+		const char *via = source->rule->name;
+
+		assert( newfilekeys != NULL );
+		assert( newcontrol != NULL );
+		if( oldversion != NULL )
+			(void)printf("'%s': '%s' will be upgraded"
+					" to '%s' (from '%s'):\n files needed: ",
+					packagename, oldversion,
+					newversion, via);
+		else
+			(void)printf("'%s': newly installed"
+					" as '%s' (from '%s'):\n files needed: ",
+					packagename, newversion, via);
+		(void)strlist_fprint(stdout, newfilekeys);
+		if( verbose > 2)
+			(void)printf("\n installing as: '%s'\n",
+					newcontrol);
+		else
+			(void)putchar('\n');
+	}
+}
+
 static void pull_dump(struct pull_distribution *distribution) {
 	struct pull_target *u;
 
 	for( u=distribution->targets ; u != NULL ; u=u->next ) {
 		if( u->upgradelist == NULL )
 			continue;
-		printf("Updates needed for '%s':\n",u->target->identifier);
-		upgradelist_dump(u->upgradelist);
+		printf("Updates needed for '%s':\n", u->target->identifier);
+		upgradelist_dump(u->upgradelist, pull_dumppackage);
 		upgradelist_free(u->upgradelist);
 		u->upgradelist = NULL;
 	}
 }
 
-retvalue pull_update(struct database *database,struct pull_distribution *distributions,struct strlist *dereferencedfilekeys) {
+static void pull_dumplistpackage(const char *packagename, /*@null@*/const char *oldversion, /*@null@*/const char *newversion, /*@null@*/const char *bestcandidate, /*@null@*/const struct strlist *newfilekeys, /*@null@*/const char *newcontrol, void *privdata) {
+	struct pull_source *source = privdata;
+
+	if( newversion == NULL ) {
+		if( oldversion == NULL )
+			return;
+		printf("delete '%s' '%s'\n", packagename, oldversion);
+	} else if( newversion == oldversion ) {
+		if( bestcandidate != NULL )
+			printf("keep '%s' '%s' '%s'\n", packagename,
+					oldversion, bestcandidate);
+		else
+			printf("keep '%s' '%s' unavailable\n", packagename,
+					oldversion);
+	} else {
+		const char *via = source->rule->name;
+
+		assert( newfilekeys != NULL );
+		assert( newcontrol != NULL );
+		if( oldversion != NULL )
+			(void)printf("update '%s' '%s' '%s' '%s'\n",
+					packagename, oldversion,
+					newversion, via);
+		else
+			(void)printf("add '%s' - '%s' '%s'\n",
+					packagename, newversion, via);
+	}
+}
+
+static void pull_dumplist(struct pull_distribution *distribution) {
+	struct pull_target *u;
+
+	for( u=distribution->targets ; u != NULL ; u=u->next ) {
+		if( u->upgradelist == NULL )
+			continue;
+		printf("Updates needed for '%s':\n", u->target->identifier);
+		upgradelist_dump(u->upgradelist, pull_dumplistpackage);
+		upgradelist_free(u->upgradelist);
+		u->upgradelist = NULL;
+	}
+}
+
+retvalue pull_update(struct database *database, struct pull_distribution *distributions) {
 	retvalue result,r;
 	struct pull_distribution *d;
 
@@ -796,7 +915,7 @@ retvalue pull_update(struct database *database,struct pull_distribution *distrib
 		printf("Installing (and possibly deleting) packages...\n");
 
 	for( d=distributions ; d != NULL ; d=d->next) {
-		r = pull_install(database, d, dereferencedfilekeys);
+		r = pull_install(database, d);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -826,3 +945,19 @@ retvalue pull_checkupdate(struct database *database, struct pull_distribution *d
 	return result;
 }
 
+retvalue pull_dumpupdate(struct database *database, struct pull_distribution *distributions) {
+	struct pull_distribution *d;
+	retvalue result,r;
+
+	result = RET_NOTHING;
+
+	for( d=distributions ; d != NULL ; d=d->next) {
+		r = pull_search(NULL, database, d);
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) )
+			break;
+		pull_dumplist(d);
+	}
+
+	return result;
+}

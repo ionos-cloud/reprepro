@@ -16,11 +16,12 @@ struct checksumsarray;
 retvalue files_add_checksums(struct database *, const char *, const struct checksums *);
 
 /* remove file's md5sum from database */
-retvalue files_remove(struct database *, const char *filekey, bool ignoremissing);
+retvalue files_remove(struct database *, const char *filekey);
+/* same but do not call pool_markremoved */
+retvalue files_removesilent(struct database *, const char *filekey);
 
-/* delete the file and remove its md5sum from database,
- * also try to rmdir empty directories it is in if rmdirs is true */
-retvalue files_deleteandremove(struct database *, const char *filekey, bool rmdirs, bool ignoremissing);
+/* delete the filekey (not doing anything else, not even forgetting it) */
+retvalue files_deletefile(struct database *, const char *);
 
 /* check for file in the database and if not found there in the pool */
 retvalue files_expect(struct database *, const char *, const struct checksums *);
@@ -47,8 +48,8 @@ retvalue files_printmissing(struct database *, const struct strlist *filekeys, c
  * return RET_ERROR_WRONG_MD5 if wrong md5sum.
  *  (the original file is not deleted in that case, even if delete is positive)
  */
-retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **, /*@out@*/bool *);
-retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **, /*@out@*/bool *);
+retvalue files_preinclude(struct database *, const char *sourcefilename, const char *filekey, /*@null@*//*@out@*/struct checksums **);
+retvalue files_checkincludefile(struct database *, const char *directory, const char *sourcefilename, const char *filekey, struct checksums **);
 
 typedef retvalue per_file_action(void *data, const char *filekey);
 

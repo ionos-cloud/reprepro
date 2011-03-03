@@ -38,8 +38,6 @@
 #include "configparser.h"
 #include "filecntl.h"
 
-extern int verbose;
-
 static const char *exportdescription(const struct exportmode *mode,char *buffer,size_t buffersize) {
 	char *result = buffer;
 	enum indexcompression ic;
@@ -313,7 +311,7 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 		int e;
 
 		if( dup2(io[1],3) < 0 ) {
-			int e = errno;
+			e = errno;
 			fprintf(stderr, "Error %d dup2'ing fd %d to 3: %s\n",
 					e, io[1], strerror(e));
 			exit(255);

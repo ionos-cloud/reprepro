@@ -4,8 +4,10 @@ First choose a directory where you want to store your repository,
 
 1) Configuration:
 
-Generate a directory named conf/
+Generate a directory named conf/.
+
 Create a file named "distributions" there.
+
 Add entries such as:
 
 Origin: Debian
@@ -19,7 +21,7 @@ Description: Debian woody + woody/non-US + woody/updates
 #Update: debian non-US security
 #SignWith: yes
 
-or: 
+Or:
 
 Origin: PCPool
 Label: PCPool
@@ -36,13 +38,17 @@ UDebOverride: override
 DscOverride: srcoverride
 
 Multiple entries are separated with an empty line.
-The codename is used to determine the directory to create.
-The Update line is described later. If SignWith is there,
-it will try to sign it. (Either use "yes" or give something
-gpg can use to identify the key you want to use).
-The other fields are copied into the appropriate Release files
-generated.
 
+The codename of the distribution is specified with Codename:.
+It is the primary name of a distribution and e.g. used to determine the
+directory to create and put the index files into.
+
+Update: is described later.
+
+If SignWith: is there, it will try to sign it: either use "yes" or give
+something gpg can use to identify the key you want to use.
+
+The other fields are copied into the appropriate "Release" files generated.
 
 2) Adding files to the repository:
 
@@ -54,15 +60,15 @@ to add a .changes file:
 
 reprepro -Vb . include pcpool test.changes
 
-Hint: you can add -C component, -A architecture, -S section, -P priority
-to give additional hints where it should go. (Note -A will not overwrite
-something to go into another architecture, but simply ignore those not
-fitting, only "Architecture: all" packages are placed exactly in these
-architecture. (Helps when it is not available for all architectures and
-each binary version needs a fitting version of the Arch:all package))
+Hint: you can add "-C component", "-A architecture", "-S section" and "-P
+priority" to give additional hints where it should go. Note -A will not
+overwrite something to go into another architecture, but simply ignore those
+not fitting, only "Architecture: all" packages are placed exactly in these
+architecture. Helps when it is not available for all architectures and each
+binary version needs a fitting version of the "Architecture: all" package.
 
 3) Removing files from the repository:
-	
+
 reprepro -Vb . remove pcpool libc6
 
 to only remove from a specific component or architecture:
@@ -71,19 +77,21 @@ reprepro -Vb . -C main -A i386 remove pcpool libc6
 
 4) Getting information about a package:
 
-To see in which architectures/components a packages exists and which version it uses.
+To see in which architectures/components a package exists and which version it
+uses.
 
 reprepro -b . list pcpool libc6
 
 5) Override-Files:
 
-When including packages via includedeb, includedsc or include
+When including packages via "includedeb", "includedsc" or "include"
 the applicable override file from the distribution it is placed
-into is used. The file given by DebOverride for ".deb"s, the
-file given by UDebOverride for ".udeb"s and the file given by 
-DscOverride for ".dsc"s. If the filename starts with
-a slash (/) it is not relative to the override directory given
-with --override (Default is basedir + "override"). 
+into is used. The file given by DebOverride: for ".deb"s, the
+file given by UDebOverride: for ".udeb"s and the file given by
+DscOverride: for ".dsc"s. If the filename starts with
+a slash (/) it is not relative to the conf directory given
+with --conf, defaulting to "conf" in the current directory (or in the
+directory specified with --basedir, if that is given).
 
 Note that the Format is those of apt-ftparchive's ExtraOverride, not the old format.
 An (stupid) example line for that file would be:
@@ -94,11 +102,11 @@ libc6 Priority extra
 The file conf/updates can contain entries like this:
 
 Name: debian
-Method: http://ftp.debian.de/debian 
+Method: http://ftp.debian.de/debian
 VerifyRelease: F1D53D8C4F368D5D
 
 Name: non-US
-Method: http://ftp.debian.de/debian-non-US 
+Method: http://ftp.debian.de/debian-non-US
 Suite: */non-US
 Architectures: i386 sparc mips source
 Components: main>main non-free>non-free contrib>contrib
@@ -106,23 +114,26 @@ UDebComponents: none
 VerifyRelease: B629A24C38C6029A
 
 Name: security
-Method: http://security.debian.org/debian-security 
-Suite: */updates 
+Method: http://security.debian.org/debian-security
+Suite: */updates
 UDebComponents: none
 VerifyRelease: F1D53D8C4F368D5D
 
-Which of those are used is determined by the "Update:" line
-in the description in conf/distributions. When "Suite:",
-"Architecture:", "Components" or "UDebComponents" are not given
+Which of those are used is determined by the Update: line
+in the description in conf/distributions. When Suite:,
+Architecture:, Components: or UDebComponents: are not given
 or empty, those of the distribution to be added are used.
 (Place a not existing component like "none" there if you want
- only the other of Components or UDebComponents). The suite of 
-the target can be used as "*" in the Suite here. "VerifyRelease:" 
-tells which gpgkey to use checking the Release.gpg. 
-(Add a "IgnoreRelease: yes" to ignore any Release files)
+ only the other of Components or UDebComponents). The suite of
+the target can be used as "*" in the Suite: here. VerifyRelease:
+tells which GPG key to use checking the Release.gpg.
+
+Add a "IgnoreRelease: yes" to ignore any Release files.
+
 To import components in other components, use the source>target
 syntax.
-"Method:" describes an apt-method, for which the programs
+
+Method: describes an apt-method, for which the programs
 from /usr/lib/apt/methods are used...
 
 To update everything possible do:
@@ -133,29 +144,29 @@ To only update some distributions do:
 
 reprepro -b . update woody
 
-(There is no support for updating a distribution from only specific
- upstreams yet. You will have to edit conf/distributions for that)
+There is no support for updating a distribution from only specific
+ upstreams yet. You will have to edit conf/distributions for that.
 
-The value for VerifyRelease can be retrieved using:
+The value for VerifyRelease: can be retrieved using:
 
 gpg --with-colons --list-keys <whatever>
 
 ===============================================================================
-[The following is from V. Stanley Jaddoe (debian@terabytemusic.cjb.net).
-Make sure to include all sources when allowing everyone access to software 
-only available under GPL to you. (Well, you should always supply sources,
-but in some cases not doing so might cause you trouble.)]
+The following is from V. Stanley Jaddoe <debian@terabytemusic.cjb.net>.
+Make sure to include all sources when allowing everyone access to software
+only available under GPL to you. Well, you should always supply sources,
+but in some cases not doing so might cause you trouble.
 
 Using reprepro with apache2 (sarge, etch, sid)
 
 This example assumes the reprepro repository is under /srv/reprepro/ and that
-apache2 has been correctly installed and configured
+apache2 has been correctly installed and configured.
 
-The first step is to create a virtual directory called debian/.
-Assuming your server runs the host http://www.example.com/, the web repository
-will be placed at http://www.example.com/debian/
+The first step is to create a virtual directory called debian/. Assuming your
+server runs the host http://www.example.com/, the web repository will be
+placed at http://www.example.com/debian/.
 
-Create an apache2 config file in the conf dir of your reprepro repository, 
+Create an apache2 config file in the conf dir of your reprepro repository,
 using the following command:
 
 cat > /srv/reprepro/conf/apache.conf << EOF
@@ -168,13 +179,12 @@ Alias /debian /srv/reprepro/
 </Directory>
 EOF
 
-
-To enable this virtual directory, a symlink has to be created. This can be done 
+To enable this virtual directory, a symlink has to be created. This can be done
 using the following command:
 
 ln -s /srv/reprepro/conf/apache.conf /etc/apache2/conf.d/reprepro.conf
 
-The second step is setting the permissions in such a way that web users can 
+The second step is setting the permissions in such a way that web users can
 browse the repository, but cannot view the reprepro specific configuration.
 This can be done using the following commands:
 
@@ -191,10 +201,11 @@ Check if the repository is viewable by web-users, by pointing your browser to
 
 http://www.example.com/debian/
 
-If there are no problems with your reprepro repository and the apache2 
+If there are no problems with your reprepro repository and the apache2
 configuration, you should see two directories, dists/ and pool/.
 
-The last step is to add this new repository to your sources.list
+The last step is to add this new repository to your sources.list.
+
 This is as easy as:
 
 echo "deb http://www.example.com/debian pcpool main non-free contrib" >> /etc/apt/sources.list

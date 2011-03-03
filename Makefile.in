@@ -51,13 +51,13 @@ CONFIG_CLEAN_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 binPROGRAMS_INSTALL = $(INSTALL_PROGRAM)
 PROGRAMS = $(bin_PROGRAMS)
-am__changestool_SOURCES_DIST = readcompressed.c sourceextraction.c \
+am__changestool_SOURCES_DIST = uncompression.c sourceextraction.c \
 	readtextfile.c filecntl.c tool.c chunkedit.c strlist.c \
 	checksums.c sha1.c sha256.c md5.c mprintf.c chunks.c \
 	signature.c dirs.c names.c extractcontrol.c ar.c debfile.c
 @HAVE_LIBARCHIVE_FALSE@am__objects_1 = extractcontrol.$(OBJEXT)
 @HAVE_LIBARCHIVE_TRUE@am__objects_1 = ar.$(OBJEXT) debfile.$(OBJEXT)
-am_changestool_OBJECTS = readcompressed.$(OBJEXT) \
+am_changestool_OBJECTS = uncompression.$(OBJEXT) \
 	sourceextraction.$(OBJEXT) readtextfile.$(OBJEXT) \
 	filecntl.$(OBJEXT) tool.$(OBJEXT) chunkedit.$(OBJEXT) \
 	strlist.$(OBJEXT) checksums.$(OBJEXT) sha1.$(OBJEXT) \
@@ -67,25 +67,28 @@ am_changestool_OBJECTS = readcompressed.$(OBJEXT) \
 changestool_OBJECTS = $(am_changestool_OBJECTS)
 am__DEPENDENCIES_1 =
 changestool_DEPENDENCIES = $(am__DEPENDENCIES_1)
-am__reprepro_SOURCES_DIST = indexfile.c copypackages.c \
-	readcompressed.c sourceextraction.c checksums.c readtextfile.c \
-	filecntl.c sha1.c sha256.c configparser.c database.c \
-	freespace.c log.c changes.c incoming.c uploaderslist.c \
-	guesscomponent.c files.c md5.c dirs.c chunks.c reference.c \
-	binaries.c sources.c checks.c names.c dpkgversions.c release.c \
-	mprintf.c updates.c strlist.c signature.c distribution.c \
-	checkindeb.c checkindsc.c checkin.c upgradelist.c target.c \
-	aptmethod.c downloadcache.c main.c override.c terms.c ignore.c \
-	filterlist.c exports.c tracking.c optionsfile.c readrelease.c \
-	donefile.c pull.c contents.c filelist.c extractcontrol.c ar.c \
-	debfile.c debfilecontents.c
+am__reprepro_SOURCES_DIST = pool.c atoms.c uncompression.c \
+	remoterepository.c indexfile.c copypackages.c \
+	sourceextraction.c checksums.c readtextfile.c filecntl.c \
+	sha1.c sha256.c configparser.c database.c freespace.c log.c \
+	changes.c incoming.c uploaderslist.c guesscomponent.c files.c \
+	md5.c dirs.c chunks.c reference.c binaries.c sources.c \
+	checks.c names.c dpkgversions.c release.c mprintf.c updates.c \
+	strlist.c signature.c distribution.c checkindeb.c checkindsc.c \
+	checkin.c upgradelist.c target.c aptmethod.c downloadcache.c \
+	main.c override.c terms.c ignore.c filterlist.c exports.c \
+	tracking.c optionsfile.c readrelease.c donefile.c pull.c \
+	contents.c filelist.c extractcontrol.c ar.c debfile.c \
+	debfilecontents.c
 @HAVE_LIBARCHIVE_TRUE@am__objects_2 = debfilecontents.$(OBJEXT)
-am_reprepro_OBJECTS = indexfile.$(OBJEXT) copypackages.$(OBJEXT) \
-	readcompressed.$(OBJEXT) sourceextraction.$(OBJEXT) \
-	checksums.$(OBJEXT) readtextfile.$(OBJEXT) filecntl.$(OBJEXT) \
-	sha1.$(OBJEXT) sha256.$(OBJEXT) configparser.$(OBJEXT) \
-	database.$(OBJEXT) freespace.$(OBJEXT) log.$(OBJEXT) \
-	changes.$(OBJEXT) incoming.$(OBJEXT) uploaderslist.$(OBJEXT) \
+am_reprepro_OBJECTS = pool.$(OBJEXT) atoms.$(OBJEXT) \
+	uncompression.$(OBJEXT) remoterepository.$(OBJEXT) \
+	indexfile.$(OBJEXT) copypackages.$(OBJEXT) \
+	sourceextraction.$(OBJEXT) checksums.$(OBJEXT) \
+	readtextfile.$(OBJEXT) filecntl.$(OBJEXT) sha1.$(OBJEXT) \
+	sha256.$(OBJEXT) configparser.$(OBJEXT) database.$(OBJEXT) \
+	freespace.$(OBJEXT) log.$(OBJEXT) changes.$(OBJEXT) \
+	incoming.$(OBJEXT) uploaderslist.$(OBJEXT) \
 	guesscomponent.$(OBJEXT) files.$(OBJEXT) md5.$(OBJEXT) \
 	dirs.$(OBJEXT) chunks.$(OBJEXT) reference.$(OBJEXT) \
 	binaries.$(OBJEXT) sources.$(OBJEXT) checks.$(OBJEXT) \
@@ -236,10 +239,10 @@ EXTRA_DIST = autogen.sh
 AM_CPPFLAGS = -std=gnu99 -Wall $(ARCHIVECPP) $(DBCPPFLAGS)
 reprepro_LDADD = $(ARCHIVELIBS) $(DBLIBS)
 changestool_LDADD = $(ARCHIVELIBS)
-reprepro_SOURCES = indexfile.c copypackages.c readcompressed.c sourceextraction.c checksums.c readtextfile.c filecntl.c sha1.c sha256.c configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED) $(ARCHIVE_CONTENTS)
+reprepro_SOURCES = pool.c atoms.c uncompression.c remoterepository.c indexfile.c copypackages.c sourceextraction.c checksums.c readtextfile.c filecntl.c sha1.c sha256.c configparser.c database.c freespace.c log.c changes.c incoming.c uploaderslist.c guesscomponent.c files.c md5.c dirs.c chunks.c reference.c binaries.c sources.c checks.c names.c dpkgversions.c release.c mprintf.c updates.c strlist.c signature.c distribution.c checkindeb.c checkindsc.c checkin.c upgradelist.c target.c aptmethod.c downloadcache.c main.c override.c terms.c ignore.c filterlist.c exports.c tracking.c optionsfile.c readrelease.c donefile.c pull.c contents.c filelist.c $(ARCHIVE_USED) $(ARCHIVE_CONTENTS)
 EXTRA_reprepro_SOURCE = $(ARCHIVE_UNUSED)
-changestool_SOURCES = readcompressed.c sourceextraction.c readtextfile.c filecntl.c tool.c chunkedit.c strlist.c checksums.c sha1.c sha256.c md5.c mprintf.c chunks.c signature.c dirs.c names.c $(ARCHIVE_USED)
-noinst_HEADERS = copypackages.h readcompressed.h sourceextraction.h checksums.h readtextfile.h filecntl.h sha1.h sha256.h configparser.h database_p.h database.h freespace.h log.h changes.h incoming.h guesscomponent.h md5.h dirs.h files.h chunks.h reference.h binaries.h sources.h checks.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h debfile.h checkindeb.h checkindsc.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h pull.h ar.h filelist.h contents.h chunkedit.h uploaderslist.h indexfile.h
+changestool_SOURCES = uncompression.c sourceextraction.c readtextfile.c filecntl.c tool.c chunkedit.c strlist.c checksums.c sha1.c sha256.c md5.c mprintf.c chunks.c signature.c dirs.c names.c $(ARCHIVE_USED)
+noinst_HEADERS = pool.h atoms.h uncompression.h remoterepository.h copypackages.h sourceextraction.h checksums.h readtextfile.h filecntl.h sha1.h sha256.h configparser.h database_p.h database.h freespace.h log.h changes.h incoming.h guesscomponent.h md5.h dirs.h files.h chunks.h reference.h binaries.h sources.h checks.h names.h release.h error.h mprintf.h updates.h strlist.h signature.h distribution.h debfile.h checkindeb.h checkindsc.h upgradelist.h target.h aptmethod.h downloadcache.h override.h terms.h ignore.h filterlist.h dpkgversions.h checkin.h exports.h globals.h tracking.h trackingt.h optionsfile.h readrelease.h donefile.h pull.h ar.h filelist.h contents.h chunkedit.h uploaderslist.h indexfile.h
 MAINTAINERCLEANFILES = $(srcdir)/Makefile.in $(srcdir)/configure $(srcdir)/stamp-h.in $(srcdir)/aclocal.m4 $(srcdir)/config.h.in
 SPLINT = splint
 SPLITFLAGSFORVIM = -linelen 10000 -locindentspaces 0
@@ -337,6 +340,7 @@ distclean-compile:
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/aptmethod.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ar.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/atoms.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/binaries.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/changes.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/checkin.Po@am__quote@
@@ -375,12 +379,13 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/names.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/optionsfile.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/override.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/pull.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/readcompressed.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/readrelease.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/readtextfile.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reference.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/release.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/remoterepository.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sha1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/sha256.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/signature.Po@am__quote@
@@ -391,6 +396,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/terms.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tool.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/tracking.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uncompression.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/updates.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/upgradelist.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/uploaderslist.Po@am__quote@

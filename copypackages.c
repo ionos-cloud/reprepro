@@ -37,8 +37,6 @@
 #include "mprintf.h"
 #include "copypackages.h"
 
-extern int verbose;
-
 struct target_package_list {
 	struct target_package_list *next;
 	struct target *target;
@@ -51,7 +49,7 @@ struct target_package_list {
 		char *control;
 		struct checksumsarray origfiles;
 		struct strlist filekeys;
-		enum filetype trackingtype;
+		architecture_t architecture;
 	} *packages;
 };
 
@@ -154,7 +152,7 @@ static void list_cancelpackage(struct package_list *list, /*@only@*/struct packa
 	assert( package == NULL );
 }
 
-static retvalue list_prepareadd(struct database *database, struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, const char *chunk) {
+static retvalue list_prepareadd(struct database *database, struct package_list *list, struct target *target, const char *packagename, /*@null@*/const char *v, architecture_t package_architecture, const char *chunk) {
 	char *version;
 	char *source, *sourceversion;
 	struct package *new IFSTUPIDCC(=NULL);
@@ -180,12 +178,14 @@ static retvalue list_prepareadd(struct database *database, struct package_list *
 	free(source); source = NULL;
 	free(sourceversion); sourceversion = NULL;
 	if( v == NULL ) free(version); version = NULL;
+	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = target->getinstalldata(target, new->name, new->version, chunk,
-			&new->control, &new->filekeys, &new->origfiles,
-			&new->trackingtype);
+	new->architecture = package_architecture;
+	r = target->getinstalldata(target, new->name, new->version,
+			package_architecture, chunk,
+			&new->control, &new->filekeys, &new->origfiles);
 	assert( r != RET_NOTHING );
 	if( RET_WAS_ERROR(r) ) {
 		list_cancelpackage(list, new);
@@ -246,7 +246,7 @@ static retvalue list_prepareadd(struct database *database, struct package_list *
 	return RET_OK;
 }
 
-static retvalue package_add(struct database *database, struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct package *package, struct strlist *dereferencedfilekeys) {
+static retvalue package_add(struct database *database, struct distribution *into, /*@null@*/trackingdb tracks, struct target *target, const struct package *package) {
 	struct trackingdata trackingdata;
 	retvalue r;
 
@@ -273,23 +273,22 @@ static retvalue package_add(struct database *database, struct distribution *into
 			into->logger, database,
 			package->name, package->version,
 			package->control,
-			&package->filekeys, NULL, true,
-			dereferencedfilekeys,
+			&package->filekeys, true,
 			(tracks != NULL)?
 			&trackingdata:NULL,
-			package->trackingtype);
+			package->architecture);
 	RET_UPDATE(into->status, r);
 	if( tracks != NULL ) {
 		retvalue r2;
 
 		r2 = trackingdata_finish(tracks, &trackingdata,
-				database, dereferencedfilekeys);
+				database);
 		RET_ENDUPDATE(r, r2);
 	}
 	return r;
 }
 
-static retvalue packagelist_add(struct database *database, struct distribution *into, const struct package_list *list, struct strlist *dereferencedfilekeys) {
+static retvalue packagelist_add(struct database *database, struct distribution *into, const struct package_list *list) {
 	retvalue result, r;
 	struct target_package_list *tpl;
 	struct package *package;
@@ -316,7 +315,7 @@ static retvalue packagelist_add(struct database *database, struct distribution *
 			break;
 		for( package = tpl->packages; package != NULL ; package = package->next ) {
 			r = package_add(database, into, tracks, target,
-					package, dereferencedfilekeys);
+					package);
 			RET_UPDATE(result, r);
 		}
 		r = target_closepackagesdb(target);
@@ -328,7 +327,7 @@ static retvalue packagelist_add(struct database *database, struct distribution *
 	return result;
 }
 
-static retvalue copy_by_func(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, retvalue action(struct package_list*, struct database *, struct distribution *, struct distribution *, struct target *, struct target *, void *), void *data) {
+static retvalue copy_by_func(struct package_list *list, struct database *database, struct distribution *into, struct distribution *from, component_t component_atom, architecture_t architecture_atom, packagetype_t packagetype_atom, retvalue action(struct package_list*, struct database *, struct distribution *, struct distribution *, struct target *, struct target *, void *), void *data) {
 	retvalue result, r;
 	struct target *origtarget, *desttarget;
 
@@ -336,12 +335,12 @@ static retvalue copy_by_func(struct package_list *list, struct database *databas
 	for( origtarget = from->targets ; origtarget != NULL ;
 			origtarget = origtarget->next ) {
 		if( !target_matches(origtarget,
-				component, architecture, packagetype) )
+				component_atom, architecture_atom, packagetype_atom) )
 			continue;
 		desttarget = distribution_gettarget(into,
-				origtarget->component,
-				origtarget->architecture,
-				origtarget->packagetype);
+				origtarget->component_atom,
+				origtarget->architecture_atom,
+				origtarget->packagetype_atom);
 		if( desttarget == NULL ) {
 			if( verbose > 2 )
 				printf(
@@ -376,6 +375,7 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 	for( i = 0 ; i < d->argc ; i++ ) {
 		const char *name = d->argv[i];
 		char *chunk;
+		architecture_t package_architecture;
 
 		for( j = 0 ; j < i ; j++ )
 			if( strcmp(d->argv[i], d->argv[j]) == 0 )
@@ -393,8 +393,12 @@ static retvalue by_name(struct package_list *list, struct database *database, UN
 		RET_ENDUPDATE(result, r);
 		if( RET_WAS_ERROR(r) )
 			break;
+		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		RET_ENDUPDATE(result, r);
+		if( RET_WAS_ERROR(r) )
+			break;
 		r = list_prepareadd(database, list, desttarget,
-				name, NULL, chunk);
+				name, NULL, package_architecture, chunk);
 		free(chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
@@ -421,7 +425,7 @@ static void packagelist_done(struct package_list *list) {
 	}
 }
 
-retvalue copy_by_name(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, struct strlist *dereferenced) {
+retvalue copy_by_name(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct package_list list;
 	struct namelist names = { argc, argv, calloc(argc, sizeof(bool)) };
 	retvalue r;
@@ -434,7 +438,7 @@ retvalue copy_by_name(struct database *database, struct distribution *into, stru
 	free(names.warnedabout);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = packagelist_add(database, into, &list, dereferenced);
+	r = packagelist_add(database, into, &list);
 	packagelist_done(&list);
 	return r;
 }
@@ -454,6 +458,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 	result = RET_NOTHING;
 	while( target_nextpackage(&iterator, &packagename, &chunk) ) {
 		char *source, *sourceversion;
+		architecture_t package_architecture;
 
 		r = fromtarget->getsourceandversion(chunk, packagename,
 				&source, &sourceversion);
@@ -492,8 +497,13 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 			}
 		}
 		free(source); free(sourceversion);
+		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
 		r = list_prepareadd(database, list, desttarget,
-				packagename, NULL, chunk);
+				packagename, NULL, package_architecture, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -503,7 +513,7 @@ static retvalue by_source(struct package_list *list, struct database *database, 
 	return result;
 }
 
-retvalue copy_by_source(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, struct strlist *dereferenced) {
+retvalue copy_by_source(struct database *database, struct distribution *into, struct distribution *from, int argc, const char **argv, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct package_list list;
 	struct namelist names = { argc, argv, NULL };
 	retvalue r;
@@ -514,7 +524,7 @@ retvalue copy_by_source(struct database *database, struct distribution *into, st
 	r = copy_by_func(&list, database, into, from, component, architecture, packagetype, by_source, &names);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = packagelist_add(database, into, &list, dereferenced);
+	r = packagelist_add(database, into, &list);
 	packagelist_done(&list);
 	return r;
 }
@@ -523,6 +533,7 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 	term *condition = data;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 	const char *packagename, *chunk;
+	architecture_t package_architecture;
 	retvalue result, r;
 
 	r = target_openiterator(fromtarget, database, READONLY, &iterator);
@@ -538,8 +549,13 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 			result = r;
 			break;
 		}
+		r = fromtarget->getarchitecture(chunk, &package_architecture);
+		if( RET_WAS_ERROR(r) ) {
+			result = r;
+			break;
+		}
 		r = list_prepareadd(database, list, desttarget,
-				packagename, NULL, chunk);
+				packagename, NULL, package_architecture, chunk);
 		RET_UPDATE(result,r);
 		if( RET_WAS_ERROR(r) )
 			break;
@@ -549,7 +565,7 @@ static retvalue by_formula(struct package_list *list, struct database *database,
 	return result;
 }
 
-retvalue copy_by_formula(struct database *database, struct distribution *into, struct distribution *from, const char *filter, /*@null@*/const char *component, /*@null@*/const char *architecture, /*@null@*/const char *packagetype, struct strlist *dereferenced) {
+retvalue copy_by_formula(struct database *database, struct distribution *into, struct distribution *from, const char *filter, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct package_list list;
 	term *condition;
 	retvalue r;
@@ -565,7 +581,7 @@ retvalue copy_by_formula(struct database *database, struct distribution *into, s
 	term_free(condition);
 	if( !RET_IS_OK(r) )
 		return r;
-	r = packagelist_add(database, into, &list, dereferenced);
+	r = packagelist_add(database, into, &list);
 	packagelist_done(&list);
 	return r;
 }
@@ -632,38 +648,39 @@ static retvalue choose_by_condition(UNUSED(struct target *target), UNUSED(const 
 	return term_decidechunk(condition, chunk);
 }
 
-retvalue copy_from_file(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *filename, int argc, const char **argv, struct strlist *dereferenced) {
+retvalue copy_from_file(struct database *database, struct distribution *into, component_t component_atom, architecture_t architecture_atom, packagetype_t packagetype_atom, const char *filename, int argc, const char **argv) {
 	struct indexfile *i;
 	retvalue result, r;
 	struct target *target;
 	struct package_list list;
 	struct namelist d = {argc, argv, NULL};
 	char *packagename, *version;
+	architecture_t package_architecture;
 	const char *control;
 
-	assert( architecture != NULL );
-	assert( component != NULL );
-	assert( packagetype != NULL );
+	assert( atom_defined(architecture_atom) );
+	assert( atom_defined(component_atom) );
+	assert( atom_defined(packagetype_atom) );
 
 	memset(&list, 0, sizeof(list));
 	target = distribution_gettarget(into,
-			component, architecture, packagetype);
+			component_atom, architecture_atom, packagetype_atom);
 	if( target == NULL ) {
-		if( !strlist_in(&into->architectures, architecture) ) {
+		if( !atomlist_in(&into->architectures, architecture_atom) ) {
 			fprintf(stderr, "Distribution '%s' does not contain architecture '%s!'\n",
-					into->codename, architecture);
+					into->codename, atoms_architectures[architecture_atom]);
 		}
-		if( strcmp(packagetype, "udeb") != 0 ) {
-			if( !strlist_in(&into->components, component) ) {
+		if( packagetype_atom != pt_udeb ) {
+			if( !atomlist_in(&into->components, component_atom) ) {
 				fprintf(stderr,
 "Distribution '%s' does not contain component '%s!'\n",
-						into->codename, component);
+						into->codename, atoms_components[component_atom]);
 			}
 		} else {
-			if( !strlist_in(&into->udebcomponents, component) ) {
+			if( !atomlist_in(&into->udebcomponents, component_atom) ) {
 				fprintf(stderr,
 "Distribution '%s' does not contain udeb component '%s!'\n",
-						into->codename, component);
+						into->codename, atoms_components[component_atom]);
 			}
 		}
 		/* -A source needing -T dsc and vice versa already checked
@@ -673,17 +690,18 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 						into->codename);
 		return RET_ERROR;
 	}
-	result = indexfile_open(&i, filename);
+	result = indexfile_open(&i, filename, c_none);
 	if( !RET_IS_OK(result) )
 		return result;
 	result = RET_NOTHING;
 	while( indexfile_getnext(i, &packagename, &version, &control,
-				target, false) ) {
+				&package_architecture, target, false) ) {
 		result = choose_by_name(target,
 				packagename, version, control, &d);
 		if( RET_IS_OK(result) )
 			result = list_prepareadd(database, &list, target,
-					packagename, version, control);
+					packagename, version,
+					package_architecture, control);
 		free(packagename);
 		free(version);
 		if( RET_WAS_ERROR(result) )
@@ -692,18 +710,20 @@ retvalue copy_from_file(struct database *database, struct distribution *into, co
 	r = indexfile_close(i);
 	RET_ENDUPDATE(result, r);
 	if( RET_IS_OK(result) )
-		result = packagelist_add(database, into, &list, dereferenced);
+		result = packagelist_add(database, into, &list);
 	packagelist_done(&list);
 	return result;
 }
 
 typedef retvalue chooseaction(struct target *, const char *, const char *, const char *, void *);
 
-static retvalue restore_from_snapshot(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, chooseaction action, void *d, struct strlist *dereferenced) {
+static retvalue restore_from_snapshot(struct database *database, struct distribution *into, component_t component_atom, architecture_t architecture_atom, packagetype_t packagetype_atom, const char *snapshotname, chooseaction action, void *d) {
 	retvalue result, r;
 	struct package_list list;
 	struct target *target;
 	char *basedir;
+	enum compression compression;
+	architecture_t package_architecture;
 
 	basedir = calc_snapshotbasedir(into->codename, snapshotname);
 	if( FAILEDTOALLOC(basedir) )
@@ -718,7 +738,7 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 		struct indexfile *i;
 
 		if( !target_matches(target,
-				component, architecture, packagetype) )
+				component_atom, architecture_atom, packagetype_atom) )
 			continue;
 
 		/* we do not know what compressions where used back then
@@ -726,16 +746,28 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 		 * how the file is named now and try all readable
 		 * compressions */
 
+		compression = c_none;
 		filename = calc_dirconcat3(
 				basedir, target->relativedirectory,
 				target->exportmode->filename);
 		if( filename != NULL && !isregularfile(filename) ) {
 			/* no uncompressed file found, try .gz */
 			free(filename);
+			compression = c_gzip;
 			filename = mprintf("%s/%s/%s.gz",
 					basedir, target->relativedirectory,
 					target->exportmode->filename);
 		}
+#ifdef HAVE_LIBBZ2
+		if( filename != NULL && !isregularfile(filename) ) {
+			/* no uncompressed or .gz file found, try .bz2 */
+			free(filename);
+			compression = c_bzip2;
+			filename = mprintf("%s/%s/%s.bz2",
+					basedir, target->relativedirectory,
+					target->exportmode->filename);
+		}
+#endif
 		if( filename != NULL && !isregularfile(filename) ) {
 			free(filename);
 			fprintf(stderr,
@@ -751,16 +783,18 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 			result = RET_ERROR_OOM;
 			break;
 		}
-		result = indexfile_open(&i, filename);
+		result = indexfile_open(&i, filename, compression);
 		if( !RET_IS_OK(result) )
 			break;
 		while( indexfile_getnext(i, &packagename, &version, &control,
+					&package_architecture,
 					target, false) ) {
 			result = action(target,
 					packagename, version, control, d);
 			if( RET_IS_OK(result) )
 				result = list_prepareadd(database, &list, target,
-						packagename, version, control);
+						packagename, version,
+						package_architecture, control);
 			free(packagename);
 			free(version);
 			if( RET_WAS_ERROR(result) )
@@ -775,26 +809,26 @@ static retvalue restore_from_snapshot(struct database *database, struct distribu
 	free(basedir);
 	if( !RET_IS_OK(result) )
 		return result;
-	r = packagelist_add(database, into, &list, dereferenced);
+	r = packagelist_add(database, into, &list);
 	packagelist_done(&list);
 	return r;
 }
 
-retvalue restore_by_name(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
+retvalue restore_by_name(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
 	struct namelist d = {argc, argv, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
-			snapshotname, choose_by_name, &d, dereferenced);
+			snapshotname, choose_by_name, &d);
 }
 
-retvalue restore_by_source(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, int argc, const char **argv, struct strlist *dereferenced) {
+retvalue restore_by_source(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, int argc, const char **argv) {
 	struct namelist d = {argc, argv, NULL};
 	return restore_from_snapshot(database, into,
 			component, architecture, packagetype,
-			snapshotname, choose_by_source, &d, dereferenced);
+			snapshotname, choose_by_source, &d);
 }
 
-retvalue restore_by_formula(struct database *database, struct distribution *into, const char *component, const char *architecture, const char *packagetype, const char *snapshotname, const char *filter, struct strlist *dereferenced) {
+retvalue restore_by_formula(struct database *database, struct distribution *into, component_t component, architecture_t architecture, packagetype_t packagetype, const char *snapshotname, const char *filter) {
 	term *condition;
 	retvalue r;
 
@@ -805,8 +839,7 @@ retvalue restore_by_formula(struct database *database, struct distribution *into
 	}
 	r = restore_from_snapshot(database, into,
 			component, architecture, packagetype,
-			snapshotname, choose_by_condition, condition,
-			dereferenced);
+			snapshotname, choose_by_condition, condition);
 	term_free(condition);
 	return r;
 }

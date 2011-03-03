@@ -28,6 +28,7 @@
 #include <time.h>
 #include "error.h"
 #include "mprintf.h"
+#include "atoms.h"
 #include "sources.h"
 #include "dirs.h"
 #include "names.h"
@@ -39,8 +40,6 @@
 #include "uploaderslist.h"
 #include "configparser.h"
 #include "distribution.h"
-
-extern int verbose;
 
 static retvalue distribution_free(struct distribution *distribution) {
 	retvalue result,r;
@@ -59,18 +58,18 @@ static retvalue distribution_free(struct distribution *distribution) {
 		free(distribution->udeb_override);
 		free(distribution->dsc_override);
 		free(distribution->uploaders);
-		strlist_done(&distribution->udebcomponents);
-		strlist_done(&distribution->architectures);
-		strlist_done(&distribution->components);
+		atomlist_done(&distribution->udebcomponents);
+		atomlist_done(&distribution->architectures);
+		atomlist_done(&distribution->components);
 		strlist_done(&distribution->updates);
 		strlist_done(&distribution->pulls);
 		strlist_done(&distribution->alsoaccept);
 		exportmode_done(&distribution->dsc);
 		exportmode_done(&distribution->deb);
 		exportmode_done(&distribution->udeb);
-		strlist_done(&distribution->contents_architectures);
-		strlist_done(&distribution->contents_components);
-		strlist_done(&distribution->contents_ucomponents);
+		atomlist_done(&distribution->contents_architectures);
+		atomlist_done(&distribution->contents_components);
+		atomlist_done(&distribution->contents_ucomponents);
 		override_free(distribution->overrides.deb);
 		override_free(distribution->overrides.udeb);
 		override_free(distribution->overrides.dsc);
@@ -107,22 +106,45 @@ void distribution_unloadoverrides(struct distribution *distribution) {
 static retvalue createtargets(struct distribution *distribution) {
 	retvalue r;
 	int i,j;
-	const char *arch,*comp;
 	struct target *t;
 	struct target *last = NULL;
+	bool has_source = false;
 
 	for( i = 0 ; i < distribution->components.count ; i++ ) {
-		comp = distribution->components.values[i];
+		component_t c = distribution->components.atoms[i];
 		for( j = 0 ; j < distribution->architectures.count ; j++ ) {
-			arch = distribution->architectures.values[j];
-			if( strcmp(arch,"source") != 0 ) {
-				if( strcmp(arch,"all") == 0 && verbose >= 0 ) {
-					fprintf(stderr,
-"WARNING: Distribution %s contains an architecture called 'all'.\n",
-						distribution->codename);
-				}
+			architecture_t a = distribution->architectures.atoms[j];
 
-				r = target_initialize_binary(distribution->codename,comp,arch,&distribution->deb,&t);
+			if( a == architecture_source ) {
+				has_source = true;
+				continue;
+			}
+			if( a == architecture_all ) {
+				fprintf(stderr,
+"Error: Distribution %s contains an architecture called 'all'.\n",
+						distribution->codename);
+				return RET_ERROR;
+			}
+
+			r = target_initialize_binary(
+					distribution->codename,
+					c, a,
+					&distribution->deb, &t);
+			if( RET_IS_OK(r) ) {
+				if( last != NULL ) {
+					last->next = t;
+				} else {
+					distribution->targets = t;
+				}
+				last = t;
+			}
+			if( RET_WAS_ERROR(r) )
+				return r;
+			if( atomlist_in(&distribution->udebcomponents, c) ) {
+				r = target_initialize_ubinary(
+						distribution->codename,
+						c, a,
+						&distribution->udeb, &t);
 				if( RET_IS_OK(r) ) {
 					if( last != NULL ) {
 						last->next = t;
@@ -133,28 +155,15 @@ static retvalue createtargets(struct distribution *distribution) {
 				}
 				if( RET_WAS_ERROR(r) )
 					return r;
-				if( strlist_in(&distribution->udebcomponents,comp) ) {
-					r = target_initialize_ubinary(distribution->codename,comp,arch,&distribution->udeb,&t);
-					if( RET_IS_OK(r) ) {
-						if( last != NULL ) {
-							last->next = t;
-						} else {
-							distribution->targets = t;
-						}
-						last = t;
-					}
-					if( RET_WAS_ERROR(r) )
-						return r;
 
-				}
 			}
-
 		}
 		/* check if this distribution contains source
 		 * (yes, yes, source is not really an architecture, but
 		 *  the .changes files started with this...) */
-		if( strlist_in(&distribution->architectures,"source") ) {
-			r = target_initialize_source(distribution->codename,comp,&distribution->dsc,&t);
+		if( has_source ) {
+			r = target_initialize_source(distribution->codename,
+					c, &distribution->dsc, &t);
 			if( last != NULL ) {
 				last->next = t;
 			} else {
@@ -200,19 +209,20 @@ CFstartparse(distribution) {
 	return RET_OK;
 }
 
-static bool notpropersuperset(const struct strlist *allowed, const char *allowedname,
-		const struct strlist *check, const char *checkname,
+static bool notpropersuperset(const struct atomlist *allowed, const char *allowedname,
+		const struct atomlist *check, const char *checkname,
+		const char **atoms,
 		const struct configiterator *iter, const struct distribution *d) {
-	const char *missing;
+	atom_t missing;
 
-	if( !strlist_subset(allowed, check, &missing) ) {
+	if( !atomlist_subset(allowed, check, &missing) ) {
 		fprintf(stderr,
 "In distribution description of '%s' (line %u to %u in %s):\n"
 "%s contains '%s' not found in %s!\n",
 				d->codename,
 				d->firstline, d->lastline,
 				config_filename(iter),
-				checkname, missing, allowedname);
+				checkname, atoms[missing], allowedname);
 		return true;
 	}
 	return false;
@@ -246,17 +256,21 @@ CFfinishparse(distribution) {
 
 	if( notpropersuperset(&n->architectures, "Architectures",
 			    &n->contents_architectures, "ContentsArchitectures",
+			    atoms_architectures,
 			    iter, n) ||
 	    notpropersuperset(&n->components, "Components",
 			    &n->contents_components, "ContentsComponents",
+			    atoms_components,
 			    iter, n) ||
 	    notpropersuperset(&n->udebcomponents, "UDebComponents",
 			    &n->contents_ucomponents, "ContentsUComponents",
+			    atoms_components,
 			    iter, n) ||
 	    // TODO: instead of checking here make sure it can have more
 	    // in the rest of the code...:
 	    notpropersuperset(&n->components, "Components",
 			    &n->udebcomponents, "UDebComponents",
+			    atoms_components,
 			    iter, n) ) {
 		(void)distribution_free(n);
 		return RET_ERROR;
@@ -315,20 +329,21 @@ CFfileSETPROC(distribution, deb_override)
 CFfileSETPROC(distribution, udeb_override)
 CFfileSETPROC(distribution, dsc_override)
 CFfileSETPROC(distribution, uploaders)
-CFuniqstrlistSETPROC(distribution, udebcomponents)
 CFuniqstrlistSETPROC(distribution, alsoaccept)
 CFstrlistSETPROC(distribution, updates)
 CFstrlistSETPROC(distribution, pulls)
-CFuniqstrlistSETPROCset(distribution, contents_architectures)
-CFuniqstrlistSETPROCset(distribution, contents_components)
-CFuniqstrlistSETPROCset(distribution, contents_ucomponents)
+CFinternatomsSETPROC(distribution, components, checkforcomponent, at_component)
+CFinternatomsSETPROC(distribution, architectures, checkforarchitecture, at_architecture)
+CFatomsublistSETPROC(distribution, contents_architectures, at_architecture, architectures, "Architectures")
+CFatomsublistSETPROC(distribution, contents_components, at_component, components, "Components")
+CFatomsublistSETPROC(distribution, udebcomponents, at_component, components, "Components")
+CFatomsublistSETPROC(distribution, contents_ucomponents, at_component, udebcomponents, "UDebComponents")
 CFexportmodeSETPROC(distribution, udeb)
 CFexportmodeSETPROC(distribution, deb)
 CFexportmodeSETPROC(distribution, dsc)
-CFcheckuniqstrlistSETPROC(distribution, components, checkforcomponent)
-CFcheckuniqstrlistSETPROC(distribution, architectures, checkforarchitecture)
 CFcheckvalueSETPROC(distribution, codename, checkforcodename)
 CFcheckvalueSETPROC(distribution, fakecomponentprefix, checkfordirectoryandidentifier)
+CFtimespanSETPROC(distribution, validfor)
 
 CFUSETPROC(distribution, Contents) {
 	CFSETPROCVAR(distribution, d);
@@ -371,6 +386,7 @@ static const struct configfield distributionconfigfields[] = {
 	CF("UDebOverride",	distribution,	udeb_override),
 	CF("Update",		distribution,	updates),
 	CF("Uploaders",		distribution,	uploaders),
+	CF("ValidFor",		distribution,	validfor),
 	CF("Version",		distribution,	version)
 };
 
@@ -416,58 +432,8 @@ retvalue distribution_readall(struct distribution **distributions) {
 	return RET_OK;
 }
 
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
-retvalue distribution_foreach_rwopenedpart(struct distribution *distribution,struct database *database,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
-	retvalue result,r;
-	struct target *t;
-
-	result = RET_NOTHING;
-	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
-			continue;
-		r = target_initpackagesdb(t, database, READWRITE);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
-			return result;
-		r = action(data, t, distribution);
-		RET_UPDATE(result, r);
-		// TODO: how to seperate this in those affecting distribution
-		// and those that do not?
-		RET_UPDATE(distribution->status, r);
-		r = target_closepackagesdb(t);
-		RET_UPDATE(distribution->status, r);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(result) )
-			return result;
-	}
-	return result;
-}
-
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
-retvalue distribution_foreach_roopenedpart(struct distribution *distribution,struct database *database,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data) {
-	retvalue result,r;
-	struct target *t;
-
-	result = RET_NOTHING;
-	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( !target_matches(t, component, architecture, packagetype) )
-			continue;
-		r = target_initpackagesdb(t, database, READONLY);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(r) )
-			return result;
-		r = action(data, t, distribution);
-		RET_UPDATE(result, r);
-		r = target_closepackagesdb(t);
-		RET_UPDATE(result, r);
-		if( RET_WAS_ERROR(result) )
-			return result;
-	}
-	return result;
-}
-
 /* call <action> for each package */
-retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action action, each_target_action target_action, void *data) {
+retvalue distribution_foreach_package(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action action, each_target_action target_action, void *data) {
 	retvalue result,r;
 	struct target *t;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
@@ -503,19 +469,19 @@ retvalue distribution_foreach_package(struct distribution *distribution, struct 
 	return result;
 }
 
-retvalue distribution_foreach_package_c(struct distribution *distribution, struct database *database, const struct strlist *components, const char *architecture, const char *packagetype, each_package_action action, void *data) {
+retvalue distribution_foreach_package_c(struct distribution *distribution, struct database *database, const struct atomlist *components, architecture_t architecture, packagetype_t packagetype, each_package_action action, void *data) {
 	retvalue result,r;
 	struct target *t;
 	const char *package, *control;
 	struct target_cursor iterator IFSTUPIDCC(=TARGET_CURSOR_ZERO);
 
+	assert( components != NULL );
+
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( components != NULL && !strlist_in(components, t->component) )
+		if( !atomlist_in(components, t->component_atom) )
 			continue;
-		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
-			continue;
-		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+		if( !target_matches(t, atom_unknown, architecture, packagetype) )
 			continue;
 		r = target_openiterator(t, database, READONLY, &iterator);
 		RET_UPDATE(result, r);
@@ -536,26 +502,42 @@ retvalue distribution_foreach_package_c(struct distribution *distribution, struc
 	return result;
 }
 
-struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
+struct target *distribution_gettarget(const struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct target *t = distribution->targets;
+
+	assert( atom_defined(component) );
+	assert( atom_defined(architecture) );
+	assert( atom_defined(packagetype) );
 
 	// TODO: think about making read only access and only alowing readwrite when lookedat is set
 
-	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
+	while( t != NULL &&
+			( t->component_atom != component ||
+			  t->architecture_atom != architecture ||
+			  t->packagetype_atom != packagetype )) {
 		t = t->next;
 	}
 	return t;
 }
 
-struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype) {
+struct target *distribution_getpart(const struct distribution *distribution, component_t component, architecture_t architecture, packagetype_t packagetype) {
 	struct target *t = distribution->targets;
 
-	while( t != NULL && ( strcmp(t->component,component) != 0 || strcmp(t->architecture,architecture) != 0 || strcmp(t->packagetype,packagetype) != 0 )) {
+	assert( atom_defined(component) );
+	assert( atom_defined(architecture) );
+	assert( atom_defined(packagetype) );
+
+	while( t != NULL &&
+			( t->component_atom != component ||
+			  t->architecture_atom != architecture ||
+			  t->packagetype_atom != packagetype )) {
 		t = t->next;
 	}
 	if( t == NULL ) {
 		fprintf(stderr, "Internal error in distribution_getpart: Bogus request for c='%s' a='%s' t='%s' in '%s'!\n",
-				component, architecture, packagetype,
+				atoms_components[component],
+				atoms_architectures[architecture],
+				atoms_packagetypes[packagetype],
 				distribution->codename);
 		abort();
 	}
@@ -606,7 +588,9 @@ retvalue distribution_match(struct distribution *alldistributions, int argc, con
 					has_suite[i]->lookedat = lookedat;
 				continue;
 			}
-			fprintf(stderr, "No distribution definition of '%s' found in distributions'!\n", argv[i]);
+			fprintf(stderr,
+"No distribution definition of '%s' found in '%s/distributions'!\n",
+				argv[i], global.confdir);
 			if( unusable_as_suite[i] )
 				fprintf(stderr,
 "(It is not the codename of any distribution and there are multiple\n"
@@ -693,7 +677,7 @@ retvalue distribution_snapshot(struct distribution *distribution, struct databas
 	if( id == NULL )
 		return RET_ERROR_OOM;
 	r = distribution_foreach_package(distribution, database,
-			NULL, NULL, NULL,
+			atom_unknown, atom_unknown, atom_unknown,
 			package_referenceforsnapshot, NULL, id);
 	free(id);
 	RET_UPDATE(result,r);
@@ -1001,7 +985,7 @@ retvalue distribution_prepareforwriting(struct distribution *distribution) {
 }
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, const char *component, const char *architecture, const char *packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *trackingdata, void *data) {
+retvalue distribution_remove_packages(struct distribution *distribution, struct database *database, component_t component, architecture_t architecture, packagetype_t packagetype, each_package_action decider, struct trackingdata *trackingdata, void *data) {
 	retvalue result,r;
 	struct target *t;
 	struct target_cursor iterator;
@@ -1009,11 +993,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 
 	result = RET_NOTHING;
 	for( t = distribution->targets ; t != NULL ; t = t->next ) {
-		if( component != NULL && strcmp(component,t->component) != 0 )
-			continue;
-		if( architecture != NULL && strcmp(architecture,t->architecture) != 0 )
-			continue;
-		if( packagetype != NULL && strcmp(packagetype,t->packagetype) != 0 )
+		if( !target_matches(t, component, architecture, packagetype) )
 			continue;
 		r = target_openiterator(t, database, READWRITE, &iterator);
 		RET_UPDATE(result, r);
@@ -1028,7 +1008,7 @@ retvalue distribution_remove_packages(struct distribution *distribution, struct 
 			if( RET_IS_OK(r) ) {
 				r = target_removepackage_by_cursor(&iterator,
 					distribution->logger, database,
-					dereferenced, trackingdata);
+					trackingdata);
 				RET_UPDATE(result, r);
 				RET_UPDATE(distribution->status, r);
 			}

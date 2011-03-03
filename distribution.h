@@ -37,7 +37,7 @@ struct distribution {
 	/*@null@*/char *suite,*version;
 	/*@null@*/char *origin,*label,*description,*notautomatic;
 	/* What architectures and components are there */
-	struct strlist architectures,components;
+	struct atomlist architectures, components;
 	/* which update rules to use */
 	struct strlist updates;
 	/* which rules to use to pull packages from other distributions */
@@ -53,7 +53,7 @@ struct distribution {
 		/*@null@*/struct overrideinfo *dsc,*deb,*udeb;
 	} overrides;
 	/* the list of components containing a debian-installer dir, normally only "main" */
-	struct strlist udebcomponents;
+	struct atomlist udebcomponents;
 	/* what kind of index files to generate */
 	struct exportmode dsc,deb,udeb;
 	/* is tracking enabled for this distribution? (NONE must be 0 so it is the default) */
@@ -67,12 +67,14 @@ struct distribution {
 		} trackingoptions;
 	/* what content files to generate */
 	struct contentsoptions contents;
-	struct strlist contents_architectures,
+	struct atomlist contents_architectures,
 		       contents_components,
 		       contents_ucomponents;
 	bool contents_architectures_set,
 		       contents_components_set,
-		       contents_ucomponents_set;
+		       contents_ucomponents_set,
+		       /* not used, just here to keep things simpler: */
+		       udebcomponents_set;
 	/* A list of all targets contained in the distribution*/
 	struct target *targets;
 	/* a filename to look for who is allowed to upload packages */
@@ -84,6 +86,8 @@ struct distribution {
 	/* a list of names beside Codename and Suite to accept .changes
 	 * files via include */
 	struct strlist alsoaccept;
+	/* if != 0, number of seconds to add for Vaild-Until */
+	time_t validfor;
 	/* RET_NOTHING: do not export with EXPORT_CHANGED, EXPORT_NEVER
 	 * RET_OK: export unless EXPORT_NEVER
 	 * RET_ERROR_*: only export with EXPORT_FORCE */
@@ -105,22 +109,17 @@ typedef retvalue each_target_action(struct database *, struct distribution *, st
 typedef retvalue each_package_action(struct database *, struct distribution *, struct target *, const char *, const char *, void *);
 
 /* call <action> for each package of <distribution> */
-retvalue distribution_foreach_package(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action, each_target_action, void *);
-retvalue distribution_foreach_package_c(struct distribution *, struct database *, const struct strlist *components, const char *architecture, const char *packagetype, each_package_action, void *);
-
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb */
-retvalue distribution_foreach_roopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
-/* call <action> for each part of <distribution>, within initpackagesdb/closepackagesdb,
- * setting distribution->status to some error if there are any*/
-retvalue distribution_foreach_rwopenedpart(struct distribution *,struct database *,const char *component,const char *architecture,const char *packagetype,distribution_each_action action,void *data);
+retvalue distribution_foreach_package(struct distribution *, struct database *, component_t, architecture_t, packagetype_t, each_package_action, each_target_action, void *);
+retvalue distribution_foreach_package_c(struct distribution *, struct database *, const struct atomlist *components, architecture_t, packagetype_t, each_package_action, void *);
 
 /* delete every package decider returns RET_OK for */
-retvalue distribution_remove_packages(struct distribution *, struct database *, const char *component, const char *architecture, const char *packagetype, each_package_action decider, struct strlist *dereferenced, struct trackingdata *, void *);
+retvalue distribution_remove_packages(struct distribution *, struct database *, component_t, architecture_t, packagetype_t, each_package_action decider, struct trackingdata *, void *);
 
-/*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
+/*@dependent@*/struct target *distribution_getpart(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
 
 /* like distribtion_getpart, but returns NULL if there is no such target */
-/*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
+/*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution, component_t, architecture_t, packagetype_t);
+// /*@null@*//*@dependent@*/struct target *distribution_gettarget(const struct distribution *distribution,const char *component,const char *architecture,const char *packagetype);
 
 retvalue distribution_fullexport(struct distribution *distribution, struct database *);
 

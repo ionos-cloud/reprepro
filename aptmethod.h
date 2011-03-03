@@ -20,22 +20,29 @@ struct tobedone {
 	/*@notnull@*/
 	char *filename;
 	/* if non-NULL, add to the database after found (needs md5sum != NULL) */
-	/*@null@*/
-	char *filekey;
 	union {
-		/* if filekey != NULL */
-		struct checksums *checksums;
-		/* if filekey == NULL: */
+		/* if !indexfile */
+		char *filekey;
+		/* if indexfile, the place the final uncompressed checksum
+		 * is to be saved to: */
 		/*@null@*/ struct checksums **checksums_p;
 	};
+	union {
+		/* if !indexfile */
+		/*@null@*/ struct checksums *checksums;
+		/* if !indexfile */
+		/*@null@*/ const struct checksums *compressedchecksums;
+	};
+	bool indexfile;
+	/* must be c_none if not a index file */
+	enum compression compression;
 };
 
 retvalue aptmethod_initialize_run(/*@out@*/struct aptmethodrun **run);
 retvalue aptmethod_newmethod(struct aptmethodrun *, const char *uri, const char *fallbackuri, const struct strlist *config, /*@out@*/struct aptmethod **);
 
-/* md5sum can be NULL(filekey then, too): if todo != NULL, then *todo will be set */
 retvalue aptmethod_queuefile(struct aptmethod *, const char *origfile, const char *destfile, const struct checksums *, const char *filekey, /*@out@*/struct tobedone **);
-retvalue aptmethod_queueindexfile(struct aptmethod *, const char *origfile, const char *destfile, /*@null@*/struct checksums **);
+retvalue aptmethod_queueindexfile(struct aptmethod *method, const char *suite, const char *origfile, const char *destfile, /*@null@*/struct checksums **, enum compression, /*@null@*/const struct checksums *);
 
 retvalue aptmethod_download(struct aptmethodrun *, struct database *);
 retvalue aptmethod_shutdown(/*@only@*/struct aptmethodrun *);

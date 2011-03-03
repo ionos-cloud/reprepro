@@ -44,8 +44,6 @@
 #include "distribution.h"
 #include "database_p.h"
 
-extern int verbose;
-
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 #define LIBDB_VERSION_STRING "bdb" TOSTRING(DB_VERSION_MAJOR) "." TOSTRING(DB_VERSION_MINOR) "." TOSTRING(DB_VERSION_PATCH)
@@ -201,7 +199,7 @@ enum database_type {
 	dbt_HASH,
 	dbt_COUNT /* must be last */
 };
-const uint32_t types[dbt_COUNT] = {
+static const uint32_t types[dbt_COUNT] = {
 	DB_UNKNOWN,
 	DB_BTREE, DB_BTREE, DB_BTREE,
 	DB_HASH
@@ -244,6 +242,9 @@ static retvalue database_opentable(struct database *database, const char *filena
 	}
 
 #if LIBDB_VERSION == 46
+#define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
+#elif LIBDB_VERSION == 47
+#warning libdb4.7 not yet tested. Use on your own risk
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)
 #elif LIBDB_VERSION == 44
 #define DB_OPEN(database,filename,name,type,flags) database->open(database,NULL,filename,name,type,flags,0664)

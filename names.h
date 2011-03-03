@@ -10,12 +10,7 @@ char *calc_dirconcat(const char *str1,const char *str2);
 char *calc_dirconcat3(const char *str1,const char *str2,const char *str3);
 
 #define calc_conffile(name) calc_dirconcat(global.confdir, name)
-char *calc_binary_basename(const char *package,const char *version,const char *architecture,const char *packagetype);
-char *calc_source_basename(const char *name,const char *version);
 char *calc_changes_basename(const char *name,const char *version,const struct strlist *architectures);
-char *calc_sourcedir(const char *component,const char *sourcename);
-char *calc_filekey(const char *component,const char *sourcename,const char *filename);
-char *calc_identifier(const char *codename,const char *component,const char *architecture,const char *packagetype);
 char *calc_trackreferee(const char *codename,const char *sourcename,const char *sourceversion);
 #define calc_snapshotbasedir(codename, name) mprintf("%s/%s/snapshots/%s", global.distdir, codename, name)
 

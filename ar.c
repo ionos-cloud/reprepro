@@ -29,6 +29,7 @@
 #include <archive.h>
 
 #include "error.h"
+#include "uncompression.h"
 #include "ar.h"
 
 /* Arr, me matees, Arr */
@@ -49,9 +50,10 @@ struct ar_archive {
 		char ah_size[10];
 		char ah_magictrailer[2];
 	} currentheader;
-	off_t bytes_left;
+	off_t member_size, next_position;
 	void *readbuffer;
-	bool wasodd;
+	/*@null@*/struct compressedfile *member;
+	enum compression compression;
 };
 
 static ssize_t readwait(int fd, /*@out@*/void *buf, size_t count) {
@@ -127,6 +129,7 @@ retvalue ar_open(/*@out@*/struct ar_archive **n, const char *filename) {
 		free(ar);
 		return RET_ERROR_OOM;
 	}
+	ar->next_position = sizeof(AR_MAGIC) - 1;
 
 	*n = ar;
 	return RET_OK;
@@ -145,22 +148,19 @@ void ar_close(/*@only@*/struct ar_archive *ar) {
 retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 	ssize_t bytesread;
 	char *p;
+	off_t s;
 
 	assert(ar->readbuffer == NULL);
 	assert(ar->fd >= 0);
 
 	/* seek over what is left from the last part: */
-
-	if( ar->bytes_left >0 || ar->wasodd ) {
-		off_t s;
-		s = lseek(ar->fd,ar->bytes_left+(ar->wasodd?1:0),SEEK_CUR);
-		if( s == (off_t)-1 ) {
-			int e = errno;
-			fprintf(stderr,
-"Error %d seeking to next member in ar file %s: %s\n",
-					e, ar->filename, strerror(e));
-			return RET_ERRNO(e);
-		}
+	s = lseek(ar->fd, ar->next_position, SEEK_SET);
+	if( s == (off_t)-1 ) {
+		int e = errno;
+		fprintf(stderr,
+				"Error %d seeking to next member in ar file %s: %s\n",
+				e, ar->filename, strerror(e));
+		return RET_ERRNO(e);
 	}
 	/* read the next header from the file */
 
@@ -168,6 +168,7 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 		return RET_ERROR_INTERRUPTED;
 
 	bytesread = readwait(ar->fd,&ar->currentheader,sizeof(ar->currentheader));
+	ar->next_position += sizeof(ar->currentheader);
 	if( bytesread == 0 )
 		return RET_NOTHING;
 	if( bytesread != sizeof(ar->currentheader) ){
@@ -194,14 +195,15 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 	assert( &ar->currentheader.ah_magictrailer[0] == ar->currentheader.ah_size + 10 );
 	ar->currentheader.ah_magictrailer[0] = '\0';
 
-	ar->bytes_left = strtoul(ar->currentheader.ah_size,&p,10);
+	ar->member_size = strtoul(ar->currentheader.ah_size,&p,10);
 	if( *p != '\0' && *p != ' ' ) {
 		fprintf(stderr, "Error calculating length field in ar file %s\n",
 				ar->filename);
 		return RET_ERROR;
 	}
-	if( (ar->bytes_left & 1) != 0 )
-		ar->wasodd = true;
+	ar->next_position += ar->member_size;
+	if( (ar->member_size & 1) != 0 )
+		ar->next_position ++;
 
 	/* get the name of the file */
 	if( false ) {
@@ -218,7 +220,12 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 			i--;
 		*filename = strndup(ar->currentheader.ah_filename,i);
 	}
+	ar->compression = c_none;
 	return RET_OK;
+}
+
+void ar_archivemember_setcompression(struct ar_archive *ar, enum compression compression) {
+	ar->compression = compression;
 }
 
 ssize_t ar_archivemember_read(struct archive *a, void *d, const void **p) {
@@ -226,41 +233,62 @@ ssize_t ar_archivemember_read(struct archive *a, void *d, const void **p) {
 	ssize_t bytesread;
 
 	assert( ar->readbuffer != NULL );
-	if( ar->bytes_left == 0 )
+	if( ar->member == NULL )
 		return 0;
 
 	*p = ar->readbuffer;
-	bytesread = read(ar->fd,ar->readbuffer,(ar->bytes_left > BLOCKSIZE)?BLOCKSIZE:ar->bytes_left);
+	bytesread = uncompress_read(ar->member, ar->readbuffer, BLOCKSIZE);
 	if( bytesread < 0 ) {
-		int e = errno;
-		archive_set_error(a, e, "Error %d reading from file: %s",
-				e, strerror(e));
+		retvalue r;
+		const char *msg;
+		int e;
+
+		r = uncompress_fdclose(ar->member, &e, &msg);
+		ar->member = NULL;
+		archive_set_error(a, e, msg);
 		return -1;
 	}
-	if( bytesread == 0 ) {
-		archive_set_error(a,EIO,"Unexpected end of file");
-		return -1;
-	}
-	ar->bytes_left -= bytesread;
 	return bytesread;
 }
 
 int ar_archivemember_open(struct archive *a, void *d) {
 	struct ar_archive *ar = d;
+	retvalue r;
+	const char *msg;
+	int e;
+
+	assert( uncompression_supported(ar->compression) );
 
 	assert(ar->readbuffer == NULL );
 	ar->readbuffer = malloc(BLOCKSIZE);
 	if( ar->readbuffer == NULL ) {
-		archive_set_error(a,ENOMEM,"Out of memory");
+		archive_set_error(a, ENOMEM, "Out of memory");
 		return ARCHIVE_FATAL;
 	}
-	return ARCHIVE_OK;
+	r = uncompress_fdopen(&ar->member, ar->fd, ar->member_size,
+			ar->compression, &e, &msg);
+	if( RET_IS_OK(r) )
+		return ARCHIVE_OK;
+	archive_set_error(a, e, msg);
+	return ARCHIVE_FATAL;
 }
 
 int ar_archivemember_close(UNUSED(struct archive *a), void *d) {
 	struct ar_archive *ar = d;
+	retvalue r;
+	const char *msg;
+	int e;
 
 	free(ar->readbuffer);
 	ar->readbuffer = NULL;
-	return ARCHIVE_OK;
+
+	if( ar->member == NULL )
+		return ARCHIVE_OK;
+
+	r = uncompress_fdclose(ar->member, &e, &msg);
+	ar->member = NULL;
+	if( RET_IS_OK(r) )
+		return ARCHIVE_OK;
+	archive_set_error(a, e, msg);
+	return ARCHIVE_FATAL;
 }
