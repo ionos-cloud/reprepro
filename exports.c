@@ -262,24 +262,27 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 	status = pipe(io);
 	if( status < 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error creating pipe: %d=%m!\n",e);
+		fprintf(stderr, "Error %d creating pipe: %s!\n", e, strerror(e));
 		return RET_ERRNO(e);
 	}
 
 	f = fork();
 	if( f < 0 ) {
-		int err = errno;
+		int e = errno;
 		(void)close(io[0]);
 		(void)close(io[1]);
-		fprintf(stderr,"Error while forking for exporthook: %d=%m\n",err);
-		return RET_ERRNO(err);
+		fprintf(stderr, "Error %d while forking for exporthook: %s\n",
+				e, strerror(e));
+		return RET_ERRNO(e);
 	}
 	if( f == 0 ) {
 		char *reltmpfilename;
+		int e;
 
 		if( dup2(io[1],3) < 0 ) {
-			fprintf(stderr,"Error dup2'ing fd %d to 3: %d=%m\n",
-					io[1],errno);
+			int e = errno;
+			fprintf(stderr, "Error %d dup2'ing fd %d to 3: %s\n",
+					e, io[1], strerror(e));
 			exit(255);
 		}
 		/* "Doppelt haelt besser": */
@@ -295,7 +298,9 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 		}
 		(void)execl(hook, hook, release_dirofdist(release),
 				reltmpfilename, relfilename, mode, NULL);
-		fprintf(stderr, "Error while executing '%s': %d=%m\n", hook, errno);
+		e = errno;
+		fprintf(stderr, "Error %d while executing '%s': %s\n",
+				e, hook, strerror(e));
 		exit(255);
 	}
 	close(io[1]);
@@ -312,7 +317,8 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 		r = read(io[0],buffer+already,999-already);
 		if( r < 0 ) {
 			int e = errno;
-			fprintf(stderr,"Error reading from exporthook: %d=%m!\n",e);
+			fprintf(stderr, "Error %d reading from exporthook: %s!\n",
+					e, strerror(e));
 			break;
 		}
 
@@ -359,9 +365,10 @@ static retvalue callexporthook(/*@null@*/const char *hook, const char *relfilena
 	do {
 		c = waitpid(f,&status,WUNTRACED);
 		if( c < 0 ) {
-			int err = errno;
-			fprintf(stderr,"Error while waiting for hook '%s' to finish: %d=%m\n",hook,err);
-			return RET_ERRNO(err);
+			int e = errno;
+			fprintf(stderr,
+"Error %d while waiting for hook '%s' to finish: %s\n", e, hook, strerror(e));
+			return RET_ERRNO(e);
 		}
 	} while( c != f );
 	if( WIFEXITED(status) ) {

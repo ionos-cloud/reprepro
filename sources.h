@@ -13,16 +13,15 @@
 retvalue sources_calcfilelines(const struct checksumsarray *, /*@out@*/char **item);
 
 /* Functions for the target.h-stuff: */
-retvalue sources_getname(struct target * t,const char *chunk,/*@out@*/char **packagename);
-retvalue sources_getversion(struct target *t,const char *chunk,/*@out@*/char **version);
-retvalue sources_getinstalldata(struct target *t, const char *packagename, const char *version, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
+retvalue sources_getname(const char *chunk, /*@out@*/char **packagename);
+retvalue sources_getversion(const char *chunk, /*@out@*/char **version);
+retvalue sources_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *);
 retvalue sources_getfilekeys(const char *, /*@out@*/struct strlist *);
 retvalue sources_getchecksums(const char *, /*@out@*/struct checksumsarray *);
-char *sources_getupstreamindex(struct target *target,const char *suite_from,
-		const char *component_from,const char *architecture);
+char *sources_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture);
 retvalue sources_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue sources_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *);
-retvalue sources_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
+retvalue sources_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version);
 
 /* Functions for checkindsc.c and incoming.c: */
 struct dsc_headers {

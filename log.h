@@ -10,6 +10,9 @@ struct logger;
 
 enum log_action { LOG_PACKAGE_ADD, LOG_PACKAGE_REPLACE, LOG_PACKAGE_REMOVE};
 
+/* file causing the current logger_log* run */
+extern /*@null@*/ const char *causingfile;
+
 retvalue logger_init(const char *confdir,const char *logdir,struct configiterator *,/*@out@*/struct logger **);
 void logger_free(/*@only@*/struct logger *);
 

@@ -202,7 +202,7 @@ static retvalue pull_initdistribution(struct pull_distribution **pp,
 				rule = rule->next;
 			if( rule == NULL ) {
 				fprintf(stderr,
-"Error: Unknown pull-rule '%s' in distribution '%s'!\n",
+"Error: Unknown pull rule '%s' in distribution '%s'!\n",
 						name, distribution->codename);
 				return RET_ERROR_MISSING;
 			}
@@ -637,7 +637,8 @@ static upgrade_decision ud_decide_by_rule(void *privdata, const char *package,UN
 			return UD_HOLD;
 		case flt_error:
 			/* cannot yet be handled! */
-			fprintf(stderr,"Packagename marked to be unexpected('error'): '%s'!\n",package);
+			fprintf(stderr,
+"Package name marked to be unexpected('error'): '%s'!\n", package);
 			return UD_ERROR;
 		case flt_install:
 			break;
@@ -705,12 +706,12 @@ static retvalue pull_search(FILE *out,struct database *database,struct pull_dist
 			d->distribution->udeb_override != NULL ) {
 		if( verbose >= 0 )
 			fprintf(stderr,
-"Warning: Override-Files of '%s' ignored as not yet supported while updating!\n",
+"Warning: Override files of '%s' ignored as not yet supported while updating!\n",
 					d->distribution->codename);
 	}
 	if( d->distribution->tracking != dt_NONE ) {
 		fprintf(stderr,
-"WARNING: Pull does not yet update trackingdata. Trackingdata of %s will be outdated!\n",
+"WARNING: Pull does not yet update tracking data. Tracking data of %s will be outdated!\n",
 					d->distribution->codename);
 	}
 

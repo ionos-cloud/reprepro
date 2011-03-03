@@ -59,6 +59,7 @@ struct release {
 	bool new;
 	/* snapshot */
 	bool snapshot;
+	/*@null@*/char *fakesuite;
 	/* the files yet for the list */
 	struct release_entry {
 		struct release_entry *next;
@@ -78,6 +79,7 @@ void release_free(struct release *release) {
 	struct release_entry *e;
 
 	free(release->dirofdist);
+	free(release->fakesuite);
 	while( (e = release->files) != NULL ) {
 		release->files = e->next;
 		free(e->relativefilename);
@@ -148,8 +150,16 @@ retvalue release_initsnapshot(const char *distdir, const char *codename, const c
 	struct release *n;
 
 	n = calloc(1,sizeof(struct release));
-	n->dirofdist = mprintf("%s/%s/snapshots/%s",distdir,codename,name);
+	n->dirofdist = calc_snapshotbasedir(distdir, codename, name);
 	if( n->dirofdist == NULL ) {
+		free(n);
+		return RET_ERROR_OOM;
+	}
+	/* apt only removes the last /... part but we create two,
+	 * so stop it generating warnings by faking a suite */
+	n->fakesuite = mprintf("%s/snapshots/%s", codename, name);
+	if( n->fakesuite == NULL ) {
+		free(n->dirofdist);
 		free(n);
 		return RET_ERROR_OOM;
 	}
@@ -325,7 +335,7 @@ static retvalue release_usecached(struct release *release,
 				r = RET_ERROR_OOM;
 			else
 				r = checksums_complete(&checksums[ic],
-					fullfilename);
+					fullfilename, NULL);
 			if( r == RET_ERROR_WRONG_MD5 ) {
 				fprintf(stderr,
 "WARNING: '%s' is different from recorded checksums.\n"
@@ -436,8 +446,8 @@ static retvalue openfile(const char *dirofdist, struct openfile *f) {
 	f->fd = open(f->fulltemporaryfilename,O_WRONLY|O_CREAT|O_EXCL|O_NOCTTY,0666);
 	if( f->fd < 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error opening file %s for writing: %m\n",
-				f->fulltemporaryfilename);
+		fprintf(stderr, "Error %d opening file %s for writing: %s\n",
+				e, f->fulltemporaryfilename, strerror(e));
 		return RET_ERRNO(e);
 	}
 	return RET_OK;
@@ -459,8 +469,9 @@ static retvalue writetofile(struct openfile *file, const unsigned char *data, si
 			int e = errno;
 			if( e == EAGAIN || e == EINTR )
 				continue;
-			fprintf(stderr,"Error writing to %s: %d=%m\n",
-					file->fullfinalfilename,e);
+			fprintf(stderr, "Error %d writing to %s: %s\n",
+					e, file->fullfinalfilename,
+					strerror(e));
 			return RET_ERRNO(e);
 		}
 	}
@@ -1141,7 +1152,11 @@ retvalue release_prepare(struct release *release, struct distribution *distribut
 		writestring(distribution->label);
 		writechar('\n');
 	}
-	if( distribution->suite != NULL ) {
+	if( release->fakesuite != NULL ) {
+		writestring("Suite: ");
+		writestring(release->fakesuite);
+		writechar('\n');
+	} else if( distribution->suite != NULL ) {
 		writestring("Suite: ");
 		writestring(distribution->suite);
 		writechar('\n');
@@ -1222,14 +1237,20 @@ retvalue release_finish(/*@only@*/struct release *release, struct distribution *
 			e = unlink(file->fulltemporaryfilename);
 			if( e < 0 ) {
 				e = errno;
-				fprintf(stderr,"Error deleting %s: %m. (Will be ignored)\n",file->fulltemporaryfilename);
+				fprintf(stderr,
+"Error %d deleting %s: %s. (Will be ignored)\n",
+					e, file->fulltemporaryfilename,
+					strerror(e));
 			}
 		} else if( file->fulltemporaryfilename != NULL ) {
 			e = rename(file->fulltemporaryfilename,
 					file->fullfinalfilename);
 			if( e < 0 ) {
 				e = errno;
-				fprintf(stderr,"Error moving %s to %s: %d=%m!\n",file->fulltemporaryfilename,file->fullfinalfilename,e);
+				fprintf(stderr, "Error %d moving %s to %s: %s!\n",
+						e, file->fulltemporaryfilename,
+						file->fullfinalfilename,
+						strerror(e));
 				r = RET_ERRNO(e);
 				/* after something was done, do not stop
 				 * but try to do as much as possible */

@@ -46,7 +46,7 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 		return RET_ERROR;
 	}
 	if( size > 10*1024*1024 ) {
-		fprintf(stderr, "Error: Ridiculous long control file within %s!\n", debfile);
+		fprintf(stderr, "Error: Ridiculously long control file within %s!\n", debfile);
 		return RET_ERROR;
 	}
 	buffer = malloc(size+2);
@@ -55,7 +55,7 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 			&& !interrupted() ) {
 		len += got;
 		if( len > size ) {
-			fprintf(stderr, "Internal Error: libarchive miscalculated length of the control file within '%s',\n"
+			fprintf(stderr, "Internal Error: libarchive miscalculated length of the control file inside '%s',\n"
 			" perhaps the file is corrupt, perhaps libarchive!\n", debfile);
 			free(buffer);
 			return RET_ERROR;
@@ -71,8 +71,8 @@ static retvalue read_control_file(char **control, const char *debfile, struct ar
 		return RET_ERROR;
 	}
 	if( len < size )
-		fprintf(stderr, "Warning: libarchive overcalculated length of the control file within '%s',\n"
-			" perhaps the file is corrupt, perhaps libarchive!\n", debfile);
+		fprintf(stderr, "Warning: libarchive miscalculated length of the control file inside '%s'.\n"
+			"Maybe the file is corrupt, perhaps libarchive!\n", debfile);
 	buffer[len] = '\0';
 
 	controllen = chunk_extract(buffer, buffer, &afterchanges);

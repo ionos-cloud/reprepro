@@ -154,6 +154,51 @@ retvalue cef_setline(struct chunkeditfield *cef, int line, int wordcount, ...) {
 	return RET_OK;
 }
 
+retvalue cef_setline2(struct chunkeditfield *cef, int line, const char *hash, size_t hashlen, const char *size, size_t sizelen, int wordcount, ...) {
+	va_list ap; int i;
+	struct cef_line *l;
+	const char *word;
+	size_t len;
+
+	assert( line < cef->linecount );
+	assert( wordcount >= 0 );
+
+	l = &cef->lines[line];
+	assert( l->wordcount == 0 && l->words == NULL && l->wordlen == NULL );
+
+	l->wordcount = wordcount + 2;
+	l->words = calloc(wordcount + 2, sizeof(const char*));
+	if( l->words == NULL )
+		return RET_ERROR_OOM;
+	l->wordlen = calloc(wordcount + 2, sizeof(size_t));
+	if( l->wordlen == NULL ) {
+		free(l->words);l->words = NULL;
+		return RET_ERROR_OOM;
+	}
+	va_start(ap,wordcount);
+	len = 1; /* newline */
+	l->words[0] = hash;
+	l->wordlen[0] = hashlen;
+	len += 1 + hashlen;
+	l->words[1] = size;
+	l->wordlen[1] = sizelen;
+	len += 1 + sizelen;
+	for( i = 0 ; i < wordcount; i++ ) {
+		word = va_arg(ap,const char*);
+		assert(word != NULL);
+
+		l->words[i + 2] = word;
+		l->wordlen[i + 2] = strlen(word);
+		len += 1 + l->wordlen[i + 2];
+	}
+	word = va_arg(ap,const char*);
+	assert( word == NULL );
+
+	va_end(ap);
+	cef->len_all_data += len;
+	return RET_OK;
+}
+
 static inline int findcef(const struct chunkeditfield *cef, const char *p, size_t len) {
 	int result = 0;
 	while( cef != NULL ) {

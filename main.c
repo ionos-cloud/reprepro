@@ -61,6 +61,7 @@
 #include "incoming.h"
 #include "override.h"
 #include "log.h"
+#include "copypackages.h"
 
 #ifndef STD_BASE_DIR
 #define STD_BASE_DIR "."
@@ -169,8 +170,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct distribution *dummy2), \
 			UNUSED(struct database *dummy),	\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -180,8 +181,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			struct distribution *alldistributions, \
 			UNUSED(struct database *dummy),	\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -191,8 +192,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			u(struct distribution *,alldistributions), \
 			struct database *database,	\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -202,8 +203,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			d(struct distribution *, alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -213,8 +214,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			UNUSED(struct distribution *ddummy), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -224,8 +225,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			d(struct distribution *,alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -235,8 +236,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			u(struct distribution *, alldistributions), \
 			struct database *database,		\
 			UNUSED(struct strlist* dummy3), \
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -246,8 +247,8 @@ static inline retvalue removeunreferencedfiles(struct database *database,struct 
 			struct distribution *alldistributions, \
 			struct database *database,		\
 			struct strlist* dereferenced, 	\
-			sp(const char *, priority),		\
 			sp(const char *, section),		\
+			sp(const char *, priority),		\
 			act(const char *, architecture),	\
 			act(const char *, component),		\
 			act(const char *, packagetype),		\
@@ -592,7 +593,7 @@ static retvalue package_source_fits(UNUSED(struct database *da), UNUSED(struct d
 	char *sourcename, *sourceversion;
 	retvalue r;
 
-	r = target->getsourceandversion(target, control, packagename,
+	r = target->getsourceandversion(control, packagename,
 			&sourcename, &sourceversion);
 	if( !RET_IS_OK(r) )
 		return r;
@@ -767,7 +768,7 @@ static retvalue list_in_target(void *data, struct target *target,
 
 	result = table_getrecord(target->packages, packagename, &control);
 	if( RET_IS_OK(result) ) {
-		r = (*target->getversion)(target, control, &version);
+		r = target->getversion(control, &version);
 		if( RET_IS_OK(r) ) {
 			printf("%s: %s %s\n",target->identifier,packagename,version);
 			free(version);
@@ -805,7 +806,7 @@ static retvalue listfilterprint(UNUSED(struct database *da), UNUSED(struct distr
 
 	r = term_decidechunk(condition, control);
 	if( RET_IS_OK(r) ) {
-		r = (*target->getversion)(target, control, &version);
+		r = target->getversion(control, &version);
 		if( RET_IS_OK(r) ) {
 			printf("%s: %s %s\n", target->identifier,
 			                      packagename, version);
@@ -1184,98 +1185,9 @@ ACTION_B(n, n, y, checkpull) {
 	return result;
 }
 
-struct copy_data {
-	struct distribution *destination;
-	/*@temp@*/struct database *db;
-	/*@temp@*/const char *name;
-	/*@temp@*/struct strlist *removedfiles;
-};
-
-static retvalue copy(/*@temp@*/void *data, struct target *origtarget,
-		struct distribution *distribution) {
-	retvalue result,r;
-	struct copy_data *d = data;
-	char *chunk,*version;
-	struct strlist filekeys;
-	struct target *dsttarget;
-
-	result = target_initpackagesdb(origtarget, d->db, READONLY);
-	if( RET_WAS_ERROR(result) ) {
-		RET_UPDATE(distribution->status,result);
-		return result;
-	}
-
-	dsttarget = distribution_gettarget(d->destination, origtarget->component,
-					origtarget->architecture,
-					origtarget->packagetype);
-	if( dsttarget == NULL ) {
-		if( verbose > 2 )
-			printf("Not looking into '%s' as no matching target in '%s'!\n",
-					origtarget->identifier,
-					d->destination->codename);
-		result = RET_NOTHING;
-	} else
-		result = table_getrecord(origtarget->packages, d->name, &chunk);
-	if( result == RET_NOTHING && verbose > 2 )
-		printf("No instance of '%s' found in '%s'!\n",
-				d->name, origtarget->identifier);
-	r = target_closepackagesdb(origtarget);
-	RET_ENDUPDATE(result,r);
-	if( !RET_IS_OK(result) ) {
-		return result;
-	}
-
-	result = origtarget->getversion(origtarget, chunk, &version);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
-		free(chunk);
-		return result;
-	}
-
-	result = origtarget->getfilekeys(chunk, &filekeys);
-	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
-		free(chunk);
-		free(version);
-		return result;
-	}
-	if( verbose >= 1 ) {
-		printf("Moving '%s' from '%s' to '%s'.\n",
-				d->name,
-				origtarget->identifier,
-				dsttarget->identifier);
-	}
-
-	result = target_initpackagesdb(dsttarget, d->db, READWRITE);
-	if( RET_WAS_ERROR(result) ) {
-		RET_UPDATE(d->destination->status,result);
-		free(chunk);
-		free(version);
-		strlist_done(&filekeys);
-		return result;
-	}
-
-	assert( logger_isprepared(d->destination->logger) );
-
-	result = target_addpackage(dsttarget, d->destination->logger,
-			d->db, d->name, version, chunk,
-			&filekeys, NULL, true, d->removedfiles,
-			NULL, '?');
-	free(version);
-	free(chunk);
-	strlist_done(&filekeys);
-
-	r = target_closepackagesdb(dsttarget);
-	RET_ENDUPDATE(result,r);
-	RET_UPDATE(d->destination->status,result);
-	return result;
-}
-
 ACTION_D(y, n, y, copy) {
-	struct distribution *destination,*source;
+	struct distribution *destination, *source;
 	retvalue result, r;
-	struct copy_data d;
-	int i;
 
 	result = distribution_get(alldistributions, argv[1], true, &destination);
 	assert( result != RET_NOTHING );
@@ -1283,40 +1195,193 @@ ACTION_D(y, n, y, copy) {
 		return result;
 	result = distribution_get(alldistributions, argv[2], false, &source);
 	assert( result != RET_NOTHING );
-	if( RET_WAS_ERROR(result) ) {
+	if( RET_WAS_ERROR(result) )
 		return result;
-	}
 	result = distribution_prepareforwriting(destination);
-	if( RET_WAS_ERROR(result) ) {
+	if( RET_WAS_ERROR(result) )
 		return result;
-	}
 
-	if( destination->tracking != dt_NONE ) {
-		fprintf(stderr, "WARNING: copy does not yet support trackingdata and will ignore trackingdata in '%s'!\n", destination->codename);
-	}
+	r = copy_by_name(database, destination, source, argc-3, argv+3,
+			component, architecture, packagetype, dereferenced);
+	RET_ENDUPDATE(result,r);
 
-	d.destination = destination;
-	d.db = database;
-	d.removedfiles = dereferenced;
-	for( i = 3; i < argc ; i++ ) {
-		d.name = argv[i];
-		if( verbose > 0 )
-			printf("Looking for '%s' in '%s' to be copied to '%s'...\n",
-					d.name, source->codename,
-					destination->codename);
-		result = distribution_foreach_part(source,component,architecture,packagetype,copy,&d);
-	}
 	logger_wait();
-
-	d.db = NULL;
-	d.removedfiles = NULL;
-	d.destination = NULL;
 
 	r = distribution_export(export, destination, distdir, database);
 	RET_ENDUPDATE(result,r);
 
 	return result;
 
+}
+
+ACTION_D(y, n, y, copysrc) {
+	struct distribution *destination, *source;
+	retvalue result, r;
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_get(alldistributions, argv[2], false, &source);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = copy_by_source(database, destination, source, argc-3, argv+3,
+			component, architecture, packagetype, dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(y, n, y, copyfilter) {
+	struct distribution *destination, *source;
+	retvalue result, r;
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_get(alldistributions, argv[2], false, &source);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = copy_by_formula(database, destination, source, argv[3],
+			component, architecture, packagetype, dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(y, n, y, restore) {
+	struct distribution *destination;
+	retvalue result, r;
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = restore_by_name(distdir, database, destination,
+			component, architecture, packagetype, argv[2],
+			argc-3, argv+3, dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+
+}
+
+ACTION_D(y, n, y, restoresrc) {
+	struct distribution *destination;
+	retvalue result, r;
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = restore_by_source(distdir, database, destination,
+			component, architecture, packagetype, argv[2],
+			argc-3, argv+3, dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(y, n, y, restorefilter) {
+	struct distribution *destination;
+	retvalue result, r;
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = restore_by_formula(distdir, database, destination,
+			component, architecture, packagetype, argv[2],
+			argv[3], dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
+ACTION_D(y, n, y, addpackage) {
+	struct distribution *destination;
+	retvalue result, r;
+
+	if( packagetype == NULL && architecture != NULL &&
+			strcmp(architecture, "source") == 0 )
+		packagetype = "dsc";
+	if( packagetype != NULL && architecture == NULL &&
+			strcmp(packagetype, "dsc") == 0 )
+		architecture = "source";
+	// TODO: some more guesses based on components and udebcomponents
+
+	if( architecture == NULL || component == NULL || packagetype == NULL ) {
+		fprintf(stderr, "_addpackage needs -C and -A and -T set!\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_get(alldistributions, argv[1], true, &destination);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+	result = distribution_prepareforwriting(destination);
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	r = copy_from_file(database, destination,
+			component, architecture, packagetype, argv[2],
+			argc-3, argv+3, dereferenced);
+	RET_ENDUPDATE(result,r);
+
+	logger_wait();
+
+	r = distribution_export(export, destination, distdir, database);
+	RET_ENDUPDATE(result,r);
+
+	return result;
 }
 
 /***********************rereferencing*************************/
@@ -1770,11 +1835,11 @@ ACTION_D(y, y, y, includedsc) {
 	assert( argc == 3 );
 
 	if( architecture != NULL && strcmp(architecture,"source") != 0 ) {
-		fprintf(stderr,"Cannot put a source-package anywhere else than in architecture 'source'!\n");
+		fprintf(stderr, "Cannot put a source package anywhere else than in architecture 'source'!\n");
 		return RET_ERROR;
 	}
 	if( packagetype != NULL && strcmp(packagetype,"dsc") != 0 ) {
-		fprintf(stderr,"Cannot put a source-package anywhere else than in type 'dsc'!\n");
+		fprintf(stderr, "Cannot put a source package anywhere else than in type 'dsc'!\n");
 		return RET_ERROR;
 	}
 	if( !endswith(argv[2],".dsc") && !IGNORING_(extension,
@@ -1830,20 +1895,6 @@ ACTION_D(y, y, y, include) {
 				"include called with a file not ending with '.changes'\n"
 				"(Did you mean includedeb or includedsc?)\n") )
 		return RET_ERROR;
-
-	if( architecture != NULL && packagetype != NULL ) {
-		if( strcmp(packagetype,"dsc") == 0 ) {
-			if( strcmp(architecture,"source") != 0 ) {
-				fprintf(stderr,"Error: Only -A source is possible with -T dsc!\n");
-				return RET_ERROR;
-			}
-		} else {
-			if( strcmp(architecture,"source") == 0 ) {
-				fprintf(stderr,"Error: -A source is not possible with -T deb or -T udeb!\n");
-				return RET_ERROR;
-			}
-		}
-	}
 
 	result = distribution_get(alldistributions, argv[1], true, &distribution);
 	assert( result != RET_NOTHING );
@@ -1947,8 +1998,10 @@ ACTION_C(n, n, createsymlinks) {
 		if( ret < 0 && errno == ENOENT ) {
 			ret = symlink(d->codename,linkname);
 			if( ret != 0 ) {
-				r = RET_ERRNO(errno);
-				fprintf(stderr,"Error creating symlink %s->%s: %d=%m\n",linkname,d->codename,errno);
+				int e = errno;
+				r = RET_ERRNO(e);
+				fprintf(stderr,
+"Error %d creating symlink %s->%s: %s\n", e, linkname, d->codename, strerror(e));
 				RET_UPDATE(result,r);
 			} else {
 				if( verbose > 0 ) {
@@ -1977,8 +2030,10 @@ ACTION_C(n, n, createsymlinks) {
 					unlink(linkname);
 					ret = symlink(d->codename,linkname);
 					if( ret != 0 ) {
-						r = RET_ERRNO(errno);
-						fprintf(stderr,"Error creating symlink %s->%s: %d=%m\n",linkname,d->codename,errno);
+						int e = errno;
+						r = RET_ERRNO(e);
+						fprintf(stderr,
+"Error %d creating symlink %s->%s: %s\n", e, linkname, d->codename, strerror(e));
 						RET_UPDATE(result,r);
 					} else {
 						if( verbose > 0 ) {
@@ -1990,8 +2045,10 @@ ACTION_C(n, n, createsymlinks) {
 				}
 			}
 		} else {
-			r = RET_ERRNO(errno);
-			fprintf(stderr,"Error checking %s, perhaps not a symlink?: %d=%m\n",linkname,errno);
+			int e = errno;
+			r = RET_ERRNO(e);
+			fprintf(stderr,
+"Error %d checking %s, perhaps not a symlink?: %s\n", e, linkname, strerror(e));
 			RET_UPDATE(result,r);
 		}
 
@@ -2273,6 +2330,8 @@ static const struct action {
 		2, 2, "_addreference <reference> <referee>"},
 	{"_fakeemptyfilelist",	A__F(fakeemptyfilelist),
 		1, 1, "_fakeemptyfilelist <filekey>"},
+	{"_addpackage",		A_Dact(addpackage),
+		3, -1, "-C <component> -A <architecture> -T <packagetype> _addpackage <distribution> <filename> <package-names>"},
 	{"remove", 		A_Dact(remove),
 		2, -1, "[-C <component>] [-A <architecture>] [-T <type>] remove <codename> <package-names>"},
 	{"removesrc", 		A_D(removesrc),
@@ -2325,6 +2384,16 @@ static const struct action {
 		0, -1, "pull [<distributions>]"},
 	{"copy",		A_Dact(copy),
 		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copy <destination-distribution> <source-distribution> <package-names to pull>"},
+	{"copysrc",		A_Dact(copysrc),
+		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copysrc <destination-distribution> <source-distribution> <source-package-name> [<source versions>]"},
+	{"copyfilter",		A_Dact(copyfilter),
+		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] copyfilter <destination-distribution> <source-distribution> <formula>"},
+	{"restore",		A_Dact(restore),
+		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restore <distribution> <snapshot-name> <package-names to restore>"},
+	{"restoresrc",		A_Dact(restoresrc),
+		3, -1, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restoresrc <distribution> <snapshot-name> <source-package-name> [<source versions>]"},
+	{"restorefilter",		A_Dact(restorefilter),
+		3, 3, "[-C <component> ] [-A <architecture>] [-T <packagetype>] restorefilter <distribution> <snapshot-name> <formula>"},
 	{"checkpull",		A_B(checkpull),
 		0, -1, "checkpull [<distributions>]"},
 	{"includedeb",		A_Dactsp(includedeb),
@@ -2402,6 +2471,23 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 				action->name) )
 			return RET_ERROR;
 	}
+	if( ISSET(needs, NEED_ACT) &&
+	    x_architecture != NULL && x_packagetype != NULL ) {
+		if( strcmp(x_packagetype, "dsc") == 0 ) {
+			if( strcmp(x_architecture,"source") != 0 ) {
+				fprintf(stderr,
+"Error: Only -A source is possible with -T dsc!\n");
+				return RET_ERROR;
+			}
+		} else {
+			if( strcmp(x_architecture, "source") == 0 ) {
+				fprintf(stderr,
+"Error: -A source is not possible with -T deb or -T udeb!\n");
+				return RET_ERROR;
+			}
+		}
+	}
+
 	if( !ISSET(needs, NEED_SP) && ( x_section != NULL ) ) {
 		if( !IGNORING_(unusedoption,
 "Action '%s' cannot take a section option!\n"
@@ -2491,7 +2577,7 @@ static retvalue callaction(const struct action *action, int argc, const char *ar
 					    } else {
 						    fprintf(stderr,
 "Not deleting possibly left over files due to previous errors.\n"
-"(To avoid the files in the still existing index files vanishing)\n"
+"(To keep the files in the still existing index files from vanishing)\n"
 "Use dumpunreferenced/deleteunreferenced to show/delete files without referenes.\n");
 					    }
 					}
@@ -2833,6 +2919,13 @@ static void handle_option(int c,const char *optarg) {
 			CONFIGDUP(x_architecture, optarg);
 			break;
 		case 'T':
+			if( strcmp(optarg, "dsc") != 0 &&
+			    strcmp(optarg, "deb") != 0 &&
+			    strcmp(optarg, "udeb") != 0 ) {
+				fprintf(stderr, "Unknown packagetype '%s' (only dsc deb and udeb are known)!\n",
+						optarg);
+				exit(EXIT_FAILURE);
+			}
 			if( x_packagetype != NULL &&
 					strcmp(x_packagetype, optarg) != 0) {
 				fprintf(stderr,"Multiple '-T's are not supported!\n");

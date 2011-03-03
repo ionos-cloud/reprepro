@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -36,6 +36,51 @@
 
 extern int verbose;
 
+/* split a "<md5> <size> <filename>" into md5sum and filename */
+static retvalue calc_parsefileline(const char *fileline, /*@out@*/char **filename) {
+	const char *p, *fn, *fnend;
+	char *filen;
+
+	assert( fileline != NULL );
+	if( *fileline == '\0' )
+		return RET_NOTHING;
+
+	/* the md5sums begins after the (perhaps) heading spaces ...  */
+	p = fileline;
+	while( *p != '\0' && (*p == ' ' || *p == '\t') )
+		p++;
+	if( *p == '\0' )
+		return RET_NOTHING;
+	/* ... and ends with the following spaces. */
+	while( *p != '\0' && !(*p == ' ' || *p == '\t') )
+		p++;
+	if( *p == '\0' ) {
+		fprintf(stderr, "Expecting more data after md5sum!\n");
+		return RET_ERROR;
+	}
+	/* Then the size of the file is expected: */
+	while( (*p == ' ' || *p == '\t') )
+		p++;
+	while( *p !='\0' && !(*p == ' ' || *p == '\t') )
+		p++;
+	if( *p == '\0' ) {
+		fprintf(stderr, "Expecting more data after size!\n");
+		return RET_ERROR;
+	}
+	/* Then the filename */
+	fn = p;
+	while( (*fn == ' ' || *fn == '\t') )
+		fn++;
+	fnend = fn;
+	while( *fnend != '\0' && !(*fnend == ' ' || *fnend == '\t') )
+		fnend++;
+
+	filen = strndup(fn, fnend-fn);
+	if( FAILEDTOALLOC(filen) )
+		return RET_ERROR_OOM;
+	*filename = filen;
+	return RET_OK;
+}
 
 static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct strlist *basenames) {
 	int i;
@@ -51,7 +96,7 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 		char *basename;
 		const char *fileline=filelines->values[i];
 
-		r = calc_parsefileline(fileline,&basename,NULL);
+		r = calc_parsefileline(fileline, &basename);
 		if( RET_WAS_ERROR(r) )
 			break;
 
@@ -69,93 +114,62 @@ static retvalue getBasenames(const struct strlist *filelines,/*@out@*/struct str
 	return r;
 }
 
-retvalue sources_calcfilelines(const struct checksumsarray *files, char **item) {
-	size_t len;
-	int i;
-	char *result;
-
-	assert( files != NULL );
-
-	len = 1;
-	for( i=0 ; i < files->names.count ; i++ ) {
-		const char *md5, *size;
-		size_t md5len = 0, sizelen = 0;
-		bool found;
-
-		found = checksums_gethashpart(files->checksums[i], cs_md5sum,
-				&md5, &md5len, &size, &sizelen);
-		assert( found );
-
-		len += 4+strlen(files->names.values[i])+md5len+sizelen;
-	}
-	result = malloc(len*sizeof(char));
-	if( result == NULL )
-		return RET_ERROR_OOM;
-	*item = result;
-	*(result++) = '\n';
-	for( i=0 ; i < files->names.count ; i++ ) {
-		const char *md5, *size;
-		size_t md5len, sizelen;
-		bool found;
-
-		*(result++) = ' ';
-		found = checksums_gethashpart(files->checksums[i], cs_md5sum,
-				&md5, &md5len, &size, &sizelen);
-		assert( found );
-		memcpy(result, md5, md5len); result += md5len;
-		*(result++) = ' ';
-		memcpy(result, size, sizelen); result += sizelen;
-		*(result++) = ' ';
-		strcpy(result, files->names.values[i]);
-		result += strlen(files->names.values[i]);
-		*(result++) = '\n';
-	}
-	*(--result) = '\0';
-	assert( (size_t)(result - *item) == len-1 );
-	return RET_OK;
-}
-
-retvalue sources_getname(UNUSED(struct target *t),const char *control,char **packagename){
+retvalue sources_getname(const char *control, char **packagename){
 	retvalue r;
 
 	r = chunk_getvalue(control,"Package",packagename);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Package name in chunk:'%s'\n",control);
+		fprintf(stderr, "Missing 'Package' field in chunk:'%s'\n", control);
 		return RET_ERROR;
 	}
 	return r;
 }
-retvalue sources_getversion(UNUSED(struct target *t),const char *control,char **version) {
+retvalue sources_getversion(const char *control, char **version) {
 	retvalue r;
 
 	r = chunk_getvalue(control,"Version",version);
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Version in chunk:'%s'\n",control);
+		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", control);
 		return RET_ERROR;
 	}
 	return r;
 }
 
-retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles) {
+retvalue sources_getinstalldata(const struct target *t, const char *packagename, UNUSED(const char *version), const char *chunk, char **control, struct strlist *filekeys, struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *type_p) {
 	retvalue r;
 	char *origdirectory, *directory, *mychunk;
-	struct strlist filelines, myfilekeys;
+	struct strlist myfilekeys;
+	struct strlist filelines[cs_hashCOUNT];
 	struct checksumsarray files;
+	enum checksumtype cs;
 
-	r = chunk_getextralinelist(chunk,"Files",&filelines);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Files' entry in '%s'!\n",chunk);
-		r = RET_ERROR;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( source_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(chunk, source_checksum_names[cs],
+				&filelines[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum ) {
+				fprintf(stderr,
+"Missing 'Files' entry in '%s'!\n", 		chunk);
+				r = RET_ERROR;
+			} else
+				strlist_init(&filelines[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&filelines[cs]);
+			}
+			return r;
+		}
 	}
-	if( RET_WAS_ERROR(r) )
-  		return r;
-
-	r = checksumsarray_parse(&files, &filelines, packagename);
-	strlist_done(&filelines);
+	r = checksumsarray_parse(&files, filelines, packagename);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		strlist_done(&filelines[cs]);
+	}
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -207,6 +221,8 @@ retvalue sources_getinstalldata(struct target *t, const char *packagename, UNUSE
 	*control = mychunk;
 	strlist_move(filekeys, &myfilekeys);
 	checksumsarray_move(origfiles, &files);
+	if( type_p != NULL )
+		*type_p = ft_SOURCE;
 	return RET_OK;
 }
 
@@ -255,25 +271,44 @@ retvalue sources_getfilekeys(const char *chunk, struct strlist *filekeys) {
 retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 	char *origdirectory;
 	struct checksumsarray a;
-	struct strlist filelines;
 	retvalue r;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 
 	/* Read the directory given there */
 	r = chunk_getvalue(chunk, "Directory", &origdirectory);
 	if( !RET_IS_OK(r) )
 		return r;
 
-	r = chunk_getextralinelist(chunk,"Files",&filelines);
-	if( !RET_IS_OK(r) ) {
-		free(origdirectory);
-		return r;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( source_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(chunk, source_checksum_names[cs],
+				&filelines[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum ) {
+				fprintf(stderr,
+"Missing 'Files' entry in '%s'!\n", 		chunk);
+				r = RET_ERROR;
+			} else
+				strlist_init(&filelines[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&filelines[cs]);
+			}
+			free(origdirectory);
+			return r;
+		}
 	}
-	r = checksumsarray_parse(&a, &filelines, "source chunk");
-	strlist_done(&filelines);
+	r = checksumsarray_parse(&a, filelines, "source chunk");
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		strlist_done(&filelines[cs]);
+	}
 	if( RET_WAS_ERROR(r) ) {
 		free(origdirectory);
 		return r;
 	}
+
 	r = calc_inplacedirconcats(origdirectory, &a.names);
 	free(origdirectory);
 	if( RET_WAS_ERROR(r) ) {
@@ -284,8 +319,7 @@ retvalue sources_getchecksums(const char *chunk, struct checksumsarray *out) {
 	return RET_OK;
 }
 
-char *sources_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
-		const char *component_from,UNUSED(const char *architecture)) {
+char *sources_getupstreamindex(const char *suite_from, const char *component_from, UNUSED(const char *architecture)) {
 	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
 }
 
@@ -327,7 +361,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 
 	r = chunk_getvalue(chunk,"Version",&sourceversion);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", chunk);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -336,7 +370,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 
 	r = sources_getfilekeys(chunk, &filekeys);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Malformed source control:'%s'\n",chunk);
+		fprintf(stderr, "Malformed source control:'%s'\n", chunk);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -369,7 +403,7 @@ retvalue sources_retrack(const char *sourcename, const char *chunk, trackingdb t
 	return tracking_save(tracks, pkg);
 }
 
-retvalue sources_getsourceandversion(UNUSED(struct target *t),const char *chunk,const char *packagename,char **source,char **version) {
+retvalue sources_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version) {
 	retvalue r;
 	char *sourceversion;
 	char *sourcename;
@@ -379,7 +413,7 @@ retvalue sources_getsourceandversion(UNUSED(struct target *t),const char *chunk,
 
 	r = chunk_getvalue(chunk,"Version",&sourceversion);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Did not find Version in chunk:'%s'\n",chunk);
+		fprintf(stderr, "Missing 'Version' field in chunk:'%s'\n", chunk);
 		r = RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) ) {
@@ -402,7 +436,7 @@ static inline retvalue getvalue(const char *filename,const char *chunk,const cha
 
 	r = chunk_getvalue(chunk,field,value);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing '%s'-header in %s!\n",field,filename);
+		fprintf(stderr,"Missing '%s' field in %s!\n",field,filename);
 		r = RET_ERROR;
 	}
 	return r;
@@ -413,7 +447,7 @@ static inline retvalue checkvalue(const char *filename,const char *chunk,const c
 
 	r = chunk_checkfield(chunk,field);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Cannot find '%s'-header in %s!\n",field,filename);
+		fprintf(stderr,"Cannot find '%s' field in %s!\n",field,filename);
 		r = RET_ERROR;
 	}
 	return r;
@@ -431,7 +465,8 @@ static inline retvalue getvalue_n(const char *chunk,const char *field,char **val
 
 retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const char *filenametoshow, bool *broken) {
 	retvalue r;
-	struct strlist filelines;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 
 	r = signature_readsignedchunk(filename, filenametoshow,
 			&dsc->control, NULL, NULL, broken);
@@ -447,7 +482,7 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 
 	r = chunk_getname(dsc->control, "Source", &dsc->name, false);
 	if( r == RET_NOTHING ) {
-		fprintf(stderr, "Missing 'Source'-header in %s!\n", filenametoshow);
+		fprintf(stderr, "Missing 'Source' field in %s!\n", filenametoshow);
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
@@ -463,9 +498,6 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	/* only recommended, so ignore errors with this: */
-	(void) checkvalue(filenametoshow, dsc->control, "Standards-Version");
-
 	r = getvalue(filenametoshow, dsc->control, "Version", &dsc->version);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -477,15 +509,29 @@ retvalue sources_readdsc(struct dsc_headers *dsc, const char *filename, const ch
 	if( RET_WAS_ERROR(r) )
 		return r;
 
-	r = chunk_getextralinelist(dsc->control, "Files", &filelines);
-	if( r == RET_NOTHING ) {
-		fprintf(stderr,"Missing 'Files'-header in %s!\n", filenametoshow);
-		return RET_ERROR;
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		assert( source_checksum_names[cs] != NULL );
+		r = chunk_getextralinelist(dsc->control,
+				source_checksum_names[cs], &filelines[cs]);
+		if( r == RET_NOTHING ) {
+			if( cs == cs_md5sum ) {
+				fprintf(stderr,
+"Missing 'Files' field in '%s'!\n",		filenametoshow);
+				r = RET_ERROR;
+			} else
+				strlist_init(&filelines[cs]);
+		}
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum ) {
+				strlist_done(&filelines[cs]);
+			}
+			return r;
+		}
 	}
-	if( RET_WAS_ERROR(r) )
-		return r;
-	r = checksumsarray_parse(&dsc->files, &filelines, filenametoshow);
-	strlist_done(&filelines);
+	r = checksumsarray_parse(&dsc->files, filelines, filenametoshow);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ ) {
+		strlist_done(&filelines[cs]);
+	}
 	return r;
 }
 
@@ -503,7 +549,7 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	struct fieldtoadd *name;
 	struct fieldtoadd *replace;
 	char *newchunk,*newchunk2;
-	char *newfilelines;
+	char *newfilelines, *newsha1lines, *newsha256lines;
 
 	assert(section != NULL && priority != NULL);
 
@@ -519,12 +565,18 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	if( newchunk2 == NULL )
 		return RET_ERROR_OOM;
 
-	r = sources_calcfilelines(&dsc->files, &newfilelines);
+	r = checksumsarray_genfilelist(&dsc->files,
+			&newfilelines, &newsha1lines, &newsha256lines);
 	if( RET_WAS_ERROR(r) ) {
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
-	replace = addfield_new("Files",newfilelines,NULL);
+	assert( newfilelines != NULL );
+	replace = aodfield_new("Checksums-Sha256", newsha256lines, NULL);
+	if( replace != NULL )
+		replace = aodfield_new("Checksums-Sha1", newsha1lines, replace);
+	if( replace != NULL )
+		replace = addfield_new("Files", newfilelines, replace);
 	if( replace != NULL )
 		replace = addfield_new("Directory",directory,replace);
 	if( replace != NULL )
@@ -536,12 +588,16 @@ retvalue sources_complete(const struct dsc_headers *dsc, const char *directory, 
 	if( replace != NULL )
 		replace = override_addreplacefields(override,replace);
 	if( replace == NULL ) {
+		free(newsha256lines);
+		free(newsha1lines);
 		free(newfilelines);
 		free(newchunk2);
 		return RET_ERROR_OOM;
 	}
 
 	newchunk  = chunk_replacefields(newchunk2,replace,"Files");
+	free(newsha256lines);
+	free(newsha1lines);
 	free(newfilelines);
 	free(newchunk2);
 	addfield_free(replace);

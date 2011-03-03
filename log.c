@@ -42,6 +42,8 @@
 
 extern int verbose;
 
+const char *causingfile = NULL;
+
 /*@null@*/ static /*@refcounted@*/ struct logfile {
 	/*@null@*/struct logfile *next;
 	char *filename;
@@ -367,7 +369,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, st
 			if( c != EOF ) {
 				fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
-"Unexpected data at end of notifier after scriptname '%s'\n",
+"Unexpected data at end of notifier after script name '%s'\n",
 					config_filename(iter),
 					config_line(iter), config_column(iter),
 					script);
@@ -395,6 +397,7 @@ static retvalue notificator_parse(struct notificator *n, const char *confdir, st
 /*@null@*/ static struct notification_process {
 	/*@null@*/struct notification_process *next;
 	char **arguments;
+	/*@null@*/char *causingfile;
 	/* data to send to the process */
 	size_t datalen, datasent;
 	/*@null@*/char *data;
@@ -410,6 +413,7 @@ static void notification_process_free(/*@only@*/struct notification_process *p) 
 		(void)close(p->fd);
 	for( a = p->arguments ; *a != NULL ; a++ )
 		free(*a);
+	free(p->causingfile);
 	free(p->arguments);
 	free(p->data);
 	free(p);
@@ -452,7 +456,7 @@ static int catchchildren(void) {
 					p->arguments[0]);
 		} else if( WIFEXITED(status) && WEXITSTATUS(status) != 0 ) {
 			fprintf(stderr,
-"Notification process '%s' returned with exitcode %d!\n",
+"Notification process '%s' returned with exit code %d!\n",
 					p->arguments[0],
 					(int)(WEXITSTATUS(status)));
 		}
@@ -559,6 +563,10 @@ static retvalue startchild(void) {
 		/* Try to close all open fd but 0,1,2 */
 		(void)close(filedes[1]);
 		closefrom(3);
+		if( p->causingfile != NULL )
+			setenv("REPREPRO_CAUSING_FILE", p->causingfile, true);
+		else
+			unsetenv("REPREPRO_CAUSING_FILE");
 		(void)execv(p->arguments[0], p->arguments);
 		fprintf(stderr, "Error executing '%s': %s\n", p->arguments[0],
 				strerror(errno));
@@ -674,11 +682,21 @@ static retvalue notificator_enqueuechanges(struct notificator *n,const char *cod
 		p->next = malloc(sizeof(struct notification_process));
 		p = p->next;
 	}
-	if( p == NULL ) {
+	if( FAILEDTOALLOC(p) ) {
 		for( j = 0 ; j < count ; j++ )
 			free(arguments[j]);
 		free(arguments);
 		return RET_ERROR_OOM;
+	}
+	if( causingfile != NULL ) {
+		p->causingfile = strdup(causingfile);
+		if( FAILEDTOALLOC(p->causingfile) ) {
+			for( j = 0 ; j < count ; j++ )
+				free(arguments[j]);
+			free(arguments);
+			free(p);
+			return RET_ERROR_OOM;
+		}
 	}
 	p->arguments = arguments;
 	p->next = NULL;
@@ -797,12 +815,23 @@ static retvalue notificator_enqueue(struct notificator *n, struct target *target
 		p->next = malloc(sizeof(struct notification_process));
 		p = p->next;
 	}
-	if( p == NULL ) {
+	if( FAILEDTOALLOC(p) ) {
 		size_t j;
 		for( j = 0 ; j < count ; j++ )
 			free(arguments[j]);
 		free(arguments);
 		return RET_ERROR_OOM;
+	}
+	if( causingfile != NULL ) {
+		size_t j;
+		p->causingfile = strdup(causingfile);
+		if( FAILEDTOALLOC(p->causingfile) ) {
+			for( j = 0 ; j < count ; j++ )
+				free(arguments[j]);
+			free(arguments);
+			free(p);
+			return RET_ERROR_OOM;
+		}
 	}
 	p->arguments = arguments;
 	p->next = NULL;

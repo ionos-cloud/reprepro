@@ -1,4 +1,4 @@
-.TH REPREPRO 1 "2007-10-08" "reprepro" REPREPRO
+.TH REPREPRO 1 "2008-03-25" "reprepro" REPREPRO
 .SH NAME
 reprepro \- produce, manage and sync a local repository of debian packages
 .SH SYNOPSIS
@@ -387,9 +387,12 @@ like .orig.tar.gz, .tar.gz and/or .diff.gz) in the specified
 distribution, applying override information and guessing all values
 not given and guessable.
 
-Note that as .dsc files do not contain section or priority, but the
-Sources.gz file does, you have to either specify a DscOverride or
-given them via
+Note that .dsc files do not contain section or priority, but the
+Sources.gz file needs them.
+reprepro tries to parse .diff and .tar files for
+it, but is only able to resolve easy cases.
+If reprepro fails to extract those automatically,
+you have to either specify a DscOverride or give them via
 .B \-S
 and
 .B \-P
@@ -477,8 +480,28 @@ Check all source package tracking information for the given distributions
 for files no longer to keep.
 .TP
 .B copy \fIdestination-codename\fP \fIsource-codename\fP \fIpackages...\fP
-Copy the given packages from one distribution to another. No overrides
-are read, nothing is changed.
+Copy the given packages from one distribution to another.
+No overrides are read, nothing is changed.
+.TP
+.B copysrc \fIdestination-codename\fP \fIsource-codename\fP \fIsourc-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
+Copy packages with the given source name and version
+(all versions if no version is specified).
+No overrides are read, nothing is changed.
+.TP
+.B copyfilter \fIdestination-codename\fP \fIsource-codename\fP \fIformula\fP
+Copy packages matching the given formula (see \fBlistfilter\fP).
+(all versions if no version is specified).
+No overrides are read, nothing is changed.
+.TP
+.B restore \fIcodename\fP \fIsnapshot\fP \fIpackages...\fP
+.TP
+.B restoresrc \fIcodename\fP \fIsnapshot\fP \fIsource-epackage\fP \fR[\fP\fIversions\fP\fR]\fP
+.TP
+.B restorefilter \fIdestination-codename\fP \fIsnapshot\fP \fIformula\fP
+Like the copy commands, but do not copy from another distribution,
+but from an snapshot generated with \fBgensnapshot\fP.
+Note that this blindly trusts the contents of the files in your \fBdists/\fP
+directory and does no checking.
 .TP
 .B clearvanished
 Remove all package databases that no longer appear in \fBconf/distributions\fP.
@@ -577,9 +600,14 @@ file of the specified .deb-file.
 Look what reprepro believes to be the list of files
 of the specified .deb-file.
 .TP
-.BI _fakeemptyfilelist filekey
+.BI _fakeemptyfilelist " filekey"
 Insert an empty filelist for \fIfilekey\fP. This is a evil
 hack around broken .deb files that cannot be read by reprepro.
+.TP
+.B _addpackage \fIcodenam\fP \fIfilename\fP \fIpackages...\fP
+Add packages from the specified filename to part specified
+by \fB-C\fP \fB-A\fP and \fB-T\fP of the specified distribution.
+Very strange things can happen if you use it improperly.
 .SH "CONFIG FILES"
 .B reprepo
 uses three config files, which are searched in
@@ -749,11 +777,11 @@ it will be executed after all index files are generated.
 (See the examples for what argument this gets).
 The default is:
 .br
-DebIndices Packages Release . .gz
+DebIndices: Packages Release . .gz
 .br
-UDebIndices Packages . .gz
+UDebIndices: Packages . .gz
 .br
-DscIndices Sources Release .gz
+DscIndices: Sources Release .gz
 .TP
 .B Contents
 Enable the creation of Contents files listing all the files
@@ -837,7 +865,7 @@ package. Thus it is also put into the pool.
 .B includebyhand
 Not yet implemented.
 .br
-.B ambargoalls
+.B embargoalls
 Not yet implemented.
 .br
 .B keepsources
@@ -862,6 +890,10 @@ parts of the distribution.
 An script with argument \fB\-\-changes\fP is called when a \fB.changes\fP
 file was accepted by \fBinclude\fP or \fBprocessincoming\fP (and with other
 arguments).
+
+For information how it is called and some examples take a look
+at manual.html in reprepro's source or
+.B /usr/share/doc/reprepro/
 
 If the filename for the log files does not start with a slash,
 it is relative to the directory specified with \fB\-\-logdir\fP,
@@ -1222,7 +1254,7 @@ Though it hopefully rejects overlong UTF-8 sequences, there might
 be other characters your filesystem confuses with special characters,
 thus creating filenames possibly equivalent to
 \fB/mirror/pool/main/../../../etc/shadow\fP
-(Which should be save, as you do not run reprepro as root, do you?)
+(Which should be safe, as you do not run reprepro as root, do you?)
 or simply overwriting your conf/distributions file adding some commands
 in there. So do not use this if you are paranoid, unless you are paranoid
 enough to have checked the code of your libs, kernel and filesystems.
@@ -1235,7 +1267,7 @@ Do not stop when finding a line not starting with a space but
 no colon(:) in it. These are otherwise rejected as they have no
 defined meaning.
 .TP
-.B missingfield \fR(save to ignore)
+.B missingfield \fR(safe to ignore)
 Ignore missing fields in a .changes file that are only checked but
 not processed.
 Those include: Format, Date, Urgency, Maintainer, Description, Changes
@@ -1287,7 +1319,7 @@ are doing.
 Ignore unknown fields in the config files, instead of refusing to run
 then.
 .TP
-.B unusedarch \fR(save to ignore)
+.B unusedarch \fR(safe to ignore)
 No longer reject a .changes file containing no files for any of the
 architectures listed in the Architecture-header within it.
 .TP
@@ -1299,7 +1331,7 @@ specified action (like \fB\-\-architecture\fP).
 The include command will accept packages that would otherwise been
 rejected by the uploaders file.
 .TP
-.B wrongdistribution \fR(save to ignore)
+.B wrongdistribution \fR(safe to ignore)
 Do not error out if a .changes file is to be placed in a
 distribution not listed in that files' Distributions: header.
 .TP

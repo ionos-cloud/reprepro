@@ -217,7 +217,12 @@ commands=( export:"export index files"
 	removealltracks:"remove tracking information"
 	removetrack:"remove a single tracking data"
 	tidytracks:"look for files referened by tracks but no longer needed"
-	copy:"move a package from one distribution to another"
+	copy:"copy a package from one distribution to another"
+	copysrc:"copy packages belonging to a specific source from one distribution to another"
+	copyfilter:"copy packages from one distribution to another"
+	restore:"restore a package from a distribution's snapshot"
+	restoresrc:"restore packages belonging to a specific source from a snapshot"
+	restorefilter:"restore packages belonging to a specific source from a snapshot"
 	clearvanished:"remove empty databases"
 	gensnapshot:"generate a snapshot"
 	rerunnotifiers:"call notificators as if all packages were just included"
@@ -377,6 +382,21 @@ case "$state" in
 			_reprepro_codenames
 		elif [[ "$state" = "second argument" ]] ; then
 			_files -g "*.dsc"
+		fi
+		;;
+	 (copy|copysrc|copyfilter)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+		elif [[ "$state" = "second argument" ]] ; then
+			_reprepro_codenames
+		fi
+		;;
+	 (restore|restoresrc|restorefilter)
+		if [[ "$state" = "first argument" ]] ; then
+			_reprepro_codenames
+# TODO:
+#		elif [[ "$state" = "second argument" ]] ; then
+#			_reprepro_codenames
 		fi
 		;;
 	 (include)

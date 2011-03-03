@@ -23,16 +23,25 @@ enum checksumtype {
 
 struct checksums;
 
+extern const char * const changes_checksum_names[];
+extern const char * const source_checksum_names[];
+
+struct hashes {
+	struct hash_data {
+		const char *start; size_t len;
+	} hashes[cs_COUNT];
+};
+
+
 void checksums_free(/*@only@*//*@null@*/struct checksums *);
 
 /* duplicate a checksum record, NULL means OOM */
 /*@null@*/struct checksums *checksums_dup(const struct checksums *);
 
-/* create a checksum record from an md5sum: */
-retvalue checksums_set(/*@out@*/struct checksums **result, const char *md5, size_t md5len, const char *size, size_t sizelen);
 retvalue checksums_setall(/*@out@*/struct checksums **checksums_p, const char *combinedchecksum, size_t len, /*@null@*/const char *md5sum);
 
-/* hashes[*] is free'd */
+retvalue checksums_initialize(/*@out@*/struct checksums **checksums_p, const struct hash_data *);
+/* hashes[*] is free'd: */
 retvalue checksums_init(/*@out@*/struct checksums **, char *hashes[cs_COUNT]);
 retvalue checksums_parse(/*@out@*/struct checksums **, const char *);
 
@@ -77,11 +86,11 @@ bool checksums_iscomplete(const struct checksums *);
 /* Collect missing checksums (if all are there always RET_OK without checking).
  * if the file is not there, return RET_NOTHING,
  * if it is but not matches, return RET_ERROR_WRONG_MD5 */
-retvalue checksums_complete(struct checksums **, const char *fullfilename);
+retvalue checksums_complete(struct checksums **, const char *fullfilename, /*@null@*/ bool improvedhashes[cs_hashCOUNT]);
 
 void checksums_printdifferences(FILE *,const struct checksums *expected, const struct checksums *got);
 
-retvalue checksums_combine(struct checksums **checksums, const struct checksums *by);
+retvalue checksums_combine(struct checksums **checksums, const struct checksums *by, /*@null@*/bool improvedhashes[cs_hashCOUNT]);
 
 typedef /*@only@*/ struct checksums *ownedchecksums;
 struct checksumsarray {
@@ -90,9 +99,12 @@ struct checksumsarray {
 };
 void checksumsarray_move(/*@out@*/struct checksumsarray *, /*@special@*/struct checksumsarray *array)/*@requires maxSet(array->names.values) >= array->names.count /\ maxSet(array->checksums) >= array->names.count @*/ /*@releases array->checksums, array->names.values @*/;
 void checksumsarray_done(/*@special@*/struct checksumsarray *array) /*@requires maxSet(array->names.values) >= array->names.count /\ maxSet(array->checksums) >= array->names.count @*/ /*@releases array->checksums, array->names.values @*/;
-retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist *, const char *filenametoshow);
+retvalue checksumsarray_parse(/*@out@*/struct checksumsarray *, const struct strlist [cs_hashCOUNT], const char *filenametoshow);
+retvalue checksumsarray_genfilelist(const struct checksumsarray *, /*@out@*/char **, /*@out@*/char **, /*@out@*/char **);
 retvalue checksumsarray_include(struct checksumsarray *, /*@only@*/char *, const struct checksums *);
+void checksumsarray_resetunsupported(const struct checksumsarray *, bool[cs_hashCOUNT]);
 
+retvalue hashline_parse(const char *filenametoshow, const char *line, enum checksumtype cs, /*@out@*/const char **basename_p, /*@out@*/struct hash_data *data_p, /*@out@*/struct hash_data *size_p);
 
 #ifdef CHECKSUMS_CONTEXT
 #ifndef MD5_H

@@ -42,9 +42,17 @@ void cef_setdatalen(struct chunkeditfield *cef, const char *data, size_t len);
 /* calculate the length, do not change the strlist after that before free */
 void cef_setwordlist(struct chunkeditfield *cef, const struct strlist *words);
 retvalue cef_setline(struct chunkeditfield *cef, int line, int wordcount, ...);
+retvalue cef_setline2(struct chunkeditfield *, int, const char *, size_t, const char *, size_t, int, ...);
 
 retvalue chunk_edit(const char *chunk, char **result, size_t *len, const struct chunkeditfield *cef);
 
 void cef_free(/*@only@*//*@null@*/struct chunkeditfield *f);
+
+static inline struct chunkeditfield *cef_pop(/*@only@*/struct chunkeditfield *cef) {
+	struct chunkeditfield *next = cef->next;
+	cef->next = NULL;
+	cef_free(cef);
+	return next;
+}
 
 #endif

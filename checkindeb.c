@@ -40,6 +40,7 @@
 #include "guesscomponent.h"
 #include "tracking.h"
 #include "override.h"
+#include "log.h"
 
 extern int verbose;
 
@@ -142,12 +143,12 @@ static retvalue deb_preparelocation(struct debpackage *pkg, const char * const f
 	}
 
 	if( pkg->deb.section == NULL ) {
-		fprintf(stderr,"No section was given for '%s', skipping.\n",
+		fprintf(stderr, "No section given for '%s', skipping.\n",
 				pkg->deb.name);
 		return RET_ERROR;
 	}
 	if( pkg->deb.priority == NULL ) {
-		fprintf(stderr,"No priority was given for '%s', skipping.\n",
+		fprintf(stderr, "No priority given for '%s', skipping.\n",
 				pkg->deb.name);
 		return RET_ERROR;
 	}
@@ -180,7 +181,9 @@ static retvalue deb_preparelocation(struct debpackage *pkg, const char * const f
 		return RET_ERROR;
 	}
 	if( !strlist_in(components,pkg->component) ) {
-		fprintf(stderr,"Error looking at %s': Would put in component '%s', but that is not available!\n",debfilename,pkg->component);
+		fprintf(stderr,
+"Error looking at %s': Would be placed in unavailable component '%s'!\n",
+				debfilename, pkg->component);
 		/* this cannot be ignored as there is not data structure available*/
 		return RET_ERROR;
 	}
@@ -244,7 +247,9 @@ retvalue deb_prepare(/*@out@*/struct debpackage **deb, const char * const forcec
 	}
 
 	if( strcmp(givenfilekey,pkg->filekey) != 0 ) {
-		fprintf(stderr,"Name mismatch, .changes indicates '%s', but the file itself says '%s'!\n",givenfilekey,pkg->filekey);
+		fprintf(stderr,
+"Name mismatch: .changes indicates '%s', but the file itself says '%s'!\n",
+				givenfilekey, pkg->filekey);
 		deb_free(pkg);
 		return RET_ERROR;
 	}
@@ -280,6 +285,8 @@ retvalue deb_add(struct database *database,const char *forcecomponent,const char
 	char *control;
 	struct checksums *checksums;
 	bool fileused = false;
+
+	causingfile = debfilename;
 
 	r = deb_read(&pkg, debfilename, tracks != NULL );
 	if( RET_WAS_ERROR(r) ) {

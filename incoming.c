@@ -144,7 +144,7 @@ static retvalue incoming_prepare(struct incoming *i) {
 	ret = closedir(dir);
 	if( ret != 0 ) {
 		int e = errno;
-		fprintf(stderr, "Error scaning '%s': %s\n", i->directory, strerror(e));
+		fprintf(stderr, "Error scanning '%s': %s\n", i->directory, strerror(e));
 		return RET_ERRNO(e);
 	}
 	i->processed = calloc(i->files.count, sizeof(bool));
@@ -230,7 +230,7 @@ CFfinishparse(incoming) {
 	}
 	if( i->default_into == NULL && i->allow.count == 0 ) {
 		fprintf(stderr,
-"There ia neither a 'Allow' nor a 'Default' definition in rule '%s'\n"
+"There is neither an 'Allow' nor a 'Default' definition in rule '%s'\n"
 "(starting at line %u, ending at line %u of %s)!\n"
 "Aborting as nothing would be let in.\n",
 				d->name,
@@ -414,6 +414,8 @@ struct candidate {
 		struct deb_headers deb;
 		/* - only for fe_DSC types */
 		struct dsc_headers dsc;
+		/* only valid while parsing */
+		struct hashes h;
 	} *files;
 	struct candidate_perdistribution {
 		struct candidate_perdistribution *next;
@@ -570,7 +572,8 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 	if( n == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &n->type, &basename, &n->checksums,
+	r = changes_parsefileline(fileline, &n->type, &basename,
+			&n->h.hashes[cs_md5sum], &n->h.hashes[cs_length],
 			&n->section, &n->priority, &n->architecture, &n->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(n);
@@ -592,14 +595,69 @@ static retvalue candidate_addfileline(struct incoming *i, struct candidate *c, c
 	return RET_OK;
 }
 
+static retvalue candidate_addhashes(struct incoming *i, struct candidate *c, enum checksumtype cs, const struct strlist *lines) {
+	int j;
+
+	for( j = 0 ; j < lines->count ; j++ ) {
+		const char *fileline = lines->values[j];
+		struct candidate_file *f;
+		const char *basename;
+		struct hash_data hash, size;
+		retvalue r;
+
+		r = hashline_parse(BASENAME(i, c->ofs), fileline, cs,
+				&basename, &hash, &size);
+		if( !RET_IS_OK(r) )
+			return r;
+		f = c->files;
+		while( f != NULL && strcmp(BASENAME(i, f->ofs), basename) != 0 )
+			f = f->next;
+		if( f == NULL ) {
+			fprintf(stderr,
+"Warning: Ignoring file '%s' listed in '%s' but not in '%s' of '%s'!\n",
+					basename, changes_checksum_names[cs],
+					changes_checksum_names[cs_md5sum],
+					BASENAME(i, c->ofs));
+			continue;
+		}
+		if( f->h.hashes[cs_length].len != size.len ||
+				memcmp(f->h.hashes[cs_length].start,
+					size.start, size.len) != 0 ) {
+			fprintf(stderr,
+"Error: Different size of '%s' listed in '%s' and '%s' of '%s'!\n",
+					basename, changes_checksum_names[cs],
+					changes_checksum_names[cs_md5sum],
+					BASENAME(i, c->ofs));
+			return RET_ERROR;
+		}
+		f->h.hashes[cs] = hash;
+	}
+	return RET_OK;
+}
+
+static retvalue candidate_finalizechecksums(struct incoming *i, struct candidate *c) {
+	struct candidate_file *f;
+	retvalue r;
+
+	/* store collected hashes as checksums structs,
+	 * starting after .changes file: */
+	for( f = c->files->next ; f != NULL ; f = f->next ) {
+		r = checksums_initialize(&f->checksums, f->h.hashes);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
 static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 	retvalue r;
-	struct strlist filelines;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 	int j;
 #define R if( RET_WAS_ERROR(r) ) return r;
-#define E(err) { \
+#define E(err,...) { \
 		if( r == RET_NOTHING ) { \
-			fprintf(stderr,"In '%s': " err "\n",BASENAME(i,c->ofs)); \
+			fprintf(stderr, "In '%s': " err "\n",BASENAME(i,c->ofs), ## __VA_ARGS__ ); \
 			r = RET_ERROR; \
 	  	} \
 		if( RET_WAS_ERROR(r) ) return r; \
@@ -635,16 +693,36 @@ static retvalue candidate_parse(struct incoming *i, struct candidate *c) {
 	}
 	r = chunk_getwordlist(c->control,"Distribution",&c->distributions);
 	E("Missing 'Distribution' field!");
-	r = chunk_getextralinelist(c->control,"Files",&filelines);
-	E("Missing 'Files' field!");
-	for( j = 0 ; j < filelines.count ; j++ ) {
-		r = candidate_addfileline(i, c, filelines.values[j]);
+	r = chunk_getextralinelist(c->control,
+			changes_checksum_names[cs_md5sum],
+			&filelines[cs_md5sum]);
+	E("Missing '%s' field!", changes_checksum_names[cs_md5sum]);
+	for( j = 0 ; j < filelines[cs_md5sum].count ; j++ ) {
+		r = candidate_addfileline(i, c, filelines[cs_md5sum].values[j]);
 		if( RET_WAS_ERROR(r) ) {
-			strlist_done(&filelines);
+			strlist_done(&filelines[cs_md5sum]);
 			return r;
 		}
 	}
-	strlist_done(&filelines);
+	for( cs = cs_firstEXTENDED ; cs < cs_hashCOUNT ; cs++ ) {
+		r = chunk_getextralinelist(c->control,
+				changes_checksum_names[cs], &filelines[cs]);
+
+		if( RET_IS_OK(r) )
+			r = candidate_addhashes(i, c, cs, &filelines[cs]);
+		else
+			strlist_init(&filelines[cs]);
+
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum )
+				strlist_done(&filelines[cs]);
+			return r;
+		}
+	}
+	r = candidate_finalizechecksums(i, c);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ )
+		strlist_done(&filelines[cs]);
+	R;
 	if( c->files == NULL || c->files->next == NULL ) {
 		fprintf(stderr,"In '%s': Empty 'Files' section!\n",
 				BASENAME(i,c->ofs));
@@ -727,7 +805,7 @@ static retvalue candidate_usefile(const struct incoming *i,const struct candidat
 		return RET_ERROR_WRONG_MD5;
 	}
 	if( improves ) {
-		r = checksums_combine(&file->checksums, readchecksums);
+		r = checksums_combine(&file->checksums, readchecksums, NULL);
 		if( RET_WAS_ERROR(r) ) {
 			checksums_free(readchecksums);
 			deletefile(tempfilename);
@@ -801,7 +879,7 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 	if( strcmp(c->source, file->deb.source) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		// (beware if tracking is active)
-		fprintf(stderr, "Source-header '%s' of '%s' and source name '%s' within the file '%s' do not match!\n",
+		fprintf(stderr, "Source header '%s' of '%s' and source name '%s' within the file '%s' do not match!\n",
 				c->source, BASENAME(i,c->ofs),
 				file->deb.source, BASENAME(i,file->ofs));
 		return RET_ERROR;
@@ -815,7 +893,7 @@ static retvalue candidate_read_deb(struct incoming *i,struct candidate *c,struct
 		return RET_ERROR;
 	}
 	if( ! strlist_in(&c->binaries, file->deb.name) ) {
-		fprintf(stderr, "Name '%s' of binary '%s' is not listed in Binaries-header of '%s'!\n",
+		fprintf(stderr, "Name '%s' of binary '%s' is not listed in Binaries header of '%s'!\n",
 				file->deb.name, BASENAME(i,file->ofs),
 				BASENAME(i,c->ofs));
 		return RET_ERROR;
@@ -996,9 +1074,11 @@ static retvalue prepare_deb(struct database *database,const struct incoming *i,c
 	return RET_OK;
 }
 
-static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, const struct checksums *checksums, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
+static retvalue prepare_source_file(struct database *database, const struct incoming *i, const struct candidate *c, const char *filekey, const char *basename, struct checksums **checksums_p, int package_ofs, /*@out@*/const struct candidate_file **foundfile_p){
 	struct candidate_file *f;
+	const struct checksums * const checksums = *checksums_p;
 	retvalue r;
+	bool improves;
 
 	f = c->files;
 	while( f != NULL && (f->checksums == NULL ||
@@ -1028,16 +1108,21 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 		/* otherwise proceed with the found file: */
 	}
 
-	// TODO: is the error message sensible?
-	// perhaps currently, but in the future when .changes or .dsc
-	// can have additional hashes, they might not conflict with each
-	// other, but with the file's hash previously computed...
-	if( !checksums_check(f->checksums, checksums, NULL) ) {
+	if( !checksums_check(f->checksums, checksums, &improves) ) {
 		fprintf(stderr, "file '%s' has conflicting checksums listed in '%s' and '%s'!\n",
 				basename,
 				BASENAME(i, c->ofs),
 				BASENAME(i, package_ofs));
 		return RET_ERROR;
+	}
+	if( improves ) {
+		/* put additional checksums from the .dsc to the information
+		 * found in .changes, so that a file matching those in .changes
+		 * but not in .dsc is detected */
+		r = checksums_combine(&f->checksums, checksums, NULL);
+		assert( r != RET_NOTHING );
+		if( RET_WAS_ERROR(r) )
+			return r;
 	}
 	r = files_canadd(database, filekey, f->checksums);
 	if( r == RET_NOTHING ) {
@@ -1054,6 +1139,10 @@ static retvalue prepare_source_file(struct database *database, const struct inco
 			return r;
 		// TODO: update checksums to now received checksums?
 		*foundfile_p = f;
+	}
+	if( !RET_WAS_ERROR(r) && !checksums_iscomplete(checksums) ) {
+		/* update checksums so the source index can show them */
+		r = checksums_combine(checksums_p, f->checksums, NULL);
 	}
 	return r;
 }
@@ -1093,7 +1182,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 	if( strcmp(c->source, file->dsc.name) != 0 ) {
 		// TODO: add permissive thing to ignore this
 		// (beware if tracking is active)
-		fprintf(stderr, "Source-header '%s' of '%s' and name '%s' within the file '%s' do not match!\n",
+		fprintf(stderr, "Source header '%s' of '%s' and name '%s' within the file '%s' do not match!\n",
 				c->source, BASENAME(i,c->ofs),
 				file->dsc.name, BASENAME(i,file->ofs));
 		return RET_ERROR;
@@ -1138,7 +1227,7 @@ static retvalue prepare_dsc(struct database *database,const struct incoming *i,c
 		r = prepare_source_file(database, i, c,
 				package->filekeys.values[j],
 				file->dsc.files.names.values[j],
-				file->dsc.files.checksums[j],
+				&file->dsc.files.checksums[j],
 				file->ofs, &package->files[j]);
 		if( RET_WAS_ERROR(r) )
 			return r;
@@ -1306,6 +1395,7 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 	struct distribution *into = d->into;
 	trackingdb tracks;
 	const char *changesfilekey = NULL;
+	char *origfilename;
 
 	if( interrupted() )
 		return RET_ERROR_INTERRUPTED;
@@ -1334,6 +1424,10 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 			// TODO, but better before we start adding...
 		}
 	}
+
+	origfilename = calc_dirconcat(i->directory,
+			BASENAME(i, changesfile(c)->ofs));
+	causingfile = origfilename;
 
 	r = RET_OK;
 	for( p = d->packages ; p != NULL ; p = p->next ) {
@@ -1386,11 +1480,15 @@ static retvalue candidate_add_into(struct database *database,struct strlist *der
 		r2 = tracking_done(tracks);
 		RET_ENDUPDATE(r,r2);
 	}
-	if( RET_WAS_ERROR(r) )
+	if( RET_WAS_ERROR(r) ) {
+		free(origfilename);
 		return r;
+	}
 	logger_logchanges(into->logger, into->codename,
 			c->source, c->changesversion, c->control,
 			changesfile(c)->tempfilename, changesfilekey);
+	free(origfilename);
+	causingfile = NULL;
 	return RET_OK;
 }
 

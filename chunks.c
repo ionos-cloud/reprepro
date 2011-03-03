@@ -40,7 +40,8 @@ retvalue chunk_foreach(const char *filename, chunkaction action, void *data, boo
 
 	f = gzopen(filename,"r");
 	if( f == NULL ) {
-		fprintf(stderr,"Unable to open file %s: %m\n",filename);
+		fprintf(stderr, "Unable to open file %s: %s\n",
+				filename, strerror(errno));
 		return RET_ERRNO(errno);
 	}
 	result = RET_NOTHING;
@@ -477,7 +478,8 @@ retvalue chunk_getname(const char *chunk, const char *name, char **pkgname, bool
 			// TODO: perhaps check for wellformed version
 			p++;
 		if( *p != ')' ) {
-			fprintf(stderr,"Error: Field '%s' misses closing parathesis!\n",name);
+			fprintf(stderr,
+"Error: Field '%s' misses closing parenthesis!\n", name);
 			return RET_ERROR;
 		}
 		p++;
@@ -485,7 +487,8 @@ retvalue chunk_getname(const char *chunk, const char *name, char **pkgname, bool
 	while( *p != '\0' && *p != '\n' && xisspace(*p) )
 		p++;
 	if( *p != '\0' && *p != '\n' ) {
-		fprintf(stderr,"Error: Field '%s' contains trailing junk starting with '%c'!\n",name,*p);
+		fprintf(stderr,
+"Error: Field '%s' contains trailing junk starting with '%c'!\n", name, *p);
 		return RET_ERROR;
 	}
 
@@ -544,9 +547,11 @@ retvalue chunk_getnameandversion(const char *chunk,const char *name,
 		if( *p != ')' ) {
 			free(v);
 			if( *p == '\0' || *p == '\n' )
-				fprintf(stderr,"Error: Field '%s' misses closing parathesis!\n",name);
+				fprintf(stderr,
+"Error: Field '%s' misses closing parenthesis!\n",	name);
 			else
-				fprintf(stderr,"Error: Field '%s' has multipe words after '('!\n",name);
+				fprintf(stderr,
+"Error: Field '%s' has multipe words after '('!\n",	name);
 			return RET_ERROR;
 		}
 		p++;
@@ -607,7 +612,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	result = RET_NOTHING;
 	do {
 		/* are we at the place to add the fields yet? */
-		if(!fieldsadded && strncmp(c,beforethis,len_beforethis) == 0
+		if(!fieldsadded && strncasecmp(c,beforethis,len_beforethis) == 0
 				&& c[len_beforethis] == ':' ) {
 			/* add them now: */
 			f = toadd;
@@ -629,7 +634,7 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 		/* is this one of the fields we added/will add? */
 		f = toadd;
 		while( f != NULL ) {
-			if(strncmp(c,f->field,f->len_field) == 0
+			if(strncasecmp(c,f->field,f->len_field) == 0
 					&& c[f->len_field] == ':' )
 				break;
 			f = f->next;
@@ -671,6 +676,26 @@ char *chunk_replacefields(const char *chunk,const struct fieldtoadd *toadd,const
 	return newchunk;
 }
 
+struct fieldtoadd *aodfield_new(const char *field, const char *data, struct fieldtoadd *next) {
+	struct fieldtoadd *n;
+
+	assert(field != NULL);
+
+	n = malloc(sizeof(struct fieldtoadd));
+ 	if( n == NULL ) {
+ 		addfield_free(next);
+ 		return NULL;
+ 	}
+	n->field = field;
+	n->len_field = strlen(field);
+	n->data = data;
+	if( data != NULL )
+		n->len_data = strlen(data);
+	else
+		n->len_data = 0;
+	n->next = next;
+	return n;
+}
 struct fieldtoadd *addfield_new(const char *field,const char *data,struct fieldtoadd *next) {
 	struct fieldtoadd *n;
 

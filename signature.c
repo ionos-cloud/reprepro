@@ -124,7 +124,7 @@ static inline retvalue containskey(const char *key, const char *fingerprint) {
 			p++;
 		kl = p-keypart;
 		if( kl < 8 ) {
-			fprintf(stderr, "Too short keyid specified (less than 8 characters) in '%s'!\n",key);
+			fprintf(stderr, "Key id too short (less than 8 characters) in '%s'!\n",key);
 			return RET_ERROR;
 		}
 		if( kl < fl && strncasecmp(fingerprint+fl-kl,keypart,kl) == 0 )
@@ -291,7 +291,7 @@ retvalue signature_check(const char *options, const char *releasegpg, const char
 
 retvalue signature_sign(const char *options, const char *filename, const char *signaturename) {
 	retvalue r;
-	int ret;
+	int ret, e;
 #ifdef HAVE_LIBGPGME
 	gpgme_error_t err;
 	gpgme_data_t dh,dh_gpg;
@@ -304,8 +304,9 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	/* make sure it does not already exists */
 
 	ret = unlink(signaturename);
-	if( ret != 0 && errno != ENOENT ) {
-		fprintf(stderr,"Could not remove '%s' to prepare replacement: %m\n",signaturename);
+	if( ret != 0 && (e = errno) != ENOENT ) {
+		fprintf(stderr, "Could not remove '%s' to prepare replacement: %s\n",
+				signaturename, strerror(e));
 		return RET_ERROR;
 	}
 
@@ -453,7 +454,7 @@ retvalue signature_sign(const char *options, const char *filename, const char *s
 	return r;
 #else /* HAVE_LIBGPGME */
 	fprintf(stderr,
-"ERROR: Cannot creature signatures as this reprepro binary is compiled with support\n"
+"ERROR: Cannot creature signatures as this reprepro binary is not compiled with support\n"
 "for libgpgme.\n"); // TODO: "Only running external programs is supported.\n"
 	return RET_ERROR_GPGME;
 #endif /* HAVE_LIBGPGME */
@@ -1022,9 +1023,9 @@ retvalue signedfile_finalize(struct signedfile *f, bool *toolate) {
 		e = rename(f->newsignfilename, f->signfilename);
 		if( e < 0 ) {
 			e = errno;
-			fprintf(stderr, "Error moving %s to %s: %d=%m!\n",
+			fprintf(stderr, "Error %d moving %s to %s: %s!\n", e,
 					f->newsignfilename,
-					f->signfilename, e);
+					f->signfilename, strerror(e));
 			result = RET_ERRNO(e);
 			/* after something was done, do not stop
 			 * but try to do as much as possible */
@@ -1040,9 +1041,9 @@ retvalue signedfile_finalize(struct signedfile *f, bool *toolate) {
 	e = rename(f->newplainfilename, f->plainfilename);
 	if( e < 0 ) {
 		e = errno;
-		fprintf(stderr, "Error moving %s to %s: %d=%m!\n",
+		fprintf(stderr, "Error %d moving %s to %s: %s!\n", e,
 				f->newplainfilename,
-				f->plainfilename, e);
+				f->plainfilename, strerror(e));
 		r = RET_ERRNO(e);
 		RET_UPDATE(result, r);
 	} else {

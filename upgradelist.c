@@ -61,6 +61,7 @@ struct package_data {
 	 * same validity */
 	struct strlist new_filekeys;
 	struct checksumsarray new_origfiles;
+	enum filetype new_filetype;
 };
 
 struct upgradelist {
@@ -96,7 +97,7 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 	retvalue r;
 	struct package_data *package;
 
-	r = (*upgrade->target->getversion)(upgrade->target,chunk,&version);
+	r = upgrade->target->getversion(chunk, &version);
 	if( RET_WAS_ERROR(r) )
 		return r;
 
@@ -129,7 +130,7 @@ static retvalue save_package_version(struct upgradelist *upgrade, const char *pa
 			/* this should only happen if the underlying
 			 * database-method get changed, so just throwing
 			 * out here */
-			fprintf(stderr,"Package-database is not sorted!!!\n");
+			fprintf(stderr, "Package database is not sorted!!!\n");
 			assert(false);
 			exit(EXIT_FAILURE);
 		}
@@ -213,10 +214,10 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 	upgrade_decision decision;
 	struct package_data *current,*insertafter;
 
-	r = (*upgrade->target->getname)(upgrade->target,chunk,&packagename);
+	r = upgrade->target->getname(chunk, &packagename);
 	if( RET_WAS_ERROR(r) )
 		return r;
-	r = (*upgrade->target->getversion)(upgrade->target,chunk,&version);
+	r = upgrade->target->getversion(chunk, &version);
 	if( RET_WAS_ERROR(r) ) {
 		free(packagename);
 		return r;
@@ -314,7 +315,10 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		new->new_version = version;
 		new->version = version;
 		version = NULL; //to be sure...
-		r = upgrade->target->getinstalldata(upgrade->target, new->name, new->new_version, chunk, &new->new_control, &new->new_filekeys, &new->new_origfiles);
+		r = upgrade->target->getinstalldata(upgrade->target,
+				new->name, new->new_version, chunk,
+				&new->new_control, &new->new_filekeys,
+				&new->new_origfiles, &new->new_filetype);
 		if( RET_WAS_ERROR(r) ) {
 			package_data_free(new);
 			return RET_ERROR_OOM;
@@ -332,6 +336,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		char *control;
 		struct strlist files;
 		struct checksumsarray origfiles;
+		enum filetype filetype;
 		int versioncmp;
 
 		upgrade->last = current;
@@ -421,7 +426,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 //		if( versioncmp >= 0 && current->version == current->version_in_use
 //				&& current->new_version != NULL ) {
 
-		r = upgrade->target->getinstalldata(upgrade->target, packagename, version, chunk, &control, &files, &origfiles);
+		r = upgrade->target->getinstalldata(upgrade->target, packagename, version, chunk, &control, &files, &origfiles, &filetype);
 		free(packagename);
 		if( RET_WAS_ERROR(r) ) {
 			free(version);
@@ -436,6 +441,7 @@ static retvalue upgradelist_trypackage(void *data,const char *chunk){
 		strlist_move(&current->new_filekeys,&files);
 		checksumsarray_move(&current->new_origfiles, &origfiles);
 		free(current->new_control);
+		current->new_filetype = filetype;
 		current->new_control = control;
 	}
 	return RET_OK;
@@ -594,7 +600,8 @@ retvalue upgradelist_install(struct upgradelist *upgrade, struct logger *logger,
 						pkg->new_version,
 						pkg->new_control,
 						&pkg->new_filekeys, NULL, true,
-						dereferencedfilekeys, NULL, 0);
+						dereferencedfilekeys, NULL,
+						pkg->new_filetype);
 			}
 			RET_UPDATE(result,r);
 			if( RET_WAS_ERROR(r) )

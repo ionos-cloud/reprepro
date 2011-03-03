@@ -568,7 +568,7 @@ static inline bool filelistcompressor_space(struct filelistcompressor *c, size_t
 		char *n;
 
 		if( c->size > 1024*1024*1024 ) {
-			fprintf(stderr, "Ridicilous long filelist!\n");
+			fprintf(stderr, "Ridiculously long file list!\n");
 			return false;
 		}
 		c->size = c->len + len + 2048;

@@ -180,8 +180,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 
 	if( logger != NULL && oldpversion == NULL ) {
 		/* need to get the version for logging, if not available */
-		r = target->getversion(target, oldcontrol,
-				&oldpversion_ifunknown);
+		r = target->getversion(oldcontrol, &oldpversion_ifunknown);
 		if( RET_IS_OK(r) )
 			oldpversion = oldpversion_ifunknown;
 	}
@@ -191,7 +190,7 @@ retvalue target_removereadpackage(struct target *target, struct logger *logger, 
 		return r;
 	}
 	if( trackingdata != NULL ) {
-		r = target->getsourceandversion(target, oldcontrol,
+		r = target->getsourceandversion(oldcontrol,
 				name, &oldsource, &oldsversion);
 		if( !RET_IS_OK(r) ) {
 			oldsource = oldsversion = NULL;
@@ -262,8 +261,7 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 
 	if( logger != NULL && oldpversion == NULL ) {
 		/* need to get the version for logging, if not available */
-		r = target->getversion(target, control,
-				&oldpversion_ifunknown);
+		r = target->getversion(control, &oldpversion_ifunknown);
 		if( RET_IS_OK(r) )
 			oldpversion = oldpversion_ifunknown;
 	}
@@ -273,7 +271,7 @@ retvalue target_removepackage_by_cursor(struct target *target, struct logger *lo
 		return r;
 	}
 	if( trackingdata != NULL ) {
-		r = target->getsourceandversion(target, control,
+		r = target->getsourceandversion(control,
 				name, &oldsource, &oldsversion);
 		if( !RET_IS_OK(r) ) {
 			oldsource = oldsversion = NULL;
@@ -387,7 +385,7 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 		oldcontrol = NULL;
 	} else {
 
-		r = target->getversion(target,oldcontrol,&oldpversion);
+		r = target->getversion(oldcontrol, &oldpversion);
 		if( RET_WAS_ERROR(r) && !IGNORING_(brokenold,"Error parsing old version!\n") ) {
 			free(oldcontrol);
 			return r;
@@ -429,7 +427,8 @@ retvalue target_addpackage(struct target *target, struct logger *logger, struct 
 				return r;
 			}
 		} else if(trackingdata != NULL) {
-			r = (*target->getsourceandversion)(target,oldcontrol,name,&oldsource,&oldsversion);
+			r = target->getsourceandversion(oldcontrol,
+					name, &oldsource, &oldsversion);
 			if( RET_WAS_ERROR(r) ) {
 				strlist_done(ofk);
 				if( IGNORING_(brokenold,"Error searching for source name of installed version of %s!\n",name)) {
@@ -484,7 +483,7 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 	} else {
 		int versioncmp;
 
-		r = target->getversion(target,oldcontrol,&oldpversion);
+		r = target->getversion(oldcontrol, &oldpversion);
 		if( RET_WAS_ERROR(r) ) {
 			fprintf(stderr,
 "Error extracting version from old '%s' in '%s'. Database corrupted?\n", name, target->identifier);
@@ -545,8 +544,8 @@ retvalue target_checkaddpackage(struct target *target, const char *name, const c
 			return r;
 		}
 		if( tracking ) {
-			r = (*target->getsourceandversion)(target,
-					oldcontrol, name, &oldsource, &oldsversion);
+			r = target->getsourceandversion(oldcontrol,
+					name, &oldsource, &oldsversion);
 			if( RET_WAS_ERROR(r) ) {
 				fprintf(stderr,
 "Error extracting source name and version from '%s' in '%s'. Database corrupted?\n",
@@ -638,7 +637,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 	char *dummy, *version;
 	retvalue result,r;
 
-	r = target->getversion(target, chunk, &version);
+	r = target->getversion(chunk, &version);
 	if( !RET_IS_OK(r) ) {
 		fprintf(stderr, "Error extraction version number from package control info of '%s'!\n", package);
 		if( r == RET_NOTHING )
@@ -646,7 +645,7 @@ retvalue package_check(struct database *database, UNUSED(struct distribution *di
 		return r;
 	}
 	r = target->getinstalldata(target, package, version, chunk, &dummy,
-			&expectedfilekeys, &files);
+			&expectedfilekeys, &files, NULL);
 	if( RET_WAS_ERROR(r) ) {
 		fprintf(stderr, "Error extracting information of package '%s'!\n",
 				package);
@@ -782,7 +781,7 @@ retvalue package_rerunnotifiers(UNUSED(struct database *da), struct distribution
 	char *version;
 	retvalue r;
 
-	r = target->getversion(target, chunk, &version);
+	r = target->getversion(chunk, &version);
 	if( !RET_IS_OK(r) ) {
 		fprintf(stderr,"Error extraction version number from package control info of '%s'!\n",package);
 		if( r == RET_NOTHING )

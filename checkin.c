@@ -93,6 +93,8 @@ struct fileentry {
 	struct strlist needed_filekeys;
 	union { struct dsc_headers dsc;
 		struct debpackage *deb;} pkg;
+	/* only valid while parsing: */
+	struct hashes hashes;
 };
 
 struct changes {
@@ -172,7 +174,9 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 	if( e == NULL )
 		return RET_ERROR_OOM;
 
-	r = changes_parsefileline(fileline, &e->type, &e->basename, &e->checksums,
+	r = changes_parsefileline(fileline, &e->type, &e->basename,
+			&e->hashes.hashes[cs_md5sum],
+			&e->hashes.hashes[cs_length],
 			&e->section, &e->priority, &e->architecture, &e->name);
 	if( RET_WAS_ERROR(r) ) {
 		free(e);
@@ -192,7 +196,9 @@ static retvalue newentry(struct fileentry **entry,const char *fileline,const cha
 		return RET_NOTHING;
 	}
 	if( strcmp(e->architecture, "source") == 0 && strcmp(e->name, sourcename) != 0 ) {
-		fprintf(stderr,"Warning: Strange file '%s'!\nLooks like source but does not start with '%s_' as I would have guessed!\nI hope you know what you do.\n",e->basename,sourcename);
+		fprintf(stderr,
+"Warning: File '%s' looks like source but does not start with '%s_'!\n",
+				e->basename, sourcename);
 	}
 
 	if( forcearchitecture != NULL ) {
@@ -242,6 +248,56 @@ static retvalue changes_parsefilelines(const char *filename,struct changes *chan
 	return result;
 }
 
+static retvalue changes_addhashes(const char *filename, struct changes *changes, enum checksumtype cs, struct strlist *filelines) {
+	int i;
+	retvalue r;
+
+	for( i = 0 ; i < filelines->count ; i++ ) {
+		struct hash_data data, size;
+		const char *fileline = filelines->values[i];
+		struct fileentry *e;
+		const char *basename;
+
+		r = hashline_parse(filename, fileline, cs, &basename, &data, &size);
+		if( r == RET_NOTHING )
+			continue;
+		if( RET_WAS_ERROR(r) )
+			return r;
+		e = changes->files;
+		while( e != NULL && strcmp(e->basename, basename) != 0 )
+			e = e->next;
+		if( e == NULL ) {
+			fprintf(stderr,
+"In '%s': file '%s' listed in '%s' but not in 'Files'\n",
+				filename, basename, changes_checksum_names[cs]);
+			return RET_ERROR;
+		}
+		if( e->hashes.hashes[cs_length].len != size.len ||
+				memcmp(e->hashes.hashes[cs_length].start,
+					size.start, size.len) != 0 ) {
+			fprintf(stderr,
+"In '%s': file '%s' listed in '%s' with different size than in 'Files'\n",
+				filename, basename, changes_checksum_names[cs]);
+			return RET_ERROR;
+		}
+		e->hashes.hashes[cs] = data;
+	}
+	return RET_OK;
+}
+
+static retvalue changes_finishhashes(struct changes *changes) {
+	struct fileentry *e;
+	retvalue r;
+
+	for( e = changes->files ; e != NULL ; e = e->next ) {
+		r = checksums_initialize(&e->checksums, e->hashes.hashes);
+		if( RET_WAS_ERROR(r) )
+			return r;
+	}
+	return RET_OK;
+}
+
+
 static retvalue check(const char *filename,struct changes *changes,const char *field) {
 	retvalue r;
 
@@ -260,7 +316,8 @@ static retvalue check(const char *filename,struct changes *changes,const char *f
 static retvalue changes_read(const char *filename,/*@out@*/struct changes **changes,/*@null@*/const char *packagetypeonly,/*@null@*/const char *forcearchitecture) {
 	retvalue r;
 	struct changes *c;
-	struct strlist filelines;
+	struct strlist filelines[cs_hashCOUNT];
+	enum checksumtype cs;
 	bool broken;
 	int versioncmp;
 
@@ -290,7 +347,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	R;
 	if( broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
-"This most likely means the file was damaged (or edited improperly)\n",
+"This most likely means the file was damaged or edited improperly.\n",
 				filename) ) {
 		r = RET_ERROR;
 		R;
@@ -334,10 +391,34 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 	R;
 	r = check(filename,c,"Maintainer");
 	R;
-	r = chunk_getextralinelist(c->control,"Files",&filelines);
+	r = chunk_getextralinelist(c->control,
+			changes_checksum_names[cs_md5sum],
+			&filelines[cs_md5sum]);
 	E("Missing 'Files' field!");
-	r = changes_parsefilelines(filename,c,&filelines,packagetypeonly,forcearchitecture);
-	strlist_done(&filelines);
+	r = changes_parsefilelines(filename, c, &filelines[cs_md5sum],
+			packagetypeonly, forcearchitecture);
+	if( RET_WAS_ERROR(r) ) {
+		strlist_done(&filelines[cs_md5sum]);
+		changes_free(c);
+		return r;
+	}
+	for( cs = cs_firstEXTENDED ; cs < cs_hashCOUNT ; cs++ ) {
+		r = chunk_getextralinelist(c->control,
+				changes_checksum_names[cs], &filelines[cs]);
+		if( RET_IS_OK(r) )
+			r = changes_addhashes(filename, c, cs, &filelines[cs]);
+		else
+			strlist_init(&filelines[cs]);
+		if( RET_WAS_ERROR(r) ) {
+			while( cs-- > cs_md5sum )
+				strlist_done(&filelines[cs]);
+			changes_free(c);
+			return r;
+		}
+	}
+	r = changes_finishhashes(c);
+	for( cs = cs_md5sum ; cs < cs_hashCOUNT ; cs++ )
+		strlist_done(&filelines[cs]);
 	R;
 	r = dirs_getdirectory(filename,&c->incomingdirectory);
 	R;
@@ -382,7 +463,8 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 				return RET_ERROR_OOM;
 		}
 		if( strcmp(e->section,"unknown") == 0 ) {
-			fprintf(stderr,"Section '%s' of '%s' is not valid!\n",e->section,filename);
+			fprintf(stderr, "Invalid section '%s' of '%s'!\n",
+					e->section, filename);
 			return RET_ERROR;
 		}
 		if( strncmp(e->section,"byhand",6) == 0 ) {
@@ -419,7 +501,10 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		if( changes->firstcomponent == NULL ) {
 			changes->firstcomponent = e->component;
 		} else if( strcmp(changes->firstcomponent,e->component) != 0)  {
-				fprintf(stderr,"Warning: %s contains files guessed to be in different components ('%s' vs '%s)!\nI hope you know what you do and this is not the cause of some broken override file.\n",filename,e->component,changes->firstcomponent);
+				fprintf(stderr,
+"Warning: %s contains files guessed to be in different components ('%s' vs '%s)!\n",
+					filename, e->component,
+					changes->firstcomponent);
 		}
 
 		if( FE_SOURCE(e->type) ) {
@@ -486,7 +571,9 @@ static inline retvalue checkforarchitecture(const struct fileentry *e,const char
 	while( e !=NULL && strcmp(e->architecture,architecture) != 0 )
 		e = e->next;
 	if( e == NULL ) {
-		if( !IGNORING_(unusedarch,"Architecture-header lists architecture '%s', but no files for this!\n",architecture))
+		if( !IGNORING_(unusedarch,
+"Architecture header lists architecture '%s', but no files for it!\n",
+				architecture))
 			return RET_ERROR;
 	}
 	return RET_OK;
@@ -503,7 +590,7 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		if( !strlist_in(&changes->architectures,forcearchitecture) ){
 			// TODO: check if this is sensible
 			if( !IGNORING_(surprisingarch,
-				     "Architecture-header does not list the"
+				     "Architecture header does not list the"
 				     " architecture '%s' to be forced in!\n",
 					forcearchitecture))
 				return RET_ERROR_MISSING;
@@ -548,7 +635,8 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 		if( e->type == fe_DSC ) {
 			char *calculatedname;
 			if( havedsc ) {
-				fprintf(stderr,"I don't know what to do with multiple .dsc files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .dsc files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			havedsc = true;
@@ -556,26 +644,31 @@ static retvalue changes_check(const char *filename,struct changes *changes,/*@nu
 			if( calculatedname == NULL )
 				return RET_ERROR_OOM;
 			if( strcmp(calculatedname,e->basename) != 0 ) {
-				fprintf(stderr,"dsc-filename is '%s' instead of the expected '%s'!\n",e->basename,calculatedname);
+				fprintf(stderr,
+"dsc file name is '%s' instead of the expected '%s'!\n",
+					e->basename, calculatedname);
 				free(calculatedname);
 				return RET_ERROR;
 			}
 			free(calculatedname);
 		} else if( e->type == fe_DIFF ) {
 			if( havediff ) {
-				fprintf(stderr,"I don't know what to do with multiple .diff files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .diff files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			havediff = true;
 		} else if( e->type == fe_ORIG ) {
 			if( haveorig ) {
-				fprintf(stderr,"I don't know what to do with multiple .orig.tar.gz files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .orig.tar.gz files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			haveorig = true;
 		} else if( e->type == fe_TAR ) {
 			if( havetar ) {
-				fprintf(stderr,"I don't know what to do with multiple .tar.gz files in '%s'!\n",filename);
+				fprintf(stderr,
+"I don't know what to do with multiple .tar.gz files in '%s'!\n", filename);
 				return RET_ERROR;
 			}
 			havetar = true;
@@ -720,7 +813,7 @@ static void check_all_files_included(struct database *database, struct changes *
 		}
 
 		fprintf(stderr, "Warning: File '%s' was listed in the .changes\n"
-			" but looks like not used. Checking for references...\n",
+			" but seems unused. Checking for references...\n",
 			e->filekey);
 		r = references_isused(database, e->filekey);
 		if( r == RET_NOTHING ) {
@@ -781,14 +874,14 @@ static retvalue changes_check_sourcefile(struct changes *changes, struct fileent
 		fprintf(stderr,
 "Unable to find %s needed by %s!\n"
 "Perhaps you forgot to give dpkg-buildpackage the -sa option,\n"
-" or you cound try --ignore=missingfile, to guess possible files to use.\n",
+" or you could try --ignore=missingfile to guess possible files to use.\n",
 			filekey, dsc->basename);
 		return RET_ERROR_MISSING;
 	}
 	fprintf(stderr,
 "Unable to find %s!\n"
 "Perhaps you forgot to give dpkg-buildpackage the -sa option.\n"
-"Searching for it because --ignore=missingfile was given...\n", filekey);
+"--ignore=missingfile was given, searching for file...\n", filekey);
 
 	// TODO: if this is included and a error occours, it currently stays.
 	// how can this be fixed?
@@ -825,7 +918,7 @@ static retvalue dsc_prepare(struct changes *changes, struct fileentry *dsc, stru
 	r = sources_readdsc(&dsc->pkg.dsc, dscfilename, dscfilename, &broken);
 	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
-"This most likely means the file was damaged (or edited improperly)\n",
+"This most likely means the file was damaged or edited improperly\n",
 				dscfilename) )
 		r = RET_ERROR;
 	if( RET_IS_OK(r) )
@@ -1052,6 +1145,8 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 	struct trackingdata trackingdata;
 	bool somethingwasmissed;
 
+	causingfile = changesfilename;
+
 	r = changes_read(changesfilename,&changes,packagetypeonly,forcearchitecture);
 	if( RET_WAS_ERROR(r) )
 		return r;
@@ -1241,7 +1336,9 @@ retvalue changes_add(struct database *database,trackingdb const tracks,const cha
 				printf("Deleting '%s'.\n",changesfilename);
 			}
 			if( unlink(changesfilename) != 0 ) {
-				fprintf(stderr,"Error deleting '%s': %m\n",changesfilename);
+				int e = errno;
+				fprintf(stderr, "Error %d deleting '%s': %s\n",
+						e, changesfilename, strerror(e));
 			}
 		}
 	}

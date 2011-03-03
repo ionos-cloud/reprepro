@@ -14,19 +14,17 @@
 
 
 /* Functions for the target.h-stuff: */
-retvalue binaries_getname(struct target *t,const char *chunk,char **packagename);
-retvalue binaries_getversion(struct target *t,const char *chunk,char **version);
-retvalue binaries_getinstalldata(struct target *t, const char *packagename, const char *version, const char *chunk, /*@out@*/char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles);
+retvalue binaries_getname(const char *chunk,char **packagename);
+retvalue binaries_getversion(const char *chunk,char **version);
+retvalue binaries_getinstalldata(const struct target *t, const char *packagename, const char *version, const char *chunk, /*@out@*/char **control, /*@out@*/struct strlist *filekeys, /*@out@*/struct checksumsarray *origfiles, /*@null@*//*@out@*/enum filetype *);
 retvalue binaries_getfilekeys(const char *chunk, /*@out@*/struct strlist *);
 retvalue binaries_getchecksums(const char *chunk, /*@out@*/struct checksumsarray *);
-char *binaries_getupstreamindex(struct target *target,const char *suite_from,
-		const char *component_from,const char *architecture);
-char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,
-		const char *component_from,const char *architecture);
+char *binaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture);
+char *ubinaries_getupstreamindex(const char *suite_from, const char *component_from, const char *architecture);
 retvalue binaries_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue ubinaries_doreoverride(const struct distribution *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 retvalue binaries_retrack(const char *packagename, const char *chunk, trackingdb tracks, struct database *);
-retvalue binaries_getsourceandversion(struct target *,const char *chunk,const char *packagename,char **source,char **version);
+retvalue binaries_getsourceandversion(const char *chunk, const char *packagename, char **source, char **version);
 
 /* Functions for checkindeb.c and incoming.c: */
 

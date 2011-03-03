@@ -95,7 +95,8 @@ retvalue ar_open(/*@out@*/struct ar_archive **n, const char *filename) {
 	ar->fd = open(filename,O_NOCTTY|O_RDONLY);
 	if( ar->fd < 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error opening %s: %m\n",filename);
+		fprintf(stderr, "Error %d opening %s: %s\n",
+				e, filename, strerror(e));
 		free(ar);
 		return RET_ERRNO(e);
 	}
@@ -106,7 +107,8 @@ retvalue ar_open(/*@out@*/struct ar_archive **n, const char *filename) {
 		(void)close(ar->fd);
 		free(ar);
 		if( bytesread < 0 ) {
-			fprintf(stderr,"Error reading from %s: %s\n",filename,strerror(e));
+			fprintf(stderr, "Error %d reading from %s: %s\n",
+					e, filename, strerror(e));
 			return RET_ERRNO(e);
 		} else {
 			fprintf(stderr,"Premature end of reading from %s\n",filename);
@@ -116,7 +118,7 @@ retvalue ar_open(/*@out@*/struct ar_archive **n, const char *filename) {
 	if( memcmp(buffer,AR_MAGIC,sizeof(AR_MAGIC)-1) != 0 ) {
 		(void)close(ar->fd);
 		free(ar);
-		fprintf(stderr,"Missing ar-header '!<arch>' at the beginning of %s\n",filename);
+		fprintf(stderr, "Missing ar header '!<arch>' at the beginning of %s\n", filename);
 		return RET_ERROR;
 	}
 	ar->filename = strdup(filename);
@@ -154,7 +156,9 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 		s = lseek(ar->fd,ar->bytes_left+(ar->wasodd?1:0),SEEK_CUR);
 		if( s == (off_t)-1 ) {
 			int e = errno;
-			fprintf(stderr,"Error seeking to next member in ar-file %s: %s\n",ar->filename,strerror(e));
+			fprintf(stderr,
+"Error %d seeking to next member in ar file %s: %s\n",
+					e, ar->filename, strerror(e));
 			return RET_ERRNO(e);
 		}
 	}
@@ -169,15 +173,18 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 	if( bytesread != sizeof(ar->currentheader) ){
 		int e = errno;
 		if( bytesread < 0 ) {
-			fprintf(stderr,"Error reading from ar-file %s: %s\n",ar->filename,strerror(e));
+			fprintf(stderr,
+"Error %d reading from ar file %s: %s\n",
+				e, ar->filename, strerror(e));
 			return RET_ERRNO(e);
 		} else {
-			fprintf(stderr,"Premature end of ar-file %s\n",ar->filename);
+			fprintf(stderr, "Premature end of ar file %s\n",
+					ar->filename);
 			return RET_ERROR;
 		}
 	}
 	if( memcmp(ar->currentheader.ah_magictrailer,AR_HEADERMAGIC,2) != 0 ) {
-		fprintf(stderr,"Corrupt ar-file %s\n",ar->filename);
+		fprintf(stderr, "Corrupt ar file %s\n", ar->filename);
 		return RET_ERROR;
 	}
 
@@ -187,7 +194,8 @@ retvalue ar_nextmember(struct ar_archive *ar,/*@out@*/char **filename) {
 
 	ar->bytes_left = strtoul(ar->currentheader.ah_size,&p,10);
 	if( *p != '\0' && *p != ' ' ) {
-		fprintf(stderr,"Error calculating length field in ar-file %s\n",ar->filename);
+		fprintf(stderr, "Error calculating length field in ar file %s\n",
+				ar->filename);
 		return RET_ERROR;
 	}
 	if( (ar->bytes_left & 1) != 0 )
@@ -222,7 +230,9 @@ ssize_t ar_archivemember_read(struct archive *a, void *d, const void **p) {
 	*p = ar->readbuffer;
 	bytesread = read(ar->fd,ar->readbuffer,(ar->bytes_left > BLOCKSIZE)?BLOCKSIZE:ar->bytes_left);
 	if( bytesread < 0 ) {
-		archive_set_error(a,errno,"Error reading from file: %m");
+		int e = errno;
+		archive_set_error(a, e, "Error %d reading from file: %s",
+				e, strerror(e));
 		return -1;
 	}
 	if( bytesread == 0 ) {

@@ -120,14 +120,15 @@ retvalue downloadcache_add(struct downloadcache *cache, struct database *databas
 		assert( i->todo->filekey != NULL );
 		if( !checksums_check(i->todo->checksums, checksums, &improves) ) {
 			fprintf(stderr,
-"ERROR: the same file is requested with conflicting checksums:\n"
+"ERROR: Same file is requested with conflicting checksums:\n"
 "'%s':\n",			i->todo->uri);
 			checksums_printdifferences(stderr,
 					i->todo->checksums, checksums);
 			return RET_ERROR_WRONG_MD5;
 		}
 		if( improves ) {
-			r = checksums_combine(&i->todo->checksums, checksums);
+			r = checksums_combine(&i->todo->checksums,
+					checksums, NULL);
 			if( RET_WAS_ERROR(r) )
 				return r;
 		}

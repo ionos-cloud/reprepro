@@ -68,12 +68,12 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 		return r;
 	if( flags[cf_dummy] ) {
 		(void)fputs(
-"Warning: Contents-headers in conf/distribution no longer need an\n"
+"Warning: Contents headers in conf/distribution no longer need an\n"
 "rate argument. Ignoring the number there, this might cause a error\n"
 "future versions.\n", stderr);
 	} else if( flags[cf_disable] ) {
 		(void)fputs(
-"Warning: Contents-headers in conf/distribution no longer need an\n"
+"Warning: Contents headers in conf/distribution no longer need an\n"
 "rate argument. Treating the '0' as sign to not activate Contents-\n"
 "-generation, but it will cause an error in future version.\n", stderr);
 		distribution->contents.flags.enabled = false;
@@ -83,8 +83,8 @@ retvalue contentsoptions_parse(struct distribution *distribution, struct configi
 	if( flags[cf_bz2] ) {
 		fprintf(stderr,
 "Warning: Ignoring request to generate .bz2'ed Contents files.\n"
-"(not compiled with libbzip2, so no support available.)\n"
-"Request was in %s in the Contents-header ending in line %u\n",
+"(bzip2 support disabled at build time.)\n"
+"Request was in %s in the Contents header ending in line %u\n",
 			config_filename(iter), config_line(iter));
 		flags[cf_bz2] = false;
 	}

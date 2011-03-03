@@ -281,9 +281,9 @@ testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
 *=Warning: ignored error parsing config file ./conf/incoming, line 5, column 22:
-*=Unknown flag in Permit-header. (but not within the rule we are intrested in.)
+*=Unknown flag in Permit header. (but not within the rule we are intrested in.)
 *=Warning: ignored error parsing config file ./conf/incoming, line 6, column 23:
-*=Unknown flag in Cleanup-header. (but not within the rule we are intrested in.)
+*=Unknown flag in Cleanup header. (but not within the rule we are intrested in.)
 *=Error parsing config file ./conf/incoming, line 13:
 *=Required field 'IncomingDir' expected (since line 11).
 -v0*=There have been errors!
@@ -304,7 +304,7 @@ EOF
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
-*=There ia neither a 'Allow' nor a 'Default' definition in rule 'default'
+*=There is neither an 'Allow' nor a 'Default' definition in rule 'default'
 *=(starting at line 5, ending at line 8 of ./conf/incoming)!
 *=Aborting as nothing would be let in.
 -v0*=There have been errors!
@@ -335,8 +335,10 @@ mkdir i
 testrun "" -b . processincoming default
 (cd i ; PACKAGE=bird EPOCH="" VERSION=1 REVISION="" SECTION="tasty" genpackage.sh)
 echo returned: $?
-DSCMD5S="$(md5sum i/bird_1.dsc | cut -d' ' -f1) $(stat -c '%s' i/bird_1.dsc)"
-TARMD5S="$(md5sum i/bird_1.tar.gz | cut -d' ' -f1) $(stat -c '%s' i/bird_1.tar.gz)"
+DSCMD5S="$(mdandsize i/bird_1.dsc)"
+TARMD5S="$(mdandsize i/bird_1.tar.gz)"
+DSCSHA1S="$(sha1andsize i/bird_1.dsc)"
+TARSHA1S="$(sha1andsize i/bird_1.tar.gz)"
 testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
@@ -445,7 +447,11 @@ Directory: pool/dog/b/bird
 'f a
  $DSCMD5S bird_1.dsc
 .
+g/^Checksums-/.,$d
 $ a
+Checksums-Sha1: 
+ $DSCSHA1S bird_1.dsc
+ $TARSHA1S bird_1.tar.gz
 
 .
 w
@@ -562,7 +568,11 @@ Directory: pool/cat/b/bird
 'f a
  $DSCMD5S bird_1.dsc
 .
+g/^Checksums-/.,$d
 $ a
+Checksums-Sha1: 
+ $DSCSHA1S bird_1.dsc
+ $TARSHA1S bird_1.tar.gz
 
 .
 w
@@ -570,6 +580,8 @@ q
 EOF
 BIRDDSCMD5S="$DSCMD5S"
 BIRDTARMD5S="$TARMD5S"
+BIRDDSCSHA1S="$DSCSHA1S"
+BIRDTARSHA1S="$TARSHA1S"
 gunzip -c dists/B/cat/source/Sources.gz > results
 dodiff results.expected results
 
@@ -814,7 +826,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find Maintainer-header in control file of ./temp/debfilename_debfileversion~2_all.deb!
+*=No Maintainer field in ./temp/debfilename_debfileversion~2_all.deb's control file!
 -v0*=There have been errors!
 EOF
 echo "Maintainer: noone <me@nowhere>" >> pkg/DEBIAN/control
@@ -826,7 +838,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find Description-header in control file of ./temp/debfilename_debfileversion~2_all.deb!
+*=No Description field in ./temp/debfilename_debfileversion~2_all.deb's control file!
 -v0*=There have been errors!
 EOF
 echo ...
@@ -840,7 +852,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find Architecture-header in control file of ./temp/debfilename_debfileversion~2_all.deb!
+*=No Architecture field in ./temp/debfilename_debfileversion~2_all.deb's control file!
 -v0*=There have been errors!
 EOF
 echo "Architecture: coal" >> pkg/DEBIAN/control
@@ -874,7 +886,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Source-header 'sourceinchanges' of 'test.changes' and source name 'sourceindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
+*=Source header 'sourceinchanges' of 'test.changes' and source name 'sourceindeb' within the file 'indebname_debfileversion~2_all.deb' do not match!
 -v0*=There have been errors!
 EOF
 sed -i -e 's/sourceinchanges/sourceindeb/' i/test.changes
@@ -891,7 +903,7 @@ returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'sourceversionindeb' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Name 'indebname' of binary 'indebname_debfileversion~2_all.deb' is not listed in Binaries-header of 'test.changes'!
+*=Name 'indebname' of binary 'indebname_debfileversion~2_all.deb' is not listed in Binaries header of 'test.changes'!
 -v0*=There have been errors!
 EOF
 sed -i -e 's/binaryinchanges/indebname/' i/test.changes
@@ -903,7 +915,7 @@ stderr
 *=No section found for 'indebname' ('indebname_debfileversion~2_all.deb' in 'test.changes')!
 -v0*=There have been errors!
 EOF
-echo "Section: test" >> pkg/DEBIAN/control
+echo "Section: sectiontest" >> pkg/DEBIAN/control
 dpkg-deb -b pkg i/indebname_debfileversion~2_all.deb
 DEBMD5S="$(md5sum i/indebname_debfileversion~2_all.deb | cut -d' ' -f1) $(stat -c '%s' i/indebname_debfileversion~2_all.deb)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
@@ -1026,7 +1038,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Missing 'Source'-header in dscfilename_fileversion~.dsc!
+*=Missing 'Source' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Source: nameindsc" > i/dscfilename_fileversion~.dsc
@@ -1037,7 +1049,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find 'Format'-header in dscfilename_fileversion~.dsc!
+*=Cannot find 'Format' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Format: 1.0" >> i/dscfilename_fileversion~.dsc
@@ -1048,7 +1060,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find 'Maintainer'-header in dscfilename_fileversion~.dsc!
+*=Cannot find 'Maintainer' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Maintainer: guess who <me@nowhere>" >> i/dscfilename_fileversion~.dsc
@@ -1059,8 +1071,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Cannot find 'Standards-Version'-header in dscfilename_fileversion~.dsc!
-*=Missing 'Version'-header in dscfilename_fileversion~.dsc!
+*=Missing 'Version' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Standards-Version: 0" >> i/dscfilename_fileversion~.dsc
@@ -1071,7 +1082,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Missing 'Version'-header in dscfilename_fileversion~.dsc!
+*=Missing 'Version' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo "Version: versionindsc" >> i/dscfilename_fileversion~.dsc
@@ -1082,7 +1093,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Missing 'Files'-header in dscfilename_fileversion~.dsc!
+*=Missing 'Files' field in 'dscfilename_fileversion~.dsc'!
 -v0*=There have been errors!
 EOF
 echo "Files:  " >> i/dscfilename_fileversion~.dsc
@@ -1104,7 +1115,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Source-header 'sourceinchanges' of 'test.changes' and name 'dscfilename' within the file 'dscfilename_fileversion~.dsc' do not match!
+*=Source header 'sourceinchanges' of 'test.changes' and name 'dscfilename' within the file 'dscfilename_fileversion~.dsc' do not match!
 -v0*=There have been errors!
 EOF
 sed -i 's/^Source: sourceinchanges$/Source: dscfilename/' i/test.changes
@@ -1144,12 +1155,13 @@ returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
 =Warning: Package version 'versionindsc' does not start with a digit, violating 'should'-directive in policy 5.6.11
-*=Cannot find 'Format'-header in dscfilename_fileversion~.dsc!
+*=Cannot find 'Format' field in dscfilename_fileversion~.dsc!
 -v0*=There have been errors!
 EOF
 echo -e "1i\nFormat: 1.0\n.\nw\nq\n" | ed -s i/dscfilename_fileversion~.dsc
-DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc )"
 OLDDSCFILENAMEMD5S="$DSCMD5S"
+OLDDSCFILENAMESHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy can't-live-without dscfilename_fileversion~.dsc" >> i/test.changes
 checknolog logfile
@@ -1204,8 +1216,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Error in parsing md5hash or missing space afterwards!
-*=Error was parsing dscfilename_fileversion~.dsc
+*=Error parsing md5 checksum line ' md5sumindsc sizeindsc strangefile' within 'dscfilename_fileversion~.dsc'
 -v0*=There have been errors!
 EOF
 sed -i "s/ md5sumindsc / dddddddddddddddddddddddddddddddd /" i/dscfilename_fileversion~.dsc
@@ -1217,8 +1228,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=Error in parsing size or missing space afterwards!
-*=Error was parsing dscfilename_fileversion~.dsc
+*=Error parsing md5 checksum line ' dddddddddddddddddddddddddddddddd sizeindsc strangefile' within 'dscfilename_fileversion~.dsc'
 -v0*=There have been errors!
 EOF
 sed -i "s/ sizeindsc / 666 /" i/dscfilename_fileversion~.dsc
@@ -1238,7 +1248,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-*=No underscore in filename in '11111111111111111111111111111111 666 - - strangefile'!
+*=No underscore found in file name in '11111111111111111111111111111111 666 - - strangefile'!
 -v0*=There have been errors!
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/test.changes
@@ -1247,7 +1257,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 249
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: '11111111111111111111111111111111 666 - - strangefile_xyz', assuming to be source format...
+=Unknown file type: '11111111111111111111111111111111 666 - - strangefile_xyz', assuming source format...
 *=In 'test.changes': file 'strangefile_xyz' not found in the incoming dir!
 -v0*=There have been errors!
 EOF
@@ -1256,7 +1266,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: '11111111111111111111111111111111 666 - - strangefile_xyz', assuming to be source format...
+=Unknown file type: '11111111111111111111111111111111 666 - - strangefile_xyz', assuming source format...
 *=file 'strangefile' is needed for 'dscfilename_fileversion~.dsc', not yet registered in the pool and not found in 'test.changes'
 -v0*=There have been errors!
 EOF
@@ -1266,7 +1276,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 254
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: 'dddddddddddddddddddddddddddddddd 666 - - strangefile_xyz', assuming to be source format...
+=Unknown file type: 'dddddddddddddddddddddddddddddddd 666 - - strangefile_xyz', assuming source format...
 *=ERROR: File 'strangefile_xyz' does not match expectations:
 *=md5 expected: dddddddddddddddddddddddddddddddd, got: 31a1096ff883d52f0c1f39e652d6336f
 *=size expected: 666, got: 33
@@ -1274,8 +1284,10 @@ stderr
 EOF
 echo -e '$d\nw\nq\n' | ed -s i/dscfilename_fileversion~.dsc
 echo " 31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz" >> i/dscfilename_fileversion~.dsc
-DSCMD5S="$(md5sum i/dscfilename_fileversion~.dsc | cut -d' ' -f1) $(stat -c '%s' i/dscfilename_fileversion~.dsc)"
+DSCMD5S="$(mdandsize i/dscfilename_fileversion~.dsc)"
+DSCSHA1S="$(sha1andsize i/dscfilename_fileversion~.dsc)"
 DSCFILENAMEMD5S="$DSCMD5S"
+DSCFILENAMESHA1S="$DSCSHA1S"
 echo -e '$-1,$d\nw\nq\n' | ed -s i/test.changes
 echo " $DSCMD5S dummy unneeded dscfilename_fileversion~.dsc" >> i/test.changes
 echo " 33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz" >> i/test.changes
@@ -1283,7 +1295,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 255
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: '33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
+=Unknown file type: '33a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming source format...
 *=file 'strangefile_xyz' has conflicting checksums listed in 'test.changes' and 'dscfilename_fileversion~.dsc'!
 -v0*=There have been errors!
 EOF
@@ -1345,7 +1357,11 @@ Directory: pool/dog/b/bird
 'f a
  $BIRDDSCMD5S bird_1.dsc
 .
+g/^Checksums-/.,$d
 $ a
+Checksums-Sha1: 
+ $BIRDDSCSHA1S bird_1.dsc
+ $BIRDTARSHA1S bird_1.tar.gz
 
 .
 w
@@ -1362,6 +1378,8 @@ Section: dummy
 Directory: pool/dog/d/dscfilename
 Files: 
  $OLDDSCFILENAMEMD5S dscfilename_versionindsc.dsc
+Checksums-Sha1: 
+ $OLDDSCFILENAMESHA1S dscfilename_versionindsc.dsc
 
 EOF
 dodiff results.expected results
@@ -1418,7 +1436,8 @@ EOF
 # Remove contents from original, to make them more look alike:
 for n in dists/B/Release dists/B/snapshots/now/Release dists/A/Release dists/A/snapshots/now/Release ; do
 	ed -s $n <<EOF
-g/Date:/s/ .*/ unified/
+g/^Date: /s/ .*/ unified/
+g,^Suite: ./snapshots/now$,d
 w
 q
 EOF
@@ -1443,7 +1462,7 @@ testrun - -b . processincoming default 3<<EOF
 returns 0
 stderr
 -v0=Data seems not to be signed trying to use directly...
-=Unknown filetype: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming to be source format...
+=Unknown file type: '31a1096ff883d52f0c1f39e652d6336f 33 - - strangefile_xyz', assuming source format...
 stdout
 -e1*=db: 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc' added to files.db(md5sums).
 -d1*=db: 'pool/dog/d/dscfilename/dscfilename_newversion~.dsc' added to checksums.db(pool).
@@ -1526,6 +1545,9 @@ Directory: pool/dog/d/dscfilename
 Files: 
  $DSCFILENAMEMD5S dscfilename_newversion~.dsc
  31a1096ff883d52f0c1f39e652d6336f 33 strangefile_xyz
+Checksums-Sha1: 
+ $DSCFILENAMESHA1S dscfilename_newversion~.dsc
+ 4453da6ca46859b207c5b55af6213ff8369cd383 33 strangefile_xyz
 
 EOF
 dodiff results.expected results
@@ -2543,7 +2565,7 @@ DATESTR replace test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app-addons 99:9.0
 DATESTR replace test1 deb ugly ${FAKEARCHITECTURE} bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 DATESTR replace test1 dsc ugly source bloat+-0a9z.app 99:9.0-A:Z+a:z-0+aA.9zZ 99:0.9-A:Z+a:z-0+aA.9zZ
 EOF
-testrun - -b . -S test -P test includedeb test1 simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
+testrun - -b . -S sectiontest -P prioritytest includedeb test1 simple_1_${FAKEARCHITECTURE}.deb 3<<EOF
 stderr
 -v1*=simple_1_${FAKEARCHITECTURE}.deb: component guessed as 'stupid'
 stdout
@@ -2561,10 +2583,12 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+dodo zgrep '^Section: sectiontest' dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages.gz
+dodo zgrep '^Priority: prioritytest' dists/test1/stupid/binary-${FAKEARCHITECTURE}/Packages.gz
 checklog log1 <<EOF
 DATESTR add test1 deb stupid ${FAKEARCHITECTURE} simple 1
 EOF
-testrun - -b . -S test -P test includedsc test1 simple_1.dsc 3<<EOF
+testrun - -b . -S sectiontest -P prioritytest includedsc test1 simple_1.dsc 3<<EOF
 stderr
 -v0=Data seems not to be signed trying to use directly...
 -v1*=simple_1.dsc: component guessed as 'stupid'
@@ -2582,6 +2606,8 @@ stdout
 -v6*= looking for changes in 'test1|ugly|source'...
 EOF
 echo returned: $?
+dodo zgrep '^Section: sectiontest' dists/test1/stupid/source/Sources.gz
+dodo zgrep '^Priority: prioritytest' dists/test1/stupid/source/Sources.gz
 checklog log1 <<EOF
 DATESTR add test1 dsc stupid source simple 1
 EOF
@@ -2630,7 +2656,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/stupid/t/test/test_1.orig.tar.gz needed by test_1-2.dsc!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option,
-*= or you cound try --ignore=missingfile, to guess possible files to use.
+*= or you could try --ignore=missingfile to guess possible files to use.
 -v0*=There have been errors!
 stdout
 -v2*=Created directory "./pool/stupid/t"
@@ -2665,7 +2691,7 @@ stderr
 -v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/stupid/t/test/test_1.orig.tar.gz!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option.
-*=Searching for it because --ignore=missingfile was given...
+*=--ignore=missingfile was given, searching for file...
 stdout
 -v2*=Created directory "./pool/stupid/t"
 -v2*=Created directory "./pool/stupid/t/test"
@@ -3326,8 +3352,8 @@ testrun - -b . --confdir conf2 --ignore=undefinedtarget update 3<<EOF
 *=Error: packages database contains unused 'test2|ugly|source' database.
 *=Error: tracking database contains unused 'test1' database.
 *=This either means you removed a distribution from the distributions config
-*=file without calling clearvanished (or at least removealltracks), you were
-*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
+*=file without calling clearvanished (or at least removealltracks), you
+*=experienced a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=To ignore use --ignore=undefinedtracking.
 -v0*=There have been errors!
@@ -3341,8 +3367,8 @@ testrun - -b . --confdir conf2 --ignore=undefinedtarget --ignore=undefinedtracki
 *=Ignoring as --ignore=undefinedtarget given.
 *=Error: tracking database contains unused 'test1' database.
 *=This either means you removed a distribution from the distributions config
-*=file without calling clearvanished (or at least removealltracks), you were
-*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
+*=file without calling clearvanished (or at least removealltracks), you
+*=experienced a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=Ignoring as --ignore=undefinedtracking given.
 *=Error: packages database contains unused 'test1|ugly|${FAKEARCHITECTURE}' database.
@@ -3377,8 +3403,8 @@ stderr
 *=Error: packages database contains unused 'test2|ugly|source' database.
 *=Error: tracking database contains unused 'test1' database.
 *=This either means you removed a distribution from the distributions config
-*=file without calling clearvanished (or at least removealltracks), you were
-*=bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your
+*=file without calling clearvanished (or at least removealltracks), you
+*=experienced a bug in retrack in versions < 3.0.0, you found a new bug or your
 *=config does not belong to this database.
 *=Ignoring as --ignore=undefinedtracking given.
 stdout
@@ -3484,8 +3510,7 @@ testrun - -b . --ignore=missingfield include test2 broken.changes 3<<EOF
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-*=Warning: Strange file 'filename_version.tar.gz'!
-=Looks like source but does not start with 'nowhere_' as I would have guessed!
+*=Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
 =I hope you know what you do.
 # grr, this message has really to improve...
 =Warning: Package version 'version.tar.gz' does not start with a digit, violating 'should'-directive in policy 5.6.11
@@ -3500,12 +3525,11 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=Warning: Strange file 'filename_version.tar.gz'!
-=Looks like source but does not start with 'nowhere_' as I would have guessed!
+=Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
 =I hope you know what you do.
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
-*=Architecture-header lists architecture 'brain', but no files for this!
+*=Architecture header lists architecture 'brain', but no files for it!
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
@@ -3520,17 +3544,16 @@ testrun - -b . --ignore=unusedarch --ignore=surprisingarch --ignore=wrongdistrib
 =In 'broken.changes': Missing 'Urgency' field!
 =Ignoring as --ignore=missingfield given.
 =In 'broken.changes': Missing 'Maintainer' field!
-=Warning: Strange file 'filename_version.tar.gz'!
-*=Looks like source but does not start with 'nowhere_' as I would have guessed!
+=Warning: File 'filename_version.tar.gz' looks like source but does not start with 'nowhere_'!
 =I hope you know what you do.
 *=.changes put in a distribution not listed within it!
 *=Ignoring as --ignore=wrongdistribution given.
-*=Architecture-header lists architecture 'brain', but no files for this!
+*=Architecture header lists architecture 'brain', but no files for it!
 *=Ignoring as --ignore=unusedarch given.
 *='filename_version.tar.gz' looks like architecture 'source', but this is not listed in the Architecture-Header!
 *=Ignoring as --ignore=surprisingarch given.
 *=Warning: File 'pool/stupid/n/nowhere/filename_version.tar.gz' was listed in the .changes
-*= but looks like not used. Checking for references...
+*= but seems unused. Checking for references...
 = indeed unused, deleting it...
 stdout
 -v2*=Created directory "./pool/stupid/n"
@@ -3669,8 +3692,7 @@ cat >> broken.changes <<EOF
 EOF
 testrun - -b . include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: Strange file '4test_b.1-1.tar.gz'!
-*=Looks like source but does not start with 'differently_' as I would have guessed!
+*=Warning: File '4test_b.1-1.tar.gz' looks like source but does not start with 'differently_'!
 =I hope you know what you do.
 *='./pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' has packagename '4test' not listed in the .changes file!
 *=To ignore use --ignore=surprisingbinary.
@@ -3699,8 +3721,7 @@ returns 255
 EOF
 testrun - -b . --ignore=surprisingbinary include test2 broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
-*=Warning: Strange file '4test_b.1-1.tar.gz'!
-*=Looks like source but does not start with 'differently_' as I would have guessed!
+*=Warning: File '4test_b.1-1.tar.gz' looks like source but does not start with 'differently_'!
 =I hope you know what you do.
 *='./pool/stupid/d/differently/4test_b.1-1_${FAKEARCHITECTURE}.deb' has packagename '4test' not listed in the .changes file!
 *=Ignoring as --ignore=surprisingbinary given.
@@ -4502,7 +4523,7 @@ testrun - -b . --delete --delete include a broken.changes 3<<EOF
 -v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/all/a/ab/ab_3-1.tar.gz needed by ab_3-1.dsc!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option,
-= or you cound try --ignore=missingfile, to guess possible files to use.
+= or you could try --ignore=missingfile to guess possible files to use.
 -v0*=There have been errors!
 stdout
 -e1*=db: 'pool/all/a/ab/ab_3-1.dsc' added to files.db(md5sums).
@@ -4531,9 +4552,9 @@ testrun - -b . -T dsc --delete --delete --ignore=missingfile include a broken.ch
 -v0=Data seems not to be signed trying to use directly...
 *=Unable to find pool/all/a/ab/ab_3-1.tar.gz!
 *=Perhaps you forgot to give dpkg-buildpackage the -sa option.
-*=Searching for it because --ignore=missingfile was given...
+*=--ignore=missingfile was given, searching for file...
 *=Warning: File 'pool/all/a/ab/ab_3-1.diff.gz' was listed in the .changes
-*= but looks like not used. Checking for references...
+*= but seems unused. Checking for references...
 *= indeed unused, deleting it...
 stdout
 -e1*=db: 'pool/all/a/ab/ab_3-1.tar.gz' added to files.db(md5sums).
@@ -4680,18 +4701,17 @@ test -f pool/all/a/aa/aa_1-3_${FAKEARCHITECTURE}.deb
 testrun - -b . copy b a ab ac 3<<EOF
 stdout
 -v9*=Adding reference to 'pool/all/a/ab/ab_3-1_${FAKEARCHITECTURE}.deb' by 'b|all|${FAKEARCHITECTURE}'
--v1*=Moving 'ab' from 'a|all|${FAKEARCHITECTURE}' to 'b|all|${FAKEARCHITECTURE}'.
+-v1*=Adding 'ab' '3-1' to 'b|all|${FAKEARCHITECTURE}'.
 -v3*=Not looking into 'a|all|source' as no matching target in 'b'!
--v3*=No instance of 'ab' found in 'a|all|source'!
--v3*=No instance of 'ac' found in 'a|all|${FAKEARCHITECTURE}'!
--v3*=No instance of 'ac' found in 'a|all|source'!
--v1*=Looking for 'ab' in 'a' to be copied to 'b'...
 -d1*=db: 'ab' added to packages.db(b|all|${FAKEARCHITECTURE}).
--v1*=Looking for 'ac' in 'a' to be copied to 'b'...
 -v0*=Exporting indices...
 -v6*= looking for changes in 'b|all|${FAKEARCHITECTURE}'...
 -v6*=  replacing './dists/b/all/binary-${FAKEARCHITECTURE}/Packages' (uncompressed,gzipped)
 EOF
+# readd?
+#-v3*=No instance of 'ab' found in 'a|all|source'!
+#-v3*=No instance of 'ac' found in 'a|all|${FAKEARCHITECTURE}'!
+#-v3*=No instance of 'ac' found in 'a|all|source'!
 checklog logab <<EOF
 DATESTR add b deb all ${FAKEARCHITECTURE} ab 3-1
 EOF

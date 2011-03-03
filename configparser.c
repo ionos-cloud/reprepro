@@ -453,14 +453,14 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 	r = config_getword(iter, &value);
 	if( r == RET_NOTHING ) {
 		configparser_errorlast(iter,
-"Unexpected end of %s-header (value expected).", header);
+"Unexpected end of %s header (value expected).", header);
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
 		return r;
 	if( config_nextnonspace(iter) != EOF ) {
 		configparser_error(iter,
-"End of %s-header expected (but trailing garbage).", header);
+"End of %s header expected (but trailing garbage).", header);
 		free(value);
 		return RET_ERROR;
 	}
@@ -468,7 +468,7 @@ retvalue config_getonlyword(struct configiterator *iter, const char *header, che
 		const char *errormessage = check(value);
 		if( errormessage != NULL ) {
 			configparser_errorlast(iter,
-"Malformed %s-header content '%s': %s\n", header, value, errormessage);
+"Malformed %s header content '%s': %s\n", header, value, errormessage);
 			free(value);
 			checkerror_free(errormessage);
 			return RET_ERROR;
@@ -492,13 +492,13 @@ retvalue config_getuniqwords(struct configiterator *iter, const char *header, ch
 		}
 		if( strlist_in(&data, value) ) {
 			configparser_errorlast(iter,
-"Unexpected duplicate '%s' within %s-header.", value, header);
+"Unexpected duplicate '%s' within %s header.", value, header);
 			free(value);
 			strlist_done(&data);
 			return RET_ERROR;
 		} else if( check != NULL && (errormessage = check(value)) != NULL ) {
 			configparser_errorlast(iter,
-"Malformed %s-header element '%s': %s\n", header, value, errormessage);
+"Malformed %s header element '%s': %s\n", header, value, errormessage);
 			checkerror_free(errormessage);
 			free(value);
 			strlist_done(&data);
@@ -624,7 +624,7 @@ retvalue config_getflags(struct configiterator *iter, const char *header, const 
 			if( ignoreunknown ) {
 				fprintf(stderr,
 "Warning: ignored error parsing config file %s, line %u, column %u:\n"
-"Unknown flag in %s-header.%s\n",
+"Unknown flag in %s header.%s\n",
 					config_filename(iter),
 					config_markerline(iter),
 					config_markercolumn(iter),
@@ -633,7 +633,7 @@ retvalue config_getflags(struct configiterator *iter, const char *header, const 
 			}
 			fprintf(stderr,
 "Error parsing config file %s, line %u, column %u:\n"
-"Unknown flag in %s-header.%s\n",
+"Unknown flag in %s header.%s\n",
 					config_filename(iter),
 					config_markerline(iter),
 					config_markercolumn(iter),
@@ -700,7 +700,7 @@ retvalue config_gettruth(struct configiterator *iter, const char *header, bool *
 	r = config_getword(iter, &value);
 	if( r == RET_NOTHING ) {
 		configparser_errorlast(iter,
-"Unexpected empty boolean %s-header (something like Yes or No expected).", header);
+"Unexpected empty boolean %s header (something like Yes or No expected).", header);
 		return RET_ERROR;
 	}
 	if( RET_WAS_ERROR(r) )
@@ -727,7 +727,7 @@ retvalue config_gettruth(struct configiterator *iter, const char *header, bool *
 		return RET_OK;
 	}
 	configparser_errorlast(iter,
-"Unexpected value in boolean %s-header (something like Yes or No expected).", header);
+"Unexpected value in boolean %s header (something like Yes or No expected).", header);
 	free(value);
 	return RET_ERROR;
 }

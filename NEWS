@@ -1,3 +1,19 @@
+Updates between 3.3.2 and 3.4.0:
++ bugfixes:
+- no longer mix up -S and -P command line arguments (introduced in 3.0.1)
+- some field overriding was erroneously case dependent.
+- many spelling corrections
++ improvements:
+- more support for Checksums-Sha1
+- add copysrc and copyfilter commands (improve copy w.r.t tracking)
+- add restore restoresrc restorefilter and _addpackage commands
+- warn about some impossible -A -T combinations.
+- set fake Suite: in snapshots to quiet apt's signature checks.
+- add REPREPRO_CAUSING_FILE environment variable in log notifiers.
+- update expected fields to new dpkg-dev
+- try to extract missing section and priority of .dsc files from
+  .diff.gz and .tar.gz.
+
 Updates between 3.3.1 and 3.3.2:
 - bugfix in includedeb and a little bit code cleanup
 

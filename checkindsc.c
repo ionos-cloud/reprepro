@@ -1,5 +1,5 @@
 /*  This file is part of "reprepro"
- *  Copyright (C) 2003,2004,2005,2006,2007 Bernhard R. Link
+ *  Copyright (C) 2003,2004,2005,2006,2007,2008 Bernhard R. Link
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
@@ -44,6 +44,7 @@
 #include "ignore.h"
 #include "override.h"
 #include "log.h"
+#include "sourceextraction.h"
 
 extern int verbose;
 
@@ -125,7 +126,7 @@ static retvalue dsc_read(/*@out@*/struct dscpackage **pkg, const char *filename)
 	r = sources_readdsc(&dsc->dsc, filename, filename, &broken);
 	if( RET_IS_OK(r) && broken && !IGNORING_(brokensignatures,
 "'%s' contains only broken signatures.\n"
-"This most likely means the file was damaged (or edited improperly)\n",
+"This most likely means the file was damaged or edited improperly\n",
 				filename) )
 		r = RET_ERROR;
 	if( RET_IS_OK(r) )
@@ -184,6 +185,8 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 	bool usedmarker = false;
 	int i;
 
+	causingfile = dscfilename;
+
 	/* First make sure this distribution has a source section at all,
 	 * for which it has to be listed in the "Architectures:"-field ;-) */
 	if( !strlist_in(&distribution->architectures,"source") ) {
@@ -223,13 +226,72 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 		}
 	}
 
+	r = dirs_getdirectory(dscfilename, &origdirectory);
+	if( RET_WAS_ERROR(r) ) {
+		dsc_free(pkg, database);
+		return r;
+	}
+
+	if( pkg->dsc.section == NULL || pkg->dsc.priority == NULL ) {
+		struct sourceextraction *extraction;
+
+		extraction = sourceextraction_init(
+			(pkg->dsc.section == NULL)?&pkg->dsc.section:NULL,
+			(pkg->dsc.priority == NULL)?&pkg->dsc.priority:NULL);
+		if( FAILEDTOALLOC(extraction) ) {
+			free(origdirectory);
+			dsc_free(pkg, database);
+			return RET_ERROR_OOM;
+		}
+		for( i = 0 ; i < pkg->dsc.files.names.count ; i ++ )
+			sourceextraction_setpart(extraction, i,
+					pkg->dsc.files.names.values[i]);
+		while( sourceextraction_needs(extraction, &i) ) {
+			char *fullfilename = calc_dirconcat(origdirectory,
+					pkg->dsc.files.names.values[i]);
+			if( FAILEDTOALLOC(fullfilename) ) {
+				free(origdirectory);
+				dsc_free(pkg, database);
+				return RET_ERROR_OOM;
+			}
+			/* while it would nice to try at the pool if we
+			 * do not have the file here, to know its location
+			 * in the pool we need to know the component. And
+			 * for the component we might need the section first */
+			// TODO: but if forcecomponent is set it might be possible.
+			r = sourceextraction_analyse(extraction, fullfilename);
+			free(fullfilename);
+			if( RET_WAS_ERROR(r) ) {
+				free(origdirectory);
+				dsc_free(pkg, database);
+				sourceextraction_abort(extraction);
+				return r;
+			}
+		}
+		r = sourceextraction_finish(extraction);
+		if( RET_WAS_ERROR(r) ) {
+			free(origdirectory);
+			dsc_free(pkg, database);
+			return r;
+		}
+	}
+
+	if( pkg->dsc.section == NULL && pkg->dsc.priority == NULL ) {
+		fprintf(stderr, "No section and no priority for '%s', skipping.\n",
+				pkg->dsc.name);
+		free(origdirectory);
+		dsc_free(pkg, database);
+		return RET_ERROR;
+	}
 	if( pkg->dsc.section == NULL ) {
-		fprintf(stderr, "No section was given for '%s', skipping.\n",pkg->dsc.name);
+		fprintf(stderr, "No section for '%s', skipping.\n", pkg->dsc.name);
+		free(origdirectory);
 		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
 	if( pkg->dsc.priority == NULL ) {
-		fprintf(stderr, "No priority was given for '%s', skipping.\n",pkg->dsc.name);
+		fprintf(stderr, "No priority for '%s', skipping.\n", pkg->dsc.name);
+		free(origdirectory);
 		dsc_free(pkg, database);
 		return RET_ERROR;
 	}
@@ -240,17 +302,12 @@ retvalue dsc_add(struct database *database,const char *forcecomponent,const char
 			pkg->dsc.name, pkg->dsc.section, forcecomponent,
 			&pkg->component);
 	if( RET_WAS_ERROR(r) ) {
+		free(origdirectory);
 		dsc_free(pkg, database);
 		return r;
 	}
 	if( verbose > 0 && forcecomponent == NULL ) {
 		fprintf(stderr,"%s: component guessed as '%s'\n",dscfilename,pkg->component);
-	}
-
-	r = dirs_getdirectory(dscfilename, &origdirectory);
-	if( RET_WAS_ERROR(r) ) {
-		dsc_free(pkg, database);
-		return r;
 	}
 
 	pkg->deleteonfailure = calloc(pkg->dsc.files.names.count+1, sizeof(bool));

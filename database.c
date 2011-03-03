@@ -100,13 +100,14 @@ static retvalue database_lock(struct database *db, size_t waitforlock) {
 
 			}
 			fprintf(stderr,
-"The lockfile '%s' already exists, there might be another instance with the\n"
+"The lock file '%s' already exists. There might be another instance with the\n"
 "same database dir running. To avoid locking overhead, only one process\n"
-"can access the database at the same time. Only delete the lockfile if\n"
+"can access the database at the same time. Do not delete the lock file unless\n"
 "you are sure no other version is still running!\n", lockfile);
 
 		} else
-			fprintf(stderr,"Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+			fprintf(stderr, "Error %d creating lock file '%s': %s!\n",
+					e, lockfile, strerror(e));
 		free(lockfile);
 		return RET_ERRNO(e);
 	}
@@ -114,7 +115,8 @@ static retvalue database_lock(struct database *db, size_t waitforlock) {
 	// with the non-atomity of O_EXCL with nfs-filesystems...
 	if( close(fd) != 0 ) {
 		int e = errno;
-		fprintf(stderr,"(Late) Error creating lockfile '%s': %d=%m!\n",lockfile,e);
+		fprintf(stderr, "(Late) Error %d creating lock file '%s': %s!\n",
+				e, lockfile, strerror(e));
 		(void)unlink(lockfile);
 		free(lockfile);
 		return RET_ERRNO(e);
@@ -134,7 +136,8 @@ static void releaselock(struct database *db) {
 		return;
 	if( unlink(lockfile) != 0 ) {
 		int e = errno;
-		fprintf(stderr,"Error deleting lockfile '%s': %d=%m!\n",lockfile,e);
+		fprintf(stderr, "Error %d deleting lock file '%s': %s!\n",
+				e, lockfile, strerror(e));
 		(void)unlink(lockfile);
 	}
 	free(lockfile);
@@ -459,8 +462,8 @@ static retvalue warnunusedtracking(const struct strlist *codenames, const struct
 			if( d == NULL )
 				(void)fputs(
 "This either means you removed a distribution from the distributions config\n"
-"file without calling clearvanished (or at least removealltracks), you were\n"
-"bitten by a bug in retrack in versions < 3.0.0, you found a new bug or your\n"
+"file without calling clearvanished (or at least removealltracks), you\n"
+"experienced a bug in retrack in versions < 3.0.0, you found a new bug or your\n"
 "config does not belong to this database.\n",
 						stderr);
 			else
@@ -598,8 +601,8 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 		return r;
 	if( c < 0 ) {
 		fprintf(stderr,
-"According to %s/version this database was created with an future version\n"
-"and uses features this version will not be able to understand. Aborting...\n",
+"According to %s/version this database was created with a future version\n"
+"and uses features this version cannot understand. Aborting...\n",
 				db->directory);
 		return RET_ERROR;
 	}
@@ -608,14 +611,14 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 
 	if( strncmp(db->dbversion, "bdb", 3) != 0 ) {
 		fprintf(stderr,
-"According to %s/version this database was created with an yet unsupported\n"
+"According to %s/version this database was created with a yet unsupported\n"
 "database library. Aborting...\n",
 				db->directory);
 		return RET_ERROR;
 	}
 	if( strncmp(db->lastsupporteddbversion, "bdb", 3) != 0 ) {
 		fprintf(stderr,
-"According to %s/version this database was created with an yet unsupported\n"
+"According to %s/version this database was created with a yet unsupported\n"
 "database library. Aborting...\n",
 				db->directory);
 		return RET_ERROR;
@@ -625,9 +628,9 @@ static retvalue readversionfile(struct database *db, bool nopackagesyet) {
 		return r;
 	if( c < 0 ) {
 		fprintf(stderr,
-"According to %s/version this database was created with an future version\n"
-"%s of libdb the version this binary is linked against cannot yet\n"
-"understand. Aborting...\n",
+"According to %s/version this database was created with a future version\n"
+"%s of libdb. The libdb version this binary is linked against cannot yet\n"
+"handle this format. Aborting...\n",
 				db->directory, db->dbversion+3);
 		return RET_ERROR;
 	}
@@ -1761,9 +1764,9 @@ retvalue database_openfiles(struct database *db, const char *filesdir) {
 	if( RET_IS_OK(r) ) {
 		if( strlist_in(&identifiers, "filelists") ) {
 			fprintf(stderr,
-"Your %s/contents.cache.db file still contains a table of cached filelists\n"
-"in the old (pre 3.0.0) format. You have to either delete that file (and loose\n"
-"all caches of filelists) or run reprepro with argument translatefilelists\n"
+"Your %s/contents.cache.db file still contains a table of cached file lists\n"
+"in the old (pre 3.0.0) format. You have to either delete that file (and lose\n"
+"all caches of file lists) or run reprepro with argument translatefilelists\n"
 "to translate the old caches into the new format.\n",	db->directory);
 			strlist_done(&identifiers);
 			return RET_ERROR;

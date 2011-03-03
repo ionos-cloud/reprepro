@@ -166,7 +166,8 @@ static inline retvalue filterlistfile_read(struct filterlistfile *n, const char 
 
 	f = fopen(filename,"r");
 	if( f == NULL ) {
-		fprintf(stderr,"Cannot open %s for reading: %m!\n",filename);
+		fprintf(stderr, "Cannot open %s for reading: %s!\n",
+				filename, strerror(errno));
 		return RET_ERROR;
 	}
 	r = filterlistfile_parse(n, filename, f);
