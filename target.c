@@ -38,6 +38,7 @@
 #include "md5sum.h"
 #include "dirs.h"
 #include "dpkgversions.h"
+#include "override.h"
 #include "target.h"
 
 extern int verbose;
@@ -46,7 +47,9 @@ static retvalue target_initialize(
 	const char *codename,const char *component,const char *architecture,
 	/*@observer@*/const char *packagetype,
 	get_name getname,get_version getversion,get_installdata getinstalldata,
-	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,/*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
+	get_filekeys getfilekeys, get_upstreamindex getupstreamindex,
+	do_reoverride doreoverride,
+	/*@null@*//*@only@*/char *directory, /*@dependent@*/const struct exportmode *exportmode, /*@out@*/struct target **d) {
 
 	struct target *t;
 
@@ -75,19 +78,20 @@ static retvalue target_initialize(
 	t->getinstalldata = getinstalldata;
 	t->getfilekeys = getfilekeys;
 	t->getupstreamindex = getupstreamindex;
+	t->doreoverride = doreoverride;
 	*d = t;
 	return RET_OK;
 }
 
 retvalue target_initialize_ubinary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,mprintf("%s/debian-installer/binary-%s",component,architecture),exportmode,target);
+	return target_initialize(codename,component,architecture,"udeb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,ubinaries_getupstreamindex,ubinaries_doreoverride,mprintf("%s/debian-installer/binary-%s",component,architecture),exportmode,target);
 }
 retvalue target_initialize_binary(const char *codename,const char *component,const char *architecture,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,mprintf("%s/binary-%s",component,architecture),exportmode,target);
+	return target_initialize(codename,component,architecture,"deb",binaries_getname,binaries_getversion,binaries_getinstalldata,binaries_getfilekeys,binaries_getupstreamindex,binaries_doreoverride,mprintf("%s/binary-%s",component,architecture),exportmode,target);
 }
 
 retvalue target_initialize_source(const char *codename,const char *component,const struct exportmode *exportmode,struct target **target) {
-	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,mprintf("%s/source",component),exportmode,target);
+	return target_initialize(codename,component,"source","dsc",sources_getname,sources_getversion,sources_getinstalldata,sources_getfilekeys,sources_getupstreamindex,sources_doreoverride,mprintf("%s/source",component),exportmode,target);
 }
 
 
@@ -369,6 +373,18 @@ retvalue target_check(struct target *target,filesdb filesdb,references refs,int 
 	data.filesdb = filesdb;
 	data.target = target;
 	return packages_foreach(target->packages,checkpkg,&data,force);
+}
+
+/* Reapply override information */
+
+retvalue target_reoverride(struct target *target,const struct alloverrides *ao) {
+	assert(target->packages!=NULL);
+	assert(ao!=NULL);
+
+	if( verbose > 1 ) {
+		fprintf(stderr,"Reapplying overrides packages in '%s'...\n",target->identifier);
+	}
+	return packages_modifyall(target->packages,target->doreoverride,(void*)ao,&target->wasmodified);
 }
 
 /* export a database */

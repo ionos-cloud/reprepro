@@ -1,3 +1,11 @@
+Updates since 0.2:
+- Override: SourceOverride: replaced by (Deb|UDeb|Dsc)Override
+- new command reoverride to reapply override information.
+- sometimes be a bit more verbose
+- new iteratedupdate command , which is a variant of 
+  update but needs less memory.
+- to ignore Release signature failures two --force's are needed now.
+
 Updates since 0.1.1:
 - _md5sums command got removed. New command to dump
   the contents of the files database is _listmd5sums

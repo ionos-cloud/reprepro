@@ -14,6 +14,7 @@ fi
 SRCDIR="$1"
 REPREPRO="$SRCDIR/reprepro"
 TESTS="$SRCDIR/tests"
+UPDATETYPE=iteratedupdate
 export PATH="$TESTS:$PATH"
 if ! [ -x "$REPREPRO" ] ; then
 	echo "Could not find $REPREPRO!" >&2
@@ -37,8 +38,8 @@ DebIndices: Packages Release . .gz $SRCDIR/docs/bzip.example
 UDebIndices: Packages .gz
 DscIndices: Sources Release . .gz $SRCDIR/docs/bzip.example
 Description: test with all fields set
-Override: binoverride
-SourceOverride: srcoverride
+DebOverride: binoverride
+DscOverride: srcoverride
 CONFEND
 
 "$REPREPRO" -b . export
@@ -213,9 +214,9 @@ simple			install
 bloat+-0a9z.app-addons	install
 END
 
-"$REPREPRO" -b . update test1
-"$REPREPRO" -b . update test1
-"$REPREPRO" --nolistsdownload -b . update test1
+"$REPREPRO" -b . $UPDATETYPE test1
+"$REPREPRO" -b . $UPDATETYPE test1
+"$REPREPRO" --nolistsdownload -b . $UPDATETYPE test1
 find dists/test2/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' | sed -e 's/test2/test1/' -e 's/coal/abacus/' > test2
 find dists/test1/ \( -name "Packages.gz" -o -name "Sources.gz" \) -print0 | xargs -0 zgrep '^Package: ' > test1
 diff -u test2 test1

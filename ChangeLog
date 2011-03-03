@@ -1,3 +1,38 @@
+2005-04-05  Bernhard R. Link <brlink@debian.org>	
+	* create files without executeable bit set
+	when copying files.
+
+2005-03-29  Bernhard R. Link <brlink@debian.org>
+	* iteratedupdate directly exports indices instead
+	of all at the end...
+
+2005-03-28  Bernhard R. Link <brlink@debian.org>
+	* Implement "interatedupdate" command, which iterates the 
+	distributions and targets within them, instead of first 
+	downloading all lists, then processing all lists, then
+	downloading all packages and then installing them all.
+	(This can be a bit slower, but needs less memory)
+
+	* Two --force are needed to ignore wrong Release.gpg
+
+2005-03-27  Bernhard R. Link <brlink@debian.org>
+	* Implement ".tobedeleted" feature for
+	export skripts.
+
+2005-03-22  Bernhard R. Link <brlink@debian.org>
+	* Repeat that there were errors at the
+	end of reprepro.
+
+2005-03-11  Bernhard R. Link <brlink@debian.org>
+	* Do not accept multiple -A,-C,-T,-S or -Ps.
+
+2005-03-02  Bernhard R. Link <brlink@debian.org>
+	* Change Override/SrcOverride to
+	DebOverride/UDebOverride/DscOverride
+
+	* add new command reoverride to reapply
+	overrides to all packages.
+	
 2005-02-20  Bernhard R. Link <brlink@debian.org>
 	* add docs/tiffany.example, which generates
 	apt-qupdate'able .diff directories.

@@ -15,6 +15,7 @@
 #endif
 
 struct target;
+struct alloverrides;
 
 typedef retvalue get_name(struct target *,const char *,/*@out@*/char **);
 typedef retvalue get_version(struct target *,const char *,/*@out@*/char **);
@@ -23,6 +24,7 @@ typedef retvalue get_installdata(struct target *,const char *,const char *,const
 typedef retvalue get_filekeys(struct target *,const char *,/*@out@*/struct strlist *filekeys,/*@out@*/struct strlist *md5sum);
 typedef char *get_upstreamindex(struct target *,const char *suite_from,
 		const char *component_from,const char *architecture);
+typedef retvalue do_reoverride(const struct alloverrides *,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
 
 struct target {
 	char *codename;
@@ -41,6 +43,7 @@ struct target {
 	get_installdata *getinstalldata;
 	get_filekeys *getfilekeys;
 	get_upstreamindex *getupstreamindex;
+	do_reoverride *doreoverride;
 	bool_t wasmodified;
 	/* the next one in the list of targets of a distribution */
 	struct target *next;
@@ -70,5 +73,6 @@ retvalue target_removepackage(struct target *target,references refs,const char *
 retvalue target_writeindices(const char *dirofdist,struct target *target,int force,bool_t onlyneeded);
 retvalue target_check(struct target *target,filesdb filesdb,references refsdb,int force);
 retvalue target_rereference(struct target *target,references refs,int force);
+retvalue target_reoverride(struct target *target,const struct alloverrides *ao);
 
 #endif

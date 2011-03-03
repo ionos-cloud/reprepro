@@ -19,6 +19,8 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <zlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -481,7 +483,6 @@ void exportmode_done(struct exportmode *mode) {
 retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *releasedfiles, int force) {
 	retvalue result,r;
 	int i,e;
-	size_t l;
 
 	result = RET_NOTHING;
 
@@ -498,7 +499,13 @@ retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *released
 	for( i = 0 ; i < releasedfiles->count ; i++ ) {
 		const char *relname = releasedfiles->values[i];
 		char *fullfilename,*md5sum;
+		size_t l;
 
+		l = strlen(relname);
+		if( l > 12 && strcmp(relname+(l-12),".tobedeleted") == 0 ) {
+			/* deleted files will not show up in a Release file */
+			continue;
+		}
 		fullfilename = calc_dirconcat(dirofdist,relname);
 		if( fullfilename == NULL )
 			return RET_ERROR_OOM;
@@ -533,7 +540,6 @@ retvalue export_checksums(const char *dirofdist,FILE *f,struct strlist *released
 		checkwritten;
 		e = fputc(' ',f) - 1;
 		checkwritten;
-		l = strlen(relname);
 		if( l > 4 && strcmp(relname+(l-4),".new") == 0 ) {
 			size_t written;
 			written = fwrite(relname,sizeof(char),l-4,f);
@@ -568,6 +574,19 @@ retvalue export_finalize(const char *dirofdist,struct strlist *releasedfiles, in
 		size_t l;
 
 		l = strlen(relname);
+		if( l > 12 && strcmp(relname+(l-12),".tobedeleted") == 0 ) {
+			tmpfullfilename = calc_dirconcatn(dirofdist,relname,l-12);
+			if( tmpfullfilename == NULL )
+				return RET_ERROR_OOM;
+			e = unlink(tmpfullfilename);
+			if( e < 0 ) {
+				e = errno;
+				// TODO: what to do in case of error?
+				fprintf(stderr,"Error deleting %s: %m. (Will be ignored)\n",tmpfullfilename);
+			}
+			free(tmpfullfilename);
+			continue;
+		}
 		if( l <= 4 || strcmp(relname+(l-4),".new") != 0 )
 			continue;
 		tmpfullfilename = calc_dirconcat(dirofdist,relname);

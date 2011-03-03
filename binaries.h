@@ -20,5 +20,9 @@ char *binaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
 char *ubinaries_getupstreamindex(struct target *target,const char *suite_from,
 		const char *component_from,const char *architecture);
+retvalue binaries_doreoverride(const struct alloverrides *alloverrides,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+retvalue ubinaries_doreoverride(const struct alloverrides *alloverrides,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk);
+	
+
 
 #endif

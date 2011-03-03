@@ -168,6 +168,12 @@ description of
 .B conf/updates
 below.
 .TP
+.BR iteratedupdate " [ " \fIcodenames\fP " ]"
+This is an experimental variant of update, that processes
+the distributions and targets within them one by one,
+resulting in much lower memory consumption for an update
+of multiple distributions.
+.TP
 .BR checkupdate " [ " \fIcodenames\fP " ]"
 Same like
 .B update,
@@ -185,7 +191,7 @@ distribution, applying override information and guessing all values
 not given and guessable.
 
 Note that as .dsc files do not contain section or priorty, but the
-Sources.gz file does, you have to either specify a SrcOverride or
+Sources.gz file does, you have to either specify a DscOverride or
 given them via
 .B \-S
 and
@@ -227,6 +233,14 @@ not known to be needed.
 .B deleteunreferenced
 Remove all known files (and forget them) in the pool not marked to be
 needed by anything.
+.TP
+.BR reoverride " [ " \fIcodenames\fP " ]"
+Reapply the override files to the given distributions (Or only parts
+thereof given by \fB\-Af\fP,\fB\-C\fP or \fB\-T\fP).
+
+Note: only the control information is changed. Changing a section
+to a value, that would cause an other component to be guessed, will
+not cause any warning.
 .SS internal commands
 These are hopefully never needed, but allow manual intervention.
 .B WARNING:
@@ -361,11 +375,17 @@ When this field is present, a Relese.gpg file will be generated.
 The content will be used by future version to choose the key used
 to sign.
 .TP
-.B Override
-When this field is present, it describes the binary override file.
+.B DebOverride
+When this field is present, it describes the override file used
+when including .deb files.
 .TP
-.B SourceOverride
-When this field is present, it describes the source override file.
+.B UDebOverride
+When this field is present, it describes the override file used
+when including .ddeb files.
+.TP
+.B DscOverride
+When this field is present, it describes the override file used
+when including .dsc files.
 .TP
 .B DebIndices\fR, \fBUDebIndices\fR, \fBDscIndices
 Choose what kind of Index files to export. The first

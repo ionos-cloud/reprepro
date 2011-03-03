@@ -30,6 +30,7 @@
 #include "sources.h"
 #include "names.h"
 #include "dpkgversions.h"
+#include "override.h"
 
 extern int verbose;
 
@@ -340,4 +341,24 @@ retvalue sources_getfilekeys(UNUSED(struct target *t),const char *chunk,struct s
 char *sources_getupstreamindex(UNUSED(struct target *target),const char *suite_from,
 		const char *component_from,UNUSED(const char *architecture)) {
 	return mprintf("dists/%s/%s/source/Sources.gz",suite_from,component_from);
+}
+
+retvalue sources_doreoverride(const struct alloverrides *ao,const char *packagename,const char *controlchunk,/*@out@*/char **newcontrolchunk) {
+	const struct overrideinfo *o;
+	struct fieldtoadd *fields;
+	char *newchunk;
+
+	o = override_search(ao->dsc, packagename);
+	if( o == NULL )
+		return RET_NOTHING;
+
+	fields = override_addreplacefields(o,NULL);
+	if( fields == NULL )
+		return RET_ERROR_OOM;
+	newchunk = chunk_replacefields(controlchunk,fields,"Files");
+	addfield_free(fields);
+	if( newchunk == NULL )
+		return RET_ERROR_OOM;
+	*newcontrolchunk = newchunk;
+	return RET_OK;
 }

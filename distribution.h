@@ -28,7 +28,7 @@ struct distribution {
 	/* the key to sign with, may be NULL: */
 	/*@null@*/char *signwith;
 	/* the override file to use by default */
-	/*@null@*/char *override,*srcoverride;
+	/*@null@*/char *deb_override,*udeb_override,*dsc_override;
 	/* the list of components containing a debian-installer dir, normaly only "main" */
 	struct strlist udebcomponents;
 	/* what kind of index files to generate */

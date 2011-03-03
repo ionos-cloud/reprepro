@@ -424,7 +424,7 @@ static retvalue changes_read(const char *filename,/*@out@*/struct changes **chan
 #undef R
 }
 
-static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,/*@null@*/const struct overrideinfo *srcoverride,/*@null@*/const struct overrideinfo *override) {
+static retvalue changes_fixfields(const struct distribution *distribution,const char *filename,struct changes *changes,/*@null@*/const char *forcecomponent,/*@null@*/const char *forcesection,/*@null@*/const char *forcepriority,const struct alloverrides *ao) {
 	struct fileentry *e;
 	retvalue r;
 
@@ -443,7 +443,7 @@ static retvalue changes_fixfields(const struct distribution *distribution,const 
 		const char *force = NULL;
 		if( !forcesection || !forcepriority ) {
 			oinfo = override_search(
-					FE_BINARY(e->type)?override:srcoverride,
+			FE_BINARY(e->type)?(e->type==fe_UDEB?ao->udeb:ao->deb):ao->dsc,
 					e->name);
 		}
 		
@@ -687,7 +687,7 @@ static retvalue changes_includefiles(filesdb filesdb,const char *filename,struct
 	return r;
 }
 
-static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,/*@null@*/const struct overrideinfo *srcoverride,/*@null@*/const struct overrideinfo *binoverride,int force,/*@null@*/struct strlist *dereferencedfilekeys, bool_t onlysigned) {
+static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb filesdb,struct distribution *distribution,struct changes *changes,const struct alloverrides *ao,int force,/*@null@*/struct strlist *dereferencedfilekeys, bool_t onlysigned) {
 	struct fileentry *e;
 	retvalue r;
 	bool_t somethingwasmissed = FALSE;
@@ -711,7 +711,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 				"deb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				binoverride,
+				ao->deb,
 				force,D_INPLACE,dereferencedfilekeys);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
@@ -722,7 +722,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 				"udeb",
 				distribution,fullfilename,
 				e->filekey,e->md5sum,
-				binoverride,
+				ao->udeb,
 				force,D_INPLACE,dereferencedfilekeys);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
@@ -734,7 +734,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 				distribution,fullfilename,
 				e->filekey,e->basename,
 				changes->srcdirectory,e->md5sum,
-				srcoverride,
+				ao->dsc,
 				force,D_INPLACE,dereferencedfilekeys,onlysigned);
 			if( r == RET_NOTHING )
 				somethingwasmissed = TRUE;
@@ -755,7 +755,7 @@ static retvalue changes_includepkgs(const char *dbdir,references refs,filesdb fi
 /* insert the given .changes into the mirror in the <distribution>
  * if forcecomponent, forcesection or forcepriority is NULL
  * get it from the files or try to guess it. */
-retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct overrideinfo *srcoverride,const struct overrideinfo *binoverride,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
+retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const char *packagetypeonly,const char *forcecomponent,const char *forcearchitecture,const char *forcesection,const char *forcepriority,struct distribution *distribution,const struct alloverrides *ao,const char *changesfilename,int force,int delete,struct strlist *dereferencedfilekeys,bool_t onlysigned) {
 	retvalue r;
 	struct changes *changes;
 
@@ -773,7 +773,7 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 		fprintf(stderr,"Warning: .changes put in a distribution not listed within it!\n");
 	}
 	/* look for component, section and priority to be correct or guess them*/
-	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,srcoverride,binoverride);
+	r = changes_fixfields(distribution,changesfilename,changes,forcecomponent,forcesection,forcepriority,ao);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);
 		return r;
@@ -795,7 +795,7 @@ retvalue changes_add(const char *dbdir,references refs,filesdb filesdb,const cha
 
 	/* add the source and binary packages in the given distribution */
 	r = changes_includepkgs(dbdir,refs,filesdb,
-		distribution,changes,srcoverride,binoverride,force,
+		distribution,changes,ao,force,
 		dereferencedfilekeys, onlysigned);
 	if( RET_WAS_ERROR(r) ) {
 		changes_free(changes);

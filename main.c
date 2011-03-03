@@ -672,6 +672,63 @@ ACTION_D(update) {
 	return result;
 }
 
+ACTION_D(iteratedupdate) {
+	retvalue result,r;
+	bool_t doexport;
+	struct update_pattern *patterns;
+	struct distribution *distributions;
+	struct update_distribution *u_distributions;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro iteratedupdate [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = dirs_make_recursive(listdir);	
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) )
+		return result;
+
+	result = updates_getpatterns(confdir,&patterns);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+
+	result = updates_calcindices(listdir,patterns,distributions,&u_distributions);
+	if( RET_WAS_ERROR(result) ) {
+		updates_freepatterns(patterns);
+		r = distribution_freelist(distributions);
+		RET_ENDUPDATE(result,r);
+		return result;
+	}
+
+	if( !keepunneededlists ) {
+		result = updates_clearlists(listdir,u_distributions);
+	}
+	if( !RET_WAS_ERROR(result) )
+		result = updates_iteratedupdate(confdir,dbdir,distdir,methoddir,filesdb,references,u_distributions,force,nolistsdownload,dereferenced);
+	updates_freeupdatedistributions(u_distributions);
+	updates_freepatterns(patterns);
+
+	doexport = force>0 || RET_IS_OK(result);
+	if( doexport && verbose >= 0 )
+		fprintf(stderr,"Exporting indices...\n");
+	if( doexport )
+		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir,force);
+	else
+		r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
+
 ACTION_N(checkupdate) {
 	retvalue result,r;
 	struct update_pattern *patterns;
@@ -838,6 +895,64 @@ ACTION_F(checkpool) {
 
 	return files_checkpool(filesdb,argc == 2);
 }
+/*****************reapplying override info***************/
+
+static retvalue reoverride_target(void *data,struct target *target) {
+	const struct alloverrides *ao = data;
+	retvalue result,r;
+
+	r = target_initpackagesdb(target,dbdir);
+	if( RET_WAS_ERROR(r) )
+		return r;
+	result = target_reoverride(target,ao);
+	r = target_closepackagesdb(target);
+	RET_ENDUPDATE(result,r);
+	return result;
+}
+
+ACTION_N(reoverride) {
+	retvalue result,r;
+	struct distribution *distributions,*d;
+
+	if( argc < 1 ) {
+		fprintf(stderr,"reprepro [-T ...] [-C ...] [-A ...] reoverride [<distributions>]\n");
+		return RET_ERROR;
+	}
+
+	result = distribution_getmatched(confdir,argc-1,argv+1,&distributions);
+	assert( result != RET_NOTHING );
+	if( RET_WAS_ERROR(result) ) {
+		return result;
+	}
+	result = RET_NOTHING;
+	for( d = distributions ; d != NULL ; d = d->next ) {
+		struct alloverrides ao;
+
+		if( verbose > 0 ) {
+			fprintf(stderr,"Reapplying override to %s...\n",d->codename);
+		}
+
+		r = override_readall(overridedir,&ao,d->deb_override,d->udeb_override,d->dsc_override);
+		if( RET_IS_OK(r) ) {
+			r = distribution_foreach_part(d,component,architecture,packagetype,reoverride_target,&ao,FALSE);
+			override_free(ao.deb);
+			override_free(ao.udeb);
+			override_free(ao.dsc);
+		} else if( r == RET_NOTHING ) {
+			fprintf(stderr,"No override files, thus nothing to do for %s.\n",d->codename);
+		}
+		RET_UPDATE(result,r);
+		if( RET_WAS_ERROR(r) && force <= 0 )
+			break;
+	}
+	if( RET_IS_OK(result) )
+		r = distribution_exportandfreelist(distributions,confdir,dbdir,distdir,force);
+	else
+		r = distribution_freelist(distributions);
+	RET_ENDUPDATE(result,r);
+
+	return result;
+}
 
 /***********************include******************************************/
 
@@ -845,7 +960,8 @@ ACTION_D(includedeb) {
 	retvalue result,r;
 	struct distribution *distribution;
 	struct overrideinfo *override;
-	const char *binarytype;
+	bool_t isudeb;
+	const char *overridefile;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] include[u]deb <distribution> <package>\n");
@@ -856,17 +972,18 @@ ACTION_D(includedeb) {
 		return RET_ERROR;
 	}
 	if( strcmp(argv[0],"includeudeb") == 0 ) {
-		binarytype="udeb";
+		isudeb = TRUE;
 		if( packagetype != NULL && strcmp(packagetype,"udeb") != 0 ) {
 			fprintf(stderr,"Calling includeudeb with a -T different from 'udeb' makes no sense!\n");
 			return RET_ERROR;
 		}
 	} else if( strcmp(argv[0],"includedeb") == 0 ) {
-		binarytype="deb";
+		isudeb = FALSE;
 		if( packagetype != NULL && strcmp(packagetype,"deb") != 0 ) {
 			fprintf(stderr,"Calling includedeb with -T something where something is not 'deb' makes no sense!\n");
 			return RET_ERROR;
 		}
+
 	} else {
 		fprintf(stderr,"Internal error with command parsing!\n");
 		return RET_ERROR;
@@ -875,8 +992,20 @@ ACTION_D(includedeb) {
 	result = distribution_get(&distribution,confdir,argv[1]);
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) ) {
+		override_free(override);
 		return result;
 	}
+
+	overridefile = isudeb?distribution->udeb_override:distribution->deb_override;
+	if( overridefile != NULL ) {
+		result = override_read(overridedir,overridefile,&override);
+		if( RET_WAS_ERROR(result) ) {
+			r = distribution_free(distribution);
+			RET_ENDUPDATE(result,r);
+			return result;
+		}
+	} else
+		override = NULL;
 
 	// TODO: same for component? (depending on type?)
 	if( architecture != NULL && !strlist_in(&distribution->architectures,architecture) ){
@@ -885,18 +1014,8 @@ ACTION_D(includedeb) {
 		return RET_ERROR;
 	}
 
-	override = NULL;
-	if( distribution->override != NULL ) {
-		result = override_read(overridedir,distribution->override,&override);
-		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
-	}
-
 	result = deb_add(dbdir,references,filesdb,component,architecture,
-			section,priority,binarytype,distribution,argv[2],
+			section,priority,isudeb?"udeb":"deb",distribution,argv[2],
 			NULL,NULL,override,force,delete,
 			dereferenced);
 
@@ -936,8 +1055,8 @@ ACTION_D(includedsc) {
 	if( RET_WAS_ERROR(result) )
 		return result;
 	srcoverride = NULL;
-	if( distribution->srcoverride != NULL ) {
-		result = override_read(overridedir,distribution->srcoverride,&srcoverride);
+	if( distribution->dsc_override != NULL ) {
+		result = override_read(overridedir,distribution->dsc_override,&srcoverride);
 		if( RET_WAS_ERROR(result) ) {
 			r = distribution_free(distribution);
 			RET_ENDUPDATE(result,r);
@@ -959,7 +1078,7 @@ ACTION_D(includedsc) {
 ACTION_D(include) {
 	retvalue result,r;
 	struct distribution *distribution;
-	struct overrideinfo *override,*srcoverride;
+	struct alloverrides ao;
 
 	if( argc < 3 ) {
 		fprintf(stderr,"reprepro [--delete] include <distribution> <.changes-file>\n");
@@ -970,28 +1089,17 @@ ACTION_D(include) {
 	assert( result != RET_NOTHING );
 	if( RET_WAS_ERROR(result) )
 		return result;
-	override = NULL;
-	if( distribution->override != NULL ) {
-		result = override_read(overridedir,distribution->override,&override);
-		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
-	}
-	srcoverride = NULL;
-	if( distribution->srcoverride != NULL ) {
-		result = override_read(overridedir,distribution->srcoverride,&srcoverride);
-		if( RET_WAS_ERROR(result) ) {
-			r = distribution_free(distribution);
-			RET_ENDUPDATE(result,r);
-			return result;
-		}
+
+	result = override_readall(overridedir,&ao,distribution->deb_override,distribution->udeb_override,distribution->dsc_override);
+	if( RET_WAS_ERROR(result) ) {
+		r = distribution_free(distribution);
+		RET_ENDUPDATE(result,r);
+		return result;
 	}
 
-	result = changes_add(dbdir,references,filesdb,packagetype,component,architecture,section,priority,distribution,srcoverride,override,argv[2],force,delete,dereferenced,onlyacceptsigned);
+	result = changes_add(dbdir,references,filesdb,packagetype,component,architecture,section,priority,distribution,&ao,argv[2],force,delete,dereferenced,onlyacceptsigned);
 
-	override_free(override);override_free(srcoverride);
+	override_free(ao.deb);override_free(ao.udeb);override_free(ao.dsc);
 	
 	r = distribution_export(distribution,confdir,dbdir,distdir,force,TRUE);
 	RET_ENDUPDATE(result,r);
@@ -1094,12 +1202,14 @@ static const struct action {
 	{"listfilter", 		A_N(listfilter)},
 	{"export", 		A_N(export)},
 	{"check", 		A_RF(check)},
+	{"reoverride", 		A_N(reoverride)},
 	{"checkpool", 		A_F(checkpool)},
 	{"rereference", 	A_R(rereference)},
 	{"dumpreferences", 	A_R(dumpreferences)},
 	{"dumpunreferenced", 	A_RF(dumpunreferenced)},
 	{"deleteunreferenced", 	A_RF(deleteunreferenced)},
 	{"update",		A_D(update)},
+	{"iteratedupdate",	A_D(iteratedupdate)},
 	{"checkupdate",		A_N(checkupdate)},
 	{"includedeb",		A_D(includedeb)},
 	{"includeudeb",		A_D(includedeb)},
@@ -1371,22 +1481,47 @@ int main(int argc,char *argv[]) {
 				}
 				break;
 			case 'C':
+				if( component != NULL && 
+						strcmp(component,optarg) != 0) {
+					fprintf(stderr,"Multiple '-C' are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(component);
 				component = strdup(optarg);
 				break;
 			case 'A':
+				if( architecture != NULL && 
+						strcmp(architecture,optarg) != 0) {
+					fprintf(stderr,"Multiple '-A's are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(architecture);
 				architecture = strdup(optarg);
 				break;
 			case 'T':
+				if( packagetype != NULL && 
+						strcmp(packagetype,optarg) != 0) {
+					fprintf(stderr,"Multiple '-T's are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(packagetype);
 				packagetype = strdup(optarg);
 				break;
 			case 'S':
+				if( section != NULL && 
+						strcmp(section,optarg) != 0) {
+					fprintf(stderr,"Multiple '-S' are not supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(section);
 				section = strdup(optarg);
 				break;
 			case 'P':
+				if( priority != NULL && 
+						strcmp(priority,optarg) != 0) {
+					fprintf(stderr,"Multiple '-P's are mpt supported!\n");
+					exit(EXIT_FAILURE);
+				}
 				free(priority);
 				priority = strdup(optarg);
 				break;
@@ -1446,6 +1581,12 @@ int main(int argc,char *argv[]) {
 			free(packagetype);
 			free(section);
 			free(priority);
+			if( RET_WAS_ERROR(r) ) {
+				if( r == RET_ERROR_OOM )
+					fputs("Out of Memory!\n",stderr);
+				else if( verbose >= 0 )
+					fputs("There have been errors!\n",stderr);
+			}
 			exit(EXIT_RET(r));
 		} else
 			a++;
